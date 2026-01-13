@@ -82,5 +82,7 @@ export async function sendVoiceMessage(
  * Convert base64 audio to a playable data URI.
  */
 export function base64ToAudioUri(base64: string): string {
-    return `data:audio/mp3;base64,${base64}`;
+    const uri = `data:audio/mp3;base64,${base64}`;
+    console.log('[Voice] Created audio URI, base64 length:', base64.length, 'total URI length:', uri.length);
+    return uri;
 }

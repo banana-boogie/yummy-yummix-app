@@ -181,6 +181,8 @@ serve(async (req: Request) => {
             language: language, // Pass language for voice selection
         });
 
+        console.info(`[${requestId}] TTS complete, audio size: ${ttsResult.audioBase64.length} chars, format: ${ttsResult.format}`);
+
         // Step 6: Save messages
         await saveMessages(supabase, currentSessionId, transcriptionResult.text, aiResponse.content);
 
@@ -191,6 +193,8 @@ serve(async (req: Request) => {
             audioBase64: ttsResult.audioBase64,
             sessionId: currentSessionId,
         };
+
+        console.info(`[${requestId}] Returning response: transcription="${transcriptionResult.text}", response length=${aiResponse.content.length}, audio=${ttsResult.audioBase64.length} chars`);
 
         return new Response(
             JSON.stringify(response),

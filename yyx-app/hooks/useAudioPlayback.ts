@@ -36,10 +36,12 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
             stop();
 
             setIsLoading(true);
+            console.log('[Audio] Starting playback for URI:', uri.substring(0, 50) + '...');
 
-            // Configure audio to play through speaker (not earpiece)
+            // Configure audio for media playback through speaker
+            // This ensures volume button controls media (not ringer)
             await setAudioModeAsync({
-                playsInSilentMode: true,
+                playsInSilentMode: true, // Play even when phone is on silent
             });
 
             // Replace the audio source
@@ -50,9 +52,9 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
             setIsPlaying(true);
             setIsLoading(false);
 
-            console.log('Playing audio');
+            console.log('[Audio] Playback started');
         } catch (error) {
-            console.error('Failed to play audio:', error);
+            console.error('[Audio] Failed to play:', error);
             setIsLoading(false);
             setIsPlaying(false);
             throw error;
