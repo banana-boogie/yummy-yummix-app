@@ -68,6 +68,8 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
         steps: this.transformSteps(raw.steps, measurementSystem),
         tipsAndTricks: t?.tips_and_tricks ?? undefined,
         kitchenTools: this.transformKitchenTools(raw.kitchen_tools),
+        averageRating: raw.average_rating ?? null,
+        ratingCount: raw.rating_count ?? 0,
       };
     }
 

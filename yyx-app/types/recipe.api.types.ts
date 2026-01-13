@@ -80,6 +80,8 @@ export interface RawRecipe {
   created_at: string;
   updated_at: string;
   translations: RecipeTranslation[];
+  average_rating?: number | null;
+  rating_count?: number;
 }
 
 // Raw Ingredient Types

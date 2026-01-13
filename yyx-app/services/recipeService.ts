@@ -25,6 +25,8 @@ const getRecipeListQuery = () => {
       name,
       tips_and_tricks
     ),
+    average_rating,
+    rating_count,
     ingredients:recipe_ingredients (
       quantity,
       ingredient:ingredients (
@@ -62,6 +64,8 @@ const getRecipeDetailQuery = () => {
       name,
       tips_and_tricks
     ),
+    average_rating,
+    rating_count,
     steps:recipe_steps!inner (
       id,
       order,
