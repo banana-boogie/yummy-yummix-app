@@ -46,14 +46,16 @@ export interface AITranscriptionRequest {
 
 export interface AITranscriptionResponse {
     text: string;
-    model: string;
+    language?: string;
 }
 
 export interface AITextToSpeechRequest {
     /** Text to convert to speech */
     text: string;
-    /** Voice to use */
-    voice?: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+    /** Voice ID to use (provider-specific) */
+    voice?: string;
+    /** Language hint for voice selection (e.g., 'es' for Spanish) */
+    language?: string;
     /** Optional: Override the default model */
     model?: string;
 }
@@ -61,7 +63,8 @@ export interface AITextToSpeechRequest {
 export interface AITextToSpeechResponse {
     /** Base64-encoded audio */
     audioBase64: string;
-    model: string;
+    /** Audio format (mp3, wav, etc.) */
+    format: string;
 }
 
 export interface AITool {

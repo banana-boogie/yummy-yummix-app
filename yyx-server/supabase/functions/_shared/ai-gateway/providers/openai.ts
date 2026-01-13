@@ -248,7 +248,7 @@ export async function transcribeOpenAI(
     const result = await response.json();
     return {
         text: result.text,
-        model: model,
+        language: request.language,
     };
 }
 
@@ -296,6 +296,7 @@ export async function textToSpeechOpenAI(
 
     return {
         audioBase64: base64,
-        model: model,
+        format: 'mp3',
     };
 }
+

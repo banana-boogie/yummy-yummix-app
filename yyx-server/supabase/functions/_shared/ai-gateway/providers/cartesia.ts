@@ -14,15 +14,15 @@ import {
 } from '../types.ts';
 
 const CARTESIA_TTS_URL = 'https://api.cartesia.ai/tts/bytes';
-const CARTESIA_STT_URL = 'https://api.cartesia.ai/stt/bytes';
+const CARTESIA_STT_URL = 'https://api.cartesia.ai/audio/transcriptions';
 const CARTESIA_API_VERSION = '2024-11-13';
 
 // Voice IDs from Cartesia voice library
-// Spanish Mexican: Warm, friendly female voice
-const VOICE_SPANISH_MEXICAN = '2ddb0cea-61b0-4c24-a425-3e9dca4364ef'; // Sofía - Mexican Spanish female
+// Spanish Mexican: Daniela - warm, natural Mexican Spanish female
+const VOICE_SPANISH_MEXICAN = '846d6cb0-2301-48b6-9571-c5314db3c584'; // Daniela
 
-// English: Cheerful, enthusiastic female voice matching Irmixy personality
-const VOICE_ENGLISH = 'eda5bbff-1ff1-4886-8ef1-4e69a77640a0'; // Sophie - cheerful English female
+// English: Sophie - cheerful, enthusiastic female matching Irmixy personality
+const VOICE_ENGLISH = 'eda5bbff-1ff1-4886-8ef1-4e69a77640a0'; // Sophie
 
 interface CartesiaTTSRequest {
     model_id: string;
@@ -101,22 +101,26 @@ export async function textToSpeechCartesia(
 
 /**
  * Transcribe audio using Cartesia's STT API (Ink-Whisper).
+ * Compatible with OpenAI's transcription API format.
  */
 export async function transcribeCartesia(
     request: AITranscriptionRequest,
     model: string,
     apiKey: string
 ): Promise<AITranscriptionResponse> {
+    // Convert Blob to ArrayBuffer for size logging
+    const audioBuffer = await request.audio.arrayBuffer();
+
     console.log('[Cartesia STT] Request:', {
         model: model,
-        audioSize: request.audioData.byteLength,
+        audioSize: audioBuffer.byteLength,
+        audioType: request.audio.type,
         language: request.language,
     });
 
     // Create form data with audio file
     const formData = new FormData();
-    const blob = new Blob([request.audioData], { type: 'audio/mp4' });
-    formData.append('file', blob, 'audio.m4a');
+    formData.append('file', request.audio, 'audio.m4a');
     formData.append('model', model); // ink-whisper from router
 
     // Add language hint if provided
