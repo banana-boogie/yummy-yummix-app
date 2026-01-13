@@ -1,0 +1,67 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# YummyYummix App Development Guidelines
+
+## Description
+
+This cursor rule provides essential guidance for working with the YummyYummix React Native application codebase. It's particularly helpful for:
+
+- Creating new screens or components that need to follow the app's design system
+- Implementing responsive layouts that work across mobile and web platforms
+- Ensuring consistent styling using the app's predefined constants
+- Understanding the proper structure for implementing platform-specific code
+- Troubleshooting layout or styling issues related to responsive design
+- Maintaining consistency with the app's existing code patterns
+
+**Note**: This cursor rule contains a summary of key guidelines. For a complete, up-to-date reference, 
+always refer to the [DEVELOPMENT_GUIDELINES.md](mdc:yyx-app/yyx-app/docs/DEVELOPMENT_GUIDELINES.md) document in the codebase.
+
+## Core Principles
+
+The YummyYummix app is a React Native application built with Expo that targets both mobile platforms (iOS/Android) and web,
+using Supabase for the backend. Following these key principles is essential:
+
+- **Mobile-First:** Design for mobile first, then adapt for web
+- **Consistent Experience:** Provide uniform experience across platforms
+- **Responsive Design:** Adapt gracefully to different screen sizes
+- **Keep It Simple:** Maintain clean, organized, readable code
+
+## Key Styling Guidelines
+
+1. **Use App Constants**: Always use predefined constants for colors, spacing, typography, etc.
+2. **Keep Styles in One Place**: Define all styles in style hooks or StyleSheet objects, never use inline conditional styles in component render methods
+3. **Use Responsive Hooks**: Always use the app's responsive system for adaptive layouts
+4. **Handle Tab Bar Spacing**: Account for the vertical tab bar on large screens using the proper utilities
+5. **Use Cross-Platform Shadow Utilities**: For consistent shadow implementation
+6. **Follow Spacing Principles**: Use consistent margin/padding approach
+
+For detailed guidance including examples, patterns, and best practices, refer to:
+```
+/docs/DEVELOPMENT_GUIDELINES.md
+```
+
+## Component Development Checklist
+
+When creating or modifying components, ensure they:
+0. ✅ Write simple, organizized code, using best practices.
+1. ✅ Follow mobile-first design principles
+2. ✅ Use app constants for colors, spacing, typography, and border radius
+3. ✅ Implement responsive behavior using the responsive system
+4. ✅ Handle vertical tab bar spacing on large screens
+5. ✅ Keep all styles in style hooks, not in component render methods
+6. ✅ Use proper shadow implementation for cross-platform compatibility
+7. ✅ Apply proper spacing using margin/padding best practices
+8. ✅ Support internationalization
+9. ✅ Are tested on multiple screen sizes and platforms 
+
+10. ✅ Make sure to use the shadow utilities when using shadows.
+11. ✅ Make sure to use ternary over conditional in the return function when rendering jsx components.
+
+
+
+
+
+

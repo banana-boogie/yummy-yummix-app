@@ -1,0 +1,2 @@
+export const USER_PROFILE_MAX_LENGTH = 30;
+export const USER_PROFILE_BIO_MAX_LENGTH = 150;

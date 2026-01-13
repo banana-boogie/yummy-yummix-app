@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YummyYummix</title>
+    <style>
+        /* Reset styles for email clients */
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100% !important;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+            font-family: Arial, sans-serif;
+        }
+
+        /* Forces Outlook.com to display emails at full width */
+        .ExternalClass {
+            width: 100%;
+        }
+
+        /* Ensures Webkit and Windows Mobile platforms respect line-height */
+        body,
+        table,
+        td,
+        p,
+        a,
+        li,
+        blockquote {
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+
+        .container {
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            background: #fff;
+        }
+
+        .banner-wrapper {
+            width: 100%;
+            background: #f9f9f9;
+            margin: 0;
+            padding: 0;
+        }
+
+        .content {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+
+        /* Image styles for retina displays */
+        .banner {
+            width: 100%;
+            height: auto;
+            margin: 0;
+            padding: 0;
+            display: block;
+            -ms-interpolation-mode: bicubic;
+            /* Improves image quality in Outlook */
+        }
+
+        .button-image {
+            width: 375px;
+            /* Increased from 300px by 25% */
+            max-width: 90%;
+            /* Ensures button doesn't overflow on mobile */
+            height: auto;
+            margin: 30px auto;
+            display: block;
+            -ms-interpolation-mode: bicubic;
+        }
+
+        .footer-text {
+            font-size: 14px;
+            color: #666;
+            margin-top: 20px;
+            line-height: 1.5;
+        }
+
+        /* Media query for mobile devices */
+        @media screen and (max-width: 600px) {
+            .content {
+                padding: 10px;
+            }
+
+            .button-image {
+                width: 300px;
+                /* Slightly smaller on mobile */
+            }
+
+            h2 {
+                font-size: 20px;
+                margin: 15px 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        {{if eq .Data.language "es"}}
+        
+        <!-- Spanish Version -->
+        <div class="banner-wrapper">
+            <img class="banner"
+                src="https://zozskiqxdphmkuniahac.supabase.co/storage/v1/object/public/email-assets/magic-link/header-SPANISH.png"
+                alt="Banner de bienvenida" width="600" height="200">
+        </div>
+
+        <div class="content">
+            <h2>¡Gracias por registrarte con tu correo electrónico!</h2>
+            <a href="{{ .ConfirmationURL }}">
+                <img class="button-image"
+                    src="https://zozskiqxdphmkuniahac.supabase.co/storage/v1/object/public/email-assets/magic-link/login-button-SPANISH.png"
+                    alt="Inicia sesión en tu cuenta YummyYummix" width="200" height="60">
+            </a>
+
+            <p class="footer-text">Haz clic AQUÍ para iniciar sesión en tu cuenta YummyYummix.</p>
+        </div>
+
+        {{else}}
+        <!-- English Version (default) -->
+        <div class="banner-wrapper">
+            <img class="banner"
+                src="https://zozskiqxdphmkuniahac.supabase.co/storage/v1/object/public/email-assets/magic-link/header-ENGLISH.png"
+                alt="Welcome Banner" width="600" height="200">
+        </div>
+        <div class="content">
+            <h2>Thank you for registering with your email!</h2>
+            <a href="{{ .ConfirmationURL }}">
+                <img class="button-image"
+                    src="https://zozskiqxdphmkuniahac.supabase.co/storage/v1/object/public/email-assets/magic-link/login-button-ENGLISH.png"
+                    alt="Log into your YummyYummix account" width="200" height="60">
+            </a>
+
+            <p class="footer-text">Click the button to log into your YummyYummix account.</p>
+        </div>
+        {{end}}
+    </div>
+</body>
+
+</html>

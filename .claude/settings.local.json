@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(for d in /Users/ian/BananaDev/Projects/YummyYummix/yummy-yummix-app/*/)",
+      "Bash(do [ -d \"$d.git\" ])",
+      "Bash(echo:*)",
+      "Bash(done)"
+    ]
+  }
+}

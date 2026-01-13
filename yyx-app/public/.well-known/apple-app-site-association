@@ -1,0 +1,18 @@
+{
+    "applinks": {
+      "apps": [],
+      "details": [
+        {
+          "appID": "G98HR2587H.com.yummyyummix.app",
+          "paths": ["*"]
+        }
+      ]
+    },
+    "activitycontinuation": {
+      "apps": ["G98HR2587H.com.yummyyummix.app"]
+    },
+    "webcredentials": {
+      "apps": ["G98HR2587H.com.yummyyummix.app"]
+    }
+  }
+
