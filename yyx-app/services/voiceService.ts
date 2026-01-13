@@ -7,6 +7,7 @@
 import { supabase } from '@/lib/supabase';
 import i18n from '@/i18n';
 import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 
 export interface VoiceResponse {
     transcription: string;
@@ -79,10 +80,20 @@ export async function sendVoiceMessage(
 }
 
 /**
- * Convert base64 audio to a playable data URI.
+ * Convert base64 audio to a playable file URI.
+ * Writes to a temp file because expo-audio doesn't support data URIs.
  */
-export function base64ToAudioUri(base64: string): string {
-    const uri = `data:audio/mp3;base64,${base64}`;
-    console.log('[Voice] Created audio URI, base64 length:', base64.length, 'total URI length:', uri.length);
-    return uri;
+export async function base64ToAudioUri(base64: string): Promise<string> {
+    const filename = `response_${Date.now()}.mp3`;
+    const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+
+    console.log('[Voice] Writing audio to file:', fileUri, 'base64 length:', base64.length);
+
+    await FileSystem.writeAsStringAsync(fileUri, base64, {
+        encoding: FileSystem.EncodingType.Base64,
+    });
+
+    console.log('[Voice] Audio file written successfully');
+    return fileUri;
 }
+
