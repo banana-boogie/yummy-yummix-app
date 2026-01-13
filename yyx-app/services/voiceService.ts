@@ -7,7 +7,8 @@
 import { supabase } from '@/lib/supabase';
 import i18n from '@/i18n';
 import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+// Using legacy API - SDK 54 deprecated readAsStringAsync/writeAsStringAsync
+import * as FileSystem from 'expo-file-system/legacy';
 
 export interface VoiceResponse {
     transcription: string;
