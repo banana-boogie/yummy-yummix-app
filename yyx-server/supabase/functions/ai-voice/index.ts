@@ -115,20 +115,54 @@ serve(async (req: Request) => {
     console.info(`[${requestId}] Authenticated user: ${user.id}`);
 
     try {
-        // Parse multipart form data
-        const formData = await req.formData();
-        const audioFile = formData.get('audio') as File | null;
-        const sessionId = formData.get('sessionId') as string | null;
-        const language = (formData.get('language') as 'en' | 'es') || 'en';
+        // Parse JSON or FormData based on content type
+        const contentType = req.headers.get('content-type') || '';
+        let audioFile: File | Blob;
+        let sessionId: string | null = null;
+        let language: 'en' | 'es' = 'en';
 
-        if (!audioFile) {
-            return new Response(
-                JSON.stringify({ error: 'Audio file is required' }),
-                { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-            );
+        if (contentType.includes('application/json')) {
+            // New: JSON with base64 audio (more reliable in React Native)
+            const body = await req.json();
+            const { audioBase64, language: lang, sessionId: sid } = body;
+
+            if (!audioBase64) {
+                return new Response(
+                    JSON.stringify({ error: 'Audio data is required' }),
+                    { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+                );
+            }
+
+            // Convert base64 to Blob
+            const binaryString = atob(audioBase64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            audioFile = new Blob([bytes], { type: 'audio/m4a' });
+
+            language = lang || 'en';
+            sessionId = sid || null;
+
+            console.info(`[${requestId}] Received base64 audio: ${audioBase64.length} chars -> ${audioFile.size} bytes`);
+        } else {
+            // Legacy: FormData (keeping for backwards compatibility)
+            const formData = await req.formData();
+            const file = formData.get('audio') as File | null;
+            sessionId = formData.get('sessionId') as string | null;
+            language = (formData.get('language') as 'en' | 'es') || 'en';
+
+            if (!file) {
+                return new Response(
+                    JSON.stringify({ error: 'Audio file is required' }),
+                    { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+                );
+            }
+            audioFile = file;
+            console.info(`[${requestId}] Processing FormData audio: ${audioFile.size} bytes`);
         }
 
-        console.info(`[${requestId}] Processing audio: ${audioFile.size} bytes, type: ${audioFile.type}`);
+        console.info(`[${requestId}] Audio size: ${audioFile.size} bytes, language: ${language}`);
 
         const supabase = createSupabaseClient();
 

@@ -39,32 +39,27 @@ export async function sendVoiceMessage(
     // Get current language from i18n
     const language = i18n.locale.startsWith('es') ? 'es' : 'en';
 
-    // Create form data with proper React Native file format
-    const formData = new FormData();
+    // Read audio file as base64 - more reliable than FormData in React Native
+    console.log('[Voice] Reading audio file:', audioUri);
+    const audioBase64 = await FileSystem.readAsStringAsync(audioUri, {
+        encoding: FileSystem.EncodingType.Base64,
+    });
+    console.log('[Voice] Audio base64 length:', audioBase64.length);
 
-    // React Native requires this specific format for file uploads
-    formData.append('audio', {
-        uri: audioUri,
-        type: 'audio/m4a',
-        name: 'recording.m4a',
-    } as any);
-
-    formData.append('language', language);
-    if (sessionId) {
-        formData.append('sessionId', sessionId);
-    }
-
-    console.log('[Voice] Sending audio to:', AI_VOICE_URL);
-    console.log('[Voice] Audio URI:', audioUri);
+    console.log('[Voice] Sending to:', AI_VOICE_URL);
     console.log('[Voice] Language:', language);
 
     const response = await fetch(AI_VOICE_URL, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${session.access_token}`,
-            // Don't set Content-Type - FormData will set it with boundary
+            'Content-Type': 'application/json',
         },
-        body: formData,
+        body: JSON.stringify({
+            audioBase64,
+            language,
+            sessionId,
+        }),
     });
 
     if (!response.ok) {
