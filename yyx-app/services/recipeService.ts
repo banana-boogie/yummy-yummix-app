@@ -24,6 +24,8 @@ const getRecipeListQuery = () => {
     is_published,
     created_at,
     updated_at,
+    average_rating,
+    rating_count,
     ingredients:recipe_ingredients (
       quantity,
       ingredient:ingredients (
@@ -53,6 +55,8 @@ const getRecipeDetailQuery = () => {
     portions,
     tips_and_tricks${lang},
     is_published,
+    average_rating,
+    rating_count,
     steps:recipe_steps!inner (
       id,
       order,

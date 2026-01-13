@@ -73,6 +73,18 @@ export const recipes = {
       },
     },
   },
+  rating: {
+    howWasIt: "How was it?",
+    feedbackLabel: "Share your thoughts (optional)",
+    feedbackPlaceholder:
+      "Tell us what you liked or how we can improve this recipe...",
+    pleaseSelectRating: "Please select a rating",
+    submitError: "Failed to submit rating. Please try again.",
+    thankYou: "Thank you for your feedback!",
+    skip: "Skip",
+    submit: "Submit",
+    beFirstToRate: "Be the first to rate!",
+  },
   share: {
     message: "Check out this recipe on YummyYummix!",
   },

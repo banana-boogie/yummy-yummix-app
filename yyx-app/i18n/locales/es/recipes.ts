@@ -73,6 +73,18 @@ export const recipes = {
       },
     },
   },
+  rating: {
+    howWasIt: "¿Qué te pareció?",
+    feedbackLabel: "Comparte tus comentarios (opcional)",
+    feedbackPlaceholder:
+      "Cuéntanos qué te gustó o cómo podemos mejorar esta receta...",
+    pleaseSelectRating: "Por favor selecciona una calificación",
+    submitError: "Error al enviar. Por favor intenta de nuevo.",
+    thankYou: "¡Gracias por tu opinión!",
+    skip: "Omitir",
+    submit: "Enviar",
+    beFirstToRate: "¡Sé el primero en calificar!",
+  },
   share: {
     message: "¡Mira esta receta en YummyYummix!",
   },
