@@ -231,19 +231,27 @@ serve(async (req: Request) => {
                 async start(controller) {
                     try {
                         // Send session ID first
+                        console.info(`[${requestId}] Sending session ID: ${currentSessionId}`);
                         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'session', sessionId: currentSessionId })}\n\n`));
 
                         // Stream content chunks
+                        console.info(`[${requestId}] Importing chatStream...`);
                         const { chatStream } = await import('../_shared/ai-gateway/index.ts');
+                        console.info(`[${requestId}] Starting to stream from OpenAI...`);
+
+                        let chunkCount = 0;
                         for await (const chunk of chatStream({
                             usageType: 'text',
                             messages,
                             temperature: 0.7,
                             maxTokens: 1024,
                         })) {
+                            chunkCount++;
                             fullContent += chunk;
                             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: chunk })}\n\n`));
                         }
+
+                        console.info(`[${requestId}] Stream complete, ${chunkCount} chunks, ${fullContent.length} chars`);
 
                         // Send done event
                         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`));
@@ -251,8 +259,10 @@ serve(async (req: Request) => {
 
                         // Save assistant message after streaming completes
                         await saveAssistantMessage(supabase, currentSessionId, fullContent, 0, 0);
+                        console.info(`[${requestId}] Message saved`);
                     } catch (error) {
                         console.error(`[${requestId}] Stream error:`, error);
+                        console.error(`[${requestId}] Stack:`, error.stack);
                         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', error: error.message })}\n\n`));
                         controller.close();
                     }

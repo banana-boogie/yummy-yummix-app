@@ -42,10 +42,10 @@ const defaultRoutingConfig: AIRoutingConfig = {
         model: 'ink-whisper',
         apiKeyEnvVar: 'CARTESIA_API_KEY',
     },
-    // Text-to-speech generation (Cartesia Sonic-3 for ultra-low latency)
+    // Text-to-speech generation (Cartesia Sonic Multilingual for 42 languages)
     tts: {
         provider: 'cartesia',
-        model: 'sonic-3',
+        model: 'sonic-multilingual',
         apiKeyEnvVar: 'CARTESIA_API_KEY',
     },
 };
