@@ -99,6 +99,8 @@ export async function streamChatMessage(
 
     const language = i18n.locale.startsWith('es') ? 'es' : 'en';
 
+    console.log('[SSE] Starting stream request...');
+
     const response = await fetch(AI_CHAT_URL, {
         method: 'POST',
         headers: {
@@ -113,20 +115,59 @@ export async function streamChatMessage(
         }),
     });
 
+    console.log('[SSE] Response status:', response.status);
+    console.log('[SSE] Response body exists:', !!response.body);
+    console.log('[SSE] Response body type:', typeof response.body);
+
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `HTTP ${response.status}`);
     }
 
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error('No response body');
+    // Check if getReader is available (may not be in React Native)
+    if (!response.body || typeof response.body.getReader !== 'function') {
+        console.log('[SSE] ReadableStream not available, using text() fallback');
+        // Fallback: Read entire response as text and parse
+        const text = await response.text();
+        console.log('[SSE] Full response text length:', text.length);
+        console.log('[SSE] Full response preview:', text.substring(0, 200));
 
+        const lines = text.split('\n');
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith('data: ')) continue;
+
+            try {
+                const json = JSON.parse(trimmed.slice(6));
+                if (json.type === 'session' && json.sessionId) {
+                    onSessionId?.(json.sessionId);
+                } else if (json.type === 'content' && json.content) {
+                    onChunk(json.content);
+                } else if (json.type === 'error') {
+                    throw new Error(json.error);
+                }
+            } catch (e) {
+                if (e instanceof Error && e.message !== 'Unexpected end of JSON input') {
+                    console.error('[SSE] Parse error:', e);
+                }
+            }
+        }
+        return;
+    }
+
+    const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let chunkCount = 0;
+
+    console.log('[SSE] Starting to read stream...');
 
     while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+            console.log('[SSE] Stream done, total chunks received:', chunkCount);
+            break;
+        }
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
@@ -138,18 +179,19 @@ export async function streamChatMessage(
 
             try {
                 const json = JSON.parse(trimmed.slice(6));
+                console.log('[SSE] Parsed:', json.type);
 
                 if (json.type === 'session' && json.sessionId) {
                     onSessionId?.(json.sessionId);
                 } else if (json.type === 'content' && json.content) {
+                    chunkCount++;
                     onChunk(json.content);
                 } else if (json.type === 'error') {
                     throw new Error(json.error);
                 }
-                // 'done' type is handled by loop ending
             } catch (e) {
-                // Skip malformed JSON, but re-throw errors
                 if (e instanceof Error && e.message !== 'Unexpected end of JSON input') {
+                    console.error('[SSE] Parse error:', e);
                     throw e;
                 }
             }

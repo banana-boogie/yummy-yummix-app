@@ -178,7 +178,7 @@ serve(async (req: Request) => {
         console.info(`[${requestId}] Generating speech...`);
         const ttsResult = await textToSpeech({
             text: aiResponse.content,
-            language: language, // Pass language for Cartesia voice selection (Daniela for es, Sophie for en)
+            language: language, // Pass language for voice selection
         });
 
         // Step 6: Save messages

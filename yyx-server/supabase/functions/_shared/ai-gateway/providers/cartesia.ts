@@ -22,7 +22,7 @@ const CARTESIA_API_VERSION = '2024-11-13';
 const VOICE_SPANISH_MEXICAN = '5c5ad5e7-1020-476b-8b91-fdcbe9cc313c'; // Daniela
 
 // English: Sophie - cheerful, enthusiastic female matching Irmixy personality
-const VOICE_ENGLISH = 'eda5bbff-1ff1-4886-8ef1-4e69a77640a0'; // Sophie
+const VOICE_ENGLISH = 'bf0a246a-8642-498a-9950-80c35e9276b5'; // Sophie
 
 interface CartesiaTTSRequest {
     model_id: string;

@@ -45,7 +45,7 @@ const defaultRoutingConfig: AIRoutingConfig = {
     // Text-to-speech generation (Cartesia Sonic Multilingual for 42 languages)
     tts: {
         provider: 'cartesia',
-        model: 'sonic-multilingual',
+        model: 'sonic-3',
         apiKeyEnvVar: 'CARTESIA_API_KEY',
     },
 };
