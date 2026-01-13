@@ -187,7 +187,7 @@ serve(async (req: Request) => {
     console.info(`[${requestId}] Authenticated user: ${user.id}`);
 
     try {
-        const { message, sessionId, language = 'en' } = await req.json() as ChatRequest;
+        const { message, sessionId, language = 'en', stream = false } = await req.json() as ChatRequest & { stream?: boolean };
 
         // Validate input
         const validation = validateRequest(message);
@@ -220,7 +220,56 @@ serve(async (req: Request) => {
         // Log event for learning
         await logChatEvent(supabase, user.id, currentSessionId);
 
-        // Call AI Gateway
+        // STREAMING MODE
+        if (stream) {
+            console.info(`[${requestId}] Starting SSE stream`);
+
+            const encoder = new TextEncoder();
+            let fullContent = '';
+
+            const readableStream = new ReadableStream({
+                async start(controller) {
+                    try {
+                        // Send session ID first
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'session', sessionId: currentSessionId })}\n\n`));
+
+                        // Stream content chunks
+                        const { chatStream } = await import('../_shared/ai-gateway/index.ts');
+                        for await (const chunk of chatStream({
+                            usageType: 'text',
+                            messages,
+                            temperature: 0.7,
+                            maxTokens: 1024,
+                        })) {
+                            fullContent += chunk;
+                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'content', content: chunk })}\n\n`));
+                        }
+
+                        // Send done event
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`));
+                        controller.close();
+
+                        // Save assistant message after streaming completes
+                        await saveAssistantMessage(supabase, currentSessionId, fullContent, 0, 0);
+                    } catch (error) {
+                        console.error(`[${requestId}] Stream error:`, error);
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'error', error: error.message })}\n\n`));
+                        controller.close();
+                    }
+                },
+            });
+
+            return new Response(readableStream, {
+                headers: {
+                    'Content-Type': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
+                    'Connection': 'keep-alive',
+                    ...corsHeaders,
+                },
+            });
+        }
+
+        // NON-STREAMING MODE (default)
         const aiResponse = await chat({
             usageType: 'text',
             messages,
@@ -237,7 +286,6 @@ serve(async (req: Request) => {
             aiResponse.usage.outputTokens
         );
 
-        // Return non-streaming response (simpler for now)
         return new Response(
             JSON.stringify({
                 content: aiResponse.content,

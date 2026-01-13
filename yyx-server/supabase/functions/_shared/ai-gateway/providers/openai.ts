@@ -146,6 +146,72 @@ export async function callOpenAI(
     };
 }
 
+/**
+ * Call OpenAI's chat completions API with streaming.
+ * Returns an async generator that yields content chunks.
+ */
+export async function* callOpenAIStream(
+    request: AICompletionRequest,
+    model: string,
+    apiKey: string
+): AsyncGenerator<string, void, unknown> {
+    const openaiRequest = {
+        model,
+        messages: request.messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+        })),
+        temperature: request.temperature ?? 0.7,
+        max_tokens: request.maxTokens ?? 4096,
+        stream: true,
+    };
+
+    const response = await fetch(OPENAI_CHAT_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(openaiRequest),
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`OpenAI API error (${response.status}): ${errorBody}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed === 'data: [DONE]') continue;
+            if (!trimmed.startsWith('data: ')) continue;
+
+            try {
+                const json = JSON.parse(trimmed.slice(6));
+                const content = json.choices?.[0]?.delta?.content;
+                if (content) {
+                    yield content;
+                }
+            } catch {
+                // Skip malformed JSON
+            }
+        }
+    }
+}
+
 // =============================================================================
 // Transcription (Whisper)
 // =============================================================================

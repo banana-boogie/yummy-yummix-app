@@ -1,16 +1,17 @@
 /**
- * VoiceChatScreen Component
+ * VoiceChatScreen Component - With VAD Support
  * 
- * Voice-first chat interface with Irmixy avatar.
- * Uses i18n for all user-facing text and NativeWind for styling.
+ * Tap to record, VAD auto-stops on silence (if metering works).
+ * Manual stop always available.
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { View, ScrollView } from 'react-native';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { View, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/common/Text';
 import { IrmixyAvatar, AvatarState } from './IrmixyAvatar';
 import { VoiceButton } from './VoiceButton';
+import { AudioLevelIndicator } from './AudioLevelIndicator';
 import { useVoiceRecording } from '@/hooks/useVoiceRecording';
 import { useAudioPlayback } from '@/hooks/useAudioPlayback';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,8 +31,19 @@ interface Props {
 export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated }: Props) {
     const { user } = useAuth();
     const insets = useSafeAreaInsets();
+    const scrollViewRef = useRef<ScrollView>(null);
 
-    const { isRecording, isVADEnabled, startRecording, stopRecording, hasPermission, requestPermission } = useVoiceRecording();
+    const {
+        isRecording,
+        audioLevel,
+        silenceProgress,
+        isSpeaking,
+        startRecording,
+        stopRecording,
+        hasPermission,
+        requestPermission,
+        onUtteranceComplete,
+    } = useVoiceRecording();
     const { isPlaying, play, stop: stopPlayback } = useAudioPlayback();
 
     const [avatarState, setAvatarState] = useState<AvatarState>('idle');
@@ -39,13 +51,76 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
     const [isProcessing, setIsProcessing] = useState(false);
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
     const [error, setError] = useState<string | null>(null);
-    const [useVADMode, setUseVADMode] = useState(true); // Hands-free mode by default
+
+    // Auto-scroll
+    useEffect(() => {
+        if (messages.length > 0) {
+            setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+        }
+    }, [messages]);
+
+    // Handle VAD auto-stop
+    const handleUtteranceComplete = useCallback(async (audioUri: string) => {
+        console.log('VAD utterance complete:', audioUri);
+
+        try {
+            setAvatarState('thinking');
+            setIsProcessing(true);
+
+            const response = await sendVoiceMessage(audioUri, currentSessionId);
+
+            setMessages(prev => [
+                ...prev,
+                { role: 'user', content: response.transcription },
+            ]);
+
+            await new Promise(resolve => setTimeout(resolve, 150));
+
+            setMessages(prev => [
+                ...prev,
+                { role: 'assistant', content: response.response },
+            ]);
+
+            if (!currentSessionId && response.sessionId) {
+                setCurrentSessionId(response.sessionId);
+                onSessionCreated?.(response.sessionId);
+            }
+
+            setAvatarState('speaking');
+            const audioDataUri = base64ToAudioUri(response.audioBase64);
+            await play(audioDataUri);
+
+        } catch (err: any) {
+            console.error('Voice error:', err);
+            setError(err.message || i18n.t('chat.error'));
+            setAvatarState('idle');
+        } finally {
+            setIsProcessing(false);
+        }
+    }, [currentSessionId, onSessionCreated, play]);
+
+    // Set VAD callback
+    useEffect(() => {
+        onUtteranceComplete.current = handleUtteranceComplete;
+        return () => {
+            onUtteranceComplete.current = null;
+        };
+    }, [handleUtteranceComplete, onUtteranceComplete]);
+
+    // Update avatar when playback finishes
+    useEffect(() => {
+        if (!isPlaying && avatarState === 'speaking') {
+            setAvatarState('idle');
+        }
+    }, [isPlaying, avatarState]);
 
     const handleVoicePress = useCallback(async () => {
         setError(null);
 
         if (isRecording) {
-            // Stop recording and process
+            // Manual stop
             try {
                 setAvatarState('thinking');
                 setIsProcessing(true);
@@ -53,29 +128,20 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
                 const audioUri = await stopRecording();
 
                 if (!audioUri) {
-                    console.log('No audio URI returned');
                     setAvatarState('idle');
                     setIsProcessing(false);
                     return;
                 }
 
-                console.log('Sending voice message with URI:', audioUri);
-
-                // Send to backend
                 const response = await sendVoiceMessage(audioUri, currentSessionId);
 
-                console.log('Got response:', response);
-
-                // Show transcription immediately
                 setMessages(prev => [
                     ...prev,
                     { role: 'user', content: response.transcription },
                 ]);
 
-                // Brief pause to show transcription
-                await new Promise(resolve => setTimeout(resolve, 300));
+                await new Promise(resolve => setTimeout(resolve, 150));
 
-                // Show AI response text (reduces perceived latency)
                 setMessages(prev => [
                     ...prev,
                     { role: 'assistant', content: response.response },
@@ -86,13 +152,12 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
                     onSessionCreated?.(response.sessionId);
                 }
 
-                // Play audio response
                 setAvatarState('speaking');
                 const audioDataUri = base64ToAudioUri(response.audioBase64);
                 await play(audioDataUri);
 
             } catch (err: any) {
-                console.error('Voice processing error:', err);
+                console.error('Voice error:', err);
                 setError(err.message || i18n.t('chat.error'));
                 setAvatarState('idle');
             } finally {
@@ -110,22 +175,15 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
                 }
 
                 stopPlayback();
-                await startRecording(useVADMode);
+                await startRecording();
                 setAvatarState('listening');
             } catch (err: any) {
-                console.error('Recording start error:', err);
+                console.error('Recording error:', err);
                 setError(err.message);
                 setAvatarState('idle');
             }
         }
-    }, [isRecording, stopRecording, startRecording, currentSessionId, onSessionCreated, hasPermission, requestPermission, play, stopPlayback, useVADMode]);
-
-    // Update avatar state when playback finishes
-    useEffect(() => {
-        if (!isPlaying && avatarState === 'speaking') {
-            setAvatarState('idle');
-        }
-    }, [isPlaying, avatarState]);
+    }, [isRecording, stopRecording, startRecording, currentSessionId, onSessionCreated, hasPermission, requestPermission, play, stopPlayback]);
 
     if (!user) {
         return (
@@ -146,78 +204,98 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
     return (
         <View
             className="flex-1 bg-background-default"
-            style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+            style={{ paddingBottom: insets.bottom }}
         >
             {/* Avatar area */}
-            <View className="items-center pt-lg">
-                <IrmixyAvatar state={avatarState} size={180} />
+            <View className="items-center py-md bg-background-default">
+                <IrmixyAvatar state={avatarState} size={120} />
 
-                {/* Status text */}
-                <View className="mt-md px-xl">
-                    {avatarState === 'listening' && (
-                        <>
-                            <Text preset="subheading" className="text-primary-darkest text-center">
-                                {i18n.t('chat.voice.listening')}
-                            </Text>
-                            {isVADEnabled && (
-                                <Text preset="caption" className="text-text-secondary text-center mt-xs">
-                                    {i18n.t('chat.voice.handsFreeModeActive')}
-                                </Text>
-                            )}
-                        </>
-                    )}
-                    {avatarState === 'thinking' && (
-                        <Text preset="body" className="text-text-secondary text-center">
-                            {i18n.t('chat.voice.thinking')}
+                {/* Audio level indicator */}
+                {isRecording && (
+                    <AudioLevelIndicator
+                        audioLevel={audioLevel}
+                        silenceProgress={silenceProgress}
+                        isSpeaking={isSpeaking}
+                        isActive={true}
+                    />
+                )}
+
+                <View className="mt-sm h-6">
+                    {!isRecording && avatarState === 'listening' && (
+                        <Text preset="body" className="text-primary-darkest text-center">
+                            {i18n.t('chat.voice.listening')}
                         </Text>
                     )}
+                    {avatarState === 'thinking' && (
+                        <View className="flex-row items-center">
+                            <ActivityIndicator size="small" color="#6B7280" />
+                            <Text preset="body" className="text-text-secondary text-center ml-xs">
+                                {i18n.t('chat.voice.thinking')}
+                            </Text>
+                        </View>
+                    )}
                     {avatarState === 'speaking' && (
-                        <Text preset="subheading" className="text-primary-darkest text-center">
+                        <Text preset="body" className="text-primary-darkest text-center">
                             {i18n.t('chat.voice.speaking')}
                         </Text>
                     )}
                     {avatarState === 'idle' && messages.length === 0 && (
                         <Text preset="body" className="text-text-secondary text-center">
-                            {i18n.t('chat.greeting')}
+                            {i18n.t('chat.voice.tapToSpeak')}
                         </Text>
                     )}
                 </View>
             </View>
 
-            {/* Chat transcript - scrollable message bubbles */}
+            {/* Chat transcript */}
             <ScrollView
-                className="flex-1 px-md mt-md"
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 16 }}
+                ref={scrollViewRef}
+                className="flex-1 px-md"
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={{
+                    paddingVertical: 16,
+                    flexGrow: 1,
+                }}
             >
-                {messages.map((msg, index) => (
-                    <View
-                        key={index}
-                        className={`mb-sm max-w-[85%] ${msg.role === 'user' ? 'self-end' : 'self-start'
-                            }`}
-                    >
+                {messages.length === 0 ? (
+                    <View className="flex-1 justify-center items-center">
+                        <Text preset="caption" className="text-text-tertiary text-center px-lg">
+                            {i18n.t('chat.greeting')}
+                        </Text>
+                    </View>
+                ) : (
+                    messages.map((msg, index) => (
                         <View
-                            className={`rounded-xl p-sm ${msg.role === 'user'
+                            key={index}
+                            className={`mb-sm max-w-[85%] ${msg.role === 'user' ? 'self-end' : 'self-start'}`}
+                        >
+                            <View
+                                className={`rounded-xl p-sm ${msg.role === 'user'
                                     ? 'bg-primary-light rounded-br-sm'
                                     : 'bg-background-secondary rounded-bl-sm'
-                                }`}
-                        >
-                            {msg.role === 'assistant' && (
-                                <Text preset="caption" className="text-primary-darkest mb-xs font-bold">
-                                    Irmixy
+                                    }`}
+                            >
+                                <Text
+                                    preset="caption"
+                                    className={`mb-xs font-bold ${msg.role === 'user'
+                                        ? 'text-text-secondary'
+                                        : 'text-primary-darkest'
+                                        }`}
+                                >
+                                    {msg.role === 'user' ? i18n.t('common.you') : 'Irmixy'}
                                 </Text>
-                            )}
-                            <Text preset="body" className="text-text-default">
-                                {msg.content}
-                            </Text>
+                                <Text preset="body" className="text-text-default">
+                                    {msg.content}
+                                </Text>
+                            </View>
                         </View>
-                    </View>
-                ))}
+                    ))
+                )}
             </ScrollView>
 
             {/* Error display */}
             {error && (
-                <View className="px-xl pb-sm">
+                <View className="px-xl py-xs bg-status-error/10">
                     <Text preset="bodySmall" className="text-status-error text-center">
                         {error}
                     </Text>
@@ -225,14 +303,14 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
             )}
 
             {/* Voice button */}
-            <View className="items-center pb-xl">
+            <View className="items-center py-md border-t border-grey-light bg-background-default">
                 <VoiceButton
                     state={getButtonState()}
                     onPress={handleVoicePress}
-                    size={80}
+                    size={72}
                     disabled={isProcessing}
                 />
-                <Text preset="caption" className="text-text-secondary mt-sm">
+                <Text preset="caption" className="text-text-secondary mt-xs">
                     {isRecording
                         ? i18n.t('chat.voice.tapToStop')
                         : i18n.t('chat.voice.tapToSpeak')

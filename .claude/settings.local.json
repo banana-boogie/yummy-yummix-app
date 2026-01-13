@@ -5,7 +5,9 @@
       "Bash(for d in /Users/ian/BananaDev/Projects/YummyYummix/yummy-yummix-app/*/)",
       "Bash(do [ -d \"$d.git\" ])",
       "Bash(echo:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(git worktree add:*)",
+      "Bash(git worktree:*)"
     ]
   }
 }

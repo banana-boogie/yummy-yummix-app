@@ -36,17 +36,17 @@ const defaultRoutingConfig: AIRoutingConfig = {
         model: 'o1-mini',
         apiKeyEnvVar: 'OPENAI_API_KEY',
     },
-    // Speech-to-text transcription
+    // Speech-to-text transcription (Cartesia Ink-Whisper for low latency)
     transcription: {
-        provider: 'openai',
-        model: 'whisper-1',
-        apiKeyEnvVar: 'OPENAI_API_KEY',
+        provider: 'cartesia',
+        model: 'ink-whisper',
+        apiKeyEnvVar: 'CARTESIA_API_KEY',
     },
-    // Text-to-speech generation
+    // Text-to-speech generation (Cartesia Sonic-3 for ultra-low latency)
     tts: {
-        provider: 'openai',
-        model: 'tts-1',
-        apiKeyEnvVar: 'OPENAI_API_KEY',
+        provider: 'cartesia',
+        model: 'sonic-3',
+        apiKeyEnvVar: 'CARTESIA_API_KEY',
     },
 };
 

@@ -28,7 +28,8 @@ const translations = {
       },
       image: 'Image',
       uploadImage: 'Upload Image',
-      changeImage: 'Change Image'
+      changeImage: 'Change Image',
+      you: 'You',
     },
     auth: {
       processing: 'Processing authentication...',
@@ -863,6 +864,9 @@ const translations = {
         handsFreeModeActive: "Hands-free mode - I'll stop when you're done speaking",
         permissionRequired: 'Microphone permission required',
         couldNotUnderstand: 'Could not understand audio',
+        hearing: 'Hearing you...',
+        silenceDetected: 'Silence detected',
+        waitingForSpeech: 'Waiting for speech...',
       },
     },
   },
@@ -891,6 +895,7 @@ const translations = {
       image: 'Imagen',
       uploadImage: 'Subir Imagen',
       changeImage: 'Cambiar Imagen',
+      you: 'Tú',
     },
     auth: {
       processing: 'Procesando autenticación...',
@@ -1724,6 +1729,9 @@ const translations = {
         handsFreeModeActive: 'Modo manos libres - Pararé cuando termines de hablar',
         permissionRequired: 'Se requiere permiso del micrófono',
         couldNotUnderstand: 'No pude entender el audio',
+        hearing: 'Escuchándote...',
+        silenceDetected: 'Silencio detectado',
+        waitingForSpeech: 'Esperando que hables...',
       },
     },
   }

@@ -49,39 +49,65 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
             createdAt: new Date(),
         };
 
-        setMessages(prev => [...prev, userMessage]);
+        const assistantMessageId = `assistant-${Date.now()}`;
+
+        // Add user message and empty assistant message for streaming
+        setMessages(prev => [
+            ...prev,
+            userMessage,
+            {
+                id: assistantMessageId,
+                role: 'assistant',
+                content: '',
+                createdAt: new Date(),
+            },
+        ]);
         setInputText('');
         setIsLoading(true);
 
         try {
-            const response = await sendChatMessage(userMessage.content, currentSessionId);
+            // Import stream function
+            const { streamChatMessage } = await import('@/services/chatService');
 
-            // Add assistant message
-            setMessages(prev => [
-                ...prev,
-                {
-                    id: `assistant-${Date.now()}`,
-                    role: 'assistant',
-                    content: response.content,
-                    createdAt: new Date(),
+            // Stream the response
+            await streamChatMessage(
+                userMessage.content,
+                currentSessionId,
+                // onChunk - append content progressively
+                (chunk) => {
+                    setMessages(prev => {
+                        const updated = [...prev];
+                        const lastIdx = updated.findIndex(m => m.id === assistantMessageId);
+                        if (lastIdx !== -1) {
+                            updated[lastIdx] = {
+                                ...updated[lastIdx],
+                                content: updated[lastIdx].content + chunk,
+                            };
+                        }
+                        return updated;
+                    });
                 },
-            ]);
-
-            // Update session ID if new
-            if (!currentSessionId && response.sessionId) {
-                setCurrentSessionId(response.sessionId);
-                onSessionCreated?.(response.sessionId);
-            }
+                // onSessionId
+                (sessionId) => {
+                    if (!currentSessionId) {
+                        setCurrentSessionId(sessionId);
+                        onSessionCreated?.(sessionId);
+                    }
+                }
+            );
         } catch (error) {
-            setMessages(prev => [
-                ...prev,
-                {
-                    id: `error-${Date.now()}`,
-                    role: 'assistant',
-                    content: i18n.t('chat.error'),
-                    createdAt: new Date(),
-                },
-            ]);
+            // Replace streaming message with error
+            setMessages(prev => {
+                const updated = [...prev];
+                const lastIdx = updated.findIndex(m => m.id === assistantMessageId);
+                if (lastIdx !== -1) {
+                    updated[lastIdx] = {
+                        ...updated[lastIdx],
+                        content: updated[lastIdx].content || i18n.t('chat.error'),
+                    };
+                }
+                return updated;
+            });
         } finally {
             setIsLoading(false);
         }
