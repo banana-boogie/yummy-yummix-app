@@ -87,9 +87,17 @@ export async function textToSpeechCartesia(
 
     // Response is raw audio bytes
     const audioBuffer = await response.arrayBuffer();
-    const audioBase64 = btoa(
-        String.fromCharCode(...new Uint8Array(audioBuffer))
-    );
+
+    // Convert to base64 using chunked approach to avoid stack overflow
+    // (spreading large Uint8Array to String.fromCharCode causes stack overflow)
+    const bytes = new Uint8Array(audioBuffer);
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+        binary += String.fromCharCode(...chunk);
+    }
+    const audioBase64 = btoa(binary);
 
     console.log('[Cartesia TTS] Success, audio size:', audioBuffer.byteLength);
 
