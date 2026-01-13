@@ -178,7 +178,8 @@ serve(async (req: Request) => {
         console.info(`[${requestId}] Generating speech...`);
         const ttsResult = await textToSpeech({
             text: aiResponse.content,
-            voice: 'nova', // Warm, friendly female voice
+            voice: 'nova', // Warm, trustworthy female voice (like a caring mom/grandma)
+            model: 'tts-1-hd', // Higher quality audio
         });
 
         // Step 6: Save messages

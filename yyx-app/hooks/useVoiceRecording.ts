@@ -17,20 +17,65 @@ import {
 export interface UseVoiceRecordingReturn {
     isRecording: boolean;
     hasPermission: boolean;
-    startRecording: () => Promise<void>;
+    isVADEnabled: boolean;
+    startRecording: (enableVAD?: boolean) => Promise<void>;
     stopRecording: () => Promise<string | null>;
     requestPermission: () => Promise<boolean>;
 }
 
+// VAD Configuration
+const VAD_CONFIG = {
+    silenceThreshold: -40, // dB level to consider as silence
+    silenceDuration: 1500, // ms of silence before auto-stop
+    minRecordingDuration: 500, // ms minimum recording time
+};
+
 export function useVoiceRecording(): UseVoiceRecordingReturn {
     const [hasPermission, setHasPermission] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
+    const [isVADEnabled, setIsVADEnabled] = useState(false);
     const isPrepared = useRef(false);
+    const vadTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const silenceStartRef = useRef<number | null>(null);
+    const recordingStartRef = useRef<number>(0);
 
     const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY, (status) => {
         // Update recording state based on status updates
         if (status.isFinished) {
             setIsRecording(false);
+            setIsVADEnabled(false);
+            if (vadTimerRef.current) {
+                clearInterval(vadTimerRef.current);
+                vadTimerRef.current = null;
+            }
+        }
+
+        // VAD: Monitor audio metering during recording
+        if (isVADEnabled && status.isRecording && status.metering !== undefined) {
+            const currentTime = Date.now();
+            const recordingDuration = currentTime - recordingStartRef.current;
+
+            // Only apply VAD after minimum recording duration
+            if (recordingDuration < VAD_CONFIG.minRecordingDuration) {
+                return;
+            }
+
+            // Check if current audio level indicates silence
+            if (status.metering < VAD_CONFIG.silenceThreshold) {
+                if (silenceStartRef.current === null) {
+                    silenceStartRef.current = currentTime;
+                } else {
+                    const silenceDuration = currentTime - silenceStartRef.current;
+                    if (silenceDuration >= VAD_CONFIG.silenceDuration) {
+                        console.log('VAD: Silence detected, auto-stopping');
+                        // Auto-stop recording due to silence
+                        stopRecording();
+                    }
+                }
+            } else {
+                // Reset silence timer if audio detected
+                silenceStartRef.current = null;
+            }
         }
     });
 
@@ -49,7 +94,7 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
         return granted;
     }, []);
 
-    const startRecording = useCallback(async () => {
+    const startRecording = useCallback(async (enableVAD = false) => {
         try {
             // Ensure we have permission
             if (!hasPermission) {
@@ -71,14 +116,20 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
                 isPrepared.current = true;
             }
 
+            // Reset VAD state
+            recordingStartRef.current = Date.now();
+            silenceStartRef.current = null;
+            setIsVADEnabled(enableVAD);
+
             // Start recording
             recorder.record();
             setIsRecording(true);
 
-            console.log('Recording started');
+            console.log('Recording started', enableVAD ? 'with VAD' : 'manual mode');
         } catch (error) {
             console.error('Failed to start recording:', error);
             setIsRecording(false);
+            setIsVADEnabled(false);
             throw error;
         }
     }, [recorder, hasPermission, requestPermission]);
@@ -93,7 +144,15 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
             // Stop the recording and wait for it to finish
             await recorder.stop();
             setIsRecording(false);
+            setIsVADEnabled(false);
             isPrepared.current = false;
+
+            // Clear VAD timers
+            if (vadTimerRef.current) {
+                clearInterval(vadTimerRef.current);
+                vadTimerRef.current = null;
+            }
+            silenceStartRef.current = null;
 
             // Get the URI of the recorded file
             const uri = recorder.uri;
@@ -108,6 +167,7 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
         } catch (error) {
             console.error('Failed to stop recording:', error);
             setIsRecording(false);
+            setIsVADEnabled(false);
             isPrepared.current = false;
             throw error;
         }
@@ -116,6 +176,7 @@ export function useVoiceRecording(): UseVoiceRecordingReturn {
     return {
         isRecording,
         hasPermission,
+        isVADEnabled,
         startRecording,
         stopRecording,
         requestPermission,

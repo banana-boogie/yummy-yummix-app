@@ -31,7 +31,7 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
     const { user } = useAuth();
     const insets = useSafeAreaInsets();
 
-    const { isRecording, startRecording, stopRecording, hasPermission, requestPermission } = useVoiceRecording();
+    const { isRecording, isVADEnabled, startRecording, stopRecording, hasPermission, requestPermission } = useVoiceRecording();
     const { isPlaying, play, stop: stopPlayback } = useAudioPlayback();
 
     const [avatarState, setAvatarState] = useState<AvatarState>('idle');
@@ -39,6 +39,7 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
     const [isProcessing, setIsProcessing] = useState(false);
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
     const [error, setError] = useState<string | null>(null);
+    const [useVADMode, setUseVADMode] = useState(true); // Hands-free mode by default
 
     const handleVoicePress = useCallback(async () => {
         setError(null);
@@ -65,10 +66,18 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
 
                 console.log('Got response:', response);
 
-                // Add messages to chat
+                // Show transcription immediately
                 setMessages(prev => [
                     ...prev,
                     { role: 'user', content: response.transcription },
+                ]);
+
+                // Brief pause to show transcription
+                await new Promise(resolve => setTimeout(resolve, 300));
+
+                // Show AI response text (reduces perceived latency)
+                setMessages(prev => [
+                    ...prev,
                     { role: 'assistant', content: response.response },
                 ]);
 
@@ -101,7 +110,7 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
                 }
 
                 stopPlayback();
-                await startRecording();
+                await startRecording(useVADMode);
                 setAvatarState('listening');
             } catch (err: any) {
                 console.error('Recording start error:', err);
@@ -109,7 +118,7 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
                 setAvatarState('idle');
             }
         }
-    }, [isRecording, stopRecording, startRecording, currentSessionId, onSessionCreated, hasPermission, requestPermission, play, stopPlayback]);
+    }, [isRecording, stopRecording, startRecording, currentSessionId, onSessionCreated, hasPermission, requestPermission, play, stopPlayback, useVADMode]);
 
     // Update avatar state when playback finishes
     useEffect(() => {
@@ -146,9 +155,16 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
                 {/* Status text */}
                 <View className="mt-md px-xl">
                     {avatarState === 'listening' && (
-                        <Text preset="subheading" className="text-primary-darkest text-center">
-                            {i18n.t('chat.voice.listening')}
-                        </Text>
+                        <>
+                            <Text preset="subheading" className="text-primary-darkest text-center">
+                                {i18n.t('chat.voice.listening')}
+                            </Text>
+                            {isVADEnabled && (
+                                <Text preset="caption" className="text-text-secondary text-center mt-xs">
+                                    {i18n.t('chat.voice.handsFreeModeActive')}
+                                </Text>
+                            )}
+                        </>
                     )}
                     {avatarState === 'thinking' && (
                         <Text preset="body" className="text-text-secondary text-center">

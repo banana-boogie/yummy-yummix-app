@@ -217,9 +217,16 @@ export async function textToSpeechOpenAI(
         throw new Error(`OpenAI TTS error (${response.status}): ${errorBody}`);
     }
 
-    // Convert to base64
+    // Convert to base64 (chunked to avoid stack overflow on large files)
     const audioBuffer = await response.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+    const bytes = new Uint8Array(audioBuffer);
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, i + chunkSize);
+        binary += String.fromCharCode(...chunk);
+    }
+    const base64 = btoa(binary);
 
     return {
         audioBase64: base64,
