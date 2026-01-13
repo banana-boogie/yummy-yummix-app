@@ -1,0 +1,205 @@
+import React, { useState } from 'react';
+import { View, Modal, Pressable, FlatList } from 'react-native';
+import { Text, Button, TextInput } from '@/components/common';
+import { Ionicons } from '@expo/vector-icons';
+import { Cookbook } from '@/types/cookbook.types';
+import { useUserCookbooksQuery, useAddRecipeToCookbook } from '@/hooks/useCookbookQuery';
+import i18n from '@/i18n';
+
+interface AddToCookbookSheetProps {
+    visible: boolean;
+    onClose: () => void;
+    recipeId: string;
+    recipeName: string;
+    onSuccess?: () => void;
+}
+
+export function AddToCookbookSheet({
+    visible,
+    onClose,
+    recipeId,
+    recipeName,
+    onSuccess,
+}: AddToCookbookSheetProps) {
+    const { data: cookbooks = [], isLoading } = useUserCookbooksQuery();
+    const addRecipeMutation = useAddRecipeToCookbook();
+
+    const [selectedCookbook, setSelectedCookbook] = useState<Cookbook | null>(null);
+    const [notes, setNotes] = useState('');
+    const [step, setStep] = useState<'select' | 'notes'>('select');
+
+    // Reset state when modal closes
+    React.useEffect(() => {
+        if (!visible) {
+            setSelectedCookbook(null);
+            setNotes('');
+            setStep('select');
+        }
+    }, [visible]);
+
+    const handleSelectCookbook = (cookbook: Cookbook) => {
+        setSelectedCookbook(cookbook);
+        setStep('notes');
+    };
+
+    const handleSave = async () => {
+        if (!selectedCookbook) return;
+
+        try {
+            await addRecipeMutation.mutateAsync({
+                cookbookId: selectedCookbook.id,
+                recipeId,
+                notesEn: notes.trim() || undefined,
+            });
+            onSuccess?.();
+            onClose();
+        } catch (error: any) {
+            // TODO: Show error toast
+            console.error('Failed to add recipe:', error.message);
+        }
+    };
+
+    const handleBack = () => {
+        setStep('select');
+        setSelectedCookbook(null);
+    };
+
+    const renderCookbookItem = ({ item }: { item: Cookbook }) => (
+        <Pressable
+            onPress={() => handleSelectCookbook(item)}
+            className="flex-row items-center p-md bg-white rounded-md mb-sm active:bg-neutral-100 border border-neutral-100"
+        >
+            <Ionicons
+                name={item.isDefault ? "heart" : "book-outline"}
+                size={24}
+                color={item.isDefault ? "#D83A3A" : "#666"}
+            />
+            <View className="flex-1 ml-md">
+                <Text preset="subheading">{item.name}</Text>
+                <Text preset="caption" className="text-text-secondary">
+                    {item.recipeCount} {item.recipeCount === 1
+                        ? i18n.t('cookbooks.recipe')
+                        : i18n.t('cookbooks.recipes')}
+                </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#ccc" />
+        </Pressable>
+    );
+
+    return (
+        <Modal
+            visible={visible}
+            transparent
+            animationType="slide"
+            onRequestClose={onClose}
+        >
+            <View className="flex-1 bg-black/50 justify-end">
+                <View className="bg-primary-lightest rounded-t-xl p-lg max-h-[70%]">
+                    {/* Header */}
+                    <View className="flex-row items-center justify-between mb-md">
+                        {step === 'notes' && (
+                            <Pressable onPress={handleBack} className="p-xs">
+                                <Ionicons name="arrow-back" size={24} color="#2D2D2D" />
+                            </Pressable>
+                        )}
+                        <Text preset="h2" className="flex-1 ml-sm">
+                            {step === 'select'
+                                ? i18n.t('cookbooks.saveTo')
+                                : i18n.t('cookbooks.addNotes')}
+                        </Text>
+                        <Pressable onPress={onClose} className="p-xs">
+                            <Ionicons name="close" size={24} color="#2D2D2D" />
+                        </Pressable>
+                    </View>
+
+                    {step === 'select' ? (
+                        <>
+                            {/* Recipe being saved */}
+                            <View className="bg-white/60 rounded-md p-sm mb-md">
+                                <Text preset="caption" className="text-text-secondary">
+                                    {i18n.t('cookbooks.saving')}:
+                                </Text>
+                                <Text preset="subheading" numberOfLines={1}>
+                                    {recipeName}
+                                </Text>
+                            </View>
+
+                            {/* Cookbook list */}
+                            {isLoading ? (
+                                <View className="items-center justify-center p-xl">
+                                    <Text preset="body" className="text-text-secondary">
+                                        {i18n.t('common.loading')}
+                                    </Text>
+                                </View>
+                            ) : cookbooks.length === 0 ? (
+                                <View className="items-center justify-center p-xl">
+                                    <Ionicons name="book-outline" size={48} color="#ccc" />
+                                    <Text preset="body" className="text-text-secondary mt-md text-center">
+                                        {i18n.t('cookbooks.noCookbooksYet')}
+                                    </Text>
+                                </View>
+                            ) : (
+                                <FlatList
+                                    data={cookbooks}
+                                    renderItem={renderCookbookItem}
+                                    keyExtractor={(item) => item.id}
+                                    showsVerticalScrollIndicator={false}
+                                />
+                            )}
+                        </>
+                    ) : (
+                        <>
+                            {/* Notes step */}
+                            <View className="bg-white/60 rounded-md p-sm mb-md">
+                                <Text preset="caption" className="text-text-secondary">
+                                    {i18n.t('cookbooks.addingTo')}: {selectedCookbook?.name}
+                                </Text>
+                            </View>
+
+                            <View className="mb-lg">
+                                <Text preset="subheading" className="mb-xs">
+                                    {i18n.t('cookbooks.personalNotes')}
+                                </Text>
+                                <Text preset="caption" className="text-text-secondary mb-sm">
+                                    {i18n.t('cookbooks.notesDescription')}
+                                </Text>
+                                <TextInput
+                                    value={notes}
+                                    onChangeText={setNotes}
+                                    placeholder={i18n.t('cookbooks.notesPlaceholder')}
+                                    className="bg-white rounded-md p-md border border-neutral-200"
+                                    multiline
+                                    numberOfLines={4}
+                                    maxLength={300}
+                                />
+                            </View>
+
+                            {/* Actions */}
+                            <View className="flex-row gap-md">
+                                <Button
+                                    variant="secondary"
+                                    onPress={handleBack}
+                                    className="flex-1"
+                                >
+                                    {i18n.t('common.back')}
+                                </Button>
+                                <Button
+                                    variant="primary"
+                                    onPress={handleSave}
+                                    disabled={addRecipeMutation.isPending}
+                                    className="flex-1"
+                                >
+                                    {addRecipeMutation.isPending
+                                        ? i18n.t('common.saving')
+                                        : i18n.t('cookbooks.addRecipe')}
+                                </Button>
+                            </View>
+
+                            <View className="h-8" />
+                        </>
+                    )}
+                </View>
+            </View>
+        </Modal>
+    );
+}
