@@ -54,7 +54,9 @@ export async function sendVoiceMessage(
         formData.append('sessionId', sessionId);
     }
 
-    console.log('Sending to:', AI_VOICE_URL);
+    console.log('[Voice] Sending audio to:', AI_VOICE_URL);
+    console.log('[Voice] Audio URI:', audioUri);
+    console.log('[Voice] Language:', language);
 
     const response = await fetch(AI_VOICE_URL, {
         method: 'POST',
