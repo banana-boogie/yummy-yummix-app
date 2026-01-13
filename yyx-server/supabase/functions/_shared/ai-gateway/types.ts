@@ -8,7 +8,7 @@
 /** Usage types for routing to appropriate models */
 export type AIUsageType = 'text' | 'voice' | 'parsing' | 'reasoning' | 'transcription' | 'tts';
 
-export type AIProvider = 'openai' | 'anthropic' | 'google';
+export type AIProvider = 'openai' | 'anthropic' | 'google' | 'cartesia';
 
 export interface AIMessage {
     role: 'system' | 'user' | 'assistant';

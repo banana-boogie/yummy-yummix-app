@@ -36,7 +36,7 @@ const defaultRoutingConfig: AIRoutingConfig = {
         model: 'o1-mini',
         apiKeyEnvVar: 'OPENAI_API_KEY',
     },
-    // Speech-to-text transcription (OpenAI Whisper - more reliable)
+    // Speech-to-text transcription
     transcription: {
         provider: 'openai',
         model: 'whisper-1',

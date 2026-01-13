@@ -117,6 +117,8 @@ serve(async (req: Request) => {
     try {
         // Parse JSON or FormData based on content type
         const contentType = req.headers.get('content-type') || '';
+        console.log(`[${requestId}] Content-Type: ${contentType}`);
+
         let audioFile: File | Blob;
         let sessionId: string | null = null;
         let language: 'en' | 'es' = 'en';
