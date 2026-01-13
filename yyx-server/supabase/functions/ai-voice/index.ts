@@ -174,12 +174,11 @@ serve(async (req: Request) => {
         console.info(`[${requestId}] AI response: "${aiResponse.content.substring(0, 100)}..."`);
 
         // Step 5: Generate speech using AI Gateway
-        // The gateway routes to the configured TTS provider (default: OpenAI TTS)
+        // The gateway routes to Cartesia TTS with language-based voice selection
         console.info(`[${requestId}] Generating speech...`);
         const ttsResult = await textToSpeech({
             text: aiResponse.content,
-            voice: 'nova', // Warm, trustworthy female voice (like a caring mom/grandma)
-            model: 'tts-1-hd', // Higher quality audio
+            language: language, // Pass language for Cartesia voice selection (Daniela for es, Sophie for en)
         });
 
         // Step 6: Save messages
