@@ -153,8 +153,8 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
                 }
 
                 setAvatarState('speaking');
-                const audioDataUri = base64ToAudioUri(response.audioBase64);
-                await play(audioDataUri);
+                const audioFileUri = await base64ToAudioUri(response.audioBase64);
+                await play(audioFileUri);
 
             } catch (err: any) {
                 console.error('Voice error:', err);
