@@ -17,6 +17,9 @@ export interface Recipe {
   isPublished: boolean;
   createdAt: string;
   updatedAt: string;
+  // Rating fields
+  averageRating?: number | null;
+  ratingCount?: number;
 }
 
 // Enums

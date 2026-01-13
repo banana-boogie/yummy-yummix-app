@@ -51,6 +51,12 @@ export default function AdminLayout() {
             title: 'Manage Useful Items'
           }}
         />
+        <Stack.Screen
+          name="feedback"
+          options={{
+            title: 'User Feedback'
+          }}
+        />
       </Stack>
     </AdminRoute>
   );
@@ -63,6 +69,7 @@ const navItems = [
   { title: 'Ingredients', icon: 'leaf-outline', route: '/admin/ingredients' as const },
   { title: 'Tags', icon: 'pricetags-outline', route: '/admin/tags' as const },
   { title: 'Useful Items', icon: 'cube-outline', route: '/admin/useful-items' as const },
+  { title: 'Feedback', icon: 'chatbubble-ellipses-outline', route: '/admin/feedback' as const },
   { title: 'Back to App', icon: 'exit-outline', route: '/' as const },
 ];
 

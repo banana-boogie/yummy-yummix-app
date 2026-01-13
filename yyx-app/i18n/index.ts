@@ -261,6 +261,17 @@ const translations = {
       },
       share: {
         message: 'Check out this recipe on YummyYummix!',
+      },
+      rating: {
+        howWasIt: 'How was it?',
+        feedbackLabel: 'Share your thoughts (optional)',
+        feedbackPlaceholder: 'Tell us what you liked or how we can improve this recipe...',
+        pleaseSelectRating: 'Please select a rating',
+        submitError: 'Failed to submit rating. Please try again.',
+        thankYou: 'Thank you for your feedback!',
+        skip: 'Skip',
+        submit: 'Submit',
+        beFirstToRate: 'Be the first to rate!',
       }
     },
     onboarding: {
@@ -1122,6 +1133,17 @@ const translations = {
       },
       share: {
         message: '¡Mira esta receta en YummyYummix!',
+      },
+      rating: {
+        howWasIt: '¿Qué te pareció?',
+        feedbackLabel: 'Comparte tus comentarios (opcional)',
+        feedbackPlaceholder: 'Cuéntanos qué te gustó o cómo podemos mejorar esta receta...',
+        pleaseSelectRating: 'Por favor selecciona una calificación',
+        submitError: 'Error al enviar. Por favor intenta de nuevo.',
+        thankYou: '¡Gracias por tu opinión!',
+        skip: 'Omitir',
+        submit: 'Enviar',
+        beFirstToRate: '¡Sé el primero en calificar!',
       }
     },
     onboarding: {
