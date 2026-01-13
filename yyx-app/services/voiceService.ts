@@ -42,7 +42,7 @@ export async function sendVoiceMessage(
     // Read audio file as base64 - more reliable than FormData in React Native
     console.log('[Voice] Reading audio file:', audioUri);
     const audioBase64 = await FileSystem.readAsStringAsync(audioUri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64',
     });
     console.log('[Voice] Audio base64 length:', audioBase64.length);
 
@@ -87,7 +87,7 @@ export async function base64ToAudioUri(base64: string): Promise<string> {
     console.log('[Voice] Writing audio to file:', fileUri, 'base64 length:', base64.length);
 
     await FileSystem.writeAsStringAsync(fileUri, base64, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64',
     });
 
     console.log('[Voice] Audio file written successfully');
