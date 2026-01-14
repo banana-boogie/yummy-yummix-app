@@ -1,63 +1,88 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { GoogleGenAI } from "npm:@google/genai";
-import { corsHeaders } from "../_shared/cors.ts";
 import { validateAuth } from "../_shared/auth.ts";
 
-console.log("Hello from Functions!");
+const GEMINI_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent";
 
-serve(async (req: Request) => {
-    // Handle CORS preflight
-    if (req.method === 'OPTIONS') {
-        return new Response('ok', { status: 200, headers: corsHeaders });
-    }
+console.log("Gemini Proxy (Modern Deno/v1beta) booting...");
 
+Deno.serve(async (req) => {
     try {
-        const requestId = crypto.randomUUID();
-
-        // 1. Validate Supabase Auth
-        const authHeader = req.headers.get('Authorization');
-        const { user, error: authError } = await validateAuth(authHeader);
-
-        if (authError || !user) {
-            console.warn(`[${requestId}] Auth failed: ${authError}`);
-            return new Response(
-                JSON.stringify({ error: authError ?? 'Authentication required' }),
-                { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+        // 1. WebSocket Upgrade Check
+        if (req.headers.get("upgrade") != "websocket") {
+            return new Response("Expected WebSocket Upgrade", { status: 426 });
         }
 
-        console.info(`[${requestId}] Generating ephemeral token for user: ${user.id}`);
+        // 2. Auth (Query Param 'jwt')
+        const url = new URL(req.url);
+        const jwt = url.searchParams.get("jwt");
+        if (!jwt) {
+            console.error("[Proxy] Missing JWT");
+            return new Response("Missing JWT", { status: 401 });
+        }
 
-        // 2. Initialize Gemini Client
-        const apiKey = Deno.env.get('GEMINI_API_KEY');
+        const { user, error } = await validateAuth(`Bearer ${jwt}`);
+        if (error || !user) {
+            console.error("[Proxy] Auth failed:", error);
+            return new Response("Unauthorized", { status: 401 });
+        }
+
+        console.log(`[Proxy] Connecting user: ${user.id}`);
+
+        // 3. Upgrade & Connect
+        // Deno.upgradeWebSocket now returns { socket, response }
+        const { socket: clientWs, response } = Deno.upgradeWebSocket(req);
+        const apiKey = Deno.env.get("GEMINI_API_KEY");
+
         if (!apiKey) {
-            throw new Error('GEMINI_API_KEY is not set');
+            console.error("[Proxy] No API Key set");
+            // We can't return Response here because upgrade happened. 
+            // We must close the socket.
+            clientWs.onopen = () => clientWs.close(1011, "Server Config Error");
+            return response;
         }
 
-        const client = new GoogleGenAI({ apiKey });
+        console.log(`[Proxy] Dialing Google: ${GEMINI_URL}`);
+        const upstreamWs = new WebSocket(`${GEMINI_URL}?key=${apiKey}`);
 
-        // 3. Create Ephemeral Token
-        // Scoped to "generative-language-api" typically
-        // The SDK simplifies this call.
-        const response = await client.authTokens.create({
-            full_access: true, // Or specific scopes if supported
-            // ttl: '3600s' // Optional? Defaults to 1 hour usually
-        });
+        // 4. Pipe Events
+        clientWs.onopen = () => console.log("[Proxy] Client Open");
 
-        // The response struct depends on the SDK version, likely has .token or .accessToken
-        // Logging to debug if needed (masking info)
-        console.info(`[${requestId}] Token generated, expires: ${response.expireTime}`);
+        upstreamWs.onopen = () => {
+            console.log("[Proxy] Upstream (Google) Open");
+        };
 
-        return new Response(
-            JSON.stringify(response),
-            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        clientWs.onmessage = (e) => {
+            if (upstreamWs.readyState === WebSocket.OPEN) upstreamWs.send(e.data);
+        };
 
-    } catch (error) {
-        console.error('Error generating token:', error);
-        return new Response(
-            JSON.stringify({ error: error.message }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        upstreamWs.onmessage = (e) => {
+            if (clientWs.readyState === WebSocket.OPEN) clientWs.send(e.data);
+        };
+
+        upstreamWs.onerror = (e) => {
+            // e is Event, not Error usually, so JSON stringify might be empty
+            console.error("[Proxy] Upstream Error Event");
+        };
+
+        clientWs.onerror = (e) => {
+            console.error("[Proxy] Client Error Event");
+        };
+
+        clientWs.onclose = () => {
+            console.log("[Proxy] Client Closed");
+            if (upstreamWs.readyState === WebSocket.OPEN) upstreamWs.close();
+        };
+
+        upstreamWs.onclose = (e) => {
+            console.log(`[Proxy] Upstream Closed: ${e.code} ${e.reason}`);
+            if (clientWs.readyState === WebSocket.OPEN) {
+                clientWs.close(e.code || 1000, e.reason || "Upstream Closed");
+            }
+        };
+
+        return response;
+
+    } catch (err) {
+        console.error("[Proxy] Critical Error:", err);
+        return new Response("Internal Server Error", { status: 500 });
     }
 });

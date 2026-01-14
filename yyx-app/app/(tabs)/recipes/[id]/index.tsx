@@ -24,6 +24,7 @@ import { ResponsiveColumnLayout, MainColumn, SideColumn } from '@/components/lay
 import { RecipeUsefulItem } from '@/types/recipe.types';
 import { ShareButton } from '@/components/common/ShareButton';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
 
 
 const RecipeDetail: React.FC = () => {
@@ -91,88 +92,101 @@ const RecipeDetail: React.FC = () => {
 
 
 
-      <PageLayout
-        contentPaddingHorizontal={0}
-        disableMaxWidth={true}
-      >
-        <Animated.ScrollView
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          showsVerticalScrollIndicator={true}
-          bounces={true}
+      <View style={{ flex: 1 }}>
+        <PageLayout
+          contentPaddingHorizontal={0}
+          disableMaxWidth={true}
         >
+          <Animated.ScrollView
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            showsVerticalScrollIndicator={true}
+            bounces={true}
+          >
 
 
-          {/* Recipe image header - constrained to same max-width as content for alignment */}
-          <View className="w-full max-w-[500px] md:max-w-[700px] lg:max-w-[900px] self-center">
-            <RecipeImageHeader
-              pictureUrl={recipe.pictureUrl}
-              onBackPress={handleBackPress}
-              className="mb-md"
-            />
-          </View>
+            {/* Recipe image header - constrained to same max-width as content for alignment */}
+            <View className="w-full max-w-[500px] md:max-w-[700px] lg:max-w-[900px] self-center">
+              <RecipeImageHeader
+                pictureUrl={recipe.pictureUrl}
+                onBackPress={handleBackPress}
+                className="mb-md"
+              />
+            </View>
 
-          {/* Container for the content to limit width on large screens */}
-          <View className="w-full max-w-[500px] md:max-w-[700px] lg:max-w-[900px] self-center px-md">
-            {/* Title and Info Section */}
-            <Text preset="h1" className="mb-xs">
-              {recipe.name}
-            </Text>
+            {/* Container for the content to limit width on large screens */}
+            <View className="w-full max-w-[500px] md:max-w-[700px] lg:max-w-[900px] self-center px-md">
+              {/* Title and Info Section */}
+              <Text preset="h1" className="mb-xs">
+                {recipe.name}
+              </Text>
 
-            <RecipeInfo
-              totalTime={recipe.totalTime}
-              prepTime={recipe.prepTime}
-              difficulty={recipe.difficulty}
-              portions={recipe.portions}
-              className="mb-xl"
-            />
+              <RecipeInfo
+                totalTime={recipe.totalTime}
+                prepTime={recipe.prepTime}
+                difficulty={recipe.difficulty}
+                portions={recipe.portions}
+                className="mb-xl"
+              />
 
-            <View
-              className="mb-xs flex-row justify-between items-center"
-            >
+              <View
+                className="mb-xs flex-row justify-between items-center"
+              >
+                <CookButton
+                  recipeId={recipe.id}
+                  size="large"
+                  className="mb-lg"
+                />
+                <View className="mb-lg">
+                  <ShareButton
+                    message={i18n.t('recipes.share.message', { recipeName: recipe.name })}
+                    url={getShareUrl()}
+                  />
+                </View>
+              </View>
+
+              {/* Content Section */}
+              <ResponsiveColumnLayout>
+                <SideColumn className={`pr-md ${isMedium ? 'flex-[1.3]' : 'flex-1'}`}>
+                  <RecipeIngredients
+                    ingredients={recipe.ingredients}
+                    className="mb-xxl"
+                  />
+                  <RecipeUsefulItems
+                    usefulItems={recipe.usefulItems as RecipeUsefulItem[]}
+                    className="mb-xxl"
+                  />
+                </SideColumn>
+
+                <MainColumn className="pl-md border-l border-border-default">
+                  <RecipeSteps
+                    steps={recipe.steps}
+                    className="mb-xxl"
+                  />
+
+                  <RecipeTip text={recipe.tipsAndTricks} />
+                </MainColumn>
+              </ResponsiveColumnLayout>
               <CookButton
                 recipeId={recipe.id}
                 size="large"
-                className="mb-lg"
+                className="my-xxl"
               />
-              <View className="mb-lg">
-                <ShareButton
-                  message={i18n.t('recipes.share.message', { recipeName: recipe.name })}
-                  url={getShareUrl()}
-                />
-              </View>
             </View>
-
-            {/* Content Section */}
-            <ResponsiveColumnLayout>
-              <SideColumn className={`pr-md ${isMedium ? 'flex-[1.3]' : 'flex-1'}`}>
-                <RecipeIngredients
-                  ingredients={recipe.ingredients}
-                  className="mb-xxl"
-                />
-                <RecipeUsefulItems
-                  usefulItems={recipe.usefulItems as RecipeUsefulItem[]}
-                  className="mb-xxl"
-                />
-              </SideColumn>
-
-              <MainColumn className="pl-md border-l border-border-default">
-                <RecipeSteps
-                  steps={recipe.steps}
-                  className="mb-xxl"
-                />
-
-                <RecipeTip text={recipe.tipsAndTricks} />
-              </MainColumn>
-            </ResponsiveColumnLayout>
-            <CookButton
-              recipeId={recipe.id}
-              size="large"
-              className="my-xxl"
-            />
-          </View>
-        </Animated.ScrollView>
-      </PageLayout>
+          </Animated.ScrollView>
+        </PageLayout>
+        <VoiceAssistantButton
+          recipeContext={{
+            type: 'recipe',
+            recipeId: recipe.id,
+            recipeTitle: recipe.name,
+            ingredients: recipe.ingredients?.map(ing => ({
+              name: ing.name,
+              amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
+            }))
+          }}
+        />
+      </View>
     </>
   );
 };

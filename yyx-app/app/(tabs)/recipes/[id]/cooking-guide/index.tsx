@@ -10,6 +10,7 @@ import { useDevice } from '@/hooks/useDevice';
 import i18n from '@/i18n';
 
 import * as Haptics from 'expo-haptics';
+import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
 
 export default function CookingGuide() {
   const { id } = useLocalSearchParams();
@@ -27,77 +28,86 @@ export default function CookingGuide() {
   };
 
   return (
-    <PageLayout
-      backgroundColor="#f9f9f9"
-      style={{ flex: 1 }}
-      contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 180 }}
-      contentPaddingHorizontal={0}
-      scrollEnabled={true}
-      footer={
-        <View className="w-full max-w-[800px] self-center relative h-0" pointerEvents="none">
-          <Image
-            source={require('@/assets/images/cooking-guide-chef.png')}
-            className="absolute bottom-[-50px] right-0"
-            style={{ width: chefSize.width, height: chefSize.height }}
-            resizeMode="contain"
-          />
-        </View>
-      }
-    >
-      <CookingGuideHeader
-        title={recipe?.name || ''}
-        titlePreset='h1'
-        showBackButton={true}
-        subtitle="Mise en place"
-        subtitlePreset='subheading'
-        pictureUrl={recipe?.pictureUrl}
-      />
-
-      <View className="px-md">
-        <MessageBubble className="mt-xxs">
-          <View className="items-center mb-md">
-            <Text preset="h1" className="text-center text-lg">
-              {i18n.t('recipes.cookingGuide.intro.greeting')}
-            </Text>
+    <View style={{ flex: 1 }}>
+      <PageLayout
+        backgroundColor="#f9f9f9"
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 180 }}
+        contentPaddingHorizontal={0}
+        scrollEnabled={true}
+        footer={
+          <View className="w-full max-w-[800px] self-center relative h-0" pointerEvents="none">
+            <Image
+              source={require('@/assets/images/cooking-guide-chef.png')}
+              className="absolute bottom-[-50px] right-0"
+              style={{ width: chefSize.width, height: chefSize.height }}
+              resizeMode="contain"
+            />
           </View>
+        }
+      >
+        <CookingGuideHeader
+          title={recipe?.name || ''}
+          titlePreset='h1'
+          showBackButton={true}
+          subtitle="Mise en place"
+          subtitlePreset='subheading'
+          pictureUrl={recipe?.pictureUrl}
+        />
 
-          <View className="items-center mb-md">
-            <Text preset="body" className="text-center text-md">
-              {i18n.t('recipes.cookingGuide.intro.miseEnPlace.one')}
-              <Text preset="body" className="text-center text-md font-bold">
-                {i18n.t('recipes.cookingGuide.intro.miseEnPlace.two')}
+        <View className="px-md">
+          <MessageBubble className="mt-xxs">
+            <View className="items-center mb-md">
+              <Text preset="h1" className="text-center text-lg">
+                {i18n.t('recipes.cookingGuide.intro.greeting')}
               </Text>
-              <Text preset="body" className="text-center text-md">
-                {i18n.t('recipes.cookingGuide.intro.miseEnPlace.three')}
-              </Text>
-            </Text>
-          </View>
-
-          <View className="flex-row flex-wrap items-center justify-center mb-md">
-            <Text preset="body" className="text-center text-md mb-0">
-              {i18n.t('recipes.cookingGuide.intro.checkboxSteps.checkmark')}
-            </Text>
-            <View className="items-center justify-center mx-xs position-absolute">
-              <Image
-                source={require('@/assets/images/checkbox-checked.png')}
-                style={{ width: checkboxSize, height: checkboxSize, top: -5 }}
-              />
             </View>
-            <Text preset="body" className="text-center text-md mb-0">
-              {i18n.t('recipes.cookingGuide.intro.checkboxSteps.steps')}
-            </Text>
-          </View>
 
-          <Button
-            variant='primary'
-            size={buttonSize}
-            label={i18n.t('recipes.cookingGuide.start')}
-            onPress={handleStart}
-            className="self-center mt-lg mb-xl py-lg px-xxxl shadow-md"
-            textClassName="font-semibold"
-          />
-        </MessageBubble>
-      </View>
-    </PageLayout>
+            <View className="items-center mb-md">
+              <Text preset="body" className="text-center text-md">
+                {i18n.t('recipes.cookingGuide.intro.miseEnPlace.one')}
+                <Text preset="body" className="text-center text-md font-bold">
+                  {i18n.t('recipes.cookingGuide.intro.miseEnPlace.two')}
+                </Text>
+                <Text preset="body" className="text-center text-md">
+                  {i18n.t('recipes.cookingGuide.intro.miseEnPlace.three')}
+                </Text>
+              </Text>
+            </View>
+
+            <View className="flex-row flex-wrap items-center justify-center mb-md">
+              <Text preset="body" className="text-center text-md mb-0">
+                {i18n.t('recipes.cookingGuide.intro.checkboxSteps.checkmark')}
+              </Text>
+              <View className="items-center justify-center mx-xs position-absolute">
+                <Image
+                  source={require('@/assets/images/checkbox-checked.png')}
+                  style={{ width: checkboxSize, height: checkboxSize, top: -5 }}
+                />
+              </View>
+              <Text preset="body" className="text-center text-md mb-0">
+                {i18n.t('recipes.cookingGuide.intro.checkboxSteps.steps')}
+              </Text>
+            </View>
+
+            <Button
+              variant='primary'
+              size={buttonSize}
+              label={i18n.t('recipes.cookingGuide.start')}
+              onPress={handleStart}
+              className="self-center mt-lg mb-xl py-lg px-xxxl shadow-md"
+              textClassName="font-semibold"
+            />
+          </MessageBubble>
+        </View>
+      </PageLayout>
+      <VoiceAssistantButton
+        recipeContext={{
+          type: 'recipe', // Or 'cooking' maybe? 'recipe' fits intro best
+          recipeId: id as string,
+          recipeTitle: recipe?.name
+        }}
+      />
+    </View>
   );
 }

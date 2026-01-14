@@ -9,6 +9,7 @@ import { Text } from "@/components/common/Text";
 import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideStepNavigationButtons';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
+import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
 
 export default function CookingStep() {
     const { id, step: stepParam } = useLocalSearchParams();
@@ -65,24 +66,40 @@ export default function CookingStep() {
     );
 
     return (
-        <PageLayout
-            footer={<Footer />}
-            backgroundColor="#f9f9f9"
-            contentContainerStyle={{ paddingHorizontal: 0 }}
-            contentPaddingHorizontal={0}
-            scrollEnabled={true}
-        >
-            <Header />
-            {currentStep.recipeSection && shouldDisplayRecipeSection(currentStep.recipeSection) ? (
-                <View className="px-md">
-                    <Text preset="h1" className="text-text-default mb-sm">
-                        {currentStep.recipeSection}
-                    </Text>
+        <View className="flex-1">
+            <PageLayout
+                footer={<Footer />}
+                backgroundColor="#f9f9f9"
+                contentContainerStyle={{ paddingHorizontal: 0 }}
+                contentPaddingHorizontal={0}
+                scrollEnabled={true}
+            >
+                <Header />
+                {currentStep.recipeSection && shouldDisplayRecipeSection(currentStep.recipeSection) ? (
+                    <View className="px-md">
+                        <Text preset="h1" className="text-text-default mb-sm">
+                            {currentStep.recipeSection}
+                        </Text>
+                    </View>
+                ) : null}
+                <View className="px-md mb-md">
+                    <RecipeStepContent step={currentStep} />
                 </View>
-            ) : null}
-            <View className="px-md mb-md">
-                <RecipeStepContent step={currentStep} />
-            </View>
-        </PageLayout>
+            </PageLayout>
+            <VoiceAssistantButton
+                recipeContext={{
+                    type: 'cooking',
+                    recipeId: id as string,
+                    recipeTitle: recipe.name,
+                    currentStep: currentStepNumber,
+                    totalSteps: recipe.steps.length,
+                    stepInstructions: currentStep.instruction,
+                    ingredients: currentStep.ingredients?.map(ing => ({
+                        name: ing.name,
+                        amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
+                    }))
+                }}
+            />
+        </View>
     );
 }

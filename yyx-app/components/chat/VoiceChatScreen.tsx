@@ -1,20 +1,19 @@
 /**
- * VoiceChatScreen Component - Gemini Live Edition
+ * VoiceChatScreen Component - OpenAI Realtime Edition
  * 
  * Supports continuous, hands-free conversation with Irmixy.
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/common/Text';
 import { IrmixyAvatar, AvatarState } from './IrmixyAvatar';
 import { VoiceButton } from './VoiceButton';
-import { useGeminiLive } from '@/hooks/useGeminiLive';
+import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigation } from '@react-navigation/native';
+import { QuotaInfo, VoiceStatus } from '@/services/voice/types';
 import i18n from '@/i18n';
-import { Feather } from '@expo/vector-icons';
 
 interface Props {
     sessionId?: string | null;
@@ -24,24 +23,40 @@ interface Props {
 export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated }: Props) {
     const { user } = useAuth();
     const insets = useSafeAreaInsets();
-
-    const {
-        isConnected,
-        isConnecting,
-        error,
-        connect,
-        disconnect
-    } = useGeminiLive();
-
-    const [avatarState, setAvatarState] = useState<AvatarState>('idle');
     const [duration, setDuration] = useState(0);
 
-    // Map connection state to avatar state
-    useEffect(() => {
-        if (isConnecting) setAvatarState('thinking');
-        else if (isConnected) setAvatarState('listening');
-        else setAvatarState('idle');
-    }, [isConnecting, isConnected]);
+    const {
+        status,
+        transcript,
+        response,
+        error,
+        quotaInfo,
+        startConversation,
+        stopConversation
+    } = useVoiceChat({
+        onQuotaWarning: (info: QuotaInfo) => {
+            Alert.alert(
+                'Voice Usage Warning',
+                info.warning || `You have ${info.remainingMinutes.toFixed(1)} minutes remaining this month.`,
+                [{ text: 'OK' }]
+            );
+        }
+    });
+
+    // Map voice status to avatar state
+    const getAvatarState = (status: VoiceStatus): AvatarState => {
+        switch (status) {
+            case 'connecting': return 'thinking';
+            case 'listening': return 'listening';
+            case 'processing': return 'thinking';
+            case 'speaking': return 'speaking';
+            case 'error': return 'idle'; // Or error state if avatar supports it
+            default: return 'idle';
+        }
+    };
+
+    const isConnected = status !== 'idle' && status !== 'error';
+    const isConnecting = status === 'connecting';
 
     // Timer for active session
     useEffect(() => {
@@ -69,12 +84,13 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
 
     const handleVoicePress = async () => {
         if (isConnected) {
-            await disconnect();
+            stopConversation();
         } else {
-            // Build Context
-            // TODO: Fetch real user context here
-            const context = "You are Irmixy, a specialized cooking assistant. The user is Ian (Keto diet). Currently looking for dinner ideas.";
-            await connect(context);
+            if (quotaInfo && quotaInfo.remainingMinutes <= 0) {
+                Alert.alert('Quota Exceeded', 'You have used all your voice minutes for this month.');
+                return;
+            }
+            await startConversation();
         }
     };
 
@@ -106,20 +122,31 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
 
             {/* Avatar area */}
             <View className="flex-1 justify-center items-center py-md bg-background-default">
-                <IrmixyAvatar state={avatarState} size={160} />
+                <IrmixyAvatar state={getAvatarState(status)} size={160} />
 
-                <View className="mt-lg h-6">
-                    {isConnecting && (
+                <View className="mt-lg h-24 px-md w-full">
+                    {/* Status Text */}
+                    {status === 'connecting' && (
                         <Text preset="body" className="text-text-secondary text-center">
                             Connecting to Irmixy...
                         </Text>
                     )}
-                    {isConnected && (
+                    {status === 'listening' && (
                         <Text preset="body" className="text-primary-darkest text-center font-bold">
                             Listening...
                         </Text>
                     )}
-                    {!isConnected && !isConnecting && (
+                    {(status === 'processing' || status === 'speaking') && transcript ? (
+                        <Text preset="bodySmall" className="text-text-secondary text-center italic mb-xs" numberOfLines={2}>
+                            "{transcript}"
+                        </Text>
+                    ) : null}
+                    {status === 'speaking' && response ? (
+                        // Optionally show partial response text if needed, but voice is primary
+                        null
+                    ) : null}
+
+                    {status === 'idle' && (
                         <Text preset="body" className="text-text-secondary text-center">
                             Tap to start conversation
                         </Text>
@@ -141,6 +168,11 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
                         : "Tap to Connect"
                     }
                 </Text>
+                {quotaInfo && !isConnected && (
+                    <Text preset="caption" className="text-text-secondary mt-xs text-xs">
+                        {quotaInfo.remainingMinutes.toFixed(1)} mins remaining
+                    </Text>
+                )}
             </View>
         </View>
     );

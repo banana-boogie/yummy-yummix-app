@@ -18,7 +18,8 @@
       "supportsTablet": true,
       "usesAppleSignIn": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "Allow YummyYummix to access your microphone for voice conversations with Irmixy."
       },
       "associatedDomains": [
         "applinks:app.yummyyummix.com"
@@ -75,7 +76,8 @@
       "expo-secure-store",
       "expo-apple-authentication",
       "expo-web-browser",
-      "expo-audio"
+      "expo-audio",
+      "@config-plugins/react-native-webrtc"
     ],
     "experiments": {
       "typedRoutes": true

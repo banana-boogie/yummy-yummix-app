@@ -35,33 +35,18 @@ export class GeminiLiveService {
     }
 
     async connect(config: GeminiConfig) {
-        // 1. Get Ephemeral Token
+        // 1. Get Session for Auth
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.access_token) throw new Error('Not authenticated');
 
-        const functionsUrl = process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL;
-        const response = await fetch(`${functionsUrl}/gemini-token`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${session.access_token}`,
-            },
-        });
+        // 2. Connect to Proxy
+        const functionsUrl = process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL?.replace('https://', 'wss://');
+        const proxyUrl = `${functionsUrl}/gemini-token?jwt=${session.access_token}`;
 
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`Failed to get Gemini token: ${text}`);
-        }
+        console.log('[Gemini] Connecting to Proxy:', proxyUrl);
 
-        const data = await response.json();
-        const accessToken = data.accessToken || data.token; // Handle different SDK responses
+        this.ws = new WebSocket(proxyUrl);
 
-        // 2. Connect WebSocket
-        // @ts-ignore - React Native supports headers in 3rd arg
-        this.ws = new WebSocket(GEMINI_WS_URL, null, {
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-            },
-        });
 
         this.ws.onopen = () => {
             console.log('[Gemini] Connected');
