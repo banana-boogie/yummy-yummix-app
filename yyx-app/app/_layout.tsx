@@ -16,6 +16,8 @@ import { OnboardingProvider } from '@/contexts/OnboardingContext';
 
 import { UserProfileProvider } from '@/contexts/UserProfileContext';
 import { queryClient } from '@/lib/queryClient';
+import Toast from 'react-native-toast-message';
+import { toastConfig } from '@/config/toastConfig';
 
 // Register NativeWind interops for third-party components
 registerNativeWindInterops();
@@ -84,6 +86,7 @@ export default function RootLayout() {
           </NavigationGuard>
         </InnerProviders>
       </LanguageProvider>
+      <Toast config={toastConfig} />
     </SafeAreaProvider>
   );
 }

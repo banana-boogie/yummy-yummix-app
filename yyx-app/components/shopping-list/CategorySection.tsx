@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, LayoutAnimation, Platform, UIManager } from 'react-native';
+import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { Text } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
-import { ShoppingCategoryWithItems, CATEGORY_ICONS } from '@/types/shopping-list.types';
+import { ShoppingCategoryWithItems, ShoppingListItem, CATEGORY_ICONS } from '@/types/shopping-list.types';
 import { ShoppingListItemRow } from './ShoppingListItem';
+import { DraggableShoppingListItem } from './DraggableShoppingListItem';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -16,13 +18,18 @@ interface CategorySectionProps {
     onDeleteItem: (itemId: string) => void;
     onPressItem: (itemId: string) => void;
     onQuantityChange?: (itemId: string, quantity: number) => void;
+    onReorderItems?: (items: ShoppingListItem[]) => void;
     defaultExpanded?: boolean;
 }
 
-export function CategorySection({ category, onCheckItem, onDeleteItem, onPressItem, onQuantityChange, defaultExpanded = true }: CategorySectionProps) {
+export function CategorySection({ category, onCheckItem, onDeleteItem, onPressItem, onQuantityChange, onReorderItems, defaultExpanded = true }: CategorySectionProps) {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
-    const checkedCount = category.items.filter(item => item.isChecked).length;
+    // Separate unchecked and checked items
+    const uncheckedItems = category.items.filter(item => !item.isChecked);
+    const checkedItems = category.items.filter(item => item.isChecked);
+
+    const checkedCount = checkedItems.length;
     const totalCount = category.items.length;
     const allChecked = totalCount > 0 && checkedCount === totalCount;
 
@@ -32,6 +39,24 @@ export function CategorySection({ category, onCheckItem, onDeleteItem, onPressIt
     };
 
     const iconName = CATEGORY_ICONS[category.id] || 'ellipsis-horizontal-outline';
+
+    const handleDragEnd = ({ data }: { data: ShoppingListItem[] }) => {
+        if (onReorderItems) {
+            onReorderItems(data);
+        }
+    };
+
+    const renderItem = ({ item, drag, isActive }: RenderItemParams<ShoppingListItem>) => (
+        <DraggableShoppingListItem
+            item={item}
+            drag={drag}
+            isActive={isActive}
+            onCheck={() => onCheckItem(item.id, !item.isChecked)}
+            onDelete={() => onDeleteItem(item.id)}
+            onPress={() => onPressItem(item.id)}
+            onQuantityChange={onQuantityChange ? (qty) => onQuantityChange(item.id, qty) : undefined}
+        />
+    );
 
     return (
         <View className="mb-md">
@@ -58,7 +83,19 @@ export function CategorySection({ category, onCheckItem, onDeleteItem, onPressIt
 
             {isExpanded && (
                 <View className="mt-xs">
-                    {category.items.map(item => (
+                    {/* Draggable unchecked items */}
+                    {uncheckedItems.length > 0 && (
+                        <DraggableFlatList
+                            data={uncheckedItems}
+                            keyExtractor={(item) => item.id}
+                            renderItem={renderItem}
+                            onDragEnd={handleDragEnd}
+                            activationDistance={10}
+                        />
+                    )}
+
+                    {/* Non-draggable checked items */}
+                    {checkedItems.map(item => (
                         <ShoppingListItemRow
                             key={item.id}
                             item={item}
