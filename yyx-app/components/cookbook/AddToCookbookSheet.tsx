@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Modal, Pressable, FlatList } from 'react-native';
+import { View, Modal, Pressable, FlatList, Alert } from 'react-native';
 import { Text, Button, TextInput } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { Cookbook } from '@/types/cookbook.types';
@@ -53,9 +53,13 @@ export function AddToCookbookSheet({
             });
             onSuccess?.();
             onClose();
-        } catch (error: any) {
-            // TODO: Show error toast
-            console.error('Failed to add recipe:', error.message);
+        } catch (error) {
+            const err = error as Error;
+            console.error('Failed to add recipe:', err.message);
+            Alert.alert(
+                i18n.t('common.errors.title'),
+                err.message || i18n.t('cookbooks.errors.addRecipeFailed')
+            );
         }
     };
 

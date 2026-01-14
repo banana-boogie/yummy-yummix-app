@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { View, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { Text } from '@/components/common';
@@ -29,9 +29,13 @@ export default function CookbooksScreen() {
     try {
       await createMutation.mutateAsync(input);
       setShowCreateModal(false);
-    } catch (error: any) {
-      console.error('Failed to create cookbook:', error.message);
-      // TODO: Show error toast
+    } catch (error) {
+      const err = error as Error;
+      console.error('Failed to create cookbook:', err.message);
+      Alert.alert(
+        i18n.t('common.errors.title'),
+        err.message || i18n.t('cookbooks.errors.createFailed')
+      );
     }
   };
 
