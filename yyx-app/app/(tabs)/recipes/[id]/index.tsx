@@ -1,5 +1,5 @@
-import { View, Platform, StatusBar, Animated } from 'react-native';
-import React, { useRef, useEffect } from 'react';
+import { View, Platform, StatusBar, Animated, Pressable } from 'react-native';
+import React, { useRef, useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Head from 'expo-router/head';
 
@@ -25,12 +25,14 @@ import { ResponsiveColumnLayout, MainColumn, SideColumn } from '@/components/lay
 import { RecipeUsefulItem } from '@/types/recipe.types';
 import { ShareButton } from '@/components/common/ShareButton';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { AddToCookbookSheet } from '@/components/cookbook';
 import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
-
+import { Ionicons } from '@expo/vector-icons';
 
 const RecipeDetail: React.FC = () => {
   const { id, from } = useLocalSearchParams();
   const router = useRouter();
+  const [showCookbookSheet, setShowCookbookSheet] = useState(false);
 
   // Validate ID early to prevent unnecessary API calls
   useEffect(() => {
@@ -42,7 +44,7 @@ const RecipeDetail: React.FC = () => {
   }, [id, router]);
 
   // Only proceed with recipe fetch if we have a valid UUID
-  const validId = id && isValidUUID(id as string) ? id as string : '';
+  const validId = id && isValidUUID(id as string) ? (id as string) : '';
   const { recipe, loading, error } = useRecipe(validId);
 
   // Track recipe view when recipe loads successfully
@@ -80,13 +82,9 @@ const RecipeDetail: React.FC = () => {
     { useNativeDriver: false }
   );
 
-
-
   const getShareUrl = () => {
     if (!recipe) return '';
-    const baseUrl = Platform.OS === 'web'
-      ? window.location.origin
-      : 'https://app.yummyyummix.com';
+    const baseUrl = Platform.OS === 'web' ? window.location.origin : 'https://app.yummyyummix.com';
 
     return `${baseUrl}/api/recipe-preview/${recipe.id}?lang=${currentLanguage}`;
   };
@@ -105,28 +103,17 @@ const RecipeDetail: React.FC = () => {
 
       <StatusBar barStyle="dark-content" />
 
-
-
       <View style={{ flex: 1 }}>
-        <PageLayout
-          contentPaddingHorizontal={0}
-          disableMaxWidth={true}
-        >
+        <PageLayout contentPaddingHorizontal={0} disableMaxWidth={true}>
           <Animated.ScrollView
             onScroll={handleScroll}
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={true}
             bounces={true}
           >
-
-
             {/* Recipe image header - constrained to same max-width as content for alignment */}
             <View className="w-full max-w-[500px] md:max-w-[700px] lg:max-w-[900px] self-center">
-              <RecipeImageHeader
-                pictureUrl={recipe.pictureUrl}
-                onBackPress={handleBackPress}
-                className="mb-md"
-              />
+              <RecipeImageHeader pictureUrl={recipe.pictureUrl} onBackPress={handleBackPress} className="mb-md" />
             </View>
 
             {/* Container for the content to limit width on large screens */}
@@ -144,15 +131,15 @@ const RecipeDetail: React.FC = () => {
                 className="mb-xl"
               />
 
-              <View
-                className="mb-xs flex-row justify-between items-center"
-              >
-                <CookButton
-                  recipeId={recipe.id}
-                  size="large"
-                  className="mb-lg"
-                />
-                <View className="mb-lg">
+              <View className="mb-xs flex-row justify-between items-center">
+                <CookButton recipeId={recipe.id} size="large" className="mb-lg" />
+                <View className="mb-lg flex-row gap-sm">
+                  <Pressable
+                    onPress={() => setShowCookbookSheet(true)}
+                    className="bg-primary-medium rounded-full p-sm active:opacity-70"
+                  >
+                    <Ionicons name="book-outline" size={24} color="#2D2D2D" />
+                  </Pressable>
                   <ShareButton
                     message={i18n.t('recipes.share.message', { recipeName: recipe.name })}
                     url={getShareUrl()}
@@ -163,42 +150,40 @@ const RecipeDetail: React.FC = () => {
               {/* Content Section */}
               <ResponsiveColumnLayout>
                 <SideColumn className={`pr-md ${isMedium ? 'flex-[1.3]' : 'flex-1'}`}>
-                  <RecipeIngredients
-                    ingredients={recipe.ingredients}
-                    className="mb-xxl"
-                  />
-                  <RecipeUsefulItems
-                    usefulItems={recipe.usefulItems as RecipeUsefulItem[]}
-                    className="mb-xxl"
-                  />
+                  <RecipeIngredients ingredients={recipe.ingredients} className="mb-xxl" />
+                  <RecipeUsefulItems usefulItems={recipe.usefulItems as RecipeUsefulItem[]} className="mb-xxl" />
                 </SideColumn>
 
                 <MainColumn className="pl-md border-l border-border-default">
-                  <RecipeSteps
-                    steps={recipe.steps}
-                    className="mb-xxl"
-                  />
+                  <RecipeSteps steps={recipe.steps} className="mb-xxl" />
 
                   <RecipeTip text={recipe.tipsAndTricks} />
                 </MainColumn>
               </ResponsiveColumnLayout>
-              <CookButton
-                recipeId={recipe.id}
-                size="large"
-                className="my-xxl"
-              />
+              <CookButton recipeId={recipe.id} size="large" className="my-xxl" />
             </View>
           </Animated.ScrollView>
         </PageLayout>
+
+        <AddToCookbookSheet
+          visible={showCookbookSheet}
+          onClose={() => setShowCookbookSheet(false)}
+          recipeId={recipe.id}
+          recipeName={recipe.name}
+          onSuccess={() => {
+            console.log('Recipe added to cookbook');
+          }}
+        />
+
         <VoiceAssistantButton
           recipeContext={{
             type: 'recipe',
             recipeId: recipe.id,
             recipeTitle: recipe.name,
-            ingredients: recipe.ingredients?.map(ing => ({
+            ingredients: recipe.ingredients?.map((ing) => ({
               name: ing.name,
-              amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
-            }))
+              amount: `${ing.formattedQuantity} ${ing.formattedUnit}`,
+            })),
           }}
         />
       </View>

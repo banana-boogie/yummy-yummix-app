@@ -5,13 +5,6 @@ import { Cookbook } from '@/types/cookbook.types';
 import { CookbookCard } from './CookbookCard';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/i18n';
-import useDevice from '@/hooks/useDevice'; // Assuming this hook exists or likely standard in project, or use Dimensions.
-
-// Fallback if useDevice not available
-const useDeviceFallback = () => {
-    // Simple check
-    return { isPhone: true };
-};
 
 interface CookbookListProps {
     cookbooks: Cookbook[];
