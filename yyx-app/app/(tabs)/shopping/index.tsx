@@ -9,10 +9,12 @@ import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 import { shoppingListService } from '@/services/shoppingListService';
 import { ShoppingList } from '@/types/shopping-list.types';
+import { useToast } from '@/hooks/useToast';
 
 export default function ShoppingListsScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    const toast = useToast();
     const [lists, setLists] = useState<ShoppingList[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -23,12 +25,12 @@ export default function ShoppingListsScreen() {
             setLists(data);
         } catch (error) {
             console.error('Error fetching lists:', error);
-            Alert.alert('Error', i18n.t('common.error'));
+            toast.showError(i18n.t('common.error'), 'Failed to load shopping lists');
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    }, [toast]);
 
     useEffect(() => {
         fetchLists();
@@ -47,10 +49,11 @@ export default function ShoppingListsScreen() {
                         try {
                             const newList = await shoppingListService.createShoppingList(name.trim());
                             setLists([newList, ...lists]);
+                            toast.showSuccess(i18n.t('shoppingList.listCreated'));
                             router.push(`/shopping/${newList.id}`);
                         } catch (error) {
                             console.error('Error creating list:', error);
-                            Alert.alert('Error', i18n.t('common.error'));
+                            toast.showError(i18n.t('common.error'), 'Failed to create shopping list');
                         }
                     },
                 },

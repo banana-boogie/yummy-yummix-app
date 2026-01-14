@@ -1,13 +1,15 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, FlatList, Alert, LayoutAnimation, Platform, UIManager, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/common';
 import { CategorySection, AddItemModal } from '@/components/shopping-list';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 import { shoppingListService } from '@/services/shoppingListService';
-import { ShoppingListWithItems, ShoppingCategory } from '@/types/shopping-list.types';
+import { ShoppingListWithItems, ShoppingCategory, ShoppingListItem } from '@/types/shopping-list.types';
+import { useToast } from '@/hooks/useToast';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -16,6 +18,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export default function ShoppingListDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const router = useRouter();
+    const toast = useToast();
     const [list, setList] = useState<ShoppingListWithItems | null>(null);
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
@@ -30,11 +33,11 @@ export default function ShoppingListDetailScreen() {
             setCategories(cats);
         } catch (error) {
             console.error('Error fetching list:', error);
-            Alert.alert('Error', i18n.t('common.error'));
+            toast.showError(i18n.t('common.error'), 'Failed to load shopping list');
         } finally {
             setLoading(false);
         }
-    }, [id]);
+    }, [id, toast]);
 
     useEffect(() => {
         fetchList();
@@ -92,10 +95,11 @@ export default function ShoppingListDetailScreen() {
         if (!id || !list) return;
         try {
             await shoppingListService.addItem({ ...itemData, shoppingListId: id });
+            toast.showSuccess(i18n.t('shoppingList.itemAdded'));
             fetchList(); // Refresh to ensure correct order/category
         } catch (error) {
             console.error('Error adding item:', error);
-            Alert.alert('Error', i18n.t('common.error'));
+            toast.showError(i18n.t('common.error'), 'Failed to add item');
         }
     };
 
@@ -103,10 +107,56 @@ export default function ShoppingListDetailScreen() {
         if (!id) return;
         try {
             const result = await shoppingListService.consolidateItems(id);
-            Alert.alert(i18n.t('common.success'), i18n.t('shoppingList.consolidatedCount', { count: result.merged }));
+            toast.showSuccess(i18n.t('shoppingList.consolidatedCount', { count: result.merged }));
             fetchList();
         } catch (error) {
             console.error('Error consolidating:', error);
+            toast.showError(i18n.t('common.error'), 'Failed to consolidate items');
+        }
+    };
+
+    const handleReorderItems = async (categoryId: string, reorderedItems: ShoppingListItem[]) => {
+        // Save previous state for rollback
+        const previousList = list;
+
+        // Calculate new display orders (sequential: 1, 2, 3...)
+        const updates = reorderedItems.map((item, index) => ({
+            id: item.id,
+            displayOrder: index + 1,
+        }));
+
+        // Optimistic update
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setList(current => {
+            if (!current) return null;
+            const updatedCategories = current.categories.map(cat => {
+                if (cat.id === categoryId) {
+                    return {
+                        ...cat,
+                        items: reorderedItems.map((item, index) => ({
+                            ...item,
+                            displayOrder: index + 1,
+                        })),
+                    };
+                }
+                return cat;
+            });
+            return { ...current, categories: updatedCategories };
+        });
+
+        // Haptic feedback
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+        try {
+            // Persist to database
+            await shoppingListService.updateItemsOrder(updates);
+        } catch (error) {
+            // Rollback on error
+            setList(previousList);
+            toast.showError(
+                i18n.t('common.error'),
+                i18n.t('shoppingList.reorderError')
+            );
         }
     };
 
@@ -133,6 +183,7 @@ export default function ShoppingListDetailScreen() {
                         onCheckItem={handleCheckItem}
                         onDeleteItem={handleDeleteItem}
                         onPressItem={(itemId) => { /* TODO: Edit item */ }}
+                        onReorderItems={(items) => handleReorderItems(item.id, items)}
                     />
                 )}
                 contentContainerStyle={{ padding: 16, paddingBottom: 100 }}

@@ -324,6 +324,24 @@ export const shoppingListService = {
             categoryId: 'other',
         }));
     },
+
+    async updateItemsOrder(updates: Array<{ id: string; displayOrder: number }>): Promise<void> {
+        // Batch update using Promise.all for performance
+        const promises = updates.map(({ id, displayOrder }) =>
+            supabase
+                .from('shopping_list_items')
+                .update({ display_order: displayOrder })
+                .eq('id', id)
+        );
+
+        const results = await Promise.all(promises);
+
+        // Check for errors
+        const errors = results.filter(r => r.error);
+        if (errors.length > 0) {
+            throw new Error(`Error updating item order: ${errors[0].error.message}`);
+        }
+    },
 };
 
 export default shoppingListService;
