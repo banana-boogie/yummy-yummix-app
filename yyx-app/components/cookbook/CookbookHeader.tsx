@@ -7,6 +7,7 @@ import { ShareCookbookModal } from './ShareCookbookModal';
 import { CreateEditCookbookModal } from './CreateEditCookbookModal';
 import { useUpdateCookbook, useDeleteCookbook } from '@/hooks/useCookbookQuery';
 import { UpdateCookbookInput } from '@/types/cookbook.types';
+import { getGradientForCookbook } from '@/utils/gradients';
 import i18n from '@/i18n';
 import { router } from 'expo-router';
 
@@ -22,25 +23,7 @@ export function CookbookHeader({ cookbook, onDelete }: CookbookHeaderProps) {
   const updateMutation = useUpdateCookbook();
   const deleteMutation = useDeleteCookbook();
 
-  // Simple deterministic gradient generator based on ID
-  const RAW_GRADIENTS = [
-    ['#FF9A9E', '#FECFEF'],
-    ['#a18cd1', '#fbc2eb'],
-    ['#fa709a', '#fee140'],
-    ['#ff9a9e', '#fecfef'],
-    ['#f6d365', '#fda085'],
-    ['#84fab0', '#8fd3f4'],
-    ['#a1c4fd', '#c2e9fb'],
-    ['#cfd9df', '#e2ebf0'],
-  ];
-
-  const getGradientForId = (id: string) => {
-    if (!id) return RAW_GRADIENTS[0];
-    const charCode = id.charCodeAt(0) + id.charCodeAt(id.length - 1);
-    return RAW_GRADIENTS[charCode % RAW_GRADIENTS.length];
-  };
-
-  const colors = getGradientForId(cookbook.id);
+  const colors = getGradientForCookbook(cookbook.id);
 
   const handleEdit = async (input: UpdateCookbookInput) => {
     try {
@@ -49,8 +32,12 @@ export function CookbookHeader({ cookbook, onDelete }: CookbookHeaderProps) {
         input,
       });
       setShowEditModal(false);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to update cookbook');
+    } catch (error) {
+      const err = error as Error;
+      Alert.alert(
+        i18n.t('common.errors.title'),
+        err.message || i18n.t('cookbooks.errors.updateFailed')
+      );
     }
   };
 
@@ -79,8 +66,12 @@ export function CookbookHeader({ cookbook, onDelete }: CookbookHeaderProps) {
               await deleteMutation.mutateAsync(cookbook.id);
               onDelete?.();
               router.back();
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'Failed to delete cookbook');
+            } catch (error) {
+              const err = error as Error;
+              Alert.alert(
+                i18n.t('common.errors.title'),
+                err.message || i18n.t('cookbooks.errors.deleteFailed')
+              );
             }
           },
         },

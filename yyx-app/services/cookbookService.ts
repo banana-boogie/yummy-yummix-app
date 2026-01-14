@@ -237,7 +237,13 @@ async function updateCookbook(
   cookbookId: string,
   input: UpdateCookbookInput
 ): Promise<void> {
-  const updateData: any = {};
+  const updateData: Partial<{
+    name_en: string;
+    name_es: string | null;
+    description_en: string | null;
+    description_es: string | null;
+    is_public: boolean;
+  }> = {};
 
   if (input.nameEn !== undefined) updateData.name_en = input.nameEn;
   if (input.nameEs !== undefined) updateData.name_es = input.nameEs;
@@ -327,7 +333,11 @@ async function updateCookbookRecipe(
   cookbookRecipeId: string,
   input: UpdateCookbookRecipeInput
 ): Promise<void> {
-  const updateData: any = {};
+  const updateData: Partial<{
+    notes_en: string | null;
+    notes_es: string | null;
+    display_order: number;
+  }> = {};
 
   if (input.notesEn !== undefined) updateData.notes_en = input.notesEn;
   if (input.notesEs !== undefined) updateData.notes_es = input.notesEs;
