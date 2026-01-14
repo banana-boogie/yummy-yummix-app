@@ -1,5 +1,5 @@
-import { View, Platform, StatusBar, Animated } from 'react-native';
-import React, { useRef, useEffect } from 'react';
+import { View, Platform, StatusBar, Animated, Pressable } from 'react-native';
+import React, { useRef, useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Head from 'expo-router/head';
 
@@ -24,11 +24,14 @@ import { ResponsiveColumnLayout, MainColumn, SideColumn } from '@/components/lay
 import { RecipeUsefulItem } from '@/types/recipe.types';
 import { ShareButton } from '@/components/common/ShareButton';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { AddToCookbookSheet } from '@/components/cookbook';
+import { Ionicons } from '@expo/vector-icons';
 
 
 const RecipeDetail: React.FC = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const [showCookbookSheet, setShowCookbookSheet] = useState(false);
 
   // Validate ID early to prevent unnecessary API calls
   useEffect(() => {
@@ -135,7 +138,13 @@ const RecipeDetail: React.FC = () => {
                 size="large"
                 className="mb-lg"
               />
-              <View className="mb-lg">
+              <View className="mb-lg flex-row gap-sm">
+                <Pressable
+                  onPress={() => setShowCookbookSheet(true)}
+                  className="bg-primary-medium rounded-full p-sm active:opacity-70"
+                >
+                  <Ionicons name="book-outline" size={24} color="#2D2D2D" />
+                </Pressable>
                 <ShareButton
                   message={i18n.t('recipes.share.message', { recipeName: recipe.name })}
                   url={getShareUrl()}
@@ -173,6 +182,20 @@ const RecipeDetail: React.FC = () => {
           </View>
         </Animated.ScrollView>
       </PageLayout>
+
+      {/* Add to Cookbook Sheet */}
+      {recipe && (
+        <AddToCookbookSheet
+          visible={showCookbookSheet}
+          onClose={() => setShowCookbookSheet(false)}
+          recipeId={recipe.id}
+          recipeName={recipe.name}
+          onSuccess={() => {
+            // Optional: Show success toast
+            console.log('Recipe added to cookbook');
+          }}
+        />
+      )}
     </>
   );
 };

@@ -17,6 +17,12 @@ const TAB_CONFIG = [
     href: '/recipes',
   },
   {
+    name: 'cookbooks',
+    icon: 'book-outline',
+    iconActive: 'book',
+    href: '/cookbooks',
+  },
+  {
     name: 'chat',
     icon: 'chatbubble-outline',
     iconActive: 'chatbubble',
