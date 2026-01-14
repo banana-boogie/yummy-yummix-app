@@ -25,3 +25,13 @@ expo-env.d.ts
 
 # Secrets
 apple-jwt.txt
+
+# Native Build Directories
+ios/
+android/
+vendor/
+
+# Ruby/Environment
+Gemfile
+Gemfile.lock
+.bundle/
