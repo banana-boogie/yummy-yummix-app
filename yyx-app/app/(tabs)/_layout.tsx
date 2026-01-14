@@ -21,6 +21,7 @@ type TabConfigItem = {
 
 const TAB_CONFIG: TabConfigItem[] = [
   { name: 'recipes', icon: 'sparkles-outline', iconActive: 'sparkles', href: '/recipes' },
+  { name: 'cookbooks', icon: 'book-outline', iconActive: 'book', href: '/cookbooks' },
   { name: 'chat', image: require('@/assets/images/irmixy-avatar/irmixy-face.png'), href: '/chat' },
   { name: 'profile', icon: 'person-outline', iconActive: 'person', href: '/profile' },
 ];
