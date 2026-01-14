@@ -3,25 +3,8 @@ import { View, Pressable, Dimensions } from 'react-native';
 import { Text } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { Cookbook } from '@/types/cookbook.types';
+import { getGradientForCookbook } from '@/utils/gradients';
 import i18n from '@/i18n';
-
-// Simple deterministic gradient generator based on ID
-const RAW_GRADIENTS = [
-    ['#FF9A9E', '#FECFEF'],
-    ['#a18cd1', '#fbc2eb'],
-    ['#fa709a', '#fee140'],
-    ['#ff9a9e', '#fecfef'],
-    ['#f6d365', '#fda085'],
-    ['#84fab0', '#8fd3f4'],
-    ['#a1c4fd', '#c2e9fb'],
-    ['#cfd9df', '#e2ebf0'],
-];
-
-const getGradientForId = (id: string) => {
-    if (!id) return RAW_GRADIENTS[0];
-    const charCode = id.charCodeAt(0) + id.charCodeAt(id.length - 1);
-    return RAW_GRADIENTS[charCode % RAW_GRADIENTS.length];
-};
 
 interface CookbookCardProps {
     cookbook: Cookbook;
@@ -30,7 +13,7 @@ interface CookbookCardProps {
 }
 
 export function CookbookCard({ cookbook, onPress, size = 'medium' }: CookbookCardProps) {
-    const colors = getGradientForId(cookbook.id);
+    const colors = getGradientForCookbook(cookbook.id);
 
     // Dimensions based on screen width/columns logic in parent, but we can set fixed aspect ratio
     // For grid, usually handled by parent container width, but let's enforce min height

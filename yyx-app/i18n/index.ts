@@ -311,6 +311,14 @@ const translations = {
       sharedCookbook: 'Shared Cookbook',
       likeThis: 'Like what you see?',
       signUpToSave: 'Sign up to create your own cookbooks and save recipes',
+      errors: {
+        createFailed: 'Failed to create cookbook',
+        updateFailed: 'Failed to update cookbook',
+        deleteFailed: 'Failed to delete cookbook',
+        addRecipeFailed: 'Failed to add recipe to cookbook',
+        removeRecipeFailed: 'Failed to remove recipe',
+        recipeAlreadyAdded: 'This recipe is already in this cookbook',
+      },
     },
     onboarding: {
       common: {
@@ -1221,6 +1229,14 @@ const translations = {
       sharedCookbook: 'Recetario Compartido',
       likeThis: '¿Te gusta lo que ves?',
       signUpToSave: 'Regístrate para crear tus propios recetarios y guardar recetas',
+      errors: {
+        createFailed: 'No se pudo crear el recetario',
+        updateFailed: 'No se pudo actualizar el recetario',
+        deleteFailed: 'No se pudo eliminar el recetario',
+        addRecipeFailed: 'No se pudo agregar la receta al recetario',
+        removeRecipeFailed: 'No se pudo quitar la receta',
+        recipeAlreadyAdded: 'Esta receta ya está en este recetario',
+      },
     },
     onboarding: {
       common: {

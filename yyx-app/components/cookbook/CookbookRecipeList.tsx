@@ -49,8 +49,12 @@ export function CookbookRecipeList({
                 cookbookId,
                 recipeId,
               });
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'Failed to remove recipe');
+            } catch (error) {
+              const err = error as Error;
+              Alert.alert(
+                i18n.t('common.errors.title'),
+                err.message || i18n.t('cookbooks.errors.removeRecipeFailed')
+              );
             }
           },
         },

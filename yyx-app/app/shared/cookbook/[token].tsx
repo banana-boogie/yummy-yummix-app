@@ -6,6 +6,7 @@ import { Text, Button } from '@/components/common';
 import { CookbookRecipeList } from '@/components/cookbook';
 import { useSharedCookbookQuery } from '@/hooks/useCookbookQuery';
 import { useAuth } from '@/contexts/AuthContext';
+import { getGradientForCookbook } from '@/utils/gradients';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/i18n';
 
@@ -49,25 +50,7 @@ export default function SharedCookbookScreen() {
     );
   }
 
-  // Simple deterministic gradient generator based on ID
-  const RAW_GRADIENTS = [
-    ['#FF9A9E', '#FECFEF'],
-    ['#a18cd1', '#fbc2eb'],
-    ['#fa709a', '#fee140'],
-    ['#ff9a9e', '#fecfef'],
-    ['#f6d365', '#fda085'],
-    ['#84fab0', '#8fd3f4'],
-    ['#a1c4fd', '#c2e9fb'],
-    ['#cfd9df', '#e2ebf0'],
-  ];
-
-  const getGradientForId = (id: string) => {
-    if (!id) return RAW_GRADIENTS[0];
-    const charCode = id.charCodeAt(0) + id.charCodeAt(id.length - 1);
-    return RAW_GRADIENTS[charCode % RAW_GRADIENTS.length];
-  };
-
-  const colors = getGradientForId(cookbook.id);
+  const colors = getGradientForCookbook(cookbook.id);
   const isOwner = user?.id === cookbook.userId;
 
   return (
