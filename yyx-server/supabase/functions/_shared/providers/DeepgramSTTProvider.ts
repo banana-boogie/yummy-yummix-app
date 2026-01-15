@@ -18,7 +18,8 @@ export class DeepgramSTTProvider implements STTProvider {
     }
 
     // Build Deepgram WebSocket URL with parameters
-    const url = new URL('wss://api.deepgram.com/v1/listen');
+    // Use URL credentials format for auth (Deno WebSocket doesn't support headers)
+    const url = new URL(`wss://${apiKey}@api.deepgram.com/v1/listen`);
     url.searchParams.set('model', 'nova-2');
     url.searchParams.set('language', config.language);
     url.searchParams.set('encoding', config.encoding);
@@ -29,8 +30,6 @@ export class DeepgramSTTProvider implements STTProvider {
     url.searchParams.set('punctuate', 'true');
     url.searchParams.set('smart_format', 'true');
     url.searchParams.set('interim_results', 'false'); // Only final transcripts
-    // Deepgram supports token as query parameter (Deno WebSocket doesn't support headers)
-    url.searchParams.set('token', apiKey);
 
     console.log('[Deepgram] Connecting to:', url.toString().replace(apiKey, 'REDACTED'));
 
