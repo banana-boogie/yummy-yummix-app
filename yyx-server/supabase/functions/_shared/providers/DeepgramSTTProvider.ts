@@ -18,8 +18,7 @@ export class DeepgramSTTProvider implements STTProvider {
     }
 
     // Build Deepgram WebSocket URL with parameters
-    // Use URL credentials format for auth (Deno WebSocket doesn't support headers)
-    const url = new URL(`wss://${apiKey}@api.deepgram.com/v1/listen`);
+    const url = new URL('wss://api.deepgram.com/v1/listen');
     url.searchParams.set('model', 'nova-2');
     url.searchParams.set('language', config.language);
     url.searchParams.set('encoding', config.encoding);
@@ -31,9 +30,11 @@ export class DeepgramSTTProvider implements STTProvider {
     url.searchParams.set('smart_format', 'true');
     url.searchParams.set('interim_results', 'false'); // Only final transcripts
 
-    console.log('[Deepgram] Connecting to:', url.toString().replace(apiKey, 'REDACTED'));
+    console.log('[Deepgram] Connecting to:', url.toString());
 
-    this.ws = new WebSocket(url.toString());
+    // Use Sec-WebSocket-Protocol for authentication (Deepgram's recommended approach)
+    // Pass 'token' and the API key as WebSocket subprotocols
+    this.ws = new WebSocket(url.toString(), ['token', apiKey]);
 
     // Wait for connection to open
     await new Promise<void>((resolve, reject) => {
