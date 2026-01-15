@@ -29,14 +29,12 @@ export class DeepgramSTTProvider implements STTProvider {
     url.searchParams.set('punctuate', 'true');
     url.searchParams.set('smart_format', 'true');
     url.searchParams.set('interim_results', 'false'); // Only final transcripts
+    // Deepgram supports token as query parameter (Deno WebSocket doesn't support headers)
+    url.searchParams.set('token', apiKey);
 
-    console.log('[Deepgram] Connecting to:', url.toString());
+    console.log('[Deepgram] Connecting to:', url.toString().replace(apiKey, 'REDACTED'));
 
-    this.ws = new WebSocket(url.toString(), {
-      headers: {
-        Authorization: `Token ${apiKey}`,
-      },
-    });
+    this.ws = new WebSocket(url.toString());
 
     // Wait for connection to open
     await new Promise<void>((resolve, reject) => {
