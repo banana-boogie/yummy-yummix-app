@@ -58,16 +58,17 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
     const isConnected = status !== 'idle' && status !== 'error';
     const isConnecting = status === 'connecting';
 
-    // Timer for active session
+    // Timer for active session (only when truly active, not during connecting)
+    const isActive = isConnected && !isConnecting;
     useEffect(() => {
         let interval: NodeJS.Timeout;
-        if (isConnected) {
+        if (isActive) {
             interval = setInterval(() => setDuration(d => d + 1), 1000);
         } else {
             setDuration(0);
         }
         return () => clearInterval(interval);
-    }, [isConnected]);
+    }, [isActive]);
 
     // Error handling
     useEffect(() => {
@@ -109,9 +110,9 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
             className="flex-1 bg-background-default"
             style={{ paddingBottom: insets.bottom }}
         >
-            {/* Header / Timer */}
+            {/* Header / Timer - only show when truly active, not during connecting */}
             <View className="items-center pt-md">
-                {isConnected && (
+                {isActive && (
                     <View className="bg-background-secondary px-sm py-xs rounded-full">
                         <Text preset="caption" className="text-primary-darkest font-bold">
                             {formatDuration(duration)}
@@ -157,15 +158,17 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
             {/* Controls */}
             <View className="items-center py-xl border-t border-grey-light bg-background-default">
                 <VoiceButton
-                    state={isConnected ? 'recording' : 'ready'}
+                    state={isActive ? 'recording' : 'ready'}
                     onPress={handleVoicePress}
                     size={80}
                     disabled={isConnecting}
                 />
                 <Text preset="caption" className="text-text-secondary mt-sm">
-                    {isConnected
-                        ? "Tap to End Call"
-                        : "Tap to Connect"
+                    {isConnecting
+                        ? "Connecting..."
+                        : isConnected
+                            ? "Tap to End Call"
+                            : "Tap to Connect"
                     }
                 </Text>
                 {quotaInfo && !isConnected && (

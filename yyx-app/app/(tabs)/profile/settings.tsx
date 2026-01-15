@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View } from 'react-native';
 import i18n from '@/i18n';
 import { Language, useLanguage } from '@/contexts/LanguageContext';
@@ -6,6 +6,8 @@ import { useMeasurement } from '@/contexts/MeasurementContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { MeasurementSystem } from '@/types/user';
+import { ProviderType } from '@/services/voice/VoiceProviderFactory';
+import { Storage } from '@/utils/storage';
 import { SystemButtons } from '@/components/settings/SystemButtons';
 import { DangerButton } from '@/components/common/DangerButton';
 import { StatusModal } from '@/components/common/StatusModal';
@@ -23,6 +25,14 @@ export default function Settings() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
+  const [voiceProvider, setVoiceProvider] = useState<ProviderType>('hear-think-speak');
+
+  // Load voice provider preference on mount
+  useEffect(() => {
+    Storage.getItem('voiceProvider').then(saved => {
+      if (saved) setVoiceProvider(saved as ProviderType);
+    });
+  }, []);
 
   const handleLanguageChange = async (newLanguage: string) => {
     try {
@@ -71,6 +81,27 @@ export default function Settings() {
     }
   };
 
+  const handleVoiceProviderChange = async (newProvider: ProviderType) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Save to local storage
+      await Storage.setItem('voiceProvider', newProvider);
+      setVoiceProvider(newProvider);
+
+      setSuccessMessage(i18n.t('common.saved'));
+      setShowSuccessModal(true);
+      setTimeout(() => setShowSuccessModal(false), 2000);
+    } catch (error) {
+      console.error('Error changing voice provider:', error);
+      setError(i18n.t('common.errors.default'));
+      setShowErrorModal(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       setIsLoading(true);
@@ -94,6 +125,8 @@ export default function Settings() {
         onLanguageChange={handleLanguageChange}
         measurementSystem={measurementSystem}
         onMeasurementChange={handleMeasurementChange}
+        voiceProvider={voiceProvider}
+        onVoiceProviderChange={handleVoiceProviderChange}
       />
 
       <View className="flex-1 justify-end pb-lg">

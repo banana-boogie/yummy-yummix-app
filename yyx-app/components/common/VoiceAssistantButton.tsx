@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Text } from '@/components/common';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { IrmixyAvatar } from '@/components/chat/IrmixyAvatar';
+import i18n from '@/i18n';
 import type { RecipeContext, QuotaInfo } from '@/services/voice/types';
 
 interface VoiceAssistantButtonProps {
@@ -17,6 +18,7 @@ export function VoiceAssistantButton({
     size = 'medium'
 }: VoiceAssistantButtonProps) {
     const [showTranscript, setShowTranscript] = useState(false);
+    const [showGreeting, setShowGreeting] = useState(false);
 
     const {
         status,
@@ -37,7 +39,21 @@ export function VoiceAssistantButton({
         }
     });
 
+    // Show greeting when status becomes listening, hide when user speaks or stops
+    useEffect(() => {
+        if (status === 'listening') {
+            setShowGreeting(true);
+        } else if (status === 'idle' || transcript || response) {
+            setShowGreeting(false);
+        }
+    }, [status, transcript, response]);
+
     const handlePress = async () => {
+        // Disable interaction during connecting
+        if (status === 'connecting') {
+            return;
+        }
+
         if (status === 'idle') {
             // Show quota before starting
             if (quotaInfo) {
@@ -100,6 +116,27 @@ export function VoiceAssistantButton({
                     />
                 )}
             </TouchableOpacity>
+
+            {/* Connecting status - prominent and obvious */}
+            {status === 'connecting' && (
+                <View className="absolute bottom-24 left-6 right-6 bg-primary-default rounded-lg p-4 shadow-lg z-50 border-2 border-primary-medium">
+                    <View className="flex-row items-center justify-center gap-3">
+                        <ActivityIndicator color="#FFBFB7" size="small" />
+                        <Text preset="body" className="text-text-default font-semibold">
+                            {i18n.t('chat.voice.connecting')}
+                        </Text>
+                    </View>
+                </View>
+            )}
+
+            {/* Initial greeting bubble (shown when ready, hidden once user speaks) */}
+            {showGreeting && status !== 'connecting' && (
+                <View className="absolute bottom-24 left-6 right-6 bg-white rounded-lg p-4 shadow-lg z-50">
+                    <Text preset="body" className="text-text-default">
+                        {i18n.t('chat.voice.greeting')}
+                    </Text>
+                </View>
+            )}
 
             {/* Transcript overlay */}
             {(transcript || response) && (

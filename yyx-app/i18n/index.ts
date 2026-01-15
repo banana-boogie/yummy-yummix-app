@@ -111,6 +111,11 @@ const translations = {
       measurementSystem: 'Measurement System',
       metric: 'Metric',
       imperial: 'Imperial',
+      voiceProvider: 'Voice Assistant',
+      voiceProviderStandard: 'Standard',
+      voiceProviderPremium: 'Premium',
+      voiceProviderStandardDesc: 'HearThinkSpeak - Cost effective',
+      voiceProviderPremiumDesc: 'OpenAI Realtime - Faster response',
     },
     header: {
       greeting: 'Hello {{name}}!',
@@ -856,6 +861,8 @@ const translations = {
       error: 'Sorry, something went wrong. Please try again.',
       loginRequired: 'Please log in to chat with Irmixy.',
       voice: {
+        greeting: "Hi! I'm Irmixy, your sous chef. What can I help you with?",
+        connecting: "Connecting to Irmixy...",
         listening: "I'm listening!",
         thinking: 'Thinking...',
         speaking: 'Speaking!',
@@ -967,7 +974,7 @@ const translations = {
       title: 'Configuración',
       language: 'Idioma',
       signOut: 'Cerrar Sesión',
-      // NOTE: The restartTitle, restartMessage and restartButton are in English because 
+      // NOTE: The restartTitle, restartMessage and restartButton are in English because
       // The app is currently in Spanish, so if they click English, they will be able to read the English to restart
       // and they will be able to see the cancel button in Spanish.
       restartTitle: 'Reinicio Necesario',
@@ -977,6 +984,11 @@ const translations = {
       measurementSystem: 'Unidades',
       metric: 'Métrico',
       imperial: 'Imperial',
+      voiceProvider: 'Asistente de Voz',
+      voiceProviderStandard: 'Estándar',
+      voiceProviderPremium: 'Premium',
+      voiceProviderStandardDesc: 'HearThinkSpeak - Económico',
+      voiceProviderPremiumDesc: 'OpenAI Realtime - Respuesta más rápida',
     },
     header: {
       greeting: '¡Hola {{name}}!',
@@ -1721,6 +1733,8 @@ const translations = {
       error: 'Lo siento, algo salió mal. Por favor, inténtalo de nuevo.',
       loginRequired: 'Por favor, inicia sesión para chatear con Irmixy.',
       voice: {
+        greeting: '¡Hola! Soy Irmixy, tu sous chef. ¿En qué puedo ayudarte?',
+        connecting: 'Conectando con Irmixy...',
         listening: '¡Te escucho!',
         thinking: 'Pensando...',
         speaking: '¡Hablando!',

@@ -3,9 +3,9 @@ import { validateAuth } from '../_shared/auth.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 serve(async (req) => {
-    // CORS Headers
+    // CORS Headers (configurable via environment variable for security)
     const corsHeaders = {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': Deno.env.get('CORS_ORIGIN') || '*',
         'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     };
 
@@ -75,7 +75,7 @@ serve(async (req) => {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                model: 'gpt-4o-realtime-preview-2024-10-01',
+                model: 'gpt-realtime-mini',
                 voice: 'alloy',
             }),
         });

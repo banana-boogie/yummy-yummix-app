@@ -2,6 +2,7 @@ import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { MeasurementSystem } from '@/types/user';
+import { ProviderType } from '@/services/voice/VoiceProviderFactory';
 import { useDevice } from '@/hooks/useDevice';
 import i18n from '@/i18n';
 
@@ -10,20 +11,25 @@ interface SystemButtonsProps {
   onLanguageChange: (lang: string) => void;
   measurementSystem: MeasurementSystem;
   onMeasurementChange: (system: MeasurementSystem) => void;
+  voiceProvider: ProviderType;
+  onVoiceProviderChange: (provider: ProviderType) => void;
 }
 
 export function SystemButtons({
   language,
   onLanguageChange,
   measurementSystem,
-  onMeasurementChange
+  onMeasurementChange,
+  voiceProvider,
+  onVoiceProviderChange
 }: SystemButtonsProps) {
   const { isLarge: isLargeScreen } = useDevice();
 
   const renderButton = (
     label: string,
     isActive: boolean,
-    onPress: () => void
+    onPress: () => void,
+    description?: string
   ) => (
     <TouchableOpacity
       className={`
@@ -42,11 +48,23 @@ export function SystemButtons({
       >
         {label}
       </Text>
+      {description && (
+        <Text
+          preset="caption"
+          className={`
+            text-center mt-xs
+            ${isActive ? 'text-neutral-white' : 'text-text-secondary'}
+          `}
+        >
+          {description}
+        </Text>
+      )}
     </TouchableOpacity>
   );
 
   return (
     <View className="mb-lg px-md">
+      {/* Language Selection */}
       <View className="mb-xl">
         <Text className="text-text-secondary text-base mb-sm font-medium">
           {i18n.t('profile.language')}
@@ -57,6 +75,7 @@ export function SystemButtons({
         </View>
       </View>
 
+      {/* Measurement System Selection */}
       <View className="mb-xl">
         <Text className="text-text-secondary text-base mb-sm font-medium">
           {i18n.t('profile.measurementSystem')}
@@ -71,6 +90,27 @@ export function SystemButtons({
             i18n.t('settings.imperial'),
             measurementSystem === MeasurementSystem.IMPERIAL,
             () => onMeasurementChange(MeasurementSystem.IMPERIAL)
+          )}
+        </View>
+      </View>
+
+      {/* Voice Provider Selection */}
+      <View className="mb-xl">
+        <Text className="text-text-secondary text-base mb-sm font-medium">
+          {i18n.t('settings.voiceProvider')}
+        </Text>
+        <View className={`flex-row gap-sm ${isLargeScreen ? 'gap-md max-w-[600px]' : ''}`}>
+          {renderButton(
+            i18n.t('settings.voiceProviderStandard'),
+            voiceProvider === 'hear-think-speak',
+            () => onVoiceProviderChange('hear-think-speak'),
+            i18n.t('settings.voiceProviderStandardDesc')
+          )}
+          {renderButton(
+            i18n.t('settings.voiceProviderPremium'),
+            voiceProvider === 'openai-realtime',
+            () => onVoiceProviderChange('openai-realtime'),
+            i18n.t('settings.voiceProviderPremiumDesc')
           )}
         </View>
       </View>
