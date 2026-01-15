@@ -6,6 +6,7 @@
  * Latency: ~600-900ms (streaming LLM + sentence-level TTS)
  */
 
+import { mediaDevices, MediaStream } from 'react-native-webrtc';
 import { Audio } from 'expo-av';
 import InCallManager from 'react-native-incall-manager';
 import { supabase } from '@/lib/supabase';
@@ -23,7 +24,9 @@ import type {
 
 export class HearThinkSpeakProvider implements VoiceAssistantProvider {
   private ws: WebSocket | null = null;
-  private recording: Audio.Recording | null = null;
+  private audioStream: MediaStream | null = null;
+  private audioContext: AudioContext | null = null;
+  private processor: ScriptProcessorNode | null = null;
   private sound: Audio.Sound | null = null;
   private status: VoiceStatus = 'idle';
   private sessionId: string | null = null;
@@ -31,22 +34,9 @@ export class HearThinkSpeakProvider implements VoiceAssistantProvider {
   private inactivityTimer = new InactivityTimer(30000); // 30 seconds
   private eventListeners: Map<VoiceEvent, Set<Function>> = new Map();
   private currentContext: ConversationContext | null = null;
-  private streamIntervalId: NodeJS.Timeout | null = null;
 
   async initialize(config: ProviderConfig): Promise<any> {
-    // Request audio permissions
-    const { status } = await Audio.requestPermissionsAsync();
-    if (status !== 'granted') {
-      throw new Error('Audio permission not granted');
-    }
-
-    // Configure audio mode for recording
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: true,
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: false,
-    });
-
+    // Permissions handled by getUserMedia
     console.log('[HTS] Initialized');
     return { initialized: true };
   }
@@ -133,16 +123,22 @@ export class HearThinkSpeakProvider implements VoiceAssistantProvider {
       this.ws.send(JSON.stringify({ type: 'stop' }));
     }
 
-    // Stop recording
-    if (this.recording) {
-      this.recording.stopAndUnloadAsync().catch(console.error);
-      this.recording = null;
+    // Stop audio stream
+    if (this.audioStream) {
+      this.audioStream.getTracks().forEach(track => track.stop());
+      this.audioStream = null;
     }
 
-    // Stop streaming interval
-    if (this.streamIntervalId) {
-      clearInterval(this.streamIntervalId);
-      this.streamIntervalId = null;
+    // Disconnect processor
+    if (this.processor) {
+      this.processor.disconnect();
+      this.processor = null;
+    }
+
+    // Close audio context
+    if (this.audioContext) {
+      this.audioContext.close().catch(console.error);
+      this.audioContext = null;
     }
 
     // Close WebSocket
@@ -284,54 +280,52 @@ export class HearThinkSpeakProvider implements VoiceAssistantProvider {
 
   private async startRecording(): Promise<void> {
     try {
-      console.log('[HTS] Starting recording...');
+      console.log('[HTS] Starting audio recording with getUserMedia...');
 
-      this.recording = new Audio.Recording();
-      await this.recording.prepareToRecordAsync({
-        android: {
-          extension: '.wav',
-          outputFormat: Audio.AndroidOutputFormat.DEFAULT,
-          audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
+      // Get audio stream (same as OpenAI provider)
+      this.audioStream = await mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
           sampleRate: 16000,
-          numberOfChannels: 1,
-          bitRate: 128000,
         },
-        ios: {
-          extension: '.wav',
-          audioQuality: Audio.IOSAudioQuality.HIGH,
-          sampleRate: 16000,
-          numberOfChannels: 1,
-          bitRate: 128000,
-          linearPCMBitDepth: 16,
-          linearPCMIsBigEndian: false,
-          linearPCMIsFloat: false,
-        },
-        web: {}
+        video: false,
       });
 
-      await this.recording.startAsync();
-      console.log('[HTS] Recording started');
+      console.log('[HTS] Audio stream acquired');
 
-      // Stream audio chunks every 250ms
-      this.streamAudioChunks();
+      // Create audio context for processing
+      const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+      this.audioContext = new AudioContextClass({ sampleRate: 16000 });
+
+      const source = this.audioContext.createMediaStreamSource(this.audioStream);
+      this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
+
+      this.processor.onaudioprocess = (e) => {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+        const inputData = e.inputBuffer.getChannelData(0);
+
+        // Convert Float32Array to Int16Array (linear16)
+        const int16Array = new Int16Array(inputData.length);
+        for (let i = 0; i < inputData.length; i++) {
+          int16Array[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
+        }
+
+        // Send audio to backend
+        this.ws.send(int16Array.buffer);
+      };
+
+      source.connect(this.processor);
+      this.processor.connect(this.audioContext.destination);
+
+      console.log('[HTS] Audio streaming active');
 
     } catch (error) {
       console.error('[HTS] Failed to start recording:', error);
       throw error;
     }
-  }
-
-  private streamAudioChunks(): void {
-    // Note: expo-av doesn't support real-time audio streaming directly
-    // We need to use a workaround by periodically reading the recording
-    // This is a simplified version - production would need native modules
-
-    console.log('[HTS] Note: Audio streaming with expo-av has limitations');
-    console.log('[HTS] For production, consider using native audio streaming modules');
-
-    // For now, we'll rely on Deepgram's VAD to handle turn-taking
-    // The audio will be sent in larger chunks when the recording is stopped
-    // This is a known limitation of expo-av for streaming use cases
   }
 
   private async playAudio(base64Audio: string): Promise<void> {
