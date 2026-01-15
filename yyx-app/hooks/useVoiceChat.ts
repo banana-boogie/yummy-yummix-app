@@ -96,7 +96,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
 
             // 3. Build context
             const userContext = {
-                language: language?.startsWith('es') ? 'es' : 'en',
+                language: (language?.startsWith('es') ? 'es' : 'en') as 'es' | 'en',
                 measurementSystem: measurementSystem || 'metric',
                 dietaryRestrictions: userProfile?.dietaryRestrictions || [],
                 dietTypes: userProfile?.dietTypes || []
@@ -114,6 +114,30 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
         }
     }, [language, measurementSystem, userProfile, options]);
 
+    // Session Timeout Logic
+    useEffect(() => {
+        let timeoutId: ReturnType<typeof setTimeout>;
+
+        if (status === 'listening' || status === 'speaking' || status === 'processing') {
+            const minutesLeft = quotaInfo?.remainingMinutes || 0;
+            // Buffer: 30 seconds extra (grace period)
+            const maxDurationSeconds = (minutesLeft * 60) + 30;
+            const maxDurationMs = maxDurationSeconds * 1000;
+
+            console.log(`[VoiceChat] Session will auto-end in ${maxDurationSeconds.toFixed(0)}s`);
+
+            timeoutId = setTimeout(() => {
+                console.log('[VoiceChat] Max duration reached. Stopping conversation.');
+                stopConversation();
+                alert('Session ended: You have reached your monthly voice quota.');
+            }, maxDurationMs);
+        }
+
+        return () => {
+            if (timeoutId) clearTimeout(timeoutId);
+        };
+    }, [status, quotaInfo, stopConversation]);
+
     const stopConversation = useCallback(() => {
         providerRef.current?.stopConversation();
     }, []);
@@ -122,7 +146,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
         if (!providerRef.current) return;
 
         const userContext = {
-            language: language?.startsWith('es') ? 'es' : 'en',
+            language: (language?.startsWith('es') ? 'es' : 'en') as 'es' | 'en',
             measurementSystem: measurementSystem || 'metric',
             dietaryRestrictions: userProfile?.dietaryRestrictions || [],
             dietTypes: userProfile?.dietTypes || []

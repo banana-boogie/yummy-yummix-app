@@ -1,4 +1,4 @@
-import { RTCPeerConnection, RTCSessionDescription, mediaDevices, RTCDataChannel } from 'react-native-webrtc';
+import { RTCPeerConnection, RTCSessionDescription, mediaDevices } from 'react-native-webrtc';
 import { supabase } from '@/lib/supabase';
 import type {
     VoiceAssistantProvider,
@@ -21,7 +21,6 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     private currentContext: ConversationContext | null = null;
 
     async initialize(config: ProviderConfig): Promise<void> {
-        this.sessionId = config.sessionId;
         this.setStatus('connecting');
 
         try {
@@ -39,8 +38,13 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
             // 3. Set up data channel for events
             this.dc = this.pc.createDataChannel('oai-events');
 
+            this.dc.onopen = () => console.log('[OpenAI] Data channel OPEN');
+            this.dc.onclose = () => console.log('[OpenAI] Data channel CLOSED');
+            this.dc.onerror = (err) => console.error('[OpenAI] Data channel ERROR:', err);
+
             this.dc.onmessage = (event) => {
                 const message = JSON.parse(event.data);
+                console.log('[OpenAI] Received event:', message.type);
                 this.handleServerMessage(message);
             };
 
@@ -48,20 +52,36 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
             const offer = await this.pc.createOffer();
             await this.pc.setLocalDescription(offer);
 
-            // 5. Exchange SDP with OpenAI
+            // 5. Exchange SDP with Backend (which proxies to OpenAI)
             const { data: { session } } = await supabase.auth.getSession();
-            const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${process.env.EXPO_PUBLIC_OPENAI_API_KEY}`,
-                    'Content-Type': 'application/sdp'
-                },
-                body: offer.sdp
-            });
+            if (!session) throw new Error('Not authenticated');
 
-            const answerSdp = await response.text();
+            const response = await fetch(
+                `${process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL}/start-voice-session`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sdp: offer.sdp
+                    })
+                }
+            );
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Failed to start voice session');
+            }
+
+            const data = await response.json();
+
+            // Set session ID from backend
+            this.sessionId = data.sessionId;
+
             await this.pc.setRemoteDescription(
-                new RTCSessionDescription({ type: 'answer', sdp: answerSdp })
+                new RTCSessionDescription({ type: 'answer', sdp: data.sdp })
             );
 
             // 6. Handle incoming audio
@@ -87,6 +107,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         // Send session configuration with context via data channel
         const systemPrompt = this.buildSystemPrompt(context);
 
+        console.log('[OpenAI] Sending session update...');
         this.sendEvent({
             type: 'session.update',
             session: {
@@ -100,8 +121,18 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
                     type: 'server_vad',
                     threshold: 0.5,
                     prefix_padding_ms: 300,
-                    silence_duration_ms: 800 // 800ms silence = user finished
+                    silence_duration_ms: 800
                 }
+            }
+        });
+
+        // Force an initial greeting
+        console.log('[OpenAI] Triggering initial response...');
+        this.sendEvent({
+            type: 'response.create',
+            response: {
+                modalities: ['text', 'audio'],
+                instructions: 'Say a brief, friendly greeting to the user as their sous chef.'
             }
         });
     }
@@ -263,7 +294,7 @@ IMPORTANT: Keep ALL responses to 1-2 sentences maximum since they will be spoken
         if (!session) return;
 
         await supabase
-            .from('voice_sessions')
+            .from('ai_voice_sessions')
             .update({
                 status: 'completed',
                 duration_seconds: durationSeconds,
