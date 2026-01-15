@@ -42,41 +42,13 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
         setResponse('');
 
         try {
-            // 1. Check quota and get session
+            // 1. Check if authenticated
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error('Not authenticated');
 
-            const quotaResponse = await fetch(
-                `${process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL}/start-voice-session`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${session.access_token}`,
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
+            // 2. Initialize provider (this will handle quota check and connection)
 
-            if (!quotaResponse.ok) {
-                const errorData = await quotaResponse.json();
-                throw new Error(errorData.error || 'Failed to start voice session');
-            }
 
-            const quotaData = await quotaResponse.json();
-
-            const quota: QuotaInfo = {
-                remainingMinutes: parseFloat(quotaData.remainingMinutes),
-                minutesUsed: parseFloat(quotaData.minutesUsed),
-                quotaLimit: quotaData.quotaLimit,
-                warning: quotaData.warning
-            };
-
-            setQuotaInfo(quota);
-
-            // Show warning if exists
-            if (quota.warning && options?.onQuotaWarning) {
-                options.onQuotaWarning(quota);
-            }
 
             // 2. Initialize provider
             if (!providerRef.current) {
@@ -88,10 +60,23 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                 providerRef.current.on('response', (res: any) => setResponse(res.text || ''));
                 providerRef.current.on('error', (err: any) => setError(err.message));
 
-                await providerRef.current.initialize({
-                    language: language?.startsWith('es') ? 'es' : 'en',
-                    sessionId: quotaData.sessionId
+                const initData = await providerRef.current.initialize({
+                    language: language?.startsWith('es') ? 'es' : 'en'
                 });
+
+                if (initData) {
+                    const quota: QuotaInfo = {
+                        remainingMinutes: parseFloat(initData.remainingMinutes),
+                        minutesUsed: parseFloat(initData.minutesUsed),
+                        quotaLimit: initData.quotaLimit,
+                        warning: initData.warning
+                    };
+                    setQuotaInfo(quota);
+
+                    if (quota.warning && options?.onQuotaWarning) {
+                        options.onQuotaWarning(quota);
+                    }
+                }
             }
 
             // 3. Build context

@@ -20,7 +20,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     private eventListeners: Map<VoiceEvent, Set<Function>> = new Map();
     private currentContext: ConversationContext | null = null;
 
-    async initialize(config: ProviderConfig): Promise<void> {
+    async initialize(config: ProviderConfig): Promise<any> {
         this.setStatus('connecting');
 
         try {
@@ -48,15 +48,11 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
                 this.handleServerMessage(message);
             };
 
-            // 4. Create offer and get ephemeral key from OpenAI
-            const offer = await this.pc.createOffer();
-            await this.pc.setLocalDescription(offer);
-
-            // 5. Exchange SDP with Backend (which proxies to OpenAI)
+            // 4. Get Ephemeral Token from Backend (and quota info)
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error('Not authenticated');
 
-            const response = await fetch(
+            const backendResponse = await fetch(
                 `${process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL}/start-voice-session`,
                 {
                     method: 'POST',
@@ -64,24 +60,43 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
                         'Authorization': `Bearer ${session.access_token}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        sdp: offer.sdp
-                    })
+                    body: JSON.stringify({}) // Empty body to trigger token generation
                 }
             );
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
+            if (!backendResponse.ok) {
+                const errorData = await backendResponse.json().catch(() => ({}));
                 throw new Error(errorData.error || 'Failed to start voice session');
             }
 
-            const data = await response.json();
-
-            // Set session ID from backend
+            const data = await backendResponse.json();
             this.sessionId = data.sessionId;
+            const ephemeralToken = data.ephemeralToken;
+
+            // 5. Create Offer
+            const offer = await this.pc.createOffer();
+            await this.pc.setLocalDescription(offer);
+
+            // 6. Connect to OpenAI Realtime API directly using Ephemeral Token
+            console.log('[OpenAI] Connecting to Realtime API with ephemeral token...');
+            const openaiResponse = await fetch('https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${ephemeralToken}`,
+                    'Content-Type': 'application/sdp'
+                },
+                body: offer.sdp
+            });
+
+            if (!openaiResponse.ok) {
+                const errorText = await openaiResponse.text();
+                throw new Error(`OpenAI Connection Failed: ${errorText}`);
+            }
+
+            const answerSdp = await openaiResponse.text();
 
             await this.pc.setRemoteDescription(
-                new RTCSessionDescription({ type: 'answer', sdp: data.sdp })
+                new RTCSessionDescription({ type: 'answer', sdp: answerSdp })
             );
 
             // 6. Handle incoming audio
@@ -91,6 +106,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
             };
 
             this.setStatus('idle');
+            return data;
         } catch (error) {
             console.error('[OpenAI] Initialize error:', error);
             this.setStatus('error');

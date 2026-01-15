@@ -57,18 +57,7 @@ serve(async (req) => {
             `You've used ${minutesUsed.toFixed(1)} of ${QUOTA_LIMIT} minutes this month.` :
             null;
 
-        // 3. Handle SDP Exchange (Proxy to OpenAI)
-        const { sdp } = await req.json().catch(() => ({ sdp: null }));
-
-        console.log('Received SDP offer length:', sdp ? sdp.length : 'NULL');
-
-        if (!sdp) {
-            return new Response(JSON.stringify({ error: 'Missing SDP offer' }), {
-                status: 400,
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            });
-        }
-
+        // 3. Generate Ephemeral Token (for secure direct connection)
         const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
         if (!openaiApiKey) {
             console.error('OPENAI_API_KEY is missing');
@@ -78,28 +67,31 @@ serve(async (req) => {
             });
         }
 
-        // Call OpenAI Realtime API
-        console.log('Forwarding to OpenAI...');
-        const openaiResponse = await fetch('https://api.openai.com/v1/realtime/sessions', {
+        console.log('Requesting ephemeral token from OpenAI...');
+        const tokenResponse = await fetch('https://api.openai.com/v1/realtime/sessions', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${openaiApiKey}`,
-                'Content-Type': 'application/sdp',
+                'Content-Type': 'application/json',
             },
-            body: sdp,
+            body: JSON.stringify({
+                model: 'gpt-4o-realtime-preview-2024-10-01',
+                voice: 'alloy',
+            }),
         });
 
-        if (!openaiResponse.ok) {
-            const errorText = await openaiResponse.text();
-            console.error('OpenAI Error:', errorText);
-            return new Response(JSON.stringify({ error: 'Failed to connect to AI provider', details: errorText }), {
+        if (!tokenResponse.ok) {
+            const errorText = await tokenResponse.text();
+            console.error('OpenAI Token Error:', errorText);
+            return new Response(JSON.stringify({ error: 'Failed to generate AI token', details: errorText }), {
                 status: 502,
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
         }
 
-        const answerSdp = await openaiResponse.text();
-        console.log('Received SDP answer length:', answerSdp.length);
+        const tokenData = await tokenResponse.json();
+        const ephemeralToken = tokenData.client_secret.value;
+        console.log('Ephemeral token generated successfully');
 
         // 4. Create session record
         const { data: session } = await supabase
@@ -112,10 +104,10 @@ serve(async (req) => {
             .select()
             .single();
 
-        // 5. Return SDP Answer + quota info
+        // 5. Return Ephemeral Token + quota info
         return new Response(JSON.stringify({
             sessionId: session.id,
-            sdp: answerSdp,
+            ephemeralToken,
             remainingMinutes: remainingMinutes.toFixed(1),
             warning,
             quotaLimit: QUOTA_LIMIT,

@@ -47,7 +47,7 @@ export interface ProviderConfig {
 // Abstract provider interface
 export interface VoiceAssistantProvider {
     // Initialize provider
-    initialize(config: ProviderConfig): Promise<void>;
+    initialize(config: ProviderConfig): Promise<any>;
 
     // Start conversation
     startConversation(context: ConversationContext): Promise<void>;
