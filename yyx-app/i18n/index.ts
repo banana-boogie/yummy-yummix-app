@@ -878,6 +878,13 @@ const translations = {
         quotaExceeded: 'You have used all your voice minutes for this month.',
         minsRemaining: '{{mins}} mins remaining',
       },
+      suggestions: {
+        suggestRecipe: 'Suggest a recipe',
+        whatCanICook: 'What can I cook today?',
+        quickMeal: 'Quick 30-minute meal',
+        ingredientsIHave: 'With ingredients I have',
+        healthyOptions: 'Healthy options',
+      },
     },
   },
   es: {
@@ -1752,6 +1759,13 @@ const translations = {
         quotaWarning: 'Te quedan {{minutes}} minutos este mes.',
         quotaExceeded: 'Has usado todos tus minutos de voz este mes.',
         minsRemaining: '{{mins}} mins restantes',
+      },
+      suggestions: {
+        suggestRecipe: 'Sugiéreme una receta',
+        whatCanICook: '¿Qué puedo cocinar hoy?',
+        quickMeal: 'Comida rápida de 30 min',
+        ingredientsIHave: 'Con ingredientes que tengo',
+        healthyOptions: 'Opciones saludables',
       },
     },
   }

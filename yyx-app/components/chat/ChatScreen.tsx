@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
     View,
     TextInput,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/common/Text';
+import { SuggestionChips } from '@/components/chat/SuggestionChips';
 import { sendChatMessage, ChatMessage } from '@/services/chatService';
 import { useAuth } from '@/contexts/AuthContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -30,6 +31,19 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
     const [isLoading, setIsLoading] = useState(false);
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
 
+    // Get initial suggestions from i18n
+    const initialSuggestions = useMemo(() => [
+        i18n.t('chat.suggestions.suggestRecipe'),
+        i18n.t('chat.suggestions.whatCanICook'),
+        i18n.t('chat.suggestions.quickMeal'),
+        i18n.t('chat.suggestions.ingredientsIHave'),
+        i18n.t('chat.suggestions.healthyOptions'),
+    ], []);
+
+    // Show suggestions only when chat is empty or after AI response
+    const showSuggestions = messages.length === 0 ||
+        (messages.length > 0 && messages[messages.length - 1]?.role === 'assistant' && !isLoading);
+
     // Scroll to bottom when new messages arrive
     useEffect(() => {
         if (messages.length > 0) {
@@ -39,13 +53,13 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
         }
     }, [messages.length]);
 
-    const handleSend = useCallback(async () => {
-        if (!inputText.trim() || isLoading || !user) return;
+    const handleSendMessage = useCallback(async (messageText: string) => {
+        if (!messageText.trim() || isLoading || !user) return;
 
         const userMessage: ChatMessage = {
             id: `temp-${Date.now()}`,
             role: 'user',
-            content: inputText.trim(),
+            content: messageText.trim(),
             createdAt: new Date(),
         };
 
@@ -111,7 +125,15 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
         } finally {
             setIsLoading(false);
         }
-    }, [inputText, isLoading, user, currentSessionId, onSessionCreated]);
+    }, [isLoading, user, currentSessionId, onSessionCreated]);
+
+    const handleSend = useCallback(() => {
+        handleSendMessage(inputText);
+    }, [inputText, handleSendMessage]);
+
+    const handleSuggestionSelect = useCallback((suggestion: string) => {
+        handleSendMessage(suggestion);
+    }, [handleSendMessage]);
 
     const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
         const isUser = item.role === 'user';
@@ -156,6 +178,15 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
                     </View>
                 }
             />
+
+            {/* Suggestion chips above input */}
+            {showSuggestions && (
+                <SuggestionChips
+                    suggestions={initialSuggestions}
+                    onSelect={handleSuggestionSelect}
+                    disabled={isLoading}
+                />
+            )}
 
             <View
                 className="flex-row items-end px-md pt-sm border-t border-border-default bg-background-default"
