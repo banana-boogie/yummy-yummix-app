@@ -260,11 +260,17 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
     /**
      * Playback loop - plays audio chunks from queue
      * Accumulates chunks for smoother playback (~1 second buffers)
+     * IMPORTANT: Mutes mic during playback to prevent echo detection
      */
     private async runPlaybackLoop() {
         if (this.isPlaybackLoopRunning) return;
         this.isPlaybackLoopRunning = true;
         this.shouldStopAudio = false;
+
+        // CRITICAL: Mute microphone during playback to prevent echo
+        // This prevents the AI from hearing its own output as "user interruption"
+        InCallManager.setMicrophoneMute(true);
+        console.log('[Gemini] Mic muted for playback (echo prevention)');
 
         const { createAudioPlayer } = await import('expo-audio');
 
@@ -273,64 +279,69 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
         const TARGET_BUFFER_SIZE = 24000 * 2 * 1.0; // ~1 second of 24kHz 16-bit mono
         let chunkCount = 0;
 
-        while (!this.shouldStopAudio) {
-            // Drain queue into accumulator
-            while (this.audioQueue.length > 0 && accumulatedPcm.length < TARGET_BUFFER_SIZE) {
-                const chunk = this.audioQueue.shift();
-                if (chunk) {
-                    accumulatedPcm = Buffer.concat([accumulatedPcm, chunk]);
+        try {
+            while (!this.shouldStopAudio) {
+                // Drain queue into accumulator
+                while (this.audioQueue.length > 0 && accumulatedPcm.length < TARGET_BUFFER_SIZE) {
+                    const chunk = this.audioQueue.shift();
+                    if (chunk) {
+                        accumulatedPcm = Buffer.concat([accumulatedPcm, chunk]);
+                    }
                 }
-            }
 
-            // Play if we have enough data OR queue is empty and we have some data
-            const shouldPlay = accumulatedPcm.length >= TARGET_BUFFER_SIZE ||
-                (this.audioQueue.length === 0 && accumulatedPcm.length > 0);
+                // Play if we have enough data OR queue is empty and we have some data
+                const shouldPlay = accumulatedPcm.length >= TARGET_BUFFER_SIZE ||
+                    (this.audioQueue.length === 0 && accumulatedPcm.length > 0);
 
-            if (shouldPlay && accumulatedPcm.length > 0 && !this.shouldStopAudio) {
-                try {
-                    chunkCount++;
-                    const durationMs = (accumulatedPcm.length / (24000 * 2)) * 1000;
-                    console.log(`[Gemini] Playing chunk #${chunkCount} (~${durationMs.toFixed(0)}ms)`);
+                if (shouldPlay && accumulatedPcm.length > 0 && !this.shouldStopAudio) {
+                    try {
+                        chunkCount++;
+                        const durationMs = (accumulatedPcm.length / (24000 * 2)) * 1000;
+                        console.log(`[Gemini] Playing chunk #${chunkCount} (~${durationMs.toFixed(0)}ms)`);
 
-                    // Create WAV with 24kHz header
-                    const wavHeader = this.createWavHeader(accumulatedPcm.length, 24000);
-                    const wavBuffer = Buffer.concat([wavHeader, accumulatedPcm]);
-                    const wavBase64 = wavBuffer.toString('base64');
+                        // Create WAV with 24kHz header
+                        const wavHeader = this.createWavHeader(accumulatedPcm.length, 24000);
+                        const wavBuffer = Buffer.concat([wavHeader, accumulatedPcm]);
+                        const wavBase64 = wavBuffer.toString('base64');
 
-                    // Reset accumulator
-                    accumulatedPcm = Buffer.alloc(0);
+                        // Reset accumulator
+                        accumulatedPcm = Buffer.alloc(0);
 
-                    // Play audio
-                    const player = createAudioPlayer({ uri: `data:audio/wav;base64,${wavBase64}` });
+                        // Play audio
+                        const player = createAudioPlayer({ uri: `data:audio/wav;base64,${wavBase64}` });
 
-                    await new Promise<void>((resolve) => {
-                        player.addListener('playbackStatusUpdate', (status: any) => {
-                            if (status.didJustFinish || this.shouldStopAudio) {
-                                player.release();
-                                resolve();
-                            }
+                        await new Promise<void>((resolve) => {
+                            player.addListener('playbackStatusUpdate', (status: any) => {
+                                if (status.didJustFinish || this.shouldStopAudio) {
+                                    player.release();
+                                    resolve();
+                                }
+                            });
+                            player.play();
                         });
-                        player.play();
-                    });
 
-                } catch (error) {
-                    console.error('[Gemini] Playback error:', error);
-                    accumulatedPcm = Buffer.alloc(0); // Clear on error
+                    } catch (error) {
+                        console.error('[Gemini] Playback error:', error);
+                        accumulatedPcm = Buffer.alloc(0); // Clear on error
+                    }
+                }
+
+                // Exit if nothing left to play
+                if (this.audioQueue.length === 0 && accumulatedPcm.length === 0) {
+                    break;
+                }
+
+                // Small delay to allow accumulation
+                if (!this.shouldStopAudio) {
+                    await new Promise(r => setTimeout(r, 50));
                 }
             }
-
-            // Exit if nothing left to play
-            if (this.audioQueue.length === 0 && accumulatedPcm.length === 0) {
-                break;
-            }
-
-            // Small delay to allow accumulation
-            if (!this.shouldStopAudio) {
-                await new Promise(r => setTimeout(r, 50));
-            }
+        } finally {
+            // CRITICAL: Always unmute mic when playback ends
+            InCallManager.setMicrophoneMute(false);
+            console.log('[Gemini] Mic unmuted after playback');
+            this.isPlaybackLoopRunning = false;
         }
-
-        this.isPlaybackLoopRunning = false;
     }
 
     /**
