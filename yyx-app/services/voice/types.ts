@@ -39,9 +39,8 @@ export interface QuotaInfo {
 
 // Provider config
 export interface ProviderConfig {
-    openaiApiKey?: string; // Client-side key for WebRTC
     language: 'en' | 'es';
-    sessionId: string;
+    sessionId?: string; // Optional because provider generates/obtains it during initialize
 }
 
 // Abstract provider interface
