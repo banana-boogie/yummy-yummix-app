@@ -317,6 +317,8 @@ export class HearThinkSpeakProvider implements VoiceAssistantProvider {
 
   private async playAudio(base64Audio: string): Promise<void> {
     try {
+      console.log('[HTS] Playing audio chunk, length:', base64Audio.length);
+
       // Clean up previous player
       if (this.currentPlayer) {
         this.currentPlayer.release();
@@ -327,10 +329,28 @@ export class HearThinkSpeakProvider implements VoiceAssistantProvider {
       const player = createAudioPlayer({ uri: `data:audio/mp3;base64,${base64Audio}` });
       this.currentPlayer = player;
 
-      // Wait for playback to finish
+      // Wait for playback to finish (with timeout to prevent hanging)
       await new Promise<void>((resolve) => {
+        let resolved = false;
+
+        // Timeout after 30 seconds to prevent hanging
+        const timeout = setTimeout(() => {
+          if (!resolved) {
+            console.warn('[HTS] Audio playback timeout');
+            resolved = true;
+            player.release();
+            if (this.currentPlayer === player) {
+              this.currentPlayer = null;
+            }
+            resolve();
+          }
+        }, 30000);
+
         player.addListener('playbackStatusUpdate', (status: any) => {
-          if (status.didJustFinish) {
+          if (status.didJustFinish && !resolved) {
+            console.log('[HTS] Audio playback finished');
+            resolved = true;
+            clearTimeout(timeout);
             player.release();
             if (this.currentPlayer === player) {
               this.currentPlayer = null;
@@ -338,6 +358,8 @@ export class HearThinkSpeakProvider implements VoiceAssistantProvider {
             resolve();
           }
         });
+
+        console.log('[HTS] Starting audio playback...');
         player.play();
       });
 
