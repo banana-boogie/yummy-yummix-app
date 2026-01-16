@@ -15,8 +15,7 @@ import { supabase } from '@/lib/supabase';
 import { Platform } from 'react-native';
 import InCallManager from 'react-native-incall-manager';
 import LiveAudioStream from 'react-native-live-audio-stream';
-import TrackPlayer, { Capability, State } from 'react-native-track-player';
-import * as FileSystem from 'expo-file-system';
+import { useAudioPlayer, AudioPlayer } from 'expo-audio';
 import { Buffer } from 'buffer';
 import { GoogleGenAI, Modality, type LiveServerMessage, type Session } from '@google/genai';
 import { buildSystemPrompt, detectGoodbye, InactivityTimer } from '../shared/VoiceUtils';
@@ -43,24 +42,17 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
     private isSetupComplete = false;
     private ephemeralToken: string | null = null;
 
+    // Audio playback queue for smooth streaming
+    private audioQueue: string[] = [];
+    private isPlayingAudio = false;
+    private shouldStopAudio = false;
+
     // Token tracking for cost calculation
     private sessionInputTokens: number = 0;
     private sessionOutputTokens: number = 0;
 
     constructor() {
-        this.setupPlayer();
-    }
-
-    private async setupPlayer() {
-        try {
-            await TrackPlayer.setupPlayer();
-            await TrackPlayer.updateOptions({
-                capabilities: [Capability.Play, Capability.Stop],
-                compactCapabilities: [Capability.Play, Capability.Stop],
-            });
-        } catch (e) {
-            console.log('[Gemini] Player setup (ignore if already set up):', e);
-        }
+        // No setup needed - expo-audio handles this
     }
 
     async initialize(config: ProviderConfig): Promise<any> {
@@ -274,8 +266,17 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
             // Interruption (user spoke while AI was speaking)
             if (message.serverContent?.interrupted) {
                 console.log('[Gemini] Interrupted by user');
-                await TrackPlayer.reset();
+                // Stop audio playback
+                this.shouldStopAudio = true;
+                this.audioQueue = [];
+                this.isPlayingAudio = false;
                 this.setStatus('listening');
+
+                // Reset inactivity timer so conversation continues
+                this.inactivityTimer.reset(() => {
+                    console.log('[Gemini] Inactivity timeout');
+                    this.stopConversation();
+                });
             }
 
             // Usage stats
@@ -291,32 +292,86 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
     }
 
     private async playAudioChunk(base64Audio: string) {
-        try {
-            // Convert base64 PCM to WAV file
-            const pcmBuffer = Buffer.from(base64Audio, 'base64');
-            const wavHeader = this.createWavHeader(pcmBuffer.length, 24000); // Gemini outputs 24kHz
-            const wavBuffer = Buffer.concat([wavHeader, pcmBuffer]);
+        // Accumulate PCM data into buffer
+        const pcmBuffer = Buffer.from(base64Audio, 'base64');
+        this.audioQueue.push(pcmBuffer.toString('base64'));
 
-            const filename = `gemini_${Date.now()}_${Math.random().toString(36).slice(2)}.wav`;
-            const fileUri = `${FileSystem.cacheDirectory}${filename}`;
-
-            await FileSystem.writeAsStringAsync(fileUri, wavBuffer.toString('base64'), {
-                encoding: 'base64' as const
-            });
-
-            await TrackPlayer.add({
-                url: fileUri,
-                title: 'Gemini Response',
-                artist: 'Gemini',
-            });
-
-            const state = await TrackPlayer.getState();
-            if (state !== State.Playing) {
-                await TrackPlayer.play();
-            }
-        } catch (error) {
-            console.error('[Gemini] Audio playback error:', error);
+        // Start playback processor if not running
+        if (!this.isPlayingAudio) {
+            this.processAudioBuffer();
         }
+    }
+
+    private async processAudioBuffer() {
+        if (this.isPlayingAudio) return;
+        this.isPlayingAudio = true;
+        this.shouldStopAudio = false;
+
+        // Import once at start
+        const { createAudioPlayer } = await import('expo-audio');
+
+        // Accumulate buffer for smoother playback
+        let accumulatedPcm = Buffer.alloc(0);
+        // Reduced buffer: ~0.25 seconds of 24kHz 16-bit audio for more responsive playback
+        const MIN_BUFFER_SIZE = 24000 * 2 * 0.25; // ~12KB = 0.25 seconds
+        let playCount = 0;
+
+        while (!this.shouldStopAudio) {
+            // Check for new chunks
+            if (this.audioQueue.length > 0) {
+                const chunk = this.audioQueue.shift();
+                if (chunk) {
+                    const chunkBuffer = Buffer.from(chunk, 'base64');
+                    accumulatedPcm = Buffer.concat([accumulatedPcm, chunkBuffer]);
+                }
+            }
+
+            // Play when we have enough data or queue is empty and we have some data
+            const shouldPlay = accumulatedPcm.length >= MIN_BUFFER_SIZE ||
+                (this.audioQueue.length === 0 && accumulatedPcm.length > 0);
+
+            if (shouldPlay && accumulatedPcm.length > 0) {
+                try {
+                    playCount++;
+                    const durationMs = (accumulatedPcm.length / (24000 * 2)) * 1000;
+                    console.log(`[Gemini] Playing audio chunk #${playCount}: ${(accumulatedPcm.length / 1024).toFixed(1)}KB (~${durationMs.toFixed(0)}ms)`);
+
+                    // Create WAV from accumulated PCM
+                    const wavHeader = this.createWavHeader(accumulatedPcm.length, 24000);
+                    const wavBuffer = Buffer.concat([wavHeader, accumulatedPcm]);
+                    const wavBase64 = wavBuffer.toString('base64');
+
+                    // Clear buffer before playing
+                    accumulatedPcm = Buffer.alloc(0);
+
+                    // Play audio
+                    const player = createAudioPlayer({ uri: `data:audio/wav;base64,${wavBase64}` });
+
+                    await new Promise<void>((resolve) => {
+                        player.addListener('playbackStatusUpdate', (status) => {
+                            if (status.didJustFinish || this.shouldStopAudio) {
+                                player.release();
+                                resolve();
+                            }
+                        });
+                        player.play();
+                    });
+
+                } catch (error) {
+                    console.error('[Gemini] Audio playback error:', error);
+                }
+            }
+
+            // Exit if nothing more to process
+            if (this.audioQueue.length === 0 && accumulatedPcm.length === 0) {
+                break;
+            }
+
+            // Small delay to allow more chunks to accumulate
+            await new Promise(r => setTimeout(r, 25));
+        }
+
+        this.isPlayingAudio = false;
     }
 
     private createWavHeader(dataLength: number, sampleRate: number): Buffer {
@@ -341,6 +396,7 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
 
     stopConversation(): void {
         console.log('[Gemini] stopConversation called');
+        console.log('[Gemini] Call stack:', new Error().stack);
 
         this.inactivityTimer.clear();
         this.stopRecording();
@@ -362,7 +418,11 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
         this.ephemeralToken = null;
 
         InCallManager.stop();
-        TrackPlayer.reset().catch(console.error);
+
+        // Stop audio playback
+        this.shouldStopAudio = true;
+        this.audioQueue = [];
+        this.isPlayingAudio = false;
 
         this.sessionInputTokens = 0;
         this.sessionOutputTokens = 0;
