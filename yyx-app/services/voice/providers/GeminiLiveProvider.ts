@@ -135,9 +135,9 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
             console.log('[Gemini] Establishing live connection...');
 
             // Connect using SDK's live.connect()
-            // Note: Using native audio preview model for proper voice selection
+            // Using native audio model with date suffix for proper voice/language support
             this.session = await ai.live.connect({
-                model: 'models/gemini-2.5-flash-native-audio-preview',
+                model: 'gemini-2.5-flash-native-audio-preview-12-2025',
                 config: {
                     responseModalities: [Modality.AUDIO],
                     speechConfig: {
@@ -146,9 +146,7 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
                             prebuiltVoiceConfig: { voiceName: 'Aoede' }
                         }
                     },
-                    systemInstruction: {
-                        parts: [{ text: systemPrompt }]
-                    }
+                    systemInstruction: systemPrompt  // Official format: just the string
                 },
                 callbacks: {
                     onopen: () => {
@@ -401,10 +399,11 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
                         console.log(`[Gemini] Sent audio chunk #${chunkCount}`);
                     }
 
+                    // CRITICAL FIX: Use 'audio' not 'media' per official Google example
                     this.session.sendRealtimeInput({
-                        media: {
-                            mimeType: 'audio/pcm;rate=16000',
-                            data: base64
+                        audio: {
+                            data: base64,
+                            mimeType: 'audio/pcm;rate=16000'
                         }
                     });
                 } catch (err) {
