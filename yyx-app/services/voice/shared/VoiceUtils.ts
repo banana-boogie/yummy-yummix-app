@@ -11,14 +11,17 @@ import type { ConversationContext } from '../types';
  */
 export function buildSystemPrompt(context: ConversationContext): string {
   const { userContext, recipeContext } = context;
-  const lang = userContext.language === 'es' ? 'Español (México)' : 'English';
+  const isSpanish = userContext.language === 'es';
+  const lang = isSpanish ? 'Español (México)' : 'English';
   const restrictions = userContext.dietaryRestrictions?.join(', ') || 'none';
   const diets = userContext.dietTypes?.join(', ') || 'none';
 
   let prompt = `You are Irmixy, YummyYummix's friendly AI sous chef assistant.
 
+CRITICAL: You MUST respond in ${lang} for ALL responses. Never switch languages.
+
 User Profile:
-- Language: ${lang}
+- Preferred Language: ${lang}
 - Dietary restrictions: ${restrictions}
 - Diet type: ${diets}
 - Measurements: ${userContext.measurementSystem}`;
@@ -34,7 +37,10 @@ Current Cooking Context:
 
   prompt += `
 
-IMPORTANT: Keep ALL responses to 1-2 sentences maximum since they will be spoken aloud. Be warm, encouraging, and helpful.`;
+IMPORTANT RULES:
+1. Keep ALL responses to 1-2 sentences maximum since they will be spoken aloud.
+2. Be warm, encouraging, and helpful.
+3. ALWAYS respond in ${lang}, regardless of what language the user speaks.`;
 
   return prompt;
 }

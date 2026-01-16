@@ -863,7 +863,7 @@ const translations = {
       voice: {
         greeting: "Hi! I'm Irmixy, your sous chef. What can I help you with?",
         connecting: "Connecting to Irmixy...",
-        listening: "I'm listening!",
+        listening: "Listening...",
         thinking: 'Thinking...',
         speaking: 'Speaking!',
         tapToSpeak: 'Tap to speak',
@@ -874,6 +874,9 @@ const translations = {
         hearing: 'Hearing you...',
         silenceDetected: 'Silence detected',
         waitingForSpeech: 'Waiting for speech...',
+        quotaWarning: 'You have {{minutes}} minutes remaining this month.',
+        quotaExceeded: 'You have used all your voice minutes for this month.',
+        minsRemaining: '{{mins}} mins remaining',
       },
     },
   },
@@ -1735,7 +1738,7 @@ const translations = {
       voice: {
         greeting: '¡Hola! Soy Irmixy, tu sous chef. ¿En qué puedo ayudarte?',
         connecting: 'Conectando con Irmixy...',
-        listening: '¡Te escucho!',
+        listening: 'Escuchando...',
         thinking: 'Pensando...',
         speaking: '¡Hablando!',
         tapToSpeak: 'Toca para hablar',
@@ -1746,6 +1749,9 @@ const translations = {
         hearing: 'Escuchándote...',
         silenceDetected: 'Silencio detectado',
         waitingForSpeech: 'Esperando que hables...',
+        quotaWarning: 'Te quedan {{minutes}} minutos este mes.',
+        quotaExceeded: 'Has usado todos tus minutos de voz este mes.',
+        minsRemaining: '{{mins}} mins restantes',
       },
     },
   }

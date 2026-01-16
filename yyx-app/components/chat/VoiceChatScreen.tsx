@@ -36,9 +36,9 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
     } = useVoiceChat({
         onQuotaWarning: (info: QuotaInfo) => {
             Alert.alert(
-                'Voice Usage Warning',
-                info.warning || `You have ${info.remainingMinutes.toFixed(1)} minutes remaining this month.`,
-                [{ text: 'OK' }]
+                i18n.t('common.errors.title'),
+                info.warning || i18n.t('chat.voice.quotaWarning', { minutes: info.remainingMinutes.toFixed(1) }),
+                [{ text: i18n.t('common.ok') }]
             );
         }
     });
@@ -50,7 +50,7 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
             case 'listening': return 'listening';
             case 'processing': return 'thinking';
             case 'speaking': return 'speaking';
-            case 'error': return 'idle'; // Or error state if avatar supports it
+            case 'error': return 'idle';
             default: return 'idle';
         }
     };
@@ -73,7 +73,7 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
     // Error handling
     useEffect(() => {
         if (error) {
-            Alert.alert('Connection Error', error);
+            Alert.alert(i18n.t('common.errors.title'), error);
         }
     }, [error]);
 
@@ -88,7 +88,7 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
             stopConversation();
         } else {
             if (quotaInfo && quotaInfo.remainingMinutes <= 0) {
-                Alert.alert('Quota Exceeded', 'You have used all your voice minutes for this month.');
+                Alert.alert(i18n.t('common.errors.title'), i18n.t('chat.voice.quotaExceeded'));
                 return;
             }
             await startConversation();
@@ -129,12 +129,12 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
                     {/* Status Text */}
                     {status === 'connecting' && (
                         <Text preset="body" className="text-text-secondary text-center">
-                            Connecting to Irmixy...
+                            {i18n.t('chat.voice.connecting')}
                         </Text>
                     )}
                     {status === 'listening' && (
                         <Text preset="body" className="text-primary-darkest text-center font-bold">
-                            Listening...
+                            {i18n.t('chat.voice.listening')}
                         </Text>
                     )}
                     {(status === 'processing' || status === 'speaking') && transcript ? (
@@ -143,13 +143,12 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
                         </Text>
                     ) : null}
                     {status === 'speaking' && response ? (
-                        // Optionally show partial response text if needed, but voice is primary
                         null
                     ) : null}
 
                     {status === 'idle' && (
                         <Text preset="body" className="text-text-secondary text-center">
-                            Tap to start conversation
+                            {i18n.t('chat.voice.tapToSpeak')}
                         </Text>
                     )}
                 </View>
@@ -165,18 +164,19 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
                 />
                 <Text preset="caption" className="text-text-secondary mt-sm">
                     {isConnecting
-                        ? "Connecting..."
+                        ? i18n.t('chat.voice.connecting')
                         : isConnected
-                            ? "Tap to End Call"
-                            : "Tap to Connect"
+                            ? i18n.t('chat.voice.tapToStop')
+                            : i18n.t('chat.voice.tapToSpeak')
                     }
                 </Text>
                 {quotaInfo && !isConnected && (
                     <Text preset="caption" className="text-text-secondary mt-xs text-xs">
-                        {quotaInfo.remainingMinutes.toFixed(1)} mins remaining
+                        {i18n.t('chat.voice.minsRemaining', { mins: quotaInfo.remainingMinutes.toFixed(1) })}
                     </Text>
                 )}
             </View>
         </View>
     );
 }
+
