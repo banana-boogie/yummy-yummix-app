@@ -146,8 +146,9 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
             console.log('[Gemini] Establishing live connection...');
 
             // Use SDK's live.connect() which handles auth properly
+            // Model must include 'models/' prefix for v1alpha API
             this.session = await ai.live.connect({
-                model: 'gemini-2.0-flash-live',
+                model: 'models/gemini-2.0-flash-exp',
                 config: {
                     responseModalities: [Modality.AUDIO],
                     speechConfig: {
@@ -209,15 +210,17 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
 
         LiveAudioStream.on('data', (base64: string) => {
             if (this.session && this.isSetupComplete) {
-                // Send audio chunk via SDK session
-                this.session.sendRealtimeInput({
-                    media: {
-                        mimeType: 'audio/pcm;rate=16000',
-                        data: base64
-                    }
-                }).catch((err: Error) => {
+                try {
+                    // Send audio chunk via SDK session (synchronous)
+                    this.session.sendRealtimeInput({
+                        media: {
+                            mimeType: 'audio/pcm;rate=16000',
+                            data: base64
+                        }
+                    });
+                } catch (err) {
                     console.error('[Gemini] Error sending audio:', err);
-                });
+                }
             }
         });
 
@@ -234,29 +237,18 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
         }
     }
 
-    private async handleServerMessage(data: string) {
+    private async handleSDKMessage(message: LiveServerMessage) {
         try {
-            const msg = JSON.parse(data);
-
-            // Setup complete
-            if (msg.setupComplete) {
-                console.log('[Gemini] Setup complete, starting audio capture');
-                this.isSetupComplete = true;
-                this.sessionStartTime = Date.now();
-                this.startAudioCapture();
-                this.setStatus('listening');
-                return;
-            }
-
-            // Handle audio response
-            if (msg.serverContent?.modelTurn?.parts) {
-                for (const part of msg.serverContent.modelTurn.parts) {
+            // Handle audio response from model turn
+            if (message.serverContent?.modelTurn?.parts) {
+                for (const part of message.serverContent.modelTurn.parts) {
+                    // Audio data
                     if (part.inlineData?.mimeType?.startsWith('audio')) {
                         this.setStatus('speaking');
-                        await this.playAudioChunk(part.inlineData.data);
+                        await this.playAudioChunk(part.inlineData.data as string);
                     }
 
-                    // Handle text transcript (if available)
+                    // Text transcript (if available)
                     if (part.text) {
                         console.log('[Gemini] Response text:', part.text);
                         this.emit('response', { text: part.text });
@@ -270,7 +262,7 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
             }
 
             // Turn complete - back to listening
-            if (msg.serverContent?.turnComplete) {
+            if (message.serverContent?.turnComplete) {
                 console.log('[Gemini] Turn complete');
                 this.setStatus('listening');
                 this.inactivityTimer.reset(() => {
@@ -280,21 +272,21 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
             }
 
             // Interruption (user spoke while AI was speaking)
-            if (msg.serverContent?.interrupted) {
+            if (message.serverContent?.interrupted) {
                 console.log('[Gemini] Interrupted by user');
                 await TrackPlayer.reset();
                 this.setStatus('listening');
             }
 
             // Usage stats
-            if (msg.usageMetadata) {
-                this.sessionInputTokens += msg.usageMetadata.promptTokenCount || 0;
-                this.sessionOutputTokens += msg.usageMetadata.candidatesTokenCount || 0;
+            if (message.usageMetadata) {
+                this.sessionInputTokens += message.usageMetadata.promptTokenCount || 0;
+                this.sessionOutputTokens += message.usageMetadata.candidatesTokenCount || 0;
                 console.log(`[Gemini] Tokens: ${this.sessionInputTokens} in, ${this.sessionOutputTokens} out`);
             }
 
         } catch (error) {
-            console.error('[Gemini] Error parsing message:', error);
+            console.error('[Gemini] Error handling message:', error);
         }
     }
 
@@ -309,7 +301,7 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
             const fileUri = `${FileSystem.cacheDirectory}${filename}`;
 
             await FileSystem.writeAsStringAsync(fileUri, wavBuffer.toString('base64'), {
-                encoding: FileSystem.EncodingType.Base64
+                encoding: 'base64' as const
             });
 
             await TrackPlayer.add({
@@ -360,12 +352,14 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
             this.sessionStartTime = null;
         }
 
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
+        // Close SDK session
+        if (this.session) {
+            this.session.close();
+            this.session = null;
         }
 
         this.isSetupComplete = false;
+        this.ephemeralToken = null;
 
         InCallManager.stop();
         TrackPlayer.reset().catch(console.error);

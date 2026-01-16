@@ -87,7 +87,7 @@ serve(async (req) => {
                 uses: 1, // Single use token
                 expireTime: expireTime,
                 liveConnectConstraints: {
-                    model: 'gemini-2.0-flash-live',
+                    model: 'models/gemini-2.0-flash-exp',
                     config: {
                         responseModalities: ['AUDIO'],
                         temperature: 0.7,
