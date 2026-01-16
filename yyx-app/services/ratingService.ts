@@ -5,6 +5,25 @@ import { supabase } from '@/lib/supabase';
  */
 export const ratingService = {
     /**
+     * Validate that a recipe exists and is published
+     */
+    async validateRecipe(recipeId: string): Promise<void> {
+        const { data, error } = await supabase
+            .from('recipes')
+            .select('id, status')
+            .eq('id', recipeId)
+            .single();
+
+        if (error || !data) {
+            throw new Error('Recipe not found');
+        }
+
+        if (data.status !== 'published') {
+            throw new Error('Recipe is not available for rating');
+        }
+    },
+
+    /**
      * Submit or update a rating for a recipe
      * Uses upsert to handle both new ratings and updates
      */
@@ -18,6 +37,9 @@ export const ratingService = {
         if (rating < 1 || rating > 5 || !Number.isInteger(rating)) {
             throw new Error('Rating must be a whole number between 1 and 5');
         }
+
+        // Validate recipe exists and is published
+        await this.validateRecipe(recipeId);
 
         const { error } = await supabase
             .from('recipe_ratings')
@@ -51,6 +73,9 @@ export const ratingService = {
         if (!trimmedFeedback || trimmedFeedback.length > 2000) {
             throw new Error('Feedback must be between 1 and 2000 characters');
         }
+
+        // Validate recipe exists and is published
+        await this.validateRecipe(recipeId);
 
         const { error } = await supabase
             .from('recipe_feedback')

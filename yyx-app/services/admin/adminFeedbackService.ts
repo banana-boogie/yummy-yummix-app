@@ -1,13 +1,11 @@
 import { supabase } from '@/lib/supabase';
 import { AdminFeedbackItem } from '@/types/rating.types';
-import i18n from '@/i18n';
-
-const getLangSuffix = () => `_${i18n.locale}`;
 
 export interface FeedbackFilters {
     recipeId?: string;
     startDate?: string;
     endDate?: string;
+    language?: 'en' | 'es';
 }
 
 export interface FeedbackListResult {
@@ -28,7 +26,9 @@ export const adminFeedbackService = {
         page = 1,
         pageSize = 20
     ): Promise<FeedbackListResult> {
-        const lang = getLangSuffix();
+        // Use language from filters, default to 'en'
+        const language = filters.language || 'en';
+        const langSuffix = `_${language}`;
         const offset = (page - 1) * pageSize;
 
         let query = supabase
@@ -41,7 +41,7 @@ export const adminFeedbackService = {
         recipe_id,
         recipe:recipes!inner (
           id,
-          name${lang}
+          name${langSuffix}
         ),
         user:user_profiles!inner (
           id,
@@ -74,7 +74,7 @@ export const adminFeedbackService = {
             feedback: item.feedback,
             createdAt: item.created_at,
             recipeId: item.recipe_id,
-            recipeName: item.recipe?.[`name${lang}`] || 'Unknown Recipe',
+            recipeName: item.recipe?.[`name${langSuffix}`] || 'Unknown Recipe',
             userId: item.user_id,
             userEmail: item.user?.email || 'Unknown User',
         }));
@@ -89,14 +89,14 @@ export const adminFeedbackService = {
     /**
      * Get list of recipes for filter dropdown
      */
-    async getRecipesForFilter(): Promise<Array<{ id: string; name: string }>> {
-        const lang = getLangSuffix();
+    async getRecipesForFilter(language: 'en' | 'es' = 'en'): Promise<Array<{ id: string; name: string }>> {
+        const langSuffix = `_${language}`;
 
         const { data, error } = await supabase
             .from('recipes')
-            .select(`id, name${lang}`)
+            .select(`id, name${langSuffix}`)
             .eq('is_published', true)
-            .order(`name${lang}`);
+            .order(`name${langSuffix}`);
 
         if (error) {
             throw new Error(`Failed to fetch recipes: ${error.message}`);
@@ -104,7 +104,7 @@ export const adminFeedbackService = {
 
         return (data || []).map((recipe: any) => ({
             id: recipe.id,
-            name: recipe[`name${lang}`],
+            name: recipe[`name${langSuffix}`],
         }));
     },
 };
