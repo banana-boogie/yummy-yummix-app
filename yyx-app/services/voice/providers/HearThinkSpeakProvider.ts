@@ -7,7 +7,7 @@
  */
 
 import LiveAudioStream from 'react-native-live-audio-stream';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 import InCallManager from 'react-native-incall-manager';
 import { supabase } from '@/lib/supabase';
 import { buildSystemPrompt, detectGoodbye, InactivityTimer } from '../shared/VoiceUtils';
@@ -26,7 +26,7 @@ import type {
 export class HearThinkSpeakProvider implements VoiceAssistantProvider {
   private ws: WebSocket | null = null;
   private isRecording: boolean = false;
-  private sound: Audio.Sound | null = null;
+  private currentPlayer: AudioPlayer | null = null;
   private status: VoiceStatus = 'idle';
   private sessionId: string | null = null;
   private sessionStartTime: number | null = null;
@@ -317,26 +317,28 @@ export class HearThinkSpeakProvider implements VoiceAssistantProvider {
 
   private async playAudio(base64Audio: string): Promise<void> {
     try {
-      // Clean up previous sound
-      if (this.sound) {
-        await this.sound.unloadAsync();
+      // Clean up previous player
+      if (this.currentPlayer) {
+        this.currentPlayer.release();
+        this.currentPlayer = null;
       }
 
-      // Create sound from base64 mp3
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: `data:audio/mp3;base64,${base64Audio}` },
-        { shouldPlay: true }
-      );
-
-      this.sound = sound;
+      // Create and play using expo-audio
+      const player = createAudioPlayer({ uri: `data:audio/mp3;base64,${base64Audio}` });
+      this.currentPlayer = player;
 
       // Wait for playback to finish
       await new Promise<void>((resolve) => {
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if (status.isLoaded && status.didJustFinish) {
+        player.addListener('playbackStatusUpdate', (status: any) => {
+          if (status.didJustFinish) {
+            player.release();
+            if (this.currentPlayer === player) {
+              this.currentPlayer = null;
+            }
             resolve();
           }
         });
+        player.play();
       });
 
     } catch (error) {

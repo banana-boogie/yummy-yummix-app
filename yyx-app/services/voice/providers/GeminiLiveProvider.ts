@@ -57,27 +57,7 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
     private sessionOutputTokens = 0;
 
     constructor() {
-        this.setupAudioMode();
-    }
-
-    /**
-     * Setup audio mode for proper echo cancellation
-     * Uses expo-av (deprecated but reliable) to set iOS/Android audio session
-     */
-    private async setupAudioMode() {
-        try {
-            const { Audio } = await import('expo-av');
-            await Audio.setAudioModeAsync({
-                allowsRecordingIOS: true,
-                playsInSilentModeIOS: true,
-                staysActiveInBackground: true,
-                shouldDuckAndroid: true,
-                playThroughEarpieceAndroid: false,
-            });
-            console.log('[Gemini] Audio mode configured for voice chat');
-        } catch (e) {
-            console.warn('[Gemini] Audio mode setup warning:', e);
-        }
+        // No async setup needed - InCallManager handles audio routing in startConversation
     }
 
     async initialize(config: ProviderConfig): Promise<any> {
@@ -149,7 +129,9 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
             });
 
             const systemPrompt = buildSystemPrompt(context);
+            const languageCode = context.userContext.language === 'es' ? 'es-ES' : 'en-US';
             console.log('[Gemini] System prompt:', systemPrompt);
+            console.log('[Gemini] Language code:', languageCode);
             console.log('[Gemini] Establishing live connection...');
 
             // Connect using SDK's live.connect()
@@ -158,6 +140,7 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
                 config: {
                     responseModalities: [Modality.AUDIO],
                     speechConfig: {
+                        languageCode: languageCode,
                         voiceConfig: {
                             prebuiltVoiceConfig: { voiceName: 'Aoede' }
                         }
@@ -249,6 +232,12 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
             // Turn complete - ready to listen again
             if (message.serverContent?.turnComplete) {
                 console.log('[Gemini] Turn complete - ready for next input');
+                console.log('[Gemini] Session state after turnComplete:', {
+                    sessionOpen: !!this.session,
+                    isRecording: this.isRecording,
+                    isSetupComplete: this.isSetupComplete,
+                    status: this.status
+                });
                 this.setStatus('listening');
                 this.inactivityTimer.reset(() => {
                     console.log('[Gemini] Inactivity timeout after turnComplete');
