@@ -27,6 +27,7 @@ import { ShareButton } from '@/components/common/ShareButton';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
 import logger from '@/services/logger';
+import { StarRating } from '@/components/rating/StarRating';
 
 
 const RecipeDetail: React.FC = () => {
@@ -135,8 +136,19 @@ const RecipeDetail: React.FC = () => {
                 prepTime={recipe.prepTime}
                 difficulty={recipe.difficulty}
                 portions={recipe.portions}
-                className="mb-xl"
+                className="mb-md"
               />
+
+              {/* Rating Display */}
+              {recipe.ratingCount > 0 && recipe.averageRating && (
+                <View className="mb-lg">
+                  <StarRating
+                    rating={recipe.averageRating}
+                    count={recipe.ratingCount}
+                    size="lg"
+                  />
+                </View>
+              )}
 
               <View
                 className="mb-xs flex-row justify-between items-center"

@@ -7,14 +7,16 @@ import { adminFeedbackService, FeedbackFilters } from '@/services/admin/adminFee
 import { AdminFeedbackItem } from '@/types/rating.types';
 import { COLORS } from '@/constants/design-tokens';
 import { PageLayout } from '@/components/layouts/PageLayout';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function AdminFeedbackPage() {
+    const { language } = useLanguage();
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState<FeedbackFilters>({});
 
     const { data, isLoading, isError, refetch } = useQuery({
-        queryKey: ['admin', 'feedback', filters, page],
-        queryFn: () => adminFeedbackService.getFeedback(filters, page, 20),
+        queryKey: ['admin', 'feedback', filters, page, language],
+        queryFn: () => adminFeedbackService.getFeedback({ ...filters, language }, page, 20),
     });
 
     const formatDate = (dateString: string) => {
