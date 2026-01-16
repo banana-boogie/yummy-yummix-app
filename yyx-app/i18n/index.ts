@@ -847,6 +847,187 @@ const translations = {
         }
       },
     },
+    adventure: {
+      courses: {
+        title: 'Irmixy Culinary Adventure',
+        subtitle: 'Pick a world and start your chef journey.',
+        playable: 'Playable',
+        comingSoon: 'Coming soon',
+        progressLabel: '{{completed}} / {{total}} levels',
+        basics: {
+          title: 'Thermomix Basics',
+          description: 'Learn the core moves: setup, safety, and flavor control.'
+        },
+        mexico: {
+          title: 'Flavors of Mexico',
+          description: 'Salsas, masa, and bold street-food classics.'
+        },
+        italy: {
+          title: 'Heart of Italy',
+          description: 'Sauces, pasta, and slow-simmered comfort.'
+        },
+        japan: {
+          title: 'Taste of Japan',
+          description: 'Umami, precision cuts, and balanced bowls.'
+        },
+        morocco: {
+          title: 'Moroccan Spice Trail',
+          description: 'Tagines, warm spices, and vibrant markets.'
+        },
+        australia: {
+          title: 'Pacific Pantry',
+          description: 'Fresh seafood, grills, and coastal flavors.'
+        }
+      },
+      regions: {
+        foundations: {
+          title: 'Foundations',
+          description: 'Start here to master your tools.'
+        },
+        americas: {
+          title: 'Americas',
+          description: 'From street food to smoky grills.'
+        },
+        europe: {
+          title: 'Europe',
+          description: 'Classic techniques and timeless comfort.'
+        },
+        asia: {
+          title: 'Asia',
+          description: 'Bright flavors and precise technique.'
+        },
+        africa: {
+          title: 'Africa',
+          description: 'Bold spices and slow-cooked wonders.'
+        },
+        oceania: {
+          title: 'Oceania',
+          description: 'Coastal cooking and sunshine plates.'
+        }
+      },
+      stats: {
+        streak: 'Daily streak',
+        xp: 'XP',
+        coins: 'Coins',
+        streakValue: '{{count}} days',
+        xpValue: '{{count}} XP',
+        coinsValue: '{{count}} coins'
+      },
+      course: {
+        notFound: 'Course not found.'
+      },
+      level: {
+        notFound: 'Level not found.',
+        duration: '{{count}} min',
+        rewardsShort: '{{xp}} XP + {{coins}} coins',
+        rewardsLong: 'Rewards: {{xp}} XP, {{coins}} coins',
+        detailsTitle: 'Level details',
+        stepsTitle: "Today's steps",
+        guidedTitle: 'Guided steps',
+        stepPrefix: 'Step {{index}}:',
+        stepsComingSoon: 'Steps will unlock after you complete the previous level.',
+        checklistTitle: 'Step checklist',
+        checklistEmpty: 'Checklist will unlock after the previous level.',
+        stepProgress: 'Step {{current}} of {{total}}',
+        stepProgressShort: '{{percent}}% done',
+        previousStep: 'Previous',
+        markStepDone: 'Mark step done',
+        stepDone: 'Step done',
+        tipFallback: 'Focus on steady, safe technique before speed.',
+        warmupTitle: 'Warm-up timer',
+        warmupDescription: 'Run the Thermomix for a quick 1-minute warm-up.',
+        warmupRunning: 'Timer running: {{time}}',
+        warmupRunningLabel: 'Running',
+        warmupStart: 'Start',
+        warmupDone: 'Warm-up complete',
+        completeButton: 'Complete level',
+        completed: 'Completed',
+        rewardTitle: 'Rewards earned',
+        streakReward: 'Daily streak increased.',
+        backToCourse: 'Back to course',
+        nextLevel: 'Next level',
+        completeTitle: 'Level complete!',
+        completeSubtitle: 'Nice work, chef. Keep the momentum going.',
+        badgeUnlocked: 'New badge unlocked: Thermomix Starter',
+        sharePlate: 'Share your plate'
+      },
+      levels: {
+        basics: {
+          1: {
+            title: 'Thermomix Setup',
+            description: 'Meet the machine and learn the safety basics.',
+            steps: {
+              1: 'Set up the Thermomix bowl and lid.',
+              2: 'Review safety locks and temperature limits.',
+              3: 'Calibrate the scale and tare correctly.',
+              4: 'Run a 1-minute warm-up blend.'
+            },
+            tips: {
+              1: 'Seat the bowl firmly until it clicks in place.',
+              2: 'Check the lock indicator before starting any heat.',
+              3: 'Use tare after every new ingredient for accuracy.',
+              4: 'Warm-up keeps the motor smooth and ready.'
+            }
+          },
+          2: {
+            title: 'Speed & Control',
+            description: 'Dial in speed settings and pulse tricks.'
+          },
+          3: {
+            title: 'Heat & Timing',
+            description: 'Master low, medium, and high heat timing.'
+          },
+          4: {
+            title: 'Blade Basics',
+            description: 'Chop, mince, and puree with confidence.'
+          },
+          5: {
+            title: 'Emulsify & Blend',
+            description: 'Create sauces and smooth blends.'
+          },
+          6: {
+            title: 'Steam & Simmer',
+            description: 'Gentle cooking for veggies and grains.'
+          },
+          7: {
+            title: 'Seasoning Balance',
+            description: 'Salt, acid, and spice harmony.'
+          },
+          8: {
+            title: 'Quick Clean Challenge',
+            description: 'Clean and reset your station fast.'
+          },
+          9: {
+            title: 'Flavor Pairing',
+            description: 'Build depth with layered ingredients.'
+          },
+          10: {
+            title: 'Thermomix Confidence',
+            description: 'Bring it all together in one cook.'
+          }
+        }
+      },
+      community: {
+        title: 'Community',
+        subtitle: 'Cook together and share your wins.',
+        club: {
+          title: 'Clubs',
+          description: 'Join friends and hit weekly goals.',
+          stub: 'Clubs are coming next. Start with weekly goals and shared streaks.'
+        },
+        sharePlate: {
+          title: 'Share Plate',
+          description: 'Post your dish and get feedback.',
+          stub: 'Share Plate is coming soon. Start with photo posts and reactions.'
+        }
+      },
+      irmixy: {
+        courseHint: 'I can guide you level by level. Start with Thermomix Basics!',
+        levelHint: 'Finish this level to unlock the next one.',
+        clubHint: 'I will help your club plan weekly cook-alongs.',
+        sharePlateHint: 'Share your plate and I will give you feedback.'
+      }
+    },
     chat: {
       title: 'Irmixy',
       greeting: "Hi! I'm Irmixy, your AI chef assistant. Ask me anything about cooking!",
@@ -1706,6 +1887,187 @@ const translations = {
           }
         }
       },
+    },
+    adventure: {
+      courses: {
+        title: 'Aventura Culinaria de Irmixy',
+        subtitle: 'Elige un mundo y comienza tu viaje de chef.',
+        playable: 'Jugable',
+        comingSoon: 'Pronto',
+        progressLabel: '{{completed}} / {{total}} niveles',
+        basics: {
+          title: 'Fundamentos de Thermomix',
+          description: 'Aprende lo esencial: preparación, seguridad y control de sabor.'
+        },
+        mexico: {
+          title: 'Sabores de México',
+          description: 'Salsas, masa y clásicos callejeros.'
+        },
+        italy: {
+          title: 'Corazón de Italia',
+          description: 'Salsas, pasta y confort lento.'
+        },
+        japan: {
+          title: 'Sabor de Japón',
+          description: 'Umami, cortes precisos y platos balanceados.'
+        },
+        morocco: {
+          title: 'Ruta de Especias de Marruecos',
+          description: 'Tagines, especias cálidas y mercados vibrantes.'
+        },
+        australia: {
+          title: 'Despensa del Pacífico',
+          description: 'Mariscos frescos, parrillas y sabores costeros.'
+        }
+      },
+      regions: {
+        foundations: {
+          title: 'Fundamentos',
+          description: 'Empieza aquí para dominar tus herramientas.'
+        },
+        americas: {
+          title: 'Américas',
+          description: 'Desde comida callejera hasta parrillas ahumadas.'
+        },
+        europe: {
+          title: 'Europa',
+          description: 'Técnicas clásicas y confort atemporal.'
+        },
+        asia: {
+          title: 'Asia',
+          description: 'Sabores brillantes y técnica precisa.'
+        },
+        africa: {
+          title: 'África',
+          description: 'Especias intensas y cocciones lentas.'
+        },
+        oceania: {
+          title: 'Oceanía',
+          description: 'Cocina costera y platos soleados.'
+        }
+      },
+      stats: {
+        streak: 'Racha diaria',
+        xp: 'XP',
+        coins: 'Monedas',
+        streakValue: '{{count}} días',
+        xpValue: '{{count}} XP',
+        coinsValue: '{{count}} monedas'
+      },
+      course: {
+        notFound: 'Curso no encontrado.'
+      },
+      level: {
+        notFound: 'Nivel no encontrado.',
+        duration: '{{count}} min',
+        rewardsShort: '{{xp}} XP + {{coins}} monedas',
+        rewardsLong: 'Recompensas: {{xp}} XP, {{coins}} monedas',
+        detailsTitle: 'Detalles del nivel',
+        stepsTitle: 'Pasos de hoy',
+        guidedTitle: 'Pasos guiados',
+        stepPrefix: 'Paso {{index}}:',
+        stepsComingSoon: 'Los pasos se desbloquean al completar el nivel anterior.',
+        checklistTitle: 'Checklist de pasos',
+        checklistEmpty: 'El checklist se desbloquea después del nivel anterior.',
+        stepProgress: 'Paso {{current}} de {{total}}',
+        stepProgressShort: '{{percent}}% hecho',
+        previousStep: 'Anterior',
+        markStepDone: 'Marcar paso listo',
+        stepDone: 'Paso listo',
+        tipFallback: 'Enfócate en una técnica estable y segura antes de la velocidad.',
+        warmupTitle: 'Temporizador de calentamiento',
+        warmupDescription: 'Ejecuta la Thermomix con un calentamiento de 1 minuto.',
+        warmupRunning: 'Temporizador en marcha: {{time}}',
+        warmupRunningLabel: 'En marcha',
+        warmupStart: 'Iniciar',
+        warmupDone: 'Calentamiento completado',
+        completeButton: 'Completar nivel',
+        completed: 'Completado',
+        rewardTitle: 'Recompensas obtenidas',
+        streakReward: 'Racha diaria aumentada.',
+        backToCourse: 'Volver al curso',
+        nextLevel: 'Siguiente nivel',
+        completeTitle: 'Nivel completado!',
+        completeSubtitle: 'Buen trabajo, chef. Sigue con el impulso.',
+        badgeUnlocked: 'Nueva insignia: Thermomix Inicial',
+        sharePlate: 'Comparte tu plato'
+      },
+      levels: {
+        basics: {
+          1: {
+            title: 'Preparación de Thermomix',
+            description: 'Conoce la máquina y aprende lo básico de seguridad.',
+            steps: {
+              1: 'Monta el vaso y la tapa de la Thermomix.',
+              2: 'Revisa los seguros y los límites de temperatura.',
+              3: 'Calibra la báscula y ponla en cero.',
+              4: 'Haz una mezcla de calentamiento de 1 minuto.'
+            },
+            tips: {
+              1: 'Asegura el vaso hasta escuchar el clic.',
+              2: 'Confirma el indicador de bloqueo antes de calentar.',
+              3: 'Usa la tara después de cada ingrediente.',
+              4: 'El calentamiento prepara el motor suavemente.'
+            }
+          },
+          2: {
+            title: 'Velocidad y Control',
+            description: 'Ajusta velocidades y trucos de pulso.'
+          },
+          3: {
+            title: 'Calor y Tiempo',
+            description: 'Domina tiempos de calor bajo, medio y alto.'
+          },
+          4: {
+            title: 'Cuchillas Básicas',
+            description: 'Pica, tritura y licua con confianza.'
+          },
+          5: {
+            title: 'Emulsiona y Mezcla',
+            description: 'Crea salsas y mezclas suaves.'
+          },
+          6: {
+            title: 'Vapor y Cocción Lenta',
+            description: 'Cocción suave para verduras y granos.'
+          },
+          7: {
+            title: 'Balance de Sazonado',
+            description: 'Armonía de sal, ácido y especias.'
+          },
+          8: {
+            title: 'Reto de Limpieza Rápida',
+            description: 'Limpia y reinicia tu estación rápido.'
+          },
+          9: {
+            title: 'Combinación de Sabores',
+            description: 'Construye profundidad con ingredientes en capas.'
+          },
+          10: {
+            title: 'Confianza Thermomix',
+            description: 'Une todo en una sola preparación.'
+          }
+        }
+      },
+      community: {
+        title: 'Comunidad',
+        subtitle: 'Cocinen juntos y compartan sus logros.',
+        club: {
+          title: 'Clubes',
+          description: 'Únete a amigos y logra metas semanales.',
+          stub: 'Los clubes llegan pronto. Empezaremos con metas semanales y rachas compartidas.'
+        },
+        sharePlate: {
+          title: 'Comparte tu plato',
+          description: 'Publica tu plato y recibe comentarios.',
+          stub: 'Compartir plato llega pronto. Empezaremos con fotos y reacciones.'
+        }
+      },
+      irmixy: {
+        courseHint: 'Puedo guiarte nivel por nivel. Empieza con Fundamentos de Thermomix.',
+        levelHint: 'Termina este nivel para desbloquear el siguiente.',
+        clubHint: 'Te ayudaré a planear sesiones de cocina semanales.',
+        sharePlateHint: 'Comparte tu plato y te daré comentarios.'
+      }
     },
     chat: {
       title: 'Irmixy',

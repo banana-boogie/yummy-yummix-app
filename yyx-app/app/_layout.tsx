@@ -15,6 +15,7 @@ import { registerNativeWindInterops } from '@/utils/nativewind';
 import { OnboardingProvider } from '@/contexts/OnboardingContext';
 
 import { UserProfileProvider } from '@/contexts/UserProfileContext';
+import { AdventureProvider } from '@/contexts/AdventureContext';
 import { queryClient } from '@/lib/queryClient';
 
 // Register NativeWind interops for third-party components
@@ -39,7 +40,9 @@ function InnerProviders({ children }: { children: ReactNode }) {
         <UserProfileProvider>
           <OnboardingProvider>
             <MeasurementProvider>
-              {children}
+              <AdventureProvider>
+                {children}
+              </AdventureProvider>
             </MeasurementProvider>
           </OnboardingProvider>
         </UserProfileProvider>
