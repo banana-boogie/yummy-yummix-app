@@ -367,6 +367,7 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
 
     /**
      * Start capturing audio from microphone
+     * IMPORTANT: Skips sending audio while AI is speaking to prevent self-interruption
      */
     private startAudioCapture() {
         if (this.isRecording) return;
@@ -386,6 +387,12 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
 
         let chunkCount = 0;
         LiveAudioStream.on('data', (base64: string) => {
+            // CRITICAL: Skip sending audio while AI is speaking
+            // This prevents Gemini from detecting playback audio as user input
+            if (this.isPlaybackLoopRunning) {
+                return; // Don't send audio while speaking
+            }
+
             if (this.session && this.isSetupComplete) {
                 try {
                     chunkCount++;
