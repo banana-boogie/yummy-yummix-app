@@ -1,6 +1,7 @@
 import type { VoiceAssistantProvider } from './types';
 import { OpenAIRealtimeProvider } from './providers/OpenAIRealtimeProvider';
 import { HearThinkSpeakProvider } from './providers/HearThinkSpeakProvider';
+import { GeminiLiveProvider } from './providers/GeminiLiveProvider';
 
 export type ProviderType = 'openai-realtime' | 'hear-think-speak' | 'gemini-live';
 
@@ -15,7 +16,7 @@ export class VoiceProviderFactory {
                 return new HearThinkSpeakProvider();
 
             case 'gemini-live':
-                throw new Error('Gemini Live provider not yet implemented');
+                return new GeminiLiveProvider();
 
             default:
                 throw new Error(`Unknown provider type: ${type}`);

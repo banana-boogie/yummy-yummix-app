@@ -101,16 +101,22 @@ export function SystemButtons({
         </Text>
         <View className={`flex-row gap-sm ${isLargeScreen ? 'gap-md max-w-[600px]' : ''}`}>
           {renderButton(
-            i18n.t('settings.voiceProviderStandard'),
-            voiceProvider === 'hear-think-speak',
-            () => onVoiceProviderChange('hear-think-speak'),
-            i18n.t('settings.voiceProviderStandardDesc')
+            'Gemini',
+            voiceProvider === 'gemini-live',
+            () => onVoiceProviderChange('gemini-live'),
+            'Google AI - Fast'
           )}
           {renderButton(
-            i18n.t('settings.voiceProviderPremium'),
+            'OpenAI',
             voiceProvider === 'openai-realtime',
             () => onVoiceProviderChange('openai-realtime'),
-            i18n.t('settings.voiceProviderPremiumDesc')
+            'Premium - Best'
+          )}
+          {renderButton(
+            'HTS',
+            voiceProvider === 'hear-think-speak',
+            () => onVoiceProviderChange('hear-think-speak'),
+            'Custom - Cheapest'
           )}
         </View>
       </View>

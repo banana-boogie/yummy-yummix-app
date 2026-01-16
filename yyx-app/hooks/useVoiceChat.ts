@@ -31,12 +31,30 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
 
     const providerRef = useRef<VoiceAssistantProvider | null>(null);
 
-    // Load voice provider preference
+    // Load voice provider preference and sync periodically
     useEffect(() => {
+        // Initial load
         Storage.getItem('voiceProvider').then(saved => {
             if (saved) setProviderType(saved as ProviderType);
         });
-    }, []);
+
+        // Check for updates every 500ms (handles settings changes)
+        const syncInterval = setInterval(() => {
+            Storage.getItem('voiceProvider').then(saved => {
+                if (saved && saved !== providerType) {
+                    console.log(`[VoiceChat] Provider changed: ${providerType} -> ${saved}`);
+                    // Cleanup current provider when switching
+                    if (providerRef.current) {
+                        providerRef.current.destroy();
+                        providerRef.current = null;
+                    }
+                    setProviderType(saved as ProviderType);
+                }
+            });
+        }, 500);
+
+        return () => clearInterval(syncInterval);
+    }, [providerType]);
 
     useEffect(() => {
         // Cleanup on unmount
