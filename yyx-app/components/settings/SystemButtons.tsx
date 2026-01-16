@@ -2,7 +2,6 @@ import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { MeasurementSystem } from '@/types/user';
-import { ProviderType } from '@/services/voice/VoiceProviderFactory';
 import { useDevice } from '@/hooks/useDevice';
 import i18n from '@/i18n';
 
@@ -11,8 +10,6 @@ interface SystemButtonsProps {
   onLanguageChange: (lang: string) => void;
   measurementSystem: MeasurementSystem;
   onMeasurementChange: (system: MeasurementSystem) => void;
-  voiceProvider: ProviderType;
-  onVoiceProviderChange: (provider: ProviderType) => void;
 }
 
 export function SystemButtons({
@@ -20,8 +17,6 @@ export function SystemButtons({
   onLanguageChange,
   measurementSystem,
   onMeasurementChange,
-  voiceProvider,
-  onVoiceProviderChange
 }: SystemButtonsProps) {
   const { isLarge: isLargeScreen } = useDevice();
 
@@ -29,56 +24,57 @@ export function SystemButtons({
     label: string,
     isActive: boolean,
     onPress: () => void,
-    description?: string
+    sublabel?: string
   ) => (
     <TouchableOpacity
-      className={`
-        flex-1 items-center justify-center rounded-md py-sm px-md
-        ${isActive ? 'bg-primary-medium' : 'bg-background-secondary'}
-        ${isLargeScreen ? 'py-md px-lg' : ''}
-      `}
       onPress={onPress}
+      className={`flex-1 items-center justify-center py-md px-sm rounded-lg border ${isActive
+          ? 'bg-accent border-accent'
+          : 'bg-surface border-border'
+        }`}
     >
       <Text
-        className={`
-          text-center text-base
-          ${isActive ? 'text-neutral-white font-semibold' : 'text-text-default'}
-          ${isLargeScreen ? 'text-md' : ''}
-        `}
+        className={`text-sm font-semibold ${isActive ? 'text-text-on-accent' : 'text-text-primary'
+          }`}
       >
         {label}
       </Text>
-      {description && (
+      {sublabel && (
         <Text
-          preset="caption"
-          className={`
-            text-center mt-xs
-            ${isActive ? 'text-neutral-white' : 'text-text-secondary'}
-          `}
+          className={`text-xs mt-xs ${isActive ? 'text-text-on-accent/70' : 'text-text-tertiary'
+            }`}
         >
-          {description}
+          {sublabel}
         </Text>
       )}
     </TouchableOpacity>
   );
 
   return (
-    <View className="mb-lg px-md">
+    <View>
       {/* Language Selection */}
       <View className="mb-xl">
         <Text className="text-text-secondary text-base mb-sm font-medium">
-          {i18n.t('profile.language')}
+          {i18n.t('settings.language')}
         </Text>
         <View className={`flex-row gap-sm ${isLargeScreen ? 'gap-md max-w-[600px]' : ''}`}>
-          {renderButton('Español', language === 'es', () => onLanguageChange('es'))}
-          {renderButton('English', language === 'en', () => onLanguageChange('en'))}
+          {renderButton(
+            i18n.t('settings.english'),
+            language === 'en',
+            () => onLanguageChange('en')
+          )}
+          {renderButton(
+            i18n.t('settings.spanish'),
+            language === 'es',
+            () => onLanguageChange('es')
+          )}
         </View>
       </View>
 
       {/* Measurement System Selection */}
       <View className="mb-xl">
         <Text className="text-text-secondary text-base mb-sm font-medium">
-          {i18n.t('profile.measurementSystem')}
+          {i18n.t('settings.measurementSystem')}
         </Text>
         <View className={`flex-row gap-sm ${isLargeScreen ? 'gap-md max-w-[600px]' : ''}`}>
           {renderButton(
@@ -90,33 +86,6 @@ export function SystemButtons({
             i18n.t('settings.imperial'),
             measurementSystem === MeasurementSystem.IMPERIAL,
             () => onMeasurementChange(MeasurementSystem.IMPERIAL)
-          )}
-        </View>
-      </View>
-
-      {/* Voice Provider Selection */}
-      <View className="mb-xl">
-        <Text className="text-text-secondary text-base mb-sm font-medium">
-          {i18n.t('settings.voiceProvider')}
-        </Text>
-        <View className={`flex-row gap-sm ${isLargeScreen ? 'gap-md max-w-[600px]' : ''}`}>
-          {renderButton(
-            'Gemini',
-            voiceProvider === 'gemini-live',
-            () => onVoiceProviderChange('gemini-live'),
-            'Google AI - Fast'
-          )}
-          {renderButton(
-            'OpenAI',
-            voiceProvider === 'openai-realtime',
-            () => onVoiceProviderChange('openai-realtime'),
-            'Premium - Best'
-          )}
-          {renderButton(
-            'HTS',
-            voiceProvider === 'hear-think-speak',
-            () => onVoiceProviderChange('hear-think-speak'),
-            'Custom - Cheapest'
           )}
         </View>
       </View>

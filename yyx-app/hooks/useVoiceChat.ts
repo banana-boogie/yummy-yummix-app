@@ -1,20 +1,25 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+/**
+ * useVoiceChat Hook
+ * 
+ * Manages voice chat state and interactions with OpenAI Realtime provider.
+ */
+
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useMeasurement } from '@/contexts/MeasurementContext';
-import { supabase } from '@/lib/supabase';
-import { VoiceProviderFactory, ProviderType } from '@/services/voice/VoiceProviderFactory';
-import { Storage } from '@/utils/storage';
+import { VoiceProviderFactory } from '@/services/voice/VoiceProviderFactory';
 import type {
     VoiceAssistantProvider,
     VoiceStatus,
     RecipeContext,
-    QuotaInfo
+    QuotaInfo,
 } from '@/services/voice/types';
 
 interface UseVoiceChatOptions {
     recipeContext?: RecipeContext;
-    onQuotaWarning?: (info: QuotaInfo) => void;
+    onQuotaWarning?: (quota: QuotaInfo) => void;
 }
 
 export function useVoiceChat(options?: UseVoiceChatOptions) {
@@ -23,49 +28,12 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     const [response, setResponse] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [quotaInfo, setQuotaInfo] = useState<QuotaInfo | null>(null);
-    const [providerType, setProviderType] = useState<ProviderType>('hear-think-speak');
 
     const { userProfile } = useUserProfile();
     const { language } = useLanguage();
     const { measurementSystem } = useMeasurement();
 
     const providerRef = useRef<VoiceAssistantProvider | null>(null);
-    const providerTypeRef = useRef<ProviderType>(providerType); // Track current type with ref
-
-    // Keep ref in sync with state
-    useEffect(() => {
-        providerTypeRef.current = providerType;
-    }, [providerType]);
-
-    // Load voice provider preference and sync periodically
-    useEffect(() => {
-        // Initial load
-        Storage.getItem('voiceProvider').then(saved => {
-            if (saved) {
-                setProviderType(saved as ProviderType);
-                providerTypeRef.current = saved as ProviderType;
-            }
-        });
-
-        // Check for updates every 500ms (handles settings changes)
-        const syncInterval = setInterval(() => {
-            Storage.getItem('voiceProvider').then(saved => {
-                // Use ref to get current value (avoids stale closure)
-                if (saved && saved !== providerTypeRef.current) {
-                    console.log(`[VoiceChat] Provider changed: ${providerTypeRef.current} -> ${saved}`);
-                    // Cleanup current provider when switching
-                    if (providerRef.current) {
-                        providerRef.current.destroy();
-                        providerRef.current = null;
-                    }
-                    setProviderType(saved as ProviderType);
-                    providerTypeRef.current = saved as ProviderType;
-                }
-            });
-        }, 500);
-
-        return () => clearInterval(syncInterval);
-    }, []); // Empty deps - only run once
 
     useEffect(() => {
         // Cleanup on unmount
@@ -84,8 +52,8 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) throw new Error('Not authenticated');
 
-            // 2. Create new provider instance (recreate after each stop to reset WebRTC)
-            providerRef.current = VoiceProviderFactory.create(providerType);
+            // 2. Create OpenAI Realtime provider instance
+            providerRef.current = VoiceProviderFactory.create('openai-realtime');
 
             // Set up event listeners
             providerRef.current.on('statusChange', setStatus);
@@ -132,7 +100,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             console.error('[VoiceChat] Start error:', err);
             setError(err instanceof Error ? err.message : 'Unknown error');
         }
-    }, [language, measurementSystem, userProfile, options, providerType]);
+    }, [language, measurementSystem, userProfile, options]);
 
     const stopConversation = useCallback(() => {
         providerRef.current?.stopConversation();
