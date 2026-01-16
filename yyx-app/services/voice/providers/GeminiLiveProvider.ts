@@ -135,8 +135,9 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
             console.log('[Gemini] Establishing live connection...');
 
             // Connect using SDK's live.connect()
+            // Note: Using native audio preview model for proper voice selection
             this.session = await ai.live.connect({
-                model: 'models/gemini-2.0-flash-exp',
+                model: 'models/gemini-2.5-flash-native-audio-preview',
                 config: {
                     responseModalities: [Modality.AUDIO],
                     speechConfig: {
