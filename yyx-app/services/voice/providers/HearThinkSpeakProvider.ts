@@ -6,11 +6,12 @@
  * Latency: ~600-900ms (streaming LLM + sentence-level TTS)
  */
 
-import { mediaDevices, MediaStream } from 'react-native-webrtc';
+import LiveAudioStream from 'react-native-live-audio-stream';
 import { Audio } from 'expo-av';
 import InCallManager from 'react-native-incall-manager';
 import { supabase } from '@/lib/supabase';
 import { buildSystemPrompt, detectGoodbye, InactivityTimer } from '../shared/VoiceUtils';
+import { Buffer } from 'buffer';
 import type {
   VoiceAssistantProvider,
   VoiceStatus,
@@ -24,9 +25,7 @@ import type {
 
 export class HearThinkSpeakProvider implements VoiceAssistantProvider {
   private ws: WebSocket | null = null;
-  private audioStream: MediaStream | null = null;
-  private audioContext: AudioContext | null = null;
-  private processor: ScriptProcessorNode | null = null;
+  private isRecording: boolean = false;
   private sound: Audio.Sound | null = null;
   private status: VoiceStatus = 'idle';
   private sessionId: string | null = null;
@@ -124,21 +123,9 @@ export class HearThinkSpeakProvider implements VoiceAssistantProvider {
     }
 
     // Stop audio stream
-    if (this.audioStream) {
-      this.audioStream.getTracks().forEach(track => track.stop());
-      this.audioStream = null;
-    }
-
-    // Disconnect processor
-    if (this.processor) {
-      this.processor.disconnect();
-      this.processor = null;
-    }
-
-    // Close audio context
-    if (this.audioContext) {
-      this.audioContext.close().catch(console.error);
-      this.audioContext = null;
+    if (this.isRecording) {
+      LiveAudioStream.stop();
+      this.isRecording = false;
     }
 
     // Close WebSocket
@@ -280,47 +267,47 @@ export class HearThinkSpeakProvider implements VoiceAssistantProvider {
 
   private async startRecording(): Promise<void> {
     try {
-      console.log('[HTS] Starting audio recording with getUserMedia...');
+      console.log('[HTS] Starting audio recording with LiveAudioStream...');
 
-      // Get audio stream (same as OpenAI provider)
-      this.audioStream = await mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 16000,
-        },
-        video: false,
-      });
-
-      console.log('[HTS] Audio stream acquired');
-
-      // Create audio context for processing
-      const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-      this.audioContext = new AudioContextClass({ sampleRate: 16000 });
-
-      const source = this.audioContext.createMediaStreamSource(this.audioStream);
-      this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
-
-      this.processor.onaudioprocess = (e) => {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-
-        const inputData = e.inputBuffer.getChannelData(0);
-
-        // Convert Float32Array to Int16Array (linear16)
-        const int16Array = new Int16Array(inputData.length);
-        for (let i = 0; i < inputData.length; i++) {
-          int16Array[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
-        }
-
-        // Send audio to backend
-        this.ws.send(int16Array.buffer);
+      // Configure audio stream options
+      // Using 24000 Hz (Deepgram's default streaming sample rate)
+      const options = {
+        sampleRate: 24000,
+        channels: 1,
+        bitsPerSample: 16,
+        audioSource: 6, // VOICE_RECOGNITION for Android
+        bufferSize: 4096,
       };
 
-      source.connect(this.processor);
-      this.processor.connect(this.audioContext.destination);
+      LiveAudioStream.init(options);
 
-      console.log('[HTS] Audio streaming active');
+      let chunkCount = 0;
+
+      // Handle incoming audio data
+      LiveAudioStream.on('data', (base64: string) => {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+        chunkCount++;
+
+        // Decode base64 to binary using Buffer (more reliable in React Native than atob)
+        const bytes = Buffer.from(base64, 'base64');
+
+        // Log first few chunks to verify audio data is being captured
+        if (chunkCount <= 3) {
+          console.log(`[HTS] Audio chunk ${chunkCount}: ${bytes.length} bytes, first 8 bytes:`,
+            Array.from(bytes.slice(0, 8)));
+        } else if (chunkCount % 50 === 0) {
+          console.log(`[HTS] Sent ${chunkCount} audio chunks`);
+        }
+
+        // Send as binary ArrayBuffer
+        this.ws.send(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+      });
+
+      LiveAudioStream.start();
+      this.isRecording = true;
+
+      console.log('[HTS] Audio streaming active (24000 Hz, binary)');
 
     } catch (error) {
       console.error('[HTS] Failed to start recording:', error);

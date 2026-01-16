@@ -28,13 +28,17 @@ export class DeepgramSTTProvider implements STTProvider {
     url.searchParams.set('vad_events', 'true');
     url.searchParams.set('punctuate', 'true');
     url.searchParams.set('smart_format', 'true');
-    url.searchParams.set('interim_results', 'false'); // Only final transcripts
+    // Enable interim results so Deepgram can emit UtteranceEnd events reliably.
+    url.searchParams.set('interim_results', 'true');
 
     console.log('[Deepgram] Connecting to:', url.toString());
 
-    // Use Sec-WebSocket-Protocol for authentication (Deepgram's recommended approach)
-    // Pass 'token' and the API key as WebSocket subprotocols
+    // Use Sec-WebSocket-Protocol header for authentication
+    // Deepgram accepts 'token' and API key as subprotocols
     this.ws = new WebSocket(url.toString(), ['token', apiKey]);
+
+    // Ensure binary data is handled as ArrayBuffer
+    this.ws.binaryType = 'arraybuffer';
 
     // Wait for connection to open
     await new Promise<void>((resolve, reject) => {
@@ -64,8 +68,8 @@ export class DeepgramSTTProvider implements STTProvider {
         }
       };
 
-      this.ws.onclose = () => {
-        console.log('[Deepgram] Connection closed');
+      this.ws.onclose = (event) => {
+        console.log(`[Deepgram] Connection closed (code: ${event.code}, reason: ${event.reason || 'n/a'})`);
       };
     });
   }
@@ -78,9 +82,16 @@ export class DeepgramSTTProvider implements STTProvider {
     this.onUtteranceEndCallback = callback;
   }
 
+  private audioChunkCount = 0;
+
   sendAudio(chunk: Uint8Array): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(chunk);
+      this.audioChunkCount++;
+      // Log every 50 chunks (roughly every 3 seconds at 4096 buffer size)
+      if (this.audioChunkCount % 50 === 0) {
+        console.log(`[Deepgram] Sent ${this.audioChunkCount} audio chunks (${chunk.length} bytes each)`);
+      }
     } else {
       console.warn('[Deepgram] Cannot send audio - WebSocket not open');
     }
@@ -109,13 +120,23 @@ export class DeepgramSTTProvider implements STTProvider {
   }
 
   private handleMessage(data: any): void {
+    // Log all message types for debugging
+    console.log('[Deepgram] Received message type:', data.type, JSON.stringify(data).substring(0, 200));
+
     if (data.type === 'Results') {
       const transcript = data.channel?.alternatives?.[0]?.transcript;
       const isFinal = data.is_final === true;
+      const speechFinal = data.speech_final === true;
 
       if (transcript && this.onTranscriptCallback) {
-        console.log(`[Deepgram] Transcript (final: ${isFinal}):`, transcript);
-        this.onTranscriptCallback(transcript, isFinal);
+        // speech_final indicates end of a natural speech segment
+        // is_final indicates the API won't update this audio segment
+        const shouldProcess = isFinal || speechFinal;
+        console.log(`[Deepgram] Transcript (is_final: ${isFinal}, speech_final: ${speechFinal}):`, transcript);
+        this.onTranscriptCallback(transcript, shouldProcess);
+      } else if (isFinal || speechFinal) {
+        // No transcript but speech ended - might trigger utterance end
+        console.log('[Deepgram] Results received but no transcript text (speech_final:', speechFinal, ')');
       }
     } else if (data.type === 'UtteranceEnd') {
       console.log('[Deepgram] Utterance end detected');
@@ -124,6 +145,8 @@ export class DeepgramSTTProvider implements STTProvider {
       }
     } else if (data.type === 'Metadata') {
       console.log('[Deepgram] Metadata received');
+    } else if (data.type === 'SpeechStarted') {
+      console.log('[Deepgram] Speech started detected');
     } else {
       console.log('[Deepgram] Unknown message type:', data.type);
     }

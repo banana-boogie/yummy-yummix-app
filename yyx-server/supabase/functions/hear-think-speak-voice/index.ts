@@ -16,6 +16,12 @@ import { DeepgramSTTProvider } from '../_shared/providers/DeepgramSTTProvider.ts
 import { OpenAILLMProvider } from '../_shared/providers/OpenAILLMProvider.ts';
 import { CartesiaTTSProvider } from '../_shared/providers/CartesiaTTSProvider.ts';
 
+// Cartesia voice IDs (UUIDs) for different languages
+const CARTESIA_VOICES = {
+  en: '71a7ad14-091c-4e8e-a314-022ece01c121', // British Reading Lady - warm female
+  es: '2695b6b5-5543-4be1-96d9-3967fb5e7fec', // Young Spanish-speaking Woman
+} as const;
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -112,10 +118,10 @@ serve(async (req) => {
       console.log('[HTS] WebSocket connected');
 
       try {
-        // Connect to STT provider
+        // Connect to STT provider with Deepgram's default streaming sample rate
         await sttProvider.connect({
           language,
-          sampleRate: 16000,
+          sampleRate: 24000, // Deepgram's default streaming sample rate
           encoding: 'linear16',
           utteranceEndMs: 1000, // 1 second of silence = utterance end
         });
@@ -165,7 +171,8 @@ serve(async (req) => {
 
                 try {
                   // Generate TTS for this sentence immediately
-                  const audio = await ttsProvider.synthesize(sentence, 'daniela', language);
+                  const voiceId = CARTESIA_VOICES[language] || CARTESIA_VOICES.en;
+                  const audio = await ttsProvider.synthesize(sentence, voiceId, language);
                   ttsCharacterCount += sentence.length;
 
                   // Convert to base64 and send to client
@@ -237,13 +244,35 @@ serve(async (req) => {
             // Context update would need to be handled by recreating the system prompt
             // For now, we'll just log it
             console.log('[HTS] Context update received (not yet implemented)');
+          } else if (message.type === 'audio' && message.data) {
+            // Audio sent as base64 JSON (more reliable than binary through Supabase)
+            const binaryString = atob(message.data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            sttProvider.sendAudio(bytes);
           }
         } catch (error) {
           console.error('[HTS] Failed to parse message:', error);
         }
       } else {
-        // Binary audio data from client
-        sttProvider.sendAudio(new Uint8Array(event.data));
+        // Binary audio data from client (fallback)
+        const audioData = event.data;
+        let audioBuffer: Uint8Array;
+
+        if (audioData instanceof ArrayBuffer) {
+          audioBuffer = new Uint8Array(audioData);
+        } else if (audioData instanceof Blob) {
+          // Handle Blob data (convert to ArrayBuffer)
+          const arrayBuffer = await audioData.arrayBuffer();
+          audioBuffer = new Uint8Array(arrayBuffer);
+        } else {
+          console.warn('[HTS] Unexpected data type:', typeof audioData, audioData?.constructor?.name);
+          return;
+        }
+
+        sttProvider.sendAudio(audioBuffer);
       }
     };
 

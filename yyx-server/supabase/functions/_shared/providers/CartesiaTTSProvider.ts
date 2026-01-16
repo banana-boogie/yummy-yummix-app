@@ -18,11 +18,11 @@ export class CartesiaTTSProvider implements TTSProvider {
       method: 'POST',
       headers: {
         'X-API-Key': apiKey,
-        'Cartesia-Version': '2024-06-10',
+        'Cartesia-Version': '2025-04-16',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model_id: 'sonic-english',
+        model_id: 'sonic-3',
         transcript: text,
         voice: {
           mode: 'id',
