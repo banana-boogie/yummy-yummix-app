@@ -1,5 +1,8 @@
 # Repository Guidelines
 
+## Project Overview
+YummyYummix is a bilingual (English/Mexican Spanish) cross-platform cooking app for recipe discovery, step-by-step cooking guides, and AI-powered sous chef features.
+
 ## Project Structure & Module Organization
 - `yyx-app/` is the Expo React Native client.
   - `app/` holds route files only (Expo Router). Do not place components or types here.
@@ -24,9 +27,10 @@ From `yyx-server/`:
 ## Coding Style & Naming Conventions
 - Use TypeScript and functional components; one component per file.
 - Imports should use the `@/` alias (e.g., `@/components/common`).
-- Use NativeWind classes via `className`; prefer design tokens in `yyx-app/constants/design-tokens.js`.
+- Use NativeWind classes via `className`; keep branding consistent by using design tokens in `yyx-app/constants/design-tokens.js`.
 - Always use the app `Text` component (`@/components/common/Text`) instead of React Native `Text`.
 - Keep layouts consistent by using `PageLayout` and `ResponsiveLayout`.
+- All user-facing strings must go through i18n so language can switch cleanly.
 
 ## Testing Guidelines
 - Framework: Jest via `jest-expo`.
