@@ -182,10 +182,11 @@ serve(async (req) => {
                     data: { audio: base64Audio }
                   }));
                 } catch (error) {
-                  console.error('[HTS] TTS error:', error);
+                  const errorMsg = error instanceof Error ? error.message : String(error);
+                  console.error('[HTS] TTS error:', errorMsg);
                   socket.send(JSON.stringify({
                     type: 'error',
-                    data: { message: 'Text-to-speech failed' }
+                    data: { message: `Text-to-speech failed: ${errorMsg}` }
                   }));
                 }
               },
