@@ -266,10 +266,17 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
             // Interruption (user spoke while AI was speaking)
             if (message.serverContent?.interrupted) {
                 console.log('[Gemini] Interrupted by user');
-                // Stop audio playback
+
+                // Stop audio playback immediately
                 this.shouldStopAudio = true;
+
+                // Clear all queues
                 this.audioQueue = [];
-                this.isPlayingAudio = false;
+                this.playerQueue = [];
+
+                // Reset flags
+                // Note: Loops will exit due to shouldStopAudio=true
+
                 this.setStatus('listening');
 
                 // Reset inactivity timer so conversation continues
@@ -291,84 +298,144 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
         }
     }
 
-    private async playAudioChunk(base64Audio: string) {
-        // Accumulate PCM data into buffer
-        const pcmBuffer = Buffer.from(base64Audio, 'base64');
-        this.audioQueue.push(pcmBuffer.toString('base64'));
+    // Base64 audio chunks from server
+    private audioQueue: string[] = [];
+    // Ready-to-play audio players
+    private playerQueue: any[] = []; // expo-audio AudioPlayer[]
+    private isProcessingAudio = false;
+    private isPlayingAudio = false;
+    private shouldStopAudio = false;
 
-        // Start playback processor if not running
+    // ... (existing code)
+
+    private async playAudioChunk(base64Audio: string) {
+        // 1. Add raw chunk to queue
+        this.audioQueue.push(base64Audio);
+
+        // 2. Start the processing pipeline (converts raw -> player)
+        if (!this.isProcessingAudio) {
+            this.processAudioPipeline();
+        }
+
+        // 3. Start the playback loop (plays ready players)
         if (!this.isPlayingAudio) {
-            this.processAudioBuffer();
+            this.playPlayerQueue();
         }
     }
 
-    private async processAudioBuffer() {
-        if (this.isPlayingAudio) return;
-        this.isPlayingAudio = true;
-        this.shouldStopAudio = false;
+    // Loop 1: Converts raw audio chunks into ready-to-play Player objects
+    private async processAudioPipeline() {
+        if (this.isProcessingAudio) return;
+        this.isProcessingAudio = true;
 
-        // Import once at start
+        // Import once
         const { createAudioPlayer } = await import('expo-audio');
 
-        // Accumulate buffer for smoother playback
         let accumulatedPcm = Buffer.alloc(0);
-        // Reduced buffer: ~0.25 seconds of 24kHz 16-bit audio for more responsive playback
-        const MIN_BUFFER_SIZE = 24000 * 2 * 0.25; // ~12KB = 0.25 seconds
-        let playCount = 0;
+        // Buffer size: ~0.3s. Large enough to be efficient, small enough for latency.
+        const TARGET_BUFFER_SIZE = 24000 * 2 * 0.3;
 
         while (!this.shouldStopAudio) {
-            // Check for new chunks
-            if (this.audioQueue.length > 0) {
+            // 1. Accumulate data
+            while (this.audioQueue.length > 0) {
                 const chunk = this.audioQueue.shift();
                 if (chunk) {
                     const chunkBuffer = Buffer.from(chunk, 'base64');
                     accumulatedPcm = Buffer.concat([accumulatedPcm, chunkBuffer]);
+
+                    // If we have enough data, break to create a player
+                    if (accumulatedPcm.length >= TARGET_BUFFER_SIZE) break;
                 }
             }
 
-            // Play when we have enough data or queue is empty and we have some data
-            const shouldPlay = accumulatedPcm.length >= MIN_BUFFER_SIZE ||
-                (this.audioQueue.length === 0 && accumulatedPcm.length > 0);
-
-            if (shouldPlay && accumulatedPcm.length > 0) {
+            // 2. If we have data, create a player
+            if (accumulatedPcm.length > 0) {
                 try {
-                    playCount++;
-                    const durationMs = (accumulatedPcm.length / (24000 * 2)) * 1000;
-                    console.log(`[Gemini] Playing audio chunk #${playCount}: ${(accumulatedPcm.length / 1024).toFixed(1)}KB (~${durationMs.toFixed(0)}ms)`);
-
-                    // Create WAV from accumulated PCM
+                    // Create WAV container
                     const wavHeader = this.createWavHeader(accumulatedPcm.length, 24000);
                     const wavBuffer = Buffer.concat([wavHeader, accumulatedPcm]);
                     const wavBase64 = wavBuffer.toString('base64');
 
-                    // Clear buffer before playing
+                    // Reset buffer immediately so we can start accumulating next batch
+                    const pcmLength = accumulatedPcm.length;
                     accumulatedPcm = Buffer.alloc(0);
 
-                    // Play audio
+                    // Create player (async operation that used to block playback)
                     const player = createAudioPlayer({ uri: `data:audio/wav;base64,${wavBase64}` });
 
-                    await new Promise<void>((resolve) => {
-                        player.addListener('playbackStatusUpdate', (status) => {
-                            if (status.didJustFinish || this.shouldStopAudio) {
-                                player.release();
-                                resolve();
-                            }
-                        });
-                        player.play();
+                    // Add to playback queue
+                    this.playerQueue.push({
+                        player,
+                        durationMs: (pcmLength / (24000 * 2)) * 1000
                     });
 
+                    // Ensure playback loop is running
+                    if (!this.isPlayingAudio) {
+                        this.playPlayerQueue();
+                    }
+
                 } catch (error) {
-                    console.error('[Gemini] Audio playback error:', error);
+                    console.error('[Gemini] Error preparing audio player:', error);
+                }
+            } else if (this.audioQueue.length === 0) {
+                // Buffer empty, wait a bit
+                await new Promise(r => setTimeout(r, 20));
+
+                // If still empty after wait, break loop (will restart on next chunk)
+                if (this.audioQueue.length === 0) break;
+            }
+        }
+
+        this.isProcessingAudio = false;
+    }
+
+    // Loop 2: Plays players from the queue sequentially
+    private async playPlayerQueue() {
+        if (this.isPlayingAudio) return;
+        this.isPlayingAudio = true;
+        this.shouldStopAudio = false;
+
+        let playCount = 0;
+
+        while (!this.shouldStopAudio) {
+            if (this.playerQueue.length > 0) {
+                const item = this.playerQueue.shift();
+                if (item) {
+                    const { player, durationMs } = item;
+                    playCount++;
+
+                    // console.log(`[Gemini] Playing chunk #${playCount} (${durationMs.toFixed(0)}ms)`);
+
+                    try {
+                        await new Promise<void>((resolve) => {
+                            player.addListener('playbackStatusUpdate', (status: any) => {
+                                // Prepare next player triggers? 
+                                // Actually, since player creation is already parallelized in Loop 1,
+                                // we just need to wait for finish here.
+                                if (status.didJustFinish || this.shouldStopAudio) {
+                                    resolve();
+                                }
+                            });
+                            player.play();
+                        });
+
+                        // Cleanup after playing
+                        player.release();
+
+                    } catch (error) {
+                        console.error('[Gemini] Playback error:', error);
+                    }
+                }
+            } else {
+                // Queue empty
+                // Use smaller check interval for responsiveness
+                await new Promise(r => setTimeout(r, 10));
+
+                // If Processing Pipeline is also done and no new players arrived, stop
+                if (!this.isProcessingAudio && this.playerQueue.length === 0) {
+                    break;
                 }
             }
-
-            // Exit if nothing more to process
-            if (this.audioQueue.length === 0 && accumulatedPcm.length === 0) {
-                break;
-            }
-
-            // Small delay to allow more chunks to accumulate
-            await new Promise(r => setTimeout(r, 25));
         }
 
         this.isPlayingAudio = false;
@@ -422,7 +489,9 @@ export class GeminiLiveProvider implements VoiceAssistantProvider {
         // Stop audio playback
         this.shouldStopAudio = true;
         this.audioQueue = [];
+        this.playerQueue = [];
         this.isPlayingAudio = false;
+        this.isProcessingAudio = false;
 
         this.sessionInputTokens = 0;
         this.sessionOutputTokens = 0;
