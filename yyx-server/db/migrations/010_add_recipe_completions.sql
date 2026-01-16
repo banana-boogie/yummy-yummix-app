@@ -39,3 +39,8 @@ CREATE POLICY "Users can insert own completions"
 CREATE POLICY "Users can update own completions"
     ON public.recipe_completions FOR UPDATE
     USING (auth.uid() = user_id);
+
+-- Users can delete their own completions
+CREATE POLICY "Users can delete own completions"
+    ON public.recipe_completions FOR DELETE
+    USING (auth.uid() = user_id);
