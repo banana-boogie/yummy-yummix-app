@@ -11,32 +11,199 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `yyx-server/` - Backend with Supabase Edge Functions (Deno/TypeScript)
 - `supabase/` - Supabase configuration
 
-## Development Commands
+## Development Setup
+
+### Prerequisites
+- **Node.js** (v18+)
+- **Docker Desktop** (for local Supabase)
+- **Supabase CLI**: `brew install supabase/tap/supabase`
+- **iOS**: Xcode (for iOS development)
+- **Android**: Android Studio (for Android development)
+
+### First-Time Setup
+
+1. **Install dependencies**
+   ```bash
+   cd yyx-app
+   npm install
+   ```
+
+2. **Start local Supabase**
+   ```bash
+   cd yyx-server
+   supabase start
+   ```
+
+   This will:
+   - Start PostgreSQL, PostgREST, GoTrue, Storage, and other services
+   - Apply all migrations from `supabase/migrations/`
+   - Give you local URLs and credentials
+
+3. **Environment Configuration**
+
+   The app uses two environment files:
+   - **`.env.local`** (committed) - Local development, points to `http://192.168.1.x:54321`
+   - **`.env`** (gitignored) - Production secrets, points to cloud Supabase
+
+   By default, `.env.local` takes priority, so you'll use local Supabase automatically.
+
+   **Note**: If your local network IP changes, update `EXPO_PUBLIC_SUPABASE_URL` in `.env.local`
+   ```bash
+   # Find your IP
+   ifconfig | grep "inet " | grep -v 127.0.0.1
+   ```
+
+4. **Build and run**
+   ```bash
+   cd yyx-app
+   npm run ios:device    # For physical iPhone
+   npm run ios           # For iOS Simulator
+   npm run android       # For Android
+   ```
+
+---
+
+## Daily Development Workflow
+
+### 1. Start Local Supabase
+```bash
+cd yyx-server
+supabase start        # Start all services
+supabase status       # Check if running
+supabase stop         # Stop when done
+```
+
+### 2. Run the App
+```bash
+cd yyx-app
+npm run ios:device    # Local dev on physical device
+npm run ios:local     # Same as above
+npm run ios:prod      # Production build (uses cloud Supabase)
+```
+
+### 3. Making Database Changes
+
+**Create a new migration:**
+```bash
+cd yyx-server
+supabase migration new add_my_feature
+```
+
+**Edit the migration:**
+- File will be in: `yyx-server/supabase/migrations/TIMESTAMP_add_my_feature.sql`
+- Write your SQL (CREATE TABLE, ALTER TABLE, etc.)
+
+**Test locally:**
+```bash
+supabase db reset     # Drops DB, reapplies all migrations
+```
+
+**Push to production:**
+```bash
+supabase db push      # Applies new migrations to cloud
+```
+
+**Why `db reset` vs `migration up`?**
+- `db reset` validates your entire migration chain works from scratch
+- Catches ordering issues before production
+- Recommended for local development
+- Production uses `db push` which only applies new migrations
+
+### 4. Working with Edge Functions
+```bash
+cd yyx-server
+
+# Test locally
+supabase functions serve [function-name] --env-file .env
+
+# Deploy to production
+supabase functions deploy [function-name]
+```
+
+---
+
+## Development Commands Reference
 
 ### Mobile App (yyx-app/)
 ```bash
-cd yyx-app
 npm install          # Install dependencies
 npm start            # Start Expo dev server
-npm run ios          # Run on iOS (expo run:ios)
-npm run android      # Run on Android (expo run:android)
+npm run ios          # Run on iOS Simulator
+npm run ios:device   # Run on physical iPhone (local dev)
+npm run ios:local    # Same as above
+npm run ios:prod     # Build with production Supabase
+npm run android      # Run on Android
 npm run web          # Run web version
 npm test             # Run tests with Jest (watch mode)
-npm run lint         # Run ESLint via expo lint
+npm run lint         # Run ESLint
 ```
 
-### Running a single test
+### Supabase (yyx-server/)
+```bash
+supabase start                    # Start all local services
+supabase stop                     # Stop all services
+supabase status                   # Check service status
+supabase migration new <name>    # Create new migration
+supabase db reset                # Reset and reapply all migrations
+supabase db push                 # Push migrations to production
+supabase functions serve         # Run edge functions locally
+supabase functions deploy <name> # Deploy edge function
+```
+
+### Running Tests
 ```bash
 cd yyx-app
+npm test                          # Run all tests (watch mode)
 npx jest path/to/test --watch    # Run specific test file
 npx jest -t "test name"          # Run tests matching pattern
 ```
 
-### Edge Functions (yyx-server/supabase/functions/)
+---
+
+## Environment Variables
+
+### Local Development (`.env.local` - committed)
 ```bash
+EXPO_PUBLIC_SUPABASE_URL=http://192.168.1.222:54321
+EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc... # Local dev key (safe to commit)
+EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL=http://192.168.1.222:54321/functions/v1
+```
+
+### Production (`.env` - gitignored, contains secrets)
+```bash
+EXPO_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc... # Production key (secret)
+EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL=https://xxx.supabase.co/functions/v1
+OPENAI_API_KEY=sk-proj-xxx          # Secret
+USDA_API_KEY=xxx                     # Secret
+```
+
+**Priority**: `.env.local` overrides `.env` when present.
+
+---
+
+## Troubleshooting
+
+### App can't connect to local Supabase
+1. Check Supabase is running: `cd yyx-server && supabase status`
+2. Verify your IP hasn't changed: `ifconfig | grep "inet " | grep -v 127.0.0.1`
+3. Update `.env.local` if IP changed
+4. Ensure Mac and device are on same WiFi network
+5. Check firewall isn't blocking port 54321
+
+### Native build folders (`ios/`, `android/`) appear
+- These are auto-generated and gitignored
+- Safe to delete - they'll regenerate on next `expo run:ios`
+- Only needed if you have custom native code
+
+### Migrations out of sync
+```bash
+# Pull current production schema
 cd yyx-server
-supabase functions serve [function-name] --env-file .env   # Local development
-supabase functions deploy [function-name]                   # Deploy to production
+supabase db pull
+
+# Reset local DB to match
+supabase db reset
 ```
 
 ## Tech Stack
