@@ -26,7 +26,7 @@ interface RecipeSearchResult {
   id: string;
   name_en: string | null;
   name_es: string | null;
-  image_url: string | null;
+  picture_url: string | null;
   total_time: number;
   difficulty: 'easy' | 'medium' | 'hard';
   portions: number;
@@ -87,7 +87,7 @@ export const searchRecipesTool = {
           maximum: 20,
         },
       },
-      required: ['query'],
+      required: [],
     },
   },
 };
@@ -115,7 +115,7 @@ export async function searchRecipes(
       id,
       name_en,
       name_es,
-      image_url,
+      picture_url,
       total_time,
       difficulty,
       portions,
@@ -165,7 +165,7 @@ export async function searchRecipes(
   let recipeCards: RecipeCard[] = filtered.map((recipe) => ({
     recipeId: recipe.id,
     name: (userContext.language === 'es' ? recipe.name_es : recipe.name_en) || 'Untitled',
-    imageUrl: recipe.image_url || undefined,
+    imageUrl: recipe.picture_url || undefined,
     totalTime: recipe.total_time,
     difficulty: recipe.difficulty,
     portions: recipe.portions,

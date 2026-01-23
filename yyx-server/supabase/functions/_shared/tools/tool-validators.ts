@@ -101,13 +101,15 @@ export function validateSearchRecipesParams(raw: unknown): SearchRecipesParams {
 
   const p = params as Record<string, unknown>;
 
-  // query is required
-  if (!p.query) {
-    throw new ToolValidationError('search_recipes requires a "query" parameter');
+  const hasQuery = p.query !== undefined && p.query !== null && `${p.query}`.trim().length > 0;
+  const hasFilters = p.cuisine !== undefined || p.maxTime !== undefined || p.difficulty !== undefined;
+
+  if (!hasQuery && !hasFilters) {
+    throw new ToolValidationError('search_recipes requires a query or at least one filter');
   }
 
   return {
-    query: sanitizeString(p.query, 200),
+    query: hasQuery ? sanitizeString(p.query, 200).replace(/,/g, ' ') : undefined,
     cuisine: p.cuisine ? sanitizeString(p.cuisine, 50) : undefined,
     maxTime: p.maxTime !== undefined ? clampNumber(p.maxTime, 1, 480) : undefined,
     difficulty: p.difficulty !== undefined

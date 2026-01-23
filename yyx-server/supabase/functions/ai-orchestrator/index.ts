@@ -52,6 +52,12 @@ interface OpenAIToolCall {
 }
 
 // ============================================================
+// Config
+// ============================================================
+
+const DEFAULT_OPENAI_MODEL = 'gpt-4o-mini';
+
+// ============================================================
 // Main Handler
 // ============================================================
 
@@ -68,6 +74,7 @@ serve(async (req) => {
       console.error('OPENAI_API_KEY not configured');
       return errorResponse('Service configuration error', 500);
     }
+    const openaiModel = Deno.env.get('OPENAI_MODEL') || DEFAULT_OPENAI_MODEL;
 
     const { message, sessionId, mode = 'text', stream = false } =
       await req.json() as OrchestratorRequest;
@@ -115,6 +122,7 @@ serve(async (req) => {
       return handleStreamingRequest(
         supabase,
         openaiApiKey,
+        openaiModel,
         user.id,
         sessionId,
         sanitizedMessage,
@@ -126,6 +134,7 @@ serve(async (req) => {
     const irmixyResponse = await processRequest(
       supabase,
       openaiApiKey,
+      openaiModel,
       user.id,
       sessionId,
       sanitizedMessage,
@@ -164,6 +173,7 @@ serve(async (req) => {
 async function processRequest(
   supabase: SupabaseClient,
   openaiApiKey: string,
+  openaiModel: string,
   userId: string,
   sessionId: string | undefined,
   message: string,
@@ -191,7 +201,7 @@ async function processRequest(
   ];
 
   // First LLM call with tools
-  const firstResponse = await callOpenAI(openaiApiKey, messages);
+  const firstResponse = await callOpenAI(openaiApiKey, openaiModel, messages);
   const assistantMessage = firstResponse.choices[0].message;
 
   // Track tool results for building response
@@ -247,6 +257,7 @@ async function processRequest(
     // Second LLM call with tool results (no tools this time)
     const secondResponse = await callOpenAI(
       openaiApiKey,
+      openaiModel,
       [...messages, ...toolMessages],
       false, // no tools on second call
     );
@@ -299,6 +310,7 @@ async function processRequest(
 function handleStreamingRequest(
   supabase: SupabaseClient,
   openaiApiKey: string,
+  openaiModel: string,
   userId: string,
   sessionId: string | undefined,
   message: string,
@@ -318,15 +330,17 @@ function handleStreamingRequest(
         // Send initial thinking status
         send({ type: 'status', status: 'thinking' });
 
-        // Process request with status callback
-        const response = await processRequest(
+        // Process request with streaming tokens
+        const response = await processRequestStreaming(
           supabase,
           openaiApiKey,
+          openaiModel,
           userId,
           sessionId,
           message,
           mode,
           (status) => send({ type: 'status', status }),
+          (token) => send({ type: 'content', content: token }),
         );
 
         // Send final response
@@ -353,6 +367,132 @@ function handleStreamingRequest(
   });
 }
 
+/**
+ * Streaming variant of processRequest:
+ * - Always uses a non-stream first call to decide on tools
+ * - Streams the final assistant message via OpenAI streaming
+ */
+async function processRequestStreaming(
+  supabase: SupabaseClient,
+  openaiApiKey: string,
+  openaiModel: string,
+  userId: string,
+  sessionId: string | undefined,
+  message: string,
+  mode: 'text' | 'voice',
+  onStatus: (status: string) => void,
+  onToken: (token: string) => void,
+): Promise<IrmixyResponse> {
+  // Build user context
+  const contextBuilder = createContextBuilder(supabase);
+  const userContext = await contextBuilder.buildContext(userId, sessionId);
+
+  // Check for resumable cooking session
+  const resumableSession = await contextBuilder.getResumableCookingSession(userId);
+
+  // Build system prompt
+  const systemPrompt = buildSystemPrompt(userContext, mode, resumableSession);
+
+  // Build conversation messages
+  const messages: OpenAIMessage[] = [
+    { role: 'system', content: systemPrompt },
+    ...userContext.conversationHistory.map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    })),
+    { role: 'user', content: message },
+  ];
+
+  // First LLM call with tools (non-stream)
+  const firstResponse = await callOpenAI(openaiApiKey, openaiModel, messages);
+  const assistantMessage = firstResponse.choices[0].message;
+
+  let recipes: RecipeCard[] | undefined;
+
+  if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+    const toolName = assistantMessage.tool_calls[0].function.name;
+    const status = toolName === 'search_recipes' ? 'searching' : 'generating';
+    onStatus(status);
+
+    const toolMessages: OpenAIMessage[] = [];
+    toolMessages.push({
+      role: 'assistant',
+      content: assistantMessage.content,
+      tool_calls: assistantMessage.tool_calls,
+    });
+
+    for (const toolCall of assistantMessage.tool_calls) {
+      const { name, arguments: args } = toolCall.function;
+      try {
+        const result = await executeTool(supabase, name, args, userContext);
+        if (name === 'search_recipes' && Array.isArray(result)) {
+          recipes = result;
+        }
+        toolMessages.push({
+          role: 'tool',
+          content: JSON.stringify(result),
+          tool_call_id: toolCall.id,
+        });
+      } catch (toolError) {
+        console.error(`Tool ${name} error:`, toolError);
+        const errorMsg = toolError instanceof ToolValidationError
+          ? `Invalid parameters: ${toolError.message}`
+          : 'Tool execution failed';
+        toolMessages.push({
+          role: 'tool',
+          content: JSON.stringify({ error: errorMsg }),
+          tool_call_id: toolCall.id,
+        });
+      }
+    }
+
+    // Stream final response (no tools)
+    const finalMessage = await callOpenAIStream(
+      openaiApiKey,
+      openaiModel,
+      [...messages, ...toolMessages],
+      onToken,
+    );
+
+    const irmixyResponse: IrmixyResponse = {
+      version: '1.0',
+      message: finalMessage,
+      language: userContext.language,
+      status: null,
+      recipes,
+      suggestions: buildSuggestions(recipes, userContext.language),
+    };
+
+    validateSchema(IrmixyResponseSchema, irmixyResponse);
+    if (sessionId) {
+      await saveMessageToHistory(supabase, sessionId, userId, message, irmixyResponse);
+    }
+    return irmixyResponse;
+  }
+
+  // No tool calls: stream response directly
+  const finalMessage = await callOpenAIStream(
+    openaiApiKey,
+    openaiModel,
+    messages,
+    onToken,
+  );
+
+  const irmixyResponse: IrmixyResponse = {
+    version: '1.0',
+    message: finalMessage,
+    language: userContext.language,
+    status: null,
+  };
+
+  validateSchema(IrmixyResponseSchema, irmixyResponse);
+  if (sessionId) {
+    await saveMessageToHistory(supabase, sessionId, userId, message, irmixyResponse);
+  }
+
+  return irmixyResponse;
+}
+
 // ============================================================
 // OpenAI Integration
 // ============================================================
@@ -362,11 +502,12 @@ function handleStreamingRequest(
  */
 async function callOpenAI(
   apiKey: string,
+  model: string,
   messages: OpenAIMessage[],
   includeTools: boolean = true,
 ): Promise<{ choices: Array<{ message: OpenAIMessage }> }> {
   const body: Record<string, unknown> = {
-    model: 'gpt-4-turbo-preview',
+    model,
     messages,
     temperature: 0.7,
   };
@@ -392,6 +533,77 @@ async function callOpenAI(
   }
 
   return await response.json();
+}
+
+/**
+ * Call OpenAI Chat Completions API with streaming.
+ * Streams tokens via callback and returns full content.
+ */
+async function callOpenAIStream(
+  apiKey: string,
+  model: string,
+  messages: OpenAIMessage[],
+  onToken: (token: string) => void,
+): Promise<string> {
+  const body: Record<string, unknown> = {
+    model,
+    messages,
+    temperature: 0.7,
+    stream: true,
+  };
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok || !response.body) {
+    const errorText = await response.text();
+    console.error('OpenAI API stream error:', response.status, errorText);
+    throw new Error('Failed to stream AI response');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let fullContent = '';
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data:')) continue;
+
+      const data = trimmed.slice(5).trim();
+      if (data === '[DONE]') {
+        return fullContent;
+      }
+
+      try {
+        const json = JSON.parse(data);
+        const delta = json.choices?.[0]?.delta;
+        if (delta?.content) {
+          fullContent += delta.content;
+          onToken(delta.content);
+        }
+      } catch {
+        // Ignore malformed chunks
+      }
+    }
+  }
+
+  return fullContent;
 }
 
 // ============================================================

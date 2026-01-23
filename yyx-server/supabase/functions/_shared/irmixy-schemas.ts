@@ -97,7 +97,7 @@ export interface AllergenEntry {
 }
 
 export interface SearchRecipesParams {
-  query: string;
+  query?: string;
   cuisine?: string;
   maxTime?: number;
   difficulty?: 'easy' | 'medium' | 'hard';
