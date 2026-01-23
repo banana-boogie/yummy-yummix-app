@@ -19,3 +19,11 @@ Deno.test('validateSearchRecipesParams sanitizes commas in query', () => {
   const params = validateSearchRecipesParams({ query: 'pasta, salad' });
   assertEquals(params.query?.includes(','), false);
 });
+
+Deno.test('validateSearchRecipesParams rejects whitespace-only query without filters', () => {
+  assertThrows(
+    () => validateSearchRecipesParams({ query: '   ' }),
+    ToolValidationError,
+    'search_recipes requires a query or at least one filter',
+  );
+});
