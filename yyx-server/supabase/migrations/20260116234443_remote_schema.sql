@@ -883,18 +883,45 @@ CREATE TABLE IF NOT EXISTS "public"."user_recipes" (
 ALTER TABLE "public"."user_recipes" OWNER TO "postgres";
 
 
-ALTER TABLE ONLY "public"."ai_voice_sessions"
-    ADD CONSTRAINT "ai_voice_sessions_pkey" PRIMARY KEY ("id");
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'ai_voice_sessions_pkey'
+  ) THEN
+    ALTER TABLE ONLY "public"."ai_voice_sessions"
+      ADD CONSTRAINT "ai_voice_sessions_pkey" PRIMARY KEY ("id");
+  END IF;
+END $$;
 
 
 
-ALTER TABLE ONLY "public"."ai_voice_usage"
-    ADD CONSTRAINT "ai_voice_usage_pkey" PRIMARY KEY ("id");
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'ai_voice_usage_pkey'
+  ) THEN
+    ALTER TABLE ONLY "public"."ai_voice_usage"
+      ADD CONSTRAINT "ai_voice_usage_pkey" PRIMARY KEY ("id");
+  END IF;
+END $$;
 
 
 
-ALTER TABLE ONLY "public"."ai_voice_usage"
-    ADD CONSTRAINT "ai_voice_usage_user_id_month_key" UNIQUE ("user_id", "month");
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'ai_voice_usage_user_id_month_key'
+  ) THEN
+    ALTER TABLE ONLY "public"."ai_voice_usage"
+      ADD CONSTRAINT "ai_voice_usage_user_id_month_key" UNIQUE ("user_id", "month");
+  END IF;
+END $$;
 
 
 
@@ -1106,13 +1133,31 @@ CREATE OR REPLACE TRIGGER "update_user_recipes_updated_at" BEFORE UPDATE ON "pub
 
 
 
-ALTER TABLE ONLY "public"."ai_voice_sessions"
-    ADD CONSTRAINT "ai_voice_sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'ai_voice_sessions_user_id_fkey'
+  ) THEN
+    ALTER TABLE ONLY "public"."ai_voice_sessions"
+      ADD CONSTRAINT "ai_voice_sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
+  END IF;
+END $$;
 
 
 
-ALTER TABLE ONLY "public"."ai_voice_usage"
-    ADD CONSTRAINT "ai_voice_usage_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'ai_voice_usage_user_id_fkey'
+  ) THEN
+    ALTER TABLE ONLY "public"."ai_voice_usage"
+      ADD CONSTRAINT "ai_voice_usage_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
+  END IF;
+END $$;
 
 
 
@@ -1211,209 +1256,785 @@ ALTER TABLE ONLY "public"."user_recipes"
 
 
 
-CREATE POLICY "Allow usage updates from triggers" ON "public"."ai_voice_usage" USING (true) WITH CHECK (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ai_voice_usage'
+      AND policyname = 'Allow usage updates from triggers'
+  ) THEN
+    CREATE POLICY "Allow usage updates from triggers" ON "public"."ai_voice_usage" USING (true) WITH CHECK (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Anyone can view ingredients" ON "public"."ingredients" FOR SELECT TO "authenticated", "anon" USING (true);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ingredients'
+      AND policyname = 'Anyone can view ingredients'
+  ) THEN
+    CREATE POLICY "Anyone can view ingredients" ON "public"."ingredients" FOR SELECT TO "authenticated", "anon" USING (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Anyone can view measurement units" ON "public"."measurement_units" FOR SELECT TO "authenticated", "anon" USING (true);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'measurement_units'
+      AND policyname = 'Anyone can view measurement units'
+  ) THEN
+    CREATE POLICY "Anyone can view measurement units" ON "public"."measurement_units" FOR SELECT TO "authenticated", "anon" USING (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Anyone can view recipe ingredients" ON "public"."recipe_ingredients" FOR SELECT TO "authenticated", "anon" USING (true);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_ingredients'
+      AND policyname = 'Anyone can view recipe ingredients'
+  ) THEN
+    CREATE POLICY "Anyone can view recipe ingredients" ON "public"."recipe_ingredients" FOR SELECT TO "authenticated", "anon" USING (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Anyone can view recipe step ingredients" ON "public"."recipe_step_ingredients" FOR SELECT TO "authenticated", "anon" USING (true);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_step_ingredients'
+      AND policyname = 'Anyone can view recipe step ingredients'
+  ) THEN
+    CREATE POLICY "Anyone can view recipe step ingredients" ON "public"."recipe_step_ingredients" FOR SELECT TO "authenticated", "anon" USING (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Anyone can view recipe steps" ON "public"."recipe_steps" FOR SELECT TO "authenticated", "anon" USING (true);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_steps'
+      AND policyname = 'Anyone can view recipe steps'
+  ) THEN
+    CREATE POLICY "Anyone can view recipe steps" ON "public"."recipe_steps" FOR SELECT TO "authenticated", "anon" USING (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Anyone can view recipe tags" ON "public"."recipe_tags" FOR SELECT TO "authenticated", "anon" USING (true);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_tags'
+      AND policyname = 'Anyone can view recipe tags'
+  ) THEN
+    CREATE POLICY "Anyone can view recipe tags" ON "public"."recipe_tags" FOR SELECT TO "authenticated", "anon" USING (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Anyone can view recipe_to_tag" ON "public"."recipe_to_tag" FOR SELECT TO "authenticated", "anon" USING (true);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_to_tag'
+      AND policyname = 'Anyone can view recipe_to_tag'
+  ) THEN
+    CREATE POLICY "Anyone can view recipe_to_tag" ON "public"."recipe_to_tag" FOR SELECT TO "authenticated", "anon" USING (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Anyone can view recipes" ON "public"."recipes" FOR SELECT TO "authenticated", "anon" USING (true);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipes'
+      AND policyname = 'Anyone can view recipes'
+  ) THEN
+    CREATE POLICY "Anyone can view recipes" ON "public"."recipes" FOR SELECT TO "authenticated", "anon" USING (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Authenticated users can delete recipes" ON "public"."recipes" FOR DELETE TO "authenticated" USING (true);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipes'
+      AND policyname = 'Authenticated users can delete recipes'
+  ) THEN
+    CREATE POLICY "Authenticated users can delete recipes" ON "public"."recipes" FOR DELETE TO "authenticated" USING (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Authenticated users can insert recipes" ON "public"."recipes" FOR INSERT TO "authenticated" WITH CHECK (true);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipes'
+      AND policyname = 'Authenticated users can insert recipes'
+  ) THEN
+    CREATE POLICY "Authenticated users can insert recipes" ON "public"."recipes" FOR INSERT TO "authenticated" WITH CHECK (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Authenticated users can update recipes" ON "public"."recipes" FOR UPDATE TO "authenticated" USING (true) WITH CHECK (true);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipes'
+      AND policyname = 'Authenticated users can update recipes'
+  ) THEN
+    CREATE POLICY "Authenticated users can update recipes" ON "public"."recipes" FOR UPDATE TO "authenticated" USING (true) WITH CHECK (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Enable read access for all users" ON "public"."recipe_useful_items" FOR SELECT USING (true);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_useful_items'
+      AND policyname = 'Enable read access for all users'
+  ) THEN
+    CREATE POLICY "Enable read access for all users" ON "public"."recipe_useful_items" FOR SELECT USING (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Enable read access for all users" ON "public"."useful_items" FOR SELECT USING (true);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'useful_items'
+      AND policyname = 'Enable read access for all users'
+  ) THEN
+    CREATE POLICY "Enable read access for all users" ON "public"."useful_items" FOR SELECT USING (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Only admins can delete recipe useful items" ON "public"."recipe_useful_items" FOR DELETE TO "authenticated" USING ((( SELECT "user_profiles"."is_admin"
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_useful_items'
+      AND policyname = 'Only admins can delete recipe useful items'
+  ) THEN
+    CREATE POLICY "Only admins can delete recipe useful items" ON "public"."recipe_useful_items" FOR DELETE TO "authenticated" USING ((( SELECT "user_profiles"."is_admin"
    FROM "public"."user_profiles"
   WHERE ("user_profiles"."id" = "auth"."uid"())) = true));
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Only admins can delete useful items" ON "public"."useful_items" FOR DELETE TO "authenticated" USING ((( SELECT "user_profiles"."is_admin"
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'useful_items'
+      AND policyname = 'Only admins can delete useful items'
+  ) THEN
+    CREATE POLICY "Only admins can delete useful items" ON "public"."useful_items" FOR DELETE TO "authenticated" USING ((( SELECT "user_profiles"."is_admin"
    FROM "public"."user_profiles"
   WHERE ("user_profiles"."id" = "auth"."uid"())) IS TRUE));
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Only admins can insert into recipe useful items" ON "public"."recipe_useful_items" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT "user_profiles"."is_admin"
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_useful_items'
+      AND policyname = 'Only admins can insert into recipe useful items'
+  ) THEN
+    CREATE POLICY "Only admins can insert into recipe useful items" ON "public"."recipe_useful_items" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT "user_profiles"."is_admin"
    FROM "public"."user_profiles"
   WHERE ("user_profiles"."id" = "auth"."uid"())) = true));
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Only admins can insert useful items" ON "public"."useful_items" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT "user_profiles"."is_admin"
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'useful_items'
+      AND policyname = 'Only admins can insert useful items'
+  ) THEN
+    CREATE POLICY "Only admins can insert useful items" ON "public"."useful_items" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT "user_profiles"."is_admin"
    FROM "public"."user_profiles"
   WHERE ("user_profiles"."id" = "auth"."uid"())) = true));
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Only admins can update recipe useful items" ON "public"."recipe_useful_items" FOR UPDATE TO "authenticated" USING ((( SELECT "user_profiles"."is_admin"
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_useful_items'
+      AND policyname = 'Only admins can update recipe useful items'
+  ) THEN
+    CREATE POLICY "Only admins can update recipe useful items" ON "public"."recipe_useful_items" FOR UPDATE TO "authenticated" USING ((( SELECT "user_profiles"."is_admin"
    FROM "public"."user_profiles"
   WHERE ("user_profiles"."id" = "auth"."uid"())) = true)) WITH CHECK ((( SELECT "user_profiles"."is_admin"
    FROM "public"."user_profiles"
   WHERE ("user_profiles"."id" = "auth"."uid"())) = true));
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Only admins can update useful items" ON "public"."useful_items" FOR UPDATE TO "authenticated" USING ((( SELECT "user_profiles"."is_admin"
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'useful_items'
+      AND policyname = 'Only admins can update useful items'
+  ) THEN
+    CREATE POLICY "Only admins can update useful items" ON "public"."useful_items" FOR UPDATE TO "authenticated" USING ((( SELECT "user_profiles"."is_admin"
    FROM "public"."user_profiles"
   WHERE ("user_profiles"."id" = "auth"."uid"())) = true));
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Only authenticated can delete from recipe_to_tag" ON "public"."recipe_to_tag" FOR DELETE TO "authenticated" USING (true);
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_to_tag'
+      AND policyname = 'Only authenticated can delete from recipe_to_tag'
+  ) THEN
+    CREATE POLICY "Only authenticated can delete from recipe_to_tag" ON "public"."recipe_to_tag" FOR DELETE TO "authenticated" USING (true);
+  END IF;
+END $$;
 
 
-CREATE POLICY "Only authenticated can delete recipe tags" ON "public"."recipe_tags" FOR DELETE TO "authenticated" USING (true);
 
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_tags'
+      AND policyname = 'Only authenticated can delete recipe tags'
+  ) THEN
+    CREATE POLICY "Only authenticated can delete recipe tags" ON "public"."recipe_tags" FOR DELETE TO "authenticated" USING (true);
+  END IF;
+END $$;
 
-CREATE POLICY "Only authenticated can insert into recipe_to_tag" ON "public"."recipe_to_tag" FOR INSERT TO "authenticated" WITH CHECK (true);
 
 
 
-CREATE POLICY "Only authenticated can insert recipe tags" ON "public"."recipe_tags" FOR INSERT TO "authenticated" WITH CHECK (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_to_tag'
+      AND policyname = 'Only authenticated can insert into recipe_to_tag'
+  ) THEN
+    CREATE POLICY "Only authenticated can insert into recipe_to_tag" ON "public"."recipe_to_tag" FOR INSERT TO "authenticated" WITH CHECK (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Only authenticated can update recipe tags" ON "public"."recipe_tags" FOR UPDATE TO "authenticated" USING (true) WITH CHECK (true);
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_tags'
+      AND policyname = 'Only authenticated can insert recipe tags'
+  ) THEN
+    CREATE POLICY "Only authenticated can insert recipe tags" ON "public"."recipe_tags" FOR INSERT TO "authenticated" WITH CHECK (true);
+  END IF;
+END $$;
 
 
-CREATE POLICY "Only authenticated can update recipe_to_tag" ON "public"."recipe_to_tag" FOR UPDATE TO "authenticated" USING (true) WITH CHECK (true);
 
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_tags'
+      AND policyname = 'Only authenticated can update recipe tags'
+  ) THEN
+    CREATE POLICY "Only authenticated can update recipe tags" ON "public"."recipe_tags" FOR UPDATE TO "authenticated" USING (true) WITH CHECK (true);
+  END IF;
+END $$;
 
-CREATE POLICY "Only authenticated users can add recipe ingredients" ON "public"."recipe_ingredients" FOR INSERT TO "authenticated" WITH CHECK (true);
 
 
 
-CREATE POLICY "Only authenticated users can delete ingredients" ON "public"."ingredients" FOR DELETE TO "authenticated" USING (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_to_tag'
+      AND policyname = 'Only authenticated can update recipe_to_tag'
+  ) THEN
+    CREATE POLICY "Only authenticated can update recipe_to_tag" ON "public"."recipe_to_tag" FOR UPDATE TO "authenticated" USING (true) WITH CHECK (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Only authenticated users can delete measurement units" ON "public"."measurement_units" FOR DELETE TO "authenticated" USING ((( SELECT ("auth"."jwt"() ->> 'role'::"text")) = 'super'::"text"));
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_ingredients'
+      AND policyname = 'Only authenticated users can add recipe ingredients'
+  ) THEN
+    CREATE POLICY "Only authenticated users can add recipe ingredients" ON "public"."recipe_ingredients" FOR INSERT TO "authenticated" WITH CHECK (true);
+  END IF;
+END $$;
 
 
-CREATE POLICY "Only authenticated users can delete recipe ingredients" ON "public"."recipe_ingredients" FOR DELETE TO "authenticated" USING (true);
 
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ingredients'
+      AND policyname = 'Only authenticated users can delete ingredients'
+  ) THEN
+    CREATE POLICY "Only authenticated users can delete ingredients" ON "public"."ingredients" FOR DELETE TO "authenticated" USING (true);
+  END IF;
+END $$;
 
-CREATE POLICY "Only authenticated users can delete recipe step ingredients" ON "public"."recipe_step_ingredients" FOR DELETE TO "authenticated" USING (true);
 
 
 
-CREATE POLICY "Only authenticated users can delete recipe steps" ON "public"."recipe_steps" FOR DELETE TO "authenticated" USING (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'measurement_units'
+      AND policyname = 'Only authenticated users can delete measurement units'
+  ) THEN
+    CREATE POLICY "Only authenticated users can delete measurement units" ON "public"."measurement_units" FOR DELETE TO "authenticated" USING ((( SELECT ("auth"."jwt"() ->> 'role'::"text")) = 'super'::"text"));
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Only authenticated users can insert ingredients" ON "public"."ingredients" FOR INSERT TO "authenticated" WITH CHECK (true);
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_ingredients'
+      AND policyname = 'Only authenticated users can delete recipe ingredients'
+  ) THEN
+    CREATE POLICY "Only authenticated users can delete recipe ingredients" ON "public"."recipe_ingredients" FOR DELETE TO "authenticated" USING (true);
+  END IF;
+END $$;
 
 
-CREATE POLICY "Only authenticated users can insert measurement units" ON "public"."measurement_units" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT ("auth"."jwt"() ->> 'role'::"text")) = 'super'::"text"));
 
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_step_ingredients'
+      AND policyname = 'Only authenticated users can delete recipe step ingredients'
+  ) THEN
+    CREATE POLICY "Only authenticated users can delete recipe step ingredients" ON "public"."recipe_step_ingredients" FOR DELETE TO "authenticated" USING (true);
+  END IF;
+END $$;
 
-CREATE POLICY "Only authenticated users can insert recipe step ingredients" ON "public"."recipe_step_ingredients" FOR INSERT TO "authenticated" WITH CHECK (true);
 
 
 
-CREATE POLICY "Only authenticated users can insert recipe steps" ON "public"."recipe_steps" FOR INSERT TO "authenticated" WITH CHECK (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_steps'
+      AND policyname = 'Only authenticated users can delete recipe steps'
+  ) THEN
+    CREATE POLICY "Only authenticated users can delete recipe steps" ON "public"."recipe_steps" FOR DELETE TO "authenticated" USING (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Only authenticated users can update ingredients" ON "public"."ingredients" FOR UPDATE TO "authenticated" USING (true) WITH CHECK (true);
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ingredients'
+      AND policyname = 'Only authenticated users can insert ingredients'
+  ) THEN
+    CREATE POLICY "Only authenticated users can insert ingredients" ON "public"."ingredients" FOR INSERT TO "authenticated" WITH CHECK (true);
+  END IF;
+END $$;
 
 
-CREATE POLICY "Only authenticated users can update measurement units" ON "public"."measurement_units" FOR UPDATE TO "authenticated" USING ((( SELECT ("auth"."jwt"() ->> 'role'::"text")) = 'super'::"text")) WITH CHECK ((( SELECT ("auth"."jwt"() ->> 'role'::"text")) = 'super'::"text"));
 
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'measurement_units'
+      AND policyname = 'Only authenticated users can insert measurement units'
+  ) THEN
+    CREATE POLICY "Only authenticated users can insert measurement units" ON "public"."measurement_units" FOR INSERT TO "authenticated" WITH CHECK ((( SELECT ("auth"."jwt"() ->> 'role'::"text")) = 'super'::"text"));
+  END IF;
+END $$;
 
-CREATE POLICY "Only authenticated users can update recipe ingredients" ON "public"."recipe_ingredients" FOR UPDATE TO "authenticated" USING (true) WITH CHECK (true);
 
 
 
-CREATE POLICY "Only authenticated users can update recipe step ingredients" ON "public"."recipe_step_ingredients" FOR UPDATE TO "authenticated" USING (true) WITH CHECK (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_step_ingredients'
+      AND policyname = 'Only authenticated users can insert recipe step ingredients'
+  ) THEN
+    CREATE POLICY "Only authenticated users can insert recipe step ingredients" ON "public"."recipe_step_ingredients" FOR INSERT TO "authenticated" WITH CHECK (true);
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Only authenticated users can update recipe steps" ON "public"."recipe_steps" FOR UPDATE TO "authenticated" USING (true) WITH CHECK (true);
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_steps'
+      AND policyname = 'Only authenticated users can insert recipe steps'
+  ) THEN
+    CREATE POLICY "Only authenticated users can insert recipe steps" ON "public"."recipe_steps" FOR INSERT TO "authenticated" WITH CHECK (true);
+  END IF;
+END $$;
 
 
-CREATE POLICY "Service role can insert sessions" ON "public"."ai_voice_sessions" FOR INSERT WITH CHECK (true);
 
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ingredients'
+      AND policyname = 'Only authenticated users can update ingredients'
+  ) THEN
+    CREATE POLICY "Only authenticated users can update ingredients" ON "public"."ingredients" FOR UPDATE TO "authenticated" USING (true) WITH CHECK (true);
+  END IF;
+END $$;
 
-CREATE POLICY "Users can delete own profile" ON "public"."user_profiles" FOR DELETE USING (("auth"."uid"() = "id"));
 
 
 
-CREATE POLICY "Users can update own profile" ON "public"."user_profiles" FOR UPDATE USING (("auth"."uid"() = "id"));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'measurement_units'
+      AND policyname = 'Only authenticated users can update measurement units'
+  ) THEN
+    CREATE POLICY "Only authenticated users can update measurement units" ON "public"."measurement_units" FOR UPDATE TO "authenticated" USING ((( SELECT ("auth"."jwt"() ->> 'role'::"text")) = 'super'::"text")) WITH CHECK ((( SELECT ("auth"."jwt"() ->> 'role'::"text")) = 'super'::"text"));
+  END IF;
+END $$;
 
 
 
-CREATE POLICY "Users can update their own sessions" ON "public"."ai_voice_sessions" FOR UPDATE USING (("auth"."uid"() = "user_id"));
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_ingredients'
+      AND policyname = 'Only authenticated users can update recipe ingredients'
+  ) THEN
+    CREATE POLICY "Only authenticated users can update recipe ingredients" ON "public"."recipe_ingredients" FOR UPDATE TO "authenticated" USING (true) WITH CHECK (true);
+  END IF;
+END $$;
 
 
-CREATE POLICY "Users can view own profile" ON "public"."user_profiles" FOR SELECT USING (("auth"."uid"() = "id"));
 
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_step_ingredients'
+      AND policyname = 'Only authenticated users can update recipe step ingredients'
+  ) THEN
+    CREATE POLICY "Only authenticated users can update recipe step ingredients" ON "public"."recipe_step_ingredients" FOR UPDATE TO "authenticated" USING (true) WITH CHECK (true);
+  END IF;
+END $$;
 
-CREATE POLICY "Users can view their own sessions" ON "public"."ai_voice_sessions" FOR SELECT USING (("auth"."uid"() = "user_id"));
 
 
 
-CREATE POLICY "Users can view their own usage" ON "public"."ai_voice_usage" FOR SELECT USING (("auth"."uid"() = "user_id"));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'recipe_steps'
+      AND policyname = 'Only authenticated users can update recipe steps'
+  ) THEN
+    CREATE POLICY "Only authenticated users can update recipe steps" ON "public"."recipe_steps" FOR UPDATE TO "authenticated" USING (true) WITH CHECK (true);
+  END IF;
+END $$;
+
+
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ai_voice_sessions'
+      AND policyname = 'Service role can insert sessions'
+  ) THEN
+    CREATE POLICY "Service role can insert sessions" ON "public"."ai_voice_sessions" FOR INSERT WITH CHECK (true);
+  END IF;
+END $$;
+
+
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'user_profiles'
+      AND policyname = 'Users can delete own profile'
+  ) THEN
+    CREATE POLICY "Users can delete own profile" ON "public"."user_profiles" FOR DELETE USING (("auth"."uid"() = "id"));
+  END IF;
+END $$;
+
+
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'user_profiles'
+      AND policyname = 'Users can update own profile'
+  ) THEN
+    CREATE POLICY "Users can update own profile" ON "public"."user_profiles" FOR UPDATE USING (("auth"."uid"() = "id"));
+  END IF;
+END $$;
+
+
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ai_voice_sessions'
+      AND policyname = 'Users can update their own sessions'
+  ) THEN
+    CREATE POLICY "Users can update their own sessions" ON "public"."ai_voice_sessions" FOR UPDATE USING (("auth"."uid"() = "user_id"));
+  END IF;
+END $$;
+
+
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'user_profiles'
+      AND policyname = 'Users can view own profile'
+  ) THEN
+    CREATE POLICY "Users can view own profile" ON "public"."user_profiles" FOR SELECT USING (("auth"."uid"() = "id"));
+  END IF;
+END $$;
+
+
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ai_voice_sessions'
+      AND policyname = 'Users can view their own sessions'
+  ) THEN
+    CREATE POLICY "Users can view their own sessions" ON "public"."ai_voice_sessions" FOR SELECT USING (("auth"."uid"() = "user_id"));
+  END IF;
+END $$;
+
+
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'ai_voice_usage'
+      AND policyname = 'Users can view their own usage'
+  ) THEN
+    CREATE POLICY "Users can view their own usage" ON "public"."ai_voice_usage" FOR SELECT USING (("auth"."uid"() = "user_id"));
+  END IF;
+END $$;
+
 
 
 
@@ -1456,30 +2077,78 @@ ALTER TABLE "public"."useful_items" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."user_chat_messages" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "user_chat_messages_user_policy" ON "public"."user_chat_messages" USING (("session_id" IN ( SELECT "user_chat_sessions"."id"
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'user_chat_messages'
+      AND policyname = 'user_chat_messages_user_policy'
+  ) THEN
+    CREATE POLICY "user_chat_messages_user_policy" ON "public"."user_chat_messages" USING (("session_id" IN ( SELECT "user_chat_sessions"."id"
    FROM "public"."user_chat_sessions"
   WHERE ("user_chat_sessions"."user_id" = "auth"."uid"()))));
+  END IF;
+END $$;
+
 
 
 
 ALTER TABLE "public"."user_chat_sessions" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "user_chat_sessions_user_policy" ON "public"."user_chat_sessions" USING (("auth"."uid"() = "user_id"));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'user_chat_sessions'
+      AND policyname = 'user_chat_sessions_user_policy'
+  ) THEN
+    CREATE POLICY "user_chat_sessions_user_policy" ON "public"."user_chat_sessions" USING (("auth"."uid"() = "user_id"));
+  END IF;
+END $$;
+
 
 
 
 ALTER TABLE "public"."user_context" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "user_context_user_policy" ON "public"."user_context" USING (("auth"."uid"() = "user_id"));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'user_context'
+      AND policyname = 'user_context_user_policy'
+  ) THEN
+    CREATE POLICY "user_context_user_policy" ON "public"."user_context" USING (("auth"."uid"() = "user_id"));
+  END IF;
+END $$;
+
 
 
 
 ALTER TABLE "public"."user_events" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "user_events_user_policy" ON "public"."user_events" USING (("auth"."uid"() = "user_id"));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'user_events'
+      AND policyname = 'user_events_user_policy'
+  ) THEN
+    CREATE POLICY "user_events_user_policy" ON "public"."user_events" USING (("auth"."uid"() = "user_id"));
+  END IF;
+END $$;
+
 
 
 
@@ -1489,7 +2158,19 @@ ALTER TABLE "public"."user_profiles" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."user_recipes" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "user_recipes_user_policy" ON "public"."user_recipes" USING (("auth"."uid"() = "user_id"));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'user_recipes'
+      AND policyname = 'user_recipes_user_policy'
+  ) THEN
+    CREATE POLICY "user_recipes_user_policy" ON "public"."user_recipes" USING (("auth"."uid"() = "user_id"));
+  END IF;
+END $$;
+
 
 
 
@@ -1907,11 +2588,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES  TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES  TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES  TO "service_role";
-
-
-
-
-
 
 
 

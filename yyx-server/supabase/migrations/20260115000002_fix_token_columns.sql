@@ -8,10 +8,10 @@ DROP COLUMN IF EXISTS audio_tokens;
 
 -- Add the correctly separated columns
 ALTER TABLE ai_voice_sessions
-ADD COLUMN input_text_tokens INTEGER DEFAULT 0,
-ADD COLUMN input_audio_tokens INTEGER DEFAULT 0,
-ADD COLUMN output_text_tokens INTEGER DEFAULT 0,
-ADD COLUMN output_audio_tokens INTEGER DEFAULT 0;
+ADD COLUMN IF NOT EXISTS input_text_tokens INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS input_audio_tokens INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS output_text_tokens INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS output_audio_tokens INTEGER DEFAULT 0;
 
 -- Add comment explaining the pricing structure
 COMMENT ON COLUMN ai_voice_sessions.input_text_tokens IS 'Text input tokens - priced at $0.60 per 1M tokens';
