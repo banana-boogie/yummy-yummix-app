@@ -22,6 +22,7 @@ CREATE POLICY "Anyone can read ingredient aliases"
 
 CREATE INDEX idx_ingredient_aliases_alias ON ingredient_aliases (lower(alias));
 CREATE INDEX idx_ingredient_aliases_canonical ON ingredient_aliases (canonical);
+CREATE UNIQUE INDEX idx_ingredient_aliases_unique ON ingredient_aliases (lower(alias), language);
 
 -- Seed ingredient aliases
 INSERT INTO ingredient_aliases (canonical, alias, language) VALUES

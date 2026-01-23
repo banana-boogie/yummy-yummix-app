@@ -77,6 +77,14 @@ serve(async (req) => {
       return errorResponse('Message is required', 400);
     }
 
+    // Validate Supabase env vars
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('Supabase env vars not configured');
+      return errorResponse('Service configuration error', 500);
+    }
+
     // Initialize Supabase client with user's auth
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -84,8 +92,8 @@ serve(async (req) => {
     }
 
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
+      supabaseUrl,
+      supabaseAnonKey,
       {
         global: {
           headers: { Authorization: authHeader },
@@ -255,11 +263,11 @@ async function processRequest(
       suggestions: buildSuggestions(recipes, userContext.language),
     };
 
-    // Save to history and validate
-    if (sessionId) {
-      await saveMessageToHistory(supabase, sessionId, message, irmixyResponse);
-    }
+    // Validate before saving to history
     validateSchema(IrmixyResponseSchema, irmixyResponse);
+    if (sessionId) {
+      await saveMessageToHistory(supabase, sessionId, userId, message, irmixyResponse);
+    }
 
     return irmixyResponse;
   }
@@ -272,10 +280,10 @@ async function processRequest(
     status: null,
   };
 
-  if (sessionId) {
-    await saveMessageToHistory(supabase, sessionId, message, irmixyResponse);
-  }
   validateSchema(IrmixyResponseSchema, irmixyResponse);
+  if (sessionId) {
+    await saveMessageToHistory(supabase, sessionId, userId, message, irmixyResponse);
+  }
 
   return irmixyResponse;
 }
@@ -401,8 +409,12 @@ async function executeTool(
 ): Promise<unknown> {
   switch (name) {
     case 'search_recipes': {
-      // validateSearchRecipesParams is called inside searchRecipes
-      const parsedArgs = JSON.parse(args);
+      let parsedArgs: unknown;
+      try {
+        parsedArgs = JSON.parse(args);
+      } catch {
+        throw new ToolValidationError('Invalid JSON in tool arguments');
+      }
       return await searchRecipes(supabase, parsedArgs, userContext);
     }
     default:
@@ -509,14 +521,28 @@ function buildSuggestions(
 
 /**
  * Save message exchange to conversation history.
- * Note: user_chat_messages has no user_id column.
+ * Verifies session ownership before saving.
  */
 async function saveMessageToHistory(
   supabase: SupabaseClient,
   sessionId: string,
+  userId: string,
   userMessage: string,
   assistantResponse: IrmixyResponse,
 ): Promise<void> {
+  // Verify session ownership
+  const { data: session } = await supabase
+    .from('user_chat_sessions')
+    .select('id')
+    .eq('id', sessionId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (!session) {
+    console.error('Session not found or not owned by user');
+    return;
+  }
+
   // Save user message
   await supabase.from('user_chat_messages').insert({
     session_id: sessionId,

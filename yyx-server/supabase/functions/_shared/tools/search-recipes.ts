@@ -134,8 +134,15 @@ export async function searchRecipes(
     query = query.lte('total_time', params.maxTime);
   }
 
-  // Execute query with limit
-  const { data, error } = await query.limit(params.limit || 10);
+  // Apply text search on recipe name at DB level
+  if (params.query) {
+    const searchTerm = `%${params.query}%`;
+    query = query.or(`name_en.ilike.${searchTerm},name_es.ilike.${searchTerm}`);
+  }
+
+  // Fetch more than requested to allow for post-filtering (cuisine, allergens)
+  const fetchLimit = Math.max((params.limit || 10) * 3, 30);
+  const { data, error } = await query.limit(fetchLimit);
 
   if (error) {
     console.error('Recipe search error:', error);
@@ -185,7 +192,8 @@ export async function searchRecipes(
     recipeCards = scoreByQuery(results, recipeCards, params.query, userContext.language);
   }
 
-  return recipeCards;
+  // Apply final limit after all filtering and scoring
+  return recipeCards.slice(0, params.limit || 10);
 }
 
 // ============================================================

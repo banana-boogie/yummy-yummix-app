@@ -145,7 +145,7 @@ async function getResumableCookingSession(
     .eq('status', 'active')
     .order('last_active_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error || !data) {
     return null;

@@ -84,7 +84,16 @@ export function validateUUID(input: unknown): string {
  * Validate and sanitize search_recipes tool arguments.
  */
 export function validateSearchRecipesParams(raw: unknown): SearchRecipesParams {
-  const params = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  let params: unknown;
+  if (typeof raw === 'string') {
+    try {
+      params = JSON.parse(raw);
+    } catch {
+      throw new ToolValidationError('Invalid JSON in search_recipes params');
+    }
+  } else {
+    params = raw;
+  }
 
   if (!params || typeof params !== 'object') {
     throw new ToolValidationError('search_recipes params must be an object');
