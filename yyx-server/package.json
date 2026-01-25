@@ -1,4 +1,11 @@
 {
+  "scripts": {
+    "start": "supabase start",
+    "stop": "supabase stop",
+    "status": "supabase status",
+    "reset": "supabase db reset",
+    "get-test-jwt": "bash scripts/get-test-jwt.sh"
+  },
   "devDependencies": {
     "@types/deno": "^2.2.0"
   }
