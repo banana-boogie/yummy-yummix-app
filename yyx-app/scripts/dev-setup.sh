@@ -92,28 +92,17 @@ if [[ -z "$LOCAL_IP" ]]; then
 fi
 echo -e "${GREEN}   ✓ Local IP: $LOCAL_IP${NC}"
 
-# Step 5: Get Supabase credentials
+# Step 5: Set Supabase credentials
+# These are the well-known demo keys for local Supabase development
+# See: https://supabase.com/docs/guides/getting-started/local-development
 echo ""
-echo "5️⃣  Getting Supabase credentials..."
+echo "5️⃣  Using local Supabase credentials..."
 
-if ! command -v jq >/dev/null 2>&1; then
-  echo -e "${RED}❌ jq not installed. Install with: brew install jq${NC}"
-  exit 1
-fi
+# Standard local dev keys (HS256 signed, not secrets - safe to hardcode)
+ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU"
 
-SUPABASE_JSON=$(cd "$SERVER_DIR" && supabase status --output json)
-ANON_KEY=$(echo "$SUPABASE_JSON" | jq -r '.ANON_KEY')
-SERVICE_ROLE_KEY=$(echo "$SUPABASE_JSON" | jq -r '.SERVICE_ROLE_KEY')
-
-if [[ -z "$ANON_KEY" || "$ANON_KEY" == "null" ]]; then
-  echo -e "${RED}❌ Could not get anon key from Supabase. Is it running?${NC}"
-  exit 1
-fi
-if [[ -z "$SERVICE_ROLE_KEY" || "$SERVICE_ROLE_KEY" == "null" ]]; then
-  echo -e "${RED}❌ Could not get service role key from Supabase.${NC}"
-  exit 1
-fi
-echo -e "${GREEN}   ✓ Got Supabase credentials${NC}"
+echo -e "${GREEN}   ✓ Using standard local dev credentials${NC}"
 
 # Step 6: Update .env.local
 echo ""
@@ -140,6 +129,11 @@ echo -e "${GREEN}   ✓ Updated .env.local${NC}"
 # Step 7: Seed dev user
 echo ""
 echo "7️⃣  Seeding dev user..."
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo -e "${YELLOW}   ⚠ jq not installed. Install with: brew install jq${NC}"
+  echo -e "${YELLOW}   Skipping dev user seeding. Create one manually in Supabase Studio.${NC}"
+else
 
 SUPABASE_LOCAL_URL="http://127.0.0.1:54321"
 
@@ -178,6 +172,8 @@ else
     echo -e "${YELLOW}   You can create one manually in Supabase Studio: http://localhost:54323${NC}"
   fi
 fi
+
+fi  # end jq check
 
 # Done!
 echo ""
