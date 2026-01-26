@@ -55,6 +55,16 @@ else
   if [[ "$supa_url" == http://127.0.0.1:* ]]; then
     echo "[WARN] EXPO_PUBLIC_SUPABASE_URL uses 127.0.0.1. This will NOT work on a physical device." >&2
   fi
+
+  # Check if dev user profile exists
+  if [[ -n "$dev_email" ]] && command -v psql >/dev/null 2>&1; then
+    profile_count=$(psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -tAc \
+      "SELECT COUNT(*) FROM user_profiles WHERE email = '$dev_email';" 2>/dev/null || echo "0")
+
+    if [[ "$profile_count" == "0" ]]; then
+      echo "[WARN] Dev user profile not found. Run: npm run dev:setup" >&2
+    fi
+  fi
 fi
 
 if [[ "$ok" == false ]]; then

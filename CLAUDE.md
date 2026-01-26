@@ -198,6 +198,25 @@ supabase db pull      # Pull current production schema
 npm run reset         # Reset local DB
 ```
 
+### JWT signing method error when seeding dev user
+If you see an error like "signing method HS256 is invalid":
+```bash
+cd yyx-server
+supabase stop
+supabase start
+cd ../yyx-app
+npm run dev:setup     # Re-run setup with fresh JWT keys
+```
+This happens when Supabase JWT keys change (e.g., after CLI upgrade). The dev-setup script now extracts keys dynamically to prevent this.
+
+### Dev user exists but no user_profile
+If the dev user can log in but the app crashes accessing profile data:
+```bash
+cd yyx-app
+npm run dev:setup     # Automatically creates missing user_profile
+```
+The updated dev-setup script now ensures both auth user and user_profile are created.
+
 ### Useful Local URLs
 - **Supabase Studio**: http://localhost:54323 (DB admin UI)
 - **Inbucket**: http://localhost:54324 (captured emails)

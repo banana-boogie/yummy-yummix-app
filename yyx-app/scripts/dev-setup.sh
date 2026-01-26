@@ -141,6 +141,18 @@ else
 
 SUPABASE_LOCAL_URL="http://127.0.0.1:54321"
 
+# Verify extracted keys work before proceeding
+AUTH_TEST=$(curl -s -o /dev/null -w "%{http_code}" "$SUPABASE_LOCAL_URL/auth/v1/admin/users?per_page=1" \
+  -H "apikey: $SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SERVICE_ROLE_KEY")
+
+if [[ "$AUTH_TEST" != "200" ]]; then
+  echo -e "${YELLOW}   ⚠ Auth API test failed (HTTP $AUTH_TEST). Try restarting Supabase:${NC}"
+  echo -e "${YELLOW}      cd ../yyx-server && supabase stop && supabase start${NC}"
+  echo -e "${YELLOW}   Then run dev:setup again.${NC}"
+  # Continue anyway - don't exit
+else
+
 # Check if user exists
 LIST_RESP=$(curl -s "$SUPABASE_LOCAL_URL/auth/v1/admin/users?per_page=200" \
   -H "apikey: $SERVICE_ROLE_KEY" \
@@ -170,6 +182,7 @@ else
     -d "{\"email\":\"$DEV_EMAIL\",\"password\":\"$DEV_PASSWORD\",\"email_confirm\":true}")
 
   if echo "$CREATE_RESP" | jq -e '.id' >/dev/null 2>&1; then
+    USER_ID=$(echo "$CREATE_RESP" | jq -r '.user.id')
     echo -e "${GREEN}   ✓ Created dev user: $DEV_EMAIL${NC}"
   else
     echo -e "${YELLOW}   ⚠ Could not create dev user. Response: $(echo "$CREATE_RESP" | jq -c '.')${NC}"
@@ -177,6 +190,38 @@ else
   fi
 fi
 
+# Step 8: Ensure user_profile exists
+if [[ -n "$USER_ID" && "$USER_ID" != "null" ]]; then
+  echo ""
+  echo "8️⃣  Creating user profile..."
+
+  if ! command -v psql >/dev/null 2>&1; then
+    echo -e "${YELLOW}   ⚠ psql not installed. User profile not created.${NC}"
+    echo -e "${YELLOW}   Install PostgreSQL client: brew install postgresql${NC}"
+  else
+    # Check if profile exists
+    PROFILE_CHECK=$(psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -tAc \
+      "SELECT COUNT(*) FROM user_profiles WHERE id = '$USER_ID';" 2>/dev/null || echo "0")
+
+    if [[ "$PROFILE_CHECK" == "0" ]]; then
+      # Create profile
+      psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -c \
+        "INSERT INTO user_profiles (id, email, name, language, measurement_system, onboarding_complete)
+         VALUES ('$USER_ID', '$DEV_EMAIL', 'Dev User', 'en', 'metric', true)
+         ON CONFLICT (id) DO NOTHING;" >/dev/null 2>&1
+
+      if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}   ✓ Created user profile${NC}"
+      else
+        echo -e "${YELLOW}   ⚠ Could not create user profile. Create manually in Supabase Studio.${NC}"
+      fi
+    else
+      echo -e "${GREEN}   ✓ User profile already exists${NC}"
+    fi
+  fi
+fi
+
+fi  # end auth test check
 fi  # end jq check
 
 # Done!
