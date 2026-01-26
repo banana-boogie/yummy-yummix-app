@@ -92,17 +92,21 @@ if [[ -z "$LOCAL_IP" ]]; then
 fi
 echo -e "${GREEN}   ✓ Local IP: $LOCAL_IP${NC}"
 
-# Step 5: Set Supabase credentials
-# These are the well-known demo keys for local Supabase development
-# See: https://supabase.com/docs/guides/getting-started/local-development
+# Step 5: Get Supabase credentials
 echo ""
-echo "5️⃣  Using local Supabase credentials..."
+echo "5️⃣  Getting Supabase credentials..."
 
-# Standard local dev keys (HS256 signed, not secrets - safe to hardcode)
-ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
-SERVICE_ROLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU"
+# Extract keys from supabase status (works with any JWT configuration)
+CREDS_ENV=$(cd "$SERVER_DIR" && supabase status -o env 2>/dev/null | grep -E "(ANON_KEY|SERVICE_ROLE_KEY)")
+ANON_KEY=$(echo "$CREDS_ENV" | grep "ANON_KEY" | cut -d'"' -f2)
+SERVICE_ROLE_KEY=$(echo "$CREDS_ENV" | grep "SERVICE_ROLE_KEY" | cut -d'"' -f2)
 
-echo -e "${GREEN}   ✓ Using standard local dev credentials${NC}"
+if [[ -z "$ANON_KEY" || -z "$SERVICE_ROLE_KEY" ]]; then
+  echo -e "${RED}❌ Could not get credentials from Supabase. Is it running?${NC}"
+  exit 1
+fi
+
+echo -e "${GREEN}   ✓ Got Supabase credentials${NC}"
 
 # Step 6: Update .env.local
 echo ""
