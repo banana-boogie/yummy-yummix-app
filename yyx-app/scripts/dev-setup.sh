@@ -95,12 +95,22 @@ echo -e "${GREEN}   ✓ Local IP: $LOCAL_IP${NC}"
 # Step 5: Get Supabase credentials
 echo ""
 echo "5️⃣  Getting Supabase credentials..."
-SUPABASE_OUTPUT=$(cd "$SERVER_DIR" && supabase status)
-ANON_KEY=$(echo "$SUPABASE_OUTPUT" | grep "anon key:" | awk '{print $3}')
-SERVICE_ROLE_KEY=$(echo "$SUPABASE_OUTPUT" | grep "service_role key:" | awk '{print $3}')
 
-if [[ -z "$ANON_KEY" ]]; then
+if ! command -v jq >/dev/null 2>&1; then
+  echo -e "${RED}❌ jq not installed. Install with: brew install jq${NC}"
+  exit 1
+fi
+
+SUPABASE_JSON=$(cd "$SERVER_DIR" && supabase status --output json)
+ANON_KEY=$(echo "$SUPABASE_JSON" | jq -r '.ANON_KEY')
+SERVICE_ROLE_KEY=$(echo "$SUPABASE_JSON" | jq -r '.SERVICE_ROLE_KEY')
+
+if [[ -z "$ANON_KEY" || "$ANON_KEY" == "null" ]]; then
   echo -e "${RED}❌ Could not get anon key from Supabase. Is it running?${NC}"
+  exit 1
+fi
+if [[ -z "$SERVICE_ROLE_KEY" || "$SERVICE_ROLE_KEY" == "null" ]]; then
+  echo -e "${RED}❌ Could not get service role key from Supabase.${NC}"
   exit 1
 fi
 echo -e "${GREEN}   ✓ Got Supabase credentials${NC}"
@@ -131,45 +141,41 @@ echo -e "${GREEN}   ✓ Updated .env.local${NC}"
 echo ""
 echo "7️⃣  Seeding dev user..."
 
-if ! command -v jq >/dev/null 2>&1; then
-  echo -e "${YELLOW}   ⚠ jq not installed. Skipping user seed. Install with: brew install jq${NC}"
-  echo -e "${YELLOW}   You can create a user manually in Supabase Studio: http://localhost:54323${NC}"
-else
-  SUPABASE_LOCAL_URL="http://127.0.0.1:54321"
+SUPABASE_LOCAL_URL="http://127.0.0.1:54321"
 
-  # Check if user exists
-  LIST_RESP=$(curl -s "$SUPABASE_LOCAL_URL/auth/v1/admin/users?per_page=200" \
+# Check if user exists
+LIST_RESP=$(curl -s "$SUPABASE_LOCAL_URL/auth/v1/admin/users?per_page=200" \
+  -H "apikey: $SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SERVICE_ROLE_KEY")
+
+USER_ID=$(echo "$LIST_RESP" | jq -r --arg email "$DEV_EMAIL" '.users[]? | select(.email==$email) | .id' | head -n 1)
+
+if [[ -n "$USER_ID" && "$USER_ID" != "null" ]]; then
+  # Update existing user
+  UPDATE_RESP=$(curl -s -X PUT "$SUPABASE_LOCAL_URL/auth/v1/admin/users/$USER_ID" \
     -H "apikey: $SERVICE_ROLE_KEY" \
-    -H "Authorization: Bearer $SERVICE_ROLE_KEY")
+    -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"password\":\"$DEV_PASSWORD\",\"email_confirm\":true}")
 
-  USER_ID=$(echo "$LIST_RESP" | jq -r --arg email "$DEV_EMAIL" '.users[]? | select(.email==$email) | .id' | head -n 1)
-
-  if [[ -n "$USER_ID" && "$USER_ID" != "null" ]]; then
-    # Update existing user
-    UPDATE_RESP=$(curl -s -X PUT "$SUPABASE_LOCAL_URL/auth/v1/admin/users/$USER_ID" \
-      -H "apikey: $SERVICE_ROLE_KEY" \
-      -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
-      -H "Content-Type: application/json" \
-      -d "{\"password\":\"$DEV_PASSWORD\",\"email_confirm\":true}")
-
-    if echo "$UPDATE_RESP" | jq -e '.id' >/dev/null 2>&1; then
-      echo -e "${GREEN}   ✓ Updated dev user: $DEV_EMAIL${NC}"
-    else
-      echo -e "${YELLOW}   ⚠ Could not update dev user${NC}"
-    fi
+  if echo "$UPDATE_RESP" | jq -e '.id' >/dev/null 2>&1; then
+    echo -e "${GREEN}   ✓ Updated dev user: $DEV_EMAIL${NC}"
   else
-    # Create new user
-    CREATE_RESP=$(curl -s -X POST "$SUPABASE_LOCAL_URL/auth/v1/admin/users" \
-      -H "apikey: $SERVICE_ROLE_KEY" \
-      -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
-      -H "Content-Type: application/json" \
-      -d "{\"email\":\"$DEV_EMAIL\",\"password\":\"$DEV_PASSWORD\",\"email_confirm\":true}")
+    echo -e "${YELLOW}   ⚠ Could not update dev user. Response: $(echo "$UPDATE_RESP" | jq -c '.')${NC}"
+  fi
+else
+  # Create new user
+  CREATE_RESP=$(curl -s -X POST "$SUPABASE_LOCAL_URL/auth/v1/admin/users" \
+    -H "apikey: $SERVICE_ROLE_KEY" \
+    -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"$DEV_EMAIL\",\"password\":\"$DEV_PASSWORD\",\"email_confirm\":true}")
 
-    if echo "$CREATE_RESP" | jq -e '.id' >/dev/null 2>&1; then
-      echo -e "${GREEN}   ✓ Created dev user: $DEV_EMAIL${NC}"
-    else
-      echo -e "${YELLOW}   ⚠ Could not create dev user. You can create one in Supabase Studio.${NC}"
-    fi
+  if echo "$CREATE_RESP" | jq -e '.id' >/dev/null 2>&1; then
+    echo -e "${GREEN}   ✓ Created dev user: $DEV_EMAIL${NC}"
+  else
+    echo -e "${YELLOW}   ⚠ Could not create dev user. Response: $(echo "$CREATE_RESP" | jq -c '.')${NC}"
+    echo -e "${YELLOW}   You can create one manually in Supabase Studio: http://localhost:54323${NC}"
   fi
 fi
 
