@@ -95,6 +95,13 @@ const translations = {
           message: 'The login link you clicked is no longer valid. This can happen if the link has expired or has already been used. Please request a new login link to continue.',
           tryAgain: 'Request New Link'
         }
+      },
+      devLogin: {
+        orDev: 'dev',
+        button: 'Developer Login',
+        signingIn: 'Signing in...',
+        failed: 'Developer login failed. Check your dev credentials.',
+        missingCredentials: 'Developer login is not configured.'
       }
     },
     settings: {
@@ -978,6 +985,13 @@ const translations = {
           message: 'El enlace de inicio de sesión que has hecho clic ya no es válido. Esto puede ocurrir si el enlace ha expirado o ya ha sido utilizado. Por favor, solicita un nuevo enlace de inicio de sesión para continuar.',
           tryAgain: 'Solicitar Nuevo Enlace'
         }
+      },
+      devLogin: {
+        orDev: 'dev',
+        button: 'Inicio de sesión de desarrollo',
+        signingIn: 'Iniciando sesión...',
+        failed: 'Falló el inicio de sesión de desarrollo. Revisa tus credenciales.',
+        missingCredentials: 'El inicio de sesión de desarrollo no está configurado.'
       }
     },
     settings: {

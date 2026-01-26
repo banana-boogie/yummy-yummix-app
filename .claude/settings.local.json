@@ -8,7 +8,10 @@
       "Bash(done)",
       "Bash(git worktree add:*)",
       "Bash(git worktree:*)",
-      "Bash(supabase status:*)"
+      "Bash(supabase status:*)",
+      "Bash(xargs:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

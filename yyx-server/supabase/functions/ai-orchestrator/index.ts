@@ -72,6 +72,11 @@ interface ToolExecutionResult {
   recipes: RecipeCard[] | undefined;
 }
 
+interface SessionResult {
+  sessionId?: string;
+  created: boolean;
+}
+
 // ============================================================
 // Main Handler
 // ============================================================
@@ -132,6 +137,9 @@ serve(async (req) => {
     // Sanitize the incoming message
     const sanitizedMessage = sanitizeContent(message);
 
+    const sessionResult = await ensureSessionId(supabase, user.id, sessionId);
+    const effectiveSessionId = sessionResult.sessionId ?? sessionId;
+
     // Handle streaming vs non-streaming responses
     if (stream) {
       return handleStreamingRequest(
@@ -139,7 +147,7 @@ serve(async (req) => {
         openaiApiKey,
         openaiModel,
         user.id,
-        sessionId,
+        effectiveSessionId,
         sanitizedMessage,
         mode,
       );
@@ -151,7 +159,7 @@ serve(async (req) => {
       openaiApiKey,
       openaiModel,
       user.id,
-      sessionId,
+      effectiveSessionId,
       sanitizedMessage,
       mode,
     );
@@ -159,7 +167,13 @@ serve(async (req) => {
     return new Response(
       JSON.stringify(irmixyResponse),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          ...(sessionResult.created && sessionResult.sessionId
+            ? { 'X-Session-Id': sessionResult.sessionId }
+            : {}),
+        },
       },
     );
   } catch (error) {
@@ -204,6 +218,32 @@ async function buildRequestContext(
   ];
 
   return { userContext, messages };
+}
+
+/**
+ * Ensure a chat session exists. If no sessionId is provided, create one.
+ */
+async function ensureSessionId(
+  supabase: SupabaseClient,
+  userId: string,
+  sessionId?: string,
+): Promise<SessionResult> {
+  if (sessionId) {
+    return { sessionId, created: false };
+  }
+
+  const { data, error } = await supabase
+    .from('user_chat_sessions')
+    .insert({ user_id: userId })
+    .select('id')
+    .single();
+
+  if (error || !data?.id) {
+    console.error('Failed to create chat session:', error);
+    return { sessionId: undefined, created: false };
+  }
+
+  return { sessionId: data.id, created: true };
 }
 
 /**
@@ -264,7 +304,7 @@ async function finalizeResponse(
     language: userContext.language,
     status: null,
     recipes,
-    suggestions: recipes ? buildSuggestions(recipes, userContext.language) : undefined,
+    suggestions: buildSuggestions(recipes, userContext.language),
   };
 
   validateSchema(IrmixyResponseSchema, irmixyResponse);
@@ -351,6 +391,9 @@ function handleStreamingRequest(
       };
 
       try {
+        if (sessionId) {
+          send({ type: 'session', sessionId });
+        }
         send({ type: 'status', status: 'thinking' });
 
         const { userContext, messages } = await buildRequestContext(
@@ -478,7 +521,11 @@ async function callOpenAIStream(
   };
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), STREAM_TIMEOUT_MS);
+  let timeout = setTimeout(() => controller.abort(), STREAM_TIMEOUT_MS);
+  const resetTimeout = () => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => controller.abort(), STREAM_TIMEOUT_MS);
+  };
 
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -506,6 +553,7 @@ async function callOpenAIStream(
       const { value, done } = await reader.read();
       if (done) break;
 
+      resetTimeout();
       buffer += decoder.decode(value, { stream: true });
 
       const lines = buffer.split('\n');
@@ -528,7 +576,27 @@ async function callOpenAIStream(
             onToken(delta.content);
           }
         } catch (parseError) {
-          console.warn('Malformed SSE chunk:', data, parseError);
+          console.warn('Malformed SSE chunk:', data.slice(0, 200), parseError);
+        }
+      }
+    }
+
+    if (buffer.trim().startsWith('data:')) {
+      const lines = buffer.split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const data = trimmed.slice(5).trim();
+        if (!data || data === '[DONE]') continue;
+        try {
+          const json = JSON.parse(data);
+          const delta = json.choices?.[0]?.delta;
+          if (delta?.content) {
+            fullContent += delta.content;
+            onToken(delta.content);
+          }
+        } catch (parseError) {
+          console.warn('Malformed SSE chunk:', data.slice(0, 200), parseError);
         }
       }
     }

@@ -50,12 +50,13 @@ npx expo start
 
 ## ⚙️ Environment Setup
 
-Create a `.env` file in the root directory with the following variables:
+Create a `.env.local` file in the `yyx-app/` directory with the following variables:
 
 ```plaintext
 EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-EXPO_PUBLIC_OPENAI_KEY=your_openai_key
+EXPO_PUBLIC_DEV_LOGIN_EMAIL=your_test_email
+EXPO_PUBLIC_DEV_LOGIN_PASSWORD=your_test_password
 ```
 
 > **Note**: Regarding environment variables security:
@@ -72,6 +73,43 @@ This repository is intended for YummyYummix developers. To get started with deve
 2. Set up your local environment variables
 3. Follow the installation steps above
 4. Refer to our internal documentation for API endpoints and database schema
+
+## 🧪 Local Development (Recommended Workflow)
+
+### 1) Switch environment
+- Local (LAN IP for physical devices):
+```bash
+cd yyx-app
+npm run env:local
+```
+
+- Staging (Apple/Magic Link testing):
+```bash
+cd yyx-app
+npm run env:staging
+```
+
+> `env:staging` reads from `yyx-app/.env.staging` (you create this file locally).
+
+### 2) Verify local setup
+```bash
+cd yyx-app
+npm run dev:check
+```
+
+### 3) Start the app
+```bash
+cd yyx-app
+npm start
+```
+
+### 4) Seed + login dev user (local)
+```bash
+cd yyx-server
+npm run seed-test-user
+```
+
+Then use the **Developer Login** button on the login screen (dev builds only).
 
 ## 📝 Contributing
 We welcome contributions from the YummyYummix development team. Please:
@@ -157,5 +195,4 @@ Our database schema is managed through Supabase and SQL migration files located 
 - MAJOR: Breaking changes
 - MINOR: New features
 - PATCH: Bug fixes
-
 
