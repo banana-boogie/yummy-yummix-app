@@ -42,6 +42,15 @@ From `yyx-server/`:
 - Branches: `feature/...`, `fix/...`, `hotfix/...`, `release/...`.
 - PRs should describe changes, note testing, and include screenshots for UI changes.
 
+## AI Collaboration
+
+For iterative development with multiple AIs:
+- **AI #1**: Plans and implements features
+- **AI #2**: Reviews changes and provides feedback
+- Iterate until satisfied
+
+See [docs/ai-prompts.md](docs/ai-prompts.md) for copy-paste prompts.
+
 ## Configuration & Security Tips
 - App secrets live in `.env` under `yyx-app/` (e.g., `EXPO_PUBLIC_SUPABASE_URL`).
 - Do not commit secrets; keep `.env` in `.gitignore`.

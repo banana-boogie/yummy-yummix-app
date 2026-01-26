@@ -341,3 +341,13 @@ feat(recipe): add search by ingredients
 fix(auth): resolve login timeout issue
 docs: update API documentation
 ```
+
+## AI Collaboration Prompts
+
+When working with multiple AIs iteratively:
+1. **Plan** - Use plan mode to create implementation plan
+2. **Implement** - Follow the plan and commit changes
+3. **Review** - Have another AI review the changes
+4. **Iterate** - Address feedback and repeat until satisfied
+
+See [docs/ai-prompts.md](docs/ai-prompts.md) for copy-paste prompts.
