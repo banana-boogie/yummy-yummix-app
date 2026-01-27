@@ -869,6 +869,7 @@ const translations = {
       error: {
         default: 'Sorry, something went wrong. Please try again.',
         messageTooLong: 'Message is too long. Maximum {{max}} characters allowed.',
+        timeout: 'Request timed out after {{seconds}} seconds. Please try again.',
       },
       loginRequired: 'Please log in to chat with Irmixy.',
       newChatTitle: 'New Chat',
@@ -1769,6 +1770,7 @@ const translations = {
       error: {
         default: 'Lo siento, algo salió mal. Por favor, inténtalo de nuevo.',
         messageTooLong: 'El mensaje es demasiado largo. Máximo {{max}} caracteres permitidos.',
+        timeout: 'La solicitud agotó el tiempo de espera después de {{seconds}} segundos. Por favor, inténtalo de nuevo.',
       },
       loginRequired: 'Por favor, inicia sesión para chatear con Irmixy.',
       newChatTitle: 'Nuevo chat',

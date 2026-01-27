@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import i18n from '@/i18n';
+import { COLORS } from '@/constants/design-tokens';
 
 // Constants
 const SCROLL_THROTTLE_MS = 100; // Throttle scroll calls to avoid excessive layout calculations
@@ -400,10 +401,10 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={{ padding: 16, flexGrow: 1 }}
                 onScroll={handleScroll}
-                scrollEventThrottle={400}
+                scrollEventThrottle={200}
                 ListEmptyComponent={
                     <View className="flex-1 justify-center items-center pt-xxxl">
-                        <MaterialCommunityIcons name="chef-hat" size={48} color="#999" />
+                        <MaterialCommunityIcons name="chef-hat" size={48} color={COLORS.grey.medium} />
                         <Text className="text-text-secondary text-center mt-md px-xl">
                             {i18n.t('chat.greeting')}
                         </Text>

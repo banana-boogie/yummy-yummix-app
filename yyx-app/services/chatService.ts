@@ -33,6 +33,7 @@ export type { IrmixyResponse, IrmixyStatus, RecipeCard, SuggestionChip };
 
 // Constants
 const MAX_MESSAGE_LENGTH = 2000;
+const STREAM_TIMEOUT_MS = 60000; // 60 seconds
 
 // Use ai-orchestrator for structured responses
 const FUNCTIONS_BASE_URL =
@@ -140,6 +141,7 @@ export function streamChatMessageWithHandle(
 ): StreamHandle {
     let finished = false;
     let es: EventSource | null = null;
+    let timeoutId: NodeJS.Timeout | null = null;
     let resolveDone: () => void = () => {};
     let rejectDone: (error: Error) => void = () => {};
 
@@ -174,12 +176,20 @@ export function streamChatMessageWithHandle(
             const safeResolve = () => {
                 if (finished) return;
                 finished = true;
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
                 resolveDone();
             };
 
             const safeReject = (error: Error) => {
                 if (finished) return;
                 finished = true;
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
                 rejectDone(error);
             };
 
@@ -204,6 +214,13 @@ export function streamChatMessageWithHandle(
                 es.close();
                 return;
             }
+
+            // Set timeout to prevent hanging streams
+            timeoutId = setTimeout(() => {
+                console.error('[SSE] Stream timeout after', STREAM_TIMEOUT_MS, 'ms');
+                es?.close();
+                safeReject(new Error(i18n.t('chat.error.timeout', { seconds: STREAM_TIMEOUT_MS / 1000 })));
+            }, STREAM_TIMEOUT_MS);
 
             es.addEventListener('open', () => {
                 console.log('[SSE] Connection opened');
@@ -265,6 +282,10 @@ export function streamChatMessageWithHandle(
         } catch (error) {
             if (finished) return;
             finished = true;
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+            }
             const err = error instanceof Error ? error : new Error(String(error));
             rejectDone(err);
         }
@@ -273,6 +294,10 @@ export function streamChatMessageWithHandle(
     const cancel = () => {
         if (finished) return;
         finished = true;
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+        }
         console.log('[SSE] Stream cancelled by client');
         es?.close();
         resolveDone();
