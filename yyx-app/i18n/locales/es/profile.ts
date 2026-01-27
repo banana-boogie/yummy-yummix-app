@@ -15,6 +15,7 @@ export const profile = {
     recipes: "Mis recetas",
     shoppingList: "Mi lista de compras",
     achievements: "Mis cursos y logros",
+    cookbooks: "Mis Recetarios",
   },
   logout: "Cerrar sesión",
   changePhoto: "Cambiar foto",

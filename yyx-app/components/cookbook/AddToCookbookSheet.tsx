@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Modal, Pressable, FlatList, Alert } from 'react-native';
 import { Text, Button, TextInput } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { Cookbook } from '@/types/cookbook.types';
 import { useUserCookbooksQuery, useAddRecipeToCookbook } from '@/hooks/useCookbookQuery';
+import { cookbookService } from '@/services/cookbookService';
+import { useAuth } from '@/contexts/AuthContext';
 import i18n from '@/i18n';
 
 interface AddToCookbookSheetProps {
@@ -21,23 +23,40 @@ export function AddToCookbookSheet({
     recipeName,
     onSuccess,
 }: AddToCookbookSheetProps) {
+    const { user } = useAuth();
     const { data: cookbooks = [], isLoading } = useUserCookbooksQuery();
     const addRecipeMutation = useAddRecipeToCookbook();
 
     const [selectedCookbook, setSelectedCookbook] = useState<Cookbook | null>(null);
     const [notes, setNotes] = useState('');
     const [step, setStep] = useState<'select' | 'notes'>('select');
+    const [cookbookIdsWithRecipe, setCookbookIdsWithRecipe] = useState<string[]>([]);
+
+    // Fetch which cookbooks already contain this recipe
+    useEffect(() => {
+        if (visible && user?.id && recipeId) {
+            cookbookService
+                .getCookbookIdsContainingRecipe(user.id, recipeId)
+                .then(setCookbookIdsWithRecipe)
+                .catch(() => setCookbookIdsWithRecipe([]));
+        }
+    }, [visible, user?.id, recipeId]);
 
     // Reset state when modal closes
-    React.useEffect(() => {
+    useEffect(() => {
         if (!visible) {
             setSelectedCookbook(null);
             setNotes('');
             setStep('select');
+            setCookbookIdsWithRecipe([]);
         }
     }, [visible]);
 
     const handleSelectCookbook = (cookbook: Cookbook) => {
+        // Don't allow selecting cookbooks that already have this recipe
+        if (cookbookIdsWithRecipe.includes(cookbook.id)) {
+            return;
+        }
         setSelectedCookbook(cookbook);
         setStep('notes');
     };
@@ -56,10 +75,12 @@ export function AddToCookbookSheet({
         } catch (error) {
             const err = error as Error;
             console.error('Failed to add recipe:', err.message);
-            Alert.alert(
-                i18n.t('common.errors.title'),
-                err.message || i18n.t('cookbooks.errors.addRecipeFailed')
-            );
+            // Handle specific error for duplicate recipe
+            const errorMessage =
+                err.message === 'RECIPE_ALREADY_ADDED'
+                    ? i18n.t('cookbooks.errors.recipeAlreadyAdded')
+                    : err.message || i18n.t('cookbooks.errors.addRecipeFailed');
+            Alert.alert(i18n.t('common.errors.title'), errorMessage);
         }
     };
 
@@ -68,27 +89,39 @@ export function AddToCookbookSheet({
         setSelectedCookbook(null);
     };
 
-    const renderCookbookItem = ({ item }: { item: Cookbook }) => (
-        <Pressable
-            onPress={() => handleSelectCookbook(item)}
-            className="flex-row items-center p-md bg-white rounded-md mb-sm active:bg-neutral-100 border border-neutral-100"
-        >
-            <Ionicons
-                name={item.isDefault ? "heart" : "book-outline"}
-                size={24}
-                color={item.isDefault ? "#D83A3A" : "#666"}
-            />
-            <View className="flex-1 ml-md">
-                <Text preset="subheading">{item.name}</Text>
-                <Text preset="caption" className="text-text-secondary">
-                    {item.recipeCount} {item.recipeCount === 1
-                        ? i18n.t('cookbooks.recipe')
-                        : i18n.t('cookbooks.recipes')}
-                </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-        </Pressable>
-    );
+    const renderCookbookItem = ({ item }: { item: Cookbook }) => {
+        const alreadyHasRecipe = cookbookIdsWithRecipe.includes(item.id);
+
+        return (
+            <Pressable
+                onPress={() => handleSelectCookbook(item)}
+                disabled={alreadyHasRecipe}
+                className={`flex-row items-center p-md bg-white rounded-md mb-sm border border-neutral-100 ${
+                    alreadyHasRecipe ? 'opacity-60' : 'active:bg-neutral-100'
+                }`}
+            >
+                <Ionicons
+                    name={item.isDefault ? 'heart' : 'book-outline'}
+                    size={24}
+                    color={item.isDefault ? '#D83A3A' : '#666'}
+                />
+                <View className="flex-1 ml-md">
+                    <Text preset="subheading">{item.name}</Text>
+                    <Text preset="caption" className="text-text-secondary">
+                        {item.recipeCount}{' '}
+                        {item.recipeCount === 1
+                            ? i18n.t('cookbooks.recipe')
+                            : i18n.t('cookbooks.recipes')}
+                    </Text>
+                </View>
+                {alreadyHasRecipe ? (
+                    <Ionicons name="checkmark-circle" size={24} color="#78A97A" />
+                ) : (
+                    <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                )}
+            </Pressable>
+        );
+    };
 
     return (
         <Modal
