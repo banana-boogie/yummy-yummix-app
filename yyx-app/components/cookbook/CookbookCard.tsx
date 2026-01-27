@@ -86,4 +86,13 @@ export const CookbookCard = React.memo(function CookbookCard({
             </View>
         </Pressable>
     );
+}, (prevProps, nextProps) => {
+    // Only re-render if cookbook data or size actually changed
+    return (
+        prevProps.cookbook.id === nextProps.cookbook.id &&
+        prevProps.cookbook.updatedAt === nextProps.cookbook.updatedAt &&
+        prevProps.cookbook.recipeCount === nextProps.cookbook.recipeCount &&
+        prevProps.cookbook.name === nextProps.cookbook.name &&
+        prevProps.size === nextProps.size
+    );
 });

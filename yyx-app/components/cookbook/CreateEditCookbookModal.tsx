@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Modal, Switch, Pressable } from 'react-native';
+import { View, Modal, Switch } from 'react-native';
 import { Text, Button, TextInput } from '@/components/common';
 import { Cookbook, CreateCookbookInput, UpdateCookbookInput } from '@/types/cookbook.types';
 import i18n from '@/i18n';
