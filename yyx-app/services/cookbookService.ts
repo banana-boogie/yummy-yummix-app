@@ -104,10 +104,11 @@ async function getUserCookbooks(userId: string): Promise<Cookbook[]> {
   }
 
   return (data || []).map((raw) => {
-    // Count recipes
-    const recipeCount = Array.isArray(raw.cookbook_recipes)
-      ? raw.cookbook_recipes.length
-      : 0;
+    // cookbook_recipes(count) returns [{ count: number }] when using count aggregate
+    const recipeCountResult = raw.cookbook_recipes as unknown as
+      | [{ count: number }]
+      | null;
+    const recipeCount = recipeCountResult?.[0]?.count ?? 0;
     return transformCookbook(raw, recipeCount);
   });
 }
@@ -303,6 +304,10 @@ async function addRecipeToCookbook(input: AddRecipeToCookbookInput): Promise<voi
 
   if (error) {
     console.error('Error adding recipe to cookbook:', error);
+    // Handle unique constraint violation (recipe already in cookbook)
+    if (error.code === '23505') {
+      throw new Error('RECIPE_ALREADY_ADDED');
+    }
     throw new Error(error.message);
   }
 }
@@ -353,6 +358,27 @@ async function updateCookbookRecipe(
     console.error('Error updating cookbook recipe:', error);
     throw new Error(error.message);
   }
+}
+
+/**
+ * Get cookbook IDs that contain a specific recipe for a user
+ */
+async function getCookbookIdsContainingRecipe(
+  userId: string,
+  recipeId: string
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('cookbook_recipes')
+    .select('cookbook_id, cookbooks!inner(user_id)')
+    .eq('recipe_id', recipeId)
+    .eq('cookbooks.user_id', userId);
+
+  if (error) {
+    console.error('Error fetching cookbook ids containing recipe:', error);
+    return [];
+  }
+
+  return (data || []).map((row) => row.cookbook_id);
 }
 
 /**
@@ -433,4 +459,5 @@ export const cookbookService = {
   updateCookbookRecipe,
   ensureDefaultCookbook,
   regenerateShareToken,
+  getCookbookIdsContainingRecipe,
 };

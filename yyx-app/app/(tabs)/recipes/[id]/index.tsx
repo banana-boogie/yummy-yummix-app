@@ -26,12 +26,21 @@ import { ShareButton } from '@/components/common/ShareButton';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { AddToCookbookSheet } from '@/components/cookbook';
 import { Ionicons } from '@expo/vector-icons';
+import { useCookbooksContainingRecipe } from '@/hooks/useCookbookQuery';
+import { useAuth } from '@/contexts/AuthContext';
 
 
 const RecipeDetail: React.FC = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const { user } = useAuth();
   const [showCookbookSheet, setShowCookbookSheet] = useState(false);
+
+  // Fetch cookbooks that contain this recipe
+  const validRecipeId = id && isValidUUID(id as string) ? (id as string) : '';
+  const { data: cookbooksContaining = [] } = useCookbooksContainingRecipe(
+    validRecipeId
+  );
 
   // Validate ID early to prevent unnecessary API calls
   useEffect(() => {
@@ -127,8 +136,35 @@ const RecipeDetail: React.FC = () => {
               prepTime={recipe.prepTime}
               difficulty={recipe.difficulty}
               portions={recipe.portions}
-              className="mb-xl"
+              className="mb-md"
             />
+
+            {/* Show cookbooks that contain this recipe */}
+            {user && cookbooksContaining.length > 0 && (
+              <View className="flex-row flex-wrap gap-xs mb-lg">
+                <Ionicons
+                  name="book"
+                  size={16}
+                  color="#666"
+                  style={{ marginTop: 4 }}
+                />
+                {cookbooksContaining.map((cookbook) => (
+                  <Pressable
+                    key={cookbook.id}
+                    onPress={() => router.push(`/(tabs)/cookbooks/${cookbook.id}`)}
+                    accessibilityRole="button"
+                    accessibilityLabel={i18n.t('cookbooks.a11y.viewCookbook', {
+                      name: cookbook.name,
+                    })}
+                    className="bg-primary-default/30 rounded-full px-sm py-xxs active:opacity-70"
+                  >
+                    <Text preset="caption" className="text-text-default">
+                      {cookbook.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
 
             <View
               className="mb-xs flex-row justify-between items-center"

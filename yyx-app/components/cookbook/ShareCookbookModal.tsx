@@ -64,7 +64,12 @@ export function ShareCookbookModal({
                     {/* Header */}
                     <View className="flex-row items-center justify-between mb-lg">
                         <Text preset="h2">{i18n.t('cookbooks.shareCookbook')}</Text>
-                        <Pressable onPress={onClose} className="p-xs">
+                        <Pressable
+                            onPress={onClose}
+                            accessibilityRole="button"
+                            accessibilityLabel={i18n.t('cookbooks.a11y.closeModal')}
+                            className="p-xs"
+                        >
                             <Ionicons name="close" size={24} color="#2D2D2D" />
                         </Pressable>
                     </View>
@@ -106,17 +111,20 @@ export function ShareCookbookModal({
                             preset="caption"
                             className="flex-1 text-text-secondary"
                             numberOfLines={1}
+                            accessibilityLabel={shareUrl}
                         >
                             {shareUrl}
                         </Text>
                         <Pressable
                             onPress={handleCopyLink}
+                            accessibilityRole="button"
+                            accessibilityLabel={i18n.t('cookbooks.a11y.copyLink')}
                             className="ml-sm p-xs"
                         >
                             <Ionicons
-                                name={copied ? "checkmark" : "copy-outline"}
+                                name={copied ? 'checkmark' : 'copy-outline'}
                                 size={20}
-                                color={copied ? "#78A97A" : "#666"}
+                                color={copied ? '#78A97A' : '#666'}
                             />
                         </Pressable>
                     </View>
