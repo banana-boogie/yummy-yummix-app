@@ -64,6 +64,12 @@ export default function Profile() {
       route: '/(tabs)/profile/recipes',
     },
     {
+      id: 'cookbooks',
+      title: i18n.t('profile.features.cookbooks'),
+      icon: require('@/assets/images/user-profile/recipes-icon.png'), // Reusing recipes icon for now
+      route: '/(tabs)/cookbooks',
+    },
+    {
       id: 'shopping',
       visible: true,
       title: i18n.t('profile.features.shoppingList'),

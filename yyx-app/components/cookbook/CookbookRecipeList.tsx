@@ -131,6 +131,8 @@ export function CookbookRecipeList({
         {isOwner && (
           <Pressable
             onPress={() => handleRemoveRecipe(item.id, item.name)}
+            accessibilityRole="button"
+            accessibilityLabel={i18n.t('cookbooks.a11y.removeFromCookbook')}
             className="p-xs ml-sm"
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >

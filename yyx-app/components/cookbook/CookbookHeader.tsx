@@ -16,7 +16,10 @@ interface CookbookHeaderProps {
   onDelete?: () => void;
 }
 
-export function CookbookHeader({ cookbook, onDelete }: CookbookHeaderProps) {
+export const CookbookHeader = React.memo(function CookbookHeader({
+  cookbook,
+  onDelete,
+}: CookbookHeaderProps) {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -90,6 +93,8 @@ export function CookbookHeader({ cookbook, onDelete }: CookbookHeaderProps) {
           {!cookbook.isDefault && (
             <Pressable
               onPress={() => setShowShareModal(true)}
+              accessibilityRole="button"
+              accessibilityLabel={i18n.t('cookbooks.a11y.shareCookbook')}
               className="bg-white/30 rounded-full p-sm active:bg-white/50"
             >
               <Ionicons name="share-outline" size={20} color="#2D2D2D" />
@@ -98,6 +103,8 @@ export function CookbookHeader({ cookbook, onDelete }: CookbookHeaderProps) {
 
           <Pressable
             onPress={() => setShowEditModal(true)}
+            accessibilityRole="button"
+            accessibilityLabel={i18n.t('cookbooks.a11y.editCookbook')}
             className="bg-white/30 rounded-full p-sm active:bg-white/50"
           >
             <Ionicons name="create-outline" size={20} color="#2D2D2D" />
@@ -106,6 +113,8 @@ export function CookbookHeader({ cookbook, onDelete }: CookbookHeaderProps) {
           {!cookbook.isDefault && (
             <Pressable
               onPress={handleDelete}
+              accessibilityRole="button"
+              accessibilityLabel={i18n.t('cookbooks.a11y.deleteCookbook')}
               className="bg-white/30 rounded-full p-sm active:bg-white/50"
             >
               <Ionicons name="trash-outline" size={20} color="#D83A3A" />
@@ -178,4 +187,4 @@ export function CookbookHeader({ cookbook, onDelete }: CookbookHeaderProps) {
       />
     </>
   );
-}
+});
