@@ -49,7 +49,10 @@ const RecipeDetail: React.FC = () => {
   // Only proceed with recipe fetch if we have a valid UUID
   const validId = id && isValidUUID(id as string) ? (id as string) : '';
   const { recipe, loading, error } = useRecipe(validId);
-  const { data: cookbooksContaining = [] } = useCookbooksContainingRecipe(validId);
+  const {
+    data: cookbooksContaining = [],
+    isLoading: loadingCookbooks,
+  } = useCookbooksContainingRecipe(validId);
 
   // Track recipe view when recipe loads successfully
   useEffect(() => {
@@ -135,7 +138,14 @@ const RecipeDetail: React.FC = () => {
                 className="mb-md"
               />
 
-              {user && cookbooksContaining.length > 0 && (
+              {user && loadingCookbooks && (
+                <View className="flex-row flex-wrap gap-xs mb-lg">
+                  <Ionicons name="book" size={16} color="#666" style={{ marginTop: 4 }} />
+                  <View className="bg-neutral-200 rounded-full h-6 w-20 animate-pulse" />
+                  <View className="bg-neutral-200 rounded-full h-6 w-24 animate-pulse" />
+                </View>
+              )}
+              {user && !loadingCookbooks && cookbooksContaining.length > 0 && (
                 <View className="flex-row flex-wrap gap-xs mb-lg">
                   <Ionicons name="book" size={16} color="#666" style={{ marginTop: 4 }} />
                   {cookbooksContaining.map((cookbook) => (

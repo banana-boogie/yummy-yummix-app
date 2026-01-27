@@ -101,6 +101,7 @@ export function useSharedCookbookQuery(shareToken: string) {
 /**
  * Hook to fetch cookbooks that contain a specific recipe
  * Returns minimal cookbook info for display on recipe detail page
+ * Optimized with single JOIN query instead of N+1 pattern
  */
 export function useCookbooksContainingRecipe(recipeId: string) {
   const { user } = useAuth();
@@ -112,15 +113,8 @@ export function useCookbooksContainingRecipe(recipeId: string) {
       if (!user?.id || !recipeId) {
         return [];
       }
-      const ids = await cookbookService.getCookbookIdsContainingRecipe(
-        user.id,
-        recipeId
-      );
-      if (ids.length === 0) return [];
-
-      // Fetch cookbook details for these IDs
-      const cookbooks = await cookbookService.getUserCookbooks(user.id);
-      return cookbooks.filter((cb) => ids.includes(cb.id));
+      // Use optimized single-query function
+      return await cookbookService.getCookbooksContainingRecipe(user.id, recipeId);
     },
     enabled: !!user?.id && !!recipeId,
     staleTime: 5 * 60 * 1000, // 5 minutes
