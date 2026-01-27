@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Pressable, Dimensions } from 'react-native';
+import { View, Pressable } from 'react-native';
 import { Text } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { Cookbook } from '@/types/cookbook.types';

@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS cookbooks (
   is_public BOOLEAN DEFAULT false,
   is_default BOOLEAN DEFAULT false,  -- true for auto-created "Favorites"
   share_token UUID DEFAULT gen_random_uuid(),
+  share_enabled BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -23,6 +24,7 @@ CREATE TABLE IF NOT EXISTS cookbooks (
 CREATE INDEX IF NOT EXISTS idx_cookbooks_user_id ON cookbooks(user_id);
 CREATE INDEX IF NOT EXISTS idx_cookbooks_share_token ON cookbooks(share_token);
 CREATE INDEX IF NOT EXISTS idx_cookbooks_is_public ON cookbooks(is_public);
+CREATE INDEX IF NOT EXISTS idx_cookbooks_share_enabled ON cookbooks(share_enabled);
 
 -- Ensure only one default cookbook per user
 CREATE UNIQUE INDEX IF NOT EXISTS idx_cookbooks_user_default
@@ -79,23 +81,18 @@ CREATE POLICY "Anyone can read public cookbooks"
   ON cookbooks FOR SELECT
   USING (is_public = true);
 
--- 3. Unauthenticated users can read cookbooks by share token
-CREATE POLICY "Anyone can read cookbooks by share token"
-  ON cookbooks FOR SELECT
-  USING (true);  -- They need to know the share_token to find it
-
--- 4. Users can insert their own cookbooks
+-- 3. Users can insert their own cookbooks
 CREATE POLICY "Users can insert own cookbooks"
   ON cookbooks FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
--- 5. Users can update their own cookbooks
+-- 4. Users can update their own cookbooks
 CREATE POLICY "Users can update own cookbooks"
   ON cookbooks FOR UPDATE
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
--- 6. Users can delete their own cookbooks (except default)
+-- 5. Users can delete their own cookbooks (except default)
 CREATE POLICY "Users can delete own cookbooks"
   ON cookbooks FOR DELETE
   USING (auth.uid() = user_id AND is_default = false);
@@ -123,12 +120,7 @@ CREATE POLICY "Anyone can read recipes in public cookbooks"
     )
   );
 
--- 3. Unauthenticated users can read recipes via share token
-CREATE POLICY "Anyone can read recipes in shared cookbooks"
-  ON cookbook_recipes FOR SELECT
-  USING (true);  -- Access is controlled by knowing the cookbook's share_token
-
--- 4. Users can insert recipes into their own cookbooks
+-- 3. Users can insert recipes into their own cookbooks
 CREATE POLICY "Users can insert recipes into own cookbooks"
   ON cookbook_recipes FOR INSERT
   WITH CHECK (
@@ -139,7 +131,7 @@ CREATE POLICY "Users can insert recipes into own cookbooks"
     )
   );
 
--- 5. Users can update recipes in their own cookbooks
+-- 4. Users can update recipes in their own cookbooks
 CREATE POLICY "Users can update recipes in own cookbooks"
   ON cookbook_recipes FOR UPDATE
   USING (
@@ -157,7 +149,7 @@ CREATE POLICY "Users can update recipes in own cookbooks"
     )
   );
 
--- 6. Users can delete recipes from their own cookbooks
+-- 5. Users can delete recipes from their own cookbooks
 CREATE POLICY "Users can delete recipes from own cookbooks"
   ON cookbook_recipes FOR DELETE
   USING (
@@ -181,13 +173,17 @@ BEGIN
   new_token := gen_random_uuid();
 
   UPDATE cookbooks
-  SET share_token = new_token, updated_at = NOW()
+  SET share_token = new_token, share_enabled = true, updated_at = NOW()
   WHERE id = cookbook_id
   AND user_id = auth.uid();
 
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Cookbook not found';
+  END IF;
+
   RETURN new_token;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- ============================================================================
 -- Comments for documentation
@@ -197,5 +193,6 @@ COMMENT ON TABLE cookbooks IS 'User-owned recipe collections';
 COMMENT ON TABLE cookbook_recipes IS 'Junction table linking recipes to cookbooks';
 COMMENT ON COLUMN cookbooks.is_default IS 'True for auto-created "Favorites" cookbook';
 COMMENT ON COLUMN cookbooks.share_token IS 'UUID token for sharing cookbook via link';
+COMMENT ON COLUMN cookbooks.share_enabled IS 'If true, sharing via link is enabled';
 COMMENT ON COLUMN cookbooks.is_public IS 'If true, cookbook is publicly discoverable';
 COMMENT ON COLUMN cookbook_recipes.display_order IS 'Order in which recipes appear in cookbook';

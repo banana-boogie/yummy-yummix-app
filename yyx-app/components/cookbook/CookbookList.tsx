@@ -27,6 +27,8 @@ export function CookbookList({
     const renderCreateCard = () => (
         <Pressable
             onPress={onCreatePress}
+            accessibilityRole="button"
+            accessibilityLabel={i18n.t('cookbooks.a11y.createNewCookbook')}
             className="rounded-lg border-2 border-dashed border-neutral-300 flex-1 mx-xs mb-md h-[160px] items-center justify-center bg-neutral-50 active:bg-neutral-100"
         >
             <View className="bg-white rounded-full p-sm shadow-sm mb-sm">

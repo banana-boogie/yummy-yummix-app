@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { PageLayout } from '@/components/layouts/PageLayout';
@@ -6,6 +6,7 @@ import { Text } from '@/components/common';
 import {
   CookbookList,
   CreateEditCookbookModal,
+  CookbookSortBar,
 } from '@/components/cookbook';
 import {
   useUserCookbooksQuery,
@@ -13,6 +14,7 @@ import {
 } from '@/hooks/useCookbookQuery';
 import { Cookbook, CreateCookbookInput } from '@/types/cookbook.types';
 import i18n from '@/i18n';
+import type { CookbookSortOption } from '@/components/cookbook/CookbookSortBar';
 
 export default function CookbooksScreen() {
   const router = useRouter();
@@ -20,6 +22,26 @@ export default function CookbooksScreen() {
   const createMutation = useCreateCookbook();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [sortBy, setSortBy] = useState<CookbookSortOption>('recent');
+
+  const sortedCookbooks = useMemo(() => {
+    const list = [...cookbooks];
+    return list.sort((a, b) => {
+      if (a.isDefault !== b.isDefault) {
+        return a.isDefault ? -1 : 1;
+      }
+      if (sortBy === 'mostRecipes') {
+        if (b.recipeCount !== a.recipeCount) {
+          return b.recipeCount - a.recipeCount;
+        }
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      if (sortBy === 'alphabetical') {
+        return a.name.localeCompare(b.name);
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [cookbooks, sortBy]);
 
   const handleCookbookPress = (cookbook: Cookbook) => {
     router.push(`/(tabs)/cookbooks/${cookbook.id}`);
@@ -53,8 +75,11 @@ export default function CookbooksScreen() {
       }
     >
       <View className="flex-1 bg-primary-lightest">
+        {cookbooks.length > 1 && (
+          <CookbookSortBar value={sortBy} onChange={setSortBy} />
+        )}
         <CookbookList
-          cookbooks={cookbooks}
+          cookbooks={sortedCookbooks}
           onCookbookPress={handleCookbookPress}
           onCreatePress={() => setShowCreateModal(true)}
           isLoading={isLoading}
