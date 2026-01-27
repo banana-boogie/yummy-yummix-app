@@ -62,7 +62,7 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
     }, []);
 
     // Validate payload structure for a mutation
-    const validatePayload = (mutation: PendingMutation): boolean => {
+    const validatePayload = useCallback((mutation: PendingMutation): boolean => {
         const { type, payload } = mutation;
 
         switch (type) {
@@ -90,10 +90,10 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
             default:
                 return false;
         }
-    };
+    }, []);
 
     // Execute a single mutation against the server
-    const executeMutation = async (mutation: PendingMutation): Promise<void> => {
+    const executeMutation = useCallback(async (mutation: PendingMutation): Promise<void> => {
         const { type, payload } = mutation;
 
         // Validate payload before execution
@@ -133,7 +133,7 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
             default:
                 console.warn(`Unknown mutation type: ${type}`);
         }
-    };
+    }, [validatePayload]);
 
     // Sync pending mutations
     const syncNow = useCallback(async () => {
@@ -166,7 +166,7 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
         } finally {
             setIsSyncing(false);
         }
-    }, [isSyncing, isOffline, toast, onSyncComplete, refreshPendingCount]);
+    }, [isSyncing, isOffline, toast, onSyncComplete, refreshPendingCount, executeMutation]);
 
     // Queue a mutation
     const queueMutation = useCallback(async <T extends MutationType>(type: T, payload: MutationPayloads[T]): Promise<string> => {

@@ -172,12 +172,13 @@ class MutationQueue {
                 this.onMutationProcessed?.(mutation, true);
             } catch (error) {
                 console.warn(`Failed to process mutation ${mutation.id}:`, error);
-                await this.incrementRetry(mutation.id);
 
-                // Remove mutations that have failed too many times
-                if (mutation.retryCount >= 3) {
+                // Check retry count BEFORE incrementing to ensure exactly 3 attempts
+                if (mutation.retryCount >= 2) {
                     console.warn(`Removing mutation ${mutation.id} after 3 failed attempts`);
                     await this.dequeue(mutation.id);
+                } else {
+                    await this.incrementRetry(mutation.id);
                 }
 
                 failedCount++;

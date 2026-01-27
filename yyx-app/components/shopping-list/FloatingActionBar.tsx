@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, Animated } from 'react-native';
+import { View, TouchableOpacity, Animated, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
@@ -14,8 +14,14 @@ interface FloatingActionBarProps {
     onDeleteAll: () => void;
     onCancel: () => void;
     onSelectAll: () => void;
+    onDeselectAll: () => void;
     hasCheckedItems: boolean;
     hasUncheckedItems: boolean;
+    // Loading states
+    isCheckingAll?: boolean;
+    isUncheckingAll?: boolean;
+    isDeletingAll?: boolean;
+    disabled?: boolean;
 }
 
 export function FloatingActionBar({
@@ -26,12 +32,19 @@ export function FloatingActionBar({
     onDeleteAll,
     onCancel,
     onSelectAll,
+    onDeselectAll,
     hasCheckedItems,
     hasUncheckedItems,
+    isCheckingAll = false,
+    isUncheckingAll = false,
+    isDeletingAll = false,
+    disabled = false,
 }: FloatingActionBarProps) {
     const insets = useSafeAreaInsets();
 
-    if (selectedCount === 0) return null;
+    const allSelected = selectedCount >= totalCount && totalCount > 0;
+    const isAnyLoading = isCheckingAll || isUncheckingAll || isDeletingAll;
+    const isDisabled = disabled || isAnyLoading;
 
     return (
         <Animated.View
@@ -54,38 +67,50 @@ export function FloatingActionBar({
                     onPress={onCancel}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     activeOpacity={0.7}
+                    disabled={isAnyLoading}
                 >
-                    <Ionicons name="close" size={24} color={COLORS.grey.medium} />
+                    <Ionicons name="close" size={24} color={isAnyLoading ? COLORS.grey.light : COLORS.grey.medium} />
                 </TouchableOpacity>
             </View>
 
             {/* Action buttons */}
             <View className="flex-row items-center justify-around py-sm px-md">
-                {/* Select All button - only show if not all items selected */}
-                {selectedCount < totalCount && (
-                    <TouchableOpacity
-                        onPress={onSelectAll}
-                        className="items-center px-md py-xs"
-                        activeOpacity={0.7}
-                    >
-                        <View className="w-10 h-10 rounded-full bg-primary-light items-center justify-center mb-xs">
-                            <Ionicons name="checkbox" size={22} color={COLORS.primary.darkest} />
-                        </View>
-                        <Text preset="caption" className="text-primary-darkest font-medium">
-                            {i18n.t('shoppingList.selectAll')}
-                        </Text>
-                    </TouchableOpacity>
-                )}
+                {/* Select All / Deselect All button */}
+                <TouchableOpacity
+                    onPress={allSelected ? onDeselectAll : onSelectAll}
+                    className={`items-center px-md py-xs ${isDisabled ? 'opacity-50' : ''}`}
+                    activeOpacity={0.7}
+                    disabled={isDisabled}
+                >
+                    <View className="w-10 h-10 rounded-full bg-primary-light items-center justify-center mb-xs">
+                        <Ionicons
+                            name={allSelected ? 'square-outline' : 'checkbox'}
+                            size={22}
+                            color={COLORS.primary.darkest}
+                        />
+                    </View>
+                    <Text preset="caption" className="text-primary-darkest font-medium">
+                        {allSelected
+                            ? i18n.t('shoppingList.deselectAll')
+                            : i18n.t('shoppingList.selectAll')
+                        }
+                    </Text>
+                </TouchableOpacity>
 
                 {/* Check All button */}
                 {hasUncheckedItems && (
                     <TouchableOpacity
                         onPress={onCheckAll}
-                        className="items-center px-md py-xs"
+                        className={`items-center px-md py-xs ${isDisabled ? 'opacity-50' : ''}`}
                         activeOpacity={0.7}
+                        disabled={isDisabled}
                     >
                         <View className="w-10 h-10 rounded-full bg-status-success/10 items-center justify-center mb-xs">
-                            <Ionicons name="checkmark-done" size={22} color={COLORS.status.success} />
+                            {isCheckingAll ? (
+                                <ActivityIndicator size="small" color={COLORS.status.success} />
+                            ) : (
+                                <Ionicons name="checkmark-done" size={22} color={COLORS.status.success} />
+                            )}
                         </View>
                         <Text preset="caption" className="text-status-success font-medium">
                             {i18n.t('shoppingList.batchCheck')}
@@ -97,11 +122,16 @@ export function FloatingActionBar({
                 {hasCheckedItems && (
                     <TouchableOpacity
                         onPress={onUncheckAll}
-                        className="items-center px-md py-xs"
+                        className={`items-center px-md py-xs ${isDisabled ? 'opacity-50' : ''}`}
                         activeOpacity={0.7}
+                        disabled={isDisabled}
                     >
                         <View className="w-10 h-10 rounded-full bg-grey-light items-center justify-center mb-xs">
-                            <Ionicons name="refresh" size={22} color={COLORS.grey.dark} />
+                            {isUncheckingAll ? (
+                                <ActivityIndicator size="small" color={COLORS.grey.dark} />
+                            ) : (
+                                <Ionicons name="refresh" size={22} color={COLORS.grey.dark} />
+                            )}
                         </View>
                         <Text preset="caption" className="text-grey-dark font-medium">
                             {i18n.t('shoppingList.batchUncheck')}
@@ -112,11 +142,16 @@ export function FloatingActionBar({
                 {/* Delete All button */}
                 <TouchableOpacity
                     onPress={onDeleteAll}
-                    className="items-center px-md py-xs"
+                    className={`items-center px-md py-xs ${isDisabled ? 'opacity-50' : ''}`}
                     activeOpacity={0.7}
+                    disabled={isDisabled}
                 >
                     <View className="w-10 h-10 rounded-full bg-status-error/10 items-center justify-center mb-xs">
-                        <Ionicons name="trash" size={22} color={COLORS.status.error} />
+                        {isDeletingAll ? (
+                            <ActivityIndicator size="small" color={COLORS.status.error} />
+                        ) : (
+                            <Ionicons name="trash" size={22} color={COLORS.status.error} />
+                        )}
                     </View>
                     <Text preset="caption" className="text-status-error font-medium">
                         {i18n.t('shoppingList.batchDelete')}
