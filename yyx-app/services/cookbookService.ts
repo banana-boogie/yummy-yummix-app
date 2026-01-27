@@ -156,50 +156,69 @@ async function getCookbookById(cookbookId: string): Promise<CookbookWithRecipes>
 
 /**
  * Get a cookbook by share token (for unauthenticated users)
+ * Uses SECURITY DEFINER function to bypass RLS in a controlled manner
  */
 async function getCookbookByShareToken(
   shareToken: string
 ): Promise<CookbookWithRecipes> {
-  const { data, error } = await supabase
-    .from('cookbooks')
-    .select(
-      `
-      *,
-      cookbook_recipes(
-        *,
-        recipes(
-          id,
-          name_en,
-          name_es,
-          description_en,
-          description_es,
-          image_url,
-          prep_time_minutes,
-          cook_time_minutes,
-          servings,
-          difficulty
-        )
-      )
-    `
-    )
-    .eq('share_token', shareToken)
-    .single();
+  // Call the SECURITY DEFINER function to get cookbook data
+  const { data: cookbookData, error: cookbookError } = await supabase.rpc(
+    'get_cookbook_by_share_token',
+    { p_share_token: shareToken }
+  );
 
-  if (error) {
-    console.error('Error fetching shared cookbook:', error);
-    throw new Error(error.message);
+  if (cookbookError) {
+    console.error('Error fetching shared cookbook:', cookbookError);
+    throw new Error(cookbookError.message);
   }
 
-  if (!data) {
+  if (!cookbookData || cookbookData.length === 0) {
     throw new Error('Cookbook not found');
   }
 
-  // Check if cookbook is accessible (public or has valid token)
-  if (!data.is_public && !shareToken) {
-    throw new Error('This cookbook is private');
+  const cookbook = cookbookData[0];
+
+  // Call the SECURITY DEFINER function to get cookbook recipes
+  const { data: recipesData, error: recipesError } = await supabase.rpc(
+    'get_cookbook_recipes_by_share_token',
+    { p_share_token: shareToken }
+  );
+
+  if (recipesError) {
+    console.error('Error fetching shared cookbook recipes:', recipesError);
+    throw new Error(recipesError.message);
   }
 
-  return transformCookbookWithRecipes(data);
+  // Transform the data to match the expected format
+  const transformedRecipes = (recipesData || []).map((item: any) => ({
+    id: item.cookbook_recipe_id,
+    cookbook_id: item.cookbook_id,
+    recipe_id: item.recipe_id,
+    notes_en: item.notes_en,
+    notes_es: item.notes_es,
+    display_order: item.display_order,
+    added_at: item.added_at,
+    recipes: {
+      id: item.recipe_id,
+      name_en: item.recipe_name_en,
+      name_es: item.recipe_name_es,
+      description_en: item.recipe_description_en,
+      description_es: item.recipe_description_es,
+      image_url: item.recipe_image_url,
+      prep_time_minutes: item.recipe_prep_time_minutes,
+      cook_time_minutes: item.recipe_cook_time_minutes,
+      servings: item.recipe_servings,
+      difficulty: item.recipe_difficulty,
+    },
+  }));
+
+  // Reconstruct the data structure
+  const reconstructedData = {
+    ...cookbook,
+    cookbook_recipes: transformedRecipes,
+  };
+
+  return transformCookbookWithRecipes(reconstructedData);
 }
 
 /**
