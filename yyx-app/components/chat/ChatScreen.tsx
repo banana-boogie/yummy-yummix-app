@@ -86,7 +86,7 @@ interface Props {
 }
 
 // Animated typing dots component
-function TypingDots() {
+const TypingDots = React.memo(function TypingDots() {
     const dot1 = useRef(new Animated.Value(0)).current;
     const dot2 = useRef(new Animated.Value(0)).current;
     const dot3 = useRef(new Animated.Value(0)).current;
@@ -96,6 +96,7 @@ function TypingDots() {
             return Animated.loop(
                 Animated.sequence([
                     Animated.delay(delay),
+                    // Bounce up 4px over 200ms, then back down
                     Animated.timing(dot, { toValue: -4, duration: 200, useNativeDriver: true }),
                     Animated.timing(dot, { toValue: 0, duration: 200, useNativeDriver: true }),
                 ])
@@ -110,7 +111,8 @@ function TypingDots() {
 
         animations.forEach(anim => anim.start());
         return () => animations.forEach(anim => anim.stop());
-    }, [dot1, dot2, dot3]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Animated.Value refs are stable, no need to include in deps
 
     return (
         <View className="flex-row items-center ml-sm gap-1">
@@ -119,7 +121,7 @@ function TypingDots() {
             <Animated.View className="w-2 h-2 bg-grey-medium rounded-full" style={{ transform: [{ translateY: dot3 }] }} />
         </View>
     );
-}
+});
 
 export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Props) {
     const { user } = useAuth();
@@ -495,7 +497,7 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
 
                 {/* Token count (dev mode only) */}
                 {__DEV__ && item.content && (
-                    <Text className="text-xs text-gray-400 mt-xs self-start">
+                    <Text className="text-xs text-grey-medium mt-xs self-start">
                         ~{Math.floor(item.content.length / 4)} tokens
                     </Text>
                 )}
