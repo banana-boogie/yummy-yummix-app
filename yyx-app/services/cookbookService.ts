@@ -29,6 +29,7 @@ interface SharedCookbookRpcResponse {
   is_public: boolean;
   is_default: boolean;
   share_token: string;
+  share_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -63,9 +64,6 @@ interface CookbookWithRecipeCountResponse extends CookbookApiResponse {
   total_recipes: Array<{ count: number }>;
 }
 
-// Helper function to get current language suffix
-const getLangSuffix = () => `_${i18n.locale}`;
-
 // ============================================================================
 // Transformation Functions
 // ============================================================================
@@ -75,16 +73,23 @@ const getLangSuffix = () => `_${i18n.locale}`;
  */
 function transformCookbook(raw: CookbookApiResponse, recipeCount = 0): Cookbook {
   const lang = i18n.locale;
+  const isDefault = raw.is_default;
+  const name =
+    isDefault && lang === 'es' && raw.name_es
+      ? raw.name_es
+      : raw.name_en || raw.name_es || '';
+  const description =
+    isDefault && lang === 'es' && raw.description_es
+      ? raw.description_es
+      : raw.description_en || raw.description_es || undefined;
   return {
     id: raw.id,
     userId: raw.user_id,
-    name: lang === 'es' && raw.name_es ? raw.name_es : raw.name_en,
-    description:
-      lang === 'es' && raw.description_es
-        ? raw.description_es
-        : raw.description_en || undefined,
+    name,
+    description,
     isPublic: raw.is_public,
     isDefault: raw.is_default,
+    shareEnabled: raw.share_enabled,
     shareToken: raw.share_token,
     recipeCount,
     createdAt: raw.created_at,
@@ -114,7 +119,7 @@ function transformCookbookWithRecipes(
     cookTimeMinutes: cr.recipes.cook_time_minutes || undefined,
     servings: cr.recipes.servings || undefined,
     difficulty: cr.recipes.difficulty || undefined,
-    notes: lang === 'es' && cr.notes_es ? cr.notes_es : cr.notes_en || undefined,
+    notes: cr.notes_en || cr.notes_es || undefined,
     displayOrder: cr.display_order,
     addedAt: cr.added_at,
     cookbookRecipeId: cr.id,
@@ -213,7 +218,8 @@ async function getCookbookByShareToken(
   shareToken: string
 ): Promise<CookbookWithRecipes> {
   // Input validation - fail fast for invalid tokens
-  if (!shareToken || shareToken.trim().length === 0) {
+  const trimmedToken = shareToken?.trim();
+  if (!trimmedToken || trimmedToken.length === 0) {
     throw new Error('Share token is required');
   }
 
@@ -221,7 +227,7 @@ async function getCookbookByShareToken(
   // This bypasses RLS but only returns the specific cookbook matching the token
   const { data: cookbookData, error: cookbookError } = await supabase.rpc(
     'get_cookbook_by_share_token',
-    { p_share_token: shareToken }
+    { p_share_token: trimmedToken }
   );
 
   if (cookbookError) {
@@ -241,7 +247,7 @@ async function getCookbookByShareToken(
   // Returns flattened rows with both junction table and recipe data
   const { data: recipesData, error: recipesError } = await supabase.rpc(
     'get_cookbook_recipes_by_share_token',
-    { p_share_token: shareToken }
+    { p_share_token: trimmedToken }
   );
 
   if (recipesError) {
@@ -329,6 +335,7 @@ async function updateCookbook(
     description_en: string | null;
     description_es: string | null;
     is_public: boolean;
+    share_enabled: boolean;
   }> = {};
 
   if (input.nameEn !== undefined) updateData.name_en = input.nameEn;
@@ -338,6 +345,8 @@ async function updateCookbook(
   if (input.descriptionEs !== undefined)
     updateData.description_es = input.descriptionEs;
   if (input.isPublic !== undefined) updateData.is_public = input.isPublic;
+  if (input.shareEnabled !== undefined)
+    updateData.share_enabled = input.shareEnabled;
 
   const { error } = await supabase
     .from('cookbooks')
@@ -564,7 +573,7 @@ async function regenerateShareToken(cookbookId: string): Promise<string> {
     const newToken = crypto.randomUUID();
     const { error: updateError } = await supabase
       .from('cookbooks')
-      .update({ share_token: newToken })
+      .update({ share_token: newToken, share_enabled: true })
       .eq('id', cookbookId);
 
     if (updateError) {

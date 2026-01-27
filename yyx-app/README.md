@@ -56,6 +56,7 @@ Create a `.env` file in the root directory with the following variables:
 EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 EXPO_PUBLIC_OPENAI_KEY=your_openai_key
+EXPO_PUBLIC_APP_URL=https://yummyyummix.com
 ```
 
 > **Note**: Regarding environment variables security:
@@ -157,5 +158,4 @@ Our database schema is managed through Supabase and SQL migration files located 
 - MAJOR: Breaking changes
 - MINOR: New features
 - PATCH: Bug fixes
-
 

@@ -203,6 +203,10 @@ const translations = {
           medium: 'Medium',
           hard: 'Hard'
         },
+        time: {
+          minutesShort: '{{count}}m',
+          hoursShort: '{{count}}h',
+        },
         emptyState: 'No recipes found',
         noRecipesFound: 'No recipes found',
       },
@@ -301,6 +305,10 @@ const translations = {
       shareLink: 'Share Link',
       sharePublicInfo: 'This cookbook is public. Anyone can find and view it.',
       sharePrivateInfo: 'This cookbook is private. Only people with this link can view it.',
+      shareEnabled: 'Share link',
+      shareEnabledDescription: 'Let anyone with the link view this cookbook',
+      shareDisabledInfo: 'Sharing is off. Turn it on to generate a link.',
+      shareDisabledPlaceholder: 'Enable sharing to generate a link',
       publicLabel: 'Public',
       privateLabel: 'Private',
       regenerateLink: 'Regenerate Link',
@@ -324,6 +332,13 @@ const translations = {
         nameTooShort: 'Name must be at least {{min}} characters',
         nameTooLong: 'Name must be at most {{max}} characters',
         descriptionTooLong: 'Description must be at most {{max}} characters',
+      },
+      sort: {
+        label: 'Sort by',
+        recent: 'Recently added',
+        mostRecipes: 'Most recipes',
+        alphabetical: 'A-Z',
+        customOrder: 'Custom order',
       },
       a11y: {
         openCookbook: 'Open {{name}} cookbook, {{count}}',
@@ -1145,6 +1160,10 @@ const translations = {
           medium: 'Medio',
           hard: 'Difícil'
         },
+        time: {
+          minutesShort: '{{count}} min',
+          hoursShort: '{{count}} h',
+        },
         emptyState: 'No se encontraron recetas'
       },
       detail: {
@@ -1243,6 +1262,10 @@ const translations = {
       shareLink: 'Compartir Enlace',
       sharePublicInfo: 'Este recetario es público. Cualquiera puede encontrarlo y verlo.',
       sharePrivateInfo: 'Este recetario es privado. Solo las personas con este enlace pueden verlo.',
+      shareEnabled: 'Enlace para compartir',
+      shareEnabledDescription: 'Permite que cualquiera con el enlace vea este recetario',
+      shareDisabledInfo: 'Compartir está desactivado. Actívalo para generar un enlace.',
+      shareDisabledPlaceholder: 'Activa compartir para generar un enlace',
       publicLabel: 'Público',
       privateLabel: 'Privado',
       regenerateLink: 'Regenerar Enlace',
@@ -1266,6 +1289,13 @@ const translations = {
         nameTooShort: 'El nombre debe tener al menos {{min}} caracteres',
         nameTooLong: 'El nombre debe tener como máximo {{max}} caracteres',
         descriptionTooLong: 'La descripción debe tener como máximo {{max}} caracteres',
+      },
+      sort: {
+        label: 'Ordenar por',
+        recent: 'Agregadas recientemente',
+        mostRecipes: 'Más recetas',
+        alphabetical: 'A-Z',
+        customOrder: 'Orden personalizado',
       },
       a11y: {
         openCookbook: 'Abrir recetario {{name}}, {{count}}',
