@@ -46,7 +46,7 @@ export function ChatRecipeCard({ recipe }: ChatRecipeCardProps) {
     return (
         <TouchableOpacity
             onPress={handlePress}
-            className="bg-white rounded-lg overflow-hidden shadow-sm border border-border-default mb-sm"
+            className="w-full bg-white rounded-lg overflow-hidden shadow-sm border border-border-default mb-sm"
             activeOpacity={0.7}
         >
             <View className="flex-row">

@@ -153,9 +153,15 @@ export function streamChatMessageWithHandle(
 
     void (async () => {
         let retryCount = 0;
+        let connectionError: Error | null = null;
+        let hasReceivedData = false;
 
         // Retry loop with exponential backoff
         while (retryCount <= MAX_RETRIES) {
+            // Reset for each retry
+            connectionError = null;
+            hasReceivedData = false;
+
             try {
                 // Validate message length
                 if (message.length > MAX_MESSAGE_LENGTH) {
@@ -176,16 +182,14 @@ export function streamChatMessageWithHandle(
 
                 if (retryCount > 0) {
                     const backoffMs = Math.pow(2, retryCount) * 1000;
-                    console.log(`[SSE] Retrying connection (attempt ${retryCount}/${MAX_RETRIES}) after ${backoffMs}ms...`);
+                    if (__DEV__) console.log(`[SSE] Retrying connection (attempt ${retryCount}/${MAX_RETRIES}) after ${backoffMs}ms...`);
                     await new Promise(r => setTimeout(r, backoffMs));
                     if (finished) return;
                 }
 
-                console.log('[SSE] Starting stream request to orchestrator...');
+                if (__DEV__) console.log('[SSE] Starting stream request to orchestrator...');
 
                 let chunkCount = 0;
-                let hasReceivedData = false;
-                let connectionError: Error | null = null;
 
                 const safeResolve = () => {
                     if (finished) return;
@@ -234,7 +238,7 @@ export function streamChatMessageWithHandle(
 
                     // Set timeout to prevent hanging streams
                     timeoutId = setTimeout(() => {
-                        console.error('[SSE] Stream timeout after', STREAM_TIMEOUT_MS, 'ms');
+                        if (__DEV__) console.error('[SSE] Stream timeout after', STREAM_TIMEOUT_MS, 'ms');
                         es?.close();
                         const timeoutError = new Error(i18n.t('chat.error.timeout', { seconds: STREAM_TIMEOUT_MS / 1000 }));
                         safeReject(timeoutError);
@@ -242,7 +246,7 @@ export function streamChatMessageWithHandle(
                     }, STREAM_TIMEOUT_MS);
 
                     es.addEventListener('open', () => {
-                        console.log('[SSE] Connection opened');
+                        if (__DEV__) console.log('[SSE] Connection opened');
                     });
 
                     es.addEventListener('message', (event: any) => {
@@ -251,7 +255,7 @@ export function streamChatMessageWithHandle(
 
                         try {
                             const json = JSON.parse(event.data);
-                            console.log('[SSE] Event type:', json.type);
+                            if (__DEV__) console.log('[SSE] Event type:', json.type);
 
                             switch (json.type) {
                                 case 'session':
@@ -274,7 +278,7 @@ export function streamChatMessageWithHandle(
                                     break;
 
                                 case 'done':
-                                    console.log('[SSE] Stream complete, chunks received:', chunkCount);
+                                    if (__DEV__) console.log('[SSE] Stream complete, chunks received:', chunkCount);
                                     if (json.response) {
                                         onComplete?.(json.response as IrmixyResponse);
                                     }
@@ -284,7 +288,7 @@ export function streamChatMessageWithHandle(
                                     break;
 
                                 case 'error':
-                                    console.error('[SSE] Server error:', json.error);
+                                    if (__DEV__) console.error('[SSE] Server error:', json.error);
                                     es?.close();
                                     const serverError = new Error(json.error || 'Unknown streaming error');
                                     safeReject(serverError);
@@ -292,13 +296,13 @@ export function streamChatMessageWithHandle(
                                     break;
                             }
                         } catch (e) {
-                            console.error('[SSE] Parse error:', e);
+                            if (__DEV__) console.error('[SSE] Parse error:', e);
                             // Don't reject on parse errors - continue processing
                         }
                     });
 
                     es.addEventListener('error', (event: any) => {
-                        console.error('[SSE] Connection error:', event, 'hasReceivedData:', hasReceivedData);
+                        if (__DEV__) console.error('[SSE] Connection error:', event, 'hasReceivedData:', hasReceivedData);
                         es?.close();
                         connectionError = new Error(event.message || 'SSE connection failed');
                         rejectConnection(connectionError);
@@ -314,7 +318,7 @@ export function streamChatMessageWithHandle(
                 // Only retry on connection errors if no data was received
                 if (connectionError && !hasReceivedData && retryCount < MAX_RETRIES) {
                     retryCount++;
-                    console.log(`[SSE] Will retry after backoff (attempt ${retryCount}/${MAX_RETRIES})`);
+                    if (__DEV__) console.log(`[SSE] Will retry after backoff (attempt ${retryCount}/${MAX_RETRIES})`);
                     continue; // Retry the while loop
                 }
 
@@ -338,7 +342,7 @@ export function streamChatMessageWithHandle(
             clearTimeout(timeoutId);
             timeoutId = null;
         }
-        console.log('[SSE] Stream cancelled by client');
+        if (__DEV__) console.log('[SSE] Stream cancelled by client');
         es?.close();
         resolveDone();
     };
@@ -384,4 +388,55 @@ export async function loadChatSessions(): Promise<{ id: string; title: string; c
         title: session.title || i18n.t('chat.newChatTitle'),
         createdAt: new Date(session.created_at),
     }));
+}
+
+/**
+ * Get the most recent chat session that has messages.
+ * Returns null if no session exists or the last session has no messages.
+ */
+export async function getLastSessionWithMessages(): Promise<{
+    sessionId: string;
+    messageCount: number;
+    lastMessageAt: Date;
+} | null> {
+    // Get most recent session
+    const { data: sessions, error: sessionError } = await supabase
+        .from('user_chat_sessions')
+        .select('id, created_at')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+    if (sessionError || !sessions || sessions.length === 0) {
+        return null;
+    }
+
+    const session = sessions[0];
+
+    // Check if this session has messages
+    const { data: messages, error: msgError } = await supabase
+        .from('user_chat_messages')
+        .select('id, created_at')
+        .eq('session_id', session.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+    if (msgError || !messages || messages.length === 0) {
+        return null;
+    }
+
+    // Get total message count
+    const { count, error: countError } = await supabase
+        .from('user_chat_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('session_id', session.id);
+
+    if (countError) {
+        return null;
+    }
+
+    return {
+        sessionId: session.id,
+        messageCount: count || 0,
+        lastMessageAt: new Date(messages[0].created_at),
+    };
 }

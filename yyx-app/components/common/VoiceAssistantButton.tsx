@@ -8,7 +8,7 @@ import type { RecipeContext, QuotaInfo } from '@/services/voice/types';
 
 interface VoiceAssistantButtonProps {
     recipeContext?: RecipeContext;
-    position?: 'bottom-right' | 'bottom-center' | 'inline';
+    position?: 'bottom-right' | 'bottom-center' | 'inline' | 'top-right';
     size?: 'small' | 'medium' | 'large';
 }
 
@@ -55,19 +55,8 @@ export function VoiceAssistantButton({
         }
 
         if (status === 'idle') {
-            // Show quota before starting
-            if (quotaInfo) {
-                Alert.alert(
-                    'Start Voice Chat',
-                    `You have ${quotaInfo.remainingMinutes.toFixed(1)} of ${quotaInfo.quotaLimit} minutes remaining this month.`,
-                    [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Start', onPress: () => startConversation() }
-                    ]
-                );
-            } else {
-                await startConversation();
-            }
+            // Start conversation directly without popup (quota warnings handled via onQuotaWarning callback)
+            await startConversation();
         } else {
             stopConversation();
         }
@@ -86,6 +75,7 @@ export function VoiceAssistantButton({
     const positionStyles = {
         'bottom-right': 'absolute bottom-6 right-6',
         'bottom-center': 'absolute bottom-6 self-center',
+        'top-right': 'absolute top-4 right-4',
         'inline': ''
     };
 

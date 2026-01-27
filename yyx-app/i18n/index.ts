@@ -906,11 +906,17 @@ const translations = {
         tellMeAboutRecipe: 'Tell me about {{recipeName}}',
       },
       messageCopied: 'Message copied to clipboard',
+      resumeSession: {
+        title: 'Resume Conversation?',
+        message: 'You have a previous conversation. Would you like to continue where you left off?',
+        resume: 'Resume',
+        startNew: 'Start New',
+      },
     },
   },
   es: {
     common: {
-      english: 'Inglés',
+      english: 'English',
       spanish: 'Español',
       ingredients: 'Ingredientes',
       minutesShort: 'min',
@@ -1809,6 +1815,12 @@ const translations = {
         tellMeAboutRecipe: 'Cuéntame sobre {{recipeName}}',
       },
       messageCopied: 'Mensaje copiado al portapapeles',
+      resumeSession: {
+        title: '¿Continuar conversación?',
+        message: 'Tienes una conversación anterior. ¿Te gustaría continuar donde lo dejaste?',
+        resume: 'Continuar',
+        startNew: 'Nueva',
+      },
     },
   }
 };

@@ -87,6 +87,8 @@ export default function CookingStep() {
                 </View>
             </PageLayout>
             <VoiceAssistantButton
+                position="top-right"
+                size="small"
                 recipeContext={{
                     type: 'cooking',
                     recipeId: id as string,

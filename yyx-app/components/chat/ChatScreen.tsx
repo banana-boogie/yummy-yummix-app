@@ -16,7 +16,7 @@ import { SuggestionChips } from '@/components/chat/SuggestionChips';
 import { IrmixyAvatar } from '@/components/chat/IrmixyAvatar';
 import { ChatRecipeCard } from '@/components/chat/ChatRecipeCard';
 import { ChatRecipeCardSkeleton } from '@/components/chat/ChatRecipeCardSkeleton';
-import { ChatMessage, IrmixyStatus, SuggestionChip } from '@/services/chatService';
+import { ChatMessage, IrmixyStatus, SuggestionChip, getLastSessionWithMessages, loadChatHistory } from '@/services/chatService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -144,6 +144,7 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
     const [currentStatus, setCurrentStatus] = useState<IrmixyStatus>(null);
     const [dynamicSuggestions, setDynamicSuggestions] = useState<SuggestionChip[] | null>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
+    const [hasCheckedResume, setHasCheckedResume] = useState(false);
 
     useEffect(() => {
         return () => {
@@ -160,6 +161,50 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
     useEffect(() => {
         setDynamicSuggestions(null);
     }, [language]);
+
+    // Check for resumable session on mount (only if no initial session provided)
+    useEffect(() => {
+        if (hasCheckedResume || initialSessionId || !user) return;
+
+        const checkResumableSession = async () => {
+            try {
+                const lastSession = await getLastSessionWithMessages();
+                if (lastSession && lastSession.messageCount > 0) {
+                    Alert.alert(
+                        i18n.t('chat.resumeSession.title'),
+                        i18n.t('chat.resumeSession.message'),
+                        [
+                            {
+                                text: i18n.t('chat.resumeSession.startNew'),
+                                style: 'cancel',
+                            },
+                            {
+                                text: i18n.t('chat.resumeSession.resume'),
+                                onPress: async () => {
+                                    try {
+                                        const history = await loadChatHistory(lastSession.sessionId);
+                                        if (isMountedRef.current) {
+                                            setMessages(history);
+                                            setCurrentSessionId(lastSession.sessionId);
+                                            onSessionCreated?.(lastSession.sessionId);
+                                        }
+                                    } catch (err) {
+                                        if (__DEV__) console.error('Failed to load chat history:', err);
+                                    }
+                                },
+                            },
+                        ]
+                    );
+                }
+            } catch (err) {
+                if (__DEV__) console.error('Failed to check resumable session:', err);
+            } finally {
+                setHasCheckedResume(true);
+            }
+        };
+
+        checkResumableSession();
+    }, [hasCheckedResume, initialSessionId, user, onSessionCreated]);
 
     const scrollToEndThrottled = useCallback((animated: boolean) => {
         // Only auto-scroll if user is near bottom (prevents interrupting reading)
@@ -184,9 +229,9 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
     // Use dynamic suggestions if available, otherwise fallback to initial
     const currentSuggestions = dynamicSuggestions || initialSuggestions;
 
-    // Show suggestions only when chat is empty or after AI response
+    // Show suggestions only when chat is empty OR when AI explicitly provides suggestions
     const showSuggestions = messages.length === 0 ||
-        (messages.length > 0 && messages[messages.length - 1]?.role === 'assistant' && !isLoading);
+        (dynamicSuggestions && dynamicSuggestions.length > 0 && !isLoading);
 
     const buildRecipeSuggestions = useCallback((recipes: Array<{ name: string }>): SuggestionChip[] => {
         if (!recipes || recipes.length === 0) {
@@ -458,7 +503,7 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
                 Alert.alert(i18n.t('common.copied'), i18n.t('chat.messageCopied'));
             }
         } catch (error) {
-            console.error('Failed to copy message:', error);
+            if (__DEV__) console.error('Failed to copy message:', error);
         }
     }, []);
 
@@ -568,7 +613,7 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
             {showScrollButton && (
                 <TouchableOpacity
                     onPress={handleScrollToBottom}
-                    className="absolute right-4 bottom-32 bg-primary-default rounded-full p-3 shadow-lg"
+                    className="absolute right-4 bottom-40 z-50 bg-primary-default rounded-full p-3 shadow-lg"
                     style={{ elevation: 4 }}
                 >
                     <MaterialCommunityIcons name="chevron-double-down" size={24} color="white" />
