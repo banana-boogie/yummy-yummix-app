@@ -151,12 +151,25 @@ supabase functions deploy <name> # Deploy edge function
 ```
 
 ### Running Tests
+
+**Frontend (yyx-app/)**
 ```bash
-cd yyx-app
 npm test                          # Run all tests (watch mode)
-npx jest path/to/test --watch    # Run specific test file
-npx jest -t "test name"          # Run tests matching pattern
+npm run test:ci                   # Run tests once with coverage (CI mode)
+npm run test:coverage             # Generate coverage report
+npx jest path/to/test             # Run specific test file
+npx jest -t "test name"           # Run tests matching pattern
 ```
+
+**Backend (yyx-server/)**
+```bash
+deno task test                    # Run all Deno unit tests
+deno task test:watch              # Run tests in watch mode
+deno task test:coverage           # Run with coverage
+deno task test:integration        # Run integration tests (requires staging env)
+```
+
+For detailed testing documentation, see [TESTING.md](./TESTING.md).
 
 ---
 

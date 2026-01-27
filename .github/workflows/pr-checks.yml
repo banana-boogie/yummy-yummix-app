@@ -1,0 +1,188 @@
+# Pull Request Checks
+#
+# Runs on all pull requests to main/develop branches.
+# Provides additional validation beyond the app/server CI workflows.
+#
+# Jobs:
+# 1. pr-info: Outputs PR information and checks
+# 2. size-check: Warns if PR is too large
+#
+# FOR AI AGENTS:
+# - This workflow runs on ALL PRs regardless of changed files
+# - Use for cross-cutting concerns that apply to the whole repo
+# - Keeps PR-specific checks separate from code-specific CI
+
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  # ============================================================
+  # PR INFORMATION
+  # ============================================================
+  pr-info:
+    name: PR Information
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: PR Summary
+        run: |
+          echo "## 📋 Pull Request Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Title:** ${{ github.event.pull_request.title }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Author:** @${{ github.event.pull_request.user.login }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Base Branch:** ${{ github.base_ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Head Branch:** ${{ github.head_ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+      - name: Count changed files
+        id: changes
+        run: |
+          # Get changed file counts by directory
+          total=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | wc -l)
+          app_count=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'yyx-app/' | wc -l)
+          server_count=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'yyx-server/' | wc -l)
+          docs_count=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- '*.md' 'docs/' | wc -l)
+
+          echo "total=$total" >> $GITHUB_OUTPUT
+          echo "app=$app_count" >> $GITHUB_OUTPUT
+          echo "server=$server_count" >> $GITHUB_OUTPUT
+          echo "docs=$docs_count" >> $GITHUB_OUTPUT
+
+          echo "### 📁 Changed Files" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Area | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| yyx-app | $app_count |" >> $GITHUB_STEP_SUMMARY
+          echo "| yyx-server | $server_count |" >> $GITHUB_STEP_SUMMARY
+          echo "| Documentation | $docs_count |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Total** | **$total** |" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================
+  # SIZE CHECK
+  # ============================================================
+  size-check:
+    name: PR Size Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check PR size
+        id: size
+        run: |
+          changed_files=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | wc -l)
+          added_lines=$(git diff --stat origin/${{ github.base_ref }}...HEAD | tail -1 | awk '{print $4}' | tr -d ',')
+          deleted_lines=$(git diff --stat origin/${{ github.base_ref }}...HEAD | tail -1 | awk '{print $6}' | tr -d ',')
+
+          # Default to 0 if empty
+          added_lines=${added_lines:-0}
+          deleted_lines=${deleted_lines:-0}
+
+          echo "changed_files=$changed_files" >> $GITHUB_OUTPUT
+          echo "added_lines=$added_lines" >> $GITHUB_OUTPUT
+          echo "deleted_lines=$deleted_lines" >> $GITHUB_OUTPUT
+
+          # Determine size category
+          if [ $changed_files -gt 50 ] || [ $added_lines -gt 1000 ]; then
+            echo "size=large" >> $GITHUB_OUTPUT
+            echo "⚠️ **Large PR detected**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- Changed files: $changed_files" >> $GITHUB_STEP_SUMMARY
+            echo "- Lines added: $added_lines" >> $GITHUB_STEP_SUMMARY
+            echo "- Lines deleted: $deleted_lines" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Consider breaking this into smaller PRs for easier review." >> $GITHUB_STEP_SUMMARY
+          elif [ $changed_files -gt 20 ] || [ $added_lines -gt 400 ]; then
+            echo "size=medium" >> $GITHUB_OUTPUT
+            echo "📦 **Medium PR**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- Changed files: $changed_files" >> $GITHUB_STEP_SUMMARY
+            echo "- Lines added: $added_lines" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "size=small" >> $GITHUB_OUTPUT
+            echo "✅ **Small PR** - Good size for review!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- Changed files: $changed_files" >> $GITHUB_STEP_SUMMARY
+            echo "- Lines added: $added_lines" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Comment on large PRs
+        if: steps.size.outputs.size == 'large'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `### ⚠️ Large Pull Request Detected
+
+            This PR modifies **${{ steps.size.outputs.changed_files }}** files with **${{ steps.size.outputs.added_lines }}** additions.
+
+            Large PRs are harder to review and more likely to introduce bugs. Consider:
+            - Breaking this into smaller, focused PRs
+            - Separating refactoring from feature changes
+            - Splitting frontend and backend changes
+
+            If this PR cannot be split, please add a detailed description to help reviewers.`;
+
+            // Check if we already commented
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existingComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Large Pull Request Detected')
+            );
+
+            if (!existingComment) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
+
+  # ============================================================
+  # LABEL CHECK
+  # ============================================================
+  label-check:
+    name: Label Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+
+    steps:
+      - name: Check for required labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+            const typeLabels = ['feature', 'fix', 'chore', 'docs', 'refactor', 'test'];
+
+            const hasTypeLabel = labels.some(label => typeLabels.includes(label));
+
+            if (!hasTypeLabel) {
+              core.warning(`PR is missing a type label. Please add one of: ${typeLabels.join(', ')}`);
+
+              // Add to summary
+              core.summary.addHeading('⚠️ Missing Label', 3);
+              core.summary.addRaw(`Please add one of these labels: \`${typeLabels.join('`, `')}\``);
+              await core.summary.write();
+            } else {
+              core.summary.addHeading('✅ Labels OK', 3);
+              core.summary.addRaw(`Found type label: ${labels.filter(l => typeLabels.includes(l)).join(', ')}`);
+              await core.summary.write();
+            }
