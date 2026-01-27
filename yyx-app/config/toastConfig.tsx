@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, TouchableOpacity, Animated } from 'react-native';
 import { Text } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,9 +15,12 @@ interface UndoToastProps extends ToastConfigParams<{ itemId: string; duration: n
 }
 
 const UndoToast = ({ text1, text2, props }: UndoToastProps) => {
-    const [progress] = useState(new Animated.Value(1));
+    const progress = useRef(new Animated.Value(1)).current;
 
     useEffect(() => {
+        // Reset progress when toast appears
+        progress.setValue(1);
+
         if (props?.duration) {
             Animated.timing(progress, {
                 toValue: 0,
@@ -25,7 +28,7 @@ const UndoToast = ({ text1, text2, props }: UndoToastProps) => {
                 useNativeDriver: false,
             }).start();
         }
-    }, [props?.duration]);
+    }, [props?.duration, progress]);
 
     const progressWidth = progress.interpolate({
         inputRange: [0, 1],
