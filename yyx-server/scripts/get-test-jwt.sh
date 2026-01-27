@@ -1,9 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Auto-load .env.local if variables aren't set
 if [[ -z "${SUPABASE_URL:-}" || -z "${SUPABASE_ANON_KEY:-}" ]]; then
-  echo "Missing SUPABASE_URL or SUPABASE_ANON_KEY. Load yyx-server/.env.local first." >&2
-  exit 1
+  ENV_FILE="$SCRIPT_DIR/../.env.local"
+  if [[ -f "$ENV_FILE" ]]; then
+    set -a
+    source "$ENV_FILE"
+    set +a
+  else
+    echo "Missing SUPABASE_URL or SUPABASE_ANON_KEY and no .env.local found." >&2
+    echo "Either set the variables or create yyx-server/.env.local" >&2
+    exit 1
+  fi
 fi
 
 if [[ -z "${YYX_TEST_EMAIL:-}" || -z "${YYX_TEST_PASSWORD:-}" ]]; then

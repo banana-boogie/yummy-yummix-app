@@ -39,8 +39,12 @@ const SYSTEM_PROMPTS = {
 // =============================================================================
 
 function createSupabaseClient(): SupabaseClient {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    let supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    // Fix for local development: kong:8000 is internal Docker address
+    if (supabaseUrl.includes('kong:8000')) {
+        supabaseUrl = 'http://host.docker.internal:54321';
+    }
     return createClient(supabaseUrl, supabaseServiceKey);
 }
 

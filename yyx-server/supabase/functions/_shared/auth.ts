@@ -36,11 +36,17 @@ export async function validateAuth(authHeader: string | null): Promise<AuthResul
     const token = authHeader.substring(7); // Remove "Bearer " prefix
 
     try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        let supabaseUrl = Deno.env.get('SUPABASE_URL');
         const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
 
         if (!supabaseUrl || !supabaseAnonKey) {
             return { user: null, error: 'Missing Supabase configuration' };
+        }
+
+        // Fix for local development: kong:8000 is internal Docker address
+        // Edge functions run in Docker, need host.docker.internal to reach host
+        if (supabaseUrl.includes('kong:8000')) {
+            supabaseUrl = 'http://host.docker.internal:54321';
         }
 
         const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -49,7 +55,8 @@ export async function validateAuth(authHeader: string | null): Promise<AuthResul
             },
         });
 
-        const { data: { user }, error } = await supabase.auth.getUser();
+        // Pass token directly to getUser() for edge function environments
+        const { data: { user }, error } = await supabase.auth.getUser(token);
 
         if (error || !user) {
             return { user: null, error: error?.message ?? 'Invalid token' };
