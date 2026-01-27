@@ -272,6 +272,13 @@ const translations = {
         skip: 'Skip',
         submit: 'Submit',
         beFirstToRate: 'Be the first to rate!',
+        yourRating: 'Your rating',
+        rateThisRecipe: 'Rate this recipe',
+        tapToUpdateRating: 'Tap a star to update your rating',
+        rateStar: 'Rate {{count}} star',
+        rateStars: 'Rate {{count}} stars',
+        ratingsCount: '{{count}} ratings',
+        ratingCount: '{{count}} rating',
       }
     },
     onboarding: {
@@ -1144,6 +1151,13 @@ const translations = {
         skip: 'Omitir',
         submit: 'Enviar',
         beFirstToRate: '¡Sé el primero en calificar!',
+        yourRating: 'Tu calificación',
+        rateThisRecipe: 'Califica esta receta',
+        tapToUpdateRating: 'Toca una estrella para actualizar tu calificación',
+        rateStar: 'Califica con {{count}} estrella',
+        rateStars: 'Califica con {{count}} estrellas',
+        ratingsCount: '{{count}} calificaciones',
+        ratingCount: '{{count}} calificación',
       }
     },
     onboarding: {

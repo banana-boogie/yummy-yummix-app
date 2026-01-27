@@ -24,7 +24,8 @@ import { ResponsiveColumnLayout, MainColumn, SideColumn } from '@/components/lay
 import { RecipeUsefulItem } from '@/types/recipe.types';
 import { ShareButton } from '@/components/common/ShareButton';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { StarRating } from '@/components/rating/StarRating';
+import { RatingDistribution, RatingDistributionSkeleton, StarRating, StarRatingInput } from '@/components/rating';
+import { useRecipeRating } from '@/hooks/useRecipeRating';
 
 
 const RecipeDetail: React.FC = () => {
@@ -44,8 +45,21 @@ const RecipeDetail: React.FC = () => {
   const validId = id && isValidUUID(id as string) ? id as string : '';
   const { recipe, loading, error } = useRecipe(validId);
 
+  // Fetch rating distribution and user rating
+  const {
+    ratingDistribution,
+    totalRatings,
+    isLoadingDistribution,
+    userRating,
+    isLoadingRating,
+    isLoggedIn,
+    submitRating,
+    isSubmittingRating,
+    ratingError,
+  } = useRecipeRating(validId);
+
   const scrollY = useRef(new Animated.Value(0)).current;
-  const { isSmall, isMedium } = useDevice();
+  const { isMedium } = useDevice();
   const { language: currentLanguage } = useLanguage();
 
   // Handle back navigation for web and native
@@ -128,16 +142,45 @@ const RecipeDetail: React.FC = () => {
               className="mb-md"
             />
 
-            {/* Rating Display */}
-            {recipe.ratingCount > 0 && recipe.averageRating && (
-              <View className="mb-lg">
+            {/* Rating Summary + CTA */}
+            <View className="mb-lg">
+              {recipe.ratingCount > 0 && recipe.averageRating ? (
                 <StarRating
                   rating={recipe.averageRating}
                   count={recipe.ratingCount}
                   size="lg"
                 />
-              </View>
-            )}
+              ) : (
+                <Text preset="bodySmall" className="text-text-secondary">
+                  {i18n.t('recipes.rating.beFirstToRate')}
+                </Text>
+              )}
+
+              {isLoggedIn && (
+                <View className="mt-md">
+                  <Text preset="h3" className="mb-xs">
+                    {i18n.t('recipes.rating.yourRating')}
+                  </Text>
+                  <StarRatingInput
+                    value={userRating ?? 0}
+                    onChange={submitRating}
+                    disabled={isSubmittingRating || isLoadingRating}
+                    size="md"
+                  />
+                  <Text preset="caption" className="text-text-secondary mt-xs">
+                    {userRating
+                      ? i18n.t('recipes.rating.tapToUpdateRating')
+                      : i18n.t('recipes.rating.rateThisRecipe')
+                    }
+                  </Text>
+                  {ratingError && (
+                    <Text preset="caption" className="text-status-error mt-xs">
+                      {i18n.t('recipes.rating.submitError')}
+                    </Text>
+                  )}
+                </View>
+              )}
+            </View>
 
             <View
               className="mb-xs flex-row justify-between items-center"
@@ -177,6 +220,19 @@ const RecipeDetail: React.FC = () => {
                 <RecipeTip text={recipe.tipsAndTricks} />
               </MainColumn>
             </ResponsiveColumnLayout>
+
+            {/* Rating Distribution */}
+            {isLoadingDistribution ? (
+              <RatingDistributionSkeleton className="mt-lg mb-xl" />
+            ) : ratingDistribution && totalRatings > 0 ? (
+              <RatingDistribution
+                distribution={ratingDistribution}
+                total={totalRatings}
+                averageRating={recipe.averageRating}
+                className="mt-lg mb-xl"
+              />
+            ) : null}
+
             <CookButton
               recipeId={recipe.id}
               size="large"
