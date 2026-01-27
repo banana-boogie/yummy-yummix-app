@@ -9,6 +9,7 @@ export const ratingKeys = {
     all: ['ratings'] as const,
     userRating: (recipeId: string) => [...ratingKeys.all, 'user', recipeId] as const,
     stats: (recipeId: string) => [...ratingKeys.all, 'stats', recipeId] as const,
+    distribution: (recipeId: string) => [...ratingKeys.all, 'distribution', recipeId] as const,
 };
 
 /**
@@ -26,6 +27,17 @@ export function useRecipeRating(recipeId: string) {
         queryKey: ratingKeys.userRating(recipeId),
         queryFn: () => ratingService.getUserRating(recipeId),
         enabled: !!user && !!recipeId,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+
+    // Fetch rating distribution
+    const {
+        data: ratingDistribution,
+        isLoading: isLoadingDistribution,
+    } = useQuery({
+        queryKey: ratingKeys.distribution(recipeId),
+        queryFn: () => ratingService.getRatingDistribution(recipeId),
+        enabled: !!recipeId,
         staleTime: 1000 * 60 * 5, // 5 minutes
     });
 
@@ -57,6 +69,7 @@ export function useRecipeRating(recipeId: string) {
             // Invalidate to refetch
             queryClient.invalidateQueries({ queryKey: ratingKeys.userRating(recipeId) });
             queryClient.invalidateQueries({ queryKey: ratingKeys.stats(recipeId) });
+            queryClient.invalidateQueries({ queryKey: ratingKeys.distribution(recipeId) });
             // Also invalidate recipe queries to refresh the cached rating stats
             queryClient.invalidateQueries({ queryKey: ['recipes'] });
         },
@@ -79,6 +92,10 @@ export function useRecipeRating(recipeId: string) {
         submitFeedbackAsync: submitFeedbackMutation.mutateAsync,
         isSubmittingFeedback: submitFeedbackMutation.isPending,
         feedbackError: submitFeedbackMutation.error,
+        // Rating distribution
+        ratingDistribution: ratingDistribution?.distribution ?? null,
+        totalRatings: ratingDistribution?.total ?? 0,
+        isLoadingDistribution,
     };
 }
 
