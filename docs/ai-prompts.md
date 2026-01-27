@@ -43,7 +43,7 @@ Commit when done.
 **KEY PROMPT**: Use this to have a fresh AI review changes comprehensively.
 
 ```
-Review the latest changes (commit [hash] or last N commits).
+Review the latest changes from the last commit.
 
 Evaluate:
 1. **Security**: Input validation, authentication checks, data sanitization, injection vulnerabilities
