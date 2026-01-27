@@ -57,20 +57,23 @@ export function createMockRequest(
     method?: string;
     headers?: Record<string, string>;
     url?: string;
-  }
+  },
 ): Request {
-  const { method = 'POST', headers = {}, url = 'https://test.supabase.co/functions/v1/test' } =
-    options || {};
+  const {
+    method = "POST",
+    headers = {},
+    url = "https://test.supabase.co/functions/v1/test",
+  } = options || {};
 
   const requestInit: RequestInit = {
     method,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...headers,
     },
   };
 
-  if (body !== null && body !== undefined && method !== 'GET') {
+  if (body !== null && body !== undefined && method !== "GET") {
     requestInit.body = JSON.stringify(body);
   }
 
@@ -82,8 +85,8 @@ export function createMockRequest(
  */
 export function createAuthenticatedRequest(
   body?: unknown,
-  token = 'test-jwt-token',
-  options?: { method?: string; headers?: Record<string, string> }
+  token = "test-jwt-token",
+  options?: { method?: string; headers?: Record<string, string> },
 ): Request {
   return createMockRequest(body, {
     ...options,
@@ -99,10 +102,10 @@ export function createAuthenticatedRequest(
  */
 export function createFormDataRequest(
   formData: FormData,
-  options?: { headers?: Record<string, string> }
+  options?: { headers?: Record<string, string> },
 ): Request {
-  return new Request('https://test.supabase.co/functions/v1/test', {
-    method: 'POST',
+  return new Request("https://test.supabase.co/functions/v1/test", {
+    method: "POST",
     body: formData,
     headers: options?.headers,
   });
@@ -148,9 +151,9 @@ export function cleanupEnv(keys: string[]): void {
  */
 export function mockSupabaseEnv(): void {
   mockEnv({
-    SUPABASE_URL: 'http://localhost:54321',
-    SUPABASE_ANON_KEY: 'test-anon-key',
-    SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key',
+    SUPABASE_URL: "http://localhost:54321",
+    SUPABASE_ANON_KEY: "test-anon-key",
+    SUPABASE_SERVICE_ROLE_KEY: "test-service-role-key",
   });
 }
 
@@ -158,7 +161,11 @@ export function mockSupabaseEnv(): void {
  * Cleans up Supabase environment variables.
  */
 export function cleanupSupabaseEnv(): void {
-  cleanupEnv(['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY']);
+  cleanupEnv([
+    "SUPABASE_URL",
+    "SUPABASE_ANON_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+  ]);
 }
 
 // ============================================================
@@ -180,8 +187,9 @@ export function createMockSupabaseClient() {
         }),
         order: () => ({
           limit: () => ({
-            then: (resolve: (result: { data: unknown[]; error: null }) => void) =>
-              resolve({ data: [], error: null }),
+            then: (
+              resolve: (result: { data: unknown[]; error: null }) => void,
+            ) => resolve({ data: [], error: null }),
           }),
         }),
         then: (resolve: (result: { data: unknown[]; error: null }) => void) =>
@@ -210,15 +218,18 @@ export function createMockSupabaseClient() {
     auth: {
       getUser: () =>
         Promise.resolve({
-          data: { user: { id: 'test-user-id', email: 'test@example.com' } },
+          data: { user: { id: "test-user-id", email: "test@example.com" } },
           error: null,
         }),
     },
     storage: {
       from: () => ({
-        upload: () => Promise.resolve({ data: { path: 'test/path' }, error: null }),
+        upload: () =>
+          Promise.resolve({ data: { path: "test/path" }, error: null }),
         download: () => Promise.resolve({ data: new Blob(), error: null }),
-        getPublicUrl: () => ({ data: { publicUrl: 'https://test.com/image.jpg' } }),
+        getPublicUrl: () => ({
+          data: { publicUrl: "https://test.com/image.jpg" },
+        }),
       }),
     },
     functions: {
@@ -238,17 +249,20 @@ export function createMockSupabaseClient() {
 export function createMockJsonResponse<T>(data: T, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { "Content-Type": "application/json" },
   });
 }
 
 /**
  * Creates a mock error response.
  */
-export function createMockErrorResponse(message: string, status = 400): Response {
+export function createMockErrorResponse(
+  message: string,
+  status = 400,
+): Response {
   return new Response(JSON.stringify({ error: message }), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { "Content-Type": "application/json" },
   });
 }
 
@@ -272,17 +286,17 @@ export function createMockErrorResponse(message: string, status = 400): Response
  */
 export function createMockFetch(
   responseData: unknown,
-  options?: { status?: number; headers?: Record<string, string> }
+  options?: { status?: number; headers?: Record<string, string> },
 ): typeof fetch {
   return () =>
     Promise.resolve(
       new Response(JSON.stringify(responseData), {
         status: options?.status || 200,
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           ...options?.headers,
         },
-      })
+      }),
     );
 }
 

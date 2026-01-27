@@ -12,7 +12,7 @@
     "ios:prod": "mv .env.local .env.local.backup 2>/dev/null || true && expo run:ios --device && mv .env.local.backup .env.local 2>/dev/null || true",
     "web": "expo start --web",
     "test": "jest --watch",
-    "test:ci": "jest --watchAll=false --coverage",
+    "test:ci": "jest --watchAll=false --coverage --passWithNoTests",
     "test:coverage": "jest --coverage --watchAll=false",
     "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand",
     "lint": "expo lint",
