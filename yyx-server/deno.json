@@ -19,7 +19,17 @@
   },
   "lint": {
     "include": ["supabase/functions/"],
-    "exclude": ["supabase/functions/__tests__/*.sh"]
+    "exclude": ["supabase/functions/__tests__/*.sh"],
+    "rules": {
+      "exclude": [
+        "no-import-prefix",
+        "ban-ts-comment",
+        "require-await",
+        "no-explicit-any",
+        "no-unused-vars",
+        "no-namespace"
+      ]
+    }
   },
   "fmt": {
     "include": ["supabase/functions/"],

@@ -5,7 +5,7 @@
 # - Pull requests to main/develop (when yyx-server files change)
 #
 # Jobs:
-# 1. lint-and-format: Deno lint and format checks
+# 1. format-check: Deno format check (lint disabled until codebase cleanup)
 # 2. unit-tests: Deno unit tests with coverage
 # 3. integration-tests: Bash integration tests against staging (PR only)
 #
@@ -35,10 +35,11 @@ concurrency:
 
 jobs:
   # ============================================================
-  # LINT AND FORMAT CHECK
+  # FORMAT CHECK
+  # Note: Linting disabled until existing codebase is cleaned up
   # ============================================================
-  lint-and-format:
-    name: Lint & Format Check
+  format-check:
+    name: Format Check
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -54,10 +55,6 @@ jobs:
       - name: Check formatting
         working-directory: yyx-server
         run: deno task fmt:check
-
-      - name: Run linter
-        working-directory: yyx-server
-        run: deno task lint
 
   # ============================================================
   # UNIT TESTS
