@@ -21,6 +21,7 @@ export const shoppingList = {
   itemsConsolidated: "Items consolidated",
   reorderError: "Failed to reorder items",
   dragToReorder: "Long press to reorder",
+  loadListsError: "Failed to load shopping lists",
   pantry: "My Pantry",
   favorites: "Buy Again",
   emptyPantry: "Your pantry is empty",
@@ -35,6 +36,7 @@ export const shoppingList = {
   listUpdated: "List updated",
   loadError: "Failed to load shopping list",
   listNotFound: "List not found",
+  createListError: "Failed to create shopping list",
   addError: "Failed to add item",
   consolidateError: "Failed to consolidate items",
   checkError: "Failed to update item",
@@ -65,4 +67,8 @@ export const shoppingList = {
   syncPartial: "Partial sync",
   syncPartialDesc: "{{count}} changes failed to sync",
   syncError: "Sync failed",
+  accessibility: {
+    listSummary: "{{name}}, {{checked}} of {{total}} items checked",
+    categorySummary: "{{category}}, {{checked}} of {{total}} items",
+  },
 };

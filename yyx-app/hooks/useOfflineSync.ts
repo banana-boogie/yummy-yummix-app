@@ -4,6 +4,7 @@ import { mutationQueue, MutationType, MutationPayloads, PendingMutation } from '
 import { shoppingListService } from '@/services/shoppingListService';
 import { useToast } from './useToast';
 import i18n from '@/i18n';
+import { supabase } from '@/lib/supabase';
 
 interface UseOfflineSyncOptions {
     /** Callback when sync completes */
@@ -36,11 +37,11 @@ interface UseOfflineSyncReturn {
  *   onSyncComplete: () => fetchList(),
  * });
  *
- * const handleDelete = async (itemId: string) => {
+ * const handleDelete = async (itemId: string, listId: string) => {
  *   if (isOffline) {
- *     await queueMutation('DELETE_ITEM', { itemId });
+ *     await queueMutation('DELETE_ITEM', { itemId, listId });
  *   } else {
- *     await shoppingListService.deleteItem(itemId);
+ *     await shoppingListService.deleteItem(itemId, listId);
  *   }
  * };
  */
@@ -103,15 +104,15 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
 
         switch (type) {
             case 'DELETE_ITEM':
-                await shoppingListService.deleteItem(payload.itemId);
+                await shoppingListService.deleteItem(payload.itemId, payload.listId);
                 break;
 
             case 'CHECK_ITEM':
-                await shoppingListService.toggleItemChecked(payload.itemId, payload.isChecked);
+                await shoppingListService.toggleItemChecked(payload.itemId, payload.isChecked, payload.listId);
                 break;
 
             case 'UPDATE_ITEM':
-                await shoppingListService.updateItem(payload.itemId, payload.updates);
+                await shoppingListService.updateItem(payload.itemId, payload.updates, payload.listId);
                 break;
 
             case 'ADD_ITEM':
@@ -119,15 +120,15 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
                 break;
 
             case 'BATCH_CHECK':
-                await shoppingListService.batchUpdateItems(payload.itemIds, { isChecked: payload.isChecked });
+                await shoppingListService.batchUpdateItems(payload.itemIds, { isChecked: payload.isChecked }, payload.listId);
                 break;
 
             case 'BATCH_DELETE':
-                await shoppingListService.batchDeleteItems(payload.itemIds);
+                await shoppingListService.batchDeleteItems(payload.itemIds, payload.listId);
                 break;
 
             case 'REORDER_ITEMS':
-                await shoppingListService.updateItemsOrder(payload.updates);
+                await shoppingListService.updateItemsOrder(payload.updates, payload.listId);
                 break;
 
             default:
@@ -162,7 +163,7 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
             }
         } catch (error) {
             console.error('Sync failed:', error);
-            toast.showError(i18n.t('common.error'), i18n.t('shoppingList.syncError'));
+            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.syncError'));
         } finally {
             setIsSyncing(false);
         }
@@ -175,9 +176,29 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
         return id;
     }, [refreshPendingCount]);
 
-    // Load initial pending count
+    // Initialize queue namespace based on current user and keep in sync on auth changes
     useEffect(() => {
-        refreshPendingCount();
+        let isMounted = true;
+
+        const initNamespace = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            mutationQueue.setNamespace(user?.id);
+            if (isMounted) {
+                refreshPendingCount();
+            }
+        };
+
+        initNamespace();
+
+        const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+            mutationQueue.setNamespace(session?.user?.id);
+            refreshPendingCount();
+        });
+
+        return () => {
+            isMounted = false;
+            data.subscription.unsubscribe();
+        };
     }, [refreshPendingCount]);
 
     // Auto-sync when coming back online

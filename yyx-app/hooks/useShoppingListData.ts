@@ -184,7 +184,7 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             setCategories(cats);
         } catch (error) {
             console.error('Error fetching list:', error);
-            toast.showError(i18n.t('common.error'), i18n.t('shoppingList.loadError'));
+            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.loadError'));
         } finally {
             setLoading(false);
             setIsRefreshing(false);
@@ -227,16 +227,16 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
 
         try {
             if (isOffline) {
-                await queueMutation('CHECK_ITEM', { itemId, isChecked });
+                await queueMutation('CHECK_ITEM', { itemId, isChecked, listId });
             } else {
-                await shoppingListService.toggleItemChecked(itemId, isChecked);
+                await shoppingListService.toggleItemChecked(itemId, isChecked, listId);
             }
         } catch (error) {
             setList(previousList);
-            toast.showError(i18n.t('common.error'), i18n.t('shoppingList.checkError'));
+            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.checkError'));
             console.error('Error toggling item:', error);
         }
-    }, [isOffline, queueMutation, toast]);
+    }, [isOffline, queueMutation, toast, listId, setList]);
 
     // Delete item handler
     const handleDeleteItem = useCallback((itemId: string) => {
@@ -273,14 +273,14 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             deletedItem,
             async () => {
                 if (isOffline) {
-                    await queueMutation('DELETE_ITEM', { itemId });
+                    await queueMutation('DELETE_ITEM', { itemId, listId });
                 } else {
-                    await shoppingListService.deleteItem(itemId);
+                    await shoppingListService.deleteItem(itemId, listId);
                 }
             },
             deletedItem.name
         );
-    }, [isOffline, queueMutation, queueDeletion]);
+    }, [isOffline, queueMutation, queueDeletion, listId]);
 
     // Add item handler with optimistic update
     const handleAddItem = useCallback(async (itemData: Omit<ShoppingListItemCreate, 'shoppingListId'>) => {
@@ -341,6 +341,12 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
         });
 
         try {
+            if (isOffline) {
+                await queueMutation('ADD_ITEM', { item: { ...itemData, shoppingListId: listId }, listId });
+                toast.showSuccess(i18n.t('shoppingList.itemAdded'));
+                return;
+            }
+
             const newItem = await shoppingListService.addItem({ ...itemData, shoppingListId: listId });
             toast.showSuccess(i18n.t('shoppingList.itemAdded'));
             // Replace temp item with real item instead of full refetch
@@ -358,9 +364,9 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             // Rollback on error
             setList(previousList);
             console.error('Error adding item:', error);
-            toast.showError(i18n.t('common.error'), i18n.t('shoppingList.addError'));
+            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.addError'));
         }
-    }, [listId, categories, toast]);
+    }, [listId, categories, toast, isOffline, queueMutation, setList]);
 
     // Consolidate handler
     const handleConsolidate = useCallback(async () => {
@@ -371,7 +377,7 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             fetchList();
         } catch (error) {
             console.error('Error consolidating:', error);
-            toast.showError(i18n.t('common.error'), i18n.t('shoppingList.consolidateError'));
+            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.consolidateError'));
         }
     }, [listId, toast, fetchList]);
 
@@ -406,15 +412,15 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
 
         try {
             if (isOffline) {
-                await queueMutation('REORDER_ITEMS', { updates });
+                await queueMutation('REORDER_ITEMS', { updates, listId });
             } else {
-                await shoppingListService.updateItemsOrder(updates);
+                await shoppingListService.updateItemsOrder(updates, listId);
             }
         } catch (error) {
             setList(previousList);
-            toast.showError(i18n.t('common.error'), i18n.t('shoppingList.reorderError'));
+            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.reorderError'));
         }
-    }, [isOffline, queueMutation, toast]);
+    }, [isOffline, queueMutation, toast, listId, setList]);
 
     return {
         list,

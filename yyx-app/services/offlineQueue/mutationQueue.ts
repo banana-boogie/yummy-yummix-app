@@ -13,13 +13,13 @@ export type MutationType =
 
 // Strongly typed mutation payloads
 export interface MutationPayloads {
-    ADD_ITEM: { item: ShoppingListItemCreate };
-    UPDATE_ITEM: { itemId: string; updates: ShoppingListItemUpdate };
-    DELETE_ITEM: { itemId: string };
-    CHECK_ITEM: { itemId: string; isChecked: boolean };
-    BATCH_CHECK: { itemIds: string[]; isChecked: boolean };
-    BATCH_DELETE: { itemIds: string[] };
-    REORDER_ITEMS: { updates: Array<{ id: string; displayOrder: number }> };
+    ADD_ITEM: { item: ShoppingListItemCreate; listId?: string };
+    UPDATE_ITEM: { itemId: string; updates: ShoppingListItemUpdate; listId?: string };
+    DELETE_ITEM: { itemId: string; listId?: string };
+    CHECK_ITEM: { itemId: string; isChecked: boolean; listId?: string };
+    BATCH_CHECK: { itemIds: string[]; isChecked: boolean; listId?: string };
+    BATCH_DELETE: { itemIds: string[]; listId?: string };
+    REORDER_ITEMS: { updates: Array<{ id: string; displayOrder: number }>; listId?: string };
 }
 
 export type MutationPayload = MutationPayloads[MutationType];
@@ -39,6 +39,23 @@ class MutationQueue {
     private isLoaded = false;
     private isProcessing = false;
     private onMutationProcessed?: (mutation: PendingMutation, success: boolean) => void;
+    private namespace = 'anon';
+
+    private get storageKey(): string {
+        return `${MUTATION_QUEUE_KEY}:${this.namespace}`;
+    }
+
+    /**
+     * Set namespace for queue storage (e.g., user id).
+     * Resets in-memory queue to avoid cross-account leakage.
+     */
+    setNamespace(namespace: string | null | undefined): void {
+        const next = namespace ?? 'anon';
+        if (next === this.namespace) return;
+        this.namespace = next;
+        this.isLoaded = false;
+        this.queue = [];
+    }
 
     /**
      * Load queue from persistent storage
@@ -47,7 +64,7 @@ class MutationQueue {
         if (this.isLoaded) return;
 
         try {
-            const stored = await Storage.getItem(MUTATION_QUEUE_KEY);
+            const stored = await Storage.getItem(this.storageKey);
             if (stored) {
                 this.queue = JSON.parse(stored);
             }
@@ -63,7 +80,7 @@ class MutationQueue {
      */
     private async save(): Promise<void> {
         try {
-            await Storage.setItem(MUTATION_QUEUE_KEY, JSON.stringify(this.queue));
+            await Storage.setItem(this.storageKey, JSON.stringify(this.queue));
         } catch (error) {
             console.warn('Failed to save mutation queue:', error);
         }
@@ -120,7 +137,11 @@ class MutationQueue {
      */
     async clear(): Promise<void> {
         this.queue = [];
-        await this.save();
+        try {
+            await Storage.removeItem(this.storageKey);
+        } catch (error) {
+            console.warn('Failed to clear mutation queue:', error);
+        }
     }
 
     /**

@@ -7,6 +7,7 @@ import { COLORS } from '@/constants/design-tokens';
 import { ShoppingCategoryWithItems, ShoppingListItem, CATEGORY_ICONS } from '@/types/shopping-list.types';
 import { ShoppingListItemRow } from './ShoppingListItem';
 import { DraggableShoppingListItem } from './DraggableShoppingListItem';
+import i18n from '@/i18n';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -109,7 +110,11 @@ export function CategorySection({ category, onCheckItem, onDeleteItem, onPressIt
                     isSelectMode && allItemsSelected ? 'bg-primary-light' : 'bg-primary-lightest'
                 }`}
                 accessibilityRole="button"
-                accessibilityLabel={`${category.localizedName}, ${checkedCount} of ${totalCount} items`}
+                accessibilityLabel={i18n.t('shoppingList.accessibility.categorySummary', {
+                    category: category.localizedName,
+                    checked: checkedCount,
+                    total: totalCount,
+                })}
             >
                 <View className="flex-row items-center flex-1">
                     {isSelectMode ? (

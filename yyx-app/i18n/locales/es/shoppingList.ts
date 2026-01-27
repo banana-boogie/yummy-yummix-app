@@ -21,6 +21,7 @@ export const shoppingList = {
   itemsConsolidated: "Artículos consolidados",
   reorderError: "Error al reordenar artículos",
   dragToReorder: "Mantén presionado para reordenar",
+  loadListsError: "No se pudieron cargar las listas de compras",
   pantry: "Mi Despensa",
   favorites: "Comprar de Nuevo",
   emptyPantry: "Tu despensa está vacía",
@@ -35,6 +36,7 @@ export const shoppingList = {
   listUpdated: "Lista actualizada",
   loadError: "Error al cargar la lista",
   listNotFound: "Lista no encontrada",
+  createListError: "No se pudo crear la lista de compras",
   addError: "Error al agregar artículo",
   consolidateError: "Error al consolidar artículos",
   checkError: "Error al actualizar artículo",
@@ -65,4 +67,8 @@ export const shoppingList = {
   syncPartial: "Sincronización parcial",
   syncPartialDesc: "{{count}} cambios no se sincronizaron",
   syncError: "Error al sincronizar",
+  accessibility: {
+    listSummary: "{{name}}, {{checked}} de {{total}} artículos marcados",
+    categorySummary: "{{category}}, {{checked}} de {{total}} artículos",
+  },
 };

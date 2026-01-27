@@ -16,15 +16,33 @@ import {
     shoppingListDetailCache,
     shoppingListsSummaryCache,
     shoppingCategoryCache,
+    invalidateAllShoppingListCaches,
 } from './cache/shoppingListCache';
 
 const getLangSuffix = () => `_${i18n.locale}`;
+const getCurrentUserId = async (): Promise<string | undefined> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user?.id;
+};
+
+const invalidateShoppingCaches = async (userId: string | undefined, listId?: string): Promise<void> => {
+    if (!userId) return;
+    if (listId) {
+        await Promise.all([
+            shoppingListDetailCache.invalidateList(listId, userId),
+            shoppingListsSummaryCache.invalidateLists(userId),
+        ]);
+        return;
+    }
+    await invalidateAllShoppingListCaches(userId);
+};
 
 export const shoppingListService = {
     async getShoppingLists(includeArchived = false, useCache = true): Promise<ShoppingList[]> {
+        const userId = await getCurrentUserId();
         // Try cache first
-        if (useCache) {
-            const cached = await shoppingListsSummaryCache.getLists(includeArchived);
+        if (useCache && userId) {
+            const cached = await shoppingListsSummaryCache.getLists(includeArchived, userId);
             if (cached) {
                 return cached;
             }
@@ -60,15 +78,18 @@ export const shoppingListService = {
         });
 
         // Cache the result
-        await shoppingListsSummaryCache.setLists(result, includeArchived);
+        if (userId) {
+            await shoppingListsSummaryCache.setLists(result, includeArchived, userId);
+        }
 
         return result;
     },
 
     async getShoppingListById(id: string, useCache = true): Promise<ShoppingListWithItems | null> {
+        const userId = await getCurrentUserId();
         // Try cache first
-        if (useCache) {
-            const cached = await shoppingListDetailCache.getList(id);
+        if (useCache && userId) {
+            const cached = await shoppingListDetailCache.getList(id, userId);
             if (cached) {
                 return cached;
             }
@@ -144,7 +165,9 @@ export const shoppingListService = {
         };
 
         // Cache the result
-        await shoppingListDetailCache.setList(id, result);
+        if (userId) {
+            await shoppingListDetailCache.setList(id, result, userId);
+        }
 
         return result;
     },
@@ -161,6 +184,8 @@ export const shoppingListService = {
 
         if (error) throw new Error(`Error creating shopping list: ${error.message}`);
 
+        await shoppingListsSummaryCache.invalidateLists(user.id);
+
         return {
             id: data.id,
             userId: data.user_id,
@@ -176,6 +201,8 @@ export const shoppingListService = {
     async deleteShoppingList(id: string): Promise<void> {
         const { error } = await supabase.from('shopping_lists').delete().eq('id', id);
         if (error) throw new Error(`Error deleting shopping list: ${error.message}`);
+        const userId = await getCurrentUserId();
+        await invalidateShoppingCaches(userId, id);
     },
 
     async addItem(item: ShoppingListItemCreate): Promise<ShoppingListItem> {
@@ -214,6 +241,9 @@ export const shoppingListService = {
 
         if (error) throw new Error(`Error adding item: ${error.message}`);
 
+        const userId = await getCurrentUserId();
+        await invalidateShoppingCaches(userId, item.shoppingListId);
+
         return {
             id: data.id,
             shoppingListId: data.shopping_list_id,
@@ -240,7 +270,7 @@ export const shoppingListService = {
         };
     },
 
-    async updateItem(itemId: string, updates: ShoppingListItemUpdate): Promise<void> {
+    async updateItem(itemId: string, updates: ShoppingListItemUpdate, listId?: string): Promise<void> {
         const dbUpdates: Record<string, any> = {};
         if (updates.quantity !== undefined) dbUpdates.quantity = updates.quantity;
         if (updates.unitId !== undefined) dbUpdates.unit_id = updates.unitId;
@@ -251,15 +281,19 @@ export const shoppingListService = {
 
         const { error } = await supabase.from('shopping_list_items').update(dbUpdates).eq('id', itemId);
         if (error) throw new Error(`Error updating item: ${error.message}`);
+        const userId = await getCurrentUserId();
+        await invalidateShoppingCaches(userId, listId);
     },
 
-    async toggleItemChecked(itemId: string, isChecked: boolean): Promise<void> {
-        await this.updateItem(itemId, { isChecked });
+    async toggleItemChecked(itemId: string, isChecked: boolean, listId?: string): Promise<void> {
+        await this.updateItem(itemId, { isChecked }, listId);
     },
 
-    async deleteItem(itemId: string): Promise<void> {
+    async deleteItem(itemId: string, listId?: string): Promise<void> {
         const { error } = await supabase.from('shopping_list_items').delete().eq('id', itemId);
         if (error) throw new Error(`Error deleting item: ${error.message}`);
+        const userId = await getCurrentUserId();
+        await invalidateShoppingCaches(userId, listId);
     },
 
     async consolidateItems(shoppingListId: string): Promise<ConsolidationResult> {
@@ -280,27 +314,30 @@ export const shoppingListService = {
             if (items.length <= 1) continue;
             const primary = items[0];
             const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-            await this.updateItem(primary.id, { quantity: totalQuantity });
+            await this.updateItem(primary.id, { quantity: totalQuantity }, shoppingListId);
             for (let i = 1; i < items.length; i++) {
-                await this.deleteItem(items[i].id);
+                await this.deleteItem(items[i].id, shoppingListId);
                 mergedCount++;
             }
         }
 
-        const updatedList = await this.getShoppingListById(shoppingListId);
+        const updatedList = await this.getShoppingListById(shoppingListId, false);
+        const userId = await getCurrentUserId();
+        await invalidateShoppingCaches(userId, shoppingListId);
         return { merged: mergedCount, items: updatedList?.items ?? [] };
     },
 
     async getCategories(useCache = true): Promise<ShoppingCategory[]> {
         // Try cache first (categories are static)
-        if (useCache) {
-            const cached = await shoppingCategoryCache.getCategories();
+        const { data: { user } } = await supabase.auth.getUser();
+        const userId = user?.id;
+
+        if (useCache && userId) {
+            const cached = await shoppingCategoryCache.getCategories(userId);
             if (cached) {
                 return cached;
             }
         }
-
-        const { data: { user } } = await supabase.auth.getUser();
 
         const { data: categories, error: catError } = await supabase
             .from('shopping_list_categories')
@@ -330,7 +367,9 @@ export const shoppingListService = {
                     .sort((a, b) => a.displayOrder - b.displayOrder);
 
                 // Cache the result
-                await shoppingCategoryCache.setCategories(result);
+                if (userId) {
+                    await shoppingCategoryCache.setCategories(result, userId);
+                }
                 return result;
             }
         }
@@ -344,7 +383,9 @@ export const shoppingListService = {
         }));
 
         // Cache the result
-        await shoppingCategoryCache.setCategories(result);
+        if (userId) {
+            await shoppingCategoryCache.setCategories(result, userId);
+        }
         return result;
     },
 
@@ -375,25 +416,23 @@ export const shoppingListService = {
         }));
     },
 
-    async updateItemsOrder(updates: Array<{ id: string; displayOrder: number }>): Promise<void> {
-        // Batch update using Promise.all for performance
-        const promises = updates.map(({ id, displayOrder }) =>
-            supabase
-                .from('shopping_list_items')
-                .update({ display_order: displayOrder })
-                .eq('id', id)
-        );
+    async updateItemsOrder(updates: Array<{ id: string; displayOrder: number }>, listId?: string): Promise<void> {
+        if (updates.length === 0) return;
 
-        const results = await Promise.all(promises);
+        const { error } = await supabase.rpc('update_shopping_list_item_orders', {
+            updates: updates.map(({ id, displayOrder }) => ({
+                id,
+                display_order: displayOrder,
+            })),
+        });
 
-        // Check for errors
-        const errors = results.filter(r => r.error);
-        if (errors.length > 0) {
-            throw new Error(`Error updating item order: ${errors[0].error.message}`);
-        }
+        if (error) throw new Error(`Error updating item order: ${error.message}`);
+
+        const userId = await getCurrentUserId();
+        await invalidateShoppingCaches(userId, listId);
     },
 
-    async batchDeleteItems(itemIds: string[]): Promise<void> {
+    async batchDeleteItems(itemIds: string[], listId?: string): Promise<void> {
         if (itemIds.length === 0) return;
 
         const { error } = await supabase
@@ -402,9 +441,11 @@ export const shoppingListService = {
             .in('id', itemIds);
 
         if (error) throw new Error(`Error batch deleting items: ${error.message}`);
+        const userId = await getCurrentUserId();
+        await invalidateShoppingCaches(userId, listId);
     },
 
-    async batchUpdateItems(itemIds: string[], updates: { isChecked: boolean }): Promise<void> {
+    async batchUpdateItems(itemIds: string[], updates: { isChecked: boolean }, listId?: string): Promise<void> {
         if (itemIds.length === 0) return;
 
         const dbUpdates: Record<string, any> = {};
@@ -421,6 +462,8 @@ export const shoppingListService = {
             .in('id', itemIds);
 
         if (error) throw new Error(`Error batch updating items: ${error.message}`);
+        const userId = await getCurrentUserId();
+        await invalidateShoppingCaches(userId, listId);
     },
 };
 
