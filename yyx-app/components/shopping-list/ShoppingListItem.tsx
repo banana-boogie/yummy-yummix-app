@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { View, TouchableOpacity, Animated, PanResponder } from 'react-native';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
@@ -14,6 +14,8 @@ interface ShoppingListItemRowProps {
     onDelete: () => void;
     onPress: () => void;
     onQuantityChange?: (quantity: number) => void;
+    isSelectMode?: boolean;
+    isSelected?: boolean;
 }
 
 export const ShoppingListItemRow = React.memo(function ShoppingListItemRow({
@@ -21,13 +23,15 @@ export const ShoppingListItemRow = React.memo(function ShoppingListItemRow({
     onCheck,
     onDelete,
     onPress,
-    onQuantityChange
+    onQuantityChange,
+    isSelectMode = false,
+    isSelected = false,
 }: ShoppingListItemRowProps) {
-    const [translateX] = useState(new Animated.Value(0));
+    const translateX = useRef(new Animated.Value(0)).current;
     const SWIPE_THRESHOLD = -80;
     const DELETE_THRESHOLD = -120;
 
-    const panResponder = PanResponder.create({
+    const panResponder = useMemo(() => PanResponder.create({
         onMoveShouldSetPanResponder: (_, gestureState) => {
             // Only respond to horizontal swipes
             return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
@@ -69,7 +73,7 @@ export const ShoppingListItemRow = React.memo(function ShoppingListItemRow({
                 }).start();
             }
         },
-    });
+    }), [translateX, onDelete]);
 
     const handleCheck = async () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -98,7 +102,7 @@ export const ShoppingListItemRow = React.memo(function ShoppingListItemRow({
 
     const displayQuantity = () => {
         const qty = item.quantity;
-        const unit = item.unit?.abbreviation || '';
+        const unit = item.unit?.symbol || '';
 
         // Format quantity nicely
         const formattedQty = qty % 1 === 0 ? qty.toString() : qty.toFixed(1);
@@ -106,29 +110,36 @@ export const ShoppingListItemRow = React.memo(function ShoppingListItemRow({
         return `${formattedQty} ${unit}`.trim();
     };
 
+    // Determine checkbox state based on mode
+    const checkboxState = isSelectMode
+        ? (isSelected ? 'selected' : 'unselected')
+        : (item.isChecked ? 'checked' : 'unchecked');
+
     return (
         <View className="mb-xs">
-            {/* Delete button background */}
-            <View className="absolute right-0 top-0 bottom-0 flex-row items-center justify-end pr-md">
-                <TouchableOpacity
-                    onPress={handleDelete}
-                    className="bg-status-error px-lg py-md rounded-lg flex-row items-center"
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="trash-outline" size={20} color={COLORS.neutral.white} />
-                    <Text preset="body" className="text-white ml-sm font-semibold">
-                        {i18n.t('common.delete')}
-                    </Text>
-                </TouchableOpacity>
-            </View>
+            {/* Delete button background - hidden in select mode */}
+            {!isSelectMode && (
+                <View className="absolute right-0 top-0 bottom-0 flex-row items-center justify-end pr-md">
+                    <TouchableOpacity
+                        onPress={handleDelete}
+                        className="bg-status-error px-lg py-md rounded-lg flex-row items-center"
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="trash-outline" size={20} color={COLORS.neutral.white} />
+                        <Text preset="body" className="text-white ml-sm font-semibold">
+                            {i18n.t('common.delete')}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
 
-            {/* Swipeable item content */}
+            {/* Swipeable item content - disable swipe in select mode */}
             <Animated.View
-                style={{ transform: [{ translateX }] }}
-                {...panResponder.panHandlers}
+                style={{ transform: [{ translateX: isSelectMode ? 0 : translateX }] }}
+                {...(isSelectMode ? {} : panResponder.panHandlers)}
             >
-                <View className={`bg-white rounded-lg px-md py-sm flex-row items-center ${item.isChecked ? 'opacity-60' : ''}`}>
-                    {/* Checkbox */}
+                <View className={`bg-white rounded-lg px-md py-sm flex-row items-center ${item.isChecked && !isSelectMode ? 'opacity-60' : ''} ${isSelected ? 'bg-primary-lightest' : ''}`}>
+                    {/* Checkbox / Selection indicator */}
                     <TouchableOpacity
                         onPress={handleCheck}
                         className="mr-sm"
@@ -137,10 +148,12 @@ export const ShoppingListItemRow = React.memo(function ShoppingListItemRow({
                     >
                         <View
                             className={`w-6 h-6 rounded-[4px] border-2 items-center justify-center ${
-                                item.isChecked ? 'bg-primary-medium border-primary-medium' : 'bg-white border-grey-medium'
+                                isSelectMode
+                                    ? (isSelected ? 'bg-primary-default border-primary-default' : 'bg-white border-grey-medium')
+                                    : (item.isChecked ? 'bg-primary-medium border-primary-medium' : 'bg-white border-grey-medium')
                             }`}
                         >
-                            {item.isChecked && (
+                            {(isSelectMode ? isSelected : item.isChecked) && (
                                 <Ionicons name="checkmark" size={16} color={COLORS.neutral.white} />
                             )}
                         </View>

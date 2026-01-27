@@ -104,6 +104,20 @@ export function AddItemModal({ visible, onClose, onAddItem, categories }: AddIte
                 <View className="px-lg py-md">
                     <View className="mb-md">
                         <Text preset="caption" className="text-text-secondary mb-xs">{i18n.t('shoppingList.item.quantity')}</Text>
+                        {/* Quantity Shortcuts */}
+                        <View className="flex-row flex-wrap gap-xs mb-sm">
+                            {[1, 2, 3, 4, 6, 12].map(qty => (
+                                <TouchableOpacity
+                                    key={qty}
+                                    onPress={() => setQuantity(String(qty))}
+                                    className={`px-md py-xs rounded-full ${parseFloat(quantity) === qty ? 'bg-primary-medium' : 'bg-grey-lightest'}`}
+                                >
+                                    <Text preset="body" className={parseFloat(quantity) === qty ? 'text-white' : 'text-text-default'}>
+                                        {qty}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
                         <View className="flex-row items-center">
                             <TouchableOpacity onPress={() => setQuantity(String(Math.max(1, (parseFloat(quantity) || 1) - 1)))} className="w-12 h-12 rounded-xl bg-grey-lightest items-center justify-center"><Ionicons name="remove" size={24} color={COLORS.text.default} /></TouchableOpacity>
                             <TextInput value={quantity} onChangeText={setQuantity} keyboardType="decimal-pad" className="w-20 h-12 mx-sm text-center text-xl font-medium text-text-default bg-grey-lightest rounded-xl" />

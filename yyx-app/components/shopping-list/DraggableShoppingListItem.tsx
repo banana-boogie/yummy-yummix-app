@@ -12,8 +12,10 @@ interface DraggableShoppingListItemProps {
     onDelete: () => void;
     onPress: () => void;
     onQuantityChange?: (qty: number) => void;
-    drag: () => void; // from DraggableFlatList
+    drag?: () => void; // from DraggableFlatList
     isActive: boolean; // from DraggableFlatList
+    isSelectMode?: boolean;
+    isSelected?: boolean;
 }
 
 export const DraggableShoppingListItem = React.memo(function DraggableShoppingListItem({
@@ -23,9 +25,12 @@ export const DraggableShoppingListItem = React.memo(function DraggableShoppingLi
     onCheck,
     onDelete,
     onPress,
-    onQuantityChange
+    onQuantityChange,
+    isSelectMode = false,
+    isSelected = false,
 }: DraggableShoppingListItemProps) {
     const handleDragStart = () => {
+        if (!drag) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         drag();
     };
@@ -42,20 +47,22 @@ export const DraggableShoppingListItem = React.memo(function DraggableShoppingLi
                 elevation: 8,
             } : undefined}
         >
-            {/* Drag handle on left */}
-            <TouchableOpacity
-                onLongPress={handleDragStart}
-                onPressIn={drag}
-                className="w-10 items-center justify-center"
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                activeOpacity={0.6}
-            >
-                <Ionicons
-                    name="reorder-three-outline"
-                    size={20}
-                    color={isActive ? COLORS.primary.medium : COLORS.grey.medium}
-                />
-            </TouchableOpacity>
+            {/* Drag handle on left - hidden in select mode */}
+            {!isSelectMode && drag && (
+                <TouchableOpacity
+                    onLongPress={handleDragStart}
+                    onPressIn={drag}
+                    className="w-10 items-center justify-center"
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    activeOpacity={0.6}
+                >
+                    <Ionicons
+                        name="reorder-three-outline"
+                        size={20}
+                        color={isActive ? COLORS.primary.medium : COLORS.grey.medium}
+                    />
+                </TouchableOpacity>
+            )}
 
             {/* Existing item component */}
             <View className="flex-1">
@@ -65,6 +72,8 @@ export const DraggableShoppingListItem = React.memo(function DraggableShoppingLi
                     onDelete={onDelete}
                     onPress={onPress}
                     onQuantityChange={onQuantityChange}
+                    isSelectMode={isSelectMode}
+                    isSelected={isSelected}
                 />
             </View>
         </View>

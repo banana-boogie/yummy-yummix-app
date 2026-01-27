@@ -12,14 +12,30 @@ import {
     IngredientSuggestion,
 } from '@/types/shopping-list.types';
 import { MeasurementUnit } from '@/types/recipe.types';
+import {
+    shoppingListDetailCache,
+    shoppingListsSummaryCache,
+    shoppingCategoryCache,
+} from './cache/shoppingListCache';
 
 const getLangSuffix = () => `_${i18n.locale}`;
 
 export const shoppingListService = {
-    async getShoppingLists(includeArchived = false): Promise<ShoppingList[]> {
+    async getShoppingLists(includeArchived = false, useCache = true): Promise<ShoppingList[]> {
+        // Try cache first
+        if (useCache) {
+            const cached = await shoppingListsSummaryCache.getLists(includeArchived);
+            if (cached) {
+                return cached;
+            }
+        }
+
         let query = supabase
             .from('shopping_lists')
-            .select(`id, user_id, name, is_archived, created_at, updated_at, items:shopping_list_items(count)`)
+            .select(`
+                id, user_id, name, is_archived, created_at, updated_at,
+                items:shopping_list_items(id, is_checked)
+            `)
             .order('updated_at', { ascending: false });
 
         if (!includeArchived) {
@@ -29,31 +45,35 @@ export const shoppingListService = {
         const { data, error } = await query;
         if (error) throw new Error(`Error fetching shopping lists: ${error.message}`);
 
-        const listsWithCounts = await Promise.all(
-            (data ?? []).map(async (list: any) => {
-                const { count: checkedCount } = await supabase
-                    .from('shopping_list_items')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('shopping_list_id', list.id)
-                    .eq('is_checked', true);
+        const result = (data ?? []).map((list: any) => {
+            const items = list.items ?? [];
+            return {
+                id: list.id,
+                userId: list.user_id,
+                name: list.name,
+                isArchived: list.is_archived,
+                itemCount: items.length,
+                checkedCount: items.filter((i: any) => i.is_checked).length,
+                createdAt: list.created_at,
+                updatedAt: list.updated_at,
+            };
+        });
 
-                return {
-                    id: list.id,
-                    userId: list.user_id,
-                    name: list.name,
-                    isArchived: list.is_archived,
-                    itemCount: list.items?.[0]?.count ?? 0,
-                    checkedCount: checkedCount ?? 0,
-                    createdAt: list.created_at,
-                    updatedAt: list.updated_at,
-                };
-            })
-        );
+        // Cache the result
+        await shoppingListsSummaryCache.setLists(result, includeArchived);
 
-        return listsWithCounts;
+        return result;
     },
 
-    async getShoppingListById(id: string): Promise<ShoppingListWithItems | null> {
+    async getShoppingListById(id: string, useCache = true): Promise<ShoppingListWithItems | null> {
+        // Try cache first
+        if (useCache) {
+            const cached = await shoppingListDetailCache.getList(id);
+            if (cached) {
+                return cached;
+            }
+        }
+
         const lang = getLangSuffix();
 
         const { data: listData, error: listError } = await supabase
@@ -110,7 +130,7 @@ export const shoppingListService = {
             items: items.filter(item => item.categoryId === category.id),
         })).filter(category => category.items.length > 0);
 
-        return {
+        const result: ShoppingListWithItems = {
             id: listData.id,
             userId: listData.user_id,
             name: listData.name,
@@ -122,6 +142,11 @@ export const shoppingListService = {
             items,
             categories: categoriesWithItems,
         };
+
+        // Cache the result
+        await shoppingListDetailCache.setList(id, result);
+
+        return result;
     },
 
     async createShoppingList(name: string): Promise<ShoppingList> {
@@ -266,7 +291,15 @@ export const shoppingListService = {
         return { merged: mergedCount, items: updatedList?.items ?? [] };
     },
 
-    async getCategories(): Promise<ShoppingCategory[]> {
+    async getCategories(useCache = true): Promise<ShoppingCategory[]> {
+        // Try cache first (categories are static)
+        if (useCache) {
+            const cached = await shoppingCategoryCache.getCategories();
+            if (cached) {
+                return cached;
+            }
+        }
+
         const { data: { user } } = await supabase.auth.getUser();
 
         const { data: categories, error: catError } = await supabase
@@ -276,6 +309,8 @@ export const shoppingListService = {
 
         if (catError) throw new Error(`Error fetching categories: ${catError.message}`);
 
+        let result: ShoppingCategory[];
+
         if (user) {
             const { data: userOrder } = await supabase
                 .from('user_category_order')
@@ -284,7 +319,7 @@ export const shoppingListService = {
 
             if (userOrder && userOrder.length > 0) {
                 const orderMap = new Map(userOrder.map(o => [o.category_id, o.display_order]));
-                return (categories ?? [])
+                result = (categories ?? [])
                     .map(cat => ({
                         id: cat.id,
                         nameEn: cat.name_en,
@@ -293,25 +328,40 @@ export const shoppingListService = {
                         displayOrder: orderMap.get(cat.id) ?? cat.display_order,
                     }))
                     .sort((a, b) => a.displayOrder - b.displayOrder);
+
+                // Cache the result
+                await shoppingCategoryCache.setCategories(result);
+                return result;
             }
         }
 
-        return (categories ?? []).map(cat => ({
+        result = (categories ?? []).map(cat => ({
             id: cat.id,
             nameEn: cat.name_en,
             nameEs: cat.name_es,
             icon: cat.icon,
             displayOrder: cat.display_order,
         }));
+
+        // Cache the result
+        await shoppingCategoryCache.setCategories(result);
+        return result;
     },
 
     async searchIngredients(query: string, limit = 10): Promise<IngredientSuggestion[]> {
         const lang = getLangSuffix();
 
+        // Escape special LIKE/ILIKE characters to prevent injection
+        const sanitizedQuery = query
+            .replace(/[%_\\]/g, '\\$&')
+            .trim();
+
+        if (!sanitizedQuery) return [];
+
         const { data, error } = await supabase
             .from('ingredients')
             .select(`id, name${lang}, plural_name${lang}, picture_url`)
-            .ilike(`name${lang}`, `%${query}%`)
+            .ilike(`name${lang}`, `%${sanitizedQuery}%`)
             .limit(limit);
 
         if (error) throw new Error(`Error searching ingredients: ${error.message}`);
@@ -341,6 +391,36 @@ export const shoppingListService = {
         if (errors.length > 0) {
             throw new Error(`Error updating item order: ${errors[0].error.message}`);
         }
+    },
+
+    async batchDeleteItems(itemIds: string[]): Promise<void> {
+        if (itemIds.length === 0) return;
+
+        const { error } = await supabase
+            .from('shopping_list_items')
+            .delete()
+            .in('id', itemIds);
+
+        if (error) throw new Error(`Error batch deleting items: ${error.message}`);
+    },
+
+    async batchUpdateItems(itemIds: string[], updates: { isChecked: boolean }): Promise<void> {
+        if (itemIds.length === 0) return;
+
+        const dbUpdates: Record<string, any> = {};
+        if (updates.isChecked !== undefined) {
+            dbUpdates.is_checked = updates.isChecked;
+            if (updates.isChecked) {
+                dbUpdates.checked_at = new Date().toISOString();
+            }
+        }
+
+        const { error } = await supabase
+            .from('shopping_list_items')
+            .update(dbUpdates)
+            .in('id', itemIds);
+
+        if (error) throw new Error(`Error batch updating items: ${error.message}`);
     },
 };
 

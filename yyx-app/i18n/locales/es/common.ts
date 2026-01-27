@@ -11,6 +11,7 @@ export const common = {
   cancel: "Cancelar",
   import: "Import",
   done: "Listo",
+  undo: "Deshacer",
   selectDate: "Seleccionar Fecha",
   showAll: "Mostrar {{count}} más",
   showLess: "Mostrar menos",
