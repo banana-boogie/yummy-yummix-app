@@ -26,6 +26,10 @@ export const recipes = {
       medium: "Medium",
       hard: "Hard",
     },
+    time: {
+      minutesShort: "{{count}}m",
+      hoursShort: "{{count}}h",
+    },
     emptyState: "No recipes found",
     noRecipesFound: "No recipes found",
     kitchenTools: "Kitchen Tools",

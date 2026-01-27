@@ -2,7 +2,8 @@
 -- Migration: Fix Cookbook RLS Security Vulnerability
 -- Description: Remove overly permissive RLS policies that allow any user to
 --              read ALL cookbooks and cookbook_recipes. Share token access
---              is handled at the application layer via getCookbookByShareToken().
+--              is handled via SECURITY DEFINER functions with explicit
+--              share_enabled checks.
 -- Date: 2026-01-26
 -- ============================================================================
 
@@ -38,6 +39,7 @@ RETURNS TABLE (
   is_public BOOLEAN,
   is_default BOOLEAN,
   share_token UUID,
+  share_enabled BOOLEAN,
   created_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ
 )
@@ -57,10 +59,12 @@ BEGIN
     c.is_public,
     c.is_default,
     c.share_token,
+    c.share_enabled,
     c.created_at,
     c.updated_at
   FROM cookbooks c
   WHERE c.share_token = p_share_token
+  AND c.share_enabled = true
   LIMIT 1;
 END;
 $$;
@@ -114,6 +118,7 @@ BEGIN
   INNER JOIN cookbooks c ON c.id = cr.cookbook_id
   INNER JOIN recipes r ON r.id = cr.recipe_id
   WHERE c.share_token = p_share_token
+  AND c.share_enabled = true
   ORDER BY cr.display_order ASC, cr.added_at DESC;
 END;
 $$;
@@ -143,4 +148,4 @@ GRANT EXECUTE ON FUNCTION get_cookbook_recipes_by_share_token(UUID) TO authentic
 -- Comments for documentation
 -- ============================================================================
 
-COMMENT ON TABLE cookbooks IS 'User-owned recipe collections. Share token access is handled at application layer.';
+COMMENT ON TABLE cookbooks IS 'User-owned recipe collections. Share token access is handled via SECURITY DEFINER functions with share_enabled checks.';

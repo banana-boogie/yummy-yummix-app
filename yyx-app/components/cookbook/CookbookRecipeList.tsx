@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Pressable, Alert } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Text } from '@/components/common';
@@ -25,6 +25,41 @@ export function CookbookRecipeList({
 }: CookbookRecipeListProps) {
   const router = useRouter();
   const removeRecipeMutation = useRemoveRecipeFromCookbook();
+  const [sortBy, setSortBy] = useState<'custom' | 'recent'>('custom');
+
+  const sortedRecipes = useMemo(() => {
+    const copy = [...recipes];
+    if (sortBy === 'recent') {
+      return copy.sort(
+        (a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime()
+      );
+    }
+    return copy.sort((a, b) => a.displayOrder - b.displayOrder);
+  }, [recipes, sortBy]);
+
+  const formatMinutesShort = (minutes?: number) => {
+    if (minutes === undefined || minutes === null) return '';
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    if (hours > 0 && remainingMinutes > 0) {
+      return `${i18n.t('recipes.common.time.hoursShort', { count: hours })} ${i18n.t(
+        'recipes.common.time.minutesShort',
+        { count: remainingMinutes }
+      )}`;
+    }
+    if (hours > 0) {
+      return i18n.t('recipes.common.time.hoursShort', { count: hours });
+    }
+    return i18n.t('recipes.common.time.minutesShort', { count: remainingMinutes });
+  };
+
+  const getDifficultyLabel = (difficulty?: string) => {
+    if (!difficulty) return '';
+    if (['easy', 'medium', 'hard'].includes(difficulty)) {
+      return i18n.t(`recipes.common.difficulty.${difficulty}`);
+    }
+    return difficulty;
+  };
 
   const handleRecipePress = async (recipeId: string) => {
     await Haptics.selectionAsync();
@@ -102,7 +137,7 @@ export function CookbookRecipeList({
               <View className="flex-row items-center">
                 <Ionicons name="time-outline" size={14} color="#666" />
                 <Text preset="caption" className="text-text-secondary ml-xs">
-                  {item.prepTimeMinutes}m
+                  {formatMinutesShort(item.prepTimeMinutes)}
                 </Text>
               </View>
             )}
@@ -111,7 +146,7 @@ export function CookbookRecipeList({
               <View className="flex-row items-center">
                 <Ionicons name="bar-chart-outline" size={14} color="#666" />
                 <Text preset="caption" className="text-text-secondary ml-xs">
-                  {item.difficulty}
+                  {getDifficultyLabel(item.difficulty)}
                 </Text>
               </View>
             )}
@@ -120,7 +155,7 @@ export function CookbookRecipeList({
               <View className="flex-row items-center">
                 <Ionicons name="people-outline" size={14} color="#666" />
                 <Text preset="caption" className="text-text-secondary ml-xs">
-                  {item.servings}
+                  {item.servings} {i18n.t('recipes.common.portions')}
                 </Text>
               </View>
             )}
@@ -170,11 +205,48 @@ export function CookbookRecipeList({
 
   return (
     <FlashList
-      data={recipes}
+      data={sortedRecipes}
       renderItem={renderRecipeItem}
       keyExtractor={(item) => item.cookbookRecipeId}
       estimatedItemSize={140}
       contentContainerStyle={{ paddingVertical: 16 }}
+      ListHeaderComponent={
+        recipes.length > 1 ? (
+          <View className="px-md pb-sm">
+            <Text preset="caption" className="text-text-secondary mb-xs">
+              {i18n.t('cookbooks.sort.label')}
+            </Text>
+            <View className="flex-row gap-sm">
+              {[
+                { value: 'custom', label: i18n.t('cookbooks.sort.customOrder') },
+                { value: 'recent', label: i18n.t('cookbooks.sort.recent') },
+              ].map((option) => {
+                const isActive = sortBy === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    onPress={() => setSortBy(option.value as 'custom' | 'recent')}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isActive }}
+                    className={`px-sm py-xxs rounded-full border ${
+                      isActive
+                        ? 'bg-primary-medium/30 border-primary-medium'
+                        : 'bg-white border-neutral-200'
+                    }`}
+                  >
+                    <Text
+                      preset="caption"
+                      className={isActive ? 'text-text-default' : 'text-text-secondary'}
+                    >
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ) : null
+      }
       showsVerticalScrollIndicator={false}
     />
   );

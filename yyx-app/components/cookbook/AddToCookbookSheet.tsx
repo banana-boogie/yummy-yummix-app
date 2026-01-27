@@ -2,12 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { View, Modal, Pressable, FlatList, Alert } from 'react-native';
 import { Text, Button, TextInput } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
-import { Cookbook } from '@/types/cookbook.types';
-import { useUserCookbooksQuery, useAddRecipeToCookbook } from '@/hooks/useCookbookQuery';
+import { Cookbook, CreateCookbookInput, UpdateCookbookInput } from '@/types/cookbook.types';
+import {
+    useUserCookbooksQuery,
+    useAddRecipeToCookbook,
+    useCreateCookbook,
+} from '@/hooks/useCookbookQuery';
 import { cookbookService } from '@/services/cookbookService';
 import { useAuth } from '@/contexts/AuthContext';
 import * as Haptics from 'expo-haptics';
 import i18n from '@/i18n';
+import { CreateEditCookbookModal } from './CreateEditCookbookModal';
 
 interface AddToCookbookSheetProps {
     visible: boolean;
@@ -27,11 +32,13 @@ export function AddToCookbookSheet({
     const { user } = useAuth();
     const { data: cookbooks = [], isLoading } = useUserCookbooksQuery();
     const addRecipeMutation = useAddRecipeToCookbook();
+    const createCookbookMutation = useCreateCookbook();
 
     const [selectedCookbook, setSelectedCookbook] = useState<Cookbook | null>(null);
     const [notes, setNotes] = useState('');
     const [step, setStep] = useState<'select' | 'notes'>('select');
     const [cookbookIdsWithRecipe, setCookbookIdsWithRecipe] = useState<string[]>([]);
+    const [showCreateModal, setShowCreateModal] = useState(false);
 
     // Fetch which cookbooks already contain this recipe
     useEffect(() => {
@@ -60,6 +67,7 @@ export function AddToCookbookSheet({
             setNotes('');
             setStep('select');
             setCookbookIdsWithRecipe([]);
+            setShowCreateModal(false);
         }
     }, [visible]);
 
@@ -102,6 +110,27 @@ export function AddToCookbookSheet({
     const handleBack = () => {
         setStep('select');
         setSelectedCookbook(null);
+    };
+
+    const handleCreateCookbook = async (
+        input: CreateCookbookInput | UpdateCookbookInput
+    ) => {
+        try {
+            const created = await createCookbookMutation.mutateAsync(
+                input as CreateCookbookInput
+            );
+            setShowCreateModal(false);
+            setSelectedCookbook(created);
+            setNotes('');
+            setStep('notes');
+        } catch (error) {
+            const err = error as Error;
+            console.error('Failed to create cookbook:', err.message);
+            Alert.alert(
+                i18n.t('common.errors.title'),
+                err.message || i18n.t('cookbooks.errors.createFailed')
+            );
+        }
     };
 
     const renderCookbookItem = ({ item }: { item: Cookbook }) => {
@@ -198,6 +227,16 @@ export function AddToCookbookSheet({
                                     showsVerticalScrollIndicator={false}
                                 />
                             )}
+
+                            <View className="mt-sm">
+                                <Button
+                                    variant="outline"
+                                    onPress={() => setShowCreateModal(true)}
+                                    icon={<Ionicons name="add" size={18} color="#2D2D2D" />}
+                                >
+                                    {i18n.t('cookbooks.createCookbook')}
+                                </Button>
+                            </View>
                         </>
                     ) : (
                         <>
@@ -253,5 +292,12 @@ export function AddToCookbookSheet({
                 </View>
             </View>
         </Modal>
+
+        <CreateEditCookbookModal
+            visible={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            onSave={handleCreateCookbook}
+            isLoading={createCookbookMutation.isPending}
+        />
     );
 }

@@ -9,10 +9,11 @@
 export interface Cookbook {
   id: string;
   userId: string;
-  name: string; // Resolved based on locale (nameEn or nameEs)
-  description?: string; // Resolved based on locale
+  name: string; // Single-language user content
+  description?: string; // Single-language user content
   isPublic: boolean;
   isDefault: boolean; // True for auto-created "Favorites" cookbook
+  shareEnabled: boolean;
   shareToken: string;
   recipeCount: number; // Computed from cookbook_recipes junction
   createdAt: string;
@@ -62,6 +63,7 @@ export interface CookbookApiResponse {
   is_public: boolean;
   is_default: boolean;
   share_token: string;
+  share_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -126,6 +128,7 @@ export interface UpdateCookbookInput {
   descriptionEn?: string;
   descriptionEs?: string;
   isPublic?: boolean;
+  shareEnabled?: boolean;
 }
 
 /**

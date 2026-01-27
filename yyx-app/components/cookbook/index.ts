@@ -5,3 +5,4 @@ export { CookbookRecipeList } from './CookbookRecipeList';
 export { CreateEditCookbookModal } from './CreateEditCookbookModal';
 export { AddToCookbookSheet } from './AddToCookbookSheet';
 export { ShareCookbookModal } from './ShareCookbookModal';
+export { CookbookSortBar } from './CookbookSortBar';

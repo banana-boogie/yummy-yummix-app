@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { View, Modal, Pressable, Share, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Modal, Pressable, Share, Platform, Switch, Alert } from 'react-native';
 import { Text, Button } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { Cookbook } from '@/types/cookbook.types';
-import { useRegenerateShareToken } from '@/hooks/useCookbookQuery';
+import { useRegenerateShareToken, useUpdateCookbook } from '@/hooks/useCookbookQuery';
 import i18n from '@/i18n';
+import { getAppBaseUrl } from '@/utils/urls';
 
 interface ShareCookbookModalProps {
     visible: boolean;
@@ -19,12 +20,24 @@ export function ShareCookbookModal({
     cookbook,
 }: ShareCookbookModalProps) {
     const regenerateTokenMutation = useRegenerateShareToken();
+    const updateCookbookMutation = useUpdateCookbook();
     const [copied, setCopied] = useState(false);
+    const [shareEnabled, setShareEnabled] = useState(cookbook.shareEnabled);
+    const [shareToken, setShareToken] = useState(cookbook.shareToken);
+
+    useEffect(() => {
+        setShareEnabled(cookbook.shareEnabled);
+        setShareToken(cookbook.shareToken);
+        setCopied(false);
+    }, [cookbook]);
 
     // Generate the shareable URL
-    const shareUrl = `https://yummyyummix.com/shared/cookbook/${cookbook.shareToken}`;
+    const shareUrl = shareEnabled
+        ? `${getAppBaseUrl()}/shared/cookbook/${shareToken}`
+        : '';
 
     const handleCopyLink = async () => {
+        if (!shareEnabled || !shareUrl) return;
         await Clipboard.setStringAsync(shareUrl);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -32,6 +45,7 @@ export function ShareCookbookModal({
 
     const handleShare = async () => {
         try {
+            if (!shareEnabled || !shareUrl) return;
             await Share.share({
                 message: Platform.OS === 'ios'
                     ? cookbook.name
@@ -46,9 +60,30 @@ export function ShareCookbookModal({
 
     const handleRegenerateLink = async () => {
         try {
-            await regenerateTokenMutation.mutateAsync(cookbook.id);
+            const newToken = await regenerateTokenMutation.mutateAsync(cookbook.id);
+            setShareToken(newToken);
+            setShareEnabled(true);
         } catch (error) {
             console.error('Error regenerating link:', error);
+            Alert.alert(i18n.t('common.errors.title'), i18n.t('common.errors.default'));
+        }
+    };
+
+    const handleToggleSharing = async (value: boolean) => {
+        try {
+            if (value) {
+                await handleRegenerateLink();
+                return;
+            }
+            await updateCookbookMutation.mutateAsync({
+                cookbookId: cookbook.id,
+                input: { shareEnabled: false },
+            });
+            setShareEnabled(false);
+            setCopied(false);
+        } catch (error) {
+            console.error('Error updating sharing setting:', error);
+            Alert.alert(i18n.t('common.errors.title'), i18n.t('common.errors.default'));
         }
     };
 
@@ -105,21 +140,44 @@ export function ShareCookbookModal({
                         </Text>
                     </View>
 
+                    {/* Share enabled toggle */}
+                    <View className="flex-row items-center justify-between mb-md bg-white p-md rounded-md border border-neutral-200">
+                        <View className="flex-1 mr-md">
+                            <Text preset="subheading">{i18n.t('cookbooks.shareEnabled')}</Text>
+                            <Text preset="caption" className="text-text-secondary">
+                                {i18n.t('cookbooks.shareEnabledDescription')}
+                            </Text>
+                        </View>
+                        <Switch
+                            value={shareEnabled}
+                            onValueChange={handleToggleSharing}
+                            disabled={regenerateTokenMutation.isPending || updateCookbookMutation.isPending}
+                            trackColor={{ false: '#ccc', true: '#78A97A' }}
+                        />
+                    </View>
+
+                    {!shareEnabled && (
+                        <Text preset="caption" className="text-text-secondary mb-md">
+                            {i18n.t('cookbooks.shareDisabledInfo')}
+                        </Text>
+                    )}
+
                     {/* Share link */}
                     <View className="bg-white rounded-md p-md mb-md flex-row items-center border border-neutral-200">
                         <Text
                             preset="caption"
                             className="flex-1 text-text-secondary"
                             numberOfLines={1}
-                            accessibilityLabel={shareUrl}
+                            accessibilityLabel={shareUrl || i18n.t('cookbooks.shareDisabledPlaceholder')}
                         >
-                            {shareUrl}
+                            {shareUrl || i18n.t('cookbooks.shareDisabledPlaceholder')}
                         </Text>
                         <Pressable
                             onPress={handleCopyLink}
                             accessibilityRole="button"
                             accessibilityLabel={i18n.t('cookbooks.a11y.copyLink')}
                             className="ml-sm p-xs"
+                            disabled={!shareEnabled}
                         >
                             <Ionicons
                                 name={copied ? 'checkmark' : 'copy-outline'}
@@ -134,6 +192,7 @@ export function ShareCookbookModal({
                         <Button
                             variant="primary"
                             onPress={handleShare}
+                            disabled={!shareEnabled}
                             icon={<Ionicons name="share-outline" size={18} color="#2D2D2D" />}
                         >
                             {i18n.t('cookbooks.shareLink')}
@@ -142,16 +201,22 @@ export function ShareCookbookModal({
                         <Button
                             variant="outline"
                             onPress={handleRegenerateLink}
-                            disabled={regenerateTokenMutation.isPending}
+                            disabled={
+                                regenerateTokenMutation.isPending ||
+                                updateCookbookMutation.isPending ||
+                                !shareEnabled
+                            }
                         >
                             {regenerateTokenMutation.isPending
                                 ? i18n.t('common.loading')
                                 : i18n.t('cookbooks.regenerateLink')}
                         </Button>
 
-                        <Text preset="caption" className="text-text-secondary text-center">
-                            {i18n.t('cookbooks.regenerateLinkInfo')}
-                        </Text>
+                        {shareEnabled && (
+                            <Text preset="caption" className="text-text-secondary text-center">
+                                {i18n.t('cookbooks.regenerateLinkInfo')}
+                            </Text>
+                        )}
                     </View>
                 </View>
             </View>
