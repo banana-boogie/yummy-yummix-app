@@ -12,6 +12,57 @@ import {
   CookbookRecipe,
 } from '@/types/cookbook.types';
 
+// ============================================================================
+// RPC Response Types (for SECURITY DEFINER functions)
+// ============================================================================
+
+/**
+ * Response shape from get_cookbook_by_share_token() RPC function
+ */
+interface SharedCookbookRpcResponse {
+  id: string;
+  user_id: string;
+  name_en: string;
+  name_es: string | null;
+  description_en: string | null;
+  description_es: string | null;
+  is_public: boolean;
+  is_default: boolean;
+  share_token: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Response shape from get_cookbook_recipes_by_share_token() RPC function
+ */
+interface SharedCookbookRecipeRpcResponse {
+  cookbook_recipe_id: string;
+  cookbook_id: string;
+  recipe_id: string;
+  notes_en: string | null;
+  notes_es: string | null;
+  display_order: number;
+  added_at: string;
+  recipe_name_en: string;
+  recipe_name_es: string | null;
+  recipe_description_en: string | null;
+  recipe_description_es: string | null;
+  recipe_image_url: string | null;
+  recipe_prep_time_minutes: number | null;
+  recipe_cook_time_minutes: number | null;
+  recipe_servings: number | null;
+  recipe_difficulty: string | null;
+}
+
+/**
+ * Response shape for cookbook with recipe count aggregate
+ */
+interface CookbookWithRecipeCountResponse extends CookbookApiResponse {
+  cookbook_recipes: Array<{ recipe_id: string; id: string }>;
+  total_recipes: Array<{ count: number }>;
+}
+
 // Helper function to get current language suffix
 const getLangSuffix = () => `_${i18n.locale}`;
 
@@ -161,7 +212,13 @@ async function getCookbookById(cookbookId: string): Promise<CookbookWithRecipes>
 async function getCookbookByShareToken(
   shareToken: string
 ): Promise<CookbookWithRecipes> {
+  // Input validation - fail fast for invalid tokens
+  if (!shareToken || shareToken.trim().length === 0) {
+    throw new Error('Share token is required');
+  }
+
   // Call the SECURITY DEFINER function to get cookbook data
+  // This bypasses RLS but only returns the specific cookbook matching the token
   const { data: cookbookData, error: cookbookError } = await supabase.rpc(
     'get_cookbook_by_share_token',
     { p_share_token: shareToken }
@@ -172,13 +229,16 @@ async function getCookbookByShareToken(
     throw new Error(cookbookError.message);
   }
 
-  if (!cookbookData || cookbookData.length === 0) {
+  const typedCookbookData = cookbookData as SharedCookbookRpcResponse[] | null;
+
+  if (!typedCookbookData || typedCookbookData.length === 0) {
     throw new Error('Cookbook not found');
   }
 
-  const cookbook = cookbookData[0];
+  const cookbook = typedCookbookData[0];
 
   // Call the SECURITY DEFINER function to get cookbook recipes
+  // Returns flattened rows with both junction table and recipe data
   const { data: recipesData, error: recipesError } = await supabase.rpc(
     'get_cookbook_recipes_by_share_token',
     { p_share_token: shareToken }
@@ -189,8 +249,13 @@ async function getCookbookByShareToken(
     throw new Error(recipesError.message);
   }
 
-  // Transform the data to match the expected format
-  const transformedRecipes = (recipesData || []).map((item: any) => ({
+  const typedRecipesData = recipesData as SharedCookbookRecipeRpcResponse[] | null;
+
+  // Transform RPC flat rows back to nested structure expected by transformCookbookWithRecipes
+  // RPC returns: { cookbook_recipe_id, recipe_name_en, ... } (flat)
+  // Expected:    { id, recipes: { name_en, ... } } (nested)
+  const transformedRecipes = (typedRecipesData || []).map((item) => ({
+    // Junction table fields (cookbook_recipes)
     id: item.cookbook_recipe_id,
     cookbook_id: item.cookbook_id,
     recipe_id: item.recipe_id,
@@ -198,6 +263,7 @@ async function getCookbookByShareToken(
     notes_es: item.notes_es,
     display_order: item.display_order,
     added_at: item.added_at,
+    // Nested recipe object (recipes table)
     recipes: {
       id: item.recipe_id,
       name_en: item.recipe_name_en,
@@ -212,13 +278,13 @@ async function getCookbookByShareToken(
     },
   }));
 
-  // Reconstruct the data structure
+  // Reconstruct the data structure to match CookbookWithRecipesApiResponse
   const reconstructedData = {
     ...cookbook,
     cookbook_recipes: transformedRecipes,
   };
 
-  return transformCookbookWithRecipes(reconstructedData);
+  return transformCookbookWithRecipes(reconstructedData as CookbookWithRecipesApiResponse);
 }
 
 /**
@@ -386,6 +452,11 @@ async function getCookbookIdsContainingRecipe(
   userId: string,
   recipeId: string
 ): Promise<string[]> {
+  // Input validation - fail fast for invalid parameters
+  if (!userId || !recipeId) {
+    return [];
+  }
+
   const { data, error } = await supabase
     .from('cookbook_recipes')
     .select('cookbook_id, cookbooks!inner(user_id)')
@@ -403,17 +474,26 @@ async function getCookbookIdsContainingRecipe(
 /**
  * Get cookbooks that contain a specific recipe for a user
  * More efficient than fetching all cookbooks and filtering
+ * Returns cookbooks with their TOTAL recipe count (not just the filtered one)
  */
 async function getCookbooksContainingRecipe(
   userId: string,
   recipeId: string
 ): Promise<Cookbook[]> {
+  // Input validation - fail fast for invalid parameters
+  if (!userId || !recipeId) {
+    return [];
+  }
+
+  // Use inner join to filter cookbooks containing the recipe,
+  // plus a separate count aggregate for the total recipe count
   const { data, error } = await supabase
     .from('cookbooks')
     .select(
       `
       *,
-      cookbook_recipes!inner(recipe_id, id)
+      cookbook_recipes!inner(recipe_id, id),
+      total_recipes:cookbook_recipes(count)
     `
     )
     .eq('user_id', userId)
@@ -425,12 +505,14 @@ async function getCookbooksContainingRecipe(
   }
 
   return (data || []).map((raw) => {
-    // For cookbooks with the recipe, count is at least 1
-    // We get the actual count from the array length of cookbook_recipes
-    const recipeCount = Array.isArray(raw.cookbook_recipes)
-      ? raw.cookbook_recipes.length
-      : 1;
-    return transformCookbook(raw, recipeCount);
+    // Cast to typed response for proper access
+    const typedRaw = raw as unknown as CookbookWithRecipeCountResponse;
+
+    // Use the total_recipes aggregate for the actual total count
+    // This gives us ALL recipes in the cookbook, not just the filtered one
+    const recipeCount = typedRaw.total_recipes?.[0]?.count ?? 0;
+
+    return transformCookbook(typedRaw, recipeCount);
   });
 }
 
