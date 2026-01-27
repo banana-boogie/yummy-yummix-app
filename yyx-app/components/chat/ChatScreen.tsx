@@ -64,6 +64,10 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
         };
     }, []);
 
+    useEffect(() => {
+        setDynamicSuggestions(null);
+    }, [language]);
+
     const scrollToEndThrottled = useCallback((animated: boolean) => {
         // Only auto-scroll if user is near bottom (prevents interrupting reading)
         if (!isNearBottomRef.current && !animated) return;

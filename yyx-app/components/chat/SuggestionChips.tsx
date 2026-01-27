@@ -25,9 +25,9 @@ export function SuggestionChips({ suggestions, onSelect, disabled = false }: Sug
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
             >
-                {suggestions.map((suggestion) => (
+                {suggestions.map((suggestion, index) => (
                     <TouchableOpacity
-                        key={`${suggestion.label}:${suggestion.message}`}
+                        key={`${suggestion.label}:${suggestion.message}:${index}`}
                         onPress={() => onSelect(suggestion)}
                         disabled={disabled}
                         className={`px-md py-sm rounded-full border ${disabled

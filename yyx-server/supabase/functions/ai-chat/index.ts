@@ -16,6 +16,7 @@ import {
     unauthorizedResponse,
     forbiddenResponse,
 } from '../_shared/auth.ts';
+import { sanitizeContent } from '../_shared/context-builder.ts';
 import { chat, AIMessage } from '../_shared/ai-gateway/index.ts';
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -259,6 +260,8 @@ serve(async (req: Request) => {
             );
         }
 
+        const sanitizedMessage = sanitizeContent(message);
+
         const supabase = createSupabaseClient(authHeader!);
 
         // Get or create chat session
@@ -274,13 +277,17 @@ serve(async (req: Request) => {
 
         // Get chat history
         const history = await getChatHistory(supabase, currentSessionId);
+        const sanitizedHistory = history.map((entry) => ({
+            ...entry,
+            content: sanitizeContent(entry.content),
+        }));
 
         // Build messages array with localized system prompt
         const systemPrompt = SYSTEM_PROMPTS[language] || SYSTEM_PROMPTS.en;
         const messages: AIMessage[] = [
             { role: 'system', content: systemPrompt },
-            ...history,
-            { role: 'user', content: message }
+            ...sanitizedHistory,
+            { role: 'user', content: sanitizedMessage }
         ];
 
         // Save user message

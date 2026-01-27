@@ -26,7 +26,7 @@ export function ChatRecipeCard({ recipe }: ChatRecipeCardProps) {
         }
 
         // Haptic feedback for premium feel
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         router.push(`/(tabs)/recipes/${recipe.recipeId}`);
     };
 
