@@ -8,6 +8,7 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Alert,
+    Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/common/Text';
@@ -22,6 +23,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Markdown from 'react-native-markdown-display';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
+import { formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
 import i18n from '@/i18n';
 import { COLORS } from '@/constants/design-tokens';
 
@@ -82,6 +85,42 @@ interface Props {
     onSessionCreated?: (sessionId: string) => void;
 }
 
+// Animated typing dots component
+function TypingDots() {
+    const dot1 = useRef(new Animated.Value(0)).current;
+    const dot2 = useRef(new Animated.Value(0)).current;
+    const dot3 = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        const animateDot = (dot: Animated.Value, delay: number) => {
+            return Animated.loop(
+                Animated.sequence([
+                    Animated.delay(delay),
+                    Animated.timing(dot, { toValue: -4, duration: 200, useNativeDriver: true }),
+                    Animated.timing(dot, { toValue: 0, duration: 200, useNativeDriver: true }),
+                ])
+            );
+        };
+
+        const animations = [
+            animateDot(dot1, 0),
+            animateDot(dot2, 150),
+            animateDot(dot3, 300),
+        ];
+
+        animations.forEach(anim => anim.start());
+        return () => animations.forEach(anim => anim.stop());
+    }, [dot1, dot2, dot3]);
+
+    return (
+        <View className="flex-row items-center ml-sm gap-1">
+            <Animated.View className="w-2 h-2 bg-grey-medium rounded-full" style={{ transform: [{ translateY: dot1 }] }} />
+            <Animated.View className="w-2 h-2 bg-grey-medium rounded-full" style={{ transform: [{ translateY: dot2 }] }} />
+            <Animated.View className="w-2 h-2 bg-grey-medium rounded-full" style={{ transform: [{ translateY: dot3 }] }} />
+        </View>
+    );
+}
+
 export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Props) {
     const { user } = useAuth();
     const { language } = useLanguage();
@@ -102,6 +141,7 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
     const [currentStatus, setCurrentStatus] = useState<IrmixyStatus>(null);
     const [dynamicSuggestions, setDynamicSuggestions] = useState<SuggestionChip[] | null>(null);
+    const [showScrollButton, setShowScrollButton] = useState(false);
 
     useEffect(() => {
         return () => {
@@ -443,6 +483,23 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
                     )}
                 </TouchableOpacity>
 
+                {/* Timestamp */}
+                {item.createdAt && (
+                    <Text className={`text-xs text-grey-medium mt-xs ${isUser ? 'self-end' : 'self-start'}`}>
+                        {formatDistanceToNow(new Date(item.createdAt), {
+                            addSuffix: true,
+                            locale: language === 'es' ? es : undefined,
+                        })}
+                    </Text>
+                )}
+
+                {/* Token count (dev mode only) */}
+                {__DEV__ && item.content && (
+                    <Text className="text-xs text-gray-400 mt-xs self-start">
+                        ~{Math.floor(item.content.length / 4)} tokens
+                    </Text>
+                )}
+
                 {/* Recipe cards (only for assistant messages with recipes) */}
                 {!isUser && item.recipes && item.recipes.length > 0 && (
                     <View className="mt-sm self-start max-w-[95%]">
@@ -453,14 +510,24 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
                 )}
             </View>
         );
-    }, [handleCopyMessage]);
+    }, [handleCopyMessage, language]);
 
     const handleScroll = useCallback((event: any) => {
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
         const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
 
         // Consider "near bottom" if within threshold
-        isNearBottomRef.current = distanceFromBottom <= SCROLL_THRESHOLD;
+        const isNearBottom = distanceFromBottom <= SCROLL_THRESHOLD;
+        isNearBottomRef.current = isNearBottom;
+
+        // Show scroll button when user is not near bottom and there's content
+        setShowScrollButton(!isNearBottom && contentSize.height > layoutMeasurement.height);
+    }, []);
+
+    const handleScrollToBottom = useCallback(() => {
+        isNearBottomRef.current = true;
+        setShowScrollButton(false);
+        flatListRef.current?.scrollToEnd({ animated: true });
     }, []);
 
     if (!user) {
@@ -495,6 +562,17 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
                 }
             />
 
+            {/* Scroll to bottom button */}
+            {showScrollButton && (
+                <TouchableOpacity
+                    onPress={handleScrollToBottom}
+                    className="absolute right-4 bottom-32 bg-primary-default rounded-full p-3 shadow-lg"
+                    style={{ elevation: 4 }}
+                >
+                    <MaterialCommunityIcons name="chevron-double-down" size={24} color="white" />
+                </TouchableOpacity>
+            )}
+
             {/* Status indicator with avatar */}
             {isLoading && (
                 <View className="px-md py-sm">
@@ -503,6 +581,7 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
                         <Text className="text-text-secondary ml-sm text-sm">
                             {getStatusText()}
                         </Text>
+                        <TypingDots />
                     </View>
 
                     {/* Skeleton loaders while searching */}
