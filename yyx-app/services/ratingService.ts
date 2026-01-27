@@ -140,6 +140,48 @@ export const ratingService = {
             ratingCount: data?.rating_count ?? 0,
         };
     },
+
+    /**
+     * Get rating distribution for a recipe (count of each star rating)
+     */
+    async getRatingDistribution(recipeId: string): Promise<{
+        distribution: { [key: number]: number };
+        total: number;
+    }> {
+        // Validate recipe exists and is published
+        await this.validateRecipe(recipeId);
+
+        // Initialize distribution with zeros
+        const distribution: { [key: number]: number } = {
+            1: 0,
+            2: 0,
+            3: 0,
+            4: 0,
+            5: 0,
+        };
+
+        const ratingBuckets = [1, 2, 3, 4, 5];
+        const results = await Promise.all(
+            ratingBuckets.map((rating) =>
+                supabase
+                    .from('recipe_ratings')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('recipe_id', recipeId)
+                    .eq('rating', rating)
+            )
+        );
+
+        results.forEach((result, index) => {
+            if (result.error) {
+                throw new Error(`Failed to get rating distribution: ${result.error.message}`);
+            }
+            distribution[ratingBuckets[index]] = result.count ?? 0;
+        });
+
+        const total = ratingBuckets.reduce((sum, rating) => sum + distribution[rating], 0);
+
+        return { distribution, total };
+    },
 };
 
 export default ratingService;

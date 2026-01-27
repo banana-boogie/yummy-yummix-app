@@ -84,6 +84,13 @@ export const recipes = {
     skip: "Omitir",
     submit: "Enviar",
     beFirstToRate: "¡Sé el primero en calificar!",
+    yourRating: "Tu calificación",
+    rateThisRecipe: "Califica esta receta",
+    tapToUpdateRating: "Toca una estrella para actualizar tu calificación",
+    rateStar: "Califica con {{count}} estrella",
+    rateStars: "Califica con {{count}} estrellas",
+    ratingsCount: "{{count}} calificaciones",
+    ratingCount: "{{count}} calificación",
   },
   share: {
     message: "¡Mira esta receta en YummyYummix!",

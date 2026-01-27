@@ -24,10 +24,10 @@ import { useDevice } from '@/hooks/useDevice';
 import { ResponsiveColumnLayout, MainColumn, SideColumn } from '@/components/layouts/ResponsiveColumnLayout';
 import { RecipeUsefulItem } from '@/types/recipe.types';
 import { ShareButton } from '@/components/common/ShareButton';
-import { useLanguage } from '@/contexts/LanguageContext';
 import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
-import { StarRating } from '@/components/rating/StarRating';
-
+import { useLanguage } from '@/contexts/LanguageContext';
+import { RatingDistribution, RatingDistributionSkeleton, StarRating, StarRatingInput } from '@/components/rating';
+import { useRecipeRating } from '@/hooks/useRecipeRating';
 
 const RecipeDetail: React.FC = () => {
   const { id, from } = useLocalSearchParams();
@@ -43,7 +43,7 @@ const RecipeDetail: React.FC = () => {
   }, [id, router]);
 
   // Only proceed with recipe fetch if we have a valid UUID
-  const validId = id && isValidUUID(id as string) ? id as string : '';
+  const validId = id && isValidUUID(id as string) ? (id as string) : '';
   const { recipe, loading, error } = useRecipe(validId);
 
   // Track recipe view when recipe loads successfully
@@ -52,6 +52,19 @@ const RecipeDetail: React.FC = () => {
       eventService.logRecipeView(recipe.id, recipe.name);
     }
   }, [recipe?.id, recipe?.name]);
+
+  // Fetch rating distribution and user rating
+  const {
+    ratingDistribution,
+    totalRatings,
+    isLoadingDistribution,
+    userRating,
+    isLoadingRating,
+    isLoggedIn,
+    submitRating,
+    isSubmittingRating,
+    ratingError,
+  } = useRecipeRating(validId);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const { isMedium } = useDevice();
@@ -81,13 +94,9 @@ const RecipeDetail: React.FC = () => {
     { useNativeDriver: false }
   );
 
-
-
   const getShareUrl = () => {
     if (!recipe) return '';
-    const baseUrl = Platform.OS === 'web'
-      ? window.location.origin
-      : 'https://app.yummyyummix.com';
+    const baseUrl = Platform.OS === 'web' ? window.location.origin : 'https://app.yummyyummix.com';
 
     return `${baseUrl}/api/recipe-preview/${recipe.id}?lang=${currentLanguage}`;
   };
@@ -106,21 +115,14 @@ const RecipeDetail: React.FC = () => {
 
       <StatusBar barStyle="dark-content" />
 
-
-
       <View style={{ flex: 1 }}>
-        <PageLayout
-          contentPaddingHorizontal={0}
-          disableMaxWidth={true}
-        >
+        <PageLayout contentPaddingHorizontal={0} disableMaxWidth={true}>
           <Animated.ScrollView
             onScroll={handleScroll}
             scrollEventThrottle={16}
             showsVerticalScrollIndicator={true}
             bounces={true}
           >
-
-
             {/* Recipe image header - constrained to same max-width as content for alignment */}
             <View className="w-full max-w-[500px] md:max-w-[700px] lg:max-w-[900px] self-center">
               <RecipeImageHeader
@@ -145,25 +147,43 @@ const RecipeDetail: React.FC = () => {
                 className="mb-md"
               />
 
-              {/* Rating Display */}
-              {recipe.ratingCount > 0 && recipe.averageRating && (
-                <View className="mb-lg">
-                  <StarRating
-                    rating={recipe.averageRating}
-                    count={recipe.ratingCount}
-                    size="lg"
-                  />
-                </View>
-              )}
+              {/* Rating Summary + CTA */}
+              <View className="mb-lg">
+                {recipe.ratingCount > 0 && recipe.averageRating ? (
+                  <StarRating rating={recipe.averageRating} count={recipe.ratingCount} size="lg" />
+                ) : (
+                  <Text preset="bodySmall" className="text-text-secondary">
+                    {i18n.t('recipes.rating.beFirstToRate')}
+                  </Text>
+                )}
 
-              <View
-                className="mb-xs flex-row justify-between items-center"
-              >
-                <CookButton
-                  recipeId={recipe.id}
-                  size="large"
-                  className="mb-lg"
-                />
+                {isLoggedIn && (
+                  <View className="mt-md">
+                    <Text preset="h3" className="mb-xs">
+                      {i18n.t('recipes.rating.yourRating')}
+                    </Text>
+                    <StarRatingInput
+                      value={userRating ?? 0}
+                      onChange={submitRating}
+                      disabled={isSubmittingRating || isLoadingRating}
+                      size="md"
+                    />
+                    <Text preset="caption" className="text-text-secondary mt-xs">
+                      {userRating
+                        ? i18n.t('recipes.rating.tapToUpdateRating')
+                        : i18n.t('recipes.rating.rateThisRecipe')}
+                    </Text>
+                    {ratingError && (
+                      <Text preset="caption" className="text-status-error mt-xs">
+                        {i18n.t('recipes.rating.submitError')}
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
+
+              <View className="mb-xs flex-row justify-between items-center">
+                <CookButton recipeId={recipe.id} size="large" className="mb-lg" />
                 <View className="mb-lg">
                   <ShareButton
                     message={i18n.t('recipes.share.message', { recipeName: recipe.name })}
@@ -175,10 +195,7 @@ const RecipeDetail: React.FC = () => {
               {/* Content Section */}
               <ResponsiveColumnLayout>
                 <SideColumn className={`pr-md ${isMedium ? 'flex-[1.3]' : 'flex-1'}`}>
-                  <RecipeIngredients
-                    ingredients={recipe.ingredients}
-                    className="mb-xxl"
-                  />
+                  <RecipeIngredients ingredients={recipe.ingredients} className="mb-xxl" />
                   <RecipeUsefulItems
                     usefulItems={recipe.usefulItems as RecipeUsefulItem[]}
                     className="mb-xxl"
@@ -186,31 +203,37 @@ const RecipeDetail: React.FC = () => {
                 </SideColumn>
 
                 <MainColumn className="pl-md border-l border-border-default">
-                  <RecipeSteps
-                    steps={recipe.steps}
-                    className="mb-xxl"
-                  />
-
+                  <RecipeSteps steps={recipe.steps} className="mb-xxl" />
                   <RecipeTip text={recipe.tipsAndTricks} />
                 </MainColumn>
               </ResponsiveColumnLayout>
-              <CookButton
-                recipeId={recipe.id}
-                size="large"
-                className="my-xxl"
-              />
+
+              {/* Rating Distribution */}
+              {isLoadingDistribution ? (
+                <RatingDistributionSkeleton className="mt-lg mb-xl" />
+              ) : ratingDistribution && totalRatings > 0 ? (
+                <RatingDistribution
+                  distribution={ratingDistribution}
+                  total={totalRatings}
+                  averageRating={recipe.averageRating}
+                  className="mt-lg mb-xl"
+                />
+              ) : null}
+
+              <CookButton recipeId={recipe.id} size="large" className="my-xxl" />
             </View>
           </Animated.ScrollView>
         </PageLayout>
+
         <VoiceAssistantButton
           recipeContext={{
             type: 'recipe',
             recipeId: recipe.id,
             recipeTitle: recipe.name,
-            ingredients: recipe.ingredients?.map(ing => ({
+            ingredients: recipe.ingredients?.map((ing) => ({
               name: ing.name,
-              amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
-            }))
+              amount: `${ing.formattedQuantity} ${ing.formattedUnit}`,
+            })),
           }}
         />
       </View>

@@ -8,11 +8,13 @@ import Animated, {
     withSpring,
     withSequence,
 } from 'react-native-reanimated';
+import { COLORS } from '@/constants/design-tokens';
+import i18n from '@/i18n';
 
 // Star rating colors matching the app's warm branding
 const STAR_COLORS = {
-    filled: '#FFA000', // Warm amber
-    empty: '#D0D0D0',  // Gray
+    filled: COLORS.status.warning, // Warm amber
+    empty: COLORS.grey.medium, // Gray
 };
 
 interface StarRatingInputProps {
@@ -71,6 +73,9 @@ export function StarRatingInput({
     const renderStar = (index: number) => {
         const starValue = index + 1;
         const isFilled = value >= starValue;
+        const accessibilityLabel = starValue === 1
+            ? i18n.t('recipes.rating.rateStar', { count: starValue })
+            : i18n.t('recipes.rating.rateStars', { count: starValue });
 
         const animatedStyle = useAnimatedStyle(() => ({
             transform: [{ scale: scales[index].value }],
@@ -84,7 +89,7 @@ export function StarRatingInput({
                 hitSlop={config.hitSlop}
                 style={{ marginRight: index < 4 ? config.gap : 0 }}
                 accessibilityRole="button"
-                accessibilityLabel={`Rate ${starValue} star${starValue > 1 ? 's' : ''}`}
+                accessibilityLabel={accessibilityLabel}
                 accessibilityState={{ selected: isFilled }}
             >
                 <Animated.View style={animatedStyle}>

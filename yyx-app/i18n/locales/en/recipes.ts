@@ -84,6 +84,13 @@ export const recipes = {
     skip: "Skip",
     submit: "Submit",
     beFirstToRate: "Be the first to rate!",
+    yourRating: "Your rating",
+    rateThisRecipe: "Rate this recipe",
+    tapToUpdateRating: "Tap a star to update your rating",
+    rateStar: "Rate {{count}} star",
+    rateStars: "Rate {{count}} stars",
+    ratingsCount: "{{count}} ratings",
+    ratingCount: "{{count}} rating",
   },
   share: {
     message: "Check out this recipe on YummyYummix!",
