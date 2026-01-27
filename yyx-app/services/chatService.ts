@@ -34,6 +34,7 @@ export type { IrmixyResponse, IrmixyStatus, RecipeCard, SuggestionChip };
 // Constants
 const MAX_MESSAGE_LENGTH = 2000;
 const STREAM_TIMEOUT_MS = 60000; // 60 seconds
+const MAX_RETRIES = 3;
 
 // Use ai-orchestrator for structured responses
 const FUNCTIONS_BASE_URL =
@@ -151,143 +152,182 @@ export function streamChatMessageWithHandle(
     });
 
     void (async () => {
-        try {
-            // Validate message length
-            if (message.length > MAX_MESSAGE_LENGTH) {
-                throw new Error(i18n.t('chat.error.messageTooLong', { max: MAX_MESSAGE_LENGTH }));
-            }
+        let retryCount = 0;
 
-            const { data: { session } } = await supabase.auth.getSession();
+        // Retry loop with exponential backoff
+        while (retryCount <= MAX_RETRIES) {
+            try {
+                // Validate message length
+                if (message.length > MAX_MESSAGE_LENGTH) {
+                    throw new Error(i18n.t('chat.error.messageTooLong', { max: MAX_MESSAGE_LENGTH }));
+                }
 
-            if (finished) return;
+                const { data: { session } } = await supabase.auth.getSession();
 
-            if (!session?.access_token) {
-                throw new Error('Not authenticated');
-            }
+                if (finished) return;
 
-            if (!FUNCTIONS_BASE_URL) {
-                throw new Error('Functions URL is not configured');
-            }
+                if (!session?.access_token) {
+                    throw new Error('Not authenticated');
+                }
 
-            console.log('[SSE] Starting stream request to orchestrator...');
+                if (!FUNCTIONS_BASE_URL) {
+                    throw new Error('Functions URL is not configured');
+                }
 
-            let chunkCount = 0;
+                if (retryCount > 0) {
+                    const backoffMs = Math.pow(2, retryCount) * 1000;
+                    console.log(`[SSE] Retrying connection (attempt ${retryCount}/${MAX_RETRIES}) after ${backoffMs}ms...`);
+                    await new Promise(r => setTimeout(r, backoffMs));
+                    if (finished) return;
+                }
 
-            const safeResolve = () => {
+                console.log('[SSE] Starting stream request to orchestrator...');
+
+                let chunkCount = 0;
+                let hasReceivedData = false;
+                let connectionError: Error | null = null;
+
+                const safeResolve = () => {
+                    if (finished) return;
+                    finished = true;
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
+                        timeoutId = null;
+                    }
+                    resolveDone();
+                };
+
+                const safeReject = (error: Error) => {
+                    if (finished) return;
+                    finished = true;
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
+                        timeoutId = null;
+                    }
+                    rejectDone(error);
+                };
+
+                // Wrap connection in Promise to handle retry logic
+                await new Promise<void>((resolveConnection, rejectConnection) => {
+                    // Create EventSource with POST method and body
+                    es = new EventSource(AI_ORCHESTRATOR_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${session.access_token}`,
+                        },
+                        body: JSON.stringify({
+                            message,
+                            sessionId,
+                            mode: 'text',
+                            stream: true,
+                        }),
+                        // Disable automatic reconnection - we handle errors ourselves
+                        pollingInterval: 0,
+                    });
+
+                    if (finished) {
+                        es.close();
+                        rejectConnection(new Error('Cancelled'));
+                        return;
+                    }
+
+                    // Set timeout to prevent hanging streams
+                    timeoutId = setTimeout(() => {
+                        console.error('[SSE] Stream timeout after', STREAM_TIMEOUT_MS, 'ms');
+                        es?.close();
+                        const timeoutError = new Error(i18n.t('chat.error.timeout', { seconds: STREAM_TIMEOUT_MS / 1000 }));
+                        safeReject(timeoutError);
+                        rejectConnection(timeoutError);
+                    }, STREAM_TIMEOUT_MS);
+
+                    es.addEventListener('open', () => {
+                        console.log('[SSE] Connection opened');
+                    });
+
+                    es.addEventListener('message', (event: any) => {
+                        if (!event.data) return;
+                        hasReceivedData = true; // Mark that we received data
+
+                        try {
+                            const json = JSON.parse(event.data);
+                            console.log('[SSE] Event type:', json.type);
+
+                            switch (json.type) {
+                                case 'session':
+                                    if (json.sessionId) {
+                                        onSessionId?.(json.sessionId);
+                                    }
+                                    break;
+
+                                case 'status':
+                                    if (json.status) {
+                                        onStatus?.(json.status as IrmixyStatus);
+                                    }
+                                    break;
+
+                                case 'content':
+                                    if (json.content) {
+                                        chunkCount++;
+                                        onChunk(json.content);
+                                    }
+                                    break;
+
+                                case 'done':
+                                    console.log('[SSE] Stream complete, chunks received:', chunkCount);
+                                    if (json.response) {
+                                        onComplete?.(json.response as IrmixyResponse);
+                                    }
+                                    es?.close();
+                                    safeResolve();
+                                    resolveConnection();
+                                    break;
+
+                                case 'error':
+                                    console.error('[SSE] Server error:', json.error);
+                                    es?.close();
+                                    const serverError = new Error(json.error || 'Unknown streaming error');
+                                    safeReject(serverError);
+                                    rejectConnection(serverError);
+                                    break;
+                            }
+                        } catch (e) {
+                            console.error('[SSE] Parse error:', e);
+                            // Don't reject on parse errors - continue processing
+                        }
+                    });
+
+                    es.addEventListener('error', (event: any) => {
+                        console.error('[SSE] Connection error:', event, 'hasReceivedData:', hasReceivedData);
+                        es?.close();
+                        connectionError = new Error(event.message || 'SSE connection failed');
+                        rejectConnection(connectionError);
+                    });
+                });
+
+                // If we reach here, connection succeeded
+                return;
+
+            } catch (error) {
+                const err = error instanceof Error ? error : new Error(String(error));
+
+                // Only retry on connection errors if no data was received
+                if (connectionError && !hasReceivedData && retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    console.log(`[SSE] Will retry after backoff (attempt ${retryCount}/${MAX_RETRIES})`);
+                    continue; // Retry the while loop
+                }
+
+                // Either max retries exceeded, data was received, or non-connection error
                 if (finished) return;
                 finished = true;
                 if (timeoutId) {
                     clearTimeout(timeoutId);
                     timeoutId = null;
                 }
-                resolveDone();
-            };
-
-            const safeReject = (error: Error) => {
-                if (finished) return;
-                finished = true;
-                if (timeoutId) {
-                    clearTimeout(timeoutId);
-                    timeoutId = null;
-                }
-                rejectDone(error);
-            };
-
-            // Create EventSource with POST method and body
-            es = new EventSource(AI_ORCHESTRATOR_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({
-                    message,
-                    sessionId,
-                    mode: 'text',
-                    stream: true,
-                }),
-                // Disable automatic reconnection - we handle errors ourselves
-                pollingInterval: 0,
-            });
-
-            if (finished) {
-                es.close();
+                rejectDone(err);
                 return;
             }
-
-            // Set timeout to prevent hanging streams
-            timeoutId = setTimeout(() => {
-                console.error('[SSE] Stream timeout after', STREAM_TIMEOUT_MS, 'ms');
-                es?.close();
-                safeReject(new Error(i18n.t('chat.error.timeout', { seconds: STREAM_TIMEOUT_MS / 1000 })));
-            }, STREAM_TIMEOUT_MS);
-
-            es.addEventListener('open', () => {
-                console.log('[SSE] Connection opened');
-            });
-
-            es.addEventListener('message', (event: any) => {
-                if (!event.data) return;
-
-                try {
-                    const json = JSON.parse(event.data);
-                    console.log('[SSE] Event type:', json.type);
-
-                    switch (json.type) {
-                        case 'session':
-                            if (json.sessionId) {
-                                onSessionId?.(json.sessionId);
-                            }
-                            break;
-
-                        case 'status':
-                            if (json.status) {
-                                onStatus?.(json.status as IrmixyStatus);
-                            }
-                            break;
-
-                        case 'content':
-                            if (json.content) {
-                                chunkCount++;
-                                onChunk(json.content);
-                            }
-                            break;
-
-                        case 'done':
-                            console.log('[SSE] Stream complete, chunks received:', chunkCount);
-                            if (json.response) {
-                                onComplete?.(json.response as IrmixyResponse);
-                            }
-                            es?.close();
-                            safeResolve();
-                            break;
-
-                        case 'error':
-                            console.error('[SSE] Server error:', json.error);
-                            es?.close();
-                            safeReject(new Error(json.error || 'Unknown streaming error'));
-                            break;
-                    }
-                } catch (e) {
-                    console.error('[SSE] Parse error:', e);
-                    // Don't reject on parse errors - continue processing
-                }
-            });
-
-            es.addEventListener('error', (event: any) => {
-                console.error('[SSE] Connection error:', event);
-                es?.close();
-                safeReject(new Error(event.message || 'SSE connection failed'));
-            });
-        } catch (error) {
-            if (finished) return;
-            finished = true;
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-                timeoutId = null;
-            }
-            const err = error instanceof Error ? error : new Error(String(error));
-            rejectDone(err);
         }
     })();
 

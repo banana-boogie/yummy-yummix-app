@@ -31,6 +31,7 @@ const translations = {
       uploadImage: 'Upload Image',
       changeImage: 'Change Image',
       you: 'You',
+      copied: 'Copied!',
     },
     auth: {
       processing: 'Processing authentication...',
@@ -904,6 +905,7 @@ const translations = {
         createCustomRecipeMessage: 'Help me create something',
         tellMeAboutRecipe: 'Tell me about {{recipeName}}',
       },
+      messageCopied: 'Message copied to clipboard',
     },
   },
   es: {
@@ -933,6 +935,7 @@ const translations = {
       uploadImage: 'Subir Imagen',
       changeImage: 'Cambiar Imagen',
       you: 'Tú',
+      copied: '¡Copiado!',
     },
     auth: {
       processing: 'Procesando autenticación...',
@@ -1805,6 +1808,7 @@ const translations = {
         createCustomRecipeMessage: 'Ayúdame a crear algo',
         tellMeAboutRecipe: 'Cuéntame sobre {{recipeName}}',
       },
+      messageCopied: 'Mensaje copiado al portapapeles',
     },
   }
 };

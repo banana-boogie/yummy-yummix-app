@@ -7,6 +7,7 @@ import {
     Platform,
     TouchableOpacity,
     ActivityIndicator,
+    Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/common/Text';
@@ -18,6 +19,9 @@ import { ChatMessage, IrmixyStatus, SuggestionChip } from '@/services/chatServic
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Markdown from 'react-native-markdown-display';
+import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import i18n from '@/i18n';
 import { COLORS } from '@/constants/design-tokens';
 
@@ -26,6 +30,52 @@ const SCROLL_THROTTLE_MS = 100; // Throttle scroll calls to avoid excessive layo
 const SCROLL_DELAY_MS = 100; // Allow render to complete before scrolling
 const CHUNK_BATCH_MS = 50; // Batch streaming chunks to reduce re-renders
 const SCROLL_THRESHOLD = 100; // Distance from bottom to consider "at bottom" (px)
+
+// Markdown styles for assistant messages
+const markdownStyles = {
+    body: {
+        color: COLORS.text.primary,
+        fontSize: 16,
+        lineHeight: 24,
+    },
+    paragraph: {
+        marginTop: 0,
+        marginBottom: 8,
+    },
+    strong: {
+        fontWeight: '600',
+    },
+    em: {
+        fontStyle: 'italic',
+    },
+    list_item: {
+        marginBottom: 4,
+    },
+    bullet_list: {
+        marginBottom: 8,
+    },
+    ordered_list: {
+        marginBottom: 8,
+    },
+    code_inline: {
+        backgroundColor: COLORS.background.secondary,
+        paddingHorizontal: 4,
+        paddingVertical: 2,
+        borderRadius: 4,
+        fontFamily: 'monospace',
+    },
+    code_block: {
+        backgroundColor: COLORS.background.secondary,
+        padding: 8,
+        borderRadius: 8,
+        marginBottom: 8,
+        fontFamily: 'monospace',
+    },
+    link: {
+        color: COLORS.primary.darkest,
+        textDecorationLine: 'underline',
+    },
+};
 
 interface Props {
     sessionId?: string | null;
@@ -282,7 +332,17 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
                 }
             );
 
-            streamCancelRef.current = handle.cancel;
+            // Wrap cancel to flush partial message before canceling
+            streamCancelRef.current = () => {
+                // Flush any buffered chunks to show partial message
+                if (chunkTimerRef.current) {
+                    clearTimeout(chunkTimerRef.current);
+                    chunkTimerRef.current = null;
+                }
+                flushChunkBuffer();
+                // Then cancel the stream
+                handle.cancel();
+            };
             await handle.done;
 
             // Flush any remaining buffered chunks
@@ -345,20 +405,43 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
         handleSendMessage(suggestion.message);
     }, [handleSendMessage]);
 
+    const handleCopyMessage = useCallback(async (content: string) => {
+        try {
+            await Clipboard.setStringAsync(content);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            // Show brief confirmation
+            if (Platform.OS === 'ios') {
+                Alert.alert(i18n.t('common.copied'), i18n.t('chat.messageCopied'), [{ text: 'OK' }], { userInterfaceStyle: 'automatic' });
+            } else {
+                Alert.alert(i18n.t('common.copied'), i18n.t('chat.messageCopied'));
+            }
+        } catch (error) {
+            console.error('Failed to copy message:', error);
+        }
+    }, []);
+
     const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
         const isUser = item.role === 'user';
 
         return (
             <View className="mb-sm">
                 {/* Message bubble */}
-                <View
+                <TouchableOpacity
+                    onLongPress={() => handleCopyMessage(item.content)}
+                    activeOpacity={0.7}
                     className={`max-w-[80%] p-sm rounded-lg ${isUser ? 'self-end bg-primary-default' : 'self-start bg-background-secondary'
                         }`}
                 >
-                    <Text className={`text-base leading-relaxed ${isUser ? 'text-white' : 'text-text-primary'}`}>
-                        {item.content}
-                    </Text>
-                </View>
+                    {isUser ? (
+                        <Text className="text-base leading-relaxed text-white">
+                            {item.content}
+                        </Text>
+                    ) : (
+                        <Markdown style={markdownStyles}>
+                            {item.content}
+                        </Markdown>
+                    )}
+                </TouchableOpacity>
 
                 {/* Recipe cards (only for assistant messages with recipes) */}
                 {!isUser && item.recipes && item.recipes.length > 0 && (
@@ -370,7 +453,7 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
                 )}
             </View>
         );
-    }, []);
+    }, [handleCopyMessage]);
 
     const handleScroll = useCallback((event: any) => {
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
