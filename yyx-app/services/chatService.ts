@@ -11,6 +11,7 @@
 import { supabase } from '@/lib/supabase';
 import EventSource from 'react-native-sse';
 import type { IrmixyResponse, IrmixyStatus, RecipeCard, SuggestionChip } from '@/types/irmixy';
+import i18n from '@/i18n';
 
 export interface ChatMessage {
     id: string;
@@ -31,7 +32,12 @@ export interface ChatSession {
 export type { IrmixyResponse, IrmixyStatus, RecipeCard, SuggestionChip };
 
 // Use ai-orchestrator for structured responses
-const AI_ORCHESTRATOR_URL = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/ai-orchestrator`;
+const FUNCTIONS_BASE_URL =
+    process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL ||
+    (process.env.EXPO_PUBLIC_SUPABASE_URL
+        ? `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1`
+        : '');
+const AI_ORCHESTRATOR_URL = `${FUNCTIONS_BASE_URL}/ai-orchestrator`;
 
 /**
  * Streaming callbacks for real-time updates
@@ -41,6 +47,11 @@ export interface StreamCallbacks {
     onSessionId?: (sessionId: string) => void;
     onStatus?: (status: IrmixyStatus) => void;
     onComplete?: (response: IrmixyResponse) => void;
+}
+
+export interface StreamHandle {
+    done: Promise<void>;
+    cancel: () => void;
 }
 
 /**
@@ -55,6 +66,10 @@ export async function sendChatMessage(
 
     if (!session?.access_token) {
         throw new Error('Not authenticated');
+    }
+
+    if (!FUNCTIONS_BASE_URL) {
+        throw new Error('Functions URL is not configured');
     }
 
     const response = await fetch(AI_ORCHESTRATOR_URL, {
@@ -92,92 +107,165 @@ export async function streamChatMessage(
     onStatus?: (status: IrmixyStatus) => void,
     onComplete?: (response: IrmixyResponse) => void,
 ): Promise<void> {
-    const { data: { session } } = await supabase.auth.getSession();
+    const handle = streamChatMessageWithHandle(
+        message,
+        sessionId,
+        onChunk,
+        onSessionId,
+        onStatus,
+        onComplete,
+    );
+    return handle.done;
+}
 
-    if (!session?.access_token) {
-        throw new Error('Not authenticated');
-    }
+/**
+ * Stream a message to the AI orchestrator using SSE, returning a cancel handle.
+ * This helps avoid leaks and setState-after-unmount issues on the caller side.
+ */
+export function streamChatMessageWithHandle(
+    message: string,
+    sessionId: string | null,
+    onChunk: (content: string) => void,
+    onSessionId?: (sessionId: string) => void,
+    onStatus?: (status: IrmixyStatus) => void,
+    onComplete?: (response: IrmixyResponse) => void,
+): StreamHandle {
+    let finished = false;
+    let es: EventSource | null = null;
+    let resolveDone: () => void = () => {};
+    let rejectDone: (error: Error) => void = () => {};
 
-    console.log('[SSE] Starting stream request to orchestrator...');
-
-    return new Promise((resolve, reject) => {
-        let chunkCount = 0;
-
-        // Create EventSource with POST method and body
-        const es = new EventSource(AI_ORCHESTRATOR_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-                message,
-                sessionId,
-                mode: 'text',
-                stream: true,
-            }),
-            // Disable automatic reconnection - we handle errors ourselves
-            pollingInterval: 0,
-        });
-
-        es.addEventListener('open', () => {
-            console.log('[SSE] Connection opened');
-        });
-
-        es.addEventListener('message', (event: any) => {
-            if (!event.data) return;
-
-            try {
-                const json = JSON.parse(event.data);
-                console.log('[SSE] Event type:', json.type);
-
-                switch (json.type) {
-                    case 'session':
-                        if (json.sessionId) {
-                            onSessionId?.(json.sessionId);
-                        }
-                        break;
-
-                    case 'status':
-                        if (json.status) {
-                            onStatus?.(json.status as IrmixyStatus);
-                        }
-                        break;
-
-                    case 'content':
-                        if (json.content) {
-                            chunkCount++;
-                            onChunk(json.content);
-                        }
-                        break;
-
-                    case 'done':
-                        console.log('[SSE] Stream complete, chunks received:', chunkCount);
-                        if (json.response) {
-                            onComplete?.(json.response as IrmixyResponse);
-                        }
-                        es.close();
-                        resolve();
-                        break;
-
-                    case 'error':
-                        console.error('[SSE] Server error:', json.error);
-                        es.close();
-                        reject(new Error(json.error || 'Unknown streaming error'));
-                        break;
-                }
-            } catch (e) {
-                console.error('[SSE] Parse error:', e);
-                // Don't reject on parse errors - continue processing
-            }
-        });
-
-        es.addEventListener('error', (event: any) => {
-            console.error('[SSE] Connection error:', event);
-            es.close();
-            reject(new Error(event.message || 'SSE connection failed'));
-        });
+    const done = new Promise<void>((resolve, reject) => {
+        resolveDone = resolve;
+        rejectDone = reject;
     });
+
+    void (async () => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+
+            if (finished) return;
+
+            if (!session?.access_token) {
+                throw new Error('Not authenticated');
+            }
+
+            if (!FUNCTIONS_BASE_URL) {
+                throw new Error('Functions URL is not configured');
+            }
+
+            console.log('[SSE] Starting stream request to orchestrator...');
+
+            let chunkCount = 0;
+
+            const safeResolve = () => {
+                if (finished) return;
+                finished = true;
+                resolveDone();
+            };
+
+            const safeReject = (error: Error) => {
+                if (finished) return;
+                finished = true;
+                rejectDone(error);
+            };
+
+            // Create EventSource with POST method and body
+            es = new EventSource(AI_ORCHESTRATOR_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                    message,
+                    sessionId,
+                    mode: 'text',
+                    stream: true,
+                }),
+                // Disable automatic reconnection - we handle errors ourselves
+                pollingInterval: 0,
+            });
+
+            if (finished) {
+                es.close();
+                return;
+            }
+
+            es.addEventListener('open', () => {
+                console.log('[SSE] Connection opened');
+            });
+
+            es.addEventListener('message', (event: any) => {
+                if (!event.data) return;
+
+                try {
+                    const json = JSON.parse(event.data);
+                    console.log('[SSE] Event type:', json.type);
+
+                    switch (json.type) {
+                        case 'session':
+                            if (json.sessionId) {
+                                onSessionId?.(json.sessionId);
+                            }
+                            break;
+
+                        case 'status':
+                            if (json.status) {
+                                onStatus?.(json.status as IrmixyStatus);
+                            }
+                            break;
+
+                        case 'content':
+                            if (json.content) {
+                                chunkCount++;
+                                onChunk(json.content);
+                            }
+                            break;
+
+                        case 'done':
+                            console.log('[SSE] Stream complete, chunks received:', chunkCount);
+                            if (json.response) {
+                                onComplete?.(json.response as IrmixyResponse);
+                            }
+                            es?.close();
+                            safeResolve();
+                            break;
+
+                        case 'error':
+                            console.error('[SSE] Server error:', json.error);
+                            es?.close();
+                            safeReject(new Error(json.error || 'Unknown streaming error'));
+                            break;
+                    }
+                } catch (e) {
+                    console.error('[SSE] Parse error:', e);
+                    // Don't reject on parse errors - continue processing
+                }
+            });
+
+            es.addEventListener('error', (event: any) => {
+                console.error('[SSE] Connection error:', event);
+                es?.close();
+                safeReject(new Error(event.message || 'SSE connection failed'));
+            });
+        } catch (error) {
+            if (finished) return;
+            finished = true;
+            const err = error instanceof Error ? error : new Error(String(error));
+            rejectDone(err);
+        }
+    })();
+
+    const cancel = () => {
+        if (finished) return;
+        finished = true;
+        console.log('[SSE] Stream cancelled by client');
+        es?.close();
+        resolveDone();
+    };
+
+    return { done, cancel };
 }
 
 /**
@@ -215,7 +303,7 @@ export async function loadChatSessions(): Promise<{ id: string; title: string; c
 
     return (data || []).map((session: any) => ({
         id: session.id,
-        title: session.title || 'New Chat',
+        title: session.title || i18n.t('chat.newChatTitle'),
         createdAt: new Date(session.created_at),
     }));
 }

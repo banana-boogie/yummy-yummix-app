@@ -29,6 +29,11 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
     const { language } = useLanguage();
     const insets = useSafeAreaInsets();
     const flatListRef = useRef<FlatList>(null);
+    const isMountedRef = useRef(true);
+    const streamCancelRef = useRef<(() => void) | null>(null);
+    const streamRequestIdRef = useRef(0);
+    const assistantIndexRef = useRef<number | null>(null);
+    const lastScrollRef = useRef(0);
 
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputText, setInputText] = useState('');
@@ -36,6 +41,22 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
     const [currentStatus, setCurrentStatus] = useState<IrmixyStatus>(null);
     const [dynamicSuggestions, setDynamicSuggestions] = useState<SuggestionChip[] | null>(null);
+
+    useEffect(() => {
+        return () => {
+            isMountedRef.current = false;
+            streamCancelRef.current?.();
+            streamCancelRef.current = null;
+        };
+    }, []);
+
+    const scrollToEndThrottled = useCallback((animated: boolean) => {
+        const now = Date.now();
+        if (animated || now - lastScrollRef.current > 100) {
+            lastScrollRef.current = now;
+            flatListRef.current?.scrollToEnd({ animated });
+        }
+    }, []);
 
     // Get initial suggestions from i18n - recompute when language changes
     const initialSuggestions = useMemo(() => [
@@ -52,6 +73,24 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
     // Show suggestions only when chat is empty or after AI response
     const showSuggestions = messages.length === 0 ||
         (messages.length > 0 && messages[messages.length - 1]?.role === 'assistant' && !isLoading);
+
+    const buildRecipeSuggestions = useCallback((recipes: Array<{ name: string }>): SuggestionChip[] => {
+        if (!recipes || recipes.length === 0) {
+            return [
+                {
+                    label: i18n.t('chat.suggestions.createCustomRecipeLabel'),
+                    message: i18n.t('chat.suggestions.createCustomRecipeMessage'),
+                },
+            ];
+        }
+
+        return recipes.slice(0, 3).map((recipe) => ({
+            label: recipe.name,
+            message: i18n.t('chat.suggestions.tellMeAboutRecipe', {
+                recipeName: recipe.name,
+            }),
+        }));
+    }, [language]);
 
     // Get status text based on current status
     const getStatusText = useCallback(() => {
@@ -71,65 +110,84 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
     useEffect(() => {
         if (messages.length > 0) {
             setTimeout(() => {
-                flatListRef.current?.scrollToEnd({ animated: true });
+                scrollToEndThrottled(true);
             }, 100);
         }
-    }, [messages]);
+    }, [messages, scrollToEndThrottled]);
 
     const handleSendMessage = useCallback(async (messageText: string) => {
         if (!messageText.trim() || isLoading || !user) return;
 
+        // Cancel any in-flight stream before starting a new one
+        streamCancelRef.current?.();
+        streamCancelRef.current = null;
+
+        streamRequestIdRef.current += 1;
+        const requestId = streamRequestIdRef.current;
+        const isActiveRequest = () =>
+            isMountedRef.current && streamRequestIdRef.current === requestId;
+
+        const trimmedMessage = messageText.trim();
         const userMessage: ChatMessage = {
             id: `temp-${Date.now()}`,
             role: 'user',
-            content: messageText.trim(),
+            content: trimmedMessage,
             createdAt: new Date(),
         };
 
         const assistantMessageId = `assistant-${Date.now()}`;
 
         // Add user message and empty assistant message for streaming
-        setMessages(prev => [
-            ...prev,
-            userMessage,
-            {
+        setMessages(prev => {
+            const assistantMessage: ChatMessage = {
                 id: assistantMessageId,
                 role: 'assistant',
                 content: '',
                 createdAt: new Date(),
-            },
-        ]);
+            };
+            const nextMessages = [...prev, userMessage, assistantMessage];
+            assistantIndexRef.current = nextMessages.length - 1;
+            return nextMessages;
+        });
         setInputText('');
         setIsLoading(true);
         setCurrentStatus('thinking');
         setDynamicSuggestions(null); // Clear previous suggestions
 
         try {
-            // Import stream function
-            const { streamChatMessage } = await import('@/services/chatService');
+            // Import stream function with cancellation handle
+            const { streamChatMessageWithHandle } = await import('@/services/chatService');
 
-            // Stream the response
-            await streamChatMessage(
+            const handle = streamChatMessageWithHandle(
                 userMessage.content,
                 currentSessionId,
                 // onChunk - append content progressively
                 (chunk) => {
+                    if (!isActiveRequest()) return;
                     setMessages(prev => {
                         const updated = [...prev];
-                        const lastIdx = updated.findIndex(m => m.id === assistantMessageId);
-                        if (lastIdx !== -1) {
-                            updated[lastIdx] = {
-                                ...updated[lastIdx],
-                                content: updated[lastIdx].content + chunk,
+                        let assistantIdx = assistantIndexRef.current;
+                        if (
+                            assistantIdx === null ||
+                            updated[assistantIdx]?.id !== assistantMessageId
+                        ) {
+                            assistantIdx = updated.findIndex(m => m.id === assistantMessageId);
+                            assistantIndexRef.current = assistantIdx !== -1 ? assistantIdx : null;
+                        }
+                        if (assistantIdx !== null && assistantIdx !== -1) {
+                            updated[assistantIdx] = {
+                                ...updated[assistantIdx],
+                                content: updated[assistantIdx].content + chunk,
                             };
                         }
                         return updated;
                     });
-                    // Scroll on each chunk for smooth streaming experience
-                    flatListRef.current?.scrollToEnd({ animated: false });
+                    // Scroll during streaming, but throttle to avoid excessive work
+                    scrollToEndThrottled(false);
                 },
                 // onSessionId
                 (sessionId) => {
+                    if (!isActiveRequest()) return;
                     if (!currentSessionId) {
                         setCurrentSessionId(sessionId);
                         onSessionCreated?.(sessionId);
@@ -137,18 +195,27 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
                 },
                 // onStatus - update loading indicator text
                 (status) => {
+                    if (!isActiveRequest()) return;
                     setCurrentStatus(status);
                 },
                 // onComplete - receive full IrmixyResponse with recipes/suggestions
                 (response) => {
+                    if (!isActiveRequest()) return;
                     // Update the message with recipes if present
                     if (response.recipes && response.recipes.length > 0) {
                         setMessages(prev => {
                             const updated = [...prev];
-                            const lastIdx = updated.findIndex(m => m.id === assistantMessageId);
-                            if (lastIdx !== -1) {
-                                updated[lastIdx] = {
-                                    ...updated[lastIdx],
+                            let assistantIdx = assistantIndexRef.current;
+                            if (
+                                assistantIdx === null ||
+                                updated[assistantIdx]?.id !== assistantMessageId
+                            ) {
+                                assistantIdx = updated.findIndex(m => m.id === assistantMessageId);
+                                assistantIndexRef.current = assistantIdx !== -1 ? assistantIdx : null;
+                            }
+                            if (assistantIdx !== null && assistantIdx !== -1) {
+                                updated[assistantIdx] = {
+                                    ...updated[assistantIdx],
                                     recipes: response.recipes,
                                 };
                             }
@@ -158,27 +225,51 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
                     // Update suggestions if present
                     if (response.suggestions && response.suggestions.length > 0) {
                         setDynamicSuggestions(response.suggestions);
+                    } else {
+                        setDynamicSuggestions(buildRecipeSuggestions(response.recipes ?? []));
                     }
                 }
             );
+
+            streamCancelRef.current = handle.cancel;
+            await handle.done;
         } catch (error) {
             // Replace streaming message with error
-            setMessages(prev => {
-                const updated = [...prev];
-                const lastIdx = updated.findIndex(m => m.id === assistantMessageId);
-                if (lastIdx !== -1) {
-                    updated[lastIdx] = {
-                        ...updated[lastIdx],
-                        content: updated[lastIdx].content || i18n.t('chat.error'),
-                    };
-                }
-                return updated;
-            });
+            if (isActiveRequest()) {
+                setMessages(prev => {
+                    const updated = [...prev];
+                    let assistantIdx = assistantIndexRef.current;
+                    if (
+                        assistantIdx === null ||
+                        updated[assistantIdx]?.id !== assistantMessageId
+                    ) {
+                        assistantIdx = updated.findIndex(m => m.id === assistantMessageId);
+                        assistantIndexRef.current = assistantIdx !== -1 ? assistantIdx : null;
+                    }
+                    if (assistantIdx !== null && assistantIdx !== -1) {
+                        updated[assistantIdx] = {
+                            ...updated[assistantIdx],
+                            content: updated[assistantIdx].content || i18n.t('chat.error'),
+                        };
+                    }
+                    return updated;
+                });
+            }
         } finally {
-            setIsLoading(false);
-            setCurrentStatus(null);
+            if (isActiveRequest()) {
+                setIsLoading(false);
+                setCurrentStatus(null);
+                streamCancelRef.current = null;
+            }
         }
-    }, [isLoading, user, currentSessionId, onSessionCreated]);
+    }, [
+        buildRecipeSuggestions,
+        currentSessionId,
+        isLoading,
+        onSessionCreated,
+        scrollToEndThrottled,
+        user,
+    ]);
 
     const handleSend = useCallback(() => {
         handleSendMessage(inputText);
@@ -249,7 +340,7 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
             {/* Status indicator with avatar */}
             {isLoading && (
                 <View className="flex-row items-center px-md py-sm">
-                    <IrmixyAvatar state="thinking" size={40} />
+                    <IrmixyAvatar state={currentStatus ?? 'thinking'} size={40} />
                     <Text className="text-text-secondary ml-sm text-sm">
                         {getStatusText()}
                     </Text>
@@ -259,13 +350,8 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
             {/* Suggestion chips above input */}
             {showSuggestions && (
                 <SuggestionChips
-                    suggestions={currentSuggestions.map(s => s.label)}
-                    onSelect={(label) => {
-                        const suggestion = currentSuggestions.find(s => s.label === label);
-                        if (suggestion) {
-                            handleSuggestionSelect(suggestion);
-                        }
-                    }}
+                    suggestions={currentSuggestions}
+                    onSelect={handleSuggestionSelect}
                     disabled={isLoading}
                 />
             )}

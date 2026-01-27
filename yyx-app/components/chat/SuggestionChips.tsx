@@ -7,10 +7,11 @@
 import React from 'react';
 import { ScrollView, TouchableOpacity, View } from 'react-native';
 import { Text } from '@/components/common/Text';
+import type { SuggestionChip } from '@/types/irmixy';
 
 interface SuggestionChipsProps {
-    suggestions: string[];
-    onSelect: (suggestion: string) => void;
+    suggestions: SuggestionChip[];
+    onSelect: (suggestion: SuggestionChip) => void;
     disabled?: boolean;
 }
 
@@ -24,9 +25,9 @@ export function SuggestionChips({ suggestions, onSelect, disabled = false }: Sug
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
             >
-                {suggestions.map((suggestion, index) => (
+                {suggestions.map((suggestion) => (
                     <TouchableOpacity
-                        key={index}
+                        key={`${suggestion.label}:${suggestion.message}`}
                         onPress={() => onSelect(suggestion)}
                         disabled={disabled}
                         className={`px-md py-sm rounded-full border ${disabled
@@ -39,7 +40,7 @@ export function SuggestionChips({ suggestions, onSelect, disabled = false }: Sug
                             className={`text-sm ${disabled ? 'text-text-tertiary' : 'text-accent'
                                 }`}
                         >
-                            {suggestion}
+                            {suggestion.label}
                         </Text>
                     </TouchableOpacity>
                 ))}

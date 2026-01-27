@@ -10,6 +10,7 @@ import { UserContext } from './irmixy-schemas.ts';
 
 const MAX_HISTORY_MESSAGES = 10;
 const MAX_CONTENT_LENGTH = 2000;
+const MAX_LIST_ITEMS = 20;
 
 /**
  * Sanitize user-provided content to prevent prompt injection.
@@ -21,6 +22,43 @@ export function sanitizeContent(content: string): string {
   const cleaned = content.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
   // Limit length
   return cleaned.slice(0, MAX_CONTENT_LENGTH);
+}
+
+/**
+ * Sanitize a list of user-provided strings for prompt safety.
+ * Trims, removes control characters, limits length, and caps item count.
+ */
+function sanitizeList(values: unknown): string[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const sanitized: string[] = [];
+
+  for (const value of values) {
+    if (typeof value !== 'string') continue;
+    const cleaned = sanitizeContent(value).trim();
+    if (!cleaned) continue;
+    sanitized.push(cleaned);
+    if (sanitized.length >= MAX_LIST_ITEMS) break;
+  }
+
+  return sanitized;
+}
+
+/**
+ * Normalize the `other_allergy` field into an array of strings.
+ * This column may be stored as a string or an array depending on migrations.
+ */
+function normalizeAllergies(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return sanitizeList(value);
+  }
+  if (typeof value === 'string') {
+    const cleaned = sanitizeContent(value).trim();
+    return cleaned ? [cleaned] : [];
+  }
+  return [];
 }
 
 /**
@@ -86,8 +124,8 @@ async function buildContext(
   }
 
   // Merge dietary restrictions from both sources
-  const profileRestrictions: string[] = profile?.dietary_restrictions || [];
-  const contextRestrictions: string[] = userCtx?.dietary_restrictions || [];
+  const profileRestrictions = sanitizeList(profile?.dietary_restrictions);
+  const contextRestrictions = sanitizeList(userCtx?.dietary_restrictions);
   const dietaryRestrictions = [
     ...new Set([...profileRestrictions, ...contextRestrictions]),
   ];
@@ -96,14 +134,14 @@ async function buildContext(
     language,
     measurementSystem,
     dietaryRestrictions,
-    ingredientDislikes: userCtx?.ingredient_dislikes || [],
+    ingredientDislikes: sanitizeList(userCtx?.ingredient_dislikes),
     skillLevel: userCtx?.skill_level || null,
     householdSize: userCtx?.household_size || null,
     conversationHistory: historyResult as Array<{ role: string; content: string }>,
     // Additional context fields
-    dietTypes: profile?.diet_types || [],
-    customAllergies: profile?.other_allergy || [],
-    kitchenEquipment: userCtx?.kitchen_equipment || [],
+    dietTypes: sanitizeList(profile?.diet_types),
+    customAllergies: normalizeAllergies(profile?.other_allergy),
+    kitchenEquipment: sanitizeList(userCtx?.kitchen_equipment),
   };
 }
 

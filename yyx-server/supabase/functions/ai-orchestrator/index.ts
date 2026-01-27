@@ -77,6 +77,13 @@ interface SessionResult {
   created: boolean;
 }
 
+class SessionOwnershipError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SessionOwnershipError';
+  }
+}
+
 // ============================================================
 // Main Handler
 // ============================================================
@@ -191,6 +198,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Orchestrator error:', error);
 
+    if (error instanceof SessionOwnershipError) {
+      return errorResponse('Invalid session', 403);
+    }
+
     if (error instanceof ValidationError) {
       return errorResponse('Invalid response format', 500);
     }
@@ -241,6 +252,22 @@ async function ensureSessionId(
   sessionId?: string,
 ): Promise<SessionResult> {
   if (sessionId) {
+    const { data: session, error } = await supabase
+      .from('user_chat_sessions')
+      .select('id')
+      .eq('id', sessionId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Failed to validate session ownership:', error);
+      throw new Error('Failed to validate session');
+    }
+
+    if (!session) {
+      throw new SessionOwnershipError('Session not found or not owned by user');
+    }
+
     return { sessionId, created: false };
   }
 
@@ -316,7 +343,6 @@ async function finalizeResponse(
     language: userContext.language,
     status: null,
     recipes,
-    suggestions: buildSuggestions(recipes, userContext.language),
   };
 
   validateSchema(IrmixyResponseSchema, irmixyResponse);
@@ -736,30 +762,6 @@ This will be spoken aloud, so:
 // ============================================================
 // Helpers
 // ============================================================
-
-/**
- * Build suggestion chips based on search results.
- */
-function buildSuggestions(
-  recipes: RecipeCard[] | undefined,
-  language: 'en' | 'es',
-): Array<{ label: string; message: string }> | undefined {
-  if (!recipes || recipes.length === 0) {
-    return [
-      {
-        label: language === 'es' ? 'Crear receta personalizada' : 'Create custom recipe',
-        message: language === 'es' ? 'Ayúdame a crear algo' : 'Help me create something',
-      },
-    ];
-  }
-
-  return recipes.slice(0, 3).map((recipe) => ({
-    label: recipe.name,
-    message: language === 'es'
-      ? `Cuéntame sobre ${recipe.name}`
-      : `Tell me about ${recipe.name}`,
-  }));
-}
 
 /**
  * Save message exchange to conversation history.

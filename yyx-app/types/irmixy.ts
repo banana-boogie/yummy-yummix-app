@@ -23,6 +23,34 @@ export interface QuickAction {
   payload: Record<string, unknown>;
 }
 
+export interface GeneratedIngredient {
+  name: string;
+  quantity: number;
+  unit: string;
+  imageUrl?: string;
+}
+
+export interface GeneratedStep {
+  order: number;
+  instruction: string;
+  thermomixTime?: number;
+  thermomixTemp?: string;
+  thermomixSpeed?: string;
+}
+
+export interface GeneratedRecipe {
+  schemaVersion: '1.0';
+  suggestedName: string;
+  measurementSystem: 'imperial' | 'metric';
+  language: 'en' | 'es';
+  ingredients: GeneratedIngredient[];
+  steps: GeneratedStep[];
+  totalTime: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  portions: number;
+  tags: string[];
+}
+
 export interface SafetyFlags {
   allergenWarning?: string;
   dietaryConflict?: string;
@@ -35,6 +63,7 @@ export interface IrmixyResponse {
   language: 'en' | 'es';
   status?: 'thinking' | 'searching' | 'generating' | null;
   recipes?: RecipeCard[];
+  customRecipe?: GeneratedRecipe;
   suggestions?: SuggestionChip[];
   actions?: QuickAction[];
   memoryUsed?: string[];

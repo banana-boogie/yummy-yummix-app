@@ -64,7 +64,7 @@ export function ChatRecipeCard({ recipe }: ChatRecipeCardProps) {
                         <View className="flex-row items-center">
                             <MaterialCommunityIcons name="clock-outline" size={14} color="#666" />
                             <Text className="text-text-secondary text-xs ml-xs">
-                                {recipe.totalTime} min
+                                {recipe.totalTime} {i18n.t('common.minutesShort')}
                             </Text>
                         </View>
 

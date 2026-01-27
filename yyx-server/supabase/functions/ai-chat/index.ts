@@ -11,7 +11,11 @@
 // @ts-ignore
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
-import { validateAuth, unauthorizedResponse, AuthUser } from '../_shared/auth.ts';
+import {
+    validateAuth,
+    unauthorizedResponse,
+    forbiddenResponse,
+} from '../_shared/auth.ts';
 import { chat, AIMessage } from '../_shared/ai-gateway/index.ts';
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -79,14 +83,51 @@ El usuario puede preguntar sobre recetas, ingredientes, técnicas de cocina o id
 // Helper Functions
 // =============================================================================
 
-function createSupabaseClient(): SupabaseClient {
-    let supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+class SessionForbiddenError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'SessionForbiddenError';
+    }
+}
+
+function createSupabaseClient(authHeader: string): SupabaseClient {
+    let supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('Missing Supabase configuration');
+    }
+
     // Fix for local development: kong:8000 is internal Docker address
     if (supabaseUrl.includes('kong:8000')) {
         supabaseUrl = 'http://host.docker.internal:54321';
     }
-    return createClient(supabaseUrl, supabaseServiceKey);
+
+    return createClient(supabaseUrl, supabaseAnonKey, {
+        global: {
+            headers: { Authorization: authHeader },
+        },
+    });
+}
+
+async function assertSessionOwnership(
+    supabase: SupabaseClient,
+    userId: string,
+    sessionId: string,
+): Promise<boolean> {
+    const { data, error } = await supabase
+        .from('user_chat_sessions')
+        .select('id')
+        .eq('id', sessionId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (error) {
+        console.error('Failed to validate session ownership:', error);
+        throw new Error('Failed to validate session');
+    }
+
+    return !!data;
 }
 
 async function getOrCreateSession(
@@ -94,7 +135,13 @@ async function getOrCreateSession(
     userId: string,
     sessionId?: string
 ): Promise<string> {
-    if (sessionId) return sessionId;
+    if (sessionId) {
+        const ownsSession = await assertSessionOwnership(supabase, userId, sessionId);
+        if (!ownsSession) {
+            throw new SessionForbiddenError('Session not found or not owned by user');
+        }
+        return sessionId;
+    }
 
     const { data: newSession, error } = await supabase
         .from('user_chat_sessions')
@@ -212,10 +259,18 @@ serve(async (req: Request) => {
             );
         }
 
-        const supabase = createSupabaseClient();
+        const supabase = createSupabaseClient(authHeader!);
 
         // Get or create chat session
-        const currentSessionId = await getOrCreateSession(supabase, user.id, sessionId);
+        let currentSessionId: string;
+        try {
+            currentSessionId = await getOrCreateSession(supabase, user.id, sessionId);
+        } catch (error) {
+            if (error instanceof SessionForbiddenError) {
+                return forbiddenResponse('Session not found', corsHeaders);
+            }
+            throw error;
+        }
 
         // Get chat history
         const history = await getChatHistory(supabase, currentSessionId);
