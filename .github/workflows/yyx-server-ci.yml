@@ -84,24 +84,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-deno-
 
-      - name: Run unit tests
+      - name: Run unit tests with coverage
         working-directory: yyx-server
-        run: deno task test
+        run: deno task test:coverage
 
-      - name: Generate coverage report
+      - name: Display coverage summary
         working-directory: yyx-server
-        run: |
-          deno task test:coverage
-          deno task coverage:report
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./yyx-server/coverage.lcov
-          flags: yyx-server
-          name: yyx-server-coverage
-          fail_ci_if_error: false
+        run: deno task coverage:report || true
 
   # ============================================================
   # INTEGRATION TESTS (PR only, requires staging secrets)
