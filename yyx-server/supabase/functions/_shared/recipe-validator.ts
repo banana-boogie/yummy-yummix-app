@@ -201,7 +201,10 @@ export function validateRecipeData(data: unknown): ValidationResult {
  */
 export function normalizeRecipeData(data: Record<string, unknown>): Record<string, unknown> {
     return {
-        // Core fields
+        // Preserve any additional fields first (so normalized values take precedence)
+        ...data,
+
+        // Core fields (these override the spread above)
         name: data.name || data.name_en || 'Untitled Recipe',
         name_en: data.name_en || data.name || 'Untitled Recipe',
         name_es: data.name_es || '',
@@ -218,8 +221,5 @@ export function normalizeRecipeData(data: Record<string, unknown>): Record<strin
         steps: Array.isArray(data.steps) ? data.steps : [],
         tags: Array.isArray(data.tags) ? data.tags : [],
         useful_items: Array.isArray(data.useful_items) ? data.useful_items : [],
-
-        // Preserve any additional fields
-        ...data,
     };
 }
