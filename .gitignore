@@ -49,3 +49,4 @@ apple-jwt.txt
 
 # Testing
 coverage/
+.claude/settings.local.json
