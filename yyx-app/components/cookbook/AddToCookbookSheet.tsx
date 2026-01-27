@@ -6,6 +6,7 @@ import { Cookbook } from '@/types/cookbook.types';
 import { useUserCookbooksQuery, useAddRecipeToCookbook } from '@/hooks/useCookbookQuery';
 import { cookbookService } from '@/services/cookbookService';
 import { useAuth } from '@/contexts/AuthContext';
+import * as Haptics from 'expo-haptics';
 import i18n from '@/i18n';
 
 interface AddToCookbookSheetProps {
@@ -34,12 +35,22 @@ export function AddToCookbookSheet({
 
     // Fetch which cookbooks already contain this recipe
     useEffect(() => {
+        let cancelled = false;
+
         if (visible && user?.id && recipeId) {
             cookbookService
                 .getCookbookIdsContainingRecipe(user.id, recipeId)
-                .then(setCookbookIdsWithRecipe)
-                .catch(() => setCookbookIdsWithRecipe([]));
+                .then((ids) => {
+                    if (!cancelled) setCookbookIdsWithRecipe(ids);
+                })
+                .catch(() => {
+                    if (!cancelled) setCookbookIdsWithRecipe([]);
+                });
         }
+
+        return () => {
+            cancelled = true;
+        };
     }, [visible, user?.id, recipeId]);
 
     // Reset state when modal closes
@@ -52,11 +63,13 @@ export function AddToCookbookSheet({
         }
     }, [visible]);
 
-    const handleSelectCookbook = (cookbook: Cookbook) => {
+    const handleSelectCookbook = async (cookbook: Cookbook) => {
         // Don't allow selecting cookbooks that already have this recipe
         if (cookbookIdsWithRecipe.includes(cookbook.id)) {
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             return;
         }
+        await Haptics.selectionAsync();
         setSelectedCookbook(cookbook);
         setStep('notes');
     };
@@ -70,11 +83,13 @@ export function AddToCookbookSheet({
                 recipeId,
                 notesEn: notes.trim() || undefined,
             });
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             onSuccess?.();
             onClose();
         } catch (error) {
             const err = error as Error;
             console.error('Failed to add recipe:', err.message);
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             // Handle specific error for duplicate recipe
             const errorMessage =
                 err.message === 'RECIPE_ALREADY_ADDED'

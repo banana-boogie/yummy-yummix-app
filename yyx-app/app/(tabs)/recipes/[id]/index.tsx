@@ -38,9 +38,10 @@ const RecipeDetail: React.FC = () => {
 
   // Fetch cookbooks that contain this recipe
   const validRecipeId = id && isValidUUID(id as string) ? (id as string) : '';
-  const { data: cookbooksContaining = [] } = useCookbooksContainingRecipe(
-    validRecipeId
-  );
+  const {
+    data: cookbooksContaining = [],
+    isLoading: loadingCookbooks,
+  } = useCookbooksContainingRecipe(validRecipeId);
 
   // Validate ID early to prevent unnecessary API calls
   useEffect(() => {
@@ -140,7 +141,19 @@ const RecipeDetail: React.FC = () => {
             />
 
             {/* Show cookbooks that contain this recipe */}
-            {user && cookbooksContaining.length > 0 && (
+            {user && loadingCookbooks && (
+              <View className="flex-row flex-wrap gap-xs mb-lg">
+                <Ionicons
+                  name="book"
+                  size={16}
+                  color="#666"
+                  style={{ marginTop: 4 }}
+                />
+                <View className="bg-neutral-200 rounded-full h-6 w-20 animate-pulse" />
+                <View className="bg-neutral-200 rounded-full h-6 w-24 animate-pulse" />
+              </View>
+            )}
+            {user && !loadingCookbooks && cookbooksContaining.length > 0 && (
               <View className="flex-row flex-wrap gap-xs mb-lg">
                 <Ionicons
                   name="book"

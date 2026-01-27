@@ -401,6 +401,40 @@ async function getCookbookIdsContainingRecipe(
 }
 
 /**
+ * Get cookbooks that contain a specific recipe for a user
+ * More efficient than fetching all cookbooks and filtering
+ */
+async function getCookbooksContainingRecipe(
+  userId: string,
+  recipeId: string
+): Promise<Cookbook[]> {
+  const { data, error } = await supabase
+    .from('cookbooks')
+    .select(
+      `
+      *,
+      cookbook_recipes!inner(recipe_id, id)
+    `
+    )
+    .eq('user_id', userId)
+    .eq('cookbook_recipes.recipe_id', recipeId);
+
+  if (error) {
+    console.error('Error fetching cookbooks containing recipe:', error);
+    throw new Error(error.message);
+  }
+
+  return (data || []).map((raw) => {
+    // For cookbooks with the recipe, count is at least 1
+    // We get the actual count from the array length of cookbook_recipes
+    const recipeCount = Array.isArray(raw.cookbook_recipes)
+      ? raw.cookbook_recipes.length
+      : 1;
+    return transformCookbook(raw, recipeCount);
+  });
+}
+
+/**
  * Ensure default "Favorites" cookbook exists for user
  * Creates it if it doesn't exist
  */
@@ -479,4 +513,5 @@ export const cookbookService = {
   ensureDefaultCookbook,
   regenerateShareToken,
   getCookbookIdsContainingRecipe,
+  getCookbooksContainingRecipe,
 };

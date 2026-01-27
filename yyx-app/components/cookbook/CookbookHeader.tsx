@@ -187,4 +187,13 @@ export const CookbookHeader = React.memo(function CookbookHeader({
       />
     </>
   );
+}, (prevProps, nextProps) => {
+    // Only re-render if cookbook data actually changed
+    return (
+        prevProps.cookbook.id === nextProps.cookbook.id &&
+        prevProps.cookbook.updatedAt === nextProps.cookbook.updatedAt &&
+        prevProps.cookbook.name === nextProps.cookbook.name &&
+        prevProps.cookbook.description === nextProps.cookbook.description &&
+        prevProps.cookbook.isPublic === nextProps.cookbook.isPublic
+    );
 });
