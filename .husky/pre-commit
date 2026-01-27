@@ -19,6 +19,10 @@ if [ -n "$YYX_SERVER_FILES" ]; then
   cd ..
   # Re-add formatted files
   echo "$YYX_SERVER_FILES" | xargs git add
+
+  echo "🔍 Running deno lint for yyx-server..."
+  cd yyx-server && deno lint supabase/functions/
+  cd ..
 fi
 
 echo "✅ Pre-commit checks passed"
