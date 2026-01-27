@@ -59,12 +59,12 @@ export function SystemButtons({
         </Text>
         <View className={`flex-row gap-sm ${isLargeScreen ? 'gap-md max-w-[600px]' : ''}`}>
           {renderButton(
-            i18n.t('settings.english'),
+            i18n.t('common.english'),
             language === 'en',
             () => onLanguageChange('en')
           )}
           {renderButton(
-            i18n.t('settings.spanish'),
+            i18n.t('common.spanish'),
             language === 'es',
             () => onLanguageChange('es')
           )}

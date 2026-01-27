@@ -45,21 +45,30 @@ async function buildContext(
   sessionId?: string,
 ): Promise<UserContext> {
   // Fetch user profile and user context in parallel
+  // Use maybeSingle() to avoid errors when rows don't exist (new users)
   const [profileResult, contextResult, historyResult] = await Promise.all([
     supabase
       .from('user_profiles')
-      .select('language, dietary_restrictions, measurement_system')
+      .select('language, dietary_restrictions, measurement_system, diet_types, other_allergy')
       .eq('id', userId)
-      .single(),
+      .maybeSingle(),
     supabase
       .from('user_context')
-      .select('skill_level, household_size, dietary_restrictions, ingredient_dislikes')
+      .select('skill_level, household_size, dietary_restrictions, ingredient_dislikes, kitchen_equipment')
       .eq('user_id', userId)
-      .single(),
+      .maybeSingle(),
     sessionId
       ? loadConversationHistory(supabase, sessionId)
       : Promise.resolve([]),
   ]);
+
+  // Log errors but continue with defaults (graceful degradation)
+  if (profileResult.error) {
+    console.warn('Failed to load user profile:', profileResult.error.message);
+  }
+  if (contextResult.error) {
+    console.warn('Failed to load user context:', contextResult.error.message);
+  }
 
   const profile = profileResult.data;
   const userCtx = contextResult.data;
@@ -91,6 +100,10 @@ async function buildContext(
     skillLevel: userCtx?.skill_level || null,
     householdSize: userCtx?.household_size || null,
     conversationHistory: historyResult as Array<{ role: string; content: string }>,
+    // Additional context fields
+    dietTypes: profile?.diet_types || [],
+    customAllergies: profile?.other_allergy || [],
+    kitchenEquipment: userCtx?.kitchen_equipment || [],
   };
 }
 

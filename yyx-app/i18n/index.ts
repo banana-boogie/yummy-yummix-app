@@ -867,6 +867,9 @@ const translations = {
       sendButton: 'Send',
       error: 'Sorry, something went wrong. Please try again.',
       loginRequired: 'Please log in to chat with Irmixy.',
+      thinking: 'Irmixy is thinking...',
+      searching: 'Searching for recipes...',
+      generating: 'Creating something special...',
       voice: {
         greeting: "Hi! I'm Irmixy, your sous chef. What can I help you with?",
         connecting: "Connecting to Irmixy...",
@@ -1756,6 +1759,9 @@ const translations = {
       sendButton: 'Enviar',
       error: 'Lo siento, algo salió mal. Por favor, inténtalo de nuevo.',
       loginRequired: 'Por favor, inicia sesión para chatear con Irmixy.',
+      thinking: 'Irmixy está pensando...',
+      searching: 'Buscando recetas...',
+      generating: 'Creando algo especial...',
       voice: {
         greeting: '¡Hola! Soy Irmixy, tu sous chef. ¿En qué puedo ayudarte?',
         connecting: 'Conectando con Irmixy...',

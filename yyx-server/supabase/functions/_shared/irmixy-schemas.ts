@@ -112,6 +112,10 @@ export interface UserContext {
   skillLevel: string | null;
   householdSize: number | null;
   conversationHistory: Array<{ role: string; content: string }>;
+  // Additional context fields
+  dietTypes: string[];
+  customAllergies: string[];
+  kitchenEquipment: string[];
 }
 
 // ============================================================

@@ -11,6 +11,7 @@ import { PageLayout } from '@/components/layouts/PageLayout';
 import { MiseEnPlaceUsefulItem } from '@/components/cooking-guide/MiseEnPlaceUsefulItem';
 import { Text } from '@/components/common/Text';
 import { LAYOUT } from '@/constants/design-tokens';
+import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
 
 type CheckableUsefulItem = {
     id: string;
@@ -53,49 +54,59 @@ export default function UsefulItemsStep() {
     };
 
     return (
-        <PageLayout
-            scrollEnabled={true}
-            contentPaddingHorizontal={0}
-            footer={
-                <StepNavigationButtons
-                    onBack={() => router.back()}
-                    onNext={() => router.push(`/(tabs)/recipes/${id}/cooking-guide/1`)}
-                    backText={i18n.t('recipes.cookingGuide.navigation.back')}
-                    nextText={i18n.t('recipes.cookingGuide.navigation.next')}
-                />
-            }
-        >
-            <CookingGuideHeader
-                title={recipe?.name || ''}
-                pictureUrl={recipe?.pictureUrl}
-            />
-
-            {/* Content wrapper - centered on desktop with max-width */}
-            <View
-                className="px-md pb-[120px]"
-                style={!isMobile ? {
-                    maxWidth: LAYOUT.maxWidth.cookingGuide,
-                    alignSelf: 'center',
-                    width: '100%'
-                } : undefined}
+        <View className="flex-1">
+            <PageLayout
+                scrollEnabled={true}
+                contentPaddingHorizontal={0}
+                footer={
+                    <StepNavigationButtons
+                        onBack={() => router.back()}
+                        onNext={() => router.push(`/(tabs)/recipes/${id}/cooking-guide/1`)}
+                        backText={i18n.t('recipes.cookingGuide.navigation.back')}
+                        nextText={i18n.t('recipes.cookingGuide.navigation.next')}
+                    />
+                }
             >
-                <View className="mb-xl">
-                    <Text preset="subheading" className="mb-sm">
-                        {i18n.t('recipes.cookingGuide.miseEnPlace.usefulItems.heading')}
-                    </Text>
-                    {/* Indented content grid */}
-                    <View className="flex-row flex-wrap pl-sm">
-                        {usefulItems.map((item, index) => (
-                            <MiseEnPlaceUsefulItem
-                                key={item.id}
-                                item={item}
-                                onPress={() => handleUsefulItemPress(index)}
-                                width={`${100 / numColumns}%`}
-                            />
-                        ))}
+                <CookingGuideHeader
+                    title={recipe?.name || ''}
+                    pictureUrl={recipe?.pictureUrl}
+                />
+
+                {/* Content wrapper - centered on desktop with max-width */}
+                <View
+                    className="px-md pb-[120px]"
+                    style={!isMobile ? {
+                        maxWidth: LAYOUT.maxWidth.cookingGuide,
+                        alignSelf: 'center',
+                        width: '100%'
+                    } : undefined}
+                >
+                    <View className="mb-xl">
+                        <Text preset="subheading" className="mb-sm">
+                            {i18n.t('recipes.cookingGuide.miseEnPlace.usefulItems.heading')}
+                        </Text>
+                        {/* Indented content grid */}
+                        <View className="flex-row flex-wrap pl-sm">
+                            {usefulItems.map((item, index) => (
+                                <MiseEnPlaceUsefulItem
+                                    key={item.id}
+                                    item={item}
+                                    onPress={() => handleUsefulItemPress(index)}
+                                    width={`${100 / numColumns}%`}
+                                />
+                            ))}
+                        </View>
                     </View>
                 </View>
-            </View>
-        </PageLayout>
+            </PageLayout>
+            <VoiceAssistantButton
+                recipeContext={{
+                    type: 'prep',
+                    recipeId: id as string,
+                    recipeTitle: recipe?.name || '',
+                    usefulItems: usefulItems.map(item => item.name)
+                }}
+            />
+        </View>
     );
 }

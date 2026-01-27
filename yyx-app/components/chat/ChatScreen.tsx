@@ -11,8 +11,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/common/Text';
 import { SuggestionChips } from '@/components/chat/SuggestionChips';
-import { sendChatMessage, ChatMessage } from '@/services/chatService';
+import { IrmixyAvatar } from '@/components/chat/IrmixyAvatar';
+import { ChatRecipeCard } from '@/components/chat/ChatRecipeCard';
+import { ChatMessage, IrmixyStatus, SuggestionChip } from '@/services/chatService';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import i18n from '@/i18n';
 
@@ -23,6 +26,7 @@ interface Props {
 
 export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Props) {
     const { user } = useAuth();
+    const { language } = useLanguage();
     const insets = useSafeAreaInsets();
     const flatListRef = useRef<FlatList>(null);
 
@@ -30,28 +34,47 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
+    const [currentStatus, setCurrentStatus] = useState<IrmixyStatus>(null);
+    const [dynamicSuggestions, setDynamicSuggestions] = useState<SuggestionChip[] | null>(null);
 
-    // Get initial suggestions from i18n
+    // Get initial suggestions from i18n - recompute when language changes
     const initialSuggestions = useMemo(() => [
-        i18n.t('chat.suggestions.suggestRecipe'),
-        i18n.t('chat.suggestions.whatCanICook'),
-        i18n.t('chat.suggestions.quickMeal'),
-        i18n.t('chat.suggestions.ingredientsIHave'),
-        i18n.t('chat.suggestions.healthyOptions'),
-    ], []);
+        { label: i18n.t('chat.suggestions.suggestRecipe'), message: i18n.t('chat.suggestions.suggestRecipe') },
+        { label: i18n.t('chat.suggestions.whatCanICook'), message: i18n.t('chat.suggestions.whatCanICook') },
+        { label: i18n.t('chat.suggestions.quickMeal'), message: i18n.t('chat.suggestions.quickMeal') },
+        { label: i18n.t('chat.suggestions.ingredientsIHave'), message: i18n.t('chat.suggestions.ingredientsIHave') },
+        { label: i18n.t('chat.suggestions.healthyOptions'), message: i18n.t('chat.suggestions.healthyOptions') },
+    ], [language]);
+
+    // Use dynamic suggestions if available, otherwise fallback to initial
+    const currentSuggestions = dynamicSuggestions || initialSuggestions;
 
     // Show suggestions only when chat is empty or after AI response
     const showSuggestions = messages.length === 0 ||
         (messages.length > 0 && messages[messages.length - 1]?.role === 'assistant' && !isLoading);
 
-    // Scroll to bottom when new messages arrive
+    // Get status text based on current status
+    const getStatusText = useCallback(() => {
+        switch (currentStatus) {
+            case 'thinking':
+                return i18n.t('chat.thinking');
+            case 'searching':
+                return i18n.t('chat.searching');
+            case 'generating':
+                return i18n.t('chat.generating');
+            default:
+                return i18n.t('chat.thinking');
+        }
+    }, [currentStatus]);
+
+    // Scroll to bottom when new messages arrive or content updates
     useEffect(() => {
         if (messages.length > 0) {
             setTimeout(() => {
                 flatListRef.current?.scrollToEnd({ animated: true });
             }, 100);
         }
-    }, [messages.length]);
+    }, [messages]);
 
     const handleSendMessage = useCallback(async (messageText: string) => {
         if (!messageText.trim() || isLoading || !user) return;
@@ -78,6 +101,8 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
         ]);
         setInputText('');
         setIsLoading(true);
+        setCurrentStatus('thinking');
+        setDynamicSuggestions(null); // Clear previous suggestions
 
         try {
             // Import stream function
@@ -100,12 +125,39 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
                         }
                         return updated;
                     });
+                    // Scroll on each chunk for smooth streaming experience
+                    flatListRef.current?.scrollToEnd({ animated: false });
                 },
                 // onSessionId
                 (sessionId) => {
                     if (!currentSessionId) {
                         setCurrentSessionId(sessionId);
                         onSessionCreated?.(sessionId);
+                    }
+                },
+                // onStatus - update loading indicator text
+                (status) => {
+                    setCurrentStatus(status);
+                },
+                // onComplete - receive full IrmixyResponse with recipes/suggestions
+                (response) => {
+                    // Update the message with recipes if present
+                    if (response.recipes && response.recipes.length > 0) {
+                        setMessages(prev => {
+                            const updated = [...prev];
+                            const lastIdx = updated.findIndex(m => m.id === assistantMessageId);
+                            if (lastIdx !== -1) {
+                                updated[lastIdx] = {
+                                    ...updated[lastIdx],
+                                    recipes: response.recipes,
+                                };
+                            }
+                            return updated;
+                        });
+                    }
+                    // Update suggestions if present
+                    if (response.suggestions && response.suggestions.length > 0) {
+                        setDynamicSuggestions(response.suggestions);
                     }
                 }
             );
@@ -124,6 +176,7 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
             });
         } finally {
             setIsLoading(false);
+            setCurrentStatus(null);
         }
     }, [isLoading, user, currentSessionId, onSessionCreated]);
 
@@ -131,20 +184,34 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
         handleSendMessage(inputText);
     }, [inputText, handleSendMessage]);
 
-    const handleSuggestionSelect = useCallback((suggestion: string) => {
-        handleSendMessage(suggestion);
+    const handleSuggestionSelect = useCallback((suggestion: SuggestionChip) => {
+        // Use the message field for sending (may differ from label)
+        handleSendMessage(suggestion.message);
     }, [handleSendMessage]);
 
     const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
         const isUser = item.role === 'user';
+
         return (
-            <View
-                className={`max-w-[80%] p-sm rounded-lg mb-sm ${isUser ? 'self-end bg-primary-default' : 'self-start bg-background-secondary'
-                    }`}
-            >
-                <Text className={`text-base leading-relaxed ${isUser ? 'text-white' : 'text-text-primary'}`}>
-                    {item.content}
-                </Text>
+            <View className="mb-sm">
+                {/* Message bubble */}
+                <View
+                    className={`max-w-[80%] p-sm rounded-lg ${isUser ? 'self-end bg-primary-default' : 'self-start bg-background-secondary'
+                        }`}
+                >
+                    <Text className={`text-base leading-relaxed ${isUser ? 'text-white' : 'text-text-primary'}`}>
+                        {item.content}
+                    </Text>
+                </View>
+
+                {/* Recipe cards (only for assistant messages with recipes) */}
+                {!isUser && item.recipes && item.recipes.length > 0 && (
+                    <View className="mt-sm self-start max-w-[95%]">
+                        {item.recipes.map((recipe) => (
+                            <ChatRecipeCard key={recipe.recipeId} recipe={recipe} />
+                        ))}
+                    </View>
+                )}
             </View>
         );
     }, []);
@@ -179,11 +246,26 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
                 }
             />
 
+            {/* Status indicator with avatar */}
+            {isLoading && (
+                <View className="flex-row items-center px-md py-sm">
+                    <IrmixyAvatar state="thinking" size={40} />
+                    <Text className="text-text-secondary ml-sm text-sm">
+                        {getStatusText()}
+                    </Text>
+                </View>
+            )}
+
             {/* Suggestion chips above input */}
             {showSuggestions && (
                 <SuggestionChips
-                    suggestions={initialSuggestions}
-                    onSelect={handleSuggestionSelect}
+                    suggestions={currentSuggestions.map(s => s.label)}
+                    onSelect={(label) => {
+                        const suggestion = currentSuggestions.find(s => s.label === label);
+                        if (suggestion) {
+                            handleSuggestionSelect(suggestion);
+                        }
+                    }}
                     disabled={isLoading}
                 />
             )}

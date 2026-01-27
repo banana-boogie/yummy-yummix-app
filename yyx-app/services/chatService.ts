@@ -1,20 +1,25 @@
 /**
  * Chat API Client
- * 
- * Handles communication with the AI chat Edge Function.
- * 
+ *
+ * Handles communication with the AI orchestrator Edge Function.
+ * Uses ai-orchestrator for structured responses with recipes, suggestions, etc.
+ *
  * SSE = Server-Sent Events: A standard for servers to push data to clients
  * over HTTP. Used here for streaming AI responses token-by-token.
  */
 
 import { supabase } from '@/lib/supabase';
-import i18n from '@/i18n';
+import EventSource from 'react-native-sse';
+import type { IrmixyResponse, IrmixyStatus, RecipeCard, SuggestionChip } from '@/types/irmixy';
 
 export interface ChatMessage {
     id: string;
     role: 'user' | 'assistant';
     content: string;
     createdAt: Date;
+    // Structured response data (only for assistant messages)
+    recipes?: RecipeCard[];
+    suggestions?: SuggestionChip[];
 }
 
 export interface ChatSession {
@@ -22,40 +27,37 @@ export interface ChatSession {
     messages: ChatMessage[];
 }
 
-interface ChatResponse {
-    content: string;
-    sessionId: string;
-    usage: {
-        inputTokens: number;
-        outputTokens: number;
-    };
-}
+// Re-export types for convenience
+export type { IrmixyResponse, IrmixyStatus, RecipeCard, SuggestionChip };
 
-// Use ai/ namespace for all AI-related functions
-const AI_CHAT_URL = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/ai-chat`;
+// Use ai-orchestrator for structured responses
+const AI_ORCHESTRATOR_URL = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/ai-orchestrator`;
 
 /**
- * Send a message to the chat API.
- * 
- * @param message - The user's message
- * @param sessionId - Optional session ID to continue a conversation
- * @returns ChatResponse with the assistant's reply
+ * Streaming callbacks for real-time updates
+ */
+export interface StreamCallbacks {
+    onChunk: (content: string) => void;
+    onSessionId?: (sessionId: string) => void;
+    onStatus?: (status: IrmixyStatus) => void;
+    onComplete?: (response: IrmixyResponse) => void;
+}
+
+/**
+ * Send a message to the AI orchestrator (non-streaming).
+ * Returns the full structured IrmixyResponse.
  */
 export async function sendChatMessage(
     message: string,
     sessionId: string | null
-): Promise<ChatResponse> {
-    // Get current session token
+): Promise<IrmixyResponse> {
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session?.access_token) {
         throw new Error('Not authenticated');
     }
 
-    // Get current language from i18n
-    const language = i18n.locale.startsWith('es') ? 'es' : 'en';
-
-    const response = await fetch(AI_CHAT_URL, {
+    const response = await fetch(AI_ORCHESTRATOR_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -64,7 +66,8 @@ export async function sendChatMessage(
         body: JSON.stringify({
             message,
             sessionId,
-            language,
+            mode: 'text',
+            stream: false,
         }),
     });
 
@@ -77,19 +80,17 @@ export async function sendChatMessage(
 }
 
 /**
- * Stream a message to the chat API using SSE.
- * 
- * @param message - The user's message
- * @param sessionId - Optional session ID to continue a conversation
- * @param onChunk - Callback for each content chunk
- * @param onSessionId - Callback when session ID is received
- * @returns Promise that resolves when streaming completes
+ * Stream a message to the AI orchestrator using SSE.
+ * Uses react-native-sse for proper streaming support in React Native.
+ * Provides real-time status updates and content chunks.
  */
 export async function streamChatMessage(
     message: string,
     sessionId: string | null,
     onChunk: (content: string) => void,
     onSessionId?: (sessionId: string) => void,
+    onStatus?: (status: IrmixyStatus) => void,
+    onComplete?: (response: IrmixyResponse) => void,
 ): Promise<void> {
     const { data: { session } } = await supabase.auth.getSession();
 
@@ -97,106 +98,86 @@ export async function streamChatMessage(
         throw new Error('Not authenticated');
     }
 
-    const language = i18n.locale.startsWith('es') ? 'es' : 'en';
+    console.log('[SSE] Starting stream request to orchestrator...');
 
-    console.log('[SSE] Starting stream request...');
+    return new Promise((resolve, reject) => {
+        let chunkCount = 0;
 
-    const response = await fetch(AI_CHAT_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-            message,
-            sessionId,
-            language,
-            stream: true,
-        }),
+        // Create EventSource with POST method and body
+        const es = new EventSource(AI_ORCHESTRATOR_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+                message,
+                sessionId,
+                mode: 'text',
+                stream: true,
+            }),
+            // Disable automatic reconnection - we handle errors ourselves
+            pollingInterval: 0,
+        });
+
+        es.addEventListener('open', () => {
+            console.log('[SSE] Connection opened');
+        });
+
+        es.addEventListener('message', (event: any) => {
+            if (!event.data) return;
+
+            try {
+                const json = JSON.parse(event.data);
+                console.log('[SSE] Event type:', json.type);
+
+                switch (json.type) {
+                    case 'session':
+                        if (json.sessionId) {
+                            onSessionId?.(json.sessionId);
+                        }
+                        break;
+
+                    case 'status':
+                        if (json.status) {
+                            onStatus?.(json.status as IrmixyStatus);
+                        }
+                        break;
+
+                    case 'content':
+                        if (json.content) {
+                            chunkCount++;
+                            onChunk(json.content);
+                        }
+                        break;
+
+                    case 'done':
+                        console.log('[SSE] Stream complete, chunks received:', chunkCount);
+                        if (json.response) {
+                            onComplete?.(json.response as IrmixyResponse);
+                        }
+                        es.close();
+                        resolve();
+                        break;
+
+                    case 'error':
+                        console.error('[SSE] Server error:', json.error);
+                        es.close();
+                        reject(new Error(json.error || 'Unknown streaming error'));
+                        break;
+                }
+            } catch (e) {
+                console.error('[SSE] Parse error:', e);
+                // Don't reject on parse errors - continue processing
+            }
+        });
+
+        es.addEventListener('error', (event: any) => {
+            console.error('[SSE] Connection error:', event);
+            es.close();
+            reject(new Error(event.message || 'SSE connection failed'));
+        });
     });
-
-    console.log('[SSE] Response status:', response.status);
-    console.log('[SSE] Response body exists:', !!response.body);
-    console.log('[SSE] Response body type:', typeof response.body);
-
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-    }
-
-    // Check if getReader is available (may not be in React Native)
-    if (!response.body || typeof response.body.getReader !== 'function') {
-        console.log('[SSE] ReadableStream not available, using text() fallback');
-        // Fallback: Read entire response as text and parse
-        const text = await response.text();
-        console.log('[SSE] Full response text length:', text.length);
-        console.log('[SSE] Full response preview:', text.substring(0, 200));
-
-        const lines = text.split('\n');
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || !trimmed.startsWith('data: ')) continue;
-
-            try {
-                const json = JSON.parse(trimmed.slice(6));
-                if (json.type === 'session' && json.sessionId) {
-                    onSessionId?.(json.sessionId);
-                } else if (json.type === 'content' && json.content) {
-                    onChunk(json.content);
-                } else if (json.type === 'error') {
-                    throw new Error(json.error);
-                }
-            } catch (e) {
-                if (e instanceof Error && e.message !== 'Unexpected end of JSON input') {
-                    console.error('[SSE] Parse error:', e);
-                }
-            }
-        }
-        return;
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let chunkCount = 0;
-
-    console.log('[SSE] Starting to read stream...');
-
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-            console.log('[SSE] Stream done, total chunks received:', chunkCount);
-            break;
-        }
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || !trimmed.startsWith('data: ')) continue;
-
-            try {
-                const json = JSON.parse(trimmed.slice(6));
-                console.log('[SSE] Parsed:', json.type);
-
-                if (json.type === 'session' && json.sessionId) {
-                    onSessionId?.(json.sessionId);
-                } else if (json.type === 'content' && json.content) {
-                    chunkCount++;
-                    onChunk(json.content);
-                } else if (json.type === 'error') {
-                    throw new Error(json.error);
-                }
-            } catch (e) {
-                if (e instanceof Error && e.message !== 'Unexpected end of JSON input') {
-                    console.error('[SSE] Parse error:', e);
-                    throw e;
-                }
-            }
-        }
-    }
 }
 
 /**

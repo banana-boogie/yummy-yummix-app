@@ -40,10 +40,15 @@ Your capabilities:
 
 Guidelines:
 - Be warm, encouraging, and helpful
-- Keep responses concise but informative
 - If you don't know something, say so
 - Consider the user's preferences and dietary restrictions when known
 - Always respond in English
+
+Response Style:
+- Keep responses concise (2-4 sentences for simple questions)
+- Use bullet points for lists instead of paragraphs
+- Only elaborate when the user asks for more details
+- Avoid long introductions or unnecessary pleasantries
 
 The user may ask you about recipes, ingredients, cooking techniques, or meal ideas.`,
 
@@ -57,10 +62,15 @@ Tus capacidades:
 
 Directrices:
 - Sé cálido, alentador y servicial
-- Mantén las respuestas concisas pero informativas
 - Si no sabes algo, dilo
 - Considera las preferencias y restricciones dietéticas del usuario cuando se conozcan
 - Siempre responde en español
+
+Estilo de respuesta:
+- Mantén las respuestas concisas (2-4 oraciones para preguntas simples)
+- Usa viñetas para listas en lugar de párrafos
+- Solo elabora cuando el usuario pida más detalles
+- Evita introducciones largas o cortesías innecesarias
 
 El usuario puede preguntar sobre recetas, ingredientes, técnicas de cocina o ideas de comidas.`
 };
@@ -70,8 +80,12 @@ El usuario puede preguntar sobre recetas, ingredientes, técnicas de cocina o id
 // =============================================================================
 
 function createSupabaseClient(): SupabaseClient {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    let supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    // Fix for local development: kong:8000 is internal Docker address
+    if (supabaseUrl.includes('kong:8000')) {
+        supabaseUrl = 'http://host.docker.internal:54321';
+    }
     return createClient(supabaseUrl, supabaseServiceKey);
 }
 

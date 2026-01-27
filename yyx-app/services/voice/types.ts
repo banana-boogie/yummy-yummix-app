@@ -14,13 +14,14 @@ export interface UserContext {
 
 // Recipe context
 export interface RecipeContext {
-    type: 'cooking' | 'recipe' | 'chat';
+    type: 'cooking' | 'recipe' | 'chat' | 'prep';
     recipeId?: string;
     recipeTitle?: string;
     currentStep?: number;
     totalSteps?: number;
     stepInstructions?: string;
     ingredients?: Array<{ name: string; amount: string }>;
+    usefulItems?: string[];
 }
 
 // Conversation context
