@@ -1,7 +1,8 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { LayoutAnimation } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import * as Crypto from 'expo-crypto';
 import { shoppingListService } from '@/services/shoppingListService';
 import {
     ShoppingListWithItems,
@@ -53,6 +54,10 @@ interface UseShoppingListDataReturn {
     isSyncing: boolean;
     pendingCount: number;
     queueMutation: ReturnType<typeof useOfflineSync>['queueMutation'];
+
+    // Pull-to-refresh
+    isRefreshing: boolean;
+    handleRefresh: () => void;
 }
 
 /**
@@ -65,10 +70,20 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
     const [categories, setCategories] = useState<ShoppingCategory[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // Ref to track list for rollback without causing re-renders
+    const listRef = useRef<ShoppingListWithItems | null>(null);
+    useEffect(() => {
+        listRef.current = list;
+    }, [list]);
+
+    // Forward declare fetchList for use in onSyncComplete
+    const fetchListRef = useRef<(forceRefresh?: boolean) => Promise<void>>();
 
     // Offline sync hook
     const { isOffline, isSyncing, pendingCount, queueMutation } = useOfflineSync({
-        onSyncComplete: () => fetchList(true),
+        onSyncComplete: () => fetchListRef.current?.(true),
     });
 
     // Undoable delete hook
@@ -172,16 +187,29 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             toast.showError(i18n.t('common.error'), i18n.t('shoppingList.loadError'));
         } finally {
             setLoading(false);
+            setIsRefreshing(false);
         }
     }, [listId, toast]);
+
+    // Assign to ref for use in onSyncComplete
+    useEffect(() => {
+        fetchListRef.current = fetchList;
+    }, [fetchList]);
 
     useEffect(() => {
         fetchList();
     }, [fetchList]);
 
+    // Pull-to-refresh handler
+    const handleRefresh = useCallback(() => {
+        setIsRefreshing(true);
+        fetchList(true);
+    }, [fetchList]);
+
     // Check item handler
     const handleCheckItem = useCallback(async (itemId: string, isChecked: boolean) => {
-        const previousList = list;
+        // Use ref for rollback to avoid stale closure
+        const previousList = listRef.current;
 
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setList(current => {
@@ -208,12 +236,13 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             toast.showError(i18n.t('common.error'), i18n.t('shoppingList.checkError'));
             console.error('Error toggling item:', error);
         }
-    }, [list, isOffline, queueMutation, toast]);
+    }, [isOffline, queueMutation, toast]);
 
     // Delete item handler
     const handleDeleteItem = useCallback((itemId: string) => {
+        // Find item in current list via ref
         let itemToDelete: ShoppingListItem | undefined;
-        for (const cat of list?.categories ?? []) {
+        for (const cat of listRef.current?.categories ?? []) {
             const found = cat.items.find(item => item.id === itemId);
             if (found) {
                 itemToDelete = found;
@@ -221,6 +250,9 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             }
         }
         if (!itemToDelete) return;
+
+        // Capture for closure
+        const deletedItem = itemToDelete;
 
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setList(current => {
@@ -233,12 +265,12 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
                 ...current,
                 categories: updatedCategories,
                 itemCount: current.itemCount - 1,
-                checkedCount: itemToDelete?.isChecked ? current.checkedCount - 1 : current.checkedCount,
+                checkedCount: deletedItem.isChecked ? current.checkedCount - 1 : current.checkedCount,
             };
         });
 
         queueDeletion(
-            itemToDelete,
+            deletedItem,
             async () => {
                 if (isOffline) {
                     await queueMutation('DELETE_ITEM', { itemId });
@@ -246,16 +278,16 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
                     await shoppingListService.deleteItem(itemId);
                 }
             },
-            itemToDelete.name
+            deletedItem.name
         );
-    }, [list, isOffline, queueMutation, queueDeletion]);
+    }, [isOffline, queueMutation, queueDeletion]);
 
     // Add item handler with optimistic update
     const handleAddItem = useCallback(async (itemData: Omit<ShoppingListItemCreate, 'shoppingListId'>) => {
-        if (!listId || !list) return;
+        if (!listId || !listRef.current) return;
 
-        // Create a temporary item for optimistic update
-        const tempId = `temp-${Date.now()}`;
+        // Create a temporary item for optimistic update with UUID
+        const tempId = `temp-${Crypto.randomUUID()}`;
         const category = categories.find(c => c.id === itemData.categoryId);
         const tempItem: ShoppingListItem = {
             id: tempId,
@@ -271,7 +303,7 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             updatedAt: new Date().toISOString(),
         };
 
-        const previousList = list;
+        const previousList = listRef.current;
 
         // Optimistic update
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -309,17 +341,26 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
         });
 
         try {
-            await shoppingListService.addItem({ ...itemData, shoppingListId: listId });
+            const newItem = await shoppingListService.addItem({ ...itemData, shoppingListId: listId });
             toast.showSuccess(i18n.t('shoppingList.itemAdded'));
-            // Fetch to get the real item with correct ID and all data
-            fetchList();
+            // Replace temp item with real item instead of full refetch
+            setList(current => {
+                if (!current) return null;
+                const updatedCategories = current.categories.map(cat => ({
+                    ...cat,
+                    items: cat.items.map(item =>
+                        item.id === tempId ? { ...newItem, categoryId: itemData.categoryId } : item
+                    ),
+                }));
+                return { ...current, categories: updatedCategories };
+            });
         } catch (error) {
             // Rollback on error
             setList(previousList);
             console.error('Error adding item:', error);
             toast.showError(i18n.t('common.error'), i18n.t('shoppingList.addError'));
         }
-    }, [listId, list, categories, toast, fetchList]);
+    }, [listId, categories, toast]);
 
     // Consolidate handler
     const handleConsolidate = useCallback(async () => {
@@ -336,7 +377,7 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
 
     // Reorder items handler
     const handleReorderItems = useCallback(async (categoryId: string, reorderedItems: ShoppingListItem[]) => {
-        const previousList = list;
+        const previousList = listRef.current;
 
         const updates = reorderedItems.map((item, index) => ({
             id: item.id,
@@ -373,7 +414,7 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             setList(previousList);
             toast.showError(i18n.t('common.error'), i18n.t('shoppingList.reorderError'));
         }
-    }, [list, isOffline, queueMutation, toast]);
+    }, [isOffline, queueMutation, toast]);
 
     return {
         list,
@@ -396,6 +437,8 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
         isSyncing,
         pendingCount,
         queueMutation,
+        isRefreshing,
+        handleRefresh,
     };
 }
 

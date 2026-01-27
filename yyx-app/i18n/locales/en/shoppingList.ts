@@ -4,9 +4,11 @@ export const shoppingList = {
   enterName: "Enter list name",
   empty: "No shopping lists yet",
   createFirst: "Create your first list",
-  allDone: "All items checked off!",
+  allDone: "All Done!",
+  allDoneDescription:
+    "Your shopping list is empty. Tap the + button to add items.",
   checkedOff: "{{checked}} of {{total}} items",
-  addItem: "Add Item",
+  addItem: "Add item",
   searchItems: "Search items...",
   item: {
     quantity: "Quantity",
@@ -53,6 +55,9 @@ export const shoppingList = {
   checkedItemsCount: "{{count}} checked items",
   clearChecked: "Clear Checked",
   clearCheckedConfirm: "Remove all checked items?",
+  consolidate: "Consolidate duplicates",
+  enterSelectMode: "Select items",
+  exitSelectMode: "Exit selection",
   offline: "You're offline",
   syncing: "Syncing...",
   pendingChanges: "{{count}} pending",

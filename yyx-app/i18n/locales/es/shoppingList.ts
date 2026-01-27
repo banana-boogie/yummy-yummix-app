@@ -4,9 +4,11 @@ export const shoppingList = {
   enterName: "Nombre de la lista",
   empty: "No hay listas de compras",
   createFirst: "Crea tu primera lista",
-  allDone: "¡Todo listo!",
+  allDone: "¡Todo Listo!",
+  allDoneDescription:
+    "Tu lista de compras está vacía. Toca el botón + para agregar artículos.",
   checkedOff: "{{checked}} de {{total}} artículos",
-  addItem: "Agregar Artículo",
+  addItem: "Agregar artículo",
   searchItems: "Buscar artículos...",
   item: {
     quantity: "Cantidad",
@@ -53,6 +55,9 @@ export const shoppingList = {
   checkedItemsCount: "{{count}} artículos marcados",
   clearChecked: "Limpiar Marcados",
   clearCheckedConfirm: "¿Eliminar todos los artículos marcados?",
+  consolidate: "Consolidar duplicados",
+  enterSelectMode: "Seleccionar artículos",
+  exitSelectMode: "Salir de selección",
   offline: "Sin conexión",
   syncing: "Sincronizando...",
   pendingChanges: "{{count}} pendientes",

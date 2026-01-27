@@ -14,7 +14,7 @@ interface UseBatchActionsOptions {
     clearSelection: () => void;
     isOffline: boolean;
     queueMutation: <T extends MutationType>(type: T, payload: MutationPayloads[T]) => Promise<string>;
-    fetchList: () => Promise<void>;
+    categories: import('@/types/shopping-list.types').ShoppingCategory[];
 }
 
 interface UseBatchActionsReturn {
@@ -25,16 +25,19 @@ interface UseBatchActionsReturn {
     isClearingChecked: boolean;
     isAnyBatchOperationInProgress: boolean;
 
-    // Confirmation modal
+    // Confirmation modals
     showDeleteConfirm: boolean;
     setShowDeleteConfirm: (show: boolean) => void;
+    showClearCheckedConfirm: boolean;
+    setShowClearCheckedConfirm: (show: boolean) => void;
 
     // Actions
     handleBatchCheck: () => Promise<void>;
     handleBatchUncheck: () => Promise<void>;
     handleBatchDeleteRequest: () => void;
     handleBatchDeleteConfirm: () => Promise<void>;
-    handleClearCheckedItems: () => Promise<void>;
+    handleClearCheckedRequest: () => void;
+    handleClearCheckedConfirm: () => Promise<void>;
 }
 
 /**
@@ -47,10 +50,11 @@ export function useBatchActions({
     clearSelection,
     isOffline,
     queueMutation,
-    fetchList,
+    categories,
 }: UseBatchActionsOptions): UseBatchActionsReturn {
     const toast = useToast();
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showClearCheckedConfirm, setShowClearCheckedConfirm] = useState(false);
     const [isBatchChecking, setIsBatchChecking] = useState(false);
     const [isBatchUnchecking, setIsBatchUnchecking] = useState(false);
     const [isBatchDeleting, setIsBatchDeleting] = useState(false);
@@ -62,7 +66,7 @@ export function useBatchActions({
         {
             duration: 5000,
             onRestore: (items) => {
-                // Restore all items to the list
+                // Restore all items to the list, recreating categories if needed
                 setList(current => {
                     if (!current) return null;
                     const updatedCategories = [...current.categories];
@@ -70,6 +74,7 @@ export function useBatchActions({
                     for (const item of items) {
                         const catIndex = updatedCategories.findIndex(cat => cat.id === item.categoryId);
                         if (catIndex >= 0) {
+                            // Category exists, add item back
                             const newItems = [...updatedCategories[catIndex].items, item].sort(
                                 (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
                             );
@@ -77,6 +82,16 @@ export function useBatchActions({
                                 ...updatedCategories[catIndex],
                                 items: newItems,
                             };
+                        } else {
+                            // Category doesn't exist, recreate it
+                            const category = categories.find(c => c.id === item.categoryId);
+                            if (category) {
+                                updatedCategories.push({
+                                    ...category,
+                                    localizedName: i18n.locale === 'es' ? category.nameEs : category.nameEn,
+                                    items: [item],
+                                });
+                            }
                         }
                     }
 
@@ -216,27 +231,31 @@ export function useBatchActions({
         });
 
         clearSelection();
+        // Reset loading state immediately - undo will handle UI restoration
+        setIsBatchDeleting(false);
 
         // Queue batch deletion with undo capability
         queueBatchDeletion(
             itemsToDelete,
             async () => {
-                try {
-                    if (isOffline) {
-                        await queueMutation('BATCH_DELETE', { itemIds });
-                    } else {
-                        await shoppingListService.batchDeleteItems(itemIds);
-                    }
-                } finally {
-                    setIsBatchDeleting(false);
+                if (isOffline) {
+                    await queueMutation('BATCH_DELETE', { itemIds });
+                } else {
+                    await shoppingListService.batchDeleteItems(itemIds);
                 }
             },
             i18n.t('shoppingList.itemsCount', { count: itemIds.length })
         );
     }, [list, selectedItems, isOffline, queueMutation, clearSelection, setList, queueBatchDeletion]);
 
-    // Clear all checked items
-    const handleClearCheckedItems = useCallback(async () => {
+    // Show clear checked confirmation modal
+    const handleClearCheckedRequest = useCallback(() => {
+        setShowClearCheckedConfirm(true);
+    }, []);
+
+    // Clear all checked items (after confirmation)
+    const handleClearCheckedConfirm = useCallback(async () => {
+        setShowClearCheckedConfirm(false);
         if (!list) return;
 
         setIsClearingChecked(true);
@@ -274,18 +293,17 @@ export function useBatchActions({
             };
         });
 
+        // Reset loading state immediately
+        setIsClearingChecked(false);
+
         // Queue deletion with undo capability
         queueBatchDeletion(
             checkedItems,
             async () => {
-                try {
-                    if (isOffline) {
-                        await queueMutation('BATCH_DELETE', { itemIds: checkedItemIds });
-                    } else {
-                        await shoppingListService.batchDeleteItems(checkedItemIds);
-                    }
-                } finally {
-                    setIsClearingChecked(false);
+                if (isOffline) {
+                    await queueMutation('BATCH_DELETE', { itemIds: checkedItemIds });
+                } else {
+                    await shoppingListService.batchDeleteItems(checkedItemIds);
                 }
             },
             i18n.t('shoppingList.checkedItemsCount', { count: checkedItemIds.length })
@@ -300,11 +318,14 @@ export function useBatchActions({
         isAnyBatchOperationInProgress,
         showDeleteConfirm,
         setShowDeleteConfirm,
+        showClearCheckedConfirm,
+        setShowClearCheckedConfirm,
         handleBatchCheck,
         handleBatchUncheck,
         handleBatchDeleteRequest,
         handleBatchDeleteConfirm,
-        handleClearCheckedItems,
+        handleClearCheckedRequest,
+        handleClearCheckedConfirm,
     };
 }
 
