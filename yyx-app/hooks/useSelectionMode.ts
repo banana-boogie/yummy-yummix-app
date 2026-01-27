@@ -53,7 +53,7 @@ export function useSelectionMode({ listId, categories }: UseSelectionModeOptions
 
     // Load persisted selection state on mount
     useEffect(() => {
-        if (listId) {
+        if (listId && categories && categories.length > 0) {
             AsyncStorage.getItem(`selection_state_${listId}`).then(data => {
                 if (data) {
                     try {
@@ -66,8 +66,24 @@ export function useSelectionMode({ listId, categories }: UseSelectionModeOptions
                             parsed.selectedItems.every((item: unknown) => typeof item === 'string')
                         ) {
                             if (parsed.isSelectMode && parsed.selectedItems.length > 0) {
-                                setIsSelectMode(true);
-                                setSelectedItems(new Set(parsed.selectedItems));
+                                // Filter to only include items that still exist
+                                const existingItemIds = new Set<string>();
+                                for (const cat of categories) {
+                                    for (const item of cat.items) {
+                                        existingItemIds.add(item.id);
+                                    }
+                                }
+                                const validSelectedItems = parsed.selectedItems.filter(
+                                    (id: string) => existingItemIds.has(id)
+                                );
+
+                                if (validSelectedItems.length > 0) {
+                                    setIsSelectMode(true);
+                                    setSelectedItems(new Set(validSelectedItems));
+                                } else {
+                                    // All selected items were deleted, clear persisted state
+                                    AsyncStorage.removeItem(`selection_state_${listId}`).catch(console.error);
+                                }
                             }
                         } else {
                             AsyncStorage.removeItem(`selection_state_${listId}`).catch(console.error);
@@ -79,7 +95,7 @@ export function useSelectionMode({ listId, categories }: UseSelectionModeOptions
                 }
             }).catch(console.error);
         }
-    }, [listId]);
+    }, [listId, categories]);
 
     // Persist selection state when it changes
     useEffect(() => {
