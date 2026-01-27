@@ -37,7 +37,11 @@ export const ShoppingListCard = React.memo(function ShoppingListCard({
             onPress={handlePress}
             className="bg-white rounded-lg shadow-md mb-md active:opacity-70"
             accessibilityRole="button"
-            accessibilityLabel={`${list.name}, ${list.checkedCount} of ${list.itemCount} items checked`}
+            accessibilityLabel={i18n.t('shoppingList.accessibility.listSummary', {
+                name: list.name,
+                checked: list.checkedCount,
+                total: list.itemCount,
+            })}
         >
             <View className="p-lg">
                 {/* Header */}

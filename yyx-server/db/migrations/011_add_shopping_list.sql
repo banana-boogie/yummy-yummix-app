@@ -92,12 +92,20 @@ ALTER TABLE shopping_list_categories ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Categories are viewable by everyone" ON shopping_list_categories FOR SELECT USING (true);
 
 ALTER TABLE shopping_lists ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can manage their own shopping lists" ON shopping_lists FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage their own shopping lists" ON shopping_lists
+    FOR ALL
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 
 ALTER TABLE shopping_list_items ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can manage their own shopping list items" ON shopping_list_items FOR ALL USING (
-    EXISTS (SELECT 1 FROM shopping_lists WHERE id = shopping_list_items.shopping_list_id AND user_id = auth.uid())
-);
+CREATE POLICY "Users can manage their own shopping list items" ON shopping_list_items
+    FOR ALL
+    USING (
+        EXISTS (SELECT 1 FROM shopping_lists WHERE id = shopping_list_items.shopping_list_id AND user_id = auth.uid())
+    )
+    WITH CHECK (
+        EXISTS (SELECT 1 FROM shopping_lists WHERE id = shopping_list_items.shopping_list_id AND user_id = auth.uid())
+    );
 
 ALTER TABLE user_category_order ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can manage their own category order" ON user_category_order FOR ALL USING (auth.uid() = user_id);

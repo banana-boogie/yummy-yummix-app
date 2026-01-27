@@ -2,12 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { View, FlatList, Alert } from 'react-native';
 import { Stack } from 'expo-router';
 import { Text } from '@/components/common';
-import { CategorySection } from '@/components/shopping-list';
 import i18n from '@/i18n';
 import { pantryService } from '@/services/pantryService';
+import { PantryItem, ShoppingCategory } from '@/types/shopping-list.types';
 
 export default function PantryScreen() {
-    const [data, setData] = useState<any[]>([]);
+    const [data, setData] = useState<(ShoppingCategory & { items: PantryItem[] })[]>([]);
     const [loading, setLoading] = useState(true);
 
     const fetchData = async () => {
@@ -16,7 +16,7 @@ export default function PantryScreen() {
             setData(categories);
         } catch (error) {
             console.error(error);
-            Alert.alert('Error', i18n.t('common.error'));
+            Alert.alert(i18n.t('common.errors.title'), i18n.t('common.errors.default'));
         } finally {
             setLoading(false);
         }

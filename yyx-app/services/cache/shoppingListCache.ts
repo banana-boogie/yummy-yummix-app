@@ -1,6 +1,8 @@
 import { BaseCache, CacheConfig } from './baseCache';
 import { ShoppingListWithItems, ShoppingList, ShoppingCategory } from '@/types/shopping-list.types';
 
+const getUserKey = (userId?: string) => userId ?? 'anon';
+
 // Cache config: 30 minutes for lists, 7 days for categories (static)
 const SHOPPING_LIST_CACHE_CONFIG: CacheConfig = {
     memoryCacheExpiry: 5 * 60 * 1000, // 5 minutes in memory
@@ -26,16 +28,16 @@ class ShoppingListDetailCache extends BaseCache<ShoppingListWithItems> {
         super('shopping_list_detail', SHOPPING_LIST_CACHE_CONFIG);
     }
 
-    async getList(listId: string): Promise<ShoppingListWithItems | undefined> {
-        return this.getItem(listId);
+    async getList(listId: string, userId?: string): Promise<ShoppingListWithItems | undefined> {
+        return this.getItem(`${getUserKey(userId)}:${listId}`);
     }
 
-    async setList(listId: string, list: ShoppingListWithItems): Promise<void> {
-        return this.setItem(listId, list);
+    async setList(listId: string, list: ShoppingListWithItems, userId?: string): Promise<void> {
+        return this.setItem(`${getUserKey(userId)}:${listId}`, list);
     }
 
-    async invalidateList(listId: string): Promise<void> {
-        return this.invalidateItem(listId);
+    async invalidateList(listId: string, userId?: string): Promise<void> {
+        return this.invalidateItem(`${getUserKey(userId)}:${listId}`);
     }
 }
 
@@ -45,19 +47,19 @@ class ShoppingListsSummaryCache extends BaseCache<ShoppingList[]> {
         super('shopping_lists_summary', LISTS_SUMMARY_CACHE_CONFIG);
     }
 
-    async getLists(includeArchived: boolean = false): Promise<ShoppingList[] | undefined> {
-        const key = includeArchived ? 'all' : 'active';
+    async getLists(includeArchived: boolean = false, userId?: string): Promise<ShoppingList[] | undefined> {
+        const key = `${getUserKey(userId)}:${includeArchived ? 'all' : 'active'}`;
         return this.getItem(key);
     }
 
-    async setLists(lists: ShoppingList[], includeArchived: boolean = false): Promise<void> {
-        const key = includeArchived ? 'all' : 'active';
+    async setLists(lists: ShoppingList[], includeArchived: boolean = false, userId?: string): Promise<void> {
+        const key = `${getUserKey(userId)}:${includeArchived ? 'all' : 'active'}`;
         return this.setItem(key, lists);
     }
 
-    async invalidateLists(): Promise<void> {
-        await this.invalidateItem('all');
-        await this.invalidateItem('active');
+    async invalidateLists(userId?: string): Promise<void> {
+        await this.invalidateItem(`${getUserKey(userId)}:all`);
+        await this.invalidateItem(`${getUserKey(userId)}:active`);
     }
 }
 
@@ -67,12 +69,16 @@ class ShoppingCategoryCache extends BaseCache<ShoppingCategory[]> {
         super('shopping_categories', CATEGORY_CACHE_CONFIG);
     }
 
-    async getCategories(): Promise<ShoppingCategory[] | undefined> {
-        return this.getItem('all');
+    async getCategories(userId?: string): Promise<ShoppingCategory[] | undefined> {
+        return this.getItem(`${getUserKey(userId)}:all`);
     }
 
-    async setCategories(categories: ShoppingCategory[]): Promise<void> {
-        return this.setItem('all', categories);
+    async setCategories(categories: ShoppingCategory[], userId?: string): Promise<void> {
+        return this.setItem(`${getUserKey(userId)}:all`, categories);
+    }
+
+    async invalidateCategories(userId?: string): Promise<void> {
+        return this.invalidateItem(`${getUserKey(userId)}:all`);
     }
 }
 
@@ -82,9 +88,10 @@ export const shoppingListsSummaryCache = new ShoppingListsSummaryCache();
 export const shoppingCategoryCache = new ShoppingCategoryCache();
 
 // Helper to invalidate all shopping list related caches
-export async function invalidateAllShoppingListCaches(): Promise<void> {
+export async function invalidateAllShoppingListCaches(userId?: string): Promise<void> {
     await Promise.all([
         shoppingListDetailCache.clearCache(),
         shoppingListsSummaryCache.clearCache(),
+        shoppingCategoryCache.invalidateCategories(userId),
     ]);
 }

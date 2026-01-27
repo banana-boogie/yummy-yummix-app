@@ -128,7 +128,7 @@ export default function ShoppingListDetailScreen() {
     const [modalVisible, setModalVisible] = useState(false);
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
     const searchInputRef = useRef<TextInput>(null);
-    const debounceTimerRef = useRef<NodeJS.Timeout>();
+    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Shopping list data and operations
     const {

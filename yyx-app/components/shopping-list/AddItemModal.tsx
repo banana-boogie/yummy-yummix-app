@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, Modal, TouchableOpacity, TextInput, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Text, Button } from '@/components/common';
@@ -24,6 +24,8 @@ export function AddItemModal({ visible, onClose, onAddItem, categories }: AddIte
     const [quantity, setQuantity] = useState('1');
     const [selectedCategory, setSelectedCategory] = useState<string>('other');
     const [notes, setNotes] = useState('');
+    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const searchRequestIdRef = useRef(0);
 
     useEffect(() => {
         if (!visible) {
@@ -36,15 +38,42 @@ export function AddItemModal({ visible, onClose, onAddItem, categories }: AddIte
         }
     }, [visible]);
 
-    const handleSearch = useCallback(async (query: string) => {
+    const handleSearch = useCallback((query: string) => {
         setSearchQuery(query);
         setSelectedIngredient(null);
-        if (query.length < 2) { setSuggestions([]); return; }
-        try {
-            const results = await shoppingListService.searchIngredients(query);
-            setSuggestions(results);
-        } catch (error) { console.error('Search error:', error); }
+        if (query.length < 2) {
+            setSuggestions([]);
+        }
     }, []);
+
+    useEffect(() => {
+        if (searchDebounceRef.current) {
+            clearTimeout(searchDebounceRef.current);
+        }
+
+        const trimmed = searchQuery.trim();
+        if (trimmed.length < 2) {
+            return;
+        }
+
+        searchDebounceRef.current = setTimeout(async () => {
+            const requestId = ++searchRequestIdRef.current;
+            try {
+                const results = await shoppingListService.searchIngredients(trimmed);
+                if (requestId === searchRequestIdRef.current) {
+                    setSuggestions(results);
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+            }
+        }, 300);
+
+        return () => {
+            if (searchDebounceRef.current) {
+                clearTimeout(searchDebounceRef.current);
+            }
+        };
+    }, [searchQuery]);
 
     const handleSelectIngredient = (ingredient: IngredientSuggestion) => {
         setSelectedIngredient(ingredient);

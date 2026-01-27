@@ -8,6 +8,7 @@ export default function ShoppingLayout() {
 
     return (
         <Stack
+            key={language}
             screenOptions={{
                 headerStyle: { backgroundColor: COLORS.background.primary },
                 headerShadowVisible: false,

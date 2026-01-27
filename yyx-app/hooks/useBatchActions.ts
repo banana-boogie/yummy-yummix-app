@@ -114,6 +114,7 @@ export function useBatchActions({
     const handleBatchCheck = useCallback(async () => {
         const itemIds = Array.from(selectedItems);
         const previousList = list;
+        const listId = list?.id;
 
         setIsBatchChecking(true);
 
@@ -135,15 +136,15 @@ export function useBatchActions({
 
         try {
             if (isOffline) {
-                await queueMutation('BATCH_CHECK', { itemIds, isChecked: true });
+                await queueMutation('BATCH_CHECK', { itemIds, isChecked: true, listId });
             } else {
-                await shoppingListService.batchUpdateItems(itemIds, { isChecked: true });
+                await shoppingListService.batchUpdateItems(itemIds, { isChecked: true }, listId);
             }
             toast.showSuccess(i18n.t('shoppingList.batchCheckSuccess', { count: itemIds.length }));
             clearSelection();
         } catch (error) {
             setList(previousList);
-            toast.showError(i18n.t('common.error'), i18n.t('shoppingList.batchError'));
+            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.batchError'));
         } finally {
             setIsBatchChecking(false);
         }
@@ -153,6 +154,7 @@ export function useBatchActions({
     const handleBatchUncheck = useCallback(async () => {
         const itemIds = Array.from(selectedItems);
         const previousList = list;
+        const listId = list?.id;
 
         setIsBatchUnchecking(true);
 
@@ -174,15 +176,15 @@ export function useBatchActions({
 
         try {
             if (isOffline) {
-                await queueMutation('BATCH_CHECK', { itemIds, isChecked: false });
+                await queueMutation('BATCH_CHECK', { itemIds, isChecked: false, listId });
             } else {
-                await shoppingListService.batchUpdateItems(itemIds, { isChecked: false });
+                await shoppingListService.batchUpdateItems(itemIds, { isChecked: false }, listId);
             }
             toast.showSuccess(i18n.t('shoppingList.batchUncheckSuccess', { count: itemIds.length }));
             clearSelection();
         } catch (error) {
             setList(previousList);
-            toast.showError(i18n.t('common.error'), i18n.t('shoppingList.batchError'));
+            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.batchError'));
         } finally {
             setIsBatchUnchecking(false);
         }
@@ -200,6 +202,7 @@ export function useBatchActions({
 
         const itemIds = Array.from(selectedItems);
         const previousList = list;
+        const listId = list?.id;
 
         // Collect items being deleted for undo
         const itemsToDelete: ShoppingListItem[] = [];
@@ -239,9 +242,9 @@ export function useBatchActions({
             itemsToDelete,
             async () => {
                 if (isOffline) {
-                    await queueMutation('BATCH_DELETE', { itemIds });
+                    await queueMutation('BATCH_DELETE', { itemIds, listId });
                 } else {
-                    await shoppingListService.batchDeleteItems(itemIds);
+                    await shoppingListService.batchDeleteItems(itemIds, listId);
                 }
             },
             i18n.t('shoppingList.itemsCount', { count: itemIds.length })
@@ -260,6 +263,7 @@ export function useBatchActions({
 
         setIsClearingChecked(true);
         const previousList = list;
+        const listId = list?.id;
 
         // Collect all checked items
         const checkedItems: ShoppingListItem[] = [];
@@ -301,9 +305,9 @@ export function useBatchActions({
             checkedItems,
             async () => {
                 if (isOffline) {
-                    await queueMutation('BATCH_DELETE', { itemIds: checkedItemIds });
+                    await queueMutation('BATCH_DELETE', { itemIds: checkedItemIds, listId });
                 } else {
-                    await shoppingListService.batchDeleteItems(checkedItemIds);
+                    await shoppingListService.batchDeleteItems(checkedItemIds, listId);
                 }
             },
             i18n.t('shoppingList.checkedItemsCount', { count: checkedItemIds.length })

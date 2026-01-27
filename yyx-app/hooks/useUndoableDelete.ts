@@ -5,7 +5,7 @@ import i18n from '@/i18n';
 
 interface PendingDeletion<T> {
     item: T;
-    timeoutId: NodeJS.Timeout;
+    timeoutId: ReturnType<typeof setTimeout>;
     onConfirm: () => Promise<void>;
 }
 
@@ -50,7 +50,7 @@ interface UseUndoableDeleteReturn<T> {
  *
  * const handleDelete = (item) => {
  *   setItems(prev => prev.filter(i => i.id !== item.id));
- *   queueDeletion(item, () => shoppingListService.deleteItem(item.id), item.name);
+ *   queueDeletion(item, () => shoppingListService.deleteItem(item.id, item.shoppingListId), item.name);
  * };
  */
 export function useUndoableDelete<T>(
