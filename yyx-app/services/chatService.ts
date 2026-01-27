@@ -31,6 +31,9 @@ export interface ChatSession {
 // Re-export types for convenience
 export type { IrmixyResponse, IrmixyStatus, RecipeCard, SuggestionChip };
 
+// Constants
+const MAX_MESSAGE_LENGTH = 2000;
+
 // Use ai-orchestrator for structured responses
 const FUNCTIONS_BASE_URL =
     process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL ||
@@ -62,6 +65,11 @@ export async function sendChatMessage(
     message: string,
     sessionId: string | null
 ): Promise<IrmixyResponse> {
+    // Validate message length
+    if (message.length > MAX_MESSAGE_LENGTH) {
+        throw new Error(i18n.t('chat.error.messageTooLong', { max: MAX_MESSAGE_LENGTH }));
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session?.access_token) {
@@ -142,6 +150,11 @@ export function streamChatMessageWithHandle(
 
     void (async () => {
         try {
+            // Validate message length
+            if (message.length > MAX_MESSAGE_LENGTH) {
+                throw new Error(i18n.t('chat.error.messageTooLong', { max: MAX_MESSAGE_LENGTH }));
+            }
+
             const { data: { session } } = await supabase.auth.getSession();
 
             if (finished) return;

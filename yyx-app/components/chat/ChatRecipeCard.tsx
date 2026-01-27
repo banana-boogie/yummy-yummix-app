@@ -6,10 +6,12 @@ import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/common/Text';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { RecipeCard } from '@/types/irmixy';
 import i18n from '@/i18n';
+import { COLORS } from '@/constants/design-tokens';
 
 interface ChatRecipeCardProps {
     recipe: RecipeCard;
@@ -17,6 +19,14 @@ interface ChatRecipeCardProps {
 
 export function ChatRecipeCard({ recipe }: ChatRecipeCardProps) {
     const handlePress = () => {
+        // Validate recipe ID exists before navigating
+        if (!recipe.recipeId) {
+            console.warn('[ChatRecipeCard] Invalid recipeId:', recipe);
+            return;
+        }
+
+        // Haptic feedback for premium feel
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         router.push(`/(tabs)/recipes/${recipe.recipeId}`);
     };
 
@@ -49,7 +59,7 @@ export function ChatRecipeCard({ recipe }: ChatRecipeCardProps) {
                     />
                 ) : (
                     <View className="w-20 h-20 bg-background-secondary items-center justify-center">
-                        <MaterialCommunityIcons name="food" size={32} color="#999" />
+                        <MaterialCommunityIcons name="food" size={32} color={COLORS.grey.medium} />
                     </View>
                 )}
 
@@ -62,7 +72,7 @@ export function ChatRecipeCard({ recipe }: ChatRecipeCardProps) {
                     <View className="flex-row items-center mt-xs gap-md">
                         {/* Time */}
                         <View className="flex-row items-center">
-                            <MaterialCommunityIcons name="clock-outline" size={14} color="#666" />
+                            <MaterialCommunityIcons name="clock-outline" size={14} color={COLORS.grey.medium_dark} />
                             <Text className="text-text-secondary text-xs ml-xs">
                                 {recipe.totalTime} {i18n.t('common.minutesShort')}
                             </Text>
@@ -75,7 +85,7 @@ export function ChatRecipeCard({ recipe }: ChatRecipeCardProps) {
 
                         {/* Portions */}
                         <View className="flex-row items-center">
-                            <MaterialCommunityIcons name="account-group-outline" size={14} color="#666" />
+                            <MaterialCommunityIcons name="account-group-outline" size={14} color={COLORS.grey.medium_dark} />
                             <Text className="text-text-secondary text-xs ml-xs">
                                 {recipe.portions}
                             </Text>
@@ -85,7 +95,7 @@ export function ChatRecipeCard({ recipe }: ChatRecipeCardProps) {
 
                 {/* Arrow */}
                 <View className="justify-center pr-sm">
-                    <MaterialCommunityIcons name="chevron-right" size={24} color="#ccc" />
+                    <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.grey.medium} />
                 </View>
             </View>
         </TouchableOpacity>

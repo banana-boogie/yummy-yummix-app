@@ -866,7 +866,10 @@ const translations = {
       greeting: "Hi! I'm Irmixy, your AI chef assistant. Ask me anything about cooking!",
       inputPlaceholder: 'Ask me anything about cooking...',
       sendButton: 'Send',
-      error: 'Sorry, something went wrong. Please try again.',
+      error: {
+        default: 'Sorry, something went wrong. Please try again.',
+        messageTooLong: 'Message is too long. Maximum {{max}} characters allowed.',
+      },
       loginRequired: 'Please log in to chat with Irmixy.',
       newChatTitle: 'New Chat',
       thinking: 'Irmixy is thinking...',
@@ -1763,7 +1766,10 @@ const translations = {
       greeting: '¡Hola! Soy Irmixy, tu asistente de cocina con IA. ¡Pregúntame lo que quieras sobre cocina!',
       inputPlaceholder: 'Pregúntame lo que quieras sobre cocina...',
       sendButton: 'Enviar',
-      error: 'Lo siento, algo salió mal. Por favor, inténtalo de nuevo.',
+      error: {
+        default: 'Lo siento, algo salió mal. Por favor, inténtalo de nuevo.',
+        messageTooLong: 'El mensaje es demasiado largo. Máximo {{max}} caracteres permitidos.',
+      },
       loginRequired: 'Por favor, inicia sesión para chatear con Irmixy.',
       newChatTitle: 'Nuevo chat',
       thinking: 'Irmixy está pensando...',

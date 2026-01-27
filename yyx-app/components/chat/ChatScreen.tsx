@@ -13,11 +13,18 @@ import { Text } from '@/components/common/Text';
 import { SuggestionChips } from '@/components/chat/SuggestionChips';
 import { IrmixyAvatar } from '@/components/chat/IrmixyAvatar';
 import { ChatRecipeCard } from '@/components/chat/ChatRecipeCard';
+import { ChatRecipeCardSkeleton } from '@/components/chat/ChatRecipeCardSkeleton';
 import { ChatMessage, IrmixyStatus, SuggestionChip } from '@/services/chatService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import i18n from '@/i18n';
+
+// Constants
+const SCROLL_THROTTLE_MS = 100; // Throttle scroll calls to avoid excessive layout calculations
+const SCROLL_DELAY_MS = 100; // Allow render to complete before scrolling
+const CHUNK_BATCH_MS = 50; // Batch streaming chunks to reduce re-renders
+const SCROLL_THRESHOLD = 100; // Distance from bottom to consider "at bottom" (px)
 
 interface Props {
     sessionId?: string | null;
@@ -34,6 +41,9 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
     const streamRequestIdRef = useRef(0);
     const assistantIndexRef = useRef<number | null>(null);
     const lastScrollRef = useRef(0);
+    const chunkBufferRef = useRef<string>('');
+    const chunkTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const isNearBottomRef = useRef(true); // Assume at bottom initially
 
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputText, setInputText] = useState('');
@@ -47,12 +57,19 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
             isMountedRef.current = false;
             streamCancelRef.current?.();
             streamCancelRef.current = null;
+            if (chunkTimerRef.current) {
+                clearTimeout(chunkTimerRef.current);
+                chunkTimerRef.current = null;
+            }
         };
     }, []);
 
     const scrollToEndThrottled = useCallback((animated: boolean) => {
+        // Only auto-scroll if user is near bottom (prevents interrupting reading)
+        if (!isNearBottomRef.current && !animated) return;
+
         const now = Date.now();
-        if (animated || now - lastScrollRef.current > 100) {
+        if (animated || now - lastScrollRef.current > SCROLL_THROTTLE_MS) {
             lastScrollRef.current = now;
             flatListRef.current?.scrollToEnd({ animated });
         }
@@ -111,7 +128,7 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
         if (messages.length > 0) {
             setTimeout(() => {
                 scrollToEndThrottled(true);
-            }, 100);
+            }, SCROLL_DELAY_MS);
         }
     }, [messages, scrollToEndThrottled]);
 
@@ -154,6 +171,44 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
         setCurrentStatus('thinking');
         setDynamicSuggestions(null); // Clear previous suggestions
 
+        // Reset to auto-scroll for new message
+        isNearBottomRef.current = true;
+
+        // Clear chunk buffer for new message
+        chunkBufferRef.current = '';
+        if (chunkTimerRef.current) {
+            clearTimeout(chunkTimerRef.current);
+            chunkTimerRef.current = null;
+        }
+
+        // Flush accumulated chunks to UI
+        const flushChunkBuffer = () => {
+            if (!chunkBufferRef.current || !isActiveRequest()) return;
+
+            const bufferedContent = chunkBufferRef.current;
+            chunkBufferRef.current = '';
+
+            setMessages(prev => {
+                const updated = [...prev];
+                let assistantIdx = assistantIndexRef.current;
+                if (
+                    assistantIdx === null ||
+                    updated[assistantIdx]?.id !== assistantMessageId
+                ) {
+                    assistantIdx = updated.findIndex(m => m.id === assistantMessageId);
+                    assistantIndexRef.current = assistantIdx !== -1 ? assistantIdx : null;
+                }
+                if (assistantIdx !== null && assistantIdx !== -1) {
+                    updated[assistantIdx] = {
+                        ...updated[assistantIdx],
+                        content: updated[assistantIdx].content + bufferedContent,
+                    };
+                }
+                return updated;
+            });
+            scrollToEndThrottled(false);
+        };
+
         try {
             // Import stream function with cancellation handle
             const { streamChatMessageWithHandle } = await import('@/services/chatService');
@@ -161,29 +216,20 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
             const handle = streamChatMessageWithHandle(
                 userMessage.content,
                 currentSessionId,
-                // onChunk - append content progressively
+                // onChunk - batch updates to reduce re-renders
                 (chunk) => {
                     if (!isActiveRequest()) return;
-                    setMessages(prev => {
-                        const updated = [...prev];
-                        let assistantIdx = assistantIndexRef.current;
-                        if (
-                            assistantIdx === null ||
-                            updated[assistantIdx]?.id !== assistantMessageId
-                        ) {
-                            assistantIdx = updated.findIndex(m => m.id === assistantMessageId);
-                            assistantIndexRef.current = assistantIdx !== -1 ? assistantIdx : null;
-                        }
-                        if (assistantIdx !== null && assistantIdx !== -1) {
-                            updated[assistantIdx] = {
-                                ...updated[assistantIdx],
-                                content: updated[assistantIdx].content + chunk,
-                            };
-                        }
-                        return updated;
-                    });
-                    // Scroll during streaming, but throttle to avoid excessive work
-                    scrollToEndThrottled(false);
+
+                    // Accumulate chunk in buffer
+                    chunkBufferRef.current += chunk;
+
+                    // Schedule flush if not already scheduled
+                    if (!chunkTimerRef.current) {
+                        chunkTimerRef.current = setTimeout(() => {
+                            chunkTimerRef.current = null;
+                            flushChunkBuffer();
+                        }, CHUNK_BATCH_MS);
+                    }
                 },
                 // onSessionId
                 (sessionId) => {
@@ -233,7 +279,21 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
 
             streamCancelRef.current = handle.cancel;
             await handle.done;
+
+            // Flush any remaining buffered chunks
+            if (chunkTimerRef.current) {
+                clearTimeout(chunkTimerRef.current);
+                chunkTimerRef.current = null;
+            }
+            flushChunkBuffer();
         } catch (error) {
+            // Flush any remaining chunks before error handling
+            if (chunkTimerRef.current) {
+                clearTimeout(chunkTimerRef.current);
+                chunkTimerRef.current = null;
+            }
+            flushChunkBuffer();
+
             // Replace streaming message with error
             if (isActiveRequest()) {
                 setMessages(prev => {
@@ -249,7 +309,7 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
                     if (assistantIdx !== null && assistantIdx !== -1) {
                         updated[assistantIdx] = {
                             ...updated[assistantIdx],
-                            content: updated[assistantIdx].content || i18n.t('chat.error'),
+                            content: updated[assistantIdx].content || i18n.t('chat.error.default'),
                         };
                     }
                     return updated;
@@ -307,6 +367,14 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
         );
     }, []);
 
+    const handleScroll = useCallback((event: any) => {
+        const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+        const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+
+        // Consider "near bottom" if within threshold
+        isNearBottomRef.current = distanceFromBottom <= SCROLL_THRESHOLD;
+    }, []);
+
     if (!user) {
         return (
             <View className="flex-1 justify-center items-center px-lg">
@@ -327,6 +395,8 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
                 renderItem={renderMessage}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={{ padding: 16, flexGrow: 1 }}
+                onScroll={handleScroll}
+                scrollEventThrottle={400}
                 ListEmptyComponent={
                     <View className="flex-1 justify-center items-center pt-xxxl">
                         <MaterialCommunityIcons name="chef-hat" size={48} color="#999" />
@@ -339,11 +409,22 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
 
             {/* Status indicator with avatar */}
             {isLoading && (
-                <View className="flex-row items-center px-md py-sm">
-                    <IrmixyAvatar state={currentStatus ?? 'thinking'} size={40} />
-                    <Text className="text-text-secondary ml-sm text-sm">
-                        {getStatusText()}
-                    </Text>
+                <View className="px-md py-sm">
+                    <View className="flex-row items-center mb-sm">
+                        <IrmixyAvatar state={currentStatus ?? 'thinking'} size={40} />
+                        <Text className="text-text-secondary ml-sm text-sm">
+                            {getStatusText()}
+                        </Text>
+                    </View>
+
+                    {/* Skeleton loaders while searching */}
+                    {currentStatus === 'searching' && (
+                        <View className="max-w-[95%]">
+                            <ChatRecipeCardSkeleton />
+                            <ChatRecipeCardSkeleton />
+                            <ChatRecipeCardSkeleton />
+                        </View>
+                    )}
                 </View>
             )}
 
