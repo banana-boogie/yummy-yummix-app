@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**YummyYummix** is a cross-platform cooking app with recipe discovery, step-by-step cooking guides, and AI-powered sous chef features.
+**YummyYummix** is a cross-platform cooking app with recipe discovery, step-by-step cooking guides, and AI-powered sous chef features. **The app is designed with Thermomix users as the primary audience**, providing specialized cooking parameters and equipment-specific recipe adaptations.
 
 ### Repository Structure
 - `yyx-app/` - React Native mobile app (Expo)
@@ -244,6 +244,116 @@ The updated dev-setup script now ensures both auth user and user_profile are cre
 | Backend | Supabase (Auth, DB, Storage, Edge Functions) |
 | Routing | Expo Router (file-based in `app/`) |
 | Edge Functions | Deno + TypeScript |
+
+## AI Architecture
+
+### AI Gateway (`yyx-server/supabase/functions/_shared/ai-gateway/`)
+
+**All AI interactions must go through the AI Gateway.** Never call OpenAI, Anthropic, or other providers directly.
+
+#### Why Use the Gateway?
+- ✅ **Provider Independence** - Switch models/providers via env vars without code changes
+- ✅ **Usage-Based Routing** - Different models for different tasks (`text`, `parsing`, `reasoning`)
+- ✅ **Cost Optimization** - Use cheaper models for simple tasks
+- ✅ **Consistent Interface** - Same API for all providers
+- ✅ **Structured Output** - JSON schema validation built-in
+- ✅ **Streaming Support** - SSE streaming with `chatStream()`
+
+#### How to Use:
+
+```typescript
+import { chat, chatStream } from '../_shared/ai-gateway/index.ts';
+
+// For structured output (always use JSON schema):
+const response = await chat({
+  usageType: 'text',  // or 'parsing', 'reasoning', 'voice'
+  messages: [
+    { role: 'system', content: 'You are a helpful assistant' },
+    { role: 'user', content: 'Hello!' },
+  ],
+  temperature: 0.7,
+  responseFormat: {
+    type: 'json_schema',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        suggestions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              label: { type: 'string' },
+              message: { type: 'string' },
+            },
+            required: ['label', 'message'],
+          },
+        },
+      },
+      required: ['message', 'suggestions'],
+    },
+  },
+});
+
+// For streaming:
+for await (const chunk of chatStream({
+  usageType: 'text',
+  messages: [...],
+  temperature: 0.7,
+})) {
+  console.log(chunk);
+}
+```
+
+#### Usage Types:
+
+| Type | Default Model | Use Case | Cost |
+|------|--------------|----------|------|
+| `text` | gpt-4o-mini | Chat completions, general text generation | Low |
+| `parsing` | gpt-4o-mini | Intent classification, structured data extraction | Very low |
+| `reasoning` | o1-mini | Complex reasoning, multi-step problems | High |
+| `voice` | gpt-4o-mini | Voice-optimized short responses | Low |
+| `transcription` | whisper-1 | Speech-to-text | Low |
+| `tts` | cartesia sonic-3 | Text-to-speech (42 languages) | Low |
+
+#### Configuration:
+
+```bash
+# Required API Keys (in .env or Supabase secrets)
+OPENAI_API_KEY=sk-proj-xxx      # For text, voice, parsing, reasoning, transcription
+CARTESIA_API_KEY=xxx            # For TTS (42 languages)
+
+# Optional: Override default models
+AI_TEXT_MODEL=gpt-4o              # Override chat model (default: gpt-4o-mini)
+AI_PARSING_MODEL=gpt-4o-mini      # Override parsing model
+AI_REASONING_MODEL=o1             # Override reasoning model
+```
+
+#### Design Pattern:
+
+The gateway uses **OpenAI's format as the universal interface** (same pattern as Vercel AI SDK and LangChain). Each provider translates from this common format to their specific API:
+
+```
+Developer Code → Gateway (OpenAI format) → Provider (translates to native format) → AI Service
+```
+
+This design:
+- Uses OpenAI format because it's the industry standard
+- Each provider handles translation (already implemented for OpenAI, Cartesia)
+- Adding new providers (Anthropic, Google) just requires a new translator
+- NOT OpenAI-specific - it's using OpenAI format as the **lingua franca**
+
+**When adding new providers:** Implement translation logic in `ai-gateway/providers/<provider>.ts`. The gateway interface stays the same.
+
+#### Thermomix-First Design
+
+When generating recipes for users with Thermomix equipment:
+- The system prompt automatically includes Thermomix instructions
+- AI generates `thermomixTime`, `thermomixTemp`, and `thermomixSpeed` parameters
+- Validation ensures parameters are within valid ranges
+- Frontend displays Thermomix cooking parameters in step-by-step guide
+
+See `generate-custom-recipe.ts` for Thermomix system prompt section.
 
 ## Architecture
 
