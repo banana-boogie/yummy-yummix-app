@@ -13,7 +13,6 @@ import i18n from '@/i18n';
 import { StepNavigationButtons } from '@/components/onboarding/StepNavigationButtons';
 import { EQUIPMENT_CONFIG, type EquipmentType, type ThermomixModel } from '@/constants/equipment';
 import type { KitchenEquipment } from '@/types/onboarding';
-import { cn } from '@/utils/cn';
 
 interface EquipmentStepProps {
   className?: string;
@@ -99,7 +98,7 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
       style={style}
     >
       <ScrollView
-        className={cn('flex-1', className)}
+        className={`flex-1 ${className}`}
         contentContainerStyle={{ paddingBottom: 20 }}
         showsVerticalScrollIndicator={false}
       >
@@ -121,12 +120,11 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
 
           <Pressable
             onPress={() => toggleEquipment('thermomix')}
-            className={cn(
-              'flex-row items-center p-lg rounded-xl border-2',
+            className={`flex-row items-center p-lg rounded-xl border-2 ${
               hasThermomix
                 ? 'bg-primary-lightest border-primary-medium'
                 : 'bg-background-secondary border-transparent'
-            )}
+            }`}
           >
             <Text className="text-4xl mr-md">
               {EQUIPMENT_CONFIG.thermomix.icon}
@@ -155,17 +153,15 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
                   <Pressable
                     key={model}
                     onPress={() => selectThermomixModel(model)}
-                    className={cn(
-                      'px-lg py-md rounded-lg border-2',
+                    className={`px-lg py-md rounded-lg border-2 ${
                       thermomixModel === model
                         ? 'bg-primary-medium border-primary-medium'
                         : 'bg-background-secondary border-transparent'
-                    )}
+                    }`}
                   >
-                    <Text className={cn(
-                      'font-semibold',
+                    <Text className={`font-semibold ${
                       thermomixModel === model ? 'text-white' : 'text-text-primary'
-                    )}>
+                    }`}>
                       {model}
                     </Text>
                   </Pressable>
@@ -189,12 +185,11 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
                 <Pressable
                   key={type}
                   onPress={() => toggleEquipment(type)}
-                  className={cn(
-                    'flex-row items-center p-md rounded-lg',
+                  className={`flex-row items-center p-md rounded-lg ${
                     isSelected
                       ? 'bg-primary-lightest'
                       : 'bg-background-secondary'
-                  )}
+                  }`}
                 >
                   <Text className="text-2xl mr-md">{config.icon}</Text>
                   <Text className="flex-1">
