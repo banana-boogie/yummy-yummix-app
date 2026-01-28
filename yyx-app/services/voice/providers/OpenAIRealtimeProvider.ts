@@ -63,20 +63,13 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       // 2b. Monitor connection state
       this.pc.onconnectionstatechange = () => {
-        console.log("[OpenAI] Connection state:", this.pc?.connectionState);
         if (this.pc?.connectionState === "failed") {
           this.emit("error", new Error("WebRTC connection failed"));
           this.setStatus("error");
-        } else if (this.pc?.connectionState === "connected") {
-          console.log("[OpenAI] WebRTC connected successfully");
         }
       };
 
       this.pc.oniceconnectionstatechange = () => {
-        console.log(
-          "[OpenAI] ICE connection state:",
-          this.pc?.iceConnectionState,
-        );
         if (this.pc?.iceConnectionState === "failed") {
           this.emit("error", new Error("ICE connection failed"));
           this.setStatus("error");
@@ -87,7 +80,6 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       this.dc = this.pc.createDataChannel("oai-events");
 
       this.dc.onopen = () => {
-        console.log("[OpenAI] Data channel OPEN - ready to send events");
         this.dataChannelReady = true;
 
         // Send any pending events
@@ -98,7 +90,6 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       };
 
       this.dc.onclose = () => {
-        console.log("[OpenAI] Data channel CLOSED");
         this.dataChannelReady = false;
       };
 
@@ -109,7 +100,6 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       this.dc.onmessage = (event) => {
         const message = JSON.parse(event.data);
-        console.log("[OpenAI] Received event:", message.type);
         this.handleServerMessage(message);
       };
 
@@ -145,9 +135,6 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       await this.pc.setLocalDescription(offer);
 
       // 6. Connect to OpenAI Realtime API directly using Ephemeral Token
-      console.log(
-        "[OpenAI] Connecting to Realtime API with ephemeral token...",
-      );
       const openaiResponse = await fetch(
         "https://api.openai.com/v1/realtime?model=gpt-realtime-mini",
         {
@@ -173,21 +160,12 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       // 7. Handle incoming audio with proper volume configuration
       this.pc.ontrack = (event) => {
-        console.log("[OpenAI] Receiving audio stream");
         const [remoteStream] = event.streams;
 
         if (remoteStream) {
-          // Audio playback is handled automatically by WebRTC
-          // Volume is controlled by device volume settings
-          console.log(
-            "[OpenAI] Remote audio track active, tracks:",
-            remoteStream.getTracks().length,
-          );
-
           // Enable audio tracks explicitly
           remoteStream.getAudioTracks().forEach((track) => {
             track.enabled = true;
-            console.log("[OpenAI] Audio track enabled:", track.id);
           });
         }
       };
@@ -210,18 +188,15 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     // Route audio to loudspeaker (fixes earpiece issue)
     InCallManager.start({ media: "audio", ringback: "" });
     InCallManager.setForceSpeakerphoneOn(true);
-    console.log("[OpenAI] Audio routed to loudspeaker");
 
     // Start inactivity timer (will auto-end if no speech for 30 seconds)
     this.inactivityTimer.reset(() => {
-      console.log("[OpenAI] Inactivity timeout - no speech for 30 seconds, ending session");
       this.stopConversation();
     });
 
     // Send session configuration with context via data channel
     const systemPrompt = buildSystemPrompt(context);
 
-    console.log("[OpenAI] Sending session update...");
     this.sendEvent({
       type: "session.update",
       session: {
@@ -244,8 +219,6 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   }
 
   stopConversation(): void {
-    console.log("[OpenAI] stopConversation called");
-
     // Clear timers
     if (this.sessionTimeoutId) {
       clearTimeout(this.sessionTimeoutId);
@@ -256,14 +229,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
     if (this.sessionStartTime) {
       const durationSeconds = (Date.now() - this.sessionStartTime) / 1000;
-      console.log(`[OpenAI] Session duration: ${durationSeconds.toFixed(2)}s`);
 
       // Fire and forget - don't await to keep UI responsive
       this.updateSessionDuration(durationSeconds).catch((err) => {
-        console.error(
-          "[OpenAI] Failed to update session in stopConversation:",
-          err,
-        );
+        console.error("[OpenAI] Failed to update session:", err);
       });
 
       this.sessionStartTime = null;
@@ -271,14 +240,12 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
     // CRITICAL: Close WebRTC connections to actually end the session
     if (this.dc) {
-      console.log("[OpenAI] Closing data channel");
       this.dc.close();
       this.dc = null;
       this.dataChannelReady = false;
     }
 
     if (this.pc) {
-      console.log("[OpenAI] Closing peer connection");
       this.pc.close();
       this.pc = null;
     }
@@ -288,7 +255,6 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
     // Stop audio routing
     InCallManager.stop();
-    console.log("[OpenAI] Audio routing stopped");
 
     // Reset token counters for next session
     this.sessionInputTokens = 0;
@@ -384,53 +350,40 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private sendEvent(event: any): void {
     if (this.dataChannelReady && this.dc && this.dc.readyState === "open") {
       this.dc.send(JSON.stringify(event));
-      console.log("[OpenAI] Sent event:", event.type);
     } else {
       // Queue event until data channel opens
-      console.log("[OpenAI] Queueing event (channel not ready):", event.type);
       this.pendingEvents.push(event);
     }
   }
 
   private handleServerMessage(message: any): void {
-    console.log("[OpenAI] Event:", message.type);
-
     switch (message.type) {
       // Session events
       case "session.created":
-        console.log("[OpenAI] Session created");
         break;
 
       case "session.updated":
-        console.log(
-          "[OpenAI] Session configuration applied - ready for user input",
-        );
         // Start the session timer NOW (not in startConversation)
         if (!this.sessionStartTime) {
           this.sessionStartTime = Date.now();
-          console.log("[OpenAI] Session timer started");
         }
         this.setStatus("listening"); // Now we're truly ready
         break;
 
       // Input audio buffer events
       case "input_audio_buffer.speech_started":
-        console.log("[OpenAI] User started speaking");
         this.setStatus("listening");
         // Reset inactivity timer when user speaks
         this.inactivityTimer.reset(() => {
-          console.log("[OpenAI] Inactivity timeout - no speech for 30 seconds, ending session");
           this.stopConversation();
         });
         break;
 
       case "input_audio_buffer.speech_stopped":
-        console.log("[OpenAI] User stopped speaking");
         this.setStatus("processing");
         break;
 
       case "input_audio_buffer.committed":
-        console.log("[OpenAI] Audio committed for processing");
         break;
 
       // Conversation item events
@@ -439,17 +392,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
           // User message created (with transcript if available)
           const transcript = message.item.content?.[0]?.transcript || "";
           if (transcript) {
-            console.log(
-              "[OpenAI] User transcript from conversation.item.created:",
-              transcript,
-            );
             this.emit("transcript", transcript);
 
             // Check for goodbye (fallback if input_audio_transcription.completed doesn't fire)
             if (detectGoodbye(transcript)) {
-              console.log(
-                "[OpenAI] Goodbye detected in conversation.item.created",
-              );
               setTimeout(() => {
                 this.stopConversation();
               }, 2000);
@@ -460,17 +406,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       case "conversation.item.input_audio_transcription.completed":
         // User's speech transcribed
-        console.log(
-          "[OpenAI] User transcript from input_audio_transcription.completed:",
-          message.transcript,
-        );
         this.emit("transcript", message.transcript);
 
         // Check if user said goodbye
         if (detectGoodbye(message.transcript)) {
-          console.log(
-            "[OpenAI] Goodbye detected in input_audio_transcription.completed",
-          );
           // Give a brief moment for AI to respond, then end
           setTimeout(() => {
             this.stopConversation();
@@ -480,16 +419,11 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       // Response events
       case "response.created":
-        console.log("[OpenAI] Response generation started");
         this.setStatus("processing");
         break;
 
       case "response.output_item.added":
-        console.log("[OpenAI] Output item added");
-        break;
-
       case "response.content_part.added":
-        console.log("[OpenAI] Content part added");
         break;
 
       case "response.audio_transcript.delta":
@@ -514,19 +448,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         break;
 
       case "response.output_item.done":
-        // Output item complete
-        console.log("[OpenAI] Output item complete");
-        break;
-
       case "response.content_part.done":
-        // Content part complete
-        console.log("[OpenAI] Content part complete");
         break;
 
       case "response.done":
-        // Response complete - capture token usage if available
-        console.log("[OpenAI] Response complete");
-
         // Extract token usage from response
         if (message.response?.usage) {
           const usage = message.response.usage;
@@ -547,9 +472,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
               usage.output_token_details.audio_tokens || 0;
           }
 
+          // Keep token usage log - useful for cost tracking
           console.log(
-            `[OpenAI] Token usage - Input: ${this.sessionInputTokens} (${this.sessionInputTextTokens} text, ${this.sessionInputAudioTokens} audio), ` +
-              `Output: ${this.sessionOutputTokens} (${this.sessionOutputTextTokens} text, ${this.sessionOutputAudioTokens} audio)`,
+            `[Voice] Tokens - In: ${this.sessionInputTokens} (${this.sessionInputTextTokens}t/${this.sessionInputAudioTokens}a), ` +
+              `Out: ${this.sessionOutputTokens} (${this.sessionOutputTextTokens}t/${this.sessionOutputAudioTokens}a)`,
           );
         }
 
@@ -558,7 +484,6 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       // Rate limits
       case "rate_limits.updated":
-        console.log("[OpenAI] Rate limits:", message.rate_limits);
         break;
 
       // Errors
@@ -569,7 +494,8 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         break;
 
       default:
-        console.log("[OpenAI] Unhandled event:", message.type);
+        // Ignore unhandled events silently
+        break;
     }
   }
 
@@ -595,10 +521,6 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         this.sessionOutputTokens = Math.ceil(minutes * 750);
         this.sessionInputAudioTokens = this.sessionInputTokens;
         this.sessionOutputAudioTokens = this.sessionOutputTokens;
-        console.warn(
-          `[OpenAI] No token data received, using estimation:\n` +
-            `  ${durationSeconds}s → ${this.sessionInputTokens} input + ${this.sessionOutputTokens} output tokens (estimated as audio)`,
-        );
       }
 
       // Calculate cost with correct pricing for text vs audio tokens
@@ -610,12 +532,9 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         this.sessionOutputTextTokens * (2.4 / 1_000_000) +
         this.sessionOutputAudioTokens * (20 / 1_000_000);
 
+      // Keep cost summary log - useful for monitoring
       console.log(
-        `[OpenAI] Updating session ${this.sessionId}:\n` +
-          `  Duration: ${durationSeconds.toFixed(2)}s\n` +
-          `  Input tokens: ${this.sessionInputTokens} (${this.sessionInputTextTokens} text @ $0.60/1M, ${this.sessionInputAudioTokens} audio @ $10/1M)\n` +
-          `  Output tokens: ${this.sessionOutputTokens} (${this.sessionOutputTextTokens} text @ $2.40/1M, ${this.sessionOutputAudioTokens} audio @ $20/1M)\n` +
-          `  Cost: $${costUsd.toFixed(6)}`,
+        `[Voice] Session: ${durationSeconds.toFixed(1)}s, Cost: $${costUsd.toFixed(4)}`,
       );
 
       const { error } = await supabase
@@ -637,8 +556,6 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       if (error) {
         console.error("[OpenAI] Failed to update session:", error);
-      } else {
-        console.log("[OpenAI] Session updated successfully");
       }
     } catch (error) {
       console.error("[OpenAI] Error updating session duration:", error);

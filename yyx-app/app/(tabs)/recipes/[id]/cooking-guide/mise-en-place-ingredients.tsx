@@ -6,13 +6,13 @@ import { useRecipe } from '@/hooks/useRecipe';
 import { RecipeIngredient } from '@/types/recipe.types';
 import { useLocalSearchParams, router } from 'expo-router';
 import { CookingGuideHeader } from '@/components/cooking-guide/CookingGuideHeader';
+import { CookingGuidePageHeader } from '@/components/cooking-guide/CookingGuidePageHeader';
 import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideStepNavigationButtons';
 import { useDevice } from '@/hooks/useDevice';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { MiseEnPlaceIngredient } from '@/components/cooking-guide/MiseEnPlaceIngredient';
 import { Text } from '@/components/common/Text';
 import { LAYOUT } from '@/constants/design-tokens';
-import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
 
 // Define the ingredient type
 type CheckableIngredient = RecipeIngredient & { checked: boolean };
@@ -76,8 +76,22 @@ export default function IngredientsStep() {
         }
       >
         <CookingGuideHeader
-          title={recipe?.name || ''}
+          showTitle={false}
           pictureUrl={recipe?.pictureUrl}
+        />
+
+        <CookingGuidePageHeader
+          title={recipe?.name || ''}
+          recipeContext={{
+            type: 'cooking',
+            recipeId: id as string,
+            recipeTitle: recipe?.name,
+            stepInstructions: "Prepare your ingredients.",
+            ingredients: ingredients.map(ing => ({
+              name: ing.name,
+              amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
+            }))
+          }}
         />
 
         {/* Content wrapper - centered on desktop with max-width */}
@@ -109,18 +123,6 @@ export default function IngredientsStep() {
         </View>
 
       </PageLayout>
-      <VoiceAssistantButton
-        recipeContext={{
-          type: 'cooking',
-          recipeId: id as string,
-          recipeTitle: recipe?.name,
-          stepInstructions: "Prepare your ingredients.",
-          ingredients: ingredients.map(ing => ({
-            name: ing.name,
-            amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
-          }))
-        }}
-      />
     </View>
   );
 }

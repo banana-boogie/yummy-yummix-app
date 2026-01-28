@@ -5,13 +5,13 @@ import i18n from '@/i18n';
 import { useRecipe } from '@/hooks/useRecipe';
 import { useLocalSearchParams, router } from 'expo-router';
 import { CookingGuideHeader } from '@/components/cooking-guide/CookingGuideHeader';
+import { CookingGuidePageHeader } from '@/components/cooking-guide/CookingGuidePageHeader';
 import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideStepNavigationButtons';
 import { useDevice } from '@/hooks/useDevice';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { MiseEnPlaceUsefulItem } from '@/components/cooking-guide/MiseEnPlaceUsefulItem';
 import { Text } from '@/components/common/Text';
 import { LAYOUT } from '@/constants/design-tokens';
-import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
 
 type CheckableUsefulItem = {
     id: string;
@@ -68,8 +68,18 @@ export default function UsefulItemsStep() {
                 }
             >
                 <CookingGuideHeader
-                    title={recipe?.name || ''}
+                    showTitle={false}
                     pictureUrl={recipe?.pictureUrl}
+                />
+
+                <CookingGuidePageHeader
+                    title={recipe?.name || ''}
+                    recipeContext={{
+                        type: 'prep',
+                        recipeId: id as string,
+                        recipeTitle: recipe?.name || '',
+                        usefulItems: usefulItems.map(item => item.name)
+                    }}
                 />
 
                 {/* Content wrapper - centered on desktop with max-width */}
@@ -99,14 +109,6 @@ export default function UsefulItemsStep() {
                     </View>
                 </View>
             </PageLayout>
-            <VoiceAssistantButton
-                recipeContext={{
-                    type: 'prep',
-                    recipeId: id as string,
-                    recipeTitle: recipe?.name || '',
-                    usefulItems: usefulItems.map(item => item.name)
-                }}
-            />
         </View>
     );
 }

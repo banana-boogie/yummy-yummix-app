@@ -802,11 +802,15 @@ async function saveMessageToHistory(
     content: userMessage,
   });
 
-  // Save assistant response
+  // Save assistant response with recipes if present
   await supabase.from('user_chat_messages').insert({
     session_id: sessionId,
     role: 'assistant',
     content: assistantResponse.message,
+    // Store recipes in tool_calls column for retrieval on resume
+    tool_calls: assistantResponse.recipes
+      ? { recipes: assistantResponse.recipes }
+      : null,
   });
 }
 

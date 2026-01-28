@@ -6,6 +6,7 @@ import {
     KeyboardAvoidingView,
     Platform,
     TouchableOpacity,
+    Pressable,
     ActivityIndicator,
     Alert,
     Animated,
@@ -15,16 +16,15 @@ import { Text } from '@/components/common/Text';
 import { SuggestionChips } from '@/components/chat/SuggestionChips';
 import { IrmixyAvatar } from '@/components/chat/IrmixyAvatar';
 import { ChatRecipeCard } from '@/components/chat/ChatRecipeCard';
-import { ChatRecipeCardSkeleton } from '@/components/chat/ChatRecipeCardSkeleton';
-import { ChatMessage, IrmixyStatus, SuggestionChip, getLastSessionWithMessages, loadChatHistory } from '@/services/chatService';
+import { ChatMessage, IrmixyStatus, SuggestionChip, RecipeCard, getLastSessionWithMessages, loadChatHistory } from '@/services/chatService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import Markdown from 'react-native-markdown-display';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { formatDistanceToNow } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { router } from 'expo-router';
 import i18n from '@/i18n';
 import { COLORS } from '@/constants/design-tokens';
 
@@ -46,10 +46,10 @@ const markdownStyles = {
         marginBottom: 8,
     },
     strong: {
-        fontWeight: '600',
+        fontWeight: '600' as const,
     },
     em: {
-        fontStyle: 'italic',
+        fontStyle: 'italic' as const,
     },
     list_item: {
         marginBottom: 4,
@@ -76,13 +76,62 @@ const markdownStyles = {
     },
     link: {
         color: COLORS.primary.darkest,
-        textDecorationLine: 'underline',
+        textDecorationLine: 'underline' as const,
+    },
+    image: {
+        width: 200,
+        height: 150,
+        borderRadius: 8,
+        marginVertical: 8,
     },
 };
+
+// Factory function to create markdown rules with access to message recipes
+const createMarkdownRules = (recipes?: RecipeCard[]) => ({
+    image: (node: any, _children: any, _parent: any, styles: any) => {
+        const { src } = node.attributes;
+
+        // Try to find matching recipe by image URL
+        const matchingRecipe = recipes?.find(r => r.imageUrl === src);
+
+        const imageElement = (
+            <Image
+                key={node.key}
+                source={{ uri: src }}
+                style={styles.image}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={0}
+                placeholder={null}
+            />
+        );
+
+        // If we found a matching recipe, make the image clickable
+        if (matchingRecipe?.recipeId) {
+            return (
+                <TouchableOpacity
+                    key={node.key}
+                    onPress={() => {
+                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push(`/(tabs)/recipes/${matchingRecipe.recipeId}?from=chat`);
+                    }}
+                    activeOpacity={0.8}
+                >
+                    {imageElement}
+                </TouchableOpacity>
+            );
+        }
+
+        return imageElement;
+    },
+});
 
 interface Props {
     sessionId?: string | null;
     onSessionCreated?: (sessionId: string) => void;
+    // Optional: lift messages state to parent to preserve recipes when switching modes
+    messages?: ChatMessage[];
+    onMessagesChange?: (messages: ChatMessage[]) => void;
 }
 
 // Animated typing dots component
@@ -123,7 +172,12 @@ const TypingDots = React.memo(function TypingDots() {
     );
 });
 
-export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Props) {
+export function ChatScreen({
+    sessionId: initialSessionId,
+    onSessionCreated,
+    messages: externalMessages,
+    onMessagesChange,
+}: Props) {
     const { user } = useAuth();
     const { language } = useLanguage();
     const insets = useSafeAreaInsets();
@@ -137,7 +191,23 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
     const chunkTimerRef = useRef<NodeJS.Timeout | null>(null);
     const isNearBottomRef = useRef(true); // Assume at bottom initially
 
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    // Use external messages if provided (lifted state), otherwise use local state
+    const [internalMessages, setInternalMessages] = useState<ChatMessage[]>([]);
+    const messages = externalMessages ?? internalMessages;
+
+    // Unified setter that works with both internal state and external handler
+    // Supports both direct value and callback pattern
+    const messagesRef = useRef<ChatMessage[]>(messages);
+    messagesRef.current = messages;
+
+    const setMessages = useCallback((update: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
+        const newMessages = typeof update === 'function' ? update(messagesRef.current) : update;
+        if (onMessagesChange) {
+            onMessagesChange(newMessages);
+        } else {
+            setInternalMessages(newMessages);
+        }
+    }, [onMessagesChange]);
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
@@ -161,6 +231,24 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
     useEffect(() => {
         setDynamicSuggestions(null);
     }, [language]);
+
+    // Reload messages when component mounts if sessionId is set but no messages exist
+    // Skip if external messages are provided (they already contain recipes)
+    useEffect(() => {
+        if (initialSessionId && messages.length === 0 && user && !externalMessages) {
+            loadChatHistory(initialSessionId)
+                .then((history) => {
+                    if (isMountedRef.current && history.length > 0) {
+                        setMessages(history);
+                    }
+                })
+                .catch((err) => {
+                    if (__DEV__) console.error('Failed to reload chat history:', err);
+                });
+        }
+    // Only run on mount with initialSessionId
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialSessionId, user]);
 
     // Check for resumable session on mount (only if no initial session provided)
     useEffect(() => {
@@ -513,43 +601,34 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
         return (
             <View className="mb-sm">
                 {/* Message bubble */}
-                <TouchableOpacity
-                    onLongPress={() => handleCopyMessage(item.content)}
-                    activeOpacity={0.7}
-                    className={`max-w-[80%] p-sm rounded-lg ${isUser ? 'self-end bg-primary-default' : 'self-start bg-background-secondary'
-                        }`}
-                >
-                    {isUser ? (
+                {isUser ? (
+                    <TouchableOpacity
+                        onLongPress={() => handleCopyMessage(item.content)}
+                        activeOpacity={0.7}
+                        className="max-w-[80%] p-sm rounded-lg self-end bg-primary-default"
+                    >
                         <Text className="text-base leading-relaxed text-white">
                             {item.content}
                         </Text>
-                    ) : (
-                        <Markdown style={markdownStyles}>
+                    </TouchableOpacity>
+                ) : (
+                    // Use Pressable for assistant messages to allow individual image touches
+                    <Pressable
+                        onLongPress={() => handleCopyMessage(item.content)}
+                        className="max-w-[80%] p-sm rounded-lg self-start bg-background-secondary"
+                    >
+                        <Markdown
+                            style={markdownStyles}
+                            rules={createMarkdownRules(item.recipes)}
+                        >
                             {item.content}
                         </Markdown>
-                    )}
-                </TouchableOpacity>
-
-                {/* Timestamp */}
-                {item.createdAt && (
-                    <Text className={`text-xs text-grey-medium mt-xs ${isUser ? 'self-end' : 'self-start'}`}>
-                        {formatDistanceToNow(new Date(item.createdAt), {
-                            addSuffix: true,
-                            locale: language === 'es' ? es : undefined,
-                        })}
-                    </Text>
+                    </Pressable>
                 )}
 
-                {/* Token count (dev mode only) */}
-                {__DEV__ && item.content && (
-                    <Text className="text-xs text-grey-medium mt-xs self-start">
-                        ~{Math.floor(item.content.length / 4)} tokens
-                    </Text>
-                )}
-
-                {/* Recipe cards (only for assistant messages with recipes) */}
+                {/* Recipe cards at END (only for assistant messages with recipes) */}
                 {!isUser && item.recipes && item.recipes.length > 0 && (
-                    <View className="mt-sm self-start max-w-[95%]">
+                    <View className="mt-sm w-full">
                         {item.recipes.map((recipe) => (
                             <ChatRecipeCard key={recipe.recipeId} recipe={recipe} />
                         ))}
@@ -557,7 +636,7 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
                 )}
             </View>
         );
-    }, [handleCopyMessage, language]);
+    }, [handleCopyMessage]);
 
     const handleScroll = useCallback((event: any) => {
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
@@ -599,9 +678,22 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
                 contentContainerStyle={{ padding: 16, flexGrow: 1 }}
                 onScroll={handleScroll}
                 scrollEventThrottle={200}
+                // Performance optimizations to prevent flashing
+                removeClippedSubviews={Platform.OS !== 'web'}
+                maxToRenderPerBatch={5}
+                windowSize={7}
+                initialNumToRender={10}
+                getItemLayout={undefined}
+                maintainVisibleContentPosition={{
+                    minIndexForVisible: 0,
+                }}
                 ListEmptyComponent={
                     <View className="flex-1 justify-center items-center pt-xxxl">
-                        <MaterialCommunityIcons name="chef-hat" size={48} color={COLORS.grey.medium} />
+                        <Image
+                            source={require('@/assets/images/irmixy-avatar/7.png')}
+                            style={{ width: 120, height: 120 }}
+                            contentFit="contain"
+                        />
                         <Text className="text-text-secondary text-center mt-md px-xl">
                             {i18n.t('chat.greeting')}
                         </Text>
@@ -623,22 +715,13 @@ export function ChatScreen({ sessionId: initialSessionId, onSessionCreated }: Pr
             {/* Status indicator with avatar */}
             {isLoading && (
                 <View className="px-md py-sm">
-                    <View className="flex-row items-center mb-sm">
+                    <View className="flex-row items-center">
                         <IrmixyAvatar state={currentStatus ?? 'thinking'} size={40} />
                         <Text className="text-text-secondary ml-sm text-sm">
                             {getStatusText()}
                         </Text>
                         <TypingDots />
                     </View>
-
-                    {/* Skeleton loaders while searching */}
-                    {currentStatus === 'searching' && (
-                        <View className="max-w-[95%]">
-                            <ChatRecipeCardSkeleton />
-                            <ChatRecipeCardSkeleton />
-                            <ChatRecipeCardSkeleton />
-                        </View>
-                    )}
                 </View>
             )}
 

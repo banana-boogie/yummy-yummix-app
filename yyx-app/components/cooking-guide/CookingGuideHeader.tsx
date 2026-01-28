@@ -8,6 +8,8 @@ import { FONTS, TextPreset } from '@/constants/design-tokens';
 import { Image } from 'expo-image';
 import { useDevice } from '@/hooks/useDevice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
+import type { RecipeContext } from '@/services/voice/types';
 
 interface CookingGuideHeaderProps {
     title?: string;
@@ -21,6 +23,8 @@ interface CookingGuideHeaderProps {
     style?: StyleProp<ViewStyle>;
     showBackButton?: boolean;
     onBackPress?: () => void;
+    /** Optional recipe context to show VoiceAssistantButton next to title */
+    recipeContext?: RecipeContext;
 }
 
 export function CookingGuideHeader({
@@ -35,6 +39,7 @@ export function CookingGuideHeader({
     onBackPress,
     className = '',
     style,
+    recipeContext,
 }: CookingGuideHeaderProps) {
     const { isLarge, isWeb, isPhone } = useDevice();
     const isWebMobile = isWeb && isPhone;
@@ -83,13 +88,23 @@ export function CookingGuideHeader({
             <View className="px-sm mt-md mb-xxs lg:mb-sm lg:max-w-[1000px] lg:self-center lg:w-full">
                 {!pictureUrl && showBackButton && <BackButton onPress={onBackPress} className="mb-sm bg-black/5" />}
 
-                {showTitle && title !== undefined ?
-                    <Text preset={titlePreset} className="mb-xxs">
-                        {title}
-                    </Text>
-                    :
-                    null
-                }
+                {/* Title row with optional VoiceAssistantButton */}
+                {showTitle && title !== undefined ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <View style={{ flex: 1, flexShrink: 1, marginRight: recipeContext ? 12 : 0 }}>
+                            <Text preset={titlePreset} className="mb-xxs">
+                                {title}
+                            </Text>
+                        </View>
+                        {recipeContext && (
+                            <VoiceAssistantButton
+                                position="inline"
+                                size="medium"
+                                recipeContext={recipeContext}
+                            />
+                        )}
+                    </View>
+                ) : null}
 
                 {showSubtitle && subtitle !== undefined ?
                     <Text preset={subtitlePreset}>

@@ -28,7 +28,7 @@ import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
 
 
 const RecipeDetail: React.FC = () => {
-  const { id } = useLocalSearchParams();
+  const { id, from } = useLocalSearchParams();
   const router = useRouter();
 
   // Validate ID early to prevent unnecessary API calls
@@ -50,6 +50,13 @@ const RecipeDetail: React.FC = () => {
 
   // Handle back navigation for web and native
   const handleBackPress = () => {
+    // If we came from chat, navigate back to chat explicitly
+    if (from === 'chat') {
+      // Use navigate to switch to the chat tab properly
+      router.navigate('/(tabs)/chat');
+      return;
+    }
+
     if (Platform.OS === 'web') {
       // Use history API directly for web
       window.history.back();

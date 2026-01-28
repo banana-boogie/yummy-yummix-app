@@ -3,13 +3,12 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useRecipe } from "@/hooks/useRecipe";
 import { CookingGuideHeader } from "@/components/cooking-guide/CookingGuideHeader";
 import { RecipeStepContent } from "@/components/cooking-guide/RecipeStepContent";
+import { Text } from "@/components/common/Text";
 import i18n from "@/i18n";
 import React from "react";
-import { Text } from "@/components/common/Text";
 import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideStepNavigationButtons';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
-import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
 
 export default function CookingStep() {
     const { id, step: stepParam } = useLocalSearchParams();
@@ -51,6 +50,18 @@ export default function CookingStep() {
             showSubtitle={false}
             pictureUrl={recipe.pictureUrl}
             onBackPress={handleNavigation.back}
+            recipeContext={{
+                type: 'cooking',
+                recipeId: id as string,
+                recipeTitle: recipe.name,
+                currentStep: currentStepNumber,
+                totalSteps: recipe.steps.length,
+                stepInstructions: currentStep.instruction,
+                ingredients: currentStep.ingredients?.map(ing => ({
+                    name: ing.name,
+                    amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
+                }))
+            }}
         />
     );
 
@@ -75,33 +86,18 @@ export default function CookingStep() {
                 scrollEnabled={true}
             >
                 <Header />
-                {currentStep.recipeSection && shouldDisplayRecipeSection(currentStep.recipeSection) ? (
-                    <View className="px-md">
-                        <Text preset="h1" className="text-text-default mb-sm">
+                {/* Show section title if present */}
+                {currentStep.recipeSection && shouldDisplayRecipeSection(currentStep.recipeSection) && (
+                    <View className="px-sm mb-sm">
+                        <Text preset="h2" className="text-text-secondary">
                             {currentStep.recipeSection}
                         </Text>
                     </View>
-                ) : null}
+                )}
                 <View className="px-md mb-md">
                     <RecipeStepContent step={currentStep} />
                 </View>
             </PageLayout>
-            <VoiceAssistantButton
-                position="top-right"
-                size="small"
-                recipeContext={{
-                    type: 'cooking',
-                    recipeId: id as string,
-                    recipeTitle: recipe.name,
-                    currentStep: currentStepNumber,
-                    totalSteps: recipe.steps.length,
-                    stepInstructions: currentStep.instruction,
-                    ingredients: currentStep.ingredients?.map(ing => ({
-                        name: ing.name,
-                        amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
-                    }))
-                }}
-            />
         </View>
     );
 }

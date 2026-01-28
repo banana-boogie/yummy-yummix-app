@@ -182,12 +182,11 @@ export function streamChatMessageWithHandle(
 
                 if (retryCount > 0) {
                     const backoffMs = Math.pow(2, retryCount) * 1000;
-                    if (__DEV__) console.log(`[SSE] Retrying connection (attempt ${retryCount}/${MAX_RETRIES}) after ${backoffMs}ms...`);
                     await new Promise(r => setTimeout(r, backoffMs));
                     if (finished) return;
                 }
 
-                if (__DEV__) console.log('[SSE] Starting stream request to orchestrator...');
+                // Removed verbose SSE logging - keep only errors
 
                 let chunkCount = 0;
 
@@ -246,7 +245,7 @@ export function streamChatMessageWithHandle(
                     }, STREAM_TIMEOUT_MS);
 
                     es.addEventListener('open', () => {
-                        if (__DEV__) console.log('[SSE] Connection opened');
+                        // Connection opened - no logging needed
                     });
 
                     es.addEventListener('message', (event: any) => {
@@ -255,7 +254,6 @@ export function streamChatMessageWithHandle(
 
                         try {
                             const json = JSON.parse(event.data);
-                            if (__DEV__) console.log('[SSE] Event type:', json.type);
 
                             switch (json.type) {
                                 case 'session':
@@ -278,7 +276,6 @@ export function streamChatMessageWithHandle(
                                     break;
 
                                 case 'done':
-                                    if (__DEV__) console.log('[SSE] Stream complete, chunks received:', chunkCount);
                                     if (json.response) {
                                         onComplete?.(json.response as IrmixyResponse);
                                     }
@@ -318,7 +315,6 @@ export function streamChatMessageWithHandle(
                 // Only retry on connection errors if no data was received
                 if (connectionError && !hasReceivedData && retryCount < MAX_RETRIES) {
                     retryCount++;
-                    if (__DEV__) console.log(`[SSE] Will retry after backoff (attempt ${retryCount}/${MAX_RETRIES})`);
                     continue; // Retry the while loop
                 }
 
@@ -342,7 +338,6 @@ export function streamChatMessageWithHandle(
             clearTimeout(timeoutId);
             timeoutId = null;
         }
-        if (__DEV__) console.log('[SSE] Stream cancelled by client');
         es?.close();
         resolveDone();
     };
@@ -352,22 +347,32 @@ export function streamChatMessageWithHandle(
 
 /**
  * Load chat history for a session.
+ * Includes recipes from tool_calls for assistant messages.
  */
 export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]> {
     const { data, error } = await supabase
         .from('user_chat_messages')
-        .select('id, role, content, created_at')
+        .select('id, role, content, created_at, tool_calls')
         .eq('session_id', sessionId)
         .order('created_at', { ascending: true });
 
     if (error) throw error;
 
-    return (data || []).map((msg: any) => ({
-        id: msg.id,
-        role: msg.role,
-        content: msg.content,
-        createdAt: new Date(msg.created_at),
-    }));
+    return (data || []).map((msg: any) => {
+        const message: ChatMessage = {
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            createdAt: new Date(msg.created_at),
+        };
+
+        // Parse recipes from tool_calls if present (assistant messages)
+        if (msg.role === 'assistant' && msg.tool_calls?.recipes) {
+            message.recipes = msg.tool_calls.recipes;
+        }
+
+        return message;
+    });
 }
 
 /**

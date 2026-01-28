@@ -27,7 +27,8 @@ export function ChatRecipeCard({ recipe }: ChatRecipeCardProps) {
 
         // Haptic feedback for premium feel
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        router.push(`/(tabs)/recipes/${recipe.recipeId}`);
+        // Pass 'from=chat' so the recipe detail knows to navigate back to chat
+        router.push(`/(tabs)/recipes/${recipe.recipeId}?from=chat`);
     };
 
     const getDifficultyColor = (difficulty: string) => {
@@ -50,15 +51,25 @@ export function ChatRecipeCard({ recipe }: ChatRecipeCardProps) {
             activeOpacity={0.7}
         >
             <View className="flex-row">
-                {/* Image */}
+                {/* Image - with background color to prevent loading flash */}
                 {recipe.imageUrl ? (
-                    <Image
-                        source={{ uri: recipe.imageUrl }}
-                        style={{ width: 80, height: 80 }}
-                        contentFit="cover"
-                    />
+                    <View
+                        style={{ width: 80, height: 80, backgroundColor: COLORS.background.secondary }}
+                        pointerEvents="none"
+                    >
+                        <Image
+                            source={{ uri: recipe.imageUrl }}
+                            style={{ width: 80, height: 80 }}
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                            recyclingKey={recipe.recipeId}
+                            // Prevent loading indicator by using instant transition
+                            transition={0}
+                            placeholder={null}
+                        />
+                    </View>
                 ) : (
-                    <View className="w-20 h-20 bg-background-secondary items-center justify-center">
+                    <View className="w-20 h-20 bg-background-secondary items-center justify-center" pointerEvents="none">
                         <MaterialCommunityIcons name="food" size={32} color={COLORS.grey.medium} />
                     </View>
                 )}

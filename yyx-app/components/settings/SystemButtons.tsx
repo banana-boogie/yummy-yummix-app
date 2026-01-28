@@ -28,20 +28,20 @@ export function SystemButtons({
   ) => (
     <TouchableOpacity
       onPress={onPress}
-      className={`flex-1 items-center justify-center py-md px-sm rounded-lg border ${isActive
-          ? 'bg-accent border-accent'
-          : 'bg-surface border-border'
+      className={`flex-1 items-center justify-center py-md px-sm rounded-lg border-2 ${isActive
+          ? 'bg-primary-medium border-primary-darkest'
+          : 'bg-white border-grey-medium'
         }`}
     >
       <Text
-        className={`text-sm font-semibold ${isActive ? 'text-text-on-accent' : 'text-text-primary'
+        className={`text-sm font-semibold ${isActive ? 'text-white' : 'text-text-default'
           }`}
       >
         {label}
       </Text>
       {sublabel && (
         <Text
-          className={`text-xs mt-xs ${isActive ? 'text-text-on-accent/70' : 'text-text-tertiary'
+          className={`text-xs mt-xs ${isActive ? 'text-white/70' : 'text-text-secondary'
             }`}
         >
           {sublabel}

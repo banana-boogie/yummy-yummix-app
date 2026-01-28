@@ -1,16 +1,17 @@
-import { View, Image } from 'react-native';
+import { View } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { useRecipe } from '@/hooks/useRecipe';
 import { CookingGuideHeader } from '@/components/cooking-guide/CookingGuideHeader';
+import { CookingGuidePageHeader } from '@/components/cooking-guide/CookingGuidePageHeader';
 import { MessageBubble } from '@/components/cooking-guide/MessageBubble';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { useDevice } from '@/hooks/useDevice';
 import i18n from '@/i18n';
 
 import * as Haptics from 'expo-haptics';
-import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
 
 export default function CookingGuide() {
   const { id } = useLocalSearchParams();
@@ -38,21 +39,29 @@ export default function CookingGuide() {
         footer={
           <View className="w-full max-w-[800px] self-center relative h-0" pointerEvents="none">
             <Image
-              source={require('@/assets/images/cooking-guide-chef.png')}
+              source={require('@/assets/images/irmixy-avatar/1.png')}
               className="absolute bottom-[-50px] right-0"
               style={{ width: chefSize.width, height: chefSize.height }}
-              resizeMode="contain"
+              contentFit="contain"
             />
           </View>
         }
       >
         <CookingGuideHeader
-          title={recipe?.name || ''}
-          titlePreset='h1'
+          showTitle={false}
+          showSubtitle={false}
           showBackButton={true}
-          subtitle="Mise en place"
-          subtitlePreset='subheading'
           pictureUrl={recipe?.pictureUrl}
+        />
+
+        <CookingGuidePageHeader
+          title={recipe?.name || ''}
+          subtitle="Mise en place"
+          recipeContext={{
+            type: 'recipe',
+            recipeId: id as string,
+            recipeTitle: recipe?.name
+          }}
         />
 
         <View className="px-md">
@@ -101,13 +110,6 @@ export default function CookingGuide() {
           </MessageBubble>
         </View>
       </PageLayout>
-      <VoiceAssistantButton
-        recipeContext={{
-          type: 'recipe', // Or 'cooking' maybe? 'recipe' fits intro best
-          recipeId: id as string,
-          recipeTitle: recipe?.name
-        }}
-      />
     </View>
   );
 }

@@ -90,7 +90,9 @@ export function VoiceAssistantButton({
         }
     };
 
-    return (
+    // For inline position, wrap in a View to prevent Fragment children from affecting flex layout
+    // For absolute positions, use Fragment since the button itself is absolutely positioned
+    const content = (
         <>
             <TouchableOpacity
                 onPress={handlePress}
@@ -154,4 +156,11 @@ export function VoiceAssistantButton({
             )}
         </>
     );
+
+    // Wrap in View for inline position to be a single flex item
+    if (position === 'inline') {
+        return <View>{content}</View>;
+    }
+
+    return content;
 }
