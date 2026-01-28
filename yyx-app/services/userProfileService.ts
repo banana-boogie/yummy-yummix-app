@@ -33,31 +33,57 @@ class UserProfileService extends BaseService {
   async updateProfile(userId: string, updates: Partial<UserProfile>) {
     const { otherAllergy, otherDiet, ...profileUpdates } = updates as OnboardingData;
 
-    // First update the profile
-    const { error: updateError } = await this.supabase
-      .from('user_profiles')
-      .update({
-        ...this.transformRequest(profileUpdates),
-        other_allergy: otherAllergy,
-        other_diet: otherDiet
-      })
-      .eq('id', userId);
+    const updateData = {
+      ...this.transformRequest(profileUpdates),
+      other_allergy: otherAllergy,
+      other_diet: otherDiet
+    };
 
-    if (updateError) throw updateError;
-
-    // Then fetch the updated profile
-    const { data, error: fetchError } = await this.supabase
+    // First, check if profile exists
+    const { data: existingProfile } = await this.supabase
       .from('user_profiles')
-      .select('*')
+      .select('id')
       .eq('id', userId)
+      .maybeSingle();
+
+    let data, error;
+
+    if (!existingProfile) {
+      // Profile doesn't exist - this indicates a stale session or missing profile
+      // The user needs to re-authenticate
+      console.warn('Profile does not exist for user:', userId);
+      throw new Error('PROFILE_NOT_FOUND');
+    }
+
+    // Profile exists, perform update
+    const result = await this.supabase
+      .from('user_profiles')
+      .update(updateData)
+      .eq('id', userId)
+      .select('*')
       .single();
 
-    if (fetchError) throw fetchError;
-    
-    // Get the updated profile and update the cache
+    data = result.data;
+    error = result.error;
+
+    if (error) {
+      console.error('Update profile error:', {
+        error,
+        userId,
+        updates: Object.keys(updates),
+        code: error.code
+      });
+      throw error;
+    }
+
+    if (!data) {
+      throw new Error('No data returned from profile update');
+    }
+
+    // Transform response and update cache
     const updatedProfile = this.transformResponse(data) as UserProfile;
     await userProfileCache.setUserProfile(userId, updatedProfile);
-    
+
     return updatedProfile;
   }
 

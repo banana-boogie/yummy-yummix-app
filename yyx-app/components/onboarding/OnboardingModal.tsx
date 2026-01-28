@@ -4,6 +4,7 @@ import { Modal, View, Platform, KeyboardAvoidingView } from 'react-native';
 import { Image } from 'expo-image';
 
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { OnboardingData, OnboardingData as OnboardingDataContext } from '@/types/onboarding';
 import { GRADIENT } from '@/constants';
@@ -26,6 +27,7 @@ interface OnboardingModalProps {
 }
 
 export function OnboardingModal({ visible }: OnboardingModalProps) {
+  const { signOut } = useAuth();
   const { updateUserProfile } = useUserProfile();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,8 +52,11 @@ export function OnboardingModal({ visible }: OnboardingModalProps) {
         formatEquipmentForStorage(eq.type, eq.model)
       ) ?? [];
 
+      // Remove kitchenEquipment from formData to avoid duplicates (it will be added as kitchen_equipment)
+      const { kitchenEquipment, ...restFormData } = formData;
+
       const profileUpdate = {
-        ...formData,
+        ...restFormData,
         onboardingComplete: true,
         measurementSystem: formData.measurementSystem as MeasurementSystem,
         kitchen_equipment: formattedEquipment, // Use snake_case for database column
@@ -62,6 +67,13 @@ export function OnboardingModal({ visible }: OnboardingModalProps) {
       router.replace('/');
     } catch (error) {
       console.error('Failed to complete onboarding:', error);
+
+      // Handle stale session (profile doesn't exist for current user)
+      if (error instanceof Error && error.message === 'PROFILE_NOT_FOUND') {
+        console.warn('Stale session detected - signing out and redirecting to login');
+        await signOut();
+        router.replace('/auth/login');
+      }
     } finally {
       setIsSubmitting(false);
     }

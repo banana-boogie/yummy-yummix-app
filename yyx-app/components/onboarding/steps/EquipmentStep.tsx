@@ -99,25 +99,21 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
     >
       <ScrollView
         className={`flex-1 ${className}`}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{ paddingBottom: 20, paddingHorizontal: 16 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
         <View className="mb-lg">
           <Text preset="h2" className="text-center mb-sm">
-            {i18n.t('onboarding.equipment.title')}
+            {i18n.t('onboarding.steps.equipment.title')}
           </Text>
           <Text preset="body" className="text-text-secondary text-center">
-            {i18n.t('onboarding.equipment.description')}
+            {i18n.t('onboarding.steps.equipment.description')}
           </Text>
         </View>
 
         {/* SECTION 1: THERMOMIX (Prominent display) */}
         <View className="mb-xl">
-          <Text preset="subheading" className="mb-md">
-            {i18n.t('onboarding.equipment.thermomix.title')}
-          </Text>
-
           <Pressable
             onPress={() => toggleEquipment('thermomix')}
             className={`flex-row items-center p-lg rounded-xl border-2 ${
@@ -131,10 +127,7 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
             </Text>
             <View className="flex-1">
               <Text preset="subheading">
-                {i18n.t('onboarding.equipment.thermomix.name')}
-              </Text>
-              <Text preset="caption" className="text-text-secondary">
-                {i18n.t('onboarding.equipment.thermomix.description')}
+                {i18n.t('onboarding.steps.equipment.thermomix.name')}
               </Text>
             </View>
             {hasThermomix && (
@@ -146,7 +139,7 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
           {hasThermomix && (
             <View className="mt-md ml-md">
               <Text preset="caption" className="mb-sm text-text-secondary">
-                {i18n.t('onboarding.equipment.thermomix.modelQuestion')}
+                {i18n.t('onboarding.steps.equipment.thermomix.modelQuestion')}
               </Text>
               <View className="flex-row gap-md">
                 {EQUIPMENT_CONFIG.thermomix.models.map(model => (
@@ -171,37 +164,44 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
           )}
         </View>
 
+        {/* Divider between sections */}
+        <View className="my-lg mx-md">
+          <View className="h-[1px] bg-grey-medium opacity-30" />
+        </View>
+
         {/* SECTION 2: OTHER EQUIPMENT */}
         <View>
-          <Text preset="subheading" className="mb-md">
-            {i18n.t('onboarding.equipment.other.title')}
-          </Text>
-          <View className="gap-md">
-            {otherEquipment.map(type => {
+            {otherEquipment.map((type, index) => {
               const config = EQUIPMENT_CONFIG[type];
               const isSelected = selectedEquipment.some(e => e.type === type);
 
               return (
-                <Pressable
-                  key={type}
-                  onPress={() => toggleEquipment(type)}
-                  className={`flex-row items-center p-md rounded-lg ${
-                    isSelected
-                      ? 'bg-primary-lightest'
-                      : 'bg-background-secondary'
-                  }`}
-                >
-                  <Text className="text-2xl mr-md">{config.icon}</Text>
-                  <Text className="flex-1">
-                    {i18n.t(`onboarding.equipment.${type}.name`)}
-                  </Text>
-                  {isSelected && (
-                    <Ionicons name="checkmark-circle" size={20} color="#FFBFB7" />
+                <React.Fragment key={type}>
+                  <Pressable
+                    onPress={() => toggleEquipment(type)}
+                    className={`flex-row items-center p-md rounded-lg ${
+                      isSelected
+                        ? 'bg-primary-lightest'
+                        : 'bg-background-secondary'
+                    }`}
+                  >
+                    <Text className="text-2xl mr-md">{config.icon}</Text>
+                    <Text className="flex-1">
+                      {i18n.t(`onboarding.steps.equipment.${type}.name`)}
+                    </Text>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={20} color="#FFBFB7" />
+                    )}
+                  </Pressable>
+                  {/* Divider between equipment items, but not after the last one */}
+                  {index < otherEquipment.length - 1 && (
+                    <View className="my-md mx-md">
+                      <View className="h-[1px] bg-grey-medium opacity-30" />
+                    </View>
                   )}
-                </Pressable>
+                </React.Fragment>
               );
             })}
-          </View>
         </View>
       </ScrollView>
 
