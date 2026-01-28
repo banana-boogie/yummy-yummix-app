@@ -36,6 +36,23 @@ export function sanitizeString(input: unknown, maxLength: number): string {
 }
 
 /**
+ * Sanitize an ingredient name for AI prompt quality.
+ * - Trims whitespace
+ * - Removes special characters that could confuse the AI
+ * - Normalizes multiple spaces
+ * - Keeps letters, numbers, spaces, hyphens, and common accented chars
+ */
+export function sanitizeIngredientName(input: string): string {
+  return input
+    .trim()
+    // Remove special characters except letters, numbers, spaces, hyphens, accents
+    .replace(/[^\p{L}\p{N}\s\-]/gu, '')
+    // Normalize multiple spaces to single space
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
  * Clamp a numeric value within bounds.
  */
 export function clampNumber(input: unknown, min: number, max: number): number {
@@ -83,6 +100,76 @@ export function validateUUID(input: unknown): string {
 /**
  * Validate and sanitize search_recipes tool arguments.
  */
+// ============================================================
+// Generate Recipe Params
+// ============================================================
+
+export interface GenerateRecipeParams {
+  ingredients: string[];
+  cuisinePreference?: string;
+  targetTime?: number;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  additionalRequests?: string;
+}
+
+/**
+ * Validate and sanitize generate_custom_recipe tool arguments.
+ */
+export function validateGenerateRecipeParams(raw: unknown): GenerateRecipeParams {
+  let params: unknown;
+  if (typeof raw === 'string') {
+    try {
+      params = JSON.parse(raw);
+    } catch {
+      throw new ToolValidationError('Invalid JSON in generate_custom_recipe params');
+    }
+  } else {
+    params = raw;
+  }
+
+  if (!params || typeof params !== 'object') {
+    throw new ToolValidationError('generate_custom_recipe params must be an object');
+  }
+
+  const p = params as Record<string, unknown>;
+
+  // Validate ingredients (required)
+  if (!Array.isArray(p.ingredients) || p.ingredients.length === 0) {
+    throw new ToolValidationError('generate_custom_recipe requires at least one ingredient');
+  }
+
+  // Sanitize ingredients array - clean up special chars for better AI prompt quality
+  const ingredients = p.ingredients
+    .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    .map((item) => sanitizeIngredientName(sanitizeString(item, 100)))
+    .filter((item) => item.length > 0) // Filter out items that became empty after sanitization
+    .slice(0, 20); // Max 20 ingredients
+
+  if (ingredients.length === 0) {
+    throw new ToolValidationError('generate_custom_recipe requires at least one valid ingredient');
+  }
+
+  return {
+    ingredients,
+    cuisinePreference: p.cuisinePreference
+      ? sanitizeString(p.cuisinePreference, 50)
+      : undefined,
+    targetTime: p.targetTime !== undefined
+      ? clampNumber(p.targetTime, 5, 480)
+      : undefined,
+    difficulty: p.difficulty !== undefined
+      ? validateEnum(p.difficulty, ['easy', 'medium', 'hard'] as const)
+      : undefined,
+    additionalRequests: p.additionalRequests
+      ? sanitizeString(p.additionalRequests, 500)
+      : undefined,
+  };
+}
+
+// ============================================================
+// Search Recipes Params
+// ============================================================
+
 export function validateSearchRecipesParams(raw: unknown): SearchRecipesParams {
   let params: unknown;
   if (typeof raw === 'string') {

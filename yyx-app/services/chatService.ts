@@ -10,7 +10,7 @@
 
 import { supabase } from '@/lib/supabase';
 import EventSource from 'react-native-sse';
-import type { IrmixyResponse, IrmixyStatus, RecipeCard, SuggestionChip } from '@/types/irmixy';
+import type { IrmixyResponse, IrmixyStatus, RecipeCard, SuggestionChip, GeneratedRecipe, SafetyFlags } from '@/types/irmixy';
 import i18n from '@/i18n';
 
 export interface ChatMessage {
@@ -21,6 +21,10 @@ export interface ChatMessage {
     // Structured response data (only for assistant messages)
     recipes?: RecipeCard[];
     suggestions?: SuggestionChip[];
+    customRecipe?: GeneratedRecipe;
+    safetyFlags?: SafetyFlags;
+    // Error state flag for styling error messages
+    hasError?: boolean;
 }
 
 export interface ChatSession {
@@ -29,7 +33,7 @@ export interface ChatSession {
 }
 
 // Re-export types for convenience
-export type { IrmixyResponse, IrmixyStatus, RecipeCard, SuggestionChip };
+export type { IrmixyResponse, IrmixyStatus, RecipeCard, SuggestionChip, GeneratedRecipe, SafetyFlags };
 
 // Constants
 const MAX_MESSAGE_LENGTH = 2000;
@@ -366,9 +370,14 @@ export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]>
             createdAt: new Date(msg.created_at),
         };
 
-        // Parse recipes from tool_calls if present (assistant messages)
-        if (msg.role === 'assistant' && msg.tool_calls?.recipes) {
-            message.recipes = msg.tool_calls.recipes;
+        // Parse recipes and customRecipe from tool_calls if present (assistant messages)
+        if (msg.role === 'assistant' && msg.tool_calls) {
+            if (msg.tool_calls.recipes) {
+                message.recipes = msg.tool_calls.recipes;
+            }
+            if (msg.tool_calls.customRecipe) {
+                message.customRecipe = msg.tool_calls.customRecipe;
+            }
         }
 
         return message;

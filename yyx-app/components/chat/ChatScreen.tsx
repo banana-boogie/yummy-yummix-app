@@ -16,7 +16,10 @@ import { Text } from '@/components/common/Text';
 import { SuggestionChips } from '@/components/chat/SuggestionChips';
 import { IrmixyAvatar } from '@/components/chat/IrmixyAvatar';
 import { ChatRecipeCard } from '@/components/chat/ChatRecipeCard';
-import { ChatMessage, IrmixyStatus, SuggestionChip, RecipeCard, getLastSessionWithMessages, loadChatHistory } from '@/services/chatService';
+import { CustomRecipeCard } from '@/components/chat/CustomRecipeCard';
+import { RecipeGeneratingSkeleton } from '@/components/chat/RecipeGeneratingSkeleton';
+import { ChatMessage, IrmixyStatus, SuggestionChip, RecipeCard, GeneratedRecipe, getLastSessionWithMessages, loadChatHistory } from '@/services/chatService';
+import { customRecipeService } from '@/services/customRecipeService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -474,11 +477,11 @@ export function ChatScreen({
                     if (!isActiveRequest()) return;
                     setCurrentStatus(status);
                 },
-                // onComplete - receive full IrmixyResponse with recipes/suggestions
+                // onComplete - receive full IrmixyResponse with recipes/suggestions/customRecipe
                 (response) => {
                     if (!isActiveRequest()) return;
-                    // Update the message with recipes if present
-                    if (response.recipes && response.recipes.length > 0) {
+                    // Update the message with recipes or customRecipe if present
+                    if ((response.recipes && response.recipes.length > 0) || response.customRecipe) {
                         setMessages(prev => {
                             const updated = [...prev];
                             let assistantIdx = assistantIndexRef.current;
@@ -493,6 +496,8 @@ export function ChatScreen({
                                 updated[assistantIdx] = {
                                     ...updated[assistantIdx],
                                     recipes: response.recipes,
+                                    customRecipe: response.customRecipe,
+                                    safetyFlags: response.safetyFlags,
                                 };
                             }
                             return updated;
@@ -534,8 +539,21 @@ export function ChatScreen({
             }
             flushChunkBuffer();
 
+            // Determine user-friendly error message based on error type
+            const getErrorMessage = () => {
+                if (error instanceof TypeError && error.message.includes('fetch')) {
+                    return i18n.t('chat.error.networkError');
+                }
+                if (error instanceof Error && error.message.includes('recipe')) {
+                    return i18n.t('chat.error.recipeGeneration');
+                }
+                return i18n.t('chat.error.default');
+            };
+
             // Replace streaming message with error
             if (isActiveRequest()) {
+                const errorMessage = getErrorMessage();
+
                 setMessages(prev => {
                     const updated = [...prev];
                     let assistantIdx = assistantIndexRef.current;
@@ -547,13 +565,21 @@ export function ChatScreen({
                         assistantIndexRef.current = assistantIdx !== -1 ? assistantIdx : null;
                     }
                     if (assistantIdx !== null && assistantIdx !== -1) {
+                        // If there's partial content, append error. Otherwise, show error.
+                        const existingContent = updated[assistantIdx].content;
                         updated[assistantIdx] = {
                             ...updated[assistantIdx],
-                            content: updated[assistantIdx].content || i18n.t('chat.error.default'),
+                            content: existingContent
+                                ? `${existingContent}\n\n⚠️ ${errorMessage}`
+                                : `⚠️ ${errorMessage}`,
+                            hasError: true,
                         };
                     }
                     return updated;
                 });
+
+                // Log error for debugging but don't show raw error to user
+                if (__DEV__) console.error('Chat error:', error);
             }
         } finally {
             if (isActiveRequest()) {
@@ -592,6 +618,23 @@ export function ChatScreen({
             }
         } catch (error) {
             if (__DEV__) console.error('Failed to copy message:', error);
+        }
+    }, []);
+
+    const handleStartCooking = useCallback(async (recipe: GeneratedRecipe, finalName: string) => {
+        try {
+            // Save recipe to user_recipes
+            const { userRecipeId } = await customRecipeService.save(recipe, finalName);
+
+            // Navigate to custom cooking guide
+            router.push(`/(tabs)/recipes/custom/${userRecipeId}/cooking-guide`);
+        } catch (error) {
+            console.error('Failed to save custom recipe:', error);
+            Alert.alert(
+                i18n.t('chat.error.title'),
+                i18n.t('chat.saveFailed'),
+                [{ text: 'OK' }]
+            );
         }
     }, []);
 
@@ -634,9 +677,28 @@ export function ChatScreen({
                         ))}
                     </View>
                 )}
+
+                {/* Custom recipe card (for AI-generated recipes) */}
+                {!isUser && item.customRecipe && (
+                    <View className="mt-sm w-full">
+                        <CustomRecipeCard
+                            recipe={item.customRecipe}
+                            safetyFlags={item.safetyFlags}
+                            onStartCooking={handleStartCooking}
+                        />
+                    </View>
+                )}
+
+                {/* Show skeleton while generating recipe (for the current streaming message) */}
+                {!isUser && !item.customRecipe && isLoading && currentStatus === 'generating' &&
+                    item.id === messages[messages.length - 1]?.id && (
+                    <View className="mt-sm w-full">
+                        <RecipeGeneratingSkeleton statusMessage={getStatusText()} />
+                    </View>
+                )}
             </View>
         );
-    }, [handleCopyMessage]);
+    }, [handleCopyMessage, handleStartCooking, isLoading, currentStatus, messages, getStatusText]);
 
     const handleScroll = useCallback((event: any) => {
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;

@@ -14,7 +14,7 @@ export interface UserContext {
 
 // Recipe context
 export interface RecipeContext {
-    type: 'cooking' | 'recipe' | 'chat' | 'prep';
+    type: 'cooking' | 'recipe' | 'chat' | 'prep' | 'custom';
     recipeId?: string;
     recipeTitle?: string;
     currentStep?: number;
