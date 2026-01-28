@@ -8,7 +8,17 @@
  * - Always reset mocks between tests using jest.clearAllMocks()
  */
 
-import type { IrmixyResponse, IrmixyStatus, RecipeCard, SuggestionChip } from '@/types/irmixy';
+import type {
+  IrmixyResponse,
+  IrmixyStatus,
+  RecipeCard,
+  SuggestionChip,
+  GeneratedRecipe,
+  GeneratedIngredient,
+  GeneratedStep,
+  SafetyFlags,
+} from '@/types/irmixy';
+import type { UserRecipeSummary } from '@/services/customRecipeService';
 
 // ============================================================
 // EVENT SOURCE MOCK
@@ -181,4 +191,160 @@ export function createMockChatSession(overrides?: {
     title: overrides?.title || 'Test Chat',
     created_at: overrides?.created_at || new Date().toISOString(),
   };
+}
+
+// ============================================================
+// GENERATED RECIPE FACTORIES
+// ============================================================
+
+/**
+ * Creates a mock GeneratedIngredient.
+ */
+export function createMockGeneratedIngredient(
+  overrides?: Partial<GeneratedIngredient>
+): GeneratedIngredient {
+  return {
+    name: 'chicken breast',
+    quantity: 2,
+    unit: 'lb',
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a list of mock GeneratedIngredients.
+ */
+export function createMockGeneratedIngredientList(count: number): GeneratedIngredient[] {
+  const ingredients = [
+    { name: 'chicken breast', quantity: 2, unit: 'lb' },
+    { name: 'broccoli', quantity: 1, unit: 'cup' },
+    { name: 'soy sauce', quantity: 2, unit: 'tbsp' },
+    { name: 'garlic', quantity: 3, unit: 'cloves' },
+    { name: 'ginger', quantity: 1, unit: 'tbsp' },
+    { name: 'olive oil', quantity: 2, unit: 'tbsp' },
+    { name: 'salt', quantity: 1, unit: 'tsp' },
+    { name: 'pepper', quantity: 0.5, unit: 'tsp' },
+  ];
+  return ingredients.slice(0, count);
+}
+
+/**
+ * Creates a mock GeneratedStep.
+ */
+export function createMockGeneratedStep(overrides?: Partial<GeneratedStep>): GeneratedStep {
+  return {
+    order: 1,
+    instruction: 'Prepare the ingredients',
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a mock GeneratedRecipe.
+ */
+export function createMockGeneratedRecipe(overrides?: Partial<GeneratedRecipe>): GeneratedRecipe {
+  return {
+    schemaVersion: '1.0',
+    suggestedName: 'Chicken Stir Fry',
+    measurementSystem: 'imperial',
+    language: 'en',
+    ingredients: [
+      { name: 'chicken breast', quantity: 2, unit: 'lb' },
+      { name: 'broccoli', quantity: 1, unit: 'cup' },
+      { name: 'soy sauce', quantity: 2, unit: 'tbsp' },
+      { name: 'garlic', quantity: 3, unit: 'cloves' },
+      { name: 'ginger', quantity: 1, unit: 'tbsp' },
+    ],
+    steps: [
+      { order: 1, instruction: 'Cut chicken into cubes' },
+      { order: 2, instruction: 'Stir fry vegetables' },
+      { order: 3, instruction: 'Add sauce and serve' },
+    ],
+    totalTime: 30,
+    difficulty: 'easy',
+    portions: 4,
+    tags: ['asian', 'quick', 'healthy'],
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a mock GeneratedRecipe with many ingredients (for testing truncation).
+ */
+export function createMockGeneratedRecipeWithManyIngredients(
+  ingredientCount = 8
+): GeneratedRecipe {
+  return createMockGeneratedRecipe({
+    ingredients: createMockGeneratedIngredientList(ingredientCount),
+  });
+}
+
+/**
+ * Creates a mock SafetyFlags object.
+ */
+export function createMockSafetyFlags(overrides?: Partial<SafetyFlags>): SafetyFlags {
+  return {
+    allergenWarning: undefined,
+    dietaryConflict: undefined,
+    error: undefined,
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a mock SafetyFlags with allergen warning.
+ */
+export function createMockSafetyFlagsWithWarning(warning: string): SafetyFlags {
+  return createMockSafetyFlags({
+    allergenWarning: warning,
+    error: false,
+  });
+}
+
+/**
+ * Creates a mock SafetyFlags with error.
+ */
+export function createMockSafetyFlagsWithError(
+  allergenWarning?: string,
+  dietaryConflict?: string
+): SafetyFlags {
+  return createMockSafetyFlags({
+    allergenWarning,
+    dietaryConflict,
+    error: true,
+  });
+}
+
+// ============================================================
+// USER RECIPE FACTORIES
+// ============================================================
+
+/**
+ * Creates a mock UserRecipeSummary.
+ */
+export function createMockUserRecipeSummary(
+  overrides?: Partial<UserRecipeSummary>
+): UserRecipeSummary {
+  return {
+    id: `user-recipe-${Math.random().toString(36).substr(2, 9)}`,
+    name: 'My Custom Recipe',
+    source: 'ai_generated',
+    createdAt: new Date().toISOString(),
+    totalTime: 30,
+    difficulty: 'easy',
+    ...overrides,
+  };
+}
+
+/**
+ * Creates a list of mock UserRecipeSummary.
+ */
+export function createMockUserRecipeSummaryList(count: number): UserRecipeSummary[] {
+  return Array.from({ length: count }, (_, i) =>
+    createMockUserRecipeSummary({
+      id: `user-recipe-${i + 1}`,
+      name: `Custom Recipe ${i + 1}`,
+      createdAt: new Date(Date.now() - i * 86400000).toISOString(), // Each day older
+    })
+  );
 }
