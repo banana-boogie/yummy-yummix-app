@@ -1,0 +1,101 @@
+# YummyYummix App CI Pipeline
+#
+# Runs on:
+# - Push to main/develop branches (when yyx-app files change)
+# - Pull requests to main/develop (when yyx-app files change)
+#
+# Jobs:
+# 1. lint-and-typecheck: ESLint and TypeScript checks (typecheck non-blocking until cleanup)
+# 2. test: Jest tests with coverage reporting
+#
+# FOR AI AGENTS:
+# - This workflow tests the React Native app (yyx-app)
+# - Coverage summary is shown in CI output
+# - Coverage artifact saved for 7 days
+# - All jobs must pass for PR to be mergeable
+
+name: YYX App CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'yyx-app/**'
+      - '.github/workflows/yyx-app-ci.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'yyx-app/**'
+      - '.github/workflows/yyx-app-ci.yml'
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================
+  # LINT AND TYPE CHECK
+  # ============================================================
+  lint-and-typecheck:
+    name: Lint & TypeCheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: yyx-app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: yyx-app
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: yyx-app
+        run: npm run lint
+
+      - name: Run TypeScript type check
+        working-directory: yyx-app
+        continue-on-error: true  # Non-blocking until pre-existing type errors are fixed
+        run: npm run typecheck
+
+  # ============================================================
+  # TESTS
+  # ============================================================
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: yyx-app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: yyx-app
+        run: npm ci
+
+      - name: Run tests with coverage
+        working-directory: yyx-app
+        run: npm run test:ci
+
+      - name: Archive coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: yyx-app/coverage/
+          retention-days: 7

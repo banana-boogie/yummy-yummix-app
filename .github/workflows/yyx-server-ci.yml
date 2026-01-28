@@ -1,0 +1,134 @@
+# YummyYummix Server CI Pipeline
+#
+# Runs on:
+# - Push to main/develop branches (when yyx-server files change)
+# - Pull requests to main/develop (when yyx-server files change)
+#
+# Jobs:
+# 1. format-check: Deno format check (lint disabled until codebase cleanup)
+# 2. unit-tests: Deno unit tests with coverage
+# 3. integration-tests: Bash integration tests against staging (PR only)
+#
+# FOR AI AGENTS:
+# - This workflow tests the Supabase Edge Functions (yyx-server)
+# - Unit tests run Deno.test files
+# - Integration tests require STAGING_SUPABASE_URL and STAGING_SUPABASE_ANON_KEY secrets
+
+name: YYX Server CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'yyx-server/**'
+      - '.github/workflows/yyx-server-ci.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'yyx-server/**'
+      - '.github/workflows/yyx-server-ci.yml'
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================
+  # FORMAT CHECK
+  # Note: Linting disabled until existing codebase is cleaned up
+  # ============================================================
+  format-check:
+    name: Format Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Check formatting
+        working-directory: yyx-server
+        run: deno task fmt:check
+
+  # ============================================================
+  # UNIT TESTS
+  # ============================================================
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Cache Deno dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/deno
+          key: ${{ runner.os }}-deno-${{ hashFiles('yyx-server/**/deno.json', 'yyx-server/**/deno.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deno-
+
+      - name: Run unit tests with coverage
+        working-directory: yyx-server
+        run: deno task test:coverage
+
+      - name: Display coverage summary
+        working-directory: yyx-server
+        run: deno task coverage:report || true
+
+  # ============================================================
+  # INTEGRATION TESTS (PR only, requires staging secrets)
+  # ============================================================
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: unit-tests
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for staging secrets
+        id: check-secrets
+        run: |
+          if [ -n "${{ secrets.STAGING_SUPABASE_URL }}" ] && [ -n "${{ secrets.STAGING_SUPABASE_ANON_KEY }}" ]; then
+            echo "secrets_available=true" >> $GITHUB_OUTPUT
+          else
+            echo "secrets_available=false" >> $GITHUB_OUTPUT
+            echo "::warning::Staging secrets not configured. Skipping integration tests."
+          fi
+
+      - name: Setup Deno
+        if: steps.check-secrets.outputs.secrets_available == 'true'
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Run integration tests
+        if: steps.check-secrets.outputs.secrets_available == 'true'
+        working-directory: yyx-server
+        env:
+          STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -f "supabase/functions/__tests__/run-integration-tests.sh" ]; then
+            chmod +x supabase/functions/__tests__/run-integration-tests.sh
+            deno task test:integration
+          else
+            echo "Integration test runner not found. Skipping."
+          fi
