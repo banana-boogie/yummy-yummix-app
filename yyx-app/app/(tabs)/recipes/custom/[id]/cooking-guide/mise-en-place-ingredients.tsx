@@ -81,7 +81,7 @@ export default function CustomIngredientsStep() {
             type: 'custom',
             recipeId: id as string,
             recipeTitle: recipe?.name,
-            stepInstructions: "Prepare your ingredients.",
+            stepInstructions: i18n.t('chat.prepareIngredients'),
             ingredients: ingredients.map(ing => ({
               name: ing.name,
               amount: `${ing.formattedQuantity} ${ing.formattedUnit}`

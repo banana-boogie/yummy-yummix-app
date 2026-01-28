@@ -80,7 +80,7 @@ export default function CustomCookingGuide() {
 
         <CookingGuidePageHeader
           title={recipe?.name || ''}
-          subtitle="Mise en place"
+          subtitle={i18n.t('chat.miseEnPlace')}
           recipeContext={{
             type: 'custom',
             recipeId: id as string,

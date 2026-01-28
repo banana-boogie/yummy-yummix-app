@@ -134,7 +134,7 @@ export function CustomRecipeCard({
                             maxLength={100}
                             accessible={true}
                             accessibilityLabel={i18n.t('chat.editRecipeName')}
-                            accessibilityHint="Enter a name for your recipe"
+                            accessibilityHint={i18n.t('chat.editRecipeNameHint')}
                         />
                     ) : (
                         <>
@@ -199,7 +199,7 @@ export function CustomRecipeCard({
                 className="p-md border-b border-border-default"
                 accessible={true}
                 accessibilityRole="list"
-                accessibilityLabel={`${i18n.t('recipes.common.ingredients')}: ${displayIngredients.map(ing => `${ing.quantity} ${ing.unit} ${ing.name}`).join(', ')}${moreCount > 0 ? ` and ${moreCount} more` : ''}`}
+                accessibilityLabel={`${i18n.t('recipes.common.ingredients')}: ${displayIngredients.map(ing => `${ing.quantity} ${ing.unit} ${ing.name}`).join(', ')}${moreCount > 0 ? ` ${i18n.t('chat.andMore', { count: moreCount })}` : ''}`}
             >
                 <Text className="text-text-secondary text-sm mb-sm">
                     {i18n.t('recipes.common.ingredients')}:
@@ -235,7 +235,7 @@ export function CustomRecipeCard({
                     className="flex-row items-center p-md bg-status-warning/10 border-b border-border-default"
                     accessible={true}
                     accessibilityRole="alert"
-                    accessibilityLabel={`Warning: ${safetyFlags.allergenWarning}`}
+                    accessibilityLabel={`${i18n.t('chat.warningPrefix')}: ${safetyFlags.allergenWarning}`}
                 >
                     <MaterialCommunityIcons
                         name="alert-outline"

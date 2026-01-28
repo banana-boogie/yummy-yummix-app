@@ -38,6 +38,32 @@ export interface GeneratedRecipeIngredient {
 let safetyRulesCache: FoodSafetyRule[] | null = null;
 let loadingPromise: Promise<FoodSafetyRule[]> | null = null;
 
+// Pre-compiled regex patterns for each rule (performance optimization)
+let rulePatternCache: Map<string, RegExp> | null = null;
+
+/**
+ * Escape special regex characters in a string.
+ */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Get or create the pre-compiled regex pattern for a rule.
+ */
+function getRulePattern(ruleCanonical: string): RegExp {
+  if (!rulePatternCache) {
+    rulePatternCache = new Map();
+  }
+
+  let pattern = rulePatternCache.get(ruleCanonical);
+  if (!pattern) {
+    pattern = new RegExp(`\\b${escapeRegex(ruleCanonical)}\\b`, 'i');
+    rulePatternCache.set(ruleCanonical, pattern);
+  }
+  return pattern;
+}
+
 /**
  * Load food safety rules from database.
  * Caches indefinitely - rules are USDA guidelines that rarely change.
@@ -68,6 +94,16 @@ export async function loadFoodSafetyRules(
 
     safetyRulesCache = data as FoodSafetyRule[];
     loadingPromise = null;
+
+    // Pre-compile regex patterns for all rules
+    rulePatternCache = new Map();
+    for (const rule of safetyRulesCache) {
+      rulePatternCache.set(
+        rule.ingredient_canonical,
+        new RegExp(`\\b${escapeRegex(rule.ingredient_canonical)}\\b`, 'i')
+      );
+    }
+
     console.log(`Loaded ${safetyRulesCache.length} food safety rules`);
     return safetyRulesCache;
   })();
@@ -81,6 +117,7 @@ export async function loadFoodSafetyRules(
 export function clearFoodSafetyCache(): void {
   safetyRulesCache = null;
   loadingPromise = null;
+  rulePatternCache = null;
 }
 
 // ============================================================
@@ -130,8 +167,8 @@ export async function checkRecipeSafety(
 
       // Check if ingredient contains the safety-critical item
       // (e.g., "chicken breast" contains "chicken")
-      // Use word boundary check to avoid false positives like "pork" matching "New York"
-      const rulePattern = new RegExp(`\\b${escapeRegex(rule.ingredient_canonical)}\\b`, 'i');
+      // Use pre-compiled word boundary pattern to avoid false positives
+      const rulePattern = getRulePattern(rule.ingredient_canonical);
       if (rulePattern.test(normalized)) {
         matchedRules.set(rule.ingredient_canonical, rule);
       }
@@ -150,25 +187,6 @@ export async function checkRecipeSafety(
         : `${formatIngredientName(ingredientName)} requires at least ${rule.min_cook_min} minutes of cooking and an internal temperature of ${tempStr}.`;
 
       warnings.push(warning);
-    }
-  }
-
-  // If we have safety-critical ingredients, add reminder about temps
-  if (matchedRules.size > 0 && warnings.length === 0) {
-    // No time warnings, but remind about internal temps
-    const criticalIngredients = Array.from(matchedRules.keys());
-
-    if (criticalIngredients.length > 0) {
-      // Just a soft reminder - recipe has enough time
-      const temps = Array.from(matchedRules.values()).map((rule) => {
-        const temp = measurementSystem === 'imperial'
-          ? `${rule.min_temp_f}°F`
-          : `${rule.min_temp_c}°C`;
-        return `${formatIngredientName(rule.ingredient_canonical)}: ${temp}`;
-      });
-
-      // Only add if there are multiple items or we want to be extra safe
-      // For now, we'll just track that we checked and return safe
     }
   }
 
@@ -242,18 +260,11 @@ export async function buildSafetyReminders(
 // ============================================================
 
 /**
- * Escape special regex characters in a string.
- */
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-/**
- * Check if an ingredient matches a safety rule using word boundary matching.
+ * Check if an ingredient matches a safety rule using pre-compiled patterns.
  */
 function ingredientMatchesRule(ingredient: string, ruleCanonical: string): boolean {
   if (ingredient === ruleCanonical) return true;
-  const pattern = new RegExp(`\\b${escapeRegex(ruleCanonical)}\\b`, 'i');
+  const pattern = getRulePattern(ruleCanonical);
   return pattern.test(ingredient);
 }
 

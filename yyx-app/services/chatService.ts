@@ -190,10 +190,6 @@ export function streamChatMessageWithHandle(
                     if (finished) return;
                 }
 
-                // Removed verbose SSE logging - keep only errors
-
-                let chunkCount = 0;
-
                 const safeResolve = () => {
                     if (finished) return;
                     finished = true;
@@ -354,6 +350,24 @@ export function streamChatMessageWithHandle(
  * Includes recipes from tool_calls for assistant messages.
  */
 export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]> {
+    // Verify user owns this session
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) {
+        throw new Error('Not authenticated');
+    }
+
+    // First verify session ownership
+    const { data: session, error: sessionError } = await supabase
+        .from('user_chat_sessions')
+        .select('id')
+        .eq('id', sessionId)
+        .eq('user_id', userData.user.id)
+        .single();
+
+    if (sessionError || !session) {
+        throw new Error('Session not found');
+    }
+
     const { data, error } = await supabase
         .from('user_chat_messages')
         .select('id, role, content, created_at, tool_calls')
@@ -389,9 +403,15 @@ export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]>
  * Limited to 5 most recent sessions for performance.
  */
 export async function loadChatSessions(): Promise<{ id: string; title: string; createdAt: Date }[]> {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) {
+        throw new Error('Not authenticated');
+    }
+
     const { data, error } = await supabase
         .from('user_chat_sessions')
         .select('id, title, created_at')
+        .eq('user_id', userData.user.id)
         .order('created_at', { ascending: false })
         .limit(5);
 
@@ -413,10 +433,16 @@ export async function getLastSessionWithMessages(): Promise<{
     messageCount: number;
     lastMessageAt: Date;
 } | null> {
-    // Get most recent session
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) {
+        return null;
+    }
+
+    // Get most recent session for this user
     const { data: sessions, error: sessionError } = await supabase
         .from('user_chat_sessions')
         .select('id, created_at')
+        .eq('user_id', userData.user.id)
         .order('created_at', { ascending: false })
         .limit(1);
 

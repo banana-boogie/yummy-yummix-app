@@ -107,9 +107,16 @@ export const customRecipeService = {
      * Returns summary info for display in a list.
      */
     async list(): Promise<UserRecipeSummary[]> {
+        // Verify user authentication and scope to their recipes
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError || !userData?.user) {
+            throw new Error('User not authenticated');
+        }
+
         const { data, error } = await supabase
             .from('user_recipes')
             .select('id, name, source, created_at, recipe_data')
+            .eq('user_id', userData.user.id)
             .order('created_at', { ascending: false })
             .limit(50);
 

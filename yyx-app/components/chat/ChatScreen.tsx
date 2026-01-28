@@ -612,7 +612,7 @@ export function ChatScreen({
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             // Show brief confirmation
             if (Platform.OS === 'ios') {
-                Alert.alert(i18n.t('common.copied'), i18n.t('chat.messageCopied'), [{ text: 'OK' }], { userInterfaceStyle: 'automatic' });
+                Alert.alert(i18n.t('common.copied'), i18n.t('chat.messageCopied'), [{ text: i18n.t('common.ok') }], { userInterfaceStyle: 'automatic' });
             } else {
                 Alert.alert(i18n.t('common.copied'), i18n.t('chat.messageCopied'));
             }
@@ -633,7 +633,7 @@ export function ChatScreen({
             Alert.alert(
                 i18n.t('chat.error.title'),
                 i18n.t('chat.saveFailed'),
-                [{ text: 'OK' }]
+                [{ text: i18n.t('common.ok') }]
             );
         }
     }, []);
