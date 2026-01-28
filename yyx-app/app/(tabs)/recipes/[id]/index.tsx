@@ -99,6 +99,9 @@ const RecipeDetail: React.FC = () => {
   if (error) return <ErrorMessage message={error} />;
   if (!recipe) return null;
 
+  const ratingCount = recipe.ratingCount ?? 0;
+  const averageRating = recipe.averageRating ?? null;
+
   return (
     <>
       {recipe && (
@@ -143,8 +146,8 @@ const RecipeDetail: React.FC = () => {
 
               {/* Rating Summary + CTA */}
               <View className="mb-lg">
-                {recipe.ratingCount > 0 && recipe.averageRating ? (
-                  <StarRating rating={recipe.averageRating} count={recipe.ratingCount} size="lg" />
+                {ratingCount > 0 && averageRating !== null ? (
+                  <StarRating rating={averageRating} count={ratingCount} size="lg" />
                 ) : (
                   <Text preset="bodySmall" className="text-text-secondary">
                     {i18n.t('recipes.rating.beFirstToRate')}
@@ -212,7 +215,7 @@ const RecipeDetail: React.FC = () => {
                 <RatingDistribution
                   distribution={ratingDistribution}
                   total={totalRatings}
-                  averageRating={recipe.averageRating}
+                  averageRating={averageRating}
                   className="mt-lg mb-xl"
                 />
               ) : null}
