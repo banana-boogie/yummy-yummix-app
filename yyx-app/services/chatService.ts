@@ -270,7 +270,6 @@ export function streamChatMessageWithHandle(
 
                                 case 'content':
                                     if (json.content) {
-                                        chunkCount++;
                                         onChunk(json.content);
                                     }
                                     break;
