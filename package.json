@@ -1,0 +1,12 @@
+{
+  "name": "yummy-yummix-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "YummyYummix monorepo - React Native app and Supabase Edge Functions",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}

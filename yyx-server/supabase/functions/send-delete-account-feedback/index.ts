@@ -1,6 +1,6 @@
 //@ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from '../_shared/cors.ts';
+import { corsHeaders } from "../_shared/cors.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
 const RECEIVER_EMAIL = "accounts@yummyyummix.com";
@@ -13,23 +13,24 @@ interface RequestBody {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { status: 200, headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
   try {
-    const { reasons, feedback, userId, userEmail } = await req.json() as RequestBody;
+    const { reasons, feedback, userId, userEmail } = await req
+      .json() as RequestBody;
 
     // Format reasons as bullet points
     const formattedReasons = reasons
       .map((reason) => `  • ${reason}`)
       .join("\n");
 
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${RESEND_API_KEY}`
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
         from: "YummyYummix System <no-reply@yummyyummix.com>",
@@ -62,8 +63,8 @@ ${formattedReasons}
             Please process this deletion request within 14 days.<br>
             For any questions, contact the development team.
           </p>
-        `
-      })
+        `,
+      }),
     });
 
     if (!res.ok) {
@@ -73,20 +74,22 @@ ${formattedReasons}
     const data = await res.json();
     return new Response(JSON.stringify({ success: true, data }), {
       status: 200,
-      headers: { 
+      headers: {
         "Content-Type": "application/json",
-        ...corsHeaders
+        ...corsHeaders,
       },
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    const errorMessage = error instanceof Error
+      ? error.message
+      : "Unknown error occurred";
     console.error("Error sending email:", errorMessage);
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
-      headers: { 
+      headers: {
         "Content-Type": "application/json",
-        ...corsHeaders
+        ...corsHeaders,
       },
     });
   }
-}); 
+});

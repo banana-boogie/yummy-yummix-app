@@ -1,28 +1,35 @@
 /**
  * AI Chat Edge Function
- * 
+ *
  * Handles conversational AI requests with:
  * - Streaming responses
- * - User context awareness  
+ * - User context awareness
  * - Chat history persistence
  * - Language localization
  */
 
 // @ts-ignore
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { corsHeaders } from '../_shared/cors.ts';
-import { validateAuth, unauthorizedResponse, AuthUser } from '../_shared/auth.ts';
-import { chat, AIMessage } from '../_shared/ai-gateway/index.ts';
-import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { corsHeaders } from "../_shared/cors.ts";
+import {
+  AuthUser,
+  unauthorizedResponse,
+  validateAuth,
+} from "../_shared/auth.ts";
+import { AIMessage, chat } from "../_shared/ai-gateway/index.ts";
+import {
+  createClient,
+  SupabaseClient,
+} from "https://esm.sh/@supabase/supabase-js@2";
 
 // =============================================================================
 // Types
 // =============================================================================
 
 interface ChatRequest {
-    message: string;
-    sessionId?: string;
-    language?: 'en' | 'es';
+  message: string;
+  sessionId?: string;
+  language?: "en" | "es";
 }
 
 // =============================================================================
@@ -30,7 +37,8 @@ interface ChatRequest {
 // =============================================================================
 
 const SYSTEM_PROMPTS = {
-    en: `You are Irmixy, a friendly and knowledgeable AI chef assistant for YummyYummix, a cooking app focused on Thermomix recipes.
+  en:
+    `You are Irmixy, a friendly and knowledgeable AI chef assistant for YummyYummix, a cooking app focused on Thermomix recipes.
 
 Your capabilities:
 - Answer cooking questions
@@ -47,7 +55,8 @@ Guidelines:
 
 The user may ask you about recipes, ingredients, cooking techniques, or meal ideas.`,
 
-    es: `Eres Irmixy, un asistente de cocina amigable y experto para YummyYummix, una aplicación de cocina enfocada en recetas de Thermomix.
+  es:
+    `Eres Irmixy, un asistente de cocina amigable y experto para YummyYummix, una aplicación de cocina enfocada en recetas de Thermomix.
 
 Tus capacidades:
 - Responder preguntas de cocina
@@ -62,7 +71,7 @@ Directrices:
 - Considera las preferencias y restricciones dietéticas del usuario cuando se conozcan
 - Siempre responde en español
 
-El usuario puede preguntar sobre recetas, ingredientes, técnicas de cocina o ideas de comidas.`
+El usuario puede preguntar sobre recetas, ingredientes, técnicas de cocina o ideas de comidas.`,
 };
 
 // =============================================================================
@@ -70,96 +79,96 @@ El usuario puede preguntar sobre recetas, ingredientes, técnicas de cocina o id
 // =============================================================================
 
 function createSupabaseClient(): SupabaseClient {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    return createClient(supabaseUrl, supabaseServiceKey);
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  return createClient(supabaseUrl, supabaseServiceKey);
 }
 
 async function getOrCreateSession(
-    supabase: SupabaseClient,
-    userId: string,
-    sessionId?: string
+  supabase: SupabaseClient,
+  userId: string,
+  sessionId?: string,
 ): Promise<string> {
-    if (sessionId) return sessionId;
+  if (sessionId) return sessionId;
 
-    const { data: newSession, error } = await supabase
-        .from('user_chat_sessions')
-        .insert({ user_id: userId })
-        .select('id')
-        .single();
+  const { data: newSession, error } = await supabase
+    .from("user_chat_sessions")
+    .insert({ user_id: userId })
+    .select("id")
+    .single();
 
-    if (error) throw new Error(`Failed to create session: ${error.message}`);
-    return newSession.id;
+  if (error) throw new Error(`Failed to create session: ${error.message}`);
+  return newSession.id;
 }
 
 async function getChatHistory(
-    supabase: SupabaseClient,
-    sessionId: string
+  supabase: SupabaseClient,
+  sessionId: string,
 ): Promise<AIMessage[]> {
-    const { data: history } = await supabase
-        .from('user_chat_messages')
-        .select('role, content')
-        .eq('session_id', sessionId)
-        .order('created_at', { ascending: true })
-        .limit(10);
+  const { data: history } = await supabase
+    .from("user_chat_messages")
+    .select("role, content")
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: true })
+    .limit(10);
 
-    return (history || []).map((m: any) => ({
-        role: m.role as 'user' | 'assistant' | 'system',
-        content: m.content
-    }));
+  return (history || []).map((m: any) => ({
+    role: m.role as "user" | "assistant" | "system",
+    content: m.content,
+  }));
 }
 
 async function saveUserMessage(
-    supabase: SupabaseClient,
-    sessionId: string,
-    content: string
+  supabase: SupabaseClient,
+  sessionId: string,
+  content: string,
 ): Promise<void> {
-    await supabase.from('user_chat_messages').insert({
-        session_id: sessionId,
-        role: 'user',
-        content
-    });
+  await supabase.from("user_chat_messages").insert({
+    session_id: sessionId,
+    role: "user",
+    content,
+  });
 }
 
 async function saveAssistantMessage(
-    supabase: SupabaseClient,
-    sessionId: string,
-    content: string,
-    inputTokens: number,
-    outputTokens: number
+  supabase: SupabaseClient,
+  sessionId: string,
+  content: string,
+  inputTokens: number,
+  outputTokens: number,
 ): Promise<void> {
-    await supabase.from('user_chat_messages').insert({
-        session_id: sessionId,
-        role: 'assistant',
-        content,
-        input_tokens: inputTokens,
-        output_tokens: outputTokens
-    });
+  await supabase.from("user_chat_messages").insert({
+    session_id: sessionId,
+    role: "assistant",
+    content,
+    input_tokens: inputTokens,
+    output_tokens: outputTokens,
+  });
 }
 
 async function logChatEvent(
-    supabase: SupabaseClient,
-    userId: string,
-    sessionId: string
+  supabase: SupabaseClient,
+  userId: string,
+  sessionId: string,
 ): Promise<void> {
-    await supabase.from('user_events').insert({
-        user_id: userId,
-        event_type: 'chat_message',
-        payload: { session_id: sessionId }
-    });
+  await supabase.from("user_events").insert({
+    user_id: userId,
+    event_type: "chat_message",
+    payload: { session_id: sessionId },
+  });
 }
 
 function validateRequest(message: string): { valid: boolean; error?: string } {
-    if (!message || message.trim().length === 0) {
-        return { valid: false, error: 'Message is required' };
-    }
+  if (!message || message.trim().length === 0) {
+    return { valid: false, error: "Message is required" };
+  }
 
-    // Max 2000 characters is reasonable for chat messages
-    if (message.length > 2000) {
-        return { valid: false, error: 'Message too long (max 2000 characters)' };
-    }
+  // Max 2000 characters is reasonable for chat messages
+  if (message.length > 2000) {
+    return { valid: false, error: "Message too long (max 2000 characters)" };
+  }
 
-    return { valid: true };
+  return { valid: true };
 }
 
 // =============================================================================
@@ -167,91 +176,104 @@ function validateRequest(message: string): { valid: boolean; error?: string } {
 // =============================================================================
 
 serve(async (req: Request) => {
-    const requestId = crypto.randomUUID();
-    console.info(`[${requestId}] AI Chat request received`);
+  const requestId = crypto.randomUUID();
+  console.info(`[${requestId}] AI Chat request received`);
 
-    // Handle CORS preflight
-    if (req.method === 'OPTIONS') {
-        return new Response('ok', { status: 200, headers: corsHeaders });
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { status: 200, headers: corsHeaders });
+  }
+
+  // Validate authentication
+  const authHeader = req.headers.get("Authorization");
+  const { user, error: authError } = await validateAuth(authHeader);
+
+  if (authError || !user) {
+    console.warn(`[${requestId}] Auth failed: ${authError}`);
+    return unauthorizedResponse(
+      authError ?? "Authentication required",
+      corsHeaders,
+    );
+  }
+
+  console.info(`[${requestId}] Authenticated user: ${user.id}`);
+
+  try {
+    const { message, sessionId, language = "en" } = await req
+      .json() as ChatRequest;
+
+    // Validate input
+    const validation = validateRequest(message);
+    if (!validation.valid) {
+      return new Response(
+        JSON.stringify({ error: validation.error }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
     }
 
-    // Validate authentication
-    const authHeader = req.headers.get('Authorization');
-    const { user, error: authError } = await validateAuth(authHeader);
+    const supabase = createSupabaseClient();
 
-    if (authError || !user) {
-        console.warn(`[${requestId}] Auth failed: ${authError}`);
-        return unauthorizedResponse(authError ?? 'Authentication required', corsHeaders);
-    }
+    // Get or create chat session
+    const currentSessionId = await getOrCreateSession(
+      supabase,
+      user.id,
+      sessionId,
+    );
 
-    console.info(`[${requestId}] Authenticated user: ${user.id}`);
+    // Get chat history
+    const history = await getChatHistory(supabase, currentSessionId);
 
-    try {
-        const { message, sessionId, language = 'en' } = await req.json() as ChatRequest;
+    // Build messages array with localized system prompt
+    const systemPrompt = SYSTEM_PROMPTS[language] || SYSTEM_PROMPTS.en;
+    const messages: AIMessage[] = [
+      { role: "system", content: systemPrompt },
+      ...history,
+      { role: "user", content: message },
+    ];
 
-        // Validate input
-        const validation = validateRequest(message);
-        if (!validation.valid) {
-            return new Response(
-                JSON.stringify({ error: validation.error }),
-                { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-            );
-        }
+    // Save user message
+    await saveUserMessage(supabase, currentSessionId, message);
 
-        const supabase = createSupabaseClient();
+    // Log event for learning
+    await logChatEvent(supabase, user.id, currentSessionId);
 
-        // Get or create chat session
-        const currentSessionId = await getOrCreateSession(supabase, user.id, sessionId);
+    // Call AI Gateway
+    const aiResponse = await chat({
+      usageType: "text",
+      messages,
+      temperature: 0.7,
+      maxTokens: 1024,
+    });
 
-        // Get chat history
-        const history = await getChatHistory(supabase, currentSessionId);
+    // Save assistant response
+    await saveAssistantMessage(
+      supabase,
+      currentSessionId,
+      aiResponse.content,
+      aiResponse.usage.inputTokens,
+      aiResponse.usage.outputTokens,
+    );
 
-        // Build messages array with localized system prompt
-        const systemPrompt = SYSTEM_PROMPTS[language] || SYSTEM_PROMPTS.en;
-        const messages: AIMessage[] = [
-            { role: 'system', content: systemPrompt },
-            ...history,
-            { role: 'user', content: message }
-        ];
-
-        // Save user message
-        await saveUserMessage(supabase, currentSessionId, message);
-
-        // Log event for learning
-        await logChatEvent(supabase, user.id, currentSessionId);
-
-        // Call AI Gateway
-        const aiResponse = await chat({
-            usageType: 'text',
-            messages,
-            temperature: 0.7,
-            maxTokens: 1024,
-        });
-
-        // Save assistant response
-        await saveAssistantMessage(
-            supabase,
-            currentSessionId,
-            aiResponse.content,
-            aiResponse.usage.inputTokens,
-            aiResponse.usage.outputTokens
-        );
-
-        // Return non-streaming response (simpler for now)
-        return new Response(
-            JSON.stringify({
-                content: aiResponse.content,
-                sessionId: currentSessionId,
-                usage: aiResponse.usage,
-            }),
-            { headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-        );
-
-    } catch (error) {
-        console.error(`[${requestId}] Error:`, error);
-        return new Response(
-            JSON.stringify({ error: error.message || 'Internal server error' }),
-            { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-        );
-    }
+    // Return non-streaming response (simpler for now)
+    return new Response(
+      JSON.stringify({
+        content: aiResponse.content,
+        sessionId: currentSessionId,
+        usage: aiResponse.usage,
+      }),
+      { headers: { "Content-Type": "application/json", ...corsHeaders } },
+    );
+  } catch (error) {
+    console.error(`[${requestId}] Error:`, error);
+    return new Response(
+      JSON.stringify({ error: error.message || "Internal server error" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
+    );
+  }
 });
