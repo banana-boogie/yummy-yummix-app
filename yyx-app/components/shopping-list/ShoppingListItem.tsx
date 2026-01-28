@@ -145,6 +145,8 @@ export const ShoppingListItemRow = React.memo(function ShoppingListItemRow({
                         className="mr-sm"
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={i18n.t('shoppingList.accessibility.toggleItem', { name: item.name })}
                     >
                         <View
                             className={`w-6 h-6 rounded-[4px] border-2 items-center justify-center ${
@@ -203,6 +205,8 @@ export const ShoppingListItemRow = React.memo(function ShoppingListItemRow({
                                 className="px-sm py-xs"
                                 activeOpacity={0.7}
                                 hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+                                accessibilityRole="button"
+                                accessibilityLabel={i18n.t('shoppingList.accessibility.decreaseQuantity', { name: item.name })}
                             >
                                 <Ionicons name="remove" size={18} color={COLORS.primary.darkest} />
                             </TouchableOpacity>
@@ -212,6 +216,8 @@ export const ShoppingListItemRow = React.memo(function ShoppingListItemRow({
                                 className="px-sm py-xs"
                                 activeOpacity={0.7}
                                 hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+                                accessibilityRole="button"
+                                accessibilityLabel={i18n.t('shoppingList.accessibility.increaseQuantity', { name: item.name })}
                             >
                                 <Ionicons name="add" size={18} color={COLORS.primary.darkest} />
                             </TouchableOpacity>
