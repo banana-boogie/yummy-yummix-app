@@ -137,12 +137,25 @@ supabase functions deploy <name> # Deploy edge function
 ```
 
 ### Running Tests
+
+**Frontend (yyx-app/)**
 ```bash
-cd yyx-app
 npm test                          # Run all tests (watch mode)
-npx jest path/to/test --watch    # Run specific test file
-npx jest -t "test name"          # Run tests matching pattern
+npm run test:ci                   # Run tests once with coverage (CI mode)
+npm run test:coverage             # Generate coverage report
+npx jest path/to/test             # Run specific test file
+npx jest -t "test name"           # Run tests matching pattern
 ```
+
+**Backend (yyx-server/)**
+```bash
+deno task test                    # Run all Deno unit tests
+deno task test:watch              # Run tests in watch mode
+deno task test:coverage           # Run with coverage
+deno task test:integration        # Run integration tests (requires staging env)
+```
+
+For detailed testing documentation, see [TESTING.md](./TESTING.md).
 
 ---
 
@@ -346,6 +359,74 @@ const { data, error } = await supabase.from('recipes').select('*');
 - Use `React.memo` for pure components
 - Use `FlashList` for long lists
 - Use `expo-image` for optimized images
+
+## Testing
+
+**Always write tests for critical components and workflows.** See [TESTING.md](./TESTING.md) for comprehensive documentation.
+
+### Quick Reference
+
+```bash
+# Frontend (yyx-app/)
+npm test                    # Watch mode
+npm run test:ci             # CI mode with coverage
+
+# Backend (yyx-server/)
+deno task test              # Run unit tests
+deno task test:integration  # Integration tests
+```
+
+### What Must Be Tested
+
+| Category | Examples | Required Coverage |
+|----------|----------|-------------------|
+| **Critical Components** | Button, Text, Form inputs, Navigation | Unit tests |
+| **Authentication Flows** | Login, logout, session refresh | Unit + integration |
+| **Data Services** | Recipe CRUD, user profile operations | Unit tests |
+| **Edge Functions** | AI chat, recipe parsing, nutrition | Unit + integration |
+| **Business Logic** | Validation, calculations, transformations | Unit tests |
+
+### Test Patterns
+
+**Component tests** - Use `renderWithProviders` and test user-visible behavior:
+```typescript
+import { renderWithProviders, screen, fireEvent } from '@/test/utils/render';
+
+it('submits form when valid', () => {
+  renderWithProviders(<LoginForm />);
+  fireEvent.changeText(screen.getByLabelText('Email'), 'test@example.com');
+  fireEvent.press(screen.getByText('Submit'));
+  expect(mockLogin).toHaveBeenCalled();
+});
+```
+
+**Service tests** - Use factories and mock Supabase:
+```typescript
+import { recipeFactory } from '@/test/factories';
+import { mockDatabaseQuery } from '@/test/mocks/supabase';
+
+it('fetches recipes', async () => {
+  mockDatabaseQuery('recipes', recipeFactory.createList(5));
+  const result = await recipeService.getRecipes();
+  expect(result.data).toHaveLength(5);
+});
+```
+
+**Edge function tests** - Use Deno.test with assertions:
+```typescript
+Deno.test('validates input', () => {
+  const result = validateRecipeData({ name: '' });
+  assertEquals(result.valid, false);
+});
+```
+
+### Pre-commit Hooks
+
+Tests don't run on pre-commit (too slow), but linting does:
+- **yyx-app**: ESLint runs via lint-staged
+- **yyx-server**: Deno fmt + lint runs on staged files
+
+CI runs full test suites on every PR.
 
 ## Git Conventions
 
