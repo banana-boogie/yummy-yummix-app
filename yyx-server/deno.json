@@ -1,0 +1,46 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "lib": ["deno.window"]
+  },
+  "imports": {
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
+    "std/": "https://deno.land/std@0.224.0/"
+  },
+  "tasks": {
+    "test": "deno test --allow-env --allow-net --allow-read supabase/functions/",
+    "test:watch": "deno test --allow-env --allow-net --allow-read --watch supabase/functions/",
+    "test:coverage": "deno test --allow-env --allow-net --allow-read --coverage=coverage supabase/functions/",
+    "coverage:report": "deno coverage coverage --lcov --output=coverage.lcov",
+    "test:integration": "bash supabase/functions/__tests__/run-integration-tests.sh",
+    "lint": "deno lint supabase/functions/",
+    "fmt": "deno fmt supabase/functions/",
+    "fmt:check": "deno fmt --check supabase/functions/"
+  },
+  "lint": {
+    "include": ["supabase/functions/"],
+    "exclude": ["supabase/functions/__tests__/*.sh"],
+    "rules": {
+      "exclude": [
+        "no-import-prefix",
+        "ban-ts-comment",
+        "require-await",
+        "no-explicit-any",
+        "no-unused-vars",
+        "no-namespace"
+      ]
+    }
+  },
+  "fmt": {
+    "include": ["supabase/functions/"],
+    "exclude": ["supabase/functions/__tests__/*.sh"],
+    "options": {
+      "lineWidth": 100,
+      "indentWidth": 2,
+      "singleQuote": true
+    }
+  },
+  "test": {
+    "include": ["supabase/functions/**/*.test.ts"]
+  }
+}

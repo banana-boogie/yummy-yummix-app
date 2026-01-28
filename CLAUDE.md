@@ -11,32 +11,212 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `yyx-server/` - Backend with Supabase Edge Functions (Deno/TypeScript)
 - `supabase/` - Supabase configuration
 
-## Development Commands
+## Development Setup
+
+### Prerequisites
+- **Node.js** (v18+)
+- **Docker Desktop** (for local Supabase)
+- **Supabase CLI**: `brew install supabase/tap/supabase`
+- **iOS**: Xcode (for iOS development)
+- **Android**: Android Studio (for Android development)
+
+### First-Time Setup
+
+1. **Install dependencies**
+   ```bash
+   cd yyx-app
+   npm install
+   ```
+
+2. **Start local Supabase**
+   ```bash
+   cd yyx-server
+   supabase start
+   ```
+
+   This will:
+   - Start PostgreSQL, PostgREST, GoTrue, Storage, and other services
+   - Apply all migrations from `supabase/migrations/`
+   - Give you local URLs and credentials
+
+3. **Environment Configuration**
+
+   The app uses two environment files:
+   - **`.env.local`** (committed) - Local development, points to `http://192.168.1.x:54321`
+   - **`.env`** (gitignored) - Production secrets, points to cloud Supabase
+
+   By default, `.env.local` takes priority, so you'll use local Supabase automatically.
+
+   **Note**: If your local network IP changes, update `EXPO_PUBLIC_SUPABASE_URL` in `.env.local`
+   ```bash
+   # Find your IP
+   ifconfig | grep "inet " | grep -v 127.0.0.1
+   ```
+
+4. **Build and run**
+   ```bash
+   cd yyx-app
+   npm run ios:device    # For physical iPhone
+   npm run ios           # For iOS Simulator
+   npm run android       # For Android
+   ```
+
+---
+
+## Daily Development Workflow
+
+### 1. Start Local Supabase
+```bash
+cd yyx-server
+supabase start        # Start all services
+supabase status       # Check if running
+supabase stop         # Stop when done
+```
+
+### 2. Run the App
+```bash
+cd yyx-app
+npm run ios:device    # Local dev on physical device
+npm run ios:local     # Same as above
+npm run ios:prod      # Production build (uses cloud Supabase)
+```
+
+### 3. Making Database Changes
+
+**Create a new migration:**
+```bash
+cd yyx-server
+supabase migration new add_my_feature
+```
+
+**Edit the migration:**
+- File will be in: `yyx-server/supabase/migrations/TIMESTAMP_add_my_feature.sql`
+- Write your SQL (CREATE TABLE, ALTER TABLE, etc.)
+
+**Test locally:**
+```bash
+supabase db reset     # Drops DB, reapplies all migrations
+```
+
+**Push to production:**
+```bash
+supabase db push      # Applies new migrations to cloud
+```
+
+**Why `db reset` vs `migration up`?**
+- `db reset` validates your entire migration chain works from scratch
+- Catches ordering issues before production
+- Recommended for local development
+- Production uses `db push` which only applies new migrations
+
+### 4. Working with Edge Functions
+```bash
+cd yyx-server
+
+# Test locally
+supabase functions serve [function-name] --env-file .env
+
+# Deploy to production
+supabase functions deploy [function-name]
+```
+
+---
+
+## Development Commands Reference
 
 ### Mobile App (yyx-app/)
 ```bash
-cd yyx-app
 npm install          # Install dependencies
 npm start            # Start Expo dev server
-npm run ios          # Run on iOS (expo run:ios)
-npm run android      # Run on Android (expo run:android)
+npm run ios          # Run on iOS Simulator
+npm run ios:device   # Run on physical iPhone (local dev)
+npm run ios:local    # Same as above
+npm run ios:prod     # Build with production Supabase
+npm run android      # Run on Android
 npm run web          # Run web version
 npm test             # Run tests with Jest (watch mode)
-npm run lint         # Run ESLint via expo lint
+npm run lint         # Run ESLint
 ```
 
-### Running a single test
+### Supabase (yyx-server/)
 ```bash
-cd yyx-app
-npx jest path/to/test --watch    # Run specific test file
-npx jest -t "test name"          # Run tests matching pattern
+supabase start                    # Start all local services
+supabase stop                     # Stop all services
+supabase status                   # Check service status
+supabase migration new <name>    # Create new migration
+supabase db reset                # Reset and reapply all migrations
+supabase db push                 # Push migrations to production
+supabase functions serve         # Run edge functions locally
+supabase functions deploy <name> # Deploy edge function
 ```
 
-### Edge Functions (yyx-server/supabase/functions/)
+### Running Tests
+
+**Frontend (yyx-app/)**
 ```bash
+npm test                          # Run all tests (watch mode)
+npm run test:ci                   # Run tests once with coverage (CI mode)
+npm run test:coverage             # Generate coverage report
+npx jest path/to/test             # Run specific test file
+npx jest -t "test name"           # Run tests matching pattern
+```
+
+**Backend (yyx-server/)**
+```bash
+deno task test                    # Run all Deno unit tests
+deno task test:watch              # Run tests in watch mode
+deno task test:coverage           # Run with coverage
+deno task test:integration        # Run integration tests (requires staging env)
+```
+
+For detailed testing documentation, see [TESTING.md](./TESTING.md).
+
+---
+
+## Environment Variables
+
+### Local Development (`.env.local` - committed)
+```bash
+EXPO_PUBLIC_SUPABASE_URL=http://192.168.1.222:54321
+EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc... # Local dev key (safe to commit)
+EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL=http://192.168.1.222:54321/functions/v1
+```
+
+### Production (`.env` - gitignored, contains secrets)
+```bash
+EXPO_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc... # Production key (secret)
+EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL=https://xxx.supabase.co/functions/v1
+OPENAI_API_KEY=sk-proj-xxx          # Secret
+USDA_API_KEY=xxx                     # Secret
+```
+
+**Priority**: `.env.local` overrides `.env` when present.
+
+---
+
+## Troubleshooting
+
+### App can't connect to local Supabase
+1. Check Supabase is running: `cd yyx-server && supabase status`
+2. Verify your IP hasn't changed: `ifconfig | grep "inet " | grep -v 127.0.0.1`
+3. Update `.env.local` if IP changed
+4. Ensure Mac and device are on same WiFi network
+5. Check firewall isn't blocking port 54321
+
+### Native build folders (`ios/`, `android/`) appear
+- These are auto-generated and gitignored
+- Safe to delete - they'll regenerate on next `expo run:ios`
+- Only needed if you have custom native code
+
+### Migrations out of sync
+```bash
+# Pull current production schema
 cd yyx-server
-supabase functions serve [function-name] --env-file .env   # Local development
-supabase functions deploy [function-name]                   # Deploy to production
+supabase db pull
+
+# Reset local DB to match
+supabase db reset
 ```
 
 ## Tech Stack
@@ -163,6 +343,74 @@ const { data, error } = await supabase.from('recipes').select('*');
 - Use `React.memo` for pure components
 - Use `FlashList` for long lists
 - Use `expo-image` for optimized images
+
+## Testing
+
+**Always write tests for critical components and workflows.** See [TESTING.md](./TESTING.md) for comprehensive documentation.
+
+### Quick Reference
+
+```bash
+# Frontend (yyx-app/)
+npm test                    # Watch mode
+npm run test:ci             # CI mode with coverage
+
+# Backend (yyx-server/)
+deno task test              # Run unit tests
+deno task test:integration  # Integration tests
+```
+
+### What Must Be Tested
+
+| Category | Examples | Required Coverage |
+|----------|----------|-------------------|
+| **Critical Components** | Button, Text, Form inputs, Navigation | Unit tests |
+| **Authentication Flows** | Login, logout, session refresh | Unit + integration |
+| **Data Services** | Recipe CRUD, user profile operations | Unit tests |
+| **Edge Functions** | AI chat, recipe parsing, nutrition | Unit + integration |
+| **Business Logic** | Validation, calculations, transformations | Unit tests |
+
+### Test Patterns
+
+**Component tests** - Use `renderWithProviders` and test user-visible behavior:
+```typescript
+import { renderWithProviders, screen, fireEvent } from '@/test/utils/render';
+
+it('submits form when valid', () => {
+  renderWithProviders(<LoginForm />);
+  fireEvent.changeText(screen.getByLabelText('Email'), 'test@example.com');
+  fireEvent.press(screen.getByText('Submit'));
+  expect(mockLogin).toHaveBeenCalled();
+});
+```
+
+**Service tests** - Use factories and mock Supabase:
+```typescript
+import { recipeFactory } from '@/test/factories';
+import { mockDatabaseQuery } from '@/test/mocks/supabase';
+
+it('fetches recipes', async () => {
+  mockDatabaseQuery('recipes', recipeFactory.createList(5));
+  const result = await recipeService.getRecipes();
+  expect(result.data).toHaveLength(5);
+});
+```
+
+**Edge function tests** - Use Deno.test with assertions:
+```typescript
+Deno.test('validates input', () => {
+  const result = validateRecipeData({ name: '' });
+  assertEquals(result.valid, false);
+});
+```
+
+### Pre-commit Hooks
+
+Tests don't run on pre-commit (too slow), but linting does:
+- **yyx-app**: ESLint runs via lint-staged
+- **yyx-server**: Deno fmt + lint runs on staged files
+
+CI runs full test suites on every PR.
 
 ## Git Conventions
 

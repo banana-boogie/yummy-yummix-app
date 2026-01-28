@@ -1,8 +1,8 @@
 //@ts-ignore
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 //@ts-ignore
 import OpenAI from "https://deno.land/x/openai@v4.69.0/mod.ts";
-import { corsHeaders } from '../_shared/cors.ts';
+import { corsHeaders } from "../_shared/cors.ts";
 
 interface NutritionalData {
   calories: number;
@@ -22,37 +22,39 @@ namespace NutritionUtils {
     data.fat = Number(data.fat.toFixed(1));
     data.carbohydrates = Number(data.carbohydrates.toFixed(1));
   }
-  
+
   export function validateNutritionalData(data: any): data is NutritionalData {
     return (
-      typeof data === 'object' &&
-      typeof data.calories === 'number' &&
-      typeof data.protein === 'number' &&
-      typeof data.fat === 'number' &&
-      typeof data.carbohydrates === 'number'
+      typeof data === "object" &&
+      typeof data.calories === "number" &&
+      typeof data.protein === "number" &&
+      typeof data.fat === "number" &&
+      typeof data.carbohydrates === "number"
     );
   }
 }
 
 class USDAService {
-  private static API_KEY = Deno.env.get('USDA_API_KEY');
-  private static BASE_URL = 'https://api.nal.usda.gov/fdc/v1';
+  private static API_KEY = Deno.env.get("USDA_API_KEY");
+  private static BASE_URL = "https://api.nal.usda.gov/fdc/v1";
 
-  static async getNutritionalFacts(ingredientName: string): Promise<NutritionalData | null> {
+  static async getNutritionalFacts(
+    ingredientName: string,
+  ): Promise<NutritionalData | null> {
     console.info(`Looking up nutrition for '${ingredientName}' via USDA`);
     try {
       const queryParams = new URLSearchParams({
-        api_key: this.API_KEY || '',
+        api_key: this.API_KEY || "",
         query: ingredientName,
-        pageSize: '1',
-        dataType: 'Foundation',
-        format: 'full'
+        pageSize: "1",
+        dataType: "Foundation",
+        format: "full",
       });
-      
+
       const searchUrl = `${this.BASE_URL}/foods/search?${queryParams}`;
       const searchResponse = await fetch(searchUrl);
       const searchData = await searchResponse.json();
-      
+
       if (!searchData.foods || searchData.foods.length === 0) {
         console.info(`No USDA data found for '${ingredientName}'`);
         return null;
@@ -60,24 +62,25 @@ class USDAService {
 
       const food = searchData.foods[0];
       console.info(`Found USDA match: '${food.description}'`);
-      
+
       const portionSize = this.getPortionSize(food);
       const nutrients = food.foodNutrients;
       const result = {
-        calories: this.findNutrient(nutrients, 'Energy') || 0,
-        protein: this.findNutrient(nutrients, 'Protein') || 0,
-        fat: this.findNutrient(nutrients, 'Total lipid (fat)') || 0,
-        carbohydrates: this.findNutrient(nutrients, 'Carbohydrate, by difference') || 0
+        calories: this.findNutrient(nutrients, "Energy") || 0,
+        protein: this.findNutrient(nutrients, "Protein") || 0,
+        fat: this.findNutrient(nutrients, "Total lipid (fat)") || 0,
+        carbohydrates:
+          this.findNutrient(nutrients, "Carbohydrate, by difference") || 0,
       };
-      
+
       // Convert values to per 100g if needed
       if (portionSize && portionSize !== 100) {
         this.convertToPer100g(result, portionSize);
       }
-      
+
       // Use the namespace function directly
       NutritionUtils.applyRoundingRulesToData(result);
-      
+
       return result;
     } catch (error) {
       console.error(`USDA API error for '${ingredientName}':`, error);
@@ -86,19 +89,22 @@ class USDAService {
   }
 
   private static findNutrient(nutrients: any[], name: string): number | null {
-    const nutrient = nutrients.find(n => n.nutrientName === name);
+    const nutrient = nutrients.find((n) => n.nutrientName === name);
     return nutrient ? Number(nutrient.value) : null;
   }
-  
+
   private static getPortionSize(food: any): number | null {
-    if (food.dataType === 'Foundation') {
+    if (food.dataType === "Foundation") {
       return 100;
     }
-    
+
     return null;
   }
-  
-  private static convertToPer100g(data: NutritionalData, currentPortionSize: number): void {
+
+  private static convertToPer100g(
+    data: NutritionalData,
+    currentPortionSize: number,
+  ): void {
     const conversionFactor = 100 / currentPortionSize;
     data.calories *= conversionFactor;
     data.protein *= conversionFactor;
@@ -109,20 +115,23 @@ class USDAService {
 
 class OpenAIService {
   private static client = new OpenAI({
-    apiKey: Deno.env.get('OPENAI_API_KEY'),
+    apiKey: Deno.env.get("OPENAI_API_KEY"),
     fetch: fetch,
   });
 
-  static async getNutritionalFacts(ingredientName: string): Promise<NutritionalData | null> {
+  static async getNutritionalFacts(
+    ingredientName: string,
+  ): Promise<NutritionalData | null> {
     console.info(`Looking up nutrition for '${ingredientName}' via OpenAI`);
     try {
       const completion = await this.client.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o-mini",
         messages: [{
-          role: 'user',
-          content: `Provide nutritional facts per 100g for ${ingredientName}. Return ONLY a JSON object in this exact format: {"calories": number, "protein": number, "fat": number, "carbohydrates": number}`
+          role: "user",
+          content:
+            `Provide nutritional facts per 100g for ${ingredientName}. Return ONLY a JSON object in this exact format: {"calories": number, "protein": number, "fat": number, "carbohydrates": number}`,
         }],
-        temperature: 0.3
+        temperature: 0.3,
       });
 
       if (!completion.choices[0]?.message?.content) {
@@ -131,14 +140,20 @@ class OpenAIService {
       }
 
       try {
-        const nutritionalData = JSON.parse(completion.choices[0].message.content);
-        
+        const nutritionalData = JSON.parse(
+          completion.choices[0].message.content,
+        );
+
         if (NutritionUtils.validateNutritionalData(nutritionalData)) {
-          console.info(`Successfully retrieved OpenAI nutrition data for '${ingredientName}'`);
+          console.info(
+            `Successfully retrieved OpenAI nutrition data for '${ingredientName}'`,
+          );
           NutritionUtils.applyRoundingRulesToData(nutritionalData);
           return nutritionalData;
         } else {
-          console.warn(`Invalid nutrition data format from OpenAI for '${ingredientName}'`);
+          console.warn(
+            `Invalid nutrition data format from OpenAI for '${ingredientName}'`,
+          );
           return null;
         }
       } catch (parseError) {
@@ -154,8 +169,8 @@ class OpenAIService {
 
 serve(async (req) => {
   // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { status: 200, headers: corsHeaders });
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
   if (req.method !== "POST") {
@@ -164,45 +179,51 @@ serve(async (req) => {
 
   const requestId = crypto.randomUUID();
   console.info(`Request ${requestId} started`);
-  
+
   try {
     const body = await req.json();
     const { ingredientName } = body;
-    
+
     if (!ingredientName) {
       return new Response(
-        JSON.stringify({ error: 'Ingredient name is required' }), 
-        { status: 400 }
+        JSON.stringify({ error: "Ingredient name is required" }),
+        { status: 400 },
       );
     }
 
-    let nutritionalFacts = await USDAService.getNutritionalFacts(ingredientName);
-    
+    let nutritionalFacts = await USDAService.getNutritionalFacts(
+      ingredientName,
+    );
+
     if (!nutritionalFacts) {
       console.info(`USDA lookup failed for '${ingredientName}', trying OpenAI`);
-      nutritionalFacts = await OpenAIService.getNutritionalFacts(ingredientName);
+      nutritionalFacts = await OpenAIService.getNutritionalFacts(
+        ingredientName,
+      );
     }
 
     if (!nutritionalFacts) {
       return new Response(
-        JSON.stringify({ error: 'Could not find nutritional facts' }), 
-        { status: 404 }
+        JSON.stringify({ error: "Could not find nutritional facts" }),
+        { status: 404 },
       );
     }
 
-    console.info(`Successfully retrieved nutrition data for '${ingredientName}'`);
+    console.info(
+      `Successfully retrieved nutrition data for '${ingredientName}'`,
+    );
     return new Response(
-      JSON.stringify({ per_100g: nutritionalFacts }), 
-      { 
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-        status: 200 
-      }
+      JSON.stringify({ per_100g: nutritionalFacts }),
+      {
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+        status: 200,
+      },
     );
   } catch (error) {
     console.error(`Request ${requestId} failed:`, error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }), 
-      { status: 500 }
+      JSON.stringify({ error: "Internal server error" }),
+      { status: 500 },
     );
   }
 });
