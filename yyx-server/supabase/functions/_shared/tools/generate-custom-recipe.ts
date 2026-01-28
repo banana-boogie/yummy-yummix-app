@@ -128,6 +128,9 @@ export async function generateCustomRecipe(
     supabase,
   );
 
+  // Validate Thermomix parameters if present
+  recipe.steps = validateThermomixSteps(recipe.steps);
+
   // Validate the generated recipe against food safety rules
   const safetyCheck = await checkRecipeSafety(
     supabase,
@@ -270,6 +273,49 @@ function getSystemPrompt(userContext: UserContext): string {
     ? 'cups, tablespoons, teaspoons, ounces, pounds, °F'
     : 'ml, liters, grams, kg, °C';
 
+  const hasThermomix = userContext.kitchenEquipment.some(eq =>
+    eq.toLowerCase().includes('thermomix')
+  );
+
+  const thermomixSection = hasThermomix ? `
+
+## THERMOMIX USAGE (IMPORTANT)
+
+The user has a Thermomix. You MUST prioritize Thermomix steps where appropriate.
+
+**When to use Thermomix:**
+- Mixing, blending, chopping, cooking, steaming, sautéing
+- Any task that involves combining or processing ingredients
+
+**When to skip Thermomix:**
+- Plating, garnishing, resting
+- Techniques requiring traditional equipment (grilling, broiling, baking)
+- Simple tasks like "stir gently" or "let sit"
+
+**Thermomix parameters in step objects:**
+Include these fields when using Thermomix:
+- thermomixTime: number (seconds) - cooking time
+- thermomixTemp: string - temperature (e.g., "100°C", "Varoma", "50°C")
+- thermomixSpeed: string - speed (1-10, or "Spoon", "Reverse")
+
+**Valid temperatures:** Any number with °C (e.g., "37°C", "100°C"), or special settings: "Varoma" (steam cooking)
+**Valid speeds:** "1" through "10" for regular speed, "Spoon" for slow stirring, "Reverse" for reverse blade mode
+
+**Example Thermomix step:**
+{
+  "order": 2,
+  "instruction": "Sauté the onions and garlic until fragrant",
+  "thermomixTime": 180,
+  "thermomixTemp": "100°C",
+  "thermomixSpeed": "1"
+}
+
+**Example non-Thermomix step:**
+{
+  "order": 5,
+  "instruction": "Transfer to a serving plate and garnish with fresh herbs"
+}` : '';
+
   return `You are a professional recipe creator for a cooking app.
 Generate recipes in ${lang} using ${userContext.measurementSystem} measurements (${units}).
 
@@ -279,6 +325,7 @@ CRITICAL RULES:
 3. Include proper cooking temperatures for meat/poultry in the instructions
 4. Steps should be clear and numbered
 5. Quantities must be practical (no "0.333 cups" - use "1/3 cup" or nearest practical measure)
+${thermomixSection}
 
 OUTPUT FORMAT:
 You MUST output valid JSON matching this exact schema:
@@ -470,6 +517,73 @@ async function enrichIngredientsWithImages(
   );
 
   return enriched;
+}
+
+/**
+ * Validate and sanitize Thermomix parameters in recipe steps.
+ * Ensures speeds, temperatures, and times are within valid ranges.
+ */
+function validateThermomixSteps(
+  steps: Array<{
+    order: number;
+    instruction: string;
+    thermomixTime?: number;
+    thermomixTemp?: string;
+    thermomixSpeed?: string;
+  }>
+): Array<{
+  order: number;
+  instruction: string;
+  thermomixTime?: number;
+  thermomixTemp?: string;
+  thermomixSpeed?: string;
+}> {
+  // Valid speeds: 1-10, "Spoon", "Reverse"
+  const validNumericSpeeds = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+  const validSpecialSpeeds = ['Spoon', 'Reverse'];
+
+  // Valid temperatures: numbers with °C or °F, or "Varoma"
+  const tempRegex = /^\d+(\.\d+)?°[CF]$/;
+  const validSpecialTemps = ['Varoma'];
+
+  return steps.map(step => {
+    // Skip if no Thermomix params
+    if (!step.thermomixTime && !step.thermomixTemp && !step.thermomixSpeed) {
+      return step;
+    }
+
+    const validated = { ...step };
+
+    // Validate time (must be positive)
+    if (step.thermomixTime !== undefined) {
+      if (typeof step.thermomixTime !== 'number' || step.thermomixTime <= 0) {
+        console.warn(`Invalid Thermomix time for step ${step.order}: ${step.thermomixTime}. Removing.`);
+        delete validated.thermomixTime;
+      }
+    }
+
+    // Validate speed
+    if (step.thermomixSpeed !== undefined) {
+      const isValid = validNumericSpeeds.includes(step.thermomixSpeed) ||
+                      validSpecialSpeeds.includes(step.thermomixSpeed);
+      if (!isValid) {
+        console.warn(`Invalid Thermomix speed for step ${step.order}: ${step.thermomixSpeed}. Removing.`);
+        delete validated.thermomixSpeed;
+      }
+    }
+
+    // Validate temperature
+    if (step.thermomixTemp !== undefined) {
+      const isValid = tempRegex.test(step.thermomixTemp) ||
+                      validSpecialTemps.includes(step.thermomixTemp);
+      if (!isValid) {
+        console.warn(`Invalid Thermomix temperature for step ${step.order}: ${step.thermomixTemp}. Removing.`);
+        delete validated.thermomixTemp;
+      }
+    }
+
+    return validated;
+  });
 }
 
 /**
