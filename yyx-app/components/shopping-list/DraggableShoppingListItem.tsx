@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ShoppingListItem } from '@/types/shopping-list.types';
 import { ShoppingListItemRow } from './ShoppingListItem';
 import { COLORS } from '@/constants/design-tokens';
+import i18n from '@/i18n';
 
 interface DraggableShoppingListItemProps {
     item: ShoppingListItem;
@@ -55,6 +56,8 @@ export const DraggableShoppingListItem = React.memo(function DraggableShoppingLi
                     className="w-10 items-center justify-center"
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     activeOpacity={0.6}
+                    accessibilityRole="button"
+                    accessibilityLabel={i18n.t('shoppingList.dragToReorder')}
                 >
                     <Ionicons
                         name="reorder-three-outline"

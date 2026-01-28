@@ -939,6 +939,9 @@ const translations = {
       accessibility: {
         listSummary: '{{name}}, {{checked}} of {{total}} items checked',
         categorySummary: '{{category}}, {{checked}} of {{total}} items',
+        toggleItem: 'Toggle {{name}}',
+        increaseQuantity: 'Increase quantity for {{name}}',
+        decreaseQuantity: 'Decrease quantity for {{name}}',
       },
     },
   },
@@ -1876,6 +1879,9 @@ const translations = {
       accessibility: {
         listSummary: '{{name}}, {{checked}} de {{total}} artículos marcados',
         categorySummary: '{{category}}, {{checked}} de {{total}} artículos',
+        toggleItem: 'Marcar o desmarcar {{name}}',
+        increaseQuantity: 'Aumentar cantidad de {{name}}',
+        decreaseQuantity: 'Disminuir cantidad de {{name}}',
       },
     },
   }

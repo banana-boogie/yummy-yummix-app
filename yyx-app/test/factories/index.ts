@@ -25,6 +25,7 @@
 
 export { recipeFactory } from './recipe.factory';
 export { userFactory } from './user.factory';
+export { shoppingListFactory } from './shopping-list.factory';
 
 // Re-export individual functions for convenience
 export {
@@ -48,3 +49,13 @@ export {
   createNewUserProfile,
   createUserProfileList,
 } from './user.factory';
+
+export {
+  createShoppingList,
+  createShoppingListItem,
+  createShoppingListItemList,
+  createShoppingCategory,
+  createShoppingCategoryWithItems,
+  createShoppingListWithItems,
+  createIngredientSuggestion,
+} from './shopping-list.factory';
