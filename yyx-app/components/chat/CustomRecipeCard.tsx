@@ -10,9 +10,11 @@ import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import type { GeneratedRecipe, SafetyFlags } from '@/types/irmixy';
 import i18n from '@/i18n';
 import { COLORS } from '@/constants/design-tokens';
+import { PLACEHOLDER_IMAGES } from '@/constants/placeholders';
 
 interface CustomRecipeCardProps {
     recipe: GeneratedRecipe;
@@ -204,16 +206,23 @@ export function CustomRecipeCard({
                 <Text className="text-text-secondary text-sm mb-sm">
                     {i18n.t('recipes.common.ingredients')}:
                 </Text>
-                <View className="flex-row flex-wrap gap-xs">
+                <View className="flex-row flex-wrap gap-md">
                     {displayIngredients.map((ingredient, index) => (
                         <View
                             key={index}
-                            className="bg-background-secondary px-sm py-xs rounded-full"
+                            className="flex-col items-center gap-xs"
                             accessibilityElementsHidden={true}
                         >
-                            <Text className="text-text-primary text-sm">
-                                {ingredient.quantity} {ingredient.unit} {ingredient.name}
-                            </Text>
+                            <Image
+                                source={ingredient.imageUrl ? { uri: ingredient.imageUrl } : PLACEHOLDER_IMAGES.ingredient}
+                                className="w-12 h-12 rounded-full bg-background-tertiary"
+                                contentFit="cover"
+                            />
+                            <View className="bg-background-secondary px-sm py-xs rounded-full">
+                                <Text className="text-text-primary text-sm">
+                                    {ingredient.quantity} {ingredient.unit} {ingredient.name}
+                                </Text>
+                            </View>
                         </View>
                     ))}
                     {moreCount > 0 && (

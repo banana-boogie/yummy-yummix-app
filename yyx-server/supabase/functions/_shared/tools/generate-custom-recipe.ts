@@ -122,6 +122,12 @@ export async function generateCustomRecipe(
     safetyReminders,
   );
 
+  // Enrich ingredients with images from database
+  recipe.ingredients = await enrichIngredientsWithImages(
+    recipe.ingredients,
+    supabase,
+  );
+
   // Validate the generated recipe against food safety rules
   const safetyCheck = await checkRecipeSafety(
     supabase,
@@ -415,6 +421,56 @@ async function checkIngredientsForAllergens(
 // ============================================================
 // Helpers
 // ============================================================
+
+/**
+ * Enrich generated ingredients with image URLs from the ingredients table.
+ * Matches ingredient names (case-insensitive) and adds imageUrl if found.
+ */
+async function enrichIngredientsWithImages(
+  ingredients: Array<{
+    name: string;
+    quantity: number;
+    unit: string;
+    imageUrl?: string;
+  }>,
+  supabase: SupabaseClient,
+): Promise<
+  Array<{
+    name: string;
+    quantity: number;
+    unit: string;
+    imageUrl?: string;
+  }>
+> {
+  const enriched = await Promise.all(
+    ingredients.map(async (ingredient) => {
+      try {
+        // Query ingredients table for matching name (case-insensitive)
+        const { data, error } = await supabase
+          .from('ingredients')
+          .select('image_url')
+          .ilike('name_en', `%${ingredient.name}%`)
+          .limit(1)
+          .maybeSingle();
+
+        if (error) {
+          console.warn(`Failed to fetch image for ingredient "${ingredient.name}":`, error);
+          return ingredient;
+        }
+
+        return {
+          ...ingredient,
+          imageUrl: data?.image_url || undefined,
+        };
+      } catch (err) {
+        console.warn(`Error enriching ingredient "${ingredient.name}":`, err);
+        return ingredient;
+      }
+    })
+  );
+
+  return enriched;
+}
 
 /**
  * Create an empty recipe for error cases.
