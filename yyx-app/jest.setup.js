@@ -129,9 +129,6 @@ jest.mock('react-native-reanimated', () => {
   return Reanimated;
 });
 
-// Suppress NativeAnimatedHelper warning
-jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
-
 // React Native Gesture Handler
 jest.mock('react-native-gesture-handler', () => {
   const View = require('react-native/Libraries/Components/View/View');
