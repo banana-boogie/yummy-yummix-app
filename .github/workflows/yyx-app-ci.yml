@@ -11,7 +11,7 @@
 # FOR AI AGENTS:
 # - This workflow tests the React Native app (yyx-app)
 # - Coverage summary is shown in CI output
-# - Coverage report posted as PR comment
+# - Coverage artifact saved for 7 days
 # - All jobs must pass for PR to be mergeable
 
 name: YYX App CI
@@ -99,29 +99,3 @@ jobs:
           name: coverage-report
           path: yyx-app/coverage/
           retention-days: 7
-
-  # ============================================================
-  # COVERAGE COMMENT (PR only)
-  # ============================================================
-  coverage-comment:
-    name: Coverage Report
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download coverage artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage
-
-      - name: Add coverage comment to PR
-        uses: romeovs/lcov-reporter-action@v0.4.0
-        with:
-          lcov-file: ./coverage/lcov.info
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          title: '📊 YYX App Test Coverage'
