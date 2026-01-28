@@ -15,6 +15,8 @@ import { MeasurementSystem } from '@/types/user';
 import { WelcomeStep } from './steps/WelcomeStep';
 import { NameStep } from './steps/NameStep';
 import { AllergiesStep } from './steps/AllergiesStep';
+import { EquipmentStep } from './steps/EquipmentStep';
+import { formatEquipmentForStorage } from '@/constants/equipment';
 import { DietStep } from './steps/DietStep';
 import { AppPreferencesStep } from './steps/AppPreferencesStep';
 import { useDevice } from '@/hooks/useDevice';
@@ -43,10 +45,16 @@ export function OnboardingModal({ visible }: OnboardingModalProps) {
         await setMeasurementSystem(formData.measurementSystem as MeasurementSystem);
       }
 
+      // Format kitchen equipment for storage
+      const formattedEquipment = formData.kitchenEquipment?.map(eq =>
+        formatEquipmentForStorage(eq.type, eq.model)
+      ) ?? [];
+
       const profileUpdate = {
         ...formData,
         onboardingComplete: true,
-        measurementSystem: formData.measurementSystem as MeasurementSystem
+        measurementSystem: formData.measurementSystem as MeasurementSystem,
+        kitchen_equipment: formattedEquipment, // Use snake_case for database column
       };
 
       await updateUserProfile(profileUpdate);
@@ -134,8 +142,10 @@ function StepRenderer({ onComplete, isSubmitting }: { onComplete: (data: Onboard
     case 2:
       return <AppPreferencesStep />;
     case 3:
-      return <AllergiesStep />;
+      return <EquipmentStep />;
     case 4:
+      return <AllergiesStep />;
+    case 5:
       return <DietStep onComplete={onComplete} isSubmitting={isSubmitting} />;
     default:
       return null;

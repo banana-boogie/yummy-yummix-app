@@ -357,6 +357,22 @@ const translations = {
             },
           },
         },
+        equipment: {
+          title: "Kitchen Equipment",
+          description: "Select any special equipment you have. This helps us customize recipes for your kitchen.",
+          thermomix: {
+            title: "Thermomix",
+            name: "Thermomix",
+            description: "Get step-by-step Thermomix cooking parameters",
+            modelQuestion: "Which model do you have?",
+          },
+          air_fryer: {
+            name: "Air Fryer",
+          },
+          other: {
+            title: "Other Equipment",
+          },
+        },
       },
     },
     validation: {
@@ -1323,6 +1339,22 @@ const translations = {
               title: "Imperial",
               examples: "(oz, tazas, in)",
             },
+          },
+        },
+        equipment: {
+          title: "Equipo de Cocina",
+          description: "Selecciona cualquier equipo especial que tengas. Esto nos ayuda a personalizar las recetas para tu cocina.",
+          thermomix: {
+            title: "Thermomix",
+            name: "Thermomix",
+            description: "Obtén parámetros de cocción paso a paso para Thermomix",
+            modelQuestion: "¿Qué modelo tienes?",
+          },
+          air_fryer: {
+            name: "Freidora de Aire",
+          },
+          other: {
+            title: "Otro Equipo",
           },
         },
       },

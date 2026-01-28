@@ -20,7 +20,7 @@ const OnboardingContext = createContext<OnboardingContextType | undefined>(undef
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<OnboardingData>({} as OnboardingData);
-  const totalSteps = 5;
+  const totalSteps = 6; // Updated from 5 to include Equipment step
 
   // Load saved state on mount
   useEffect(() => {

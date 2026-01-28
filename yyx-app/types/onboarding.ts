@@ -1,4 +1,10 @@
 import { DietaryRestriction, DietType } from './dietary';
+import type { EquipmentType, ThermomixModel } from '@/constants/equipment';
+
+export interface KitchenEquipment {
+  type: EquipmentType;
+  model?: ThermomixModel; // Only for Thermomix
+}
 
 export interface OnboardingData {
   name: string;
@@ -8,6 +14,7 @@ export interface OnboardingData {
   otherDiet?: string[];
   language?: string;
   measurementSystem?: 'metric' | 'imperial';
+  kitchenEquipment?: KitchenEquipment[];
 }
 
 export interface OnboardingState {
