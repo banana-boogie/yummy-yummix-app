@@ -38,6 +38,7 @@ import type {
   RecipeStepIngredient,
 } from '@/types/recipe.types';
 import { RecipeDifficulty } from '@/types/recipe.types';
+import { VALID_SPEEDS, VALID_TEMPERATURES } from '@/types/thermomix.types';
 
 // ============================================================
 // COUNTER FOR UNIQUE IDS
@@ -111,7 +112,7 @@ const tagCategories = ['diet', 'cuisine', 'occasion', 'difficulty', 'time'];
 // HELPER FUNCTIONS
 // ============================================================
 
-function randomElement<T>(array: T[]): T {
+function randomElement<T>(array: readonly T[]): T {
   return array[Math.floor(Math.random() * array.length)];
 }
 
@@ -215,6 +216,12 @@ const stepInstructions = [
 ];
 
 export function createStep(overrides?: Partial<RecipeStep>): RecipeStep {
+  const temperatureUnit = Math.random() > 0.5 ? 'C' : 'F';
+  const temperature = temperatureUnit === 'C'
+    ? randomElement(VALID_TEMPERATURES.CELSIUS)
+    : randomElement(VALID_TEMPERATURES.FAHRENHEIT);
+  const speedValue = randomElement([...VALID_SPEEDS.NUMERIC, ...VALID_SPEEDS.SPECIAL]);
+
   return {
     id: generateId(),
     order: randomInt(1, 10),
@@ -223,9 +230,10 @@ export function createStep(overrides?: Partial<RecipeStep>): RecipeStep {
     thermomix: Math.random() > 0.7
       ? {
           time: randomInt(5, 30),
-          speed: randomInt(1, 10),
-          temperature: randomInt(37, 100),
-          isReversed: Math.random() > 0.5,
+          speed: { type: 'single', value: speedValue },
+          temperature,
+          temperatureUnit,
+          isBladeReversed: Math.random() > 0.5,
         }
       : undefined,
     ingredients: Math.random() > 0.5 ? [createStepIngredient()] : [],
