@@ -4,7 +4,7 @@
  * Thermomix-first design: Prominen display of Thermomix with model selection,
  * followed by other equipment options.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, ScrollView, Pressable, StyleProp, ViewStyle, KeyboardAvoidingView, Platform } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { useOnboarding } from '@/contexts/OnboardingContext';
@@ -29,6 +29,19 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
   const [thermomixModel, setThermomixModel] = useState<ThermomixModel | null>(
     formData.kitchenEquipment?.find(e => e.type === 'thermomix')?.model ?? null
   );
+
+  // Sync local state with formData changes
+  useEffect(() => {
+    if (formData.kitchenEquipment) {
+      setSelectedEquipment(formData.kitchenEquipment);
+      const thermomix = formData.kitchenEquipment.find(e => e.type === 'thermomix');
+      if (thermomix?.model) {
+        setThermomixModel(thermomix.model);
+      } else {
+        setThermomixModel(null);
+      }
+    }
+  }, [formData.kitchenEquipment]);
 
   const hasThermomix = selectedEquipment.some(e => e.type === 'thermomix');
 

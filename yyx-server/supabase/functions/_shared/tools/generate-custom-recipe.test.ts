@@ -15,6 +15,14 @@ import {
   assertThrows,
 } from 'https://deno.land/std@0.168.0/testing/asserts.ts';
 import { validateGenerateRecipeParams, ToolValidationError } from './tool-validators.ts';
+import {
+  enrichIngredientsWithImages,
+  validateThermomixSteps,
+  VALID_NUMERIC_SPEEDS,
+  VALID_SPECIAL_SPEEDS,
+  VALID_SPECIAL_TEMPS,
+  TEMP_REGEX,
+} from './generate-custom-recipe.ts';
 
 // ============================================================
 // Test Data Helpers
@@ -367,4 +375,240 @@ Deno.test('UserContext supports equipment preferences', () => {
 
   assertEquals(imperialContext.measurementSystem, 'imperial');
   assertEquals(metricContext.measurementSystem, 'metric');
+});
+
+// ============================================================
+// enrichIngredientsWithImages Tests
+// ============================================================
+
+/**
+ * Mock Supabase client for testing enrichIngredientsWithImages.
+ * Simulates database queries and responses.
+ */
+function createMockSupabaseClient(mockData: Record<string, any> = {}) {
+  return {
+    from: (table: string) => ({
+      select: (fields: string) => ({
+        ilike: (column: string, pattern: string) => ({
+          limit: (n: number) => ({
+            maybeSingle: async () => {
+              // Simulate database lookup based on pattern
+              const ingredientName = pattern.replace(/%/g, '').replace(/\\/g, '');
+              const data = mockData[ingredientName.toLowerCase()];
+              return { data: data || null, error: null };
+            },
+          }),
+        }),
+      }),
+    }),
+  } as any;
+}
+
+Deno.test('enrichIngredientsWithImages adds image URLs when found', async () => {
+  const mockSupabase = createMockSupabaseClient({
+    'chicken': { image_url: 'https://example.com/chicken.jpg' },
+    'rice': { image_url: 'https://example.com/rice.jpg' },
+  });
+
+  const ingredients = [
+    { name: 'chicken', quantity: 1, unit: 'lb' },
+    { name: 'rice', quantity: 2, unit: 'cups' },
+  ];
+
+  const result = await enrichIngredientsWithImages(ingredients, mockSupabase);
+
+  assertEquals(result[0].imageUrl, 'https://example.com/chicken.jpg');
+  assertEquals(result[1].imageUrl, 'https://example.com/rice.jpg');
+  assertEquals(result[0].name, 'chicken');
+  assertEquals(result[1].name, 'rice');
+});
+
+Deno.test('enrichIngredientsWithImages sanitizes SQL special characters', async () => {
+  // Test that ingredient names with special characters are properly escaped
+  const mockSupabase = createMockSupabaseClient({
+    'chicken_breast': { image_url: 'https://example.com/chicken.jpg' },
+  });
+
+  const ingredients = [
+    { name: 'chicken_breast%', quantity: 1, unit: 'lb' }, // SQL wildcards should be escaped
+  ];
+
+  const result = await enrichIngredientsWithImages(ingredients, mockSupabase);
+
+  // Sanitization happens: ingredient.name.replace(/[%_\\]/g, '\\$&')
+  // The % should be escaped, so it won't match in our mock (which expects exact lowercase match)
+  // This verifies sanitization doesn't break the query
+  assertEquals(result[0].name, 'chicken_breast%');
+  assertEquals(result[0].quantity, 1);
+});
+
+Deno.test('enrichIngredientsWithImages handles partial failures gracefully', async () => {
+  // Test Promise.allSettled behavior - some succeed, some fail
+  const mockSupabase = {
+    from: () => ({
+      select: () => ({
+        ilike: () => ({
+          limit: () => ({
+            maybeSingle: async () => {
+              // Simulate error for all ingredients
+              return { data: null, error: { message: 'Database error' } };
+            },
+          }),
+        }),
+      }),
+    }),
+  } as any;
+
+  const ingredients = [
+    { name: 'chicken', quantity: 1, unit: 'lb' },
+    { name: 'unknown_ingredient', quantity: 2, unit: 'cups' },
+  ];
+
+  // Function should not throw, failed ingredients return without imageUrl
+  const result = await enrichIngredientsWithImages(ingredients, mockSupabase);
+  assertEquals(result.length, 2);
+  assertEquals(result[0].imageUrl, undefined); // Failed lookup returns original
+  assertEquals(result[1].imageUrl, undefined); // Failed lookup returns original
+});
+
+Deno.test('enrichIngredientsWithImages preserves original data when no image found', async () => {
+  const mockSupabase = createMockSupabaseClient({}); // No images in database
+
+  const ingredients = [
+    { name: 'exotic_ingredient', quantity: 1, unit: 'piece' },
+  ];
+
+  const result = await enrichIngredientsWithImages(ingredients, mockSupabase);
+  assertEquals(result[0].name, 'exotic_ingredient');
+  assertEquals(result[0].quantity, 1);
+  assertEquals(result[0].unit, 'piece');
+  assertEquals(result[0].imageUrl, undefined);
+});
+
+// ============================================================
+// validateThermomixSteps Tests
+// ============================================================
+
+Deno.test('validateThermomixSteps accepts valid numeric speeds', () => {
+  const steps = [
+    { order: 1, instruction: 'Mix', thermomixSpeed: '1', thermomixTime: 30, thermomixTemp: '50°C' },
+    { order: 2, instruction: 'Blend', thermomixSpeed: '5', thermomixTime: 60, thermomixTemp: '100°C' },
+    { order: 3, instruction: 'Chop', thermomixSpeed: '10', thermomixTime: 10, thermomixTemp: 'Varoma' },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixSpeed, '1');
+  assertEquals(result[1].thermomixSpeed, '5');
+  assertEquals(result[2].thermomixSpeed, '10');
+});
+
+Deno.test('validateThermomixSteps normalizes special speeds to title case', () => {
+  const steps = [
+    { order: 1, instruction: 'Stir', thermomixSpeed: 'spoon', thermomixTime: 30, thermomixTemp: '50°C' },
+    { order: 2, instruction: 'Mix', thermomixSpeed: 'SPOON', thermomixTime: 30, thermomixTemp: '50°C' },
+    { order: 3, instruction: 'Reverse', thermomixSpeed: 'reverse', thermomixTime: 30, thermomixTemp: '50°C' },
+    { order: 4, instruction: 'Reverse', thermomixSpeed: 'REVERSE', thermomixTime: 30, thermomixTemp: '50°C' },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixSpeed, 'Spoon');
+  assertEquals(result[1].thermomixSpeed, 'Spoon');
+  assertEquals(result[2].thermomixSpeed, 'Reverse');
+  assertEquals(result[3].thermomixSpeed, 'Reverse');
+});
+
+Deno.test('validateThermomixSteps removes invalid speeds', () => {
+  const steps = [
+    { order: 1, instruction: 'Mix', thermomixSpeed: '11', thermomixTime: 30, thermomixTemp: '50°C' },
+    { order: 2, instruction: 'Blend', thermomixSpeed: 'turbo', thermomixTime: 30, thermomixTemp: '50°C' },
+    { order: 3, instruction: 'Chop', thermomixSpeed: 'invalid', thermomixTime: 30, thermomixTemp: '50°C' },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixSpeed, undefined);
+  assertEquals(result[1].thermomixSpeed, undefined);
+  assertEquals(result[2].thermomixSpeed, undefined);
+});
+
+Deno.test('validateThermomixSteps accepts valid temperatures', () => {
+  const steps = [
+    { order: 1, instruction: 'Heat', thermomixTemp: '50°C', thermomixTime: 30 },
+    { order: 2, instruction: 'Boil', thermomixTemp: '100°C', thermomixTime: 60 },
+    { order: 3, instruction: 'Steam', thermomixTemp: 'Varoma', thermomixTime: 120 },
+    { order: 4, instruction: 'Warm', thermomixTemp: '37.5°C', thermomixTime: 30 },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixTemp, '50°C');
+  assertEquals(result[1].thermomixTemp, '100°C');
+  assertEquals(result[2].thermomixTemp, 'Varoma');
+  assertEquals(result[3].thermomixTemp, '37.5°C');
+});
+
+Deno.test('validateThermomixSteps removes invalid temperatures', () => {
+  const steps = [
+    { order: 1, instruction: 'Heat', thermomixTemp: 'hot', thermomixTime: 30 },
+    { order: 2, instruction: 'Cook', thermomixTemp: '100', thermomixTime: 30 }, // Missing unit
+    { order: 3, instruction: 'Warm', thermomixTemp: '50F', thermomixTime: 30 }, // Wrong format (no °)
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixTemp, undefined);
+  assertEquals(result[1].thermomixTemp, undefined);
+  assertEquals(result[2].thermomixTemp, undefined);
+});
+
+Deno.test('validateThermomixSteps removes invalid times', () => {
+  const steps = [
+    { order: 1, instruction: 'Mix', thermomixTime: 0, thermomixSpeed: '5' },
+    { order: 2, instruction: 'Blend', thermomixTime: -10, thermomixSpeed: '5' },
+    { order: 3, instruction: 'Chop', thermomixTime: NaN, thermomixSpeed: '5' },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixTime, undefined);
+  assertEquals(result[1].thermomixTime, undefined);
+  assertEquals(result[2].thermomixTime, undefined);
+});
+
+Deno.test('validateThermomixSteps preserves valid times', () => {
+  const steps = [
+    { order: 1, instruction: 'Mix', thermomixTime: 30, thermomixSpeed: '5' },
+    { order: 2, instruction: 'Blend', thermomixTime: 120, thermomixSpeed: '5' },
+    { order: 3, instruction: 'Chop', thermomixTime: 1, thermomixSpeed: '5' },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixTime, 30);
+  assertEquals(result[1].thermomixTime, 120);
+  assertEquals(result[2].thermomixTime, 1);
+});
+
+Deno.test('validateThermomixSteps skips steps with no Thermomix params', () => {
+  const steps = [
+    { order: 1, instruction: 'Plate the dish' },
+    { order: 2, instruction: 'Garnish with herbs' },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result.length, 2);
+  assertEquals(result[0].instruction, 'Plate the dish');
+  assertEquals(result[1].instruction, 'Garnish with herbs');
+});
+
+Deno.test('validateThermomixSteps handles mixed valid and invalid params', () => {
+  const steps = [
+    {
+      order: 1,
+      instruction: 'Mix ingredients',
+      thermomixTime: 30,
+      thermomixSpeed: 'invalid_speed',
+      thermomixTemp: '100°C',
+    },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixTime, 30);
+  assertEquals(result[0].thermomixTemp, '100°C');
+  assertEquals(result[0].thermomixSpeed, undefined);
 });

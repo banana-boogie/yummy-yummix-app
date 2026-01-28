@@ -569,6 +569,41 @@ async function processRequest(
     supabase, userId, sessionId, message, mode,
   );
 
+  // Classify user intent for optimization and monitoring
+  const intent = await classifyUserIntent(message);
+  console.log('[Intent Classification]', {
+    userId,
+    intent: intent.intent,
+    hasIngredients: intent.hasIngredients,
+    confidence: intent.confidence,
+  });
+
+  // Check if user is trying to modify an existing recipe
+  // Look for recipe in conversation history
+  const lastRecipe = messages
+    .slice()
+    .reverse()
+    .find(m => m.role === 'assistant' && m.content?.includes('recipe'));
+
+  if (lastRecipe) {
+    const modIntent = await detectModificationIntent(message, {
+      hasRecipe: true,
+      lastRecipeName: 'previous recipe', // Could extract from context
+    });
+
+    if (modIntent.isModification) {
+      console.log('[Modification Detected]', {
+        userId,
+        modifications: modIntent.modifications,
+      });
+      // Add modification context to the system message
+      messages.push({
+        role: 'system' as const,
+        content: `User is requesting modifications: ${modIntent.modifications}`,
+      });
+    }
+  }
+
   const firstResponse = await callAI(messages, true, false);
   const assistantMessage = firstResponse.choices[0].message;
 
@@ -588,7 +623,17 @@ async function processRequest(
       true,  // Use structured output
     );
 
-    const structuredContent = JSON.parse(secondResponse.choices[0].message.content || '{}');
+    let structuredContent;
+    try {
+      structuredContent = JSON.parse(secondResponse.choices[0].message.content || '{}');
+    } catch (error) {
+      console.error('Failed to parse AI structured response:', error);
+      structuredContent = {
+        message: secondResponse.choices[0].message.content || 'Sorry, I encountered an error generating suggestions.',
+        suggestions: [],
+      };
+    }
+
     return finalizeResponse(
       supabase, sessionId, userId, message,
       structuredContent.message || secondResponse.choices[0].message.content || '',
@@ -599,7 +644,16 @@ async function processRequest(
 
   // No tools used - get structured response directly
   const structuredResponse = await callAI(messages, false, true);
-  const structuredContent = JSON.parse(structuredResponse.choices[0].message.content || '{}');
+  let structuredContent;
+  try {
+    structuredContent = JSON.parse(structuredResponse.choices[0].message.content || '{}');
+  } catch (error) {
+    console.error('Failed to parse AI structured response:', error);
+    structuredContent = {
+      message: structuredResponse.choices[0].message.content || 'Sorry, I encountered an error generating suggestions.',
+      suggestions: [],
+    };
+  }
 
   return finalizeResponse(
     supabase, sessionId, userId, message,

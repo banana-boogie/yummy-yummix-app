@@ -466,6 +466,22 @@ async function checkIngredientsForAllergens(
 }
 
 // ============================================================
+// Validation Constants
+// ============================================================
+
+/** Valid Thermomix numeric speeds. Exported for testing. */
+export const VALID_NUMERIC_SPEEDS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'] as const;
+
+/** Valid Thermomix special speeds (lowercase for comparison). Exported for testing. */
+export const VALID_SPECIAL_SPEEDS = ['spoon', 'reverse'] as const;
+
+/** Valid Thermomix special temperatures. Exported for testing. */
+export const VALID_SPECIAL_TEMPS = ['Varoma'] as const;
+
+/** Regex for validating temperature strings (e.g., "100°C", "212°F"). Exported for testing. */
+export const TEMP_REGEX = /^\d+(\.\d+)?°[CF]$/;
+
+// ============================================================
 // Helpers
 // ============================================================
 
@@ -473,7 +489,11 @@ async function checkIngredientsForAllergens(
  * Enrich generated ingredients with image URLs from the ingredients table.
  * Matches ingredient names (case-insensitive) and adds imageUrl if found.
  */
-async function enrichIngredientsWithImages(
+/**
+ * Enrich ingredients with image URLs from the database.
+ * Exported for testing.
+ */
+export async function enrichIngredientsWithImages(
   ingredients: Array<{
     name: string;
     quantity: number;
@@ -489,32 +509,40 @@ async function enrichIngredientsWithImages(
     imageUrl?: string;
   }>
 > {
-  const enriched = await Promise.all(
+  // Use Promise.allSettled to handle partial failures gracefully
+  const results = await Promise.allSettled(
     ingredients.map(async (ingredient) => {
-      try {
-        // Query ingredients table for matching name (case-insensitive)
-        const { data, error } = await supabase
-          .from('ingredients')
-          .select('image_url')
-          .ilike('name_en', `%${ingredient.name}%`)
-          .limit(1)
-          .maybeSingle();
+      // Sanitize ingredient name to prevent SQL injection in LIKE queries
+      const sanitizedName = ingredient.name.replace(/[%_\\]/g, '\\$&');
 
-        if (error) {
-          console.warn(`Failed to fetch image for ingredient "${ingredient.name}":`, error);
-          return ingredient;
-        }
+      // Query ingredients table for matching name (case-insensitive)
+      const { data, error } = await supabase
+        .from('ingredients')
+        .select('image_url')
+        .ilike('name_en', `%${sanitizedName}%`)
+        .limit(1)
+        .maybeSingle();
 
-        return {
-          ...ingredient,
-          imageUrl: data?.image_url || undefined,
-        };
-      } catch (err) {
-        console.warn(`Error enriching ingredient "${ingredient.name}":`, err);
-        return ingredient;
+      if (error) {
+        throw new Error(`Failed to fetch image: ${error.message}`);
       }
+
+      return {
+        ...ingredient,
+        imageUrl: data?.image_url || undefined,
+      };
     })
   );
+
+  // Map results, handling both fulfilled and rejected promises
+  const enriched = results.map((result, index) => {
+    if (result.status === 'fulfilled') {
+      return result.value;
+    } else {
+      console.warn(`Failed to enrich ingredient "${ingredients[index].name}":`, result.reason);
+      return ingredients[index]; // Return original without image
+    }
+  });
 
   return enriched;
 }
@@ -522,8 +550,9 @@ async function enrichIngredientsWithImages(
 /**
  * Validate and sanitize Thermomix parameters in recipe steps.
  * Ensures speeds, temperatures, and times are within valid ranges.
+ * Exported for testing.
  */
-function validateThermomixSteps(
+export function validateThermomixSteps(
   steps: Array<{
     order: number;
     instruction: string;
@@ -538,14 +567,6 @@ function validateThermomixSteps(
   thermomixTemp?: string;
   thermomixSpeed?: string;
 }> {
-  // Valid speeds: 1-10, "Spoon", "Reverse"
-  const validNumericSpeeds = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
-  const validSpecialSpeeds = ['Spoon', 'Reverse'];
-
-  // Valid temperatures: numbers with °C or °F, or "Varoma"
-  const tempRegex = /^\d+(\.\d+)?°[CF]$/;
-  const validSpecialTemps = ['Varoma'];
-
   return steps.map(step => {
     // Skip if no Thermomix params
     if (!step.thermomixTime && !step.thermomixTemp && !step.thermomixSpeed) {
@@ -554,28 +575,33 @@ function validateThermomixSteps(
 
     const validated = { ...step };
 
-    // Validate time (must be positive)
+    // Validate time (must be positive number, not NaN)
     if (step.thermomixTime !== undefined) {
-      if (typeof step.thermomixTime !== 'number' || step.thermomixTime <= 0) {
+      if (typeof step.thermomixTime !== 'number' || Number.isNaN(step.thermomixTime) || step.thermomixTime <= 0) {
         console.warn(`Invalid Thermomix time for step ${step.order}: ${step.thermomixTime}. Removing.`);
         delete validated.thermomixTime;
       }
     }
 
-    // Validate speed
+    // Validate speed (case-insensitive for special speeds)
     if (step.thermomixSpeed !== undefined) {
-      const isValid = validNumericSpeeds.includes(step.thermomixSpeed) ||
-                      validSpecialSpeeds.includes(step.thermomixSpeed);
+      const normalizedSpeed = step.thermomixSpeed.toLowerCase();
+      const isValid = VALID_NUMERIC_SPEEDS.includes(step.thermomixSpeed as any) ||
+                      VALID_SPECIAL_SPEEDS.includes(normalizedSpeed as any);
       if (!isValid) {
         console.warn(`Invalid Thermomix speed for step ${step.order}: ${step.thermomixSpeed}. Removing.`);
         delete validated.thermomixSpeed;
+      } else if (VALID_SPECIAL_SPEEDS.includes(normalizedSpeed as any)) {
+        // Normalize to title case for consistency
+        validated.thermomixSpeed = step.thermomixSpeed.charAt(0).toUpperCase() +
+                                   step.thermomixSpeed.slice(1).toLowerCase();
       }
     }
 
     // Validate temperature
     if (step.thermomixTemp !== undefined) {
-      const isValid = tempRegex.test(step.thermomixTemp) ||
-                      validSpecialTemps.includes(step.thermomixTemp);
+      const isValid = TEMP_REGEX.test(step.thermomixTemp) ||
+                      VALID_SPECIAL_TEMPS.includes(step.thermomixTemp as any);
       if (!isValid) {
         console.warn(`Invalid Thermomix temperature for step ${step.order}: ${step.thermomixTemp}. Removing.`);
         delete validated.thermomixTemp;

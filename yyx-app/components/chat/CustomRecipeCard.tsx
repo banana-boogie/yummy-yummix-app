@@ -217,6 +217,9 @@ export function CustomRecipeCard({
                                 source={ingredient.imageUrl ? { uri: ingredient.imageUrl } : PLACEHOLDER_IMAGES.ingredient}
                                 className="w-12 h-12 rounded-full bg-background-tertiary"
                                 contentFit="cover"
+                                onError={() => {
+                                    console.warn(`Failed to load image for ingredient: ${ingredient.name}`);
+                                }}
                             />
                             <View className="bg-background-secondary px-sm py-xs rounded-full">
                                 <Text className="text-text-primary text-sm">
