@@ -99,7 +99,7 @@ export function CustomRecipeCard({
         >
             {/* Header with recipe name */}
             <View className="bg-primary-lightest p-md border-b border-border-default">
-                <View className="flex-row items-center">
+                <View className="flex-row items-center" pointerEvents="box-none">
                     <MaterialCommunityIcons
                         name="chef-hat"
                         size={24}

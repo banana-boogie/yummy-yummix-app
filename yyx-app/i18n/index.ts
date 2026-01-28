@@ -221,6 +221,7 @@ const translations = {
         portions: "Portions",
         prepTime: "Prep",
         totalTime: "Total",
+        ingredients: "Ingredients",
         difficulty: {
           easy: "Easy",
           medium: "Medium",
@@ -1187,6 +1188,7 @@ const translations = {
         portions: "Porciones",
         prepTime: "Prep",
         totalTime: "Total",
+        ingredients: "Ingredientes",
         difficulty: {
           easy: "Fácil",
           medium: "Medio",

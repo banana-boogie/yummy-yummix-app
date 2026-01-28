@@ -5,8 +5,8 @@
  * Checks cooking times and temperatures for safety-critical ingredients.
  */
 
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { normalizeIngredient } from './ingredient-normalization.ts';
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { normalizeIngredient } from "./ingredient-normalization.ts";
 
 // ============================================================
 // Types
@@ -45,7 +45,7 @@ let rulePatternCache: Map<string, RegExp> | null = null;
  * Escape special regex characters in a string.
  */
 function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**
@@ -58,7 +58,7 @@ function getRulePattern(ruleCanonical: string): RegExp {
 
   let pattern = rulePatternCache.get(ruleCanonical);
   if (!pattern) {
-    pattern = new RegExp(`\\b${escapeRegex(ruleCanonical)}\\b`, 'i');
+    pattern = new RegExp(`\\b${escapeRegex(ruleCanonical)}\\b`, "i");
     rulePatternCache.set(ruleCanonical, pattern);
   }
   return pattern;
@@ -83,11 +83,13 @@ export async function loadFoodSafetyRules(
 
   loadingPromise = (async () => {
     const { data, error } = await supabase
-      .from('food_safety_rules')
-      .select('ingredient_canonical, category, min_temp_c, min_temp_f, min_cook_min');
+      .from("food_safety_rules")
+      .select(
+        "ingredient_canonical, category, min_temp_c, min_temp_f, min_cook_min",
+      );
 
     if (error) {
-      console.error('Failed to load food safety rules:', error);
+      console.error("Failed to load food safety rules:", error);
       loadingPromise = null;
       return [];
     }
@@ -100,7 +102,7 @@ export async function loadFoodSafetyRules(
     for (const rule of safetyRulesCache) {
       rulePatternCache.set(
         rule.ingredient_canonical,
-        new RegExp(`\\b${escapeRegex(rule.ingredient_canonical)}\\b`, 'i')
+        new RegExp(`\\b${escapeRegex(rule.ingredient_canonical)}\\b`, "i"),
       );
     }
 
@@ -141,8 +143,8 @@ export async function checkRecipeSafety(
   supabase: SupabaseClient,
   ingredients: GeneratedRecipeIngredient[],
   totalTime: number,
-  measurementSystem: 'imperial' | 'metric',
-  language: 'en' | 'es',
+  measurementSystem: "imperial" | "metric",
+  language: "en" | "es",
 ): Promise<SafetyCheckResult> {
   const rules = await loadFoodSafetyRules(supabase);
   if (rules.length === 0) {
@@ -155,7 +157,11 @@ export async function checkRecipeSafety(
 
   // Normalize ingredients and find matching safety rules
   for (const ingredient of ingredients) {
-    const normalized = await normalizeIngredient(supabase, ingredient.name, language);
+    const normalized = await normalizeIngredient(
+      supabase,
+      ingredient.name,
+      language,
+    );
 
     // Check for exact match or partial match (ingredient contains safety item)
     for (const rule of rules) {
@@ -178,13 +184,15 @@ export async function checkRecipeSafety(
   // Check cook time against minimum safe times
   for (const [ingredientName, rule] of matchedRules) {
     if (totalTime < rule.min_cook_min) {
-      const tempStr = measurementSystem === 'imperial'
-        ? `${rule.min_temp_f}°F`
-        : `${rule.min_temp_c}°C`;
+      const tempStr =
+        measurementSystem === "imperial"
+          ? `${rule.min_temp_f}°F`
+          : `${rule.min_temp_c}°C`;
 
-      const warning = language === 'es'
-        ? `${formatIngredientName(ingredientName)} requiere al menos ${rule.min_cook_min} minutos de cocción y una temperatura interna de ${tempStr}.`
-        : `${formatIngredientName(ingredientName)} requires at least ${rule.min_cook_min} minutes of cooking and an internal temperature of ${tempStr}.`;
+      const warning =
+        language === "es"
+          ? `${formatIngredientName(ingredientName)} requiere al menos ${rule.min_cook_min} minutos de cocción y una temperatura interna de ${tempStr}.`
+          : `${formatIngredientName(ingredientName)} requires at least ${rule.min_cook_min} minutes of cooking and an internal temperature of ${tempStr}.`;
 
       warnings.push(warning);
     }
@@ -202,15 +210,19 @@ export async function checkRecipeSafety(
 export async function getRecommendedTemp(
   supabase: SupabaseClient,
   ingredientName: string,
-  measurementSystem: 'imperial' | 'metric',
-  language: 'en' | 'es',
+  measurementSystem: "imperial" | "metric",
+  language: "en" | "es",
 ): Promise<string | null> {
   const rules = await loadFoodSafetyRules(supabase);
-  const normalized = await normalizeIngredient(supabase, ingredientName, language);
+  const normalized = await normalizeIngredient(
+    supabase,
+    ingredientName,
+    language,
+  );
 
   for (const rule of rules) {
     if (ingredientMatchesRule(normalized, rule.ingredient_canonical)) {
-      return measurementSystem === 'imperial'
+      return measurementSystem === "imperial"
         ? `${rule.min_temp_f}°F`
         : `${rule.min_temp_c}°C`;
     }
@@ -225,10 +237,10 @@ export async function getRecommendedTemp(
 export async function buildSafetyReminders(
   supabase: SupabaseClient,
   ingredients: string[],
-  measurementSystem: 'imperial' | 'metric',
+  measurementSystem: "imperial" | "metric",
 ): Promise<string> {
   const rules = await loadFoodSafetyRules(supabase);
-  if (rules.length === 0) return '';
+  if (rules.length === 0) return "";
 
   const reminders: string[] = [];
 
@@ -238,9 +250,10 @@ export async function buildSafetyReminders(
     for (const rule of rules) {
       // Use word boundary matching to avoid false positives
       if (ingredientMatchesRule(lowerIngredient, rule.ingredient_canonical)) {
-        const temp = measurementSystem === 'imperial'
-          ? `${rule.min_temp_f}°F`
-          : `${rule.min_temp_c}°C`;
+        const temp =
+          measurementSystem === "imperial"
+            ? `${rule.min_temp_f}°F`
+            : `${rule.min_temp_c}°C`;
 
         reminders.push(
           `${formatIngredientName(rule.ingredient_canonical)} must reach internal temp of ${temp}`,
@@ -250,9 +263,9 @@ export async function buildSafetyReminders(
     }
   }
 
-  if (reminders.length === 0) return '';
+  if (reminders.length === 0) return "";
 
-  return `FOOD SAFETY REQUIREMENTS:\n${reminders.join('\n')}`;
+  return `FOOD SAFETY REQUIREMENTS:\n${reminders.join("\n")}`;
 }
 
 // ============================================================
@@ -262,7 +275,10 @@ export async function buildSafetyReminders(
 /**
  * Check if an ingredient matches a safety rule using pre-compiled patterns.
  */
-function ingredientMatchesRule(ingredient: string, ruleCanonical: string): boolean {
+function ingredientMatchesRule(
+  ingredient: string,
+  ruleCanonical: string,
+): boolean {
   if (ingredient === ruleCanonical) return true;
   const pattern = getRulePattern(ruleCanonical);
   return pattern.test(ingredient);
@@ -273,7 +289,7 @@ function ingredientMatchesRule(ingredient: string, ruleCanonical: string): boole
  */
 function formatIngredientName(name: string): string {
   return name
-    .split('_')
+    .split("_")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+    .join(" ");
 }

@@ -11,7 +11,7 @@ import { PageLayout } from '@/components/layouts/PageLayout';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
 
 export default function CustomCookingStep() {
-    const { id, step: stepParam } = useLocalSearchParams();
+    const { id, step: stepParam, from } = useLocalSearchParams<{ id: string; step: string; from?: string }>();
     const { recipe } = useCustomRecipe(id as string);
 
     if (!recipe?.steps) return null;
@@ -37,7 +37,11 @@ export default function CustomCookingStep() {
             router.replace(`/(tabs)/recipes/custom/${id}/cooking-guide/${currentStepNumber + 1}`);
         },
         finish: () => {
-            router.replace('/(tabs)/recipes');
+            if (from === 'chat') {
+                router.replace('/(tabs)/chat');
+            } else {
+                router.replace('/(tabs)/recipes');
+            }
         }
     };
 

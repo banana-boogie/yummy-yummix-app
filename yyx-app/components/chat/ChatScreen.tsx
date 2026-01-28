@@ -627,7 +627,7 @@ export function ChatScreen({
             const { userRecipeId } = await customRecipeService.save(recipe, finalName);
 
             // Navigate to custom cooking guide
-            router.push(`/(tabs)/recipes/custom/${userRecipeId}/cooking-guide`);
+            router.push(`/(tabs)/recipes/custom/${userRecipeId}/cooking-guide?from=chat`);
         } catch (error) {
             console.error('Failed to save custom recipe:', error);
             Alert.alert(
@@ -691,7 +691,8 @@ export function ChatScreen({
 
                 {/* Show skeleton while generating recipe (for the current streaming message) */}
                 {!isUser && !item.customRecipe && isLoading && currentStatus === 'generating' &&
-                    item.id === messages[messages.length - 1]?.id && (
+                    item.id === messages[messages.length - 1]?.id &&
+                    (!item.content || item.content.trim().length === 0) && (
                     <View className="mt-sm w-full">
                         <RecipeGeneratingSkeleton statusMessage={getStatusText()} />
                     </View>
