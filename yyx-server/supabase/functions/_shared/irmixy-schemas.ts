@@ -111,7 +111,7 @@ export interface UserContext {
   ingredientDislikes: string[];
   skillLevel: string | null;
   householdSize: number | null;
-  conversationHistory: Array<{ role: string; content: string }>;
+  conversationHistory: Array<{ role: string; content: string; metadata?: any }>;
   // Additional context fields
   dietTypes: string[];
   customAllergies: string[];

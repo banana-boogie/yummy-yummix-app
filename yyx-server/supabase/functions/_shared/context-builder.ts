@@ -137,7 +137,7 @@ async function buildContext(
     ingredientDislikes: sanitizeList(userCtx?.ingredient_dislikes),
     skillLevel: userCtx?.skill_level || null,
     householdSize: userCtx?.household_size || null,
-    conversationHistory: historyResult as Array<{ role: string; content: string }>,
+    conversationHistory: historyResult as Array<{ role: string; content: string; metadata?: any }>,
     // Additional context fields
     dietTypes: sanitizeList(profile?.diet_types),
     customAllergies: normalizeAllergies(profile?.other_allergy),
@@ -152,10 +152,10 @@ async function buildContext(
 async function loadConversationHistory(
   supabase: SupabaseClient,
   sessionId: string,
-): Promise<Array<{ role: string; content: string }>> {
+): Promise<Array<{ role: string; content: string; metadata?: any }>> {
   const { data, error } = await supabase
     .from('user_chat_messages')
-    .select('role, content')
+    .select('role, content, tool_calls')
     .eq('session_id', sessionId)
     .order('created_at', { ascending: false })
     .limit(MAX_HISTORY_MESSAGES);
@@ -174,6 +174,7 @@ async function loadConversationHistory(
   return data.reverse().map((msg) => ({
     role: msg.role,
     content: sanitizeContent(msg.content),
+    metadata: msg.tool_calls, // Contains recipes/customRecipe
   }));
 }
 

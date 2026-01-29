@@ -19,6 +19,8 @@ const translations = {
       next: "Next",
       delete: "Delete",
       selectDate: "Select Date",
+      showAll: "Show {{count}} more",
+      showLess: "Show less",
       errors: {
         title: "Error",
         imageTooLarge: "Image must be less than 2MB",
@@ -957,6 +959,7 @@ const translations = {
         quickMeal: "Quick 30-minute meal",
         ingredientsIHave: "With ingredients I have",
         healthyOptions: "Healthy options",
+        createCustom: "Custom Recipe",
         createCustomRecipeLabel: "Create custom recipe",
         createCustomRecipeMessage: "Help me create something",
         tellMeAboutRecipe: "Tell me about {{recipeName}}",
@@ -999,6 +1002,8 @@ const translations = {
       import: "Import",
       done: "Listo",
       selectDate: "Seleccionar Fecha",
+      showAll: "Mostrar {{count}} más",
+      showLess: "Mostrar menos",
       errors: {
         title: "Error",
         imageTooLarge: "La imagen debe ser menor de 2MB",
@@ -1946,6 +1951,7 @@ const translations = {
         quickMeal: "Comida rápida de 30 min",
         ingredientsIHave: "Con ingredientes que tengo",
         healthyOptions: "Opciones saludables",
+        createCustom: "Receta Personalizada",
         createCustomRecipeLabel: "Crear receta personalizada",
         createCustomRecipeMessage: "Ayúdame a crear algo",
         tellMeAboutRecipe: "Cuéntame sobre {{recipeName}}",

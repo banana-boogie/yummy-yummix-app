@@ -32,6 +32,8 @@ export function CustomRecipeCard({
     const [recipeName, setRecipeName] = useState(recipe.suggestedName);
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [showAllIngredients, setShowAllIngredients] = useState(false);
+    const [showAllSteps, setShowAllSteps] = useState(false);
 
     const handleStartCooking = useCallback(async () => {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -69,9 +71,17 @@ export function CustomRecipeCard({
         return i18n.t(`recipes.common.difficulty.${difficulty}`);
     };
 
-    // Show first 5 ingredients
-    const displayIngredients = recipe.ingredients.slice(0, 5);
-    const moreCount = recipe.ingredients.length - 5;
+    // Show first 5 ingredients or all if expanded
+    const displayIngredients = showAllIngredients
+        ? recipe.ingredients
+        : recipe.ingredients.slice(0, 5);
+    const moreIngredientsCount = recipe.ingredients.length - 5;
+
+    // Show first 3 steps or all if expanded
+    const displaySteps = showAllSteps
+        ? recipe.steps
+        : recipe.steps.slice(0, 3);
+    const moreStepsCount = recipe.steps.length - 3;
 
     // Check for errors in safety flags
     const hasError = safetyFlags?.error === true;
@@ -201,7 +211,7 @@ export function CustomRecipeCard({
                 className="p-md border-b border-border-default"
                 accessible={true}
                 accessibilityRole="list"
-                accessibilityLabel={`${i18n.t('recipes.common.ingredients')}: ${displayIngredients.map(ing => `${ing.quantity} ${ing.unit} ${ing.name}`).join(', ')}${moreCount > 0 ? ` ${i18n.t('chat.andMore', { count: moreCount })}` : ''}`}
+                accessibilityLabel={`${i18n.t('recipes.common.ingredients')}: ${displayIngredients.map(ing => `${ing.quantity} ${ing.unit} ${ing.name}`).join(', ')}${moreIngredientsCount > 0 && !showAllIngredients ? ` ${i18n.t('chat.andMore', { count: moreIngredientsCount })}` : ''}`}
             >
                 <Text className="text-text-secondary text-sm mb-sm">
                     {i18n.t('recipes.common.ingredients')}:
@@ -228,17 +238,85 @@ export function CustomRecipeCard({
                             </View>
                         </View>
                     ))}
-                    {moreCount > 0 && (
+                </View>
+
+                {/* Expand/collapse button for ingredients */}
+                {moreIngredientsCount > 0 && (
+                    <TouchableOpacity
+                        onPress={() => {
+                            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            setShowAllIngredients(!showAllIngredients);
+                        }}
+                        className="mt-sm"
+                        accessible={true}
+                        accessibilityRole="button"
+                        accessibilityLabel={showAllIngredients
+                            ? i18n.t('common.showLess')
+                            : i18n.t('common.showAll', { count: moreIngredientsCount })
+                        }
+                    >
+                        <Text className="text-primary-medium text-sm font-medium">
+                            {showAllIngredients
+                                ? i18n.t('common.showLess')
+                                : i18n.t('common.showAll', { count: moreIngredientsCount })
+                            }
+                        </Text>
+                    </TouchableOpacity>
+                )}
+            </View>
+
+            {/* Steps preview */}
+            <View
+                className="p-md border-b border-border-default"
+                accessible={true}
+                accessibilityRole="list"
+                accessibilityLabel={`${i18n.t('recipes.common.instructions')}: ${displaySteps.length} ${i18n.t('recipes.common.steps')}`}
+            >
+                <Text className="text-text-secondary text-sm mb-sm">
+                    {i18n.t('recipes.common.instructions')}:
+                </Text>
+                <View className="gap-sm">
+                    {displaySteps.map((step) => (
                         <View
-                            className="bg-background-secondary px-sm py-xs rounded-full"
+                            key={step.order}
+                            className="flex-row"
                             accessibilityElementsHidden={true}
                         >
-                            <Text className="text-text-secondary text-sm">
-                                +{moreCount} {i18n.t('common.more')}
+                            <View className="w-6 h-6 rounded-full bg-primary-medium items-center justify-center mr-sm">
+                                <Text className="text-white text-xs font-semibold">
+                                    {step.order}
+                                </Text>
+                            </View>
+                            <Text className="flex-1 text-text-primary text-sm">
+                                {step.instruction}
                             </Text>
                         </View>
-                    )}
+                    ))}
                 </View>
+
+                {/* Expand/collapse button for steps */}
+                {moreStepsCount > 0 && (
+                    <TouchableOpacity
+                        onPress={() => {
+                            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            setShowAllSteps(!showAllSteps);
+                        }}
+                        className="mt-sm"
+                        accessible={true}
+                        accessibilityRole="button"
+                        accessibilityLabel={showAllSteps
+                            ? i18n.t('common.showLess')
+                            : i18n.t('common.showAll', { count: moreStepsCount })
+                        }
+                    >
+                        <Text className="text-primary-medium text-sm font-medium">
+                            {showAllSteps
+                                ? i18n.t('common.showLess')
+                                : i18n.t('common.showAll', { count: moreStepsCount })
+                            }
+                        </Text>
+                    </TouchableOpacity>
+                )}
             </View>
 
             {/* Safety warning if present */}

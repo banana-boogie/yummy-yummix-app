@@ -60,6 +60,12 @@ export const generateCustomRecipeTool = {
           description:
             'Additional requests or constraints (e.g., "make it spicy", "kid-friendly", "low carb")',
         },
+        useful_items: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Specific kitchen equipment to prioritize for this recipe (e.g., ["thermomix", "air fryer"]). Overrides user\'s general equipment preferences.',
+        },
       },
       required: ['ingredients'],
     },
@@ -279,24 +285,32 @@ function getSystemPrompt(userContext: UserContext): string {
 
   const thermomixSection = hasThermomix ? `
 
-## THERMOMIX USAGE (IMPORTANT)
+## THERMOMIX USAGE - CRITICAL PRIORITY
 
-The user has a Thermomix. You MUST prioritize Thermomix steps where appropriate.
+The user owns a Thermomix. This is a PRIORITY - maximize Thermomix usage!
 
-**When to use Thermomix:**
-- Mixing, blending, chopping, cooking, steaming, sautéing
-- Any task that involves combining or processing ingredients
+MANDATORY RULES:
+1. **Use Thermomix for EVERY applicable step:**
+   - Chopping/mixing ingredients → Thermomix speed 5-7
+   - Sautéing → Thermomix 100°C, speed 1, reverse
+   - Boiling/cooking → Thermomix with temp + speed
+   - Blending/pureeing → Thermomix speed 8-10
+   - Steaming → Thermomix Varoma mode
 
-**When to skip Thermomix:**
-- Plating, garnishing, resting
-- Techniques requiring traditional equipment (grilling, broiling, baking)
-- Simple tasks like "stir gently" or "let sit"
+2. **Include ALL Thermomix fields in step:**
+   {
+     "thermomixTime": 180,  // seconds
+     "thermomixTemp": "100°C",  // or "Varoma", "50°C", etc.
+     "thermomixSpeed": "5"  // "1"-"10", "Spoon", "Reverse"
+   }
 
-**Thermomix parameters in step objects:**
-Include these fields when using Thermomix:
-- thermomixTime: number (seconds) - cooking time
-- thermomixTemp: string - temperature (e.g., "100°C", "Varoma", "50°C")
-- thermomixSpeed: string - speed (1-10, or "Spoon", "Reverse")
+3. **Skip Thermomix ONLY for:**
+   - Plating, garnishing, resting
+   - Grilling, broiling, baking (oven-specific)
+   - Manual techniques (folding, shaping)
+
+4. **Default to Thermomix when multiple methods work**
+   Example: Chopping onions → USE Thermomix, don't suggest knife
 
 **Valid temperatures:** Any number with °C (e.g., "37°C", "100°C"), or special settings: "Varoma" (steam cooking)
 **Valid speeds:** "1" through "10" for regular speed, "Spoon" for slow stirring, "Reverse" for reverse blade mode
@@ -314,7 +328,9 @@ Include these fields when using Thermomix:
 {
   "order": 5,
   "instruction": "Transfer to a serving plate and garnish with fresh herbs"
-}` : '';
+}
+
+REMEMBER: The user specifically has Thermomix - they expect Thermomix-first recipes!` : '';
 
   return `You are a professional recipe creator for a cooking app.
 Generate recipes in ${lang} using ${userContext.measurementSystem} measurements (${units}).
@@ -401,7 +417,10 @@ function buildRecipePrompt(
     preferences.push(`Avoid these ingredients: ${userContext.ingredientDislikes.join(', ')}`);
   }
 
-  if (userContext.kitchenEquipment.length > 0) {
+  // Equipment: prioritize useful_items over general equipment
+  if (params.useful_items && params.useful_items.length > 0) {
+    preferences.push(`PRIORITY EQUIPMENT for this recipe: ${params.useful_items.join(', ')}`);
+  } else if (userContext.kitchenEquipment.length > 0) {
     preferences.push(`Available equipment: ${userContext.kitchenEquipment.join(', ')}`);
   }
 

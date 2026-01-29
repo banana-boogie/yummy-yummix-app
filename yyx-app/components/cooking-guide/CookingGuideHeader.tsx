@@ -10,6 +10,7 @@ import { useDevice } from '@/hooks/useDevice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
 import type { RecipeContext } from '@/services/voice/types';
+import { PLACEHOLDER_IMAGES } from '@/constants/placeholders';
 
 interface CookingGuideHeaderProps {
     title?: string;
@@ -25,6 +26,8 @@ interface CookingGuideHeaderProps {
     onBackPress?: () => void;
     /** Optional recipe context to show VoiceAssistantButton next to title */
     recipeContext?: RecipeContext;
+    /** Flag to indicate custom recipe without image */
+    isCustomRecipe?: boolean;
 }
 
 export function CookingGuideHeader({
@@ -40,18 +43,23 @@ export function CookingGuideHeader({
     className = '',
     style,
     recipeContext,
+    isCustomRecipe = false,
 }: CookingGuideHeaderProps) {
     const { isLarge, isWeb, isPhone } = useDevice();
     const isWebMobile = isWeb && isPhone;
     const insets = useSafeAreaInsets();
 
+    // Show image if pictureUrl exists OR if it's a custom recipe (use placeholder)
+    const showImage = pictureUrl || isCustomRecipe;
+    const imageSource = pictureUrl ? { uri: pictureUrl } : PLACEHOLDER_IMAGES.recipe;
+
     return (
         <View className={className} style={style}>
             <StatusBar barStyle="light-content" />
-            {pictureUrl && (
+            {showImage && (
                 <View className="w-full h-[120px] lg:h-[250px]">
                     <Image
-                        source={pictureUrl}
+                        source={imageSource}
                         className="w-full h-full"
                         contentFit="cover"
                         transition={300}
@@ -86,7 +94,7 @@ export function CookingGuideHeader({
             )}
 
             <View className="px-sm mt-md mb-xxs lg:mb-sm lg:max-w-[1000px] lg:self-center lg:w-full">
-                {!pictureUrl && showBackButton && <BackButton onPress={onBackPress} className="mb-sm bg-black/5" />}
+                {!showImage && showBackButton && <BackButton onPress={onBackPress} className="mb-sm bg-black/5" />}
 
                 {/* Title row with optional VoiceAssistantButton */}
                 {showTitle && title !== undefined ? (

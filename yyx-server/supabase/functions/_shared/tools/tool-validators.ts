@@ -110,6 +110,7 @@ export interface GenerateRecipeParams {
   targetTime?: number;
   difficulty?: 'easy' | 'medium' | 'hard';
   additionalRequests?: string;
+  useful_items?: string[];
 }
 
 /**
@@ -149,6 +150,15 @@ export function validateGenerateRecipeParams(raw: unknown): GenerateRecipeParams
     throw new ToolValidationError('generate_custom_recipe requires at least one valid ingredient');
   }
 
+  // Validate useful_items (optional)
+  let useful_items: string[] | undefined;
+  if (Array.isArray(p.useful_items) && p.useful_items.length > 0) {
+    useful_items = p.useful_items
+      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      .map((item) => sanitizeString(item, 50))
+      .slice(0, 10); // Max 10 equipment items
+  }
+
   return {
     ingredients,
     cuisinePreference: p.cuisinePreference
@@ -163,6 +173,7 @@ export function validateGenerateRecipeParams(raw: unknown): GenerateRecipeParams
     additionalRequests: p.additionalRequests
       ? sanitizeString(p.additionalRequests, 500)
       : undefined,
+    useful_items,
   };
 }
 
