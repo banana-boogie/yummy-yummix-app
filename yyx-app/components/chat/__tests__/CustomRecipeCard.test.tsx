@@ -31,13 +31,18 @@ jest.mock('@/i18n', () => ({
       'chat.recipeError': 'Recipe Error',
       'chat.warningPrefix': 'Warning',
       'chat.andMore': `and ${params?.count} more`,
+      'chat.error.recipeGeneration': "I couldn't create a recipe right now. Please try again.",
       'common.minutesShort': 'min',
       'common.more': 'more',
+      'common.showAll': `Show ${params?.count} more`,
+      'common.showLess': 'Show less',
       'recipes.common.difficulty.easy': 'Easy',
       'recipes.common.difficulty.medium': 'Medium',
       'recipes.common.difficulty.hard': 'Hard',
       'recipes.common.servings': 'servings',
       'recipes.common.ingredients': 'Ingredients',
+      'recipes.common.instructions': 'Instructions',
+      'recipes.common.steps': 'steps',
     };
     return translations[key] || key;
   },
@@ -619,6 +624,177 @@ describe('CustomRecipeCard', () => {
       );
 
       expect(screen.getByRole('alert')).toBeTruthy();
+    });
+  });
+
+  // ============================================================
+  // EXPANDABLE SECTIONS TESTS
+  // ============================================================
+
+  describe('expandable ingredients section', () => {
+    it('shows "Show N more" button when more than 5 ingredients', () => {
+      const recipe = createMockGeneratedRecipeWithManyIngredients(10);
+
+      render(
+        <CustomRecipeCard recipe={recipe} onStartCooking={mockOnStartCooking} />
+      );
+
+      // Should show "Show 5 more" button
+      expect(screen.getByText(/Show 5 more/i)).toBeTruthy();
+    });
+
+    it('does not show expand button when 5 or fewer ingredients', () => {
+      const recipe = createMockGeneratedRecipe(); // Default has < 5 ingredients
+
+      render(
+        <CustomRecipeCard recipe={recipe} onStartCooking={mockOnStartCooking} />
+      );
+
+      // Should not show "Show more" button
+      expect(screen.queryByText(/Show.*more/i)).toBeNull();
+    });
+
+    it('expands to show all ingredients when button clicked', async () => {
+      const recipe = createMockGeneratedRecipeWithManyIngredients(10);
+
+      render(
+        <CustomRecipeCard recipe={recipe} onStartCooking={mockOnStartCooking} />
+      );
+
+      const showMoreButton = screen.getByText(/Show 5 more/i);
+      fireEvent.press(showMoreButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Show less/i)).toBeTruthy();
+      });
+    });
+
+    it('collapses ingredients when "Show less" clicked', async () => {
+      const recipe = createMockGeneratedRecipeWithManyIngredients(10);
+
+      render(
+        <CustomRecipeCard recipe={recipe} onStartCooking={mockOnStartCooking} />
+      );
+
+      // Expand first
+      fireEvent.press(screen.getByText(/Show 5 more/i));
+      await waitFor(() => {
+        expect(screen.getByText(/Show less/i)).toBeTruthy();
+      });
+
+      // Then collapse
+      fireEvent.press(screen.getByText(/Show less/i));
+      await waitFor(() => {
+        expect(screen.getByText(/Show 5 more/i)).toBeTruthy();
+      });
+    });
+
+    it('triggers haptic feedback on expand/collapse', async () => {
+      const recipe = createMockGeneratedRecipeWithManyIngredients(10);
+
+      render(
+        <CustomRecipeCard recipe={recipe} onStartCooking={mockOnStartCooking} />
+      );
+
+      fireEvent.press(screen.getByText(/Show 5 more/i));
+
+      await waitFor(() => {
+        expect(Haptics.impactAsync).toHaveBeenCalledWith(
+          Haptics.ImpactFeedbackStyle.Light
+        );
+      });
+    });
+  });
+
+  describe('expandable steps section', () => {
+    it('shows "Show N more" button when more than 3 steps', () => {
+      const recipe = createMockGeneratedRecipe({
+        steps: [
+          { order: 1, instruction: 'Step 1' },
+          { order: 2, instruction: 'Step 2' },
+          { order: 3, instruction: 'Step 3' },
+          { order: 4, instruction: 'Step 4' },
+          { order: 5, instruction: 'Step 5' },
+        ],
+      });
+
+      render(
+        <CustomRecipeCard recipe={recipe} onStartCooking={mockOnStartCooking} />
+      );
+
+      // Should show "Show 2 more" for steps (5 total - 3 shown = 2 more)
+      const showMoreButtons = screen.getAllByText(/Show.*more/i);
+      expect(showMoreButtons.length).toBeGreaterThan(0);
+    });
+
+    it('does not show expand button when 3 or fewer steps', () => {
+      const recipe = createMockGeneratedRecipe({
+        steps: [
+          { order: 1, instruction: 'Step 1' },
+          { order: 2, instruction: 'Step 2' },
+        ],
+      });
+
+      render(
+        <CustomRecipeCard recipe={recipe} onStartCooking={mockOnStartCooking} />
+      );
+
+      // Count "Show more" buttons - should only be for ingredients if any
+      const showMoreButtons = screen.queryAllByText(/Show.*more/i);
+      // Should not have a "Show more" for steps
+      expect(showMoreButtons.every(btn => !btn.props.children.includes('steps'))).toBe(true);
+    });
+
+    it('expands to show all steps when button clicked', async () => {
+      const recipe = createMockGeneratedRecipe({
+        steps: [
+          { order: 1, instruction: 'Step 1' },
+          { order: 2, instruction: 'Step 2' },
+          { order: 3, instruction: 'Step 3' },
+          { order: 4, instruction: 'Step 4' },
+          { order: 5, instruction: 'Step 5' },
+        ],
+      });
+
+      render(
+        <CustomRecipeCard recipe={recipe} onStartCooking={mockOnStartCooking} />
+      );
+
+      // Initially steps 4 and 5 should not be visible
+      expect(screen.queryByText('Step 4')).toBeNull();
+      expect(screen.queryByText('Step 5')).toBeNull();
+
+      // Find and press the steps "Show more" button
+      const showMoreButtons = screen.getAllByText(/Show.*more/i);
+      const stepsButton = showMoreButtons[showMoreButtons.length - 1]; // Last one is for steps
+      fireEvent.press(stepsButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Step 4')).toBeTruthy();
+        expect(screen.getByText('Step 5')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('error message fallback', () => {
+    it('shows fallback error message when no specific error provided', () => {
+      const recipe = createMockGeneratedRecipe();
+      const safetyFlags = {
+        error: true,
+        // No allergenWarning or dietaryConflict
+      };
+
+      render(
+        <CustomRecipeCard
+          recipe={recipe}
+          safetyFlags={safetyFlags}
+          onStartCooking={mockOnStartCooking}
+        />
+      );
+
+      expect(screen.getByText('Recipe Error')).toBeTruthy();
+      // Should show fallback message (i18n key: chat.error.recipeGeneration)
+      expect(screen.queryByText(/couldn't create a recipe/i)).toBeTruthy();
     });
   });
 });

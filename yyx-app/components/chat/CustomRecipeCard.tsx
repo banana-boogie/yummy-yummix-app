@@ -96,7 +96,9 @@ export function CustomRecipeCard({
                     </Text>
                 </View>
                 <Text className="text-text-secondary">
-                    {safetyFlags?.allergenWarning || safetyFlags?.dietaryConflict}
+                    {safetyFlags?.allergenWarning ||
+                     safetyFlags?.dietaryConflict ||
+                     i18n.t('chat.error.recipeGeneration')}
                 </Text>
             </View>
         );

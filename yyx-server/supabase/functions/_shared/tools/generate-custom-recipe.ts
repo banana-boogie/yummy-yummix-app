@@ -531,14 +531,30 @@ export async function enrichIngredientsWithImages(
   // Use Promise.allSettled to handle partial failures gracefully
   const results = await Promise.allSettled(
     ingredients.map(async (ingredient) => {
-      // Sanitize ingredient name to prevent SQL injection in LIKE queries
-      const sanitizedName = ingredient.name.replace(/[%_\\]/g, '\\$&');
+      // First try exact match, then fallback to partial match
+      // This avoids manual string interpolation in LIKE patterns
+      const exactMatch = await supabase
+        .from('ingredients')
+        .select('image_url')
+        .eq('name_en', ingredient.name)
+        .limit(1)
+        .maybeSingle();
 
-      // Query ingredients table for matching name (case-insensitive)
+      if (exactMatch.data?.image_url) {
+        return {
+          ...ingredient,
+          imageUrl: exactMatch.data.image_url,
+        };
+      }
+
+      // Fallback: Use textSearch for partial matching (safer than LIKE)
+      // Extract first word for fuzzy matching
+      const searchTerm = ingredient.name.split(' ')[0].trim();
+
       const { data, error } = await supabase
         .from('ingredients')
         .select('image_url')
-        .ilike('name_en', `%${sanitizedName}%`)
+        .textSearch('name_en', searchTerm, { type: 'websearch', config: 'english' })
         .limit(1)
         .maybeSingle();
 

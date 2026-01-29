@@ -373,10 +373,19 @@ export function ChatScreen({
     const handleSendMessage = useCallback(async (messageText: string) => {
         if (!messageText.trim() || !user) return;
 
-        // If already loading, cancel current request and start new one
+        // If already loading, cancel current request and wait for cleanup
         if (isLoading) {
             streamCancelRef.current?.();
             streamCancelRef.current = null;
+
+            // Wait for any pending chunk flushes to complete
+            if (chunkTimerRef.current) {
+                clearTimeout(chunkTimerRef.current);
+                chunkTimerRef.current = null;
+            }
+
+            // Brief delay to ensure cleanup completes
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
 
         streamRequestIdRef.current += 1;
@@ -608,6 +617,8 @@ export function ChatScreen({
         scrollToEndThrottled,
         setMessages,
         user,
+        // messagesRef is intentionally excluded (refs are stable and don't need to be in deps)
+        // assistantIndexRef, streamCancelRef, chunkTimerRef, etc. are also excluded for same reason
     ]);
 
     const handleSend = useCallback(() => {

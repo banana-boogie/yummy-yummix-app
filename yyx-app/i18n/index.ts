@@ -1827,25 +1827,26 @@ const translations = {
             grams: "g",
           },
           validation: {
-            required: "This field is required",
-            invalidNumber: "Please enter a valid number",
-            minValue: "Value must be greater than or equal to 0",
+            required: "Este campo es obligatorio",
+            invalidNumber: "Por favor, ingresa un número válido",
+            minValue: "El valor debe ser mayor o igual a 0",
           },
         },
         success: {
-          title: "Success",
-          createSuccessMessage: "Ingredient created successfully",
-          updateSuccessMessage: "Ingredient updated successfully",
+          title: "Éxito",
+          createSuccessMessage: "Ingrediente creado exitosamente",
+          updateSuccessMessage: "Ingrediente actualizado exitosamente",
         },
         confirmDeletion: {
-          title: "Confirm Deletion",
+          title: "Confirmar Eliminación",
           message:
-            "Are you sure you want to delete this ingredient? This action cannot be undone.",
+            "¿Estás seguro de que quieres eliminar este ingrediente? Esta acción no se puede deshacer.",
         },
         errors: {
           title: "Error",
-          validationFailed: "Please check the form for errors",
-          createFailed: "Failed to create ingredient",
+          validationFailed: "Por favor, revisa el formulario en busca de errores",
+          createFailed: "Error al crear el ingrediente",
+          saveFailed: "Error al guardar el ingrediente. Por favor, intenta de nuevo.",
         },
       },
       tags: {
