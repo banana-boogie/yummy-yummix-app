@@ -325,28 +325,6 @@ export function ChatScreen({
     const showSuggestions = messages.length === 0 ||
         (dynamicSuggestions && dynamicSuggestions.length > 0 && !isLoading);
 
-    const buildRecipeSuggestions = useCallback((recipes: Array<{ name: string }>): SuggestionChip[] => {
-        const suggestions: SuggestionChip[] = [];
-
-        if (recipes && recipes.length > 0) {
-            // Add top 2 recipes from search results
-            suggestions.push(...recipes.slice(0, 2).map((recipe) => ({
-                label: recipe.name,
-                message: i18n.t('chat.suggestions.tellMeAboutRecipe', {
-                    recipeName: recipe.name,
-                }),
-            })));
-        }
-
-        // ALWAYS add "Custom Recipe" option
-        suggestions.push({
-            label: i18n.t('chat.suggestions.createCustom'),
-            message: i18n.t('chat.suggestions.createCustomRecipeMessage'),
-        });
-
-        return suggestions;
-    }, [language]);
-
     // Get status text based on current status
     const getStatusText = useCallback(() => {
         switch (currentStatus) {
@@ -386,6 +364,11 @@ export function ChatScreen({
 
             // Brief delay to ensure cleanup completes
             await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Show cancel confirmation
+            Alert.alert('', i18n.t('chat.cancelledRequest'), [{ text: i18n.t('common.ok') }]);
+
+            return;
         }
 
         streamRequestIdRef.current += 1;
@@ -523,11 +506,11 @@ export function ChatScreen({
                             return updated;
                         });
                     }
-                    // Update suggestions if present
+                    // Update suggestions - only use backend suggestions
                     if (response.suggestions && response.suggestions.length > 0) {
                         setDynamicSuggestions(response.suggestions);
                     } else {
-                        setDynamicSuggestions(buildRecipeSuggestions(response.recipes ?? []));
+                        setDynamicSuggestions([]);
                     }
                 }
             );
@@ -610,7 +593,6 @@ export function ChatScreen({
             }
         }
     }, [
-        buildRecipeSuggestions,
         currentSessionId,
         isLoading,
         onSessionCreated,
@@ -835,7 +817,7 @@ export function ChatScreen({
                     placeholderTextColor="#999"
                     multiline
                     maxLength={2000}
-                    editable={!isStreaming}
+                    editable={!isLoading}
                 />
                 <TouchableOpacity
                     className={`w-10 h-10 rounded-full justify-center items-center ${!inputText.trim() && !isLoading ? 'bg-grey-medium' : 'bg-primary-darkest'

@@ -927,7 +927,11 @@ const translations = {
           "Request timed out after {{seconds}} seconds. Please try again.",
         recipeGeneration: "I couldn't create a recipe right now. Please try again.",
         networkError: "Connection issue. Please check your internet and try again.",
+        noRecipeToModify: "I don't see a recipe to modify. Could you generate one first?",
         title: "Error",
+      },
+      modification: {
+        applied: "I've updated the recipe: {{change}}",
       },
       loginRequired: "Please log in to chat with Irmixy.",
       newChatTitle: "New Chat",
@@ -963,8 +967,11 @@ const translations = {
         createCustomRecipeLabel: "Create custom recipe",
         createCustomRecipeMessage: "Help me create something",
         tellMeAboutRecipe: "Tell me about {{recipeName}}",
+        modifyMore: "Modify more",
+        startCooking: "Start cooking",
       },
       messageCopied: "Message copied to clipboard",
+      cancelledRequest: "Request cancelled",
       resumeSession: {
         title: "Resume Conversation?",
         message:
@@ -1920,7 +1927,11 @@ const translations = {
           "La solicitud agotó el tiempo de espera después de {{seconds}} segundos. Por favor, inténtalo de nuevo.",
         recipeGeneration: "No pude crear una receta en este momento. Por favor, inténtalo de nuevo.",
         networkError: "Problema de conexión. Por favor, verifica tu internet e inténtalo de nuevo.",
+        noRecipeToModify: "No veo una receta para modificar. ¿Podrías generar una primero?",
         title: "Error",
+      },
+      modification: {
+        applied: "He actualizado la receta: {{change}}",
       },
       loginRequired: "Por favor, inicia sesión para chatear con Irmixy.",
       newChatTitle: "Nuevo chat",
@@ -1956,8 +1967,11 @@ const translations = {
         createCustomRecipeLabel: "Crear receta personalizada",
         createCustomRecipeMessage: "Ayúdame a crear algo",
         tellMeAboutRecipe: "Cuéntame sobre {{recipeName}}",
+        modifyMore: "Modificar más",
+        startCooking: "Comenzar a cocinar",
       },
       messageCopied: "Mensaje copiado al portapapeles",
+      cancelledRequest: "Solicitud cancelada",
       resumeSession: {
         title: "¿Continuar conversación?",
         message:
