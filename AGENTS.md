@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Overview
-YummyYummix is a bilingual (English/Mexican Spanish) cross-platform cooking app for recipe discovery, step-by-step cooking guides, and AI-powered sous chef features.
+YummyYummix is a bilingual (English/Mexican Spanish) cross-platform cooking app for recipe discovery, step-by-step cooking guides, and AI-powered sous chef features. Designed for Thermomix users.
 
 ## Project Structure & Module Organization
 - `yyx-app/` is the Expo React Native client.
@@ -10,19 +10,90 @@ YummyYummix is a bilingual (English/Mexican Spanish) cross-platform cooking app 
   - `assets/` contains fonts and images.
 - `yyx-server/` contains Supabase Edge Functions and DB assets.
   - `supabase/functions/` holds Deno/TypeScript functions.
-  - `db/` includes SQL setup and migrations.
+  - `supabase/migrations/` contains database migrations.
 
 ## Build, Test, and Development Commands
 From `yyx-app/`:
 - `npm install` installs client dependencies.
 - `npm start` runs the Expo dev server.
-- `npm run ios` / `npm run android` / `npm run web` run platform builds locally.
+- `npm run ios` / `npm run android` / `npm run web` run platform builds.
 - `npm test` runs Jest in watch mode.
 - `npm run lint` runs ESLint via `expo lint`.
 
 From `yyx-server/`:
-- `supabase functions serve <name> --env-file .env` runs a function locally.
-- `supabase functions deploy <name>` deploys an edge function.
+- `npm run link` links workspace to Supabase Cloud project.
+- `npm run deploy <name>` deploys an edge function.
+- `npm run deploy:all` deploys all edge functions.
+- `npm run db:push` pushes migrations to cloud.
+- `npm run backup:all` backs up database and storage.
+
+## Supabase Cloud Development
+
+YummyYummix uses Supabase Cloud (no local Docker). Claude Code has MCP access for:
+
+### Available MCP Operations
+
+**Database Operations:**
+- Execute SQL queries
+- Apply migrations
+- List tables and schemas
+- Pull remote schema
+
+**Edge Functions:**
+- Deploy functions to cloud
+- View function logs
+- Get function source code
+- List all deployed functions
+
+**Logs and Debugging:**
+- Auth logs (login issues, session errors)
+- Edge function logs (errors, performance)
+- Database logs (slow queries, errors)
+
+**Security and Performance:**
+- Run security advisors (RLS policy issues)
+- Run performance advisors (missing indexes)
+
+### Example Prompts for Claude Code
+
+**Debugging:**
+- "Check the edge function logs for the last hour"
+- "Show me auth errors from today"
+- "Are there any slow database queries?"
+
+**Deployment:**
+- "Deploy the ai-chat function"
+- "List all deployed edge functions"
+- "Show me the current migration status"
+
+**Database:**
+- "Show me the schema for the recipes table"
+- "Apply this migration: [SQL]"
+- "Pull the current cloud schema"
+
+### MCP Security: Sensitive Credentials
+
+**NEVER ask Claude to fetch sensitive credentials via MCP.**
+
+MCP tool results are sent to Anthropic's servers as part of the conversation context.
+
+**Safe to use MCP for:**
+- ✅ Logs, schema info, table listings
+- ✅ Security/performance advisors
+- ✅ Deploying functions, applying migrations
+
+**Get directly from dashboards (NOT via MCP):**
+- ❌ service_role_key
+- ❌ API keys (OpenAI, USDA, Cartesia)
+- ❌ Secret tokens, passwords
+
+### Backup Before Deploy (REQUIRED)
+
+**Always backup before deploying migrations:**
+```bash
+cd yyx-server
+npm run backup:all  # Database + Storage
+```
 
 ## Coding Style & Naming Conventions
 - Use TypeScript and functional components; one component per file.
@@ -52,5 +123,7 @@ For iterative development with multiple AIs:
 See [docs/ai-prompts.md](docs/ai-prompts.md) for copy-paste prompts.
 
 ## Configuration & Security Tips
-- App secrets live in `.env` under `yyx-app/` (e.g., `EXPO_PUBLIC_SUPABASE_URL`).
-- Do not commit secrets; keep `.env` in `.gitignore`.
+- App secrets live in `.env.local` (gitignored).
+- Template files `.env.example` are committed with dummy values.
+- Never commit actual secrets; keep `.env` and `.env.local` in `.gitignore`.
+- Get service_role_key and API keys directly from dashboards, never via MCP.

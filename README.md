@@ -1,18 +1,16 @@
 # YummyYummix
 
-A cross-platform cooking app with recipe discovery, step-by-step cooking guides, and AI-powered sous chef features.
+A cross-platform cooking app with recipe discovery, step-by-step cooking guides, and AI-powered sous chef features. Designed for Thermomix users.
 
 ## Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
-- Docker Desktop (for local Supabase)
 - Supabase CLI: `brew install supabase/tap/supabase`
-- jq (optional, for user seeding): `brew install jq`
 - Xcode (for iOS) or Android Studio (for Android)
 
-### Setup
+### First-Time Setup
 
 ```bash
 # Clone and install
@@ -20,67 +18,47 @@ git clone <repo-url>
 cd yummy-yummix-app/yyx-app
 npm install
 
-# One-command setup: starts Supabase, configures env, seeds dev user
-npm run dev:setup
+# Link to Supabase Cloud (first time only)
+cd ../yyx-server
+npm run link
 
-# Run the app on iPhone
+# Run the app
+cd ../yyx-app
 npm run ios
 ```
 
-That's it! On the login screen, tap **"Dev Login"** to sign in instantly.
+On the login screen, tap **"Dev Login"** to sign in instantly.
 
 ## Development Workflow
 
-### Daily Development
-
+### Run the App
 ```bash
 cd yyx-app
-npm run dev:check    # Verify everything is running
-npm run ios          # Run the app
-```
-
-### If Supabase Needs Starting
-
-```bash
-cd yyx-server
-npm start            # Start Supabase
-npm run status       # Check status
-npm stop             # Stop when done
+npm run ios           # Physical iPhone
+npm run ios:sim       # iOS Simulator
+npm run android       # Physical Android
 ```
 
 ### Database Changes
-
-**Create migration:**
 ```bash
 cd yyx-server
-supabase migration new add_feature_name
+npm run backup        # ALWAYS backup first!
+npm run migration:new add_feature_name
+# Edit: supabase/migrations/TIMESTAMP_add_feature_name.sql
+npm run db:push       # Push to cloud
 ```
 
-**Edit the migration:**
-- File: `yyx-server/supabase/migrations/TIMESTAMP_add_feature_name.sql`
-- Add your SQL (CREATE TABLE, ALTER TABLE, etc.)
-
-**Test locally:**
-```bash
-supabase db reset  # Drops DB, reapplies all migrations from scratch
-```
-
-**Deploy to production:**
-```bash
-supabase db push
-```
-
-### Edge Functions
-
-**Test locally:**
+### Deploy Edge Functions
 ```bash
 cd yyx-server
-supabase functions serve [function-name] --env-file .env
+npm run deploy ai-chat      # Single function
+npm run deploy:all          # All functions
 ```
 
-**Deploy:**
+### View Logs
 ```bash
-supabase functions deploy [function-name]
+cd yyx-server
+npm run logs ai-chat
 ```
 
 ## Project Structure
@@ -88,26 +66,25 @@ supabase functions deploy [function-name]
 ```
 yummy-yummix-app/
 ├── yyx-app/              # React Native mobile app (Expo)
-│   ├── app/              # Expo Router screens (file-based routing)
+│   ├── app/              # Expo Router screens
 │   ├── components/       # Reusable UI components
-│   ├── contexts/         # React contexts (Auth, Language, etc.)
+│   ├── contexts/         # React contexts
 │   ├── services/         # API services
-│   ├── hooks/            # Custom React hooks
-│   ├── lib/              # Supabase client setup
-│   ├── .env              # Production config (gitignored)
-│   └── .env.local        # Local dev config (committed)
+│   └── .env.local        # Cloud config (gitignored)
 │
-└── yyx-server/           # Backend
-    └── supabase/
-        ├── functions/    # Edge Functions (Deno/TypeScript)
-        └── migrations/   # Database migrations
+└── yyx-server/           # Backend (Supabase)
+    ├── supabase/
+    │   ├── functions/    # Edge Functions (Deno/TypeScript)
+    │   └── migrations/   # Database migrations
+    ├── scripts/          # Backup and utility scripts
+    └── .env.local        # Cloud config (gitignored)
 ```
 
 ## Tech Stack
 
 - **Framework**: React Native + Expo
 - **Styling**: NativeWind (Tailwind for React Native)
-- **Backend**: Supabase (Auth, Database, Storage, Edge Functions)
+- **Backend**: Supabase Cloud (Auth, Database, Storage, Edge Functions)
 - **Routing**: Expo Router (file-based)
 - **Languages**: TypeScript, i18n (English + Spanish)
 
@@ -115,91 +92,78 @@ yummy-yummix-app/
 
 ### Mobile App (yyx-app/)
 ```bash
-npm run dev:setup    # One-time setup (starts Supabase, configures env)
-npm run dev:check    # Verify local dev is ready
 npm run ios          # Run on physical iPhone
 npm run ios:sim      # Run on iOS Simulator
-npm run ios:prod     # Build with production Supabase
-npm run android      # Run on Android
+npm run android      # Run on physical Android
 npm test             # Run tests
 npm run lint         # Lint code
 ```
 
 ### Supabase (yyx-server/)
 ```bash
-npm start            # Start Supabase
-npm stop             # Stop Supabase
-npm run status       # Check status
-npm run reset        # Reset DB and reapply migrations
-npm run get-test-jwt # Get JWT for curl testing
+npm run link         # Link to cloud project
+npm run db:push      # Push migrations
+npm run deploy:all   # Deploy all functions
+npm run backup:all   # Backup database + storage
+npm run logs         # View function logs
 ```
 
-## Environment Variables
+## Environment Setup
 
-### `.env.local` (Local Development - Committed)
-Auto-generated by `npm run dev:setup`. Safe to commit (no secrets).
+Copy the example files and add your credentials:
 
-```env
-EXPO_PUBLIC_SUPABASE_URL=http://192.168.1.x:54321
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
-EXPO_PUBLIC_DEV_LOGIN_EMAIL=dev@yummyyummix.local
-EXPO_PUBLIC_DEV_LOGIN_PASSWORD=devpassword123
+```bash
+cp yyx-app/.env.example yyx-app/.env.local
+cp yyx-server/.env.example yyx-server/.env.local
 ```
 
-### `.env` (Production - Gitignored)
-Contains production URLs and API keys. Never commit.
+Get credentials from:
+- Supabase: https://supabase.com/dashboard/project/YOUR_PROJECT/settings/api
+- OpenAI: https://platform.openai.com/api-keys
 
-```env
-EXPO_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=xxx
-OPENAI_API_KEY=sk-proj-xxx
-USDA_API_KEY=xxx
+## Backup Strategy
+
+**Always backup before migrations:**
+```bash
+cd yyx-server
+npm run backup:all    # Database + Storage
 ```
+
+Supabase Free tier has NO automated backups. Run `npm run backup:all` before any migration or deployment.
+
+## Migration Rollback
+
+If a migration breaks the database:
+
+1. Create rollback migration:
+   ```bash
+   npm run migration:new rollback_bad_feature
+   # Edit to undo changes (DROP TABLE, DROP COLUMN, etc.)
+   ```
+
+2. Push rollback:
+   ```bash
+   npm run db:push
+   ```
 
 ## Troubleshooting
 
-### Can't connect to local Supabase
+### App can't connect
+- Verify `.env.local` has correct cloud URLs
+- Check project is active at https://supabase.com/dashboard
+- Clear caches: `rm -rf .expo node_modules/.cache`
 
-Run `npm run dev:setup` to auto-detect your IP and reconfigure everything.
-
-If that doesn't work:
-1. Ensure Mac and iPhone are on the same WiFi
-2. Check Supabase is running: `cd yyx-server && npm run status`
-3. Check firewall allows port 54321
-
-### Dev Login button doesn't appear
-
-The button only shows when `EXPO_PUBLIC_DEV_LOGIN_EMAIL` and `EXPO_PUBLIC_DEV_LOGIN_PASSWORD` are set. Run `npm run dev:setup` to configure.
-
-### Migrations out of sync
-
+### Edge function errors
 ```bash
-cd yyx-server
-supabase db pull    # Pull current production schema
-npm run reset       # Reset local to match
+npm run logs ai-chat
 ```
-
-### Build artifacts appearing in git
-
-Native folders (`ios/`, `android/`) are gitignored. They regenerate automatically.
-
-## Contributing
-
-1. Create a feature branch: `git checkout -b feature/my-feature`
-2. Make changes and test locally with `supabase db reset`
-3. Commit using conventional commits: `feat(scope): description`
-4. Push and create a PR
 
 ## Documentation
 
 - **CLAUDE.md**: Detailed conventions for AI assistance
-- **README.md**: This file - getting started guide
-- **Supabase Docs**: https://supabase.com/docs
+- **AGENTS.md**: Guidelines for AI coding agents
+- **TESTING.md**: Testing documentation
 
 ## License
 
 [Add your license]
-
-## Support
-
-[Add contact/support information]

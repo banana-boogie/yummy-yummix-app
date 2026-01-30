@@ -15,30 +15,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Prerequisites
 - **Node.js** (v18+)
-- **Docker Desktop** (for local Supabase)
 - **Supabase CLI**: `brew install supabase/tap/supabase`
-- **jq** (optional, for user seeding): `brew install jq`
 - **iOS**: Xcode (for iOS development)
 - **Android**: Android Studio (for Android development)
 
 ### First-Time Setup
 
+YummyYummix uses Supabase Cloud. Credentials are configured in `.env.local` files.
+
 ```bash
+# Clone and install
 cd yyx-app
-npm install           # Install dependencies
-npm run dev:setup     # Start Supabase, configure env, seed dev user
+npm install
+
+# Link workspace to cloud project (first time only)
+cd ../yyx-server
+npm run link          # Follow prompts to link to cloud project
+
+# Run the app
+cd ../yyx-app
 npm run ios           # Build and run on iPhone
 ```
 
-The `dev:setup` command handles everything:
-- Starts Docker/Supabase if needed
-- Detects your Mac's local IP
-- Updates `.env.local` with correct URLs
-- Creates a dev user for password-based login
+### Logging In
 
-### Logging In Locally
-
-On the login screen, tap **"Dev Login"** to sign in instantly with the pre-configured dev credentials. This bypasses magic link/Apple Sign-In which don't work locally.
+On the login screen, tap **"Dev Login"** to sign in with pre-configured dev credentials.
 
 ---
 
@@ -47,62 +48,72 @@ On the login screen, tap **"Dev Login"** to sign in instantly with the pre-confi
 ### Quick Start
 ```bash
 cd yyx-app
-npm run dev:check     # Verify everything is running
 npm run ios           # Run the app on iPhone
 ```
 
-### If Supabase Isn't Running
-```bash
-cd yyx-server
-npm start             # Start Supabase (or: supabase start)
-npm run status        # Check status
-npm stop              # Stop when done
-```
-
-### Production Build
-```bash
-cd yyx-app
-npm run ios:prod      # Build with production Supabase (uses .env instead of .env.local)
-```
-
-### 3. Making Database Changes
+### Making Database Changes
 
 **Create a new migration:**
 ```bash
 cd yyx-server
-supabase migration new add_my_feature
+npm run backup        # ALWAYS backup before migrations!
+npm run migration:new add_my_feature
 ```
 
 **Edit the migration:**
 - File will be in: `yyx-server/supabase/migrations/TIMESTAMP_add_my_feature.sql`
 - Write your SQL (CREATE TABLE, ALTER TABLE, etc.)
 
-**Test locally:**
+**Push to cloud:**
 ```bash
-supabase db reset     # Drops DB, reapplies all migrations
+npm run db:push       # Applies new migrations to cloud
 ```
 
-**Push to production:**
-```bash
-supabase db push      # Applies new migrations to cloud
-```
-
-**Why `db reset` vs `migration up`?**
-- `db reset` validates your entire migration chain works from scratch
-- Catches ordering issues before production
-- Recommended for local development
-- Production uses `db push` which only applies new migrations
-
-### 4. Working with Edge Functions
+### Deploying Edge Functions
 ```bash
 cd yyx-server
-
-# Test locally
-supabase functions serve [function-name] --env-file .env
-
-# Deploy to production
-supabase functions deploy [function-name]
+npm run deploy ai-chat      # Deploy single function
+npm run deploy:all          # Deploy all functions
 ```
+
+### Viewing Logs
+```bash
+npm run logs ai-chat        # View function logs
+# Or ask Claude: "Check edge function logs for errors"
+```
+
+### Backup Before Deploy (REQUIRED)
+
+**Always backup before deploying migrations:**
+```bash
+cd yyx-server
+npm run backup:all    # Database + Storage
+```
+
+Backup commands:
+- `npm run backup` - Database only
+- `npm run backup:storage` - Storage files only
+- `npm run backup:all` - Both (recommended)
+
+### Migration Rollback
+
+If a migration breaks the database:
+
+1. **Create rollback migration:**
+   ```bash
+   npm run migration:new rollback_bad_feature
+   # Edit migration to undo changes (DROP TABLE, DROP COLUMN, etc.)
+   ```
+
+2. **Push rollback:**
+   ```bash
+   npm run db:push
+   ```
+
+**Prevention:**
+- Always backup before migrations
+- Keep migrations small and reversible
+- Run tests before pushing
 
 ---
 
@@ -110,30 +121,38 @@ supabase functions deploy [function-name]
 
 ### Mobile App (yyx-app/)
 ```bash
-npm run dev:setup    # One-time setup: start Supabase, configure env, seed user
-npm run dev:check    # Verify local dev environment is ready
 npm run ios          # Run on physical iPhone
 npm run ios:sim      # Run on iOS Simulator
-npm run ios:prod     # Build with production Supabase
-npm run android      # Run on Android
+npm run android      # Run on physical Android
+npm run android:sim  # Run on Android Emulator
 npm run web          # Run web version
 npm test             # Run tests with Jest (watch mode)
+npm run test:ci      # Run tests once with coverage
 npm run lint         # Run ESLint
 ```
 
 ### Supabase (yyx-server/)
 ```bash
-npm start            # Start Supabase (supabase start)
-npm stop             # Stop Supabase
-npm run status       # Check status
-npm run reset        # Reset DB and reapply migrations
-npm run get-test-jwt # Get JWT for curl testing
+# Cloud operations
+npm run link         # Link workspace to cloud project
+npm run db:push      # Push migrations to cloud
+npm run db:pull      # Pull cloud schema
+npm run deploy       # Deploy single edge function
+npm run deploy:all   # Deploy all edge functions
+npm run logs         # View edge function logs
 
-# Direct Supabase CLI commands
-supabase migration new <name>    # Create new migration
-supabase db push                 # Push migrations to production
-supabase functions serve         # Run edge functions locally
-supabase functions deploy <name> # Deploy edge function
+# Backups (ALWAYS run before migrations!)
+npm run backup       # Database backup
+npm run backup:storage  # Storage backup
+npm run backup:all   # Both database and storage
+
+# Migrations
+npm run migration:new <name>  # Create new migration
+
+# Testing
+npm test             # Run unit tests
+npm run test:integration  # Integration tests
+npm run get-test-jwt # Get JWT for curl testing
 ```
 
 ### Running Tests
@@ -161,43 +180,63 @@ For detailed testing documentation, see [TESTING.md](./TESTING.md).
 
 ## Environment Variables
 
-### Local Development (`.env.local` - committed)
+**Environment Strategy:**
+- `.env.example` files are committed (templates with dummy values)
+- `.env.local` and `.env` files are gitignored (contain real credentials)
+
+### Setup
 ```bash
-# Auto-generated by: npm run dev:setup
-EXPO_PUBLIC_SUPABASE_URL=http://192.168.1.x:54321
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...    # Local dev key (safe to commit)
-EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL=http://192.168.1.x:54321/functions/v1
+# Copy templates
+cp yyx-app/.env.example yyx-app/.env.local
+cp yyx-server/.env.example yyx-server/.env.local
+
+# Edit with real values from Supabase dashboard
+```
+
+### Mobile App (yyx-app/.env.local)
+```bash
+EXPO_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
+EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL=https://xxx.supabase.co/functions/v1
 EXPO_PUBLIC_DEV_LOGIN_EMAIL=dev@yummyyummix.local
 EXPO_PUBLIC_DEV_LOGIN_PASSWORD=devpassword123
 ```
 
-### Production (`.env` - gitignored, contains secrets)
+### Server (yyx-server/.env.local)
 ```bash
-EXPO_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...    # Production key (secret)
-EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL=https://xxx.supabase.co/functions/v1
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_ANON_KEY=eyJhbGc...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...  # Get from dashboard (NEVER via MCP)
 OPENAI_API_KEY=sk-proj-xxx
 USDA_API_KEY=xxx
+CARTESIA_API_KEY=xxx
 ```
 
-**Priority**: `.env.local` overrides `.env` when present.
+### MCP Security Note
+
+**NEVER ask Claude to fetch sensitive credentials via MCP tools.**
+
+MCP tool results pass through Anthropic's servers. Get sensitive keys directly:
+- Supabase keys: https://supabase.com/dashboard/project/YOUR_PROJECT/settings/api
+- OpenAI: https://platform.openai.com/api-keys
+
+**Safe MCP operations:** logs, schema info, deployments, SQL queries.
+**Unsafe via MCP:** service_role_key, API keys, passwords.
 
 ---
 
 ## Troubleshooting
 
-### App can't connect to local Supabase
-1. Run `npm run dev:setup` to auto-detect IP and reconfigure
-2. Ensure Mac and iPhone are on the same WiFi network
-3. Check Supabase is running: `cd yyx-server && npm run status`
-4. Check firewall isn't blocking port 54321
+### App can't connect to Supabase
+1. Verify `.env.local` has correct cloud URLs
+2. Check the project is active: https://supabase.com/dashboard
+3. Clear app caches: `rm -rf .expo node_modules/.cache`
+4. Restart: `npm run ios`
 
 ### Dev Login button doesn't appear
 The Dev Login button only shows when:
 - Running in development mode (`__DEV__` is true)
 - `EXPO_PUBLIC_DEV_LOGIN_EMAIL` and `EXPO_PUBLIC_DEV_LOGIN_PASSWORD` are set in `.env.local`
-
-Run `npm run dev:setup` to configure these automatically.
 
 ### Native build folders (`ios/`, `android/`) appear
 - These are auto-generated and gitignored
@@ -207,33 +246,19 @@ Run `npm run dev:setup` to configure these automatically.
 ### Migrations out of sync
 ```bash
 cd yyx-server
-supabase db pull      # Pull current production schema
-npm run reset         # Reset local DB
+npm run db:pull       # Pull current cloud schema
 ```
 
-### JWT signing method error when seeding dev user
-If you see an error like "signing method HS256 is invalid":
+### Edge function errors
 ```bash
 cd yyx-server
-supabase stop
-supabase start
-cd ../yyx-app
-npm run dev:setup     # Re-run setup with fresh JWT keys
+npm run logs ai-chat  # View function logs
+# Or ask Claude: "Check edge function logs for errors"
 ```
-This happens when Supabase JWT keys change (e.g., after CLI upgrade). The dev-setup script now extracts keys dynamically to prevent this.
 
-### Dev user exists but no user_profile
-If the dev user can log in but the app crashes accessing profile data:
-```bash
-cd yyx-app
-npm run dev:setup     # Automatically creates missing user_profile
-```
-The updated dev-setup script now ensures both auth user and user_profile are created.
-
-### Useful Local URLs
-- **Supabase Studio**: http://localhost:54323 (DB admin UI)
-- **Inbucket**: http://localhost:54324 (captured emails)
-- **API**: http://localhost:54321
+### Useful URLs
+- **Supabase Dashboard**: https://supabase.com/dashboard
+- **Project Settings**: https://supabase.com/dashboard/project/YOUR_PROJECT/settings/api
 
 ## Tech Stack
 

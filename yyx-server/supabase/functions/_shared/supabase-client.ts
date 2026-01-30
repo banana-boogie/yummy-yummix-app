@@ -1,29 +1,17 @@
 /**
  * Supabase Client Factory
  *
- * Creates Supabase clients with proper URL handling for both
- * local development (Docker) and production environments.
+ * Creates Supabase clients for edge functions.
+ * Uses Supabase Cloud - no local Docker translation needed.
  */
 
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 /**
- * Get the correct Supabase URL for the current environment.
- *
- * In local development, edge functions run in Docker where:
- * - SUPABASE_URL is set to 'http://kong:8000' (internal Docker network)
- * - This doesn't work for auth calls from within the function
- * - We need to use 'host.docker.internal' to reach the host machine
+ * Get the Supabase URL from environment.
  */
 export function getSupabaseUrl(): string {
-    let url = Deno.env.get('SUPABASE_URL') || '';
-
-    // Fix for local development: kong:8000 is internal Docker address
-    if (url.includes('kong:8000')) {
-        url = 'http://host.docker.internal:54321';
-    }
-
-    return url;
+    return Deno.env.get('SUPABASE_URL') || '';
 }
 
 /**
