@@ -43,7 +43,10 @@ function validateNutritionalData(data: unknown): data is NutritionalData {
   );
 }
 
-function convertToPer100g(data: NutritionalData, currentPortionSize: number): void {
+function convertToPer100g(
+  data: NutritionalData,
+  currentPortionSize: number,
+): void {
   const conversionFactor = 100 / currentPortionSize;
   data.calories *= conversionFactor;
   data.protein *= conversionFactor;

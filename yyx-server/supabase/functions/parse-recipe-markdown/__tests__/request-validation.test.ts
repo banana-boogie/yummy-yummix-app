@@ -16,9 +16,9 @@ import {
   assertExists,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
-  createMockRequest,
-  createMockJsonResponse,
   createMockErrorResponse,
+  createMockJsonResponse,
+  createMockRequest,
 } from "../../_shared/test-helpers/mocks.ts";
 
 // ============================================================
@@ -73,7 +73,11 @@ Deno.test("schema - includes all required recipe properties", () => {
 Deno.test("schema - difficulty enum has correct values", () => {
   expectedDifficultyValues.forEach((value) => {
     const isValid = expectedDifficultyValues.includes(value);
-    assertEquals(isValid, true, `Expected difficulty value ${value} to be valid`);
+    assertEquals(
+      isValid,
+      true,
+      `Expected difficulty value ${value} to be valid`,
+    );
   });
 });
 
@@ -123,7 +127,8 @@ Deno.test("request validation - undefined markdown is invalid", () => {
 
 Deno.test("request validation - number as markdown is invalid", () => {
   const body: { markdown: unknown } = { markdown: 12345 };
-  const isValid = typeof body.markdown === "string" && (body.markdown as string).length > 0;
+  const isValid = typeof body.markdown === "string" &&
+    (body.markdown as string).length > 0;
   assertEquals(isValid, false);
 });
 
@@ -181,7 +186,12 @@ Deno.test("ingredient schema - requires quantity and ingredient object", () => {
 });
 
 Deno.test("ingredient schema - measurement unit is optional", () => {
-  const ingredientWithoutUnit: { quantity: number; ingredient: object; displayOrder: number; measurementUnitID?: string } = {
+  const ingredientWithoutUnit: {
+    quantity: number;
+    ingredient: object;
+    displayOrder: number;
+    measurementUnitID?: string;
+  } = {
     quantity: 2,
     ingredient: {
       nameEn: "Eggs",
