@@ -111,8 +111,8 @@ describe('RecipeCard', () => {
     it('navigates to recipe detail on press', async () => {
       render(<RecipeCard recipe={mockRecipe} />);
 
-      const card = screen.getByText('Test Recipe').parent?.parent?.parent;
-      fireEvent.press(card!);
+      const card = screen.getByTestId('recipe-card-pressable');
+      fireEvent.press(card);
 
       await waitFor(() => {
         expect(mockPush).toHaveBeenCalledWith(`/(tabs)/recipes/${mockRecipe.id}`);
@@ -122,8 +122,8 @@ describe('RecipeCard', () => {
     it('triggers haptic feedback on press', async () => {
       render(<RecipeCard recipe={mockRecipe} />);
 
-      const card = screen.getByText('Test Recipe').parent?.parent?.parent;
-      fireEvent.press(card!);
+      const card = screen.getByTestId('recipe-card-pressable');
+      fireEvent.press(card);
 
       await waitFor(() => {
         expect(Haptics.selectionAsync).toHaveBeenCalled();
@@ -157,12 +157,10 @@ describe('RecipeCard', () => {
     it('is pressable', async () => {
       render(<RecipeCard recipe={mockRecipe} />);
 
-      // Find the Pressable by finding a child element and navigating up
-      const recipeName = screen.getByText('Test Recipe');
-      const pressable = recipeName.parent?.parent?.parent?.parent;
+      const pressable = screen.getByTestId('recipe-card-pressable');
 
       expect(pressable).toBeTruthy();
-      fireEvent.press(pressable!);
+      fireEvent.press(pressable);
 
       // Use waitFor since the press handler is async
       await waitFor(() => {

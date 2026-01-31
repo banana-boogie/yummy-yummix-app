@@ -370,11 +370,30 @@ export function mockEdgeFunctionError(functionName: string, message: string): vo
 /**
  * Resets all Supabase mocks to their default state.
  * Call this in beforeEach() or afterEach() to ensure test isolation.
+ *
+ * This clears mock call history AND resets to default implementations.
  */
 export function resetSupabaseMocks(): void {
   const mockClient = getMockSupabaseClient();
 
-  // Reset auth mocks
+  // Clear call history for all auth mocks
+  mockClient.auth.getSession.mockClear();
+  mockClient.auth.getUser.mockClear();
+  mockClient.auth.signInWithPassword.mockClear();
+  mockClient.auth.signInWithOtp.mockClear();
+  mockClient.auth.signOut.mockClear();
+  mockClient.auth.onAuthStateChange.mockClear();
+  mockClient.auth.setSession.mockClear();
+  mockClient.auth.startAutoRefresh.mockClear();
+  mockClient.auth.stopAutoRefresh.mockClear();
+
+  // Clear call history for other mocks
+  mockClient.from.mockClear();
+  mockClient.storage.from.mockClear();
+  mockClient.functions.invoke.mockClear();
+  mockClient.rpc.mockClear();
+
+  // Reset auth mocks to default implementations
   mockClient.auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
   mockClient.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
   mockClient.auth.signInWithPassword.mockResolvedValue({ data: null, error: null });

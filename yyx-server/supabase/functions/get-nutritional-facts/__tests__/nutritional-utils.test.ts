@@ -1,7 +1,7 @@
 /**
  * Nutritional Utils Tests
  *
- * Tests for nutrition utility functions from get-nutritional-facts edge function:
+ * Tests for nutrition utility functions from _shared/nutritional-utils.ts:
  * - Data validation
  * - Rounding rules
  * - Data normalization
@@ -9,50 +9,14 @@
 
 import {
   assertEquals,
-  assertExists,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
-// ============================================================
-// INLINE IMPLEMENTATIONS FOR TESTING
-// Since we can't easily import from the edge function,
-// we recreate the utility functions here for isolated testing.
-// ============================================================
-
-interface NutritionalData {
-  calories: number;
-  protein: number;
-  fat: number;
-  carbohydrates: number;
-}
-
-function applyRoundingRulesToData(data: NutritionalData): void {
-  data.calories = Math.round(data.calories);
-  data.protein = Number(data.protein.toFixed(1));
-  data.fat = Number(data.fat.toFixed(1));
-  data.carbohydrates = Number(data.carbohydrates.toFixed(1));
-}
-
-function validateNutritionalData(data: unknown): data is NutritionalData {
-  return (
-    typeof data === "object" &&
-    data !== null &&
-    typeof (data as NutritionalData).calories === "number" &&
-    typeof (data as NutritionalData).protein === "number" &&
-    typeof (data as NutritionalData).fat === "number" &&
-    typeof (data as NutritionalData).carbohydrates === "number"
-  );
-}
-
-function convertToPer100g(
-  data: NutritionalData,
-  currentPortionSize: number,
-): void {
-  const conversionFactor = 100 / currentPortionSize;
-  data.calories *= conversionFactor;
-  data.protein *= conversionFactor;
-  data.fat *= conversionFactor;
-  data.carbohydrates *= conversionFactor;
-}
+import {
+  applyRoundingRulesToData,
+  convertToPer100g,
+  validateNutritionalData,
+  type NutritionalData,
+} from "../../_shared/nutritional-utils.ts";
 
 // ============================================================
 // ROUNDING RULES TESTS

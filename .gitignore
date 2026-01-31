@@ -33,6 +33,9 @@ npm-debug.*
 *.swp
 *.swo
 
+# Claude Code
+.claude/
+
 # iOS/Android signing
 *.jks
 *.p8

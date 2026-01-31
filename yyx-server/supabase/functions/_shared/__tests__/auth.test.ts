@@ -21,85 +21,127 @@ import {
   validateAuth,
 } from "../auth.ts";
 
-// Mock Supabase client
-const mockCreateClient = () => {
-  return {
-    auth: {
-      getUser: async () => mockGetUserResponse,
-    },
+// Helper to run tests with isolated env vars
+function withTestEnv(
+  fn: () => void | Promise<void>,
+): () => Promise<void> {
+  return async () => {
+    // Save original env
+    const originalUrl = Deno.env.get("SUPABASE_URL");
+    const originalKey = Deno.env.get("SUPABASE_ANON_KEY");
+
+    try {
+      // Set test env
+      Deno.env.set("SUPABASE_URL", "https://test.supabase.co");
+      Deno.env.set("SUPABASE_ANON_KEY", "test-anon-key");
+
+      await fn();
+    } finally {
+      // Restore original env (or delete if was undefined)
+      if (originalUrl !== undefined) {
+        Deno.env.set("SUPABASE_URL", originalUrl);
+      } else {
+        Deno.env.delete("SUPABASE_URL");
+      }
+      if (originalKey !== undefined) {
+        Deno.env.set("SUPABASE_ANON_KEY", originalKey);
+      } else {
+        Deno.env.delete("SUPABASE_ANON_KEY");
+      }
+    }
   };
-};
-
-let mockGetUserResponse: any = {
-  data: { user: null },
-  error: null,
-};
-
-// Store original env vars
-const originalEnv = {
-  SUPABASE_URL: Deno.env.get("SUPABASE_URL"),
-  SUPABASE_ANON_KEY: Deno.env.get("SUPABASE_ANON_KEY"),
-};
-
-// Setup: Mock Supabase environment
-Deno.test("setup", () => {
-  Deno.env.set("SUPABASE_URL", "https://test.supabase.co");
-  Deno.env.set("SUPABASE_ANON_KEY", "test-anon-key");
-});
+}
 
 // ============================================================
 // VALIDATE AUTH TESTS
 // ============================================================
 
-Deno.test("validateAuth - returns error when Authorization header is missing", async () => {
-  const result = await validateAuth(null);
+Deno.test(
+  "validateAuth - returns error when Authorization header is missing",
+  withTestEnv(async () => {
+    const result = await validateAuth(null);
 
-  assertEquals(result.user, null);
-  assertEquals(result.error, "Missing Authorization header");
-});
+    assertEquals(result.user, null);
+    assertEquals(result.error, "Missing Authorization header");
+  }),
+);
 
-Deno.test("validateAuth - returns error when header doesn't start with Bearer", async () => {
-  const result = await validateAuth("Basic abcd1234");
+Deno.test(
+  "validateAuth - returns error when header doesn't start with Bearer",
+  withTestEnv(async () => {
+    const result = await validateAuth("Basic abcd1234");
 
-  assertEquals(result.user, null);
-  assertEquals(result.error, "Invalid Authorization header format");
-});
+    assertEquals(result.user, null);
+    assertEquals(result.error, "Invalid Authorization header format");
+  }),
+);
 
-Deno.test("validateAuth - returns error when Supabase URL is missing", async () => {
-  Deno.env.delete("SUPABASE_URL");
+Deno.test(
+  "validateAuth - returns error when Supabase URL is missing",
+  async () => {
+    // Save and clear env
+    const originalUrl = Deno.env.get("SUPABASE_URL");
+    const originalKey = Deno.env.get("SUPABASE_ANON_KEY");
 
-  const result = await validateAuth("Bearer valid-token");
+    try {
+      Deno.env.delete("SUPABASE_URL");
+      Deno.env.set("SUPABASE_ANON_KEY", "test-anon-key");
 
-  assertEquals(result.user, null);
-  assertEquals(result.error, "Missing Supabase configuration");
+      const result = await validateAuth("Bearer valid-token");
 
-  // Restore
-  Deno.env.set("SUPABASE_URL", "https://test.supabase.co");
-});
+      assertEquals(result.user, null);
+      assertEquals(result.error, "Missing Supabase configuration");
+    } finally {
+      // Restore
+      if (originalUrl !== undefined) {
+        Deno.env.set("SUPABASE_URL", originalUrl);
+      } else {
+        Deno.env.delete("SUPABASE_URL");
+      }
+      if (originalKey !== undefined) {
+        Deno.env.set("SUPABASE_ANON_KEY", originalKey);
+      } else {
+        Deno.env.delete("SUPABASE_ANON_KEY");
+      }
+    }
+  },
+);
 
-Deno.test("validateAuth - returns error when Supabase anon key is missing", async () => {
-  Deno.env.delete("SUPABASE_ANON_KEY");
+Deno.test(
+  "validateAuth - returns error when Supabase anon key is missing",
+  async () => {
+    // Save and clear env
+    const originalUrl = Deno.env.get("SUPABASE_URL");
+    const originalKey = Deno.env.get("SUPABASE_ANON_KEY");
 
-  const result = await validateAuth("Bearer valid-token");
+    try {
+      Deno.env.set("SUPABASE_URL", "https://test.supabase.co");
+      Deno.env.delete("SUPABASE_ANON_KEY");
 
-  assertEquals(result.user, null);
-  assertEquals(result.error, "Missing Supabase configuration");
+      const result = await validateAuth("Bearer valid-token");
 
-  // Restore
-  Deno.env.set("SUPABASE_ANON_KEY", "test-anon-key");
-});
+      assertEquals(result.user, null);
+      assertEquals(result.error, "Missing Supabase configuration");
+    } finally {
+      // Restore
+      if (originalUrl !== undefined) {
+        Deno.env.set("SUPABASE_URL", originalUrl);
+      } else {
+        Deno.env.delete("SUPABASE_URL");
+      }
+      if (originalKey !== undefined) {
+        Deno.env.set("SUPABASE_ANON_KEY", originalKey);
+      } else {
+        Deno.env.delete("SUPABASE_ANON_KEY");
+      }
+    }
+  },
+);
 
-// Note: The following test is commented out because it requires mocking the Supabase client.
-// In a real implementation, you would:
-// 1. Use a dependency injection pattern
-// 2. Use a Deno-compatible mocking library like https://deno.land/x/mock
-// 3. Test against a real test Supabase instance
-//
-// Deno.test("validateAuth - validates token format and structure", async () => {
-//   const result = await validateAuth("Bearer invalid-token");
-//   assertEquals(result.user, null);
-//   assertExists(result.error);
-// });
+// Note: Testing actual JWT validation would require:
+// 1. A dependency injection pattern for the Supabase client
+// 2. Integration tests against a real test Supabase instance
+// 3. Or a proper mocking library for Deno
 
 // ============================================================
 // ROLE CHECKING TESTS
@@ -230,41 +272,32 @@ Deno.test("forbiddenResponse - includes CORS headers when provided", async () =>
 // INTEGRATION SCENARIO TESTS
 // ============================================================
 
-Deno.test("auth flow - validates complete authentication flow", () => {
-  // Scenario 1: No auth header
-  const noAuth = validateAuth(null);
-  noAuth.then((result) => {
-    assertEquals(result.user, null);
-    assertExists(result.error);
-  });
+Deno.test(
+  "auth flow - validates complete authentication flow",
+  withTestEnv(async () => {
+    // Scenario 1: No auth header
+    const noAuthResult = await validateAuth(null);
+    assertEquals(noAuthResult.user, null);
+    assertExists(noAuthResult.error);
 
-  // Scenario 2: User with role can access their own resources
-  const regularUser: AuthUser = {
-    id: "user-123",
-    email: "user@example.com",
-    role: "user",
-  };
+    // Scenario 2: User with role can access their own resources
+    const regularUser: AuthUser = {
+      id: "user-123",
+      email: "user@example.com",
+      role: "user",
+    };
 
-  assertEquals(hasRole(regularUser, "user"), true);
-  assertEquals(hasRole(regularUser, "admin"), false);
+    assertEquals(hasRole(regularUser, "user"), true);
+    assertEquals(hasRole(regularUser, "admin"), false);
 
-  // Scenario 3: Admin can access everything
-  const adminUser: AuthUser = {
-    id: "admin-123",
-    email: "admin@example.com",
-    role: "admin",
-  };
+    // Scenario 3: Admin can access everything
+    const adminUser: AuthUser = {
+      id: "admin-123",
+      email: "admin@example.com",
+      role: "admin",
+    };
 
-  assertEquals(hasRole(adminUser, "user"), true);
-  assertEquals(hasRole(adminUser, "admin"), true);
-});
-
-// Cleanup: Restore original environment
-Deno.test("cleanup", () => {
-  if (originalEnv.SUPABASE_URL) {
-    Deno.env.set("SUPABASE_URL", originalEnv.SUPABASE_URL);
-  }
-  if (originalEnv.SUPABASE_ANON_KEY) {
-    Deno.env.set("SUPABASE_ANON_KEY", originalEnv.SUPABASE_ANON_KEY);
-  }
-});
+    assertEquals(hasRole(adminUser, "user"), true);
+    assertEquals(hasRole(adminUser, "admin"), true);
+  }),
+);
