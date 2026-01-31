@@ -235,6 +235,18 @@ jest.mock('@/lib/supabase', () => {
 });
 
 // ============================================================
+// FACTORY ID COUNTER RESET
+// ============================================================
+
+// Import factory reset functions
+const { resetAllFactories } = require('./test/factories');
+
+// Reset factory ID counters before each test for deterministic behavior
+beforeEach(() => {
+  resetAllFactories();
+});
+
+// ============================================================
 // GLOBAL TEST UTILITIES
 // ============================================================
 

@@ -41,6 +41,7 @@ export const RecipeCard = React.memo(function RecipeCard({
       style={style}
     >
       <Pressable
+        testID="recipe-card-pressable"
         className="active:opacity-70"
         onPress={handlePress}
       >
