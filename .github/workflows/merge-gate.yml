@@ -1,0 +1,110 @@
+# Merge Gate - Required check for all PRs
+#
+# This workflow runs on ALL pull requests and acts as the single required
+# check for branch protection. It waits for relevant CI workflows to complete
+# based on which files were changed.
+#
+# FOR AI AGENTS:
+# - This is the ONLY required check for branch protection
+# - It dynamically determines which CI jobs need to pass based on changed files
+# - PRs that only change infrastructure files will pass immediately
+
+name: Merge Gate
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+# Cancel in-progress runs for the same PR
+concurrency:
+  group: merge-gate-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================
+  # DETECT CHANGES
+  # ============================================================
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      app-changed: ${{ steps.changes.outputs.app }}
+      server-changed: ${{ steps.changes.outputs.server }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect file changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            app:
+              - 'yyx-app/**'
+              - '.github/workflows/yyx-app-ci.yml'
+            server:
+              - 'yyx-server/**'
+              - '.github/workflows/yyx-server-ci.yml'
+
+  # ============================================================
+  # WAIT FOR APP CI (if app files changed)
+  # ============================================================
+  wait-for-app-ci:
+    name: App CI Status
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    if: needs.detect-changes.outputs.app-changed == 'true'
+    steps:
+      - name: Wait for YYX App CI
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.head_ref }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          check-regexp: '(Lint & TypeCheck|Test)'
+          wait-interval: 10
+          allowed-conclusions: success
+
+  # ============================================================
+  # WAIT FOR SERVER CI (if server files changed)
+  # ============================================================
+  wait-for-server-ci:
+    name: Server CI Status
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    if: needs.detect-changes.outputs.server-changed == 'true'
+    steps:
+      - name: Wait for YYX Server CI
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.head_ref }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          check-regexp: '(Format Check|Unit Tests)'
+          wait-interval: 10
+          allowed-conclusions: success
+
+  # ============================================================
+  # FINAL GATE - Always runs, summarizes results
+  # ============================================================
+  merge-ready:
+    name: Ready to Merge
+    needs: [detect-changes, wait-for-app-ci, wait-for-server-ci]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        run: |
+          echo "=== Merge Gate Summary ==="
+          echo "App files changed: ${{ needs.detect-changes.outputs.app-changed }}"
+          echo "Server files changed: ${{ needs.detect-changes.outputs.server-changed }}"
+
+          # Check if any required jobs failed
+          if [ "${{ needs.wait-for-app-ci.result }}" == "failure" ]; then
+            echo "❌ App CI failed"
+            exit 1
+          fi
+
+          if [ "${{ needs.wait-for-server-ci.result }}" == "failure" ]; then
+            echo "❌ Server CI failed"
+            exit 1
+          fi
+
+          echo "✅ All required checks passed!"
