@@ -4,7 +4,9 @@
   "private": true,
   "description": "YummyYummix monorepo - React Native app and Supabase Edge Functions",
   "scripts": {
-    "prepare": "husky"
+    "prepare": "husky",
+    "verify-hooks": "test -x .husky/pre-commit && echo '✅ Git hooks are installed' || (echo '❌ Git hooks not installed. Run: npm install' && exit 1)",
+    "precommit": ".husky/pre-commit"
   },
   "devDependencies": {
     "husky": "^9.1.7"
