@@ -525,7 +525,13 @@ Deno.test("validateRecipeData - accepts recipe with tags", () => {
     ingredients: [{ quantity: 1, ingredient: { name_en: "Salt" } }],
     steps: [{ order: 1, instruction_en: "Season" }],
     tags: [
-      { recipe_tags: { id: "tag-1", name_en: "Vegetarian", name_es: "Vegetariano" } },
+      {
+        recipe_tags: {
+          id: "tag-1",
+          name_en: "Vegetarian",
+          name_es: "Vegetariano",
+        },
+      },
       { recipe_tags: { id: "tag-2", name_en: "Quick", name_es: "Rápido" } },
     ],
   };

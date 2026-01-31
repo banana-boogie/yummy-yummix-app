@@ -14,11 +14,11 @@ import {
   assertExists,
 } from "https://deno.land/std@0.220.0/assert/mod.ts";
 import {
-  validateAuth,
+  AuthUser,
+  forbiddenResponse,
   hasRole,
   unauthorizedResponse,
-  forbiddenResponse,
-  AuthUser,
+  validateAuth,
 } from "../auth.ts";
 
 // Mock Supabase client
@@ -188,7 +188,10 @@ Deno.test("unauthorizedResponse - includes CORS headers when provided", async ()
 
   assertEquals(response.status, 401);
   assertEquals(response.headers.get("Access-Control-Allow-Origin"), "*");
-  assertEquals(response.headers.get("Access-Control-Allow-Methods"), "GET, POST, PUT, DELETE");
+  assertEquals(
+    response.headers.get("Access-Control-Allow-Methods"),
+    "GET, POST, PUT, DELETE",
+  );
 
   const body = await response.json();
   assertEquals(body.error, "Authentication required");
@@ -214,7 +217,10 @@ Deno.test("forbiddenResponse - includes CORS headers when provided", async () =>
 
   assertEquals(response.status, 403);
   assertEquals(response.headers.get("Access-Control-Allow-Origin"), "*");
-  assertEquals(response.headers.get("Access-Control-Allow-Credentials"), "true");
+  assertEquals(
+    response.headers.get("Access-Control-Allow-Credentials"),
+    "true",
+  );
 
   const body = await response.json();
   assertEquals(body.error, "Insufficient permissions");
