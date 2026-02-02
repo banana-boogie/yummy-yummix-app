@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import i18n from '@/i18n';
@@ -15,10 +15,17 @@ import { useDevice } from '@/hooks/useDevice';
 import { AppleAuthButton } from '@/components/auth/AppleAuthButton';
 import { Divider } from '@/components/common/Divider';
 import { COLORS } from '@/constants/design-tokens';
+import { supabase } from '@/lib/supabase';
 
 
 export default function SignUpScreen() {
   const router = useRouter();
+  const [devError, setDevError] = useState<{ message: string } | null>(null);
+  const [isDevLoading, setIsDevLoading] = useState(false);
+
+  const devEmail = process.env.EXPO_PUBLIC_DEV_LOGIN_EMAIL;
+  const devPassword = process.env.EXPO_PUBLIC_DEV_LOGIN_PASSWORD;
+  const showDevLogin = __DEV__ && !!devEmail && !!devPassword;
 
   const {
     email,
@@ -40,7 +47,31 @@ export default function SignUpScreen() {
   } = useAppleAuth();
 
   // Show the appropriate error
-  const error = appleError || magicLinkError;
+  const error = devError || appleError || magicLinkError;
+
+  const handleDevLogin = async () => {
+    if (!devEmail || !devPassword) {
+      setDevError({ message: i18n.t('auth.devLogin.missingCredentials') });
+      return;
+    }
+
+    setDevError(null);
+    setIsDevLoading(true);
+    try {
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: devEmail,
+        password: devPassword,
+      });
+
+      if (loginError) {
+        setDevError({ message: i18n.t('auth.devLogin.failed') });
+      }
+    } catch {
+      setDevError({ message: i18n.t('auth.devLogin.failed') });
+    } finally {
+      setIsDevLoading(false);
+    }
+  };
 
   const handleLogin = () => router.push('/auth/login');
 
@@ -76,7 +107,7 @@ export default function SignUpScreen() {
         <Button
           label={isMagicLinkLoading ? i18n.t('auth.emailAuth.confirmation.sending') : i18n.t('auth.emailAuth.signup.submit')}
           onPress={handleMagicLink}
-          disabled={!isEmailValid || isMagicLinkLoading || isAppleLoading}
+          disabled={!isEmailValid || isMagicLinkLoading || isAppleLoading || isDevLoading}
           loading={isMagicLinkLoading}
           variant="primary"
         />
@@ -89,6 +120,19 @@ export default function SignUpScreen() {
           isLoading={isAppleLoading}
           isSignUp={true}
         />
+
+        {showDevLogin && (
+          <>
+            <Divider text={i18n.t('auth.devLogin.orDev')} />
+            <Button
+              label={isDevLoading ? i18n.t('auth.devLogin.signingIn') : i18n.t('auth.devLogin.button')}
+              onPress={handleDevLogin}
+              disabled={isDevLoading || isMagicLinkLoading || isAppleLoading}
+              loading={isDevLoading}
+              variant="secondary"
+            />
+          </>
+        )}
       </View>
 
       {/* Footer with sign in link */}

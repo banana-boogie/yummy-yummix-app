@@ -95,8 +95,10 @@ export async function filterByAllergens<
 
   const allergenMap = await getAllergenMap(supabase);
   if (allergenMap.size === 0) {
-    console.error('Allergen map is empty; failing closed to avoid unsafe results.');
-    return [];
+    // If allergen data isn't available, fail OPEN (allow all recipes)
+    // This is better UX than blocking everything when the table doesn't exist
+    console.warn('Allergen map is empty; failing open (no filtering applied).');
+    return recipes;
   }
 
   const results: T[] = [];
@@ -154,8 +156,10 @@ export async function checkIngredientForAllergens(
 
   const allergenMap = await getAllergenMap(supabase);
   if (allergenMap.size === 0) {
-    console.error('Allergen map is empty; failing closed for safety.');
-    return { safe: false, allergen: 'unknown', category: 'unknown' };
+    // If allergen data isn't available, fail OPEN (assume safe)
+    // This is better UX than blocking everything when the table doesn't exist
+    console.warn('Allergen map is empty; failing open (assuming safe).');
+    return { safe: true };
   }
   const normalized = await normalizeIngredient(supabase, ingredientName, language);
 

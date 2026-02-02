@@ -4,7 +4,7 @@
  * Displays an AI-generated recipe with editable name and "Start Cooking" button.
  * Used in chat when the AI generates a custom recipe from user's ingredients.
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { View, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
@@ -23,7 +23,7 @@ interface CustomRecipeCardProps {
     loading?: boolean;
 }
 
-export function CustomRecipeCard({
+export const CustomRecipeCard = memo(function CustomRecipeCard({
     recipe,
     safetyFlags,
     onStartCooking,
@@ -215,7 +215,7 @@ export function CustomRecipeCard({
                 accessibilityRole="list"
                 accessibilityLabel={`${i18n.t('recipes.common.ingredients')}: ${displayIngredients.map(ing => `${ing.quantity} ${ing.unit} ${ing.name}`).join(', ')}${moreIngredientsCount > 0 && !showAllIngredients ? ` ${i18n.t('chat.andMore', { count: moreIngredientsCount })}` : ''}`}
             >
-                <Text className="text-text-secondary text-sm mb-sm">
+                <Text className="text-text-secondary text-base font-medium mb-sm">
                     {i18n.t('recipes.common.ingredients')}:
                 </Text>
                 <View className="flex-row flex-wrap gap-md">
@@ -227,14 +227,14 @@ export function CustomRecipeCard({
                         >
                             <Image
                                 source={ingredient.imageUrl ? { uri: ingredient.imageUrl } : PLACEHOLDER_IMAGES.ingredient}
-                                className="w-12 h-12 rounded-full bg-background-tertiary"
+                                className="w-14 h-14 rounded-full bg-background-tertiary"
                                 contentFit="cover"
                                 onError={() => {
                                     console.warn(`Failed to load image for ingredient: ${ingredient.name}`);
                                 }}
                             />
                             <View className="bg-background-secondary px-sm py-xs rounded-full">
-                                <Text className="text-text-primary text-sm">
+                                <Text className="text-text-primary text-base">
                                     {ingredient.quantity} {ingredient.unit} {ingredient.name}
                                 </Text>
                             </View>
@@ -249,7 +249,7 @@ export function CustomRecipeCard({
                             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                             setShowAllIngredients(!showAllIngredients);
                         }}
-                        className="mt-sm"
+                        className="mt-md self-start bg-primary-lightest px-md py-sm rounded-lg border border-primary-medium flex-row items-center"
                         accessible={true}
                         accessibilityRole="button"
                         accessibilityLabel={showAllIngredients
@@ -257,7 +257,12 @@ export function CustomRecipeCard({
                             : i18n.t('common.showAll', { count: moreIngredientsCount })
                         }
                     >
-                        <Text className="text-primary-medium text-sm font-medium">
+                        <MaterialCommunityIcons
+                            name={showAllIngredients ? "chevron-up" : "chevron-down"}
+                            size={16}
+                            color={COLORS.primary.darkest}
+                        />
+                        <Text className="text-primary-darkest text-sm font-semibold ml-xs">
                             {showAllIngredients
                                 ? i18n.t('common.showLess')
                                 : i18n.t('common.showAll', { count: moreIngredientsCount })
@@ -274,22 +279,21 @@ export function CustomRecipeCard({
                 accessibilityRole="list"
                 accessibilityLabel={`${i18n.t('recipes.common.instructions')}: ${displaySteps.length} ${i18n.t('recipes.common.steps')}`}
             >
-                <Text className="text-text-secondary text-sm mb-sm">
+                <Text className="text-text-secondary text-base font-medium mb-sm">
                     {i18n.t('recipes.common.instructions')}:
                 </Text>
-                <View className="gap-sm">
+                <View className="gap-md">
                     {displaySteps.map((step) => (
                         <View
                             key={step.order}
                             className="flex-row"
-                            accessibilityElementsHidden={true}
                         >
-                            <View className="w-6 h-6 rounded-full bg-primary-medium items-center justify-center mr-sm">
-                                <Text className="text-white text-xs font-semibold">
+                            <View className="w-7 h-7 rounded-full bg-primary-medium items-center justify-center mr-sm mt-xs">
+                                <Text className="text-white text-sm font-semibold">
                                     {step.order}
                                 </Text>
                             </View>
-                            <Text className="flex-1 text-text-primary text-sm">
+                            <Text className="flex-1 text-text-primary text-base leading-relaxed">
                                 {step.instruction}
                             </Text>
                         </View>
@@ -303,7 +307,7 @@ export function CustomRecipeCard({
                             void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                             setShowAllSteps(!showAllSteps);
                         }}
-                        className="mt-sm"
+                        className="mt-md self-start bg-primary-lightest px-md py-sm rounded-lg border border-primary-medium flex-row items-center"
                         accessible={true}
                         accessibilityRole="button"
                         accessibilityLabel={showAllSteps
@@ -311,7 +315,12 @@ export function CustomRecipeCard({
                             : i18n.t('common.showAll', { count: moreStepsCount })
                         }
                     >
-                        <Text className="text-primary-medium text-sm font-medium">
+                        <MaterialCommunityIcons
+                            name={showAllSteps ? "chevron-up" : "chevron-down"}
+                            size={16}
+                            color={COLORS.primary.darkest}
+                        />
+                        <Text className="text-primary-darkest text-sm font-semibold ml-xs">
                             {showAllSteps
                                 ? i18n.t('common.showLess')
                                 : i18n.t('common.showAll', { count: moreStepsCount })
@@ -373,4 +382,4 @@ export function CustomRecipeCard({
             </View>
         </View>
     );
-}
+});

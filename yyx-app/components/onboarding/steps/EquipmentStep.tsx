@@ -28,6 +28,7 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
   const [thermomixModel, setThermomixModel] = useState<ThermomixModel | null>(
     formData.kitchenEquipment?.find(e => e.type === 'thermomix')?.model ?? null
   );
+  const [showModelError, setShowModelError] = useState(false);
 
   // Sync local state with formData changes
   useEffect(() => {
@@ -69,6 +70,7 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
 
   const selectThermomixModel = (model: ThermomixModel) => {
     setThermomixModel(model);
+    setShowModelError(false); // Clear error when model is selected
 
     // Update the thermomix equipment with the selected model
     const newEquipment = selectedEquipment.map(e =>
@@ -80,6 +82,11 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
   };
 
   const handleNext = () => {
+    // Validate: if Thermomix is selected, a model must be chosen
+    if (hasThermomix && !thermomixModel) {
+      setShowModelError(true);
+      return;
+    }
     goToNextStep();
   };
 
@@ -149,7 +156,9 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
                     className={`px-lg py-md rounded-lg border-2 ${
                       thermomixModel === model
                         ? 'bg-primary-medium border-primary-medium'
-                        : 'bg-background-secondary border-transparent'
+                        : showModelError
+                          ? 'bg-background-secondary border-status-error'
+                          : 'bg-background-secondary border-transparent'
                     }`}
                   >
                     <Text className={`font-semibold ${
@@ -160,6 +169,11 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
                   </Pressable>
                 ))}
               </View>
+              {showModelError && (
+                <Text preset="caption" className="text-status-error mt-sm">
+                  {i18n.t('onboarding.steps.equipment.thermomix.modelRequired')}
+                </Text>
+              )}
             </View>
           )}
         </View>

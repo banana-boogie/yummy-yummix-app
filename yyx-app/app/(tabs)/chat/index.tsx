@@ -5,11 +5,12 @@
  * Messages state is lifted here to preserve recipes when switching modes.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { Stack } from 'expo-router';
 import { ChatScreen } from '@/components/chat/ChatScreen';
 import { VoiceChatScreen } from '@/components/chat/VoiceChatScreen';
+import { ChatSessionsMenu } from '@/components/chat/ChatSessionsMenu';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import { ChatMessage } from '@/services/chatService';
@@ -27,12 +28,31 @@ export default function ChatPage() {
         setMode(m => m === 'text' ? 'voice' : 'text');
     };
 
+    // Handler for selecting a session from the hamburger menu
+    const handleSelectSession = useCallback((newSessionId: string, sessionMessages: ChatMessage[]) => {
+        setSessionId(newSessionId);
+        setMessages(sessionMessages);
+    }, []);
+
+    // Handler for starting a new chat from the hamburger menu
+    const handleNewChat = useCallback(() => {
+        setSessionId(null);
+        setMessages([]);
+    }, []);
+
     return (
         <View className="flex-1 bg-background-default">
             <Stack.Screen
                 options={{
                     title: i18n.t('chat.title'),
                     headerShown: true,
+                    headerLeft: () => (
+                        <ChatSessionsMenu
+                            currentSessionId={sessionId}
+                            onSelectSession={handleSelectSession}
+                            onNewChat={handleNewChat}
+                        />
+                    ),
                     headerRight: () => (
                         <TouchableOpacity
                             onPress={toggleMode}

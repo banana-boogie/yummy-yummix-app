@@ -15,6 +15,8 @@ import { PageLayout } from '@/components/layouts/PageLayout';
 import { AppleAuthButton } from '@/components/auth/AppleAuthButton';
 import { Divider } from '@/components/common/Divider';
 import { supabase } from '@/lib/supabase';
+import { queryClient } from '@/lib/queryClient';
+import { userProfileKeys } from '@/lib/queryKeys';
 
 
 export default function LoginScreen() {
@@ -61,6 +63,10 @@ export default function LoginScreen() {
     setDevError(null);
     setIsDevLoading(true);
     try {
+      // Clear TanStack Query cache before dev login to ensure fresh profile data
+      // This is important when database values are manually changed during development
+      queryClient.removeQueries({ queryKey: userProfileKeys.all });
+
       const { error: loginError } = await supabase.auth.signInWithPassword({
         email: devEmail,
         password: devPassword,

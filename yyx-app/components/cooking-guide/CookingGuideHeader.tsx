@@ -57,38 +57,42 @@ export function CookingGuideHeader({
         <View className={className} style={style}>
             <StatusBar barStyle="light-content" />
             {showImage && (
-                <View className="w-full h-[120px] lg:h-[250px]">
-                    <Image
-                        source={imageSource}
-                        className="w-full h-full"
-                        contentFit="cover"
-                        transition={300}
-                        cachePolicy="memory-disk"
-                    />
-                    <LinearGradient
-                        colors={[
-                            'transparent',
-                            'rgba(252, 246, 242, 0.1)',
-                            'rgba(252, 246, 242, 0.3)',
-                            'rgba(252, 246, 242, 0.5)',
-                            'rgba(252, 246, 242, 0.7)',
-                            'rgba(252, 246, 242, 0.9)',
-                            '#FCF6F2' // COLORS.background.SECONDARY
-                        ]}
-                        locations={[0, 0.2, 0.4, 0.6, 0.8, 0.9, 1]}
-                        className="absolute bottom-0 left-0 right-0 h-[70px] lg:h-[140px]"
-                    />
-                    <View
-                        className="absolute left-md right-md lg:left-lg lg:right-lg flex-row justify-between items-center z-1"
-                        style={{
-                            top: (isWebMobile ? 24 : insets.top || 16) + 30,
-                            transform: [{ translateY: isLarge ? 0 : -20 }]
-                        }}
-                    >
-                        {showBackButton && (
-                            <BackButton onPress={onBackPress} className="bg-white/60" />
-                        )}
-                        {isWebMobile && <HamburgerMenu style={{ marginLeft: 'auto' }} />}
+                <View
+                    className="w-full"
+                    style={{ paddingTop: insets.top }}
+                >
+                    <View className="w-full h-[120px] lg:h-[250px]">
+                        <Image
+                            source={imageSource}
+                            className="w-full h-full"
+                            contentFit="cover"
+                            transition={300}
+                            cachePolicy="memory-disk"
+                        />
+                        <LinearGradient
+                            colors={[
+                                'transparent',
+                                'rgba(252, 246, 242, 0.1)',
+                                'rgba(252, 246, 242, 0.3)',
+                                'rgba(252, 246, 242, 0.5)',
+                                'rgba(252, 246, 242, 0.7)',
+                                'rgba(252, 246, 242, 0.9)',
+                                '#FCF6F2' // COLORS.background.SECONDARY
+                            ]}
+                            locations={[0, 0.2, 0.4, 0.6, 0.8, 0.9, 1]}
+                            className="absolute bottom-0 left-0 right-0 h-[70px] lg:h-[140px]"
+                        />
+                        <View
+                            className="absolute left-md right-md lg:left-lg lg:right-lg flex-row justify-between items-center z-1"
+                            style={{
+                                top: isLarge ? 16 : 10,
+                            }}
+                        >
+                            {showBackButton && (
+                                <BackButton onPress={onBackPress} className="bg-white/60" />
+                            )}
+                            {isWebMobile && <HamburgerMenu style={{ marginLeft: 'auto' }} />}
+                        </View>
                     </View>
                 </View>
             )}

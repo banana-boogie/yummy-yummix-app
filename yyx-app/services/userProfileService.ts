@@ -2,32 +2,19 @@ import { supabase } from '@/lib/supabase';
 import { UserProfile } from '@/types/user';
 import { BaseService } from './base/BaseService';
 import { OnboardingData } from '@/types/onboarding';
-import { userProfileCache } from '@/services/cache';
 
 class UserProfileService extends BaseService {
   async fetchProfile(userId: string) {
-    try {
-      const cachedProfile = await userProfileCache.getUserProfile(userId);
-      if (cachedProfile) {
-        return cachedProfile;
-      }
-      
-      const { data, error } = await this.supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      
-      if (error) throw error;
-      
-      const profile = this.transformResponse(data) as UserProfile;
-      
-      await userProfileCache.setUserProfile(userId, profile);
-      
-      return profile;
-    } catch (error) {
-      throw error;
-    }
+    // No service-layer caching - TanStack Query handles caching
+    const { data, error } = await this.supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) throw error;
+
+    return this.transformResponse(data) as UserProfile;
   }
 
   async updateProfile(userId: string, updates: Partial<UserProfile>) {
@@ -80,16 +67,8 @@ class UserProfileService extends BaseService {
       throw new Error('No data returned from profile update');
     }
 
-    // Transform response and update cache
-    const updatedProfile = this.transformResponse(data) as UserProfile;
-    await userProfileCache.setUserProfile(userId, updatedProfile);
-
-    return updatedProfile;
-  }
-
-  // Clear profile cache
-  async clearProfileCache() {
-    return userProfileCache.clearCache();
+    // Transform response - TanStack Query handles caching
+    return this.transformResponse(data) as UserProfile;
   }
 }
 

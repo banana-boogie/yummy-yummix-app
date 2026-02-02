@@ -2,7 +2,7 @@
  * Recipe card component for displaying recipes in chat.
  * Tapping navigates to the recipe detail/cooking guide.
  */
-import React from 'react';
+import React, { memo } from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -17,7 +17,7 @@ interface ChatRecipeCardProps {
     recipe: RecipeCard;
 }
 
-export function ChatRecipeCard({ recipe }: ChatRecipeCardProps) {
+export const ChatRecipeCard = memo(function ChatRecipeCard({ recipe }: ChatRecipeCardProps) {
     const handlePress = () => {
         // Validate recipe ID exists before navigating
         if (!recipe.recipeId) {
@@ -111,4 +111,4 @@ export function ChatRecipeCard({ recipe }: ChatRecipeCardProps) {
             </View>
         </TouchableOpacity>
     );
-}
+});

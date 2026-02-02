@@ -224,6 +224,10 @@ export function createMockGeneratedIngredientList(count: number): GeneratedIngre
     { name: 'olive oil', quantity: 2, unit: 'tbsp' },
     { name: 'salt', quantity: 1, unit: 'tsp' },
     { name: 'pepper', quantity: 0.5, unit: 'tsp' },
+    { name: 'sesame oil', quantity: 1, unit: 'tbsp' },
+    { name: 'rice vinegar', quantity: 1, unit: 'tbsp' },
+    { name: 'green onions', quantity: 2, unit: 'stalks' },
+    { name: 'bell pepper', quantity: 1, unit: 'medium' },
   ];
   return ingredients.slice(0, count);
 }

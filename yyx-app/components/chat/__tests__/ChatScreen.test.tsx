@@ -21,10 +21,7 @@ jest.mock('@/i18n', () => ({
       'chat.searching': 'Searching recipes',
       'chat.generating': 'Creating response',
       'chat.error.default': 'Something went wrong. Please try again.',
-      'chat.resumeSession.title': 'Continue Chat?',
-      'chat.resumeSession.message': 'You have an unfinished conversation.',
-      'chat.resumeSession.resume': 'Resume',
-      'chat.resumeSession.startNew': 'Start New',
+      'chat.title': 'Irmixy',
       'chat.suggestions.suggestRecipe': 'Suggest a recipe',
       'chat.suggestions.whatCanICook': 'What can I cook?',
       'chat.suggestions.quickMeal': 'Quick meal ideas',
@@ -63,7 +60,6 @@ jest.mock('expo-clipboard', () => ({
 
 // Mock chatService
 const mockLoadChatHistory = jest.fn().mockResolvedValue([]);
-const mockGetLastSessionWithMessages = jest.fn().mockResolvedValue(null);
 const mockStreamChatMessageWithHandle = jest.fn().mockReturnValue({
   done: Promise.resolve(),
   cancel: jest.fn(),
@@ -71,7 +67,6 @@ const mockStreamChatMessageWithHandle = jest.fn().mockReturnValue({
 
 jest.mock('@/services/chatService', () => ({
   loadChatHistory: (...args: any[]) => mockLoadChatHistory(...args),
-  getLastSessionWithMessages: (...args: any[]) => mockGetLastSessionWithMessages(...args),
   streamChatMessageWithHandle: (...args: any[]) => mockStreamChatMessageWithHandle(...args),
 }));
 
@@ -129,7 +124,6 @@ describe('ChatScreen', () => {
     jest.clearAllMocks();
     mockAuthUser = mockUser;
     mockLoadChatHistory.mockResolvedValue([]);
-    mockGetLastSessionWithMessages.mockResolvedValue(null);
   });
 
   // ============================================================
@@ -252,67 +246,6 @@ describe('ChatScreen', () => {
       render(<ChatScreen messages={messages} />);
 
       expect(screen.getAllByTestId('chat-recipe-card')).toHaveLength(2);
-    });
-  });
-
-  // ============================================================
-  // SESSION RESUME TESTS
-  // ============================================================
-
-  describe('session resume', () => {
-    it('checks for resumable session on mount', async () => {
-      render(<ChatScreen />);
-
-      await waitFor(() => {
-        expect(mockGetLastSessionWithMessages).toHaveBeenCalled();
-      });
-    });
-
-    it('shows resume alert when previous session exists', async () => {
-      const alertSpy = jest.spyOn(Alert, 'alert');
-      mockGetLastSessionWithMessages.mockResolvedValue({
-        sessionId: 'prev-session',
-        messageCount: 5,
-        lastMessageAt: new Date(),
-      });
-
-      render(<ChatScreen />);
-
-      await waitFor(() => {
-        expect(alertSpy).toHaveBeenCalledWith(
-          'Continue Chat?',
-          'You have an unfinished conversation.',
-          expect.any(Array)
-        );
-      });
-
-      alertSpy.mockRestore();
-    });
-
-    it('does not show resume alert when no previous session', async () => {
-      const alertSpy = jest.spyOn(Alert, 'alert');
-      mockGetLastSessionWithMessages.mockResolvedValue(null);
-
-      render(<ChatScreen />);
-
-      await waitFor(() => {
-        expect(mockGetLastSessionWithMessages).toHaveBeenCalled();
-      });
-
-      // Small delay to ensure alert would have been called if it was going to
-      await new Promise((r) => setTimeout(r, 100));
-
-      expect(alertSpy).not.toHaveBeenCalled();
-      alertSpy.mockRestore();
-    });
-
-    it('does not check for resume when initialSessionId is provided', async () => {
-      render(<ChatScreen sessionId="existing-session" />);
-
-      // Give it time to potentially call
-      await new Promise((r) => setTimeout(r, 100));
-
-      expect(mockGetLastSessionWithMessages).not.toHaveBeenCalled();
     });
   });
 

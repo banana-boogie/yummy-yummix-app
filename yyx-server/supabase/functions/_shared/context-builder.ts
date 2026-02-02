@@ -76,24 +76,30 @@ export function createContextBuilder(supabase: SupabaseClient) {
 
 /**
  * Build full user context for AI interactions.
+ * All user data is now in user_profiles (consolidated from user_context).
  */
 async function buildContext(
   supabase: SupabaseClient,
   userId: string,
   sessionId?: string,
 ): Promise<UserContext> {
-  // Fetch user profile and user context in parallel
+  // Fetch user profile and conversation history in parallel
   // Use maybeSingle() to avoid errors when rows don't exist (new users)
-  const [profileResult, contextResult, historyResult] = await Promise.all([
+  const [profileResult, historyResult] = await Promise.all([
     supabase
       .from('user_profiles')
-      .select('language, dietary_restrictions, measurement_system, diet_types, other_allergy')
+      .select(`
+        language,
+        dietary_restrictions,
+        measurement_system,
+        diet_types,
+        other_allergy,
+        kitchen_equipment,
+        skill_level,
+        household_size,
+        ingredient_dislikes
+      `)
       .eq('id', userId)
-      .maybeSingle(),
-    supabase
-      .from('user_context')
-      .select('skill_level, household_size, dietary_restrictions, ingredient_dislikes, kitchen_equipment')
-      .eq('user_id', userId)
       .maybeSingle(),
     sessionId
       ? loadConversationHistory(supabase, sessionId)
@@ -104,17 +110,13 @@ async function buildContext(
   if (profileResult.error) {
     console.warn('Failed to load user profile:', profileResult.error.message);
   }
-  if (contextResult.error) {
-    console.warn('Failed to load user context:', contextResult.error.message);
-  }
 
   const profile = profileResult.data;
-  const userCtx = contextResult.data;
 
   // Determine language (default: 'en')
   const language: 'en' | 'es' = profile?.language === 'es' ? 'es' : 'en';
 
-  // Determine measurement system from user_profiles (not user_context)
+  // Determine measurement system
   // Fallback: imperial for 'en', metric for 'es'
   let measurementSystem: 'imperial' | 'metric';
   if (profile?.measurement_system) {
@@ -123,25 +125,25 @@ async function buildContext(
     measurementSystem = language === 'es' ? 'metric' : 'imperial';
   }
 
-  // Merge dietary restrictions from both sources
-  const profileRestrictions = sanitizeList(profile?.dietary_restrictions);
-  const contextRestrictions = sanitizeList(userCtx?.dietary_restrictions);
-  const dietaryRestrictions = [
-    ...new Set([...profileRestrictions, ...contextRestrictions]),
-  ];
+  // Kitchen equipment (set during onboarding)
+  const equipment = sanitizeList(profile?.kitchen_equipment);
+  console.log('[Context Builder] Kitchen equipment loaded:', {
+    userId,
+    equipment,
+    count: equipment.length,
+  });
 
   return {
     language,
     measurementSystem,
-    dietaryRestrictions,
-    ingredientDislikes: sanitizeList(userCtx?.ingredient_dislikes),
-    skillLevel: userCtx?.skill_level || null,
-    householdSize: userCtx?.household_size || null,
+    dietaryRestrictions: sanitizeList(profile?.dietary_restrictions),
+    ingredientDislikes: sanitizeList(profile?.ingredient_dislikes),
+    skillLevel: profile?.skill_level || null,
+    householdSize: profile?.household_size || null,
     conversationHistory: historyResult as Array<{ role: string; content: string; metadata?: any }>,
-    // Additional context fields
     dietTypes: sanitizeList(profile?.diet_types),
     customAllergies: normalizeAllergies(profile?.other_allergy),
-    kitchenEquipment: sanitizeList(userCtx?.kitchen_equipment),
+    kitchenEquipment: equipment,
   };
 }
 
