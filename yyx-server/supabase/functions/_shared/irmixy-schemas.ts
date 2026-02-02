@@ -51,6 +51,7 @@ export const GeneratedRecipeSchema = z.object({
   steps: z.array(z.object({
     order: z.number().int().positive(),
     instruction: z.string(),
+    ingredientsUsed: z.array(z.string()).optional(), // Names of ingredients used in this step
     thermomixTime: z.number().nullish(), // Allow null, undefined, or number
     thermomixTemp: z.string().nullish(), // Allow null, undefined, or string
     thermomixSpeed: z.string().nullish(), // Allow null, undefined, or string

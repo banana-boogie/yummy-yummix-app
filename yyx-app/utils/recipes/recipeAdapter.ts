@@ -10,6 +10,7 @@ import type {
     Recipe,
     RecipeIngredient,
     RecipeStep,
+    RecipeStepIngredient,
     MeasurementUnit,
     RecipeDifficulty,
 } from '@/types/recipe.types';
@@ -125,9 +126,52 @@ function transformIngredient(
 
 /**
  * Transform a GeneratedStep to RecipeStep.
- * Note: AI steps don't have nested ingredients (ingredients are global).
+ * Maps ingredientsUsed to full step ingredients with images.
  */
-function transformStep(step: GeneratedStep): RecipeStep {
+function transformStep(
+    step: GeneratedStep,
+    allIngredients: GeneratedIngredient[],
+    measurementSystem: 'imperial' | 'metric',
+): RecipeStep {
+    // Map ingredientsUsed to full ingredient objects with images
+    const stepIngredients: RecipeStepIngredient[] = (step.ingredientsUsed || [])
+        .map((ingredientName, index) => {
+            // Find matching ingredient from global list (case-insensitive)
+            const matchedIngredient = allIngredients.find(
+                (ing) => ing.name.toLowerCase() === ingredientName.toLowerCase()
+            );
+
+            if (!matchedIngredient) {
+                // Ingredient not found in global list - still include without image
+                return {
+                    id: generateSyntheticId(),
+                    name: ingredientName,
+                    pluralName: ingredientName,
+                    pictureUrl: undefined,
+                    quantity: '',
+                    measurementUnit: createMeasurementUnit('', measurementSystem),
+                    formattedQuantity: '',
+                    formattedUnit: '',
+                    displayOrder: index + 1,
+                    optional: false,
+                };
+            }
+
+            // Return full ingredient with image
+            return {
+                id: generateSyntheticId(),
+                name: matchedIngredient.name,
+                pluralName: matchedIngredient.name,
+                pictureUrl: matchedIngredient.imageUrl,
+                quantity: matchedIngredient.quantity.toString(),
+                measurementUnit: createMeasurementUnit(matchedIngredient.unit, measurementSystem),
+                formattedQuantity: formatQuantity(matchedIngredient.quantity),
+                formattedUnit: matchedIngredient.unit,
+                displayOrder: index + 1,
+                optional: false,
+            };
+        });
+
     return {
         id: generateSyntheticId(),
         order: step.order,
@@ -138,7 +182,7 @@ function transformStep(step: GeneratedStep): RecipeStep {
             temperature: step.thermomixTemp,
             speed: step.thermomixSpeed,
         } : undefined,
-        ingredients: [], // AI steps don't have per-step ingredients
+        ingredients: stepIngredients,
     };
 }
 
@@ -204,7 +248,9 @@ export function adaptGeneratedRecipe(
         prepTime: null,
         totalTime: generated.totalTime,
         portions: generated.portions,
-        steps: generated.steps.map(transformStep),
+        steps: generated.steps.map((step) =>
+            transformStep(step, generated.ingredients, generated.measurementSystem)
+        ),
         tipsAndTricks: undefined,
         ingredients: generated.ingredients.map((ing, index) =>
             transformIngredient(ing, index, generated.measurementSystem)

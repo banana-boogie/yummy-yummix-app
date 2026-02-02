@@ -359,6 +359,7 @@ MANDATORY RULES:
 {
   "order": 2,
   "instruction": "Sauté the onions and garlic until fragrant",
+  "ingredientsUsed": ["onion", "garlic"],
   "thermomixTime": 180,
   "thermomixTemp": "100°C",
   "thermomixSpeed": "1"
@@ -367,7 +368,8 @@ MANDATORY RULES:
 **Example non-Thermomix step:**
 {
   "order": 5,
-  "instruction": "Transfer to a serving plate and garnish with fresh herbs"
+  "instruction": "Transfer to a serving plate and garnish with fresh herbs",
+  "ingredientsUsed": ["fresh herbs"]
 }
 
 REMEMBER: The user specifically has Thermomix - they expect Thermomix-first recipes!`
@@ -395,13 +397,15 @@ You MUST output valid JSON matching this exact schema:
     { "name": "ingredient name", "quantity": 1.5, "unit": "cups" }
   ],
   "steps": [
-    { "order": 1, "instruction": "Step instruction here" }
+    { "order": 1, "instruction": "Step instruction here", "ingredientsUsed": ["ingredient name"] }
   ],
   "totalTime": 30,
   "difficulty": "easy",
   "portions": 4,
   "tags": ["tag1", "tag2"]
 }
+
+IMPORTANT: Each step MUST include "ingredientsUsed" - an array of ingredient names (matching exactly from the ingredients list) that are used in that step. This is used to display ingredient images in the cooking guide.
 
 Never include markdown, code fences, or explanations - ONLY the JSON object.`;
 }

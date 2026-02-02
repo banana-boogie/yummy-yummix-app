@@ -33,9 +33,16 @@ export interface GeneratedIngredient {
 export interface GeneratedStep {
   order: number;
   instruction: string;
+  ingredientsUsed?: string[]; // Names of ingredients used in this step
   thermomixTime?: number;
   thermomixTemp?: string;
   thermomixSpeed?: string;
+}
+
+export interface GeneratedUsefulItem {
+  name: string;
+  imageUrl?: string;
+  notes?: string;
 }
 
 export interface GeneratedRecipe {
@@ -49,6 +56,7 @@ export interface GeneratedRecipe {
   difficulty: 'easy' | 'medium' | 'hard';
   portions: number;
   tags: string[];
+  usefulItems?: GeneratedUsefulItem[];
 }
 
 export interface SafetyFlags {
