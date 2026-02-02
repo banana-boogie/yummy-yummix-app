@@ -79,7 +79,7 @@ export default function CookingGuide() {
             </Text>
             <View className="items-center justify-center mx-xs position-absolute">
               <Image
-                source={require('@/assets/images/checkbox-checked.png')}
+                source={require('@/assets/images/icons/checkbox-checked.png')}
                 style={{ width: checkboxSize, height: checkboxSize, top: -5 }}
               />
             </View>

@@ -158,7 +158,7 @@ export default function RecipesAdminPage() {
         {/* Recipe info - image and names */}
         <View className="flex-row items-center flex-1 mb-sm gap-sm">
           <Image
-            source={item.pictureUrl ? { uri: item.pictureUrl } : require('@/assets/images/watercolour-circle.png')}
+            source={item.pictureUrl ? { uri: item.pictureUrl } : require('@/assets/images/backgrounds/watercolour-circle.png')}
             className={isPhone ? 'w-[40px] h-[40px]' : 'w-[50px] h-[50px]'}
             style={{ borderRadius: 8 }}
             contentFit="cover"

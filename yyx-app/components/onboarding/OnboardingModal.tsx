@@ -71,7 +71,7 @@ export function OnboardingModal({ visible }: OnboardingModalProps) {
       <View className="flex-row justify-end items-end flex-1">
         <View className="relative">
           <Image
-            source={require('@/assets/images/yyx_logo_header_with_banner.png')}
+            source={require('@/assets/images/branding/yyx_logo_header_with_banner.png')}
             className={`absolute right-0 bottom-[-5px] w-[100px] ${isPhone ? 'h-[150px]' : 'h-[140px]'}`}
             contentFit="contain"
             cachePolicy="memory-disk"
