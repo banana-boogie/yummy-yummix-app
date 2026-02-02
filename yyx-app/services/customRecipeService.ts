@@ -1,11 +1,13 @@
 /**
  * Custom Recipe Service
  *
- * Handles saving and loading AI-generated custom recipes from user_recipes table.
+ * Handles saving and loading AI-generated custom recipes.
+ * Uses normalized tables (user_recipe_steps, user_recipe_ingredients, etc.)
+ * for schema version 2.0+, with fallback to JSONB recipe_data for 1.0.
  */
 
 import { supabase } from '@/lib/supabase';
-import type { GeneratedRecipe } from '@/types/irmixy';
+import type { GeneratedRecipe, GeneratedIngredient, GeneratedStep } from '@/types/irmixy';
 
 // ============================================================
 // Types
@@ -24,14 +26,45 @@ export interface SaveRecipeResult {
     userRecipeId: string;
 }
 
+// Internal types for database rows
+interface DbIngredientRow {
+    id: string;
+    name_en: string;
+    name_es: string | null;
+    quantity: number;
+    unit_text: string | null;
+    image_url: string | null;
+    display_order: number;
+}
+
+interface DbStepIngredientRow {
+    display_order: number;
+    ingredient: DbIngredientRow;
+}
+
+interface DbStepRow {
+    id: string;
+    step_order: number;
+    instruction_en: string;
+    instruction_es: string | null;
+    thermomix_time: number | null;
+    thermomix_speed: string | null;
+    thermomix_temperature: string | null;
+    ingredients: DbStepIngredientRow[];
+}
+
+interface DbTagRow {
+    tag_name: string;
+}
+
 // ============================================================
 // Service
 // ============================================================
 
 export const customRecipeService = {
     /**
-     * Save a generated recipe to user_recipes.
-     * Returns the new user recipe ID.
+     * Save a generated recipe to normalized tables.
+     * Creates user_recipes row plus related ingredients, steps, and tags.
      */
     async save(
         recipe: GeneratedRecipe,
@@ -42,31 +75,155 @@ export const customRecipeService = {
             throw new Error('User not authenticated');
         }
 
-        const { data, error } = await supabase
+        // 1. Insert main user_recipes row
+        const { data: recipeRow, error: recipeError } = await supabase
             .from('user_recipes')
             .insert({
                 user_id: userData.user.id,
                 name: name,
-                recipe_data: {
-                    ...recipe,
-                    schemaVersion: '1.0',
-                },
+                total_time: recipe.totalTime,
+                difficulty: recipe.difficulty,
+                portions: recipe.portions,
+                measurement_system: recipe.measurementSystem,
+                language: recipe.language,
                 source: 'ai_generated',
+                schema_version: '2.0',
+                // Keep recipe_data as backup for now
+                recipe_data: recipe,
             })
             .select('id')
             .single();
 
-        if (error) {
-            console.error('Failed to save custom recipe:', error);
+        if (recipeError || !recipeRow) {
+            console.error('Failed to save custom recipe:', recipeError);
             throw new Error('Failed to save recipe');
         }
 
-        return { userRecipeId: data.id };
+        const recipeId = recipeRow.id;
+
+        try {
+            // 2. Insert ingredients
+            const ingredientRows = recipe.ingredients.map((ing, index) => ({
+                user_recipe_id: recipeId,
+                name_en: ing.name,
+                quantity: ing.quantity,
+                unit_text: ing.unit,
+                image_url: ing.imageUrl || null,
+                display_order: index,
+            }));
+
+            const { data: insertedIngredients, error: ingError } = await supabase
+                .from('user_recipe_ingredients')
+                .insert(ingredientRows)
+                .select('id, name_en');
+
+            if (ingError) {
+                console.error('Failed to save recipe ingredients:', ingError);
+                throw new Error('Failed to save recipe ingredients');
+            }
+
+            // Create a map for ingredient name -> id lookup
+            const ingredientMap = new Map<string, string>();
+            for (const ing of insertedIngredients || []) {
+                ingredientMap.set(ing.name_en.toLowerCase(), ing.id);
+            }
+
+            // 3. Insert steps
+            const stepRows = recipe.steps.map((step) => ({
+                user_recipe_id: recipeId,
+                step_order: step.order,
+                instruction_en: step.instruction,
+                thermomix_time: step.thermomixTime || null,
+                thermomix_speed: step.thermomixSpeed || null,
+                thermomix_temperature: step.thermomixTemp || null,
+            }));
+
+            const { data: insertedSteps, error: stepError } = await supabase
+                .from('user_recipe_steps')
+                .insert(stepRows)
+                .select('id, step_order');
+
+            if (stepError) {
+                console.error('Failed to save recipe steps:', stepError);
+                throw new Error('Failed to save recipe steps');
+            }
+
+            // Create a map for step_order -> id lookup
+            const stepMap = new Map<number, string>();
+            for (const step of insertedSteps || []) {
+                stepMap.set(step.step_order, step.id);
+            }
+
+            // 4. Insert step-ingredient relationships
+            const stepIngredientRows: Array<{
+                user_recipe_step_id: string;
+                user_recipe_ingredient_id: string;
+                display_order: number;
+            }> = [];
+
+            for (const step of recipe.steps) {
+                if (!step.ingredientsUsed?.length) continue;
+
+                const stepId = stepMap.get(step.order);
+                if (!stepId) continue;
+
+                for (let i = 0; i < step.ingredientsUsed.length; i++) {
+                    const ingredientName = step.ingredientsUsed[i];
+                    const ingredientId = ingredientMap.get(ingredientName.toLowerCase());
+                    if (ingredientId) {
+                        stepIngredientRows.push({
+                            user_recipe_step_id: stepId,
+                            user_recipe_ingredient_id: ingredientId,
+                            display_order: i,
+                        });
+                    }
+                }
+            }
+
+            if (stepIngredientRows.length > 0) {
+                const { error: siError } = await supabase
+                    .from('user_recipe_step_ingredients')
+                    .insert(stepIngredientRows);
+
+                if (siError) {
+                    console.error('Failed to save step ingredients:', siError);
+                    // Non-fatal - recipe is still usable
+                }
+            }
+
+            // 5. Insert tags
+            if (recipe.tags?.length) {
+                const tagRows = recipe.tags.map((tagName) => ({
+                    user_recipe_id: recipeId,
+                    tag_name: tagName,
+                }));
+
+                const { error: tagError } = await supabase
+                    .from('user_recipe_tags')
+                    .insert(tagRows);
+
+                if (tagError) {
+                    console.error('Failed to save recipe tags:', tagError);
+                    // Non-fatal
+                }
+            }
+
+            return { userRecipeId: recipeId };
+        } catch (error) {
+            // If any step fails after recipe creation, clean up
+            // CASCADE delete will handle related tables
+            await supabase
+                .from('user_recipes')
+                .delete()
+                .eq('id', recipeId);
+            throw error;
+        }
     },
 
     /**
      * Load a custom recipe by ID.
-     * Returns the full recipe data.
+     * Returns normalized data reconstructed into GeneratedRecipe format
+     * for compatibility with existing adapters.
      */
     async load(userRecipeId: string): Promise<{
         id: string;
@@ -75,39 +232,128 @@ export const customRecipeService = {
         source: string;
         createdAt: string;
     }> {
-        // Verify user authentication - RLS should also enforce this but be explicit
         const { data: userData, error: userError } = await supabase.auth.getUser();
         if (userError || !userData?.user) {
             throw new Error('User not authenticated');
         }
 
-        const { data, error } = await supabase
+        // First fetch the main recipe to check schema version
+        const { data: recipeData, error: recipeError } = await supabase
             .from('user_recipes')
-            .select('id, name, recipe_data, source, created_at')
+            .select(`
+                id, name, source, created_at, schema_version,
+                total_time, difficulty, portions, measurement_system, language,
+                recipe_data
+            `)
             .eq('id', userRecipeId)
-            .eq('user_id', userData.user.id) // Verify ownership
+            .eq('user_id', userData.user.id)
             .single();
 
-        if (error) {
-            console.error('Failed to load custom recipe:', error);
+        if (recipeError || !recipeData) {
+            console.error('Failed to load custom recipe:', recipeError);
             throw new Error('Failed to load recipe');
         }
 
+        // For schema 1.0 (JSONB), return directly
+        if (recipeData.schema_version !== '2.0') {
+            return {
+                id: recipeData.id,
+                name: recipeData.name,
+                recipe: recipeData.recipe_data as GeneratedRecipe,
+                source: recipeData.source,
+                createdAt: recipeData.created_at,
+            };
+        }
+
+        // For schema 2.0, load from normalized tables
+        const { data: stepsData, error: stepsError } = await supabase
+            .from('user_recipe_steps')
+            .select(`
+                id, step_order, instruction_en, instruction_es,
+                thermomix_time, thermomix_speed, thermomix_temperature,
+                ingredients:user_recipe_step_ingredients (
+                    display_order,
+                    ingredient:user_recipe_ingredients (
+                        id, name_en, name_es, quantity, unit_text, image_url, display_order
+                    )
+                )
+            `)
+            .eq('user_recipe_id', userRecipeId)
+            .order('step_order', { ascending: true });
+
+        if (stepsError) {
+            console.error('Failed to load recipe steps:', stepsError);
+            throw new Error('Failed to load recipe steps');
+        }
+
+        const { data: ingredientsData, error: ingredientsError } = await supabase
+            .from('user_recipe_ingredients')
+            .select('id, name_en, name_es, quantity, unit_text, image_url, display_order')
+            .eq('user_recipe_id', userRecipeId)
+            .order('display_order', { ascending: true });
+
+        if (ingredientsError) {
+            console.error('Failed to load recipe ingredients:', ingredientsError);
+            throw new Error('Failed to load recipe ingredients');
+        }
+
+        const { data: tagsData } = await supabase
+            .from('user_recipe_tags')
+            .select('tag_name')
+            .eq('user_recipe_id', userRecipeId);
+
+        // Transform to GeneratedRecipe format
+        const ingredients: GeneratedIngredient[] = (ingredientsData || []).map((ing) => ({
+            name: ing.name_en,
+            quantity: Number(ing.quantity),
+            unit: ing.unit_text || '',
+            imageUrl: ing.image_url || undefined,
+        }));
+
+        const steps: GeneratedStep[] = (stepsData as DbStepRow[] || []).map((step) => {
+            // Get ingredient names used in this step
+            const ingredientsUsed = (step.ingredients || [])
+                .sort((a, b) => a.display_order - b.display_order)
+                .map((si) => si.ingredient?.name_en)
+                .filter(Boolean) as string[];
+
+            return {
+                order: step.step_order,
+                instruction: step.instruction_en,
+                ingredientsUsed,
+                thermomixTime: step.thermomix_time || undefined,
+                thermomixSpeed: step.thermomix_speed || undefined,
+                thermomixTemp: step.thermomix_temperature || undefined,
+            };
+        });
+
+        const generatedRecipe: GeneratedRecipe = {
+            schemaVersion: '2.0',
+            suggestedName: recipeData.name,
+            measurementSystem: recipeData.measurement_system as 'imperial' | 'metric' || 'metric',
+            language: recipeData.language as 'en' | 'es' || 'en',
+            ingredients,
+            steps,
+            totalTime: recipeData.total_time || 0,
+            difficulty: recipeData.difficulty as 'easy' | 'medium' | 'hard' || 'easy',
+            portions: recipeData.portions || 4,
+            tags: (tagsData as DbTagRow[] || []).map((t) => t.tag_name),
+        };
+
         return {
-            id: data.id,
-            name: data.name,
-            recipe: data.recipe_data as GeneratedRecipe,
-            source: data.source,
-            createdAt: data.created_at,
+            id: recipeData.id,
+            name: recipeData.name,
+            recipe: generatedRecipe,
+            source: recipeData.source,
+            createdAt: recipeData.created_at,
         };
     },
 
     /**
      * List all user's custom recipes.
-     * Returns summary info for display in a list.
+     * Uses denormalized columns on user_recipes for efficiency.
      */
     async list(): Promise<UserRecipeSummary[]> {
-        // Verify user authentication and scope to their recipes
         const { data: userData, error: userError } = await supabase.auth.getUser();
         if (userError || !userData?.user) {
             throw new Error('User not authenticated');
@@ -115,7 +361,7 @@ export const customRecipeService = {
 
         const { data, error } = await supabase
             .from('user_recipes')
-            .select('id, name, source, created_at, recipe_data')
+            .select('id, name, source, created_at, total_time, difficulty, recipe_data, schema_version')
             .eq('user_id', userData.user.id)
             .order('created_at', { ascending: false })
             .limit(50);
@@ -126,6 +372,20 @@ export const customRecipeService = {
         }
 
         return data.map((item) => {
+            // For schema 2.0, use denormalized columns
+            // For schema 1.0, fall back to recipe_data JSONB
+            if (item.schema_version === '2.0') {
+                return {
+                    id: item.id,
+                    name: item.name,
+                    source: item.source as UserRecipeSummary['source'],
+                    createdAt: item.created_at,
+                    totalTime: item.total_time || undefined,
+                    difficulty: item.difficulty as UserRecipeSummary['difficulty'] || undefined,
+                };
+            }
+
+            // Legacy schema 1.0
             const recipeData = item.recipe_data as GeneratedRecipe | null;
             return {
                 id: item.id,
@@ -140,9 +400,9 @@ export const customRecipeService = {
 
     /**
      * Delete a custom recipe.
+     * CASCADE delete handles related tables automatically.
      */
     async delete(userRecipeId: string): Promise<void> {
-        // Verify user authentication
         const { data: userData, error: userError } = await supabase.auth.getUser();
         if (userError || !userData?.user) {
             throw new Error('User not authenticated');
@@ -152,7 +412,7 @@ export const customRecipeService = {
             .from('user_recipes')
             .delete()
             .eq('id', userRecipeId)
-            .eq('user_id', userData.user.id); // Verify ownership
+            .eq('user_id', userData.user.id);
 
         if (error) {
             console.error('Failed to delete custom recipe:', error);
