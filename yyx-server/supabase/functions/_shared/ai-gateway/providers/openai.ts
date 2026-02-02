@@ -49,6 +49,7 @@ interface OpenAIRequest {
             parameters: Record<string, unknown>;
         };
     }>;
+    tool_choice?: 'auto' | 'required' | { type: 'function'; function: { name: string } };
 }
 
 interface OpenAIResponse {
@@ -112,6 +113,11 @@ export async function callOpenAI(
                 parameters: tool.parameters,
             },
         }));
+
+        // Add tool_choice if specified
+        if (request.toolChoice) {
+            openaiRequest.tool_choice = request.toolChoice;
+        }
     }
 
     const response = await fetch(OPENAI_CHAT_URL, {

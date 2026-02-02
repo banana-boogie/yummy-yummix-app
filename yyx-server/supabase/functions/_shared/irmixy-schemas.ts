@@ -5,7 +5,7 @@
  * Uses Zod for runtime validation.
  */
 
-import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 // ============================================================
 // Zod Schemas
@@ -15,8 +15,8 @@ export const RecipeCardSchema = z.object({
   recipeId: z.string().uuid(),
   name: z.string(),
   imageUrl: z.string().optional(),
-  totalTime: z.number().int().positive(),
-  difficulty: z.enum(['easy', 'medium', 'hard']),
+  totalTime: z.number().int().nonnegative(), // Allow 0 for recipes with unknown time
+  difficulty: z.enum(["easy", "medium", "hard"]),
   portions: z.number().int().positive(),
 });
 
@@ -26,16 +26,22 @@ export const SuggestionChipSchema = z.object({
 });
 
 export const QuickActionSchema = z.object({
-  type: z.enum(['start_cooking', 'view_recipe', 'save_recipe', 'set_timer']),
+  type: z.enum(["start_cooking", "view_recipe", "save_recipe", "set_timer"]),
   label: z.string(),
   payload: z.record(z.unknown()),
 });
 
+export const UsefulItemSchema = z.object({
+  name: z.string(),
+  imageUrl: z.string().optional(),
+  notes: z.string().optional(),
+});
+
 export const GeneratedRecipeSchema = z.object({
-  schemaVersion: z.literal('1.0'),
+  schemaVersion: z.literal("1.0"),
   suggestedName: z.string(),
-  measurementSystem: z.enum(['imperial', 'metric']),
-  language: z.enum(['en', 'es']),
+  measurementSystem: z.enum(["imperial", "metric"]),
+  language: z.enum(["en", "es"]),
   ingredients: z.array(z.object({
     name: z.string(),
     quantity: z.number(),
@@ -45,14 +51,15 @@ export const GeneratedRecipeSchema = z.object({
   steps: z.array(z.object({
     order: z.number().int().positive(),
     instruction: z.string(),
-    thermomixTime: z.number().optional(),
-    thermomixTemp: z.string().optional(),
-    thermomixSpeed: z.string().optional(),
+    thermomixTime: z.number().nullish(), // Allow null, undefined, or number
+    thermomixTemp: z.string().nullish(), // Allow null, undefined, or string
+    thermomixSpeed: z.string().nullish(), // Allow null, undefined, or string
   })),
-  totalTime: z.number().int().positive(),
-  difficulty: z.enum(['easy', 'medium', 'hard']),
+  totalTime: z.number().int().nonnegative(), // Allow 0 for recipes with unknown time
+  difficulty: z.enum(["easy", "medium", "hard"]),
   portions: z.number().int().positive(),
   tags: z.array(z.string()),
+  usefulItems: z.array(UsefulItemSchema).optional(),
 });
 
 export const SafetyFlagsSchema = z.object({
@@ -62,10 +69,10 @@ export const SafetyFlagsSchema = z.object({
 });
 
 export const IrmixyResponseSchema = z.object({
-  version: z.literal('1.0'),
+  version: z.literal("1.0"),
   message: z.string(),
-  language: z.enum(['en', 'es']),
-  status: z.enum(['thinking', 'searching', 'generating']).nullable().optional(),
+  language: z.enum(["en", "es"]),
+  status: z.enum(["thinking", "searching", "generating"]).nullable().optional(),
   recipes: z.array(RecipeCardSchema).optional(),
   customRecipe: GeneratedRecipeSchema.optional(),
   suggestions: z.array(SuggestionChipSchema).optional(),
@@ -81,6 +88,7 @@ export const IrmixyResponseSchema = z.object({
 export type RecipeCard = z.infer<typeof RecipeCardSchema>;
 export type SuggestionChip = z.infer<typeof SuggestionChipSchema>;
 export type QuickAction = z.infer<typeof QuickActionSchema>;
+export type UsefulItem = z.infer<typeof UsefulItemSchema>;
 export type GeneratedRecipe = z.infer<typeof GeneratedRecipeSchema>;
 export type SafetyFlags = z.infer<typeof SafetyFlagsSchema>;
 export type IrmixyResponse = z.infer<typeof IrmixyResponseSchema>;
@@ -100,13 +108,13 @@ export interface SearchRecipesParams {
   query?: string;
   cuisine?: string;
   maxTime?: number;
-  difficulty?: 'easy' | 'medium' | 'hard';
+  difficulty?: "easy" | "medium" | "hard";
   limit?: number;
 }
 
 export interface UserContext {
-  language: 'en' | 'es';
-  measurementSystem: 'imperial' | 'metric';
+  language: "en" | "es";
+  measurementSystem: "imperial" | "metric";
   dietaryRestrictions: string[];
   ingredientDislikes: string[];
   skillLevel: string | null;
@@ -126,8 +134,10 @@ export class ValidationError extends Error {
   public issues: z.ZodIssue[];
 
   constructor(issues: z.ZodIssue[]) {
-    super(`Schema validation failed: ${issues.map(i => i.message).join(', ')}`);
-    this.name = 'ValidationError';
+    super(
+      `Schema validation failed: ${issues.map((i) => i.message).join(", ")}`,
+    );
+    this.name = "ValidationError";
     this.issues = issues;
   }
 }

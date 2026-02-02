@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo, memo } from 'react';
 import {
     View,
     TextInput,
@@ -18,7 +18,7 @@ import { IrmixyAvatar } from '@/components/chat/IrmixyAvatar';
 import { ChatRecipeCard } from '@/components/chat/ChatRecipeCard';
 import { CustomRecipeCard } from '@/components/chat/CustomRecipeCard';
 import { RecipeGeneratingSkeleton } from '@/components/chat/RecipeGeneratingSkeleton';
-import { ChatMessage, IrmixyStatus, SuggestionChip, RecipeCard, GeneratedRecipe, getLastSessionWithMessages, loadChatHistory } from '@/services/chatService';
+import { ChatMessage, IrmixyStatus, SuggestionChip, RecipeCard, GeneratedRecipe, loadChatHistory } from '@/services/chatService';
 import { customRecipeService } from '@/services/customRecipeService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -90,44 +90,59 @@ const markdownStyles = {
 };
 
 // Factory function to create markdown rules with access to message recipes
-const createMarkdownRules = (recipes?: RecipeCard[]) => ({
-    image: (node: any, _children: any, _parent: any, styles: any) => {
-        const { src } = node.attributes;
+// Memoized at module level to avoid recreating on every render
+const markdownRulesCache = new WeakMap<RecipeCard[], ReturnType<typeof createMarkdownRulesImpl>>();
 
-        // Try to find matching recipe by image URL
-        const matchingRecipe = recipes?.find(r => r.imageUrl === src);
+function createMarkdownRulesImpl(recipes?: RecipeCard[]) {
+    return {
+        image: (node: any, _children: any, _parent: any, styles: any) => {
+            const { src } = node.attributes;
 
-        const imageElement = (
-            <Image
-                key={node.key}
-                source={{ uri: src }}
-                style={styles.image}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-                transition={0}
-                placeholder={null}
-            />
-        );
+            // Try to find matching recipe by image URL
+            const matchingRecipe = recipes?.find(r => r.imageUrl === src);
 
-        // If we found a matching recipe, make the image clickable
-        if (matchingRecipe?.recipeId) {
-            return (
-                <TouchableOpacity
+            const imageElement = (
+                <Image
                     key={node.key}
-                    onPress={() => {
-                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        router.push(`/(tabs)/recipes/${matchingRecipe.recipeId}?from=chat`);
-                    }}
-                    activeOpacity={0.8}
-                >
-                    {imageElement}
-                </TouchableOpacity>
+                    source={{ uri: src }}
+                    style={styles.image}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={0}
+                    placeholder={null}
+                />
             );
-        }
 
-        return imageElement;
-    },
-});
+            // If we found a matching recipe, make the image clickable
+            if (matchingRecipe?.recipeId) {
+                return (
+                    <TouchableOpacity
+                        key={node.key}
+                        onPress={() => {
+                            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            router.push(`/(tabs)/recipes/${matchingRecipe.recipeId}?from=chat`);
+                        }}
+                        activeOpacity={0.8}
+                    >
+                        {imageElement}
+                    </TouchableOpacity>
+                );
+            }
+
+            return imageElement;
+        },
+    };
+}
+
+function createMarkdownRules(recipes?: RecipeCard[]) {
+    if (!recipes) return createMarkdownRulesImpl(undefined);
+    let cached = markdownRulesCache.get(recipes);
+    if (!cached) {
+        cached = createMarkdownRulesImpl(recipes);
+        markdownRulesCache.set(recipes, cached);
+    }
+    return cached;
+}
 
 interface Props {
     sessionId?: string | null;
@@ -136,6 +151,9 @@ interface Props {
     messages?: ChatMessage[];
     onMessagesChange?: (messages: ChatMessage[]) => void;
 }
+
+// Stable keyExtractor to avoid recreation on each render
+const keyExtractor = (item: ChatMessage) => item.id;
 
 // Animated typing dots component
 const TypingDots = React.memo(function TypingDots() {
@@ -171,6 +189,94 @@ const TypingDots = React.memo(function TypingDots() {
             <Animated.View className="w-2 h-2 bg-grey-medium rounded-full" style={{ transform: [{ translateY: dot1 }] }} />
             <Animated.View className="w-2 h-2 bg-grey-medium rounded-full" style={{ transform: [{ translateY: dot2 }] }} />
             <Animated.View className="w-2 h-2 bg-grey-medium rounded-full" style={{ transform: [{ translateY: dot3 }] }} />
+        </View>
+    );
+});
+
+// Memoized message item component for better FlatList performance
+interface ChatMessageItemProps {
+    item: ChatMessage;
+    isLastMessage: boolean;
+    isLoading: boolean;
+    currentStatus: IrmixyStatus;
+    statusText: string;
+    onCopyMessage: (content: string) => void;
+    onStartCooking: (recipe: GeneratedRecipe, finalName: string) => void;
+}
+
+const ChatMessageItem = memo(function ChatMessageItem({
+    item,
+    isLastMessage,
+    isLoading,
+    currentStatus,
+    statusText,
+    onCopyMessage,
+    onStartCooking,
+}: ChatMessageItemProps) {
+    const isUser = item.role === 'user';
+
+    // Memoize markdown rules for this message's recipes
+    const markdownRules = useMemo(
+        () => createMarkdownRules(item.recipes),
+        [item.recipes]
+    );
+
+    return (
+        <View className="mb-sm">
+            {/* RECIPE CARDS FIRST (for assistant messages) */}
+            {!isUser && item.recipes && item.recipes.length > 0 && (
+                <View className="mb-sm w-full">
+                    {item.recipes.map((recipe) => (
+                        <ChatRecipeCard key={recipe.recipeId} recipe={recipe} />
+                    ))}
+                </View>
+            )}
+
+            {/* Custom recipe card (for AI-generated recipes) */}
+            {!isUser && item.customRecipe && (
+                <View className="mb-sm w-full">
+                    <CustomRecipeCard
+                        recipe={item.customRecipe}
+                        safetyFlags={item.safetyFlags}
+                        onStartCooking={onStartCooking}
+                    />
+                </View>
+            )}
+
+            {/* Show skeleton while generating recipe - stays visible until customRecipe is populated */}
+            {!isUser && !item.customRecipe && isLoading && currentStatus === 'generating' && isLastMessage && (
+                <View className="mb-sm w-full">
+                    <RecipeGeneratingSkeleton statusMessage={statusText} />
+                </View>
+            )}
+
+            {/* TEXT MESSAGE BUBBLE (after cards) */}
+            {item.content && item.content.trim().length > 0 && (
+                isUser ? (
+                    <TouchableOpacity
+                        onLongPress={() => onCopyMessage(item.content)}
+                        activeOpacity={0.7}
+                        className="max-w-[80%] p-sm rounded-lg self-end bg-primary-default"
+                    >
+                        <Text className="text-base leading-relaxed text-white">
+                            {item.content}
+                        </Text>
+                    </TouchableOpacity>
+                ) : (
+                    // Use Pressable for assistant messages to allow individual image touches
+                    <Pressable
+                        onLongPress={() => onCopyMessage(item.content)}
+                        className="max-w-[80%] p-sm rounded-lg self-start bg-background-secondary"
+                    >
+                        <Markdown
+                            style={markdownStyles}
+                            rules={markdownRules}
+                        >
+                            {item.content}
+                        </Markdown>
+                    </Pressable>
+                )
+            )}
         </View>
     );
 });
@@ -218,7 +324,6 @@ export function ChatScreen({
     const [currentStatus, setCurrentStatus] = useState<IrmixyStatus>(null);
     const [dynamicSuggestions, setDynamicSuggestions] = useState<SuggestionChip[] | null>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
-    const [hasCheckedResume, setHasCheckedResume] = useState(false);
 
     useEffect(() => {
         return () => {
@@ -253,50 +358,6 @@ export function ChatScreen({
     // Only run on mount with initialSessionId
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialSessionId, user]);
-
-    // Check for resumable session on mount (only if no initial session provided)
-    useEffect(() => {
-        if (hasCheckedResume || initialSessionId || !user) return;
-
-        const checkResumableSession = async () => {
-            try {
-                const lastSession = await getLastSessionWithMessages();
-                if (lastSession && lastSession.messageCount > 0) {
-                    Alert.alert(
-                        i18n.t('chat.resumeSession.title'),
-                        i18n.t('chat.resumeSession.message'),
-                        [
-                            {
-                                text: i18n.t('chat.resumeSession.startNew'),
-                                style: 'cancel',
-                            },
-                            {
-                                text: i18n.t('chat.resumeSession.resume'),
-                                onPress: async () => {
-                                    try {
-                                        const history = await loadChatHistory(lastSession.sessionId);
-                                        if (isMountedRef.current) {
-                                            setMessages(history);
-                                            setCurrentSessionId(lastSession.sessionId);
-                                            onSessionCreated?.(lastSession.sessionId);
-                                        }
-                                    } catch (err) {
-                                        if (__DEV__) console.error('Failed to load chat history:', err);
-                                    }
-                                },
-                            },
-                        ]
-                    );
-                }
-            } catch (err) {
-                if (__DEV__) console.error('Failed to check resumable session:', err);
-            } finally {
-                setHasCheckedResume(true);
-            }
-        };
-
-        checkResumableSession();
-    }, [hasCheckedResume, initialSessionId, user, onSessionCreated]);
 
     const scrollToEndThrottled = useCallback((animated: boolean) => {
         // Only auto-scroll if user is near bottom (prevents interrupting reading)
@@ -348,28 +409,17 @@ export function ChatScreen({
         }
     }, [messages, scrollToEndThrottled]);
 
-    const handleSendMessage = useCallback(async (messageText: string) => {
-        if (!messageText.trim() || !user) return;
-
-        // If already loading, cancel current request and wait for cleanup
-        if (isLoading) {
-            streamCancelRef.current?.();
-            streamCancelRef.current = null;
-
-            // Wait for any pending chunk flushes to complete
-            if (chunkTimerRef.current) {
-                clearTimeout(chunkTimerRef.current);
-                chunkTimerRef.current = null;
-            }
-
-            // Brief delay to ensure cleanup completes
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-            // Show cancel confirmation
-            Alert.alert('', i18n.t('chat.cancelledRequest'), [{ text: i18n.t('common.ok') }]);
-
-            return;
+    // Scroll to bottom when skeleton appears (status changes to generating)
+    useEffect(() => {
+        if (currentStatus === 'generating') {
+            setTimeout(() => {
+                scrollToEndThrottled(true);
+            }, SCROLL_DELAY_MS);
         }
+    }, [currentStatus, scrollToEndThrottled]);
+
+    const handleSendMessage = useCallback(async (messageText: string) => {
+        if (!messageText.trim() || !user || isLoading) return;
 
         streamRequestIdRef.current += 1;
         const requestId = streamRequestIdRef.current;
@@ -483,8 +533,29 @@ export function ChatScreen({
                 // onComplete - receive full IrmixyResponse with recipes/suggestions/customRecipe
                 (response) => {
                     if (!isActiveRequest()) return;
-                    // Update the message with recipes or customRecipe if present
-                    if ((response.recipes && response.recipes.length > 0) || response.customRecipe) {
+
+                    // DEBUG: Log what we received from the backend
+                    if (__DEV__) {
+                        console.log('[ChatScreen] onComplete received:', {
+                            hasMessage: !!response.message,
+                            messagePreview: response.message?.substring(0, 50),
+                            hasCustomRecipe: !!response.customRecipe,
+                            customRecipeName: response.customRecipe?.suggestedName,
+                            hasRecipes: !!response.recipes?.length,
+                            hasSuggestions: !!response.suggestions?.length,
+                            safetyFlags: response.safetyFlags,
+                        });
+                    }
+
+                    // CRITICAL: Flush any pending chunks BEFORE setting recipe data
+                    // This prevents race condition where flushChunkBuffer overwrites customRecipe
+                    if (chunkTimerRef.current) {
+                        clearTimeout(chunkTimerRef.current);
+                        chunkTimerRef.current = null;
+                    }
+                    if (chunkBufferRef.current) {
+                        const bufferedContent = chunkBufferRef.current;
+                        chunkBufferRef.current = '';
                         setMessages(prev => {
                             const updated = [...prev];
                             let assistantIdx = assistantIndexRef.current;
@@ -498,13 +569,61 @@ export function ChatScreen({
                             if (assistantIdx !== null && assistantIdx !== -1) {
                                 updated[assistantIdx] = {
                                     ...updated[assistantIdx],
-                                    recipes: response.recipes,
-                                    customRecipe: response.customRecipe,
-                                    safetyFlags: response.safetyFlags,
+                                    content: updated[assistantIdx].content + bufferedContent,
                                 };
                             }
                             return updated;
                         });
+                    }
+
+                    // Update the message with recipes or customRecipe if present
+                    if ((response.recipes && response.recipes.length > 0) || response.customRecipe) {
+                        setMessages(prev => {
+                            const updated = [...prev];
+                            let assistantIdx = assistantIndexRef.current;
+                            if (
+                                assistantIdx === null ||
+                                updated[assistantIdx]?.id !== assistantMessageId
+                            ) {
+                                assistantIdx = updated.findIndex(m => m.id === assistantMessageId);
+                                assistantIndexRef.current = assistantIdx !== -1 ? assistantIdx : null;
+                            }
+                            if (assistantIdx !== null && assistantIdx !== -1) {
+                                // When customRecipe is present, also set the content from response
+                                // This ensures text appears with the recipe, not before
+                                const newContent = response.customRecipe && response.message
+                                    ? response.message
+                                    : updated[assistantIdx].content;
+                                updated[assistantIdx] = {
+                                    ...updated[assistantIdx],
+                                    content: newContent,
+                                    recipes: response.recipes,
+                                    customRecipe: response.customRecipe,
+                                    safetyFlags: response.safetyFlags,
+                                };
+                                // DEBUG: Log the message update
+                                if (__DEV__) {
+                                    console.log('[ChatScreen] Updated message with recipe:', {
+                                        messageId: updated[assistantIdx].id,
+                                        hasCustomRecipe: !!updated[assistantIdx].customRecipe,
+                                        recipeName: updated[assistantIdx].customRecipe?.suggestedName,
+                                    });
+                                }
+                            }
+                            return updated;
+                        });
+
+                        // Scroll to show recipe card title at top (not bottom)
+                        if (response.customRecipe && assistantIndexRef.current !== null) {
+                            const scrollToIdx = assistantIndexRef.current;
+                            setTimeout(() => {
+                                flatListRef.current?.scrollToIndex({
+                                    index: scrollToIdx,
+                                    viewPosition: 0, // Align at top
+                                    animated: true,
+                                });
+                            }, SCROLL_DELAY_MS);
+                        }
                     }
                     // Update suggestions - only use backend suggestions
                     if (response.suggestions && response.suggestions.length > 0) {
@@ -644,70 +763,26 @@ export function ChatScreen({
         }
     }, []);
 
+    // Memoize the last message ID to avoid recalculating on every render
+    const lastMessageId = messages.length > 0 ? messages[messages.length - 1]?.id : null;
+
+    // Memoize status text to avoid function call on each item
+    const statusText = useMemo(() => getStatusText(), [getStatusText]);
+
+    // Use memoized component to avoid re-renders of all items when one changes
     const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
-        const isUser = item.role === 'user';
-
         return (
-            <View className="mb-sm">
-                {/* RECIPE CARDS FIRST (for assistant messages) */}
-                {!isUser && item.recipes && item.recipes.length > 0 && (
-                    <View className="mb-sm w-full">
-                        {item.recipes.map((recipe) => (
-                            <ChatRecipeCard key={recipe.recipeId} recipe={recipe} />
-                        ))}
-                    </View>
-                )}
-
-                {/* Custom recipe card (for AI-generated recipes) */}
-                {!isUser && item.customRecipe && (
-                    <View className="mb-sm w-full">
-                        <CustomRecipeCard
-                            recipe={item.customRecipe}
-                            safetyFlags={item.safetyFlags}
-                            onStartCooking={handleStartCooking}
-                        />
-                    </View>
-                )}
-
-                {/* Show skeleton while generating recipe (for the current streaming message) */}
-                {!isUser && !item.customRecipe && isLoading && currentStatus === 'generating' &&
-                    item.id === messages[messages.length - 1]?.id &&
-                    (!item.content || item.content.trim().length === 0) && (
-                    <View className="mb-sm w-full">
-                        <RecipeGeneratingSkeleton statusMessage={getStatusText()} />
-                    </View>
-                )}
-
-                {/* TEXT MESSAGE BUBBLE (after cards) */}
-                {item.content && item.content.trim().length > 0 && (
-                    isUser ? (
-                        <TouchableOpacity
-                            onLongPress={() => handleCopyMessage(item.content)}
-                            activeOpacity={0.7}
-                            className="max-w-[80%] p-sm rounded-lg self-end bg-primary-default"
-                        >
-                            <Text className="text-base leading-relaxed text-white">
-                                {item.content}
-                            </Text>
-                        </TouchableOpacity>
-                    ) : (
-                        // Use Pressable for assistant messages to allow individual image touches
-                        <Pressable
-                            onLongPress={() => handleCopyMessage(item.content)}
-                            className="max-w-[80%] p-sm rounded-lg self-start bg-background-secondary"
-                        >
-                            <Markdown
-                                style={markdownStyles}
-                                rules={createMarkdownRules(item.recipes)}
-                            >
-                                {item.content}
-                            </Markdown>
-                        </Pressable>
-                    )
-                )}
-            </View>
+            <ChatMessageItem
+                item={item}
+                isLastMessage={item.id === lastMessageId}
+                isLoading={isLoading}
+                currentStatus={currentStatus}
+                statusText={statusText}
+                onCopyMessage={handleCopyMessage}
+                onStartCooking={handleStartCooking}
+            />
         );
-    }, [handleCopyMessage, handleStartCooking, isLoading, currentStatus, messages, getStatusText]);
+    }, [lastMessageId, isLoading, currentStatus, statusText, handleCopyMessage, handleStartCooking]);
 
     const handleScroll = useCallback((event: any) => {
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
@@ -745,18 +820,29 @@ export function ChatScreen({
                 ref={flatListRef}
                 data={messages}
                 renderItem={renderMessage}
-                keyExtractor={(item) => item.id}
+                keyExtractor={keyExtractor}
                 contentContainerStyle={{ padding: 16, flexGrow: 1 }}
                 onScroll={handleScroll}
                 scrollEventThrottle={200}
-                // Performance optimizations to prevent flashing
+                // Performance optimizations to prevent flashing and reduce re-renders
                 removeClippedSubviews={Platform.OS !== 'web'}
-                maxToRenderPerBatch={5}
-                windowSize={7}
-                initialNumToRender={10}
+                maxToRenderPerBatch={3}
+                updateCellsBatchingPeriod={50}
+                windowSize={5}
+                initialNumToRender={8}
                 getItemLayout={undefined}
                 maintainVisibleContentPosition={{
                     minIndexForVisible: 0,
+                }}
+                onScrollToIndexFailed={(info) => {
+                    // Retry scroll after layout completes
+                    setTimeout(() => {
+                        flatListRef.current?.scrollToIndex({
+                            index: info.index,
+                            viewPosition: 0,
+                            animated: true,
+                        });
+                    }, 100);
                 }}
                 ListEmptyComponent={
                     <View className="flex-1 justify-center items-center pt-xxxl">
@@ -820,14 +906,14 @@ export function ChatScreen({
                     editable={!isLoading}
                 />
                 <TouchableOpacity
-                    className={`w-10 h-10 rounded-full justify-center items-center ${!inputText.trim() && !isLoading ? 'bg-grey-medium' : 'bg-primary-darkest'
-                        }`}
+                    className={`w-10 h-10 rounded-full justify-center items-center ${
+                        isLoading ? 'bg-primary-medium' :
+                        !inputText.trim() ? 'bg-grey-medium' : 'bg-primary-darkest'
+                    }`}
                     onPress={handleSend}
-                    disabled={!inputText.trim() && !isLoading}
+                    disabled={isLoading || !inputText.trim()}
                 >
-                    {isLoading && !isStreaming ? (
-                        <MaterialCommunityIcons name="close" size={20} color="#fff" />
-                    ) : isStreaming ? (
+                    {isLoading ? (
                         <ActivityIndicator size="small" color="#fff" />
                     ) : (
                         <MaterialCommunityIcons name="send" size={20} color="#fff" />

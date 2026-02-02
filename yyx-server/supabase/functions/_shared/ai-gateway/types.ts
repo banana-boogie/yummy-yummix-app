@@ -33,6 +33,8 @@ export interface AICompletionRequest {
     };
     /** Optional: Tools the AI can call */
     tools?: AITool[];
+    /** Optional: Force tool usage - "required" forces any tool, or specify a function name */
+    toolChoice?: 'auto' | 'required' | { type: 'function'; function: { name: string } };
 }
 
 export interface AITranscriptionRequest {

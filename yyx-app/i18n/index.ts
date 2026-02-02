@@ -36,6 +36,7 @@ const translations = {
       copied: "Copied!",
       more: "more",
       loading: "Loading...",
+      today: "Today",
     },
     auth: {
       processing: "Processing authentication...",
@@ -224,6 +225,8 @@ const translations = {
         prepTime: "Prep",
         totalTime: "Total",
         ingredients: "Ingredients",
+        instructions: "Instructions",
+        steps: "steps",
         difficulty: {
           easy: "Easy",
           medium: "Medium",
@@ -367,6 +370,7 @@ const translations = {
             name: "Thermomix",
             description: "Get step-by-step Thermomix cooking parameters",
             modelQuestion: "Which model do you have?",
+            modelRequired: "Please select your Thermomix model",
           },
           air_fryer: {
             name: "Air Fryer",
@@ -979,6 +983,12 @@ const translations = {
         resume: "Resume",
         startNew: "Start New",
       },
+      sessions: {
+        menuLabel: "Chat history",
+        title: "Chat Sessions",
+        newChat: "New Chat",
+        noSessions: "No previous chats",
+      },
       // Custom recipe generation
       customRecipe: "Custom Recipe",
       startCooking: "Start Cooking",
@@ -1026,6 +1036,7 @@ const translations = {
       copied: "¡Copiado!",
       more: "más",
       loading: "Cargando...",
+      today: "Hoy",
     },
     auth: {
       processing: "Procesando autenticación...",
@@ -1217,6 +1228,8 @@ const translations = {
         prepTime: "Prep",
         totalTime: "Total",
         ingredients: "Ingredientes",
+        instructions: "Instrucciones",
+        steps: "pasos",
         difficulty: {
           easy: "Fácil",
           medium: "Medio",
@@ -1361,6 +1374,7 @@ const translations = {
             name: "Thermomix",
             description: "Obtén parámetros de cocción paso a paso para Thermomix",
             modelQuestion: "¿Qué modelo tienes?",
+            modelRequired: "Por favor selecciona tu modelo de Thermomix",
           },
           air_fryer: {
             name: "Freidora de Aire",
@@ -1978,6 +1992,12 @@ const translations = {
           "Tienes una conversación anterior. ¿Te gustaría continuar donde lo dejaste?",
         resume: "Continuar",
         startNew: "Nueva",
+      },
+      sessions: {
+        menuLabel: "Historial de chats",
+        title: "Conversaciones",
+        newChat: "Nueva conversación",
+        noSessions: "No hay chats anteriores",
       },
       // Custom recipe generation
       customRecipe: "Receta Personalizada",
