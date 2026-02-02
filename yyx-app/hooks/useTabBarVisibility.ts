@@ -10,7 +10,7 @@ export function useTabBarVisibility() {
   
   // Routes where tab bar should be hidden
   const hiddenPaths: RegExp[] = [
-    // /\/recipes\/.*\/cooking-guide/,
+    /\/recipes\/.*\/cooking-guide/,
     // Add any future paths where you want to hide the tab bar
   ];
   

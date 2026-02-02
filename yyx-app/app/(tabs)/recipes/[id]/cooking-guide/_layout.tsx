@@ -1,13 +1,17 @@
 import { Stack } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
+import { useImmersiveMode } from '@/hooks/useImmersiveMode';
 
 export default function CookingGuideLayout() {
   useKeepAwake();
+  useImmersiveMode();
+
   return (
     <Stack
       screenOptions={{
         animation: 'fade',
         headerShown: false,
+        autoHideHomeIndicator: true,
       }}
     >
       <Stack.Screen name="index" />
