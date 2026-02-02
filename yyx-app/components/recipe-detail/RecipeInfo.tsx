@@ -68,12 +68,12 @@ export const RecipeInfo: React.FC<RecipeInfoProps> = ({
     <View className={`flex-col gap-sm ${className}`} style={style}>
       <View className="flex-row flex-wrap gap-md">
         <InfoItem
-          icon={require('@/assets/images/total_time_icon.png')}
+          icon={require('@/assets/images/icons/total_time_icon.png')}
           label={i18n.t('recipes.common.totalTime')}
           value={formatTimeInHoursAndMinutes(totalTime)}
         />
         <InfoItem
-          icon={require('@/assets/images/prep_time_icon.png')}
+          icon={require('@/assets/images/icons/prep_time_icon.png')}
           label={i18n.t('recipes.common.prepTime')}
           value={formatTimeInHoursAndMinutes(prepTime)}
         />

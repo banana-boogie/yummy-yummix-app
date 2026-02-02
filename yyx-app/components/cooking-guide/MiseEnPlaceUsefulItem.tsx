@@ -71,7 +71,7 @@ export function MiseEnPlaceUsefulItem({
           {/* Checkbox positioned at bottom-right of image */}
           <View className="absolute -bottom-1 -right-1 w-7 h-7 justify-center items-center bg-background-default rounded-sm">
             <Image
-              source={require('@/assets/images/checkbox-unchecked.png')}
+              source={require('@/assets/images/icons/checkbox-unchecked.png')}
               className="w-[22px] h-[22px]"
               contentFit="contain"
               cachePolicy="memory-disk"

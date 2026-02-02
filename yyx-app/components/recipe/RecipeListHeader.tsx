@@ -48,7 +48,7 @@ export const RecipeListHeader: React.FC<RecipeListHeaderProps> = ({
             className="shrink-0 mb-lg"
           >
             <Image
-              source={require('@/assets/images/yyx_logo_header.png')}
+              source={require('@/assets/images/branding/yyx_logo_header.png')}
               className="w-[70px] h-[70px]"
               contentFit="contain"
               cachePolicy="memory-disk"
