@@ -44,7 +44,7 @@ export class AdminUsefulItemsService extends BaseService {
       // First, get the current item to get its image URL
       const { data: currentItem, error: fetchError } = await this.supabase
         .from('useful_items')
-        .select('picture_url')
+        .select('image_url')
         .eq('id', id)
         .single();
 
@@ -54,13 +54,13 @@ export class AdminUsefulItemsService extends BaseService {
 
       // Only process image if it's actually different
       const isNewImage = typeof item.pictureUrl === 'object';
-      const isDifferentUrl = item.pictureUrl !== currentItem?.picture_url;
+      const isDifferentUrl = item.pictureUrl !== currentItem?.image_url;
 
       if (isNewImage || isDifferentUrl) {
         // If there's an existing image and we're updating to a new one, delete the old one
-        if (currentItem?.picture_url) {
+        if (currentItem?.image_url) {
           try {
-            await this.deleteImage(currentItem.picture_url);
+            await this.deleteImage(currentItem.image_url);
           } catch (error) {
             console.error('Error deleting old image:', error);
             // Continue with update even if image deletion fails
@@ -69,14 +69,14 @@ export class AdminUsefulItemsService extends BaseService {
 
         // If the new pictureUrl is a file object, upload it
         if (isNewImage) {
-          itemData.picture_url = await this.handleImageUpload(
+          itemData.image_url = await this.handleImageUpload(
             item.pictureUrl,
             item.nameEn,
             item.nameEs
           );
         } else {
           // If it's a different URL string, use it directly
-          itemData.picture_url = item.pictureUrl;
+          itemData.image_url = item.pictureUrl;
         }
       }
     }
@@ -101,12 +101,12 @@ export class AdminUsefulItemsService extends BaseService {
     try {
         const { data: currentItem, error: fetchError } = await this.supabase
         .from('useful_items')
-        .select('picture_url')
+        .select('image_url')
         .eq('id', id)
         .single();
 
-        if (currentItem?.picture_url) {
-          await this.deleteImage(currentItem.picture_url);
+        if (currentItem?.image_url) {
+          await this.deleteImage(currentItem.image_url);
         }
         if (fetchError) {
           console.error('Error fetching current useful item:', fetchError);
@@ -131,11 +131,11 @@ export class AdminUsefulItemsService extends BaseService {
     const itemData = {
       name_en: item.nameEn,
       name_es: item.nameEs,
-      picture_url: '',
+      image_url: '',
     };
 
     if (item.pictureUrl) {
-      itemData.picture_url = await this.handleImageUpload(
+      itemData.image_url = await this.handleImageUpload(
         item.pictureUrl,
         item.nameEn,
         item.nameEs

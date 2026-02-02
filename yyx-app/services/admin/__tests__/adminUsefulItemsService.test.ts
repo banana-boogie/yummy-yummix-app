@@ -78,7 +78,7 @@ describe('AdminUsefulItemsService', () => {
     id: 'item-1',
     name_en: 'Mixing Bowl',
     name_es: 'Tazón para mezclar',
-    picture_url: 'https://example.com/bowl.png',
+    image_url: 'https://example.com/bowl.png',
   };
 
   const mockTransformedItem = {
@@ -159,7 +159,7 @@ describe('AdminUsefulItemsService', () => {
         expect.objectContaining({
           name_en: 'Whisk',
           name_es: 'Batidor',
-          picture_url: '',
+          image_url: '',
         })
       );
     });
@@ -208,7 +208,7 @@ describe('AdminUsefulItemsService', () => {
         select: jest.fn().mockReturnValue({ single: mockSingle }),
       });
       mockSingle.mockResolvedValue({
-        data: { picture_url: 'https://example.com/bowl.png' },
+        data: { image_url: 'https://example.com/bowl.png' },
         error: null,
       });
 
@@ -235,7 +235,7 @@ describe('AdminUsefulItemsService', () => {
         select: jest.fn().mockReturnValue({ single: mockSingle }),
       });
       mockSingle.mockResolvedValue({
-        data: { picture_url: 'https://example.com/old-bowl.png' },
+        data: { image_url: 'https://example.com/old-bowl.png' },
         error: null,
       });
       mockUploadImage.mockResolvedValue('https://example.com/new-bowl.png');
@@ -285,7 +285,7 @@ describe('AdminUsefulItemsService', () => {
         single: mockSingle,
       });
       mockSingle.mockResolvedValue({
-        data: { picture_url: 'https://example.com/bowl.png' },
+        data: { image_url: 'https://example.com/bowl.png' },
         error: null,
       });
       mockFrom.mockReturnValue({
@@ -329,7 +329,7 @@ describe('AdminUsefulItemsService', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       mockEq.mockReturnValue({ single: mockSingle });
       mockSingle.mockResolvedValue({
-        data: { picture_url: 'https://example.com/bowl.png' },
+        data: { image_url: 'https://example.com/bowl.png' },
         error: null,
       });
       mockDeleteImage.mockRejectedValue(new Error('Image delete failed'));

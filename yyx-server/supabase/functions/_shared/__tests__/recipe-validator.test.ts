@@ -597,7 +597,7 @@ Deno.test("validateRecipeData - accepts recipe with all optional fields", () => 
     name: "Complete Recipe",
     name_en: "Complete Recipe",
     name_es: "Receta Completa",
-    picture_url: "https://example.com/recipe.jpg",
+    image_url: "https://example.com/recipe.jpg",
     difficulty: "hard",
     prep_time: 30,
     total_time: 90,

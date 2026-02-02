@@ -13,16 +13,19 @@ import {
   assertExists,
   assertStringIncludes,
   assertThrows,
-} from 'https://deno.land/std@0.168.0/testing/asserts.ts';
-import { validateGenerateRecipeParams, ToolValidationError } from './tool-validators.ts';
+} from "https://deno.land/std@0.168.0/testing/asserts.ts";
+import {
+  ToolValidationError,
+  validateGenerateRecipeParams,
+} from "./tool-validators.ts";
 import {
   enrichIngredientsWithImages,
-  validateThermomixSteps,
+  TEMP_REGEX,
   VALID_NUMERIC_SPEEDS,
   VALID_SPECIAL_SPEEDS,
   VALID_SPECIAL_TEMPS,
-  TEMP_REGEX,
-} from './generate-custom-recipe.ts';
+  validateThermomixSteps,
+} from "./generate-custom-recipe.ts";
 
 // ============================================================
 // Test Data Helpers
@@ -30,8 +33,8 @@ import {
 
 function createMockUserContext(
   overrides?: Partial<{
-    language: 'en' | 'es';
-    measurementSystem: 'imperial' | 'metric';
+    language: "en" | "es";
+    measurementSystem: "imperial" | "metric";
     dietaryRestrictions: string[];
     ingredientDislikes: string[];
     skillLevel: string | null;
@@ -40,11 +43,11 @@ function createMockUserContext(
     dietTypes: string[];
     customAllergies: string[];
     kitchenEquipment: string[];
-  }>
+  }>,
 ) {
   return {
-    language: 'en' as const,
-    measurementSystem: 'imperial' as const,
+    language: "en" as const,
+    measurementSystem: "imperial" as const,
     dietaryRestrictions: [],
     ingredientDislikes: [],
     skillLevel: null,
@@ -66,25 +69,25 @@ function createMockGeneratedRecipeResponse(
     difficulty: string;
     portions: number;
     tags: string[];
-  }>
+  }>,
 ) {
   return {
-    schemaVersion: '1.0',
-    suggestedName: 'Test Recipe',
-    measurementSystem: 'imperial',
-    language: 'en',
+    schemaVersion: "1.0",
+    suggestedName: "Test Recipe",
+    measurementSystem: "imperial",
+    language: "en",
     ingredients: [
-      { name: 'chicken', quantity: 1, unit: 'lb' },
-      { name: 'rice', quantity: 2, unit: 'cups' },
+      { name: "chicken", quantity: 1, unit: "lb" },
+      { name: "rice", quantity: 2, unit: "cups" },
     ],
     steps: [
-      { order: 1, instruction: 'Cook chicken' },
-      { order: 2, instruction: 'Add rice' },
+      { order: 1, instruction: "Cook chicken" },
+      { order: 2, instruction: "Add rice" },
     ],
     totalTime: 30,
-    difficulty: 'easy',
+    difficulty: "easy",
     portions: 4,
-    tags: ['quick', 'easy'],
+    tags: ["quick", "easy"],
     ...overrides,
   };
 }
@@ -93,116 +96,122 @@ function createMockGeneratedRecipeResponse(
 // validateGenerateRecipeParams Tests
 // ============================================================
 
-Deno.test('validateGenerateRecipeParams validates required ingredients', () => {
+Deno.test("validateGenerateRecipeParams validates required ingredients", () => {
   // Empty ingredients array should throw
   try {
     validateGenerateRecipeParams({ ingredients: [] });
-    throw new Error('Should have thrown');
+    throw new Error("Should have thrown");
   } catch (e) {
-    assertStringIncludes((e as Error).message, 'at least one ingredient');
+    assertStringIncludes((e as Error).message, "at least one ingredient");
   }
 });
 
-Deno.test('validateGenerateRecipeParams rejects missing ingredients', () => {
+Deno.test("validateGenerateRecipeParams rejects missing ingredients", () => {
   try {
     validateGenerateRecipeParams({});
-    throw new Error('Should have thrown');
+    throw new Error("Should have thrown");
   } catch (e) {
-    assertStringIncludes((e as Error).message, 'at least one ingredient');
+    assertStringIncludes((e as Error).message, "at least one ingredient");
   }
 });
 
-Deno.test('validateGenerateRecipeParams accepts valid ingredients', () => {
+Deno.test("validateGenerateRecipeParams accepts valid ingredients", () => {
   const result = validateGenerateRecipeParams({
-    ingredients: ['chicken', 'rice', 'broccoli'],
+    ingredients: ["chicken", "rice", "broccoli"],
   });
 
   assertEquals(result.ingredients.length, 3);
-  assertEquals(result.ingredients[0], 'chicken');
-  assertEquals(result.ingredients[1], 'rice');
-  assertEquals(result.ingredients[2], 'broccoli');
+  assertEquals(result.ingredients[0], "chicken");
+  assertEquals(result.ingredients[1], "rice");
+  assertEquals(result.ingredients[2], "broccoli");
 });
 
-Deno.test('validateGenerateRecipeParams sanitizes ingredient strings', () => {
+Deno.test("validateGenerateRecipeParams sanitizes ingredient strings", () => {
   const result = validateGenerateRecipeParams({
-    ingredients: ['  chicken  ', 'rice!@#', 'broccoli\n\t'],
+    ingredients: ["  chicken  ", "rice!@#", "broccoli\n\t"],
   });
 
   // Should be trimmed and sanitized
-  assertEquals(result.ingredients[0], 'chicken');
-  assertEquals(result.ingredients[1], 'rice');
-  assertEquals(result.ingredients[2], 'broccoli');
+  assertEquals(result.ingredients[0], "chicken");
+  assertEquals(result.ingredients[1], "rice");
+  assertEquals(result.ingredients[2], "broccoli");
 });
 
-Deno.test('validateGenerateRecipeParams filters empty ingredients after sanitization', () => {
+Deno.test("validateGenerateRecipeParams filters empty ingredients after sanitization", () => {
   const result = validateGenerateRecipeParams({
-    ingredients: ['chicken', '!!!', '   ', 'rice'],
+    ingredients: ["chicken", "!!!", "   ", "rice"],
   });
 
   // Only valid ingredients should remain
   assertEquals(result.ingredients.length, 2);
-  assertEquals(result.ingredients[0], 'chicken');
-  assertEquals(result.ingredients[1], 'rice');
+  assertEquals(result.ingredients[0], "chicken");
+  assertEquals(result.ingredients[1], "rice");
 });
 
-Deno.test('validateGenerateRecipeParams clamps targetTime within bounds', () => {
+Deno.test("validateGenerateRecipeParams clamps targetTime within bounds", () => {
   // Too low
   const tooLow = validateGenerateRecipeParams({
-    ingredients: ['chicken'],
+    ingredients: ["chicken"],
     targetTime: 1,
   });
   assertEquals(tooLow.targetTime, 5);
 
   // Too high
   const tooHigh = validateGenerateRecipeParams({
-    ingredients: ['chicken'],
+    ingredients: ["chicken"],
     targetTime: 1000,
   });
   assertEquals(tooHigh.targetTime, 480);
 
   // Valid
   const valid = validateGenerateRecipeParams({
-    ingredients: ['chicken'],
+    ingredients: ["chicken"],
     targetTime: 60,
   });
   assertEquals(valid.targetTime, 60);
 });
 
-Deno.test('validateGenerateRecipeParams validates difficulty enum', () => {
+Deno.test("validateGenerateRecipeParams validates difficulty enum", () => {
   // Valid difficulties
   assertEquals(
-    validateGenerateRecipeParams({ ingredients: ['a'], difficulty: 'easy' }).difficulty,
-    'easy'
+    validateGenerateRecipeParams({ ingredients: ["a"], difficulty: "easy" })
+      .difficulty,
+    "easy",
   );
   assertEquals(
-    validateGenerateRecipeParams({ ingredients: ['a'], difficulty: 'medium' }).difficulty,
-    'medium'
+    validateGenerateRecipeParams({ ingredients: ["a"], difficulty: "medium" })
+      .difficulty,
+    "medium",
   );
   assertEquals(
-    validateGenerateRecipeParams({ ingredients: ['a'], difficulty: 'hard' }).difficulty,
-    'hard'
+    validateGenerateRecipeParams({ ingredients: ["a"], difficulty: "hard" })
+      .difficulty,
+    "hard",
   );
 
   // Invalid difficulty
   try {
-    validateGenerateRecipeParams({ ingredients: ['a'], difficulty: 'expert' });
-    throw new Error('Should have thrown');
+    validateGenerateRecipeParams({ ingredients: ["a"], difficulty: "expert" });
+    throw new Error("Should have thrown");
   } catch (e) {
     assertStringIncludes((e as Error).message, 'Invalid value "expert"');
   }
 });
 
-Deno.test('validateGenerateRecipeParams sanitizes cuisinePreference', () => {
+Deno.test("validateGenerateRecipeParams sanitizes cuisinePreference", () => {
   const result = validateGenerateRecipeParams({
-    ingredients: ['chicken'],
-    cuisinePreference: '  Italian  ',
+    ingredients: ["chicken"],
+    cuisinePreference: "  Italian  ",
   });
 
-  assertEquals(result.cuisinePreference, 'Italian');
+  assertEquals(result.cuisinePreference, "Italian");
 });
 
-Deno.test('validateGenerateRecipeParams limits ingredients to 20', () => {
-  const manyIngredients = Array.from({ length: 25 }, (_, i) => `ingredient${i}`);
+Deno.test("validateGenerateRecipeParams limits ingredients to 20", () => {
+  const manyIngredients = Array.from(
+    { length: 25 },
+    (_, i) => `ingredient${i}`,
+  );
 
   const result = validateGenerateRecipeParams({
     ingredients: manyIngredients,
@@ -211,44 +220,44 @@ Deno.test('validateGenerateRecipeParams limits ingredients to 20', () => {
   assertEquals(result.ingredients.length, 20);
 });
 
-Deno.test('validateGenerateRecipeParams sanitizes additionalRequests', () => {
+Deno.test("validateGenerateRecipeParams sanitizes additionalRequests", () => {
   const result = validateGenerateRecipeParams({
-    ingredients: ['chicken'],
-    additionalRequests: '  make it spicy  ',
+    ingredients: ["chicken"],
+    additionalRequests: "  make it spicy  ",
   });
 
-  assertEquals(result.additionalRequests, 'make it spicy');
+  assertEquals(result.additionalRequests, "make it spicy");
 });
 
-Deno.test('validateGenerateRecipeParams handles JSON string input', () => {
+Deno.test("validateGenerateRecipeParams handles JSON string input", () => {
   const result = validateGenerateRecipeParams(
     JSON.stringify({
-      ingredients: ['chicken', 'rice'],
+      ingredients: ["chicken", "rice"],
       targetTime: 30,
-    })
+    }),
   );
 
   assertEquals(result.ingredients.length, 2);
   assertEquals(result.targetTime, 30);
 });
 
-Deno.test('validateGenerateRecipeParams rejects invalid JSON string', () => {
+Deno.test("validateGenerateRecipeParams rejects invalid JSON string", () => {
   try {
-    validateGenerateRecipeParams('not valid json');
-    throw new Error('Should have thrown');
+    validateGenerateRecipeParams("not valid json");
+    throw new Error("Should have thrown");
   } catch (e) {
-    assertStringIncludes((e as Error).message, 'Invalid JSON');
+    assertStringIncludes((e as Error).message, "Invalid JSON");
   }
 });
 
-Deno.test('validateGenerateRecipeParams rejects all-empty ingredients', () => {
+Deno.test("validateGenerateRecipeParams rejects all-empty ingredients", () => {
   try {
     validateGenerateRecipeParams({
-      ingredients: ['   ', '!!!', ''],
+      ingredients: ["   ", "!!!", ""],
     });
-    throw new Error('Should have thrown');
+    throw new Error("Should have thrown");
   } catch (e) {
-    assertStringIncludes((e as Error).message, 'at least one valid ingredient');
+    assertStringIncludes((e as Error).message, "at least one valid ingredient");
   }
 });
 
@@ -256,7 +265,7 @@ Deno.test('validateGenerateRecipeParams rejects all-empty ingredients', () => {
 // UserContext Tests
 // ============================================================
 
-Deno.test('UserContext includes all required fields', () => {
+Deno.test("UserContext includes all required fields", () => {
   const context = createMockUserContext();
 
   assertExists(context.language);
@@ -269,30 +278,30 @@ Deno.test('UserContext includes all required fields', () => {
   assertExists(context.kitchenEquipment);
 });
 
-Deno.test('UserContext supports dietary restrictions', () => {
+Deno.test("UserContext supports dietary restrictions", () => {
   const context = createMockUserContext({
-    dietaryRestrictions: ['gluten', 'dairy'],
-    customAllergies: ['tree_nuts', 'shellfish'],
+    dietaryRestrictions: ["gluten", "dairy"],
+    customAllergies: ["tree_nuts", "shellfish"],
   });
 
   assertEquals(context.dietaryRestrictions.length, 2);
   assertEquals(context.customAllergies.length, 2);
 });
 
-Deno.test('UserContext supports equipment preferences', () => {
+Deno.test("UserContext supports equipment preferences", () => {
   const context = createMockUserContext({
-    kitchenEquipment: ['thermomix', 'instant_pot', 'air_fryer'],
+    kitchenEquipment: ["thermomix", "instant_pot", "air_fryer"],
   });
 
   assertEquals(context.kitchenEquipment.length, 3);
-  assertEquals(context.kitchenEquipment.includes('thermomix'), true);
+  assertEquals(context.kitchenEquipment.includes("thermomix"), true);
 });
 
 // ============================================================
 // Output Schema Validation Tests
 // ============================================================
 
-Deno.test('generated recipe matches expected schema', () => {
+Deno.test("generated recipe matches expected schema", () => {
   const mockRecipe = createMockGeneratedRecipeResponse();
 
   // Verify all required fields exist
@@ -308,15 +317,15 @@ Deno.test('generated recipe matches expected schema', () => {
   assertExists(mockRecipe.tags);
 
   // Verify types
-  assertEquals(mockRecipe.schemaVersion, '1.0');
-  assertEquals(typeof mockRecipe.suggestedName, 'string');
+  assertEquals(mockRecipe.schemaVersion, "1.0");
+  assertEquals(typeof mockRecipe.suggestedName, "string");
   assertEquals(Array.isArray(mockRecipe.ingredients), true);
   assertEquals(Array.isArray(mockRecipe.steps), true);
-  assertEquals(typeof mockRecipe.totalTime, 'number');
-  assertEquals(typeof mockRecipe.portions, 'number');
+  assertEquals(typeof mockRecipe.totalTime, "number");
+  assertEquals(typeof mockRecipe.portions, "number");
 });
 
-Deno.test('ingredient objects have required fields', () => {
+Deno.test("ingredient objects have required fields", () => {
   const mockRecipe = createMockGeneratedRecipeResponse();
   const ingredient = mockRecipe.ingredients[0];
 
@@ -324,33 +333,33 @@ Deno.test('ingredient objects have required fields', () => {
   assertExists(ingredient.quantity);
   assertExists(ingredient.unit);
 
-  assertEquals(typeof ingredient.name, 'string');
-  assertEquals(typeof ingredient.quantity, 'number');
-  assertEquals(typeof ingredient.unit, 'string');
+  assertEquals(typeof ingredient.name, "string");
+  assertEquals(typeof ingredient.quantity, "number");
+  assertEquals(typeof ingredient.unit, "string");
 });
 
-Deno.test('step objects have required fields', () => {
+Deno.test("step objects have required fields", () => {
   const mockRecipe = createMockGeneratedRecipeResponse();
   const step = mockRecipe.steps[0];
 
   assertExists(step.order);
   assertExists(step.instruction);
 
-  assertEquals(typeof step.order, 'number');
-  assertEquals(typeof step.instruction, 'string');
+  assertEquals(typeof step.order, "number");
+  assertEquals(typeof step.instruction, "string");
 });
 
 // ============================================================
 // Prompt Building Tests
 // ============================================================
 
-Deno.test('UserContext includes all required fields', () => {
+Deno.test("UserContext includes all required fields", () => {
   const userContext = createMockUserContext({
-    skillLevel: 'beginner',
+    skillLevel: "beginner",
     householdSize: 4,
-    dietTypes: ['vegetarian'],
-    ingredientDislikes: ['mushrooms'],
-    kitchenEquipment: ['oven', 'blender'],
+    dietTypes: ["vegetarian"],
+    ingredientDislikes: ["mushrooms"],
+    kitchenEquipment: ["oven", "blender"],
   });
 
   // Test that user context fields are being used
@@ -361,20 +370,22 @@ Deno.test('UserContext includes all required fields', () => {
   assertEquals(userContext.kitchenEquipment.length, 2);
 });
 
-Deno.test('UserContext supports dietary restrictions', () => {
-  const enContext = createMockUserContext({ language: 'en' });
-  const esContext = createMockUserContext({ language: 'es' });
+Deno.test("UserContext supports dietary restrictions", () => {
+  const enContext = createMockUserContext({ language: "en" });
+  const esContext = createMockUserContext({ language: "es" });
 
-  assertEquals(enContext.language, 'en');
-  assertEquals(esContext.language, 'es');
+  assertEquals(enContext.language, "en");
+  assertEquals(esContext.language, "es");
 });
 
-Deno.test('UserContext supports equipment preferences', () => {
-  const imperialContext = createMockUserContext({ measurementSystem: 'imperial' });
-  const metricContext = createMockUserContext({ measurementSystem: 'metric' });
+Deno.test("UserContext supports equipment preferences", () => {
+  const imperialContext = createMockUserContext({
+    measurementSystem: "imperial",
+  });
+  const metricContext = createMockUserContext({ measurementSystem: "metric" });
 
-  assertEquals(imperialContext.measurementSystem, 'imperial');
-  assertEquals(metricContext.measurementSystem, 'metric');
+  assertEquals(imperialContext.measurementSystem, "imperial");
+  assertEquals(metricContext.measurementSystem, "metric");
 });
 
 // ============================================================
@@ -384,16 +395,38 @@ Deno.test('UserContext supports equipment preferences', () => {
 /**
  * Mock Supabase client for testing enrichIngredientsWithImages.
  * Simulates database queries and responses.
+ * Supports eq (exact match) and textSearch (fuzzy match) as used by the function.
  */
 function createMockSupabaseClient(mockData: Record<string, any> = {}) {
   return {
-    from: (table: string) => ({
-      select: (fields: string) => ({
-        ilike: (column: string, pattern: string) => ({
-          limit: (n: number) => ({
+    from: (_table: string) => ({
+      select: (_fields: string) => ({
+        // eq is used for exact match (primary lookup)
+        eq: (_column: string, value: string) => ({
+          limit: (_n: number) => ({
             maybeSingle: async () => {
-              // Simulate database lookup based on pattern
-              const ingredientName = pattern.replace(/%/g, '').replace(/\\/g, '');
+              const data = mockData[value.toLowerCase()];
+              return { data: data || null, error: null };
+            },
+          }),
+        }),
+        // textSearch is used for fuzzy match (fallback)
+        textSearch: (_column: string, term: string, _options: any) => ({
+          limit: (_n: number) => ({
+            maybeSingle: async () => {
+              const data = mockData[term.toLowerCase()];
+              return { data: data || null, error: null };
+            },
+          }),
+        }),
+        // Legacy: ilike for backwards compatibility with older tests
+        ilike: (_column: string, pattern: string) => ({
+          limit: (_n: number) => ({
+            maybeSingle: async () => {
+              const ingredientName = pattern.replace(/%/g, "").replace(
+                /\\/g,
+                "",
+              );
               const data = mockData[ingredientName.toLowerCase()];
               return { data: data || null, error: null };
             },
@@ -404,33 +437,33 @@ function createMockSupabaseClient(mockData: Record<string, any> = {}) {
   } as any;
 }
 
-Deno.test('enrichIngredientsWithImages adds image URLs when found', async () => {
+Deno.test("enrichIngredientsWithImages adds image URLs when found", async () => {
   const mockSupabase = createMockSupabaseClient({
-    'chicken': { image_url: 'https://example.com/chicken.jpg' },
-    'rice': { image_url: 'https://example.com/rice.jpg' },
+    "chicken": { image_url: "https://example.com/chicken.jpg" },
+    "rice": { image_url: "https://example.com/rice.jpg" },
   });
 
   const ingredients = [
-    { name: 'chicken', quantity: 1, unit: 'lb' },
-    { name: 'rice', quantity: 2, unit: 'cups' },
+    { name: "chicken", quantity: 1, unit: "lb" },
+    { name: "rice", quantity: 2, unit: "cups" },
   ];
 
   const result = await enrichIngredientsWithImages(ingredients, mockSupabase);
 
-  assertEquals(result[0].imageUrl, 'https://example.com/chicken.jpg');
-  assertEquals(result[1].imageUrl, 'https://example.com/rice.jpg');
-  assertEquals(result[0].name, 'chicken');
-  assertEquals(result[1].name, 'rice');
+  assertEquals(result[0].imageUrl, "https://example.com/chicken.jpg");
+  assertEquals(result[1].imageUrl, "https://example.com/rice.jpg");
+  assertEquals(result[0].name, "chicken");
+  assertEquals(result[1].name, "rice");
 });
 
-Deno.test('enrichIngredientsWithImages sanitizes SQL special characters', async () => {
+Deno.test("enrichIngredientsWithImages sanitizes SQL special characters", async () => {
   // Test that ingredient names with special characters are properly escaped
   const mockSupabase = createMockSupabaseClient({
-    'chicken_breast': { image_url: 'https://example.com/chicken.jpg' },
+    "chicken_breast": { image_url: "https://example.com/chicken.jpg" },
   });
 
   const ingredients = [
-    { name: 'chicken_breast%', quantity: 1, unit: 'lb' }, // SQL wildcards should be escaped
+    { name: "chicken_breast%", quantity: 1, unit: "lb" }, // SQL wildcards should be escaped
   ];
 
   const result = await enrichIngredientsWithImages(ingredients, mockSupabase);
@@ -438,20 +471,28 @@ Deno.test('enrichIngredientsWithImages sanitizes SQL special characters', async 
   // Sanitization happens: ingredient.name.replace(/[%_\\]/g, '\\$&')
   // The % should be escaped, so it won't match in our mock (which expects exact lowercase match)
   // This verifies sanitization doesn't break the query
-  assertEquals(result[0].name, 'chicken_breast%');
+  assertEquals(result[0].name, "chicken_breast%");
   assertEquals(result[0].quantity, 1);
 });
 
-Deno.test('enrichIngredientsWithImages handles partial failures gracefully', async () => {
+Deno.test("enrichIngredientsWithImages handles partial failures gracefully", async () => {
   // Test Promise.allSettled behavior - some succeed, some fail
   const mockSupabase = {
     from: () => ({
       select: () => ({
-        ilike: () => ({
+        // eq returns null (no match), triggering textSearch fallback
+        eq: () => ({
           limit: () => ({
             maybeSingle: async () => {
-              // Simulate error for all ingredients
-              return { data: null, error: { message: 'Database error' } };
+              return { data: null, error: null };
+            },
+          }),
+        }),
+        // textSearch also fails
+        textSearch: () => ({
+          limit: () => ({
+            maybeSingle: async () => {
+              return { data: null, error: { message: "Database error" } };
             },
           }),
         }),
@@ -460,8 +501,8 @@ Deno.test('enrichIngredientsWithImages handles partial failures gracefully', asy
   } as any;
 
   const ingredients = [
-    { name: 'chicken', quantity: 1, unit: 'lb' },
-    { name: 'unknown_ingredient', quantity: 2, unit: 'cups' },
+    { name: "chicken", quantity: 1, unit: "lb" },
+    { name: "unknown_ingredient", quantity: 2, unit: "cups" },
   ];
 
   // Function should not throw, failed ingredients return without imageUrl
@@ -471,17 +512,17 @@ Deno.test('enrichIngredientsWithImages handles partial failures gracefully', asy
   assertEquals(result[1].imageUrl, undefined); // Failed lookup returns original
 });
 
-Deno.test('enrichIngredientsWithImages preserves original data when no image found', async () => {
+Deno.test("enrichIngredientsWithImages preserves original data when no image found", async () => {
   const mockSupabase = createMockSupabaseClient({}); // No images in database
 
   const ingredients = [
-    { name: 'exotic_ingredient', quantity: 1, unit: 'piece' },
+    { name: "exotic_ingredient", quantity: 1, unit: "piece" },
   ];
 
   const result = await enrichIngredientsWithImages(ingredients, mockSupabase);
-  assertEquals(result[0].name, 'exotic_ingredient');
+  assertEquals(result[0].name, "exotic_ingredient");
   assertEquals(result[0].quantity, 1);
-  assertEquals(result[0].unit, 'piece');
+  assertEquals(result[0].unit, "piece");
   assertEquals(result[0].imageUrl, undefined);
 });
 
@@ -489,39 +530,99 @@ Deno.test('enrichIngredientsWithImages preserves original data when no image fou
 // validateThermomixSteps Tests
 // ============================================================
 
-Deno.test('validateThermomixSteps accepts valid numeric speeds', () => {
+Deno.test("validateThermomixSteps accepts valid numeric speeds", () => {
   const steps = [
-    { order: 1, instruction: 'Mix', thermomixSpeed: '1', thermomixTime: 30, thermomixTemp: '50°C' },
-    { order: 2, instruction: 'Blend', thermomixSpeed: '5', thermomixTime: 60, thermomixTemp: '100°C' },
-    { order: 3, instruction: 'Chop', thermomixSpeed: '10', thermomixTime: 10, thermomixTemp: 'Varoma' },
+    {
+      order: 1,
+      instruction: "Mix",
+      thermomixSpeed: "1",
+      thermomixTime: 30,
+      thermomixTemp: "50°C",
+    },
+    {
+      order: 2,
+      instruction: "Blend",
+      thermomixSpeed: "5",
+      thermomixTime: 60,
+      thermomixTemp: "100°C",
+    },
+    {
+      order: 3,
+      instruction: "Chop",
+      thermomixSpeed: "10",
+      thermomixTime: 10,
+      thermomixTemp: "Varoma",
+    },
   ];
 
   const result = validateThermomixSteps(steps);
-  assertEquals(result[0].thermomixSpeed, '1');
-  assertEquals(result[1].thermomixSpeed, '5');
-  assertEquals(result[2].thermomixSpeed, '10');
+  assertEquals(result[0].thermomixSpeed, "1");
+  assertEquals(result[1].thermomixSpeed, "5");
+  assertEquals(result[2].thermomixSpeed, "10");
 });
 
-Deno.test('validateThermomixSteps normalizes special speeds to title case', () => {
+Deno.test("validateThermomixSteps normalizes special speeds to title case", () => {
   const steps = [
-    { order: 1, instruction: 'Stir', thermomixSpeed: 'spoon', thermomixTime: 30, thermomixTemp: '50°C' },
-    { order: 2, instruction: 'Mix', thermomixSpeed: 'SPOON', thermomixTime: 30, thermomixTemp: '50°C' },
-    { order: 3, instruction: 'Reverse', thermomixSpeed: 'reverse', thermomixTime: 30, thermomixTemp: '50°C' },
-    { order: 4, instruction: 'Reverse', thermomixSpeed: 'REVERSE', thermomixTime: 30, thermomixTemp: '50°C' },
+    {
+      order: 1,
+      instruction: "Stir",
+      thermomixSpeed: "spoon",
+      thermomixTime: 30,
+      thermomixTemp: "50°C",
+    },
+    {
+      order: 2,
+      instruction: "Mix",
+      thermomixSpeed: "SPOON",
+      thermomixTime: 30,
+      thermomixTemp: "50°C",
+    },
+    {
+      order: 3,
+      instruction: "Reverse",
+      thermomixSpeed: "reverse",
+      thermomixTime: 30,
+      thermomixTemp: "50°C",
+    },
+    {
+      order: 4,
+      instruction: "Reverse",
+      thermomixSpeed: "REVERSE",
+      thermomixTime: 30,
+      thermomixTemp: "50°C",
+    },
   ];
 
   const result = validateThermomixSteps(steps);
-  assertEquals(result[0].thermomixSpeed, 'Spoon');
-  assertEquals(result[1].thermomixSpeed, 'Spoon');
-  assertEquals(result[2].thermomixSpeed, 'Reverse');
-  assertEquals(result[3].thermomixSpeed, 'Reverse');
+  assertEquals(result[0].thermomixSpeed, "Spoon");
+  assertEquals(result[1].thermomixSpeed, "Spoon");
+  assertEquals(result[2].thermomixSpeed, "Reverse");
+  assertEquals(result[3].thermomixSpeed, "Reverse");
 });
 
-Deno.test('validateThermomixSteps removes invalid speeds', () => {
+Deno.test("validateThermomixSteps removes invalid speeds", () => {
   const steps = [
-    { order: 1, instruction: 'Mix', thermomixSpeed: '11', thermomixTime: 30, thermomixTemp: '50°C' },
-    { order: 2, instruction: 'Blend', thermomixSpeed: 'turbo', thermomixTime: 30, thermomixTemp: '50°C' },
-    { order: 3, instruction: 'Chop', thermomixSpeed: 'invalid', thermomixTime: 30, thermomixTemp: '50°C' },
+    {
+      order: 1,
+      instruction: "Mix",
+      thermomixSpeed: "11",
+      thermomixTime: 30,
+      thermomixTemp: "50°C",
+    },
+    {
+      order: 2,
+      instruction: "Blend",
+      thermomixSpeed: "turbo",
+      thermomixTime: 30,
+      thermomixTemp: "50°C",
+    },
+    {
+      order: 3,
+      instruction: "Chop",
+      thermomixSpeed: "invalid",
+      thermomixTime: 30,
+      thermomixTemp: "50°C",
+    },
   ];
 
   const result = validateThermomixSteps(steps);
@@ -530,26 +631,41 @@ Deno.test('validateThermomixSteps removes invalid speeds', () => {
   assertEquals(result[2].thermomixSpeed, undefined);
 });
 
-Deno.test('validateThermomixSteps accepts valid temperatures', () => {
+Deno.test("validateThermomixSteps accepts valid temperatures", () => {
   const steps = [
-    { order: 1, instruction: 'Heat', thermomixTemp: '50°C', thermomixTime: 30 },
-    { order: 2, instruction: 'Boil', thermomixTemp: '100°C', thermomixTime: 60 },
-    { order: 3, instruction: 'Steam', thermomixTemp: 'Varoma', thermomixTime: 120 },
-    { order: 4, instruction: 'Warm', thermomixTemp: '37.5°C', thermomixTime: 30 },
+    { order: 1, instruction: "Heat", thermomixTemp: "50°C", thermomixTime: 30 },
+    {
+      order: 2,
+      instruction: "Boil",
+      thermomixTemp: "100°C",
+      thermomixTime: 60,
+    },
+    {
+      order: 3,
+      instruction: "Steam",
+      thermomixTemp: "Varoma",
+      thermomixTime: 120,
+    },
+    {
+      order: 4,
+      instruction: "Warm",
+      thermomixTemp: "37.5°C",
+      thermomixTime: 30,
+    },
   ];
 
   const result = validateThermomixSteps(steps);
-  assertEquals(result[0].thermomixTemp, '50°C');
-  assertEquals(result[1].thermomixTemp, '100°C');
-  assertEquals(result[2].thermomixTemp, 'Varoma');
-  assertEquals(result[3].thermomixTemp, '37.5°C');
+  assertEquals(result[0].thermomixTemp, "50°C");
+  assertEquals(result[1].thermomixTemp, "100°C");
+  assertEquals(result[2].thermomixTemp, "Varoma");
+  assertEquals(result[3].thermomixTemp, "37.5°C");
 });
 
-Deno.test('validateThermomixSteps removes invalid temperatures', () => {
+Deno.test("validateThermomixSteps removes invalid temperatures", () => {
   const steps = [
-    { order: 1, instruction: 'Heat', thermomixTemp: 'hot', thermomixTime: 30 },
-    { order: 2, instruction: 'Cook', thermomixTemp: '100', thermomixTime: 30 }, // Missing unit
-    { order: 3, instruction: 'Warm', thermomixTemp: '50F', thermomixTime: 30 }, // Wrong format (no °)
+    { order: 1, instruction: "Heat", thermomixTemp: "hot", thermomixTime: 30 },
+    { order: 2, instruction: "Cook", thermomixTemp: "100", thermomixTime: 30 }, // Missing unit
+    { order: 3, instruction: "Warm", thermomixTemp: "50F", thermomixTime: 30 }, // Wrong format (no °)
   ];
 
   const result = validateThermomixSteps(steps);
@@ -558,11 +674,11 @@ Deno.test('validateThermomixSteps removes invalid temperatures', () => {
   assertEquals(result[2].thermomixTemp, undefined);
 });
 
-Deno.test('validateThermomixSteps removes invalid times', () => {
+Deno.test("validateThermomixSteps removes invalid times", () => {
   const steps = [
-    { order: 1, instruction: 'Mix', thermomixTime: 0, thermomixSpeed: '5' },
-    { order: 2, instruction: 'Blend', thermomixTime: -10, thermomixSpeed: '5' },
-    { order: 3, instruction: 'Chop', thermomixTime: NaN, thermomixSpeed: '5' },
+    { order: 1, instruction: "Mix", thermomixTime: 0, thermomixSpeed: "5" },
+    { order: 2, instruction: "Blend", thermomixTime: -10, thermomixSpeed: "5" },
+    { order: 3, instruction: "Chop", thermomixTime: NaN, thermomixSpeed: "5" },
   ];
 
   const result = validateThermomixSteps(steps);
@@ -571,11 +687,11 @@ Deno.test('validateThermomixSteps removes invalid times', () => {
   assertEquals(result[2].thermomixTime, undefined);
 });
 
-Deno.test('validateThermomixSteps preserves valid times', () => {
+Deno.test("validateThermomixSteps preserves valid times", () => {
   const steps = [
-    { order: 1, instruction: 'Mix', thermomixTime: 30, thermomixSpeed: '5' },
-    { order: 2, instruction: 'Blend', thermomixTime: 120, thermomixSpeed: '5' },
-    { order: 3, instruction: 'Chop', thermomixTime: 1, thermomixSpeed: '5' },
+    { order: 1, instruction: "Mix", thermomixTime: 30, thermomixSpeed: "5" },
+    { order: 2, instruction: "Blend", thermomixTime: 120, thermomixSpeed: "5" },
+    { order: 3, instruction: "Chop", thermomixTime: 1, thermomixSpeed: "5" },
   ];
 
   const result = validateThermomixSteps(steps);
@@ -584,31 +700,31 @@ Deno.test('validateThermomixSteps preserves valid times', () => {
   assertEquals(result[2].thermomixTime, 1);
 });
 
-Deno.test('validateThermomixSteps skips steps with no Thermomix params', () => {
+Deno.test("validateThermomixSteps skips steps with no Thermomix params", () => {
   const steps = [
-    { order: 1, instruction: 'Plate the dish' },
-    { order: 2, instruction: 'Garnish with herbs' },
+    { order: 1, instruction: "Plate the dish" },
+    { order: 2, instruction: "Garnish with herbs" },
   ];
 
   const result = validateThermomixSteps(steps);
   assertEquals(result.length, 2);
-  assertEquals(result[0].instruction, 'Plate the dish');
-  assertEquals(result[1].instruction, 'Garnish with herbs');
+  assertEquals(result[0].instruction, "Plate the dish");
+  assertEquals(result[1].instruction, "Garnish with herbs");
 });
 
-Deno.test('validateThermomixSteps handles mixed valid and invalid params', () => {
+Deno.test("validateThermomixSteps handles mixed valid and invalid params", () => {
   const steps = [
     {
       order: 1,
-      instruction: 'Mix ingredients',
+      instruction: "Mix ingredients",
       thermomixTime: 30,
-      thermomixSpeed: 'invalid_speed',
-      thermomixTemp: '100°C',
+      thermomixSpeed: "invalid_speed",
+      thermomixTemp: "100°C",
     },
   ];
 
   const result = validateThermomixSteps(steps);
   assertEquals(result[0].thermomixTime, 30);
-  assertEquals(result[0].thermomixTemp, '100°C');
+  assertEquals(result[0].thermomixTemp, "100°C");
   assertEquals(result[0].thermomixSpeed, undefined);
 });

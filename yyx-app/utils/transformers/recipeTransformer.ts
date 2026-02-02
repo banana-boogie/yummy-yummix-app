@@ -14,7 +14,7 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
       return {
         id: raw.id,
         name: raw[`name_${lang}`],
-        pictureUrl: raw.picture_url,
+        pictureUrl: raw.image_url,
         difficulty: raw.difficulty,
         prepTime: raw.prep_time,
         totalTime: raw.total_time,
@@ -135,7 +135,7 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
       return rawUsefulItems.map(item => ({
         id: item.id,
         name: item.useful_item[`name_${lang}` as 'name_en' | 'name_es'] ?? '',
-        pictureUrl: item.useful_item.picture_url,
+        pictureUrl: item.useful_item.image_url,
         displayOrder: item.display_order,
         notes: item[`notes_${lang}` as 'notes_en' | 'notes_es'] ?? ''
       }));
@@ -170,7 +170,7 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
         },
         formattedQuantity: formattedMeasurements.quantity,
         formattedUnit: formattedMeasurements.unit,
-        pictureUrl: raw.ingredient.picture_url,
+        pictureUrl: raw.ingredient.image_url,
         notes: raw[`notes_${lang}` as 'notes_en' | 'notes_es'] ?? '',
         displayOrder: raw.display_order,
         optional: raw.optional,

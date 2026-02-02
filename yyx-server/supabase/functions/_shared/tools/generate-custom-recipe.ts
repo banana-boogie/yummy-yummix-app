@@ -5,69 +5,75 @@
  * preferences, and constraints. Validates safety and allergens.
  */
 
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import {
   GeneratedRecipe,
   GeneratedRecipeSchema,
   SafetyFlags,
   UserContext,
-} from '../irmixy-schemas.ts';
-import { validateGenerateRecipeParams, GenerateRecipeParams } from './tool-validators.ts';
-import { checkIngredientForAllergens, getAllergenWarning } from '../allergen-filter.ts';
-import { checkRecipeSafety, buildSafetyReminders } from '../food-safety.ts';
+} from "../irmixy-schemas.ts";
+import {
+  GenerateRecipeParams,
+  validateGenerateRecipeParams,
+} from "./tool-validators.ts";
+import {
+  checkIngredientForAllergens,
+  getAllergenWarning,
+} from "../allergen-filter.ts";
+import { buildSafetyReminders, checkRecipeSafety } from "../food-safety.ts";
 
 // ============================================================
 // Tool Definition (OpenAI Function Calling format)
 // ============================================================
 
 export const generateCustomRecipeTool = {
-  type: 'function' as const,
+  type: "function" as const,
   function: {
-    name: 'generate_custom_recipe',
+    name: "generate_custom_recipe",
     description:
-      'Generate a custom recipe based on ingredients the user has available. ' +
-      'Use this when the user wants to create a new recipe from scratch, ' +
-      'tells you what ingredients they have, or asks what they can make. ' +
-      'Before calling this tool, gather at least: ingredients and time available. ' +
-      'Cuisine preference is helpful but optional.',
+      "Generate a custom recipe based on ingredients the user has available. " +
+      "Use this when the user wants to create a new recipe from scratch, " +
+      "tells you what ingredients they have, or asks what they can make. " +
+      "Before calling this tool, gather at least: ingredients and time available. " +
+      "Cuisine preference is helpful but optional.",
     parameters: {
-      type: 'object',
+      type: "object",
       properties: {
         ingredients: {
-          type: 'array',
-          items: { type: 'string' },
+          type: "array",
+          items: { type: "string" },
           description:
             'List of ingredients the user has available (e.g., ["chicken", "rice", "broccoli"])',
         },
         cuisinePreference: {
-          type: 'string',
+          type: "string",
           description:
             'Preferred cuisine style (e.g., "Italian", "Mexican", "Asian", "Mediterranean")',
         },
         targetTime: {
-          type: 'integer',
-          description: 'Target total time in minutes',
+          type: "integer",
+          description: "Target total time in minutes",
           minimum: 5,
           maximum: 480,
         },
         difficulty: {
-          type: 'string',
-          enum: ['easy', 'medium', 'hard'],
-          description: 'Desired difficulty level',
+          type: "string",
+          enum: ["easy", "medium", "hard"],
+          description: "Desired difficulty level",
         },
         additionalRequests: {
-          type: 'string',
+          type: "string",
           description:
             'Additional requests or constraints (e.g., "make it spicy", "kid-friendly", "low carb")',
         },
         useful_items: {
-          type: 'array',
-          items: { type: 'string' },
+          type: "array",
+          items: { type: "string" },
           description:
             'Specific kitchen equipment to prioritize for this recipe (e.g., ["thermomix", "air fryer"]). Overrides user\'s general equipment preferences.',
         },
       },
-      required: ['ingredients'],
+      required: ["ingredients"],
     },
   },
 };
@@ -137,6 +143,20 @@ export async function generateCustomRecipe(
   // Validate Thermomix parameters if present
   recipe.steps = validateThermomixSteps(recipe.steps);
 
+  // Check Thermomix usage if user has Thermomix
+  const hasThermomix = userContext.kitchenEquipment.some((eq) =>
+    eq.toLowerCase().includes("thermomix")
+  );
+  validateThermomixUsage(recipe, hasThermomix);
+
+  // Enrich recipe with useful items from database
+  recipe.usefulItems = await getRelevantUsefulItems(
+    supabase,
+    recipe,
+    userContext.language,
+    hasThermomix,
+  );
+
   // Validate the generated recipe against food safety rules
   const safetyCheck = await checkRecipeSafety(
     supabase,
@@ -150,7 +170,7 @@ export async function generateCustomRecipe(
     return {
       recipe,
       safetyFlags: {
-        allergenWarning: safetyCheck.warnings.join(' '),
+        allergenWarning: safetyCheck.warnings.join(" "),
       },
     };
   }
@@ -191,31 +211,38 @@ async function callRecipeGenerationAI(
 ): Promise<GeneratedRecipe> {
   const prompt = buildRecipePrompt(params, userContext, safetyReminders);
   const requestBody = JSON.stringify({
-    model: 'gpt-4o-mini',
+    model: "gpt-4o-mini",
     messages: [
-      { role: 'system', content: getSystemPrompt(userContext) },
-      { role: 'user', content: prompt },
+      { role: "system", content: getSystemPrompt(userContext) },
+      { role: "user", content: prompt },
     ],
     temperature: 0.7,
-    response_format: { type: 'json_object' },
+    response_format: { type: "json_object" },
   });
 
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: requestBody,
         },
-        body: requestBody,
-      });
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`Recipe generation API error (attempt ${attempt + 1}):`, response.status, errorText);
+        console.error(
+          `Recipe generation API error (attempt ${attempt + 1}):`,
+          response.status,
+          errorText,
+        );
 
         // Retry on transient errors
         if (isRetryableError(response.status) && attempt < MAX_RETRIES - 1) {
@@ -232,7 +259,7 @@ async function callRecipeGenerationAI(
       const content = data.choices?.[0]?.message?.content;
 
       if (!content) {
-        throw new Error('No content in recipe generation response');
+        throw new Error("No content in recipe generation response");
       }
 
       // Parse and validate the generated recipe
@@ -240,14 +267,14 @@ async function callRecipeGenerationAI(
       try {
         parsed = JSON.parse(content);
       } catch {
-        console.error('Failed to parse recipe JSON:', content.slice(0, 500));
-        throw new Error('Invalid recipe JSON from AI');
+        console.error("Failed to parse recipe JSON:", content.slice(0, 500));
+        throw new Error("Invalid recipe JSON from AI");
       }
 
       const result = GeneratedRecipeSchema.safeParse(parsed);
       if (!result.success) {
-        console.error('Recipe validation failed:', result.error.issues);
-        throw new Error('Generated recipe does not match schema');
+        console.error("Recipe validation failed:", result.error.issues);
+        throw new Error("Generated recipe does not match schema");
       }
 
       return result.data;
@@ -267,23 +294,36 @@ async function callRecipeGenerationAI(
     }
   }
 
-  throw lastError || new Error('Failed to generate recipe after retries');
+  throw lastError || new Error("Failed to generate recipe after retries");
 }
 
 /**
  * Build the system prompt for recipe generation.
  */
 function getSystemPrompt(userContext: UserContext): string {
-  const lang = userContext.language === 'es' ? 'Spanish' : 'English';
-  const units = userContext.measurementSystem === 'imperial'
-    ? 'cups, tablespoons, teaspoons, ounces, pounds, °F'
-    : 'ml, liters, grams, kg, °C';
+  const lang = userContext.language === "es" ? "Spanish" : "English";
+  const units = userContext.measurementSystem === "imperial"
+    ? "cups, tablespoons, teaspoons, ounces, pounds, °F"
+    : "ml, liters, grams, kg, °C";
 
-  const hasThermomix = userContext.kitchenEquipment.some(eq =>
-    eq.toLowerCase().includes('thermomix')
+  const hasThermomix = userContext.kitchenEquipment.some((eq) =>
+    eq.toLowerCase().includes("thermomix")
   );
 
-  const thermomixSection = hasThermomix ? `
+  console.log("[Recipe Generation] Equipment check:", {
+    kitchenEquipment: userContext.kitchenEquipment,
+    hasThermomix,
+  });
+
+  if (!hasThermomix && userContext.kitchenEquipment.length > 0) {
+    console.warn(
+      "[Recipe Generation] User has equipment but no Thermomix:",
+      userContext.kitchenEquipment,
+    );
+  }
+
+  const thermomixSection = hasThermomix
+    ? `
 
 ## THERMOMIX USAGE - CRITICAL PRIORITY
 
@@ -330,7 +370,8 @@ MANDATORY RULES:
   "instruction": "Transfer to a serving plate and garnish with fresh herbs"
 }
 
-REMEMBER: The user specifically has Thermomix - they expect Thermomix-first recipes!` : '';
+REMEMBER: The user specifically has Thermomix - they expect Thermomix-first recipes!`
+    : "";
 
   return `You are a professional recipe creator for a cooking app.
 Generate recipes in ${lang} using ${userContext.measurementSystem} measurements (${units}).
@@ -376,11 +417,15 @@ function buildRecipePrompt(
   const parts: string[] = [];
 
   // Core request
-  parts.push(`Create a recipe using these ingredients: ${params.ingredients.join(', ')}`);
+  parts.push(
+    `Create a recipe using these ingredients: ${params.ingredients.join(", ")}`,
+  );
 
   // Time constraint
   if (params.targetTime) {
-    parts.push(`Total time should be around ${params.targetTime} minutes or less.`);
+    parts.push(
+      `Total time should be around ${params.targetTime} minutes or less.`,
+    );
   }
 
   // Cuisine preference
@@ -410,23 +455,29 @@ function buildRecipePrompt(
   }
 
   if (userContext.dietTypes.length > 0) {
-    preferences.push(`Diet types: ${userContext.dietTypes.join(', ')}`);
+    preferences.push(`Diet types: ${userContext.dietTypes.join(", ")}`);
   }
 
   if (userContext.ingredientDislikes.length > 0) {
-    preferences.push(`Avoid these ingredients: ${userContext.ingredientDislikes.join(', ')}`);
+    preferences.push(
+      `Avoid these ingredients: ${userContext.ingredientDislikes.join(", ")}`,
+    );
   }
 
   // Equipment: prioritize useful_items over general equipment
   if (params.useful_items && params.useful_items.length > 0) {
-    preferences.push(`PRIORITY EQUIPMENT for this recipe: ${params.useful_items.join(', ')}`);
+    preferences.push(
+      `PRIORITY EQUIPMENT for this recipe: ${params.useful_items.join(", ")}`,
+    );
   } else if (userContext.kitchenEquipment.length > 0) {
-    preferences.push(`Available equipment: ${userContext.kitchenEquipment.join(', ')}`);
+    preferences.push(
+      `Available equipment: ${userContext.kitchenEquipment.join(", ")}`,
+    );
   }
 
   if (preferences.length > 0) {
-    parts.push('\nUser preferences:');
-    parts.push(preferences.join('\n'));
+    parts.push("\nUser preferences:");
+    parts.push(preferences.join("\n"));
   }
 
   // Safety reminders
@@ -434,7 +485,7 @@ function buildRecipePrompt(
     parts.push(`\n${safetyReminders}`);
   }
 
-  return parts.join('\n');
+  return parts.join("\n");
 }
 
 // ============================================================
@@ -454,7 +505,7 @@ async function checkIngredientsForAllergens(
   ingredients: string[],
   dietaryRestrictions: string[],
   customAllergies: string[],
-  language: 'en' | 'es',
+  language: "en" | "es",
 ): Promise<AllergenCheckResult> {
   const allRestrictions = [...dietaryRestrictions, ...customAllergies];
 
@@ -489,13 +540,24 @@ async function checkIngredientsForAllergens(
 // ============================================================
 
 /** Valid Thermomix numeric speeds. Exported for testing. */
-export const VALID_NUMERIC_SPEEDS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'] as const;
+export const VALID_NUMERIC_SPEEDS = [
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10",
+] as const;
 
 /** Valid Thermomix special speeds (lowercase for comparison). Exported for testing. */
-export const VALID_SPECIAL_SPEEDS = ['spoon', 'reverse'] as const;
+export const VALID_SPECIAL_SPEEDS = ["spoon", "reverse"] as const;
 
 /** Valid Thermomix special temperatures. Exported for testing. */
-export const VALID_SPECIAL_TEMPS = ['Varoma'] as const;
+export const VALID_SPECIAL_TEMPS = ["Varoma"] as const;
 
 /** Regex for validating temperature strings (e.g., "100°C", "212°F"). Exported for testing. */
 export const TEMP_REGEX = /^\d+(\.\d+)?°[CF]$/;
@@ -534,52 +596,240 @@ export async function enrichIngredientsWithImages(
       // First try exact match, then fallback to partial match
       // This avoids manual string interpolation in LIKE patterns
       const exactMatch = await supabase
-        .from('ingredients')
-        .select('image_url')
-        .eq('name_en', ingredient.name)
+        .from("ingredients")
+        .select("image_url")
+        .eq("name_en", ingredient.name)
         .limit(1)
         .maybeSingle();
 
       if (exactMatch.data?.image_url) {
+        console.log(
+          `✓ Exact match for "${ingredient.name}": ${exactMatch.data.image_url}`,
+        );
         return {
           ...ingredient,
           imageUrl: exactMatch.data.image_url,
         };
       }
 
-      // Fallback: Use textSearch for partial matching (safer than LIKE)
-      // Extract first word for fuzzy matching
-      const searchTerm = ingredient.name.split(' ')[0].trim();
+      // Fallback: Try multiple search strategies
+      const searchTerms = [
+        ingredient.name, // Full name
+        ingredient.name.split(" ")[0], // First word
+        ingredient.name.toLowerCase().replace(/s$/, ""), // Singular form
+      ];
 
-      const { data, error } = await supabase
-        .from('ingredients')
-        .select('image_url')
-        .textSearch('name_en', searchTerm, { type: 'websearch', config: 'english' })
-        .limit(1)
-        .maybeSingle();
+      for (const term of searchTerms) {
+        try {
+          const { data, error } = await supabase
+            .from("ingredients")
+            .select("image_url")
+            .textSearch("name_en", term, {
+              type: "websearch",
+              config: "english",
+            })
+            .limit(1)
+            .maybeSingle();
 
-      if (error) {
-        throw new Error(`Failed to fetch image: ${error.message}`);
+          if (error) {
+            throw new Error(`Failed to fetch image: ${error.message}`);
+          }
+
+          if (data?.image_url) {
+            console.log(
+              `✓ Fuzzy match: "${ingredient.name}" → "${term}" → ${data.image_url}`,
+            );
+            return { ...ingredient, imageUrl: data.image_url };
+          }
+        } catch (err) {
+          // Continue to next search term
+          console.warn(`Search failed for "${term}":`, err);
+        }
       }
 
+      // No match found
+      console.log(
+        `✗ No match for "${ingredient.name}" after trying ${searchTerms.length} terms`,
+      );
       return {
         ...ingredient,
-        imageUrl: data?.image_url || undefined,
+        imageUrl: undefined,
       };
-    })
+    }),
   );
 
   // Map results, handling both fulfilled and rejected promises
   const enriched = results.map((result, index) => {
-    if (result.status === 'fulfilled') {
+    if (result.status === "fulfilled") {
+      if (result.value.imageUrl) {
+        console.log(
+          `✓ Image found for "${
+            ingredients[index].name
+          }": ${result.value.imageUrl}`,
+        );
+      } else {
+        console.log(`✗ No image found for "${ingredients[index].name}"`);
+      }
       return result.value;
     } else {
-      console.warn(`Failed to enrich ingredient "${ingredients[index].name}":`, result.reason);
+      console.warn(
+        `Failed to enrich ingredient "${ingredients[index].name}":`,
+        result.reason,
+      );
       return ingredients[index]; // Return original without image
     }
   });
 
   return enriched;
+}
+
+/**
+ * Get relevant useful items for a recipe based on recipe context.
+ * Matches items based on cooking techniques and equipment used.
+ */
+async function getRelevantUsefulItems(
+  supabase: SupabaseClient,
+  recipe: GeneratedRecipe,
+  language: "en" | "es",
+  hasThermomix: boolean,
+): Promise<Array<{ name: string; imageUrl?: string; notes?: string }>> {
+  try {
+    // Query useful items from database
+    const nameField = language === "es" ? "name_es" : "name_en";
+    const { data: allItems, error } = await supabase
+      .from("useful_items")
+      .select(`id, name_en, name_es, image_url`)
+      .limit(50);
+
+    if (error || !allItems || allItems.length === 0) {
+      console.warn(
+        "[Useful Items] Failed to fetch or no items available:",
+        error?.message,
+      );
+      return [];
+    }
+
+    // Define keywords for matching items to recipe context
+    const recipeText = (
+      recipe.suggestedName +
+      " " +
+      recipe.steps.map((s) => s.instruction).join(" ")
+    ).toLowerCase();
+
+    // Keywords that suggest specific useful items
+    const itemKeywords: Record<string, string[]> = {
+      "spatula": ["stir", "flip", "fold", "mix", "mezclar", "revolver"],
+      "whisk": ["whisk", "beat", "whip", "batir"],
+      "tongs": ["flip", "turn", "grill", "voltear", "asar"],
+      "thermometer": [
+        "temperature",
+        "internal",
+        "meat",
+        "temperatura",
+        "carne",
+      ],
+      "timer": ["minutes", "timer", "cook for", "minutos", "cocinar por"],
+      "cutting board": ["chop", "dice", "slice", "cut", "picar", "cortar"],
+      "knife": ["chop", "dice", "slice", "cut", "mince", "picar", "cortar"],
+      "bowl": ["mix", "combine", "toss", "mezclar", "combinar"],
+      "pan": ["sauté", "fry", "cook", "saltear", "freír"],
+      "pot": ["boil", "simmer", "stew", "hervir", "cocinar a fuego lento"],
+      "baking sheet": ["bake", "roast", "oven", "hornear", "asar"],
+      "varoma": ["steam", "varoma", "vapor"],
+      "butterfly": ["butterfly", "mariposa", "whip", "cream"],
+    };
+
+    // Score each item based on keyword matches
+    const scoredItems = allItems.map((item) => {
+      const itemName = (item.name_en + " " + item.name_es).toLowerCase();
+      let score = 0;
+
+      // Check if item name keywords appear in recipe
+      for (const [itemType, keywords] of Object.entries(itemKeywords)) {
+        if (itemName.includes(itemType.toLowerCase())) {
+          for (const keyword of keywords) {
+            if (recipeText.includes(keyword)) {
+              score += 1;
+            }
+          }
+        }
+      }
+
+      // Boost Thermomix accessories if user has Thermomix
+      if (
+        hasThermomix &&
+        (itemName.includes("varoma") || itemName.includes("butterfly") ||
+          itemName.includes("mariposa"))
+      ) {
+        const usesVaroma = recipeText.includes("steam") ||
+          recipeText.includes("varoma") || recipeText.includes("vapor");
+        const usesButterfly = recipeText.includes("whip") ||
+          recipeText.includes("cream") || recipeText.includes("batir");
+        if (usesVaroma || usesButterfly) {
+          score += 3;
+        }
+      }
+
+      return { item, score };
+    });
+
+    // Sort by score and take top 3-5 items with score > 0
+    const relevantItems = scoredItems
+      .filter((si) => si.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4)
+      .map((si) => ({
+        name: si.item[nameField as keyof typeof si.item] as string,
+        imageUrl: si.item.image_url || undefined,
+      }));
+
+    console.log(
+      "[Useful Items] Found relevant items:",
+      relevantItems.map((i) => i.name),
+    );
+    return relevantItems;
+  } catch (error) {
+    console.error("[Useful Items] Error fetching useful items:", error);
+    return [];
+  }
+}
+
+/**
+ * Validate that Thermomix-enabled recipes include proper parameters
+ */
+function validateThermomixUsage(
+  recipe: GeneratedRecipe,
+  hasThermomix: boolean,
+): void {
+  if (!hasThermomix) return;
+
+  const thermomixSteps = recipe.steps.filter(
+    (step) => step.thermomixTime || step.thermomixTemp || step.thermomixSpeed,
+  );
+
+  const totalSteps = recipe.steps.length;
+  const thermomixPercentage = (thermomixSteps.length / totalSteps) * 100;
+
+  console.log("[Thermomix Validation]", {
+    totalSteps,
+    thermomixSteps: thermomixSteps.length,
+    percentage: thermomixPercentage.toFixed(1) + "%",
+  });
+
+  if (thermomixSteps.length === 0) {
+    console.warn(
+      "[Thermomix Validation] WARNING: User has Thermomix but NO steps use it!",
+      {
+        recipeName: recipe.suggestedName,
+        recommendation: "AI may not be following system prompt",
+      },
+    );
+  } else if (thermomixPercentage < 30) {
+    console.warn("[Thermomix Validation] Low Thermomix usage:", {
+      recipeName: recipe.suggestedName,
+      percentage: thermomixPercentage.toFixed(1) + "%",
+    });
+  }
 }
 
 /**
@@ -594,7 +844,7 @@ export function validateThermomixSteps(
     thermomixTime?: number;
     thermomixTemp?: string;
     thermomixSpeed?: string;
-  }>
+  }>,
 ): Array<{
   order: number;
   instruction: string;
@@ -602,7 +852,7 @@ export function validateThermomixSteps(
   thermomixTemp?: string;
   thermomixSpeed?: string;
 }> {
-  return steps.map(step => {
+  return steps.map((step) => {
     // Skip if no Thermomix params
     if (!step.thermomixTime && !step.thermomixTemp && !step.thermomixSpeed) {
       return step;
@@ -612,8 +862,13 @@ export function validateThermomixSteps(
 
     // Validate time (must be positive number, not NaN)
     if (step.thermomixTime !== undefined) {
-      if (typeof step.thermomixTime !== 'number' || Number.isNaN(step.thermomixTime) || step.thermomixTime <= 0) {
-        console.warn(`Invalid Thermomix time for step ${step.order}: ${step.thermomixTime}. Removing.`);
+      if (
+        typeof step.thermomixTime !== "number" ||
+        Number.isNaN(step.thermomixTime) || step.thermomixTime <= 0
+      ) {
+        console.warn(
+          `Invalid Thermomix time for step ${step.order}: ${step.thermomixTime}. Removing.`,
+        );
         delete validated.thermomixTime;
       }
     }
@@ -621,24 +876,29 @@ export function validateThermomixSteps(
     // Validate speed (case-insensitive for special speeds)
     if (step.thermomixSpeed !== undefined) {
       const normalizedSpeed = step.thermomixSpeed.toLowerCase();
-      const isValid = VALID_NUMERIC_SPEEDS.includes(step.thermomixSpeed as any) ||
-                      VALID_SPECIAL_SPEEDS.includes(normalizedSpeed as any);
+      const isValid =
+        VALID_NUMERIC_SPEEDS.includes(step.thermomixSpeed as any) ||
+        VALID_SPECIAL_SPEEDS.includes(normalizedSpeed as any);
       if (!isValid) {
-        console.warn(`Invalid Thermomix speed for step ${step.order}: ${step.thermomixSpeed}. Removing.`);
+        console.warn(
+          `Invalid Thermomix speed for step ${step.order}: ${step.thermomixSpeed}. Removing.`,
+        );
         delete validated.thermomixSpeed;
       } else if (VALID_SPECIAL_SPEEDS.includes(normalizedSpeed as any)) {
         // Normalize to title case for consistency
         validated.thermomixSpeed = step.thermomixSpeed.charAt(0).toUpperCase() +
-                                   step.thermomixSpeed.slice(1).toLowerCase();
+          step.thermomixSpeed.slice(1).toLowerCase();
       }
     }
 
     // Validate temperature
     if (step.thermomixTemp !== undefined) {
       const isValid = TEMP_REGEX.test(step.thermomixTemp) ||
-                      VALID_SPECIAL_TEMPS.includes(step.thermomixTemp as any);
+        VALID_SPECIAL_TEMPS.includes(step.thermomixTemp as any);
       if (!isValid) {
-        console.warn(`Invalid Thermomix temperature for step ${step.order}: ${step.thermomixTemp}. Removing.`);
+        console.warn(
+          `Invalid Thermomix temperature for step ${step.order}: ${step.thermomixTemp}. Removing.`,
+        );
         delete validated.thermomixTemp;
       }
     }
@@ -652,14 +912,16 @@ export function validateThermomixSteps(
  */
 function createEmptyRecipe(userContext: UserContext): GeneratedRecipe {
   return {
-    schemaVersion: '1.0',
-    suggestedName: userContext.language === 'es' ? 'Receta no disponible' : 'Recipe unavailable',
+    schemaVersion: "1.0",
+    suggestedName: userContext.language === "es"
+      ? "Receta no disponible"
+      : "Recipe unavailable",
     measurementSystem: userContext.measurementSystem,
     language: userContext.language,
     ingredients: [],
     steps: [],
     totalTime: 0,
-    difficulty: 'easy',
+    difficulty: "easy",
     portions: 4,
     tags: [],
   };

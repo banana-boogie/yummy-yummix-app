@@ -80,7 +80,7 @@ describe('AdminIngredientsService', () => {
     name_es: 'Tomate',
     plural_name_en: 'Tomatoes',
     plural_name_es: 'Tomates',
-    picture_url: 'https://example.com/tomato.png',
+    image_url: 'https://example.com/tomato.png',
     nutritional_facts: { calories: 20 },
   };
 
@@ -201,7 +201,7 @@ describe('AdminIngredientsService', () => {
           name_es: 'Cebolla',
           plural_name_en: 'Onions',
           plural_name_es: 'Cebollas',
-          picture_url: '',
+          image_url: '',
         })
       );
     });
@@ -251,7 +251,7 @@ describe('AdminIngredientsService', () => {
         select: jest.fn().mockReturnValue({ single: mockSingle }),
       });
       mockSingle.mockResolvedValue({
-        data: { picture_url: 'https://example.com/tomato.png' },
+        data: { image_url: 'https://example.com/tomato.png' },
         error: null,
       });
 
@@ -278,7 +278,7 @@ describe('AdminIngredientsService', () => {
         select: jest.fn().mockReturnValue({ single: mockSingle }),
       });
       mockSingle.mockResolvedValue({
-        data: { picture_url: 'https://example.com/old-tomato.png' },
+        data: { image_url: 'https://example.com/old-tomato.png' },
         error: null,
       });
       mockUploadImage.mockResolvedValue('https://example.com/new-tomato.png');
@@ -312,7 +312,7 @@ describe('AdminIngredientsService', () => {
         select: jest.fn().mockReturnValue({ single: mockSingle }),
       });
       mockSingle.mockResolvedValue({
-        data: { picture_url: 'https://example.com/old.png' },
+        data: { image_url: 'https://example.com/old.png' },
         error: null,
       });
       mockDeleteImage.mockRejectedValue(new Error('Delete failed'));

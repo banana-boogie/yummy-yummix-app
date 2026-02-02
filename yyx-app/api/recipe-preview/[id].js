@@ -46,7 +46,7 @@ export default async function handler(req, res) {
     // Fetch recipe data
     const { data: recipe, error } = await supabase
       .from('recipes')
-      .select('id, name_en, name_es, picture_url')
+      .select('id, name_en, name_es, image_url')
       .eq('id', id)
       .single();
 
@@ -76,7 +76,7 @@ export default async function handler(req, res) {
       id,
       title,
       description,
-      imageUrl: recipe.picture_url,
+      imageUrl: recipe.image_url,
       language: lang,
       appUrl  // This is the correct destination URL, not the preview URL
     });
