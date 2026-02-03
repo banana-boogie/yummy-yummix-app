@@ -10,7 +10,6 @@ import { useDevice } from '@/hooks/useDevice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
 import type { RecipeContext } from '@/services/voice/types';
-import { PLACEHOLDER_IMAGES } from '@/constants/placeholders';
 
 interface CookingGuideHeaderProps {
     title?: string;
@@ -49,13 +48,18 @@ export function CookingGuideHeader({
     const isWebMobile = isWeb && isPhone;
     const insets = useSafeAreaInsets();
 
-    // Show image if pictureUrl exists OR if it's a custom recipe (use placeholder)
-    const showImage = pictureUrl || isCustomRecipe;
-    const imageSource = pictureUrl ? { uri: pictureUrl } : PLACEHOLDER_IMAGES.recipe;
+    // Only show image if pictureUrl exists
+    const showImage = !!pictureUrl;
 
     return (
         <View className={className} style={style}>
-            <StatusBar barStyle="light-content" />
+            <StatusBar barStyle={showImage ? "light-content" : "dark-content"} />
+
+            {/* Safe area padding for custom recipes without image */}
+            {!showImage && isCustomRecipe && (
+                <View style={{ height: insets.top }} />
+            )}
+
             {showImage && (
                 <View
                     className="w-full"
@@ -63,7 +67,7 @@ export function CookingGuideHeader({
                 >
                     <View className="w-full h-[120px] lg:h-[250px]">
                         <Image
-                            source={imageSource}
+                            source={{ uri: pictureUrl }}
                             className="w-full h-full"
                             contentFit="cover"
                             transition={300}
