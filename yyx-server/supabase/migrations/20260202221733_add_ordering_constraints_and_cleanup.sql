@@ -39,21 +39,30 @@ FROM (
 WHERE rui.id = sub.id;
 
 -- ============================================================================
--- STEP 4: Add unique constraints
+-- STEP 4: Add unique constraints (idempotent)
 -- ============================================================================
 -- recipe_steps already has: UNIQUE (recipe_id, order)
 
-ALTER TABLE recipe_ingredients
-  ADD CONSTRAINT recipe_ingredients_recipe_id_display_order_key
-  UNIQUE (recipe_id, display_order);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'recipe_ingredients_recipe_id_display_order_key') THEN
+    ALTER TABLE recipe_ingredients
+      ADD CONSTRAINT recipe_ingredients_recipe_id_display_order_key
+      UNIQUE (recipe_id, display_order);
+  END IF;
 
-ALTER TABLE recipe_step_ingredients
-  ADD CONSTRAINT recipe_step_ingredients_step_id_display_order_key
-  UNIQUE (recipe_step_id, display_order);
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'recipe_step_ingredients_step_id_display_order_key') THEN
+    ALTER TABLE recipe_step_ingredients
+      ADD CONSTRAINT recipe_step_ingredients_step_id_display_order_key
+      UNIQUE (recipe_step_id, display_order);
+  END IF;
 
-ALTER TABLE recipe_useful_items
-  ADD CONSTRAINT recipe_useful_items_recipe_id_display_order_key
-  UNIQUE (recipe_id, display_order);
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'recipe_useful_items_recipe_id_display_order_key') THEN
+    ALTER TABLE recipe_useful_items
+      ADD CONSTRAINT recipe_useful_items_recipe_id_display_order_key
+      UNIQUE (recipe_id, display_order);
+  END IF;
+END $$;
 
 -- ============================================================================
 -- STEP 5: Remove redundant recipe_id from recipe_step_ingredients

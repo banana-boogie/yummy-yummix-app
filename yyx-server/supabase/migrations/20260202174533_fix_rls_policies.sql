@@ -34,6 +34,9 @@ DROP POLICY IF EXISTS "Allow usage updates from triggers" ON ai_voice_usage;
 DROP POLICY IF EXISTS "Authenticated users can insert recipes" ON recipes;
 DROP POLICY IF EXISTS "Authenticated users can update recipes" ON recipes;
 DROP POLICY IF EXISTS "Authenticated users can delete recipes" ON recipes;
+DROP POLICY IF EXISTS "Only admins can insert recipes" ON recipes;
+DROP POLICY IF EXISTS "Only admins can update recipes" ON recipes;
+DROP POLICY IF EXISTS "Only admins can delete recipes" ON recipes;
 
 CREATE POLICY "Only admins can insert recipes"
 ON recipes FOR INSERT
@@ -57,6 +60,9 @@ USING (public.is_admin());
 DROP POLICY IF EXISTS "Only authenticated users can insert ingredients" ON ingredients;
 DROP POLICY IF EXISTS "Only authenticated users can update ingredients" ON ingredients;
 DROP POLICY IF EXISTS "Only authenticated users can delete ingredients" ON ingredients;
+DROP POLICY IF EXISTS "Only admins can insert ingredients" ON ingredients;
+DROP POLICY IF EXISTS "Only admins can update ingredients" ON ingredients;
+DROP POLICY IF EXISTS "Only admins can delete ingredients" ON ingredients;
 
 CREATE POLICY "Only admins can insert ingredients"
 ON ingredients FOR INSERT
@@ -80,6 +86,9 @@ USING (public.is_admin());
 DROP POLICY IF EXISTS "Only authenticated users can add recipe ingredients" ON recipe_ingredients;
 DROP POLICY IF EXISTS "Only authenticated users can update recipe ingredients" ON recipe_ingredients;
 DROP POLICY IF EXISTS "Only authenticated users can delete recipe ingredients" ON recipe_ingredients;
+DROP POLICY IF EXISTS "Only admins can insert recipe ingredients" ON recipe_ingredients;
+DROP POLICY IF EXISTS "Only admins can update recipe ingredients" ON recipe_ingredients;
+DROP POLICY IF EXISTS "Only admins can delete recipe ingredients" ON recipe_ingredients;
 
 CREATE POLICY "Only admins can insert recipe ingredients"
 ON recipe_ingredients FOR INSERT
@@ -103,6 +112,9 @@ USING (public.is_admin());
 DROP POLICY IF EXISTS "Only authenticated users can insert recipe steps" ON recipe_steps;
 DROP POLICY IF EXISTS "Only authenticated users can update recipe steps" ON recipe_steps;
 DROP POLICY IF EXISTS "Only authenticated users can delete recipe steps" ON recipe_steps;
+DROP POLICY IF EXISTS "Only admins can insert recipe steps" ON recipe_steps;
+DROP POLICY IF EXISTS "Only admins can update recipe steps" ON recipe_steps;
+DROP POLICY IF EXISTS "Only admins can delete recipe steps" ON recipe_steps;
 
 CREATE POLICY "Only admins can insert recipe steps"
 ON recipe_steps FOR INSERT
@@ -126,6 +138,9 @@ USING (public.is_admin());
 DROP POLICY IF EXISTS "Only authenticated users can insert recipe step ingredients" ON recipe_step_ingredients;
 DROP POLICY IF EXISTS "Only authenticated users can update recipe step ingredients" ON recipe_step_ingredients;
 DROP POLICY IF EXISTS "Only authenticated users can delete recipe step ingredients" ON recipe_step_ingredients;
+DROP POLICY IF EXISTS "Only admins can insert recipe step ingredients" ON recipe_step_ingredients;
+DROP POLICY IF EXISTS "Only admins can update recipe step ingredients" ON recipe_step_ingredients;
+DROP POLICY IF EXISTS "Only admins can delete recipe step ingredients" ON recipe_step_ingredients;
 
 CREATE POLICY "Only admins can insert recipe step ingredients"
 ON recipe_step_ingredients FOR INSERT
@@ -149,6 +164,9 @@ USING (public.is_admin());
 DROP POLICY IF EXISTS "Only authenticated can insert recipe tags" ON recipe_tags;
 DROP POLICY IF EXISTS "Only authenticated can update recipe tags" ON recipe_tags;
 DROP POLICY IF EXISTS "Only authenticated can delete recipe tags" ON recipe_tags;
+DROP POLICY IF EXISTS "Only admins can insert recipe tags" ON recipe_tags;
+DROP POLICY IF EXISTS "Only admins can update recipe tags" ON recipe_tags;
+DROP POLICY IF EXISTS "Only admins can delete recipe tags" ON recipe_tags;
 
 CREATE POLICY "Only admins can insert recipe tags"
 ON recipe_tags FOR INSERT
@@ -172,6 +190,9 @@ USING (public.is_admin());
 DROP POLICY IF EXISTS "Only authenticated can insert into recipe_to_tag" ON recipe_to_tag;
 DROP POLICY IF EXISTS "Only authenticated can update recipe_to_tag" ON recipe_to_tag;
 DROP POLICY IF EXISTS "Only authenticated can delete from recipe_to_tag" ON recipe_to_tag;
+DROP POLICY IF EXISTS "Only admins can insert into recipe_to_tag" ON recipe_to_tag;
+DROP POLICY IF EXISTS "Only admins can update recipe_to_tag" ON recipe_to_tag;
+DROP POLICY IF EXISTS "Only admins can delete from recipe_to_tag" ON recipe_to_tag;
 
 CREATE POLICY "Only admins can insert into recipe_to_tag"
 ON recipe_to_tag FOR INSERT
