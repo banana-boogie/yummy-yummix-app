@@ -388,8 +388,103 @@ describe('recipeAdapter', () => {
 
       expect(adapted.steps[0].thermomix).toEqual({
         time: 30,
-        temperature: '100°C',
-        speed: '5',
+        temperature: 100,
+        temperatureUnit: 'C',
+        speed: { type: 'single', value: 5 },
+        isBladeReversed: false,
+      });
+    });
+
+    it('handles partial thermomix data (speed/temp without time)', () => {
+      const generated = createMockGeneratedRecipe({
+        steps: [
+          {
+            order: 1,
+            instruction: 'Blend at speed 5',
+            thermomixSpeed: '5',
+            thermomixTemp: '100°C',
+          },
+        ],
+      });
+
+      const adapted = adaptGeneratedRecipe(generated, 'test-id', 'Test');
+
+      expect(adapted.steps[0].thermomix).toEqual({
+        time: null,
+        temperature: 100,
+        temperatureUnit: 'C',
+        speed: { type: 'single', value: 5 },
+        isBladeReversed: false,
+      });
+    });
+
+    it('handles Varoma temperature', () => {
+      const generated = createMockGeneratedRecipe({
+        steps: [
+          {
+            order: 1,
+            instruction: 'Steam ingredients',
+            thermomixTime: 600,
+            thermomixTemp: 'Varoma',
+            thermomixSpeed: '1',
+          },
+        ],
+      });
+
+      const adapted = adaptGeneratedRecipe(generated, 'test-id', 'Test');
+
+      expect(adapted.steps[0].thermomix).toEqual({
+        time: 600,
+        temperature: 'Varoma',
+        temperatureUnit: 'C',
+        speed: { type: 'single', value: 1 },
+        isBladeReversed: false,
+      });
+    });
+
+    it('handles Spoon speed', () => {
+      const generated = createMockGeneratedRecipe({
+        steps: [
+          {
+            order: 1,
+            instruction: 'Stir gently',
+            thermomixTime: 60,
+            thermomixSpeed: 'Spoon',
+          },
+        ],
+      });
+
+      const adapted = adaptGeneratedRecipe(generated, 'test-id', 'Test');
+
+      expect(adapted.steps[0].thermomix).toEqual({
+        time: 60,
+        temperature: null,
+        temperatureUnit: 'C',
+        speed: { type: 'single', value: 'spoon' },
+        isBladeReversed: false,
+      });
+    });
+
+    it('handles Reverse speed indicator', () => {
+      const generated = createMockGeneratedRecipe({
+        steps: [
+          {
+            order: 1,
+            instruction: 'Mix in reverse',
+            thermomixTime: 30,
+            thermomixSpeed: 'Reverse',
+          },
+        ],
+      });
+
+      const adapted = adaptGeneratedRecipe(generated, 'test-id', 'Test');
+
+      expect(adapted.steps[0].thermomix).toEqual({
+        time: 30,
+        temperature: null,
+        temperatureUnit: 'C',
+        speed: { type: 'single', value: null },
+        isBladeReversed: true,
       });
     });
 

@@ -14,6 +14,12 @@ import type {
     MeasurementUnit,
     RecipeDifficulty,
 } from '@/types/recipe.types';
+import type {
+    ThermomixSettings,
+    ThermomixSpeed,
+    ThermomixTemperature,
+    ThermomixTemperatureUnit,
+} from '@/types/thermomix.types';
 
 /**
  * Generate a synthetic UUID for client-side use.
@@ -29,6 +35,85 @@ function generateSyntheticId(): string {
 // Pre-compiled regex patterns for unit type detection (performance optimization)
 const VOLUME_UNIT_PATTERN = /\b(cups?|tbsp|tsp|ml|liters?|fl\s*oz)\b/i;
 const WEIGHT_UNIT_PATTERN = /\b(g|kg|lbs?|ounces?|grams?)\b/i;
+
+// Pattern to parse temperature strings like "100°C", "212°F", "Varoma"
+const TEMP_PATTERN = /^(\d+(?:\.\d+)?)\s*°\s*([CF])$/i;
+
+/**
+ * Parse AI's temperature string into temperature value and unit.
+ * Examples: "100°C" -> { temp: 100, unit: 'C' }, "Varoma" -> { temp: 'Varoma', unit: 'C' }
+ */
+function parseTemperature(tempStr?: string): { temp: ThermomixTemperature; unit: ThermomixTemperatureUnit } | null {
+    if (!tempStr) return null;
+
+    const trimmed = tempStr.trim();
+
+    // Handle special temperature "Varoma"
+    if (trimmed.toLowerCase() === 'varoma') {
+        return { temp: 'Varoma', unit: 'C' };
+    }
+
+    // Parse numeric temperature with unit
+    const match = trimmed.match(TEMP_PATTERN);
+    if (match) {
+        const value = parseFloat(match[1]);
+        const unit = match[2].toUpperCase() as 'C' | 'F';
+        return { temp: value as ThermomixTemperature, unit };
+    }
+
+    return null;
+}
+
+/**
+ * Parse AI's speed string into ThermomixSpeed object.
+ * Examples: "5" -> { type: 'single', value: 5 }, "Spoon" -> { type: 'single', value: 'spoon' }
+ * Returns isReversed flag for "Reverse" speed.
+ */
+function parseSpeed(speedStr?: string): { speed: ThermomixSpeed; isReversed: boolean } | null {
+    if (!speedStr) return null;
+
+    const trimmed = speedStr.trim().toLowerCase();
+
+    // Handle "Reverse" - indicates blade reversal, typically used with a speed
+    if (trimmed === 'reverse') {
+        return { speed: { type: 'single', value: null }, isReversed: true };
+    }
+
+    // Handle "Spoon" speed
+    if (trimmed === 'spoon') {
+        return { speed: { type: 'single', value: 'spoon' }, isReversed: false };
+    }
+
+    // Parse numeric speed
+    const numValue = parseFloat(trimmed);
+    if (!isNaN(numValue) && numValue >= 0 && numValue <= 10) {
+        return { speed: { type: 'single', value: numValue as 0.5 | 1 | 1.5 | 2 | 2.5 | 3 | 3.5 | 4 | 4.5 | 5 | 5.5 | 6 | 6.5 | 7 | 7.5 | 8 | 8.5 | 9 | 9.5 | 10 }, isReversed: false };
+    }
+
+    return null;
+}
+
+/**
+ * Build ThermomixSettings from AI-generated step fields.
+ * Returns undefined if no thermomix parameters are present.
+ */
+function buildThermomixSettings(step: GeneratedStep): ThermomixSettings | undefined {
+    const hasAnyThermomixField = step.thermomixTime || step.thermomixTemp || step.thermomixSpeed;
+    if (!hasAnyThermomixField) {
+        return undefined;
+    }
+
+    const parsedTemp = parseTemperature(step.thermomixTemp);
+    const parsedSpeed = parseSpeed(step.thermomixSpeed);
+
+    return {
+        time: step.thermomixTime ?? null,
+        temperature: parsedTemp?.temp ?? null,
+        temperatureUnit: parsedTemp?.unit ?? 'C',
+        speed: parsedSpeed?.speed ?? null,
+        isBladeReversed: parsedSpeed?.isReversed ?? false,
+    };
+}
 
 /**
  * Create a minimal MeasurementUnit from a unit string.
@@ -177,11 +262,7 @@ function transformStep(
         order: step.order,
         instruction: step.instruction,
         recipeSection: null,
-        thermomix: step.thermomixTime ? {
-            time: step.thermomixTime,
-            temperature: step.thermomixTemp,
-            speed: step.thermomixSpeed,
-        } : undefined,
+        thermomix: buildThermomixSettings(step),
         ingredients: stepIngredients,
     };
 }
