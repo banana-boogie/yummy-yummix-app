@@ -124,12 +124,6 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                         : `${recipeName}. ${i18n.t('chat.editRecipeName')}`}
                     accessibilityHint={i18n.t('chat.editRecipeName')}
                 >
-                    <MaterialCommunityIcons
-                        name="chef-hat"
-                        size={24}
-                        color={COLORS.primary.darkest}
-                        accessibilityElementsHidden={true}
-                    />
                     {isEditing ? (
                         <TextInput
                             value={recipeName}
@@ -137,7 +131,7 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                             onBlur={handleEditComplete}
                             onSubmitEditing={handleEditComplete}
                             autoFocus
-                            className="flex-1 text-lg font-semibold text-text-primary border-b border-primary-default py-xs ml-sm"
+                            className="flex-1 text-lg font-semibold text-text-primary border-b border-primary-default py-xs"
                             maxLength={100}
                             accessible={true}
                             accessibilityLabel={i18n.t('chat.editRecipeName')}
@@ -145,7 +139,7 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                         />
                     ) : (
                         <>
-                            <Text className="flex-1 text-lg font-semibold text-text-primary ml-sm">
+                            <Text className="flex-1 text-lg font-semibold text-text-primary">
                                 {recipeName}
                             </Text>
                             <MaterialCommunityIcons
