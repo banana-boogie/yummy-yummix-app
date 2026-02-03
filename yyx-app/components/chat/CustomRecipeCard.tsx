@@ -330,6 +330,39 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                 )}
             </View>
 
+            {/* Useful items preview */}
+            {recipe.usefulItems && recipe.usefulItems.length > 0 && (
+                <View
+                    className="p-md border-b border-border-default"
+                    accessible={true}
+                    accessibilityRole="list"
+                    accessibilityLabel={`${i18n.t('recipes.common.usefulItems')}: ${recipe.usefulItems.length} items`}
+                >
+                    <Text className="text-text-secondary text-base font-medium mb-sm">
+                        {i18n.t('recipes.common.usefulItems')}:
+                    </Text>
+                    <View className="flex-row flex-wrap gap-sm">
+                        {recipe.usefulItems.map((item, index) => (
+                            <View
+                                key={index}
+                                className="flex-row items-center bg-primary-lightest rounded-lg px-sm py-xs"
+                            >
+                                {item.imageUrl && (
+                                    <Image
+                                        source={{ uri: item.imageUrl }}
+                                        style={{ width: 24, height: 24, borderRadius: 4 }}
+                                        contentFit="cover"
+                                    />
+                                )}
+                                <Text className="text-text-primary text-sm ml-xs">
+                                    {item.name}
+                                </Text>
+                            </View>
+                        ))}
+                    </View>
+                </View>
+            )}
+
             {/* Safety warning if present */}
             {safetyFlags?.allergenWarning && !safetyFlags.error && (
                 <View

@@ -52,8 +52,12 @@ export default function CustomIngredientsStep() {
   };
 
   const handleNext = () => {
-    // Custom recipes don't have useful items, go straight to cooking steps
-    router.push(`/(tabs)/recipes/custom/${id}/cooking-guide/1`);
+    // If useful items exist, go to useful-items prep page
+    if (recipe?.usefulItems && recipe.usefulItems.length > 0) {
+      router.push(`/(tabs)/recipes/custom/${id}/cooking-guide/mise-en-place-useful-items`);
+    } else {
+      router.push(`/(tabs)/recipes/custom/${id}/cooking-guide/1`);
+    }
   };
 
   return (

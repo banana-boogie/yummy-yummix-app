@@ -518,6 +518,53 @@ describe('recipeAdapter', () => {
       });
     });
 
+    it('transforms useful items with synthetic IDs', () => {
+      const generated = createMockGeneratedRecipe({
+        usefulItems: [
+          { name: 'Spatula', imageUrl: 'https://example.com/spatula.jpg', notes: 'For stirring' },
+          { name: 'Thermometer' },
+        ],
+      });
+
+      const adapted = adaptGeneratedRecipe(generated, 'test-id', 'Test');
+
+      expect(adapted.usefulItems).toHaveLength(2);
+      expect(adapted.usefulItems![0].name).toBe('Spatula');
+      expect(adapted.usefulItems![0].pictureUrl).toBe('https://example.com/spatula.jpg');
+      expect(adapted.usefulItems![0].notes).toBe('For stirring');
+      expect(adapted.usefulItems![0].displayOrder).toBe(1);
+      expect(adapted.usefulItems![1].name).toBe('Thermometer');
+      expect(adapted.usefulItems![1].pictureUrl).toBe('');
+      expect(adapted.usefulItems![1].notes).toBe('');
+      expect(adapted.usefulItems![1].displayOrder).toBe(2);
+
+      // Each item should have a UUID
+      adapted.usefulItems!.forEach((item) => {
+        expect(item.id).toMatch(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+        );
+      });
+    });
+
+    it('handles empty useful items', () => {
+      const generated = createMockGeneratedRecipe({
+        usefulItems: [],
+      });
+
+      const adapted = adaptGeneratedRecipe(generated, 'test-id', 'Test');
+
+      expect(adapted.usefulItems).toEqual([]);
+    });
+
+    it('handles undefined useful items', () => {
+      const generated = createMockGeneratedRecipe();
+      delete (generated as Record<string, unknown>).usefulItems;
+
+      const adapted = adaptGeneratedRecipe(generated, 'test-id', 'Test');
+
+      expect(adapted.usefulItems).toEqual([]);
+    });
+
     it('sets isPublished to false', () => {
       const generated = createMockGeneratedRecipe();
 

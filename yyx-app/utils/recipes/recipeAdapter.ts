@@ -5,12 +5,13 @@
  * Creates synthetic IDs and minimal measurement unit objects.
  */
 
-import type { GeneratedRecipe, GeneratedIngredient, GeneratedStep } from '@/types/irmixy';
+import type { GeneratedRecipe, GeneratedIngredient, GeneratedStep, GeneratedUsefulItem } from '@/types/irmixy';
 import type {
     Recipe,
     RecipeIngredient,
     RecipeStep,
     RecipeStepIngredient,
+    RecipeUsefulItem,
     MeasurementUnit,
     RecipeDifficulty,
 } from '@/types/recipe.types';
@@ -268,6 +269,22 @@ function transformStep(
 }
 
 /**
+ * Transform a GeneratedUsefulItem to RecipeUsefulItem.
+ */
+function transformUsefulItem(
+    item: GeneratedUsefulItem,
+    index: number,
+): RecipeUsefulItem {
+    return {
+        id: generateSyntheticId(),
+        name: item.name,
+        pictureUrl: item.imageUrl || '',
+        displayOrder: index + 1,
+        notes: item.notes || '',
+    };
+}
+
+/**
  * Validate that a GeneratedRecipe has required fields.
  * Throws an error if validation fails.
  */
@@ -341,7 +358,9 @@ export function adaptGeneratedRecipe(
             name: tagName,
             categories: [],
         })),
-        usefulItems: [],
+        usefulItems: (generated.usefulItems || []).map((item, index) =>
+            transformUsefulItem(item, index)
+        ),
         isPublished: false, // User recipes are not published
         createdAt: now,
         updatedAt: now,

@@ -234,6 +234,7 @@ const translations = {
         },
         emptyState: "No recipes found",
         noRecipesFound: "No recipes found",
+        usefulItems: "Kitchen Tools",
       },
       detail: {
         ingredients: {
@@ -1236,6 +1237,7 @@ const translations = {
           hard: "Difícil",
         },
         emptyState: "No se encontraron recetas",
+        usefulItems: "Utensilios de Cocina",
       },
       detail: {
         ingredients: {

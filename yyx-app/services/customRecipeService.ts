@@ -7,7 +7,7 @@
  */
 
 import { supabase } from '@/lib/supabase';
-import type { GeneratedRecipe, GeneratedIngredient, GeneratedStep } from '@/types/irmixy';
+import type { GeneratedRecipe, GeneratedIngredient, GeneratedStep, GeneratedUsefulItem } from '@/types/irmixy';
 
 // ============================================================
 // Types
@@ -57,6 +57,14 @@ interface DbTagRow {
     tag_name: string;
 }
 
+interface DbUsefulItemRow {
+    id: string;
+    name: string;
+    image_url: string | null;
+    notes: string | null;
+    display_order: number;
+}
+
 // ============================================================
 // Service
 // ============================================================
@@ -87,7 +95,7 @@ export const customRecipeService = {
                 measurement_system: recipe.measurementSystem,
                 language: recipe.language,
                 source: 'ai_generated',
-                schema_version: '2.0',
+                schema_version: '1.0',
                 // Keep recipe_data as backup for now
                 recipe_data: recipe,
             })
@@ -208,6 +216,26 @@ export const customRecipeService = {
                 }
             }
 
+            // 6. Insert useful items
+            if (recipe.usefulItems?.length) {
+                const usefulItemRows = recipe.usefulItems.map((item, index) => ({
+                    user_recipe_id: recipeId,
+                    name: item.name,
+                    image_url: item.imageUrl || null,
+                    notes: item.notes || null,
+                    display_order: index,
+                }));
+
+                const { error: itemsError } = await supabase
+                    .from('user_recipe_useful_items')
+                    .insert(usefulItemRows);
+
+                if (itemsError) {
+                    console.error('Failed to save recipe useful items:', itemsError);
+                    // Non-fatal
+                }
+            }
+
             return { userRecipeId: recipeId };
         } catch (error) {
             // If any step fails after recipe creation, clean up
@@ -254,8 +282,8 @@ export const customRecipeService = {
             throw new Error('Failed to load recipe');
         }
 
-        // For schema 1.0 (JSONB), return directly
-        if (recipeData.schema_version !== '2.0') {
+        // For legacy recipes without schema_version, use JSONB fallback
+        if (recipeData.schema_version !== '1.0') {
             return {
                 id: recipeData.id,
                 name: recipeData.name,
@@ -265,7 +293,7 @@ export const customRecipeService = {
             };
         }
 
-        // For schema 2.0, load from normalized tables
+        // Load from normalized tables
         const { data: stepsData, error: stepsError } = await supabase
             .from('user_recipe_steps')
             .select(`
@@ -302,6 +330,12 @@ export const customRecipeService = {
             .select('tag_name')
             .eq('user_recipe_id', userRecipeId);
 
+        const { data: usefulItemsData } = await supabase
+            .from('user_recipe_useful_items')
+            .select('id, name, image_url, notes, display_order')
+            .eq('user_recipe_id', userRecipeId)
+            .order('display_order', { ascending: true });
+
         // Transform to GeneratedRecipe format
         const ingredients: GeneratedIngredient[] = (ingredientsData || []).map((ing) => ({
             name: ing.name_en,
@@ -327,8 +361,14 @@ export const customRecipeService = {
             };
         });
 
+        const usefulItems: GeneratedUsefulItem[] = (usefulItemsData as DbUsefulItemRow[] || []).map((item) => ({
+            name: item.name,
+            imageUrl: item.image_url || undefined,
+            notes: item.notes || undefined,
+        }));
+
         const generatedRecipe: GeneratedRecipe = {
-            schemaVersion: '2.0',
+            schemaVersion: '1.0',
             suggestedName: recipeData.name,
             measurementSystem: recipeData.measurement_system as 'imperial' | 'metric' || 'metric',
             language: recipeData.language as 'en' | 'es' || 'en',
@@ -338,6 +378,7 @@ export const customRecipeService = {
             difficulty: recipeData.difficulty as 'easy' | 'medium' | 'hard' || 'easy',
             portions: recipeData.portions || 4,
             tags: (tagsData as DbTagRow[] || []).map((t) => t.tag_name),
+            usefulItems,
         };
 
         return {
@@ -372,9 +413,8 @@ export const customRecipeService = {
         }
 
         return data.map((item) => {
-            // For schema 2.0, use denormalized columns
-            // For schema 1.0, fall back to recipe_data JSONB
-            if (item.schema_version === '2.0') {
+            // For schema 1.0, use denormalized columns
+            if (item.schema_version === '1.0') {
                 return {
                     id: item.id,
                     name: item.name,
@@ -385,7 +425,7 @@ export const customRecipeService = {
                 };
             }
 
-            // Legacy schema 1.0
+            // Legacy recipes without schema_version - fall back to JSONB
             const recipeData = item.recipe_data as GeneratedRecipe | null;
             return {
                 id: item.id,
