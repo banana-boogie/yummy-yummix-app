@@ -22,8 +22,8 @@ ON recipe_step_ingredients(ingredient_id);
 CREATE INDEX IF NOT EXISTS idx_recipe_step_ingredients_measurement_unit_id
 ON recipe_step_ingredients(measurement_unit_id);
 
-CREATE INDEX IF NOT EXISTS idx_recipe_step_ingredients_recipe_id
-ON recipe_step_ingredients(recipe_id);
+CREATE INDEX IF NOT EXISTS idx_recipe_step_ingredients_recipe_step_id
+ON recipe_step_ingredients(recipe_step_id);
 
 -- user_chat_sessions
 CREATE INDEX IF NOT EXISTS idx_user_chat_sessions_user_id

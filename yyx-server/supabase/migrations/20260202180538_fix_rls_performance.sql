@@ -5,6 +5,7 @@
 -- =====================================================
 -- FIX user_profiles
 -- =====================================================
+-- Drop old and new policy names to make migration idempotent
 DROP POLICY IF EXISTS "Users can view own profile" ON user_profiles;
 DROP POLICY IF EXISTS "Users can update own profile" ON user_profiles;
 DROP POLICY IF EXISTS "Users can delete own profile" ON user_profiles;
@@ -30,6 +31,9 @@ USING ((SELECT auth.uid()) = id);
 DROP POLICY IF EXISTS "Only authenticated users can delete measurement units" ON measurement_units;
 DROP POLICY IF EXISTS "Only authenticated users can insert measurement units" ON measurement_units;
 DROP POLICY IF EXISTS "Only authenticated users can update measurement units" ON measurement_units;
+DROP POLICY IF EXISTS "Only admins can delete measurement units" ON measurement_units;
+DROP POLICY IF EXISTS "Only admins can insert measurement units" ON measurement_units;
+DROP POLICY IF EXISTS "Only admins can update measurement units" ON measurement_units;
 
 CREATE POLICY "Only admins can delete measurement units"
 ON measurement_units FOR DELETE
@@ -50,6 +54,7 @@ WITH CHECK (public.is_admin());
 -- =====================================================
 -- FIX useful_items - use is_admin() helper
 -- =====================================================
+-- Drop to make idempotent (these are the policies we're creating)
 DROP POLICY IF EXISTS "Only admins can delete useful items" ON useful_items;
 DROP POLICY IF EXISTS "Only admins can insert useful items" ON useful_items;
 DROP POLICY IF EXISTS "Only admins can update useful items" ON useful_items;
@@ -76,6 +81,7 @@ WITH CHECK (public.is_admin());
 DROP POLICY IF EXISTS "Only admins can delete recipe useful items" ON recipe_useful_items;
 DROP POLICY IF EXISTS "Only admins can insert into recipe useful items" ON recipe_useful_items;
 DROP POLICY IF EXISTS "Only admins can update recipe useful items" ON recipe_useful_items;
+DROP POLICY IF EXISTS "Only admins can insert recipe useful items" ON recipe_useful_items;
 
 CREATE POLICY "Only admins can delete recipe useful items"
 ON recipe_useful_items FOR DELETE
@@ -94,15 +100,8 @@ USING (public.is_admin())
 WITH CHECK (public.is_admin());
 
 -- =====================================================
--- FIX user_context
+-- FIX user_context - SKIPPED: table doesn't exist
 -- =====================================================
-DROP POLICY IF EXISTS "user_context_user_policy" ON user_context;
-
-CREATE POLICY "user_context_user_policy"
-ON user_context FOR ALL
-TO authenticated
-USING ((SELECT auth.uid()) = user_id)
-WITH CHECK ((SELECT auth.uid()) = user_id);
 
 -- =====================================================
 -- FIX user_events
