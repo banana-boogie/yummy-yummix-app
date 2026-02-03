@@ -45,9 +45,6 @@ export default function CustomCookingStep() {
         }
     };
 
-    // Note: pictureUrl is undefined for custom recipes, which is fine
-    // The header handles this gracefully with conditional rendering
-    // TODO: Consider adding placeholder image support to CookingGuideHeader in future
     const Header = () => (
         <CookingGuideHeader
             title={i18n.t('recipes.cookingGuide.navigation.step', {
@@ -56,6 +53,7 @@ export default function CustomCookingStep() {
             })}
             showSubtitle={false}
             pictureUrl={recipe.pictureUrl}
+            isCustomRecipe={true}
             onBackPress={handleNavigation.back}
             recipeContext={{
                 type: 'custom',

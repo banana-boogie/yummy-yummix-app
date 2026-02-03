@@ -70,6 +70,7 @@ export default function CustomUsefulItemsStep() {
                 <CookingGuideHeader
                     showTitle={false}
                     pictureUrl={recipe?.pictureUrl}
+                    isCustomRecipe={true}
                 />
 
                 <CookingGuidePageHeader

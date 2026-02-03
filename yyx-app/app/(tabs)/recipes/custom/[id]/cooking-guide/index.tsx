@@ -76,6 +76,7 @@ export default function CustomCookingGuide() {
           showSubtitle={false}
           showBackButton={true}
           pictureUrl={recipe?.pictureUrl}
+          isCustomRecipe={true}
         />
 
         <CookingGuidePageHeader

@@ -77,6 +77,7 @@ export default function CustomIngredientsStep() {
         <CookingGuideHeader
           showTitle={false}
           pictureUrl={recipe?.pictureUrl}
+          isCustomRecipe={true}
         />
 
         <CookingGuidePageHeader
