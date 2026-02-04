@@ -15,24 +15,25 @@ import {
   PatternMetrics,
   RetentionMetrics,
 } from '@/services/analyticsService';
+import i18n from '@/i18n';
 
 type TabType = 'overview' | 'funnel' | 'recipes' | 'searches' | 'ai' | 'patterns' | 'retention';
 
-const TIMEFRAME_OPTIONS: { value: TimeframeFilter; label: string }[] = [
-  { value: 'today', label: 'Today' },
-  { value: '7_days', label: '7 Days' },
-  { value: '30_days', label: '30 Days' },
-  { value: 'all_time', label: 'All Time' },
+const TIMEFRAME_OPTIONS: { value: TimeframeFilter; labelKey: string }[] = [
+  { value: 'today', labelKey: 'admin.analytics.timeframes.today' },
+  { value: '7_days', labelKey: 'admin.analytics.timeframes.sevenDays' },
+  { value: '30_days', labelKey: 'admin.analytics.timeframes.thirtyDays' },
+  { value: 'all_time', labelKey: 'admin.analytics.timeframes.allTime' },
 ];
 
-const TABS: { value: TabType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { value: 'overview', label: 'Overview', icon: 'stats-chart' },
-  { value: 'retention', label: 'Retention', icon: 'people' },
-  { value: 'funnel', label: 'Funnel', icon: 'funnel' },
-  { value: 'recipes', label: 'Recipes', icon: 'restaurant' },
-  { value: 'searches', label: 'Searches', icon: 'search' },
-  { value: 'ai', label: 'AI', icon: 'sparkles' },
-  { value: 'patterns', label: 'Patterns', icon: 'time' },
+const TABS: { value: TabType; labelKey: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { value: 'overview', labelKey: 'admin.analytics.tabs.overview', icon: 'stats-chart' },
+  { value: 'retention', labelKey: 'admin.analytics.tabs.retention', icon: 'people' },
+  { value: 'funnel', labelKey: 'admin.analytics.tabs.funnel', icon: 'funnel' },
+  { value: 'recipes', labelKey: 'admin.analytics.tabs.recipes', icon: 'restaurant' },
+  { value: 'searches', labelKey: 'admin.analytics.tabs.searches', icon: 'search' },
+  { value: 'ai', labelKey: 'admin.analytics.tabs.ai', icon: 'sparkles' },
+  { value: 'patterns', labelKey: 'admin.analytics.tabs.patterns', icon: 'time' },
 ];
 
 function MetricCard({ title, value, subtitle, icon }: {
@@ -90,7 +91,7 @@ function TimeframeSelector({ value, onChange }: {
             preset="bodySmall"
             className={value === option.value ? 'text-text-default font-semibold' : 'text-text-secondary'}
           >
-            {option.label}
+            {i18n.t(option.labelKey)}
           </Text>
         </TouchableOpacity>
       ))}
@@ -126,7 +127,7 @@ function TabSelector({ value, onChange }: {
             preset="bodySmall"
             className={value === tab.value ? 'text-text-default font-semibold' : 'text-text-secondary'}
           >
-            {tab.label}
+            {i18n.t(tab.labelKey)}
           </Text>
         </TouchableOpacity>
       ))}
@@ -138,7 +139,7 @@ function LoadingState() {
   return (
     <View className="items-center justify-center py-xxl">
       <ActivityIndicator size="large" color={COLORS.primary.DEFAULT} />
-      <Text preset="body" className="text-text-secondary mt-md">Loading analytics...</Text>
+      <Text preset="body" className="text-text-secondary mt-md">{i18n.t('admin.analytics.loading')}</Text>
     </View>
   );
 }
@@ -148,21 +149,40 @@ function OverviewSection({ data }: { data: OverviewMetrics | null }) {
 
   return (
     <View>
-      <SectionTitle>Active Users</SectionTitle>
+      <SectionTitle>{i18n.t('admin.analytics.sections.activeUsers')}</SectionTitle>
       <View className="flex-row flex-wrap">
-        <MetricCard title="DAU" value={data.dau} icon="today" subtitle="Daily Active" />
-        <MetricCard title="WAU" value={data.wau} icon="calendar" subtitle="Weekly Active" />
-        <MetricCard title="MAU" value={data.mau} icon="calendar-outline" subtitle="Monthly Active" />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.dau')}
+          value={data.dau}
+          icon="today"
+          subtitle={i18n.t('admin.analytics.labels.dailyActive')}
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.wau')}
+          value={data.wau}
+          icon="calendar"
+          subtitle={i18n.t('admin.analytics.labels.weeklyActive')}
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.mau')}
+          value={data.mau}
+          icon="calendar-outline"
+          subtitle={i18n.t('admin.analytics.labels.monthlyActive')}
+        />
       </View>
 
-      <SectionTitle>Users</SectionTitle>
+      <SectionTitle>{i18n.t('admin.analytics.sections.users')}</SectionTitle>
       <View className="flex-row flex-wrap">
-        <MetricCard title="Total Signups" value={data.totalSignups} icon="people" />
         <MetricCard
-          title="Onboarding Rate"
+          title={i18n.t('admin.analytics.labels.totalSignups')}
+          value={data.totalSignups}
+          icon="people"
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.onboardingRate')}
           value={`${data.onboardingRate.toFixed(1)}%`}
           icon="checkmark-circle"
-          subtitle="Completed onboarding"
+          subtitle={i18n.t('admin.analytics.labels.onboardingSubtitle')}
         />
       </View>
     </View>
@@ -174,41 +194,43 @@ function RetentionSection({ data }: { data: RetentionMetrics | null }) {
 
   return (
     <View>
-      <SectionTitle>Retention Rates</SectionTitle>
+      <SectionTitle>{i18n.t('admin.analytics.sections.retentionRates')}</SectionTitle>
       <View className="flex-row flex-wrap">
         <MetricCard
-          title="Day 1"
+          title={i18n.t('admin.analytics.labels.day1')}
           value={`${data.day1Retention.toFixed(1)}%`}
           icon="time"
-          subtitle="Active next day"
+          subtitle={i18n.t('admin.analytics.labels.activeNextDay')}
         />
         <MetricCard
-          title="Day 7"
+          title={i18n.t('admin.analytics.labels.day7')}
           value={`${data.day7Retention.toFixed(1)}%`}
           icon="calendar"
-          subtitle="Active within week"
+          subtitle={i18n.t('admin.analytics.labels.activeWithinWeek')}
         />
         <MetricCard
-          title="Day 30"
+          title={i18n.t('admin.analytics.labels.day30')}
           value={`${data.day30Retention.toFixed(1)}%`}
           icon="calendar-outline"
-          subtitle="Active within month"
+          subtitle={i18n.t('admin.analytics.labels.activeWithinMonth')}
         />
       </View>
 
-      <SectionTitle>Engagement</SectionTitle>
+      <SectionTitle>{i18n.t('admin.analytics.sections.engagement')}</SectionTitle>
       <View className="flex-row flex-wrap">
         <MetricCard
-          title="Time to First Cook"
-          value={data.avgTimeToFirstCook !== null ? `${data.avgTimeToFirstCook.toFixed(1)} days` : 'N/A'}
+          title={i18n.t('admin.analytics.labels.timeToFirstCook')}
+          value={data.avgTimeToFirstCook !== null
+            ? `${data.avgTimeToFirstCook.toFixed(1)} ${i18n.t('admin.analytics.labels.days')}`
+            : i18n.t('admin.analytics.labels.notAvailable')}
           icon="timer"
-          subtitle="Average"
+          subtitle={i18n.t('admin.analytics.labels.average')}
         />
         <MetricCard
-          title="Weekly Cook Rate"
+          title={i18n.t('admin.analytics.labels.weeklyCookRate')}
           value={data.weeklyCookRate.toFixed(1)}
           icon="flame"
-          subtitle="Cooks per active user"
+          subtitle={i18n.t('admin.analytics.labels.cooksPerActiveUser')}
         />
       </View>
     </View>
@@ -220,31 +242,43 @@ function FunnelSection({ data }: { data: FunnelMetrics | null }) {
 
   return (
     <View>
-      <SectionTitle>Cooking Funnel</SectionTitle>
-      <View className="flex-row flex-wrap">
-        <MetricCard title="Recipe Views" value={data.totalViews} icon="eye" />
-        <MetricCard title="Cook Starts" value={data.totalStarts} icon="play" />
-        <MetricCard title="Cook Completes" value={data.totalCompletes} icon="checkmark" />
-      </View>
-
-      <SectionTitle>Conversion Rates</SectionTitle>
+      <SectionTitle>{i18n.t('admin.analytics.sections.cookingFunnel')}</SectionTitle>
       <View className="flex-row flex-wrap">
         <MetricCard
-          title="View → Start"
+          title={i18n.t('admin.analytics.labels.recipeViews')}
+          value={data.totalViews}
+          icon="eye"
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.cookStarts')}
+          value={data.totalStarts}
+          icon="play"
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.cookCompletes')}
+          value={data.totalCompletes}
+          icon="checkmark"
+        />
+      </View>
+
+      <SectionTitle>{i18n.t('admin.analytics.sections.conversionRates')}</SectionTitle>
+      <View className="flex-row flex-wrap">
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.viewToStart')}
           value={`${data.viewToStartRate.toFixed(1)}%`}
           icon="arrow-forward"
         />
         <MetricCard
-          title="Start → Complete"
+          title={i18n.t('admin.analytics.labels.startToComplete')}
           value={`${data.startToCompleteRate.toFixed(1)}%`}
           icon="arrow-forward"
-          subtitle="Success rate"
+          subtitle={i18n.t('admin.analytics.labels.successRate')}
         />
         <MetricCard
-          title="Overall"
+          title={i18n.t('admin.analytics.labels.overall')}
           value={`${data.overallConversionRate.toFixed(1)}%`}
           icon="trending-up"
-          subtitle="View → Complete"
+          subtitle={i18n.t('admin.analytics.labels.viewToComplete')}
         />
       </View>
     </View>
@@ -259,9 +293,9 @@ function RecipesSection({ viewedRecipes, cookedRecipes }: {
 
   return (
     <View>
-      <SectionTitle>Most Viewed</SectionTitle>
+      <SectionTitle>{i18n.t('admin.analytics.sections.mostViewed')}</SectionTitle>
       {viewedRecipes.length === 0 ? (
-        <Text preset="body" className="text-text-secondary">No data yet</Text>
+        <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noDataYet')}</Text>
       ) : (
         viewedRecipes.map((recipe, index) => (
           <ListItem
@@ -273,9 +307,9 @@ function RecipesSection({ viewedRecipes, cookedRecipes }: {
         ))
       )}
 
-      <SectionTitle>Most Cooked</SectionTitle>
+      <SectionTitle>{i18n.t('admin.analytics.sections.mostCooked')}</SectionTitle>
       {cookedRecipes.length === 0 ? (
-        <Text preset="body" className="text-text-secondary">No data yet</Text>
+        <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noDataYet')}</Text>
       ) : (
         cookedRecipes.map((recipe, index) => (
           <ListItem
@@ -295,9 +329,9 @@ function SearchesSection({ data }: { data: TopSearch[] | null }) {
 
   return (
     <View>
-      <SectionTitle>Top Searches</SectionTitle>
+      <SectionTitle>{i18n.t('admin.analytics.sections.topSearches')}</SectionTitle>
       {data.length === 0 ? (
-        <Text preset="body" className="text-text-secondary">No search data yet</Text>
+        <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noSearchData')}</Text>
       ) : (
         data.map((search, index) => (
           <ListItem
@@ -317,36 +351,36 @@ function AISection({ data }: { data: AIMetrics | null }) {
 
   return (
     <View>
-      <SectionTitle>AI Feature Adoption</SectionTitle>
+      <SectionTitle>{i18n.t('admin.analytics.sections.aiAdoption')}</SectionTitle>
       <View className="flex-row flex-wrap">
         <MetricCard
-          title="Adoption Rate"
+          title={i18n.t('admin.analytics.labels.adoptionRate')}
           value={`${data.aiAdoptionRate.toFixed(1)}%`}
           icon="sparkles"
-          subtitle="Users who tried AI"
+          subtitle={i18n.t('admin.analytics.labels.usersWhoTriedAi')}
         />
         <MetricCard
-          title="AI Users"
+          title={i18n.t('admin.analytics.labels.aiUsers')}
           value={data.aiUserCount}
           icon="people"
         />
         <MetricCard
-          title="Return Users"
+          title={i18n.t('admin.analytics.labels.returnUsers')}
           value={data.returnAIUsers}
           icon="repeat"
-          subtitle="Used AI 2+ times"
+          subtitle={i18n.t('admin.analytics.labels.usedAiMultipleTimes')}
         />
       </View>
 
-      <SectionTitle>Session Counts</SectionTitle>
+      <SectionTitle>{i18n.t('admin.analytics.sections.sessionCounts')}</SectionTitle>
       <View className="flex-row flex-wrap">
         <MetricCard
-          title="Chat Sessions"
+          title={i18n.t('admin.analytics.labels.chatSessions')}
           value={data.totalChatSessions}
           icon="chatbubbles"
         />
         <MetricCard
-          title="Voice Sessions"
+          title={i18n.t('admin.analytics.labels.voiceSessions')}
           value={data.totalVoiceSessions}
           icon="mic"
         />
@@ -363,34 +397,34 @@ function PatternsSection({ data }: { data: PatternMetrics | null }) {
   const peakHours = sortedHours.slice(0, 3).filter(h => h.count > 0);
 
   const formatHour = (hour: number) => {
-    if (hour === 0) return '12 AM';
-    if (hour === 12) return '12 PM';
-    if (hour < 12) return `${hour} AM`;
-    return `${hour - 12} PM`;
+    if (hour === 0) return `12 ${i18n.t('admin.analytics.labels.am')}`;
+    if (hour === 12) return `12 ${i18n.t('admin.analytics.labels.pm')}`;
+    if (hour < 12) return `${hour} ${i18n.t('admin.analytics.labels.am')}`;
+    return `${hour - 12} ${i18n.t('admin.analytics.labels.pm')}`;
   };
 
   return (
     <View>
-      <SectionTitle>Peak Cooking Times</SectionTitle>
+      <SectionTitle>{i18n.t('admin.analytics.sections.peakCookingTimes')}</SectionTitle>
       {peakHours.length === 0 ? (
-        <Text preset="body" className="text-text-secondary">No cooking data yet</Text>
+        <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noCookingData')}</Text>
       ) : (
         <View className="flex-row flex-wrap">
           {peakHours.map((hour, index) => (
             <MetricCard
               key={hour.hour}
-              title={`#${index + 1}`}
+              title={i18n.t('admin.analytics.labels.rank', { rank: index + 1 })}
               value={formatHour(hour.hour)}
               icon="time"
-              subtitle={`${hour.count} cooks`}
+              subtitle={i18n.t('admin.analytics.labels.cooks', { count: hour.count })}
             />
           ))}
         </View>
       )}
 
-      <SectionTitle>Language Distribution</SectionTitle>
+      <SectionTitle>{i18n.t('admin.analytics.sections.languageDistribution')}</SectionTitle>
       {data.languageSplit.length === 0 ? (
-        <Text preset="body" className="text-text-secondary">No user data yet</Text>
+        <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noUserData')}</Text>
       ) : (
         <View className="flex-row flex-wrap">
           {data.languageSplit.map((lang) => (
@@ -399,7 +433,7 @@ function PatternsSection({ data }: { data: PatternMetrics | null }) {
               title={lang.language.toUpperCase()}
               value={lang.count}
               icon="globe"
-              subtitle="users"
+              subtitle={i18n.t('admin.analytics.labels.users')}
             />
           ))}
         </View>
@@ -498,7 +532,7 @@ export default function AnalyticsDashboard() {
   };
 
   return (
-    <AdminLayout title="Analytics">
+    <AdminLayout title={i18n.t('admin.analytics.title')}>
       <ScrollView
         className="flex-1 bg-background-default"
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
