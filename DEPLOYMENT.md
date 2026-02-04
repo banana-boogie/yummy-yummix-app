@@ -1,161 +1,132 @@
-# Production Deployment Plan
+# Production Deployment Guide
 
-## Branch: `feature/general-improvements`
-
----
-
-## Pre-Deployment Checklist
-
-### 1. Backup Production Data
-```bash
-cd yyx-server
-npm run backup
-```
-- [ ] Database backup created successfully
-- [ ] Storage backup created successfully
-- [ ] Backup folder contains both `database.sql.gz` and `storage/` directory
-
-### 2. Review Changes
-- [ ] Review PR diff on GitHub
-- [ ] All tests passing in CI
-- [ ] No sensitive data in commits
+A reusable checklist for deploying YummyYummix to production.
 
 ---
 
-## Deployment Steps
+## Pre-Deployment
 
-### Step 1: Merge to Main
-```bash
-git checkout main
-git pull origin main
-git merge feature/general-improvements
-git push origin main
-```
+### 1. Backup Production
+- [ ] Run `cd yyx-server && npm run backup`
+- [ ] Verify backup folder created: `backups/[Month-DD_HH-MMam/pm]/`
+- [ ] Contains `database.sql.gz`
+- [ ] Contains `storage/` with all bucket data
 
-### Step 2: Deploy Database Migrations
-```bash
-cd yyx-server
-supabase db push
-```
+### 2. Code Review
+- [ ] PR approved by reviewer
+- [ ] All CI checks passing
+- [ ] No secrets or sensitive data in commits
+- [ ] Changelog/release notes updated (if applicable)
 
-**Migrations to be applied:**
-| Migration | Description |
-|-----------|-------------|
-| `20260202174533_fix_rls_policies.sql` | Fix RLS policies for user tables |
-| `20260202180538_fix_rls_performance.sql` | Optimize RLS with `(SELECT auth.uid())` pattern |
-| `20260202180630_add_fk_indexes.sql` | Add missing foreign key indexes |
-| `20260202181145_cleanup_indexes.sql` | Remove duplicate indexes |
-| `20260202181214_add_remaining_fk_indexes.sql` | Additional FK indexes |
-| `20260202220811_fix_recipes_rls_unpublished.sql` | Hide unpublished recipes from public |
-| `20260202220814_remove_duplicate_recipe_columns.sql` | Remove duplicate name/description columns |
-| `20260202221733_add_ordering_constraints_and_cleanup.sql` | Add ordering constraints, cleanup duplicates |
-| `20260202233952_schema_improvements.sql` | Add indexes, NOT NULL constraints, unique constraints |
-| `20260203024541_fix_remaining_advisors.sql` | Final advisor warning fixes |
-
-- [ ] All migrations applied successfully
-- [ ] No errors in migration output
-
-### Step 3: Verify Database
-```bash
-# Check for migration errors
-supabase db push --dry-run
-
-# Or via MCP
-# get_advisors(project_id, "security")
-# get_advisors(project_id, "performance")
-```
-
-- [ ] No new security warnings (except dashboard settings)
-- [ ] No critical performance warnings
-
-### Step 4: Deploy App (if applicable)
-```bash
-cd yyx-app
-# Build for production
-eas build --platform ios --profile production
-eas build --platform android --profile production
-```
-
-- [ ] iOS build successful
-- [ ] Android build successful
+### 3. Test on Staging (if available)
+- [ ] Migrations tested
+- [ ] App functionality verified
+- [ ] No console errors
 
 ---
 
-## Post-Deployment Checklist
+## Deployment
 
-### Verify Functionality
-- [ ] App launches correctly
-- [ ] User can sign in
-- [ ] Recipes load (published only visible to non-admins)
-- [ ] Recipe detail pages work
-- [ ] User profile loads
-- [ ] Cooking guide works with immersive mode
+### 1. Merge Code
+- [ ] Merge feature branch to `main`
+- [ ] Pull latest `main` locally
 
-### Verify Database
-- [ ] RLS policies working (test as non-admin user)
-- [ ] Published/unpublished recipe filtering works
-- [ ] No duplicate data issues
+### 2. Database Migrations
+- [ ] Run `cd yyx-server && supabase db push`
+- [ ] Verify all migrations applied successfully
+- [ ] Check for errors in output
 
-### Dashboard Settings (Manual)
-These require manual action in Supabase Dashboard:
+### 3. Edge Functions (if changed)
+- [ ] Run `cd yyx-server && supabase functions deploy --all`
+- [ ] Or deploy specific function: `supabase functions deploy [function-name]`
 
-1. **Enable Leaked Password Protection**
-   - Dashboard → Authentication → Settings → Security
-   - Enable "Leaked password protection"
-   - [ ] Completed
+### 4. Mobile App (if releasing new version)
+- [ ] Update version in `app.json`
+- [ ] Build: `eas build --platform all --profile production`
+- [ ] Submit: `eas submit --platform all`
 
-2. **Upgrade Postgres (if needed)**
-   - Dashboard → Settings → Infrastructure
-   - Check for available upgrades
-   - [ ] Reviewed/Completed
+---
+
+## Post-Deployment Verification
+
+### 1. Smoke Tests
+- [ ] App launches without crash
+- [ ] User can sign in / sign out
+- [ ] Main screens load (Home, Recipes, Profile)
+- [ ] Recipe detail page works
+- [ ] Cooking guide functions properly
+
+### 2. Database Checks
+- [ ] Run security advisors: `get_advisors(project_id, "security")`
+- [ ] Run performance advisors: `get_advisors(project_id, "performance")`
+- [ ] Check Supabase logs for errors
+
+### 3. Monitor
+- [ ] Watch error tracking (if configured)
+- [ ] Check Supabase Dashboard → Logs
+- [ ] Monitor user feedback channels
+
+---
+
+## Dashboard Settings (Manual, One-Time)
+
+These are configured in Supabase Dashboard, not via migrations:
+
+### Security
+- [ ] Authentication → Settings → Enable "Leaked password protection"
+- [ ] Authentication → Settings → Review password requirements
+
+### Infrastructure
+- [ ] Settings → Infrastructure → Review Postgres version for upgrades
+- [ ] Settings → Infrastructure → Review compute size if needed
 
 ---
 
 ## Rollback Plan
 
-If issues occur after deployment:
+If critical issues are found after deployment:
 
-### Rollback Database
+### Database Rollback
 ```bash
 cd yyx-server
 
-# Option 1: Revert specific migration
-supabase migration repair <version> --status reverted
+# Option 1: Revert last migration
+supabase migration repair [version] --status reverted
+supabase db push
 
 # Option 2: Restore from backup
-# Use the backup created in pre-deployment step
+gunzip backups/[timestamp]/database.sql.gz
 psql $DATABASE_URL < backups/[timestamp]/database.sql
 ```
 
-### Rollback App
-- Revert to previous app version in App Store Connect / Google Play Console
-- Or deploy previous git commit
+### App Rollback
+- iOS: App Store Connect → Build → Select previous build
+- Android: Google Play Console → Release → Rollback
+
+### Edge Function Rollback
+```bash
+# Redeploy previous version from git
+git checkout [previous-commit]
+supabase functions deploy [function-name]
+git checkout main
+```
 
 ---
 
-## Changes Summary
+## Quick Reference
 
-### Database
-- Improved RLS policies for better security
-- Added missing indexes for performance
-- Removed duplicate data (ingredients, tags, useful items)
-- Added NOT NULL constraints on junction tables
-- Added case-insensitive unique indexes on names
-- Hidden unpublished recipes from non-admin users
+### Common Commands
+| Task | Command |
+|------|---------|
+| Backup all | `npm run backup` |
+| Backup DB only | `npm run backup:db` |
+| Backup storage only | `npm run backup:storage` |
+| Push migrations | `supabase db push` |
+| Deploy all functions | `supabase functions deploy --all` |
+| Check function logs | `supabase functions logs [name]` |
+| Link project | `supabase link` |
 
-### App
-- New app icon (YummyYummix logo)
-- Immersive mode for cooking guide
-- Various i18n and asset improvements
-
-### DevOps
-- New backup scripts (`npm run backup`, `backup:db`, `backup:storage`)
-- Human-readable backup folder names (e.g., `Feb-03_08-19pm`)
-
----
-
-## Contacts
-
-- **Database Issues**: Check Supabase Dashboard logs
-- **App Issues**: Check Expo/EAS build logs
-- **Rollback Help**: Refer to rollback plan above
+### Supabase Project
+- **Project ID**: `zozskiqxdphmkuniahac`
+- **Region**: `us-west-1`
+- **Dashboard**: https://supabase.com/dashboard/project/zozskiqxdphmkuniahac
