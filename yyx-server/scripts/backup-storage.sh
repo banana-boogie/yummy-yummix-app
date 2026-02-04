@@ -1,5 +1,6 @@
 #!/bin/bash
 # Storage backup script for YummyYummix
+# Run: npm run backup:storage
 # Automatically backs up ALL buckets recursively
 # Requires: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local
 
@@ -20,10 +21,9 @@ if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
     exit 1
 fi
 
-BACKUP_DIR="backups/storage"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_PATH="$BACKUP_DIR/$TIMESTAMP"
-TOTAL_FILES=0
+BACKUP_DIR="backups"
+TIMESTAMP=${BACKUP_TIMESTAMP:-$(date +%Y%m%d_%H%M%S)}
+BACKUP_PATH="$BACKUP_DIR/$TIMESTAMP/storage"
 
 mkdir -p "$BACKUP_PATH"
 
@@ -69,8 +69,6 @@ list_and_download() {
             curl -s "$SUPABASE_URL/storage/v1/object/authenticated/$bucket/$fullpath" \
                 -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
                 -o "$BACKUP_PATH/$bucket/$fullpath"
-
-            TOTAL_FILES=$((TOTAL_FILES + 1))
         fi
     done
 }
@@ -103,15 +101,7 @@ done
 
 # Create summary
 TOTAL_SIZE=$(du -sh "$BACKUP_PATH" 2>/dev/null | cut -f1)
-echo "📊 Backup Summary:" > "$BACKUP_PATH/_summary.txt"
-echo "Timestamp: $TIMESTAMP" >> "$BACKUP_PATH/_summary.txt"
-echo "Buckets: $(echo $BUCKETS | tr '\n' ' ')" >> "$BACKUP_PATH/_summary.txt"
-echo "" >> "$BACKUP_PATH/_summary.txt"
-echo "Size by bucket:" >> "$BACKUP_PATH/_summary.txt"
-du -sh "$BACKUP_PATH"/*/ 2>/dev/null >> "$BACKUP_PATH/_summary.txt" || true
 
 echo "✅ Storage backup complete!"
 echo "📁 Location: $BACKUP_PATH/"
 echo "📦 Total size: $TOTAL_SIZE"
-echo ""
-cat "$BACKUP_PATH/_summary.txt"

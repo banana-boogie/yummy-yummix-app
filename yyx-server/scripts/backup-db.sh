@@ -1,16 +1,17 @@
 #!/bin/bash
 # Database backup script for YummyYummix
-# Run: npm run backup
+# Run: npm run backup:db
 #
-# Uses Supabase CLI to get temporary credentials (no DATABASE_URL needed)
+# Uses Supabase CLI to get temporary credentials
 
 set -e
 
 BACKUP_DIR="backups"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="$BACKUP_DIR/yyx_backup_$TIMESTAMP.sql"
+TIMESTAMP=${BACKUP_TIMESTAMP:-$(date +%Y%m%d_%H%M%S)}
+BACKUP_PATH="$BACKUP_DIR/$TIMESTAMP"
+BACKUP_FILE="$BACKUP_PATH/database.sql"
 
-mkdir -p "$BACKUP_DIR"
+mkdir -p "$BACKUP_PATH"
 
 # Check prerequisites
 if ! command -v pg_dump &> /dev/null; then
@@ -70,12 +71,8 @@ fi
 gzip "$BACKUP_FILE"
 BACKUP_SIZE=$(ls -lh "${BACKUP_FILE}.gz" | awk '{print $5}')
 
-echo "✅ Backup created: ${BACKUP_FILE}.gz ($BACKUP_SIZE)"
+echo "✅ Database backup created: ${BACKUP_FILE}.gz ($BACKUP_SIZE)"
 
 # Cleanup old backups (keep last 10)
 cd "$BACKUP_DIR"
-ls -t *.gz 2>/dev/null | tail -n +11 | xargs rm -f 2>/dev/null || true
-
-echo ""
-echo "📁 Recent backups:"
-ls -lht *.gz 2>/dev/null | head -5
+ls -dt */ 2>/dev/null | tail -n +11 | xargs rm -rf 2>/dev/null || true
