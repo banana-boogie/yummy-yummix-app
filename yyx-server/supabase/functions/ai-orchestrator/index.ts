@@ -176,14 +176,23 @@ serve(async (req) => {
     }
     const openaiModel = Deno.env.get("OPENAI_MODEL") || DEFAULT_OPENAI_MODEL;
 
-    const { message, sessionId, mode = "text", stream = false } = await req
-      .json() as OrchestratorRequest;
+    let body: OrchestratorRequest | null = null;
+    try {
+      body = await req.json() as OrchestratorRequest;
+    } catch {
+      return errorResponse("Invalid JSON", 400);
+    }
+
+    const message = typeof body?.message === "string" ? body.message : "";
+    const sessionId = typeof body?.sessionId === "string" ? body.sessionId : undefined;
+    const mode = body?.mode === "voice" ? "voice" : "text";
+    const stream = body?.stream === true;
 
     log.info("Request received", {
       mode,
       stream,
       hasSessionId: !!sessionId,
-      messageLength: message?.length,
+      messageLength: message.length,
     });
 
     // Validate request
@@ -1844,6 +1853,12 @@ async function saveMessageToHistory(
   }
   if (assistantResponse.customRecipe) {
     toolCallsData.customRecipe = assistantResponse.customRecipe;
+  }
+  if (assistantResponse.safetyFlags) {
+    toolCallsData.safetyFlags = assistantResponse.safetyFlags;
+  }
+  if (assistantResponse.suggestions) {
+    toolCallsData.suggestions = assistantResponse.suggestions;
   }
 
   await supabase.from("user_chat_messages").insert({

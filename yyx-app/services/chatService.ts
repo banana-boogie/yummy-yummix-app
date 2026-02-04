@@ -378,6 +378,14 @@ export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]>
     if (error) throw error;
 
     return (data || []).map((msg: any) => {
+        let toolCalls: any = msg.tool_calls;
+        if (typeof toolCalls === 'string') {
+            try {
+                toolCalls = JSON.parse(toolCalls);
+            } catch {
+                toolCalls = null;
+            }
+        }
         const message: ChatMessage = {
             id: msg.id,
             role: msg.role,
@@ -386,12 +394,18 @@ export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]>
         };
 
         // Parse recipes and customRecipe from tool_calls if present (assistant messages)
-        if (msg.role === 'assistant' && msg.tool_calls) {
-            if (msg.tool_calls.recipes) {
-                message.recipes = msg.tool_calls.recipes;
+        if (msg.role === 'assistant' && toolCalls) {
+            if (toolCalls.recipes) {
+                message.recipes = toolCalls.recipes;
             }
-            if (msg.tool_calls.customRecipe) {
-                message.customRecipe = msg.tool_calls.customRecipe;
+            if (toolCalls.customRecipe) {
+                message.customRecipe = toolCalls.customRecipe;
+            }
+            if (toolCalls.safetyFlags) {
+                message.safetyFlags = toolCalls.safetyFlags;
+            }
+            if (toolCalls.suggestions) {
+                message.suggestions = toolCalls.suggestions;
             }
         }
 

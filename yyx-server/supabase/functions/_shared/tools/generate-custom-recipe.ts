@@ -740,6 +740,17 @@ export async function enrichIngredientsWithImages(
  * Get relevant useful items for a recipe based on recipe context.
  * Matches items based on cooking techniques and equipment used.
  */
+type UsefulItemRow = {
+  id: string;
+  name_en: string;
+  name_es: string;
+  image_url: string | null;
+};
+
+const USEFUL_ITEMS_CACHE_TTL_MS = 5 * 60 * 1000;
+let usefulItemsCache: UsefulItemRow[] | null = null;
+let usefulItemsCacheTimestamp = 0;
+
 async function getRelevantUsefulItems(
   supabase: SupabaseClient,
   recipe: GeneratedRecipe,
@@ -747,18 +758,31 @@ async function getRelevantUsefulItems(
   hasThermomix: boolean,
 ): Promise<Array<{ name: string; imageUrl?: string; notes?: string }>> {
   try {
-    // Query useful items from database
+    // Query useful items from database (cached)
     const nameField = language === "es" ? "name_es" : "name_en";
-    const { data: allItems, error } = await supabase
-      .from("useful_items")
-      .select(`id, name_en, name_es, image_url`)
-      .limit(50);
+    let allItems = usefulItemsCache;
+    const cacheAge = Date.now() - usefulItemsCacheTimestamp;
 
-    if (error || !allItems || allItems.length === 0) {
-      console.warn(
-        "[Useful Items] Failed to fetch or no items available:",
-        error?.message,
-      );
+    if (!allItems || cacheAge > USEFUL_ITEMS_CACHE_TTL_MS) {
+      const { data, error } = await supabase
+        .from("useful_items")
+        .select(`id, name_en, name_es, image_url`)
+        .limit(50);
+
+      if (error || !data || data.length === 0) {
+        console.warn(
+          "[Useful Items] Failed to fetch or no items available:",
+          error?.message,
+        );
+        return [];
+      }
+
+      allItems = data as UsefulItemRow[];
+      usefulItemsCache = allItems;
+      usefulItemsCacheTimestamp = Date.now();
+    }
+
+    if (!allItems) {
       return [];
     }
 

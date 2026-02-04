@@ -167,7 +167,12 @@ export function createMockChatMessage(overrides?: {
   role?: 'user' | 'assistant';
   content?: string;
   created_at?: string;
-  tool_calls?: { recipes?: RecipeCard[] };
+  tool_calls?: {
+    recipes?: RecipeCard[];
+    customRecipe?: GeneratedRecipe;
+    safetyFlags?: SafetyFlags;
+    suggestions?: SuggestionChip[];
+  };
 }) {
   return {
     id: overrides?.id || `msg-${Math.random().toString(36).substr(2, 9)}`,

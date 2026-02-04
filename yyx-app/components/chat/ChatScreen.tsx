@@ -331,6 +331,21 @@ export function ChatScreen({
     const [dynamicSuggestions, setDynamicSuggestions] = useState<SuggestionChip[] | null>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
 
+    const resetStreamingState = useCallback(() => {
+        streamCancelRef.current?.();
+        streamCancelRef.current = null;
+        if (chunkTimerRef.current) {
+            clearTimeout(chunkTimerRef.current);
+            chunkTimerRef.current = null;
+        }
+        chunkBufferRef.current = '';
+        assistantIndexRef.current = null;
+        streamRequestIdRef.current += 1; // Invalidate any in-flight callbacks
+        setIsLoading(false);
+        setIsStreaming(false);
+        setCurrentStatus(null);
+    }, []);
+
     useEffect(() => {
         return () => {
             isMountedRef.current = false;
@@ -342,6 +357,21 @@ export function ChatScreen({
             }
         };
     }, []);
+
+    // Sync currentSessionId when parent changes it (e.g., user switches sessions)
+    useEffect(() => {
+        const nextSessionId = initialSessionId ?? null;
+        if (nextSessionId !== currentSessionId) {
+            resetStreamingState();
+            setCurrentSessionId(nextSessionId);
+
+            // Restore suggestions from latest assistant message in this session
+            const lastSuggested = [...messages]
+                .reverse()
+                .find((msg) => msg.role === 'assistant' && msg.suggestions?.length);
+            setDynamicSuggestions(lastSuggested?.suggestions ?? null);
+        }
+    }, [initialSessionId, currentSessionId, messages, resetStreamingState]);
 
     useEffect(() => {
         setDynamicSuggestions(null);

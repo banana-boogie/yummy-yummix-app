@@ -328,7 +328,7 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                     className="p-md border-b border-border-default"
                     accessible={true}
                     accessibilityRole="list"
-                    accessibilityLabel={`${i18n.t('recipes.common.usefulItems')}: ${recipe.usefulItems.length} items`}
+                    accessibilityLabel={`${i18n.t('recipes.common.usefulItems')}: ${recipe.usefulItems.length} ${i18n.t('common.items')}`}
                 >
                     <Text className="text-text-secondary text-base font-medium mb-sm">
                         {i18n.t('recipes.common.usefulItems')}:

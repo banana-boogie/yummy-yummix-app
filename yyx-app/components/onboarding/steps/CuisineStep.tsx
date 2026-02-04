@@ -48,7 +48,7 @@ export function CuisineStep({
         setCuisineOptions(options);
       } catch (err) {
         console.error('Failed to load cuisine options:', err);
-        setError('Failed to load options');
+        setError(i18n.t('common.errors.loadOptions'));
       } finally {
         setLoading(false);
       }

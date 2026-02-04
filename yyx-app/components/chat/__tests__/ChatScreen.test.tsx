@@ -197,6 +197,34 @@ describe('ChatScreen', () => {
   });
 
   // ============================================================
+  // SESSION SWITCHING TESTS
+  // ============================================================
+
+  describe('session switching', () => {
+    it('cancels active stream when sessionId changes', async () => {
+      const mockCancel = jest.fn();
+      mockStreamChatMessageWithHandle.mockReturnValueOnce({
+        done: new Promise(() => {}),
+        cancel: mockCancel,
+      });
+
+      const { rerender } = render(<ChatScreen sessionId="session-1" />);
+
+      fireEvent.press(screen.getByText('Suggest a recipe'));
+
+      await waitFor(() => {
+        expect(mockStreamChatMessageWithHandle).toHaveBeenCalled();
+      });
+
+      rerender(<ChatScreen sessionId="session-2" />);
+
+      await waitFor(() => {
+        expect(mockCancel).toHaveBeenCalled();
+      });
+    });
+  });
+
+  // ============================================================
   // MESSAGE RENDERING TESTS
   // ============================================================
 

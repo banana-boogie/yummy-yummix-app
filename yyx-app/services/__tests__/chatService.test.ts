@@ -16,6 +16,7 @@ import {
   createMockChatMessage,
   createMockChatSession,
   createMockRecipeCardList,
+  createMockSuggestionChipList,
 } from '@/test/mocks/chat';
 
 // Mock i18n
@@ -52,12 +53,14 @@ describe('chatService', () => {
   describe('loadChatHistory', () => {
     it('returns messages with recipes from tool_calls', async () => {
       const recipes = createMockRecipeCardList(2);
+      const suggestions = createMockSuggestionChipList(2);
+      const safetyFlags = { allergenWarning: 'Contains nuts' };
       const mockMessages = [
         createMockChatMessage({ role: 'user', content: 'Show me pasta recipes' }),
         createMockChatMessage({
           role: 'assistant',
           content: 'Here are some pasta recipes!',
-          tool_calls: { recipes },
+          tool_calls: { recipes, suggestions, safetyFlags },
         }),
       ];
 
@@ -76,6 +79,8 @@ describe('chatService', () => {
       expect(result[0].recipes).toBeUndefined();
       expect(result[1].role).toBe('assistant');
       expect(result[1].recipes).toEqual(recipes);
+      expect(result[1].suggestions).toEqual(suggestions);
+      expect(result[1].safetyFlags).toEqual(safetyFlags);
     });
 
     it('handles empty session', async () => {

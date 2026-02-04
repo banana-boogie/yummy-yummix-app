@@ -3,7 +3,7 @@
  *
  * Handles saving and loading AI-generated custom recipes.
  * Uses normalized tables (user_recipe_steps, user_recipe_ingredients, etc.)
- * for schema version 2.0+, with fallback to JSONB recipe_data for 1.0.
+ * for schema version 1.0+, with fallback to JSONB recipe_data for legacy rows.
  */
 
 import { supabase } from '@/lib/supabase';

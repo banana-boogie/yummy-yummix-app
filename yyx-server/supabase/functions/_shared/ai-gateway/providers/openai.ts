@@ -73,6 +73,15 @@ interface OpenAIResponse {
     };
 }
 
+function safeParseToolArguments(raw: string) {
+    try {
+        return JSON.parse(raw);
+    } catch (error) {
+        console.warn('[OpenAI] Failed to parse tool arguments:', error);
+        return {};
+    }
+}
+
 /**
  * Call OpenAI's chat completions API.
  */
@@ -147,7 +156,7 @@ export async function callOpenAI(
         toolCalls: choice.message.tool_calls?.map((tc) => ({
             id: tc.id,
             name: tc.function.name,
-            arguments: JSON.parse(tc.function.arguments),
+            arguments: safeParseToolArguments(tc.function.arguments),
         })),
     };
 }
@@ -305,4 +314,3 @@ export async function textToSpeechOpenAI(
         format: 'mp3',
     };
 }
-

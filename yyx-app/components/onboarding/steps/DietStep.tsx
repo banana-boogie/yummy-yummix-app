@@ -46,7 +46,7 @@ export function DietStep({
         setDietOptions(options);
       } catch (err) {
         console.error('Failed to load diet options:', err);
-        setFetchError('Failed to load options');
+        setFetchError(i18n.t('common.errors.loadOptions'));
       } finally {
         setLoading(false);
       }

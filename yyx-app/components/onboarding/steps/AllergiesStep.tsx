@@ -43,7 +43,7 @@ export function AllergiesStep({ className = '', style }: AllergiesStepProps) {
         setAllergyOptions(options);
       } catch (err) {
         console.error('Failed to load allergy options:', err);
-        setFetchError('Failed to load options');
+        setFetchError(i18n.t('common.errors.loadOptions'));
       } finally {
         setLoading(false);
       }
