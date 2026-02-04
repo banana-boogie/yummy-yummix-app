@@ -5,7 +5,7 @@
  * Used in chat when the AI generates a custom recipe from user's ingredients.
  */
 import React, { useState, useCallback, memo } from 'react';
-import { View, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, TextInput } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -19,8 +19,10 @@ import { PLACEHOLDER_IMAGES } from '@/constants/placeholders';
 interface CustomRecipeCardProps {
     recipe: GeneratedRecipe;
     safetyFlags?: SafetyFlags;
-    onStartCooking: (recipe: GeneratedRecipe, finalName: string) => Promise<void>;
+    onStartCooking: (recipe: GeneratedRecipe, finalName: string, messageId: string, savedRecipeId?: string) => Promise<void>;
     loading?: boolean;
+    messageId: string;
+    savedRecipeId?: string;
 }
 
 export const CustomRecipeCard = memo(function CustomRecipeCard({
@@ -28,28 +30,25 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
     safetyFlags,
     onStartCooking,
     loading = false,
+    messageId,
+    savedRecipeId,
 }: CustomRecipeCardProps) {
     const [recipeName, setRecipeName] = useState(recipe.suggestedName);
     const [isEditing, setIsEditing] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
     const [showAllIngredients, setShowAllIngredients] = useState(false);
     const [showAllSteps, setShowAllSteps] = useState(false);
 
-    const handleStartCooking = useCallback(async () => {
+    const handleStartCooking = useCallback(() => {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        setIsSaving(true);
 
         // Debug: log which recipe is being started
         if (__DEV__) {
-            console.log('[CustomRecipeCard] Start cooking - recipe name:', recipeName, 'suggested:', recipe.suggestedName);
+            console.log('[CustomRecipeCard] Start cooking - recipe name:', recipeName, 'savedRecipeId:', savedRecipeId);
         }
 
-        try {
-            await onStartCooking(recipe, recipeName);
-        } finally {
-            setIsSaving(false);
-        }
-    }, [onStartCooking, recipe, recipeName]);
+        // Fire and forget - the redirect screen handles the loading state
+        void onStartCooking(recipe, recipeName, messageId, savedRecipeId);
+    }, [onStartCooking, recipe, recipeName, messageId, savedRecipeId]);
 
     const handleEditPress = useCallback(() => {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -381,29 +380,18 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                 <Button
                     variant="primary"
                     onPress={handleStartCooking}
-                    disabled={loading || isSaving}
+                    disabled={loading}
                     className="w-full"
                     accessibilityRole="button"
-                    accessibilityLabel={(loading || isSaving)
-                        ? i18n.t('chat.saving')
-                        : `${i18n.t('chat.startCooking')} ${recipeName}`}
-                    accessibilityState={{ disabled: loading || isSaving }}
+                    accessibilityLabel={`${i18n.t('chat.startCooking')} ${recipeName}`}
+                    accessibilityState={{ disabled: loading }}
                 >
-                    {(loading || isSaving) ? (
-                        <View className="flex-row items-center justify-center">
-                            <ActivityIndicator size="small" color="white" />
-                            <Text className="text-white font-semibold ml-sm">
-                                {i18n.t('chat.saving')}
-                            </Text>
-                        </View>
-                    ) : (
-                        <View className="flex-row items-center justify-center">
-                            <MaterialCommunityIcons name="chef-hat" size={20} color="white" accessibilityElementsHidden={true} />
-                            <Text className="text-white font-semibold ml-sm">
-                                {i18n.t('chat.startCooking')}
-                            </Text>
-                        </View>
-                    )}
+                    <View className="flex-row items-center justify-center">
+                        <MaterialCommunityIcons name="chef-hat" size={20} color="white" accessibilityElementsHidden={true} />
+                        <Text className="text-white font-semibold ml-sm">
+                            {i18n.t('chat.startCooking')}
+                        </Text>
+                    </View>
                 </Button>
             </View>
         </View>

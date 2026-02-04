@@ -25,6 +25,8 @@ export interface ChatMessage {
     safetyFlags?: SafetyFlags;
     // Error state flag for styling error messages
     hasError?: boolean;
+    // ID of the saved custom recipe (to avoid duplicate saves)
+    savedRecipeId?: string;
 }
 
 export interface ChatSession {

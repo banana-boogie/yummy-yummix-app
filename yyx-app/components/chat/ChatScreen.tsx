@@ -203,7 +203,7 @@ interface ChatMessageItemProps {
     currentStatus: IrmixyStatus;
     statusText: string;
     onCopyMessage: (content: string) => void;
-    onStartCooking: (recipe: GeneratedRecipe, finalName: string) => void;
+    onStartCooking: (recipe: GeneratedRecipe, finalName: string, messageId: string, savedRecipeId?: string) => void;
 }
 
 const ChatMessageItem = memo(function ChatMessageItem({
@@ -241,6 +241,8 @@ const ChatMessageItem = memo(function ChatMessageItem({
                         recipe={item.customRecipe}
                         safetyFlags={item.safetyFlags}
                         onStartCooking={onStartCooking}
+                        messageId={item.id}
+                        savedRecipeId={item.savedRecipeId}
                     />
                 </View>
             )}
@@ -756,22 +758,39 @@ export function ChatScreen({
         }
     }, []);
 
-    const handleStartCooking = useCallback(async (recipe: GeneratedRecipe, finalName: string) => {
+    const handleStartCooking = useCallback(async (
+        recipe: GeneratedRecipe,
+        finalName: string,
+        messageId: string,
+        savedRecipeId?: string
+    ) => {
         try {
-            // Save recipe to user_recipes
-            const { userRecipeId } = await customRecipeService.save(recipe, finalName);
+            let recipeId = savedRecipeId;
 
-            // Invalidate all custom recipe queries to ensure fresh data
-            await queryClient.invalidateQueries({ queryKey: customRecipeKeys.all });
+            // Only save if not already saved
+            if (!recipeId) {
+                const { userRecipeId } = await customRecipeService.save(recipe, finalName);
+                recipeId = userRecipeId;
+
+                // Update the message with the saved recipe ID to prevent duplicate saves
+                setMessages(prev => prev.map(msg =>
+                    msg.id === messageId
+                        ? { ...msg, savedRecipeId: recipeId }
+                        : msg
+                ));
+
+                // Invalidate all custom recipe queries to ensure fresh data
+                await queryClient.invalidateQueries({ queryKey: customRecipeKeys.all });
+            }
 
             // Debug: log the recipe being saved and navigation target
             if (__DEV__) {
-                console.log('[ChatScreen] Starting cooking - saved recipe ID:', userRecipeId, 'name:', finalName);
+                console.log('[ChatScreen] Starting cooking - recipe ID:', recipeId, 'name:', finalName, 'wasAlreadySaved:', !!savedRecipeId);
             }
 
             // Navigate to redirect screen which handles the cooking guide navigation
             // This avoids the Expo Router issue where replace to same route pattern doesn't work
-            router.push(`/(tabs)/recipes/start-cooking/${userRecipeId}?from=chat`);
+            router.push(`/(tabs)/recipes/start-cooking/${recipeId}?from=chat`);
         } catch (error) {
             console.error('Failed to save custom recipe:', error);
             Alert.alert(
@@ -780,7 +799,7 @@ export function ChatScreen({
                 [{ text: i18n.t('common.ok') }]
             );
         }
-    }, [queryClient]);
+    }, [queryClient, setMessages]);
 
     // Memoize the last message ID to avoid recalculating on every render
     const lastMessageId = messages.length > 0 ? messages[messages.length - 1]?.id : null;
