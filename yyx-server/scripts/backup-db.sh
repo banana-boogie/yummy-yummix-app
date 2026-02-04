@@ -2,7 +2,7 @@
 # Database backup script for YummyYummix
 # Run: npm run backup
 #
-# Requires DATABASE_URL in .env.local (get from Supabase Dashboard > Settings > Database > Connection string)
+# Uses Supabase CLI to get temporary credentials (no DATABASE_URL needed)
 
 set -e
 
@@ -12,13 +12,6 @@ BACKUP_FILE="$BACKUP_DIR/yyx_backup_$TIMESTAMP.sql"
 
 mkdir -p "$BACKUP_DIR"
 
-# Load environment
-if [ -f .env.local ]; then
-  source .env.local
-elif [ -f .env ]; then
-  source .env
-fi
-
 # Check prerequisites
 if ! command -v pg_dump &> /dev/null; then
   echo "❌ pg_dump not found"
@@ -27,26 +20,42 @@ if ! command -v pg_dump &> /dev/null; then
   exit 1
 fi
 
-if [ -z "$DATABASE_URL" ]; then
-  echo "❌ DATABASE_URL not set"
-  echo ""
-  echo "Add to .env.local:"
-  echo "  DATABASE_URL=postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres"
-  echo ""
-  echo "Get it from: Supabase Dashboard > Settings > Database > Connection string (URI)"
-  echo "Use the 'Transaction' pooler connection for backups."
+if ! command -v supabase &> /dev/null; then
+  echo "❌ supabase CLI not found"
+  echo "   Install: brew install supabase/tap/supabase"
+  exit 1
+fi
+
+echo "🔑 Getting credentials from Supabase CLI..."
+
+# Extract credentials from supabase db dump --dry-run
+CREDS=$(supabase db dump --dry-run 2>&1)
+
+export PGHOST=$(echo "$CREDS" | grep 'export PGHOST=' | cut -d'"' -f2)
+export PGPORT=$(echo "$CREDS" | grep 'export PGPORT=' | cut -d'"' -f2)
+export PGUSER=$(echo "$CREDS" | grep 'export PGUSER=' | cut -d'"' -f2)
+export PGPASSWORD=$(echo "$CREDS" | grep 'export PGPASSWORD=' | cut -d'"' -f2)
+export PGDATABASE=$(echo "$CREDS" | grep 'export PGDATABASE=' | cut -d'"' -f2)
+
+if [ -z "$PGHOST" ] || [ -z "$PGPASSWORD" ]; then
+  echo "❌ Failed to extract credentials from Supabase CLI"
+  echo "   Make sure you're logged in: supabase login"
+  echo "   And linked to the project: supabase link"
   exit 1
 fi
 
 echo "🗄️  Starting database backup..."
+echo "   Host: $PGHOST"
+echo "   User: $PGUSER"
 
 # Disable GSSAPI (fixes macOS issues with Supabase pooler)
 export PGGSSENCMODE=disable
 
-# Run pg_dump with public schema only (excludes internal Supabase schemas)
-pg_dump "$DATABASE_URL" \
+# Run pg_dump with public schema (includes data, not just schema)
+pg_dump \
   --no-owner \
   --no-acl \
+  --role postgres \
   --schema=public \
   > "$BACKUP_FILE"
 
