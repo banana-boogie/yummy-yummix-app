@@ -55,6 +55,7 @@ for BUCKET in $BUCKETS; do
   echo "   Found $FILE_COUNT files"
 
   # Download each file (handles nested paths)
+  # Use 'authenticated' endpoint for private buckets (which is the default)
   cat "$BACKUP_PATH/$BUCKET/_file_list.json" | jq -r '.[].name' | while read filepath; do
     if [ -n "$filepath" ]; then
       # Create subdirectories if file is in nested path
@@ -64,7 +65,7 @@ for BUCKET in $BUCKETS; do
       fi
 
       echo "   ↓ $filepath"
-      curl -s "$SUPABASE_URL/storage/v1/object/$BUCKET/$filepath" \
+      curl -s "$SUPABASE_URL/storage/v1/object/authenticated/$BUCKET/$filepath" \
         -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
         -o "$BACKUP_PATH/$BUCKET/$filepath"
     fi
