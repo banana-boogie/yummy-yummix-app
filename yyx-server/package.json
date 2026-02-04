@@ -11,7 +11,6 @@
     "backup:storage": "bash scripts/backup-storage.sh",
     "backup:all": "npm run backup && npm run backup:storage",
     "backup:schema": "mkdir -p backups && supabase db dump -f backups/schema_$(date +%Y%m%d).sql --schema-only",
-    "get-test-jwt": "bash scripts/get-test-jwt.sh",
     "test": "deno task test",
     "test:watch": "deno task test:watch",
     "test:integration": "deno task test:integration"
