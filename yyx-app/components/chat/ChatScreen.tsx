@@ -304,6 +304,7 @@ export function ChatScreen({
     const chunkBufferRef = useRef<string>('');
     const chunkTimerRef = useRef<NodeJS.Timeout | null>(null);
     const isNearBottomRef = useRef(true); // Assume at bottom initially
+    const skipNextScrollToEndRef = useRef(false); // Skip scroll-to-end after recipe card scroll
 
     // Use external messages if provided (lifted state), otherwise use local state
     const [internalMessages, setInternalMessages] = useState<ChatMessage[]>([]);
@@ -413,8 +414,13 @@ export function ChatScreen({
     }, [currentStatus]);
 
     // Scroll to bottom when new messages arrive or content updates
+    // Skip if we just scrolled to a recipe card (to keep recipe at top)
     useEffect(() => {
         if (messages.length > 0) {
+            if (skipNextScrollToEndRef.current) {
+                skipNextScrollToEndRef.current = false;
+                return;
+            }
             setTimeout(() => {
                 scrollToEndThrottled(true);
             }, SCROLL_DELAY_MS);
@@ -628,6 +634,8 @@ export function ChatScreen({
                         // Scroll to show recipe card title at top (not bottom)
                         if (response.customRecipe && assistantIndexRef.current !== null) {
                             const scrollToIdx = assistantIndexRef.current;
+                            // Prevent the messages useEffect from scrolling to bottom
+                            skipNextScrollToEndRef.current = true;
                             setTimeout(() => {
                                 flatListRef.current?.scrollToIndex({
                                     index: scrollToIdx,
