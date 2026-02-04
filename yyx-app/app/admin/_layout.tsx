@@ -51,6 +51,12 @@ export default function AdminLayout() {
             title: 'Manage Useful Items'
           }}
         />
+        <Stack.Screen
+          name="analytics"
+          options={{
+            title: 'Analytics'
+          }}
+        />
       </Stack>
     </AdminRoute>
   );
@@ -59,6 +65,7 @@ export default function AdminLayout() {
 // Navigation items for admin panel
 const navItems = [
   { title: 'Dashboard', icon: 'grid-outline', route: '/admin' as const },
+  { title: 'Analytics', icon: 'stats-chart-outline', route: '/admin/analytics' as const },
   { title: 'Recipes', icon: 'restaurant-outline', route: '/admin/recipes' as const },
   { title: 'Ingredients', icon: 'leaf-outline', route: '/admin/ingredients' as const },
   { title: 'Tags', icon: 'pricetags-outline', route: '/admin/tags' as const },
