@@ -53,7 +53,8 @@ describe('eventService', () => {
       Platform: { OS: 'ios' },
     }));
 
-    const { eventService } = await import('../eventService');
+    // Use require here to avoid dynamic import VM module requirements in Jest.
+    const { eventService } = require('../eventService');
 
     await flushPromises();
 
