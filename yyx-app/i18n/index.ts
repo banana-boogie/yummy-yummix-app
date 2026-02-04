@@ -533,6 +533,8 @@ const translations = {
         otherDietPlaceholder: "Enter your diet",
         otherAllergyPlaceholder: "Enter your allergy",
         addAnother: "Add another",
+        cuisinePreferences: "Cuisine Preferences",
+        cuisineSubtitle: "Select cuisines that inspire your cooking",
       },
     },
     admin: {
@@ -1558,6 +1560,8 @@ const translations = {
         otherDietPlaceholder: "Ingresa tu dieta",
         otherAllergyPlaceholder: "Ingresa tu alergia",
         addAnother: "Agregar otro",
+        cuisinePreferences: "Preferencias de Cocina",
+        cuisineSubtitle: "Selecciona las cocinas que inspiran tu comida",
       },
     },
     admin: {
