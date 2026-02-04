@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { AppState, Platform } from 'react-native';
 
 type EventType = 'view_recipe' | 'cook_start' | 'cook_complete' | 'search';
 
@@ -63,6 +64,15 @@ class EventService {
       });
     }
 
+    // Flush events when app goes to background (native)
+    if (Platform.OS !== 'web') {
+      AppState.addEventListener('change', (state) => {
+        if (state === 'background' || state === 'inactive') {
+          this.flush();
+        }
+      });
+    }
+
     // Start the flush timer
     this.startFlushTimer();
   }
@@ -117,7 +127,11 @@ class EventService {
         created_at: event.timestamp,
       }));
 
-      await supabase.from('user_events').insert(rows);
+      const { error } = await supabase.from('user_events').insert(rows);
+
+      if (error) {
+        throw error;
+      }
     } catch (error) {
       // On failure, add events back to queue (at the front)
       // But only if we haven't accumulated too many

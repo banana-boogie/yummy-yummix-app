@@ -55,7 +55,7 @@ export default function CookingGuide() {
         title={recipe?.name || ''}
         titlePreset='h1'
         showBackButton={true}
-        subtitle="Mise en place"
+        subtitle={i18n.t('recipes.cookingGuide.subtitle')}
         subtitlePreset='subheading'
         pictureUrl={recipe?.pictureUrl}
       />

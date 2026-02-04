@@ -42,6 +42,7 @@ export const recipes = {
     },
   },
   cookingGuide: {
+    subtitle: "Mise en place",
     start: "¡Cocinar hoy!",
     intro: {
       greeting: "¡Qué rica receta vamos a cocinar hoy!",

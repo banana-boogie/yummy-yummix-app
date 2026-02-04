@@ -180,7 +180,7 @@ export default function RecipesAdminPage() {
               color={item.isPublished ? COLORS.status.SUCCESS : COLORS.status.WARNING}
             />
             <Text preset="caption" className="ml-xs" color={item.isPublished ? COLORS.status.SUCCESS : COLORS.status.WARNING}>
-              {item.isPublished ? 'Published' : 'Draft'}
+              {item.isPublished ? i18n.t('admin.recipes.list.published') : i18n.t('admin.recipes.list.draft')}
             </Text>
           </View>
 
@@ -215,16 +215,16 @@ export default function RecipesAdminPage() {
   );
 
   return (
-    <AdminLayout title="Manage Recipes" showBackButton={true}>
+    <AdminLayout title={i18n.t('admin.common.manageRecipes')} showBackButton={true}>
       <ScrollView className="flex-1">
         <View className="flex-row items-center justify-between px-md py-sm border-b border-border-default">
-          <Text className="text-xl font-bold text-text-default">Recipes</Text>
+          <Text className="text-xl font-bold text-text-default">{i18n.t('admin.recipes.list.title')}</Text>
           <TouchableOpacity
             className="flex-row items-center bg-primary-default px-md py-sm rounded-lg shadow-md"
             onPress={() => router.push('/admin/recipes/new')}
           >
             <Ionicons name="add" size={24} color={COLORS.neutral.WHITE} />
-            <Text color={COLORS.neutral.WHITE} className="ml-sm font-bold">New Recipe</Text>
+            <Text color={COLORS.neutral.WHITE} className="ml-sm font-bold">{i18n.t('admin.recipes.list.createButton')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -233,7 +233,7 @@ export default function RecipesAdminPage() {
             <Ionicons name="search" size={20} color={COLORS.grey.MEDIUM} />
             <TextInput
               className="flex-1 py-md px-sm text-text-default"
-              placeholder="Search recipes..."
+              placeholder={i18n.t('admin.recipes.list.search')}
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholderTextColor={COLORS.grey.MEDIUM}
@@ -242,36 +242,42 @@ export default function RecipesAdminPage() {
 
           <View className="mb-sm">
             <View className="flex-row items-center flex-wrap mb-sm">
-              <Text className="mr-sm text-text-SECONDARY font-bold">Status:</Text>
+              <Text className="mr-sm text-text-SECONDARY font-bold">{`${i18n.t('admin.recipes.status')}:`}</Text>
               <TouchableOpacity
                 className={`px-md py-sm rounded-sm mr-sm mb-sm ${filters.published === 'all' ? 'bg-primary-default' : ''}`}
                 onPress={() => setFilters({ ...filters, published: 'all' })}
               >
-                <Text className={filters.published === 'all' ? 'text-white' : 'text-text-SECONDARY'}>All</Text>
+                <Text className={filters.published === 'all' ? 'text-white' : 'text-text-SECONDARY'}>
+                  {i18n.t('admin.recipes.list.filters.all')}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 className={`px-md py-sm rounded-sm mr-sm mb-sm ${filters.published === 'published' ? 'bg-primary-default' : ''}`}
                 onPress={() => setFilters({ ...filters, published: 'published' })}
               >
-                <Text className={filters.published === 'published' ? 'text-white' : 'text-text-SECONDARY'}>Published</Text>
+                <Text className={filters.published === 'published' ? 'text-white' : 'text-text-SECONDARY'}>
+                  {i18n.t('admin.recipes.list.filters.published')}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 className={`px-md py-sm rounded-sm mr-sm mb-sm ${filters.published === 'draft' ? 'bg-primary-default' : ''}`}
                 onPress={() => setFilters({ ...filters, published: 'draft' })}
               >
-                <Text className={filters.published === 'draft' ? 'text-white' : 'text-text-SECONDARY'}>Draft</Text>
+                <Text className={filters.published === 'draft' ? 'text-white' : 'text-text-SECONDARY'}>
+                  {i18n.t('admin.recipes.list.filters.drafts')}
+                </Text>
               </TouchableOpacity>
             </View>
 
             <View className="flex-row items-center flex-wrap mb-sm">
-              <Text className="mr-sm text-text-SECONDARY font-bold">Sort by:</Text>
+              <Text className="mr-sm text-text-SECONDARY font-bold">{`${i18n.t('admin.recipes.list.sortBy')}:`}</Text>
               <TouchableOpacity
                 className={`px-md py-sm rounded-sm mr-sm mb-sm ${sortBy === 'name' ? 'bg-primary-default' : ''}`}
                 onPress={() => handleSortChange('name')}
               >
                 <View className="flex-row items-center">
                   <Text className={sortBy === 'name' ? 'text-white' : 'text-text-SECONDARY'}>
-                    Name
+                    {i18n.t('admin.recipes.list.sortOptions.name')}
                   </Text>
                   {sortBy === 'name' && (
                     <Ionicons
@@ -289,7 +295,7 @@ export default function RecipesAdminPage() {
               >
                 <View className="flex-row items-center">
                   <Text className={sortBy === 'isPublished' ? 'text-white' : 'text-text-SECONDARY'}>
-                    Status
+                    {i18n.t('admin.recipes.list.sortOptions.status')}
                   </Text>
                   {sortBy === 'isPublished' && (
                     <Ionicons
@@ -307,7 +313,7 @@ export default function RecipesAdminPage() {
               >
                 <View className="flex-row items-center">
                   <Text className={sortBy === 'dateAdded' ? 'text-white' : 'text-text-SECONDARY'}>
-                    Date Added
+                    {i18n.t('admin.recipes.list.sortOptions.dateAdded')}
                   </Text>
                   {sortBy === 'dateAdded' && (
                     <Ionicons
@@ -325,7 +331,7 @@ export default function RecipesAdminPage() {
               >
                 <View className="flex-row items-center">
                   <Text className={sortBy === 'dateUpdated' ? 'text-white' : 'text-text-SECONDARY'}>
-                    Date Updated
+                    {i18n.t('admin.recipes.list.sortOptions.dateUpdated')}
                   </Text>
                   {sortBy === 'dateUpdated' && (
                     <Ionicons
@@ -355,7 +361,7 @@ export default function RecipesAdminPage() {
             ListEmptyComponent={
               <View className="items-center justify-center p-xl">
                 <Ionicons name="restaurant-outline" size={48} color={COLORS.grey.MEDIUM} />
-                <Text className="mt-md text-text-SECONDARY text-base">No recipes found</Text>
+                <Text className="mt-md text-text-SECONDARY text-base">{i18n.t('admin.recipes.list.noRecipes')}</Text>
               </View>
             }
           />
@@ -385,14 +391,20 @@ export default function RecipesAdminPage() {
         {/* Publish Confirmation Modal */}
         <AlertModal
           visible={showPublishConfirm}
-          title={publishAction === 'publish' ? "Publish Recipe?" : "Unpublish Recipe?"}
-          message={`Are you sure you want to ${publishAction} "${recipeToPublish?.nameEn}"? ${publishAction === 'publish' ? 'This will make it visible to all users.' : 'This will hide it from users.'}`}
+          title={publishAction === 'publish'
+            ? i18n.t('admin.recipes.publishConfirm.publishTitle')
+            : i18n.t('admin.recipes.publishConfirm.unpublishTitle')}
+          message={publishAction === 'publish'
+            ? i18n.t('admin.recipes.publishConfirm.publishMessage', { name: recipeToPublish?.nameEn || '' })
+            : i18n.t('admin.recipes.publishConfirm.unpublishMessage', { name: recipeToPublish?.nameEn || '' })}
           onConfirm={() => recipeToPublish && confirmTogglePublish(recipeToPublish.id, publishAction === 'unpublish')}
           onCancel={() => {
             setShowPublishConfirm(false);
             setRecipeToPublish(null);
           }}
-          confirmText={publishAction === 'publish' ? "Publish" : "Unpublish"}
+          confirmText={publishAction === 'publish'
+            ? i18n.t('admin.recipes.publishConfirm.publishConfirm')
+            : i18n.t('admin.recipes.publishConfirm.unpublishConfirm')}
           cancelText={i18n.t('common.cancel')}
         />
       </ScrollView>
