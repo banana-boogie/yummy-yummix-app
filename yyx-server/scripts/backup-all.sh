@@ -5,7 +5,7 @@
 
 set -e
 
-export BACKUP_TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+export BACKUP_TIMESTAMP="$(date +%b-%d_%I-%M)$(date +%p | tr '[:upper:]' '[:lower:]')"
 
 echo "🚀 Starting full backup (timestamp: $BACKUP_TIMESTAMP)"
 echo ""

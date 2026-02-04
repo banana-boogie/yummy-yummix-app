@@ -22,7 +22,7 @@ if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
 fi
 
 BACKUP_DIR="backups"
-TIMESTAMP=${BACKUP_TIMESTAMP:-$(date +%Y%m%d_%H%M%S)}
+TIMESTAMP=${BACKUP_TIMESTAMP:-"$(date +%b-%d_%I-%M)$(date +%p | tr '[:upper:]' '[:lower:]')"}
 BACKUP_PATH="$BACKUP_DIR/$TIMESTAMP/storage"
 
 mkdir -p "$BACKUP_PATH"
