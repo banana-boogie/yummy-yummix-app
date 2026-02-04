@@ -20,6 +20,8 @@ import { CustomRecipeCard } from '@/components/chat/CustomRecipeCard';
 import { RecipeGeneratingSkeleton } from '@/components/chat/RecipeGeneratingSkeleton';
 import { ChatMessage, IrmixyStatus, SuggestionChip, RecipeCard, GeneratedRecipe, loadChatHistory } from '@/services/chatService';
 import { customRecipeService } from '@/services/customRecipeService';
+import { useQueryClient } from '@tanstack/react-query';
+import { customRecipeKeys } from '@/hooks/useCustomRecipe';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -289,6 +291,7 @@ export function ChatScreen({
 }: Props) {
     const { user } = useAuth();
     const { language } = useLanguage();
+    const queryClient = useQueryClient();
     const insets = useSafeAreaInsets();
     const flatListRef = useRef<FlatList>(null);
     const isMountedRef = useRef(true);
@@ -751,8 +754,17 @@ export function ChatScreen({
             // Save recipe to user_recipes
             const { userRecipeId } = await customRecipeService.save(recipe, finalName);
 
-            // Navigate to custom cooking guide
-            router.push(`/(tabs)/recipes/custom/${userRecipeId}/cooking-guide?from=chat`);
+            // Invalidate all custom recipe queries to ensure fresh data
+            await queryClient.invalidateQueries({ queryKey: customRecipeKeys.all });
+
+            // Debug: log the recipe being saved and navigation target
+            if (__DEV__) {
+                console.log('[ChatScreen] Starting cooking - saved recipe ID:', userRecipeId, 'name:', finalName);
+            }
+
+            // Navigate to redirect screen which handles the cooking guide navigation
+            // This avoids the Expo Router issue where replace to same route pattern doesn't work
+            router.push(`/(tabs)/recipes/start-cooking/${userRecipeId}?from=chat`);
         } catch (error) {
             console.error('Failed to save custom recipe:', error);
             Alert.alert(
@@ -761,7 +773,7 @@ export function ChatScreen({
                 [{ text: i18n.t('common.ok') }]
             );
         }
-    }, []);
+    }, [queryClient]);
 
     // Memoize the last message ID to avoid recalculating on every render
     const lastMessageId = messages.length > 0 ? messages[messages.length - 1]?.id : null;
@@ -920,6 +932,7 @@ export function ChatScreen({
                     )}
                 </TouchableOpacity>
             </View>
+
         </KeyboardAvoidingView>
     );
 }

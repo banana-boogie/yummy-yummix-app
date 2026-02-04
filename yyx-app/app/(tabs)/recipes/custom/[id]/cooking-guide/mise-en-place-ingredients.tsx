@@ -29,11 +29,16 @@ export default function CustomIngredientsStep() {
   // Calculate number of columns based on screen size
   const numColumns = 2;
 
+  // Reset ingredients when recipe ID changes or recipe data loads
+  // Adding `id` ensures state clears immediately when navigating to a different recipe
   useEffect(() => {
     if (recipe && recipe.ingredients) {
       setIngredients(recipe.ingredients.map(ing => ({ ...ing, checked: false })));
+    } else {
+      // Clear state when recipe is not yet loaded (e.g., navigating to new recipe)
+      setIngredients([]);
     }
-  }, [recipe]);
+  }, [id, recipe]);
 
   // Effect to trigger success haptic when all ingredients are checked
   useEffect(() => {

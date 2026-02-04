@@ -14,9 +14,14 @@ import i18n from '@/i18n';
 import * as Haptics from 'expo-haptics';
 
 export default function CustomCookingGuide() {
-  const { id } = useLocalSearchParams();
+  const { id, session } = useLocalSearchParams();
   const { recipe, loading, error } = useCustomRecipe(id as string);
   const { isPhone } = useDevice();
+
+  // Debug: log recipe ID and session to trace navigation issues
+  if (__DEV__) {
+    console.log('[CookingGuide] Rendering with id:', id, 'session:', session, 'recipe:', recipe?.name);
+  }
 
   // Responsive sizes: keep mobile original, make desktop larger
   const chefSize = isPhone ? { width: 165, height: 270 } : { width: 180, height: 270 };

@@ -32,11 +32,16 @@ export default function CustomUsefulItemsStep() {
     // Calculate number of columns based on screen size
     const numColumns = 2;
 
+    // Reset useful items when recipe ID changes or recipe data loads
+    // Adding `id` ensures state clears immediately when navigating to a different recipe
     useEffect(() => {
         if (recipe && recipe.usefulItems) {
             setUsefulItems(recipe.usefulItems.map(item => ({ ...item, checked: false })));
+        } else {
+            // Clear state when recipe is not yet loaded (e.g., navigating to new recipe)
+            setUsefulItems([]);
         }
-    }, [recipe]);
+    }, [id, recipe]);
 
     // Effect to trigger success haptic when all items are checked
     useEffect(() => {

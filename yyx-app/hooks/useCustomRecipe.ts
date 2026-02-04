@@ -47,8 +47,9 @@ export function useCustomRecipeQuery(userRecipeId: string) {
             return adaptGeneratedRecipe(recipe, id, name);
         },
         enabled: !!userRecipeId && userRecipeId.length > 0,
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        staleTime: 0, // Always consider stale to ensure fresh data
         gcTime: 30 * 60 * 1000, // 30 minutes (formerly cacheTime)
+        refetchOnMount: 'always', // Always refetch when component mounts
     });
 }
 

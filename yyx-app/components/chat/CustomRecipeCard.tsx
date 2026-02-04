@@ -38,6 +38,12 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
     const handleStartCooking = useCallback(async () => {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setIsSaving(true);
+
+        // Debug: log which recipe is being started
+        if (__DEV__) {
+            console.log('[CustomRecipeCard] Start cooking - recipe name:', recipeName, 'suggested:', recipe.suggestedName);
+        }
+
         try {
             await onStartCooking(recipe, recipeName);
         } finally {
