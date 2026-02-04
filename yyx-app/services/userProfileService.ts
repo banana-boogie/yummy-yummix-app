@@ -18,12 +18,13 @@ class UserProfileService extends BaseService {
   }
 
   async updateProfile(userId: string, updates: Partial<UserProfile>) {
-    const { otherAllergy, otherDiet, ...profileUpdates } = updates as OnboardingData;
+    const { otherAllergy, otherDiet, cuisinePreferences, ...profileUpdates } = updates as OnboardingData;
 
     const updateData = {
       ...this.transformRequest(profileUpdates),
       other_allergy: otherAllergy,
-      other_diet: otherDiet
+      other_diet: otherDiet,
+      cuisine_preferences: cuisinePreferences, // Use snake_case for database column
     };
 
     // First, check if profile exists

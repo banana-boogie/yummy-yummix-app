@@ -71,13 +71,52 @@ npm run logs ai-orchestrator      # CLI logs
 
 Located in `supabase/migrations/`.
 
+### CRITICAL: Never Use MCP for Migrations
+
+**NEVER use the Supabase MCP `apply_migration` tool to apply database migrations.**
+
+The MCP tool bypasses the local migration file workflow and causes the local `supabase/migrations/` folder to diverge from the remote migration history. This breaks `supabase db push` and makes the migration history unmaintainable.
+
+**Always use the CLI workflow:**
+1. Create migration file locally with `npm run migration:new`
+2. Edit the SQL file in `supabase/migrations/`
+3. Push with `npm run db:push`
+
+The MCP Supabase tools are safe for:
+- Reading data (`execute_sql` for SELECT queries)
+- Checking migration history (`list_migrations`)
+- Viewing tables (`list_tables`)
+- Getting project info
+
+**Never use MCP for:**
+- `apply_migration` - Creates history divergence
+- Any DDL changes (CREATE, ALTER, DROP) outside the migration workflow
+
 ### Creating Migrations
 
 ```bash
 npm run backup                    # ALWAYS backup first!
 npm run migration:new add_feature # Create new migration
-# Edit the SQL file
+# Edit the SQL file in supabase/migrations/
 npm run db:push                   # Push to cloud
+```
+
+### If Migration History Diverges
+
+If local and remote migration histories get out of sync:
+
+```bash
+# 1. Backup local migrations (in case you need the SQL)
+cp -r supabase/migrations ~/migrations_backup
+
+# 2. Clear local migrations
+rm -rf supabase/migrations/*
+
+# 3. Pull current remote state as new baseline
+supabase db pull
+
+# 4. Now create new migrations from this synced state
+npm run migration:new my_new_feature
 ```
 
 ### Migration Rollback

@@ -19,6 +19,7 @@ import { AllergiesStep } from './steps/AllergiesStep';
 import { EquipmentStep } from './steps/EquipmentStep';
 import { formatEquipmentForStorage } from '@/constants/equipment';
 import { DietStep } from './steps/DietStep';
+import { CuisineStep } from './steps/CuisineStep';
 import { AppPreferencesStep } from './steps/AppPreferencesStep';
 import { useDevice } from '@/hooks/useDevice';
 
@@ -158,7 +159,9 @@ function StepRenderer({ onComplete, isSubmitting }: { onComplete: (data: Onboard
     case 4:
       return <AllergiesStep />;
     case 5:
-      return <DietStep onComplete={onComplete} isSubmitting={isSubmitting} />;
+      return <DietStep />;
+    case 6:
+      return <CuisineStep onComplete={onComplete} isSubmitting={isSubmitting} />;
     default:
       return null;
   }

@@ -1,22 +1,30 @@
-import React, { useState, useRef } from 'react';
-import { View, ScrollView, KeyboardAvoidingView, Platform, StyleProp, ViewStyle } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, ScrollView, KeyboardAvoidingView, Platform, StyleProp, ViewStyle, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { useOnboarding } from '@/contexts/OnboardingContext';
-import { DietaryRestriction, DIETARY_RESTRICTIONS } from '@/types/dietary';
-import { getDietaryRestrictionIcon } from '@/constants/dietaryIcons';
+import { DietaryRestriction, PreferenceOption } from '@/types/dietary';
+import { getDietaryRestrictionIcon, DIETARY_RESTRICTION_ICONS } from '@/constants/dietaryIcons';
 import i18n from '@/i18n';
 import { SelectableCard } from '@/components/common/SelectableCard';
 import { StepNavigationButtons } from '@/components/onboarding/StepNavigationButtons';
 import { OtherInputField } from '@/components/form/OtherInputField';
+import { useLanguage } from '@/contexts/LanguageContext';
+import preferencesService from '@/services/preferencesService';
 
 interface AllergiesStepProps {
-  className?: string; // Add className
+  className?: string;
   style?: StyleProp<ViewStyle>;
 }
 
 export function AllergiesStep({ className = '', style }: AllergiesStepProps) {
   const { formData, updateFormData, goToNextStep, goToPreviousStep } = useOnboarding();
+  const { language } = useLanguage();
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // State for database-driven options
+  const [allergyOptions, setAllergyOptions] = useState<PreferenceOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // State management
   const currentRestrictions = formData.dietaryRestrictions ?? [];
@@ -25,11 +33,30 @@ export function AllergiesStep({ className = '', style }: AllergiesStepProps) {
   );
   const [error, setError] = useState('');
 
-  const handleSelect = (restriction: DietaryRestriction) => {
-    if (restriction === 'none') {
+  // Fetch allergy options from database
+  useEffect(() => {
+    async function loadOptions() {
+      try {
+        setLoading(true);
+        setFetchError(null);
+        const options = await preferencesService.getFoodAllergies(language as 'en' | 'es');
+        setAllergyOptions(options);
+      } catch (err) {
+        console.error('Failed to load allergy options:', err);
+        setFetchError('Failed to load options');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadOptions();
+  }, [language]);
+
+  const handleSelect = (allergySlug: string) => {
+    if (allergySlug === 'none') {
       // If selecting "none", clear other selections
       updateFormData({
-        dietaryRestrictions: ['none'],
+        dietaryRestrictions: ['none'] as DietaryRestriction[],
         otherAllergy: []
       });
       setOtherAllergies([]);
@@ -38,13 +65,13 @@ export function AllergiesStep({ className = '', style }: AllergiesStepProps) {
     }
 
     // Handle toggling restrictions
-    const isSelected = currentRestrictions.includes(restriction);
+    const isSelected = currentRestrictions.includes(allergySlug as DietaryRestriction);
     const newRestrictions = isSelected
-      ? currentRestrictions.filter(r => r !== restriction)
-      : [...currentRestrictions.filter(r => r !== 'none'), restriction];
+      ? currentRestrictions.filter(r => r !== allergySlug)
+      : [...currentRestrictions.filter(r => r !== 'none'), allergySlug as DietaryRestriction];
 
     // Clear other allergies when deselecting "other"
-    if (isSelected && restriction === 'other') {
+    if (isSelected && allergySlug === 'other') {
       setOtherAllergies([]);
       updateFormData({
         dietaryRestrictions: newRestrictions,
@@ -54,7 +81,7 @@ export function AllergiesStep({ className = '', style }: AllergiesStepProps) {
     }
 
     // Initialize "other" allergies when selecting it
-    if (!isSelected && restriction === 'other') {
+    if (!isSelected && allergySlug === 'other') {
       setOtherAllergies(['']);
       scrollToBottom();
     }
@@ -113,6 +140,38 @@ export function AllergiesStep({ className = '', style }: AllergiesStepProps) {
     return false;
   };
 
+  // Show loading state
+  if (loading) {
+    return (
+      <View className={`flex-1 px-md pt-sm justify-center items-center ${className}`} style={style}>
+        <ActivityIndicator size="large" color="#FFBFB7" />
+      </View>
+    );
+  }
+
+  // Show error state
+  if (fetchError) {
+    return (
+      <View className={`flex-1 px-md pt-sm justify-center items-center ${className}`} style={style}>
+        <Text preset="body" className="text-center text-status-error mb-md">
+          {fetchError}
+        </Text>
+        <StepNavigationButtons
+          onNext={goToNextStep}
+          onBack={goToPreviousStep}
+          disabled={false}
+        />
+      </View>
+    );
+  }
+
+  // Build the list of options: "none" + database options + "other"
+  const displayOptions = [
+    { slug: 'none', name: i18n.t('onboarding.steps.allergies.options.none'), iconName: undefined },
+    ...allergyOptions,
+    { slug: 'other', name: i18n.t('onboarding.steps.allergies.options.other'), iconName: undefined },
+  ];
+
   return (
     <KeyboardAvoidingView
       className={`flex-1 px-md pt-sm ${className}`}
@@ -139,15 +198,21 @@ export function AllergiesStep({ className = '', style }: AllergiesStepProps) {
           </View>
 
           <View className="gap-sm">
-            {DIETARY_RESTRICTIONS.map((restriction) => (
-              <React.Fragment key={restriction}>
+            {displayOptions.map((option) => (
+              <React.Fragment key={option.slug}>
                 <SelectableCard
-                  selected={currentRestrictions.includes(restriction)}
-                  onPress={() => handleSelect(restriction)}
-                  label={i18n.t(`onboarding.steps.allergies.options.${restriction}`)}
-                  icon={getDietaryRestrictionIcon(restriction)}
+                  selected={currentRestrictions.includes(option.slug as DietaryRestriction)}
+                  onPress={() => handleSelect(option.slug)}
+                  label={option.name}
+                  icon={
+                    option.slug === 'none'
+                      ? DIETARY_RESTRICTION_ICONS.none
+                      : option.slug === 'other'
+                        ? DIETARY_RESTRICTION_ICONS.other
+                        : getDietaryRestrictionIcon(option.slug)
+                  }
                 />
-                {restriction === 'other' && currentRestrictions.includes('other') && (
+                {option.slug === 'other' && currentRestrictions.includes('other') && (
                   <OtherInputField
                     items={otherAllergies}
                     onItemsChange={handleOtherAllergyChange}

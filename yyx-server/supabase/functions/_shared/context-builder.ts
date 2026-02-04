@@ -93,6 +93,7 @@ async function buildContext(
         dietary_restrictions,
         measurement_system,
         diet_types,
+        cuisine_preferences,
         other_allergy,
         kitchen_equipment,
         skill_level,
@@ -133,6 +134,18 @@ async function buildContext(
     count: equipment.length,
   });
 
+  // Diet types - MEDIUM constraint (affects ingredient selection)
+  // Filter out 'mediterranean' if it somehow got in (should be in cuisine_preferences)
+  const dietTypes = sanitizeList(profile?.diet_types).filter(d => d !== 'mediterranean');
+
+  // Cuisine preferences - SOFT constraint (inspirational, not restrictive)
+  const cuisinePreferences = sanitizeList(profile?.cuisine_preferences);
+  console.log('[Context Builder] Preferences loaded:', {
+    userId,
+    dietTypes,
+    cuisinePreferences,
+  });
+
   return {
     language,
     measurementSystem,
@@ -141,7 +154,8 @@ async function buildContext(
     skillLevel: profile?.skill_level || null,
     householdSize: profile?.household_size || null,
     conversationHistory: historyResult as Array<{ role: string; content: string; metadata?: any }>,
-    dietTypes: sanitizeList(profile?.diet_types),
+    dietTypes,
+    cuisinePreferences,
     customAllergies: normalizeAllergies(profile?.other_allergy),
     kitchenEquipment: equipment,
   };

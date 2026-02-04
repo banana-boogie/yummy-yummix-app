@@ -1,4 +1,4 @@
-import { DietaryRestriction, DietType } from './dietary';
+import { DietaryRestriction, DietType, CuisinePreference } from './dietary';
 import type { EquipmentType, ThermomixModel } from '@/constants/equipment';
 
 export interface KitchenEquipment {
@@ -10,6 +10,7 @@ export interface OnboardingData {
   name: string;
   dietaryRestrictions: DietaryRestriction[];
   dietTypes: DietType[];
+  cuisinePreferences: CuisinePreference[]; // NEW: cooking style preferences
   otherAllergy?: string[];
   otherDiet?: string[];
   language?: string;
@@ -26,6 +27,7 @@ export interface UserProfile {
   name: string;
   dietaryRestrictions: DietaryRestriction[];
   dietTypes: DietType[];
+  cuisinePreferences: CuisinePreference[]; // NEW: cooking style preferences
   onboardingComplete: boolean;
   otherAllergy?: string[];
   otherDiet?: string[];

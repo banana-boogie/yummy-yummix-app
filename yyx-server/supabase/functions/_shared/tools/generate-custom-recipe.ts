@@ -384,6 +384,20 @@ CRITICAL RULES:
 3. Include proper cooking temperatures for meat/poultry in the instructions
 4. Steps should be clear and numbered
 5. Quantities must be practical (no "0.333 cups" - use "1/3 cup" or nearest practical measure)
+
+RECIPE NAMING:
+- Give the recipe a natural, appetizing name that describes what it IS, not what it ISN'T
+- BAD: "Sugar-Free Chicken Ramen", "Low-Carb Mediterranean Bowl", "Gluten-Free Asian Stir-Fry"
+- GOOD: "Chicken Ramen", "Mediterranean Grain Bowl", "Vegetable Stir-Fry"
+- Never include dietary restrictions in the recipe name unless the dish is famous for it (e.g., "Keto Fat Bombs")
+- The name should make someone hungry, not remind them of restrictions
+
+PREFERENCE BALANCE:
+- User preferences are hints to GUIDE your creativity, not rigid constraints
+- If user enjoys Mediterranean cuisine, you CAN make non-Mediterranean dishes - match cuisine to ingredients
+- Focus on making delicious food FIRST, then accommodate preferences where natural
+- Hard requirements (allergens, ingredients to avoid) MUST be followed
+- Soft preferences (cuisine style, diet types) are suggestions only
 ${thermomixSection}
 
 OUTPUT FORMAT:
@@ -412,6 +426,12 @@ Never include markdown, code fences, or explanations - ONLY the JSON object.`;
 
 /**
  * Build the user prompt with recipe requirements.
+ *
+ * Preference hierarchy:
+ * 1. HARD REQUIREMENTS: Must be followed (allergies, ingredient dislikes)
+ * 2. EXPLICIT REQUESTS: Cuisine/style from current request overrides defaults
+ * 3. MEDIUM CONSTRAINTS: Diet types affect ingredient selection (vegan, keto, etc.)
+ * 4. SOFT PREFERENCES: Cuisine preferences are inspirational only (not every recipe needs to match)
  */
 function buildRecipePrompt(
   params: GenerateRecipeParams,
@@ -432,7 +452,7 @@ function buildRecipePrompt(
     );
   }
 
-  // Cuisine preference
+  // Cuisine preference - explicit request takes priority
   if (params.cuisinePreference) {
     parts.push(`Style: ${params.cuisinePreference} cuisine.`);
   }
@@ -447,7 +467,33 @@ function buildRecipePrompt(
     parts.push(`Additional requirements: ${params.additionalRequests}`);
   }
 
-  // User preferences
+  // === HARD REQUIREMENTS (must be followed) ===
+  const requirements: string[] = [];
+
+  if (userContext.ingredientDislikes.length > 0) {
+    requirements.push(
+      `MUST AVOID these ingredients: ${userContext.ingredientDislikes.join(", ")}`,
+    );
+  }
+
+  if (requirements.length > 0) {
+    parts.push("\n⚠️ HARD REQUIREMENTS (must follow):");
+    parts.push(requirements.join("\n"));
+  }
+
+  // === MEDIUM CONSTRAINTS (diet types - affect ingredient selection) ===
+  // Diet types like vegan, keto, paleo affect WHAT ingredients can be used
+  // These are more than preferences but less than hard requirements
+  if (userContext.dietTypes.length > 0) {
+    const validDietTypes = userContext.dietTypes.filter(d => d !== 'none' && d !== 'other');
+    if (validDietTypes.length > 0) {
+      parts.push("\n🥗 DIETARY APPROACH (follow for ingredient selection):");
+      parts.push(`User follows: ${validDietTypes.join(", ")}`);
+      parts.push("Select ingredients compatible with these dietary approaches.");
+    }
+  }
+
+  // === SOFT PREFERENCES (consider but don't force) ===
   const preferences: string[] = [];
 
   if (userContext.skillLevel) {
@@ -458,14 +504,17 @@ function buildRecipePrompt(
     preferences.push(`Default portions: ${userContext.householdSize}`);
   }
 
-  if (userContext.dietTypes.length > 0) {
-    preferences.push(`Diet types: ${userContext.dietTypes.join(", ")}`);
-  }
-
-  if (userContext.ingredientDislikes.length > 0) {
-    preferences.push(
-      `Avoid these ingredients: ${userContext.ingredientDislikes.join(", ")}`,
-    );
+  // Cuisine preferences are SOFT/INSPIRATIONAL - they should NOT dominate every recipe
+  // Only mention them if no explicit cuisine was requested, and frame them as hints
+  if (userContext.cuisinePreferences && userContext.cuisinePreferences.length > 0 && !params.cuisinePreference) {
+    const validCuisines = userContext.cuisinePreferences.filter(c => c && c.trim());
+    if (validCuisines.length > 0) {
+      // Frame as very soft inspiration - the AI should feel free to ignore
+      preferences.push(
+        `Cuisine inspiration (OPTIONAL, vary styles): User enjoys ${validCuisines.join(", ")} cooking. ` +
+        `Feel free to explore other cuisines that suit the ingredients - variety is welcome!`
+      );
+    }
   }
 
   // Equipment: prioritize useful_items over general equipment
@@ -480,7 +529,7 @@ function buildRecipePrompt(
   }
 
   if (preferences.length > 0) {
-    parts.push("\nUser preferences:");
+    parts.push("\n📝 Soft preferences (consider but be creative):");
     parts.push(preferences.join("\n"));
   }
 
