@@ -344,6 +344,13 @@ export function ChatScreen({
         setDynamicSuggestions(null);
     }, [language]);
 
+    // Reset suggestions when messages are cleared (new chat)
+    useEffect(() => {
+        if (messages.length === 0) {
+            setDynamicSuggestions(null);
+        }
+    }, [messages.length]);
+
     // Reload messages when component mounts if sessionId is set but no messages exist
     // Skip if external messages are provided (they already contain recipes)
     useEffect(() => {
