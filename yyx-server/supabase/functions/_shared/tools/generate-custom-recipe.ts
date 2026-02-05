@@ -138,6 +138,7 @@ export async function generateCustomRecipe(
   recipe.ingredients = await enrichIngredientsWithImages(
     recipe.ingredients,
     supabase,
+    userContext.language,
   );
 
   // Validate Thermomix parameters if present
@@ -648,6 +649,7 @@ export async function enrichIngredientsWithImages(
     imageUrl?: string;
   }>,
   supabase: SupabaseClient,
+  language: "en" | "es" = "en",
 ): Promise<
   Array<{
     name: string;
@@ -678,49 +680,37 @@ export async function enrichIngredientsWithImages(
         };
       }
 
-      // Fallback: Try multiple search strategies
-      const searchTerms = [
-        ingredient.name, // Full name
-        ingredient.name.split(" ")[0], // First word
-        ingredient.name.toLowerCase().replace(/s$/, ""), // Singular form
-      ];
+      // Fallback: Use trigram similarity matching with language preference
+      type IngredientMatch = {
+        id: string;
+        name_en: string;
+        name_es: string;
+        image_url: string | null;
+        match_score: number;
+      };
 
-      for (const term of searchTerms) {
-        try {
-          const { data, error } = await supabase
-            .from("ingredients")
-            .select("image_url")
-            .textSearch("name_en", term, {
-              type: "websearch",
-              config: "english",
-            })
-            .limit(1)
-            .maybeSingle();
+      const { data: match, error } = await supabase
+        .rpc("find_closest_ingredient", {
+          search_name: ingredient.name,
+          preferred_lang: language,
+        })
+        .maybeSingle<IngredientMatch>();
 
-          if (error) {
-            throw new Error(`Failed to fetch image: ${error.message}`);
-          }
+      if (error) {
+        console.warn(`RPC error for "${ingredient.name}":`, error.message);
+        return { ...ingredient, imageUrl: undefined };
+      }
 
-          if (data?.image_url) {
-            console.log(
-              `✓ Fuzzy match: "${ingredient.name}" → "${term}" → ${data.image_url}`,
-            );
-            return { ...ingredient, imageUrl: data.image_url };
-          }
-        } catch (err) {
-          // Continue to next search term
-          console.warn(`Search failed for "${term}":`, err);
-        }
+      if (match?.image_url) {
+        console.log(
+          `✓ Fuzzy match: "${ingredient.name}" → "${match.name_en}" (score: ${match.match_score?.toFixed(2)}) → ${match.image_url}`,
+        );
+        return { ...ingredient, imageUrl: match.image_url };
       }
 
       // No match found
-      console.log(
-        `✗ No match for "${ingredient.name}" after trying ${searchTerms.length} terms`,
-      );
-      return {
-        ...ingredient,
-        imageUrl: undefined,
-      };
+      console.log(`✗ No match for "${ingredient.name}"`);
+      return { ...ingredient, imageUrl: undefined };
     }),
   );
 

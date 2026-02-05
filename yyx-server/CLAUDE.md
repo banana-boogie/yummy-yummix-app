@@ -169,6 +169,23 @@ npm run test:integration  # Integration tests
 
 ---
 
+## Database Functions
+
+Custom PostgreSQL functions for RPC calls are documented in `docs/DATABASE_FUNCTIONS.md`.
+
+**Quick reference:**
+- `find_closest_ingredient(name, lang)` — Fuzzy ingredient search with language preference
+- `admin_analytics(action, timeframe, limit)` — Admin dashboard metrics
+- `is_admin()` — Check current user's admin status
+
+To list all available functions:
+```sql
+SELECT routine_name FROM information_schema.routines
+WHERE routine_schema = 'public' AND routine_type = 'FUNCTION';
+```
+
+---
+
 See the main [CLAUDE.md](../CLAUDE.md) for:
 - Project overview
 - AI architecture and gateway
