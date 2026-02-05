@@ -28,6 +28,8 @@ class EventService {
   private cachedUserId: string | null = null;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private isInitialized = false;
+  private appStateSubscription: ReturnType<typeof AppState.addEventListener> | null = null;
+  private visibilityHandler: (() => void) | null = null;
 
   constructor() {
     this.initialize();
@@ -57,16 +59,17 @@ class EventService {
 
     // Flush events when app goes to background (web)
     if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', () => {
+      this.visibilityHandler = () => {
         if (document.visibilityState === 'hidden') {
           this.flush();
         }
-      });
+      };
+      document.addEventListener('visibilitychange', this.visibilityHandler);
     }
 
     // Flush events when app goes to background (native)
     if (Platform.OS !== 'web') {
-      AppState.addEventListener('change', (state) => {
+      this.appStateSubscription = AppState.addEventListener('change', (state) => {
         if (state === 'background' || state === 'inactive') {
           this.flush();
         }
@@ -198,6 +201,19 @@ class EventService {
       clearInterval(this.flushTimer);
       this.flushTimer = null;
     }
+
+    // Clean up AppState listener
+    if (this.appStateSubscription) {
+      this.appStateSubscription.remove();
+      this.appStateSubscription = null;
+    }
+
+    // Clean up web visibility listener
+    if (this.visibilityHandler && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      this.visibilityHandler = null;
+    }
+
     this.flush();
   }
 }

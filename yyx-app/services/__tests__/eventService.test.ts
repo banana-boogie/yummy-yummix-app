@@ -3,6 +3,10 @@
  *
  * Covers:
  * - Re-queuing events when insert fails
+ * - Empty search queries are ignored
+ * - Batch size triggers automatic flush
+ * - Sign-out clears queue
+ * - destroy() cleans up subscriptions
  *
  * FOR AI AGENTS:
  * - This test mocks Supabase before importing the service
@@ -48,7 +52,7 @@ describe('eventService', () => {
 
     jest.doMock('react-native', () => ({
       AppState: {
-        addEventListener: jest.fn(),
+        addEventListener: jest.fn(() => ({ remove: jest.fn() })),
       },
       Platform: { OS: 'ios' },
     }));
@@ -74,5 +78,162 @@ describe('eventService', () => {
         event_type: 'view_recipe',
       })
     );
+  });
+
+  it('ignores empty search queries', async () => {
+    const insertMock = jest.fn().mockResolvedValue({ error: null });
+
+    jest.doMock('@/lib/supabase', () => ({
+      supabase: {
+        auth: {
+          getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
+          onAuthStateChange: jest.fn(() => ({
+            data: { subscription: { unsubscribe: jest.fn() } },
+          })),
+        },
+        from: jest.fn(() => ({
+          insert: insertMock,
+        })),
+      },
+    }));
+
+    jest.doMock('react-native', () => ({
+      AppState: {
+        addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+      },
+      Platform: { OS: 'ios' },
+    }));
+
+    const { eventService } = require('../eventService');
+
+    await flushPromises();
+
+    // These should all be ignored
+    eventService.logSearch('');
+    eventService.logSearch('   ');
+    eventService.logSearch('\t\n');
+
+    await eventService.flush();
+
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it('auto-flushes when batch size is reached', async () => {
+    const insertMock = jest.fn().mockResolvedValue({ error: null });
+
+    jest.doMock('@/lib/supabase', () => ({
+      supabase: {
+        auth: {
+          getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
+          onAuthStateChange: jest.fn(() => ({
+            data: { subscription: { unsubscribe: jest.fn() } },
+          })),
+        },
+        from: jest.fn(() => ({
+          insert: insertMock,
+        })),
+      },
+    }));
+
+    jest.doMock('react-native', () => ({
+      AppState: {
+        addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+      },
+      Platform: { OS: 'ios' },
+    }));
+
+    const { eventService } = require('../eventService');
+
+    await flushPromises();
+
+    // BATCH_SIZE is 10, so logging 10 events should trigger a flush
+    for (let i = 0; i < 10; i++) {
+      eventService.logRecipeView(`recipe-${i}`, `Recipe ${i}`);
+    }
+
+    // Allow flush to complete
+    await flushPromises();
+
+    expect(insertMock).toHaveBeenCalledTimes(1);
+    expect(insertMock.mock.calls[0][0]).toHaveLength(10);
+  });
+
+  it('clears queue on sign out', async () => {
+    const insertMock = jest.fn().mockResolvedValue({ error: null });
+    let authStateCallback: ((event: string, session: { user?: { id: string } } | null) => void) | null = null;
+
+    jest.doMock('@/lib/supabase', () => ({
+      supabase: {
+        auth: {
+          getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
+          onAuthStateChange: jest.fn((callback) => {
+            authStateCallback = callback;
+            return { data: { subscription: { unsubscribe: jest.fn() } } };
+          }),
+        },
+        from: jest.fn(() => ({
+          insert: insertMock,
+        })),
+      },
+    }));
+
+    jest.doMock('react-native', () => ({
+      AppState: {
+        addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+      },
+      Platform: { OS: 'ios' },
+    }));
+
+    const { eventService } = require('../eventService');
+
+    await flushPromises();
+
+    // Queue some events
+    eventService.logRecipeView('recipe-1', 'Recipe 1');
+    eventService.logRecipeView('recipe-2', 'Recipe 2');
+
+    // Simulate sign out
+    if (authStateCallback) {
+      authStateCallback('SIGNED_OUT', null);
+    }
+
+    // Flush should have nothing to send
+    await eventService.flush();
+
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it('cleans up subscriptions on destroy', async () => {
+    const removeListenerMock = jest.fn();
+    const insertMock = jest.fn().mockResolvedValue({ error: null });
+
+    jest.doMock('@/lib/supabase', () => ({
+      supabase: {
+        auth: {
+          getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
+          onAuthStateChange: jest.fn(() => ({
+            data: { subscription: { unsubscribe: jest.fn() } },
+          })),
+        },
+        from: jest.fn(() => ({
+          insert: insertMock,
+        })),
+      },
+    }));
+
+    jest.doMock('react-native', () => ({
+      AppState: {
+        addEventListener: jest.fn(() => ({ remove: removeListenerMock })),
+      },
+      Platform: { OS: 'ios' },
+    }));
+
+    const { eventService } = require('../eventService');
+
+    await flushPromises();
+
+    eventService.destroy();
+
+    expect(removeListenerMock).toHaveBeenCalled();
   });
 });
