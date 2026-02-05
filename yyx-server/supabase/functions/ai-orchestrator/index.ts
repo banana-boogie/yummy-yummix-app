@@ -1211,24 +1211,10 @@ function handleStreamingRequest(
           }
         }
 
-        // Classify intent to determine if we should force tool usage
-        const intent = await classifyUserIntent(message);
-        console.log("[Streaming] Intent classification:", {
-          intent: intent.intent,
-          hasIngredients: intent.hasIngredients,
-          confidence: intent.confidence,
-        });
-
-        // Force generate_custom_recipe tool if user clearly wants a recipe with ingredients
-        const forceRecipeTool = intent.hasIngredients &&
-          intent.intent === "recipe_request" &&
-          intent.confidence >= 0.7;
-
         const firstResponse = await callAI(
           messages,
           true,
           false,
-          forceRecipeTool ? "generate_custom_recipe" : undefined,
         );
         const assistantMessage = firstResponse.choices[0].message;
 
@@ -1237,7 +1223,6 @@ function handleStreamingRequest(
           hasToolCalls: !!assistantMessage.tool_calls?.length,
           toolNames: assistantMessage.tool_calls?.map(tc => tc.function.name),
           contentPreview: assistantMessage.content?.substring(0, 100),
-          forcedTool: forceRecipeTool ? "generate_custom_recipe" : "none",
         });
 
         if (
@@ -1429,7 +1414,6 @@ async function callAI(
   messages: OpenAIMessage[],
   includeTools: boolean = true,
   useStructuredOutput: boolean = false,
-  forceToolName?: string, // Force a specific tool to be called
 ): Promise<{ choices: Array<{ message: OpenAIMessage }> }> {
   // Convert OpenAIMessage format to AIMessage format
   const aiMessages: AIMessage[] = messages
@@ -1455,17 +1439,11 @@ async function callAI(
     ]
     : undefined;
 
-  // Determine tool choice: force specific tool if requested
-  const toolChoice = forceToolName
-    ? { type: "function" as const, function: { name: forceToolName } }
-    : undefined;
-
   const response = await chat({
     usageType: "text",
     messages: aiMessages,
     temperature: 0.7,
     tools,
-    toolChoice,
     responseFormat: useStructuredOutput
       ? {
         type: "json_schema",
@@ -1655,77 +1633,43 @@ BREVITY GUIDELINES:
 - Use bullet points for lists instead of paragraphs
 - Only elaborate when the user explicitly asks for more details
 
-STREAMLINED RECIPE FLOW:
-When user wants a recipe or mentions food items:
+RECIPE GENERATION FLOW:
 
-1. **RECOGNIZE INGREDIENTS IMMEDIATELY:**
-   ANY food items mentioned = ingredients. Generate recipe right away!
+1. **USE YOUR JUDGMENT:**
+   You decide when to generate immediately vs ask clarifying questions.
 
-   Examples that HAVE ingredients (call generate_custom_recipe immediately):
-   - "Help me cook chicken and rice" → ingredients: chicken, rice
-   - "I have pasta and tomatoes" → ingredients: pasta, tomatoes
-   - "Make something with beef" → ingredients: beef
-   - "Chicken stir fry" → ingredients: chicken (+ typical stir fry veggies)
-   - "What can I make with eggs and cheese" → ingredients: eggs, cheese
+   Generate immediately when:
+   - User shows urgency ("quick", "fast", "I'm hungry")
+   - Request is specific ("30-minute chicken stir fry for 2")
+   - User has been giving brief responses in this conversation
 
-   Examples that DON'T have ingredients (ask what they have):
-   - "I'm hungry"
-   - "What should I cook?"
-   - "Suggest a dinner"
-   - "I need recipe ideas"
+   Ask questions when:
+   - Request is vague and could go many directions
+   - Important details would significantly change the recipe
+   - User is engaging conversationally
 
-2. **NEVER ASK UNNECESSARY QUESTIONS:**
-   - DON'T ask "what ingredients do you have" if they already mentioned food items
-   - DON'T ask about cooking time - use smart defaults
-   - DON'T ask about cuisine - infer from ingredients or be creative
-   - DON'T ask about difficulty - make it appropriate for the dish
+2. **NATURAL CONVERSATION:**
+   - Ask as many or as few questions as feel natural
+   - Pay attention to how the user responds — brief answers suggest they want speed,
+     detailed responses suggest they enjoy conversation
+   - Adapt your style to match theirs over the conversation
 
-3. **SMART DEFAULTS (Don't ask, just infer):**
+3. **WHAT TO ASK ABOUT (when relevant):**
+   - Time available (biggest impact on recipe choice)
+   - Who they're cooking for / how many servings
+   - Cuisine direction (if ingredients are versatile)
+   - Occasion or mood (special dinner vs weeknight meal)
+
+4. **SMART DEFAULTS:**
+   When generating without asking, infer sensibly:
    - Time: Based on ingredients and technique
-   - Cuisine: Infer from ingredients (soy sauce = Asian) or choose creatively
-   - Difficulty: Appropriate for the dish complexity
+   - Cuisine: From ingredients or be creative
+   - Difficulty: Match the dish and user's skill level
+   - Servings: Use household_size if known, otherwise 4
 
-4. **WHEN YOU MUST ASK (rare):**
-   Only ask if the request is truly ambiguous AND you can't make a reasonable choice.
-   Keep to ONE question maximum, then generate.
-
-5. **AFTER RECIPE GENERATION (VERY IMPORTANT):**
-   When a custom recipe is generated, the recipe card is the ONLY focus. Your text message must be MINIMAL.
-
-   STRICT RULES FOR MESSAGE FIELD:
-   - MAXIMUM 8 words
-   - ONE simple sentence only
-   - Ask if they want changes, nothing else
-   - DO NOT describe the recipe
-   - DO NOT list ingredients or steps
-   - DO NOT explain what you created
-   - DO NOT mention the suggestions in your text
-
-   GOOD examples (use these exactly):
-   - "Here's your recipe! Want any changes?"
-   - "Ready! Any adjustments?"
-   - "Done! Want to modify anything?"
-
-   BAD examples (NEVER do this):
-   - "I've created a delicious chicken stir-fry with broccoli and soy sauce..."
-   - "Here's your recipe! It includes chicken, vegetables, and a savory sauce. You can make it spicier, reduce the time, or try a vegetarian version."
-   - Any message longer than 10 words
-
-   Provide 3 SHORT suggestion chips for modifications:
-
-   SUGGESTION RULES:
-   - 2-4 words maximum, under 20 characters
-   - "label" and "message" MUST be IDENTICAL
-   - Simple phrases only
-
-   Choose based on recipe context:
-   - No spice: "Add spice"
-   - Complex: "Simplify"
-   - Long cook time: "Faster version"
-   - Basic: "Make fancier"
-
-   DO NOT include "Create custom" chip after generating - suggest modifications only.
-   Note: Suggestions are handled automatically by the system after tool execution.
+5. **AFTER RECIPE GENERATION:**
+   Keep response brief. The recipe card is the focus.
+   Ask if they want changes. Provide modification suggestions.
 
 6. **AFTER SEARCH RESULTS:**
    When you've just called search_recipes tool and returned results:
