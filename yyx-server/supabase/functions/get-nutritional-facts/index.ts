@@ -6,8 +6,8 @@ import { corsHeaders } from "../_shared/cors.ts";
 import {
   applyRoundingRulesToData,
   convertToPer100g,
-  validateNutritionalData,
   type NutritionalData,
+  validateNutritionalData,
 } from "../_shared/nutritional-utils.ts";
 
 class USDAService {
@@ -75,7 +75,6 @@ class USDAService {
 
     return null;
   }
-
 }
 
 class OpenAIService {

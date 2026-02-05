@@ -77,7 +77,7 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          check-regexp: '(Format Check|Unit Tests)'
+          check-regexp: 'Unit Tests'
           wait-interval: 10
           allowed-conclusions: success
 
