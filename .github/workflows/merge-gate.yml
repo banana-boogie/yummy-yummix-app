@@ -57,10 +57,10 @@ jobs:
       - name: Wait for YYX App CI
         uses: lewagon/wait-on-check-action@v1.3.4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.event.pull_request.head.sha }}
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           check-regexp: '(Lint & TypeCheck|Test)'
-          wait-interval: 10
+          wait-interval: 15
           allowed-conclusions: success
 
   # ============================================================
@@ -75,10 +75,10 @@ jobs:
       - name: Wait for YYX Server CI
         uses: lewagon/wait-on-check-action@v1.3.4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.event.pull_request.head.sha }}
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           check-regexp: 'Unit Tests'
-          wait-interval: 10
+          wait-interval: 15
           allowed-conclusions: success
 
   # ============================================================
