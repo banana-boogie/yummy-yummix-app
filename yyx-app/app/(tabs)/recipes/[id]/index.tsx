@@ -9,6 +9,7 @@ import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { useRecipe } from '@/hooks/useRecipe';
 import i18n from '@/i18n';
 import { isValidUUID } from '@/utils/validation';
+import { eventService } from '@/services/eventService';
 
 import { RecipeInfo } from '@/components/recipe-detail/RecipeInfo';
 import { CookButton } from '@/components/recipe-detail/CookButton';
@@ -42,6 +43,13 @@ const RecipeDetail: React.FC = () => {
   // Only proceed with recipe fetch if we have a valid UUID
   const validId = id && isValidUUID(id as string) ? id as string : '';
   const { recipe, loading, error } = useRecipe(validId);
+
+  // Track recipe view when recipe loads successfully
+  useEffect(() => {
+    if (recipe?.id && recipe?.name) {
+      eventService.logRecipeView(recipe.id, recipe.name);
+    }
+  }, [recipe?.id, recipe?.name]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const { isSmall, isMedium } = useDevice();

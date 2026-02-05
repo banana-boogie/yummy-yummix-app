@@ -35,26 +35,48 @@ concurrency:
 
 jobs:
   # ============================================================
-  # FORMAT CHECK
-  # Note: Linting disabled until existing codebase is cleaned up
+  # AUTO-FORMAT
+  # Runs deno fmt and pushes a fix commit if anything changed.
+  # This replaces a blocking format gate so formatting never
+  # stalls a PR — the pre-commit hook catches most issues locally
+  # and CI acts as the safety net.
   # ============================================================
-  format-check:
-    name: Format Check
+  auto-format:
+    name: Auto Format
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    if: github.event_name == 'pull_request'
+
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
-      - name: Check formatting
+      - name: Run deno fmt
         working-directory: yyx-server
-        run: deno task fmt:check
+        run: deno task fmt
+
+      - name: Commit formatting fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No formatting changes needed."
+          else
+            git commit -m "style(server): auto-format deno files"
+            git push
+          fi
 
   # ============================================================
   # UNIT TESTS

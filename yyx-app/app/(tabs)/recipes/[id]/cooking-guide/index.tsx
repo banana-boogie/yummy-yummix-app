@@ -8,6 +8,7 @@ import { MessageBubble } from '@/components/cooking-guide/MessageBubble';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { useDevice } from '@/hooks/useDevice';
 import i18n from '@/i18n';
+import { eventService } from '@/services/eventService';
 
 import * as Haptics from 'expo-haptics';
 
@@ -23,6 +24,12 @@ export default function CookingGuide() {
 
   const handleStart = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+
+    // Track cook start event
+    if (recipe?.id && recipe?.name) {
+      eventService.logCookStart(recipe.id, recipe.name);
+    }
+
     router.push(`/(tabs)/recipes/${id}/cooking-guide/mise-en-place-ingredients`);
   };
 
@@ -48,7 +55,7 @@ export default function CookingGuide() {
         title={recipe?.name || ''}
         titlePreset='h1'
         showBackButton={true}
-        subtitle="Mise en place"
+        subtitle={i18n.t('recipes.cookingGuide.subtitle')}
         subtitlePreset='subheading'
         pictureUrl={recipe?.pictureUrl}
       />
@@ -79,7 +86,7 @@ export default function CookingGuide() {
             </Text>
             <View className="items-center justify-center mx-xs position-absolute">
               <Image
-                source={require('@/assets/images/checkbox-checked.png')}
+                source={require('@/assets/images/icons/checkbox-checked.png')}
                 style={{ width: checkboxSize, height: checkboxSize, top: -5 }}
               />
             </View>

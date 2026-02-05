@@ -24,7 +24,7 @@ export function AuthHeader({ title, showBackButton = false, className = '', styl
                         {title}
                     </Text>
                     <Image
-                        source={require('@/assets/images/yyx_logo_header_with_banner.png')}
+                        source={require('@/assets/images/branding/yyx_logo_header_with_banner.png')}
                         className="w-[100px] h-[150px]"
                         contentFit="contain"
                         cachePolicy="memory-disk"

@@ -7,7 +7,10 @@
  * - Usage patterns in OPTIONS preflight handling
  */
 
-import { assertEquals, assertExists } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  assertEquals,
+  assertExists,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { corsHeaders } from "../cors.ts";
 
 // ============================================================
@@ -36,22 +39,26 @@ Deno.test("corsHeaders - has Access-Control-Allow-Headers header", () => {
 // ============================================================
 
 Deno.test("corsHeaders - allows authorization header", () => {
-  const allowedHeaders = corsHeaders["Access-Control-Allow-Headers"].toLowerCase();
+  const allowedHeaders = corsHeaders["Access-Control-Allow-Headers"]
+    .toLowerCase();
   assertEquals(allowedHeaders.includes("authorization"), true);
 });
 
 Deno.test("corsHeaders - allows content-type header", () => {
-  const allowedHeaders = corsHeaders["Access-Control-Allow-Headers"].toLowerCase();
+  const allowedHeaders = corsHeaders["Access-Control-Allow-Headers"]
+    .toLowerCase();
   assertEquals(allowedHeaders.includes("content-type"), true);
 });
 
 Deno.test("corsHeaders - allows apikey header for Supabase", () => {
-  const allowedHeaders = corsHeaders["Access-Control-Allow-Headers"].toLowerCase();
+  const allowedHeaders = corsHeaders["Access-Control-Allow-Headers"]
+    .toLowerCase();
   assertEquals(allowedHeaders.includes("apikey"), true);
 });
 
 Deno.test("corsHeaders - allows x-client-info header for Supabase", () => {
-  const allowedHeaders = corsHeaders["Access-Control-Allow-Headers"].toLowerCase();
+  const allowedHeaders = corsHeaders["Access-Control-Allow-Headers"]
+    .toLowerCase();
   assertEquals(allowedHeaders.includes("x-client-info"), true);
 });
 
