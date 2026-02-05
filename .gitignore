@@ -34,6 +34,7 @@ expo-env.d.ts
 .branches
 .temp
 .supabase/
+backups/
 
 # macOS
 .DS_Store
@@ -47,6 +48,9 @@ npm-debug.*
 .vscode/
 *.swp
 *.swo
+
+# Claude Code
+.claude/
 
 # iOS/Android signing
 *.jks

@@ -38,6 +38,7 @@ export {
   createTagList,
   createUsefulItem,
   createMeasurementUnit,
+  resetIdCounter as resetRecipeIdCounter,
 } from './recipe.factory';
 
 export {
@@ -47,4 +48,16 @@ export {
   createAdminProfile,
   createNewUserProfile,
   createUserProfileList,
+  resetIdCounter as resetUserIdCounter,
 } from './user.factory';
+
+/**
+ * Resets all factory ID counters for deterministic test behavior.
+ * This is called automatically in beforeEach via jest.setup.js.
+ */
+export function resetAllFactories(): void {
+  const { resetIdCounter: resetRecipe } = require('./recipe.factory');
+  const { resetIdCounter: resetUser } = require('./user.factory');
+  resetRecipe();
+  resetUser();
+}

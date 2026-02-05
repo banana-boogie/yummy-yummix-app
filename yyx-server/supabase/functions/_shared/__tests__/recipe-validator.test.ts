@@ -433,8 +433,8 @@ Deno.test("validateRecipeData - ingredient with negative quantity returns error"
 
   const result = validateRecipeData(recipe);
 
-  // Currently validator doesn't check negative, just that it's a number
-  assertEquals(typeof result.valid, "boolean");
+  assertEquals(result.valid, false);
+  assertEquals(result.errors.some((e) => e.includes("negative")), true);
 });
 
 Deno.test("validateRecipeData - ingredient with string quantity returns error", () => {

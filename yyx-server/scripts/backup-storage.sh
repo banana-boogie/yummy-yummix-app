@@ -1,6 +1,7 @@
 #!/bin/bash
 # Storage backup script for YummyYummix
-# Automatically backs up ALL buckets - no manual input needed
+# Run: npm run backup:storage
+# Automatically backs up ALL buckets recursively
 # Requires: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local
 
 set -e
@@ -20,11 +21,57 @@ if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
     exit 1
 fi
 
-BACKUP_DIR="backups/storage"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_PATH="$BACKUP_DIR/$TIMESTAMP"
+BACKUP_DIR="backups"
+TIMESTAMP=${BACKUP_TIMESTAMP:-"$(date +%b-%d_%I-%M)$(date +%p | tr '[:upper:]' '[:lower:]')"}
+BACKUP_PATH="$BACKUP_DIR/$TIMESTAMP/storage"
 
 mkdir -p "$BACKUP_PATH"
+
+# Function to list and download files recursively
+list_and_download() {
+    local bucket="$1"
+    local prefix="$2"
+    local indent="$3"
+
+    # List files/folders at this path
+    local response=$(curl -s "$SUPABASE_URL/storage/v1/object/list/$bucket" \
+        -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+        -H "Content-Type: application/json" \
+        -d "{\"prefix\":\"$prefix\",\"limit\":10000}")
+
+    # Process each item
+    echo "$response" | jq -c '.[]' 2>/dev/null | while read -r item; do
+        local name=$(echo "$item" | jq -r '.name')
+        local id=$(echo "$item" | jq -r '.id')
+
+        # Build full path
+        local fullpath
+        if [ -z "$prefix" ]; then
+            fullpath="$name"
+        else
+            fullpath="$prefix$name"
+        fi
+
+        if [ "$id" = "null" ]; then
+            # It's a folder - recurse into it
+            echo "${indent}📁 $name/"
+            mkdir -p "$BACKUP_PATH/$bucket/$fullpath"
+            list_and_download "$bucket" "$fullpath/" "  $indent"
+        else
+            # It's a file - download it
+            echo "${indent}↓ $name"
+
+            # Create parent directory if needed
+            local filedir=$(dirname "$BACKUP_PATH/$bucket/$fullpath")
+            mkdir -p "$filedir"
+
+            # Download the file
+            curl -s "$SUPABASE_URL/storage/v1/object/authenticated/$bucket/$fullpath" \
+                -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+                -o "$BACKUP_PATH/$bucket/$fullpath"
+        fi
+    done
+}
 
 echo "🔍 Discovering all storage buckets..."
 
@@ -37,7 +84,8 @@ if [ -z "$BUCKETS" ]; then
   exit 0
 fi
 
-echo "📦 Found buckets: $BUCKETS"
+echo "📦 Found buckets:"
+echo "$BUCKETS" | sed 's/^/   /'
 echo ""
 
 # Iterate through each bucket
@@ -45,41 +93,15 @@ for BUCKET in $BUCKETS; do
   echo "📁 Backing up bucket: $BUCKET"
   mkdir -p "$BACKUP_PATH/$BUCKET"
 
-  # List all files in this bucket
-  curl -s "$SUPABASE_URL/storage/v1/object/list/$BUCKET" \
-    -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-    -H "Content-Type: application/json" \
-    -d '{"prefix":"","limit":10000}' > "$BACKUP_PATH/$BUCKET/_file_list.json"
-
-  FILE_COUNT=$(cat "$BACKUP_PATH/$BUCKET/_file_list.json" | jq '. | length')
-  echo "   Found $FILE_COUNT files"
-
-  # Download each file (handles nested paths)
-  cat "$BACKUP_PATH/$BUCKET/_file_list.json" | jq -r '.[].name' | while read filepath; do
-    if [ -n "$filepath" ]; then
-      # Create subdirectories if file is in nested path
-      filedir=$(dirname "$filepath")
-      if [ "$filedir" != "." ]; then
-        mkdir -p "$BACKUP_PATH/$BUCKET/$filedir"
-      fi
-
-      echo "   ↓ $filepath"
-      curl -s "$SUPABASE_URL/storage/v1/object/$BUCKET/$filepath" \
-        -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
-        -o "$BACKUP_PATH/$BUCKET/$filepath"
-    fi
-  done
+  list_and_download "$BUCKET" "" "   "
 
   echo "   ✓ Bucket '$BUCKET' complete"
   echo ""
 done
 
 # Create summary
-echo "📊 Backup Summary:" > "$BACKUP_PATH/_summary.txt"
-echo "Timestamp: $TIMESTAMP" >> "$BACKUP_PATH/_summary.txt"
-echo "Buckets: $BUCKETS" >> "$BACKUP_PATH/_summary.txt"
-du -sh "$BACKUP_PATH"/* >> "$BACKUP_PATH/_summary.txt" 2>/dev/null || true
+TOTAL_SIZE=$(du -sh "$BACKUP_PATH" 2>/dev/null | cut -f1)
 
 echo "✅ Storage backup complete!"
 echo "📁 Location: $BACKUP_PATH/"
-cat "$BACKUP_PATH/_summary.txt"
+echo "📦 Total size: $TOTAL_SIZE"

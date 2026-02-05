@@ -16,7 +16,7 @@ type RecipeStepsProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-const numberBackground = require('@/assets/images/watercolour-circle.png');
+const numberBackground = require('@/assets/images/backgrounds/watercolour-circle.png');
 
 export const RecipeSteps = ({ steps, className = '', style }: RecipeStepsProps) => {
   if (!steps || steps.length === 0) return null;

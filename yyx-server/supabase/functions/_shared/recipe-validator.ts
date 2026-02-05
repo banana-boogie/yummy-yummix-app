@@ -175,6 +175,8 @@ export function validateRecipeData(data: unknown): ValidationResult {
     recipe.ingredients.forEach((ing: any, index: number) => {
       if (typeof ing.quantity !== "number") {
         errors.push(`Ingredient ${index + 1}: quantity must be a number`);
+      } else if (ing.quantity < 0) {
+        errors.push(`Ingredient ${index + 1}: quantity cannot be negative`);
       }
       if (
         !ing.ingredient || (!ing.ingredient.name_en && !ing.ingredient.name)

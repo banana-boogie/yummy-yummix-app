@@ -37,6 +37,14 @@ function generateId(): string {
   return `test-user-${idCounter}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
+/**
+ * Resets the ID counter for deterministic test behavior.
+ * Call this in beforeEach to ensure tests don't depend on execution order.
+ */
+export function resetIdCounter(): void {
+  idCounter = 0;
+}
+
 // ============================================================
 // SAMPLE DATA POOLS
 // ============================================================
@@ -266,4 +274,7 @@ export const userFactory = {
   createAdminProfile,
   createNewUserProfile,
   createProfileList: createUserProfileList,
+
+  // Utilities
+  resetIdCounter,
 };

@@ -3,36 +3,12 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 //@ts-ignore
 import OpenAI from "https://deno.land/x/openai@v4.69.0/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-
-interface NutritionalData {
-  calories: number;
-  protein: number;
-  fat: number;
-  carbohydrates: number;
-}
-
-// Create a utility functions file or namespace
-namespace NutritionUtils {
-  export function applyRoundingRulesToData(data: NutritionalData): void {
-    // Apply specific rounding rules:
-    // - Calories: whole numbers
-    // - Others: 1 decimal place
-    data.calories = Math.round(data.calories);
-    data.protein = Number(data.protein.toFixed(1));
-    data.fat = Number(data.fat.toFixed(1));
-    data.carbohydrates = Number(data.carbohydrates.toFixed(1));
-  }
-
-  export function validateNutritionalData(data: any): data is NutritionalData {
-    return (
-      typeof data === "object" &&
-      typeof data.calories === "number" &&
-      typeof data.protein === "number" &&
-      typeof data.fat === "number" &&
-      typeof data.carbohydrates === "number"
-    );
-  }
-}
+import {
+  applyRoundingRulesToData,
+  convertToPer100g,
+  type NutritionalData,
+  validateNutritionalData,
+} from "../_shared/nutritional-utils.ts";
 
 class USDAService {
   private static API_KEY = Deno.env.get("USDA_API_KEY");
@@ -75,11 +51,10 @@ class USDAService {
 
       // Convert values to per 100g if needed
       if (portionSize && portionSize !== 100) {
-        this.convertToPer100g(result, portionSize);
+        convertToPer100g(result, portionSize);
       }
 
-      // Use the namespace function directly
-      NutritionUtils.applyRoundingRulesToData(result);
+      applyRoundingRulesToData(result);
 
       return result;
     } catch (error) {
@@ -99,17 +74,6 @@ class USDAService {
     }
 
     return null;
-  }
-
-  private static convertToPer100g(
-    data: NutritionalData,
-    currentPortionSize: number,
-  ): void {
-    const conversionFactor = 100 / currentPortionSize;
-    data.calories *= conversionFactor;
-    data.protein *= conversionFactor;
-    data.fat *= conversionFactor;
-    data.carbohydrates *= conversionFactor;
   }
 }
 
@@ -144,11 +108,11 @@ class OpenAIService {
           completion.choices[0].message.content,
         );
 
-        if (NutritionUtils.validateNutritionalData(nutritionalData)) {
+        if (validateNutritionalData(nutritionalData)) {
           console.info(
             `Successfully retrieved OpenAI nutrition data for '${ingredientName}'`,
           );
-          NutritionUtils.applyRoundingRulesToData(nutritionalData);
+          applyRoundingRulesToData(nutritionalData);
           return nutritionalData;
         } else {
           console.warn(

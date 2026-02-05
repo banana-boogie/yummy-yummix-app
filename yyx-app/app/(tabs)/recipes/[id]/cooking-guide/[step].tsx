@@ -9,6 +9,7 @@ import React from "react";
 import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideStepNavigationButtons';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
+import { eventService } from '@/services/eventService';
 
 export default function CookingStep() {
     const { id, step: stepParam } = useLocalSearchParams();
@@ -37,6 +38,10 @@ export default function CookingStep() {
             router.replace(`/(tabs)/recipes/${id}/cooking-guide/${currentStepNumber + 1}`);
         },
         finish: () => {
+            // Track cook complete event
+            if (recipe?.id && recipe?.name) {
+                eventService.logCookComplete(recipe.id, recipe.name);
+            }
             router.replace('/(tabs)/recipes');
         }
     };
