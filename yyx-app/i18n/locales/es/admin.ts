@@ -25,6 +25,8 @@ export const admin = {
   analytics: {
     title: "Analítica",
     loading: "Cargando analítica...",
+    error: "Error al cargar los datos de analítica",
+    retry: "Reintentar",
     tabs: {
       overview: "Resumen",
       retention: "Retención",

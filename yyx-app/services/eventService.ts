@@ -188,6 +188,18 @@ class EventService {
       query: query.trim(),
     });
   }
+
+  /**
+   * Clean up resources. Call this when the service is no longer needed.
+   * Flushes remaining events and clears the interval timer.
+   */
+  destroy(): void {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = null;
+    }
+    this.flush();
+  }
 }
 
 // Export singleton instance

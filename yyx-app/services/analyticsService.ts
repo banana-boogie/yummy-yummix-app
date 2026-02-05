@@ -2,8 +2,18 @@ import { supabase } from '@/lib/supabase';
 
 export type TimeframeFilter = 'today' | '7_days' | '30_days' | 'all_time';
 
+export type AnalyticsAction =
+  | 'overview'
+  | 'retention'
+  | 'funnel'
+  | 'top_viewed_recipes'
+  | 'top_cooked_recipes'
+  | 'top_searches'
+  | 'ai'
+  | 'patterns';
+
 async function fetchAdminAnalytics<T>(
-  action: string,
+  action: AnalyticsAction,
   options?: { timeframe?: TimeframeFilter; limit?: number }
 ): Promise<T> {
   const { data, error } = await supabase.rpc('admin_analytics', {
