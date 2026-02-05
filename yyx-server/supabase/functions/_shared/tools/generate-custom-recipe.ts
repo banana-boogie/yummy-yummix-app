@@ -703,7 +703,9 @@ export async function enrichIngredientsWithImages(
 
       if (match?.image_url) {
         console.log(
-          `✓ Fuzzy match: "${ingredient.name}" → "${match.name_en}" (score: ${match.match_score?.toFixed(2)}) → ${match.image_url}`,
+          `✓ Fuzzy match: "${ingredient.name}" → "${match.name_en}" (score: ${
+            match.match_score?.toFixed(2)
+          }) → ${match.image_url}`,
         );
         return { ...ingredient, imageUrl: match.image_url };
       }
