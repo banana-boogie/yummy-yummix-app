@@ -595,37 +595,22 @@ export function ChatScreen({
                         });
                     }
 
-                    // CRITICAL: Flush any pending chunks BEFORE setting recipe data
-                    // This prevents race condition where flushChunkBuffer overwrites customRecipe
+                    // Clear any pending flush timer
                     if (chunkTimerRef.current) {
                         clearTimeout(chunkTimerRef.current);
                         chunkTimerRef.current = null;
                     }
-                    if (chunkBufferRef.current) {
-                        const bufferedContent = chunkBufferRef.current;
-                        chunkBufferRef.current = '';
-                        setMessages(prev => {
-                            const updated = [...prev];
-                            let assistantIdx = assistantIndexRef.current;
-                            if (
-                                assistantIdx === null ||
-                                updated[assistantIdx]?.id !== assistantMessageId
-                            ) {
-                                assistantIdx = updated.findIndex(m => m.id === assistantMessageId);
-                                assistantIndexRef.current = assistantIdx !== -1 ? assistantIdx : null;
-                            }
-                            if (assistantIdx !== null && assistantIdx !== -1) {
-                                updated[assistantIdx] = {
-                                    ...updated[assistantIdx],
-                                    content: updated[assistantIdx].content + bufferedContent,
-                                };
-                            }
-                            return updated;
-                        });
-                    }
 
-                    // Update the message with recipes or customRecipe if present
-                    if ((response.recipes && response.recipes.length > 0) || response.customRecipe) {
+                    // Capture buffered content before clearing
+                    const bufferedContent = chunkBufferRef.current;
+                    chunkBufferRef.current = '';
+
+                    const hasRecipeData =
+                        (response.recipes && response.recipes.length > 0) || response.customRecipe;
+
+                    // SINGLE atomic update with all data (text + recipe together)
+                    // This prevents race conditions where text appears without the recipe card
+                    if (bufferedContent || hasRecipeData) {
                         setMessages(prev => {
                             const updated = [...prev];
                             let assistantIdx = assistantIndexRef.current;
@@ -636,44 +621,61 @@ export function ChatScreen({
                                 assistantIdx = updated.findIndex(m => m.id === assistantMessageId);
                                 assistantIndexRef.current = assistantIdx !== -1 ? assistantIdx : null;
                             }
+
                             if (assistantIdx !== null && assistantIdx !== -1) {
-                                // When customRecipe is present, also set the content from response
-                                // This ensures text appears with the recipe, not before
-                                const newContent = response.customRecipe && response.message
-                                    ? response.message
-                                    : updated[assistantIdx].content;
+                                // Determine final content
+                                let finalContent = updated[assistantIdx].content;
+
+                                // Append buffered content if any
+                                if (bufferedContent) {
+                                    finalContent += bufferedContent;
+                                }
+
+                                // For recipes, use response.message (overrides streamed content)
+                                if (response.customRecipe && response.message) {
+                                    finalContent = response.message;
+                                }
+
                                 updated[assistantIdx] = {
                                     ...updated[assistantIdx],
-                                    content: newContent,
-                                    recipes: response.recipes,
-                                    customRecipe: response.customRecipe,
-                                    safetyFlags: response.safetyFlags,
+                                    content: finalContent,
+                                    recipes: hasRecipeData
+                                        ? response.recipes
+                                        : updated[assistantIdx].recipes,
+                                    customRecipe: hasRecipeData
+                                        ? response.customRecipe
+                                        : updated[assistantIdx].customRecipe,
+                                    safetyFlags: hasRecipeData
+                                        ? response.safetyFlags
+                                        : updated[assistantIdx].safetyFlags,
                                 };
+
                                 // DEBUG: Log the message update
                                 if (__DEV__) {
-                                    console.log('[ChatScreen] Updated message with recipe:', {
+                                    console.log('[ChatScreen] Updated message:', {
                                         messageId: updated[assistantIdx].id,
                                         hasCustomRecipe: !!updated[assistantIdx].customRecipe,
                                         recipeName: updated[assistantIdx].customRecipe?.suggestedName,
+                                        hasBufferedContent: !!bufferedContent,
                                     });
                                 }
                             }
                             return updated;
                         });
+                    }
 
-                        // Scroll to show recipe card title at top (not bottom)
-                        if (response.customRecipe && assistantIndexRef.current !== null) {
-                            const scrollToIdx = assistantIndexRef.current;
-                            // Prevent the messages useEffect from scrolling to bottom
-                            skipNextScrollToEndRef.current = true;
-                            setTimeout(() => {
-                                flatListRef.current?.scrollToIndex({
-                                    index: scrollToIdx,
-                                    viewPosition: 0, // Align at top
-                                    animated: true,
-                                });
-                            }, SCROLL_DELAY_MS);
-                        }
+                    // Scroll to show recipe card title at top (not bottom)
+                    if (response.customRecipe && assistantIndexRef.current !== null) {
+                        const scrollToIdx = assistantIndexRef.current;
+                        // Prevent the messages useEffect from scrolling to bottom
+                        skipNextScrollToEndRef.current = true;
+                        setTimeout(() => {
+                            flatListRef.current?.scrollToIndex({
+                                index: scrollToIdx,
+                                viewPosition: 0, // Align at top
+                                animated: true,
+                            });
+                        }, SCROLL_DELAY_MS);
                     }
                     // Update suggestions - only use backend suggestions
                     if (response.suggestions && response.suggestions.length > 0) {
