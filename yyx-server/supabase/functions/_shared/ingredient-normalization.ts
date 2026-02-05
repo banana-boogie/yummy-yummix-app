@@ -6,7 +6,7 @@
  * search, allergen matching, and food safety checks.
  */
 
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 /**
  * Language-aware alias cache.
@@ -19,17 +19,19 @@ let aliasCache: Map<string, string> | null = null;
  * Load all ingredient aliases from DB into the cache.
  * Uses composite key: alias::language for language-aware lookups.
  */
-async function loadAliases(supabase: SupabaseClient): Promise<Map<string, string>> {
+async function loadAliases(
+  supabase: SupabaseClient,
+): Promise<Map<string, string>> {
   if (aliasCache) {
     return aliasCache;
   }
 
   const { data, error } = await supabase
-    .from('ingredient_aliases')
-    .select('canonical, alias, language');
+    .from("ingredient_aliases")
+    .select("canonical, alias, language");
 
   if (error) {
-    console.error('Failed to load ingredient aliases:', error);
+    console.error("Failed to load ingredient aliases:", error);
     return new Map();
   }
 
@@ -60,7 +62,7 @@ async function loadAliases(supabase: SupabaseClient): Promise<Map<string, string
 export async function normalizeIngredient(
   supabase: SupabaseClient,
   name: string,
-  language: 'en' | 'es' = 'en',
+  language: "en" | "es" = "en",
 ): Promise<string> {
   const aliases = await loadAliases(supabase);
   const lower = name.toLowerCase().trim();
@@ -72,7 +74,7 @@ export async function normalizeIngredient(
   }
 
   // Try English fallback
-  if (language !== 'en') {
+  if (language !== "en") {
     const enKey = `${lower}::en`;
     if (aliases.has(enKey)) {
       return aliases.get(enKey)!;
@@ -80,7 +82,7 @@ export async function normalizeIngredient(
   }
 
   // Try Spanish fallback
-  if (language !== 'es') {
+  if (language !== "es") {
     const esKey = `${lower}::es`;
     if (aliases.has(esKey)) {
       return aliases.get(esKey)!;
@@ -102,9 +104,11 @@ export async function normalizeIngredient(
 export async function normalizeIngredients(
   supabase: SupabaseClient,
   names: string[],
-  language: 'en' | 'es' = 'en',
+  language: "en" | "es" = "en",
 ): Promise<string[]> {
-  return Promise.all(names.map((name) => normalizeIngredient(supabase, name, language)));
+  return Promise.all(
+    names.map((name) => normalizeIngredient(supabase, name, language)),
+  );
 }
 
 /**

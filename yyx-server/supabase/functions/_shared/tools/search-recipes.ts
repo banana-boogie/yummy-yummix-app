@@ -5,10 +5,14 @@
  * Returns RecipeCard[] for display.
  */
 
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { RecipeCard, SearchRecipesParams, UserContext } from '../irmixy-schemas.ts';
-import { filterByAllergens } from '../allergen-filter.ts';
-import { validateSearchRecipesParams } from './tool-validators.ts';
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import {
+  RecipeCard,
+  SearchRecipesParams,
+  UserContext,
+} from "../irmixy-schemas.ts";
+import { filterByAllergens } from "../allergen-filter.ts";
+import { validateSearchRecipesParams } from "./tool-validators.ts";
 
 // ============================================================
 // Types for Supabase query results
@@ -28,7 +32,7 @@ interface RecipeSearchResult {
   name_es: string | null;
   image_url: string | null;
   total_time: number;
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: "easy" | "medium" | "hard";
   portions: number;
   recipe_to_tag: RecipeTagJoin[];
 }
@@ -48,41 +52,41 @@ interface RecipeWithIngredients {
 // ============================================================
 
 export const searchRecipesTool = {
-  type: 'function' as const,
+  type: "function" as const,
   function: {
-    name: 'search_recipes',
+    name: "search_recipes",
     description:
-      'Search the recipe database for existing recipes based on user criteria. ' +
-      'Use this when the user wants to find recipes from the database (not create custom ones). ' +
-      'Returns recipe cards that match the filters. Results are automatically filtered by ' +
+      "Search the recipe database for existing recipes based on user criteria. " +
+      "Use this when the user wants to find recipes from the database (not create custom ones). " +
+      "Returns recipe cards that match the filters. Results are automatically filtered by " +
       "the user's dietary restrictions and allergens.",
     parameters: {
-      type: 'object',
+      type: "object",
       properties: {
         query: {
-          type: 'string',
+          type: "string",
           description:
             'Natural language search query (e.g., "pasta", "healthy dinner", "chicken stir fry")',
         },
         cuisine: {
-          type: 'string',
+          type: "string",
           description:
             'Cuisine type filter (e.g., "Italian", "Asian", "Mexican", "Mediterranean")',
         },
         maxTime: {
-          type: 'integer',
-          description: 'Maximum total cooking time in minutes',
+          type: "integer",
+          description: "Maximum total cooking time in minutes",
           minimum: 1,
           maximum: 480,
         },
         difficulty: {
-          type: 'string',
-          enum: ['easy', 'medium', 'hard'],
-          description: 'Recipe difficulty level',
+          type: "string",
+          enum: ["easy", "medium", "hard"],
+          description: "Recipe difficulty level",
         },
         limit: {
-          type: 'integer',
-          description: 'Maximum number of results to return (default: 10)',
+          type: "integer",
+          description: "Maximum number of results to return (default: 10)",
           minimum: 1,
           maximum: 20,
         },
@@ -110,7 +114,7 @@ export async function searchRecipes(
 
   // Build base query with correct column names and joins
   let query = supabase
-    .from('recipes')
+    .from("recipes")
     .select(`
       id,
       name_en,
@@ -121,17 +125,17 @@ export async function searchRecipes(
       portions,
       recipe_to_tag ( recipe_tags ( name_en, name_es, categories ) )
     `)
-    .eq('is_published', true)
-    .order('created_at', { ascending: false });
+    .eq("is_published", true)
+    .order("created_at", { ascending: false });
 
   // Apply difficulty filter
   if (params.difficulty) {
-    query = query.eq('difficulty', params.difficulty);
+    query = query.eq("difficulty", params.difficulty);
   }
 
   // Apply time filter
   if (params.maxTime) {
-    query = query.lte('total_time', params.maxTime);
+    query = query.lte("total_time", params.maxTime);
   }
 
   // Apply text search on recipe name at DB level
@@ -145,8 +149,8 @@ export async function searchRecipes(
   const { data, error } = await query.limit(fetchLimit);
 
   if (error) {
-    console.error('Recipe search error:', error);
-    throw new Error('Failed to search recipes');
+    console.error("Recipe search error:", error);
+    throw new Error("Failed to search recipes");
   }
 
   if (!data || data.length === 0) {
@@ -164,7 +168,8 @@ export async function searchRecipes(
   // Transform to RecipeCard format
   let recipeCards: RecipeCard[] = filtered.map((recipe) => ({
     recipeId: recipe.id,
-    name: (userContext.language === 'es' ? recipe.name_es : recipe.name_en) || 'Untitled',
+    name: (userContext.language === "es" ? recipe.name_es : recipe.name_en) ||
+      "Untitled",
     imageUrl: recipe.image_url || undefined,
     totalTime: recipe.total_time,
     difficulty: recipe.difficulty,
@@ -174,7 +179,10 @@ export async function searchRecipes(
   // Filter by user's dietary restrictions (allergen-based)
   if (userContext.dietaryRestrictions.length > 0 && recipeCards.length > 0) {
     const recipeIds = recipeCards.map((r) => r.recipeId);
-    const recipesWithIngredients = await fetchRecipesWithIngredients(supabase, recipeIds);
+    const recipesWithIngredients = await fetchRecipesWithIngredients(
+      supabase,
+      recipeIds,
+    );
 
     const safeRecipes = await filterByAllergens(
       supabase,
@@ -189,7 +197,12 @@ export async function searchRecipes(
 
   // Apply query-based relevance scoring
   if (params.query) {
-    recipeCards = scoreByQuery(results, recipeCards, params.query, userContext.language);
+    recipeCards = scoreByQuery(
+      results,
+      recipeCards,
+      params.query,
+      userContext.language,
+    );
   }
 
   // Apply final limit after all filtering and scoring
@@ -206,22 +219,26 @@ export async function searchRecipes(
 function filterByCuisine(
   data: RecipeSearchResult[],
   cuisine: string,
-  language: 'en' | 'es',
+  language: "en" | "es",
 ): RecipeSearchResult[] {
   const cuisineLower = cuisine.toLowerCase();
 
   return data.filter((recipe) => {
-    if (!recipe.recipe_to_tag || recipe.recipe_to_tag.length === 0) return false;
+    if (!recipe.recipe_to_tag || recipe.recipe_to_tag.length === 0) {
+      return false;
+    }
 
     return recipe.recipe_to_tag.some((join) => {
       const tag = join.recipe_tags;
       if (!tag) return false;
 
       // Check if this is a CULTURAL_CUISINE tag
-      if (!tag.categories || !tag.categories.includes('CULTURAL_CUISINE')) return false;
+      if (!tag.categories || !tag.categories.includes("CULTURAL_CUISINE")) {
+        return false;
+      }
 
       // Check if the cuisine matches
-      const tagName = (language === 'es' ? tag.name_es : tag.name_en) || '';
+      const tagName = (language === "es" ? tag.name_es : tag.name_en) || "";
       return tagName.toLowerCase().includes(cuisineLower);
     });
   });
@@ -235,7 +252,7 @@ function scoreByQuery(
   data: RecipeSearchResult[],
   cards: RecipeCard[],
   query: string,
-  language: 'en' | 'es',
+  language: "en" | "es",
 ): RecipeCard[] {
   const queryLower = query.toLowerCase();
   const keywords = queryLower.split(/\s+/).filter((k) => k.length > 2);
@@ -247,7 +264,9 @@ function scoreByQuery(
     let score = 0;
 
     // Check recipe name
-    const name = ((language === 'es' ? original.name_es : original.name_en) || '').toLowerCase();
+    const name =
+      ((language === "es" ? original.name_es : original.name_en) || "")
+        .toLowerCase();
 
     // Exact name match
     if (name === queryLower) {
@@ -267,7 +286,8 @@ function scoreByQuery(
         const tag = join.recipe_tags;
         if (!tag) continue;
 
-        const tagName = ((language === 'es' ? tag.name_es : tag.name_en) || '').toLowerCase();
+        const tagName = ((language === "es" ? tag.name_es : tag.name_en) || "")
+          .toLowerCase();
 
         if (tagName.includes(queryLower)) score += 20;
         for (const keyword of keywords) {
@@ -292,17 +312,21 @@ function scoreByQuery(
 async function fetchRecipesWithIngredients(
   supabase: SupabaseClient,
   recipeIds: string[],
-): Promise<Array<{ id: string; ingredients: Array<{ name_en: string; name_es: string }> }>> {
+): Promise<
+  Array<
+    { id: string; ingredients: Array<{ name_en: string; name_es: string }> }
+  >
+> {
   const { data, error } = await supabase
-    .from('recipes')
+    .from("recipes")
     .select(`
       id,
       recipe_ingredients ( ingredients ( name_en, name_es ) )
     `)
-    .in('id', recipeIds);
+    .in("id", recipeIds);
 
   if (error || !data) {
-    console.error('Failed to fetch recipe ingredients:', error);
+    console.error("Failed to fetch recipe ingredients:", error);
     return [];
   }
 
@@ -311,8 +335,8 @@ async function fetchRecipesWithIngredients(
     ingredients: (recipe.recipe_ingredients || [])
       .filter((ri) => ri.ingredients !== null)
       .map((ri) => ({
-        name_en: ri.ingredients!.name_en || '',
-        name_es: ri.ingredients!.name_es || '',
+        name_en: ri.ingredients!.name_en || "",
+        name_es: ri.ingredients!.name_es || "",
       })),
   }));
 }

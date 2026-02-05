@@ -5,7 +5,7 @@
 
 // STT Provider configuration
 export interface STTConfig {
-  language: 'en' | 'es';
+  language: "en" | "es";
   sampleRate: number;
   encoding: string;
   utteranceEndMs: number; // Silence duration to detect utterance end
@@ -64,10 +64,10 @@ export interface LLMProvider {
    */
   streamResponse(
     systemPrompt: string,
-    messages: Array<{ role: 'user' | 'assistant', content: string }>,
+    messages: Array<{ role: "user" | "assistant"; content: string }>,
     onSentence: (sentence: string) => void,
-    onComplete: (fullResponse: string) => void
-  ): Promise<{ inputTokens: number, outputTokens: number }>;
+    onComplete: (fullResponse: string) => void,
+  ): Promise<{ inputTokens: number; outputTokens: number }>;
 }
 
 // TTS Provider interface
@@ -80,7 +80,11 @@ export interface TTSProvider {
    * @param language Language code
    * @returns Audio data as Uint8Array (mp3 format)
    */
-  synthesize(text: string, voice: string, language: 'en' | 'es'): Promise<Uint8Array>;
+  synthesize(
+    text: string,
+    voice: string,
+    language: "en" | "es",
+  ): Promise<Uint8Array>;
 
   /**
    * Calculate cost for character count

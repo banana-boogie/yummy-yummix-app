@@ -472,7 +472,9 @@ function buildRecipePrompt(
 
   if (userContext.ingredientDislikes.length > 0) {
     requirements.push(
-      `MUST AVOID these ingredients: ${userContext.ingredientDislikes.join(", ")}`,
+      `MUST AVOID these ingredients: ${
+        userContext.ingredientDislikes.join(", ")
+      }`,
     );
   }
 
@@ -485,11 +487,15 @@ function buildRecipePrompt(
   // Diet types like vegan, keto, paleo affect WHAT ingredients can be used
   // These are more than preferences but less than hard requirements
   if (userContext.dietTypes.length > 0) {
-    const validDietTypes = userContext.dietTypes.filter(d => d !== 'none' && d !== 'other');
+    const validDietTypes = userContext.dietTypes.filter((d) =>
+      d !== "none" && d !== "other"
+    );
     if (validDietTypes.length > 0) {
       parts.push("\n🥗 DIETARY APPROACH (follow for ingredient selection):");
       parts.push(`User follows: ${validDietTypes.join(", ")}`);
-      parts.push("Select ingredients compatible with these dietary approaches.");
+      parts.push(
+        "Select ingredients compatible with these dietary approaches.",
+      );
     }
   }
 
@@ -506,13 +512,20 @@ function buildRecipePrompt(
 
   // Cuisine preferences are SOFT/INSPIRATIONAL - they should NOT dominate every recipe
   // Only mention them if no explicit cuisine was requested, and frame them as hints
-  if (userContext.cuisinePreferences && userContext.cuisinePreferences.length > 0 && !params.cuisinePreference) {
-    const validCuisines = userContext.cuisinePreferences.filter(c => c && c.trim());
+  if (
+    userContext.cuisinePreferences &&
+    userContext.cuisinePreferences.length > 0 && !params.cuisinePreference
+  ) {
+    const validCuisines = userContext.cuisinePreferences.filter((c) =>
+      c && c.trim()
+    );
     if (validCuisines.length > 0) {
       // Frame as very soft inspiration - the AI should feel free to ignore
       preferences.push(
-        `Cuisine inspiration (OPTIONAL, vary styles): User enjoys ${validCuisines.join(", ")} cooking. ` +
-        `Feel free to explore other cuisines that suit the ingredients - variety is welcome!`
+        `Cuisine inspiration (OPTIONAL, vary styles): User enjoys ${
+          validCuisines.join(", ")
+        } cooking. ` +
+          `Feel free to explore other cuisines that suit the ingredients - variety is welcome!`,
       );
     }
   }

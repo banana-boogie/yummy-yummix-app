@@ -184,15 +184,17 @@ export async function checkRecipeSafety(
   // Check cook time against minimum safe times
   for (const [ingredientName, rule] of matchedRules) {
     if (totalTime < rule.min_cook_min) {
-      const tempStr =
-        measurementSystem === "imperial"
-          ? `${rule.min_temp_f}°F`
-          : `${rule.min_temp_c}°C`;
+      const tempStr = measurementSystem === "imperial"
+        ? `${rule.min_temp_f}°F`
+        : `${rule.min_temp_c}°C`;
 
-      const warning =
-        language === "es"
-          ? `${formatIngredientName(ingredientName)} requiere al menos ${rule.min_cook_min} minutos de cocción y una temperatura interna de ${tempStr}.`
-          : `${formatIngredientName(ingredientName)} requires at least ${rule.min_cook_min} minutes of cooking and an internal temperature of ${tempStr}.`;
+      const warning = language === "es"
+        ? `${
+          formatIngredientName(ingredientName)
+        } requiere al menos ${rule.min_cook_min} minutos de cocción y una temperatura interna de ${tempStr}.`
+        : `${
+          formatIngredientName(ingredientName)
+        } requires at least ${rule.min_cook_min} minutes of cooking and an internal temperature of ${tempStr}.`;
 
       warnings.push(warning);
     }
@@ -250,13 +252,14 @@ export async function buildSafetyReminders(
     for (const rule of rules) {
       // Use word boundary matching to avoid false positives
       if (ingredientMatchesRule(lowerIngredient, rule.ingredient_canonical)) {
-        const temp =
-          measurementSystem === "imperial"
-            ? `${rule.min_temp_f}°F`
-            : `${rule.min_temp_c}°C`;
+        const temp = measurementSystem === "imperial"
+          ? `${rule.min_temp_f}°F`
+          : `${rule.min_temp_c}°C`;
 
         reminders.push(
-          `${formatIngredientName(rule.ingredient_canonical)} must reach internal temp of ${temp}`,
+          `${
+            formatIngredientName(rule.ingredient_canonical)
+          } must reach internal temp of ${temp}`,
         );
         break;
       }

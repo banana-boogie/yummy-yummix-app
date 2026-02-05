@@ -3,34 +3,40 @@
  * Uses Daniela voice for Mexican Spanish
  */
 
-import type { TTSProvider } from './types.ts';
+import type { TTSProvider } from "./types.ts";
 
 export class CartesiaTTSProvider implements TTSProvider {
-  async synthesize(text: string, voice: string, language: 'en' | 'es'): Promise<Uint8Array> {
-    const apiKey = Deno.env.get('CARTESIA_API_KEY');
+  async synthesize(
+    text: string,
+    voice: string,
+    language: "en" | "es",
+  ): Promise<Uint8Array> {
+    const apiKey = Deno.env.get("CARTESIA_API_KEY");
     if (!apiKey) {
-      throw new Error('CARTESIA_API_KEY not configured');
+      throw new Error("CARTESIA_API_KEY not configured");
     }
 
-    console.log(`[Cartesia] Synthesizing: "${text}" (voice: ${voice}, lang: ${language})`);
+    console.log(
+      `[Cartesia] Synthesizing: "${text}" (voice: ${voice}, lang: ${language})`,
+    );
 
-    const response = await fetch('https://api.cartesia.ai/tts/bytes', {
-      method: 'POST',
+    const response = await fetch("https://api.cartesia.ai/tts/bytes", {
+      method: "POST",
       headers: {
-        'X-API-Key': apiKey,
-        'Cartesia-Version': '2025-04-16',
-        'Content-Type': 'application/json',
+        "X-API-Key": apiKey,
+        "Cartesia-Version": "2025-04-16",
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model_id: 'sonic-3',
+        model_id: "sonic-3",
         transcript: text,
         voice: {
-          mode: 'id',
+          mode: "id",
           id: voice,
         },
         output_format: {
-          container: 'mp3',
-          encoding: 'mp3',
+          container: "mp3",
+          encoding: "mp3",
           sample_rate: 44100,
         },
         language: language,

@@ -1,110 +1,113 @@
 /**
  * AI Gateway - Cartesia Provider
- * 
+ *
  * Implementation for Cartesia's text-to-speech and speech-to-text APIs.
  * - TTS: Sonic-3 model for ultra-low latency (90ms)
  * - STT: Ink-Whisper model for real-time transcription
  */
 
 import {
-    AITextToSpeechRequest,
-    AITextToSpeechResponse,
-    AITranscriptionRequest,
-    AITranscriptionResponse,
-} from '../types.ts';
+  AITextToSpeechRequest,
+  AITextToSpeechResponse,
+  AITranscriptionRequest,
+  AITranscriptionResponse,
+} from "../types.ts";
 
-const CARTESIA_TTS_URL = 'https://api.cartesia.ai/tts/bytes';
-const CARTESIA_STT_URL = 'https://api.cartesia.ai/audio/transcriptions';
-const CARTESIA_API_VERSION = '2024-11-13';
+const CARTESIA_TTS_URL = "https://api.cartesia.ai/tts/bytes";
+const CARTESIA_STT_URL = "https://api.cartesia.ai/audio/transcriptions";
+const CARTESIA_API_VERSION = "2024-11-13";
 
 // Voice IDs from Cartesia voice library
 // Spanish Mexican: Daniela - warm, natural Mexican Spanish female
-const VOICE_SPANISH_MEXICAN = '5c5ad5e7-1020-476b-8b91-fdcbe9cc313c'; // Daniela
+const VOICE_SPANISH_MEXICAN = "5c5ad5e7-1020-476b-8b91-fdcbe9cc313c"; // Daniela
 
 // English: Sophie - cheerful, enthusiastic female matching Irmixy personality
-const VOICE_ENGLISH = 'bf0a246a-8642-498a-9950-80c35e9276b5'; // Sophie
+const VOICE_ENGLISH = "bf0a246a-8642-498a-9950-80c35e9276b5"; // Sophie
 
 interface CartesiaTTSRequest {
-    model_id: string;
-    transcript: string;
-    voice: {
-        mode: 'id';
-        id: string;
-    };
-    output_format: {
-        container: 'mp3' | 'wav' | 'raw';
-        sample_rate: number;
-    };
+  model_id: string;
+  transcript: string;
+  voice: {
+    mode: "id";
+    id: string;
+  };
+  output_format: {
+    container: "mp3" | "wav" | "raw";
+    sample_rate: number;
+  };
 }
 
 /**
  * Generate speech audio using Cartesia's TTS API (Sonic-3).
  */
 export async function textToSpeechCartesia(
-    request: AITextToSpeechRequest,
-    model: string,
-    apiKey: string
+  request: AITextToSpeechRequest,
+  model: string,
+  apiKey: string,
 ): Promise<AITextToSpeechResponse> {
-    // Select voice based on language
-    const isSpanish = request.language?.startsWith('es');
-    const voiceId = request.voice || (isSpanish ? VOICE_SPANISH_MEXICAN : VOICE_ENGLISH);
+  // Select voice based on language
+  const isSpanish = request.language?.startsWith("es");
+  const voiceId = request.voice ||
+    (isSpanish ? VOICE_SPANISH_MEXICAN : VOICE_ENGLISH);
 
-    const cartesiaRequest: CartesiaTTSRequest = {
-        model_id: model, // sonic-3 from router
-        transcript: request.text,
-        voice: {
-            mode: 'id',
-            id: voiceId,
-        },
-        output_format: {
-            container: 'mp3',
-            sample_rate: 44100,
-        },
-    };
+  const cartesiaRequest: CartesiaTTSRequest = {
+    model_id: model, // sonic-3 from router
+    transcript: request.text,
+    voice: {
+      mode: "id",
+      id: voiceId,
+    },
+    output_format: {
+      container: "mp3",
+      sample_rate: 44100,
+    },
+  };
 
-    console.log('[Cartesia TTS] Request:', {
-        model: model,
-        textLength: request.text.length,
-        voice: voiceId,
-        language: request.language,
-    });
+  console.log("[Cartesia TTS] Request:", {
+    model: model,
+    textLength: request.text.length,
+    voice: voiceId,
+    language: request.language,
+  });
 
-    const response = await fetch(CARTESIA_TTS_URL, {
-        method: 'POST',
-        headers: {
-            'X-API-Key': apiKey,
-            'Cartesia-Version': CARTESIA_API_VERSION,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(cartesiaRequest),
-    });
+  const response = await fetch(CARTESIA_TTS_URL, {
+    method: "POST",
+    headers: {
+      "X-API-Key": apiKey,
+      "Cartesia-Version": CARTESIA_API_VERSION,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(cartesiaRequest),
+  });
 
-    if (!response.ok) {
-        const errorBody = await response.text();
-        console.error('[Cartesia TTS] Error:', response.status, errorBody);
-        throw new Error(`Cartesia TTS API error (${response.status}): ${errorBody}`);
-    }
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error("[Cartesia TTS] Error:", response.status, errorBody);
+    throw new Error(
+      `Cartesia TTS API error (${response.status}): ${errorBody}`,
+    );
+  }
 
-    // Response is raw audio bytes
-    const audioBuffer = await response.arrayBuffer();
+  // Response is raw audio bytes
+  const audioBuffer = await response.arrayBuffer();
 
-    // Convert to base64 using chunked approach to avoid stack overflow
-    // (spreading large Uint8Array to String.fromCharCode causes stack overflow)
-    const bytes = new Uint8Array(audioBuffer);
-    let binary = '';
-    const chunkSize = 8192;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-        binary += String.fromCharCode(...chunk);
-    }
-    const audioBase64 = btoa(binary);
+  // Convert to base64 using chunked approach to avoid stack overflow
+  // (spreading large Uint8Array to String.fromCharCode causes stack overflow)
+  const bytes = new Uint8Array(audioBuffer);
+  let binary = "";
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+    binary += String.fromCharCode(...chunk);
+  }
+  const audioBase64 = btoa(binary);
 
-    console.log('[Cartesia TTS] Success, audio size:', audioBuffer.byteLength);
+  console.log("[Cartesia TTS] Success, audio size:", audioBuffer.byteLength);
 
-    return {
-        audioBase64,
-        format: 'mp3',
-    };
+  return {
+    audioBase64,
+    format: "mp3",
+  };
 }
 
 /**
@@ -112,50 +115,52 @@ export async function textToSpeechCartesia(
  * Compatible with OpenAI's transcription API format.
  */
 export async function transcribeCartesia(
-    request: AITranscriptionRequest,
-    model: string,
-    apiKey: string
+  request: AITranscriptionRequest,
+  model: string,
+  apiKey: string,
 ): Promise<AITranscriptionResponse> {
-    // Convert Blob to ArrayBuffer for size logging
-    const audioBuffer = await request.audio.arrayBuffer();
+  // Convert Blob to ArrayBuffer for size logging
+  const audioBuffer = await request.audio.arrayBuffer();
 
-    console.log('[Cartesia STT] Request:', {
-        model: model,
-        audioSize: audioBuffer.byteLength,
-        audioType: request.audio.type,
-        language: request.language,
-    });
+  console.log("[Cartesia STT] Request:", {
+    model: model,
+    audioSize: audioBuffer.byteLength,
+    audioType: request.audio.type,
+    language: request.language,
+  });
 
-    // Create form data with audio file
-    const formData = new FormData();
-    formData.append('file', request.audio, 'audio.m4a');
-    formData.append('model', model); // ink-whisper from router
+  // Create form data with audio file
+  const formData = new FormData();
+  formData.append("file", request.audio, "audio.m4a");
+  formData.append("model", model); // ink-whisper from router
 
-    // Add language hint if provided
-    if (request.language) {
-        formData.append('language', request.language);
-    }
+  // Add language hint if provided
+  if (request.language) {
+    formData.append("language", request.language);
+  }
 
-    const response = await fetch(CARTESIA_STT_URL, {
-        method: 'POST',
-        headers: {
-            'X-API-Key': apiKey,
-            'Cartesia-Version': CARTESIA_API_VERSION,
-        },
-        body: formData,
-    });
+  const response = await fetch(CARTESIA_STT_URL, {
+    method: "POST",
+    headers: {
+      "X-API-Key": apiKey,
+      "Cartesia-Version": CARTESIA_API_VERSION,
+    },
+    body: formData,
+  });
 
-    if (!response.ok) {
-        const errorBody = await response.text();
-        console.error('[Cartesia STT] Error:', response.status, errorBody);
-        throw new Error(`Cartesia STT API error (${response.status}): ${errorBody}`);
-    }
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error("[Cartesia STT] Error:", response.status, errorBody);
+    throw new Error(
+      `Cartesia STT API error (${response.status}): ${errorBody}`,
+    );
+  }
 
-    const data = await response.json();
-    console.log('[Cartesia STT] Success:', data.text?.substring(0, 50));
+  const data = await response.json();
+  console.log("[Cartesia STT] Success:", data.text?.substring(0, 50));
 
-    return {
-        text: data.text || '',
-        language: data.language,
-    };
+  return {
+    text: data.text || "",
+    language: data.language,
+  };
 }

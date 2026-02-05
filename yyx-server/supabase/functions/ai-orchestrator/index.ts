@@ -184,7 +184,9 @@ serve(async (req) => {
     }
 
     const message = typeof body?.message === "string" ? body.message : "";
-    const sessionId = typeof body?.sessionId === "string" ? body.sessionId : undefined;
+    const sessionId = typeof body?.sessionId === "string"
+      ? body.sessionId
+      : undefined;
     const mode = body?.mode === "voice" ? "voice" : "text";
     const stream = body?.stream === true;
 
@@ -250,7 +252,12 @@ serve(async (req) => {
     // Sanitize the incoming message
     const sanitizedMessage = sanitizeContent(message);
 
-    const sessionResult = await ensureSessionId(supabase, user.id, sessionId, sanitizedMessage);
+    const sessionResult = await ensureSessionId(
+      supabase,
+      user.id,
+      sessionId,
+      sanitizedMessage,
+    );
     const effectiveSessionId = sessionResult.sessionId ?? sessionId;
 
     // Handle streaming vs non-streaming responses
@@ -697,7 +704,8 @@ async function generateRecipeSuggestions(
     .map((i) => i.name)
     .join(", ");
 
-  const prompt = `Given this recipe, suggest 3 SHORT modification options (2-4 words each, max 20 chars):
+  const prompt =
+    `Given this recipe, suggest 3 SHORT modification options (2-4 words each, max 20 chars):
 
 Recipe: ${recipe.suggestedName}
 Cuisine: ${recipe.cuisine || "general"}
@@ -1155,7 +1163,9 @@ function handleStreamingRequest(
           });
 
           if (modIntent.isModification) {
-            console.log("[Streaming] Modification detected, forcing regeneration");
+            console.log(
+              "[Streaming] Modification detected, forcing regeneration",
+            );
             send({ type: "status", status: "generating" });
 
             const lastRecipe = lastCustomRecipeMessage.metadata.customRecipe;
@@ -1221,7 +1231,7 @@ function handleStreamingRequest(
         // DEBUG: Log whether the AI called any tools
         console.log("[Streaming] AI response:", {
           hasToolCalls: !!assistantMessage.tool_calls?.length,
-          toolNames: assistantMessage.tool_calls?.map(tc => tc.function.name),
+          toolNames: assistantMessage.tool_calls?.map((tc) => tc.function.name),
           contentPreview: assistantMessage.content?.substring(0, 100),
         });
 
@@ -1334,7 +1344,9 @@ function handleStreamingRequest(
         controller.close();
       } catch (error) {
         // Log detailed error info for debugging
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage = error instanceof Error
+          ? error.message
+          : String(error);
         const errorStack = error instanceof Error ? error.stack : undefined;
         console.error("Streaming error:", {
           message: errorMessage,

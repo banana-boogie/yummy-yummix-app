@@ -5,8 +5,8 @@
  * Fetches profile, preferences, conversation history, and cooking sessions.
  */
 
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { UserContext } from './irmixy-schemas.ts';
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { UserContext } from "./irmixy-schemas.ts";
 
 const MAX_HISTORY_MESSAGES = 10;
 const MAX_CONTENT_LENGTH = 2000;
@@ -17,9 +17,9 @@ const MAX_LIST_ITEMS = 20;
  * Strips control characters and limits length.
  */
 export function sanitizeContent(content: string): string {
-  if (!content) return '';
+  if (!content) return "";
   // Remove control characters (except newlines and tabs)
-  const cleaned = content.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+  const cleaned = content.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
   // Limit length
   return cleaned.slice(0, MAX_CONTENT_LENGTH);
 }
@@ -36,7 +36,7 @@ function sanitizeList(values: unknown): string[] {
   const sanitized: string[] = [];
 
   for (const value of values) {
-    if (typeof value !== 'string') continue;
+    if (typeof value !== "string") continue;
     const cleaned = sanitizeContent(value).trim();
     if (!cleaned) continue;
     sanitized.push(cleaned);
@@ -54,7 +54,7 @@ function normalizeAllergies(value: unknown): string[] {
   if (Array.isArray(value)) {
     return sanitizeList(value);
   }
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     const cleaned = sanitizeContent(value).trim();
     return cleaned ? [cleaned] : [];
   }
@@ -87,7 +87,7 @@ async function buildContext(
   // Use maybeSingle() to avoid errors when rows don't exist (new users)
   const [profileResult, historyResult] = await Promise.all([
     supabase
-      .from('user_profiles')
+      .from("user_profiles")
       .select(`
         language,
         dietary_restrictions,
@@ -100,7 +100,7 @@ async function buildContext(
         household_size,
         ingredient_dislikes
       `)
-      .eq('id', userId)
+      .eq("id", userId)
       .maybeSingle(),
     sessionId
       ? loadConversationHistory(supabase, sessionId)
@@ -109,26 +109,26 @@ async function buildContext(
 
   // Log errors but continue with defaults (graceful degradation)
   if (profileResult.error) {
-    console.warn('Failed to load user profile:', profileResult.error.message);
+    console.warn("Failed to load user profile:", profileResult.error.message);
   }
 
   const profile = profileResult.data;
 
   // Determine language (default: 'en')
-  const language: 'en' | 'es' = profile?.language === 'es' ? 'es' : 'en';
+  const language: "en" | "es" = profile?.language === "es" ? "es" : "en";
 
   // Determine measurement system
   // Fallback: imperial for 'en', metric for 'es'
-  let measurementSystem: 'imperial' | 'metric';
+  let measurementSystem: "imperial" | "metric";
   if (profile?.measurement_system) {
-    measurementSystem = profile.measurement_system as 'imperial' | 'metric';
+    measurementSystem = profile.measurement_system as "imperial" | "metric";
   } else {
-    measurementSystem = language === 'es' ? 'metric' : 'imperial';
+    measurementSystem = language === "es" ? "metric" : "imperial";
   }
 
   // Kitchen equipment (set during onboarding)
   const equipment = sanitizeList(profile?.kitchen_equipment);
-  console.log('[Context Builder] Kitchen equipment loaded:', {
+  console.log("[Context Builder] Kitchen equipment loaded:", {
     userId,
     equipment,
     count: equipment.length,
@@ -136,11 +136,13 @@ async function buildContext(
 
   // Diet types - MEDIUM constraint (affects ingredient selection)
   // Filter out 'mediterranean' if it somehow got in (should be in cuisine_preferences)
-  const dietTypes = sanitizeList(profile?.diet_types).filter(d => d !== 'mediterranean');
+  const dietTypes = sanitizeList(profile?.diet_types).filter((d) =>
+    d !== "mediterranean"
+  );
 
   // Cuisine preferences - SOFT constraint (inspirational, not restrictive)
   const cuisinePreferences = sanitizeList(profile?.cuisine_preferences);
-  console.log('[Context Builder] Preferences loaded:', {
+  console.log("[Context Builder] Preferences loaded:", {
     userId,
     dietTypes,
     cuisinePreferences,
@@ -153,7 +155,9 @@ async function buildContext(
     ingredientDislikes: sanitizeList(profile?.ingredient_dislikes),
     skillLevel: profile?.skill_level || null,
     householdSize: profile?.household_size || null,
-    conversationHistory: historyResult as Array<{ role: string; content: string; metadata?: any }>,
+    conversationHistory: historyResult as Array<
+      { role: string; content: string; metadata?: any }
+    >,
     dietTypes,
     cuisinePreferences,
     customAllergies: normalizeAllergies(profile?.other_allergy),
@@ -170,14 +174,14 @@ async function loadConversationHistory(
   sessionId: string,
 ): Promise<Array<{ role: string; content: string; metadata?: any }>> {
   const { data, error } = await supabase
-    .from('user_chat_messages')
-    .select('role, content, tool_calls')
-    .eq('session_id', sessionId)
-    .order('created_at', { ascending: false })
+    .from("user_chat_messages")
+    .select("role, content, tool_calls")
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: false })
     .limit(MAX_HISTORY_MESSAGES);
 
   if (error) {
-    console.error('Failed to load conversation history:', error);
+    console.error("Failed to load conversation history:", error);
     return [];
   }
 
@@ -200,18 +204,22 @@ async function loadConversationHistory(
 async function getResumableCookingSession(
   supabase: SupabaseClient,
   userId: string,
-): Promise<{
-  recipeName: string;
-  currentStep: number;
-  totalSteps: number;
-  recipeId: string;
-} | null> {
+): Promise<
+  {
+    recipeName: string;
+    currentStep: number;
+    totalSteps: number;
+    recipeId: string;
+  } | null
+> {
   const { data, error } = await supabase
-    .from('cooking_sessions')
-    .select('id, recipe_id, recipe_name, current_step, total_steps, last_active_at')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .order('last_active_at', { ascending: false })
+    .from("cooking_sessions")
+    .select(
+      "id, recipe_id, recipe_name, current_step, total_steps, last_active_at",
+    )
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .order("last_active_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
@@ -222,14 +230,15 @@ async function getResumableCookingSession(
   // Check if session is within 24h
   const lastActive = new Date(data.last_active_at);
   const now = new Date();
-  const hoursSinceActive = (now.getTime() - lastActive.getTime()) / (1000 * 60 * 60);
+  const hoursSinceActive = (now.getTime() - lastActive.getTime()) /
+    (1000 * 60 * 60);
 
   if (hoursSinceActive > 24) {
     return null;
   }
 
   return {
-    recipeName: data.recipe_name || 'Unknown recipe',
+    recipeName: data.recipe_name || "Unknown recipe",
     currentStep: data.current_step,
     totalSteps: data.total_steps,
     recipeId: data.recipe_id || data.id,
@@ -241,8 +250,8 @@ async function getResumableCookingSession(
  * Calls the database function that handles >24h sessions.
  */
 async function markStaleSessions(supabase: SupabaseClient): Promise<void> {
-  const { error } = await supabase.rpc('mark_stale_cooking_sessions');
+  const { error } = await supabase.rpc("mark_stale_cooking_sessions");
   if (error) {
-    console.error('Failed to mark stale sessions:', error);
+    console.error("Failed to mark stale sessions:", error);
   }
 }

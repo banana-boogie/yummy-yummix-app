@@ -6,9 +6,9 @@
  * and word-boundary matching to avoid false positives.
  */
 
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { AllergenEntry } from './irmixy-schemas.ts';
-import { normalizeIngredient } from './ingredient-normalization.ts';
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { AllergenEntry } from "./irmixy-schemas.ts";
+import { normalizeIngredient } from "./ingredient-normalization.ts";
 
 /**
  * In-memory cache of allergen data
@@ -26,11 +26,11 @@ export async function loadAllergenGroups(
   }
 
   const { data, error } = await supabase
-    .from('allergen_groups')
-    .select('category, ingredient_canonical, name_en, name_es');
+    .from("allergen_groups")
+    .select("category, ingredient_canonical, name_en, name_es");
 
   if (error) {
-    console.error('Failed to load allergen groups:', error);
+    console.error("Failed to load allergen groups:", error);
     return [];
   }
 
@@ -61,13 +61,16 @@ export async function getAllergenMap(
  * Check if a normalized ingredient matches an allergen using word-boundary matching.
  * Prevents false positives like "egg" matching "eggplant".
  */
-function matchesAllergen(normalizedIngredient: string, allergen: string): boolean {
+function matchesAllergen(
+  normalizedIngredient: string,
+  allergen: string,
+): boolean {
   // Escape regex special characters in the allergen name
-  const escaped = allergen.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escaped = allergen.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   // Replace underscores with flexible separator pattern for matching
-  const pattern = escaped.replace(/_/g, '[\\s_-]');
+  const pattern = escaped.replace(/_/g, "[\\s_-]");
   // Word boundary: start/end of string OR whitespace/separator characters
-  const regex = new RegExp(`(^|[\\s,_-])${pattern}([\\s,_-]|$)`, 'i');
+  const regex = new RegExp(`(^|[\\s,_-])${pattern}([\\s,_-]|$)`, "i");
   return regex.test(normalizedIngredient);
 }
 
@@ -82,12 +85,15 @@ function matchesAllergen(normalizedIngredient: string, allergen: string): boolea
  * @returns Filtered recipes that don't contain restricted allergens
  */
 export async function filterByAllergens<
-  T extends { id: string; ingredients: Array<{ name_en: string; name_es: string }> },
+  T extends {
+    id: string;
+    ingredients: Array<{ name_en: string; name_es: string }>;
+  },
 >(
   supabase: SupabaseClient,
   recipes: T[],
   userRestrictions: string[],
-  language: 'en' | 'es' = 'en',
+  language: "en" | "es" = "en",
 ): Promise<T[]> {
   if (userRestrictions.length === 0) {
     return recipes;
@@ -97,7 +103,7 @@ export async function filterByAllergens<
   if (allergenMap.size === 0) {
     // If allergen data isn't available, fail OPEN (allow all recipes)
     // This is better UX than blocking everything when the table doesn't exist
-    console.warn('Allergen map is empty; failing open (no filtering applied).');
+    console.warn("Allergen map is empty; failing open (no filtering applied).");
     return recipes;
   }
 
@@ -107,17 +113,25 @@ export async function filterByAllergens<
 
     for (const ingredient of recipe.ingredients) {
       // Use the appropriate language name for normalization
-      const ingredientName = language === 'es' ? ingredient.name_es : ingredient.name_en;
+      const ingredientName = language === "es"
+        ? ingredient.name_es
+        : ingredient.name_en;
       if (!ingredientName) continue;
 
-      const normalized = await normalizeIngredient(supabase, ingredientName, language);
+      const normalized = await normalizeIngredient(
+        supabase,
+        ingredientName,
+        language,
+      );
 
       for (const restriction of userRestrictions) {
         const allergens = allergenMap.get(restriction) || [];
 
         for (const allergen of allergens) {
           // Check if normalized ingredient matches the allergen
-          if (normalized === allergen || matchesAllergen(normalized, allergen)) {
+          if (
+            normalized === allergen || matchesAllergen(normalized, allergen)
+          ) {
             safe = false;
             break;
           }
@@ -144,7 +158,7 @@ export async function checkIngredientForAllergens(
   supabase: SupabaseClient,
   ingredientName: string,
   userRestrictions: string[],
-  language: 'en' | 'es' = 'en',
+  language: "en" | "es" = "en",
 ): Promise<{
   safe: boolean;
   allergen?: string;
@@ -158,10 +172,14 @@ export async function checkIngredientForAllergens(
   if (allergenMap.size === 0) {
     // If allergen data isn't available, fail OPEN (assume safe)
     // This is better UX than blocking everything when the table doesn't exist
-    console.warn('Allergen map is empty; failing open (assuming safe).');
+    console.warn("Allergen map is empty; failing open (assuming safe).");
     return { safe: true };
   }
-  const normalized = await normalizeIngredient(supabase, ingredientName, language);
+  const normalized = await normalizeIngredient(
+    supabase,
+    ingredientName,
+    language,
+  );
 
   for (const restriction of userRestrictions) {
     const allergens = allergenMap.get(restriction) || [];
@@ -187,7 +205,7 @@ export async function getAllergenWarning(
   supabase: SupabaseClient,
   allergen: string,
   category: string,
-  language: 'en' | 'es',
+  language: "en" | "es",
 ): Promise<string> {
   const allergens = await loadAllergenGroups(supabase);
 
@@ -196,14 +214,14 @@ export async function getAllergenWarning(
   );
 
   if (!entry) {
-    return language === 'es'
-      ? `Contiene ${allergen.replace(/_/g, ' ')}`
-      : `Contains ${allergen.replace(/_/g, ' ')}`;
+    return language === "es"
+      ? `Contiene ${allergen.replace(/_/g, " ")}`
+      : `Contains ${allergen.replace(/_/g, " ")}`;
   }
 
-  const allergenName = language === 'es' ? entry.name_es : entry.name_en;
+  const allergenName = language === "es" ? entry.name_es : entry.name_en;
 
-  return language === 'es'
+  return language === "es"
     ? `Advertencia: Contiene ${allergenName} (${category})`
     : `Warning: Contains ${allergenName} (${category})`;
 }
