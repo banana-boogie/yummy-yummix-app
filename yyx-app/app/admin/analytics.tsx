@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Text } from '@/components/common/Text';
@@ -472,63 +472,76 @@ export default function AnalyticsDashboard() {
   const [searches, setSearches] = useState<TopSearch[] | null>(null);
   const [aiData, setAIData] = useState<AIMetrics | null>(null);
   const [patternsData, setPatternsData] = useState<PatternMetrics | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+
+  const handleRetry = () => setRetryKey(k => k + 1);
 
   // Load data based on active tab and timeframe
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      switch (activeTab) {
-        case 'overview':
-          const overview = await analyticsService.getOverviewMetrics();
-          setOverviewData(overview);
-          break;
-        case 'retention':
-          const retention = await analyticsService.getRetentionMetrics();
-          setRetentionData(retention);
-          break;
-        case 'funnel':
-          const funnel = await analyticsService.getFunnelMetrics(timeframe);
-          setFunnelData(funnel);
-          break;
-        case 'recipes':
-          const [viewed, cooked] = await Promise.all([
-            analyticsService.getTopViewedRecipes(timeframe),
-            analyticsService.getTopCookedRecipes(timeframe),
-          ]);
-          setViewedRecipes(viewed);
-          setCookedRecipes(cooked);
-          break;
-        case 'searches':
-          const searchData = await analyticsService.getTopSearches(timeframe);
-          setSearches(searchData);
-          break;
-        case 'ai':
-          const ai = await analyticsService.getAIMetrics();
-          setAIData(ai);
-          break;
-        case 'patterns':
-          const patterns = await analyticsService.getPatternMetrics();
-          setPatternsData(patterns);
-          break;
-      }
-    } catch (err) {
-      console.error('Error loading analytics:', err);
-      setError(err instanceof Error ? err : new Error('Failed to load analytics'));
-    } finally {
-      setLoading(false);
-    }
-  }, [activeTab, timeframe]);
-
   useEffect(() => {
+    let cancelled = false;
+
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        let result;
+        switch (activeTab) {
+          case 'overview':
+            result = await analyticsService.getOverviewMetrics();
+            if (!cancelled) setOverviewData(result);
+            break;
+          case 'retention':
+            result = await analyticsService.getRetentionMetrics();
+            if (!cancelled) setRetentionData(result);
+            break;
+          case 'funnel':
+            result = await analyticsService.getFunnelMetrics(timeframe);
+            if (!cancelled) setFunnelData(result);
+            break;
+          case 'recipes':
+            const [viewed, cooked] = await Promise.all([
+              analyticsService.getTopViewedRecipes(timeframe),
+              analyticsService.getTopCookedRecipes(timeframe),
+            ]);
+            if (!cancelled) {
+              setViewedRecipes(viewed);
+              setCookedRecipes(cooked);
+            }
+            break;
+          case 'searches':
+            result = await analyticsService.getTopSearches(timeframe);
+            if (!cancelled) setSearches(result);
+            break;
+          case 'ai':
+            result = await analyticsService.getAIMetrics();
+            if (!cancelled) setAIData(result);
+            break;
+          case 'patterns':
+            result = await analyticsService.getPatternMetrics();
+            if (!cancelled) setPatternsData(result);
+            break;
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Error loading analytics:', err);
+          setError(err instanceof Error ? err : new Error('Failed to load analytics'));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
     loadData();
-  }, [loadData]);
+    return () => { cancelled = true; };
+  }, [activeTab, timeframe, retryKey]);
 
   const showTimeframeFilter = ['funnel', 'recipes', 'searches'].includes(activeTab);
 
   const renderContent = () => {
     if (loading) return <LoadingState />;
-    if (error) return <ErrorState onRetry={loadData} />;
+    if (error) return <ErrorState onRetry={handleRetry} />;
 
     switch (activeTab) {
       case 'overview':
