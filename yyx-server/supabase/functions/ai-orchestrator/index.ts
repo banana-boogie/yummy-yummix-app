@@ -33,6 +33,7 @@ import {
   generateCustomRecipe,
   generateCustomRecipeTool,
   GenerateRecipeResult,
+  PartialRecipeCallback,
 } from "../_shared/tools/generate-custom-recipe.ts";
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import {
@@ -439,12 +440,16 @@ async function ensureSessionId(
 /**
  * Execute tool calls from the assistant message.
  * Returns tool response messages and any recipe results.
+ *
+ * @param onPartialRecipe - Optional callback for two-phase SSE. If provided,
+ *   called with the recipe immediately after LLM generation (before enrichment).
  */
 async function executeToolCalls(
   supabase: SupabaseClient,
   toolCalls: OpenAIToolCall[],
   userContext: UserContext,
   openaiApiKey: string,
+  onPartialRecipe?: PartialRecipeCallback,
 ): Promise<ToolExecutionResult> {
   const toolMessages: OpenAIMessage[] = [];
   let recipes: RecipeCard[] | undefined;
@@ -459,6 +464,7 @@ async function executeToolCalls(
         args,
         userContext,
         openaiApiKey,
+        onPartialRecipe,
       );
       if (name === "search_recipes" && Array.isArray(result)) {
         recipes = result;
@@ -1050,6 +1056,12 @@ function handleStreamingRequest(
             );
             send({ type: "status", status: "generating" });
 
+            // Two-phase SSE for modification flow
+            const onPartialRecipe: PartialRecipeCallback = (partialRecipe) => {
+              send({ type: "recipe_partial", recipe: partialRecipe });
+              send({ type: "status", status: "enriching" });
+            };
+
             const lastRecipe = lastCustomRecipeMessage.metadata.customRecipe;
             try {
               const { recipe: modifiedRecipe, safetyFlags } =
@@ -1064,6 +1076,7 @@ function handleStreamingRequest(
                   },
                   userContext,
                   Deno.env.get("OPENAI_API_KEY") || "",
+                  onPartialRecipe,
                 );
 
               customRecipeResult = { recipe: modifiedRecipe, safetyFlags };
@@ -1142,11 +1155,18 @@ function handleStreamingRequest(
             status: toolName === "search_recipes" ? "searching" : "generating",
           });
 
+          // Two-phase SSE: emit partial recipe before enrichment for perceived latency
+          const onPartialRecipe: PartialRecipeCallback = (partialRecipe) => {
+            send({ type: "recipe_partial", recipe: partialRecipe });
+            send({ type: "status", status: "enriching" });
+          };
+
           const toolResult = await executeToolCalls(
             supabase,
             assistantMessage.tool_calls,
             userContext,
             openaiApiKey,
+            onPartialRecipe,
           );
           timings.tool_exec_ms = Math.round(performance.now() - phaseStart);
           phaseStart = performance.now();
@@ -1420,6 +1440,8 @@ async function callAIStream(
 
 /**
  * Execute a single tool call with validation.
+ *
+ * @param onPartialRecipe - Optional callback for two-phase SSE (recipe generation only).
  */
 async function executeTool(
   supabase: SupabaseClient,
@@ -1427,6 +1449,7 @@ async function executeTool(
   args: string,
   userContext: UserContext,
   openaiApiKey: string,
+  onPartialRecipe?: PartialRecipeCallback,
 ): Promise<unknown> {
   let parsedArgs: unknown;
   try {
@@ -1445,6 +1468,7 @@ async function executeTool(
         parsedArgs,
         userContext,
         openaiApiKey,
+        onPartialRecipe,
       );
 
     default:

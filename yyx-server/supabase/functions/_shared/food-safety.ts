@@ -155,15 +155,15 @@ export async function checkRecipeSafety(
   const warnings: string[] = [];
   const matchedRules: Map<string, FoodSafetyRule> = new Map();
 
-  // Normalize ingredients and find matching safety rules
-  for (const ingredient of ingredients) {
-    const normalized = await normalizeIngredient(
-      supabase,
-      ingredient.name,
-      language,
-    );
+  // Normalize all ingredients in parallel (performance optimization)
+  const normalizedNames = await Promise.all(
+    ingredients.map((ingredient) =>
+      normalizeIngredient(supabase, ingredient.name, language)
+    ),
+  );
 
-    // Check for exact match or partial match (ingredient contains safety item)
+  // Find matching safety rules for each normalized ingredient
+  for (const normalized of normalizedNames) {
     for (const rule of rules) {
       // Direct match with canonical name
       if (normalized === rule.ingredient_canonical) {

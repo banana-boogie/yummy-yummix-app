@@ -395,13 +395,32 @@ Deno.test("UserContext supports equipment preferences", () => {
 /**
  * Mock Supabase client for testing enrichIngredientsWithImages.
  * Simulates database queries and responses.
- * Supports eq (exact match) and textSearch (fuzzy match) as used by the function.
+ * Uses rpc method for batch_find_ingredients RPC as used by the function.
  */
 function createMockSupabaseClient(mockData: Record<string, any> = {}) {
   return {
+    // rpc is used for batch_find_ingredients call
+    rpc: (funcName: string, args: { ingredient_names: string[]; preferred_lang: string }) => {
+      if (funcName !== "batch_find_ingredients") {
+        return { data: null, error: { message: "Unknown function" } };
+      }
+
+      const results = args.ingredient_names.map((name: string) => {
+        const data = mockData[name.toLowerCase()];
+        return {
+          input_name: name,
+          matched_name: data ? name : null,
+          matched_name_es: null,
+          image_url: data?.image_url || null,
+          match_score: data ? 1.0 : null,
+        };
+      });
+
+      return Promise.resolve({ data: results, error: null });
+    },
+    // Legacy from/select methods (kept for backwards compatibility)
     from: (_table: string) => ({
       select: (_fields: string) => ({
-        // eq is used for exact match (primary lookup)
         eq: (_column: string, value: string) => ({
           limit: (_n: number) => ({
             maybeSingle: async () => {
@@ -410,7 +429,6 @@ function createMockSupabaseClient(mockData: Record<string, any> = {}) {
             },
           }),
         }),
-        // textSearch is used for fuzzy match (fallback)
         textSearch: (_column: string, term: string, _options: any) => ({
           limit: (_n: number) => ({
             maybeSingle: async () => {
@@ -419,7 +437,6 @@ function createMockSupabaseClient(mockData: Record<string, any> = {}) {
             },
           }),
         }),
-        // Legacy: ilike for backwards compatibility with older tests
         ilike: (_column: string, pattern: string) => ({
           limit: (_n: number) => ({
             maybeSingle: async () => {
@@ -476,27 +493,11 @@ Deno.test("enrichIngredientsWithImages sanitizes SQL special characters", async 
 });
 
 Deno.test("enrichIngredientsWithImages handles partial failures gracefully", async () => {
-  // Test Promise.allSettled behavior - some succeed, some fail
+  // Test RPC error handling - function should not throw, failed lookups return without imageUrl
   const mockSupabase = {
-    from: () => ({
-      select: () => ({
-        // eq returns null (no match), triggering textSearch fallback
-        eq: () => ({
-          limit: () => ({
-            maybeSingle: async () => {
-              return { data: null, error: null };
-            },
-          }),
-        }),
-        // textSearch also fails
-        textSearch: () => ({
-          limit: () => ({
-            maybeSingle: async () => {
-              return { data: null, error: { message: "Database error" } };
-            },
-          }),
-        }),
-      }),
+    rpc: () => Promise.resolve({
+      data: null,
+      error: { message: "Database error" },
     }),
   } as any;
 

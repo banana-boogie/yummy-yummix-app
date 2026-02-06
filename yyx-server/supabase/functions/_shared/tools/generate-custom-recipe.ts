@@ -21,6 +21,7 @@ import {
   getAllergenWarning,
 } from "../allergen-filter.ts";
 import { buildSafetyReminders, checkRecipeSafety } from "../food-safety.ts";
+import { chat } from "../ai-gateway/index.ts";
 
 // ============================================================
 // Tool Definition (OpenAI Function Calling format)
@@ -88,15 +89,31 @@ export interface GenerateRecipeResult {
 }
 
 /**
+ * Callback for two-phase SSE: called with partial recipe before enrichment.
+ * This allows the UI to display the recipe immediately while enrichment happens.
+ */
+export type PartialRecipeCallback = (partialRecipe: GeneratedRecipe) => void;
+
+/**
  * Generate a custom recipe using AI.
  * Validates params, checks allergens, generates recipe, validates safety.
+ *
+ * @param onPartialRecipe - Optional callback for two-phase SSE. If provided,
+ *   called with the recipe immediately after LLM generation (before enrichment).
+ *   This enables perceived latency reduction by showing the recipe card early.
  */
 export async function generateCustomRecipe(
   supabase: SupabaseClient,
   rawParams: unknown,
   userContext: UserContext,
   openaiApiKey: string,
+  onPartialRecipe?: PartialRecipeCallback,
 ): Promise<GenerateRecipeResult> {
+  // Timing instrumentation for performance monitoring
+  const timings: Record<string, number> = {};
+  const totalStart = performance.now();
+  let phaseStart = totalStart;
+
   // Validate and sanitize params
   const params = validateGenerateRecipeParams(rawParams);
 
@@ -108,8 +125,12 @@ export async function generateCustomRecipe(
     userContext.customAllergies,
     userContext.language,
   );
+  timings.allergen_check_ms = Math.round(performance.now() - phaseStart);
+  phaseStart = performance.now();
 
   if (!allergenCheck.safe) {
+    timings.total_ms = Math.round(performance.now() - totalStart);
+    console.log("[GenerateRecipe Timings] Early exit (allergen):", JSON.stringify(timings));
     return {
       recipe: createEmptyRecipe(userContext),
       safetyFlags: {
@@ -126,6 +147,8 @@ export async function generateCustomRecipe(
     userContext.measurementSystem,
     userContext.language,
   );
+  timings.safety_reminders_ms = Math.round(performance.now() - phaseStart);
+  phaseStart = performance.now();
 
   // Generate the recipe using AI
   const recipe = await callRecipeGenerationAI(
@@ -134,6 +157,8 @@ export async function generateCustomRecipe(
     userContext,
     safetyReminders,
   );
+  timings.recipe_llm_ms = Math.round(performance.now() - phaseStart);
+  phaseStart = performance.now();
 
   // Validate Thermomix parameters if present
   recipe.steps = validateThermomixSteps(recipe.steps);
@@ -143,6 +168,15 @@ export async function generateCustomRecipe(
     eq.toLowerCase().includes("thermomix")
   );
   validateThermomixUsage(recipe, hasThermomix);
+  timings.thermomix_validation_ms = Math.round(performance.now() - phaseStart);
+  phaseStart = performance.now();
+
+  // Two-phase SSE: emit partial recipe before enrichment for perceived latency reduction
+  // The frontend can start rendering the recipe card immediately
+  if (onPartialRecipe) {
+    onPartialRecipe(recipe);
+    console.log("[GenerateRecipe] Partial recipe emitted, starting enrichment");
+  }
 
   // Run post-recipe enrichment and validation in parallel
   const [enrichedIngredients, usefulItems, safetyCheck] = await Promise.all([
@@ -156,9 +190,13 @@ export async function generateCustomRecipe(
       userContext.language,
     ),
   ]);
+  timings.enrichment_ms = Math.round(performance.now() - phaseStart);
 
   recipe.ingredients = enrichedIngredients;
   recipe.usefulItems = usefulItems;
+
+  timings.total_ms = Math.round(performance.now() - totalStart);
+  console.log("[GenerateRecipe Timings]", JSON.stringify(timings));
 
   if (!safetyCheck.safe) {
     return {
@@ -173,122 +211,49 @@ export async function generateCustomRecipe(
 }
 
 // ============================================================
-// AI Generation
+// AI Generation (via AI Gateway)
 // ============================================================
 
-const MAX_RETRIES = 3;
-const RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff
-
 /**
- * Check if an error is retryable (transient failure).
- */
-function isRetryableError(status: number): boolean {
-  // Retry on rate limits (429), server errors (5xx), or timeout-like errors
-  return status === 429 || status >= 500;
-}
-
-/**
- * Sleep for a specified duration.
- */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Call OpenAI to generate the recipe with retry logic.
+ * Call AI Gateway to generate the recipe.
+ * Uses the 'parsing' usage type for structured JSON output.
+ * Retries are handled by the gateway.
  */
 async function callRecipeGenerationAI(
-  apiKey: string,
+  _apiKey: string, // Deprecated: gateway uses env vars
   params: GenerateRecipeParams,
   userContext: UserContext,
   safetyReminders: string,
 ): Promise<GeneratedRecipe> {
   const prompt = buildRecipePrompt(params, userContext, safetyReminders);
-  const requestBody = JSON.stringify({
-    model: "gpt-4o-mini",
+
+  const response = await chat({
+    usageType: "parsing",
     messages: [
       { role: "system", content: getSystemPrompt(userContext) },
       { role: "user", content: prompt },
     ],
     temperature: 0.7,
-    response_format: { type: "json_object" },
+    // Note: We use 'parsing' usage type which routes to a model optimized for
+    // structured output. The gateway handles JSON response format internally.
   });
 
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      const response = await fetch(
-        "https://api.openai.com/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: requestBody,
-        },
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(
-          `Recipe generation API error (attempt ${attempt + 1}):`,
-          response.status,
-          errorText,
-        );
-
-        // Retry on transient errors
-        if (isRetryableError(response.status) && attempt < MAX_RETRIES - 1) {
-          const delay = RETRY_DELAYS[attempt] || 4000;
-          console.log(`Retrying in ${delay}ms...`);
-          await sleep(delay);
-          continue;
-        }
-
-        throw new Error(`Failed to generate recipe: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content;
-
-      if (!content) {
-        throw new Error("No content in recipe generation response");
-      }
-
-      // Parse and validate the generated recipe
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(content);
-      } catch {
-        console.error("Failed to parse recipe JSON:", content.slice(0, 500));
-        throw new Error("Invalid recipe JSON from AI");
-      }
-
-      const result = GeneratedRecipeSchema.safeParse(parsed);
-      if (!result.success) {
-        console.error("Recipe validation failed:", result.error.issues);
-        throw new Error("Generated recipe does not match schema");
-      }
-
-      return result.data;
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-
-      // Only retry on network errors (fetch failures)
-      if (error instanceof TypeError && attempt < MAX_RETRIES - 1) {
-        const delay = RETRY_DELAYS[attempt] || 4000;
-        console.log(`Network error, retrying in ${delay}ms...`, error.message);
-        await sleep(delay);
-        continue;
-      }
-
-      // Non-retryable error or last attempt
-      throw lastError;
-    }
+  // Parse and validate the generated recipe
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(response.content);
+  } catch {
+    console.error("Failed to parse recipe JSON:", response.content.slice(0, 500));
+    throw new Error("Invalid recipe JSON from AI");
   }
 
-  throw lastError || new Error("Failed to generate recipe after retries");
+  const result = GeneratedRecipeSchema.safeParse(parsed);
+  if (!result.success) {
+    console.error("Recipe validation failed:", result.error.issues);
+    throw new Error("Generated recipe does not match schema");
+  }
+
+  return result.data;
 }
 
 /**
@@ -893,27 +858,31 @@ export function validateThermomixSteps(
   steps: Array<{
     order: number;
     instruction: string;
-    thermomixTime?: number;
-    thermomixTemp?: string;
-    thermomixSpeed?: string;
+    thermomixTime?: number | null;
+    thermomixTemp?: string | null;
+    thermomixSpeed?: string | null;
   }>,
 ): Array<{
   order: number;
   instruction: string;
-  thermomixTime?: number;
-  thermomixTemp?: string;
-  thermomixSpeed?: string;
+  thermomixTime?: number | null;
+  thermomixTemp?: string | null;
+  thermomixSpeed?: string | null;
 }> {
   return steps.map((step) => {
-    // Skip if no Thermomix params
-    if (!step.thermomixTime && !step.thermomixTemp && !step.thermomixSpeed) {
+    // Skip if no Thermomix params (check for both null and undefined)
+    if (
+      step.thermomixTime == null &&
+      step.thermomixTemp == null &&
+      step.thermomixSpeed == null
+    ) {
       return step;
     }
 
     const validated = { ...step };
 
-    // Validate time (must be positive number, not NaN)
-    if (step.thermomixTime !== undefined) {
+    // Validate time (must be positive number, not NaN or null)
+    if (step.thermomixTime != null) {
       if (
         typeof step.thermomixTime !== "number" ||
         Number.isNaN(step.thermomixTime) || step.thermomixTime <= 0
@@ -921,12 +890,12 @@ export function validateThermomixSteps(
         console.warn(
           `Invalid Thermomix time for step ${step.order}: ${step.thermomixTime}. Removing.`,
         );
-        delete validated.thermomixTime;
+        validated.thermomixTime = undefined;
       }
     }
 
     // Validate speed (case-insensitive for special speeds)
-    if (step.thermomixSpeed !== undefined) {
+    if (step.thermomixSpeed != null) {
       const normalizedSpeed = step.thermomixSpeed.toLowerCase();
       const isValid =
         VALID_NUMERIC_SPEEDS.includes(step.thermomixSpeed as any) ||
@@ -935,7 +904,7 @@ export function validateThermomixSteps(
         console.warn(
           `Invalid Thermomix speed for step ${step.order}: ${step.thermomixSpeed}. Removing.`,
         );
-        delete validated.thermomixSpeed;
+        validated.thermomixSpeed = undefined;
       } else if (VALID_SPECIAL_SPEEDS.includes(normalizedSpeed as any)) {
         // Normalize to title case for consistency
         validated.thermomixSpeed = step.thermomixSpeed.charAt(0).toUpperCase() +
@@ -944,14 +913,14 @@ export function validateThermomixSteps(
     }
 
     // Validate temperature
-    if (step.thermomixTemp !== undefined) {
+    if (step.thermomixTemp != null) {
       const isValid = TEMP_REGEX.test(step.thermomixTemp) ||
         VALID_SPECIAL_TEMPS.includes(step.thermomixTemp as any);
       if (!isValid) {
         console.warn(
           `Invalid Thermomix temperature for step ${step.order}: ${step.thermomixTemp}. Removing.`,
         );
-        delete validated.thermomixTemp;
+        validated.thermomixTemp = undefined;
       }
     }
 
