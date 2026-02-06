@@ -18,7 +18,6 @@ Verify all required environment variables are set:
 - [ ] `SUPABASE_ANON_KEY` - Production anon key
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` - Service role key (get from dashboard, never via MCP)
 - [ ] `OPENAI_API_KEY` - OpenAI API key
-- [ ] `CARTESIA_API_KEY` - Cartesia TTS API key
 - [ ] `USDA_API_KEY` - USDA nutrition API key
 
 ### Database Backup
@@ -104,15 +103,14 @@ npm run deploy:all
 # Or deploy specific functions
 npm run deploy ai-chat
 npm run deploy ai-orchestrator
-npm run deploy ai-voice
+npm run deploy start-voice-session
+npm run deploy voice-tool-execute
 npm run deploy get-nutritional-facts
 npm run deploy parse-recipe-markdown
 ```
 
 **Verify deployment:**
-```bash
-npm run logs ai-chat   # Check for errors
-```
+Check Supabase Dashboard logs: `Edge Functions -> ai-chat -> Logs`.
 
 ### 3. Mobile App Build & Submission
 
@@ -174,11 +172,10 @@ eas submit --platform android
    - Dashboard > Reports
    - Set up alerts for high error rates
 
-2. Check logs regularly:
-   ```bash
-   npm run logs ai-chat
-   npm run logs ai-voice
-   ```
+2. Check logs regularly in Supabase Dashboard:
+   - `Edge Functions -> ai-chat -> Logs`
+   - `Edge Functions -> start-voice-session -> Logs`
+   - `Edge Functions -> voice-tool-execute -> Logs`
 
 ---
 

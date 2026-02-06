@@ -2,23 +2,16 @@
  * AI Gateway - OpenAI Provider
  *
  * Implementation of the AI provider interface for OpenAI.
- * Includes: chat completions, transcription (Whisper), and text-to-speech.
+ * Includes: chat completions and streaming chat completions.
  */
 
 import {
   AICompletionRequest,
   AICompletionResponse,
-  AITextToSpeechRequest,
-  AITextToSpeechResponse,
   AITool,
-  AITranscriptionRequest,
-  AITranscriptionResponse,
 } from "../types.ts";
 
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
-const OPENAI_TRANSCRIPTION_URL =
-  "https://api.openai.com/v1/audio/transcriptions";
-const OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech";
 
 // =============================================================================
 // Chat Completions
@@ -229,92 +222,4 @@ export async function* callOpenAIStream(
       }
     }
   }
-}
-
-// =============================================================================
-// Transcription (Whisper)
-// =============================================================================
-
-/**
- * Transcribe audio using OpenAI Whisper API.
- */
-export async function transcribeOpenAI(
-  request: AITranscriptionRequest,
-  model: string,
-  apiKey: string,
-): Promise<AITranscriptionResponse> {
-  const formData = new FormData();
-  formData.append("file", request.audio, "audio.m4a");
-  formData.append("model", model);
-
-  if (request.language) {
-    formData.append("language", request.language);
-  }
-
-  const response = await fetch(OPENAI_TRANSCRIPTION_URL, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`OpenAI Whisper error (${response.status}): ${errorBody}`);
-  }
-
-  const result = await response.json();
-  return {
-    text: result.text,
-    language: request.language,
-  };
-}
-
-// =============================================================================
-// Text-to-Speech
-// =============================================================================
-
-/**
- * Generate speech from text using OpenAI TTS API.
- */
-export async function textToSpeechOpenAI(
-  request: AITextToSpeechRequest,
-  model: string,
-  apiKey: string,
-): Promise<AITextToSpeechResponse> {
-  const response = await fetch(OPENAI_TTS_URL, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: model,
-      input: request.text,
-      voice: request.voice ?? "nova",
-      response_format: "mp3",
-    }),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`OpenAI TTS error (${response.status}): ${errorBody}`);
-  }
-
-  // Convert to base64 (chunked to avoid stack overflow on large files)
-  const audioBuffer = await response.arrayBuffer();
-  const bytes = new Uint8Array(audioBuffer);
-  let binary = "";
-  const chunkSize = 8192;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-  const base64 = btoa(binary);
-
-  return {
-    audioBase64: base64,
-    format: "mp3",
-  };
 }

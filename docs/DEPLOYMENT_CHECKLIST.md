@@ -123,7 +123,7 @@ git checkout main
 | Backup storage only | `npm run backup:storage` |
 | Push migrations | `supabase db push` |
 | Deploy all functions | `supabase functions deploy --all` |
-| Check function logs | `supabase functions logs [name]` |
+| Check function logs | Supabase Dashboard -> Edge Functions -> [name] -> Logs |
 | Link project | `supabase link` |
 
 ### Supabase Project

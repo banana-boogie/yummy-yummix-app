@@ -15,7 +15,6 @@ npm run deploy:all    # Deploy all edge functions
 # Deployment
 npm run deploy ai-chat      # Deploy single function
 npm run deploy:all          # Deploy all functions
-npm run logs ai-chat        # View function logs
 
 # Database
 npm run db:push             # Push migrations to cloud
@@ -40,7 +39,8 @@ yyx-server/
 │   ├── functions/          # Edge Functions
 │   │   ├── ai-orchestrator/
 │   │   ├── ai-chat/
-│   │   ├── ai-voice/
+│   │   ├── start-voice-session/
+│   │   ├── voice-tool-execute/
 │   │   ├── get-nutritional-facts/
 │   │   ├── parse-recipe-markdown/
 │   │   └── _shared/        # Shared utilities

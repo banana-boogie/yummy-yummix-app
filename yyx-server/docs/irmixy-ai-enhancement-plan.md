@@ -1,5 +1,7 @@
 # Irmixy AI Enhancement Plan
 
+> Historical planning document. Some implementation references are outdated.
+
 ## Vision: Time, Energy, Creativity
 
 Irmixy helps users cook better with less effort by understanding their needs, preferences, and what they have on hand. **Core principles: save time, reduce energy, inspire creativity.**
@@ -360,7 +362,8 @@ Everything below exists to make the two core abilities work reliably, safely, an
 | File | Changes |
 |------|---------|
 | `ai-chat/index.ts` | Call orchestrator instead of direct LLM |
-| `ai-voice/index.ts` | Call orchestrator instead of direct LLM |
+| `start-voice-session/index.ts` | Voice session bootstrap |
+| `voice-tool-execute/index.ts` | Backend tool execution for voice mode |
 | `ChatScreen.tsx` | Render recipe cards, cooking guide |
 | `chatService.ts` | Handle new response schema |
 

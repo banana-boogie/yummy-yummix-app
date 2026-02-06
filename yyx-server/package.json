@@ -6,7 +6,6 @@
     "migration:new": "supabase migration new",
     "deploy": "supabase functions deploy",
     "deploy:all": "supabase functions deploy",
-    "logs": "supabase functions logs",
     "backup": "bash scripts/backup-all.sh",
     "backup:db": "bash scripts/backup-db.sh",
     "backup:storage": "bash scripts/backup-storage.sh",

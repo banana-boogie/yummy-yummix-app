@@ -25,9 +25,7 @@ npm run db:push       # Push to cloud
 ```
 
 **View logs:**
-```bash
-npm run logs ai-chat  # View function logs
-```
+Use Supabase Dashboard: `Edge Functions -> ai-chat -> Logs`.
 
 ### Backup Before Deploy (REQUIRED)
 
@@ -46,7 +44,8 @@ Located in `supabase/functions/`:
 
 - **ai-orchestrator/** - Main AI routing and conversation management
 - **ai-chat/** - Chat completions endpoint
-- **ai-voice/** - Voice input/output handling
+- **start-voice-session/** - OpenAI Realtime session bootstrap + quota checks
+- **voice-tool-execute/** - Secure backend tool execution for voice mode
 - **get-nutritional-facts/** - USDA nutrition API integration
 - **parse-recipe-markdown/** - Recipe parsing utilities
 - **_shared/** - Shared utilities (CORS, auth, AI gateway)
@@ -60,10 +59,7 @@ npm run deploy:all                # Deploy all functions
 
 ### Viewing Logs
 
-```bash
-npm run logs ai-orchestrator      # CLI logs
-# Or ask Claude: "Check edge function logs for errors"
-```
+Use Supabase Dashboard: `Edge Functions -> ai-orchestrator -> Logs`.
 
 ---
 
@@ -147,7 +143,6 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...  # Get from dashboard
 
 OPENAI_API_KEY=sk-proj-...
 USDA_API_KEY=...
-CARTESIA_API_KEY=...
 ```
 
 ### Cloud Secrets
@@ -155,7 +150,6 @@ CARTESIA_API_KEY=...
 API keys should also be set as cloud secrets for deployed functions:
 - OPENAI_API_KEY
 - USDA_API_KEY
-- CARTESIA_API_KEY
 
 ---
 

@@ -36,18 +36,6 @@ const defaultRoutingConfig: AIRoutingConfig = {
     model: "o1-mini",
     apiKeyEnvVar: "OPENAI_API_KEY",
   },
-  // Speech-to-text transcription
-  transcription: {
-    provider: "openai",
-    model: "whisper-1",
-    apiKeyEnvVar: "OPENAI_API_KEY",
-  },
-  // Text-to-speech generation (Cartesia Sonic Multilingual for 42 languages)
-  tts: {
-    provider: "cartesia",
-    model: "sonic-3",
-    apiKeyEnvVar: "CARTESIA_API_KEY",
-  },
 };
 
 /**
@@ -56,8 +44,8 @@ const defaultRoutingConfig: AIRoutingConfig = {
  *
  * Override examples:
  * - AI_TEXT_MODEL=gpt-4o
- * - AI_TRANSCRIPTION_MODEL=whisper-large
- * - AI_TTS_MODEL=tts-1-hd
+ * - AI_PARSING_MODEL=gpt-4o-mini
+ * - AI_REASONING_MODEL=o1
  */
 export function getProviderConfig(usageType: AIUsageType): AIProviderConfig {
   const envOverride = Deno.env.get(`AI_${usageType.toUpperCase()}_MODEL`);

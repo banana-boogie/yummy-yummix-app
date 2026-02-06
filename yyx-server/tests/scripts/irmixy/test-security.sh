@@ -115,21 +115,6 @@ else
 fi
 
 # ============================================================================
-# Test 4: Auth Required - AI Voice (no JWT)
-# ============================================================================
-run_test "Test 4: Auth Required - AI Voice (no JWT)"
-
-HTTP_CODE=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/ai-voice" \
-  -H "Content-Type: application/json" \
-  -d '{"language": "en"}')
-
-if [ "$HTTP_CODE" = "401" ]; then
-  assert_pass "AI Voice rejects requests without JWT (401)"
-else
-  assert_fail "Expected 401, got: $HTTP_CODE"
-fi
-
-# ============================================================================
 # Test 5: Input Validation - Empty Message
 # ============================================================================
 run_test "Test 5: Input Validation - Empty Message"

@@ -56,10 +56,7 @@ npm run deploy:all          # All functions
 ```
 
 ### View Logs
-```bash
-cd yyx-server
-npm run logs ai-chat
-```
+Use Supabase Dashboard: `Edge Functions -> ai-chat -> Logs`.
 
 ## Project Structure
 
@@ -105,7 +102,6 @@ npm run link         # Link to cloud project
 npm run db:push      # Push migrations
 npm run deploy:all   # Deploy all functions
 npm run backup:all   # Backup database + storage
-npm run logs         # View function logs
 ```
 
 ## Environment Setup
@@ -154,9 +150,7 @@ If a migration breaks the database:
 - Clear caches: `rm -rf .expo node_modules/.cache`
 
 ### Edge function errors
-```bash
-npm run logs ai-chat
-```
+Check Supabase Dashboard logs: `Edge Functions -> ai-chat -> Logs`.
 
 ## Documentation
 

@@ -212,15 +212,6 @@ run_test_suite "Security Tests" "$SCRIPT_DIR/test-security.sh" "$JWT"
 if [ "$QUICK_MODE" = false ]; then
   run_test_suite "AI Orchestrator" "$SCRIPT_DIR/test-orchestrator.sh" "$JWT"
   run_test_suite "AI Chat" "$SCRIPT_DIR/test-chat.sh" "$JWT"
-
-  # Voice tests are optional (require audio files or ffmpeg)
-  if command -v ffmpeg >/dev/null 2>&1; then
-    run_test_suite "AI Voice" "$SCRIPT_DIR/test-voice.sh" "$JWT"
-  else
-    echo -e "\n${YELLOW}⊘ Skipping AI Voice tests (ffmpeg not installed)${NC}"
-    RESULTS="${RESULTS}SKIP|AI Voice|ffmpeg not installed\n"
-    SUITE_SKIP=$((SUITE_SKIP + 1))
-  fi
 else
   echo -e "\n${YELLOW}Quick mode: Skipping full endpoint tests${NC}"
 fi
@@ -324,7 +315,7 @@ if [ $SUITE_FAIL -gt 0 ]; then
 Review the failed test suites above and check:
 1. Are all required services running?
 2. Are there any recent schema changes?
-3. Check Supabase logs: \`supabase functions logs\`"
+3. Check Supabase dashboard logs (Edge Functions -> Logs)"
 else
   NEXT_STEPS="### All Tests Passed! ✅
 The Phase 1 implementation is validated. Consider:

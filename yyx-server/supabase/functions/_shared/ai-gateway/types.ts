@@ -10,11 +10,9 @@ export type AIUsageType =
   | "text"
   | "voice"
   | "parsing"
-  | "reasoning"
-  | "transcription"
-  | "tts";
+  | "reasoning";
 
-export type AIProvider = "openai" | "anthropic" | "google" | "cartesia";
+export type AIProvider = "openai" | "anthropic" | "google";
 
 export interface AIMessage {
   role: "system" | "user" | "assistant";
@@ -44,38 +42,6 @@ export interface AICompletionRequest {
     type: "function";
     function: { name: string };
   };
-}
-
-export interface AITranscriptionRequest {
-  /** Audio blob to transcribe */
-  audio: Blob;
-  /** Optional: Language hint (e.g., 'en', 'es') */
-  language?: string;
-  /** Optional: Override the default model */
-  model?: string;
-}
-
-export interface AITranscriptionResponse {
-  text: string;
-  language?: string;
-}
-
-export interface AITextToSpeechRequest {
-  /** Text to convert to speech */
-  text: string;
-  /** Voice ID to use (provider-specific) */
-  voice?: string;
-  /** Language hint for voice selection (e.g., 'es' for Spanish) */
-  language?: string;
-  /** Optional: Override the default model */
-  model?: string;
-}
-
-export interface AITextToSpeechResponse {
-  /** Base64-encoded audio */
-  audioBase64: string;
-  /** Audio format (mp3, wav, etc.) */
-  format: string;
 }
 
 export interface AITool {

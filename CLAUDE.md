@@ -77,10 +77,7 @@ npm run deploy:all          # Deploy all functions
 ```
 
 ### Viewing Logs
-```bash
-npm run logs ai-chat        # View function logs
-# Or ask Claude: "Check edge function logs for errors"
-```
+Use Supabase Dashboard: `Edge Functions -> <function> -> Logs`.
 
 ### Backup Before Deploy (REQUIRED)
 
@@ -139,7 +136,6 @@ npm run db:push      # Push migrations to cloud
 npm run db:pull      # Pull cloud schema
 npm run deploy       # Deploy single edge function
 npm run deploy:all   # Deploy all edge functions
-npm run logs         # View edge function logs
 
 # Backups (ALWAYS run before migrations!)
 npm run backup       # Database backup
@@ -209,7 +205,6 @@ SUPABASE_ANON_KEY=eyJhbGc...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...  # Get from dashboard (NEVER via MCP)
 OPENAI_API_KEY=sk-proj-xxx
 USDA_API_KEY=xxx
-CARTESIA_API_KEY=xxx
 ```
 
 ### MCP Security Note
@@ -250,11 +245,7 @@ npm run db:pull       # Pull current cloud schema
 ```
 
 ### Edge function errors
-```bash
-cd yyx-server
-npm run logs ai-chat  # View function logs
-# Or ask Claude: "Check edge function logs for errors"
-```
+Check Supabase Dashboard logs: `Edge Functions -> ai-chat -> Logs`.
 
 ### Useful URLs
 - **Supabase Dashboard**: https://supabase.com/dashboard
@@ -338,15 +329,12 @@ for await (const chunk of chatStream({
 | `parsing` | gpt-4o-mini | Intent classification, structured data extraction | Very low |
 | `reasoning` | o1-mini | Complex reasoning, multi-step problems | High |
 | `voice` | gpt-4o-mini | Voice-optimized short responses | Low |
-| `transcription` | whisper-1 | Speech-to-text | Low |
-| `tts` | cartesia sonic-3 | Text-to-speech (42 languages) | Low |
 
 #### Configuration:
 
 ```bash
 # Required API Keys (in .env or Supabase secrets)
-OPENAI_API_KEY=sk-proj-xxx      # For text, voice, parsing, reasoning, transcription
-CARTESIA_API_KEY=xxx            # For TTS (42 languages)
+OPENAI_API_KEY=sk-proj-xxx      # For text, voice, parsing, reasoning
 
 # Optional: Override default models
 AI_TEXT_MODEL=gpt-4o              # Override chat model (default: gpt-4o-mini)
@@ -364,7 +352,7 @@ Developer Code → Gateway (OpenAI format) → Provider (translates to native fo
 
 This design:
 - Uses OpenAI format because it's the industry standard
-- Each provider handles translation (already implemented for OpenAI, Cartesia)
+- Each provider handles translation (already implemented for OpenAI)
 - Adding new providers (Anthropic, Google) just requires a new translator
 - NOT OpenAI-specific - it's using OpenAI format as the **lingua franca**
 
@@ -396,7 +384,7 @@ See `generate-custom-recipe.ts` for Thermomix system prompt section.
 
 ### Edge Functions (`yyx-server/supabase/functions/`)
 - **`_shared/`** - Shared utilities (CORS, auth, AI gateway)
-- **`ai-chat/`**, **`ai-voice/`** - AI sous chef endpoints
+- **`ai-chat/`**, **`ai-orchestrator/`**, **`start-voice-session/`**, **`voice-tool-execute/`** - AI endpoints
 - **`get-nutritional-facts/`**, **`parse-recipe-markdown/`** - Recipe utilities
 
 ## Key Conventions
