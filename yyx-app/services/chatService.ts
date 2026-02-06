@@ -130,6 +130,7 @@ export async function streamChatMessage(
         onChunk,
         onSessionId,
         onStatus,
+        undefined,   // onStreamComplete - not used by this simplified wrapper
         onComplete,
     );
     return handle.done;

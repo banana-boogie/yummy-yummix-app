@@ -762,6 +762,49 @@ Format: {"suggestions": [{"label": "...", "message": "..."}, ...]}`;
 }
 
 /**
+ * Get template suggestions for chat responses.
+ * Uses pre-defined templates to avoid a 2.9s AI call.
+ */
+function getTemplateSuggestions(
+  language: "en" | "es",
+  hasRecipes: boolean,
+): SuggestionChip[] {
+  if (hasRecipes) {
+    // Suggestions after search results
+    return [
+      {
+        label: language === "es" ? "Ver más opciones" : "Show more options",
+        message: language === "es" ? "Ver más opciones" : "Show more options",
+      },
+      {
+        label: language === "es" ? "Crear receta" : "Create recipe",
+        message: language === "es" ? "Crear receta" : "Create recipe",
+      },
+      {
+        label: language === "es" ? "Algo diferente" : "Something different",
+        message: language === "es" ? "Algo diferente" : "Something different",
+      },
+    ];
+  }
+
+  // General chat suggestions
+  return [
+    {
+      label: language === "es" ? "Hazme una receta" : "Make me a recipe",
+      message: language === "es" ? "Hazme una receta" : "Make me a recipe",
+    },
+    {
+      label: language === "es" ? "Buscar recetas" : "Search recipes",
+      message: language === "es" ? "Buscar recetas" : "Search recipes",
+    },
+    {
+      label: language === "es" ? "¿Qué puedo cocinar?" : "What can I cook?",
+      message: language === "es" ? "¿Qué puedo cocinar?" : "What can I cook?",
+    },
+  ];
+}
+
+/**
  * Detect if user wants to modify an existing recipe.
  * Returns modifications description if detected.
  */
@@ -970,7 +1013,18 @@ async function processRequest(
     }
   }
 
-  const firstResponse = await callAI(messages, true, false);
+  // Detect high recipe intent to force tool use (same logic as streaming path)
+  const forceToolUse = hasHighRecipeIntent(message);
+  if (forceToolUse) {
+    console.log("[Non-Streaming] High recipe intent detected, forcing tool use");
+  }
+
+  const firstResponse = await callAI(
+    messages,
+    true,
+    false,
+    forceToolUse ? "required" : "auto",
+  );
   const assistantMessage = firstResponse.choices[0].message;
 
   if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
@@ -1300,30 +1354,15 @@ function handleStreamingRequest(
           phaseStart = performance.now();
 
           // Signal that streaming is complete - frontend can enable input now
-          // (suggestions will arrive with the done event shortly after)
           send({ type: "stream_complete" });
 
-          // After streaming, get structured suggestions from AI
-          try {
-            const suggestionsResponse = await callAI(
-              [...streamMessages, {
-                role: "assistant" as const,
-                content: finalText,
-                tool_calls: undefined,
-              }],
-              false,
-              true,
-            );
-            const structuredContent = JSON.parse(
-              suggestionsResponse.choices[0].message.content || "{}",
-            );
-            suggestions = structuredContent.suggestions;
-          } catch (err) {
-            // If suggestions extraction fails, continue without them
-            console.warn("Failed to extract suggestions:", err);
-          }
-          timings.suggestions_ms = Math.round(performance.now() - phaseStart);
-          phaseStart = performance.now();
+          // Use template suggestions immediately to avoid blocking
+          // This eliminates the 2.9s AI call for suggestions
+          suggestions = getTemplateSuggestions(
+            userContext.language,
+            !!recipes?.length,
+          );
+          timings.suggestions_ms = 0; // No AI call needed
         }
 
         const response = await finalizeResponse(
@@ -1438,13 +1477,13 @@ const STRUCTURED_RESPONSE_SCHEMA = {
 /**
  * Call AI via the AI Gateway.
  * Supports tools and optional JSON schema for structured output.
- * @param toolChoice - "auto" (default), "required" (force tool use), or "none"
+ * @param toolChoice - "auto" (default) or "required" (force tool use)
  */
 async function callAI(
   messages: OpenAIMessage[],
   includeTools: boolean = true,
   useStructuredOutput: boolean = false,
-  toolChoice?: "auto" | "required" | "none",
+  toolChoice?: "auto" | "required",
 ): Promise<{ choices: Array<{ message: OpenAIMessage }> }> {
   // Convert OpenAIMessage format to AIMessage format
   const aiMessages: AIMessage[] = messages

@@ -558,6 +558,7 @@ interface AllergenCheckResult {
 
 /**
  * Check all ingredients against user's allergen restrictions.
+ * Uses parallel processing for performance (was sequential N+1 query).
  */
 async function checkIngredientsForAllergens(
   supabase: SupabaseClient,
@@ -572,23 +573,29 @@ async function checkIngredientsForAllergens(
     return { safe: true };
   }
 
-  for (const ingredient of ingredients) {
-    const result = await checkIngredientForAllergens(
+  // Check all ingredients in parallel for performance
+  const results = await Promise.all(
+    ingredients.map((ingredient) =>
+      checkIngredientForAllergens(
+        supabase,
+        ingredient,
+        allRestrictions,
+        language,
+      )
+    ),
+  );
+
+  // Find the first unsafe ingredient
+  const unsafeResult = results.find((result) => !result.safe);
+
+  if (unsafeResult) {
+    const warning = await getAllergenWarning(
       supabase,
-      ingredient,
-      allRestrictions,
+      unsafeResult.allergen!,
+      unsafeResult.category!,
       language,
     );
-
-    if (!result.safe) {
-      const warning = await getAllergenWarning(
-        supabase,
-        result.allergen!,
-        result.category!,
-        language,
-      );
-      return { safe: false, warning };
-    }
+    return { safe: false, warning };
   }
 
   return { safe: true };
