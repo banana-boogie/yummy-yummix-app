@@ -8,8 +8,8 @@
  */
 
 import {
-  assertEquals,
   assert,
+  assertEquals,
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 
 // ============================================================
@@ -42,7 +42,9 @@ Deno.test("tool allowlist rejects unknown tool names", () => {
   ];
 
   for (const tool of unknownTools) {
-    const isAllowed = ALLOWED_TOOLS.includes(tool as typeof ALLOWED_TOOLS[number]);
+    const isAllowed = ALLOWED_TOOLS.includes(
+      tool as typeof ALLOWED_TOOLS[number],
+    );
     assertEquals(isAllowed, false, `Tool "${tool}" should not be allowed`);
   }
 });
@@ -109,9 +111,9 @@ Deno.test("JSON parse succeeds for valid request body", () => {
 Deno.test("JSON parse fails for malformed body", () => {
   const malformedBodies = [
     "not json",
-    "{toolName: search_recipes}",     // missing quotes
-    '{"toolName": "search_recipes"',  // missing closing brace
-    "",                                // empty string
+    "{toolName: search_recipes}", // missing quotes
+    '{"toolName": "search_recipes"', // missing closing brace
+    "", // empty string
     "undefined",
   ];
 
@@ -158,16 +160,26 @@ Deno.test("toolName validation rejects falsy values", () => {
 
   for (const name of invalidNames) {
     const isValid = !!name && typeof name === "string";
-    assertEquals(isValid, false, `toolName ${JSON.stringify(name)} should be invalid`);
+    assertEquals(
+      isValid,
+      false,
+      `toolName ${JSON.stringify(name)} should be invalid`,
+    );
   }
 });
 
 Deno.test("toolName validation rejects non-string types", () => {
-  const nonStrings = [123, true, { name: "search_recipes" }, ["search_recipes"]];
+  const nonStrings = [123, true, { name: "search_recipes" }, [
+    "search_recipes",
+  ]];
 
   for (const name of nonStrings) {
     const isValid = !!name && typeof name === "string";
-    assertEquals(isValid, false, `toolName ${JSON.stringify(name)} should be invalid`);
+    assertEquals(
+      isValid,
+      false,
+      `toolName ${JSON.stringify(name)} should be invalid`,
+    );
   }
 });
 
@@ -180,7 +192,11 @@ Deno.test("toolArgs validation rejects null and undefined", () => {
 
   for (const args of invalidArgs) {
     const isInvalid = args === undefined || args === null;
-    assertEquals(isInvalid, true, `toolArgs ${JSON.stringify(args)} should be rejected`);
+    assertEquals(
+      isInvalid,
+      true,
+      `toolArgs ${JSON.stringify(args)} should be rejected`,
+    );
   }
 });
 
@@ -194,6 +210,10 @@ Deno.test("toolArgs accepts object and string values", () => {
 
   for (const args of validArgs) {
     const isInvalid = args === undefined || args === null;
-    assertEquals(isInvalid, false, `toolArgs ${JSON.stringify(args)} should be accepted`);
+    assertEquals(
+      isInvalid,
+      false,
+      `toolArgs ${JSON.stringify(args)} should be accepted`,
+    );
   }
 });

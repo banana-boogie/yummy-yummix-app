@@ -12,7 +12,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { corsHeaders } from "../_shared/cors.ts";
-import { validateAuth, unauthorizedResponse } from "../_shared/auth.ts";
+import { unauthorizedResponse, validateAuth } from "../_shared/auth.ts";
 import { createContextBuilder } from "../_shared/context-builder.ts";
 import { executeTool } from "../_shared/tools/execute-tool.ts";
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
@@ -31,7 +31,14 @@ serve(async (req) => {
   if (req.method !== "POST") {
     return new Response(
       JSON.stringify({ error: "Method not allowed" }),
-      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json", "Allow": "POST, OPTIONS" } },
+      {
+        status: 405,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "Allow": "POST, OPTIONS",
+        },
+      },
     );
   }
 
@@ -53,14 +60,20 @@ serve(async (req) => {
     } catch {
       return new Response(
         JSON.stringify({ error: "Failed to read request body" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     if (new TextEncoder().encode(rawBody).byteLength > MAX_PAYLOAD_BYTES) {
       return new Response(
         JSON.stringify({ error: "Payload too large" }),
-        { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 413,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -78,32 +91,46 @@ serve(async (req) => {
     } catch {
       return new Response(
         JSON.stringify({ error: "Invalid JSON in request body" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     if (!toolName || typeof toolName !== "string") {
       return new Response(
         JSON.stringify({ error: "Missing or invalid toolName" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     if (!ALLOWED_TOOLS.includes(toolName as typeof ALLOWED_TOOLS[number])) {
       return new Response(
         JSON.stringify({ error: `Unknown tool: ${toolName}` }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     if (toolArgs === undefined || toolArgs === null) {
       return new Response(
         JSON.stringify({ error: "Missing toolArgs" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
-    console.log(`[voice-tool-execute] User ${user.id.slice(0, 8)} calling ${toolName}`);
+    console.log(
+      `[voice-tool-execute] User ${user.id.slice(0, 8)} calling ${toolName}`,
+    );
 
     // 3. Build user context
     let supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -112,7 +139,10 @@ serve(async (req) => {
     if (!supabaseUrl || !supabaseAnonKey) {
       return new Response(
         JSON.stringify({ error: "Missing Supabase configuration" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -156,17 +186,26 @@ serve(async (req) => {
     const message = error instanceof Error ? error.message : String(error);
 
     if (error instanceof ToolValidationError) {
-      console.warn(`[voice-tool-execute] Validation error (${elapsed}ms):`, message);
+      console.warn(
+        `[voice-tool-execute] Validation error (${elapsed}ms):`,
+        message,
+      );
       return new Response(
         JSON.stringify({ error: message }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
     console.error(`[voice-tool-execute] Error (${elapsed}ms):`, message);
     return new Response(
       JSON.stringify({ error: "Tool execution failed" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 });

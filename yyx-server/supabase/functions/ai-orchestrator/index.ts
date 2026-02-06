@@ -472,7 +472,10 @@ async function executeToolCalls(
       if (shaped.recipes) {
         recipes = shaped.recipes;
       } else if (shaped.customRecipe) {
-        customRecipeResult = { recipe: shaped.customRecipe, safetyFlags: shaped.safetyFlags } as GenerateRecipeResult;
+        customRecipeResult = {
+          recipe: shaped.customRecipe,
+          safetyFlags: shaped.safetyFlags,
+        } as GenerateRecipeResult;
       }
       toolMessages.push({
         role: "tool",

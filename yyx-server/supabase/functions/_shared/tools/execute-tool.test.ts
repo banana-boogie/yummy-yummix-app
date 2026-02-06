@@ -64,7 +64,8 @@ Deno.test("executeTool - throws ToolValidationError for unknown tool", async () 
   const userContext = createMockUserContext();
 
   const error = await assertRejects(
-    () => executeTool(supabase, "nonexistent_tool", "{}", userContext, "fake-key"),
+    () =>
+      executeTool(supabase, "nonexistent_tool", "{}", userContext, "fake-key"),
     ToolValidationError,
   );
   assertEquals(error.message, "Unknown tool: nonexistent_tool");
@@ -75,7 +76,14 @@ Deno.test("executeTool - throws ToolValidationError for invalid JSON args", asyn
   const userContext = createMockUserContext();
 
   await assertRejects(
-    () => executeTool(supabase, "search_recipes", "not valid json{{{", userContext, "fake-key"),
+    () =>
+      executeTool(
+        supabase,
+        "search_recipes",
+        "not valid json{{{",
+        userContext,
+        "fake-key",
+      ),
     ToolValidationError,
     "Invalid JSON in tool arguments",
   );
@@ -161,7 +169,8 @@ Deno.test("executeTool - search_recipes rejects when no query or filters", async
   const userContext = createMockUserContext();
 
   await assertRejects(
-    () => executeTool(supabase, "search_recipes", "{}", userContext, "fake-key"),
+    () =>
+      executeTool(supabase, "search_recipes", "{}", userContext, "fake-key"),
     ToolValidationError,
     "requires a query or at least one filter",
   );
