@@ -1057,6 +1057,11 @@ function handleStreamingRequest(
       };
 
       try {
+        // Timing instrumentation for performance monitoring
+        const timings: Record<string, number> = {};
+        const startTime = performance.now();
+        let phaseStart = startTime;
+
         if (sessionId) {
           send({ type: "session", sessionId });
         }
@@ -1069,6 +1074,8 @@ function handleStreamingRequest(
           message,
           mode,
         );
+        timings.context_build_ms = Math.round(performance.now() - phaseStart);
+        phaseStart = performance.now();
 
         let recipes: RecipeCard[] | undefined;
         let customRecipeResult: GenerateRecipeResult | undefined;
@@ -1087,6 +1094,9 @@ function handleStreamingRequest(
               lastCustomRecipeMessage.metadata.customRecipe.suggestedName ||
               "previous recipe",
           });
+
+          timings.mod_detection_ms = Math.round(performance.now() - phaseStart);
+          phaseStart = performance.now();
 
           if (modIntent.isModification) {
             console.log(
@@ -1111,6 +1121,8 @@ function handleStreamingRequest(
                 );
 
               customRecipeResult = { recipe: modifiedRecipe, safetyFlags };
+              timings.recipe_gen_ms = Math.round(performance.now() - phaseStart);
+              phaseStart = performance.now();
 
               // Use fixed message for modification
               const finalText = userContext.language === "es"
@@ -1122,6 +1134,8 @@ function handleStreamingRequest(
                 modifiedRecipe,
                 userContext.language,
               );
+              timings.suggestions_ms = Math.round(performance.now() - phaseStart);
+              phaseStart = performance.now();
 
               const response = await finalizeResponse(
                 supabase,
@@ -1134,6 +1148,13 @@ function handleStreamingRequest(
                 customRecipeResult,
                 modificationSuggestions,
               );
+              timings.finalize_ms = Math.round(performance.now() - phaseStart);
+              timings.total_ms = Math.round(performance.now() - startTime);
+
+              console.log("[Timings] Modification flow:", {
+                type: "modification",
+                ...timings,
+              });
 
               // Send content right before completion
               send({ type: "content", content: response.message });
@@ -1152,6 +1173,8 @@ function handleStreamingRequest(
           true,
           false,
         );
+        timings.llm_call_ms = Math.round(performance.now() - phaseStart);
+        phaseStart = performance.now();
         const assistantMessage = firstResponse.choices[0].message;
 
         // DEBUG: Log whether the AI called any tools
@@ -1176,6 +1199,8 @@ function handleStreamingRequest(
             userContext,
             openaiApiKey,
           );
+          timings.tool_exec_ms = Math.round(performance.now() - phaseStart);
+          phaseStart = performance.now();
           recipes = toolResult.recipes;
           customRecipeResult = toolResult.customRecipeResult;
 
@@ -1213,12 +1238,16 @@ function handleStreamingRequest(
             customRecipeResult.recipe,
             userContext.language,
           );
+          timings.suggestions_ms = Math.round(performance.now() - phaseStart);
+          phaseStart = performance.now();
         } else {
           // Normal streaming for non-recipe responses
           finalText = await callAIStream(
             streamMessages,
             (token) => send({ type: "content", content: token }),
           );
+          timings.stream_ms = Math.round(performance.now() - phaseStart);
+          phaseStart = performance.now();
 
           // After streaming, get structured suggestions from AI
           try {
@@ -1239,6 +1268,8 @@ function handleStreamingRequest(
             // If suggestions extraction fails, continue without them
             console.warn("Failed to extract suggestions:", err);
           }
+          timings.suggestions_ms = Math.round(performance.now() - phaseStart);
+          phaseStart = performance.now();
         }
 
         const response = await finalizeResponse(
@@ -1252,6 +1283,8 @@ function handleStreamingRequest(
           customRecipeResult,
           suggestions,
         );
+        timings.finalize_ms = Math.round(performance.now() - phaseStart);
+        timings.total_ms = Math.round(performance.now() - startTime);
 
         // If we have a custom recipe, send the content right before completion
         // so they arrive together and the recipe card renders with the text
@@ -1259,11 +1292,15 @@ function handleStreamingRequest(
           send({ type: "content", content: response.message });
         }
 
-        // Debug logging
-        console.log("[Streaming] Sending done response:", {
-          hasCustomRecipe: !!response.customRecipe,
-          customRecipeName: response.customRecipe?.suggestedName,
-          message: response.message?.substring(0, 50),
+        // Performance timing log
+        const requestType = customRecipeResult?.recipe
+          ? "recipe_gen"
+          : recipes?.length
+            ? "recipe_search"
+            : "chat";
+        console.log("[Timings]", {
+          type: requestType,
+          ...timings,
         });
 
         send({ type: "done", response });
