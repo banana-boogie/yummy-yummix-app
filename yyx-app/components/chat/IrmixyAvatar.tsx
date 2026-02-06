@@ -20,6 +20,7 @@ const AVATAR_IMAGES = {
     thinking: require('@/assets/images/irmixy-avatar/4.png'),
     searching: require('@/assets/images/irmixy-avatar/4.png'),
     generating: require('@/assets/images/irmixy-avatar/4.png'),
+    enriching: require('@/assets/images/irmixy-avatar/4.png'),
     speaking: require('@/assets/images/irmixy-avatar/3.png'),
 };
 
@@ -29,6 +30,7 @@ export type AvatarState =
     | 'thinking'
     | 'searching'
     | 'generating'
+    | 'enriching'
     | 'speaking';
 
 interface Props {
@@ -87,6 +89,7 @@ export function IrmixyAvatar({ state, size = 200 }: Props) {
             case 'thinking':
             case 'searching':
             case 'generating':
+            case 'enriching':
                 animation = Animated.loop(
                     Animated.sequence([
                         Animated.timing(bounceAnim, {
@@ -119,6 +122,24 @@ export function IrmixyAvatar({ state, size = 200 }: Props) {
                     ])
                 );
                 break;
+
+            default:
+                // Fallback to idle animation for unknown states
+                animation = Animated.loop(
+                    Animated.sequence([
+                        Animated.timing(pulseAnim, {
+                            toValue: 1.02,
+                            duration: 2000,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(pulseAnim, {
+                            toValue: 1,
+                            duration: 2000,
+                            useNativeDriver: true,
+                        }),
+                    ])
+                );
+                break;
         }
 
         animation.start();
@@ -128,7 +149,7 @@ export function IrmixyAvatar({ state, size = 200 }: Props) {
         };
     }, [state, pulseAnim, glowAnim, bounceAnim]);
 
-    const avatarImage = AVATAR_IMAGES[state];
+    const avatarImage = AVATAR_IMAGES[state] || AVATAR_IMAGES.idle;
 
     return (
         <View

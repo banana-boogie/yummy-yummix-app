@@ -58,6 +58,7 @@ export interface StreamCallbacks {
     onSessionId?: (sessionId: string) => void;
     onStatus?: (status: IrmixyStatus) => void;
     onStreamComplete?: () => void;  // Called when text streaming finishes (before suggestions)
+    onPartialRecipe?: (recipe: GeneratedRecipe) => void;  // Called with partial recipe before enrichment
     onComplete?: (response: IrmixyResponse) => void;
 }
 
@@ -125,6 +126,12 @@ export function routeSSEMessage(
 
         case 'stream_complete':
             callbacks.onStreamComplete?.();
+            return { action: 'continue' };
+
+        case 'recipe_partial':
+            if (data.recipe) {
+                callbacks.onPartialRecipe?.(data.recipe as GeneratedRecipe);
+            }
             return { action: 'continue' };
 
         case 'done':
@@ -220,6 +227,7 @@ export async function streamChatMessage(
         callbacks.onSessionId,
         callbacks.onStatus,
         callbacks.onStreamComplete, // Always undefined in simplified wrapper
+        callbacks.onPartialRecipe,  // Always undefined in simplified wrapper
         callbacks.onComplete,
     );
     return handle.done;
@@ -236,6 +244,7 @@ export function streamChatMessageWithHandle(
     onSessionId?: (sessionId: string) => void,
     onStatus?: (status: IrmixyStatus) => void,
     onStreamComplete?: () => void,
+    onPartialRecipe?: (recipe: GeneratedRecipe) => void,
     onComplete?: (response: IrmixyResponse) => void,
 ): StreamHandle {
     let finished = false;
@@ -353,6 +362,7 @@ export function streamChatMessageWithHandle(
                                 onSessionId,
                                 onStatus,
                                 onStreamComplete,
+                                onPartialRecipe,
                                 onComplete,
                             });
 

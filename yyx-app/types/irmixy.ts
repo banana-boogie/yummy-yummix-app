@@ -78,4 +78,4 @@ export interface IrmixyResponse {
   safetyFlags?: SafetyFlags;
 }
 
-export type IrmixyStatus = 'thinking' | 'searching' | 'generating' | null;
+export type IrmixyStatus = 'thinking' | 'searching' | 'generating' | 'enriching' | null;

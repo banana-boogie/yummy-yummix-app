@@ -458,6 +458,37 @@ describe('chatService', () => {
       expect(result.error?.message).toBe('Server failed');
     });
 
+    it('routes recipe_partial to onPartialRecipe callback', () => {
+      const callbacks = {
+        onChunk: jest.fn(),
+        onPartialRecipe: jest.fn(),
+        onComplete: jest.fn(),
+      };
+
+      const mockPartialRecipe = {
+        schemaVersion: '1.0',
+        suggestedName: 'Quick Pasta',
+        measurementSystem: 'metric',
+        language: 'en',
+        ingredients: [{ name: 'pasta', quantity: 200, unit: 'g' }],
+        steps: [{ order: 1, instruction: 'Boil water' }],
+        totalTime: 20,
+        difficulty: 'easy',
+        portions: 2,
+        tags: ['quick', 'pasta'],
+      };
+
+      const result = routeSSEMessage({
+        type: 'recipe_partial',
+        recipe: mockPartialRecipe,
+      }, callbacks);
+
+      expect(callbacks.onPartialRecipe).toHaveBeenCalledTimes(1);
+      expect(callbacks.onPartialRecipe).toHaveBeenCalledWith(mockPartialRecipe);
+      expect(callbacks.onComplete).not.toHaveBeenCalled();
+      expect(result.action).toBe('continue');
+    });
+
     it('simple wrapper callback mapping keeps onComplete in final slot', () => {
       const onChunk = jest.fn();
       const onSessionId = jest.fn();
