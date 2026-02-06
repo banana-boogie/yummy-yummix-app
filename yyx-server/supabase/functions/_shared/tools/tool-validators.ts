@@ -53,6 +53,18 @@ export function sanitizeIngredientName(input: string): string {
 }
 
 /**
+ * Sanitize search input used in PostgREST filter expressions.
+ * Keeps only letters, numbers, spaces, and hyphens to avoid
+ * malformed filter syntax and wildcard/operator abuse.
+ */
+export function sanitizeSearchQuery(input: unknown, maxLength: number): string {
+  return sanitizeString(input, maxLength)
+    .replace(/[^\p{L}\p{N}\s\-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
  * Clamp a numeric value within bounds.
  */
 export function clampNumber(input: unknown, min: number, max: number): number {
@@ -216,8 +228,10 @@ export function validateSearchRecipesParams(raw: unknown): SearchRecipesParams {
 
   const p = params as Record<string, unknown>;
 
-  const hasQuery = p.query !== undefined && p.query !== null &&
-    `${p.query}`.trim().length > 0;
+  const sanitizedQuery = p.query !== undefined && p.query !== null
+    ? sanitizeSearchQuery(p.query, 200)
+    : "";
+  const hasQuery = sanitizedQuery.length > 0;
   const hasFilters = p.cuisine !== undefined || p.maxTime !== undefined ||
     p.difficulty !== undefined;
 
@@ -228,9 +242,7 @@ export function validateSearchRecipesParams(raw: unknown): SearchRecipesParams {
   }
 
   return {
-    query: hasQuery
-      ? sanitizeString(p.query, 200).replace(/,/g, " ")
-      : undefined,
+    query: hasQuery ? sanitizedQuery : undefined,
     cuisine: p.cuisine ? sanitizeString(p.cuisine, 50) : undefined,
     maxTime: p.maxTime !== undefined
       ? clampNumber(p.maxTime, 1, 480)

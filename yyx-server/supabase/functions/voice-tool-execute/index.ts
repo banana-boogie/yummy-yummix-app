@@ -17,8 +17,9 @@ import { createContextBuilder } from "../_shared/context-builder.ts";
 import { executeTool } from "../_shared/tools/execute-tool.ts";
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
+import { getAllowedVoiceToolNames } from "../_shared/tools/tool-registry.ts";
 
-const ALLOWED_TOOLS = ["search_recipes", "generate_custom_recipe"] as const;
+const ALLOWED_VOICE_TOOLS = new Set(getAllowedVoiceToolNames());
 const MAX_PAYLOAD_BYTES = 10_000; // 10KB limit
 
 serve(async (req) => {
@@ -108,7 +109,7 @@ serve(async (req) => {
       );
     }
 
-    if (!ALLOWED_TOOLS.includes(toolName as typeof ALLOWED_TOOLS[number])) {
+    if (!ALLOWED_VOICE_TOOLS.has(toolName)) {
       return new Response(
         JSON.stringify({ error: `Unknown tool: ${toolName}` }),
         {

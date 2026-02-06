@@ -299,7 +299,7 @@ export function buildRecipeJsonSchema(
 /**
  * Call AI Gateway to generate the recipe.
  * Uses the 'parsing' usage type for structured JSON output.
- * Retries are handled by the gateway.
+ * Uses one local retry if parsing/validation fails.
  */
 async function callRecipeGenerationAI(
   _apiKey: string, // Deprecated: gateway uses env vars
@@ -308,26 +308,65 @@ async function callRecipeGenerationAI(
   safetyReminders: string,
 ): Promise<GeneratedRecipe> {
   const prompt = buildRecipePrompt(params, userContext, safetyReminders);
+  const hasThermomix = userContext.kitchenEquipment.some((eq) =>
+    eq.toLowerCase().includes("thermomix")
+  );
+  const recipeSchema = buildRecipeJsonSchema(hasThermomix);
+  const systemPrompt = getSystemPrompt(userContext);
 
-  const response = await chat({
-    usageType: "parsing",
-    messages: [
-      { role: "system", content: getSystemPrompt(userContext) },
-      { role: "user", content: prompt },
-    ],
-    temperature: 0.7,
-    maxTokens: 2048,
-  });
+  const strictRetryPromptSuffix =
+    "\n\nCRITICAL: Return ONLY raw JSON. No markdown, no code fences, no explanation text.";
 
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const isRetry = attempt === 1;
+    const response = await chat({
+      usageType: "parsing",
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: isRetry ? prompt + strictRetryPromptSuffix : prompt,
+        },
+      ],
+      temperature: 0.7,
+      maxTokens: 2048,
+      responseFormat: {
+        type: "json_schema",
+        schema: recipeSchema,
+      },
+    });
+
+    try {
+      return parseAndValidateGeneratedRecipe(response.content);
+    } catch (error) {
+      lastError = error instanceof Error
+        ? error
+        : new Error("Recipe parsing failed");
+      if (!isRetry) {
+        console.warn(
+          "[Recipe Generation] First parse/validation attempt failed, retrying once",
+          {
+            error: lastError.message,
+          },
+        );
+      }
+    }
+  }
+
+  throw lastError || new Error("Generated recipe does not match schema");
+}
+
+function parseAndValidateGeneratedRecipe(content: string): GeneratedRecipe {
   // Strip code fences if model wraps response in ```json ... ```
-  let jsonContent = response.content.trim();
+  let jsonContent = content.trim();
   if (jsonContent.startsWith("```")) {
     jsonContent = jsonContent
       .replace(/^```(?:json)?\s*\n?/, "")
       .replace(/\n?```\s*$/, "");
   }
 
-  // Parse and validate the generated recipe
   let parsed: unknown;
   try {
     parsed = JSON.parse(jsonContent);
@@ -535,6 +574,7 @@ function buildRecipePrompt(
 interface AllergenCheckResult {
   safe: boolean;
   warning?: string;
+  systemUnavailable?: boolean;
 }
 
 /**
@@ -570,6 +610,16 @@ async function checkIngredientsForAllergens(
   const unsafeResult = results.find((result) => !result.safe);
 
   if (unsafeResult) {
+    if (unsafeResult.systemUnavailable) {
+      return {
+        safe: false,
+        systemUnavailable: true,
+        warning: language === "es"
+          ? "No pude verificar alergias en este momento. Para tu seguridad, no puedo generar esta receta ahora."
+          : "I couldn't verify allergens right now. For your safety, I can't generate this recipe at the moment.",
+      };
+    }
+
     const warning = await getAllergenWarning(
       supabase,
       unsafeResult.allergen!,

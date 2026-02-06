@@ -139,7 +139,7 @@ export function VoiceChatScreen({
                 }
             }
             if (recipeId) {
-                router.push(`/(tabs)/recipes/${recipeId}?from=chat`);
+                router.push(`/(tabs)/recipes/start-cooking/${recipeId}?from=chat`);
             }
         } catch (err) {
             console.error('[VoiceChatScreen] Start cooking error:', err);

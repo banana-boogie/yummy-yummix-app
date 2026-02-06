@@ -50,7 +50,7 @@ export interface ModificationResult {
   modifications: string;
 }
 
-// Removal patterns — specific patterns first, broad "no X" catch-all last
+// Removal patterns — keep these specific to avoid conversational false positives.
 const REMOVAL_SPECIFIC = [
   // EN specific
   /\b(?:remove|without|skip|omit|drop|leave\s+out|hold\s+the|take\s+out|get\s+rid\s+of)\s+(?:the\s+)?(.+)/i,
@@ -63,8 +63,6 @@ const REMOVAL_SPECIFIC = [
   /\bsoy\s+al[ée]rgic[oa]\s+(?:a\s+las|a\s+los|a\s+la|al|a)\s+(.+)/i,
   /\b(?:quita|quitale|elimina|saca)\s+(?:el|la|los|las)?\s*(.+)/i,
   /\bsin\s+(?:el|la|los|las)?\s*(.+)/i,
-  // Broad EN catch-all — must be last to not shadow ES patterns
-  /^no\s+(.+)/i,
 ];
 
 // Adjustment patterns (EN) — "more/less" only at sentence start to avoid "tell me more about"

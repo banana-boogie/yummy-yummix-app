@@ -7,11 +7,8 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { UserContext } from "../irmixy-schemas.ts";
-import { searchRecipes } from "./search-recipes.ts";
-import {
-  generateCustomRecipe,
-  PartialRecipeCallback,
-} from "./generate-custom-recipe.ts";
+import { PartialRecipeCallback } from "./generate-custom-recipe.ts";
+import { getToolRegistration } from "./tool-registry.ts";
 import { ToolValidationError } from "./tool-validators.ts";
 
 /**
@@ -40,20 +37,15 @@ export async function executeTool(
     throw new ToolValidationError("Invalid JSON in tool arguments");
   }
 
-  switch (name) {
-    case "search_recipes":
-      return await searchRecipes(supabase, parsedArgs, userContext);
-
-    case "generate_custom_recipe":
-      return await generateCustomRecipe(
-        supabase,
-        parsedArgs,
-        userContext,
-        openaiApiKey,
-        onPartialRecipe,
-      );
-
-    default:
-      throw new ToolValidationError(`Unknown tool: ${name}`);
+  const tool = getToolRegistration(name);
+  if (!tool) {
+    throw new ToolValidationError(`Unknown tool: ${name}`);
   }
+
+  return await tool.execute(parsedArgs, {
+    supabase,
+    userContext,
+    openaiApiKey,
+    onPartialRecipe,
+  });
 }

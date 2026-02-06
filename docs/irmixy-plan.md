@@ -319,6 +319,21 @@ Generate a recipe in JSON format matching the GeneratedRecipe schema.
 - `yyx-server/supabase/functions/_shared/tools/generate-custom-recipe.ts`
 - `yyx-server/supabase/functions/_shared/food-safety.ts`
 
+**Tool Extension Workflow (Shopping Cart / Meal Plan / Future AI features):**
+1. Add the new tool to `yyx-server/supabase/functions/_shared/tools/tool-registry.ts` with:
+   - AI definition (`name`, `description`, `parameters`)
+   - `execute(args, context)` implementation
+   - `shapeResult(result)` mapping for UI contracts
+   - `allowedInVoice` flag
+2. Reuse shared execution and shaping paths:
+   - `yyx-server/supabase/functions/_shared/tools/execute-tool.ts`
+   - `yyx-server/supabase/functions/_shared/tools/shape-tool-response.ts`
+3. The orchestrator and voice executor auto-pick up registry tools:
+   - `yyx-server/supabase/functions/ai-orchestrator/index.ts`
+   - `yyx-server/supabase/functions/voice-tool-execute/index.ts`
+4. Add/adjust validation in `yyx-server/supabase/functions/_shared/tools/tool-validators.ts`.
+5. Update client schema/types only if new structured fields are needed in `IrmixyResponse`.
+
 ---
 
 ### 4. Recipe Memory

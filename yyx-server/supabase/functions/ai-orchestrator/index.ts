@@ -25,16 +25,15 @@ import {
   validateSchema,
   ValidationError,
 } from "../_shared/irmixy-schemas.ts";
-import { searchRecipesTool } from "../_shared/tools/search-recipes.ts";
 import {
   generateCustomRecipe,
-  generateCustomRecipeTool,
   GenerateRecipeResult,
   PartialRecipeCallback,
 } from "../_shared/tools/generate-custom-recipe.ts";
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { executeTool } from "../_shared/tools/execute-tool.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
+import { getRegisteredAiTools } from "../_shared/tools/tool-registry.ts";
 import {
   AIMessage,
   AITool,
@@ -457,41 +456,56 @@ async function executeToolCalls(
   let recipes: RecipeCard[] | undefined;
   let customRecipeResult: GenerateRecipeResult | undefined;
 
-  for (const toolCall of toolCalls) {
-    const { name, arguments: args } = toolCall.function;
-    try {
-      const result = await executeTool(
-        supabase,
-        name,
-        args,
-        userContext,
-        openaiApiKey,
-        onPartialRecipe,
-      );
-      const shaped = shapeToolResponse(name, result);
-      if (shaped.recipes) {
-        recipes = shaped.recipes;
-      } else if (shaped.customRecipe) {
-        customRecipeResult = {
-          recipe: shaped.customRecipe,
-          safetyFlags: shaped.safetyFlags,
-        } as GenerateRecipeResult;
+  const results = await Promise.all(
+    toolCalls.map(async (toolCall) => {
+      const { name, arguments: args } = toolCall.function;
+      try {
+        const result = await executeTool(
+          supabase,
+          name,
+          args,
+          userContext,
+          openaiApiKey,
+          onPartialRecipe,
+        );
+
+        return {
+          toolMessage: {
+            role: "tool" as const,
+            content: JSON.stringify(result),
+            tool_call_id: toolCall.id,
+          },
+          shaped: shapeToolResponse(name, result),
+        };
+      } catch (toolError) {
+        console.error(`Tool ${name} error:`, toolError);
+        const errorMsg = toolError instanceof ToolValidationError
+          ? `Invalid parameters: ${toolError.message}`
+          : "Tool execution failed";
+
+        return {
+          toolMessage: {
+            role: "tool" as const,
+            content: JSON.stringify({ error: errorMsg }),
+            tool_call_id: toolCall.id,
+          },
+          shaped: undefined,
+        };
       }
-      toolMessages.push({
-        role: "tool",
-        content: JSON.stringify(result),
-        tool_call_id: toolCall.id,
-      });
-    } catch (toolError) {
-      console.error(`Tool ${name} error:`, toolError);
-      const errorMsg = toolError instanceof ToolValidationError
-        ? `Invalid parameters: ${toolError.message}`
-        : "Tool execution failed";
-      toolMessages.push({
-        role: "tool",
-        content: JSON.stringify({ error: errorMsg }),
-        tool_call_id: toolCall.id,
-      });
+    }),
+  );
+
+  for (const execution of results) {
+    toolMessages.push(execution.toolMessage);
+    if (!execution.shaped) continue;
+
+    if (execution.shaped.recipes) {
+      recipes = execution.shaped.recipes;
+    } else if (execution.shaped.customRecipe) {
+      customRecipeResult = {
+        recipe: execution.shaped.customRecipe,
+        safetyFlags: execution.shaped.safetyFlags,
+      };
     }
   }
 
@@ -678,11 +692,28 @@ function getTemplateSuggestions(
  * Detect if user wants to modify an existing recipe.
  * Uses regex heuristics instead of LLM call (~1.5s → <5ms).
  */
+const CONVERSATIONAL_NEGATION_PATTERNS = [
+  /^no(?:\s+thanks|\s+thank you)?[.!]*$/i,
+  /^no(?:,\s*|\s+)that'?s?\s+fine[.!]*$/i,
+  /^no(?:,\s*|\s+)i'?m\s+good[.!]*$/i,
+  /^no(?:,\s*|\s+)est[aá]\s+bien[.!]*$/i,
+  /^no(?:,\s*|\s+)gracias[.!]*$/i,
+];
+
 function detectModificationIntent(
   message: string,
   conversationContext: { hasRecipe: boolean; lastRecipeName?: string },
 ): { isModification: boolean; modifications: string } {
   if (!conversationContext.hasRecipe) {
+    return { isModification: false, modifications: "" };
+  }
+
+  const normalizedMessage = message.trim();
+  if (
+    CONVERSATIONAL_NEGATION_PATTERNS.some((pattern) =>
+      pattern.test(normalizedMessage)
+    )
+  ) {
     return { isModification: false, modifications: "" };
   }
 
@@ -1331,18 +1362,7 @@ async function callAI(
 
   // Convert tools to AI Gateway format
   const tools: AITool[] | undefined = includeTools
-    ? [
-      {
-        name: searchRecipesTool.function.name,
-        description: searchRecipesTool.function.description,
-        parameters: searchRecipesTool.function.parameters,
-      },
-      {
-        name: generateCustomRecipeTool.function.name,
-        description: generateCustomRecipeTool.function.description,
-        parameters: generateCustomRecipeTool.function.parameters,
-      },
-    ]
+    ? getRegisteredAiTools()
     : undefined;
 
   const response = await chat({

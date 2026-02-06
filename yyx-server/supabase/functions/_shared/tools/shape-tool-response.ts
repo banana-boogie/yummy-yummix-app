@@ -6,30 +6,18 @@
  * duplication and keeps the two paths in sync when new tools are added.
  */
 
-import type { RecipeCard } from "../irmixy-schemas.ts";
-import type { GenerateRecipeResult } from "./generate-custom-recipe.ts";
+import { getToolRegistration, ToolShape } from "./tool-registry.ts";
 
-export interface ShapedToolResponse {
-  recipes?: RecipeCard[];
-  customRecipe?: GenerateRecipeResult["recipe"];
-  safetyFlags?: GenerateRecipeResult["safetyFlags"];
-  result?: unknown;
-}
+export interface ShapedToolResponse extends ToolShape {}
 
 export function shapeToolResponse(
   toolName: string,
   result: unknown,
 ): ShapedToolResponse {
-  if (toolName === "search_recipes" && Array.isArray(result)) {
-    return { recipes: result };
+  const tool = getToolRegistration(toolName);
+  if (!tool) {
+    return { result };
   }
-  if (
-    toolName === "generate_custom_recipe" &&
-    result &&
-    typeof result === "object"
-  ) {
-    const gen = result as GenerateRecipeResult;
-    return { customRecipe: gen.recipe, safetyFlags: gen.safetyFlags };
-  }
-  return { result };
+
+  return tool.shapeResult(result);
 }
