@@ -25,10 +25,7 @@ import {
   validateSchema,
   ValidationError,
 } from "../_shared/irmixy-schemas.ts";
-import {
-  searchRecipes,
-  searchRecipesTool,
-} from "../_shared/tools/search-recipes.ts";
+import { searchRecipesTool } from "../_shared/tools/search-recipes.ts";
 import {
   generateCustomRecipe,
   generateCustomRecipeTool,
@@ -36,6 +33,8 @@ import {
   PartialRecipeCallback,
 } from "../_shared/tools/generate-custom-recipe.ts";
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
+import { executeTool } from "../_shared/tools/execute-tool.ts";
+import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
 import {
   AIMessage,
   AITool,
@@ -466,13 +465,11 @@ async function executeToolCalls(
         openaiApiKey,
         onPartialRecipe,
       );
-      if (name === "search_recipes" && Array.isArray(result)) {
-        recipes = result;
-      } else if (
-        name === "generate_custom_recipe" && result &&
-        typeof result === "object"
-      ) {
-        customRecipeResult = result as GenerateRecipeResult;
+      const shaped = shapeToolResponse(name, result);
+      if (shaped.recipes) {
+        recipes = shaped.recipes;
+      } else if (shaped.customRecipe) {
+        customRecipeResult = { recipe: shaped.customRecipe, safetyFlags: shaped.safetyFlags } as GenerateRecipeResult;
       }
       toolMessages.push({
         role: "tool",
@@ -1448,47 +1445,7 @@ async function callAIStream(
   return fullContent;
 }
 
-// ============================================================
-// Tool Execution
-// ============================================================
-
-/**
- * Execute a single tool call with validation.
- *
- * @param onPartialRecipe - Optional callback for two-phase SSE (recipe generation only).
- */
-async function executeTool(
-  supabase: SupabaseClient,
-  name: string,
-  args: string,
-  userContext: UserContext,
-  openaiApiKey: string,
-  onPartialRecipe?: PartialRecipeCallback,
-): Promise<unknown> {
-  let parsedArgs: unknown;
-  try {
-    parsedArgs = JSON.parse(args);
-  } catch {
-    throw new ToolValidationError("Invalid JSON in tool arguments");
-  }
-
-  switch (name) {
-    case "search_recipes":
-      return await searchRecipes(supabase, parsedArgs, userContext);
-
-    case "generate_custom_recipe":
-      return await generateCustomRecipe(
-        supabase,
-        parsedArgs,
-        userContext,
-        openaiApiKey,
-        onPartialRecipe,
-      );
-
-    default:
-      throw new Error(`Unknown tool: ${name}`);
-  }
-}
+// executeTool is imported from _shared/tools/execute-tool.ts
 
 // ============================================================
 // System Prompt

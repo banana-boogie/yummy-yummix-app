@@ -42,6 +42,7 @@ export const chat = {
     quotaWarning: "Te quedan {{minutes}} minutos este mes.",
     quotaExceeded: "Has usado todos tus minutos de voz este mes.",
     minsRemaining: "{{mins}} mins restantes",
+    executingTool: "Trabajando en ello...",
   },
   suggestions: {
     suggestRecipe: "Sugiéreme una receta",
