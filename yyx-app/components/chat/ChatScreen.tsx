@@ -247,8 +247,8 @@ const ChatMessageItem = memo(function ChatMessageItem({
                 </View>
             )}
 
-            {/* Show skeleton while generating recipe - stays visible until customRecipe is populated */}
-            {!isUser && !item.customRecipe && isLoading && currentStatus === 'generating' && isLastMessage && (
+            {/* Show skeleton while generating/enriching recipe - stays visible until customRecipe is populated */}
+            {!isUser && !item.customRecipe && isLoading && (currentStatus === 'generating' || currentStatus === 'enriching') && isLastMessage && (
                 <View className="mb-sm w-full">
                     <RecipeGeneratingSkeleton statusMessage={statusText} />
                 </View>
@@ -435,6 +435,8 @@ export function ChatScreen({
                 return i18n.t('chat.searching');
             case 'generating':
                 return i18n.t('chat.generating');
+            case 'enriching':
+                return i18n.t('chat.enriching');
             default:
                 return i18n.t('chat.thinking');
         }
@@ -586,6 +588,39 @@ export function ChatScreen({
                     setIsLoading(false);
                     setIsStreaming(false);
                     setCurrentStatus(null);
+                },
+                // onPartialRecipe - show recipe card immediately before enrichment completes
+                (partialRecipe) => {
+                    if (!isActiveRequest()) return;
+
+                    if (__DEV__) {
+                        console.log('[ChatScreen] onPartialRecipe received:', {
+                            recipeName: partialRecipe.suggestedName,
+                            hasIngredients: !!partialRecipe.ingredients?.length,
+                            hasSteps: !!partialRecipe.steps?.length,
+                        });
+                    }
+
+                    // Update message with partial recipe to show card immediately
+                    setMessages(prev => {
+                        const updated = [...prev];
+                        let assistantIdx = assistantIndexRef.current;
+                        if (
+                            assistantIdx === null ||
+                            updated[assistantIdx]?.id !== assistantMessageId
+                        ) {
+                            assistantIdx = updated.findIndex(m => m.id === assistantMessageId);
+                            assistantIndexRef.current = assistantIdx !== -1 ? assistantIdx : null;
+                        }
+
+                        if (assistantIdx !== null && assistantIdx !== -1) {
+                            updated[assistantIdx] = {
+                                ...updated[assistantIdx],
+                                customRecipe: partialRecipe,
+                            };
+                        }
+                        return updated;
+                    });
                 },
                 // onComplete - receive full IrmixyResponse with recipes/suggestions/customRecipe
                 (response) => {

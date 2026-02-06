@@ -23,6 +23,7 @@ export const chat = {
   thinking: "Irmixy is thinking...",
   searching: "Searching for recipes...",
   generating: "Creating something special...",
+  enriching: "Adding finishing touches...",
   voice: {
     greeting: "Hi! I'm Irmixy, your sous chef. What can I help you with?",
     connecting: "Connecting to Irmixy...",
