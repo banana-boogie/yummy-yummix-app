@@ -16,8 +16,9 @@ import {
   loadChatHistory,
   loadChatSessions,
   getLastSessionWithMessages,
+  createSimpleStreamCallbacks,
+  routeSSEMessage,
   sendChatMessage,
-  streamChatMessageWithHandle,
 } from '../chatService';
 import { supabase } from '@/lib/supabase';
 import {
@@ -349,53 +350,6 @@ describe('chatService', () => {
   // routing logic at the handler level instead.
 
   describe('SSE event routing logic', () => {
-    /**
-     * Test the event routing logic that should occur in the SSE handler.
-     * This verifies that:
-     * - 'stream_complete' calls onStreamComplete (not onComplete)
-     * - 'done' calls onComplete (not onStreamComplete)
-     * - Events are correctly routed to their designated callbacks
-     *
-     * This mirrors the switch statement in streamChatMessageWithHandle.
-     */
-    function simulateEventHandler(
-      eventType: string,
-      eventData: any,
-      callbacks: {
-        onChunk: jest.Mock;
-        onSessionId?: jest.Mock;
-        onStatus?: jest.Mock;
-        onStreamComplete?: jest.Mock;
-        onComplete?: jest.Mock;
-      }
-    ) {
-      switch (eventType) {
-        case 'session':
-          if (eventData.sessionId) {
-            callbacks.onSessionId?.(eventData.sessionId);
-          }
-          break;
-        case 'status':
-          if (eventData.status) {
-            callbacks.onStatus?.(eventData.status);
-          }
-          break;
-        case 'content':
-          if (eventData.content) {
-            callbacks.onChunk(eventData.content);
-          }
-          break;
-        case 'stream_complete':
-          callbacks.onStreamComplete?.();
-          break;
-        case 'done':
-          if (eventData.response) {
-            callbacks.onComplete?.(eventData.response);
-          }
-          break;
-      }
-    }
-
     it('routes stream_complete to onStreamComplete callback', () => {
       const callbacks = {
         onChunk: jest.fn(),
@@ -403,10 +357,11 @@ describe('chatService', () => {
         onComplete: jest.fn(),
       };
 
-      simulateEventHandler('stream_complete', {}, callbacks);
+      const result = routeSSEMessage({ type: 'stream_complete' }, callbacks);
 
       expect(callbacks.onStreamComplete).toHaveBeenCalledTimes(1);
       expect(callbacks.onComplete).not.toHaveBeenCalled();
+      expect(result.action).toBe('continue');
     });
 
     it('routes done event to onComplete callback with response', () => {
@@ -422,11 +377,15 @@ describe('chatService', () => {
         suggestions: [],
       };
 
-      simulateEventHandler('done', { response: mockResponse }, callbacks);
+      const result = routeSSEMessage({
+        type: 'done',
+        response: mockResponse,
+      }, callbacks);
 
       expect(callbacks.onComplete).toHaveBeenCalledTimes(1);
       expect(callbacks.onComplete).toHaveBeenCalledWith(mockResponse);
       expect(callbacks.onStreamComplete).not.toHaveBeenCalled();
+      expect(result.action).toBe('resolve');
     });
 
     it('routes content to onChunk callback', () => {
@@ -436,8 +395,8 @@ describe('chatService', () => {
         onComplete: jest.fn(),
       };
 
-      simulateEventHandler('content', { content: 'Hello ' }, callbacks);
-      simulateEventHandler('content', { content: 'world!' }, callbacks);
+      routeSSEMessage({ type: 'content', content: 'Hello ' }, callbacks);
+      routeSSEMessage({ type: 'content', content: 'world!' }, callbacks);
 
       expect(callbacks.onChunk).toHaveBeenCalledTimes(2);
       expect(callbacks.onChunk).toHaveBeenNthCalledWith(1, 'Hello ');
@@ -454,12 +413,13 @@ describe('chatService', () => {
       };
 
       // Simulate typical SSE event sequence
-      simulateEventHandler('session', { sessionId: 'sess-123' }, callbacks);
-      simulateEventHandler('status', { status: 'thinking' }, callbacks);
-      simulateEventHandler('content', { content: 'Hello ' }, callbacks);
-      simulateEventHandler('content', { content: 'world!' }, callbacks);
-      simulateEventHandler('stream_complete', {}, callbacks);
-      simulateEventHandler('done', {
+      routeSSEMessage({ type: 'session', sessionId: 'sess-123' }, callbacks);
+      routeSSEMessage({ type: 'status', status: 'thinking' }, callbacks);
+      routeSSEMessage({ type: 'content', content: 'Hello ' }, callbacks);
+      routeSSEMessage({ type: 'content', content: 'world!' }, callbacks);
+      routeSSEMessage({ type: 'stream_complete' }, callbacks);
+      const doneResult = routeSSEMessage({
+        type: 'done',
         response: { message: 'Hello world!', suggestions: [] }
       }, callbacks);
 
@@ -469,6 +429,7 @@ describe('chatService', () => {
       expect(callbacks.onChunk).toHaveBeenCalledTimes(2);
       expect(callbacks.onStreamComplete).toHaveBeenCalledTimes(1);
       expect(callbacks.onComplete).toHaveBeenCalledTimes(1);
+      expect(doneResult.action).toBe('resolve');
     });
 
     it('does not crash when optional callbacks are undefined', () => {
@@ -479,11 +440,42 @@ describe('chatService', () => {
 
       // Should not throw
       expect(() => {
-        simulateEventHandler('session', { sessionId: 'sess-123' }, callbacks);
-        simulateEventHandler('status', { status: 'thinking' }, callbacks);
-        simulateEventHandler('stream_complete', {}, callbacks);
-        simulateEventHandler('done', { response: { message: 'test' } }, callbacks);
+        routeSSEMessage({ type: 'session', sessionId: 'sess-123' }, callbacks);
+        routeSSEMessage({ type: 'status', status: 'thinking' }, callbacks);
+        routeSSEMessage({ type: 'stream_complete' }, callbacks);
+        routeSSEMessage({ type: 'done', response: { message: 'test' } }, callbacks);
       }).not.toThrow();
+    });
+
+    it('returns reject action for error events', () => {
+      const callbacks = { onChunk: jest.fn() };
+      const result = routeSSEMessage({
+        type: 'error',
+        error: 'Server failed',
+      }, callbacks);
+
+      expect(result.action).toBe('reject');
+      expect(result.error?.message).toBe('Server failed');
+    });
+
+    it('simple wrapper callback mapping keeps onComplete in final slot', () => {
+      const onChunk = jest.fn();
+      const onSessionId = jest.fn();
+      const onStatus = jest.fn();
+      const onComplete = jest.fn();
+
+      const callbacks = createSimpleStreamCallbacks(
+        onChunk,
+        onSessionId,
+        onStatus,
+        onComplete,
+      );
+
+      expect(callbacks.onChunk).toBe(onChunk);
+      expect(callbacks.onSessionId).toBe(onSessionId);
+      expect(callbacks.onStatus).toBe(onStatus);
+      expect(callbacks.onComplete).toBe(onComplete);
+      expect(callbacks.onStreamComplete).toBeUndefined();
     });
   });
 });

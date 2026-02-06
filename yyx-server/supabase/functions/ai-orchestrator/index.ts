@@ -41,6 +41,7 @@ import {
   chat,
   chatStream,
 } from "../_shared/ai-gateway/index.ts";
+import { hasHighRecipeIntent } from "./recipe-intent.ts";
 
 // ============================================================
 // Types
@@ -547,48 +548,6 @@ async function finalizeResponse(
 // ============================================================
 // Intent Classification & Modification Detection
 // ============================================================
-
-/**
- * Detect if user message has high recipe generation intent.
- * Uses bilingual keyword matching (EN/ES) - no LLM call needed.
- * Returns true if we should force tool use to prevent AI from just chatting.
- */
-function hasHighRecipeIntent(message: string): boolean {
-  const lowerMessage = message.toLowerCase();
-
-  // Direct recipe request patterns (EN)
-  const englishPatterns = [
-    /\b(?:make|create|generate|give)\s+(?:me\s+)?(?:a\s+)?recipe/i,
-    /\brecipe\s+(?:for|with|using)\b/i,
-    /\bwhat\s+(?:can|should)\s+i\s+(?:make|cook|prepare)\b/i,
-    /\b(?:quick|fast|easy|simple)\s+(?:\d+[- ]?min(?:ute)?s?\s+)?(?:meal|dish|dinner|lunch|breakfast)/i,
-    /\bcook\s+(?:me\s+)?(?:something|a\s+meal)/i,
-    /\bi\s+(?:want|need)\s+(?:a\s+)?(?:recipe|meal|dish)/i,
-    /\bhelp\s+me\s+(?:make|cook|prepare)/i,
-  ];
-
-  // Direct recipe request patterns (ES)
-  const spanishPatterns = [
-    /\b(?:hazme|haz|crea|genera|dame)\s+(?:una?\s+)?receta/i,
-    /\breceta\s+(?:de|con|para|usando)\b/i,
-    /\bqu[ée]\s+(?:puedo|debo)\s+(?:hacer|cocinar|preparar)\b/i,
-    /\b(?:comida|plato|cena|almuerzo|desayuno)\s+(?:r[áa]pid[oa]|f[áa]cil|simple)/i,
-    /\b(?:r[áa]pid[oa]|f[áa]cil)\s+(?:comida|plato|cena)/i,
-    /\bcocina(?:me)?\s+(?:algo|una?\s+(?:comida|plato))/i,
-    /\bquiero\s+(?:una?\s+)?(?:receta|comida|plato)/i,
-    /\bay[úu]dame\s+a\s+(?:hacer|cocinar|preparar)/i,
-    /\bprep[áa]rame\s+(?:algo|una?\s+(?:receta|comida))/i,
-  ];
-
-  // Check all patterns
-  for (const pattern of [...englishPatterns, ...spanishPatterns]) {
-    if (pattern.test(lowerMessage)) {
-      return true;
-    }
-  }
-
-  return false;
-}
 
 /**
  * Extract equipment mentions from user message.

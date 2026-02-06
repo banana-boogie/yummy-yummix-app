@@ -240,18 +240,24 @@ export async function buildSafetyReminders(
   supabase: SupabaseClient,
   ingredients: string[],
   measurementSystem: "imperial" | "metric",
+  language: "en" | "es" = "en",
 ): Promise<string> {
   const rules = await loadFoodSafetyRules(supabase);
   if (rules.length === 0) return "";
 
   const reminders: string[] = [];
+  const normalizedIngredients = await Promise.all(
+    ingredients.map((ingredient) =>
+      normalizeIngredient(supabase, ingredient, language)
+    ),
+  );
 
-  for (const ingredient of ingredients) {
-    const lowerIngredient = ingredient.toLowerCase();
-
+  for (const normalizedIngredient of normalizedIngredients) {
     for (const rule of rules) {
       // Use word boundary matching to avoid false positives
-      if (ingredientMatchesRule(lowerIngredient, rule.ingredient_canonical)) {
+      if (
+        ingredientMatchesRule(normalizedIngredient, rule.ingredient_canonical)
+      ) {
         const temp = measurementSystem === "imperial"
           ? `${rule.min_temp_f}°F`
           : `${rule.min_temp_c}°C`;

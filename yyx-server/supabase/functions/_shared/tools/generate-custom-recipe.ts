@@ -124,6 +124,7 @@ export async function generateCustomRecipe(
     supabase,
     params.ingredients,
     userContext.measurementSystem,
+    userContext.language,
   );
 
   // Generate the recipe using AI

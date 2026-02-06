@@ -66,6 +66,88 @@ export interface StreamHandle {
     cancel: () => void;
 }
 
+export type SSERouteAction = 'continue' | 'resolve' | 'reject';
+
+export interface SSERouteResult {
+    action: SSERouteAction;
+    error?: Error;
+}
+
+/**
+ * Build callback object for the simplified stream wrapper.
+ * Keeps callback-slot mapping explicit and testable.
+ */
+export function createSimpleStreamCallbacks(
+    onChunk: (content: string) => void,
+    onSessionId?: (sessionId: string) => void,
+    onStatus?: (status: IrmixyStatus) => void,
+    onComplete?: (response: IrmixyResponse) => void,
+): StreamCallbacks {
+    return {
+        onChunk,
+        onSessionId,
+        onStatus,
+        onComplete,
+    };
+}
+
+/**
+ * Route a parsed SSE payload to callbacks and indicate stream lifecycle action.
+ */
+export function routeSSEMessage(
+    payload: unknown,
+    callbacks: StreamCallbacks,
+): SSERouteResult {
+    if (!payload || typeof payload !== 'object') {
+        return { action: 'continue' };
+    }
+
+    const data = payload as Record<string, unknown>;
+
+    switch (data.type) {
+        case 'session':
+            if (typeof data.sessionId === 'string') {
+                callbacks.onSessionId?.(data.sessionId);
+            }
+            return { action: 'continue' };
+
+        case 'status':
+            if (typeof data.status === 'string') {
+                callbacks.onStatus?.(data.status as IrmixyStatus);
+            }
+            return { action: 'continue' };
+
+        case 'content':
+            if (typeof data.content === 'string') {
+                callbacks.onChunk(data.content);
+            }
+            return { action: 'continue' };
+
+        case 'stream_complete':
+            callbacks.onStreamComplete?.();
+            return { action: 'continue' };
+
+        case 'done':
+            if (data.response) {
+                callbacks.onComplete?.(data.response as IrmixyResponse);
+            }
+            return { action: 'resolve' };
+
+        case 'error':
+            return {
+                action: 'reject',
+                error: new Error(
+                    typeof data.error === 'string' && data.error.length > 0
+                        ? data.error
+                        : 'Unknown streaming error'
+                ),
+            };
+
+        default:
+            return { action: 'continue' };
+    }
+}
+
 /**
  * Send a message to the AI orchestrator (non-streaming).
  * Returns the full structured IrmixyResponse.
@@ -124,14 +206,21 @@ export async function streamChatMessage(
     onStatus?: (status: IrmixyStatus) => void,
     onComplete?: (response: IrmixyResponse) => void,
 ): Promise<void> {
-    const handle = streamChatMessageWithHandle(
-        message,
-        sessionId,
+    const callbacks = createSimpleStreamCallbacks(
         onChunk,
         onSessionId,
         onStatus,
-        undefined,   // onStreamComplete - not used by this simplified wrapper
         onComplete,
+    );
+
+    const handle = streamChatMessageWithHandle(
+        message,
+        sessionId,
+        callbacks.onChunk,
+        callbacks.onSessionId,
+        callbacks.onStatus,
+        callbacks.onStreamComplete, // Always undefined in simplified wrapper
+        callbacks.onComplete,
     );
     return handle.done;
 }
@@ -259,48 +348,27 @@ export function streamChatMessageWithHandle(
 
                         try {
                             const json = JSON.parse(event.data);
+                            const routeResult = routeSSEMessage(json, {
+                                onChunk,
+                                onSessionId,
+                                onStatus,
+                                onStreamComplete,
+                                onComplete,
+                            });
 
-                            switch (json.type) {
-                                case 'session':
-                                    if (json.sessionId) {
-                                        onSessionId?.(json.sessionId);
-                                    }
-                                    break;
+                            if (routeResult.action === 'resolve') {
+                                es?.close();
+                                safeResolve();
+                                resolveConnection();
+                                return;
+                            }
 
-                                case 'status':
-                                    if (json.status) {
-                                        onStatus?.(json.status as IrmixyStatus);
-                                    }
-                                    break;
-
-                                case 'content':
-                                    if (json.content) {
-                                        onChunk(json.content);
-                                    }
-                                    break;
-
-                                case 'stream_complete':
-                                    // Text streaming finished, user can start typing
-                                    // (suggestions will arrive with done event)
-                                    onStreamComplete?.();
-                                    break;
-
-                                case 'done':
-                                    if (json.response) {
-                                        onComplete?.(json.response as IrmixyResponse);
-                                    }
-                                    es?.close();
-                                    safeResolve();
-                                    resolveConnection();
-                                    break;
-
-                                case 'error':
-                                    if (__DEV__) console.error('[SSE] Server error:', json.error);
-                                    es?.close();
-                                    const serverError = new Error(json.error || 'Unknown streaming error');
-                                    safeReject(serverError);
-                                    rejectConnection(serverError);
-                                    break;
+                            if (routeResult.action === 'reject') {
+                                if (__DEV__) console.error('[SSE] Server error:', routeResult.error);
+                                es?.close();
+                                const serverError = routeResult.error || new Error('Unknown streaming error');
+                                safeReject(serverError);
+                                rejectConnection(serverError);
                             }
                         } catch (e) {
                             if (__DEV__) console.error('[SSE] Parse error:', e);
