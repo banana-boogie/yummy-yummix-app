@@ -696,17 +696,17 @@ export async function enrichIngredientsWithImages(
     const match = matchMap.get(ingredient.name.toLowerCase());
 
     if (match?.image_url) {
-      const matchType = match.match_score === 1.0 ? "exact" : "fuzzy";
-      const scoreStr = match.match_score?.toFixed(2) || "N/A";
-      console.log(
-        `✓ ${matchType} match: "${ingredient.name}" → "${match.matched_name}" (score: ${scoreStr}) → ${match.image_url}`,
-      );
       return { ...ingredient, imageUrl: match.image_url };
     }
 
-    console.log(`✗ No match for "${ingredient.name}"`);
     return { ...ingredient, imageUrl: undefined };
   });
+
+  // Log summary instead of per-ingredient details
+  const matched = enriched.filter((i) => i.imageUrl).length;
+  console.log(
+    `[Batch lookup] ${matched}/${ingredients.length} ingredients matched with images`,
+  );
 
   return enriched;
 }
