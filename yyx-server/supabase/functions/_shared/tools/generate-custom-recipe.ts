@@ -130,7 +130,10 @@ export async function generateCustomRecipe(
 
   if (!allergenCheck.safe) {
     timings.total_ms = Math.round(performance.now() - totalStart);
-    console.log("[GenerateRecipe Timings] Early exit (allergen):", JSON.stringify(timings));
+    console.log(
+      "[GenerateRecipe Timings] Early exit (allergen):",
+      JSON.stringify(timings),
+    );
     return {
       recipe: createEmptyRecipe(userContext),
       safetyFlags: {
@@ -180,8 +183,17 @@ export async function generateCustomRecipe(
 
   // Run post-recipe enrichment and validation in parallel
   const [enrichedIngredients, usefulItems, safetyCheck] = await Promise.all([
-    enrichIngredientsWithImages(recipe.ingredients, supabase, userContext.language),
-    getRelevantUsefulItems(supabase, recipe, userContext.language, hasThermomix),
+    enrichIngredientsWithImages(
+      recipe.ingredients,
+      supabase,
+      userContext.language,
+    ),
+    getRelevantUsefulItems(
+      supabase,
+      recipe,
+      userContext.language,
+      hasThermomix,
+    ),
     checkRecipeSafety(
       supabase,
       recipe.ingredients,
@@ -243,7 +255,10 @@ async function callRecipeGenerationAI(
   try {
     parsed = JSON.parse(response.content);
   } catch {
-    console.error("Failed to parse recipe JSON:", response.content.slice(0, 500));
+    console.error(
+      "Failed to parse recipe JSON:",
+      response.content.slice(0, 500),
+    );
     throw new Error("Invalid recipe JSON from AI");
   }
 
@@ -637,10 +652,13 @@ export async function enrichIngredientsWithImages(
 
   // Single batch query for all ingredients
   const ingredientNames = ingredients.map((i) => i.name);
-  const { data: matches, error } = await supabase.rpc("batch_find_ingredients", {
-    ingredient_names: ingredientNames,
-    preferred_lang: language,
-  });
+  const { data: matches, error } = await supabase.rpc(
+    "batch_find_ingredients",
+    {
+      ingredient_names: ingredientNames,
+      preferred_lang: language,
+    },
+  );
 
   if (error) {
     console.warn("[Batch lookup] RPC error:", error.message);

@@ -136,4 +136,3 @@ Deno.test("buildSafetyReminders normalizes aliases before matching rules", async
   assertStringIncludes(reminders, "Ground Beef");
   assertStringIncludes(reminders, "160°F");
 });
-

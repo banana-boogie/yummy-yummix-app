@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { loadAllergenGroups, clearAllergenCache } from "../allergen-filter.ts";
+import { clearAllergenCache, loadAllergenGroups } from "../allergen-filter.ts";
 import {
   clearAliasCache,
   normalizeIngredient,
@@ -87,4 +87,3 @@ Deno.test("loadAllergenGroups performs one fetch for concurrent calls", async ()
   assertEquals(second.length, 1);
   assertEquals(third.length, 1);
 });
-

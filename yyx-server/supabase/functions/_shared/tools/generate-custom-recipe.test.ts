@@ -400,7 +400,10 @@ Deno.test("UserContext supports equipment preferences", () => {
 function createMockSupabaseClient(mockData: Record<string, any> = {}) {
   return {
     // rpc is used for batch_find_ingredients call
-    rpc: (funcName: string, args: { ingredient_names: string[]; preferred_lang: string }) => {
+    rpc: (
+      funcName: string,
+      args: { ingredient_names: string[]; preferred_lang: string },
+    ) => {
       if (funcName !== "batch_find_ingredients") {
         return { data: null, error: { message: "Unknown function" } };
       }
@@ -495,10 +498,11 @@ Deno.test("enrichIngredientsWithImages sanitizes SQL special characters", async 
 Deno.test("enrichIngredientsWithImages handles partial failures gracefully", async () => {
   // Test RPC error handling - function should not throw, failed lookups return without imageUrl
   const mockSupabase = {
-    rpc: () => Promise.resolve({
-      data: null,
-      error: { message: "Database error" },
-    }),
+    rpc: () =>
+      Promise.resolve({
+        data: null,
+        error: { message: "Database error" },
+      }),
   } as any;
 
   const ingredients = [

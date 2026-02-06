@@ -249,7 +249,11 @@ Deno.test("hasHighRecipeIntent - with punctuation", () => {
 });
 
 Deno.test("hasHighRecipeIntent - embedded in longer sentence", () => {
-  assert(hasHighRecipeIntent("Hey, can you make me a recipe with the chicken I have in the fridge?"));
+  assert(
+    hasHighRecipeIntent(
+      "Hey, can you make me a recipe with the chicken I have in the fridge?",
+    ),
+  );
 });
 
 Deno.test("hasHighRecipeIntent - mixed EN/ES", () => {

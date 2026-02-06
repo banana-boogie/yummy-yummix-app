@@ -878,7 +878,9 @@ async function processRequest(
   // Detect high recipe intent to force tool use (same logic as streaming path)
   const forceToolUse = hasHighRecipeIntent(message);
   if (forceToolUse) {
-    console.log("[Non-Streaming] High recipe intent detected, forcing tool use");
+    console.log(
+      "[Non-Streaming] High recipe intent detected, forcing tool use",
+    );
   }
 
   const firstResponse = await callAI(
@@ -1080,7 +1082,9 @@ function handleStreamingRequest(
                 );
 
               customRecipeResult = { recipe: modifiedRecipe, safetyFlags };
-              timings.recipe_gen_ms = Math.round(performance.now() - phaseStart);
+              timings.recipe_gen_ms = Math.round(
+                performance.now() - phaseStart,
+              );
               phaseStart = performance.now();
 
               // Use fixed message for modification
@@ -1125,7 +1129,9 @@ function handleStreamingRequest(
         // Detect high recipe intent to force tool use (prevents AI from just chatting)
         const forceToolUse = hasHighRecipeIntent(message);
         if (forceToolUse) {
-          console.log("[Streaming] High recipe intent detected, forcing tool use");
+          console.log(
+            "[Streaming] High recipe intent detected, forcing tool use",
+          );
         }
 
         const firstResponse = await callAI(
@@ -1249,8 +1255,8 @@ function handleStreamingRequest(
         const requestType = customRecipeResult?.recipe
           ? "recipe_gen"
           : recipes?.length
-            ? "recipe_search"
-            : "chat";
+          ? "recipe_search"
+          : "chat";
         console.log("[Timings]", {
           type: requestType,
           ...timings,

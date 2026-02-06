@@ -40,4 +40,3 @@ export function hasHighRecipeIntent(message: string): boolean {
   const lowerMessage = message.toLowerCase();
   return RECIPE_INTENT_PATTERNS.some((pattern) => pattern.test(lowerMessage));
 }
-
