@@ -578,6 +578,15 @@ export function ChatScreen({
                     if (!isActiveRequest()) return;
                     setCurrentStatus(status);
                 },
+                // onStreamComplete - text streaming finished, enable input before suggestions arrive
+                () => {
+                    if (!isActiveRequest()) return;
+                    // Enable input immediately when text streaming completes
+                    // Don't wait for suggestions - they'll update the UI when they arrive
+                    setIsLoading(false);
+                    setIsStreaming(false);
+                    setCurrentStatus(null);
+                },
                 // onComplete - receive full IrmixyResponse with recipes/suggestions/customRecipe
                 (response) => {
                     if (!isActiveRequest()) return;
