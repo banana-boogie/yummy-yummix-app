@@ -36,6 +36,7 @@ import {
 } from "../_shared/tools/generate-custom-recipe.ts";
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { executeTool } from "../_shared/tools/execute-tool.ts";
+import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
 import {
   AIMessage,
   AITool,
@@ -460,13 +461,11 @@ async function executeToolCalls(
         userContext,
         openaiApiKey,
       );
-      if (name === "search_recipes" && Array.isArray(result)) {
-        recipes = result;
-      } else if (
-        name === "generate_custom_recipe" && result &&
-        typeof result === "object"
-      ) {
-        customRecipeResult = result as GenerateRecipeResult;
+      const shaped = shapeToolResponse(name, result);
+      if (shaped.recipes) {
+        recipes = shaped.recipes;
+      } else if (shaped.customRecipe) {
+        customRecipeResult = { recipe: shaped.customRecipe, safetyFlags: shaped.safetyFlags } as GenerateRecipeResult;
       }
       toolMessages.push({
         role: "tool",

@@ -16,8 +16,7 @@ import { validateAuth, unauthorizedResponse } from "../_shared/auth.ts";
 import { createContextBuilder } from "../_shared/context-builder.ts";
 import { executeTool } from "../_shared/tools/execute-tool.ts";
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
-import type { RecipeCard } from "../_shared/irmixy-schemas.ts";
-import type { GenerateRecipeResult } from "../_shared/tools/generate-custom-recipe.ts";
+import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
 
 const ALLOWED_TOOLS = ["search_recipes", "generate_custom_recipe"] as const;
 const MAX_PAYLOAD_BYTES = 10_000; // 10KB limit
@@ -68,10 +67,14 @@ serve(async (req) => {
     // 3. Parse request JSON
     let toolName: string | undefined;
     let toolArgs: unknown;
+    let sessionId: string | undefined;
     try {
       const parsed = JSON.parse(rawBody);
       toolName = parsed.toolName;
       toolArgs = parsed.toolArgs;
+      if (typeof parsed.sessionId === "string" && parsed.sessionId) {
+        sessionId = parsed.sessionId;
+      }
     } catch {
       return new Response(
         JSON.stringify({ error: "Invalid JSON in request body" }),
@@ -123,7 +126,7 @@ serve(async (req) => {
     });
 
     const contextBuilder = createContextBuilder(supabase);
-    const userContext = await contextBuilder.buildContext(user.id);
+    const userContext = await contextBuilder.buildContext(user.id, sessionId);
 
     // 4. Execute the tool
     const openaiApiKey = Deno.env.get("OPENAI_API_KEY") || "";
@@ -143,19 +146,7 @@ serve(async (req) => {
     console.log(`[voice-tool-execute] ${toolName} completed in ${elapsed}ms`);
 
     // 5. Shape response based on tool type
-    let response: Record<string, unknown>;
-
-    if (toolName === "search_recipes") {
-      response = { recipes: result as RecipeCard[] };
-    } else if (toolName === "generate_custom_recipe") {
-      const genResult = result as GenerateRecipeResult;
-      response = {
-        customRecipe: genResult.recipe,
-        safetyFlags: genResult.safetyFlags,
-      };
-    } else {
-      response = { result };
-    }
+    const response = shapeToolResponse(toolName, result);
 
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Alert, FlatList, ActivityIndicator } from 'react-native';
+import { View, Alert, FlatList, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Text } from '@/components/common/Text';
@@ -56,6 +56,7 @@ export function VoiceChatScreen({
         startConversation,
         stopConversation
     } = useVoiceChat({
+        sessionId: initialSessionId,
         initialTranscriptMessages: externalMessages,
         onTranscriptChange,
         onQuotaWarning: (info: QuotaInfo) => {
@@ -277,6 +278,11 @@ export function VoiceChatScreen({
                         renderItem={renderMessageItem}
                         contentContainerStyle={{ paddingVertical: 8 }}
                         showsVerticalScrollIndicator={false}
+                        removeClippedSubviews={Platform.OS !== 'web'}
+                        maxToRenderPerBatch={3}
+                        updateCellsBatchingPeriod={50}
+                        windowSize={5}
+                        initialNumToRender={8}
                         onContentSizeChange={() => {
                             flatListRef.current?.scrollToEnd({ animated: true });
                         }}

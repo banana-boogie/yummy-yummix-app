@@ -24,6 +24,8 @@ import type { ChatMessage } from '@/services/chatService';
 interface UseVoiceChatOptions {
     recipeContext?: RecipeContext;
     onQuotaWarning?: (quota: QuotaInfo) => void;
+    /** Chat session ID — enables conversation history for context-aware tool calls */
+    sessionId?: string | null;
     /** External transcript messages (for mode-switch persistence) */
     initialTranscriptMessages?: ChatMessage[];
     onTranscriptChange?: (messages: ChatMessage[]) => void;
@@ -58,6 +60,14 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     // Ref to hold the streaming assistant message ID for updates
     const streamingMsgIdRef = useRef<string | null>(null);
 
+    // Delta batching — coalesce rapid assistantTranscriptDelta events
+    const DELTA_BATCH_MS = 80;
+    const deltaBufferRef = useRef('');
+    const deltaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Listener tracking for proper cleanup via .off()
+    const listenersRef = useRef<Array<{ event: string; callback: (...args: any[]) => void }>>([]);
+
     const { userProfile } = useUserProfile();
     const { language } = useLanguage();
     const { measurementSystem } = useMeasurement();
@@ -87,6 +97,16 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     useEffect(() => {
         // Cleanup on unmount
         return () => {
+            // Clear any pending delta batch
+            if (deltaTimerRef.current) {
+                clearTimeout(deltaTimerRef.current);
+                deltaTimerRef.current = null;
+            }
+            // Remove all tracked event listeners
+            for (const { event, callback } of listenersRef.current) {
+                providerRef.current?.off(event as any, callback);
+            }
+            listenersRef.current = [];
             providerRef.current?.destroy();
         };
     }, []);
@@ -148,17 +168,24 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             // 2. Create OpenAI Realtime provider instance
             providerRef.current = VoiceProviderFactory.create('openai-realtime');
 
+            // Helper: register listener and track for cleanup
+            listenersRef.current = [];
+            const addListener = (event: string, callback: (...args: any[]) => void) => {
+                providerRef.current!.on(event as any, callback);
+                listenersRef.current.push({ event, callback });
+            };
+
             // Set up event listeners
-            providerRef.current.on('statusChange', setStatus);
-            providerRef.current.on('transcript', setTranscript);
-            providerRef.current.on('response', (res: any) => {
+            addListener('statusChange', setStatus);
+            addListener('transcript', setTranscript);
+            addListener('response', (res: any) => {
                 const text = res.text || res.transcript || '';
                 setResponse(text);
             });
-            providerRef.current.on('error', (err: any) => setError(err.message));
+            addListener('error', (err: any) => setError(err.message));
 
             // Transcript events for live transcript
-            providerRef.current.on('userTranscriptComplete', (text: string) => {
+            addListener('userTranscriptComplete', (text: string) => {
                 if (!text.trim()) return;
                 appendMessage({
                     id: generateMsgId(),
@@ -168,24 +195,44 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                 });
             });
 
-            providerRef.current.on('assistantTranscriptDelta', (delta: string) => {
+            addListener('assistantTranscriptDelta', (delta: string) => {
                 assistantTextRef.current += delta;
+                deltaBufferRef.current += delta;
+
+                // Create the streaming message on first delta (immediate, no batching)
                 if (!streamingMsgIdRef.current) {
-                    // Create a new streaming assistant message
                     const id = generateMsgId();
                     streamingMsgIdRef.current = id;
+                    deltaBufferRef.current = '';
                     appendMessage({
                         id,
                         role: 'assistant',
                         content: assistantTextRef.current,
                         createdAt: new Date(),
                     });
-                } else {
-                    updateStreamingMessage(streamingMsgIdRef.current, assistantTextRef.current);
+                    return;
+                }
+
+                // Batch subsequent deltas to avoid per-character re-renders
+                if (!deltaTimerRef.current) {
+                    deltaTimerRef.current = setTimeout(() => {
+                        deltaTimerRef.current = null;
+                        if (streamingMsgIdRef.current) {
+                            deltaBufferRef.current = '';
+                            updateStreamingMessage(streamingMsgIdRef.current, assistantTextRef.current);
+                        }
+                    }, DELTA_BATCH_MS);
                 }
             });
 
-            providerRef.current.on('assistantTranscriptComplete', (fullText: string) => {
+            addListener('assistantTranscriptComplete', (fullText: string) => {
+                // Flush any pending delta batch
+                if (deltaTimerRef.current) {
+                    clearTimeout(deltaTimerRef.current);
+                    deltaTimerRef.current = null;
+                }
+                deltaBufferRef.current = '';
+
                 if (streamingMsgIdRef.current) {
                     finalizeAssistantMessage(streamingMsgIdRef.current, fullText);
                 } else if (fullText.trim()) {
@@ -205,13 +252,14 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             });
 
             // Tool call handler
-            providerRef.current.on('toolCall', async (toolCall: VoiceToolCall) => {
+            addListener('toolCall', async (toolCall: VoiceToolCall) => {
                 setIsExecutingTool(true);
                 try {
                     const result = await executeToolOnBackend(
                         session.access_token,
                         toolCall.name,
                         toolCall.arguments,
+                        options?.sessionId ?? undefined,
                     );
 
                     // Store recipe data for the next assistant message
@@ -319,6 +367,7 @@ async function executeToolOnBackend(
     accessToken: string,
     toolName: string,
     toolArgs: Record<string, unknown>,
+    sessionId?: string,
 ): Promise<Record<string, unknown>> {
     const response = await fetch(
         `${process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL}/voice-tool-execute`,
@@ -328,7 +377,7 @@ async function executeToolOnBackend(
                 Authorization: `Bearer ${accessToken}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ toolName, toolArgs }),
+            body: JSON.stringify({ toolName, toolArgs, sessionId }),
         },
     );
 
