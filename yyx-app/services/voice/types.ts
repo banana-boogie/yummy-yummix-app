@@ -2,7 +2,21 @@
 export type VoiceStatus = 'idle' | 'connecting' | 'listening' | 'processing' | 'speaking' | 'error';
 
 // Voice events
-export type VoiceEvent = 'statusChange' | 'transcript' | 'response' | 'error' | 'quotaWarning';
+export type VoiceEvent =
+    | 'statusChange' | 'transcript' | 'response' | 'error' | 'quotaWarning'
+    // Refined transcript events for live transcript UI
+    | 'userTranscriptComplete'       // Full user speech text after transcription
+    | 'assistantTranscriptDelta'     // Streaming assistant text chunk
+    | 'assistantTranscriptComplete'  // Full assistant response text
+    // Tool call events
+    | 'toolCall';                    // OpenAI wants to call a tool
+
+// Tool call from OpenAI Realtime
+export interface VoiceToolCall {
+    callId: string;
+    name: string;
+    arguments: Record<string, unknown>;
+}
 
 // User context
 export interface UserContext {
@@ -57,6 +71,9 @@ export interface VoiceAssistantProvider {
 
     // Update context mid-conversation
     setContext(userContext: UserContext, recipeContext?: RecipeContext): void;
+
+    // Send tool result back to OpenAI Realtime (for function calling)
+    sendToolResult(callId: string, output: string): void;
 
     // Event handling
     on(event: VoiceEvent, callback: (...args: any[]) => void): void;

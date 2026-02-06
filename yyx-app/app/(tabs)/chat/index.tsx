@@ -3,6 +3,7 @@
  *
  * Users can switch between text chat and voice conversation.
  * Messages state is lifted here to preserve recipes when switching modes.
+ * Voice transcript messages are also lifted for mode-switch persistence.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -23,6 +24,8 @@ export default function ChatPage() {
     const [sessionId, setSessionId] = useState<string | null>(null);
     // Lift messages state to preserve recipes when switching modes
     const [messages, setMessages] = useState<ChatMessage[]>([]);
+    // Lift voice transcript messages for mode-switch persistence
+    const [voiceTranscriptMessages, setVoiceTranscriptMessages] = useState<ChatMessage[]>([]);
 
     const toggleMode = () => {
         setMode(m => m === 'text' ? 'voice' : 'text');
@@ -38,6 +41,7 @@ export default function ChatPage() {
     const handleNewChat = useCallback(() => {
         setSessionId(null);
         setMessages([]);
+        setVoiceTranscriptMessages([]);
     }, []);
 
     return (
@@ -72,6 +76,8 @@ export default function ChatPage() {
                 <VoiceChatScreen
                     sessionId={sessionId}
                     onSessionCreated={setSessionId}
+                    transcriptMessages={voiceTranscriptMessages}
+                    onTranscriptChange={setVoiceTranscriptMessages}
                 />
             ) : (
                 <ChatScreen

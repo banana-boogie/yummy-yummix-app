@@ -35,6 +35,7 @@ import {
   GenerateRecipeResult,
 } from "../_shared/tools/generate-custom-recipe.ts";
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
+import { executeTool } from "../_shared/tools/execute-tool.ts";
 import {
   AIMessage,
   AITool,
@@ -1574,43 +1575,7 @@ async function callAIStream(
   return fullContent;
 }
 
-// ============================================================
-// Tool Execution
-// ============================================================
-
-/**
- * Execute a single tool call with validation.
- */
-async function executeTool(
-  supabase: SupabaseClient,
-  name: string,
-  args: string,
-  userContext: UserContext,
-  openaiApiKey: string,
-): Promise<unknown> {
-  let parsedArgs: unknown;
-  try {
-    parsedArgs = JSON.parse(args);
-  } catch {
-    throw new ToolValidationError("Invalid JSON in tool arguments");
-  }
-
-  switch (name) {
-    case "search_recipes":
-      return await searchRecipes(supabase, parsedArgs, userContext);
-
-    case "generate_custom_recipe":
-      return await generateCustomRecipe(
-        supabase,
-        parsedArgs,
-        userContext,
-        openaiApiKey,
-      );
-
-    default:
-      throw new Error(`Unknown tool: ${name}`);
-  }
-}
+// executeTool is imported from _shared/tools/execute-tool.ts
 
 // ============================================================
 // System Prompt

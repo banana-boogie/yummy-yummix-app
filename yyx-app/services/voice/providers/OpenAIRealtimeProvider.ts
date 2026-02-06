@@ -8,10 +8,12 @@ import { supabase } from "@/lib/supabase";
 import { Platform } from "react-native";
 import InCallManager from "react-native-incall-manager";
 import { buildSystemPrompt, detectGoodbye, InactivityTimer } from "../shared/VoiceUtils";
+import { voiceTools } from "../shared/VoiceToolDefinitions";
 import type {
   VoiceAssistantProvider,
   VoiceStatus,
   VoiceEvent,
+  VoiceToolCall,
   ProviderConfig,
   ConversationContext,
   UserContext,
@@ -31,6 +33,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private currentContext: ConversationContext | null = null;
   private dataChannelReady: boolean = false;
   private pendingEvents: any[] = [];
+  // Function call tracking (for tool calls from OpenAI)
+  private currentToolCallId: string | null = null;
+  private currentToolCallName: string | null = null;
+  private currentToolCallArgs: string = "";
   // Token tracking for cost calculation (separated by type for accurate pricing)
   private sessionInputTokens: number = 0;
   private sessionOutputTokens: number = 0;
@@ -212,6 +218,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
           prefix_padding_ms: 300,
           silence_duration_ms: 800,
         },
+        tools: voiceTools,
       },
     });
 
@@ -256,6 +263,11 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     // Stop audio routing
     InCallManager.stop();
 
+    // Reset tool call tracking
+    this.currentToolCallId = null;
+    this.currentToolCallName = null;
+    this.currentToolCallArgs = "";
+
     // Reset token counters for next session
     this.sessionInputTokens = 0;
     this.sessionOutputTokens = 0;
@@ -285,6 +297,20 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         session: { instructions: systemPrompt },
       });
     }
+  }
+
+  sendToolResult(callId: string, output: string): void {
+    // Send the function call output back to OpenAI
+    this.sendEvent({
+      type: "conversation.item.create",
+      item: {
+        type: "function_call_output",
+        call_id: callId,
+        output,
+      },
+    });
+    // Trigger OpenAI to continue (generate spoken response about the tool result)
+    this.sendEvent({ type: "response.create" });
   }
 
   on(event: VoiceEvent, callback: Function): void {
@@ -407,6 +433,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       case "conversation.item.input_audio_transcription.completed":
         // User's speech transcribed
         this.emit("transcript", message.transcript);
+        this.emit("userTranscriptComplete", message.transcript);
 
         // Check if user said goodbye
         if (detectGoodbye(message.transcript)) {
@@ -423,14 +450,50 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         break;
 
       case "response.output_item.added":
+        // Track function calls when they start
+        if (message.item?.type === "function_call") {
+          this.currentToolCallId = message.item.call_id;
+          this.currentToolCallName = message.item.name;
+          this.currentToolCallArgs = "";
+        }
+        break;
+
       case "response.content_part.added":
+        break;
+
+      case "response.function_call_arguments.delta":
+        // Accumulate function call arguments as they stream in
+        if (message.delta) {
+          this.currentToolCallArgs += message.delta;
+        }
+        break;
+
+      case "response.function_call_arguments.done":
+        // Function call arguments complete — parse and emit
+        if (this.currentToolCallId && this.currentToolCallName) {
+          try {
+            const args = JSON.parse(this.currentToolCallArgs || "{}");
+            const toolCall: VoiceToolCall = {
+              callId: this.currentToolCallId,
+              name: this.currentToolCallName,
+              arguments: args,
+            };
+            this.emit("toolCall", toolCall);
+          } catch (e) {
+            console.error("[OpenAI] Failed to parse tool call args:", e);
+          }
+          // Reset tracking
+          this.currentToolCallId = null;
+          this.currentToolCallName = null;
+          this.currentToolCallArgs = "";
+        }
         break;
 
       case "response.audio_transcript.delta":
         // Streaming transcript of assistant's response
-        const delta = message.delta;
-        if (delta) {
-          this.emit("transcript", delta); // Can show what AI is saying
+        if (message.delta) {
+          this.emit("transcript", message.delta);
+          this.emit("assistantTranscriptDelta", message.delta);
         }
         break;
 
@@ -441,9 +504,9 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       case "response.audio_transcript.done":
         // Complete transcript of what AI said
-        const fullTranscript = message.transcript;
-        if (fullTranscript) {
-          this.emit("response", { text: fullTranscript });
+        if (message.transcript) {
+          this.emit("response", { text: message.transcript });
+          this.emit("assistantTranscriptComplete", message.transcript);
         }
         break;
 
