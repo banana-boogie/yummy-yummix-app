@@ -549,6 +549,48 @@ async function finalizeResponse(
 // ============================================================
 
 /**
+ * Detect if user message has high recipe generation intent.
+ * Uses bilingual keyword matching (EN/ES) - no LLM call needed.
+ * Returns true if we should force tool use to prevent AI from just chatting.
+ */
+function hasHighRecipeIntent(message: string): boolean {
+  const lowerMessage = message.toLowerCase();
+
+  // Direct recipe request patterns (EN)
+  const englishPatterns = [
+    /\b(?:make|create|generate|give)\s+(?:me\s+)?(?:a\s+)?recipe/i,
+    /\brecipe\s+(?:for|with|using)\b/i,
+    /\bwhat\s+(?:can|should)\s+i\s+(?:make|cook|prepare)\b/i,
+    /\b(?:quick|fast|easy|simple)\s+(?:\d+[- ]?min(?:ute)?s?\s+)?(?:meal|dish|dinner|lunch|breakfast)/i,
+    /\bcook\s+(?:me\s+)?(?:something|a\s+meal)/i,
+    /\bi\s+(?:want|need)\s+(?:a\s+)?(?:recipe|meal|dish)/i,
+    /\bhelp\s+me\s+(?:make|cook|prepare)/i,
+  ];
+
+  // Direct recipe request patterns (ES)
+  const spanishPatterns = [
+    /\b(?:hazme|haz|crea|genera|dame)\s+(?:una?\s+)?receta/i,
+    /\breceta\s+(?:de|con|para|usando)\b/i,
+    /\bqu[ée]\s+(?:puedo|debo)\s+(?:hacer|cocinar|preparar)\b/i,
+    /\b(?:comida|plato|cena|almuerzo|desayuno)\s+(?:r[áa]pid[oa]|f[áa]cil|simple)/i,
+    /\b(?:r[áa]pid[oa]|f[áa]cil)\s+(?:comida|plato|cena)/i,
+    /\bcocina(?:me)?\s+(?:algo|una?\s+(?:comida|plato))/i,
+    /\bquiero\s+(?:una?\s+)?(?:receta|comida|plato)/i,
+    /\bay[úu]dame\s+a\s+(?:hacer|cocinar|preparar)/i,
+    /\bprep[áa]rame\s+(?:algo|una?\s+(?:receta|comida))/i,
+  ];
+
+  // Check all patterns
+  for (const pattern of [...englishPatterns, ...spanishPatterns]) {
+    if (pattern.test(lowerMessage)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Extract equipment mentions from user message.
  * Returns list of equipment items to prioritize for this recipe.
  */
@@ -1168,10 +1210,17 @@ function handleStreamingRequest(
           }
         }
 
+        // Detect high recipe intent to force tool use (prevents AI from just chatting)
+        const forceToolUse = hasHighRecipeIntent(message);
+        if (forceToolUse) {
+          console.log("[Streaming] High recipe intent detected, forcing tool use");
+        }
+
         const firstResponse = await callAI(
           messages,
           true,
           false,
+          forceToolUse ? "required" : "auto",
         );
         timings.llm_call_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
@@ -1182,66 +1231,8 @@ function handleStreamingRequest(
           hasToolCalls: !!assistantMessage.tool_calls?.length,
           toolNames: assistantMessage.tool_calls?.map((tc) => tc.function.name),
           contentPreview: assistantMessage.content?.substring(0, 100),
+          forcedToolUse: forceToolUse,
         });
-
-        // Safety check: If AI promises to generate but didn't call tool, force it
-        const promisedButDidntCall = !assistantMessage.tool_calls?.length &&
-          assistantMessage.content &&
-          /(?:i'll|let me|going to|will)\s+(?:generate|create|make|whip up).*recipe/i.test(
-            assistantMessage.content,
-          );
-
-        if (promisedButDidntCall) {
-          console.log(
-            "[Streaming] AI promised recipe but didn't call tool - forcing generation",
-          );
-          send({ type: "status", status: "generating" });
-
-          // Extract any ingredients/context from the message and user request
-          const recipeRequest = {
-            ingredients: [] as string[],
-            additionalRequests: message,
-          };
-
-          try {
-            const { recipe, safetyFlags } = await generateCustomRecipe(
-              supabase,
-              recipeRequest,
-              userContext,
-              openaiApiKey,
-            );
-            customRecipeResult = { recipe, safetyFlags };
-
-            const finalText = userContext.language === "es"
-              ? "¡Listo! ¿Quieres cambiar algo?"
-              : "Ready! Want to change anything?";
-
-            const suggestions = await generateRecipeSuggestions(
-              recipe,
-              userContext.language,
-            );
-
-            const response = await finalizeResponse(
-              supabase,
-              sessionId,
-              userId,
-              message,
-              finalText,
-              userContext,
-              undefined,
-              customRecipeResult,
-              suggestions,
-            );
-
-            send({ type: "content", content: response.message });
-            send({ type: "done", response });
-            controller.close();
-            return;
-          } catch (error) {
-            console.error("[Streaming] Forced generation failed:", error);
-            // Fall through to normal streaming of the original response
-          }
-        }
 
         if (
           assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0
@@ -1447,11 +1438,13 @@ const STRUCTURED_RESPONSE_SCHEMA = {
 /**
  * Call AI via the AI Gateway.
  * Supports tools and optional JSON schema for structured output.
+ * @param toolChoice - "auto" (default), "required" (force tool use), or "none"
  */
 async function callAI(
   messages: OpenAIMessage[],
   includeTools: boolean = true,
   useStructuredOutput: boolean = false,
+  toolChoice?: "auto" | "required" | "none",
 ): Promise<{ choices: Array<{ message: OpenAIMessage }> }> {
   // Convert OpenAIMessage format to AIMessage format
   const aiMessages: AIMessage[] = messages
@@ -1482,6 +1475,7 @@ async function callAI(
     messages: aiMessages,
     temperature: 0.7,
     tools,
+    toolChoice: includeTools ? toolChoice : undefined,
     responseFormat: useStructuredOutput
       ? {
         type: "json_schema",
