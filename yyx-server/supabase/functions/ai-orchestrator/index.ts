@@ -1262,6 +1262,14 @@ function handleStreamingRequest(
           ...timings,
         });
 
+        // Debug: log what we're about to send
+        console.log("[SSE] Sending done event:", {
+          hasMessage: !!response.message,
+          hasCustomRecipe: !!response.customRecipe,
+          customRecipeName: response.customRecipe?.suggestedName,
+          responseSize: JSON.stringify(response).length,
+        });
+
         send({ type: "done", response });
         controller.close();
       } catch (error) {
