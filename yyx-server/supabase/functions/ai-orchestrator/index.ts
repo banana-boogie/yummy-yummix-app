@@ -1184,6 +1184,65 @@ function handleStreamingRequest(
           contentPreview: assistantMessage.content?.substring(0, 100),
         });
 
+        // Safety check: If AI promises to generate but didn't call tool, force it
+        const promisedButDidntCall = !assistantMessage.tool_calls?.length &&
+          assistantMessage.content &&
+          /(?:i'll|let me|going to|will)\s+(?:generate|create|make|whip up).*recipe/i.test(
+            assistantMessage.content,
+          );
+
+        if (promisedButDidntCall) {
+          console.log(
+            "[Streaming] AI promised recipe but didn't call tool - forcing generation",
+          );
+          send({ type: "status", status: "generating" });
+
+          // Extract any ingredients/context from the message and user request
+          const recipeRequest = {
+            ingredients: [] as string[],
+            additionalRequests: message,
+          };
+
+          try {
+            const { recipe, safetyFlags } = await generateCustomRecipe(
+              supabase,
+              recipeRequest,
+              userContext,
+              openaiApiKey,
+            );
+            customRecipeResult = { recipe, safetyFlags };
+
+            const finalText = userContext.language === "es"
+              ? "¡Listo! ¿Quieres cambiar algo?"
+              : "Ready! Want to change anything?";
+
+            const suggestions = await generateRecipeSuggestions(
+              recipe,
+              userContext.language,
+            );
+
+            const response = await finalizeResponse(
+              supabase,
+              sessionId,
+              userId,
+              message,
+              finalText,
+              userContext,
+              undefined,
+              customRecipeResult,
+              suggestions,
+            );
+
+            send({ type: "content", content: response.message });
+            send({ type: "done", response });
+            controller.close();
+            return;
+          } catch (error) {
+            console.error("[Streaming] Forced generation failed:", error);
+            // Fall through to normal streaming of the original response
+          }
+        }
+
         if (
           assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0
         ) {
@@ -1248,6 +1307,10 @@ function handleStreamingRequest(
           );
           timings.stream_ms = Math.round(performance.now() - phaseStart);
           phaseStart = performance.now();
+
+          // Signal that streaming is complete - frontend can enable input now
+          // (suggestions will arrive with the done event shortly after)
+          send({ type: "stream_complete" });
 
           // After streaming, get structured suggestions from AI
           try {

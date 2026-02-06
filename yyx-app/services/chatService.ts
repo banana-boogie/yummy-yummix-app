@@ -57,6 +57,7 @@ export interface StreamCallbacks {
     onChunk: (content: string) => void;
     onSessionId?: (sessionId: string) => void;
     onStatus?: (status: IrmixyStatus) => void;
+    onStreamComplete?: () => void;  // Called when text streaming finishes (before suggestions)
     onComplete?: (response: IrmixyResponse) => void;
 }
 
@@ -144,6 +145,7 @@ export function streamChatMessageWithHandle(
     onChunk: (content: string) => void,
     onSessionId?: (sessionId: string) => void,
     onStatus?: (status: IrmixyStatus) => void,
+    onStreamComplete?: () => void,
     onComplete?: (response: IrmixyResponse) => void,
 ): StreamHandle {
     let finished = false;
@@ -274,6 +276,12 @@ export function streamChatMessageWithHandle(
                                     if (json.content) {
                                         onChunk(json.content);
                                     }
+                                    break;
+
+                                case 'stream_complete':
+                                    // Text streaming finished, user can start typing
+                                    // (suggestions will arrive with done event)
+                                    onStreamComplete?.();
                                     break;
 
                                 case 'done':
