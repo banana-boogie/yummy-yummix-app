@@ -37,6 +37,7 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
     const [isEditing, setIsEditing] = useState(false);
     const [showAllIngredients, setShowAllIngredients] = useState(false);
     const [showAllSteps, setShowAllSteps] = useState(false);
+    const [isStartingCooking, setIsStartingCooking] = useState(false);
 
     const handleStartCooking = useCallback(() => {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -45,6 +46,9 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
         if (__DEV__) {
             console.log('[CustomRecipeCard] Start cooking - recipe name:', recipeName, 'savedRecipeId:', savedRecipeId);
         }
+
+        // Show loading state immediately
+        setIsStartingCooking(true);
 
         // Fire and forget - the redirect screen handles the loading state
         void onStartCooking(recipe, recipeName, messageId, savedRecipeId);
@@ -380,11 +384,12 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                 <Button
                     variant="primary"
                     onPress={handleStartCooking}
-                    disabled={loading}
+                    disabled={loading || isStartingCooking}
+                    loading={isStartingCooking}
                     className="w-full"
                     accessibilityRole="button"
                     accessibilityLabel={`${i18n.t('chat.startCooking')} ${recipeName}`}
-                    accessibilityState={{ disabled: loading }}
+                    accessibilityState={{ disabled: loading || isStartingCooking, busy: isStartingCooking }}
                 >
                     <View className="flex-row items-center justify-center">
                         <MaterialCommunityIcons name="chef-hat" size={20} color="white" accessibilityElementsHidden={true} />

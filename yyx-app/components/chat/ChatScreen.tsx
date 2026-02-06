@@ -416,10 +416,7 @@ export function ChatScreen({
     // Get initial suggestions from i18n - recompute when language changes
     const initialSuggestions = useMemo(() => [
         { label: i18n.t('chat.suggestions.suggestRecipe'), message: i18n.t('chat.suggestions.suggestRecipe') },
-        { label: i18n.t('chat.suggestions.whatCanICook'), message: i18n.t('chat.suggestions.whatCanICook') },
         { label: i18n.t('chat.suggestions.quickMeal'), message: i18n.t('chat.suggestions.quickMeal') },
-        { label: i18n.t('chat.suggestions.ingredientsIHave'), message: i18n.t('chat.suggestions.ingredientsIHave') },
-        { label: i18n.t('chat.suggestions.healthyOptions'), message: i18n.t('chat.suggestions.healthyOptions') },
     ], [language]);
 
     // Use dynamic suggestions if available, otherwise fallback to initial
