@@ -99,6 +99,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       this.dc.onerror = (err) => {
         console.error("[OpenAI] Data channel ERROR:", err);
+        this.pendingToolCalls.clear();
         this.emit("error", new Error("Data channel error"));
       };
 

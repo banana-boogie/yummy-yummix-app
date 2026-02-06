@@ -8,10 +8,7 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { UserContext } from "../irmixy-schemas.ts";
 import { searchRecipes } from "./search-recipes.ts";
-import {
-  generateCustomRecipe,
-  GenerateRecipeResult,
-} from "./generate-custom-recipe.ts";
+import { generateCustomRecipe } from "./generate-custom-recipe.ts";
 import { ToolValidationError } from "./tool-validators.ts";
 
 /**

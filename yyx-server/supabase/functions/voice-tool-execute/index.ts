@@ -47,17 +47,37 @@ serve(async (req) => {
       return unauthorizedResponse(authError || "Unauthorized", corsHeaders);
     }
 
-    // 2. Check payload size
-    const contentLength = parseInt(req.headers.get("Content-Length") || "0", 10);
-    if (contentLength > MAX_PAYLOAD_BYTES) {
+    // 2. Read and validate payload size using actual body bytes
+    let rawBody: string;
+    try {
+      rawBody = await req.text();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Failed to read request body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    if (new TextEncoder().encode(rawBody).byteLength > MAX_PAYLOAD_BYTES) {
       return new Response(
         JSON.stringify({ error: "Payload too large" }),
         { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    // 3. Parse request
-    const { toolName, toolArgs } = await req.json();
+    // 3. Parse request JSON
+    let toolName: string | undefined;
+    let toolArgs: unknown;
+    try {
+      const parsed = JSON.parse(rawBody);
+      toolName = parsed.toolName;
+      toolArgs = parsed.toolArgs;
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     if (!toolName || typeof toolName !== "string") {
       return new Response(

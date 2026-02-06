@@ -64,10 +64,17 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
 
     const providerRef = useRef<VoiceAssistantProvider | null>(null);
 
-    // Sync from parent when external messages are reset (e.g. "New Chat")
+    // Sync from parent when external messages are explicitly reset (e.g. "New Chat").
+    // Track previous external length to only clear on a >0 → 0 transition,
+    // avoiding false resets when external starts as [] during normal flow.
     const externalMessages = options?.initialTranscriptMessages;
+    const prevExternalLengthRef = useRef(externalMessages?.length ?? 0);
     useEffect(() => {
-        if (externalMessages && externalMessages.length === 0 && transcriptMessages.length > 0) {
+        const prevLen = prevExternalLengthRef.current;
+        const curLen = externalMessages?.length ?? 0;
+        prevExternalLengthRef.current = curLen;
+
+        if (prevLen > 0 && curLen === 0) {
             setTranscriptMessages([]);
         }
     }, [externalMessages]);
