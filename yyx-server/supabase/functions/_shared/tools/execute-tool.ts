@@ -51,6 +51,6 @@ export async function executeTool(
       );
 
     default:
-      throw new Error(`Unknown tool: ${name}`);
+      throw new ToolValidationError(`Unknown tool: ${name}`);
   }
 }

@@ -64,6 +64,14 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
 
     const providerRef = useRef<VoiceAssistantProvider | null>(null);
 
+    // Sync from parent when external messages are reset (e.g. "New Chat")
+    const externalMessages = options?.initialTranscriptMessages;
+    useEffect(() => {
+        if (externalMessages && externalMessages.length === 0 && transcriptMessages.length > 0) {
+            setTranscriptMessages([]);
+        }
+    }, [externalMessages]);
+
     // Notify parent of transcript changes
     useEffect(() => {
         options?.onTranscriptChange?.(transcriptMessages);
@@ -79,6 +87,13 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     // Helper to append a message to the transcript
     const appendMessage = useCallback((msg: ChatMessage) => {
         setTranscriptMessages(prev => [...prev, msg]);
+    }, []);
+
+    // Helper to update a specific message by ID (e.g. to write back savedRecipeId)
+    const updateMessage = useCallback((id: string, updates: Partial<ChatMessage>) => {
+        setTranscriptMessages(prev => prev.map(msg =>
+            msg.id === id ? { ...msg, ...updates } : msg
+        ));
     }, []);
 
     // Helper to update the last assistant message (for streaming)
@@ -283,6 +298,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
         quotaInfo,
         transcriptMessages,
         isExecutingTool,
+        updateMessage,
         startConversation,
         stopConversation,
         updateContext

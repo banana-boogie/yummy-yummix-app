@@ -33,10 +33,8 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private currentContext: ConversationContext | null = null;
   private dataChannelReady: boolean = false;
   private pendingEvents: any[] = [];
-  // Function call tracking (for tool calls from OpenAI)
-  private currentToolCallId: string | null = null;
-  private currentToolCallName: string | null = null;
-  private currentToolCallArgs: string = "";
+  // Function call tracking (keyed by call_id to handle interleaved calls)
+  private pendingToolCalls: Map<string, { name: string; args: string }> = new Map();
   // Token tracking for cost calculation (separated by type for accurate pricing)
   private sessionInputTokens: number = 0;
   private sessionOutputTokens: number = 0;
@@ -264,9 +262,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     InCallManager.stop();
 
     // Reset tool call tracking
-    this.currentToolCallId = null;
-    this.currentToolCallName = null;
-    this.currentToolCallArgs = "";
+    this.pendingToolCalls.clear();
 
     // Reset token counters for next session
     this.sessionInputTokens = 0;
@@ -450,11 +446,12 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         break;
 
       case "response.output_item.added":
-        // Track function calls when they start
-        if (message.item?.type === "function_call") {
-          this.currentToolCallId = message.item.call_id;
-          this.currentToolCallName = message.item.name;
-          this.currentToolCallArgs = "";
+        // Track function calls when they start (keyed by call_id)
+        if (message.item?.type === "function_call" && message.item.call_id) {
+          this.pendingToolCalls.set(message.item.call_id, {
+            name: message.item.name,
+            args: "",
+          });
         }
         break;
 
@@ -463,29 +460,32 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       case "response.function_call_arguments.delta":
         // Accumulate function call arguments as they stream in
-        if (message.delta) {
-          this.currentToolCallArgs += message.delta;
+        if (message.delta && message.call_id) {
+          const pending = this.pendingToolCalls.get(message.call_id);
+          if (pending) {
+            pending.args += message.delta;
+          }
         }
         break;
 
       case "response.function_call_arguments.done":
         // Function call arguments complete — parse and emit
-        if (this.currentToolCallId && this.currentToolCallName) {
-          try {
-            const args = JSON.parse(this.currentToolCallArgs || "{}");
-            const toolCall: VoiceToolCall = {
-              callId: this.currentToolCallId,
-              name: this.currentToolCallName,
-              arguments: args,
-            };
-            this.emit("toolCall", toolCall);
-          } catch (e) {
-            console.error("[OpenAI] Failed to parse tool call args:", e);
+        if (message.call_id) {
+          const pending = this.pendingToolCalls.get(message.call_id);
+          if (pending) {
+            try {
+              const args = JSON.parse(pending.args || "{}");
+              const toolCall: VoiceToolCall = {
+                callId: message.call_id,
+                name: pending.name,
+                arguments: args,
+              };
+              this.emit("toolCall", toolCall);
+            } catch (e) {
+              console.error("[OpenAI] Failed to parse tool call args:", e);
+            }
+            this.pendingToolCalls.delete(message.call_id);
           }
-          // Reset tracking
-          this.currentToolCallId = null;
-          this.currentToolCallName = null;
-          this.currentToolCallArgs = "";
         }
         break;
 

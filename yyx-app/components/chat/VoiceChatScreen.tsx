@@ -52,6 +52,7 @@ export function VoiceChatScreen({
         quotaInfo,
         transcriptMessages,
         isExecutingTool,
+        updateMessage,
         startConversation,
         stopConversation
     } = useVoiceChat({
@@ -140,6 +141,10 @@ export function VoiceChatScreen({
             if (!recipeId) {
                 const { userRecipeId } = await customRecipeService.save(recipe, finalName);
                 recipeId = userRecipeId;
+                // Write back savedRecipeId to prevent duplicate saves on repeated taps
+                if (recipeId) {
+                    updateMessage(messageId, { savedRecipeId: recipeId });
+                }
             }
             if (recipeId) {
                 router.push(`/(tabs)/recipes/${recipeId}?from=chat`);
@@ -148,7 +153,7 @@ export function VoiceChatScreen({
             console.error('[VoiceChatScreen] Start cooking error:', err);
             Alert.alert(i18n.t('common.errors.title'), i18n.t('common.errors.generic'));
         }
-    }, [router]);
+    }, [router, updateMessage]);
 
     const renderMessageItem = useCallback(({ item }: { item: ChatMessage }) => {
         const isUser = item.role === 'user';

@@ -19,10 +19,21 @@ import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import type { RecipeCard } from "../_shared/irmixy-schemas.ts";
 import type { GenerateRecipeResult } from "../_shared/tools/generate-custom-recipe.ts";
 
+const ALLOWED_TOOLS = ["search_recipes", "generate_custom_recipe"] as const;
+const MAX_PAYLOAD_BYTES = 10_000; // 10KB limit
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  // Only accept POST requests
+  if (req.method !== "POST") {
+    return new Response(
+      JSON.stringify({ error: "Method not allowed" }),
+      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json", "Allow": "POST, OPTIONS" } },
+    );
   }
 
   const startTime = performance.now();
@@ -36,12 +47,28 @@ serve(async (req) => {
       return unauthorizedResponse(authError || "Unauthorized", corsHeaders);
     }
 
-    // 2. Parse request
+    // 2. Check payload size
+    const contentLength = parseInt(req.headers.get("Content-Length") || "0", 10);
+    if (contentLength > MAX_PAYLOAD_BYTES) {
+      return new Response(
+        JSON.stringify({ error: "Payload too large" }),
+        { status: 413, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // 3. Parse request
     const { toolName, toolArgs } = await req.json();
 
     if (!toolName || typeof toolName !== "string") {
       return new Response(
         JSON.stringify({ error: "Missing or invalid toolName" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    if (!ALLOWED_TOOLS.includes(toolName as typeof ALLOWED_TOOLS[number])) {
+      return new Response(
+        JSON.stringify({ error: `Unknown tool: ${toolName}` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
