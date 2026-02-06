@@ -15,6 +15,7 @@ export const recipes = {
       hard: "Difícil",
     },
     emptyState: "No se encontraron recetas",
+    usefulItems: "Elementos Útiles",
   },
   detail: {
     ingredients: {
