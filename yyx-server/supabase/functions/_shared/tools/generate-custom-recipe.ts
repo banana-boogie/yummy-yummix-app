@@ -117,15 +117,23 @@ export async function generateCustomRecipe(
   // Validate and sanitize params
   const params = validateGenerateRecipeParams(rawParams);
 
-  // Check ingredients against user's allergen restrictions
-  const allergenCheck = await checkIngredientsForAllergens(
-    supabase,
-    params.ingredients,
-    userContext.dietaryRestrictions,
-    userContext.customAllergies,
-    userContext.language,
-  );
-  timings.allergen_check_ms = Math.round(performance.now() - phaseStart);
+  // Run allergen check and safety reminders in parallel
+  const [allergenCheck, safetyReminders] = await Promise.all([
+    checkIngredientsForAllergens(
+      supabase,
+      params.ingredients,
+      userContext.dietaryRestrictions,
+      userContext.customAllergies,
+      userContext.language,
+    ),
+    buildSafetyReminders(
+      supabase,
+      params.ingredients,
+      userContext.measurementSystem,
+      userContext.language,
+    ),
+  ]);
+  timings.allergen_and_safety_ms = Math.round(performance.now() - phaseStart);
   phaseStart = performance.now();
 
   if (!allergenCheck.safe) {
@@ -142,16 +150,6 @@ export async function generateCustomRecipe(
       },
     };
   }
-
-  // Build safety reminders for the prompt
-  const safetyReminders = await buildSafetyReminders(
-    supabase,
-    params.ingredients,
-    userContext.measurementSystem,
-    userContext.language,
-  );
-  timings.safety_reminders_ms = Math.round(performance.now() - phaseStart);
-  phaseStart = performance.now();
 
   // Generate the recipe using AI
   const recipe = await callRecipeGenerationAI(
@@ -227,6 +225,78 @@ export async function generateCustomRecipe(
 // ============================================================
 
 /**
+ * Build a JSON schema for structured output based on whether user has Thermomix.
+ * Non-Thermomix users get a simpler schema (fewer output tokens).
+ * Exported for testing.
+ */
+export function buildRecipeJsonSchema(
+  hasThermomix: boolean,
+): Record<string, unknown> {
+  const stepProperties: Record<string, unknown> = {
+    order: { type: "integer" },
+    instruction: { type: "string" },
+    ingredientsUsed: { type: "array", items: { type: "string" } },
+  };
+  const stepRequired = ["order", "instruction", "ingredientsUsed"];
+
+  if (hasThermomix) {
+    stepProperties.thermomixTime = { type: ["integer", "null"] };
+    stepProperties.thermomixTemp = { type: ["string", "null"] };
+    stepProperties.thermomixSpeed = { type: ["string", "null"] };
+    stepRequired.push("thermomixTime", "thermomixTemp", "thermomixSpeed");
+  }
+
+  return {
+    type: "object",
+    properties: {
+      schemaVersion: { type: "string", enum: ["1.0"] },
+      suggestedName: { type: "string" },
+      measurementSystem: { type: "string", enum: ["imperial", "metric"] },
+      language: { type: "string", enum: ["en", "es"] },
+      ingredients: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            quantity: { type: "number" },
+            unit: { type: "string" },
+          },
+          required: ["name", "quantity", "unit"],
+          additionalProperties: false,
+        },
+      },
+      steps: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: stepProperties,
+          required: stepRequired,
+          additionalProperties: false,
+        },
+      },
+      totalTime: { type: "integer" },
+      difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+      portions: { type: "integer" },
+      tags: { type: "array", items: { type: "string" } },
+    },
+    required: [
+      "schemaVersion",
+      "suggestedName",
+      "measurementSystem",
+      "language",
+      "ingredients",
+      "steps",
+      "totalTime",
+      "difficulty",
+      "portions",
+      "tags",
+    ],
+    additionalProperties: false,
+  };
+}
+
+/**
  * Call AI Gateway to generate the recipe.
  * Uses the 'parsing' usage type for structured JSON output.
  * Retries are handled by the gateway.
@@ -246,18 +316,25 @@ async function callRecipeGenerationAI(
       { role: "user", content: prompt },
     ],
     temperature: 0.7,
-    // Note: We use 'parsing' usage type which routes to a model optimized for
-    // structured output. The gateway handles JSON response format internally.
+    maxTokens: 2048,
   });
+
+  // Strip code fences if model wraps response in ```json ... ```
+  let jsonContent = response.content.trim();
+  if (jsonContent.startsWith("```")) {
+    jsonContent = jsonContent
+      .replace(/^```(?:json)?\s*\n?/, "")
+      .replace(/\n?```\s*$/, "");
+  }
 
   // Parse and validate the generated recipe
   let parsed: unknown;
   try {
-    parsed = JSON.parse(response.content);
+    parsed = JSON.parse(jsonContent);
   } catch {
     console.error(
       "Failed to parse recipe JSON:",
-      response.content.slice(0, 500),
+      jsonContent.slice(0, 500),
     );
     throw new Error("Invalid recipe JSON from AI");
   }
@@ -267,6 +344,9 @@ async function callRecipeGenerationAI(
     console.error("Recipe validation failed:", result.error.issues);
     throw new Error("Generated recipe does not match schema");
   }
+
+  // Force empty tags — AI-generated tags are never displayed in UI
+  result.data.tags = [];
 
   return result.data;
 }
@@ -314,10 +394,8 @@ Example step with Thermomix: {"order": 2, "instruction": "Sauté onions", "ingre
 RULES: Use practical quantities (1/3 cup not 0.333). Include meat cooking temps. Name recipes naturally without dietary labels (GOOD: "Chicken Ramen", BAD: "Sugar-Free Ramen"). Preferences guide creativity; allergens/dislikes are strict.
 ${thermomixSection}
 
-OUTPUT: Valid JSON only, no markdown:
-{"schemaVersion":"1.0","suggestedName":"Name","measurementSystem":"${userContext.measurementSystem}","language":"${userContext.language}","ingredients":[{"name":"item","quantity":1.5,"unit":"cups"}],"steps":[{"order":1,"instruction":"Do this","ingredientsUsed":["item"]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":["tag"]}
-
-Each step needs "ingredientsUsed" array matching ingredient names exactly.`;
+OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Use this structure:
+{"schemaVersion":"1.0","suggestedName":"...","measurementSystem":"${userContext.measurementSystem}","language":"${userContext.language}","ingredients":[{"name":"...","quantity":1,"unit":"..."}],"steps":[{"order":1,"instruction":"...","ingredientsUsed":["..."]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":[]}`;
 }
 
 /**

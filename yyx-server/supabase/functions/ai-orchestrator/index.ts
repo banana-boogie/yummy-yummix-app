@@ -41,7 +41,10 @@ import {
   chat,
   chatStream,
 } from "../_shared/ai-gateway/index.ts";
-import { hasHighRecipeIntent } from "./recipe-intent.ts";
+import {
+  detectModificationHeuristic,
+  hasHighRecipeIntent,
+} from "./recipe-intent.ts";
 
 // ============================================================
 // Types
@@ -670,58 +673,17 @@ function getTemplateSuggestions(
 
 /**
  * Detect if user wants to modify an existing recipe.
- * Returns modifications description if detected.
+ * Uses regex heuristics instead of LLM call (~1.5s → <5ms).
  */
-async function detectModificationIntent(
+function detectModificationIntent(
   message: string,
   conversationContext: { hasRecipe: boolean; lastRecipeName?: string },
-): Promise<{ isModification: boolean; modifications: string }> {
+): { isModification: boolean; modifications: string } {
   if (!conversationContext.hasRecipe) {
     return { isModification: false, modifications: "" };
   }
 
-  const prompt = `User has an existing recipe: "${
-    conversationContext.lastRecipeName || "untitled"
-  }".
-Analyze if this message is requesting modifications to that recipe:
-"${message}"
-
-Respond with JSON:
-{
-  "isModification": boolean,
-  "modifications": "string describing what to change, or empty if not a modification"
-}
-
-Examples:
-- "I don't like paprika" → { isModification: true, modifications: "remove paprika" }
-- "Make it spicier" → { isModification: true, modifications: "increase spice level" }
-- "What time is it?" → { isModification: false, modifications: "" }
-- "No me gusta el ajo" → { isModification: true, modifications: "remove garlic" }`;
-
-  try {
-    const response = await chat({
-      usageType: "parsing",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.3,
-      responseFormat: {
-        type: "json_schema",
-        schema: {
-          type: "object",
-          properties: {
-            isModification: { type: "boolean" },
-            modifications: { type: "string" },
-          },
-          required: ["isModification", "modifications"],
-          additionalProperties: false,
-        },
-      },
-    });
-
-    return JSON.parse(response.content);
-  } catch (error) {
-    console.error("Modification detection failed:", error);
-    return { isModification: false, modifications: "" };
-  }
+  return detectModificationHeuristic(message);
 }
 
 /**
@@ -754,7 +716,7 @@ async function processRequest(
     .find((m) => m.role === "assistant" && m.metadata?.customRecipe);
 
   if (lastCustomRecipeMessage) {
-    const modIntent = await detectModificationIntent(message, {
+    const modIntent = detectModificationIntent(message, {
       hasRecipe: true,
       lastRecipeName:
         lastCustomRecipeMessage.metadata?.customRecipe?.suggestedName ||
@@ -1039,7 +1001,7 @@ function handleStreamingRequest(
           .find((m) => m.role === "assistant" && m.metadata?.customRecipe);
 
         if (lastCustomRecipeMessage?.metadata?.customRecipe) {
-          const modIntent = await detectModificationIntent(message, {
+          const modIntent = detectModificationIntent(message, {
             hasRecipe: true,
             lastRecipeName:
               lastCustomRecipeMessage.metadata.customRecipe.suggestedName ||
