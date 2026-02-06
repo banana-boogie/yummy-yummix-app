@@ -1,106 +1,138 @@
 # Production Deployment Checklist
 
-This document outlines the steps for deploying YummyYummix to production.
+Use this runbook for production releases. It is intentionally split into:
+1) a fast checklist at the top,
+2) details and rationale below.
 
-## Pre-Deployment
+## Quick Checklist
 
-### Environment Variables
+### Pre-Deployment
+- [ ] Confirm PR is approved and CI is green.
+- [ ] Verify production environment variables.
+- [ ] Create backups (`cd yyx-server && npm run backup:all`).
+- [ ] Review pending migrations for destructive operations.
+- [ ] Run security/performance advisor checks in Supabase Dashboard.
 
-Verify all required environment variables are set:
+### Deployment
+- [ ] Push database migrations (`cd yyx-server && npm run db:push`).
+- [ ] Deploy changed edge functions (`cd yyx-server && npm run deploy:all` or specific functions).
+- [ ] Build/submit mobile apps if this release includes app changes.
 
-**Mobile App (`yyx-app/.env.local`)**
-- [ ] `EXPO_PUBLIC_SUPABASE_URL` - Production Supabase URL
-- [ ] `EXPO_PUBLIC_SUPABASE_ANON_KEY` - Production anon key
-- [ ] `EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL` - Edge functions URL
+### Post-Deployment
+- [ ] Run smoke tests (auth, recipes, chat, voice).
+- [ ] Check Edge Function logs in Supabase Dashboard.
+- [ ] Monitor error reports and user feedback.
 
-**Server (`yyx-server/.env.local`)**
-- [ ] `SUPABASE_URL` - Production Supabase URL
-- [ ] `SUPABASE_ANON_KEY` - Production anon key
-- [ ] `SUPABASE_SERVICE_ROLE_KEY` - Service role key (get from dashboard, never via MCP)
-- [ ] `OPENAI_API_KEY` - OpenAI API key
-- [ ] `USDA_API_KEY` - USDA nutrition API key
-
-### Database Backup
-
-**ALWAYS backup before any deployment:**
-
-```bash
-cd yyx-server
-npm run backup:all    # Backup both database and storage
-```
-
-Verify backup files are created in `yyx-server/backups/`:
-- `backup_YYYYMMDD_HHMMSS.sql` - Database dump
-- `storage_YYYYMMDD_HHMMSS/` - Storage files
-
-### Migration Review
-
-1. Review pending migrations:
-   ```bash
-   cd yyx-server
-   ls supabase/migrations/*.sql
-   ```
-
-2. Test migrations locally (if using local development):
-   ```bash
-   npm run db:reset   # Reset and reapply all migrations
-   ```
-
-3. Check for destructive operations:
-   - `DROP TABLE`
-   - `DROP COLUMN`
-   - `TRUNCATE`
-   - Any data deletions
-
-### Security & Performance Checks
-
-Run Supabase advisors before deployment:
-
-```bash
-# Check security advisors (via Claude MCP or Supabase dashboard)
-# Look for:
-# - RLS policies with USING(true)
-# - Functions without SET search_path
-# - Leaked password protection
-# - Postgres version
-
-# Check performance advisors
-# Look for:
-# - Missing indexes on foreign keys
-# - Unused indexes
-# - RLS policies using auth.uid() instead of (SELECT auth.uid())
-```
+### Rollback Readiness
+- [ ] Know the migration rollback path (new rollback migration, not history-only repair).
+- [ ] Know the edge function rollback path (redeploy previous commit).
+- [ ] Know app-store rollback path (halt rollout / remove from sale).
 
 ---
 
-## Deployment Steps
+## Detailed Steps and Reasoning
 
-### 1. Database Migrations
+## 1) Pre-Deployment
+
+### 1.1 Code and Release Readiness
+
+- Ensure PR approval and passing CI before merge.
+- Confirm no secrets were committed.
+- Update release notes when needed.
+
+Why this matters:
+- Reduces avoidable production defects.
+- Prevents accidental credential leakage.
+
+### 1.2 Environment Variables
+
+Verify required values are set in your production environment.
+
+Mobile app (`yyx-app/.env.local` or EAS secrets):
+- `EXPO_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+- `EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL`
+
+Server (`yyx-server/.env.local` / Supabase secrets):
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (retrieve from dashboard, never via MCP)
+- `OPENAI_API_KEY`
+- `USDA_API_KEY`
+
+Why this matters:
+- Most release incidents are config errors, not code errors.
+
+### 1.3 Backup Production (Required)
 
 ```bash
 cd yyx-server
-
-# Backup first!
 npm run backup:all
+```
 
-# Push migrations to production
+Verify new backup artifacts under `yyx-server/backups/`:
+- `*/database.sql.gz`
+- `*/storage/`
+
+Notes:
+- `backup:all` runs DB and storage backups via scripts in `yyx-server/scripts/`.
+- Keep at least one known-good backup before pushing migrations.
+
+Why this matters:
+- Gives you a recovery point for data or storage corruption.
+
+### 1.4 Migration Risk Review
+
+Review migration SQL files in `yyx-server/supabase/migrations/` for:
+- `DROP TABLE`
+- `DROP COLUMN`
+- `TRUNCATE`
+- irreversible data updates/deletes
+
+Why this matters:
+- Prevents accidental destructive schema/data changes.
+
+### 1.5 Security and Performance Checks
+
+Use Supabase Dashboard advisor checks before deploy:
+- Security advisor
+- Performance advisor
+
+Why this matters:
+- Catches policy/index issues that can become outages under load.
+
+---
+
+## 2) Deployment
+
+### 2.1 Push Database Migrations
+
+```bash
+cd yyx-server
 npm run db:push
 ```
 
-**If migration fails:**
-1. Check error message
-2. Create a fix migration if needed
-3. Do NOT manually modify the database without a migration
+If migration fails:
+1. Stop deployment.
+2. Create a fix migration (`npm run migration:new <name>`).
+3. Push again only after review.
 
-### 2. Edge Function Deployment
+Why this matters:
+- Keeps schema changes traceable and reproducible.
+
+### 2.2 Deploy Edge Functions
+
+Deploy all functions:
 
 ```bash
 cd yyx-server
-
-# Deploy all edge functions
 npm run deploy:all
+```
 
-# Or deploy specific functions
+Or deploy specific functions:
+
+```bash
+cd yyx-server
 npm run deploy ai-chat
 npm run deploy ai-orchestrator
 npm run deploy start-voice-session
@@ -109,184 +141,129 @@ npm run deploy get-nutritional-facts
 npm run deploy parse-recipe-markdown
 ```
 
-**Verify deployment:**
-Check Supabase Dashboard logs: `Edge Functions -> ai-chat -> Logs`.
+Why this matters:
+- Ensures runtime code matches expected API behavior after DB changes.
 
-### 3. Mobile App Build & Submission
+### 2.3 Mobile App Release (If Included)
 
-#### iOS Build
+iOS:
 
 ```bash
 cd yyx-app
-
-# Create production build
 eas build --platform ios --profile production
-
-# Submit to App Store
 eas submit --platform ios
 ```
 
-#### Android Build
+Android:
 
 ```bash
 cd yyx-app
-
-# Create production build
 eas build --platform android --profile production
-
-# Submit to Play Store
 eas submit --platform android
 ```
 
----
-
-## Post-Deployment Verification
-
-### API Health Check
-
-1. Test authentication:
-   - Sign up new user
-   - Sign in existing user
-   - OAuth flows (Apple, Google)
-
-2. Test core features:
-   - Recipe search
-   - Recipe detail view
-   - AI chat functionality
-   - Voice features (if applicable)
-
-3. Test edge functions:
-   ```bash
-   # Get test JWT
-   cd yyx-server
-   npm run get-test-jwt
-
-   # Test endpoint
-   curl -H "Authorization: Bearer <JWT>" \
-     https://<project>.supabase.co/functions/v1/ai-chat
-   ```
-
-### Monitoring Setup
-
-1. Enable Supabase monitoring:
-   - Dashboard > Reports
-   - Set up alerts for high error rates
-
-2. Check logs regularly in Supabase Dashboard:
-   - `Edge Functions -> ai-chat -> Logs`
-   - `Edge Functions -> start-voice-session -> Logs`
-   - `Edge Functions -> voice-tool-execute -> Logs`
+Why this matters:
+- Keeps client behavior aligned with backend changes.
 
 ---
 
-## Rollback Procedures
+## 3) Post-Deployment Verification
 
-### Database Rollback
+### 3.1 Smoke Test Critical Paths
 
-1. **If migration fails mid-way:**
-   ```bash
-   # Create a rollback migration
-   npm run migration:new rollback_<feature_name>
+Validate at minimum:
+- Auth (sign in / sign out)
+- Recipe search and detail
+- AI chat
+- Voice flow (if applicable)
 
-   # Write reverse operations (DROP TABLE, DROP COLUMN, etc.)
-   # Push rollback
-   npm run db:push
-   ```
+Why this matters:
+- Confirms business-critical flows are healthy before peak traffic.
 
-2. **If you need to restore from backup:**
-   ```bash
-   # WARNING: This is destructive!
-   # Only use if other options have failed
+### 3.2 Edge Function Observability
 
-   # Restore specific backup
-   npm run restore backups/backup_YYYYMMDD_HHMMSS.sql
-   ```
+Check logs in Supabase Dashboard:
+- `Edge Functions -> ai-chat -> Logs`
+- `Edge Functions -> ai-orchestrator -> Logs`
+- `Edge Functions -> start-voice-session -> Logs`
+- `Edge Functions -> voice-tool-execute -> Logs`
 
-### Edge Function Rollback
+Why this matters:
+- Catches runtime regressions quickly after deploy.
 
-1. **Identify last working version:**
-   - Check Supabase dashboard > Edge Functions > Deployments
+### 3.3 Ongoing Monitoring
 
-2. **Redeploy previous version:**
-   - You can redeploy from the dashboard
-   - Or revert code and redeploy: `npm run deploy <function-name>`
+- Watch error tracking/alerts.
+- Monitor user feedback channels.
 
-### App Store Rollback
-
-1. **iOS (App Store Connect):**
-   - Go to App Store Connect > Your App > iOS App
-   - Remove the problematic version from sale
-   - Previous version automatically becomes available
-
-2. **Android (Play Console):**
-   - Go to Play Console > Your App > Production
-   - Halt rollout of current release
-   - Start new release with previous APK/AAB
+Why this matters:
+- Some issues appear only with real-user traffic patterns.
 
 ---
 
-## Supabase-Specific Notes
+## 4) Rollback Procedures
 
-### Postgres Upgrades
+## 4.1 Database Rollback
 
-When upgrading Postgres version in Supabase:
+Preferred approach:
+1. Create a new rollback migration (`npm run migration:new rollback_<feature>`).
+2. Write explicit reverse SQL.
+3. Push via `npm run db:push`.
 
-1. **Remove incompatible extensions first:**
-   ```sql
-   -- The pgjwt extension may need removal before upgrading
-   DROP EXTENSION IF EXISTS pgjwt;
-   ```
+Emergency restore approach (last resort):
 
-2. Perform the upgrade in Supabase dashboard
-
-3. Re-enable extensions if needed
-
-### Dashboard Actions (Not Automatable)
-
-Some security/performance fixes require dashboard actions:
-
-1. **Enable Leaked Password Protection:**
-   - Dashboard > Auth > Settings > Enable leaked password protection
-
-2. **Upgrade Postgres Version:**
-   - Dashboard > Settings > Infrastructure > Upgrade
-
----
-
-## Emergency Contacts
-
-- **Supabase Support:** https://supabase.com/dashboard/support
-- **Expo Support:** https://expo.dev/contact
-- **App Store Review:** https://developer.apple.com/contact/
-- **Play Store Support:** https://support.google.com/googleplay/android-developer/
-
----
-
-## Deployment Checklist Summary
-
+```bash
+cd yyx-server
+gunzip backups/<timestamp>/database.sql.gz
+psql "$DATABASE_URL" < backups/<timestamp>/database.sql
 ```
-[ ] Pre-Deployment
-    [ ] Environment variables verified
-    [ ] Database backed up
-    [ ] Migrations reviewed
-    [ ] Security advisors checked
-    [ ] Performance advisors checked
 
-[ ] Deployment
-    [ ] Migrations pushed
-    [ ] Edge functions deployed
-    [ ] Mobile app built
-    [ ] App submitted to stores
+Important:
+- `supabase migration repair` updates migration history metadata; it does not revert schema/data by itself.
 
-[ ] Post-Deployment
-    [ ] Authentication tested
-    [ ] Core features verified
-    [ ] Edge function logs checked
-    [ ] Monitoring enabled
+Why this matters:
+- Protects migration integrity and avoids hidden drift.
 
-[ ] If Issues Occur
-    [ ] Identify affected component
-    [ ] Execute appropriate rollback
-    [ ] Notify stakeholders
-    [ ] Document incident
+## 4.2 Edge Function Rollback
+
+1. Identify the last known-good commit.
+2. Redeploy functions from that commit.
+
+Example:
+
+```bash
+git checkout <previous-commit>
+cd yyx-server
+npm run deploy <function-name>
+git checkout main
 ```
+
+Why this matters:
+- Fastest way to recover server behavior without touching app store releases.
+
+## 4.3 App Rollback
+
+- iOS: remove problematic version from sale in App Store Connect.
+- Android: halt rollout and promote previous stable release in Play Console.
+
+Why this matters:
+- Limits user impact when client-side regressions escape testing.
+
+---
+
+## 5) One-Time Dashboard Settings
+
+These are manual dashboard tasks, not migration tasks:
+- Auth: enable leaked password protection.
+- Infrastructure: review Postgres version and compute sizing.
+
+Why this matters:
+- Keeps baseline security and platform health in good standing.
+
+---
+
+## Project Reference
+
+- Supabase Project ID: `zozskiqxdphmkuniahac`
+- Region: `us-west-1`
+- Dashboard: https://supabase.com/dashboard/project/zozskiqxdphmkuniahac
