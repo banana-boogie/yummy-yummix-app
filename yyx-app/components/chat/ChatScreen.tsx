@@ -509,6 +509,9 @@ export function ChatScreen({
             chunkTimerRef.current = null;
         }
 
+        // Track whether onComplete ran (to avoid duplicate state resets in finally)
+        let completedSuccessfully = false;
+
         // Flush accumulated chunks to UI
         const flushChunkBuffer = () => {
             if (!chunkBufferRef.current || !isActiveRequest()) return;
@@ -686,6 +689,7 @@ export function ChatScreen({
                     setIsLoading(false);
                     setIsStreaming(false);
                     setCurrentStatus(null);
+                    completedSuccessfully = true;
                 }
             );
 
@@ -702,6 +706,9 @@ export function ChatScreen({
             };
             await handle.done;
 
+            // Guard cleanup - a new request may have started while we were awaiting
+            if (!isActiveRequest()) return;
+
             // Flush any remaining buffered chunks
             if (chunkTimerRef.current) {
                 clearTimeout(chunkTimerRef.current);
@@ -709,6 +716,9 @@ export function ChatScreen({
             }
             flushChunkBuffer();
         } catch (error) {
+            // Guard cleanup - a new request may have started
+            if (!isActiveRequest()) return;
+
             // Flush any remaining chunks before error handling
             if (chunkTimerRef.current) {
                 clearTimeout(chunkTimerRef.current);
@@ -759,12 +769,14 @@ export function ChatScreen({
                 if (__DEV__) console.error('Chat error:', error);
             }
         } finally {
-            if (isActiveRequest()) {
+            // Only reset state if onComplete didn't already handle it (error cases)
+            if (isActiveRequest() && !completedSuccessfully) {
                 setIsLoading(false);
                 setIsStreaming(false);
                 setCurrentStatus(null);
-                streamCancelRef.current = null;
             }
+            // Always clear cancel ref
+            streamCancelRef.current = null;
         }
     }, [
         currentSessionId,
