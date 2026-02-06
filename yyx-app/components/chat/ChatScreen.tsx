@@ -680,6 +680,12 @@ export function ChatScreen({
                     } else {
                         setDynamicSuggestions([]);
                     }
+
+                    // Allow user to start typing immediately after response completes
+                    // Don't wait for handle.done - text and suggestions are already received
+                    setIsLoading(false);
+                    setIsStreaming(false);
+                    setCurrentStatus(null);
                 }
             );
 

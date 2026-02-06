@@ -134,13 +134,6 @@ export async function generateCustomRecipe(
     safetyReminders,
   );
 
-  // Enrich ingredients with images from database
-  recipe.ingredients = await enrichIngredientsWithImages(
-    recipe.ingredients,
-    supabase,
-    userContext.language,
-  );
-
   // Validate Thermomix parameters if present
   recipe.steps = validateThermomixSteps(recipe.steps);
 
@@ -150,22 +143,21 @@ export async function generateCustomRecipe(
   );
   validateThermomixUsage(recipe, hasThermomix);
 
-  // Enrich recipe with useful items from database
-  recipe.usefulItems = await getRelevantUsefulItems(
-    supabase,
-    recipe,
-    userContext.language,
-    hasThermomix,
-  );
+  // Run post-recipe enrichment and validation in parallel
+  const [enrichedIngredients, usefulItems, safetyCheck] = await Promise.all([
+    enrichIngredientsWithImages(recipe.ingredients, supabase, userContext.language),
+    getRelevantUsefulItems(supabase, recipe, userContext.language, hasThermomix),
+    checkRecipeSafety(
+      supabase,
+      recipe.ingredients,
+      recipe.totalTime,
+      userContext.measurementSystem,
+      userContext.language,
+    ),
+  ]);
 
-  // Validate the generated recipe against food safety rules
-  const safetyCheck = await checkRecipeSafety(
-    supabase,
-    recipe.ingredients,
-    recipe.totalTime,
-    userContext.measurementSystem,
-    userContext.language,
-  );
+  recipe.ingredients = enrichedIngredients;
+  recipe.usefulItems = usefulItems;
 
   if (!safetyCheck.safe) {
     return {

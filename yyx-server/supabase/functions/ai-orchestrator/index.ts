@@ -860,15 +860,6 @@ async function processRequest(
     mode,
   );
 
-  // Classify user intent for optimization and monitoring
-  const intent = await classifyUserIntent(message);
-  console.log("[Intent Classification]", {
-    userId,
-    intent: intent.intent,
-    hasIngredients: intent.hasIngredients,
-    confidence: intent.confidence,
-  });
-
   // Check if user is trying to modify an existing custom recipe
   // Look for custom recipe in conversation history
   // Note: conversationHistory is limited to MAX_HISTORY_MESSAGES (10) by context-builder,
