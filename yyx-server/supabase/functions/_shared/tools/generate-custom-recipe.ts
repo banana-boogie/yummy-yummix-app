@@ -633,11 +633,19 @@ export const TEMP_REGEX = /^\d+(\.\d+)?°[CF]$/;
 // ============================================================
 
 /**
- * Enrich generated ingredients with image URLs from the ingredients table.
- * Matches ingredient names (case-insensitive) and adds imageUrl if found.
+ * Batch result type from batch_find_ingredients RPC
  */
+type BatchIngredientMatch = {
+  input_name: string;
+  matched_name: string | null;
+  matched_name_es: string | null;
+  image_url: string | null;
+  match_score: number | null;
+};
+
 /**
  * Enrich ingredients with image URLs from the database.
+ * Uses batch lookup for performance (single query instead of N+1).
  * Exported for testing.
  */
 export async function enrichIngredientsWithImages(
@@ -657,84 +665,46 @@ export async function enrichIngredientsWithImages(
     imageUrl?: string;
   }>
 > {
-  // Use Promise.allSettled to handle partial failures gracefully
-  const results = await Promise.allSettled(
-    ingredients.map(async (ingredient) => {
-      // First try exact match, then fallback to partial match
-      // This avoids manual string interpolation in LIKE patterns
-      const exactMatch = await supabase
-        .from("ingredients")
-        .select("image_url")
-        .eq("name_en", ingredient.name)
-        .limit(1)
-        .maybeSingle();
+  if (ingredients.length === 0) {
+    return ingredients;
+  }
 
-      if (exactMatch.data?.image_url) {
-        console.log(
-          `✓ Exact match for "${ingredient.name}": ${exactMatch.data.image_url}`,
-        );
-        return {
-          ...ingredient,
-          imageUrl: exactMatch.data.image_url,
-        };
-      }
+  // Single batch query for all ingredients
+  const ingredientNames = ingredients.map((i) => i.name);
+  const { data: matches, error } = await supabase.rpc("batch_find_ingredients", {
+    ingredient_names: ingredientNames,
+    preferred_lang: language,
+  });
 
-      // Fallback: Use trigram similarity matching with language preference
-      type IngredientMatch = {
-        id: string;
-        name_en: string;
-        name_es: string;
-        image_url: string | null;
-        match_score: number;
-      };
+  if (error) {
+    console.warn("[Batch lookup] RPC error:", error.message);
+    // Return original ingredients without images on error
+    return ingredients;
+  }
 
-      const { data: match, error } = await supabase
-        .rpc("find_closest_ingredient", {
-          search_name: ingredient.name,
-          preferred_lang: language,
-        })
-        .maybeSingle<IngredientMatch>();
-
-      if (error) {
-        console.warn(`RPC error for "${ingredient.name}":`, error.message);
-        return { ...ingredient, imageUrl: undefined };
-      }
-
-      if (match?.image_url) {
-        console.log(
-          `✓ Fuzzy match: "${ingredient.name}" → "${match.name_en}" (score: ${
-            match.match_score?.toFixed(2)
-          }) → ${match.image_url}`,
-        );
-        return { ...ingredient, imageUrl: match.image_url };
-      }
-
-      // No match found
-      console.log(`✗ No match for "${ingredient.name}"`);
-      return { ...ingredient, imageUrl: undefined };
-    }),
-  );
-
-  // Map results, handling both fulfilled and rejected promises
-  const enriched = results.map((result, index) => {
-    if (result.status === "fulfilled") {
-      if (result.value.imageUrl) {
-        console.log(
-          `✓ Image found for "${
-            ingredients[index].name
-          }": ${result.value.imageUrl}`,
-        );
-      } else {
-        console.log(`✗ No image found for "${ingredients[index].name}"`);
-      }
-      return result.value;
-    } else {
-      console.warn(
-        `Failed to enrich ingredient "${ingredients[index].name}":`,
-        result.reason,
-      );
-      return ingredients[index]; // Return original without image
+  // Create a lookup map from input_name to match result
+  const matchMap = new Map<string, BatchIngredientMatch>();
+  for (const match of (matches as BatchIngredientMatch[]) || []) {
+    if (match.input_name) {
+      matchMap.set(match.input_name.toLowerCase(), match);
     }
+  }
+
+  // Enrich ingredients with matched image URLs
+  const enriched = ingredients.map((ingredient) => {
+    const match = matchMap.get(ingredient.name.toLowerCase());
+
+    if (match?.image_url) {
+      const matchType = match.match_score === 1.0 ? "exact" : "fuzzy";
+      const scoreStr = match.match_score?.toFixed(2) || "N/A";
+      console.log(
+        `✓ ${matchType} match: "${ingredient.name}" → "${match.matched_name}" (score: ${scoreStr}) → ${match.image_url}`,
+      );
+      return { ...ingredient, imageUrl: match.image_url };
+    }
+
+    console.log(`✗ No match for "${ingredient.name}"`);
+    return { ...ingredient, imageUrl: undefined };
   });
 
   return enriched;

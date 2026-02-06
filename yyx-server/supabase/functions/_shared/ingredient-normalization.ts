@@ -16,6 +16,13 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 let aliasCache: Map<string, string> | null = null;
 
 /**
+ * Promise guard to prevent duplicate concurrent DB fetches.
+ * When multiple parallel calls to normalizeIngredient() occur,
+ * only the first initiates a DB fetch - others await the same promise.
+ */
+let loadingPromise: Promise<Map<string, string>> | null = null;
+
+/**
  * Load all ingredient aliases from DB into the cache.
  * Uses composite key: alias::language for language-aware lookups.
  */
@@ -26,23 +33,34 @@ async function loadAliases(
     return aliasCache;
   }
 
-  const { data, error } = await supabase
-    .from("ingredient_aliases")
-    .select("canonical, alias, language");
-
-  if (error) {
-    console.error("Failed to load ingredient aliases:", error);
-    return new Map();
+  // Prevent duplicate concurrent DB fetches
+  if (loadingPromise) {
+    return loadingPromise;
   }
 
-  aliasCache = new Map();
-  for (const row of data || []) {
-    const key = `${row.alias.toLowerCase()}::${row.language}`;
-    aliasCache.set(key, row.canonical);
-  }
+  loadingPromise = (async () => {
+    const { data, error } = await supabase
+      .from("ingredient_aliases")
+      .select("canonical, alias, language");
 
-  console.log(`Loaded ${aliasCache.size} ingredient alias entries`);
-  return aliasCache;
+    if (error) {
+      console.error("Failed to load ingredient aliases:", error);
+      loadingPromise = null;
+      return new Map();
+    }
+
+    aliasCache = new Map();
+    for (const row of data || []) {
+      const key = `${row.alias.toLowerCase()}::${row.language}`;
+      aliasCache.set(key, row.canonical);
+    }
+
+    loadingPromise = null;
+    console.log(`Loaded ${aliasCache.size} ingredient alias entries`);
+    return aliasCache;
+  })();
+
+  return loadingPromise;
 }
 
 /**
@@ -116,4 +134,5 @@ export async function normalizeIngredients(
  */
 export function clearAliasCache(): void {
   aliasCache = null;
+  loadingPromise = null;
 }

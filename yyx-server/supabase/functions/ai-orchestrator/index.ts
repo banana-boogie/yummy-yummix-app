@@ -664,104 +664,6 @@ function detectMealContext(message: string): {
 }
 
 /**
- * Generate contextual suggestion chips for a custom recipe.
- * Analyzes the recipe to provide relevant modification options.
- */
-async function generateRecipeSuggestions(
-  recipe: {
-    suggestedName: string;
-    cuisine?: string;
-    totalTime?: number;
-    ingredients: Array<{ name: string }>;
-  },
-  language: "en" | "es",
-): Promise<SuggestionChip[]> {
-  const ingredientList = recipe.ingredients
-    .slice(0, 5)
-    .map((i) => i.name)
-    .join(", ");
-
-  const prompt =
-    `Given this recipe, suggest 3 SHORT modification options (2-4 words each, max 20 chars):
-
-Recipe: ${recipe.suggestedName}
-Cuisine: ${recipe.cuisine || "general"}
-Time: ${recipe.totalTime || "unknown"} minutes
-Key ingredients: ${ingredientList}
-
-Language: ${language === "es" ? "Spanish" : "English"}
-
-IMPORTANT: Only suggest RECIPE MODIFICATIONS. Do NOT suggest "Start cooking" or similar - there's already a button for that.
-
-Provide contextual modification suggestions based on the recipe:
-- If recipe has no spice: suggest adding heat
-- If recipe is long: suggest faster version
-- If recipe is basic: suggest making it fancier
-- Suggest ingredient swaps or dietary alternatives
-- Suggest texture or flavor changes
-
-Return JSON object with "suggestions" array containing 3 suggestions. Each must have identical "label" and "message" fields.
-Format: {"suggestions": [{"label": "...", "message": "..."}, ...]}`;
-
-  try {
-    const response = await chat({
-      usageType: "parsing",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-      responseFormat: {
-        type: "json_schema",
-        schema: {
-          type: "object",
-          properties: {
-            suggestions: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  label: { type: "string", maxLength: 25 },
-                  message: { type: "string", maxLength: 25 },
-                },
-                required: ["label", "message"],
-                additionalProperties: false,
-              },
-              minItems: 3,
-              maxItems: 3,
-            },
-          },
-          required: ["suggestions"],
-          additionalProperties: false,
-        },
-      },
-    });
-
-    const parsed = JSON.parse(response.content);
-    const suggestions = parsed.suggestions;
-    // Ensure label === message for each suggestion
-    return suggestions.map((s: { label: string; message: string }) => ({
-      label: s.label,
-      message: s.label, // Use label for both to ensure consistency
-    }));
-  } catch (error) {
-    console.error("Failed to generate recipe suggestions:", error);
-    // Fallback to basic modification suggestions (no "Start cooking")
-    return [
-      {
-        label: language === "es" ? "Hazlo más picante" : "Make it spicier",
-        message: language === "es" ? "Hazlo más picante" : "Make it spicier",
-      },
-      {
-        label: language === "es" ? "Versión rápida" : "Faster version",
-        message: language === "es" ? "Versión rápida" : "Faster version",
-      },
-      {
-        label: language === "es" ? "Hazlo vegetariano" : "Make it vegetarian",
-        message: language === "es" ? "Hazlo vegetariano" : "Make it vegetarian",
-      },
-    ];
-  }
-}
-
-/**
  * Get template suggestions for chat responses.
  * Uses pre-defined templates to avoid a 2.9s AI call.
  */
@@ -951,12 +853,7 @@ async function processRequest(
           ? "¡Aquí está tu receta actualizada!"
           : "Here's your updated recipe!";
 
-        // Generate contextual suggestions for the modified recipe
-        const modificationSuggestions = await generateRecipeSuggestions(
-          modifiedRecipe,
-          userContext.language,
-        );
-
+        // No suggestions for recipes - the prompt text invites modifications
         return finalizeResponse(
           supabase,
           sessionId,
@@ -966,7 +863,7 @@ async function processRequest(
           userContext,
           undefined,
           { recipe: modifiedRecipe, safetyFlags },
-          modificationSuggestions,
+          undefined,
         );
       } catch (error) {
         console.error("[Modification] Failed to regenerate recipe:", {
@@ -1036,14 +933,8 @@ async function processRequest(
         openaiApiKey,
       );
 
-    // For custom recipes, generate contextual suggestions based on recipe details
-    // (AI can't see recipe data in callAI because tool messages are filtered)
+    // For custom recipes, no suggestions - the prompt text invites modifications
     if (customRecipeResult?.recipe) {
-      const suggestions = await generateRecipeSuggestions(
-        customRecipeResult.recipe,
-        userContext.language,
-      );
-
       return finalizeResponse(
         supabase,
         sessionId,
@@ -1053,7 +944,7 @@ async function processRequest(
         userContext,
         recipes,
         customRecipeResult,
-        suggestions,
+        undefined,
       );
     }
 
@@ -1225,13 +1116,8 @@ function handleStreamingRequest(
                 ? "¡Aquí está tu receta actualizada!"
                 : "Here's your updated recipe!";
 
-              // Generate contextual suggestions for the modified recipe
-              const modificationSuggestions = await generateRecipeSuggestions(
-                modifiedRecipe,
-                userContext.language,
-              );
-              timings.suggestions_ms = Math.round(performance.now() - phaseStart);
-              phaseStart = performance.now();
+              // No suggestions for recipes - the prompt text invites modifications
+              timings.suggestions_ms = 0;
 
               const response = await finalizeResponse(
                 supabase,
@@ -1242,7 +1128,7 @@ function handleStreamingRequest(
                 userContext,
                 undefined,
                 customRecipeResult,
-                modificationSuggestions,
+                undefined,
               );
               timings.finalize_ms = Math.round(performance.now() - phaseStart);
               timings.total_ms = Math.round(performance.now() - startTime);
@@ -1336,14 +1222,9 @@ function handleStreamingRequest(
             ? "¡Listo! ¿Quieres cambiar algo?"
             : "Ready! Want to change anything?";
 
-          // Generate contextual suggestions based on recipe details
-          // (AI can't see recipe data in callAI because tool messages are filtered)
-          suggestions = await generateRecipeSuggestions(
-            customRecipeResult.recipe,
-            userContext.language,
-          );
-          timings.suggestions_ms = Math.round(performance.now() - phaseStart);
-          phaseStart = performance.now();
+          // No suggestions for recipes - the prompt text invites modifications
+          suggestions = undefined;
+          timings.suggestions_ms = 0;
         } else {
           // Normal streaming for non-recipe responses
           finalText = await callAIStream(

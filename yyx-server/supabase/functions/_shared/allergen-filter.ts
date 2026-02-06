@@ -16,6 +16,13 @@ import { normalizeIngredient } from "./ingredient-normalization.ts";
 let allergenCache: AllergenEntry[] | null = null;
 
 /**
+ * Promise guard to prevent duplicate concurrent DB fetches.
+ * When multiple parallel calls to loadAllergenGroups() occur,
+ * only the first initiates a DB fetch - others await the same promise.
+ */
+let loadingPromise: Promise<AllergenEntry[]> | null = null;
+
+/**
  * Load allergen groups from database
  */
 export async function loadAllergenGroups(
@@ -25,18 +32,29 @@ export async function loadAllergenGroups(
     return allergenCache;
   }
 
-  const { data, error } = await supabase
-    .from("allergen_groups")
-    .select("category, ingredient_canonical, name_en, name_es");
-
-  if (error) {
-    console.error("Failed to load allergen groups:", error);
-    return [];
+  // Prevent duplicate concurrent DB fetches
+  if (loadingPromise) {
+    return loadingPromise;
   }
 
-  allergenCache = data as AllergenEntry[];
-  console.log(`Loaded ${allergenCache.length} allergen entries`);
-  return allergenCache;
+  loadingPromise = (async () => {
+    const { data, error } = await supabase
+      .from("allergen_groups")
+      .select("category, ingredient_canonical, name_en, name_es");
+
+    if (error) {
+      console.error("Failed to load allergen groups:", error);
+      loadingPromise = null;
+      return [];
+    }
+
+    allergenCache = data as AllergenEntry[];
+    loadingPromise = null;
+    console.log(`Loaded ${allergenCache.length} allergen entries`);
+    return allergenCache;
+  })();
+
+  return loadingPromise;
 }
 
 /**
@@ -231,4 +249,5 @@ export async function getAllergenWarning(
  */
 export function clearAllergenCache(): void {
   allergenCache = null;
+  loadingPromise = null;
 }
