@@ -140,7 +140,7 @@ fi
 # ============================================================================
 run_test "Test 6: Recipe Search Mentions Allergen Awareness"
 
-RESPONSE=$(curl -sS -X POST "$BASE_URL/ai-orchestrator" \
+RESPONSE=$(curl -sS -X POST "$BASE_URL/irmixy-chat-orchestrator" \
   -H "Authorization: Bearer $JWT" \
   -H "Content-Type: application/json" \
   -d '{"message": "I am allergic to nuts. Can you find me some dessert recipes?", "mode": "text", "stream": false}')
@@ -159,7 +159,7 @@ fi
 # ============================================================================
 run_test "Test 7: Multiple Allergens Handling"
 
-RESPONSE=$(curl -sS -X POST "$BASE_URL/ai-orchestrator" \
+RESPONSE=$(curl -sS -X POST "$BASE_URL/irmixy-chat-orchestrator" \
   -H "Authorization: Bearer $JWT" \
   -H "Content-Type: application/json" \
   -d '{"message": "Find recipes without dairy, eggs, or gluten", "mode": "text", "stream": false}')
@@ -176,7 +176,7 @@ fi
 # ============================================================================
 run_test "Test 8: Bilingual Allergen Query (Spanish)"
 
-RESPONSE=$(curl -sS -X POST "$BASE_URL/ai-orchestrator" \
+RESPONSE=$(curl -sS -X POST "$BASE_URL/irmixy-chat-orchestrator" \
   -H "Authorization: Bearer $JWT" \
   -H "Content-Type: application/json" \
   -d '{"message": "Busco recetas sin lácteos", "mode": "text", "stream": false}')

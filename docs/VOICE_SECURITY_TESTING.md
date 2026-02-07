@@ -6,7 +6,7 @@ This document outlines how to test the security of the OpenAI Realtime API ephem
 ## How Ephemeral Tokens Work
 
 ### Token Generation Flow
-1. Client requests a voice session from backend (`/start-voice-session`)
+1. Client requests a voice session from backend (`/irmixy-voice-orchestrator`)
 2. Backend validates user auth and checks quota
 3. Backend calls OpenAI API to generate ephemeral token
 4. Backend returns ephemeral token + session ID to client
@@ -213,10 +213,10 @@ WHERE user_id = '<YOUR_USER_ID>'
 **Purpose**: Verify backend rejects unauthenticated requests
 
 **Steps**:
-1. Try to call `/start-voice-session` without auth token:
+1. Try to call `/irmixy-voice-orchestrator` without auth token:
 ```bash
 curl -X POST \
-  "https://<YOUR_SUPABASE_URL>/functions/v1/start-voice-session" \
+  "https://<YOUR_SUPABASE_URL>/functions/v1/irmixy-voice-orchestrator" \
   -H "Content-Type: application/json"
 ```
 

@@ -363,7 +363,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
 }
 
 /**
- * Execute a tool call on the backend via the voice-tool-execute edge function.
+ * Execute a tool call on the backend via the irmixy-voice-orchestrator edge function.
  */
 async function executeToolOnBackend(
     accessToken: string,
@@ -372,14 +372,19 @@ async function executeToolOnBackend(
     sessionId?: string,
 ): Promise<Record<string, unknown>> {
     const response = await fetch(
-        `${process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL}/voice-tool-execute`,
+        `${process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL}/irmixy-voice-orchestrator`,
         {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${accessToken}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ toolName, toolArgs, sessionId }),
+            body: JSON.stringify({
+                action: 'execute_tool',
+                toolName,
+                toolArgs,
+                sessionId,
+            }),
         },
     );
 

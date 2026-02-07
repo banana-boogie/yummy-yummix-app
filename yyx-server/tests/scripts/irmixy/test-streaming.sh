@@ -69,7 +69,7 @@ get_ms() {
 # ============================================================================
 run_test "Test 1: SSE Content-Type Header"
 
-HEADERS=$(curl -sS -I -X POST "$BASE_URL/ai-orchestrator" \
+HEADERS=$(curl -sS -I -X POST "$BASE_URL/irmixy-chat-orchestrator" \
   -H "Authorization: Bearer $JWT" \
   -H "Content-Type: application/json" \
   -d '{"message": "Hello", "mode": "text", "stream": true}' 2>&1 | head -20)
@@ -86,7 +86,7 @@ fi
 run_test "Test 2: SSE Event Format (data: prefix)"
 
 STREAM_OUTPUT=$(mktemp)
-curl -sS -N -X POST "$BASE_URL/ai-orchestrator" \
+curl -sS -N -X POST "$BASE_URL/irmixy-chat-orchestrator" \
   -H "Authorization: Bearer $JWT" \
   -H "Content-Type: application/json" \
   -d '{"message": "Say hello", "mode": "text", "stream": true}' \
@@ -108,7 +108,7 @@ rm -f "$STREAM_OUTPUT"
 run_test "Test 3: Event Sequence Validation"
 
 STREAM_OUTPUT=$(mktemp)
-curl -sS -N -X POST "$BASE_URL/ai-orchestrator" \
+curl -sS -N -X POST "$BASE_URL/irmixy-chat-orchestrator" \
   -H "Authorization: Bearer $JWT" \
   -H "Content-Type: application/json" \
   -d '{"message": "Count to 3", "mode": "text", "stream": true}' \
@@ -162,7 +162,7 @@ rm -f "$STREAM_OUTPUT"
 run_test "Test 4: All Events Are Valid JSON"
 
 STREAM_OUTPUT=$(mktemp)
-curl -sS -N -X POST "$BASE_URL/ai-orchestrator" \
+curl -sS -N -X POST "$BASE_URL/irmixy-chat-orchestrator" \
   -H "Authorization: Bearer $JWT" \
   -H "Content-Type: application/json" \
   -d '{"message": "Tell me about cooking", "mode": "text", "stream": true}' \
@@ -201,7 +201,7 @@ FIRST_BYTE_TIME=""
 # Use timeout to capture first byte timing
 STREAM_OUTPUT=$(mktemp)
 (
-  curl -sS -N -X POST "$BASE_URL/ai-orchestrator" \
+  curl -sS -N -X POST "$BASE_URL/irmixy-chat-orchestrator" \
     -H "Authorization: Bearer $JWT" \
     -H "Content-Type: application/json" \
     -d '{"message": "Hi", "mode": "text", "stream": true}' \
@@ -240,7 +240,7 @@ rm -f "$STREAM_OUTPUT"
 run_test "Test 6: Non-Streaming Response Time"
 
 START_TIME=$(get_ms)
-RESPONSE=$(curl -sS -X POST "$BASE_URL/ai-orchestrator" \
+RESPONSE=$(curl -sS -X POST "$BASE_URL/irmixy-chat-orchestrator" \
   -H "Authorization: Bearer $JWT" \
   -H "Content-Type: application/json" \
   -d '{"message": "Hi", "mode": "text", "stream": false}')
@@ -266,7 +266,7 @@ run_test "Test 7: Stream Closes Properly"
 STREAM_OUTPUT=$(mktemp)
 START_TIME=$(get_ms)
 
-curl -sS -N -X POST "$BASE_URL/ai-orchestrator" \
+curl -sS -N -X POST "$BASE_URL/irmixy-chat-orchestrator" \
   -H "Authorization: Bearer $JWT" \
   -H "Content-Type: application/json" \
   -d '{"message": "Say OK", "mode": "text", "stream": true}' \
@@ -317,7 +317,7 @@ if [ "$RUN_LOAD_TESTS" = true ]; then
   for i in {1..10}; do
     (
       START=$(get_ms)
-      HTTP_CODE=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/ai-orchestrator" \
+      HTTP_CODE=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/irmixy-chat-orchestrator" \
         -H "Authorization: Bearer $JWT" \
         -H "Content-Type: application/json" \
         -d '{"message": "Hello", "mode": "text", "stream": false}' \

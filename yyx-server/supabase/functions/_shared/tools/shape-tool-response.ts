@@ -1,7 +1,7 @@
 /**
  * Shared tool response shaping.
  *
- * Both `voice-tool-execute` and `ai-orchestrator` need to convert raw
+ * Both `irmixy-voice-orchestrator` and `irmixy-chat-orchestrator` need to convert raw
  * tool results into a common shape.  Centralising the logic here avoids
  * duplication and keeps the two paths in sync when new tools are added.
  */

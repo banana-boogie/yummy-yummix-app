@@ -115,14 +115,14 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       if (!session) throw new Error("Not authenticated");
 
       const backendResponse = await fetch(
-        `${process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL}/start-voice-session`,
+        `${process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL}/irmixy-voice-orchestrator`,
         {
           method: "POST",
           headers: {
             Authorization: `Bearer ${session.access_token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({}), // Empty body to trigger token generation
+          body: JSON.stringify({ action: "start_session" }),
         },
       );
 
@@ -332,13 +332,14 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     if (!session) throw new Error("Not authenticated");
 
     const response = await fetch(
-      `${process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL}/start-voice-session`,
+      `${process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL}/irmixy-voice-orchestrator`,
       {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({ action: "start_session" }),
       },
     );
 

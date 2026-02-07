@@ -17,7 +17,7 @@ usage() {
   echo "Usage: $0 <endpoint-url> <jwt-token> <json-body>"
   echo ""
   echo "Example:"
-  echo "  $0 'http://localhost:54321/functions/v1/ai-orchestrator' \\"
+  echo "  $0 'http://localhost:54321/functions/v1/irmixy-chat-orchestrator' \\"
   echo "     'eyJhbGc...' \\"
   echo "     '{\"message\": \"Hello\", \"mode\": \"text\", \"stream\": true}'"
   exit 1

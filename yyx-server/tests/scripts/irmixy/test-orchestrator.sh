@@ -27,7 +27,7 @@ if [ $# -lt 1 ]; then
 fi
 
 JWT="$1"
-ENDPOINT="http://localhost:54321/functions/v1/ai-orchestrator"
+ENDPOINT="http://localhost:54321/functions/v1/irmixy-chat-orchestrator"
 PASS_COUNT=0
 FAIL_COUNT=0
 

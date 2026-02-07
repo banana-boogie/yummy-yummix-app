@@ -65,7 +65,7 @@ Complete the original Irmixy objective in `docs/irmixy-plan.md`:
 ## 4. Target Architecture (Final State)
 
 ### 4.1 Request Flow
-1. User message enters `ai-orchestrator`.
+1. User message enters `irmixy-chat-orchestrator`.
 2. Context builder loads profile, session history, resumable cooking state.
 3. Model call decides tool usage.
 4. Tool executes via shared registry.
@@ -282,7 +282,7 @@ These are required in all server implementations:
 2. Preserve response shape (`RecipeCard[]`) for app compatibility.
 
 ### 6.3 Orchestrator Updates
-1. Update `yyx-server/supabase/functions/ai-orchestrator/index.ts`:
+1. Update `yyx-server/supabase/functions/irmixy-chat-orchestrator/index.ts`:
    - include `retrieve_custom_recipe` in tool policy.
    - fix second-pass grounding to include tool outputs.
    - add deterministic "no results -> Ability 1" fallback response.
@@ -294,7 +294,7 @@ These are required in all server implementations:
    - no replay retrieval beyond requesting user's `user_recipes`.
 
 ### 6.4 Voice Path Consistency
-1. Update `yyx-server/supabase/functions/voice-tool-execute/index.ts`
+1. Update `yyx-server/supabase/functions/irmixy-voice-orchestrator/index.ts`
    - allow new retrieval tool where needed.
 2. Keep shared tool execution via registry.
 3. Add contract test that compares voice tool definitions with server registry names/params.
@@ -523,7 +523,7 @@ Exit criteria:
 ### 9.5 Command-Level Verification Matrix
 Run these before merge:
 1. Server unit/integration:
-   - `cd yyx-server/supabase/functions/ai-orchestrator && deno test`
+   - `cd yyx-server/supabase/functions/irmixy-chat-orchestrator && deno test`
    - `cd yyx-server/supabase/functions && deno test --allow-env --allow-net`
 2. App tests:
    - `cd yyx-app && npm test -- --runInBand services/__tests__/chatService.test.ts`

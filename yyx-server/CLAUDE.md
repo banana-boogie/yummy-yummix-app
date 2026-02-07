@@ -42,10 +42,9 @@ Supabase Free tier has NO automated backups. You must manage your own.
 
 Located in `supabase/functions/`:
 
-- **ai-orchestrator/** - Main AI routing and conversation management
+- **irmixy-chat-orchestrator/** - Main AI routing and conversation management
 - **ai-chat/** - Chat completions endpoint
-- **start-voice-session/** - OpenAI Realtime session bootstrap + quota checks
-- **voice-tool-execute/** - Secure backend tool execution for voice mode
+- **irmixy-voice-orchestrator/** - OpenAI Realtime session bootstrap + quota checks + secure voice tool execution
 - **get-nutritional-facts/** - USDA nutrition API integration
 - **parse-recipe-markdown/** - Recipe parsing utilities
 - **_shared/** - Shared utilities (CORS, auth, AI gateway)
@@ -53,13 +52,13 @@ Located in `supabase/functions/`:
 ### Deploying Functions
 
 ```bash
-npm run deploy ai-orchestrator    # Deploy single function
+npm run deploy irmixy-chat-orchestrator    # Deploy single function
 npm run deploy:all                # Deploy all functions
 ```
 
 ### Viewing Logs
 
-Use Supabase Dashboard: `Edge Functions -> ai-orchestrator -> Logs`.
+Use Supabase Dashboard: `Edge Functions -> irmixy-chat-orchestrator -> Logs`.
 
 ---
 

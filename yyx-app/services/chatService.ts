@@ -1,8 +1,8 @@
 /**
  * Chat API Client
  *
- * Handles communication with the AI orchestrator Edge Function.
- * Uses ai-orchestrator for structured responses with recipes, suggestions, etc.
+ * Handles communication with the Irmixy chat orchestrator Edge Function.
+ * Uses irmixy-chat-orchestrator for structured responses with recipes, suggestions, etc.
  *
  * SSE = Server-Sent Events: A standard for servers to push data to clients
  * over HTTP. Used here for streaming AI responses token-by-token.
@@ -42,13 +42,13 @@ const MAX_MESSAGE_LENGTH = 2000;
 const STREAM_TIMEOUT_MS = 60000; // 60 seconds
 const MAX_RETRIES = 3;
 
-// Use ai-orchestrator for structured responses
+// Use irmixy-chat-orchestrator for structured responses
 const FUNCTIONS_BASE_URL =
     process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL ||
     (process.env.EXPO_PUBLIC_SUPABASE_URL
         ? `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1`
         : '');
-const AI_ORCHESTRATOR_URL = `${FUNCTIONS_BASE_URL}/ai-orchestrator`;
+const IRMIXY_CHAT_ORCHESTRATOR_URL = `${FUNCTIONS_BASE_URL}/irmixy-chat-orchestrator`;
 
 /**
  * Streaming callbacks for real-time updates
@@ -192,7 +192,7 @@ export async function sendChatMessage(
         throw new Error('Functions URL is not configured');
     }
 
-    const response = await fetch(AI_ORCHESTRATOR_URL, {
+    const response = await fetch(IRMIXY_CHAT_ORCHESTRATOR_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -330,7 +330,7 @@ export function streamChatMessageWithHandle(
                 // Wrap connection in Promise to handle retry logic
                 await new Promise<void>((resolveConnection, rejectConnection) => {
                     // Create EventSource with POST method and body
-                    es = new EventSource(AI_ORCHESTRATOR_URL, {
+                    es = new EventSource(IRMIXY_CHAT_ORCHESTRATOR_URL, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

@@ -159,7 +159,7 @@ Everything below exists to make the two core abilities work reliably, safely, an
 - Enforces safety (allergen filtering, schema validation)
 
 **Files:**
-- `yyx-server/supabase/functions/ai-orchestrator/index.ts`
+- `yyx-server/supabase/functions/irmixy-chat-orchestrator/index.ts`
 - `yyx-server/supabase/functions/_shared/context-builder.ts`
 
 ---
@@ -349,7 +349,7 @@ Everything below exists to make the two core abilities work reliably, safely, an
 ### New Files (Core Abilities)
 | File | Purpose |
 |------|---------|
-| `ai-orchestrator/index.ts` | Unified entry point for text/voice |
+| `irmixy-chat-orchestrator/index.ts` | Unified entry point for text/voice |
 | `tools/search-recipes.ts` | Find existing recipes (Ability 2) |
 | `tools/generate-custom-recipe.ts` | Build recipes from ingredients (Ability 1) |
 | `tools/save-custom-recipe.ts` | Auto-save creations |
@@ -362,8 +362,7 @@ Everything below exists to make the two core abilities work reliably, safely, an
 | File | Changes |
 |------|---------|
 | `ai-chat/index.ts` | Call orchestrator instead of direct LLM |
-| `start-voice-session/index.ts` | Voice session bootstrap |
-| `voice-tool-execute/index.ts` | Backend tool execution for voice mode |
+| `irmixy-voice-orchestrator/index.ts` | Voice session bootstrap + backend tool execution |
 | `ChatScreen.tsx` | Render recipe cards, cooking guide |
 | `chatService.ts` | Handle new response schema |
 

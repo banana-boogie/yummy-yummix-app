@@ -134,9 +134,8 @@ Or deploy specific functions:
 ```bash
 cd yyx-server
 npm run deploy ai-chat
-npm run deploy ai-orchestrator
-npm run deploy start-voice-session
-npm run deploy voice-tool-execute
+npm run deploy irmixy-chat-orchestrator
+npm run deploy irmixy-voice-orchestrator
 npm run deploy get-nutritional-facts
 npm run deploy parse-recipe-markdown
 ```
@@ -184,9 +183,8 @@ Why this matters:
 
 Check logs in Supabase Dashboard:
 - `Edge Functions -> ai-chat -> Logs`
-- `Edge Functions -> ai-orchestrator -> Logs`
-- `Edge Functions -> start-voice-session -> Logs`
-- `Edge Functions -> voice-tool-execute -> Logs`
+- `Edge Functions -> irmixy-chat-orchestrator -> Logs`
+- `Edge Functions -> irmixy-voice-orchestrator -> Logs`
 
 Why this matters:
 - Catches runtime regressions quickly after deploy.

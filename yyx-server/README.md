@@ -37,10 +37,9 @@ npm run test:integration    # Integration tests
 yyx-server/
 ├── supabase/
 │   ├── functions/          # Edge Functions
-│   │   ├── ai-orchestrator/
+│   │   ├── irmixy-chat-orchestrator/
 │   │   ├── ai-chat/
-│   │   ├── start-voice-session/
-│   │   ├── voice-tool-execute/
+│   │   ├── irmixy-voice-orchestrator/
 │   │   ├── get-nutritional-facts/
 │   │   ├── parse-recipe-markdown/
 │   │   └── _shared/        # Shared utilities

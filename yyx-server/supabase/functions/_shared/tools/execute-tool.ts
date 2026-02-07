@@ -2,7 +2,7 @@
  * Shared Tool Executor
  *
  * Dispatches tool calls to the appropriate handler.
- * Used by ai-orchestrator (text chat) and voice-tool-execute (voice chat).
+ * Used by irmixy-chat-orchestrator (text chat) and irmixy-voice-orchestrator (voice chat).
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";

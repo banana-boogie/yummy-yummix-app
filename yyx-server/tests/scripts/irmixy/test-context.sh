@@ -66,7 +66,7 @@ echo -e "${YELLOW}========================================${NC}"
 # ============================================================================
 run_test "Test 1: Language Preference - English"
 
-RESPONSE=$(curl -sS -X POST "$BASE_URL/ai-orchestrator" \
+RESPONSE=$(curl -sS -X POST "$BASE_URL/irmixy-chat-orchestrator" \
   -H "Authorization: Bearer $JWT" \
   -H "Content-Type: application/json" \
   -d '{"message": "Hello", "mode": "text", "stream": false}')
@@ -83,7 +83,7 @@ fi
 # ============================================================================
 run_test "Test 2: Response Uses Correct Language"
 
-RESPONSE=$(curl -sS -X POST "$BASE_URL/ai-orchestrator" \
+RESPONSE=$(curl -sS -X POST "$BASE_URL/irmixy-chat-orchestrator" \
   -H "Authorization: Bearer $JWT" \
   -H "Content-Type: application/json" \
   -d '{"message": "Give me a simple cooking tip", "mode": "text", "stream": false}')
@@ -111,7 +111,7 @@ fi
 # ============================================================================
 run_test "Test 3: Chat Session Created and Tracked"
 
-RESPONSE=$(curl -sS -i -X POST "$BASE_URL/ai-orchestrator" \
+RESPONSE=$(curl -sS -i -X POST "$BASE_URL/irmixy-chat-orchestrator" \
   -H "Authorization: Bearer $JWT" \
   -H "Content-Type: application/json" \
   -d '{"message": "Start a new conversation with me", "mode": "text", "stream": false}')
@@ -139,7 +139,7 @@ run_test "Test 4: Conversation History Persistence"
 
 if [ -n "$SESSION_ID" ]; then
   # Send a message to establish context
-  curl -sS -X POST "$BASE_URL/ai-orchestrator" \
+  curl -sS -X POST "$BASE_URL/irmixy-chat-orchestrator" \
     -H "Authorization: Bearer $JWT" \
     -H "Content-Type: application/json" \
     -d "{\"message\": \"My favorite color is blue\", \"sessionId\": \"$SESSION_ID\", \"mode\": \"text\", \"stream\": false}" \
@@ -162,7 +162,7 @@ fi
 run_test "Test 5: Context Memory Across Messages"
 
 if [ -n "$SESSION_ID" ]; then
-  RESPONSE=$(curl -sS -X POST "$BASE_URL/ai-orchestrator" \
+  RESPONSE=$(curl -sS -X POST "$BASE_URL/irmixy-chat-orchestrator" \
     -H "Authorization: Bearer $JWT" \
     -H "Content-Type: application/json" \
     -d "{\"message\": \"What is my favorite color?\", \"sessionId\": \"$SESSION_ID\", \"mode\": \"text\", \"stream\": false}")
@@ -244,7 +244,7 @@ fi
 run_test "Test 9: Chat History Limit (10 messages)"
 
 # Create a new session and send many messages
-RESPONSE=$(curl -sS -i -X POST "$BASE_URL/ai-orchestrator" \
+RESPONSE=$(curl -sS -i -X POST "$BASE_URL/irmixy-chat-orchestrator" \
   -H "Authorization: Bearer $JWT" \
   -H "Content-Type: application/json" \
   -d '{"message": "Message 1", "mode": "text", "stream": false}')
@@ -254,7 +254,7 @@ TEST_SESSION=$(echo "$RESPONSE" | grep -i "x-session-id:" | cut -d' ' -f2 | tr -
 if [ -n "$TEST_SESSION" ]; then
   # Send 12 more messages
   for i in {2..13}; do
-    curl -sS -X POST "$BASE_URL/ai-orchestrator" \
+    curl -sS -X POST "$BASE_URL/irmixy-chat-orchestrator" \
       -H "Authorization: Bearer $JWT" \
       -H "Content-Type: application/json" \
       -d "{\"message\": \"Message $i\", \"sessionId\": \"$TEST_SESSION\", \"mode\": \"text\", \"stream\": false}" \
@@ -262,7 +262,7 @@ if [ -n "$TEST_SESSION" ]; then
   done
 
   # Check that session still works (doesn't error from too many messages)
-  FINAL_RESPONSE=$(curl -sS -X POST "$BASE_URL/ai-orchestrator" \
+  FINAL_RESPONSE=$(curl -sS -X POST "$BASE_URL/irmixy-chat-orchestrator" \
     -H "Authorization: Bearer $JWT" \
     -H "Content-Type: application/json" \
     -d "{\"message\": \"Final message\", \"sessionId\": \"$TEST_SESSION\", \"mode\": \"text\", \"stream\": false}")
@@ -281,7 +281,7 @@ fi
 # ============================================================================
 run_test "Test 10: Voice Mode Uses Concise Responses"
 
-RESPONSE=$(curl -sS -X POST "$BASE_URL/ai-orchestrator" \
+RESPONSE=$(curl -sS -X POST "$BASE_URL/irmixy-chat-orchestrator" \
   -H "Authorization: Bearer $JWT" \
   -H "Content-Type: application/json" \
   -d '{"message": "How do I boil water?", "mode": "voice", "stream": false}')

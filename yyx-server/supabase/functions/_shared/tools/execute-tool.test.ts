@@ -1,7 +1,7 @@
 /**
  * Execute Tool Tests
  *
- * Tests for the shared tool dispatcher used by both ai-orchestrator and voice-tool-execute.
+ * Tests for the shared tool dispatcher used by both irmixy-chat-orchestrator and irmixy-voice-orchestrator.
  * Covers:
  * - Negative paths: unknown tool, invalid JSON, empty name
  * - Positive path: search_recipes dispatch with mocked Supabase

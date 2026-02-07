@@ -247,7 +247,7 @@ must be identical to what text mode would produce. Only "message" phrasing chang
 ```
 
 **Files:**
-- `yyx-server/supabase/functions/ai-orchestrator/index.ts`
+- `yyx-server/supabase/functions/irmixy-chat-orchestrator/index.ts`
 - `yyx-server/supabase/functions/_shared/context-builder.ts`
 
 ---
@@ -331,8 +331,8 @@ Generate a recipe in JSON format matching the GeneratedRecipe schema.
    - `yyx-server/supabase/functions/_shared/tools/execute-tool.ts`
    - `yyx-server/supabase/functions/_shared/tools/shape-tool-response.ts`
 3. The orchestrator and voice executor auto-pick up registry tools:
-   - `yyx-server/supabase/functions/ai-orchestrator/index.ts`
-   - `yyx-server/supabase/functions/voice-tool-execute/index.ts`
+   - `yyx-server/supabase/functions/irmixy-chat-orchestrator/index.ts`
+   - `yyx-server/supabase/functions/irmixy-voice-orchestrator/index.ts`
 4. Add/adjust validation in `yyx-server/supabase/functions/_shared/tools/tool-validators.ts`.
 5. Update client schema/types only if new structured fields are needed in `IrmixyResponse`.
 
@@ -1045,7 +1045,7 @@ async function buildConversationContext(sessionId: string) {
 ### New Files
 | File | Purpose |
 |------|---------|
-| `ai-orchestrator/index.ts` | Unified entry point |
+| `irmixy-chat-orchestrator/index.ts` | Unified entry point |
 | `tools/search-recipes.ts` | DB search with filters |
 | `tools/generate-custom-recipe.ts` | LLM recipe creation |
 | `tools/save-custom-recipe.ts` | Save to user_recipes |
@@ -1069,8 +1069,7 @@ async function buildConversationContext(sessionId: string) {
 | File | Changes |
 |------|---------|
 | `ai-chat/index.ts` | Call orchestrator |
-| `start-voice-session/index.ts` | Voice session bootstrap + quota checks |
-| `voice-tool-execute/index.ts` | Secure backend tool execution for voice mode |
+| `irmixy-voice-orchestrator/index.ts` | Voice session bootstrap + quota checks + secure backend tool execution |
 | `CookingGuide.tsx` | Accept GeneratedRecipe, save progress |
 | `ChatScreen.tsx` | Render IrmixyResponse schema |
 | `chatService.ts` | Handle new response types |
