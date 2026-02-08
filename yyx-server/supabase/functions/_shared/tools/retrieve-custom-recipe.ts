@@ -305,14 +305,14 @@ export async function retrieveCustomRecipe(
   }
 
   // Parse timeframe if provided
-  const timeRange = params.timeframe
-    ? parseTimeframe(params.timeframe)
-    : null;
+  const timeRange = params.timeframe ? parseTimeframe(params.timeframe) : null;
 
   // Fetch user's custom recipes (ownership enforced via RLS + query predicate)
   let query = supabase
     .from("user_recipes")
-    .select("id, name, description, recipe_data, source, created_at, updated_at")
+    .select(
+      "id, name, description, recipe_data, source, created_at, updated_at",
+    )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(MAX_CANDIDATES);

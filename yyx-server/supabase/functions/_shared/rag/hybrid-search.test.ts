@@ -75,7 +75,8 @@ Deno.test("hybrid scoring: moderate semantic + strong lexical passes threshold",
 });
 
 Deno.test("hybrid scoring: weights sum to 1.0", () => {
-  const total = SEMANTIC_WEIGHT + LEXICAL_WEIGHT + METADATA_WEIGHT + PERSONALIZATION_WEIGHT;
+  const total = SEMANTIC_WEIGHT + LEXICAL_WEIGHT + METADATA_WEIGHT +
+    PERSONALIZATION_WEIGHT;
   assertEquals(total, 1.0);
 });
 

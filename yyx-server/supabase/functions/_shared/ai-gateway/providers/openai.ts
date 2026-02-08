@@ -5,11 +5,7 @@
  * Includes: chat completions and streaming chat completions.
  */
 
-import {
-  AICompletionRequest,
-  AICompletionResponse,
-  AITool,
-} from "../types.ts";
+import { AICompletionRequest, AICompletionResponse, AITool } from "../types.ts";
 
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 

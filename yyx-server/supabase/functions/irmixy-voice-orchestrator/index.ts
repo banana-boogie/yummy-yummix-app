@@ -52,9 +52,7 @@ function jsonResponse(
 }
 
 function normalizeSupabaseUrl(url: string): string {
-  return url.includes("kong:8000")
-    ? "http://host.docker.internal:54321"
-    : url;
+  return url.includes("kong:8000") ? "http://host.docker.internal:54321" : url;
 }
 
 function createAnonClient(authHeader: string) {
@@ -113,7 +111,9 @@ async function handleStartSession(
 
   const warningThreshold = QUOTA_LIMIT_MINUTES * 0.8;
   const warning = minutesUsed >= warningThreshold
-    ? `You've used ${minutesUsed.toFixed(1)} of ${QUOTA_LIMIT_MINUTES} minutes this month.`
+    ? `You've used ${
+      minutesUsed.toFixed(1)
+    } of ${QUOTA_LIMIT_MINUTES} minutes this month.`
     : null;
 
   const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
@@ -126,17 +126,20 @@ async function handleStartSession(
     );
   }
 
-  const tokenResponse = await fetch("https://api.openai.com/v1/realtime/sessions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${openaiApiKey}`,
-      "Content-Type": "application/json",
+  const tokenResponse = await fetch(
+    "https://api.openai.com/v1/realtime/sessions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openaiApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-realtime-mini",
+        voice: "alloy",
+      }),
     },
-    body: JSON.stringify({
-      model: "gpt-realtime-mini",
-      voice: "alloy",
-    }),
-  });
+  );
 
   if (!tokenResponse.ok) {
     const errorText = await tokenResponse.text();
@@ -155,7 +158,9 @@ async function handleStartSession(
   const ephemeralToken = tokenData?.client_secret?.value;
 
   if (!ephemeralToken || typeof ephemeralToken !== "string") {
-    console.error("[irmixy-voice-orchestrator] Missing client_secret in OpenAI response");
+    console.error(
+      "[irmixy-voice-orchestrator] Missing client_secret in OpenAI response",
+    );
     return jsonResponse(
       { error: "Failed to generate AI token" },
       502,
@@ -237,7 +242,9 @@ async function handleExecuteTool(
   }
 
   console.log(
-    `[irmixy-voice-orchestrator] User ${userId.slice(0, 8)} calling ${toolName}`,
+    `[irmixy-voice-orchestrator] User ${
+      userId.slice(0, 8)
+    } calling ${toolName}`,
   );
 
   const supabase = createAnonClient(authHeader);
@@ -258,7 +265,9 @@ async function handleExecuteTool(
   );
 
   const elapsed = Math.round(performance.now() - startTime);
-  console.log(`[irmixy-voice-orchestrator] ${toolName} completed in ${elapsed}ms`);
+  console.log(
+    `[irmixy-voice-orchestrator] ${toolName} completed in ${elapsed}ms`,
+  );
 
   const response = shapeToolResponse(toolName, result);
   return jsonResponse(response, 200, corsHeaders);
@@ -370,6 +379,10 @@ serve(async (req) => {
     }
 
     console.error(`[irmixy-voice-orchestrator] Error (${elapsed}ms):`, message);
-    return jsonResponse({ error: "Voice orchestration failed" }, 500, corsHeaders);
+    return jsonResponse(
+      { error: "Voice orchestration failed" },
+      500,
+      corsHeaders,
+    );
   }
 });

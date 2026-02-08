@@ -50,8 +50,16 @@ Deno.test("tool registry: all tools have name, description, parameters", () => {
   const tools = getRegisteredAiTools();
   for (const tool of tools) {
     assertNotEquals(tool.name, undefined, `Tool missing name`);
-    assertNotEquals(tool.description, undefined, `${tool.name} missing description`);
-    assertNotEquals(tool.parameters, undefined, `${tool.name} missing parameters`);
+    assertNotEquals(
+      tool.description,
+      undefined,
+      `${tool.name} missing description`,
+    );
+    assertNotEquals(
+      tool.parameters,
+      undefined,
+      `${tool.name} missing parameters`,
+    );
   }
 });
 
@@ -59,7 +67,11 @@ Deno.test("tool registry: all tools have non-empty descriptions", () => {
   const tools = getRegisteredAiTools();
   for (const tool of tools) {
     assertEquals(typeof tool.description, "string");
-    assertEquals(tool.description!.length > 0, true, `${tool.name} has empty description`);
+    assertEquals(
+      tool.description!.length > 0,
+      true,
+      `${tool.name} has empty description`,
+    );
   }
 });
 
@@ -95,7 +107,11 @@ Deno.test("voice tools: all registered tools have execute and shapeResult", () =
   for (const name of voiceNames) {
     const reg = getToolRegistration(name);
     assertEquals(typeof reg!.execute, "function", `${name} missing execute`);
-    assertEquals(typeof reg!.shapeResult, "function", `${name} missing shapeResult`);
+    assertEquals(
+      typeof reg!.shapeResult,
+      "function",
+      `${name} missing shapeResult`,
+    );
   }
 });
 
@@ -135,7 +151,12 @@ Deno.test("tool registry: retrieve_custom_recipe shapeResult handles valid resul
   const result = {
     version: "1.0",
     type: "single",
-    recipe: { userRecipeId: "abc", name: "Test", createdAt: "2025-01-01", source: "ai_generated" },
+    recipe: {
+      userRecipeId: "abc",
+      name: "Test",
+      createdAt: "2025-01-01",
+      source: "ai_generated",
+    },
     suggestions: [],
   };
   const shaped = reg.shapeResult(result);

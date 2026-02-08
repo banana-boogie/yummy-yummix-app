@@ -277,7 +277,9 @@ async function runBackfill(params: BackfillParams): Promise<{
     .select("recipe_id, content_hash");
 
   const existingHashMap = new Map(
-    (existingEmbeddings || []).map((e: { recipe_id: string; content_hash: string }) => [
+    (existingEmbeddings || []).map((
+      e: { recipe_id: string; content_hash: string },
+    ) => [
       e.recipe_id,
       e.content_hash,
     ]),

@@ -7,9 +7,7 @@ import {
   assertRejects,
   assertThrows,
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import {
-  validateRetrieveCustomRecipeParams,
-} from "./tool-validators.ts";
+import { validateRetrieveCustomRecipeParams } from "./tool-validators.ts";
 import { ToolValidationError } from "./tool-validators.ts";
 import { retrieveCustomRecipe } from "./retrieve-custom-recipe.ts";
 
@@ -219,13 +217,18 @@ Deno.test("retrieveCustomRecipe applies explicit user_id ownership predicate", a
     gte: () => builder,
     lte: () => builder,
     // Supabase query builder is thenable — .then() enables `await` on query chains
-    then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
-      Promise.resolve({ data: [], error: null }).then(resolve, reject),
+    then: (
+      resolve: (value: unknown) => unknown,
+      reject?: (reason: unknown) => unknown,
+    ) => Promise.resolve({ data: [], error: null }).then(resolve, reject),
   };
 
   const mockSupabase = {
     auth: {
-      getUser: async () => ({ data: { user: { id: "user-123" } }, error: null }),
+      getUser: async () => ({
+        data: { user: { id: "user-123" } },
+        error: null,
+      }),
     },
     from: () => builder,
   };
@@ -238,7 +241,9 @@ Deno.test("retrieveCustomRecipe applies explicit user_id ownership predicate", a
 
   assertEquals(result.type, "not_found");
   assertEquals(
-    eqCalls.some(([column, value]) => column === "user_id" && value === "user-123"),
+    eqCalls.some(([column, value]) =>
+      column === "user_id" && value === "user-123"
+    ),
     true,
   );
 });

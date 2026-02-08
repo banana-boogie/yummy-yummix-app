@@ -30,7 +30,11 @@ Deno.test("parity: every voice-allowed tool has identical aiTool schema in the r
     // The aiTool on the registration must be the same object present
     // in getRegisteredAiTools() — guaranteeing text and voice see the same schema.
     const fromAll = allTools.find((t) => t.name === name);
-    assertNotEquals(fromAll, undefined, `${name} missing from getRegisteredAiTools()`);
+    assertNotEquals(
+      fromAll,
+      undefined,
+      `${name} missing from getRegisteredAiTools()`,
+    );
 
     assertEquals(
       JSON.stringify(reg!.aiTool),
@@ -110,6 +114,10 @@ Deno.test("parity: no voice-allowed tool lacks a shapeResult function", () => {
 
     // Verify shapeResult doesn't throw on common input shapes
     const nullResult = reg!.shapeResult(null);
-    assertNotEquals(nullResult, undefined, `${name}: shapeResult(null) returned undefined`);
+    assertNotEquals(
+      nullResult,
+      undefined,
+      `${name}: shapeResult(null) returned undefined`,
+    );
   }
 });

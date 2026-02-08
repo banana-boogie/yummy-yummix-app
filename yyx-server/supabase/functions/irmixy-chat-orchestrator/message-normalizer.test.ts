@@ -16,13 +16,13 @@ Deno.test("normalizeMessagesForAi folds tool results into assistant context", ()
         type: "function",
         function: {
           name: "search_recipes",
-          arguments: "{\"query\":\"pasta\"}",
+          arguments: '{"query":"pasta"}',
         },
       }],
     },
     {
       role: "tool",
-      content: "{\"recipes\":[{\"name\":\"Pasta\"}]}",
+      content: '{"recipes":[{"name":"Pasta"}]}',
       tool_call_id: "tool_1",
     },
     { role: "assistant", content: "Here are results" },
@@ -33,7 +33,7 @@ Deno.test("normalizeMessagesForAi folds tool results into assistant context", ()
   assertEquals(result.length, 4);
   assertEquals(result[2].role, "assistant");
   assertEquals(
-    result[2].content.includes("[Tool result]: {\"recipes\""),
+    result[2].content.includes('[Tool result]: {"recipes"'),
     true,
   );
 });
@@ -41,14 +41,14 @@ Deno.test("normalizeMessagesForAi folds tool results into assistant context", ()
 Deno.test("normalizeMessagesForAi converts standalone tool message to assistant context", () => {
   const input: OpenAIMessageLike[] = [
     { role: "system", content: "system" },
-    { role: "tool", content: "{\"ok\":true}", tool_call_id: "tool_1" },
+    { role: "tool", content: '{"ok":true}', tool_call_id: "tool_1" },
   ];
 
   const result = normalizeMessagesForAi(input);
 
   assertEquals(result.length, 2);
   assertEquals(result[1].role, "assistant");
-  assertEquals(result[1].content, "[Tool result]: {\"ok\":true}");
+  assertEquals(result[1].content, '[Tool result]: {"ok":true}');
 });
 
 Deno.test("normalizeMessagesForAi preserves non-tool messages", () => {

@@ -46,9 +46,7 @@ import {
   detectModificationHeuristic,
   hasHighRecipeIntent,
 } from "./recipe-intent.ts";
-import {
-  normalizeMessagesForAi,
-} from "./message-normalizer.ts";
+import { normalizeMessagesForAi } from "./message-normalizer.ts";
 
 // ============================================================
 // Types

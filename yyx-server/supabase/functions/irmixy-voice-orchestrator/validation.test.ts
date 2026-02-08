@@ -24,12 +24,23 @@ Deno.test("ALLOWED_ACTIONS contains exactly the expected actions", () => {
 });
 
 Deno.test("action validation rejects unknown actions", () => {
-  const unknownActions = ["", "start", "execute", "delete_all", null, undefined];
+  const unknownActions = [
+    "",
+    "start",
+    "execute",
+    "delete_all",
+    null,
+    undefined,
+  ];
 
   for (const action of unknownActions) {
     const isAllowed = typeof action === "string" &&
       ALLOWED_ACTIONS.includes(action as typeof ALLOWED_ACTIONS[number]);
-    assertEquals(isAllowed, false, `Action ${JSON.stringify(action)} should be rejected`);
+    assertEquals(
+      isAllowed,
+      false,
+      `Action ${JSON.stringify(action)} should be rejected`,
+    );
   }
 });
 
@@ -49,7 +60,9 @@ Deno.test("tool allowlist rejects unknown tool names", () => {
   ];
 
   for (const tool of unknownTools) {
-    const isAllowed = ALLOWED_TOOLS.includes(tool as typeof ALLOWED_TOOLS[number]);
+    const isAllowed = ALLOWED_TOOLS.includes(
+      tool as typeof ALLOWED_TOOLS[number],
+    );
     assertEquals(isAllowed, false, `Tool \"${tool}\" should not be allowed`);
   }
 });
@@ -144,7 +157,10 @@ Deno.test("only POST and OPTIONS methods should be accepted", () => {
   }
 
   for (const method of rejectedMethods) {
-    assert(!["POST", "OPTIONS"].includes(method), `${method} should be rejected with 405`);
+    assert(
+      !["POST", "OPTIONS"].includes(method),
+      `${method} should be rejected with 405`,
+    );
   }
 });
 
@@ -158,12 +174,20 @@ Deno.test("execute_tool payload requires non-empty string toolName and non-null 
   const invalidNames = [null, undefined, "", 0, false];
   for (const name of invalidNames) {
     const isValid = !!name && typeof name === "string";
-    assertEquals(isValid, false, `toolName ${JSON.stringify(name)} should be invalid`);
+    assertEquals(
+      isValid,
+      false,
+      `toolName ${JSON.stringify(name)} should be invalid`,
+    );
   }
 
   const invalidArgs = [null, undefined];
   for (const args of invalidArgs) {
     const isInvalid = args === undefined || args === null;
-    assertEquals(isInvalid, true, `toolArgs ${JSON.stringify(args)} should be rejected`);
+    assertEquals(
+      isInvalid,
+      true,
+      `toolArgs ${JSON.stringify(args)} should be rejected`,
+    );
   }
 });

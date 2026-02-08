@@ -10,15 +10,9 @@
  * 2. Set environment variables: AI_TEXT_MODEL, AI_PARSING_MODEL, AI_REASONING_MODEL
  */
 
-import {
-  AICompletionRequest,
-  AICompletionResponse,
-} from "./types.ts";
+import { AICompletionRequest, AICompletionResponse } from "./types.ts";
 import { getProviderConfig } from "./router.ts";
-import {
-  callOpenAI,
-  callOpenAIStream,
-} from "./providers/openai.ts";
+import { callOpenAI, callOpenAIStream } from "./providers/openai.ts";
 
 /**
  * Make an AI chat request.

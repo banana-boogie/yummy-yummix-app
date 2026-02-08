@@ -302,7 +302,11 @@ export async function searchRecipesHybrid(
   }
 
   // Get semantic matches from vector search
-  const semanticMatches = await semanticSearch(semanticSupabase, queryEmbedding, 50);
+  const semanticMatches = await semanticSearch(
+    semanticSupabase,
+    queryEmbedding,
+    50,
+  );
 
   if (semanticMatches.length === 0) {
     return {
@@ -356,22 +360,20 @@ export async function searchRecipesHybrid(
       .map((join) => {
         const tag = join.recipe_tags;
         if (!tag) return "";
-        return (userContext.language === "es" ? tag.name_es : tag.name_en) || "";
+        return (userContext.language === "es" ? tag.name_es : tag.name_en) ||
+          "";
       })
       .filter(Boolean);
 
     const semanticScore = semanticScoreMap.get(recipe.id) || 0;
-    const lexicalScore = query
-      ? computeLexicalScore(name, tagNames, query)
-      : 0;
+    const lexicalScore = query ? computeLexicalScore(name, tagNames, query) : 0;
     const metadataScore = computeMetadataScore(recipe, filters);
     const personalizationScore = computePersonalizationScore(
       tagNames,
       userContext,
     );
 
-    const finalScore =
-      SEMANTIC_WEIGHT * semanticScore +
+    const finalScore = SEMANTIC_WEIGHT * semanticScore +
       LEXICAL_WEIGHT * lexicalScore +
       METADATA_WEIGHT * metadataScore +
       PERSONALIZATION_WEIGHT * personalizationScore;
@@ -403,8 +405,7 @@ export async function searchRecipesHybrid(
 
   // Check fallback conditions
   const topScore = aboveThreshold[0]?.finalScore || 0;
-  const needsFallback =
-    aboveThreshold.length < MIN_RESULTS_BEFORE_FALLBACK ||
+  const needsFallback = aboveThreshold.length < MIN_RESULTS_BEFORE_FALLBACK ||
     topScore < FALLBACK_TOP_THRESHOLD;
 
   if (needsFallback) {

@@ -275,7 +275,9 @@ export async function searchRecipes(
 // is naturally scoped with no leak risk.
 let _semanticClient: SupabaseClient | null = null;
 
-function getSemanticSearchClient(defaultClient: SupabaseClient): SupabaseClient {
+function getSemanticSearchClient(
+  defaultClient: SupabaseClient,
+): SupabaseClient {
   const url = Deno.env.get("SUPABASE_URL");
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!url || !key) return defaultClient;
