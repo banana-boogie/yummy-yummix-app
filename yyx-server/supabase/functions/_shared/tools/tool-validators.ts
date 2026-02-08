@@ -207,6 +207,54 @@ export function validateGenerateRecipeParams(
 }
 
 // ============================================================
+// Retrieve Custom Recipe Params
+// ============================================================
+
+export interface RetrieveCustomRecipeValidatedParams {
+  query: string;
+  timeframe?: string;
+}
+
+/**
+ * Validate and sanitize retrieve_custom_recipe tool arguments.
+ */
+export function validateRetrieveCustomRecipeParams(
+  raw: unknown,
+): RetrieveCustomRecipeValidatedParams {
+  let params: unknown;
+  if (typeof raw === "string") {
+    try {
+      params = JSON.parse(raw);
+    } catch {
+      throw new ToolValidationError(
+        "Invalid JSON in retrieve_custom_recipe params",
+      );
+    }
+  } else {
+    params = raw;
+  }
+
+  if (!params || typeof params !== "object") {
+    throw new ToolValidationError(
+      "retrieve_custom_recipe params must be an object",
+    );
+  }
+
+  const p = params as Record<string, unknown>;
+
+  if (!p.query || typeof p.query !== "string" || p.query.trim().length === 0) {
+    throw new ToolValidationError(
+      "retrieve_custom_recipe requires a non-empty query",
+    );
+  }
+
+  return {
+    query: sanitizeSearchQuery(p.query, 200),
+    timeframe: p.timeframe ? sanitizeString(p.timeframe, 100) : undefined,
+  };
+}
+
+// ============================================================
 // Search Recipes Params
 // ============================================================
 

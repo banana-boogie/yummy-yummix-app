@@ -18,7 +18,7 @@ export interface SuggestionChip {
 }
 
 export interface QuickAction {
-  type: 'start_cooking' | 'view_recipe' | 'save_recipe' | 'set_timer';
+  type: 'start_cooking' | 'view_recipe' | 'save_recipe' | 'set_timer' | 'resume_cooking';
   label: string;
   payload: Record<string, unknown>;
 }

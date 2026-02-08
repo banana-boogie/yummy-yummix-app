@@ -36,6 +36,9 @@ expo-env.d.ts
 .supabase/
 backups/
 
+# Deno
+.deno.lock
+
 # macOS
 .DS_Store
 

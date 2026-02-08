@@ -19,6 +19,7 @@ import {
 import {
   IrmixyResponse,
   IrmixyResponseSchema,
+  QuickAction,
   RecipeCard,
   SuggestionChip,
   UserContext,
@@ -30,6 +31,7 @@ import {
   GenerateRecipeResult,
   PartialRecipeCallback,
 } from "../_shared/tools/generate-custom-recipe.ts";
+import { RetrieveCustomRecipeResult } from "../_shared/tools/retrieve-custom-recipe.ts";
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { executeTool } from "../_shared/tools/execute-tool.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
@@ -132,15 +134,24 @@ type Logger = ReturnType<typeof createLogger>;
 // Internal Types
 // ============================================================
 
+interface ResumableSession {
+  recipeName: string;
+  currentStep: number;
+  totalSteps: number;
+  recipeId: string;
+}
+
 interface RequestContext {
   userContext: UserContext;
   messages: OpenAIMessage[];
+  resumableSession: ResumableSession | null;
 }
 
 interface ToolExecutionResult {
   toolMessages: OpenAIMessage[];
   recipes: RecipeCard[] | undefined;
   customRecipeResult: GenerateRecipeResult | undefined;
+  retrievalResult: RetrieveCustomRecipeResult | undefined;
 }
 
 interface SessionResult {
@@ -364,7 +375,7 @@ async function buildRequestContext(
     { role: "user", content: message },
   ];
 
-  return { userContext, messages };
+  return { userContext, messages, resumableSession };
 }
 
 /**
@@ -455,6 +466,7 @@ async function executeToolCalls(
   const toolMessages: OpenAIMessage[] = [];
   let recipes: RecipeCard[] | undefined;
   let customRecipeResult: GenerateRecipeResult | undefined;
+  let retrievalResult: RetrieveCustomRecipeResult | undefined;
 
   const results = await Promise.all(
     toolCalls.map(async (toolCall) => {
@@ -506,10 +518,13 @@ async function executeToolCalls(
         recipe: execution.shaped.customRecipe,
         safetyFlags: execution.shaped.safetyFlags,
       };
+    } else if (execution.shaped.retrievalResult) {
+      retrievalResult = execution.shaped
+        .retrievalResult as RetrieveCustomRecipeResult;
     }
   }
 
-  return { toolMessages, recipes, customRecipeResult };
+  return { toolMessages, recipes, customRecipeResult, retrievalResult };
 }
 
 /**
@@ -525,6 +540,7 @@ async function finalizeResponse(
   recipes: RecipeCard[] | undefined,
   customRecipeResult: GenerateRecipeResult | undefined,
   suggestions?: SuggestionChip[],
+  actions?: QuickAction[],
 ): Promise<IrmixyResponse> {
   // When a custom recipe is generated, use a fixed short message
   // This ensures consistent, brief responses regardless of AI output
@@ -544,6 +560,7 @@ async function finalizeResponse(
     customRecipe: customRecipeResult?.recipe,
     safetyFlags: customRecipeResult?.safetyFlags,
     suggestions,
+    actions: actions && actions.length > 0 ? actions : undefined,
   };
 
   // Debug logging
@@ -689,6 +706,58 @@ function getTemplateSuggestions(
 }
 
 /**
+ * Build a deterministic no-results fallback response (no AI call).
+ * Per irmixy-completion-plan.md Section 6.9
+ */
+function buildNoResultsFallback(language: "en" | "es"): {
+  message: string;
+  suggestions: SuggestionChip[];
+} {
+  return {
+    message: language === "es"
+      ? "No encontré recetas que coincidan, ¡pero puedo crear algo personalizado!"
+      : "I couldn't find recipes matching that, but I can create something custom!",
+    suggestions: [
+      {
+        label: language === "es"
+          ? "Crear desde ingredientes"
+          : "Create from ingredients",
+        message: language === "es"
+          ? "Quiero crear una receta nueva con ingredientes"
+          : "I want to create a new recipe from ingredients",
+      },
+      {
+        label: language === "es" ? "Sorpréndeme" : "Surprise me",
+        message: language === "es"
+          ? "Hazme una receta sorpresa"
+          : "Make me a surprise recipe",
+      },
+    ],
+  };
+}
+
+/**
+ * Build resume_cooking action for a resumable session.
+ * Per irmixy-completion-plan.md Section 6.11
+ */
+function buildResumeAction(
+  session: ResumableSession,
+  language: "en" | "es",
+): QuickAction {
+  return {
+    type: "resume_cooking",
+    label: language === "es" ? "Continuar cocinando" : "Resume cooking",
+    payload: {
+      sessionId: session.recipeId, // Use recipeId since session lookup is by recipe
+      recipeId: session.recipeId,
+      currentStep: session.currentStep,
+      totalSteps: session.totalSteps,
+      recipeName: session.recipeName,
+    },
+  };
+}
+
+/**
  * Detect if user wants to modify an existing recipe.
  * Uses regex heuristics instead of LLM call (~1.5s → <5ms).
  */
@@ -732,13 +801,18 @@ async function processRequest(
   message: string,
   mode: "text" | "voice",
 ): Promise<IrmixyResponse> {
-  const { userContext, messages } = await buildRequestContext(
+  const { userContext, messages, resumableSession } = await buildRequestContext(
     supabase,
     userId,
     sessionId,
     message,
     mode,
   );
+
+  // Build resume action if there's a resumable session
+  const resumeActions: QuickAction[] = resumableSession
+    ? [buildResumeAction(resumableSession, userContext.language)]
+    : [];
 
   // Check if user is trying to modify an existing custom recipe
   // Look for custom recipe in conversation history
@@ -885,7 +959,7 @@ async function processRequest(
   const assistantMessage = firstResponse.choices[0].message;
 
   if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-    const { toolMessages, recipes, customRecipeResult } =
+    const { toolMessages, recipes, customRecipeResult, retrievalResult } =
       await executeToolCalls(
         supabase,
         assistantMessage.tool_calls,
@@ -905,10 +979,69 @@ async function processRequest(
         recipes,
         customRecipeResult,
         undefined,
+        resumeActions,
       );
     }
 
-    // For non-recipe tool calls, get suggestions from AI
+    // No-results fallback: if search returned empty, use deterministic template
+    if (
+      recipes !== undefined && recipes.length === 0 && !customRecipeResult &&
+      !retrievalResult
+    ) {
+      const fallback = buildNoResultsFallback(userContext.language);
+      return finalizeResponse(
+        supabase,
+        sessionId,
+        userId,
+        message,
+        fallback.message,
+        userContext,
+        undefined,
+        undefined,
+        fallback.suggestions,
+        resumeActions,
+      );
+    }
+
+    // Retrieval result: use its suggestions directly
+    if (retrievalResult) {
+      // Let AI generate a conversational message grounded in tool results
+      const secondResponse = await callAI(
+        [...messages, {
+          role: "assistant" as const,
+          content: assistantMessage.content,
+          tool_calls: assistantMessage.tool_calls,
+        }, ...toolMessages],
+        false,
+        true,
+      );
+
+      let finalText: string;
+      try {
+        const parsed = JSON.parse(
+          secondResponse.choices[0].message.content || "{}",
+        );
+        finalText = parsed.message ||
+          secondResponse.choices[0].message.content || "";
+      } catch {
+        finalText = secondResponse.choices[0].message.content || "";
+      }
+
+      return finalizeResponse(
+        supabase,
+        sessionId,
+        userId,
+        message,
+        finalText,
+        userContext,
+        undefined,
+        undefined,
+        retrievalResult.suggestions,
+        resumeActions,
+      );
+    }
+
+    // For non-recipe tool calls, get suggestions from AI (grounded in tool results)
     const secondResponse = await callAI(
       [...messages, {
         role: "assistant" as const,
@@ -944,6 +1077,7 @@ async function processRequest(
       recipes,
       customRecipeResult,
       structuredContent.suggestions,
+      resumeActions,
     );
   }
 
@@ -974,6 +1108,7 @@ async function processRequest(
     undefined,
     undefined,
     structuredContent.suggestions,
+    resumeActions,
   );
 }
 
@@ -1014,18 +1149,25 @@ function handleStreamingRequest(
         }
         send({ type: "status", status: "thinking" });
 
-        const { userContext, messages } = await buildRequestContext(
-          supabase,
-          userId,
-          sessionId,
-          message,
-          mode,
-        );
+        const { userContext, messages, resumableSession: streamResumable } =
+          await buildRequestContext(
+            supabase,
+            userId,
+            sessionId,
+            message,
+            mode,
+          );
         timings.context_build_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
 
+        // Build resume action if applicable
+        const streamResumeActions: QuickAction[] = streamResumable
+          ? [buildResumeAction(streamResumable, userContext.language)]
+          : [];
+
         let recipes: RecipeCard[] | undefined;
         let customRecipeResult: GenerateRecipeResult | undefined;
+        let retrievalResult: RetrieveCustomRecipeResult | undefined;
         let streamMessages = messages;
 
         // Check for modification of existing custom recipe (same logic as non-streaming)
@@ -1171,6 +1313,7 @@ function handleStreamingRequest(
           phaseStart = performance.now();
           recipes = toolResult.recipes;
           customRecipeResult = toolResult.customRecipeResult;
+          retrievalResult = toolResult.retrievalResult;
 
           // DEBUG: Log tool execution result
           console.log("[Streaming] Tool execution result:", {
@@ -1179,6 +1322,7 @@ function handleStreamingRequest(
             customRecipeName: customRecipeResult?.recipe?.suggestedName,
             hasSafetyFlags: !!customRecipeResult?.safetyFlags,
             safetyError: customRecipeResult?.safetyFlags?.error,
+            hasRetrieval: !!retrievalResult,
           });
 
           streamMessages = [...messages, {
@@ -1186,6 +1330,32 @@ function handleStreamingRequest(
             content: assistantMessage.content,
             tool_calls: assistantMessage.tool_calls,
           }, ...toolResult.toolMessages];
+
+          // No-results fallback for search
+          if (
+            recipes !== undefined && recipes.length === 0 &&
+            !customRecipeResult && !retrievalResult
+          ) {
+            const fallback = buildNoResultsFallback(userContext.language);
+            send({ type: "content", content: fallback.message });
+            const response = await finalizeResponse(
+              supabase,
+              sessionId,
+              userId,
+              message,
+              fallback.message,
+              userContext,
+              undefined,
+              undefined,
+              fallback.suggestions,
+              streamResumeActions,
+            );
+            timings.total_ms = Math.round(performance.now() - startTime);
+            console.log("[Timings] No-results fallback:", timings);
+            send({ type: "done", response });
+            controller.close();
+            return;
+          }
         }
 
         // If a custom recipe was generated, use a fixed short message instead of streaming AI text
@@ -1202,6 +1372,17 @@ function handleStreamingRequest(
 
           // No suggestions for recipes - the prompt text invites modifications
           suggestions = undefined;
+          timings.suggestions_ms = 0;
+        } else if (retrievalResult) {
+          // Retrieval result: stream AI response grounded in tool results, use retrieval suggestions
+          finalText = await callAIStream(
+            streamMessages,
+            (token) => send({ type: "content", content: token }),
+          );
+          timings.stream_ms = Math.round(performance.now() - phaseStart);
+          phaseStart = performance.now();
+          send({ type: "stream_complete" });
+          suggestions = retrievalResult.suggestions;
           timings.suggestions_ms = 0;
         } else {
           // Normal streaming for non-recipe responses
@@ -1234,6 +1415,7 @@ function handleStreamingRequest(
           recipes,
           customRecipeResult,
           suggestions,
+          streamResumeActions,
         );
         timings.finalize_ms = Math.round(performance.now() - phaseStart);
         timings.total_ms = Math.round(performance.now() - startTime);
@@ -1353,12 +1535,49 @@ async function callAI(
   toolChoice?: "auto" | "required",
 ): Promise<{ choices: Array<{ message: OpenAIMessage }> }> {
   // Convert OpenAIMessage format to AIMessage format
-  const aiMessages: AIMessage[] = messages
-    .filter((m) => m.role !== "tool") // AI Gateway doesn't support tool role in messages
-    .map((m) => ({
+  // Handle tool-role messages by combining them with the preceding assistant message
+  // so tool results are visible to the model (grounding fix)
+  const aiMessages: AIMessage[] = [];
+  let i = 0;
+  while (i < messages.length) {
+    const m = messages[i];
+
+    if (m.role === "assistant" && m.tool_calls && m.tool_calls.length > 0) {
+      // Assistant message with tool calls — combine with following tool results
+      const parts: string[] = [];
+      if (m.content) parts.push(m.content);
+
+      // Collect tool results that follow
+      let j = i + 1;
+      while (j < messages.length && messages[j].role === "tool") {
+        parts.push(`[Tool result]: ${messages[j].content}`);
+        j++;
+      }
+
+      aiMessages.push({
+        role: "assistant",
+        content: parts.join("\n"),
+      });
+      i = j;
+      continue;
+    }
+
+    if (m.role === "tool") {
+      // Standalone tool message — convert to assistant context
+      aiMessages.push({
+        role: "assistant",
+        content: `[Tool result]: ${m.content}`,
+      });
+      i++;
+      continue;
+    }
+
+    aiMessages.push({
       role: m.role as "system" | "user" | "assistant",
       content: m.content || "",
-    }));
+    });
+    i++;
+  }
 
   // Convert tools to AI Gateway format
   const tools: AITool[] | undefined = includeTools

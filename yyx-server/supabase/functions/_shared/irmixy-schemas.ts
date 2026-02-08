@@ -26,7 +26,13 @@ export const SuggestionChipSchema = z.object({
 });
 
 export const QuickActionSchema = z.object({
-  type: z.enum(["start_cooking", "view_recipe", "save_recipe", "set_timer"]),
+  type: z.enum([
+    "start_cooking",
+    "view_recipe",
+    "save_recipe",
+    "set_timer",
+    "resume_cooking",
+  ]),
   label: z.string(),
   payload: z.record(z.unknown()),
 });

@@ -18,7 +18,7 @@ import { IrmixyAvatar } from '@/components/chat/IrmixyAvatar';
 import { ChatRecipeCard } from '@/components/chat/ChatRecipeCard';
 import { CustomRecipeCard } from '@/components/chat/CustomRecipeCard';
 import { RecipeGeneratingSkeleton } from '@/components/chat/RecipeGeneratingSkeleton';
-import { ChatMessage, IrmixyStatus, SuggestionChip, RecipeCard, GeneratedRecipe, loadChatHistory } from '@/services/chatService';
+import { ChatMessage, IrmixyStatus, SuggestionChip, RecipeCard, GeneratedRecipe, QuickAction, loadChatHistory } from '@/services/chatService';
 import { customRecipeService } from '@/services/customRecipeService';
 import { useQueryClient } from '@tanstack/react-query';
 import { customRecipeKeys } from '@/hooks/useCustomRecipe';
@@ -204,6 +204,7 @@ interface ChatMessageItemProps {
     statusText: string;
     onCopyMessage: (content: string) => void;
     onStartCooking: (recipe: GeneratedRecipe, finalName: string, messageId: string, savedRecipeId?: string) => void;
+    onActionPress: (action: QuickAction) => void;
 }
 
 const ChatMessageItem = memo(function ChatMessageItem({
@@ -214,6 +215,7 @@ const ChatMessageItem = memo(function ChatMessageItem({
     statusText,
     onCopyMessage,
     onStartCooking,
+    onActionPress,
 }: ChatMessageItemProps) {
     const isUser = item.role === 'user';
 
@@ -280,6 +282,23 @@ const ChatMessageItem = memo(function ChatMessageItem({
                         </Markdown>
                     </Pressable>
                 )
+            )}
+
+            {/* Quick action buttons */}
+            {!isUser && item.actions && item.actions.length > 0 && (
+                <View className="mt-xs gap-xs">
+                    {item.actions.map((action, idx) => (
+                        <TouchableOpacity
+                            key={`${action.type}-${idx}`}
+                            onPress={() => onActionPress(action)}
+                            className="self-start bg-primary-medium px-md py-xs rounded-lg"
+                        >
+                            <Text className="text-sm font-medium text-white">
+                                {action.label}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
             )}
         </View>
     );
@@ -692,6 +711,7 @@ export function ChatScreen({
                                     safetyFlags: hasRecipeData
                                         ? response.safetyFlags
                                         : updated[assistantIdx].safetyFlags,
+                                    actions: response.actions,
                                 };
 
                                 // DEBUG: Log the message update
@@ -900,6 +920,32 @@ export function ChatScreen({
         }
     }, [queryClient, setMessages]);
 
+    const handleActionPress = useCallback((action: QuickAction) => {
+        const payload = action.payload || {};
+        switch (action.type) {
+            case 'resume_cooking': {
+                const recipeType = payload.recipeType as string;
+                const recipeId = payload.recipeId as string;
+                const currentStep = payload.currentStep as number;
+                if (recipeType === 'custom') {
+                    router.push(`/(tabs)/recipes/custom/${recipeId}/cooking-guide/${currentStep}?from=chat`);
+                } else {
+                    router.push(`/(tabs)/recipes/${recipeId}/cooking-guide/${currentStep}`);
+                }
+                break;
+            }
+            case 'view_recipe': {
+                const recipeId = payload.recipeId as string;
+                if (recipeId) {
+                    router.push(`/(tabs)/recipes/${recipeId}?from=chat`);
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }, []);
+
     // Memoize the last message ID to avoid recalculating on every render
     const lastMessageId = messages.length > 0 ? messages[messages.length - 1]?.id : null;
 
@@ -917,9 +963,10 @@ export function ChatScreen({
                 statusText={statusText}
                 onCopyMessage={handleCopyMessage}
                 onStartCooking={handleStartCooking}
+                onActionPress={handleActionPress}
             />
         );
-    }, [lastMessageId, isLoading, currentStatus, statusText, handleCopyMessage, handleStartCooking]);
+    }, [lastMessageId, isLoading, currentStatus, statusText, handleCopyMessage, handleStartCooking, handleActionPress]);
 
     const handleScroll = useCallback((event: any) => {
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;

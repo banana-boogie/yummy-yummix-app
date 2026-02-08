@@ -78,4 +78,24 @@ export const chat = {
   andMore: "and {{count}} more",
   miseEnPlace: "Mise en place",
   prepareIngredients: "Prepare your ingredients.",
+  // Cooking progress & resume
+  resume: {
+    resumeCooking: "Resume cooking",
+    resumePrompt: "You were cooking {{recipeName}} — step {{step}} of {{total}}. Want to pick up where you left off?",
+    startOver: "Start over",
+  },
+  // Fallback when no recipes found
+  fallback: {
+    noResults: "I couldn't find recipes matching that, but I can create something custom!",
+    createFromIngredients: "Create from ingredients",
+    createFromIngredientsMessage: "Help me create a recipe from ingredients I have",
+    surpriseMe: "Surprise me",
+    surpriseMeMessage: "Create a fun recipe for me",
+  },
+  // Replay / retrieval
+  replay: {
+    foundOne: "Found it! Here's your recipe.",
+    foundMultiple: "I found a few matches. Which one did you mean?",
+    notFound: "I couldn't find that recipe. Want to create a new one?",
+  },
 };

@@ -1,11 +1,12 @@
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCustomRecipe } from "@/hooks/useCustomRecipe";
+import { useCookingProgress } from "@/hooks/useCookingProgress";
 import { CookingGuideHeader } from "@/components/cooking-guide/CookingGuideHeader";
 import { RecipeStepContent } from "@/components/cooking-guide/RecipeStepContent";
 import { Text } from "@/components/common/Text";
 import i18n from "@/i18n";
-import React from "react";
+import React, { useEffect } from "react";
 import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideStepNavigationButtons';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
@@ -13,16 +14,30 @@ import { shouldDisplayRecipeSection } from '@/utils/recipes';
 export default function CustomCookingStep() {
     const { id, step: stepParam, from } = useLocalSearchParams<{ id: string; step: string; from?: string }>();
     const { recipe } = useCustomRecipe(id as string);
-
-    if (!recipe?.steps) return null;
+    const { upsertProgress, completeSession } = useCookingProgress();
 
     const currentStepNumber = Number(stepParam);
-    const currentStep = recipe.steps[currentStepNumber - 1];
+    const steps = recipe?.steps;
+    const currentStep = steps?.[currentStepNumber - 1];
+    const recipeName = recipe?.name;
+    const totalSteps = steps?.length || 0;
 
-    // Guard against invalid step number or out of bounds
+    // Persist cooking progress on each step change
+    useEffect(() => {
+        if (!steps || !currentStep || !recipeName) return;
+        void upsertProgress({
+            recipeId: id as string,
+            recipeType: 'custom',
+            recipeName,
+            currentStep: currentStepNumber,
+            totalSteps,
+        });
+    }, [id, currentStepNumber, recipeName, totalSteps, steps, currentStep, upsertProgress]);
+
+    if (!steps) return null;
     if (!currentStep) return null;
 
-    const isLastStep = currentStepNumber === recipe.steps.length;
+    const isLastStep = currentStepNumber === steps.length;
 
     const handleNavigation = {
         back: () => {
@@ -37,6 +52,7 @@ export default function CustomCookingStep() {
             router.replace(`/(tabs)/recipes/custom/${id}/cooking-guide/${currentStepNumber + 1}`);
         },
         finish: () => {
+            void completeSession(id as string);
             if (from === 'chat') {
                 router.replace('/(tabs)/chat');
             } else {
@@ -49,7 +65,7 @@ export default function CustomCookingStep() {
         <CookingGuideHeader
             title={i18n.t('recipes.cookingGuide.navigation.step', {
                 step: currentStepNumber,
-                total: recipe.steps?.length || 0
+                total: totalSteps
             })}
             showSubtitle={false}
             pictureUrl={recipe.pictureUrl}
@@ -60,7 +76,7 @@ export default function CustomCookingStep() {
                 recipeId: id as string,
                 recipeTitle: recipe.name,
                 currentStep: currentStepNumber,
-                totalSteps: recipe.steps?.length || 0,
+                totalSteps,
                 stepInstructions: currentStep.instruction,
                 ingredients: currentStep.ingredients?.map(ing => ({
                     name: ing.name,

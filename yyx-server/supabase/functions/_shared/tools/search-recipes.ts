@@ -12,6 +12,7 @@ import {
   UserContext,
 } from "../irmixy-schemas.ts";
 import { filterByAllergens } from "../allergen-filter.ts";
+import { searchRecipesHybrid } from "../rag/hybrid-search.ts";
 import { validateSearchRecipesParams } from "./tool-validators.ts";
 
 // ============================================================
@@ -102,16 +103,57 @@ export const searchRecipesTool = {
 
 /**
  * Search recipes with filters and allergen exclusion.
- * Validates params before executing.
+ * Tries hybrid (semantic + lexical) search when feature flag is enabled.
+ * Falls back to lexical-only search on embedding failure or when flag is off.
  */
 export async function searchRecipes(
   supabase: SupabaseClient,
   rawParams: unknown,
   userContext: UserContext,
+  openaiApiKey?: string,
 ): Promise<RecipeCard[]> {
   // Validate and sanitize params
   const params = validateSearchRecipesParams(rawParams);
 
+  // Try hybrid search when feature flag is enabled and query is present
+  const hybridEnabled = Deno.env.get("FEATURE_HYBRID_SEARCH") === "true";
+  if (hybridEnabled && params.query && openaiApiKey) {
+    const hybridResult = await searchRecipesHybrid(
+      supabase,
+      params.query,
+      {
+        cuisine: params.cuisine,
+        maxTime: params.maxTime,
+        difficulty: params.difficulty,
+        limit: params.limit,
+      },
+      userContext,
+      openaiApiKey,
+    );
+
+    if (hybridResult.recipes.length > 0) {
+      // Hybrid returned results — apply allergen filtering then return
+      if (userContext.dietaryRestrictions.length > 0) {
+        const recipeIds = hybridResult.recipes.map((r) => r.recipeId);
+        const recipesWithIngredients = await fetchRecipesWithIngredients(
+          supabase,
+          recipeIds,
+        );
+        const safeRecipes = await filterByAllergens(
+          supabase,
+          recipesWithIngredients,
+          userContext.dietaryRestrictions,
+          userContext.language,
+        );
+        const safeIds = new Set(safeRecipes.map((r) => r.id));
+        return hybridResult.recipes.filter((r) => safeIds.has(r.recipeId));
+      }
+      return hybridResult.recipes;
+    }
+    // Hybrid returned empty — fall through to lexical
+  }
+
+  // Lexical search path (existing implementation)
   // Build base query with correct column names and joins
   let query = supabase
     .from("recipes")
