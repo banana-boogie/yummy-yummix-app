@@ -164,7 +164,7 @@ on public.recipe_embeddings
 using hnsw (embedding vector_cosine_ops);
 ```
 
-4. RLS:
+<!--4. RLS-->
    1. Read and write restricted to service role only. The app never queries `recipe_embeddings` directly — all vector searches go through Edge Functions using the service-role client.
    2. No user-facing read policy needed since embeddings are an internal backend concern.
 

@@ -38,6 +38,7 @@ backups/
 
 # Deno
 .deno.lock
+deno.lock
 
 # macOS
 .DS_Store
