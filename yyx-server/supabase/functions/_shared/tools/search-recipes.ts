@@ -106,8 +106,8 @@ export const searchRecipesTool = {
 
 /**
  * Search recipes with filters and allergen exclusion.
- * Tries hybrid (semantic + lexical) search when feature flag is enabled.
- * Falls back to lexical-only search on embedding failure or when flag is off.
+ * Tries hybrid (semantic + lexical) search when query and API key are present.
+ * Falls back to lexical-only search on embedding failure.
  */
 export async function searchRecipes(
   supabase: SupabaseClient,
@@ -118,9 +118,8 @@ export async function searchRecipes(
   // Validate and sanitize params
   const params = validateSearchRecipesParams(rawParams);
 
-  // Try hybrid search when feature flag is enabled and query is present
-  const hybridEnabled = Deno.env.get("FEATURE_HYBRID_SEARCH") === "true";
-  if (hybridEnabled && params.query && openaiApiKey) {
+  // Try hybrid search when query and API key are present
+  if (params.query && openaiApiKey) {
     // Embedding RPC is service-role only; use service client when available.
     const semanticSupabase = getSemanticSearchClient(supabase);
     const hybridResult = await searchRecipesHybrid(
