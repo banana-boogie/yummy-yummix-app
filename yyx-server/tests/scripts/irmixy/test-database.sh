@@ -207,6 +207,44 @@ else
 fi
 
 # ============================================================================
+# Test 13: upsert_cooking_session_progress function exists
+# ============================================================================
+run_test "Test 13: upsert_cooking_session_progress function exists"
+
+FUNC_EXISTS=$(sql_query "SELECT to_regprocedure('public.upsert_cooking_session_progress(uuid,text,text,integer,integer)') IS NOT NULL")
+if [ "$FUNC_EXISTS" = "t" ]; then
+  assert_pass "upsert_cooking_session_progress(uuid,text,text,integer,integer) exists"
+else
+  assert_fail "upsert_cooking_session_progress(uuid,text,text,integer,integer) does not exist"
+fi
+
+# ============================================================================
+# Test 14: match_recipe_embeddings execute grants are restricted
+# ============================================================================
+run_test "Test 14: match_recipe_embeddings execute grants"
+
+AUTH_EXEC=$(sql_query "SELECT EXISTS (SELECT 1 FROM information_schema.role_routine_grants WHERE routine_schema = 'public' AND routine_name = 'match_recipe_embeddings' AND grantee = 'authenticated' AND privilege_type = 'EXECUTE')")
+SERVICE_EXEC=$(sql_query "SELECT EXISTS (SELECT 1 FROM information_schema.role_routine_grants WHERE routine_schema = 'public' AND routine_name = 'match_recipe_embeddings' AND grantee = 'service_role' AND privilege_type = 'EXECUTE')")
+
+if [ "$AUTH_EXEC" = "f" ] && [ "$SERVICE_EXEC" = "t" ]; then
+  assert_pass "match_recipe_embeddings execute grants restricted to service_role"
+else
+  assert_fail "Unexpected execute grants (authenticated=$AUTH_EXEC, service_role=$SERVICE_EXEC)"
+fi
+
+# ============================================================================
+# Test 15: match_recipe_embeddings clamps threshold and match_count
+# ============================================================================
+run_test "Test 15: match_recipe_embeddings has bounded inputs"
+
+FUNC_DEF=$(sql_query "SELECT pg_get_functiondef('public.match_recipe_embeddings(extensions.vector,float,int)'::regprocedure)")
+if [[ "$FUNC_DEF" == *"least(greatest(match_threshold, 0.0), 1.0)"* ]] && [[ "$FUNC_DEF" == *"least(greatest(match_count, 1), 50)"* ]]; then
+  assert_pass "match_recipe_embeddings clamps threshold [0,1] and count [1,50]"
+else
+  assert_fail "match_recipe_embeddings is missing one or more clamp safeguards"
+fi
+
+# ============================================================================
 # Summary
 # ============================================================================
 echo -e "\n${YELLOW}========================================${NC}"

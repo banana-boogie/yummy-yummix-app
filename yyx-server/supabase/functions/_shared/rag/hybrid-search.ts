@@ -280,6 +280,7 @@ export async function searchRecipesHybrid(
   filters: HybridSearchFilters,
   userContext: UserContext,
   openaiApiKey: string,
+  semanticSupabase: SupabaseClient = supabase,
 ): Promise<HybridSearchResult> {
   // Try to generate query embedding with graceful fallback
   let queryEmbedding: number[] | null = null;
@@ -301,7 +302,7 @@ export async function searchRecipesHybrid(
   }
 
   // Get semantic matches from vector search
-  const semanticMatches = await semanticSearch(supabase, queryEmbedding, 50);
+  const semanticMatches = await semanticSearch(semanticSupabase, queryEmbedding, 50);
 
   if (semanticMatches.length === 0) {
     return {

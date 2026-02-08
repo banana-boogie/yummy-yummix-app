@@ -83,6 +83,7 @@ export const chat = {
     resumeCooking: "Resume cooking",
     resumePrompt: "You were cooking {{recipeName}} — step {{step}} of {{total}}. Want to pick up where you left off?",
     startOver: "Start over",
+    startOverFailed: "Couldn't start over right now. Please try again.",
   },
   // Fallback when no recipes found
   fallback: {

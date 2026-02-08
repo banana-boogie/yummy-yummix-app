@@ -49,14 +49,14 @@ as $$
     re.recipe_id,
     1 - (re.embedding <=> query_embedding) as similarity
   from public.recipe_embeddings re
-  where 1 - (re.embedding <=> query_embedding) > match_threshold
+  where 1 - (re.embedding <=> query_embedding) >
+    least(greatest(match_threshold, 0.0), 1.0)
   order by re.embedding <=> query_embedding asc
-  limit match_count;
+  limit least(greatest(match_count, 1), 50);
 $$;
 
--- Restrict RPC execution to authenticated backend contexts only.
+-- Restrict RPC execution to backend service-role contexts.
 revoke all on function public.match_recipe_embeddings(extensions.vector(3072), float, int) from public;
-grant execute on function public.match_recipe_embeddings(extensions.vector(3072), float, int) to authenticated;
 grant execute on function public.match_recipe_embeddings(extensions.vector(3072), float, int) to service_role;
 
 comment on table public.recipe_embeddings is

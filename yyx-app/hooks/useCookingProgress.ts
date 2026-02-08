@@ -9,6 +9,8 @@ import { useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
+const RESUME_WINDOW_HOURS = 24;
+
 export interface CookingSession {
   id: string;
   recipeId: string;
@@ -34,8 +36,8 @@ export function useCookingProgress() {
     recipeName: string;
     currentStep: number;
     totalSteps: number;
-  }) => {
-    if (!user) return;
+  }): Promise<boolean> => {
+    if (!user) return false;
 
     const { error } = await supabase.rpc('upsert_cooking_session_progress', {
       p_recipe_id: params.recipeId,
@@ -47,14 +49,16 @@ export function useCookingProgress() {
 
     if (error) {
       if (__DEV__) console.error('[useCookingProgress] upsert error:', error.message);
+      return false;
     }
+    return true;
   }, [user]);
 
   /**
    * Mark a cooking session as completed.
    */
-  const completeSession = useCallback(async (recipeId: string) => {
-    if (!user) return;
+  const completeSession = useCallback(async (recipeId: string): Promise<boolean> => {
+    if (!user) return false;
 
     const { error } = await supabase
       .from('cooking_sessions')
@@ -69,14 +73,16 @@ export function useCookingProgress() {
 
     if (error) {
       if (__DEV__) console.error('[useCookingProgress] complete error:', error.message);
+      return false;
     }
+    return true;
   }, [user]);
 
   /**
    * Mark a cooking session as abandoned (user chose to start over or cancel).
    */
-  const abandonSession = useCallback(async (recipeId: string) => {
-    if (!user) return;
+  const abandonSession = useCallback(async (recipeId: string): Promise<boolean> => {
+    if (!user) return false;
 
     const { error } = await supabase
       .from('cooking_sessions')
@@ -91,7 +97,9 @@ export function useCookingProgress() {
 
     if (error) {
       if (__DEV__) console.error('[useCookingProgress] abandon error:', error.message);
+      return false;
     }
+    return true;
   }, [user]);
 
   /**
@@ -100,12 +108,14 @@ export function useCookingProgress() {
    */
   const getResumableSession = useCallback(async (): Promise<CookingSession | null> => {
     if (!user) return null;
+    const resumeCutoffIso = new Date(Date.now() - RESUME_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
 
     const { data, error } = await supabase
       .from('cooking_sessions')
-      .select('id, recipe_id, recipe_type, recipe_name, current_step, total_steps, status')
+      .select('id, recipe_id, recipe_type, recipe_name, current_step, total_steps, status, last_active_at')
       .eq('user_id', user.id)
       .eq('status', 'active')
+      .gte('last_active_at', resumeCutoffIso)
       .order('last_active_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -116,6 +126,10 @@ export function useCookingProgress() {
     }
 
     if (!data) return null;
+    // Defensive check in case DB query behavior changes.
+    if (new Date(data.last_active_at).getTime() < Date.now() - RESUME_WINDOW_HOURS * 60 * 60 * 1000) {
+      return null;
+    }
 
     return {
       id: data.id,

@@ -30,11 +30,14 @@ jest.mock('@/i18n', () => ({
       'chat.suggestions.createCustomRecipeLabel': 'Create a custom recipe',
       'chat.suggestions.createCustomRecipeMessage': 'Create a custom recipe for me',
       'common.copied': 'Copied',
+      'common.ok': 'OK',
       'common.cancel': 'Cancel',
       'chat.messageCopied': 'Message copied to clipboard',
+      'chat.error.title': 'Error',
       'chat.resume.resumeCooking': 'Resume cooking',
       'chat.resume.resumePrompt': 'Resume prompt',
       'chat.resume.startOver': 'Start over',
+      'chat.resume.startOverFailed': 'Unable to start over right now. Please try again.',
     };
     return translations[key] || key;
   },
@@ -43,6 +46,13 @@ jest.mock('@/i18n', () => ({
 // Mock contexts
 const mockUser = { id: 'user-123', email: 'test@example.com' };
 let mockAuthUser: typeof mockUser | null = mockUser;
+const mockRouterPush = jest.fn();
+
+jest.mock('expo-router', () => ({
+  router: {
+    push: (...args: any[]) => mockRouterPush(...args),
+  },
+}));
 
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ user: mockAuthUser }),
@@ -80,7 +90,7 @@ jest.mock('@tanstack/react-query', () => ({
 }));
 
 const mockGetResumableSession = jest.fn().mockResolvedValue(null);
-const mockAbandonSession = jest.fn().mockResolvedValue(undefined);
+const mockAbandonSession = jest.fn().mockResolvedValue(true);
 jest.mock('@/hooks/useCookingProgress', () => ({
   useCookingProgress: () => ({
     getResumableSession: mockGetResumableSession,
@@ -145,6 +155,7 @@ describe('ChatScreen', () => {
     mockAuthUser = mockUser;
     mockLoadChatHistory.mockResolvedValue([]);
     mockGetResumableSession.mockResolvedValue(null);
+    mockAbandonSession.mockResolvedValue(true);
   });
 
   // ============================================================
@@ -344,6 +355,78 @@ describe('ChatScreen', () => {
       render(<ChatScreen messages={externalMessages} />);
 
       expect(screen.getByText('External message content')).toBeTruthy();
+    });
+  });
+
+  // ============================================================
+  // RESUME PROMPT TESTS
+  // ============================================================
+
+  describe('resume prompt', () => {
+    it('start over abandons session before navigating', async () => {
+      const activeSession = {
+        id: 'session-abc',
+        recipeId: 'recipe-123',
+        recipeType: 'custom' as const,
+        recipeName: 'Weeknight Tacos',
+        currentStep: 3,
+        totalSteps: 8,
+        status: 'active' as const,
+      };
+      mockGetResumableSession.mockResolvedValue(activeSession);
+
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title: any, _message: any, buttons: any) => {
+        const startOverButton = buttons?.find((b: any) => b.text === 'Start over');
+        startOverButton?.onPress?.();
+      });
+
+      render(<ChatScreen />);
+
+      await waitFor(() => {
+        expect(mockAbandonSession).toHaveBeenCalledWith('recipe-123');
+      });
+      await waitFor(() => {
+        expect(mockRouterPush).toHaveBeenCalledWith('/(tabs)/recipes/custom/recipe-123/cooking-guide/1?from=chat');
+      });
+
+      alertSpy.mockRestore();
+    });
+
+    it('shows localized error and does not navigate when abandon fails', async () => {
+      const activeSession = {
+        id: 'session-abc',
+        recipeId: 'recipe-123',
+        recipeType: 'custom' as const,
+        recipeName: 'Weeknight Tacos',
+        currentStep: 3,
+        totalSteps: 8,
+        status: 'active' as const,
+      };
+      mockGetResumableSession.mockResolvedValue(activeSession);
+      mockAbandonSession.mockResolvedValue(false);
+
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((title: any, _message: any, buttons: any) => {
+        if (title === 'Resume cooking') {
+          const startOverButton = buttons?.find((b: any) => b.text === 'Start over');
+          startOverButton?.onPress?.();
+        }
+      });
+
+      render(<ChatScreen />);
+
+      await waitFor(() => {
+        expect(mockAbandonSession).toHaveBeenCalledWith('recipe-123');
+      });
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalledWith(
+          'Error',
+          'Unable to start over right now. Please try again.',
+          expect.any(Array)
+        );
+      });
+      expect(mockRouterPush).not.toHaveBeenCalled();
+
+      alertSpy.mockRestore();
     });
   });
 });

@@ -974,8 +974,18 @@ export function ChatScreen({
                         text: i18n.t('chat.resume.startOver'),
                         style: 'destructive',
                         onPress: () => {
-                            void abandonSession(session.recipeId);
-                            navigateToCookingGuide(session.recipeType, session.recipeId, 1);
+                            void (async () => {
+                                const abandoned = await abandonSession(session.recipeId);
+                                if (!abandoned) {
+                                    Alert.alert(
+                                        i18n.t('chat.error.title'),
+                                        i18n.t('chat.resume.startOverFailed'),
+                                        [{ text: i18n.t('common.ok') }]
+                                    );
+                                    return;
+                                }
+                                navigateToCookingGuide(session.recipeType, session.recipeId, 1);
+                            })();
                         },
                     },
                     {
@@ -997,8 +1007,16 @@ export function ChatScreen({
         return () => {
             cancelled = true;
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user, currentSessionId, isLoading, messages.length]);
+    }, [
+        user,
+        currentSessionId,
+        isLoading,
+        messages.length,
+        getResumableSession,
+        abandonSession,
+        navigateToCookingGuide,
+        language,
+    ]);
 
     const handleActionPress = useCallback((action: QuickAction) => {
         const payload = action.payload || {};

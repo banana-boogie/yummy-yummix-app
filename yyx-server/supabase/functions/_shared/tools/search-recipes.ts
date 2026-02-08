@@ -5,7 +5,10 @@
  * Returns RecipeCard[] for display.
  */
 
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import {
+  createClient,
+  SupabaseClient,
+} from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import {
   RecipeCard,
   SearchRecipesParams,
@@ -118,6 +121,8 @@ export async function searchRecipes(
   // Try hybrid search when feature flag is enabled and query is present
   const hybridEnabled = Deno.env.get("FEATURE_HYBRID_SEARCH") === "true";
   if (hybridEnabled && params.query && openaiApiKey) {
+    // Embedding RPC is service-role only; use service client when available.
+    const semanticSupabase = getSemanticSearchClient(supabase);
     const hybridResult = await searchRecipesHybrid(
       supabase,
       params.query,
@@ -129,6 +134,7 @@ export async function searchRecipes(
       },
       userContext,
       openaiApiKey,
+      semanticSupabase,
     );
 
     if (hybridResult.recipes.length > 0) {
@@ -265,6 +271,28 @@ export async function searchRecipes(
 // ============================================================
 // Helpers
 // ============================================================
+
+function getSemanticSearchClient(defaultClient: SupabaseClient): SupabaseClient {
+  const hasServiceCredentials = !!Deno.env.get("SUPABASE_URL") &&
+    !!Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!hasServiceCredentials) {
+    return defaultClient;
+  }
+
+  try {
+    return createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    ) as unknown as SupabaseClient;
+  } catch (error) {
+    console.warn(
+      "[search-recipes] Failed to initialize service client for semantic search, using user client fallback:",
+      error instanceof Error ? error.message : String(error),
+    );
+    return defaultClient;
+  }
+}
 
 /**
  * Filter recipes by cuisine using tags (CULTURAL_CUISINE category).
