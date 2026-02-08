@@ -188,7 +188,7 @@ Deno.test("searchRecipesHybrid returns hybrid no_semantic_candidates when vector
   }
 });
 
-Deno.test("searchRecipesHybrid returns hybrid low_confidence for low-confidence candidates", async () => {
+Deno.test("searchRecipesHybrid returns low_confidence when too few results above threshold", async () => {
   clearEmbeddingCache();
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
@@ -212,7 +212,7 @@ Deno.test("searchRecipesHybrid returns hybrid low_confidence for low-confidence 
     rpc: async () => ({
       data: [{
         recipe_id: "11111111-1111-1111-1111-111111111111",
-        similarity: 0.9,
+        similarity: 0.3,
       }],
       error: null,
     }),

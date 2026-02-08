@@ -997,16 +997,8 @@ export function ChatScreen({
         return () => {
             cancelled = true;
         };
-    }, [
-        user,
-        currentSessionId,
-        isLoading,
-        messages.length,
-        getResumableSession,
-        abandonSession,
-        navigateToCookingGuide,
-        language,
-    ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, currentSessionId, isLoading, messages.length]);
 
     const handleActionPress = useCallback((action: QuickAction) => {
         const payload = action.payload || {};

@@ -63,6 +63,9 @@ const REMOVAL_SPECIFIC = [
   /\bsoy\s+al[ée]rgic[oa]\s+(?:a\s+las|a\s+los|a\s+la|al|a)\s+(.+)/i,
   /\b(?:quita|quitale|elimina|saca)\s+(?:el|la|los|las)?\s*(.+)/i,
   /\bsin\s+(?:el|la|los|las)?\s*(.+)/i,
+  // Bare "No [ingredient]" — reject conversational phrases ("No thanks", "No, ...")
+  // Must be last so ES-specific patterns (no pongas, no me gusta) match first.
+  /^no\s+(?!thanks|thank|gracias|no|,|\.)\s*(?:the\s+)?(.+)/i,
 ];
 
 // Adjustment patterns (EN) — "more/less" only at sentence start to avoid "tell me more about"

@@ -8,7 +8,7 @@ create table if not exists public.cooking_sessions (
   recipe_id uuid not null,
   recipe_type text not null check (recipe_type in ('custom', 'database')),
   recipe_name text,
-  current_step integer not null default 0,
+  current_step integer not null default 1,
   total_steps integer not null,
   status text not null default 'active' check (status in ('active', 'completed', 'abandoned')),
   started_at timestamptz not null default now(),

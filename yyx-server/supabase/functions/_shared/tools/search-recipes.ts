@@ -151,19 +151,17 @@ export async function searchRecipes(
       return hybridResult.recipes;
     }
 
-    // Hybrid-specific no-result conditions should trigger deterministic
-    // no-results fallback in the orchestrator, not lexical fallback here.
-    if (hybridResult.method === "hybrid") {
-      return [];
-    }
-
-    // Lexical fallback is reserved for embedding failure degradation.
+    // low_confidence means hybrid ran fully and found nothing good —
+    // signal orchestrator to show deterministic no-results fallback.
     if (
-      hybridResult.method === "lexical" &&
-      hybridResult.degradationReason !== "embedding_failure"
+      hybridResult.method === "hybrid" &&
+      hybridResult.degradationReason === "low_confidence"
     ) {
       return [];
     }
+
+    // embedding_failure and no_semantic_candidates fall through
+    // to lexical search as graceful degradation.
   }
 
   // Lexical search path (existing implementation)

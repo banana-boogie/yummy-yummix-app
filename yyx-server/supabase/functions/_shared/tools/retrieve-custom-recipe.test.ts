@@ -218,6 +218,7 @@ Deno.test("retrieveCustomRecipe applies explicit user_id ownership predicate", a
     limit: () => builder,
     gte: () => builder,
     lte: () => builder,
+    // Supabase query builder is thenable — .then() enables `await` on query chains
     then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
       Promise.resolve({ data: [], error: null }).then(resolve, reject),
   };

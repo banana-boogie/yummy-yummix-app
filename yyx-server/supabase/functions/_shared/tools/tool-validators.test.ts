@@ -250,11 +250,12 @@ Deno.test("validateSearchRecipesParams truncates long queries", () => {
 });
 
 Deno.test("validateSearchRecipesParams handles SQL injection attempts", () => {
-  // These should be sanitized, not cause errors
+  // sanitizeSearchQuery keeps only letters, numbers, spaces, and hyphens
   const params1 = validateSearchRecipesParams({
     query: "'; DROP TABLE recipes;--",
   });
-  assertEquals(params1.query?.includes(";"), true); // We only strip commas, SQL is handled by parameterized queries
+  assertEquals(params1.query?.includes(";"), false);
+  assertEquals(params1.query?.includes("'"), false);
 
   // Commas are stripped
   const params2 = validateSearchRecipesParams({
