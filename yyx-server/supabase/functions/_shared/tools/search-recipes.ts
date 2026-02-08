@@ -272,26 +272,27 @@ export async function searchRecipes(
 // Helpers
 // ============================================================
 
+// Module-level cache — edge function isolates are short-lived so a singleton
+// is naturally scoped with no leak risk.
+let _semanticClient: SupabaseClient | null = null;
+
 function getSemanticSearchClient(defaultClient: SupabaseClient): SupabaseClient {
-  const hasServiceCredentials = !!Deno.env.get("SUPABASE_URL") &&
-    !!Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return defaultClient;
 
-  if (!hasServiceCredentials) {
-    return defaultClient;
+  if (!_semanticClient) {
+    try {
+      _semanticClient = createClient(url, key) as unknown as SupabaseClient;
+    } catch (error) {
+      console.warn(
+        "[search-recipes] Failed to init service client:",
+        error instanceof Error ? error.message : String(error),
+      );
+      return defaultClient;
+    }
   }
-
-  try {
-    return createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    ) as unknown as SupabaseClient;
-  } catch (error) {
-    console.warn(
-      "[search-recipes] Failed to initialize service client for semantic search, using user client fallback:",
-      error instanceof Error ? error.message : String(error),
-    );
-    return defaultClient;
-  }
+  return _semanticClient;
 }
 
 /**

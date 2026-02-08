@@ -237,6 +237,8 @@ fi
 # ============================================================================
 run_test "Test 15: match_recipe_embeddings has bounded inputs"
 
+# NOTE: This test matches exact SQL substrings from pg_get_functiondef.
+# If the function body is reformatted, update these strings accordingly.
 FUNC_DEF=$(sql_query "SELECT pg_get_functiondef('public.match_recipe_embeddings(extensions.vector,float,int)'::regprocedure)")
 if [[ "$FUNC_DEF" == *"least(greatest(match_threshold, 0.0), 1.0)"* ]] && [[ "$FUNC_DEF" == *"least(greatest(match_count, 1), 50)"* ]]; then
   assert_pass "match_recipe_embeddings clamps threshold [0,1] and count [1,50]"

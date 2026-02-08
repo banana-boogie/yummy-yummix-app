@@ -1007,6 +1007,8 @@ export function ChatScreen({
         return () => {
             cancelled = true;
         };
+    // Full dep list for linter compliance. The resumePromptShownRef guard
+    // (line 952) prevents re-prompting even if callback identities change.
     }, [
         user,
         currentSessionId,

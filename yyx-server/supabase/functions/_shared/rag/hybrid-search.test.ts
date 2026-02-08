@@ -179,6 +179,7 @@ Deno.test("searchRecipesHybrid returns hybrid no_semantic_candidates when vector
       {},
       BASE_USER_CONTEXT,
       "test-key",
+      mockSupabase as any, // explicit semantic client
     );
 
     assertEquals(result.method, "hybrid");
@@ -232,6 +233,7 @@ Deno.test("searchRecipesHybrid returns low_confidence when too few results above
       {},
       BASE_USER_CONTEXT,
       "test-key",
+      mockSupabase as any, // explicit semantic client
     );
 
     assertEquals(result.method, "hybrid");
