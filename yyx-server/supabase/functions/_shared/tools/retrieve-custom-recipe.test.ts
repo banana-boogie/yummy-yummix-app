@@ -4,12 +4,14 @@
 
 import {
   assertEquals,
+  assertRejects,
   assertThrows,
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import {
   validateRetrieveCustomRecipeParams,
 } from "./tool-validators.ts";
 import { ToolValidationError } from "./tool-validators.ts";
+import { retrieveCustomRecipe } from "./retrieve-custom-recipe.ts";
 
 // ============================================================
 // Constants (mirrored from module for testing)
@@ -17,6 +19,19 @@ import { ToolValidationError } from "./tool-validators.ts";
 
 const SINGLE_CONFIDENCE_RATIO = 1.4;
 const MIN_CONFIDENCE_THRESHOLD = 0.15;
+const BASE_USER_CONTEXT = {
+  language: "en" as const,
+  measurementSystem: "imperial" as const,
+  dietaryRestrictions: [],
+  ingredientDislikes: [],
+  skillLevel: null,
+  householdSize: null,
+  conversationHistory: [],
+  dietTypes: [],
+  cuisinePreferences: [],
+  customAllergies: [],
+  kitchenEquipment: [],
+};
 
 // ============================================================
 // Validator Tests
@@ -164,4 +179,65 @@ Deno.test("scoring: full match scenario (exact name + timeframe + recent)", () =
   const totalScore = 0.3 + 0.2 + 0.3 + 0.3 + 0.1;
   assertEquals(Math.abs(totalScore - 1.2) < 0.001, true);
   assertEquals(totalScore >= MIN_CONFIDENCE_THRESHOLD, true);
+});
+
+// ============================================================
+// Security behavior tests
+// ============================================================
+
+Deno.test("retrieveCustomRecipe enforces auth context", async () => {
+  const builder: Record<string, unknown> = {};
+  const mockSupabase = {
+    auth: {
+      getUser: async () => ({ data: { user: null }, error: null }),
+    },
+    from: () => builder,
+  };
+
+  await assertRejects(
+    () =>
+      retrieveCustomRecipe(
+        mockSupabase as any,
+        { query: "chicken" },
+        BASE_USER_CONTEXT,
+      ),
+    Error,
+    "Authenticated user required",
+  );
+});
+
+Deno.test("retrieveCustomRecipe applies explicit user_id ownership predicate", async () => {
+  const eqCalls: Array<[string, unknown]> = [];
+  const builder: any = {
+    select: () => builder,
+    eq: (column: string, value: unknown) => {
+      eqCalls.push([column, value]);
+      return builder;
+    },
+    order: () => builder,
+    limit: () => builder,
+    gte: () => builder,
+    lte: () => builder,
+    then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
+      Promise.resolve({ data: [], error: null }).then(resolve, reject),
+  };
+
+  const mockSupabase = {
+    auth: {
+      getUser: async () => ({ data: { user: { id: "user-123" } }, error: null }),
+    },
+    from: () => builder,
+  };
+
+  const result = await retrieveCustomRecipe(
+    mockSupabase as any,
+    { query: "chicken" },
+    BASE_USER_CONTEXT,
+  );
+
+  assertEquals(result.type, "not_found");
+  assertEquals(
+    eqCalls.some(([column, value]) => column === "user_id" && value === "user-123"),
+    true,
+  );
 });

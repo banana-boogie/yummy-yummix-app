@@ -37,21 +37,13 @@ export function useCookingProgress() {
   }) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('cooking_sessions')
-      .upsert({
-        user_id: user.id,
-        recipe_id: params.recipeId,
-        recipe_type: params.recipeType,
-        recipe_name: params.recipeName,
-        current_step: params.currentStep,
-        total_steps: params.totalSteps,
-        status: 'active',
-        last_active_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id,recipe_id',
-        ignoreDuplicates: false,
-      });
+    const { error } = await supabase.rpc('upsert_cooking_session_progress', {
+      p_recipe_id: params.recipeId,
+      p_recipe_type: params.recipeType,
+      p_recipe_name: params.recipeName,
+      p_current_step: params.currentStep,
+      p_total_steps: params.totalSteps,
+    });
 
     if (error) {
       if (__DEV__) console.error('[useCookingProgress] upsert error:', error.message);

@@ -40,6 +40,10 @@ export interface HybridSearchFilters {
 export interface HybridSearchResult {
   recipes: RecipeCard[];
   method: "hybrid" | "lexical";
+  degradationReason?:
+    | "embedding_failure"
+    | "no_semantic_candidates"
+    | "low_confidence";
 }
 
 interface RecipeTagJoin {
@@ -289,14 +293,22 @@ export async function searchRecipesHybrid(
   }
 
   if (!queryEmbedding) {
-    return { recipes: [], method: "lexical" };
+    return {
+      recipes: [],
+      method: "lexical",
+      degradationReason: "embedding_failure",
+    };
   }
 
   // Get semantic matches from vector search
   const semanticMatches = await semanticSearch(supabase, queryEmbedding, 50);
 
   if (semanticMatches.length === 0) {
-    return { recipes: [], method: "lexical" };
+    return {
+      recipes: [],
+      method: "hybrid",
+      degradationReason: "no_semantic_candidates",
+    };
   }
 
   // Fetch full recipe data for semantic candidates
@@ -321,7 +333,11 @@ export async function searchRecipesHybrid(
       "[hybrid-search] Failed to fetch recipe data:",
       recipesError?.message,
     );
-    return { recipes: [], method: "lexical" };
+    return {
+      recipes: [],
+      method: "lexical",
+      degradationReason: "embedding_failure",
+    };
   }
 
   const recipes = recipesData as unknown as RecipeRow[];
@@ -395,7 +411,11 @@ export async function searchRecipesHybrid(
       resultCount: aboveThreshold.length,
       topScore: topScore.toFixed(3),
     });
-    return { recipes: [], method: "hybrid" };
+    return {
+      recipes: [],
+      method: "hybrid",
+      degradationReason: "low_confidence",
+    };
   }
 
   // Convert to RecipeCard format

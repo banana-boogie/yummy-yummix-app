@@ -206,7 +206,9 @@ async function getResumableCookingSession(
   userId: string,
 ): Promise<
   {
+    sessionId: string;
     recipeName: string;
+    recipeType: "custom" | "database";
     currentStep: number;
     totalSteps: number;
     recipeId: string;
@@ -215,7 +217,7 @@ async function getResumableCookingSession(
   const { data, error } = await supabase
     .from("cooking_sessions")
     .select(
-      "id, recipe_id, recipe_name, current_step, total_steps, last_active_at",
+      "id, recipe_id, recipe_type, recipe_name, current_step, total_steps, last_active_at",
     )
     .eq("user_id", userId)
     .eq("status", "active")
@@ -238,10 +240,12 @@ async function getResumableCookingSession(
   }
 
   return {
+    sessionId: data.id,
     recipeName: data.recipe_name || "Unknown recipe",
+    recipeType: data.recipe_type === "custom" ? "custom" : "database",
     currentStep: data.current_step,
     totalSteps: data.total_steps,
-    recipeId: data.recipe_id || data.id,
+    recipeId: data.recipe_id,
   };
 }
 

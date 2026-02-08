@@ -7,7 +7,21 @@ import {
   assertEquals,
   assertNotEquals,
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { clearEmbeddingCache } from "./hybrid-search.ts";
+import { clearEmbeddingCache, searchRecipesHybrid } from "./hybrid-search.ts";
+
+const BASE_USER_CONTEXT = {
+  language: "en" as const,
+  measurementSystem: "imperial" as const,
+  dietaryRestrictions: [],
+  ingredientDislikes: [],
+  skillLevel: null,
+  householdSize: null,
+  conversationHistory: [],
+  dietTypes: [],
+  cuisinePreferences: [],
+  customAllergies: [],
+  kitchenEquipment: [],
+};
 
 // ============================================================
 // Test helpers: scoring functions are module-private, so we
@@ -118,4 +132,111 @@ Deno.test("lexical score: capped at 1.0", () => {
   // Even with 200 raw score, cap at 1.0
   const normalized = Math.min(200 / 150, 1.0);
   assertEquals(normalized, 1.0);
+});
+
+// ============================================================
+// Hybrid degradation behavior
+// ============================================================
+
+Deno.test("searchRecipesHybrid returns lexical degradation on embedding failure", async () => {
+  clearEmbeddingCache();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("boom", { status: 500 });
+
+  try {
+    const result = await searchRecipesHybrid(
+      {} as any,
+      "healthy dinner",
+      {},
+      BASE_USER_CONTEXT,
+      "test-key",
+    );
+
+    assertEquals(result.method, "lexical");
+    assertEquals(result.degradationReason, "embedding_failure");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test("searchRecipesHybrid returns hybrid no_semantic_candidates when vector search is empty", async () => {
+  clearEmbeddingCache();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({ data: [{ embedding: [0.1, 0.2, 0.3] }] }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+
+  const mockSupabase = {
+    rpc: async () => ({ data: [], error: null }),
+  };
+
+  try {
+    const result = await searchRecipesHybrid(
+      mockSupabase as any,
+      "healthy dinner",
+      {},
+      BASE_USER_CONTEXT,
+      "test-key",
+    );
+
+    assertEquals(result.method, "hybrid");
+    assertEquals(result.degradationReason, "no_semantic_candidates");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test("searchRecipesHybrid returns hybrid low_confidence for low-confidence candidates", async () => {
+  clearEmbeddingCache();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({ data: [{ embedding: [0.1, 0.2, 0.3] }] }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+
+  const mockRecipeRows = [{
+    id: "11111111-1111-1111-1111-111111111111",
+    name_en: "Simple Salad",
+    name_es: "Ensalada Simple",
+    image_url: null,
+    total_time: 15,
+    difficulty: "easy",
+    portions: 2,
+    recipe_to_tag: [],
+  }];
+
+  const mockSupabase = {
+    rpc: async () => ({
+      data: [{
+        recipe_id: "11111111-1111-1111-1111-111111111111",
+        similarity: 0.9,
+      }],
+      error: null,
+    }),
+    from: () => ({
+      select: () => ({
+        in: () => ({
+          eq: async () => ({ data: mockRecipeRows, error: null }),
+        }),
+      }),
+    }),
+  };
+
+  try {
+    const result = await searchRecipesHybrid(
+      mockSupabase as any,
+      "healthy dinner",
+      {},
+      BASE_USER_CONTEXT,
+      "test-key",
+    );
+
+    assertEquals(result.method, "hybrid");
+    assertEquals(result.degradationReason, "low_confidence");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

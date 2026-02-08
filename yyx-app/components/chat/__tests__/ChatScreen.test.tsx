@@ -30,7 +30,11 @@ jest.mock('@/i18n', () => ({
       'chat.suggestions.createCustomRecipeLabel': 'Create a custom recipe',
       'chat.suggestions.createCustomRecipeMessage': 'Create a custom recipe for me',
       'common.copied': 'Copied',
+      'common.cancel': 'Cancel',
       'chat.messageCopied': 'Message copied to clipboard',
+      'chat.resume.resumeCooking': 'Resume cooking',
+      'chat.resume.resumePrompt': 'Resume prompt',
+      'chat.resume.startOver': 'Start over',
     };
     return translations[key] || key;
   },
@@ -68,6 +72,22 @@ const mockStreamChatMessageWithHandle = jest.fn().mockReturnValue({
 jest.mock('@/services/chatService', () => ({
   loadChatHistory: (...args: any[]) => mockLoadChatHistory(...args),
   streamChatMessageWithHandle: (...args: any[]) => mockStreamChatMessageWithHandle(...args),
+}));
+
+const mockInvalidateQueries = jest.fn().mockResolvedValue(undefined);
+jest.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
+}));
+
+const mockGetResumableSession = jest.fn().mockResolvedValue(null);
+const mockAbandonSession = jest.fn().mockResolvedValue(undefined);
+jest.mock('@/hooks/useCookingProgress', () => ({
+  useCookingProgress: () => ({
+    getResumableSession: mockGetResumableSession,
+    abandonSession: mockAbandonSession,
+    upsertProgress: jest.fn(),
+    completeSession: jest.fn(),
+  }),
 }));
 
 // Mock markdown
@@ -124,6 +144,7 @@ describe('ChatScreen', () => {
     jest.clearAllMocks();
     mockAuthUser = mockUser;
     mockLoadChatHistory.mockResolvedValue([]);
+    mockGetResumableSession.mockResolvedValue(null);
   });
 
   // ============================================================

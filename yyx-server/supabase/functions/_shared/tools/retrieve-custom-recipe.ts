@@ -295,6 +295,14 @@ export async function retrieveCustomRecipe(
 ): Promise<RetrieveCustomRecipeResult> {
   const params = validateRetrieveCustomRecipeParams(rawParams);
   const language = userContext.language;
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    throw new Error("Authenticated user required for retrieve_custom_recipe");
+  }
 
   // Parse timeframe if provided
   const timeRange = params.timeframe
@@ -305,6 +313,7 @@ export async function retrieveCustomRecipe(
   let query = supabase
     .from("user_recipes")
     .select("id, name, description, recipe_data, source, created_at, updated_at")
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(MAX_CANDIDATES);
 

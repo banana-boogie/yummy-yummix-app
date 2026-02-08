@@ -46,6 +46,9 @@ import {
   detectModificationHeuristic,
   hasHighRecipeIntent,
 } from "./recipe-intent.ts";
+import {
+  normalizeMessagesForAi,
+} from "./message-normalizer.ts";
 
 // ============================================================
 // Types
@@ -135,7 +138,9 @@ type Logger = ReturnType<typeof createLogger>;
 // ============================================================
 
 interface ResumableSession {
+  sessionId: string;
   recipeName: string;
+  recipeType: "custom" | "database";
   currentStep: number;
   totalSteps: number;
   recipeId: string;
@@ -748,8 +753,9 @@ function buildResumeAction(
     type: "resume_cooking",
     label: language === "es" ? "Continuar cocinando" : "Resume cooking",
     payload: {
-      sessionId: session.recipeId, // Use recipeId since session lookup is by recipe
+      sessionId: session.sessionId,
       recipeId: session.recipeId,
+      recipeType: session.recipeType,
       currentStep: session.currentStep,
       totalSteps: session.totalSteps,
       recipeName: session.recipeName,
@@ -1534,50 +1540,7 @@ async function callAI(
   useStructuredOutput: boolean = false,
   toolChoice?: "auto" | "required",
 ): Promise<{ choices: Array<{ message: OpenAIMessage }> }> {
-  // Convert OpenAIMessage format to AIMessage format
-  // Handle tool-role messages by combining them with the preceding assistant message
-  // so tool results are visible to the model (grounding fix)
-  const aiMessages: AIMessage[] = [];
-  let i = 0;
-  while (i < messages.length) {
-    const m = messages[i];
-
-    if (m.role === "assistant" && m.tool_calls && m.tool_calls.length > 0) {
-      // Assistant message with tool calls — combine with following tool results
-      const parts: string[] = [];
-      if (m.content) parts.push(m.content);
-
-      // Collect tool results that follow
-      let j = i + 1;
-      while (j < messages.length && messages[j].role === "tool") {
-        parts.push(`[Tool result]: ${messages[j].content}`);
-        j++;
-      }
-
-      aiMessages.push({
-        role: "assistant",
-        content: parts.join("\n"),
-      });
-      i = j;
-      continue;
-    }
-
-    if (m.role === "tool") {
-      // Standalone tool message — convert to assistant context
-      aiMessages.push({
-        role: "assistant",
-        content: `[Tool result]: ${m.content}`,
-      });
-      i++;
-      continue;
-    }
-
-    aiMessages.push({
-      role: m.role as "system" | "user" | "assistant",
-      content: m.content || "",
-    });
-    i++;
-  }
+  const aiMessages = normalizeMessagesForAi(messages);
 
   // Convert tools to AI Gateway format
   const tools: AITool[] | undefined = includeTools
@@ -1625,13 +1588,7 @@ async function callAIStream(
   messages: OpenAIMessage[],
   onToken: (token: string) => void,
 ): Promise<string> {
-  // Convert OpenAIMessage format to AIMessage format
-  const aiMessages: AIMessage[] = messages
-    .filter((m) => m.role !== "tool")
-    .map((m) => ({
-      role: m.role as "system" | "user" | "assistant",
-      content: m.content || "",
-    }));
+  const aiMessages = normalizeMessagesForAi(messages);
 
   let fullContent = "";
 

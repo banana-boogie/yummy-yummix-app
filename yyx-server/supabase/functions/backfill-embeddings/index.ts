@@ -73,29 +73,10 @@ const EMBEDDING_MODEL = "text-embedding-3-large";
 
 /**
  * Compute SHA-256 content hash for a recipe.
- * Hash = SHA-256(name_en|name_es|sorted_ingredient_names|sorted_tag_names)
+ * Hash = SHA-256(embedding_model|full_embedding_text)
  */
-async function computeContentHash(recipe: RecipeForEmbedding): Promise<string> {
-  const parts: string[] = [
-    recipe.name_en || "",
-    recipe.name_es || "",
-  ];
-
-  // Sorted ingredient canonical names (EN)
-  const ingredientNames = (recipe.recipe_ingredients || [])
-    .map((ri) => ri.ingredients?.name_en || "")
-    .filter(Boolean)
-    .sort();
-  parts.push(ingredientNames.join(","));
-
-  // Sorted tag names (EN)
-  const tagNames = (recipe.recipe_to_tag || [])
-    .map((rt) => rt.recipe_tags?.name_en || "")
-    .filter(Boolean)
-    .sort();
-  parts.push(tagNames.join(","));
-
-  const content = parts.join("|");
+async function computeContentHash(embeddingText: string): Promise<string> {
+  const content = `${EMBEDDING_MODEL}|${embeddingText}`;
   const encoder = new TextEncoder();
   const data = encoder.encode(content);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -122,10 +103,12 @@ function buildEmbeddingText(recipe: RecipeForEmbedding): string {
   // Ingredients (both languages)
   const ingredientsEN = (recipe.recipe_ingredients || [])
     .map((ri) => ri.ingredients?.name_en)
-    .filter(Boolean);
+    .filter((name): name is string => !!name)
+    .sort((a, b) => a.localeCompare(b));
   const ingredientsES = (recipe.recipe_ingredients || [])
     .map((ri) => ri.ingredients?.name_es)
-    .filter(Boolean);
+    .filter((name): name is string => !!name)
+    .sort((a, b) => a.localeCompare(b));
 
   if (ingredientsEN.length > 0) {
     sections.push(`Ingredients: ${ingredientsEN.join(", ")}`);
@@ -137,10 +120,12 @@ function buildEmbeddingText(recipe: RecipeForEmbedding): string {
   // Tags (both languages)
   const tagsEN = (recipe.recipe_to_tag || [])
     .map((rt) => rt.recipe_tags?.name_en)
-    .filter(Boolean);
+    .filter((name): name is string => !!name)
+    .sort((a, b) => a.localeCompare(b));
   const tagsES = (recipe.recipe_to_tag || [])
     .map((rt) => rt.recipe_tags?.name_es)
-    .filter(Boolean);
+    .filter((name): name is string => !!name)
+    .sort((a, b) => a.localeCompare(b));
 
   if (tagsEN.length > 0) sections.push(`Tags: ${tagsEN.join(", ")}`);
   if (tagsES.length > 0) sections.push(`Etiquetas: ${tagsES.join(", ")}`);
@@ -321,7 +306,8 @@ async function runBackfill(params: BackfillParams): Promise<{
 
     for (const recipe of batch) {
       try {
-        const contentHash = await computeContentHash(recipe);
+        const embeddingText = buildEmbeddingText(recipe);
+        const contentHash = await computeContentHash(embeddingText);
 
         // Skip if hash matches and not forcing regeneration
         if (
@@ -342,8 +328,7 @@ async function runBackfill(params: BackfillParams): Promise<{
           continue;
         }
 
-        // Build text and generate embedding
-        const embeddingText = buildEmbeddingText(recipe);
+        // Generate embedding from the same text used for content hashing.
         const embedding = await generateEmbedding(embeddingText, openaiApiKey);
 
         // Upsert into recipe_embeddings
@@ -395,16 +380,9 @@ async function runBackfill(params: BackfillParams): Promise<{
 
   // Run ANALYZE after backfill for query planner optimization
   if (!params.dryRun && totalProcessed > 0) {
-    console.log("[backfill] Running ANALYZE on recipe_embeddings...");
-    const { error: analyzeError } = await supabase.rpc("", {}).catch(() => ({
-      error: null,
-    })) as { error: null };
-    // ANALYZE via raw SQL since RPC won't work for DDL
-    await supabase
-      .from("recipe_embeddings")
-      .select("recipe_id")
-      .limit(1); // Touch table to refresh stats
-    // Note: Full ANALYZE should be run manually via SQL if needed
+    console.log(
+      "[backfill] Post-run operator step required: ANALYZE public.recipe_embeddings;",
+    );
   }
 
   return {

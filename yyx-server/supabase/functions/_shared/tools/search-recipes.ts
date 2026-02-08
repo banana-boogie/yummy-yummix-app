@@ -150,7 +150,20 @@ export async function searchRecipes(
       }
       return hybridResult.recipes;
     }
-    // Hybrid returned empty — fall through to lexical
+
+    // Hybrid-specific no-result conditions should trigger deterministic
+    // no-results fallback in the orchestrator, not lexical fallback here.
+    if (hybridResult.method === "hybrid") {
+      return [];
+    }
+
+    // Lexical fallback is reserved for embedding failure degradation.
+    if (
+      hybridResult.method === "lexical" &&
+      hybridResult.degradationReason !== "embedding_failure"
+    ) {
+      return [];
+    }
   }
 
   // Lexical search path (existing implementation)
