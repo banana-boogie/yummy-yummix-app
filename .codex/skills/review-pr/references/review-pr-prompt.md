@@ -4,6 +4,8 @@ Use this prompt when invoking the skill directly:
 
 ```text
 Use $yummyyummix:review-pr to evaluate pull request <PR_NUMBER_OR_URL>.
+If no PR argument is provided, resolve the PR for the current branch and ask me to confirm before reviewing.
+If branch PR resolution fails due GitHub API/auth issues, retry once, then ask me for explicit PR number/URL (do not use stale previous-session PR context).
 
 Collection behavior:
 - Try `gh pr view`, `gh pr diff`, and `gh pr checks` first.
@@ -47,4 +49,10 @@ Follow-up execution guidance:
 Use $yummyyummix:review-pr to evaluate pull request #128 and prioritize security and test coverage findings.
 Include Good Patterns Observed, Documentation findings, ranked Recommendations, Potential Misses, and a Next-Step Agent Prompt.
 In the agent prompt, require plan-first execution and selective implementation of high-value items only.
+```
+
+```text
+Use $yummyyummix:review-pr.
+If a PR is linked to my current branch, ask me to confirm that PR before starting the review.
+If you cannot resolve the branch PR after retry, ask me for explicit PR number/URL.
 ```

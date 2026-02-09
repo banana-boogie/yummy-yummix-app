@@ -1,4 +1,4 @@
 interface:
   display_name: "PR Review"
   short_description: "Review pull requests for risk and quality"
-  default_prompt: "Use $yummyyummix:review-pr to evaluate pull request #<number>, include recommendations and potential misses, and provide a merge recommendation."
+  default_prompt: "Use $yummyyummix:review-pr to review a PR; if I do not provide a PR number or URL, resolve the PR for my current branch and ask for confirmation before reviewing."

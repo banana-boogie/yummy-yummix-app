@@ -11,11 +11,12 @@ Review one pull request end-to-end and return clear, prioritized findings with a
 
 ## Required Inputs
 
-- PR number or URL
+- Optional PR number or URL
 - Repository with GitHub CLI access (`gh`)
 - Optional review focus (for example: security, testing, performance)
 
-If the PR identifier is missing or is not a PR number/URL, ask for a valid PR number or URL before continuing.
+If no PR identifier is provided, resolve the PR from the current branch and ask for confirmation before starting the review.
+If the PR identifier is provided but invalid, ask for a valid PR number or URL before continuing.
 
 ## Review Criteria
 
@@ -27,6 +28,31 @@ Read `references/REVIEW-CRITERIA.md` for canonical definitions of:
 - Report sections
 
 Apply these criteria throughout the review.
+
+## PR Target Resolution (Required First Step)
+
+Resolve the PR target before running review commands:
+
+1. Explicit PR argument provided:
+- Accept PR number or URL and use it directly.
+- If invalid, ask user for a valid PR number or URL.
+
+2. No PR argument provided:
+- Discover current branch and candidate PR:
+```bash
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+gh pr list --head "$CURRENT_BRANCH" --state open --limit 1 --json number,url,title,headRefName,baseRefName,state,isDraft
+```
+- If `gh pr list` fails due connectivity/auth issues, retry once.
+- If retry still fails, try branch-bound `gh pr view` fallback:
+```bash
+gh pr view --json number,url,title,headRefName,baseRefName,state,isDraft
+```
+- If a PR is found, ask for confirmation before review:
+  - "I found PR #<number> (`<head>` -> `<base>`) for branch `<CURRENT_BRANCH>`: <title>. Do you want me to review this PR?"
+- Proceed only after user confirms.
+- If no PR is found or branch resolution cannot be completed, ask user for explicit PR number or URL.
+- Do not infer PR number from stale/previous session results when current resolution fails.
 
 ## Workflow
 
