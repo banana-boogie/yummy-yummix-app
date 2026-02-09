@@ -37,7 +37,9 @@ export function applyRoundingRulesToData(data: NutritionalData): void {
  * @param data - The value to validate
  * @returns true if data is valid NutritionalData
  */
-export function validateNutritionalData(data: unknown): data is NutritionalData {
+export function validateNutritionalData(
+  data: unknown,
+): data is NutritionalData {
   return (
     typeof data === "object" &&
     data !== null &&

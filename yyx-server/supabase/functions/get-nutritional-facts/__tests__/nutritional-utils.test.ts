@@ -7,15 +7,13 @@
  * - Data normalization
  */
 
-import {
-  assertEquals,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
 import {
   applyRoundingRulesToData,
   convertToPer100g,
-  validateNutritionalData,
   type NutritionalData,
+  validateNutritionalData,
 } from "../../_shared/nutritional-utils.ts";
 
 // ============================================================
