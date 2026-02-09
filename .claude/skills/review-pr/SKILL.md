@@ -17,8 +17,8 @@ You are reviewing a pull request for the YummyYummix codebase. Follow these step
 Run these `gh` commands to collect all PR information:
 
 ```bash
-# PR metadata
-gh pr view $ARGUMENTS
+# PR metadata (use --json to avoid classic projects API error)
+gh pr view $ARGUMENTS --json title,author,headRefName,baseRefName,body,labels,changedFiles,additions,deletions,state,number
 
 # Full diff
 gh pr diff $ARGUMENTS
@@ -53,7 +53,13 @@ Read the diff output yourself for security, testing, and PR hygiene checks.
 
 ### Step 4: Review Criteria
 
-Evaluate the PR against each category below. Reference [AGENT.md](../../../AGENT.md), [TESTING.md](../../../TESTING.md), and [CLAUDE.md](../../../CLAUDE.md) for project standards. See [PR-REVIEW.md](../../../PR-REVIEW.md) for detailed criteria explanations.
+Read the following project standards files for context:
+- `AGENT.md` (testing requirements)
+- `TESTING.md` (test patterns and conventions)
+- `CLAUDE.md` (architecture and key conventions)
+- `PR-REVIEW.md` (detailed review criteria and severity definitions)
+
+Then evaluate the PR against each category below.
 
 #### Architecture & Design
 - **Fit**: Code in the right directories? (`app/` for screens, `components/` for UI, `services/` for data, `contexts/` for state, `hooks/` for custom hooks)
@@ -110,6 +116,16 @@ Flag missing tests for critical code (auth, data mutations, user input, core com
 - PR has a type label (`feature`, `fix`, `chore`, `docs`, `refactor`, `test`)
 - PR is a reasonable size (warn if >50 files or >1000 lines added)
 - PR description explains the "why"
+
+### Step 4b: Prepare Recommendations, Blind Spots, and Next Steps
+
+After completing the review criteria evaluation, prepare material for three additional report sections:
+
+**Recommendations** — Actionable improvements beyond the findings. Think about: Could the feature be more robust? Are there edge cases not handled? Would additional documentation, tests, or error handling improve confidence? Are there patterns elsewhere in the codebase that this PR could adopt?
+
+**Blind Spots** — Areas this review may have missed or couldn't fully evaluate. Think about: Files you couldn't read, runtime behavior you can't verify from a diff, integration concerns, UX flows, accessibility, areas where the diff was too large to review thoroughly, transitive dependencies.
+
+**Next Steps prompt** — Synthesize findings + recommendations into a single self-contained prompt that another AI coding agent could execute without reading this review. Include: the PR number and branch, what to fix, what to improve, what files to touch, and the instruction to plan first then implement.
 
 ### Step 5: Output the Report
 
@@ -169,6 +185,22 @@ Format findings as a structured report:
 **Suggestion:** <count> — Nice to have
 
 **Recommendation:** <APPROVE / REQUEST CHANGES / COMMENT>
+
+---
+
+### Recommendations
+
+Actionable improvements beyond the findings above. These are suggestions to strengthen the feature or PR, not issues that need fixing:
+- <recommendation>
+
+### Blind Spots
+
+Areas this review may have missed or couldn't fully evaluate:
+- <blind spot>
+
+### Next Steps
+
+<A ready-to-execute prompt for an AI coding agent that: (1) reads this review, (2) creates an implementation plan addressing the findings and recommendations worth acting on given the PR's context and objective, and (3) implements the plan. The prompt should reference specific files and findings by name.>
 ```
 
 ### Severity Levels

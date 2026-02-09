@@ -172,6 +172,42 @@ Nice to have. Examples:
 
 ---
 
+## Recommendations, Blind Spots & Next Steps
+
+Every review report includes three sections after the findings summary. These add context that findings alone can't provide.
+
+### Recommendations
+
+Actionable improvements that go beyond flagged issues. These aren't problems — they're opportunities to strengthen the PR.
+
+Examples:
+- "Add an integration test for the new edge function to catch regressions at the API boundary"
+- "The recipe scoring logic could reuse the existing `calculateNutritionScore` utility in `services/nutritionService`"
+- "Consider adding a loading skeleton to the search results screen for better perceived performance"
+
+### Blind Spots
+
+Honest acknowledgment of what the review couldn't fully evaluate. Helps the author know where to focus their own attention.
+
+Examples:
+- "Could not verify runtime behavior of the new animation — only reviewed the code statically"
+- "The diff for `recipeService.ts` was 400+ lines; may have missed subtle issues in the middle sections"
+- "No visibility into how the new RLS policy interacts with the existing `user_recipes` policy"
+- "Accessibility (screen reader, VoiceOver) not evaluated"
+
+### Next Steps
+
+A ready-to-execute prompt for an AI coding agent. The prompt should be self-contained — another agent should be able to act on it without reading the full review. It includes:
+- The PR number and branch
+- What findings to fix (by name and file)
+- What recommendations are worth pursuing
+- What files to modify
+- The instruction to plan before implementing
+
+This section creates a direct handoff from review to implementation.
+
+---
+
 ## CI Checks Reference
 
 These checks run automatically on every PR. The review skill reports their status but does not duplicate their work.
@@ -258,6 +294,11 @@ For cases where a human wants to follow the same criteria without the skill:
 - [ ] Conventional commit messages
 - [ ] Type label present
 - [ ] Description explains the "why"
+
+### Recommendations & Blind Spots
+- [ ] Noted improvements that could strengthen the PR beyond the findings
+- [ ] Identified areas the review couldn't fully evaluate (runtime behavior, accessibility, integration effects)
+- [ ] Documented next steps for follow-up
 
 ---
 
