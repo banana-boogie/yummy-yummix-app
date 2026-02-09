@@ -36,6 +36,12 @@ const defaultRoutingConfig: AIRoutingConfig = {
     model: "o1-mini",
     apiKeyEnvVar: "OPENAI_API_KEY",
   },
+  // Text embeddings for vector search
+  embedding: {
+    provider: "openai",
+    model: "text-embedding-3-large",
+    apiKeyEnvVar: "OPENAI_API_KEY",
+  },
 };
 
 /**

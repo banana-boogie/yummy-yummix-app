@@ -14,6 +14,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { embed } from "../_shared/ai-gateway/index.ts";
 
 // ============================================================
 // Types
@@ -160,43 +161,15 @@ function buildEmbeddingText(recipe: RecipeForEmbedding): string {
 // ============================================================
 
 /**
- * Call OpenAI embeddings API with retry.
+ * Generate embedding via AI Gateway with retry.
  */
-async function generateEmbedding(
-  text: string,
-  apiKey: string,
-): Promise<number[]> {
+async function generateEmbedding(text: string): Promise<number[]> {
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = await fetch("https://api.openai.com/v1/embeddings", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: EMBEDDING_MODEL,
-          input: text,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `OpenAI API error (${response.status}): ${errorText}`,
-        );
-      }
-
-      const data = await response.json();
-      const embedding = data?.data?.[0]?.embedding;
-
-      if (!Array.isArray(embedding)) {
-        throw new Error("Invalid embedding response from OpenAI");
-      }
-
-      return embedding;
+      const response = await embed({ usageType: "embedding", text });
+      return response.embedding;
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
       if (attempt < MAX_RETRIES) {
@@ -331,7 +304,7 @@ async function runBackfill(params: BackfillParams): Promise<{
         }
 
         // Generate embedding from the same text used for content hashing.
-        const embedding = await generateEmbedding(embeddingText, openaiApiKey);
+        const embedding = await generateEmbedding(embeddingText);
 
         // Upsert into recipe_embeddings
         const { error: upsertError } = await supabase

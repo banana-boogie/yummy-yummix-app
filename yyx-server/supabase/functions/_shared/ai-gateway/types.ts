@@ -10,7 +10,8 @@ export type AIUsageType =
   | "text"
   | "voice"
   | "parsing"
-  | "reasoning";
+  | "reasoning"
+  | "embedding";
 
 export type AIProvider = "openai" | "anthropic" | "google";
 
@@ -70,6 +71,19 @@ export interface AIProviderConfig {
   provider: AIProvider;
   model: string;
   apiKeyEnvVar: string;
+}
+
+export interface AIEmbeddingRequest {
+  usageType: "embedding";
+  text: string;
+  /** Optional: Override the default embedding model */
+  model?: string;
+}
+
+export interface AIEmbeddingResponse {
+  embedding: number[];
+  model: string;
+  usage: { inputTokens: number };
 }
 
 /** Configuration mapping usage types to provider/model */

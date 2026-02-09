@@ -144,19 +144,24 @@ Deno.test("searchRecipesHybrid returns lexical degradation on embedding failure"
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => new Response("boom", { status: 500 });
 
+  // Ensure gateway can resolve the API key
+  const hadKey = Deno.env.get("OPENAI_API_KEY");
+  Deno.env.set("OPENAI_API_KEY", "test-key");
+
   try {
     const result = await searchRecipesHybrid(
       {} as any,
       "healthy dinner",
       {},
       BASE_USER_CONTEXT,
-      "test-key",
     );
 
     assertEquals(result.method, "lexical");
     assertEquals(result.degradationReason, "embedding_failure");
   } finally {
     globalThis.fetch = originalFetch;
+    if (hadKey) Deno.env.set("OPENAI_API_KEY", hadKey);
+    else Deno.env.delete("OPENAI_API_KEY");
   }
 });
 
@@ -165,9 +170,12 @@ Deno.test("searchRecipesHybrid returns hybrid no_semantic_candidates when vector
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
     new Response(
-      JSON.stringify({ data: [{ embedding: [0.1, 0.2, 0.3] }] }),
+      JSON.stringify({ data: [{ embedding: [0.1, 0.2, 0.3] }], model: "text-embedding-3-large", usage: { prompt_tokens: 5 } }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
+
+  const hadKey = Deno.env.get("OPENAI_API_KEY");
+  Deno.env.set("OPENAI_API_KEY", "test-key");
 
   const mockSupabase = {
     rpc: async () => ({ data: [], error: null }),
@@ -179,7 +187,7 @@ Deno.test("searchRecipesHybrid returns hybrid no_semantic_candidates when vector
       "healthy dinner",
       {},
       BASE_USER_CONTEXT,
-      "test-key",
+      undefined,
       mockSupabase as any, // explicit semantic client
     );
 
@@ -187,6 +195,8 @@ Deno.test("searchRecipesHybrid returns hybrid no_semantic_candidates when vector
     assertEquals(result.degradationReason, "no_semantic_candidates");
   } finally {
     globalThis.fetch = originalFetch;
+    if (hadKey) Deno.env.set("OPENAI_API_KEY", hadKey);
+    else Deno.env.delete("OPENAI_API_KEY");
   }
 });
 
@@ -195,9 +205,12 @@ Deno.test("searchRecipesHybrid returns low_confidence when too few results above
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
     new Response(
-      JSON.stringify({ data: [{ embedding: [0.1, 0.2, 0.3] }] }),
+      JSON.stringify({ data: [{ embedding: [0.1, 0.2, 0.3] }], model: "text-embedding-3-large", usage: { prompt_tokens: 5 } }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
+
+  const hadKey = Deno.env.get("OPENAI_API_KEY");
+  Deno.env.set("OPENAI_API_KEY", "test-key");
 
   const mockRecipeRows = [{
     id: "11111111-1111-1111-1111-111111111111",
@@ -233,7 +246,7 @@ Deno.test("searchRecipesHybrid returns low_confidence when too few results above
       "healthy dinner",
       {},
       BASE_USER_CONTEXT,
-      "test-key",
+      undefined,
       mockSupabase as any, // explicit semantic client
     );
 
@@ -241,5 +254,7 @@ Deno.test("searchRecipesHybrid returns low_confidence when too few results above
     assertEquals(result.degradationReason, "low_confidence");
   } finally {
     globalThis.fetch = originalFetch;
+    if (hadKey) Deno.env.set("OPENAI_API_KEY", hadKey);
+    else Deno.env.delete("OPENAI_API_KEY");
   }
 });

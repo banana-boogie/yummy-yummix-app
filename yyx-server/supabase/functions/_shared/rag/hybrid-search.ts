@@ -8,6 +8,7 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { RecipeCard, UserContext } from "../irmixy-schemas.ts";
+import { embed } from "../ai-gateway/index.ts";
 
 // ============================================================
 // Query Embedding Cache (per-instance, best-effort)
@@ -94,44 +95,18 @@ const MIN_RESULTS_BEFORE_FALLBACK = 2;
 // ============================================================
 
 /**
- * Generate an embedding for a search query using OpenAI text-embedding-3-large.
+ * Generate an embedding for a search query via the AI Gateway.
  * Results are cached per-instance for 10 minutes (best-effort).
  */
-export async function embedQuery(
-  query: string,
-  openaiApiKey: string,
-): Promise<number[]> {
+export async function embedQuery(query: string): Promise<number[]> {
   const cacheKey = query.toLowerCase().trim();
   const cached = embeddingCache.get(cacheKey);
   if (cached && cached.expires > Date.now()) {
     return cached.embedding;
   }
 
-  const response = await fetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${openaiApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "text-embedding-3-large",
-      input: query,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `OpenAI embeddings API error (${response.status}): ${errorText}`,
-    );
-  }
-
-  const data = await response.json();
-  const embedding = data?.data?.[0]?.embedding;
-
-  if (!Array.isArray(embedding)) {
-    throw new Error("Invalid embedding response from OpenAI");
-  }
+  const response = await embed({ usageType: "embedding", text: query });
+  const embedding = response.embedding;
 
   // Cache with LRU eviction
   if (embeddingCache.size >= MAX_CACHE_SIZE) {
@@ -279,13 +254,13 @@ export async function searchRecipesHybrid(
   query: string,
   filters: HybridSearchFilters,
   userContext: UserContext,
-  openaiApiKey: string,
+  _openaiApiKey?: string,
   semanticSupabase: SupabaseClient = supabase,
 ): Promise<HybridSearchResult> {
   // Try to generate query embedding with graceful fallback
   let queryEmbedding: number[] | null = null;
   try {
-    queryEmbedding = await embedQuery(query, openaiApiKey);
+    queryEmbedding = await embedQuery(query);
   } catch (err) {
     console.warn(
       "[hybrid-search] Embedding failed, falling back to lexical:",

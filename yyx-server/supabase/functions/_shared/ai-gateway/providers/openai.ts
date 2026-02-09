@@ -5,9 +5,15 @@
  * Includes: chat completions and streaming chat completions.
  */
 
-import { AICompletionRequest, AICompletionResponse, AITool } from "../types.ts";
+import {
+  AICompletionRequest,
+  AICompletionResponse,
+  AIEmbeddingResponse,
+  AITool,
+} from "../types.ts";
 
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
+const OPENAI_EMBEDDINGS_URL = "https://api.openai.com/v1/embeddings";
 
 // =============================================================================
 // Chat Completions
@@ -218,4 +224,50 @@ export async function* callOpenAIStream(
       }
     }
   }
+}
+
+// =============================================================================
+// Embeddings
+// =============================================================================
+
+/**
+ * Call OpenAI's embeddings API.
+ */
+export async function callOpenAIEmbedding(
+  text: string,
+  model: string,
+  apiKey: string,
+): Promise<AIEmbeddingResponse> {
+  const response = await fetch(OPENAI_EMBEDDINGS_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ model, input: text }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error(
+      `[ai-gateway:embedding] OpenAI API error (${response.status}):`,
+      errorBody,
+    );
+    throw new Error(
+      `OpenAI embeddings API error (${response.status}): ${errorBody}`,
+    );
+  }
+
+  const data = await response.json();
+  const embedding = data?.data?.[0]?.embedding;
+
+  if (!Array.isArray(embedding)) {
+    throw new Error("Invalid embedding response from OpenAI");
+  }
+
+  return {
+    embedding,
+    model: data.model,
+    usage: { inputTokens: data.usage?.prompt_tokens ?? 0 },
+  };
 }

@@ -10,9 +10,18 @@
  * 2. Set environment variables: AI_TEXT_MODEL, AI_PARSING_MODEL, AI_REASONING_MODEL
  */
 
-import { AICompletionRequest, AICompletionResponse } from "./types.ts";
+import {
+  AICompletionRequest,
+  AICompletionResponse,
+  AIEmbeddingRequest,
+  AIEmbeddingResponse,
+} from "./types.ts";
 import { getProviderConfig } from "./router.ts";
-import { callOpenAI, callOpenAIStream } from "./providers/openai.ts";
+import {
+  callOpenAI,
+  callOpenAIEmbedding,
+  callOpenAIStream,
+} from "./providers/openai.ts";
 
 /**
  * Make an AI chat request.
@@ -72,6 +81,44 @@ export async function* chatStream(
 
     default:
       throw new Error(`Unknown provider: ${config.provider}`);
+  }
+}
+
+/**
+ * Generate a text embedding.
+ * Routes to the appropriate provider based on the "embedding" usage type.
+ */
+export async function embed(
+  request: AIEmbeddingRequest,
+): Promise<AIEmbeddingResponse> {
+  const config = getProviderConfig(request.usageType);
+  const model = request.model ?? config.model;
+  const apiKey = Deno.env.get(config.apiKeyEnvVar);
+
+  if (!apiKey) {
+    throw new Error(`Missing API key: ${config.apiKeyEnvVar}`);
+  }
+
+  try {
+    switch (config.provider) {
+      case "openai":
+        return await callOpenAIEmbedding(request.text, model, apiKey);
+
+      case "anthropic":
+        throw new Error("Anthropic embeddings not yet implemented");
+
+      case "google":
+        throw new Error("Google embeddings not yet implemented");
+
+      default:
+        throw new Error(`Unknown provider: ${config.provider}`);
+    }
+  } catch (error) {
+    console.error(
+      "[ai-gateway:embedding] Failed:",
+      error instanceof Error ? error.message : String(error),
+    );
+    throw error;
   }
 }
 
