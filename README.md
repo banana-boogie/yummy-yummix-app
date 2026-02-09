@@ -156,7 +156,7 @@ Check Supabase Dashboard logs: `Edge Functions -> ai-chat -> Logs`.
 
 - **CLAUDE.md**: Detailed conventions for AI assistance
 - **AGENTS.md**: Guidelines for AI coding agents
-- **TESTING.md**: Testing documentation
+- **docs/Operations/TESTING.md**: Testing documentation
 
 ## License
 

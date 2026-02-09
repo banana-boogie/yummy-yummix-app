@@ -27,7 +27,7 @@ Guidelines for AI coding agents working on the YummyYummix codebase. This file s
 
 ### Before Writing Tests
 
-1. Read [TESTING.md](./TESTING.md) for patterns and conventions
+1. Read [TESTING.md](./docs/Operations/TESTING.md) for patterns and conventions
 2. Look at existing test files for similar code:
    - `yyx-app/components/common/__tests__/Button.test.tsx` - Component test example
    - `yyx-server/supabase/functions/_shared/__tests__/` - Deno test examples
@@ -216,7 +216,7 @@ jest.mock('@/lib/supabase');
 
 ## Resources
 
-- [TESTING.md](./TESTING.md) - Full testing documentation
+- [TESTING.md](./docs/Operations/TESTING.md) - Full testing documentation
 - [CLAUDE.md](./CLAUDE.md) - General development guidelines
 - Example tests:
   - `yyx-app/components/common/__tests__/Button.test.tsx`

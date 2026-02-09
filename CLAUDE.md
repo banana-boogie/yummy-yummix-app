@@ -170,7 +170,7 @@ deno task test:coverage           # Run with coverage
 deno task test:integration        # Run integration tests (requires staging env)
 ```
 
-For detailed testing documentation, see [TESTING.md](./TESTING.md).
+For detailed testing documentation, see [TESTING.md](./docs/Operations/TESTING.md).
 
 ---
 
@@ -485,7 +485,7 @@ const { data, error } = await supabase.from('recipes').select('*');
 
 ## Testing
 
-**Always write tests for critical components and workflows.** See [TESTING.md](./TESTING.md) for comprehensive documentation.
+**Always write tests for critical components and workflows.** See [TESTING.md](./docs/Operations/TESTING.md) for comprehensive documentation.
 
 ### Quick Reference
 
@@ -553,7 +553,7 @@ CI runs full test suites on every PR.
 
 ## Analytics
 
-When adding new features, consider what user engagement signals are worth tracking. See [ANALYTICS.md](./ANALYTICS.md) for:
+When adding new features, consider what user engagement signals are worth tracking. See [ANALYTICS.md](./docs/Operations/ANALYTICS.md) for:
 - Current tracked events and metrics
 - How to add new event tracking
 - Dashboard queries
