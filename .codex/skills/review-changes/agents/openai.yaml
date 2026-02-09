@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Changes"
+  short_description: "Review latest commits and working tree risk"
+  default_prompt: "Use $yummyyummix:review-changes to review my latest changes and rank high-value improvements."
