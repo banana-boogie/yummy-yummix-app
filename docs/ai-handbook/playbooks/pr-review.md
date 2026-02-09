@@ -37,7 +37,7 @@ These preferences calibrate reviewer behavior across all categories:
 
 ## Review Criteria
 
-> **Canonical source:** [`docs/agents/REVIEW-CRITERIA.md`](./docs/agents/REVIEW-CRITERIA.md). If criteria diverge, the canonical file is authoritative.
+> **Canonical source:** [`docs/agent-guidelines/REVIEW-CRITERIA.md`](../../agent-guidelines/REVIEW-CRITERIA.md). If criteria diverge, the canonical file is authoritative.
 
 ### Architecture & Design
 
@@ -104,7 +104,7 @@ Never put components, types, or business logic directly in `app/`.
 
 ### Testing
 
-Based on the [AGENT.md](./AGENT.md) requirements table:
+Based on the [AGENT.md](../../../AGENT.md) requirements table:
 
 | What You Create/Modify | Required Tests |
 |------------------------|----------------|
@@ -378,9 +378,9 @@ For cases where a human wants to follow the same criteria without the skill:
 
 ## Related Documentation
 
-- [CLAUDE.md](./CLAUDE.md) — Development setup and key conventions
-- [AGENT.md](./AGENT.md) — AI agent guidelines and testing requirements
-- [TESTING.md](./TESTING.md) — Comprehensive testing documentation
+- [CLAUDE.md](../../../CLAUDE.md) — Development setup and key conventions
+- [AGENT.md](../../../AGENT.md) — AI agent guidelines and testing requirements
+- [TESTING.md](../../../TESTING.md) — Comprehensive testing documentation
 - `.claude/skills/review-pr/SKILL.md` — The `yummyyummix:review-pr` skill prompt (for debugging or updating the skill)
 - `.claude/skills/review-changes/SKILL.md` — The `yummyyummix:review-changes` skill prompt (pre-PR local commit review)
 - `.claude/agents/code-reviewer.md` — The `yummyyummix:code-reviewer` sub-agent prompt

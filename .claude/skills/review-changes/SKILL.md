@@ -69,7 +69,7 @@ Group the changed files from the diff into these areas:
 ### Step 3: Read Project Standards
 
 Read the following project standards files for context:
-- `docs/agents/REVIEW-CRITERIA.md` (canonical review criteria, categories, severity, and recommendation logic)
+- `docs/agent-guidelines/REVIEW-CRITERIA.md` (canonical review criteria, categories, severity, and recommendation logic)
 - `CLAUDE.md` (architecture and key conventions)
 - `TESTING.md` (test patterns and conventions)
 
@@ -85,7 +85,7 @@ Review the diff output yourself for correctness, security, testing, i18n, and co
 
 ### Step 5: Review Criteria
 
-Evaluate the changes against each of the 8 categories defined in `docs/agents/REVIEW-CRITERIA.md`:
+Evaluate the changes against each of the 8 categories defined in `docs/agent-guidelines/REVIEW-CRITERIA.md`:
 
 1. Architecture & Design
 2. Correctness

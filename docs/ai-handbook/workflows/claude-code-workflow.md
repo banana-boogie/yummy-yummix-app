@@ -2,7 +2,7 @@
 
 A reference guide for maximizing productivity with Claude Code on the YummyYummix project — covering general best practices, cloud execution, and strategies for parallelizing work.
 
-**See also:** [CLAUDE.md](./CLAUDE.md) (project conventions), [TESTING.md](./TESTING.md) (testing patterns), [AGENT.md](./AGENT.md) (AI agent guidelines)
+**See also:** [CLAUDE.md](../../../CLAUDE.md) (project conventions), [TESTING.md](../../../TESTING.md) (testing patterns), [AGENT.md](../../../AGENT.md) (AI agent guidelines)
 
 ---
 

@@ -154,12 +154,20 @@ Use this structure:
 - [Warning] `path/to/file.tsx:131` - <finding>
   - Recommendation: <specific recommendation>
 
+#### Code Quality
+- [Warning] `path/to/file.ts:60` - <finding>
+  - Recommendation: <specific recommendation>
+
 #### Testing
 - [Warning] `path/to/file.test.ts:1` - <gap>
   - Recommendation: <specific recommendation>
 
-#### Conventions & Hygiene
-- [Suggestion] `path/to/file.tsx:15` - <finding>
+#### i18n
+- [Warning] `path/to/file.tsx:15` - <finding>
+  - Recommendation: <specific recommendation>
+
+#### PR Hygiene
+- [Suggestion] <finding>
   - Recommendation: <specific recommendation>
 
 #### Documentation

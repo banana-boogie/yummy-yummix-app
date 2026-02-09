@@ -15,14 +15,24 @@ Focus areas:
 - Architecture and design fit
 - Correctness and regression risk
 - Security risks (RLS, auth, validation, secrets)
-- Test coverage gaps
 - Performance concerns
+- Code quality (dead code, DRY, conventions)
+- Test coverage gaps
+- i18n coverage (no hardcoded strings, en/es parity)
+- PR hygiene and scope quality
 - Documentation quality and missing updates
-- Project conventions and PR hygiene
 
 Output requirements:
 - Good Patterns Observed section (constructive positives)
-- Findings grouped by category
+- Findings grouped by all 8 categories:
+  - Architecture & Design
+  - Correctness
+  - Security
+  - Performance
+  - Code Quality
+  - Testing
+  - i18n
+  - PR Hygiene
 - Each finding tagged as Critical, Warning, or Suggestion
 - Evidence with file paths and lines where possible
 - Every finding includes a concrete recommendation
