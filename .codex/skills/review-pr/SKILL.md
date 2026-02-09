@@ -17,6 +17,17 @@ Review one pull request end-to-end and return clear, prioritized findings with a
 
 If the PR identifier is missing or is not a PR number/URL, ask for a valid PR number or URL before continuing.
 
+## Review Criteria
+
+Read `references/REVIEW-CRITERIA.md` for canonical definitions of:
+- Engineering preferences
+- Review categories (8 categories with full checklists)
+- Severity levels (Critical / Warning / Suggestion)
+- Recommendation logic (PR context: APPROVE / COMMENT / REQUEST CHANGES)
+- Report sections
+
+Apply these criteria throughout the review.
+
 ## Workflow
 
 1. Gather context with primary GitHub CLI commands:
@@ -42,27 +53,13 @@ git log --oneline "origin/$BASE_BRANCH..origin/$HEAD_BRANCH"
 3. Map changed files by area:
 - Frontend: `yyx-app/`
 - Backend/Edge: `yyx-server/`
-- Database: `supabase/migrations/`
+- Database: `yyx-server/supabase/migrations/`
 - Infra/tooling: CI, config, scripts
 - Docs: markdown and process files
-4. Review for defects and risk:
-- Architecture and design fit
-- Correctness and regression risk
-- Security issues (RLS, auth checks, input validation, secrets)
-- Performance concerns (re-renders, query patterns, list/image handling)
-- Test gaps against changed behavior
-- Documentation quality (comments for complex logic, PR docs/README/API updates where needed)
-- Conventions (`@/` imports, i18n, tokens, no stray `console.log`)
-- PR hygiene (conventional commits, labels, size, PR rationale)
-5. Produce findings with severity:
-- `Critical`: must fix before merge
-- `Warning`: should fix
-- `Suggestion`: nice to have
-6. Derive recommendation:
-- Any `Critical` => `REQUEST CHANGES`
-- 3+ `Warning` => `REQUEST CHANGES`
-- 1-2 `Warning` => `COMMENT`
-- Only `Suggestion` or none => `APPROVE`
+4. Review against all 8 categories from `references/REVIEW-CRITERIA.md`:
+   Architecture & Design, Correctness, Security, Performance, Code Quality, Testing, i18n, Hygiene (use "PR Hygiene" label).
+5. Produce findings with severity (Critical / Warning / Suggestion) per the canonical definitions.
+6. Derive recommendation per the PR context column in the recommendation logic table.
 
 ## Severity and Depth Rules
 

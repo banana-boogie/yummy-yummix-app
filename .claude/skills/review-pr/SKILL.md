@@ -44,10 +44,9 @@ Group the changed files from the diff into these areas:
 ### Step 3: Read Project Standards
 
 Read the following project standards files for context:
-- `AGENT.md` (testing requirements)
-- `TESTING.md` (test patterns and conventions)
+- `docs/agents/REVIEW-CRITERIA.md` (canonical review criteria, categories, severity, and recommendation logic)
 - `CLAUDE.md` (architecture and key conventions)
-- `PR-REVIEW.md` (detailed review criteria and severity definitions)
+- `TESTING.md` (test patterns and conventions)
 
 ### Step 4: Delegate Detailed File Review
 
@@ -62,72 +61,18 @@ Read the diff output yourself for security, testing, i18n, and PR hygiene checks
 
 ### Step 5: Review Criteria
 
-Evaluate the PR against each category below. Apply these engineering preferences throughout:
+Evaluate the PR against each of the 8 categories defined in `docs/agents/REVIEW-CRITERIA.md`:
 
-- **Flag DRY violations aggressively** — even 2-3 repeated lines of similar logic warrant a finding
-- **Flag both over- and under-engineering** — premature abstractions are as bad as duplicated logic
-- **Bias toward more edge case handling** — missing error handling and unhandled states should be flagged
-- **Prefer explicit over clever** — complex one-liners, obscure patterns, and implicit behavior are worth flagging
-- **Missing tests for critical code = Warning or Critical**, not Suggestion
+1. Architecture & Design
+2. Correctness
+3. Security
+4. Performance
+5. Code Quality
+6. Testing
+7. i18n
+8. Hygiene (use "PR Hygiene" label for this context)
 
-#### Architecture & Design
-- **Fit**: Code in the right directories? (`app/` for screens, `components/` for UI, `services/` for data, `contexts/` for state, `hooks/` for custom hooks)
-- **Quality**: Right design for the problem? Check separation of concerns, coupling, abstraction level (too much or too little), data flow clarity, pattern choice (context vs hook vs service, single component vs composition)
-- **DRY**: Duplicated logic across files or within the same file? Similar patterns that should be extracted into a shared utility, hook, or component?
-
-#### Correctness
-- **Bugs**: Logic errors, off-by-one, wrong comparisons, incorrect assumptions
-- **Edge cases**: Null/undefined handling, empty arrays, boundary values, missing default cases
-- **Error handling**: Unhandled promise rejections, missing try/catch, swallowed errors, missing user feedback on failure
-- **Race conditions**: Stale closures, unmounted component state updates, concurrent data mutations
-- **Type safety**: Incorrect type assertions, unsafe casts, types that don't match runtime values
-
-#### Security
-- New database tables missing RLS policies
-- Missing input validation at system boundaries
-- Exposed secrets or credentials in code
-- SQL injection vectors
-- XSS vulnerabilities in rendered content
-
-#### Performance
-- Missing `React.memo` on pure components
-- Inline functions/objects in render causing re-renders
-- Missing `useMemo`/`useCallback` for expensive operations
-- N+1 query patterns in services
-- Missing pagination for list queries
-- `FlatList` that should be `FlashList`
-- Raw `<Image>` that should be `expo-image`
-- Large imports that could be lazy-loaded
-
-#### Code Quality
-- **Dead code**: Unused imports, variables, functions, exports, commented-out blocks, stale TODOs, redundant code from partial refactors, code made obsolete by the PR's own changes
-- **Conventions**: `@/` imports, `<Text>` from common, design tokens (no hardcoded colors/spacing), no `console.log`, clean TypeScript (no `any`), `FlashList` for lists, `expo-image` for images, `React.memo` for pure components, edge function patterns (CORS, auth, `_shared/`)
-- **DRY violations**: Repeated logic, copy-pasted blocks, patterns that should be shared
-- **Naming**: Unclear variable/function names, misleading names, inconsistent naming patterns
-
-#### Testing
-Check against the AGENT.md requirements table:
-
-| What You Create/Modify | Required Tests |
-|------------------------|----------------|
-| New component | Unit test (rendering, interactions, states) |
-| New service function | Unit test with mocked dependencies |
-| New Edge Function | Deno unit test |
-| Bug fix | Regression test |
-| Auth/security code | Tests for success AND failure paths |
-
-Flag missing tests for critical code (auth, data mutations, user input, core components, business logic, edge functions). Missing tests for critical code should be **Warning** or **Critical**, not Suggestion.
-
-#### i18n
-- Hardcoded user-facing strings that should use `i18n.t()`
-- Missing translations in either `en` or `es`
-- Translation keys added to one language but not the other
-
-#### PR Hygiene
-- Commit messages follow conventional commits format (`feat:`, `fix:`, `chore:`, `docs:`, etc.)
-- PR has a type label (`feature`, `fix`, `chore`, `docs`, `refactor`, `test`)
-- PR is a reasonable size (warn if >50 files or >1000 lines added)
-- PR description explains the "why"
+Apply the **Engineering Preferences** from that document throughout. Use the **Severity Levels** (Critical / Warning / Suggestion) and **Recommendation Logic** (PR context column) defined there.
 
 ### Step 5b: Prepare Additional Sections
 
@@ -235,17 +180,3 @@ Areas this review may have missed or couldn't fully evaluate:
 
 <A ready-to-execute prompt for an AI coding agent that: (1) reads this review, (2) creates an implementation plan addressing the findings, recommendations, and suggestions worth acting on given the PR's context and objective, and (3) implements the plan. The prompt should reference specific files and findings by name.>
 ```
-
-### Severity Levels
-
-Tag each finding with one of:
-- **Critical** — Must fix before merge. Bugs, security issues, broken CI, missing RLS on new tables, missing tests for auth/security code.
-- **Warning** — Should fix, ideally before merge. Performance issues, missing tests for new features, convention violations that affect maintainability, missing error handling for likely edge cases.
-- **Suggestion** — Nice to have. Minor style preferences, optional optimizations, documentation improvements.
-
-### Recommendation Logic
-
-- Any **Critical** findings → **REQUEST CHANGES**
-- 3+ **Warning** findings → **REQUEST CHANGES**
-- 1-2 **Warning** findings → **COMMENT** (with note to address warnings)
-- Only **Suggestion** findings or clean → **APPROVE**

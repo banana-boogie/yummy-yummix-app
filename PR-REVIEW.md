@@ -37,6 +37,8 @@ These preferences calibrate reviewer behavior across all categories:
 
 ## Review Criteria
 
+> **Canonical source:** [`docs/agents/REVIEW-CRITERIA.md`](./docs/agents/REVIEW-CRITERIA.md). If criteria diverge, the canonical file is authoritative.
+
 ### Architecture & Design
 
 Three layers of review:

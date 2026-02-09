@@ -15,6 +15,8 @@ Guidelines for AI coding agents working on the YummyYummix codebase. This file s
 
 ## Testing Requirements
 
+> The testing requirements table below is also defined in the canonical [`docs/agents/REVIEW-CRITERIA.md`](./docs/agents/REVIEW-CRITERIA.md). Keep both in sync.
+
 **You MUST write tests for:**
 
 | What You Create/Modify | Required Tests |
