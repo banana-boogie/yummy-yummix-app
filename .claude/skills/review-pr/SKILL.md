@@ -41,17 +41,7 @@ Group the changed files from the diff into these areas:
 - **Infrastructure** (`.github/`, config files) — CI/CD and tooling
 - **Documentation** (`*.md`) — Docs changes
 
-### Step 3: Delegate Detailed File Review
-
-Use the **yummyyummix:code-reviewer** sub-agent (via the Task tool with `subagent_type: "yummyyummix:code-reviewer"`) to perform deep file-level analysis. Pass it the list of changed files and ask it to review against:
-- Architecture & design fit
-- Dead code & cleanup
-- Performance issues
-- Project convention violations
-
-Read the diff output yourself for correctness, security, testing, i18n, and PR hygiene checks.
-
-### Step 4: Review Criteria
+### Step 3: Read Project Standards
 
 Read the following project standards files for context:
 - `AGENT.md` (testing requirements)
@@ -59,7 +49,20 @@ Read the following project standards files for context:
 - `CLAUDE.md` (architecture and key conventions)
 - `PR-REVIEW.md` (detailed review criteria and severity definitions)
 
-Then evaluate the PR against each category below. Apply these engineering preferences throughout:
+### Step 4: Delegate Detailed File Review
+
+Use the **yummyyummix:code-reviewer** sub-agent (via the Task tool with `subagent_type: "yummyyummix:code-reviewer"`) to perform deep file-level analysis. Pass it the list of changed files and ask it to review against:
+- Architecture & design fit
+- Correctness (bugs, edge cases, error handling, race conditions, type safety)
+- Dead code & cleanup
+- Performance issues
+- Project convention violations
+
+Read the diff output yourself for security, testing, i18n, and PR hygiene checks.
+
+### Step 5: Review Criteria
+
+Evaluate the PR against each category below. Apply these engineering preferences throughout:
 
 - **Flag DRY violations aggressively** — even 2-3 repeated lines of similar logic warrant a finding
 - **Flag both over- and under-engineering** — premature abstractions are as bad as duplicated logic
@@ -126,7 +129,7 @@ Flag missing tests for critical code (auth, data mutations, user input, core com
 - PR is a reasonable size (warn if >50 files or >1000 lines added)
 - PR description explains the "why"
 
-### Step 4b: Prepare Additional Sections
+### Step 5b: Prepare Additional Sections
 
 After completing the review criteria evaluation, prepare material for these additional report sections:
 
@@ -140,7 +143,7 @@ After completing the review criteria evaluation, prepare material for these addi
 
 **Next Steps prompt** — Synthesize findings + recommendations + suggestions into a single self-contained prompt that another AI coding agent could execute without reading this review. Include: the PR number and branch, what to fix, what to improve, what files to touch, and the instruction to plan first then implement.
 
-### Step 5: Output the Report
+### Step 6: Output the Report
 
 Format findings as a structured report:
 

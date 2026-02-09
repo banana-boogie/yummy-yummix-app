@@ -29,18 +29,20 @@ gh pr view <pr> --json commits --jq '.commits[].messageHeadline'
 2. If primary commands fail (GraphQL deprecation surface, API throttling, or transient network issues), use resilient fallback:
 ```bash
 gh pr view <pr> --json number,title,author,headRefName,baseRefName,changedFiles,additions,deletions,body,url
+BASE_BRANCH=$(gh pr view <pr> --json baseRefName --jq '.baseRefName')
+HEAD_BRANCH=$(gh pr view <pr> --json headRefName --jq '.headRefName')
 gh pr view <pr> --json files --jq '.files[].path'
 gh pr checks <pr>
-git fetch origin <base-branch>
-git fetch origin <head-branch>
-git diff --name-status origin/<base-branch>...origin/<head-branch>
-git diff origin/<base-branch>...origin/<head-branch>
-git log --oneline origin/<base-branch>..origin/<head-branch>
+git fetch origin "$BASE_BRANCH"
+git fetch origin "$HEAD_BRANCH"
+git diff --name-status "origin/$BASE_BRANCH...origin/$HEAD_BRANCH"
+git diff "origin/$BASE_BRANCH...origin/$HEAD_BRANCH"
+git log --oneline "origin/$BASE_BRANCH..origin/$HEAD_BRANCH"
 ```
 3. Map changed files by area:
 - Frontend: `yyx-app/`
 - Backend/Edge: `yyx-server/`
-- Database: `yyx-server/db/migrations/` or `supabase/migrations/`
+- Database: `supabase/migrations/`
 - Infra/tooling: CI, config, scripts
 - Docs: markdown and process files
 4. Review for defects and risk:
