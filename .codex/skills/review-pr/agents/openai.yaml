@@ -1,0 +1,4 @@
+interface:
+  display_name: "PR Review"
+  short_description: "Review pull requests for risk and quality"
+  default_prompt: "Use $review-pr to evaluate pull request #<number> and provide a merge recommendation."
