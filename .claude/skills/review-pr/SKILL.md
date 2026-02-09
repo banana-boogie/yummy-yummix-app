@@ -1,6 +1,6 @@
 ---
 name: yummyyummix:review-pr
-description: Review a pull request for code quality, security, testing, and project conventions
+description: Review a pull request for code quality, correctness, security, testing, and project conventions
 disable-model-invocation: true
 ---
 
@@ -49,7 +49,7 @@ Use the **yummyyummix:code-reviewer** sub-agent (via the Task tool with `subagen
 - Performance issues
 - Project convention violations
 
-Read the diff output yourself for security, testing, and PR hygiene checks.
+Read the diff output yourself for correctness, security, testing, i18n, and PR hygiene checks.
 
 ### Step 4: Review Criteria
 
@@ -59,18 +59,32 @@ Read the following project standards files for context:
 - `CLAUDE.md` (architecture and key conventions)
 - `PR-REVIEW.md` (detailed review criteria and severity definitions)
 
-Then evaluate the PR against each category below.
+Then evaluate the PR against each category below. Apply these engineering preferences throughout:
+
+- **Flag DRY violations aggressively** — even 2-3 repeated lines of similar logic warrant a finding
+- **Flag both over- and under-engineering** — premature abstractions are as bad as duplicated logic
+- **Bias toward more edge case handling** — missing error handling and unhandled states should be flagged
+- **Prefer explicit over clever** — complex one-liners, obscure patterns, and implicit behavior are worth flagging
+- **Missing tests for critical code = Warning or Critical**, not Suggestion
 
 #### Architecture & Design
 - **Fit**: Code in the right directories? (`app/` for screens, `components/` for UI, `services/` for data, `contexts/` for state, `hooks/` for custom hooks)
 - **Quality**: Right design for the problem? Check separation of concerns, coupling, abstraction level (too much or too little), data flow clarity, pattern choice (context vs hook vs service, single component vs composition)
+- **DRY**: Duplicated logic across files or within the same file? Similar patterns that should be extracted into a shared utility, hook, or component?
 
-#### Dead Code & Cleanup
-- Unused imports, variables, functions, exports
-- Commented-out code blocks
-- Stale TODO comments
-- Redundant code from partial refactors
-- Code made obsolete by the PR's own changes
+#### Correctness
+- **Bugs**: Logic errors, off-by-one, wrong comparisons, incorrect assumptions
+- **Edge cases**: Null/undefined handling, empty arrays, boundary values, missing default cases
+- **Error handling**: Unhandled promise rejections, missing try/catch, swallowed errors, missing user feedback on failure
+- **Race conditions**: Stale closures, unmounted component state updates, concurrent data mutations
+- **Type safety**: Incorrect type assertions, unsafe casts, types that don't match runtime values
+
+#### Security
+- New database tables missing RLS policies
+- Missing input validation at system boundaries
+- Exposed secrets or credentials in code
+- SQL injection vectors
+- XSS vulnerabilities in rendered content
 
 #### Performance
 - Missing `React.memo` on pure components
@@ -82,12 +96,11 @@ Then evaluate the PR against each category below.
 - Raw `<Image>` that should be `expo-image`
 - Large imports that could be lazy-loaded
 
-#### Security
-- New database tables missing RLS policies
-- Missing input validation at system boundaries
-- Exposed secrets or credentials in code
-- SQL injection vectors
-- XSS vulnerabilities in rendered content
+#### Code Quality
+- **Dead code**: Unused imports, variables, functions, exports, commented-out blocks, stale TODOs, redundant code from partial refactors, code made obsolete by the PR's own changes
+- **Conventions**: `@/` imports, `<Text>` from common, design tokens (no hardcoded colors/spacing), no `console.log`, clean TypeScript (no `any`), `FlashList` for lists, `expo-image` for images, `React.memo` for pure components, edge function patterns (CORS, auth, `_shared/`)
+- **DRY violations**: Repeated logic, copy-pasted blocks, patterns that should be shared
+- **Naming**: Unclear variable/function names, misleading names, inconsistent naming patterns
 
 #### Testing
 Check against the AGENT.md requirements table:
@@ -100,16 +113,12 @@ Check against the AGENT.md requirements table:
 | Bug fix | Regression test |
 | Auth/security code | Tests for success AND failure paths |
 
-Flag missing tests for critical code (auth, data mutations, user input, core components, business logic, edge functions).
+Flag missing tests for critical code (auth, data mutations, user input, core components, business logic, edge functions). Missing tests for critical code should be **Warning** or **Critical**, not Suggestion.
 
-#### Conventions
-- i18n: No hardcoded user-facing strings; translations in both `en` and `es`
-- Imports: Always use `@/` alias
-- Text: Use `<Text>` from `@/components/common`, never React Native's `Text`
-- Styling: Use design tokens from `constants/design-tokens.js`, no hardcoded colors/spacing
-- Edge functions: CORS headers, auth validation, shared utilities in `_shared/`
-- No `console.log` statements left in code
-- Clean TypeScript (no `any` unless justified)
+#### i18n
+- Hardcoded user-facing strings that should use `i18n.t()`
+- Missing translations in either `en` or `es`
+- Translation keys added to one language but not the other
 
 #### PR Hygiene
 - Commit messages follow conventional commits format (`feat:`, `fix:`, `chore:`, `docs:`, etc.)
@@ -117,15 +126,19 @@ Flag missing tests for critical code (auth, data mutations, user input, core com
 - PR is a reasonable size (warn if >50 files or >1000 lines added)
 - PR description explains the "why"
 
-### Step 4b: Prepare Recommendations, Blind Spots, and Next Steps
+### Step 4b: Prepare Additional Sections
 
-After completing the review criteria evaluation, prepare material for three additional report sections:
+After completing the review criteria evaluation, prepare material for these additional report sections:
+
+**Highlights** — Acknowledge good patterns, clean implementations, or smart design choices in the PR. Good reviews are balanced — calling out what's done well provides useful context and encourages good practices. Examples: good use of existing utilities, clean separation of concerns, thorough error handling, well-structured commits.
+
+**Suggestions & Improvements** — Concrete ideas to make the code better, ranked by impact-to-complexity ratio. Each should include an impact level (high/med/low) and effort level (high/med/low). These go beyond flagged issues — they're opportunities, not problems.
 
 **Recommendations** — Actionable improvements beyond the findings. Think about: Could the feature be more robust? Are there edge cases not handled? Would additional documentation, tests, or error handling improve confidence? Are there patterns elsewhere in the codebase that this PR could adopt?
 
 **Blind Spots** — Areas this review may have missed or couldn't fully evaluate. Think about: Files you couldn't read, runtime behavior you can't verify from a diff, integration concerns, UX flows, accessibility, areas where the diff was too large to review thoroughly, transitive dependencies.
 
-**Next Steps prompt** — Synthesize findings + recommendations into a single self-contained prompt that another AI coding agent could execute without reading this review. Include: the PR number and branch, what to fix, what to improve, what files to touch, and the instruction to plan first then implement.
+**Next Steps prompt** — Synthesize findings + recommendations + suggestions into a single self-contained prompt that another AI coding agent could execute without reading this review. Include: the PR number and branch, what to fix, what to improve, what files to touch, and the instruction to plan first then implement.
 
 ### Step 5: Output the Report
 
@@ -136,7 +149,7 @@ Format findings as a structured report:
 
 **Author:** <author>
 **Branch:** <head> → <base>
-**Changes:** <file count> files (<areas touched>)
+**Changes:** <file count> files | +<additions> -<deletions> (<areas touched>)
 
 ---
 
@@ -153,28 +166,39 @@ Format findings as a structured report:
 
 ---
 
+### Highlights
+
+- <good pattern acknowledged>
+
+---
+
 ### Findings
 
 #### Architecture & Design
-- [severity] description
+- [severity] description — file:line
 
-#### Dead Code & Cleanup
-- [severity] description
-
-#### Performance
-- [severity] description
+#### Correctness
+- [severity] description — file:line
 
 #### Security
-- [severity] description
+- [severity] description — file:line
+
+#### Performance
+- [severity] description — file:line
+
+#### Code Quality
+- [severity] description — file:line
 
 #### Testing
-- [severity] description
+- [severity] description — file:line
 
-#### Conventions
-- [severity] description
+#### i18n
+- [severity] description — file:line
 
 #### PR Hygiene
 - [severity] description
+
+(Use *No issues found.* if a category is clean.)
 
 ---
 
@@ -185,6 +209,12 @@ Format findings as a structured report:
 **Suggestion:** <count> — Nice to have
 
 **Recommendation:** <APPROVE / REQUEST CHANGES / COMMENT>
+
+---
+
+### Suggestions & Improvements
+
+1. **<title>** — <description>. *Impact: high/med/low, Effort: high/med/low*
 
 ---
 
@@ -200,14 +230,14 @@ Areas this review may have missed or couldn't fully evaluate:
 
 ### Next Steps
 
-<A ready-to-execute prompt for an AI coding agent that: (1) reads this review, (2) creates an implementation plan addressing the findings and recommendations worth acting on given the PR's context and objective, and (3) implements the plan. The prompt should reference specific files and findings by name.>
+<A ready-to-execute prompt for an AI coding agent that: (1) reads this review, (2) creates an implementation plan addressing the findings, recommendations, and suggestions worth acting on given the PR's context and objective, and (3) implements the plan. The prompt should reference specific files and findings by name.>
 ```
 
 ### Severity Levels
 
 Tag each finding with one of:
 - **Critical** — Must fix before merge. Bugs, security issues, broken CI, missing RLS on new tables, missing tests for auth/security code.
-- **Warning** — Should fix, ideally before merge. Performance issues, missing tests for new features, convention violations that affect maintainability.
+- **Warning** — Should fix, ideally before merge. Performance issues, missing tests for new features, convention violations that affect maintainability, missing error handling for likely edge cases.
 - **Suggestion** — Nice to have. Minor style preferences, optional optimizations, documentation improvements.
 
 ### Recommendation Logic
