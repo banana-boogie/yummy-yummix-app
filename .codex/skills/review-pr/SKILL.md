@@ -1,6 +1,6 @@
 ---
 name: yummyyummix:review-pr
-description: Review pull requests for architecture, correctness, security, testing coverage, performance, and project conventions. Use when asked to evaluate a GitHub PR (number, URL, or branch diff), summarize merge risk, or provide an approve/comment/request-changes recommendation.
+description: Review pull requests for architecture, correctness, security, testing coverage, performance, and project conventions. Use when asked to evaluate a GitHub PR (number or URL), summarize merge risk, or provide an approve/comment/request-changes recommendation.
 ---
 
 # PR Review
@@ -11,11 +11,11 @@ Review one pull request end-to-end and return clear, prioritized findings with a
 
 ## Required Inputs
 
-- PR number, URL, or branch reference
+- PR number or URL
 - Repository with GitHub CLI access (`gh`)
 - Optional review focus (for example: security, testing, performance)
 
-If the PR identifier is missing, ask for it before continuing.
+If the PR identifier is missing or is not a PR number/URL, ask for a valid PR number or URL before continuing.
 
 ## Workflow
 
@@ -56,6 +56,8 @@ gh pr view <pr> --json commits --jq '.commits[].messageHeadline'
 - Always cite concrete evidence with file paths and lines when possible.
 - Distinguish confirmed issues from assumptions or unknowns.
 - Do not duplicate lint/type/test failures already fully covered by CI unless there is additional risk context.
+- Keep recommendations tied to the PR objective and expected user impact.
+- Call out potential blind spots explicitly when confidence is limited.
 
 ## Output Format
 
@@ -92,6 +94,35 @@ Use this structure:
 
 #### Conventions & Hygiene
 - [Suggestion] `path/to/file.tsx:15` - <finding>
+
+### Recommendations
+- [High] <feature improvement tied to PR goal and user value>
+- [Medium] <PR improvement (scope clarity, testing, docs, rollout, or risk reduction)>
+
+### Potential Misses
+- <what may have been missed and why it is uncertain>
+- <what to validate manually or with targeted tests>
+
+### Next-Step Agent Prompt
+```text
+You are the implementation agent for PR #<number>.
+
+Objective:
+- Improve this PR by fixing high-value findings and applying worthwhile recommendations while preserving the PR's intent.
+
+Instructions:
+1. Create an implementation plan first.
+2. Prioritize items by impact, risk, and effort.
+3. Implement only fixes/recommendations that are worth doing given the PR objective and context.
+4. Skip low-value or out-of-scope changes; explain why they were deferred.
+5. Run targeted validation (tests/checks) for changed areas.
+6. Report: implemented items, deferred items, validation results, and any residual risks.
+
+Constraints:
+- Do not modify `.claude/`.
+- Keep changes scoped to the PR objective.
+- Avoid unrelated refactors.
+```
 
 ### Summary
 - Critical: <count>
