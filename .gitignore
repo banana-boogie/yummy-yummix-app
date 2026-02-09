@@ -19,6 +19,7 @@ expo-env.d.ts
 # Supabase
 .branches
 .temp
+backups/
 
 # macOS
 .DS_Store

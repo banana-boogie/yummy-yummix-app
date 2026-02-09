@@ -1,4 +1,20 @@
 {
+  "scripts": {
+    "link": "supabase link",
+    "db:push": "supabase db push",
+    "db:pull": "supabase db pull",
+    "migration:new": "supabase migration new",
+    "deploy": "supabase functions deploy",
+    "deploy:all": "supabase functions deploy --all",
+    "logs": "supabase functions logs",
+    "backup": "bash scripts/backup-all.sh",
+    "backup:db": "bash scripts/backup-db.sh",
+    "backup:storage": "bash scripts/backup-storage.sh",
+    "backup:schema": "mkdir -p backups && supabase db dump -f backups/schema_$(date +%Y%m%d).sql --schema-only",
+    "test": "deno task test",
+    "test:watch": "deno task test:watch",
+    "test:integration": "deno task test:integration"
+  },
   "devDependencies": {
     "@types/deno": "^2.2.0"
   }

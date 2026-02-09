@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Animated, View, Platform, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { useRecipes } from '@/hooks/useRecipes';
@@ -10,6 +10,7 @@ import { SearchBar } from '@/components/common/SearchBar';
 import { RecipeList } from '@/components/recipe/RecipeList';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import i18n from '@/i18n';
+import { eventService } from '@/services/eventService';
 
 // Main component
 const Recipes = () => {
@@ -30,11 +31,23 @@ const Recipes = () => {
 
   const { userProfile } = useUserProfile();
 
+  // Track the last logged search to avoid duplicate logs
+  const lastLoggedSearch = useRef<string>('');
+
   // Handler for search changes - now the debounce happens inside the SearchBar
   const handleSearchChange = useCallback((text: string) => {
     setSearchQuery(text);
     setSearch(text);
   }, [setSearch]);
+
+  // Log search events after debounce (when searchQuery changes from SearchBar)
+  useEffect(() => {
+    // Only log if we have a non-empty query that's different from the last logged one
+    if (searchQuery && searchQuery.trim().length > 0 && searchQuery !== lastLoggedSearch.current) {
+      lastLoggedSearch.current = searchQuery;
+      eventService.logSearch(searchQuery);
+    }
+  }, [searchQuery]);
 
   // Collapsible header logic
   const [headerHeight, setHeaderHeight] = useState(180);

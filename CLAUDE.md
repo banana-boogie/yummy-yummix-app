@@ -412,6 +412,15 @@ Tests don't run on pre-commit (too slow), but linting does:
 
 CI runs full test suites on every PR.
 
+## Analytics
+
+When adding new features, consider what user engagement signals are worth tracking. See [ANALYTICS.md](./ANALYTICS.md) for:
+- Current tracked events and metrics
+- How to add new event tracking
+- Dashboard queries
+
+**Philosophy**: Track what tells us if users are happy and coming back, not vanity metrics.
+
 ## Git Conventions
 
 ### Branch Naming

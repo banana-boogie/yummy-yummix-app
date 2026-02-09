@@ -4,7 +4,7 @@
     "slug": "yummy-yummix",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/app/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "scheme": "yummyyummix",
@@ -27,8 +27,8 @@
     "android": {
       "package": "com.yummyyummix.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/app/adaptive-icon.png",
+        "backgroundColor": "#FCF6F2"
       },
       "intentFilters": [
         {
@@ -51,7 +51,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png",
+      "favicon": "./assets/images/app/favicon.png",
       "router": {
         "mode": "path"
       }
@@ -67,7 +67,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash.png",
+          "image": "./assets/images/app/splash.png",
           "resizeMode": "cover"
         }
       ],
@@ -75,7 +75,8 @@
       "expo-secure-store",
       "expo-apple-authentication",
       "expo-web-browser",
-      "expo-audio"
+      "expo-audio",
+      "expo-navigation-bar"
     ],
     "experiments": {
       "typedRoutes": true
