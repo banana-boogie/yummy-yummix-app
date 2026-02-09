@@ -1,5 +1,5 @@
 ---
-name: review-pr
+name: yummyyummix:review-pr
 description: Review pull requests for architecture, correctness, security, testing coverage, performance, and project conventions. Use when asked to evaluate a GitHub PR (number, URL, or branch diff), summarize merge risk, or provide an approve/comment/request-changes recommendation.
 ---
 

@@ -1,13 +1,13 @@
 # PR Review Process
 
-How pull requests are reviewed in the YummyYummix project. This document covers the automated `/review-pr` skill, all review criteria, and the manual review checklist.
+How pull requests are reviewed in the YummyYummix project. This document covers the automated `/yummyyummix:review-pr` skill, all review criteria, and the manual review checklist.
 
 ---
 
 ## Quick Start
 
 ```
-/review-pr 7
+/yummyyummix:review-pr 7
 ```
 
 This runs the PR review skill, which gathers PR context via `gh` CLI, analyzes the diff against project standards, and produces a structured report.
@@ -18,7 +18,7 @@ This runs the PR review skill, which gathers PR context via `gh` CLI, analyzes t
 
 1. **Gathers context** — PR metadata, full diff, CI check status, and commit messages via `gh` CLI
 2. **Categorizes changes** — Groups files by area (frontend, backend, database, infrastructure, docs)
-3. **Reviews code** — Checks against all criteria below, delegating file-level analysis to the code-reviewer sub-agent
+3. **Reviews code** — Checks against all criteria below, delegating file-level analysis to the `yummyyummix:code-reviewer` sub-agent
 4. **Produces a report** — Structured findings tagged by severity with a merge recommendation
 
 ---
@@ -88,13 +88,13 @@ Never put components, types, or business logic directly in `app/`.
 
 Based on the [AGENT.md](./AGENT.md) requirements table:
 
-| What was created/modified | Required test |
-|---------------------------|---------------|
+| What You Create/Modify | Required Tests |
+|------------------------|----------------|
 | New component | Unit test covering rendering, interactions, states |
 | New service function | Unit test with mocked dependencies |
-| New Edge Function | Deno unit test + integration test update |
+| New Edge Function | Deno unit test + update integration tests |
 | Bug fix | Regression test that would have caught the bug |
-| Auth/security code | Tests for both success AND failure paths |
+| Auth/security code | Comprehensive tests for success AND failure paths |
 
 **Always test (critical code):**
 - Authentication (login, logout, session management, protected routes)
@@ -266,9 +266,7 @@ For cases where a human wants to follow the same criteria without the skill:
 - [CLAUDE.md](./CLAUDE.md) — Development setup and key conventions
 - [AGENT.md](./AGENT.md) — AI agent guidelines and testing requirements
 - [TESTING.md](./TESTING.md) — Comprehensive testing documentation
-- `.claude/skills/review-pr/SKILL.md` — The skill prompt (for debugging or updating the skill)
-- `.claude/agents/code-reviewer.md` — The code-reviewer sub-agent prompt
+- `.claude/skills/review-pr/SKILL.md` — The `yummyyummix:review-pr` skill prompt (for debugging or updating the skill)
+- `.claude/agents/code-reviewer.md` — The `yummyyummix:code-reviewer` sub-agent prompt
 
 ---
-
-**Last Updated:** 2026-02-09

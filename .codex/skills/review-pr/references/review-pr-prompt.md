@@ -3,7 +3,7 @@
 Use this prompt when invoking the skill directly:
 
 ```text
-Use $review-pr to evaluate pull request <PR_NUMBER_OR_URL>.
+Use $yummyyummix:review-pr to evaluate pull request <PR_NUMBER_OR_URL>.
 
 Focus areas:
 - Architecture and design fit
@@ -24,5 +24,5 @@ Output requirements:
 ## Example Invocation
 
 ```text
-Use $review-pr to evaluate pull request #128 and prioritize security and test coverage findings.
+Use $yummyyummix:review-pr to evaluate pull request #128 and prioritize security and test coverage findings.
 ```

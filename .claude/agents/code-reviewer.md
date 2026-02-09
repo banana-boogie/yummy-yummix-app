@@ -1,5 +1,5 @@
 ---
-name: code-reviewer
+name: yummyyummix:code-reviewer
 description: Expert code reviewer for YummyYummix. Reviews files for architecture, dead code, performance, and convention issues.
 tools: Read, Glob, Grep
 model: opus

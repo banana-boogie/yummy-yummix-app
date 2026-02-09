@@ -1,5 +1,5 @@
 ---
-name: review-pr
+name: yummyyummix:review-pr
 description: Review a pull request for code quality, security, testing, and project conventions
 disable-model-invocation: true
 ---
@@ -43,7 +43,7 @@ Group the changed files from the diff into these areas:
 
 ### Step 3: Delegate Detailed File Review
 
-Use the **code-reviewer** sub-agent (via the Task tool with `subagent_type: "feature-dev:code-reviewer"`) to perform deep file-level analysis. Pass it the list of changed files and ask it to review against:
+Use the **yummyyummix:code-reviewer** sub-agent (via the Task tool with `subagent_type: "yummyyummix:code-reviewer"`) to perform deep file-level analysis. Pass it the list of changed files and ask it to review against:
 - Architecture & design fit
 - Dead code & cleanup
 - Performance issues
@@ -53,7 +53,7 @@ Read the diff output yourself for security, testing, and PR hygiene checks.
 
 ### Step 4: Review Criteria
 
-Evaluate the PR against each category below. Reference [AGENT.md](../../AGENT.md), [TESTING.md](../../TESTING.md), and [CLAUDE.md](../../CLAUDE.md) for project standards. See [PR-REVIEW.md](../../PR-REVIEW.md) for detailed criteria explanations.
+Evaluate the PR against each category below. Reference [AGENT.md](../../../AGENT.md), [TESTING.md](../../../TESTING.md), and [CLAUDE.md](../../../CLAUDE.md) for project standards. See [PR-REVIEW.md](../../../PR-REVIEW.md) for detailed criteria explanations.
 
 #### Architecture & Design
 - **Fit**: Code in the right directories? (`app/` for screens, `components/` for UI, `services/` for data, `contexts/` for state, `hooks/` for custom hooks)
@@ -86,8 +86,8 @@ Evaluate the PR against each category below. Reference [AGENT.md](../../AGENT.md
 #### Testing
 Check against the AGENT.md requirements table:
 
-| What was created/modified | Required test |
-|---------------------------|---------------|
+| What You Create/Modify | Required Tests |
+|------------------------|----------------|
 | New component | Unit test (rendering, interactions, states) |
 | New service function | Unit test with mocked dependencies |
 | New Edge Function | Deno unit test |
