@@ -245,8 +245,9 @@ const recipeJsonSchema = {
               enum: temperatureEnum,
             },
             thermomixTemperatureUnit: {
-              type: ['number', 'null'],
+              type: ['string', 'null'],
               description: 'Temperature unit in C or F, if it exists, null otherwise',
+              enum: ['C', 'F', null],
             },
             thermomixSpeed: {
               type: ['object', 'null'],
@@ -437,7 +438,7 @@ export interface ParsedRecipeData {
     instructionEs: string;
     thermomixTime: number | null;
     thermomixTemperature: number | string | null;
-    thermomixTemperatureUnit: number | null;
+    thermomixTemperatureUnit: string | null;
     thermomixSpeed: {
       type: 'single' | 'range';
       value: number | string | null;

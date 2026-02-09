@@ -19,8 +19,14 @@ export interface PipelineConfig {
 
 /** Parse --local / --production from Deno.args */
 export function parseEnvironment(args: string[]): Environment {
-  if (args.includes('--production')) return 'production';
-  if (args.includes('--local')) return 'local';
+  const hasLocal = args.includes('--local');
+  const hasProduction = args.includes('--production');
+  if (hasLocal && hasProduction) {
+    console.error('Error: Cannot specify both --local and --production');
+    Deno.exit(1);
+  }
+  if (hasProduction) return 'production';
+  if (hasLocal) return 'local';
   console.error('Error: Must specify --local or --production');
   Deno.exit(1);
 }
@@ -59,23 +65,36 @@ function loadEnvFile(path: string): Record<string, string> {
 
 /** Initialize the full pipeline config */
 export function createPipelineConfig(env: Environment): PipelineConfig {
-  // Resolve paths relative to yyx-app (where .env files live)
-  const appRoot = new URL('../../yyx-app', import.meta.url).pathname;
-  const serverRoot = new URL('../../yyx-server', import.meta.url).pathname;
+  // Resolve paths: lib/ → data-pipeline/ → yyx-server/ → repo root → yyx-app/
+  const appRoot = new URL('../../../yyx-app', import.meta.url).pathname;
+  const serverRoot = new URL('../..', import.meta.url).pathname;
 
   let supabaseUrl: string;
   let supabaseKey: string;
+  let keyType: string;
   let openaiApiKey: string;
   let usdaApiKey: string;
 
   if (env === 'local') {
     const envLocal = loadEnvFile(`${appRoot}/.env.local`);
     supabaseUrl = envLocal['EXPO_PUBLIC_SUPABASE_URL'] || '';
-    supabaseKey = envLocal['EXPO_PUBLIC_SUPABASE_ANON_KEY'] || '';
 
     // For API keys, try .env in yyx-server first, then yyx-app
     const serverEnv = loadEnvFile(`${serverRoot}/.env`);
     const appEnv = loadEnvFile(`${appRoot}/.env`);
+
+    // Prefer service role key for DB writes (bypasses RLS), fall back to anon key
+    const serviceKey = serverEnv['SUPABASE_SERVICE_ROLE_KEY'] ||
+      appEnv['SUPABASE_SERVICE_ROLE_KEY'] ||
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    if (serviceKey) {
+      supabaseKey = serviceKey;
+      keyType = 'service_role';
+    } else {
+      supabaseKey = envLocal['EXPO_PUBLIC_SUPABASE_ANON_KEY'] || '';
+      keyType = 'anon';
+    }
+
     openaiApiKey = serverEnv['OPENAI_API_KEY'] || appEnv['OPENAI_API_KEY'] ||
       Deno.env.get('OPENAI_API_KEY') || '';
     usdaApiKey = serverEnv['USDA_API_KEY'] || appEnv['USDA_API_KEY'] ||
@@ -83,9 +102,23 @@ export function createPipelineConfig(env: Environment): PipelineConfig {
   } else {
     const appEnv = loadEnvFile(`${appRoot}/.env`);
     supabaseUrl = appEnv['EXPO_PUBLIC_SUPABASE_URL'] || '';
-    supabaseKey = appEnv['EXPO_PUBLIC_SUPABASE_ANON_KEY'] || '';
 
     const serverEnv = loadEnvFile(`${serverRoot}/.env`);
+
+    // Production requires service role key for DB writes (RLS blocks anon inserts)
+    const serviceKey = serverEnv['SUPABASE_SERVICE_ROLE_KEY'] ||
+      appEnv['SUPABASE_SERVICE_ROLE_KEY'] ||
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    if (!serviceKey) {
+      console.error(
+        'Error: SUPABASE_SERVICE_ROLE_KEY is required for production. ' +
+          'Set it in yyx-server/.env or as an environment variable.',
+      );
+      Deno.exit(1);
+    }
+    supabaseKey = serviceKey;
+    keyType = 'service_role';
+
     openaiApiKey = serverEnv['OPENAI_API_KEY'] || appEnv['OPENAI_API_KEY'] ||
       Deno.env.get('OPENAI_API_KEY') || '';
     usdaApiKey = serverEnv['USDA_API_KEY'] || appEnv['USDA_API_KEY'] ||
@@ -106,6 +139,7 @@ export function createPipelineConfig(env: Environment): PipelineConfig {
 
   console.log(`[config] Environment: ${env}`);
   console.log(`[config] Supabase URL: ${supabaseUrl}`);
+  console.log(`[config] Supabase key type: ${keyType}`);
   console.log(`[config] OpenAI API key: ${openaiApiKey ? 'configured' : 'MISSING'}`);
 
   return {

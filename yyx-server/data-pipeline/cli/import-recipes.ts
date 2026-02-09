@@ -212,9 +212,7 @@ function buildRecipeSteps(
       thermomix_speed_start: speedStart,
       thermomix_speed_end: speedEnd,
       thermomix_temperature: step.thermomixTemperature,
-      thermomix_temperature_unit: step.thermomixTemperatureUnit
-        ? String(step.thermomixTemperatureUnit)
-        : null,
+      thermomix_temperature_unit: step.thermomixTemperatureUnit,
       thermomix_is_blade_reversed: step.thermomixIsBladeReversed,
       recipe_section_en: step.recipeSectionEn || 'Main',
       recipe_section_es: step.recipeSectionEs || 'Principal',
@@ -231,9 +229,10 @@ function buildStepIngredients(
   insertedSteps: Array<{ id: string; order: number }>,
   ingredientMap: Map<string, DbIngredient>,
   allUnits: DbMeasurementUnit[],
-): db.RecipeStepIngredientInsert[] {
+): { items: db.RecipeStepIngredientInsert[]; droppedCount: number } {
   const stepOrderToId = new Map(insertedSteps.map((s) => [s.order, s.id]));
-  const result: db.RecipeStepIngredientInsert[] = [];
+  const items: db.RecipeStepIngredientInsert[] = [];
+  let droppedCount = 0;
 
   for (const step of parsed.steps) {
     const stepId = stepOrderToId.get(step.order);
@@ -243,11 +242,17 @@ function buildStepIngredients(
       const dbIngredient = ingredientMap.get(ing.ingredient.nameEn.toLowerCase()) ||
         ingredientMap.get(ing.ingredient.nameEs.toLowerCase());
 
-      if (!dbIngredient) continue;
+      if (!dbIngredient) {
+        logger.warn(
+          `Dropped step-ingredient link: "${ing.ingredient.nameEn}" in step ${step.order} — no matching DB ingredient`,
+        );
+        droppedCount++;
+        continue;
+      }
 
       const unit = matchMeasurementUnit(ing.measurementUnitID, allUnits);
 
-      result.push({
+      items.push({
         recipe_id: recipeId,
         recipe_step_id: stepId,
         ingredient_id: dbIngredient.id,
@@ -259,7 +264,7 @@ function buildStepIngredients(
     }
   }
 
-  return result;
+  return { items, droppedCount };
 }
 
 // ─── Main Import Flow ────────────────────────────────────
@@ -318,32 +323,47 @@ async function importRecipe(
 
   logger.info(`Created recipe: ${recipeId}`);
 
-  // 5. Insert recipe ingredients
-  const ingredientsWithRecipeId = recipeIngredients.map((ri) => ({
-    ...ri,
-    recipe_id: recipeId,
-  }));
-  await db.insertRecipeIngredients(config.supabase, ingredientsWithRecipeId);
+  // Wrap child inserts so we can clean up the recipe on failure
+  try {
+    // 5. Insert recipe ingredients
+    const ingredientsWithRecipeId = recipeIngredients.map((ri) => ({
+      ...ri,
+      recipe_id: recipeId,
+    }));
+    await db.insertRecipeIngredients(config.supabase, ingredientsWithRecipeId);
 
-  // 6. Insert recipe steps
-  const steps = buildRecipeSteps(recipeId, parsed);
-  const insertedSteps = await db.insertRecipeSteps(config.supabase, steps);
+    // 6. Insert recipe steps
+    const steps = buildRecipeSteps(recipeId, parsed);
+    const insertedSteps = await db.insertRecipeSteps(config.supabase, steps);
 
-  // 7. Insert step ingredients
-  const stepIngredients = buildStepIngredients(
-    recipeId,
-    parsed,
-    insertedSteps,
-    ingredientMap,
-    allUnits,
-  );
-  await db.insertRecipeStepIngredients(config.supabase, stepIngredients);
+    // 7. Insert step ingredients
+    const { items: stepIngredients, droppedCount } = buildStepIngredients(
+      recipeId,
+      parsed,
+      insertedSteps,
+      ingredientMap,
+      allUnits,
+    );
+    if (droppedCount > 0) {
+      logger.warn(`${droppedCount} step-ingredient link(s) dropped for "${parsed.nameEn}"`);
+    }
+    await db.insertRecipeStepIngredients(config.supabase, stepIngredients);
 
-  // 8. Insert tags
-  await db.insertRecipeTags(config.supabase, recipeId, tagIds);
+    // 8. Insert tags
+    await db.insertRecipeTags(config.supabase, recipeId, tagIds);
 
-  // 9. Insert useful items
-  await db.insertRecipeUsefulItems(config.supabase, recipeId, usefulItems);
+    // 9. Insert useful items
+    await db.insertRecipeUsefulItems(config.supabase, recipeId, usefulItems);
+  } catch (childError) {
+    // Clean up the orphaned recipe row (FK cascades delete children)
+    logger.warn(`Cleaning up partial recipe "${parsed.nameEn}" (${recipeId}) after error`);
+    try {
+      await db.deleteRecipe(config.supabase, recipeId);
+    } catch (cleanupError) {
+      logger.error(`Failed to clean up recipe ${recipeId}: ${cleanupError}`);
+    }
+    throw childError;
+  }
 
   return recipeId;
 }

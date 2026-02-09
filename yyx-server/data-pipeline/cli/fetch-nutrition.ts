@@ -45,11 +45,16 @@ async function fetchFromUSDA(ingredientName: string): Promise<NutritionData | nu
     const food = data.foods[0];
     const nutrients = food.foodNutrients;
 
-    const findNutrient = (name: string): number =>
-      nutrients.find((n: { nutrientName: string }) => n.nutrientName === name)?.value || 0;
+    const findNutrient = (name: string, unitName?: string): number => {
+      const match = nutrients.find(
+        (n: { nutrientName: string; unitName?: string }) =>
+          n.nutrientName === name && (!unitName || n.unitName === unitName),
+      );
+      return match?.value || 0;
+    };
 
     return {
-      calories: Math.round(findNutrient('Energy')),
+      calories: Math.round(findNutrient('Energy', 'KCAL')),
       protein: Math.round(findNutrient('Protein') * 10) / 10,
       fat: Math.round(findNutrient('Total lipid (fat)') * 10) / 10,
       carbohydrates: Math.round(findNutrient('Carbohydrate, by difference') * 10) / 10,

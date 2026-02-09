@@ -47,8 +47,17 @@ async function translate(
     }),
   });
 
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Translation API error (${res.status}): ${body}`);
+  }
+
   const data = await res.json();
-  return data.choices?.[0]?.message?.content?.trim() || '';
+  const translated = data.choices?.[0]?.message?.content?.trim() || '';
+  if (!translated) {
+    throw new Error(`Translation returned empty result for "${text}"`);
+  }
+  return translated;
 }
 
 async function translatePair(

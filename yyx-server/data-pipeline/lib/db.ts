@@ -291,7 +291,20 @@ export async function updateRecipe(
   if (error) throw new Error(`Failed to update recipe ${id}: ${error.message}`);
 }
 
+export async function deleteRecipe(
+  supabase: SupabaseClient,
+  id: string,
+): Promise<void> {
+  const { error } = await supabase.from('recipes').delete().eq('id', id);
+  if (error) throw new Error(`Failed to delete recipe ${id}: ${error.message}`);
+}
+
 // ─── Check Duplicates ────────────────────────────────────
+
+/** Escape ILIKE wildcard characters (% and _) in user input */
+function escapeIlike(value: string): string {
+  return value.replace(/[%_]/g, (ch) => `\\${ch}`);
+}
 
 export async function findRecipeByName(
   supabase: SupabaseClient,
@@ -300,19 +313,21 @@ export async function findRecipeByName(
 ): Promise<string | null> {
   // Search by English name first, then Spanish name
   // Using separate .ilike() calls to avoid unsafe string interpolation in .or()
-  const { data: enMatch } = await supabase
+  const { data: enMatch, error: enError } = await supabase
     .from('recipes')
     .select('id')
-    .ilike('name_en', nameEn)
+    .ilike('name_en', escapeIlike(nameEn))
     .limit(1)
     .maybeSingle();
+  if (enError) throw new Error(`Failed to search recipes by English name: ${enError.message}`);
   if (enMatch?.id) return enMatch.id;
 
-  const { data: esMatch } = await supabase
+  const { data: esMatch, error: esError } = await supabase
     .from('recipes')
     .select('id')
-    .ilike('name_es', nameEs)
+    .ilike('name_es', escapeIlike(nameEs))
     .limit(1)
     .maybeSingle();
+  if (esError) throw new Error(`Failed to search recipes by Spanish name: ${esError.message}`);
   return esMatch?.id || null;
 }
