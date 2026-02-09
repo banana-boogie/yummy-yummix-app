@@ -23,11 +23,23 @@ This runs the PR review skill, which gathers PR context via `gh` CLI, analyzes t
 
 ---
 
+## Engineering Preferences
+
+These preferences calibrate reviewer behavior across all categories:
+
+- **Flag DRY violations aggressively** — even 2-3 repeated lines of similar logic warrant a finding
+- **Flag both over- and under-engineering** — premature abstractions are as bad as duplicated logic
+- **Bias toward more edge case handling** — missing error handling and unhandled states should be flagged
+- **Prefer explicit over clever** — complex one-liners, obscure patterns, and implicit behavior are worth flagging
+- **Missing tests for critical code = Warning or Critical**, not Suggestion
+
+---
+
 ## Review Criteria
 
 ### Architecture & Design
 
-Two layers of review:
+Three layers of review:
 
 **Fit** — Is code in the right place?
 
@@ -54,15 +66,19 @@ Never put components, types, or business logic directly in `app/`.
 - **Pattern choice**: Is context vs hook vs service the right tool? Single component vs composition? Shared utility vs inline code?
 - **Simpler alternatives**: Could the same result be achieved more straightforwardly?
 
-### Dead Code & Cleanup
+**DRY** — Is logic duplicated?
 
-- **Unused imports**: Imported but never referenced in the file
-- **Unused variables/functions**: Declared but not used
-- **Commented-out code**: Should be deleted, not commented. Git preserves history
-- **Stale TODOs**: `TODO`, `FIXME`, `HACK` comments that reference completed or abandoned work
-- **Unused exports**: Exported but not imported anywhere in the codebase
-- **Partial refactor leftovers**: Old implementation left alongside new one
-- **Redundant code**: Logic made unnecessary by the PR's own changes
+- Duplicated logic across files or within the same file
+- Similar patterns that should be extracted into a shared utility, hook, or component
+- Copy-pasted blocks with minor variations
+
+### Correctness
+
+- **Bugs**: Logic errors, off-by-one, wrong comparisons, incorrect assumptions
+- **Edge cases**: Null/undefined handling, empty arrays, boundary values, missing default cases
+- **Error handling**: Unhandled promise rejections, missing try/catch, swallowed errors, missing user feedback on failure
+- **Race conditions**: Stale closures, unmounted component state updates, concurrent data mutations
+- **Type safety**: Incorrect type assertions, unsafe casts, types that don't match runtime values
 
 ### Performance
 
@@ -109,7 +125,18 @@ Based on the [AGENT.md](./AGENT.md) requirements table:
 - Static pages
 - Simple wrappers around library components
 
-### Conventions
+Missing tests for critical code should be **Warning** or **Critical**, not Suggestion.
+
+### Code Quality
+
+**Dead code**
+- Unused imports, variables, functions, exports
+- Commented-out code (should be deleted — Git preserves history)
+- Stale `TODO`/`FIXME`/`HACK` comments referencing completed or abandoned work
+- Partial refactor leftovers (old implementation left alongside new one)
+- Code made redundant by the PR's own changes
+
+**Conventions**
 
 | Convention | Rule |
 |-----------|------|
@@ -117,7 +144,6 @@ Based on the [AGENT.md](./AGENT.md) requirements table:
 | **Text component** | Always `<Text>` from `@/components/common`. Never React Native's `Text` |
 | **Button component** | `<Button>` from `@/components/common` with `variant` and `size` props |
 | **Styling** | NativeWind with design tokens from `constants/design-tokens.js`. No hardcoded colors or pixel values |
-| **i18n** | All user-facing strings use `i18n.t()`. Both `en` and `es` translations required |
 | **Layouts** | Use `PageLayout` and `ResponsiveLayout` from `@/components/layouts/` |
 | **Edge functions** | CORS headers, auth validation from `_shared/`, follow existing patterns |
 | **Console logs** | No `console.log` in production code |
@@ -125,6 +151,19 @@ Based on the [AGENT.md](./AGENT.md) requirements table:
 | **Lists** | `FlashList` for long lists |
 | **Images** | `expo-image` for all images |
 | **Pure components** | `React.memo` for components that don't need re-renders |
+
+**DRY violations**
+- Repeated logic, copy-pasted blocks, patterns that should be shared
+- Even 2-3 repeated lines of similar logic warrant a finding
+
+**Naming**
+- Unclear variable/function names, misleading names, inconsistent naming patterns
+
+### i18n
+
+- Hardcoded user-facing strings that should use `i18n.t()`
+- Missing translations in either `en` or `es`
+- Translation keys added to one language but not the other
 
 ### PR Hygiene
 
@@ -150,6 +189,7 @@ Should fix, ideally before merge. Examples:
 - Performance issues (missing memoization, N+1 queries)
 - Missing tests for new features
 - Convention violations that affect maintainability
+- Missing error handling for likely edge cases
 - Dead code that adds confusion
 
 ### Suggestion
@@ -172,9 +212,26 @@ Nice to have. Examples:
 
 ---
 
-## Recommendations, Blind Spots & Next Steps
+## Highlights, Suggestions & Improvements, Recommendations, Blind Spots & Next Steps
 
-Every review report includes three sections after the findings summary. These add context that findings alone can't provide.
+Every review report includes these sections after the findings summary. They add context that findings alone can't provide.
+
+### Highlights
+
+Acknowledge good patterns, clean implementations, or smart design choices in the PR. Good reviews are balanced — calling out what's done well provides useful context and encourages good practices.
+
+Examples:
+- "Clean separation between the recipe parsing service and the UI components"
+- "Good use of the existing `useDebounce` hook for search input"
+- "Well-structured conventional commits that make the PR easy to follow"
+
+### Suggestions & Improvements
+
+Concrete ideas to make the code better, ranked by impact-to-complexity ratio. Each suggestion includes an impact level (high/med/low) and effort level (high/med/low). These go beyond flagged issues — they're opportunities, not problems.
+
+Examples:
+- "**Extract recipe card skeleton** — The loading placeholder is duplicated in 3 list screens. *Impact: med, Effort: low*"
+- "**Add optimistic updates to favorites** — Would make the UI feel instant. *Impact: high, Effort: med*"
 
 ### Recommendations
 
@@ -236,10 +293,12 @@ These checks run automatically on every PR. The review skill reports their statu
 | Labels | Yes | Reports CI result |
 | Architecture fit | No | Yes |
 | Design quality | No | Yes |
-| Dead code | No | Yes |
+| Correctness (bugs, edge cases) | No | Yes |
+| Code quality (dead code, DRY, naming) | No | Yes |
 | Performance | No | Yes |
 | Security (RLS, secrets) | No | Yes |
 | Test coverage gaps | No | Yes |
+| i18n (translations) | No | Yes |
 | Convention violations | Partial (lint) | Yes (full) |
 | Commit message format | No | Yes |
 
@@ -261,11 +320,19 @@ For cases where a human wants to follow the same criteria without the skill:
 - [ ] No unnecessary coupling between modules
 - [ ] Abstraction level is appropriate (not over/under-engineered)
 - [ ] Data flow is clear and follows project conventions
+- [ ] No duplicated logic that should be extracted (DRY)
 
-### Dead Code & Cleanup
-- [ ] No unused imports, variables, or functions
-- [ ] No commented-out code blocks
-- [ ] No stale TODOs referencing completed work
+### Correctness
+- [ ] No logic errors, off-by-one, or wrong comparisons
+- [ ] Edge cases handled (null/undefined, empty arrays, boundary values)
+- [ ] Errors handled properly (no swallowed errors, user gets feedback on failure)
+- [ ] No race conditions (stale closures, unmounted component updates)
+- [ ] Type assertions and casts are correct
+
+### Security
+- [ ] New tables have RLS policies
+- [ ] User input is validated at boundaries
+- [ ] No secrets in code
 
 ### Performance
 - [ ] Pure components use `React.memo`
@@ -273,30 +340,35 @@ For cases where a human wants to follow the same criteria without the skill:
 - [ ] Expensive operations are memoized
 - [ ] Database queries use pagination where appropriate
 
-### Security
-- [ ] New tables have RLS policies
-- [ ] User input is validated at boundaries
-- [ ] No secrets in code
+### Code Quality
+- [ ] No unused imports, variables, or functions
+- [ ] No commented-out code blocks
+- [ ] No stale TODOs referencing completed work
+- [ ] `@/` imports throughout
+- [ ] `<Text>` from common, not React Native
+- [ ] Design tokens used, no hardcoded values
+- [ ] No `console.log` in production code
+- [ ] No duplicated logic or copy-pasted blocks
 
 ### Testing
 - [ ] New critical code has tests (per AGENT.md table)
 - [ ] Auth/security changes have success AND failure tests
 - [ ] Tests follow project patterns (factories, `renderWithProviders`)
 
-### Conventions
-- [ ] `@/` imports throughout
-- [ ] `<Text>` from common, not React Native
-- [ ] Design tokens used, no hardcoded values
-- [ ] i18n for all user-facing strings (both `en` and `es`)
-- [ ] No `console.log` in production code
+### i18n
+- [ ] No hardcoded user-facing strings
+- [ ] Translations present in both `en` and `es`
+- [ ] No asymmetric translation keys
 
 ### PR Hygiene
 - [ ] Conventional commit messages
 - [ ] Type label present
 - [ ] Description explains the "why"
 
-### Recommendations & Blind Spots
-- [ ] Noted improvements that could strengthen the PR beyond the findings
+### Highlights, Suggestions & Additional Sections
+- [ ] Acknowledged good patterns in the PR
+- [ ] Identified concrete improvement opportunities with impact/effort ranking
+- [ ] Noted actionable recommendations beyond findings
 - [ ] Identified areas the review couldn't fully evaluate (runtime behavior, accessibility, integration effects)
 - [ ] Documented next steps for follow-up
 
@@ -308,6 +380,7 @@ For cases where a human wants to follow the same criteria without the skill:
 - [AGENT.md](./AGENT.md) — AI agent guidelines and testing requirements
 - [TESTING.md](./TESTING.md) — Comprehensive testing documentation
 - `.claude/skills/review-pr/SKILL.md` — The `yummyyummix:review-pr` skill prompt (for debugging or updating the skill)
+- `.claude/skills/review-changes/SKILL.md` — The `yummyyummix:review-changes` skill prompt (pre-PR local commit review)
 - `.claude/agents/code-reviewer.md` — The `yummyyummix:code-reviewer` sub-agent prompt
 
 ---
