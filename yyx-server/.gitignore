@@ -46,6 +46,12 @@ coverage/
 tmp/
 temp/
 
+# Data Pipeline
+data-pipeline/.import-progress.json
+data-pipeline/audit-report.json
+data-pipeline/data/notion-exports/*.md
+data-pipeline/data/failed-uploads/
+
 # System Files
 .DS_Store
 .DS_Store?
