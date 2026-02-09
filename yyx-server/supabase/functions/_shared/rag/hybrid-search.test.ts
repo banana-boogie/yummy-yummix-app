@@ -170,7 +170,11 @@ Deno.test("searchRecipesHybrid returns hybrid no_semantic_candidates when vector
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
     new Response(
-      JSON.stringify({ data: [{ embedding: [0.1, 0.2, 0.3] }], model: "text-embedding-3-large", usage: { prompt_tokens: 5 } }),
+      JSON.stringify({
+        data: [{ embedding: [0.1, 0.2, 0.3] }],
+        model: "text-embedding-3-large",
+        usage: { prompt_tokens: 5 },
+      }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
 
@@ -205,7 +209,11 @@ Deno.test("searchRecipesHybrid returns low_confidence when too few results above
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
     new Response(
-      JSON.stringify({ data: [{ embedding: [0.1, 0.2, 0.3] }], model: "text-embedding-3-large", usage: { prompt_tokens: 5 } }),
+      JSON.stringify({
+        data: [{ embedding: [0.1, 0.2, 0.3] }],
+        model: "text-embedding-3-large",
+        usage: { prompt_tokens: 5 },
+      }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
 
