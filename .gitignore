@@ -54,7 +54,9 @@ npm-debug.*
 *.swo
 
 # Claude Code
-.claude/
+.claude/*
+!.claude/skills/
+!.claude/agents/
 
 # iOS/Android signing
 *.jks
