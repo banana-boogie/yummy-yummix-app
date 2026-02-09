@@ -19,36 +19,60 @@ If the PR identifier is missing or is not a PR number/URL, ask for a valid PR nu
 
 ## Workflow
 
-1. Gather context:
+1. Gather context with primary GitHub CLI commands:
 ```bash
 gh pr view <pr>
 gh pr diff <pr>
 gh pr checks <pr>
 gh pr view <pr> --json commits --jq '.commits[].messageHeadline'
 ```
-2. Map changed files by area:
+2. If primary commands fail (GraphQL deprecation surface, API throttling, or transient network issues), use resilient fallback:
+```bash
+gh pr view <pr> --json number,title,author,headRefName,baseRefName,changedFiles,additions,deletions,body,url
+gh pr view <pr> --json files --jq '.files[].path'
+gh pr checks <pr>
+git fetch origin <base-branch>
+git fetch origin <head-branch>
+git diff --name-status origin/<base-branch>...origin/<head-branch>
+git diff origin/<base-branch>...origin/<head-branch>
+git log --oneline origin/<base-branch>..origin/<head-branch>
+```
+3. Map changed files by area:
 - Frontend: `yyx-app/`
 - Backend/Edge: `yyx-server/`
 - Database: `yyx-server/db/migrations/` or `supabase/migrations/`
 - Infra/tooling: CI, config, scripts
 - Docs: markdown and process files
-3. Review for defects and risk:
+4. Review for defects and risk:
 - Architecture and design fit
 - Correctness and regression risk
 - Security issues (RLS, auth checks, input validation, secrets)
 - Performance concerns (re-renders, query patterns, list/image handling)
 - Test gaps against changed behavior
+- Documentation quality (comments for complex logic, PR docs/README/API updates where needed)
 - Conventions (`@/` imports, i18n, tokens, no stray `console.log`)
 - PR hygiene (conventional commits, labels, size, PR rationale)
-4. Produce findings with severity:
+5. Produce findings with severity:
 - `Critical`: must fix before merge
 - `Warning`: should fix
 - `Suggestion`: nice to have
-5. Derive recommendation:
+6. Derive recommendation:
 - Any `Critical` => `REQUEST CHANGES`
 - 3+ `Warning` => `REQUEST CHANGES`
 - 1-2 `Warning` => `COMMENT`
 - Only `Suggestion` or none => `APPROVE`
+
+## Severity and Depth Rules
+
+- Every finding must include: file path, line reference (when possible), concrete recommendation.
+- `Critical` findings must include 2-3 options with tradeoffs:
+  - effort
+  - risk
+  - impact on other code
+  - maintenance burden
+- `Warning` findings that materially affect merge risk should also include options/tradeoffs.
+- For optioned findings, put the recommended option first and explain why.
+- `Suggestion` findings can stay concise without option matrix.
 
 ## Review Rules
 
@@ -58,12 +82,13 @@ gh pr view <pr> --json commits --jq '.commits[].messageHeadline'
 - Do not duplicate lint/type/test failures already fully covered by CI unless there is additional risk context.
 - Keep recommendations tied to the PR objective and expected user impact.
 - Call out potential blind spots explicitly when confidence is limited.
+- Be constructive and explicitly acknowledge good patterns.
 
 ## Output Format
 
 Use this structure:
 
-```markdown
+````markdown
 ## PR Review: #<number> - <title>
 
 **Author:** <author>
@@ -76,28 +101,52 @@ Use this structure:
 - Server CI: <pass/fail/pending/skipped>
 - PR Checks: <pass/fail/pending>
 
+### Good Patterns Observed
+- <specific pattern worth keeping>
+- <specific pattern worth keeping>
+
 ### Findings
 #### Architecture & Design
 - [Warning] `path/to/file.ts:42` - <finding>
+  - Recommendation: <specific recommendation>
 
 #### Correctness
 - [Critical] `path/to/file.ts:88` - <finding>
+  - Recommendation: <specific recommendation>
+  - Options:
+    1. **A (Recommended)** <option> - Effort: <S/M/L>, Risk: <...>, Impact: <...>, Maintenance: <...>
+    2. **B** <option> - Effort: <...>, Risk: <...>, Impact: <...>, Maintenance: <...>
+    3. **C** <option> - Effort: <...>, Risk: <...>, Impact: <...>, Maintenance: <...>
 
 #### Security
 - [Critical] `path/to/file.sql:12` - <finding>
+  - Recommendation: <specific recommendation>
+  - Options:
+    1. **A (Recommended)** <option> - Effort: <S/M/L>, Risk: <...>, Impact: <...>, Maintenance: <...>
+    2. **B** <option> - Effort: <...>, Risk: <...>, Impact: <...>, Maintenance: <...>
 
 #### Performance
 - [Warning] `path/to/file.tsx:131` - <finding>
+  - Recommendation: <specific recommendation>
 
 #### Testing
 - [Warning] `path/to/file.test.ts:1` - <gap>
+  - Recommendation: <specific recommendation>
 
 #### Conventions & Hygiene
 - [Suggestion] `path/to/file.tsx:15` - <finding>
+  - Recommendation: <specific recommendation>
+
+#### Documentation
+- [Suggestion] `path/to/file.md:18` - <finding>
+  - Recommendation: <specific recommendation>
 
 ### Recommendations
-- [High] <feature improvement tied to PR goal and user value>
-- [Medium] <PR improvement (scope clarity, testing, docs, rollout, or risk reduction)>
+| Rank | Recommendation | Impact | Complexity | Rationale |
+|------|----------------|--------|------------|-----------|
+| 1 | <feature improvement tied to PR goal and user value> | High | Medium | <reason> |
+| 2 | <PR improvement tied to testing/docs/rollout/risk> | Medium | Low | <reason> |
+| 3 | <maintainability improvement worth doing now> | Medium | Medium | <reason> |
 
 ### Potential Misses
 - <what may have been missed and why it is uncertain>
@@ -130,6 +179,6 @@ Constraints:
 - Suggestion: <count>
 
 **Recommendation:** <APPROVE | COMMENT | REQUEST CHANGES>
-```
+````
 
 For a reusable invocation template, use `references/review-pr-prompt.md`.
