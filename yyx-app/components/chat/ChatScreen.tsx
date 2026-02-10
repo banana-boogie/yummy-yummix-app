@@ -52,7 +52,7 @@ const SCROLL_THRESHOLD = 100; // Distance from bottom to consider "at bottom" (p
 // Markdown styles for assistant messages
 const markdownStyles = {
     body: {
-        color: COLORS.text.primary,
+        color: COLORS.text.default,
         fontSize: 16,
         lineHeight: 24,
     },

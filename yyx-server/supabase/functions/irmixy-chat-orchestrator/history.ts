@@ -9,28 +9,14 @@ import type { IrmixyResponse } from "../_shared/irmixy-schemas.ts";
 
 /**
  * Save message exchange to conversation history.
- * Verifies session ownership before saving.
+ * Session ownership is already validated by ensureSessionId() in the serve() handler.
  */
 export async function saveMessageToHistory(
   supabase: SupabaseClient,
   sessionId: string,
-  userId: string,
   userMessage: string,
   assistantResponse: IrmixyResponse,
 ): Promise<void> {
-  // Verify session ownership
-  const { data: session } = await supabase
-    .from("user_chat_sessions")
-    .select("id")
-    .eq("id", sessionId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (!session) {
-    console.error("Session not found or not owned by user");
-    return;
-  }
-
   // Save user message
   await supabase.from("user_chat_messages").insert({
     session_id: sessionId,

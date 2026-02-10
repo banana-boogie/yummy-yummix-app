@@ -16,54 +16,13 @@ import { normalizeMessagesForAi } from "./message-normalizer.ts";
 import type { OpenAIMessage } from "./types.ts";
 
 /**
- * JSON Schema for structured final responses with suggestions.
- * Used when we want the AI to return formatted output with suggestion chips.
- */
-export const STRUCTURED_RESPONSE_SCHEMA = {
-  type: "object",
-  properties: {
-    message: {
-      type: "string",
-      description: "The conversational response message to the user",
-    },
-    suggestions: {
-      type: "array",
-      description:
-        "Quick suggestion chips for the user to tap. Keep them SHORT (2-5 words, max 30 characters).",
-      items: {
-        type: "object",
-        properties: {
-          label: {
-            type: "string",
-            description:
-              "SHORT chip text (2-5 words, max 30 chars). MUST equal message. Examples: 'Make it spicier', 'Add vegetables', 'Less salt'",
-            maxLength: 30,
-          },
-          message: {
-            type: "string",
-            description:
-              "MUST be identical to label. SHORT text (2-5 words, max 30 chars).",
-            maxLength: 30,
-          },
-        },
-        required: ["label", "message"],
-        additionalProperties: false,
-      },
-    },
-  },
-  required: ["message", "suggestions"],
-  additionalProperties: false,
-};
-
-/**
  * Call AI via the AI Gateway.
- * Supports tools and optional JSON schema for structured output.
+ * Supports tools and tool choice control.
  * @param toolChoice - "auto" (default) or "required" (force tool use)
  */
 export async function callAI(
   messages: OpenAIMessage[],
   includeTools: boolean = true,
-  useStructuredOutput: boolean = false,
   toolChoice?: "auto" | "required",
 ): Promise<{ choices: Array<{ message: OpenAIMessage }> }> {
   const aiMessages = normalizeMessagesForAi(messages);
@@ -79,12 +38,6 @@ export async function callAI(
     temperature: 0.7,
     tools,
     toolChoice: includeTools ? toolChoice : undefined,
-    responseFormat: useStructuredOutput
-      ? {
-        type: "json_schema",
-        schema: STRUCTURED_RESPONSE_SCHEMA,
-      }
-      : undefined,
   });
 
   // Convert back to OpenAI response format for compatibility

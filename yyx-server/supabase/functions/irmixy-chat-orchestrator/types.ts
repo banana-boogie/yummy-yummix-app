@@ -8,12 +8,6 @@ import type { GenerateRecipeResult } from "../_shared/tools/generate-custom-reci
 import type { RetrieveCustomRecipeResult } from "../_shared/tools/retrieve-custom-recipe.ts";
 import type { RecipeCard } from "../_shared/irmixy-schemas.ts";
 
-export interface OrchestratorRequest {
-  message: string;
-  sessionId?: string;
-  mode?: "text" | "voice";
-}
-
 export interface OpenAIMessage {
   role: "system" | "user" | "assistant" | "tool";
   content: string | null;

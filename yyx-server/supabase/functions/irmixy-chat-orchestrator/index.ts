@@ -41,7 +41,7 @@ import type {
   ToolExecutionResult,
 } from "./types.ts";
 import { SessionOwnershipError } from "./types.ts";
-import { createLogger, generateRequestId } from "./logger.ts";
+import { createLogger, generateRequestId, type Logger } from "./logger.ts";
 import { ensureSessionId } from "./session.ts";
 import { detectMealContext } from "./meal-context.ts";
 import {
@@ -147,6 +147,7 @@ serve(async (req) => {
       effectiveSessionId,
       sanitizedMessage,
       mode,
+      log,
     );
   } catch (error) {
     log.error("Orchestrator error", error);
@@ -218,6 +219,7 @@ async function executeToolCalls(
   supabase: SupabaseClient,
   toolCalls: OpenAIToolCall[],
   userContext: UserContext,
+  log: Logger,
   onPartialRecipe?: PartialRecipeCallback,
 ): Promise<ToolExecutionResult> {
   const toolMessages: OpenAIMessage[] = [];
@@ -246,7 +248,7 @@ async function executeToolCalls(
           shaped: shapeToolResponse(name, result),
         };
       } catch (toolError) {
-        console.error(`Tool ${name} error:`, toolError);
+        log.error(`Tool ${name} error`, toolError);
         const errorMsg = toolError instanceof ToolValidationError
           ? `Invalid parameters: ${toolError.message}`
           : "Tool execution failed";
@@ -296,6 +298,7 @@ function handleStreamingRequest(
   sessionId: string | undefined,
   message: string,
   mode: "text" | "voice",
+  log: Logger,
 ): Response {
   const encoder = new TextEncoder();
 
@@ -383,9 +386,7 @@ function handleStreamingRequest(
           phaseStart = performance.now();
 
           if (modIntent.isModification) {
-            console.log(
-              "[Streaming] Modification detected, forcing regeneration",
-            );
+            log.info("Modification detected, forcing regeneration");
             send({ type: "status", status: "generating" });
 
             // Two-phase SSE for modification flow
@@ -428,7 +429,6 @@ function handleStreamingRequest(
               const response = await finalizeResponse(
                 supabase,
                 sessionId,
-                userId,
                 message,
                 finalText,
                 userContext,
@@ -439,7 +439,7 @@ function handleStreamingRequest(
               timings.finalize_ms = Math.round(performance.now() - phaseStart);
               timings.total_ms = Math.round(performance.now() - startTime);
 
-              console.log("[Timings] Modification flow:", {
+              log.info("Modification flow complete", {
                 type: "modification",
                 ...timings,
               });
@@ -451,7 +451,7 @@ function handleStreamingRequest(
               controller.close();
               return;
             } catch (error) {
-              console.error("[Streaming] Modification failed:", error);
+              log.error("Modification failed", error);
               // Fall through to normal AI flow
             }
           }
@@ -460,26 +460,21 @@ function handleStreamingRequest(
         // Detect high recipe intent to force tool use (prevents AI from just chatting)
         const forceToolUse = hasHighRecipeIntent(message);
         if (forceToolUse) {
-          console.log(
-            "[Streaming] High recipe intent detected, forcing tool use",
-          );
+          log.info("High recipe intent detected, forcing tool use");
         }
 
         const firstResponse = await callAI(
           messages,
           true,
-          false,
           forceToolUse ? "required" : "auto",
         );
         timings.llm_call_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
         const assistantMessage = firstResponse.choices[0].message;
 
-        // DEBUG: Log whether the AI called any tools
-        console.log("[Streaming] AI response:", {
+        log.info("AI response", {
           hasToolCalls: !!assistantMessage.tool_calls?.length,
           toolNames: assistantMessage.tool_calls?.map((tc) => tc.function.name),
-          contentPreview: assistantMessage.content?.substring(0, 100),
           forcedToolUse: forceToolUse,
         });
 
@@ -502,6 +497,7 @@ function handleStreamingRequest(
             supabase,
             assistantMessage.tool_calls,
             userContext,
+            log,
             onPartialRecipe,
           );
           timings.tool_exec_ms = Math.round(performance.now() - phaseStart);
@@ -510,13 +506,9 @@ function handleStreamingRequest(
           customRecipeResult = toolResult.customRecipeResult;
           retrievalResult = toolResult.retrievalResult;
 
-          // DEBUG: Log tool execution result
-          console.log("[Streaming] Tool execution result:", {
+          log.info("Tool execution result", {
             hasRecipes: !!recipes?.length,
             hasCustomRecipe: !!customRecipeResult?.recipe,
-            customRecipeName: customRecipeResult?.recipe?.suggestedName,
-            hasSafetyFlags: !!customRecipeResult?.safetyFlags,
-            safetyError: customRecipeResult?.safetyFlags?.error,
             hasRetrieval: !!retrievalResult,
           });
 
@@ -536,7 +528,6 @@ function handleStreamingRequest(
             const response = await finalizeResponse(
               supabase,
               sessionId,
-              userId,
               message,
               fallback.message,
               userContext,
@@ -546,7 +537,7 @@ function handleStreamingRequest(
               streamResumeActions,
             );
             timings.total_ms = Math.round(performance.now() - startTime);
-            console.log("[Timings] No-results fallback:", timings);
+            log.info("No-results fallback", timings);
             send({ type: "done", response });
             clearStreamTimeout();
             controller.close();
@@ -604,7 +595,6 @@ function handleStreamingRequest(
         const response = await finalizeResponse(
           supabase,
           sessionId,
-          userId,
           message,
           finalText,
           userContext,
@@ -628,35 +618,16 @@ function handleStreamingRequest(
           : recipes?.length
           ? "recipe_search"
           : "chat";
-        console.log("[Timings]", {
+        log.info("Request complete", {
           type: requestType,
           ...timings,
-        });
-
-        // Debug: log what we're about to send
-        console.log("[SSE] Sending done event:", {
-          hasMessage: !!response.message,
-          hasCustomRecipe: !!response.customRecipe,
-          customRecipeName: response.customRecipe?.suggestedName,
-          responseSize: JSON.stringify(response).length,
         });
 
         send({ type: "done", response });
         clearStreamTimeout();
         controller.close();
       } catch (error) {
-        // Log detailed error info for debugging
-        const errorMessage = error instanceof Error
-          ? error.message
-          : String(error);
-        const errorStack = error instanceof Error ? error.stack : undefined;
-        console.error("Streaming error:", {
-          message: errorMessage,
-          stack: errorStack,
-          error,
-        });
-        // In development, return actual error message for debugging
-        // Supabase edge functions don't have __DEV__, so always log to console but sanitize for client
+        log.error("Streaming error", error);
         send({
           type: "error",
           error: "An unexpected error occurred",

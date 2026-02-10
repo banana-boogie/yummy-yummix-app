@@ -109,7 +109,7 @@ export function ChatSessionsMenu({
                 accessibilityLabel={i18n.t('chat.sessions.menuLabel')}
                 accessibilityRole="button"
             >
-                <MaterialCommunityIcons name="menu" size={24} color={COLORS.text.primary} />
+                <MaterialCommunityIcons name="menu" size={24} color={COLORS.text.default} />
             </TouchableOpacity>
 
             {/* Sessions Modal */}

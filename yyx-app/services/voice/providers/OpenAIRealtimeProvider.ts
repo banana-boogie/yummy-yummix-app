@@ -347,6 +347,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       },
     );
 
+    if (!response.ok) {
+      throw new Error(`Quota check failed: ${response.status}`);
+    }
+
     const data = await response.json();
 
     return {

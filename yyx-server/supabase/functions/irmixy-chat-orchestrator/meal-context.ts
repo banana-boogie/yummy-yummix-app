@@ -13,9 +13,7 @@ export function detectMealContext(message: string): {
   mealType?: "breakfast" | "lunch" | "dinner" | "snack";
   timePreference?: "quick" | "normal" | "elaborate";
 } {
-  const lowerMessage = message.toLowerCase();
-
-  // Meal type detection (multilingual)
+  // Meal type detection (multilingual) — all patterns are case-insensitive
   const mealPatterns = {
     breakfast: /breakfast|desayuno|morning|ma[ñn]ana|brunch/i,
     lunch: /lunch|almuerzo|comida|noon|mediod[íi]a/i,
@@ -25,7 +23,7 @@ export function detectMealContext(message: string): {
 
   let mealType: "breakfast" | "lunch" | "dinner" | "snack" | undefined;
   for (const [type, pattern] of Object.entries(mealPatterns)) {
-    if (pattern.test(lowerMessage)) {
+    if (pattern.test(message)) {
       mealType = type as "breakfast" | "lunch" | "dinner" | "snack";
       break;
     }
@@ -37,9 +35,9 @@ export function detectMealContext(message: string): {
     /elaborate|fancy|special|complejo|elegante|gourmet/i;
 
   let timePreference: "quick" | "normal" | "elaborate" | undefined;
-  if (quickPatterns.test(lowerMessage)) {
+  if (quickPatterns.test(message)) {
     timePreference = "quick";
-  } else if (elaboratePatterns.test(lowerMessage)) {
+  } else if (elaboratePatterns.test(message)) {
     timePreference = "elaborate";
   }
 

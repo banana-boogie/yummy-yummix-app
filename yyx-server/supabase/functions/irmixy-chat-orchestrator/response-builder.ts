@@ -26,7 +26,6 @@ import { saveMessageToHistory } from "./history.ts";
 export async function finalizeResponse(
   supabase: SupabaseClient,
   sessionId: string | undefined,
-  userId: string,
   message: string,
   finalText: string,
   userContext: UserContext,
@@ -56,20 +55,11 @@ export async function finalizeResponse(
     actions: actions && actions.length > 0 ? actions : undefined,
   };
 
-  // Debug logging
-  console.log("[finalizeResponse] Building response:", {
-    hasCustomRecipeResult: !!customRecipeResult,
-    hasRecipe: !!customRecipeResult?.recipe,
-    customRecipeName: customRecipeResult?.recipe?.suggestedName,
-    responseHasCustomRecipe: !!irmixyResponse.customRecipe,
-  });
-
   validateSchema(IrmixyResponseSchema, irmixyResponse);
   if (sessionId) {
     await saveMessageToHistory(
       supabase,
       sessionId,
-      userId,
       message,
       irmixyResponse,
     );
