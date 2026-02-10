@@ -925,7 +925,7 @@ export function ChatScreen({
             // This avoids the Expo Router issue where replace to same route pattern doesn't work
             router.push(`/(tabs)/recipes/start-cooking/${recipeId}?from=chat`);
         } catch (error) {
-            console.error('Failed to save custom recipe:', error);
+            if (__DEV__) console.error('Failed to save custom recipe:', error);
             Alert.alert(
                 i18n.t('chat.error.title'),
                 i18n.t('chat.saveFailed'),
@@ -1191,7 +1191,7 @@ export function ChatScreen({
                     value={inputText}
                     onChangeText={setInputText}
                     placeholder={i18n.t('chat.inputPlaceholder')}
-                    placeholderTextColor="#999"
+                    placeholderTextColor={COLORS.text.secondary}
                     multiline
                     maxLength={2000}
                     editable={!isLoading}

@@ -70,7 +70,7 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
     const getDifficultyColor = (difficulty: string) => {
         switch (difficulty) {
             case 'easy': return COLORS.status.success;
-            case 'medium': return '#ca8a04'; // yellow-600
+            case 'medium': return COLORS.status.medium;
             case 'hard': return COLORS.status.error;
             default: return COLORS.grey.medium;
         }
@@ -226,7 +226,7 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                                 className="w-14 h-14 rounded-full bg-background-tertiary"
                                 contentFit="cover"
                                 onError={() => {
-                                    console.warn(`Failed to load image for ingredient: ${ingredient.name}`);
+                                    if (__DEV__) console.warn(`Failed to load image for ingredient: ${ingredient.name}`);
                                 }}
                             />
                             <View className="bg-background-secondary px-sm py-xs rounded-full">

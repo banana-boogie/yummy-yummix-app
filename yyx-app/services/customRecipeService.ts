@@ -103,7 +103,7 @@ export const customRecipeService = {
             .single();
 
         if (recipeError || !recipeRow) {
-            console.error('Failed to save custom recipe:', recipeError);
+            if (__DEV__) console.error('Failed to save custom recipe:', recipeError);
             throw new Error('Failed to save recipe');
         }
 
@@ -126,7 +126,7 @@ export const customRecipeService = {
                 .select('id, name_en');
 
             if (ingError) {
-                console.error('Failed to save recipe ingredients:', ingError);
+                if (__DEV__) console.error('Failed to save recipe ingredients:', ingError);
                 throw new Error('Failed to save recipe ingredients');
             }
 
@@ -152,7 +152,7 @@ export const customRecipeService = {
                 .select('id, step_order');
 
             if (stepError) {
-                console.error('Failed to save recipe steps:', stepError);
+                if (__DEV__) console.error('Failed to save recipe steps:', stepError);
                 throw new Error('Failed to save recipe steps');
             }
 
@@ -194,7 +194,7 @@ export const customRecipeService = {
                     .insert(stepIngredientRows);
 
                 if (siError) {
-                    console.error('Failed to save step ingredients:', siError);
+                    if (__DEV__) console.error('Failed to save step ingredients:', siError);
                     // Non-fatal - recipe is still usable
                 }
             }
@@ -211,7 +211,7 @@ export const customRecipeService = {
                     .insert(tagRows);
 
                 if (tagError) {
-                    console.error('Failed to save recipe tags:', tagError);
+                    if (__DEV__) console.error('Failed to save recipe tags:', tagError);
                     // Non-fatal
                 }
             }
@@ -231,7 +231,7 @@ export const customRecipeService = {
                     .insert(usefulItemRows);
 
                 if (itemsError) {
-                    console.error('Failed to save recipe useful items:', itemsError);
+                    if (__DEV__) console.error('Failed to save recipe useful items:', itemsError);
                     // Non-fatal
                 }
             }
@@ -278,7 +278,7 @@ export const customRecipeService = {
             .single();
 
         if (recipeError || !recipeData) {
-            console.error('Failed to load custom recipe:', recipeError);
+            if (__DEV__) console.error('Failed to load custom recipe:', recipeError);
             throw new Error('Failed to load recipe');
         }
 
@@ -310,7 +310,7 @@ export const customRecipeService = {
             .order('step_order', { ascending: true });
 
         if (stepsError) {
-            console.error('Failed to load recipe steps:', stepsError);
+            if (__DEV__) console.error('Failed to load recipe steps:', stepsError);
             throw new Error('Failed to load recipe steps');
         }
 
@@ -321,7 +321,7 @@ export const customRecipeService = {
             .order('display_order', { ascending: true });
 
         if (ingredientsError) {
-            console.error('Failed to load recipe ingredients:', ingredientsError);
+            if (__DEV__) console.error('Failed to load recipe ingredients:', ingredientsError);
             throw new Error('Failed to load recipe ingredients');
         }
 
@@ -408,7 +408,7 @@ export const customRecipeService = {
             .limit(50);
 
         if (error) {
-            console.error('Failed to list custom recipes:', error);
+            if (__DEV__) console.error('Failed to list custom recipes:', error);
             throw new Error('Failed to list recipes');
         }
 
@@ -455,7 +455,7 @@ export const customRecipeService = {
             .eq('user_id', userData.user.id);
 
         if (error) {
-            console.error('Failed to delete custom recipe:', error);
+            if (__DEV__) console.error('Failed to delete custom recipe:', error);
             throw new Error('Failed to delete recipe');
         }
     },
