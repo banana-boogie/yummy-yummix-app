@@ -7,10 +7,8 @@
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import {
-  createClient,
-  SupabaseClient,
-} from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { createUserClient } from "../_shared/supabase-client.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
   createContextBuilder,
@@ -216,21 +214,6 @@ serve(async (req) => {
       return errorResponse("Message is required", 400);
     }
 
-    // Validate Supabase env vars
-    // Note: When running locally, SUPABASE_URL may be 'http://kong:8000' (Docker internal)
-    // We need to use localhost for auth calls from edge functions
-    let supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.error("Supabase env vars not configured");
-      return errorResponse("Service configuration error", 500);
-    }
-    // Fix for local development: kong:8000 is internal Docker address
-    // Use host.docker.internal to reach host machine from Docker container
-    if (supabaseUrl.includes("kong:8000")) {
-      supabaseUrl = "http://host.docker.internal:54321";
-    }
-
     // Initialize Supabase client with user's auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -238,16 +221,7 @@ serve(async (req) => {
     }
 
     const token = authHeader.replace("Bearer ", "");
-
-    const supabase = createClient(
-      supabaseUrl,
-      supabaseAnonKey,
-      {
-        global: {
-          headers: { Authorization: authHeader },
-        },
-      },
-    );
+    const supabase = createUserClient(authHeader);
 
     // Get authenticated user by passing the JWT token directly
     const { data: { user }, error: authError } = await supabase.auth.getUser(

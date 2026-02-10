@@ -2,7 +2,6 @@
  * Supabase Client Factory
  *
  * Creates Supabase clients for edge functions.
- * Uses Supabase Cloud - no local Docker translation needed.
  */
 
 import {

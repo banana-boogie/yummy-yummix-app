@@ -7,8 +7,11 @@
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { unauthorizedResponse, validateAuth } from "../_shared/auth.ts";
+import {
+  createServiceClient,
+  createUserClient,
+} from "../_shared/supabase-client.ts";
 import { createContextBuilder } from "../_shared/context-builder.ts";
 import { executeTool } from "../_shared/tools/execute-tool.ts";
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
@@ -51,39 +54,12 @@ function jsonResponse(
   });
 }
 
-function normalizeSupabaseUrl(url: string): string {
-  return url.includes("kong:8000") ? "http://host.docker.internal:54321" : url;
-}
-
-function createAnonClient(authHeader: string) {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Missing Supabase configuration");
-  }
-
-  return createClient(normalizeSupabaseUrl(supabaseUrl), supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
-}
-
-function createServiceRoleClient() {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Missing Supabase service role configuration");
-  }
-
-  return createClient(normalizeSupabaseUrl(supabaseUrl), serviceRoleKey);
-}
 
 async function handleStartSession(
   userId: string,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
-  const supabase = createServiceRoleClient();
+  const supabase = createServiceClient();
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
 
   const { data: usage } = await supabase
@@ -247,7 +223,7 @@ async function handleExecuteTool(
     } calling ${toolName}`,
   );
 
-  const supabase = createAnonClient(authHeader);
+  const supabase = createUserClient(authHeader);
   const contextBuilder = createContextBuilder(supabase);
   const userContext = await contextBuilder.buildContext(userId, sessionId);
 
