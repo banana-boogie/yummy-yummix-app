@@ -79,7 +79,6 @@ interface OpenAIToolCall {
 // Config
 // ============================================================
 
-const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 const STREAM_TIMEOUT_MS = 30_000;
 
 // ============================================================
@@ -186,12 +185,10 @@ serve(async (req) => {
 
   try {
     // Validate OpenAI API key is configured
-    const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiApiKey) {
+    if (!Deno.env.get("OPENAI_API_KEY")) {
       log.error("OPENAI_API_KEY not configured");
       return errorResponse("Service configuration error", 500);
     }
-    const openaiModel = Deno.env.get("OPENAI_MODEL") || DEFAULT_OPENAI_MODEL;
 
     let body: OrchestratorRequest | null = null;
     try {
@@ -281,8 +278,6 @@ serve(async (req) => {
     if (stream) {
       return handleStreamingRequest(
         supabase,
-        openaiApiKey,
-        openaiModel,
         user.id,
         effectiveSessionId,
         sanitizedMessage,
@@ -293,8 +288,6 @@ serve(async (req) => {
     // Non-streaming path
     const irmixyResponse = await processRequest(
       supabase,
-      openaiApiKey,
-      openaiModel,
       user.id,
       effectiveSessionId,
       sanitizedMessage,
@@ -463,7 +456,6 @@ async function executeToolCalls(
   supabase: SupabaseClient,
   toolCalls: OpenAIToolCall[],
   userContext: UserContext,
-  openaiApiKey: string,
   onPartialRecipe?: PartialRecipeCallback,
 ): Promise<ToolExecutionResult> {
   const toolMessages: OpenAIMessage[] = [];
@@ -480,7 +472,6 @@ async function executeToolCalls(
           name,
           args,
           userContext,
-          openaiApiKey,
           onPartialRecipe,
         );
 
@@ -591,38 +582,6 @@ async function finalizeResponse(
 // ============================================================
 // Intent Classification & Modification Detection
 // ============================================================
-
-/**
- * Extract equipment mentions from user message.
- * Returns list of equipment items to prioritize for this recipe.
- */
-function extractEquipmentFromMessage(message: string): string[] {
-  const equipment: string[] = [];
-  const lowerMessage = message.toLowerCase();
-
-  // Equipment patterns with enhanced matching (hyphens, spaces, variations)
-  const equipmentPatterns: Record<string, RegExp> = {
-    thermomix: /thermomix|tm[\s-]?[567]/i,
-    "air fryer": /air[\s-]?fryer|freidora\s+de\s+aire/i,
-    "instant pot": /instant[\s-]?pot|pressure\s*cooker|olla\s+de\s+presi[óo]n/i,
-    "slow cooker": /slow[\s-]?cooker|crock[\s-]?pot|olla\s+lenta/i,
-    blender: /blender|licuadora|batidora/i,
-    "food processor": /food\s*processor|procesadora/i,
-  };
-
-  for (const [name, pattern] of Object.entries(equipmentPatterns)) {
-    try {
-      if (pattern.test(lowerMessage)) {
-        equipment.push(name);
-      }
-    } catch (error) {
-      // Log but don't crash on regex errors
-      console.warn(`[Equipment Extraction] Pattern error for ${name}:`, error);
-    }
-  }
-
-  return equipment;
-}
 
 /**
  * Detect meal context from user message.
@@ -798,8 +757,6 @@ function detectModificationIntent(
  */
 async function processRequest(
   supabase: SupabaseClient,
-  openaiApiKey: string,
-  openaiModel: string,
   userId: string,
   sessionId: string | undefined,
   message: string,
@@ -872,10 +829,9 @@ async function processRequest(
               cuisinePreference: lastRecipe.cuisine,
               targetTime: lastRecipe.totalTime,
               additionalRequests: modIntent.modifications,
-              useful_items: lastRecipe.useful_items || [], // ✅ Preserve equipment priority
+              useful_items: lastRecipe.useful_items || [],
             },
             userContext,
-            Deno.env.get("OPENAI_API_KEY") || "",
           );
 
         console.log("[Recipe Regeneration] Success:", {
@@ -968,7 +924,6 @@ async function processRequest(
         supabase,
         assistantMessage.tool_calls,
         userContext,
-        openaiApiKey,
       );
 
     // For custom recipes, no suggestions - the prompt text invites modifications
@@ -1125,8 +1080,6 @@ async function processRequest(
  */
 function handleStreamingRequest(
   supabase: SupabaseClient,
-  openaiApiKey: string,
-  openaiModel: string,
   userId: string,
   sessionId: string | undefined,
   message: string,
@@ -1216,7 +1169,7 @@ function handleStreamingRequest(
                     useful_items: lastRecipe.useful_items || [],
                   },
                   userContext,
-                  Deno.env.get("OPENAI_API_KEY") || "",
+                  undefined,
                   onPartialRecipe,
                 );
 
@@ -1310,7 +1263,6 @@ function handleStreamingRequest(
             supabase,
             assistantMessage.tool_calls,
             userContext,
-            openaiApiKey,
             onPartialRecipe,
           );
           timings.tool_exec_ms = Math.round(performance.now() - phaseStart);

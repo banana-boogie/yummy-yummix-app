@@ -65,7 +65,7 @@ Deno.test("executeTool - throws ToolValidationError for unknown tool", async () 
 
   const error = await assertRejects(
     () =>
-      executeTool(supabase, "nonexistent_tool", "{}", userContext, "fake-key"),
+      executeTool(supabase, "nonexistent_tool", "{}", userContext),
     ToolValidationError,
   );
   assertEquals(error.message, "Unknown tool: nonexistent_tool");
@@ -82,7 +82,6 @@ Deno.test("executeTool - throws ToolValidationError for invalid JSON args", asyn
         "search_recipes",
         "not valid json{{{",
         userContext,
-        "fake-key",
       ),
     ToolValidationError,
     "Invalid JSON in tool arguments",
@@ -94,7 +93,7 @@ Deno.test("executeTool - throws ToolValidationError for empty tool name", async 
   const userContext = createMockUserContext();
 
   await assertRejects(
-    () => executeTool(supabase, "", "{}", userContext, "fake-key"),
+    () => executeTool(supabase, "", "{}", userContext),
     ToolValidationError,
     "Unknown tool: ",
   );
@@ -136,7 +135,6 @@ Deno.test("executeTool - dispatches search_recipes and returns RecipeCard[]", as
     "search_recipes",
     JSON.stringify({ query: "chicken" }),
     userContext,
-    "fake-key",
   );
 
   // Should return RecipeCard[] — array with recipe data
@@ -158,7 +156,6 @@ Deno.test("executeTool - search_recipes returns empty array when no matches", as
     "search_recipes",
     JSON.stringify({ query: "nonexistent dish" }),
     userContext,
-    "fake-key",
   );
 
   assertEquals(result, []);
@@ -170,7 +167,7 @@ Deno.test("executeTool - search_recipes rejects when no query or filters", async
 
   await assertRejects(
     () =>
-      executeTool(supabase, "search_recipes", "{}", userContext, "fake-key"),
+      executeTool(supabase, "search_recipes", "{}", userContext),
     ToolValidationError,
     "requires a query or at least one filter",
   );

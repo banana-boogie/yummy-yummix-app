@@ -254,7 +254,7 @@ export async function searchRecipesHybrid(
   query: string,
   filters: HybridSearchFilters,
   userContext: UserContext,
-  _openaiApiKey?: string,
+  _deprecated?: unknown,
   semanticSupabase: SupabaseClient = supabase,
 ): Promise<HybridSearchResult> {
   // Try to generate query embedding with graceful fallback

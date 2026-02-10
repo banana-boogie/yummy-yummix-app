@@ -22,7 +22,6 @@ import { searchRecipes, searchRecipesTool } from "./search-recipes.ts";
 export interface ToolExecutionContext {
   supabase: SupabaseClient;
   userContext: UserContext;
-  openaiApiKey: string;
   onPartialRecipe?: PartialRecipeCallback;
 }
 
@@ -57,7 +56,6 @@ const TOOL_REGISTRY: Record<string, ToolRegistration> = {
         context.supabase,
         args,
         context.userContext,
-        context.openaiApiKey,
       ),
     shapeResult: (result) =>
       Array.isArray(result) ? { recipes: result as RecipeCard[] } : { result },
@@ -77,7 +75,7 @@ const TOOL_REGISTRY: Record<string, ToolRegistration> = {
         context.supabase,
         args,
         context.userContext,
-        context.openaiApiKey,
+        undefined,
         context.onPartialRecipe,
       ),
     shapeResult: (result) => {

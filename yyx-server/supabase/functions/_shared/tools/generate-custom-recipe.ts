@@ -106,7 +106,7 @@ export async function generateCustomRecipe(
   supabase: SupabaseClient,
   rawParams: unknown,
   userContext: UserContext,
-  openaiApiKey: string,
+  _openaiApiKey?: string,
   onPartialRecipe?: PartialRecipeCallback,
 ): Promise<GenerateRecipeResult> {
   // Timing instrumentation for performance monitoring
@@ -153,7 +153,6 @@ export async function generateCustomRecipe(
 
   // Generate the recipe using AI
   const recipe = await callRecipeGenerationAI(
-    openaiApiKey,
     params,
     userContext,
     safetyReminders,
@@ -302,7 +301,6 @@ export function buildRecipeJsonSchema(
  * Uses one local retry if parsing/validation fails.
  */
 async function callRecipeGenerationAI(
-  _apiKey: string, // Deprecated: gateway uses env vars
   params: GenerateRecipeParams,
   userContext: UserContext,
   safetyReminders: string,

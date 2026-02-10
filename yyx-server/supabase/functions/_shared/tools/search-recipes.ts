@@ -113,13 +113,12 @@ export async function searchRecipes(
   supabase: SupabaseClient,
   rawParams: unknown,
   userContext: UserContext,
-  openaiApiKey?: string,
 ): Promise<RecipeCard[]> {
   // Validate and sanitize params
   const params = validateSearchRecipesParams(rawParams);
 
   // Try hybrid search when query and API key are present
-  if (params.query && openaiApiKey) {
+  if (params.query && Deno.env.get("OPENAI_API_KEY")) {
     // Embedding RPC is service-role only; use service client when available.
     const semanticSupabase = getSemanticSearchClient(supabase);
     const hybridResult = await searchRecipesHybrid(
@@ -132,7 +131,7 @@ export async function searchRecipes(
         limit: params.limit,
       },
       userContext,
-      openaiApiKey,
+      undefined,
       semanticSupabase,
     );
 

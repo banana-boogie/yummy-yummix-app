@@ -251,7 +251,6 @@ async function handleExecuteTool(
   const contextBuilder = createContextBuilder(supabase);
   const userContext = await contextBuilder.buildContext(userId, sessionId);
 
-  const openaiApiKey = Deno.env.get("OPENAI_API_KEY") || "";
   const argsString = typeof toolArgs === "string"
     ? toolArgs
     : JSON.stringify(toolArgs);
@@ -261,7 +260,6 @@ async function handleExecuteTool(
     toolName,
     argsString,
     userContext,
-    openaiApiKey,
   );
 
   const elapsed = Math.round(performance.now() - startTime);
