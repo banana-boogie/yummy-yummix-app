@@ -72,8 +72,9 @@ export async function ensureSessionId(
     .single();
 
   if (error || !data?.id) {
-    console.error("Failed to create chat session:", error);
-    return { sessionId: undefined, created: false };
+    throw new Error(
+      `Failed to create chat session: ${error?.message ?? "unknown error"}`,
+    );
   }
 
   return { sessionId: data.id, created: true };

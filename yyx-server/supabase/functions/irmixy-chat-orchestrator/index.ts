@@ -301,13 +301,39 @@ function handleStreamingRequest(
 
   const stream = new ReadableStream({
     async start(controller) {
+      let streamTimeoutId: ReturnType<typeof setTimeout> | null = null;
+      let streamTimedOut = false;
+
+      const resetStreamTimeout = () => {
+        if (streamTimeoutId) clearTimeout(streamTimeoutId);
+        streamTimeoutId = setTimeout(() => {
+          streamTimedOut = true;
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ type: "error", error: "Stream timeout — no data for 30 seconds" })}\n\n`,
+            ),
+          );
+          controller.close();
+        }, STREAM_TIMEOUT_MS);
+      };
+
+      const clearStreamTimeout = () => {
+        if (streamTimeoutId) {
+          clearTimeout(streamTimeoutId);
+          streamTimeoutId = null;
+        }
+      };
+
       const send = (data: Record<string, unknown>) => {
+        if (streamTimedOut) return;
         controller.enqueue(
           encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
         );
+        resetStreamTimeout();
       };
 
       try {
+        resetStreamTimeout();
         // Timing instrumentation for performance monitoring
         const timings: Record<string, number> = {};
         const startTime = performance.now();
@@ -421,6 +447,7 @@ function handleStreamingRequest(
               // Send content right before completion
               send({ type: "content", content: response.message });
               send({ type: "done", response });
+              clearStreamTimeout();
               controller.close();
               return;
             } catch (error) {
@@ -521,6 +548,7 @@ function handleStreamingRequest(
             timings.total_ms = Math.round(performance.now() - startTime);
             console.log("[Timings] No-results fallback:", timings);
             send({ type: "done", response });
+            clearStreamTimeout();
             controller.close();
             return;
           }
@@ -614,6 +642,7 @@ function handleStreamingRequest(
         });
 
         send({ type: "done", response });
+        clearStreamTimeout();
         controller.close();
       } catch (error) {
         // Log detailed error info for debugging
@@ -632,6 +661,7 @@ function handleStreamingRequest(
           type: "error",
           error: "An unexpected error occurred",
         });
+        clearStreamTimeout();
         controller.close();
       }
     },
