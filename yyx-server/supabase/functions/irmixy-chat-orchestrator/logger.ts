@@ -32,7 +32,7 @@ export function createLogger(requestId: string) {
       data?: Record<string, unknown>,
     ) => {
       const errorInfo = error instanceof Error
-        ? { name: error.name, message: error.message }
+        ? { name: error.name, message: error.message, stack: error.stack }
         : { value: String(error) };
       console.error(prefix, message, JSON.stringify({ ...errorInfo, ...data }));
     },

@@ -7,7 +7,7 @@
 import {
   createClient,
   SupabaseClient,
-} from "https://esm.sh/@supabase/supabase-js@2";
+} from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 /**
  * Get the Supabase URL from environment.
