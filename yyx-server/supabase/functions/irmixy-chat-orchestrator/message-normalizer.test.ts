@@ -1,11 +1,9 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import {
-  normalizeMessagesForAi,
-  OpenAIMessageLike,
-} from "./message-normalizer.ts";
+import { normalizeMessagesForAi } from "./message-normalizer.ts";
+import type { OpenAIMessage } from "./types.ts";
 
 Deno.test("normalizeMessagesForAi folds tool results into assistant context", () => {
-  const input: OpenAIMessageLike[] = [
+  const input: OpenAIMessage[] = [
     { role: "system", content: "system prompt" },
     { role: "user", content: "Find me recipes" },
     {
@@ -39,7 +37,7 @@ Deno.test("normalizeMessagesForAi folds tool results into assistant context", ()
 });
 
 Deno.test("normalizeMessagesForAi converts standalone tool message to assistant context", () => {
-  const input: OpenAIMessageLike[] = [
+  const input: OpenAIMessage[] = [
     { role: "system", content: "system" },
     { role: "tool", content: '{"ok":true}', tool_call_id: "tool_1" },
   ];
@@ -52,7 +50,7 @@ Deno.test("normalizeMessagesForAi converts standalone tool message to assistant 
 });
 
 Deno.test("normalizeMessagesForAi preserves non-tool messages", () => {
-  const input: OpenAIMessageLike[] = [
+  const input: OpenAIMessage[] = [
     { role: "system", content: "sys" },
     { role: "user", content: "hello" },
     { role: "assistant", content: "hi" },

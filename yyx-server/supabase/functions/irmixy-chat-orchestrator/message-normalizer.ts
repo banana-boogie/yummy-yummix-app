@@ -1,20 +1,5 @@
 import type { AIMessage } from "../_shared/ai-gateway/index.ts";
-
-interface OpenAIToolCallLike {
-  id: string;
-  type: "function";
-  function: {
-    name: string;
-    arguments: string;
-  };
-}
-
-export interface OpenAIMessageLike {
-  role: "system" | "user" | "assistant" | "tool";
-  content: string | null;
-  tool_calls?: OpenAIToolCallLike[];
-  tool_call_id?: string;
-}
+import type { OpenAIMessage } from "./types.ts";
 
 /**
  * Convert orchestrator OpenAI-like messages into AI gateway messages.
@@ -22,7 +7,7 @@ export interface OpenAIMessageLike {
  * remain grounded in tool output for both streaming and non-streaming flows.
  */
 export function normalizeMessagesForAi(
-  messages: OpenAIMessageLike[],
+  messages: OpenAIMessage[],
 ): AIMessage[] {
   const aiMessages: AIMessage[] = [];
   let i = 0;
