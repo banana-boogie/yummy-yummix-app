@@ -59,7 +59,7 @@ describe('OnboardingContext', () => {
     it('has correct total steps', () => {
       const { result } = renderHook(() => useOnboarding(), { wrapper });
 
-      expect(result.current.totalSteps).toBe(5);
+      expect(result.current.totalSteps).toBe(7);
     });
 
     it('loads saved state from storage', async () => {
@@ -122,7 +122,7 @@ describe('OnboardingContext', () => {
         }
       });
 
-      expect(result.current.currentStep).toBe(4); // totalSteps - 1
+      expect(result.current.currentStep).toBe(6); // totalSteps - 1
     });
 
     it('goToPreviousStep decrements current step', () => {

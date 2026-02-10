@@ -135,7 +135,8 @@ describe('CustomRecipeCard', () => {
         <CustomRecipeCard recipe={recipe} onStartCooking={mockOnStartCooking} />
       );
 
-      expect(screen.getByText('Custom Recipe')).toBeTruthy();
+      const card = screen.getByRole('article');
+      expect(card.props.accessibilityLabel).toContain('Custom Recipe');
     });
 
     it('renders start cooking button', () => {
@@ -332,7 +333,12 @@ describe('CustomRecipeCard', () => {
       fireEvent.press(screen.getByText('Start Cooking'));
 
       await waitFor(() => {
-        expect(mockOnStartCooking).toHaveBeenCalledWith(recipe, 'Test Recipe');
+        expect(mockOnStartCooking).toHaveBeenCalledWith(
+          recipe,
+          'Test Recipe',
+          undefined,
+          undefined
+        );
       });
     });
 
@@ -355,7 +361,12 @@ describe('CustomRecipeCard', () => {
       fireEvent.press(screen.getByText('Start Cooking'));
 
       await waitFor(() => {
-        expect(mockOnStartCooking).toHaveBeenCalledWith(recipe, 'Edited Name');
+        expect(mockOnStartCooking).toHaveBeenCalledWith(
+          recipe,
+          'Edited Name',
+          undefined,
+          undefined
+        );
       });
     });
 
@@ -377,9 +388,10 @@ describe('CustomRecipeCard', () => {
       // Press start cooking
       fireEvent.press(screen.getByText('Start Cooking'));
 
-      // Should show saving text
+      // Should set button to busy state while promise is pending
       await waitFor(() => {
-        expect(screen.getByText('Saving...')).toBeTruthy();
+        const startButton = screen.getByRole('button', { name: /Start Cooking/i });
+        expect(startButton.props.accessibilityState?.busy).toBe(true);
       });
 
       // Resolve the promise
@@ -397,7 +409,8 @@ describe('CustomRecipeCard', () => {
         />
       );
 
-      expect(screen.getByText('Saving...')).toBeTruthy();
+      const startButton = screen.getByRole('button', { name: /Start Cooking/i });
+      expect(startButton.props.accessibilityState?.disabled).toBe(true);
     });
 
     it('disables button when loading', () => {
@@ -411,9 +424,11 @@ describe('CustomRecipeCard', () => {
         />
       );
 
+      const startButton = screen.getByRole('button', { name: /Start Cooking/i });
+
       // Try to press the button multiple times
-      fireEvent.press(screen.getByText('Saving...'));
-      fireEvent.press(screen.getByText('Saving...'));
+      fireEvent.press(startButton);
+      fireEvent.press(startButton);
 
       // onStartCooking should not be called because button is disabled
       expect(mockOnStartCooking).not.toHaveBeenCalled();
@@ -605,10 +620,8 @@ describe('CustomRecipeCard', () => {
         />
       );
 
-      // The button should indicate it's disabled
-      // Note: Button component may have different accessibility patterns
-      const savingButton = screen.getByLabelText('Saving...');
-      expect(savingButton.props.accessibilityState?.disabled).toBe(true);
+      const startButton = screen.getByRole('button', { name: /Start Cooking/i });
+      expect(startButton.props.accessibilityState?.disabled).toBe(true);
     });
 
     it('has alert role on safety warning', () => {

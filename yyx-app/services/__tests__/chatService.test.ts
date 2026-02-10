@@ -75,6 +75,10 @@ jest.mock('react-native-sse', () => {
 describe('chatService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+      data: { user: { id: 'user-123' } },
+      error: null,
+    });
   });
 
   // ============================================================
@@ -95,13 +99,20 @@ describe('chatService', () => {
         }),
       ];
 
-      // Mock the chainable query builder
-      const mockChain = {
+      const mockSessionChain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { id: 'session-123' }, error: null }),
+      };
+      const mockMessagesChain = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         order: jest.fn().mockResolvedValue({ data: mockMessages, error: null }),
       };
-      (supabase.from as jest.Mock).mockReturnValue(mockChain);
+      (supabase.from as jest.Mock).mockImplementation((table: string) => {
+        if (table === 'user_chat_sessions') return mockSessionChain;
+        return mockMessagesChain;
+      });
 
       const result = await loadChatHistory('session-123');
 
@@ -115,12 +126,20 @@ describe('chatService', () => {
     });
 
     it('handles empty session', async () => {
-      const mockChain = {
+      const mockSessionChain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { id: 'empty-session' }, error: null }),
+      };
+      const mockMessagesChain = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         order: jest.fn().mockResolvedValue({ data: [], error: null }),
       };
-      (supabase.from as jest.Mock).mockReturnValue(mockChain);
+      (supabase.from as jest.Mock).mockImplementation((table: string) => {
+        if (table === 'user_chat_sessions') return mockSessionChain;
+        return mockMessagesChain;
+      });
 
       const result = await loadChatHistory('empty-session');
 
@@ -128,7 +147,12 @@ describe('chatService', () => {
     });
 
     it('throws on database error', async () => {
-      const mockChain = {
+      const mockSessionChain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { id: 'session-123' }, error: null }),
+      };
+      const mockMessagesChain = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         order: jest.fn().mockResolvedValue({
@@ -136,7 +160,10 @@ describe('chatService', () => {
           error: { message: 'Database error' },
         }),
       };
-      (supabase.from as jest.Mock).mockReturnValue(mockChain);
+      (supabase.from as jest.Mock).mockImplementation((table: string) => {
+        if (table === 'user_chat_sessions') return mockSessionChain;
+        return mockMessagesChain;
+      });
 
       await expect(loadChatHistory('session-123')).rejects.toEqual({
         message: 'Database error',
@@ -157,6 +184,7 @@ describe('chatService', () => {
 
       const mockChain = {
         select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue({ data: mockSessions, error: null }),
       };
@@ -181,6 +209,7 @@ describe('chatService', () => {
 
       const mockChain = {
         select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue({ data: mockSessions, error: null }),
       };
@@ -201,29 +230,36 @@ describe('chatService', () => {
       const mockSession = createMockChatSession({ id: 'session-abc' });
       const mockMessage = createMockChatMessage({ created_at: '2024-01-15T12:00:00Z' });
 
-      // First call: get sessions
-      // Second call: get messages
-      // Third call: get count
-      let callCount = 0;
+      let userChatMessagesCallCount = 0;
       (supabase.from as jest.Mock).mockImplementation((table: string) => {
-        callCount++;
         if (table === 'user_chat_sessions') {
           return {
             select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
             order: jest.fn().mockReturnThis(),
             limit: jest.fn().mockResolvedValue({ data: [mockSession], error: null }),
           };
         }
         if (table === 'user_chat_messages') {
-          // Handle both the message query and count query
+          userChatMessagesCallCount++;
+          if (userChatMessagesCallCount === 1) {
+            return {
+              select: jest.fn().mockReturnThis(),
+              eq: jest.fn().mockReturnThis(),
+              order: jest.fn().mockReturnThis(),
+              limit: jest.fn().mockResolvedValue({
+                data: [mockMessage],
+                error: null,
+              }),
+            };
+          }
+
           return {
-            select: jest.fn().mockReturnThis(),
-            eq: jest.fn().mockReturnThis(),
-            order: jest.fn().mockReturnThis(),
-            limit: jest.fn().mockResolvedValue({
-              data: [mockMessage],
-              error: null,
-              count: 5,
+            select: jest.fn().mockReturnValue({
+              eq: jest.fn().mockResolvedValue({
+                count: 5,
+                error: null,
+              }),
             }),
           };
         }
@@ -244,6 +280,7 @@ describe('chatService', () => {
     it('returns null if no sessions exist', async () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue({ data: [], error: null }),
       });
@@ -260,6 +297,7 @@ describe('chatService', () => {
         if (table === 'user_chat_sessions') {
           return {
             select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
             order: jest.fn().mockReturnThis(),
             limit: jest.fn().mockResolvedValue({ data: [mockSession], error: null }),
           };

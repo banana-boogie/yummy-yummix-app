@@ -32,10 +32,6 @@ const sanitizeUrl = (value) => {
   }
 };
 
-// Initialize Supabase client
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-
 export default async function handler(req, res) {
   // Extract recipe ID from the URL
   const id = req.query.id;
@@ -65,6 +61,9 @@ export default async function handler(req, res) {
 
   // For bots, generate and return HTML with meta tags
   try {
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
     if (!supabaseUrl || !supabaseAnonKey) {
       console.error('[recipe-preview] Missing Supabase credentials');
       throw new Error('Supabase credentials are missing');
@@ -125,10 +124,13 @@ export default async function handler(req, res) {
     return res.status(200).send(html);
 
   } catch (error) {
+    const hasSupabaseUrl = !!process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const hasSupabaseKey = !!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
     console.error('[recipe-preview] Error generating preview:', error.message);
     console.error('[recipe-preview] Environment check:', { 
-      hasSupabaseUrl: !!supabaseUrl, 
-      hasSupabaseKey: !!supabaseAnonKey,
+      hasSupabaseUrl,
+      hasSupabaseKey,
       nodeEnv: process.env.NODE_ENV
     });
     return res.status(500).send('Error generating preview');

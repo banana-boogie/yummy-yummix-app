@@ -237,7 +237,7 @@ export function VoiceChatScreen({
                         )}
                         {(status === 'processing' || status === 'speaking') && transcript ? (
                             <Text preset="bodySmall" className="text-text-secondary text-center italic mb-xs" numberOfLines={2}>
-                                "{transcript}"
+                                {`"${transcript}"`}
                             </Text>
                         ) : null}
                         {status === 'idle' && (
