@@ -22,6 +22,7 @@ const config = createPipelineConfig(env);
 const limit = parseInt(parseFlag(Deno.args, '--limit', '50') || '50', 10);
 const auditFile = parseFlag(Deno.args, '--from-audit');
 const dryRun = hasFlag(Deno.args, '--dry-run');
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // ─── USDA API ────────────────────────────────────────────
 
@@ -70,41 +71,70 @@ async function fetchFromUSDA(ingredientName: string): Promise<NutritionData | nu
 async function fetchFromOpenAI(ingredientName: string): Promise<NutritionData | null> {
   if (!config.openaiApiKey) return null;
 
-  try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.openaiApiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [{
-          role: 'user',
-          content:
-            `Provide nutritional facts per 100g for ${ingredientName}. Return ONLY a JSON object in this exact format: {"calories": number, "protein": number, "fat": number, "carbohydrates": number}`,
-        }],
-        temperature: 0.3,
-      }),
-    });
+  const maxAttempts = 3;
+  const baseBackoffMs = 1000;
 
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) return null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${config.openaiApiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [{
+            role: 'user',
+            content:
+              `Provide nutritional facts per 100g for ${ingredientName}. Return ONLY a JSON object in this exact format: {"calories": number, "protein": number, "fat": number, "carbohydrates": number}`,
+          }],
+          temperature: 0.3,
+        }),
+      });
 
-    const nutrition = JSON.parse(content);
-    if (typeof nutrition.calories !== 'number') return null;
+      if (!res.ok) {
+        const body = await res.text();
+        const retryable = res.status === 429 || res.status >= 500;
+        if (retryable && attempt < maxAttempts) {
+          const backoffMs = baseBackoffMs * (2 ** (attempt - 1));
+          logger.warn(
+            `OpenAI transient error for "${ingredientName}" (attempt ${attempt}/${maxAttempts}, status ${res.status}). Retrying in ${backoffMs}ms...`,
+          );
+          await sleep(backoffMs);
+          continue;
+        }
+        throw new Error(`OpenAI API error (${res.status}): ${body}`);
+      }
 
-    return {
-      calories: Math.round(nutrition.calories),
-      protein: Math.round(nutrition.protein * 10) / 10,
-      fat: Math.round(nutrition.fat * 10) / 10,
-      carbohydrates: Math.round(nutrition.carbohydrates * 10) / 10,
-    };
-  } catch (error) {
-    logger.warn(`OpenAI error for "${ingredientName}": ${error}`);
-    return null;
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) return null;
+
+      const nutrition = JSON.parse(content);
+      if (typeof nutrition.calories !== 'number') return null;
+
+      return {
+        calories: Math.round(nutrition.calories),
+        protein: Math.round(nutrition.protein * 10) / 10,
+        fat: Math.round(nutrition.fat * 10) / 10,
+        carbohydrates: Math.round(nutrition.carbohydrates * 10) / 10,
+      };
+    } catch (error) {
+      if (attempt < maxAttempts) {
+        const backoffMs = baseBackoffMs * (2 ** (attempt - 1));
+        logger.warn(
+          `OpenAI fallback failed for "${ingredientName}" (attempt ${attempt}/${maxAttempts}): ${error}. Retrying in ${backoffMs}ms...`,
+        );
+        await sleep(backoffMs);
+        continue;
+      }
+      logger.warn(`OpenAI error for "${ingredientName}": ${error}`);
+      return null;
+    }
   }
+
+  return null;
 }
 
 interface NutritionData {

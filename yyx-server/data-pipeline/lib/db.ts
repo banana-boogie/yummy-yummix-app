@@ -302,7 +302,7 @@ export async function deleteRecipe(
 // ─── Check Duplicates ────────────────────────────────────
 
 /** Escape ILIKE wildcard characters (% and _) in user input */
-function escapeIlike(value: string): string {
+export function escapeIlike(value: string): string {
   return value.replace(/[%_]/g, (ch) => `\\${ch}`);
 }
 

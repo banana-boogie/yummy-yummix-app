@@ -30,6 +30,7 @@ import {
   matchTag,
   matchUsefulItem,
 } from '../lib/entity-matcher.ts';
+import { resolveStepIngredients } from '../lib/step-ingredient-resolver.ts';
 import * as db from '../lib/db.ts';
 
 const logger = new Logger('import');
@@ -222,51 +223,6 @@ function buildRecipeSteps(
   });
 }
 
-/** Build step ingredients from the parsed data */
-function buildStepIngredients(
-  recipeId: string,
-  parsed: ParsedRecipeData,
-  insertedSteps: Array<{ id: string; order: number }>,
-  ingredientMap: Map<string, DbIngredient>,
-  allUnits: DbMeasurementUnit[],
-): { items: db.RecipeStepIngredientInsert[]; droppedCount: number } {
-  const stepOrderToId = new Map(insertedSteps.map((s) => [s.order, s.id]));
-  const items: db.RecipeStepIngredientInsert[] = [];
-  let droppedCount = 0;
-
-  for (const step of parsed.steps) {
-    const stepId = stepOrderToId.get(step.order);
-    if (!stepId || !step.ingredients) continue;
-
-    for (const ing of step.ingredients) {
-      const dbIngredient = ingredientMap.get(ing.ingredient.nameEn.toLowerCase()) ||
-        ingredientMap.get(ing.ingredient.nameEs.toLowerCase());
-
-      if (!dbIngredient) {
-        logger.warn(
-          `Dropped step-ingredient link: "${ing.ingredient.nameEn}" in step ${step.order} — no matching DB ingredient`,
-        );
-        droppedCount++;
-        continue;
-      }
-
-      const unit = matchMeasurementUnit(ing.measurementUnitID, allUnits);
-
-      items.push({
-        recipe_id: recipeId,
-        recipe_step_id: stepId,
-        ingredient_id: dbIngredient.id,
-        measurement_unit_id: unit?.id || null,
-        quantity: ing.quantity,
-        display_order: ing.displayOrder,
-        optional: false,
-      });
-    }
-  }
-
-  return { items, droppedCount };
-}
-
 // ─── Main Import Flow ────────────────────────────────────
 
 async function importRecipe(
@@ -337,16 +293,30 @@ async function importRecipe(
     const insertedSteps = await db.insertRecipeSteps(config.supabase, steps);
 
     // 7. Insert step ingredients
-    const { items: stepIngredients, droppedCount } = buildStepIngredients(
+    const { items: stepIngredients, unresolved } = resolveStepIngredients(
       recipeId,
       parsed,
       insertedSteps,
       ingredientMap,
+      allIngredients,
       allUnits,
     );
-    if (droppedCount > 0) {
-      logger.warn(`${droppedCount} step-ingredient link(s) dropped for "${parsed.nameEn}"`);
+
+    if (unresolved.length > 0) {
+      const preview = unresolved
+        .slice(0, 5)
+        .map((item) =>
+          `[step ${item.stepOrder}] ${
+            item.ingredientNameEn || item.ingredientNameEs
+          } (${item.reason})`
+        )
+        .join('; ');
+
+      throw new Error(
+        `Unresolved step-ingredient links (${unresolved.length}) for "${parsed.nameEn}": ${preview}`,
+      );
     }
+
     await db.insertRecipeStepIngredients(config.supabase, stepIngredients);
 
     // 8. Insert tags

@@ -14,6 +14,7 @@
     "test:coverage": "deno test --allow-env --allow-net --allow-read --coverage=coverage supabase/functions/",
     "coverage:report": "deno coverage coverage --lcov --output=coverage.lcov",
     "test:integration": "bash supabase/functions/__tests__/run-integration-tests.sh",
+    "test:pipeline": "deno test --allow-env --allow-net --allow-read data-pipeline/",
     "lint": "deno lint supabase/functions/",
     "fmt": "deno fmt supabase/functions/",
     "fmt:check": "deno fmt --check supabase/functions/",

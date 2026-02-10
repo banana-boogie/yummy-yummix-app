@@ -18,17 +18,26 @@ export interface PipelineConfig {
 }
 
 /** Parse --local / --production from Deno.args */
-export function parseEnvironment(args: string[]): Environment {
+export function resolveEnvironment(args: string[]): Environment {
   const hasLocal = args.includes('--local');
   const hasProduction = args.includes('--production');
   if (hasLocal && hasProduction) {
-    console.error('Error: Cannot specify both --local and --production');
-    Deno.exit(1);
+    throw new Error('Cannot specify both --local and --production');
   }
   if (hasProduction) return 'production';
   if (hasLocal) return 'local';
-  console.error('Error: Must specify --local or --production');
-  Deno.exit(1);
+  throw new Error('Must specify --local or --production');
+}
+
+/** Parse --local / --production from Deno.args */
+export function parseEnvironment(args: string[]): Environment {
+  try {
+    return resolveEnvironment(args);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Error: ${message}`);
+    Deno.exit(1);
+  }
 }
 
 /** Parse a named flag value from args (e.g. --limit 50) */

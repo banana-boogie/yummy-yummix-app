@@ -18,6 +18,7 @@
 
 import { createPipelineConfig, hasFlag, parseEnvironment, parseFlag } from '../lib/config.ts';
 import { Logger } from '../lib/logger.ts';
+import { consumeBudget, createBudget, takeWithinBudget } from '../lib/budget.ts';
 import * as db from '../lib/db.ts';
 
 const logger = new Logger('images');
@@ -29,7 +30,7 @@ const limitArg = parseInt(parseFlag(Deno.args, '--limit', '10') || '10', 10);
 const dryRun = hasFlag(Deno.args, '--dry-run');
 
 /** Shared budget so --limit N caps total images across all entity types */
-const budget = { remaining: limitArg };
+const budget = createBudget(limitArg);
 
 /** Resolve fallback directory relative to this file (matches .gitignore: data-pipeline/data/failed-uploads/) */
 const failedUploadsDir = new URL('../data/failed-uploads', import.meta.url).pathname;
@@ -126,7 +127,7 @@ function usefulItemPrompt(name: string): string {
 
 async function processIngredients(): Promise<{ success: number; fail: number }> {
   const ingredients = await db.fetchAllIngredients(config.supabase);
-  const missing = ingredients.filter((i) => !i.picture_url).slice(0, budget.remaining);
+  const missing = takeWithinBudget(ingredients.filter((i) => !i.picture_url), budget);
 
   logger.info(`Found ${missing.length} ingredients missing images`);
   let success = 0;
@@ -137,7 +138,7 @@ async function processIngredients(): Promise<{ success: number; fail: number }> 
     const name = ing.name_en || ing.name_es;
     if (dryRun) {
       logger.info(`[DRY RUN] Would generate image for ingredient: ${name}`);
-      budget.remaining--;
+      consumeBudget(budget);
       continue;
     }
 
@@ -163,7 +164,7 @@ async function processIngredients(): Promise<{ success: number; fail: number }> 
       fail++;
     }
 
-    budget.remaining--;
+    consumeBudget(budget);
     // Rate limit: ~5 images per minute for DALL-E 3
     await new Promise((r) => setTimeout(r, 15000));
   }
@@ -173,7 +174,7 @@ async function processIngredients(): Promise<{ success: number; fail: number }> 
 
 async function processRecipes(): Promise<{ success: number; fail: number }> {
   const recipes = await db.fetchAllRecipes(config.supabase);
-  const missing = recipes.filter((r) => !r.picture_url).slice(0, budget.remaining);
+  const missing = takeWithinBudget(recipes.filter((r) => !r.picture_url), budget);
 
   logger.info(`Found ${missing.length} recipes missing images`);
   let success = 0;
@@ -184,7 +185,7 @@ async function processRecipes(): Promise<{ success: number; fail: number }> {
     const name = recipe.name_en || recipe.name_es;
     if (dryRun) {
       logger.info(`[DRY RUN] Would generate image for recipe: ${name}`);
-      budget.remaining--;
+      consumeBudget(budget);
       continue;
     }
 
@@ -209,7 +210,7 @@ async function processRecipes(): Promise<{ success: number; fail: number }> {
       fail++;
     }
 
-    budget.remaining--;
+    consumeBudget(budget);
     await new Promise((r) => setTimeout(r, 15000));
   }
 
@@ -218,7 +219,7 @@ async function processRecipes(): Promise<{ success: number; fail: number }> {
 
 async function processUsefulItems(): Promise<{ success: number; fail: number }> {
   const items = await db.fetchAllUsefulItems(config.supabase);
-  const missing = items.filter((i) => !i.picture_url).slice(0, budget.remaining);
+  const missing = takeWithinBudget(items.filter((i) => !i.picture_url), budget);
 
   logger.info(`Found ${missing.length} useful items missing images`);
   let success = 0;
@@ -229,7 +230,7 @@ async function processUsefulItems(): Promise<{ success: number; fail: number }> 
     const name = item.name_en || item.name_es;
     if (dryRun) {
       logger.info(`[DRY RUN] Would generate image for useful item: ${name}`);
-      budget.remaining--;
+      consumeBudget(budget);
       continue;
     }
 
@@ -254,7 +255,7 @@ async function processUsefulItems(): Promise<{ success: number; fail: number }> 
       fail++;
     }
 
-    budget.remaining--;
+    consumeBudget(budget);
     await new Promise((r) => setTimeout(r, 15000));
   }
 
