@@ -104,8 +104,12 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       };
 
       this.dc.onmessage = (event) => {
-        const message = JSON.parse(event.data);
-        this.handleServerMessage(message);
+        try {
+          const message = JSON.parse(event.data);
+          this.handleServerMessage(message);
+        } catch (e) {
+          if (__DEV__) console.error('[OpenAI] Failed to parse data channel message:', e);
+        }
       };
 
       // 4. Get Ephemeral Token from Backend (and quota info)

@@ -126,28 +126,41 @@ export async function filterByAllergens<
     return [];
   }
 
+  // Pre-normalize all unique ingredient names in parallel to avoid
+  // sequential awaits inside the nested filtering loop.
+  const allNames = [
+    ...new Set(
+      recipes.flatMap((r) =>
+        r.ingredients.map((i) =>
+          language === "es" ? i.name_es : i.name_en
+        ).filter(Boolean)
+      ),
+    ),
+  ];
+  const normalizedEntries = await Promise.all(
+    allNames.map(async (name) => [
+      name,
+      await normalizeIngredient(supabase, name, language),
+    ] as const),
+  );
+  const normalizedMap = new Map(normalizedEntries);
+
   const results: T[] = [];
   for (const recipe of recipes) {
     let safe = true;
 
     for (const ingredient of recipe.ingredients) {
-      // Use the appropriate language name for normalization
       const ingredientName = language === "es"
         ? ingredient.name_es
         : ingredient.name_en;
       if (!ingredientName) continue;
 
-      const normalized = await normalizeIngredient(
-        supabase,
-        ingredientName,
-        language,
-      );
+      const normalized = normalizedMap.get(ingredientName) ?? ingredientName;
 
       for (const restriction of userRestrictions) {
         const allergens = allergenMap.get(restriction) || [];
 
         for (const allergen of allergens) {
-          // Check if normalized ingredient matches the allergen
           if (
             normalized === allergen || matchesAllergen(normalized, allergen)
           ) {
