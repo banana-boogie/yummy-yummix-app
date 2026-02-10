@@ -26,7 +26,7 @@ import {
     GeneratedRecipe,
     QuickAction,
     loadChatHistory,
-    streamChatMessageWithHandle,
+    sendMessage,
 } from '@/services/chatService';
 import { customRecipeService } from '@/services/customRecipeService';
 import { useQueryClient } from '@tanstack/react-query';
@@ -579,7 +579,7 @@ export function ChatScreen({
         };
 
         try {
-            const handle = streamChatMessageWithHandle(
+            const handle = sendMessage(
                 userMessage.content,
                 currentSessionId,
                 // onChunk - batch updates to reduce re-renders

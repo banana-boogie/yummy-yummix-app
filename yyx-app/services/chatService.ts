@@ -171,88 +171,10 @@ export function routeSSEMessage(
 }
 
 /**
- * Send a message to the AI orchestrator (non-streaming).
- * Returns the full structured IrmixyResponse.
+ * Send a message to the AI orchestrator using SSE, returning a cancel handle.
+ * All orchestrator communication uses streaming — this is the sole entry point.
  */
-export async function sendChatMessage(
-    message: string,
-    sessionId: string | null
-): Promise<IrmixyResponse> {
-    // Validate message length
-    if (message.length > MAX_MESSAGE_LENGTH) {
-        throw new Error(i18n.t('chat.error.messageTooLong', { max: MAX_MESSAGE_LENGTH }));
-    }
-
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session?.access_token) {
-        throw new Error('Not authenticated');
-    }
-
-    if (!FUNCTIONS_BASE_URL) {
-        throw new Error('Functions URL is not configured');
-    }
-
-    const response = await fetch(IRMIXY_CHAT_ORCHESTRATOR_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-            message,
-            sessionId,
-            mode: 'text',
-            stream: false,
-        }),
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-    }
-
-    return response.json();
-}
-
-/**
- * Stream a message to the AI orchestrator using SSE.
- * Uses react-native-sse for proper streaming support in React Native.
- * Provides real-time status updates and content chunks.
- */
-export async function streamChatMessage(
-    message: string,
-    sessionId: string | null,
-    onChunk: (content: string) => void,
-    onSessionId?: (sessionId: string) => void,
-    onStatus?: (status: IrmixyStatus) => void,
-    onComplete?: (response: IrmixyResponse) => void,
-): Promise<void> {
-    const callbacks = createSimpleStreamCallbacks(
-        onChunk,
-        onSessionId,
-        onStatus,
-        onComplete,
-    );
-
-    const handle = streamChatMessageWithHandle(
-        message,
-        sessionId,
-        callbacks.onChunk,
-        callbacks.onSessionId,
-        callbacks.onStatus,
-        callbacks.onStreamComplete, // Always undefined in simplified wrapper
-        callbacks.onPartialRecipe,  // Always undefined in simplified wrapper
-        callbacks.onComplete,
-    );
-    return handle.done;
-}
-
-/**
- * Stream a message to the AI orchestrator using SSE, returning a cancel handle.
- * This helps avoid leaks and setState-after-unmount issues on the caller side.
- */
-export function streamChatMessageWithHandle(
+export function sendMessage(
     message: string,
     sessionId: string | null,
     onChunk: (content: string) => void,
@@ -341,7 +263,6 @@ export function streamChatMessageWithHandle(
                             message,
                             sessionId,
                             mode: 'text',
-                            stream: true,
                         }),
                         // Disable automatic reconnection - we handle errors ourselves
                         pollingInterval: 0,

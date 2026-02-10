@@ -18,7 +18,6 @@ import {
   getLastSessionWithMessages,
   createSimpleStreamCallbacks,
   routeSSEMessage,
-  sendChatMessage,
 } from '../chatService';
 import { supabase } from '@/lib/supabase';
 import {
@@ -318,74 +317,11 @@ describe('chatService', () => {
   });
 
   // ============================================================
-  // sendChatMessage
-  // ============================================================
-
-  describe('sendChatMessage', () => {
-    it('validates message length (max 2000)', async () => {
-      const longMessage = 'a'.repeat(2001);
-
-      await expect(sendChatMessage(longMessage, null)).rejects.toThrow(
-        'Message too long (max 2000 characters)'
-      );
-    });
-
-    it('throws if not authenticated', async () => {
-      (supabase.auth.getSession as jest.Mock).mockResolvedValue({
-        data: { session: null },
-        error: null,
-      });
-
-      await expect(sendChatMessage('Hello', null)).rejects.toThrow('Not authenticated');
-    });
-
-    it('sends message when authenticated', async () => {
-      // Note: Testing fetch behavior requires mocking at module load time
-      // or restructuring the code. For now, we test the authentication check
-      // and message validation paths which don't depend on env vars.
-      // The fetch integration would typically be tested in integration tests.
-      const mockSession = {
-        access_token: 'test-token',
-        user: { id: 'user-123' },
-      };
-
-      (supabase.auth.getSession as jest.Mock).mockResolvedValue({
-        data: { session: mockSession },
-        error: null,
-      });
-
-      // Since FUNCTIONS_BASE_URL is computed at module load time,
-      // this test verifies the auth check passes before the URL check
-      await expect(sendChatMessage('Hello', 'session-123')).rejects.toThrow(
-        'Functions URL is not configured'
-      );
-    });
-
-    it('throws meaningful error on missing functions URL', async () => {
-      const mockSession = {
-        access_token: 'test-token',
-        user: { id: 'user-123' },
-      };
-
-      (supabase.auth.getSession as jest.Mock).mockResolvedValue({
-        data: { session: mockSession },
-        error: null,
-      });
-
-      // Verify the error message for missing configuration
-      await expect(sendChatMessage('Hello', null)).rejects.toThrow(
-        'Functions URL is not configured'
-      );
-    });
-  });
-
-  // ============================================================
   // SSE Event Routing (Unit Tests)
   // ============================================================
-  // Note: Integration tests for streamChatMessageWithHandle require
-  // the FUNCTIONS_BASE_URL to be set at module load time, which
-  // is difficult to mock in Jest. These tests verify the event
-  // routing logic at the handler level instead.
+  // Note: Integration tests for sendMessage require the FUNCTIONS_BASE_URL
+  // to be set at module load time, which is difficult to mock in Jest.
+  // These tests verify the event routing logic at the handler level instead.
 
   describe('SSE event routing logic', () => {
     it('routes stream_complete to onStreamComplete callback', () => {

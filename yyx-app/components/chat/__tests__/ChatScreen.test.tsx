@@ -74,14 +74,14 @@ jest.mock('expo-clipboard', () => ({
 
 // Mock chatService
 const mockLoadChatHistory = jest.fn().mockResolvedValue([]);
-const mockStreamChatMessageWithHandle = jest.fn().mockReturnValue({
+const mockSendMessage = jest.fn().mockReturnValue({
   done: Promise.resolve(),
   cancel: jest.fn(),
 });
 
 jest.mock('@/services/chatService', () => ({
   loadChatHistory: (...args: any[]) => mockLoadChatHistory(...args),
-  streamChatMessageWithHandle: (...args: any[]) => mockStreamChatMessageWithHandle(...args),
+  sendMessage: (...args: any[]) => mockSendMessage(...args),
 }));
 
 const mockInvalidateQueries = jest.fn().mockResolvedValue(undefined);
@@ -235,7 +235,7 @@ describe('ChatScreen', () => {
   describe('session switching', () => {
     it('cancels active stream when sessionId changes', async () => {
       const mockCancel = jest.fn();
-      mockStreamChatMessageWithHandle.mockReturnValueOnce({
+      mockSendMessage.mockReturnValueOnce({
         done: new Promise(() => {}),
         cancel: mockCancel,
       });
@@ -245,7 +245,7 @@ describe('ChatScreen', () => {
       fireEvent.press(screen.getByText('Suggest a recipe'));
 
       await waitFor(() => {
-        expect(mockStreamChatMessageWithHandle).toHaveBeenCalled();
+        expect(mockSendMessage).toHaveBeenCalled();
       });
 
       rerender(<ChatScreen sessionId="session-2" />);
