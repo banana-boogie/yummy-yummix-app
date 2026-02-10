@@ -19,7 +19,11 @@ import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
 import { getAllowedVoiceToolNames } from "../_shared/tools/tool-registry.ts";
 
 const ALLOWED_VOICE_TOOLS = new Set(getAllowedVoiceToolNames());
-const ALLOWED_ACTIONS = new Set(["start_session", "execute_tool"] as const);
+const ALLOWED_ACTIONS = new Set([
+  "start_session",
+  "execute_tool",
+  "check_quota",
+] as const);
 const MAX_PAYLOAD_BYTES = 10_000; // 10KB
 const QUOTA_LIMIT_MINUTES = 30;
 
@@ -54,6 +58,37 @@ function jsonResponse(
   });
 }
 
+
+/**
+ * Read-only quota check — no session created, no ephemeral token generated.
+ */
+async function handleCheckQuota(
+  userId: string,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
+  const supabase = createServiceClient();
+  const currentMonth = new Date().toISOString().slice(0, 7);
+
+  const { data: usage } = await supabase
+    .from("ai_voice_usage")
+    .select("minutes_used")
+    .eq("user_id", userId)
+    .eq("month", currentMonth)
+    .single();
+
+  const minutesUsed = Number(usage?.minutes_used || 0);
+  const remainingMinutes = Math.max(0, QUOTA_LIMIT_MINUTES - minutesUsed);
+
+  return jsonResponse(
+    {
+      minutesUsed: minutesUsed.toFixed(1),
+      quotaLimit: QUOTA_LIMIT_MINUTES,
+      remainingMinutes: remainingMinutes.toFixed(1),
+    },
+    200,
+    corsHeaders,
+  );
+}
 
 async function handleStartSession(
   userId: string,
@@ -321,12 +356,20 @@ serve(async (req) => {
       );
     }
 
-    if (!ALLOWED_ACTIONS.has(action as "start_session" | "execute_tool")) {
+    if (
+      !ALLOWED_ACTIONS.has(
+        action as "start_session" | "execute_tool" | "check_quota",
+      )
+    ) {
       return jsonResponse(
         { error: `Unknown action: ${action}` },
         400,
         corsHeaders,
       );
+    }
+
+    if (action === "check_quota") {
+      return await handleCheckQuota(user.id, corsHeaders);
     }
 
     if (action === "start_session") {

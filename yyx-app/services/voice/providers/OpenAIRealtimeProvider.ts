@@ -343,7 +343,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
           Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ action: "start_session" }),
+        body: JSON.stringify({ action: "check_quota" }),
       },
     );
 
@@ -353,7 +353,6 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       remainingMinutes: parseFloat(data.remainingMinutes),
       minutesUsed: parseFloat(data.minutesUsed),
       quotaLimit: data.quotaLimit,
-      warning: data.warning,
     };
   }
 
