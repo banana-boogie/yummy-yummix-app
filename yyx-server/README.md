@@ -13,7 +13,7 @@ npm run deploy:all    # Deploy all edge functions
 
 ```bash
 # Deployment
-npm run deploy ai-chat      # Deploy single function
+npm run deploy irmixy-chat-orchestrator  # Deploy single function
 npm run deploy:all          # Deploy all functions
 
 # Database
@@ -38,7 +38,6 @@ yyx-server/
 ├── supabase/
 │   ├── functions/          # Edge Functions
 │   │   ├── irmixy-chat-orchestrator/
-│   │   ├── ai-chat/
 │   │   ├── irmixy-voice-orchestrator/
 │   │   ├── get-nutritional-facts/
 │   │   ├── parse-recipe-markdown/

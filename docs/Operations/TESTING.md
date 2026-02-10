@@ -231,9 +231,10 @@ yyx-server/
 │   │   │   └── recipe-validator.test.ts
 │   │   └── test-helpers/
 │   │       └── mocks.ts     # Deno test helpers
-│   ├── ai-chat/
+│   ├── irmixy-chat-orchestrator/
 │   │   ├── index.ts
-│   │   └── index.test.ts    # Function unit tests
+│   │   ├── types.ts, logger.ts, session.ts, ...  # Extracted modules
+│   │   └── *.test.ts        # Function unit tests
 │   └── __tests__/           # Integration tests
 │       ├── run-integration-tests.sh
 │       ├── helpers.sh
@@ -274,28 +275,28 @@ Deno.test('handles missing fields', () => {
 
 ```bash
 #!/bin/bash
-# test-ai-chat.sh
+# test-irmixy-chat-orchestrator.sh
 
 set -e
 source "$(dirname "$0")/helpers.sh"
 
-print_section "AI Chat Integration Tests"
+print_section "Irmixy Chat Orchestrator Integration Tests"
 
 # Test 1: Basic chat message
 test_case "sends basic message" \
-  "ai-chat" \
+  "irmixy-chat-orchestrator" \
   '{"message": "Hello", "conversationHistory": []}' \
   "200" \
   "response"
 
 # Test 2: Missing required field
 test_case "rejects missing message" \
-  "ai-chat" \
+  "irmixy-chat-orchestrator" \
   '{"conversationHistory": []}' \
   "400" \
   "error"
 
-echo "All ai-chat tests passed!"
+echo "All irmixy-chat-orchestrator tests passed!"
 ```
 
 ---
@@ -429,10 +430,10 @@ mockDatabaseError('recipes', 'Connection failed');
 import { mockEdgeFunctionSuccess, mockEdgeFunctionError } from '@/test/mocks/supabase';
 
 // Mock successful function call
-mockEdgeFunctionSuccess('ai-chat', { response: 'Hello!' });
+mockEdgeFunctionSuccess('irmixy-chat-orchestrator', { response: 'Hello!' });
 
 // Mock function error
-mockEdgeFunctionError('ai-chat', 'Rate limit exceeded');
+mockEdgeFunctionError('irmixy-chat-orchestrator', 'Rate limit exceeded');
 ```
 
 ### Storage

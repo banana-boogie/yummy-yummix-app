@@ -14,8 +14,8 @@ npm run link          # Link to cloud project (follow prompts)
 
 **Deploy functions:**
 ```bash
-npm run deploy ai-chat      # Single function
-npm run deploy:all          # All functions
+npm run deploy irmixy-chat-orchestrator  # Single function
+npm run deploy:all                       # All functions
 ```
 
 **Push migrations:**
@@ -25,7 +25,7 @@ npm run db:push       # Push to cloud
 ```
 
 **View logs:**
-Use Supabase Dashboard: `Edge Functions -> ai-chat -> Logs`.
+Use Supabase Dashboard: `Edge Functions -> irmixy-chat-orchestrator -> Logs`.
 
 ### Backup Before Deploy (REQUIRED)
 
@@ -42,8 +42,7 @@ Supabase Free tier has NO automated backups. You must manage your own.
 
 Located in `supabase/functions/`:
 
-- **irmixy-chat-orchestrator/** - Main AI routing and conversation management
-- **ai-chat/** - Chat completions endpoint
+- **irmixy-chat-orchestrator/** - Main AI routing and conversation management (modularized: types, logger, session, meal-context, suggestions, modification, system-prompt, ai-calls, history, response-builder)
 - **irmixy-voice-orchestrator/** - OpenAI Realtime session bootstrap + quota checks + secure voice tool execution
 - **get-nutritional-facts/** - USDA nutrition API integration
 - **parse-recipe-markdown/** - Recipe parsing utilities

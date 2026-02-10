@@ -51,12 +51,12 @@ npm run db:push       # Push to cloud
 ### Deploy Edge Functions
 ```bash
 cd yyx-server
-npm run deploy ai-chat      # Single function
-npm run deploy:all          # All functions
+npm run deploy irmixy-chat-orchestrator  # Single function
+npm run deploy:all                       # All functions
 ```
 
 ### View Logs
-Use Supabase Dashboard: `Edge Functions -> ai-chat -> Logs`.
+Use Supabase Dashboard: `Edge Functions -> irmixy-chat-orchestrator -> Logs`.
 
 ## Project Structure
 
@@ -150,7 +150,7 @@ If a migration breaks the database:
 - Clear caches: `rm -rf .expo node_modules/.cache`
 
 ### Edge function errors
-Check Supabase Dashboard logs: `Edge Functions -> ai-chat -> Logs`.
+Check Supabase Dashboard logs: `Edge Functions -> irmixy-chat-orchestrator -> Logs`.
 
 ## Documentation
 

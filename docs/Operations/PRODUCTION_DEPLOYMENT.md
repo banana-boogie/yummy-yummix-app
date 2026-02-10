@@ -133,7 +133,6 @@ Or deploy specific functions:
 
 ```bash
 cd yyx-server
-npm run deploy ai-chat
 npm run deploy irmixy-chat-orchestrator
 npm run deploy irmixy-voice-orchestrator
 npm run deploy get-nutritional-facts
@@ -182,7 +181,6 @@ Why this matters:
 ### 3.2 Edge Function Observability
 
 Check logs in Supabase Dashboard:
-- `Edge Functions -> ai-chat -> Logs`
 - `Edge Functions -> irmixy-chat-orchestrator -> Logs`
 - `Edge Functions -> irmixy-voice-orchestrator -> Logs`
 

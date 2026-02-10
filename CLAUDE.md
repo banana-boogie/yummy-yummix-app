@@ -72,8 +72,8 @@ npm run db:push       # Applies new migrations to cloud
 ### Deploying Edge Functions
 ```bash
 cd yyx-server
-npm run deploy ai-chat      # Deploy single function
-npm run deploy:all          # Deploy all functions
+npm run deploy irmixy-chat-orchestrator  # Deploy single function
+npm run deploy:all                       # Deploy all functions
 ```
 
 ### Viewing Logs
@@ -245,7 +245,7 @@ npm run db:pull       # Pull current cloud schema
 ```
 
 ### Edge function errors
-Check Supabase Dashboard logs: `Edge Functions -> ai-chat -> Logs`.
+Check Supabase Dashboard logs: `Edge Functions -> irmixy-chat-orchestrator -> Logs`.
 
 ### Useful URLs
 - **Supabase Dashboard**: https://supabase.com/dashboard
@@ -384,7 +384,7 @@ See `generate-custom-recipe.ts` for Thermomix system prompt section.
 
 ### Edge Functions (`yyx-server/supabase/functions/`)
 - **`_shared/`** - Shared utilities (CORS, auth, AI gateway)
-- **`ai-chat/`**, **`irmixy-chat-orchestrator/`**, **`irmixy-voice-orchestrator/`** - AI endpoints
+- **`irmixy-chat-orchestrator/`**, **`irmixy-voice-orchestrator/`** - AI endpoints
 - **`get-nutritional-facts/`**, **`parse-recipe-markdown/`** - Recipe utilities
 
 ## Key Conventions

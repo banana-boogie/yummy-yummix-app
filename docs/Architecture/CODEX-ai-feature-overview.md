@@ -14,7 +14,7 @@ Evidence: `yyx-server/supabase/functions/_shared/irmixy-schemas.ts:78`, `yyx-ser
 - Shared orchestration, tooling, schema validation, safety filters, and AI provider routing.
 
 ### Non-Scope
-- Legacy `yyx-server/supabase/functions/ai-chat/index.ts` behavior as primary architecture.
+- Legacy `ai-chat` function (removed — superseded by `irmixy-chat-orchestrator`).
 - Non-AI product modules not involved in AI request/response flow.
 - Infrastructure setup docs (deployment/backup procedures), except where they explain runtime behavior.
 
@@ -481,9 +481,7 @@ Evidence: `yyx-server/supabase/functions/irmixy-chat-orchestrator/index.ts:746`,
 - `yyx-server/supabase/migrations/20260116234443_remote_schema.sql` is empty, so original `CREATE TABLE` statements for `user_chat_sessions`, `user_chat_messages`, `ai_voice_sessions`, and `ai_voice_usage` are not directly visible here.
 - Next validation step: inspect Supabase cloud schema (table definitions + triggers + constraints) and capture exact DDL snapshot for documentation completeness.
 
-2. Legacy `ai-chat` function status is ambiguous relative to current production routing.
-- It exists and is deployable, but text client currently points to `irmixy-chat-orchestrator`.
-- Next validation step: confirm deployment traffic routing and whether `ai-chat` is still used by any clients/integrations.
+2. Legacy `ai-chat` function has been removed. All text chat traffic routes through `irmixy-chat-orchestrator`.
 
 3. Exact trigger chain for voice usage rollups should be verified against live DB.
 - Migrations include `update_ai_voice_usage` function updates, but trigger definitions are not in the inspected subset.
