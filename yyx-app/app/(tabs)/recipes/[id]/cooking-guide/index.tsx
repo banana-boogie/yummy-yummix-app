@@ -1,4 +1,5 @@
-import { View, Image } from 'react-native';
+import { View } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
@@ -9,8 +10,11 @@ import { PageLayout } from '@/components/layouts/PageLayout';
 import { useDevice } from '@/hooks/useDevice';
 import i18n from '@/i18n';
 import { eventService } from '@/services/eventService';
+import { COLORS } from '@/constants/design-tokens';
 
 import * as Haptics from 'expo-haptics';
+
+const contentContainerStyle = { paddingHorizontal: 0, paddingBottom: 180 } as const;
 
 export default function CookingGuide() {
   const { id } = useLocalSearchParams();
@@ -35,9 +39,9 @@ export default function CookingGuide() {
 
   return (
     <PageLayout
-      backgroundColor="#f9f9f9"
+      backgroundColor={COLORS.grey.light}
       style={{ flex: 1 }}
-      contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 180 }}
+      contentContainerStyle={contentContainerStyle}
       contentPaddingHorizontal={0}
       scrollEnabled={true}
       footer={
@@ -46,7 +50,8 @@ export default function CookingGuide() {
             source={require('@/assets/images/cooking-guide-chef.png')}
             className="absolute bottom-[-50px] right-0"
             style={{ width: chefSize.width, height: chefSize.height }}
-            resizeMode="contain"
+            contentFit="contain"
+            cachePolicy="memory-disk"
           />
         </View>
       }
@@ -88,6 +93,8 @@ export default function CookingGuide() {
               <Image
                 source={require('@/assets/images/icons/checkbox-checked.png')}
                 style={{ width: checkboxSize, height: checkboxSize, top: -5 }}
+                contentFit="contain"
+                cachePolicy="memory-disk"
               />
             </View>
             <Text preset="body" className="text-center text-md mb-0">

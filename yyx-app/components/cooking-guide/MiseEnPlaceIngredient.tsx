@@ -1,3 +1,4 @@
+import React from 'react';
 import { Pressable, View, DimensionValue, StyleProp, ViewStyle } from 'react-native';
 import Animated, {
   withTiming,
@@ -30,7 +31,7 @@ type MiseEnPlaceIngredientProps = {
  * - Name prominent and bold  
  * - Quantity/unit secondary below
  */
-export function MiseEnPlaceIngredient({
+export const MiseEnPlaceIngredient = React.memo(function MiseEnPlaceIngredient({
   ingredient,
   onPress,
   width,
@@ -104,4 +105,4 @@ export function MiseEnPlaceIngredient({
       </Animated.View>
     </Pressable>
   );
-}
+});

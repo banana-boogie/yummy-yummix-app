@@ -20,6 +20,7 @@ import { createPipelineConfig, hasFlag, parseEnvironment, parseFlag } from '../l
 import { Logger } from '../lib/logger.ts';
 import { consumeBudget, createBudget, takeWithinBudget } from '../lib/budget.ts';
 import * as db from '../lib/db.ts';
+import { sleep } from '../lib/utils.ts';
 
 const logger = new Logger('images');
 const env = parseEnvironment(Deno.args);
@@ -125,29 +126,42 @@ function usefulItemPrompt(name: string): string {
 
 // ─── Process Entities ────────────────────────────────────
 
-async function processIngredients(): Promise<{ success: number; fail: number }> {
-  const ingredients = await db.fetchAllIngredients(config.supabase);
-  const missing = takeWithinBudget(ingredients.filter((i) => !i.picture_url), budget);
+interface EntityProcessorConfig<T> {
+  label: string;
+  fetchAll: () => Promise<T[]>;
+  getName: (entity: T) => string;
+  getId: (entity: T) => string;
+  hasPicture: (entity: T) => boolean;
+  buildPrompt: (name: string) => string;
+  storageBucket: string;
+  updateEntity: (id: string, url: string) => Promise<void>;
+}
 
-  logger.info(`Found ${missing.length} ingredients missing images`);
+async function processEntities<T>(
+  cfg: EntityProcessorConfig<T>,
+): Promise<{ success: number; fail: number }> {
+  const all = await cfg.fetchAll();
+  const missing = takeWithinBudget(all.filter((e) => !cfg.hasPicture(e)), budget);
+
+  logger.info(`Found ${missing.length} ${cfg.label} missing images`);
   let success = 0;
   let fail = 0;
 
-  for (const ing of missing) {
+  for (const entity of missing) {
     if (budget.remaining <= 0) break;
-    const name = ing.name_en || ing.name_es;
+    const name = cfg.getName(entity);
     if (dryRun) {
-      logger.info(`[DRY RUN] Would generate image for ingredient: ${name}`);
+      logger.info(`[DRY RUN] Would generate image for ${cfg.label.slice(0, -1)}: ${name}`);
       consumeBudget(budget);
       continue;
     }
 
     try {
-      logger.info(`Generating image for ingredient: ${name}`);
-      const imageData = await generateImage(ingredientPrompt(name));
+      logger.info(`Generating image for ${cfg.label.slice(0, -1)}: ${name}`);
+      const imageData = await generateImage(cfg.buildPrompt(name));
       try {
-        const publicUrl = await uploadToStorage('ingredients', name, imageData);
-        await db.updateIngredient(config.supabase, ing.id, { picture_url: publicUrl });
+        const publicUrl = await uploadToStorage(cfg.storageBucket, name, imageData);
+        await cfg.updateEntity(cfg.getId(entity), publicUrl);
         logger.success(`Generated image for: ${name}`);
         success++;
       } catch (uploadError) {
@@ -166,101 +180,49 @@ async function processIngredients(): Promise<{ success: number; fail: number }> 
 
     consumeBudget(budget);
     // Rate limit: ~5 images per minute for DALL-E 3
-    await new Promise((r) => setTimeout(r, 15000));
+    await sleep(15000);
   }
 
   return { success, fail };
 }
 
-async function processRecipes(): Promise<{ success: number; fail: number }> {
-  const recipes = await db.fetchAllRecipes(config.supabase);
-  const missing = takeWithinBudget(recipes.filter((r) => !r.picture_url), budget);
+const ingredientConfig: EntityProcessorConfig<
+  Awaited<ReturnType<typeof db.fetchAllIngredients>>[number]
+> = {
+  label: 'ingredients',
+  fetchAll: () => db.fetchAllIngredients(config.supabase),
+  getName: (e) => e.name_en || e.name_es,
+  getId: (e) => e.id,
+  hasPicture: (e) => !!e.picture_url,
+  buildPrompt: ingredientPrompt,
+  storageBucket: 'ingredients',
+  updateEntity: (id, url) => db.updateIngredient(config.supabase, id, { picture_url: url }),
+};
 
-  logger.info(`Found ${missing.length} recipes missing images`);
-  let success = 0;
-  let fail = 0;
+const recipeConfig: EntityProcessorConfig<Awaited<ReturnType<typeof db.fetchAllRecipes>>[number]> =
+  {
+    label: 'recipes',
+    fetchAll: () => db.fetchAllRecipes(config.supabase),
+    getName: (e) => e.name_en || e.name_es,
+    getId: (e) => e.id,
+    hasPicture: (e) => !!e.picture_url,
+    buildPrompt: recipePrompt,
+    storageBucket: 'recipes',
+    updateEntity: (id, url) => db.updateRecipe(config.supabase, id, { picture_url: url }),
+  };
 
-  for (const recipe of missing) {
-    if (budget.remaining <= 0) break;
-    const name = recipe.name_en || recipe.name_es;
-    if (dryRun) {
-      logger.info(`[DRY RUN] Would generate image for recipe: ${name}`);
-      consumeBudget(budget);
-      continue;
-    }
-
-    try {
-      logger.info(`Generating image for recipe: ${name}`);
-      const imageData = await generateImage(recipePrompt(name));
-      try {
-        const publicUrl = await uploadToStorage('recipes', name, imageData);
-        await db.updateRecipe(config.supabase, recipe.id, { picture_url: publicUrl });
-        logger.success(`Generated image for: ${name}`);
-        success++;
-      } catch (uploadError) {
-        const fallbackPath = `${failedUploadsDir}/${normalizeFileName(name)}_${Date.now()}.png`;
-        await Deno.mkdir(failedUploadsDir, { recursive: true });
-        await Deno.writeFile(fallbackPath, imageData);
-        logger.error(`Upload failed for "${name}", saved locally: ${fallbackPath}`);
-        logger.error(`Upload error: ${uploadError}`);
-        fail++;
-      }
-    } catch (error) {
-      logger.error(`Failed for "${name}": ${error}`);
-      fail++;
-    }
-
-    consumeBudget(budget);
-    await new Promise((r) => setTimeout(r, 15000));
-  }
-
-  return { success, fail };
-}
-
-async function processUsefulItems(): Promise<{ success: number; fail: number }> {
-  const items = await db.fetchAllUsefulItems(config.supabase);
-  const missing = takeWithinBudget(items.filter((i) => !i.picture_url), budget);
-
-  logger.info(`Found ${missing.length} useful items missing images`);
-  let success = 0;
-  let fail = 0;
-
-  for (const item of missing) {
-    if (budget.remaining <= 0) break;
-    const name = item.name_en || item.name_es;
-    if (dryRun) {
-      logger.info(`[DRY RUN] Would generate image for useful item: ${name}`);
-      consumeBudget(budget);
-      continue;
-    }
-
-    try {
-      logger.info(`Generating image for useful item: ${name}`);
-      const imageData = await generateImage(usefulItemPrompt(name));
-      try {
-        const publicUrl = await uploadToStorage('useful-items', name, imageData);
-        await db.updateUsefulItem(config.supabase, item.id, { picture_url: publicUrl });
-        logger.success(`Generated image for: ${name}`);
-        success++;
-      } catch (uploadError) {
-        const fallbackPath = `${failedUploadsDir}/${normalizeFileName(name)}_${Date.now()}.png`;
-        await Deno.mkdir(failedUploadsDir, { recursive: true });
-        await Deno.writeFile(fallbackPath, imageData);
-        logger.error(`Upload failed for "${name}", saved locally: ${fallbackPath}`);
-        logger.error(`Upload error: ${uploadError}`);
-        fail++;
-      }
-    } catch (error) {
-      logger.error(`Failed for "${name}": ${error}`);
-      fail++;
-    }
-
-    consumeBudget(budget);
-    await new Promise((r) => setTimeout(r, 15000));
-  }
-
-  return { success, fail };
-}
+const usefulItemConfig: EntityProcessorConfig<
+  Awaited<ReturnType<typeof db.fetchAllUsefulItems>>[number]
+> = {
+  label: 'useful items',
+  fetchAll: () => db.fetchAllUsefulItems(config.supabase),
+  getName: (e) => e.name_en || e.name_es,
+  getId: (e) => e.id,
+  hasPicture: (e) => !!e.picture_url,
+  buildPrompt: usefulItemPrompt,
+  storageBucket: 'useful-items',
+  updateEntity: (id, url) => db.updateUsefulItem(config.supabase, id, { picture_url: url }),
+};
 
 // ─── Main ────────────────────────────────────────────────
 
@@ -280,19 +242,19 @@ async function main() {
   let totalFail = 0;
 
   if (entityType === 'ingredient' || entityType === 'all') {
-    const result = await processIngredients();
+    const result = await processEntities(ingredientConfig);
     totalSuccess += result.success;
     totalFail += result.fail;
   }
 
   if (entityType === 'recipe' || entityType === 'all') {
-    const result = await processRecipes();
+    const result = await processEntities(recipeConfig);
     totalSuccess += result.success;
     totalFail += result.fail;
   }
 
   if (entityType === 'useful_item' || entityType === 'all') {
-    const result = await processUsefulItems();
+    const result = await processEntities(usefulItemConfig);
     totalSuccess += result.success;
     totalFail += result.fail;
   }

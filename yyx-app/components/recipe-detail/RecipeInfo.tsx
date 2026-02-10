@@ -2,7 +2,6 @@ import React from 'react';
 import { View, ImageSourcePropType, StyleProp, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from '@/components/common/Text';
-import { RecipeDifficulty } from '@/types/recipe.types';
 import i18n from '@/i18n';
 import { formatTimeInHoursAndMinutes } from '@/utils/formatters';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +17,6 @@ interface InfoItemProps {
 export interface RecipeInfoProps {
   totalTime: number | null;
   prepTime: number | null;
-  difficulty: RecipeDifficulty;
   portions?: number;
   className?: string;
   style?: StyleProp<ViewStyle>;

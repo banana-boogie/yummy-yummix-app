@@ -60,7 +60,6 @@ export const RecipeCard = React.memo(function RecipeCard({
               <RecipeInfo
                 totalTime={recipe.totalTime}
                 prepTime={recipe.prepTime}
-                difficulty={recipe.difficulty}
               />
             )}
           </View>

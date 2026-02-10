@@ -282,6 +282,15 @@ export async function updateUsefulItem(
   if (error) throw new Error(`Failed to update useful item ${id}: ${error.message}`);
 }
 
+export async function updateTag(
+  supabase: SupabaseClient,
+  id: string,
+  updates: Partial<DbRecipeTag>,
+): Promise<void> {
+  const { error } = await supabase.from('recipe_tags').update(updates).eq('id', id);
+  if (error) throw new Error(`Failed to update tag ${id}: ${error.message}`);
+}
+
 export async function updateRecipe(
   supabase: SupabaseClient,
   id: string,

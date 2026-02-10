@@ -49,7 +49,6 @@ describe('RecipeInfo', () => {
   const defaultProps: RecipeInfoProps = {
     totalTime: 60,
     prepTime: 15,
-    difficulty: 'medium',
   };
 
   // ============================================================
@@ -141,7 +140,6 @@ describe('RecipeInfo', () => {
         <RecipeInfo
           totalTime={30}
           prepTime={10}
-          difficulty="easy"
         />
       );
 
@@ -153,7 +151,6 @@ describe('RecipeInfo', () => {
         <RecipeInfo
           totalTime={60}
           prepTime={20}
-          difficulty="hard"
           portions={8}
         />
       );
@@ -214,7 +211,6 @@ describe('RecipeInfo', () => {
         <RecipeInfo
           totalTime={null}
           prepTime={null}
-          difficulty="easy"
         />
       );
 

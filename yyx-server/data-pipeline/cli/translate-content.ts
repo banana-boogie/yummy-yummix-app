@@ -14,6 +14,7 @@
 import { createPipelineConfig, hasFlag, parseEnvironment, parseFlag } from '../lib/config.ts';
 import { Logger } from '../lib/logger.ts';
 import * as db from '../lib/db.ts';
+import { sleep } from '../lib/utils.ts';
 
 const logger = new Logger('translate');
 const env = parseEnvironment(Deno.args);
@@ -123,7 +124,7 @@ async function main() {
         logger.error(`Failed to translate "${name}": ${error}`);
       }
 
-      await new Promise((r) => setTimeout(r, 500));
+      await sleep(500);
     }
   }
 
@@ -155,7 +156,7 @@ async function main() {
         logger.error(`Failed to translate "${name}": ${error}`);
       }
 
-      await new Promise((r) => setTimeout(r, 500));
+      await sleep(500);
     }
   }
 
@@ -177,12 +178,7 @@ async function main() {
 
       try {
         const { nameEn, nameEs } = await translatePair(tag.name_en, tag.name_es);
-
-        const { error } = await config.supabase
-          .from('recipe_tags')
-          .update({ name_en: nameEn, name_es: nameEs })
-          .eq('id', tag.id);
-        if (error) throw new Error(error.message);
+        await db.updateTag(config.supabase, tag.id, { name_en: nameEn, name_es: nameEs });
 
         logger.success(`Translated tag: ${name} -> EN: ${nameEn}, ES: ${nameEs}`);
         totalTranslated++;
@@ -190,7 +186,7 @@ async function main() {
         logger.error(`Failed to translate "${name}": ${error}`);
       }
 
-      await new Promise((r) => setTimeout(r, 500));
+      await sleep(500);
     }
   }
 

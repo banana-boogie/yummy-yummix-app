@@ -4,7 +4,6 @@ import i18n from '@/i18n';
 import { Text } from '@/components/common/Text';
 import { AdminRecipe } from '@/types/recipe.admin.types';
 import { RecipeInfo } from '@/components/recipe-detail/RecipeInfo';
-import { RecipeDifficulty } from '@/types/recipe.types';
 import { RecipeIngredientsList } from '@/components/admin/recipes/forms/reviewForm/AdminRecipeIngredientsList';
 import { RecipeStepsList } from '@/components/admin/recipes/forms/reviewForm/AdminRecipeStepsList';
 import { RecipeTagsList } from '@/components/admin/recipes/forms/reviewForm/AdminRecipeTagsList';
@@ -48,7 +47,7 @@ export function ReviewForm({ recipe, onUpdateRecipe }: ReviewFormProps) {
         ) : null}
 
         <View className="self-center">
-          <RecipeInfo totalTime={recipe.totalTime || 0} prepTime={recipe.prepTime || 0} difficulty={recipe.difficulty || RecipeDifficulty.EASY} />
+          <RecipeInfo totalTime={recipe.totalTime || 0} prepTime={recipe.prepTime || 0} />
         </View>
 
         <View className="mb-md">

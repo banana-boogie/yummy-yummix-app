@@ -30,6 +30,51 @@ interface AuditIssue {
   issue: string;
 }
 
+interface AuditEntity {
+  id: string;
+  name_en: string;
+  name_es: string;
+  picture_url?: string;
+}
+
+function auditEntities(
+  entities: AuditEntity[],
+  type: AuditIssue['type'],
+  extraChecks?: (entity: AuditEntity) => AuditIssue[],
+): AuditIssue[] {
+  const issues: AuditIssue[] = [];
+  for (const entity of entities) {
+    if (!entity.picture_url) {
+      issues.push({
+        type,
+        id: entity.id,
+        name: entity.name_en || entity.name_es,
+        issue: 'missing_image',
+      });
+    }
+    if (!entity.name_en) {
+      issues.push({
+        type,
+        id: entity.id,
+        name: entity.name_es || '(unknown)',
+        issue: 'missing_english_name',
+      });
+    }
+    if (!entity.name_es) {
+      issues.push({
+        type,
+        id: entity.id,
+        name: entity.name_en || '(unknown)',
+        issue: 'missing_spanish_name',
+      });
+    }
+    if (extraChecks) {
+      issues.push(...extraChecks(entity));
+    }
+  }
+  return issues;
+}
+
 async function main() {
   logger.section(`Data Audit (${env})`);
 
@@ -41,110 +86,33 @@ async function main() {
 
   const issues: AuditIssue[] = [];
 
-  // ─── Audit Recipes ─────────────────────────────────────
   logger.info(`Auditing ${recipes.length} recipes...`);
-  for (const recipe of recipes) {
-    if (!recipe.picture_url) {
-      issues.push({
-        type: 'recipe',
-        id: recipe.id,
-        name: recipe.name_en || recipe.name_es,
-        issue: 'missing_image',
-      });
-    }
-    if (!recipe.name_en) {
-      issues.push({
-        type: 'recipe',
-        id: recipe.id,
-        name: recipe.name_es || '(unknown)',
-        issue: 'missing_english_name',
-      });
-    }
-    if (!recipe.name_es) {
-      issues.push({
-        type: 'recipe',
-        id: recipe.id,
-        name: recipe.name_en || '(unknown)',
-        issue: 'missing_spanish_name',
-      });
-    }
-  }
+  issues.push(...auditEntities(recipes, 'recipe'));
 
-  // ─── Audit Ingredients ─────────────────────────────────
   logger.info(`Auditing ${ingredients.length} ingredients...`);
-  for (const ing of ingredients) {
-    if (!ing.picture_url) {
-      issues.push({
-        type: 'ingredient',
-        id: ing.id,
-        name: ing.name_en || ing.name_es,
-        issue: 'missing_image',
-      });
-    }
-    const hasNutrition = ing.nutritional_facts &&
-      typeof ing.nutritional_facts === 'object' &&
-      Object.keys(ing.nutritional_facts).length > 0 &&
-      'per_100g' in ing.nutritional_facts;
+  issues.push(...auditEntities(ingredients, 'ingredient', (ing) => {
+    const facts = (ing as typeof ingredients[number]).nutritional_facts;
+    const hasNutrition = facts &&
+      typeof facts === 'object' &&
+      Object.keys(facts).length > 0 &&
+      'per_100g' in facts;
     if (!hasNutrition) {
-      issues.push({
+      return [{
         type: 'ingredient',
         id: ing.id,
         name: ing.name_en || ing.name_es,
         issue: 'missing_nutrition',
-      });
+      }];
     }
-    if (!ing.name_en) {
-      issues.push({
-        type: 'ingredient',
-        id: ing.id,
-        name: ing.name_es || '(unknown)',
-        issue: 'missing_english_name',
-      });
-    }
-    if (!ing.name_es) {
-      issues.push({
-        type: 'ingredient',
-        id: ing.id,
-        name: ing.name_en || '(unknown)',
-        issue: 'missing_spanish_name',
-      });
-    }
-  }
+    return [];
+  }));
 
-  // ─── Audit Useful Items ────────────────────────────────
   logger.info(`Auditing ${usefulItems.length} useful items...`);
-  for (const item of usefulItems) {
-    if (!item.picture_url) {
-      issues.push({
-        type: 'useful_item',
-        id: item.id,
-        name: item.name_en || item.name_es,
-        issue: 'missing_image',
-      });
-    }
-    if (!item.name_en) {
-      issues.push({
-        type: 'useful_item',
-        id: item.id,
-        name: item.name_es || '(unknown)',
-        issue: 'missing_english_name',
-      });
-    }
-    if (!item.name_es) {
-      issues.push({
-        type: 'useful_item',
-        id: item.id,
-        name: item.name_en || '(unknown)',
-        issue: 'missing_spanish_name',
-      });
-    }
-  }
+  issues.push(...auditEntities(usefulItems, 'useful_item'));
 
   // ─── Group and Report ──────────────────────────────────
-  const byType: Record<string, AuditIssue[]> = {};
   const byIssue: Record<string, AuditIssue[]> = {};
   for (const issue of issues) {
-    (byType[issue.type] ??= []).push(issue);
     (byIssue[issue.issue] ??= []).push(issue);
   }
 

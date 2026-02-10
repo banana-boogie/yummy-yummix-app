@@ -14,6 +14,7 @@
 import { createPipelineConfig, hasFlag, parseEnvironment, parseFlag } from '../lib/config.ts';
 import { Logger } from '../lib/logger.ts';
 import * as db from '../lib/db.ts';
+import { parseJsonFromLLM, sleep } from '../lib/utils.ts';
 
 const logger = new Logger('nutrition');
 const env = parseEnvironment(Deno.args);
@@ -22,7 +23,6 @@ const config = createPipelineConfig(env);
 const limit = parseInt(parseFlag(Deno.args, '--limit', '50') || '50', 10);
 const auditFile = parseFlag(Deno.args, '--from-audit');
 const dryRun = hasFlag(Deno.args, '--dry-run');
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // ─── USDA API ────────────────────────────────────────────
 
@@ -111,7 +111,7 @@ async function fetchFromOpenAI(ingredientName: string): Promise<NutritionData | 
       const content = data.choices?.[0]?.message?.content;
       if (!content) return null;
 
-      const nutrition = JSON.parse(content);
+      const nutrition = parseJsonFromLLM(content) as Record<string, unknown>;
       if (typeof nutrition.calories !== 'number') return null;
 
       return {
@@ -218,7 +218,7 @@ async function main() {
     }
 
     // Small delay to respect rate limits
-    await new Promise((r) => setTimeout(r, 500));
+    await sleep(500);
   }
 
   logger.summary({
