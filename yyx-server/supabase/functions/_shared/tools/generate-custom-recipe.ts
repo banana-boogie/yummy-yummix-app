@@ -22,6 +22,7 @@ import {
 } from "../allergen-filter.ts";
 import { buildSafetyReminders, checkRecipeSafety } from "../food-safety.ts";
 import { chat } from "../ai-gateway/index.ts";
+import { hasThermomix } from "../equipment-utils.ts";
 
 // ============================================================
 // Tool Definition (OpenAI Function Calling format)
@@ -164,10 +165,8 @@ export async function generateCustomRecipe(
   recipe.steps = validateThermomixSteps(recipe.steps);
 
   // Check Thermomix usage if user has Thermomix
-  const hasThermomix = userContext.kitchenEquipment.some((eq) =>
-    eq.toLowerCase().includes("thermomix")
-  );
-  validateThermomixUsage(recipe, hasThermomix);
+  const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
+  validateThermomixUsage(recipe, isThermomixUser);
   timings.thermomix_validation_ms = Math.round(performance.now() - phaseStart);
   phaseStart = performance.now();
 
@@ -189,7 +188,7 @@ export async function generateCustomRecipe(
       supabase,
       recipe,
       userContext.language,
-      hasThermomix,
+      isThermomixUser,
     ),
     checkRecipeSafety(
       supabase,
@@ -306,10 +305,8 @@ async function callRecipeGenerationAI(
   safetyReminders: string,
 ): Promise<GeneratedRecipe> {
   const prompt = buildRecipePrompt(params, userContext, safetyReminders);
-  const hasThermomix = userContext.kitchenEquipment.some((eq) =>
-    eq.toLowerCase().includes("thermomix")
-  );
-  const recipeSchema = buildRecipeJsonSchema(hasThermomix);
+  const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
+  const recipeSchema = buildRecipeJsonSchema(isThermomixUser);
   const systemPrompt = getSystemPrompt(userContext);
 
   const strictRetryPromptSuffix =
@@ -397,23 +394,21 @@ function getSystemPrompt(userContext: UserContext): string {
     ? "cups, tablespoons, teaspoons, ounces, pounds, °F"
     : "ml, liters, grams, kg, °C";
 
-  const hasThermomix = userContext.kitchenEquipment.some((eq) =>
-    eq.toLowerCase().includes("thermomix")
-  );
+  const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
 
   console.log("[Recipe Generation] Equipment check:", {
     kitchenEquipment: userContext.kitchenEquipment,
-    hasThermomix,
+    hasThermomix: isThermomixUser,
   });
 
-  if (!hasThermomix && userContext.kitchenEquipment.length > 0) {
+  if (!isThermomixUser && userContext.kitchenEquipment.length > 0) {
     console.warn(
       "[Recipe Generation] User has equipment but no Thermomix:",
       userContext.kitchenEquipment,
     );
   }
 
-  const thermomixSection = hasThermomix
+  const thermomixSection = isThermomixUser
     ? `
 
 ## THERMOMIX USAGE (User owns Thermomix - maximize usage!)
