@@ -1,129 +1,225 @@
-# Repository Guidelines
+# AGENT.md
 
-## Project Overview
-YummyYummix is a bilingual (English/Mexican Spanish) cross-platform cooking app for recipe discovery, step-by-step cooking guides, and AI-powered sous chef features. Designed for Thermomix users.
+Guidelines for AI coding agents working on the YummyYummix codebase. This file supplements [CLAUDE.md](./CLAUDE.md) with AI-specific instructions.
 
-## Project Structure & Module Organization
-- `yyx-app/` is the Expo React Native client.
-  - `app/` holds route files only (Expo Router). Do not place components or types here.
-  - `components/`, `hooks/`, `contexts/`, `services/`, `types/`, `utils/`, `constants/` are the main app modules.
-  - `assets/` contains fonts and images.
-- `yyx-server/` contains Supabase Edge Functions and DB assets.
-  - `supabase/functions/` holds Deno/TypeScript functions.
-  - `supabase/migrations/` contains database migrations.
+---
 
-## Build, Test, and Development Commands
-From `yyx-app/`:
-- `npm install` installs client dependencies.
-- `npm start` runs the Expo dev server.
-- `npm run ios` / `npm run android` / `npm run web` run platform builds.
-- `npm test` runs Jest in watch mode.
-- `npm run lint` runs ESLint via `expo lint`.
+## Core Principles
 
-From `yyx-server/`:
-- `npm run link` links workspace to Supabase Cloud project.
-- `npm run deploy <name>` deploys an edge function.
-- `npm run deploy:all` deploys all edge functions.
-- `npm run db:push` pushes migrations to cloud.
-- `npm run backup:all` backs up database and storage.
+1. **Read before writing** - Always read existing files before modifying them
+2. **Follow existing patterns** - Match the style and structure of similar files
+3. **Test your work** - Write tests for critical code you create or modify
+4. **Keep changes focused** - Don't refactor unrelated code or add unnecessary features
 
-## Supabase Cloud Development
+---
 
-YummyYummix uses Supabase Cloud (no local Docker). Claude Code has MCP access for:
+## Testing Requirements
 
-### Available MCP Operations
+> The testing requirements table below is also defined in the canonical [`docs/agent-guidelines/REVIEW-CRITERIA.md`](./docs/agent-guidelines/REVIEW-CRITERIA.md). Keep both in sync.
 
-**Database Operations:**
-- Execute SQL queries
-- Apply migrations
-- List tables and schemas
-- Pull remote schema
+**You MUST write tests for:**
 
-**Edge Functions:**
-- Deploy functions to cloud
-- View function logs
-- Get function source code
-- List all deployed functions
+| What You Create/Modify | Required Tests |
+|------------------------|----------------|
+| New component | Unit test covering rendering, interactions, states |
+| New service function | Unit test with mocked dependencies |
+| New Edge Function | Deno unit test + update integration tests |
+| Bug fix | Regression test that would have caught the bug |
+| Auth/security code | Comprehensive tests for success AND failure paths |
 
-**Logs and Debugging:**
-- Auth logs (login issues, session errors)
-- Edge function logs (errors, performance)
-- Database logs (slow queries, errors)
+### Before Writing Tests
 
-**Security and Performance:**
-- Run security advisors (RLS policy issues)
-- Run performance advisors (missing indexes)
+1. Read [TESTING.md](./docs/Operations/TESTING.md) for patterns and conventions
+2. Look at existing test files for similar code:
+   - `yyx-app/components/common/__tests__/Button.test.tsx` - Component test example
+   - `yyx-server/supabase/functions/_shared/__tests__/` - Deno test examples
+3. Use test factories - never manually construct test data
 
-### Example Prompts for Claude Code
+### Test File Structure
 
-**Debugging:**
-- "Check the edge function logs for the last hour"
-- "Show me auth errors from today"
-- "Are there any slow database queries?"
+```typescript
+/**
+ * ComponentName Tests
+ *
+ * Brief description of what's being tested.
+ *
+ * FOR AI AGENTS:
+ * - Note any special setup required
+ * - List mocks that need configuration
+ * - Reference related test files
+ */
 
-**Deployment:**
-- "Deploy the ai-chat function"
-- "List all deployed edge functions"
-- "Show me the current migration status"
+import { renderWithProviders, screen, fireEvent } from '@/test/utils/render';
+import { componentFactory } from '@/test/factories';
 
-**Database:**
-- "Show me the schema for the recipes table"
-- "Apply this migration: [SQL]"
-- "Pull the current cloud schema"
+// Mock dependencies BEFORE imports that use them
+jest.mock('@/hooks/useDevice', () => ({
+  useDevice: () => ({ isPhone: true, isTablet: false }),
+}));
 
-### MCP Security: Sensitive Credentials
+describe('ComponentName', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-**NEVER ask Claude to fetch sensitive credentials via MCP.**
+  // Group tests by category
+  describe('rendering', () => {
+    it('renders with default props', () => { /* ... */ });
+  });
 
-MCP tool results are sent to Anthropic's servers as part of the conversation context.
+  describe('interactions', () => {
+    it('calls onPress when pressed', () => { /* ... */ });
+  });
 
-**Safe to use MCP for:**
-- ✅ Logs, schema info, table listings
-- ✅ Security/performance advisors
-- ✅ Deploying functions, applying migrations
-
-**Get directly from dashboards (NOT via MCP):**
-- ❌ service_role_key
-- ❌ API keys (OpenAI, USDA, Cartesia)
-- ❌ Secret tokens, passwords
-
-### Backup Before Deploy (REQUIRED)
-
-**Always backup before deploying migrations:**
-```bash
-cd yyx-server
-npm run backup:all  # Database + Storage
+  describe('error states', () => {
+    it('shows error message when validation fails', () => { /* ... */ });
+  });
+});
 ```
 
-## Coding Style & Naming Conventions
-- Use TypeScript and functional components; one component per file.
-- Imports should use the `@/` alias (e.g., `@/components/common`).
-- Use NativeWind classes via `className`; keep branding consistent by using design tokens in `yyx-app/constants/design-tokens.js`.
-- Always use the app `Text` component (`@/components/common/Text`) instead of React Native `Text`.
-- Keep layouts consistent by using `PageLayout` and `ResponsiveLayout`.
-- All user-facing strings must go through i18n so language can switch cleanly.
+### Running Tests
 
-## Testing Guidelines
-- Framework: Jest via `jest-expo`.
-- Tests live next to components (e.g., `yyx-app/components/__tests__/Text-test.tsx`).
-- Run a single test: `npx jest path/to/test --watch`.
+```bash
+# Always run tests after making changes
+cd yyx-app && npm test -- --watchAll=false  # Frontend
+cd yyx-server && deno task test              # Backend
 
-## Commit & Pull Request Guidelines
-- Use Conventional Commits: `feat(scope): ...`, `fix(scope): ...`, `docs: ...`.
-- Branches: `feature/...`, `fix/...`, `hotfix/...`, `release/...`.
-- PRs should describe changes, note testing, and include screenshots for UI changes.
+# Run specific test file
+npx jest components/common/__tests__/Button.test.tsx
+```
 
-## AI Collaboration
+---
 
-For iterative development with multiple AIs:
-- **AI #1**: Plans and implements features
-- **AI #2**: Reviews changes and provides feedback
-- Iterate until satisfied
+## Code Quality Checklist
 
-See [docs/ai-prompts.md](docs/ai-prompts.md) for copy-paste prompts.
+Before considering your work complete, verify:
 
-## Configuration & Security Tips
-- App secrets live in `.env.local` (gitignored).
-- Template files `.env.example` are committed with dummy values.
-- Never commit actual secrets; keep `.env` and `.env.local` in `.gitignore`.
-- Get service_role_key and API keys directly from dashboards, never via MCP.
+- [ ] Code follows existing patterns in the codebase
+- [ ] TypeScript has no errors (`npm run typecheck`)
+- [ ] ESLint passes (`npm run lint`)
+- [ ] Tests pass (`npm test`)
+- [ ] **New tests written** for critical functionality
+- [ ] No hardcoded strings (use i18n)
+- [ ] No console.log statements left in code
+- [ ] Imports use `@/` alias
+
+---
+
+## Critical vs Non-Critical Code
+
+### Always Test (Critical)
+
+- **Authentication**: Login, logout, session management, protected routes
+- **Data mutations**: Create, update, delete operations
+- **Payment/billing**: Any code touching money (future)
+- **User input validation**: Forms, search, filters
+- **Core components**: Button, Text, Input, Modal, Form components
+- **Business logic**: Recipe calculations, unit conversions, scoring
+- **Edge Functions**: All serverless functions
+
+### Optional Tests (Non-Critical)
+
+- Pure presentational components with no logic
+- Static pages (About, Terms, etc.)
+- Simple wrappers around library components
+- Development-only utilities
+
+---
+
+## Common Patterns
+
+### Mocking Supabase
+
+```typescript
+import { mockDatabaseQuery, mockSupabaseAuthSuccess } from '@/test/mocks/supabase';
+import { userFactory, recipeFactory } from '@/test/factories';
+
+// Mock authenticated user
+mockSupabaseAuthSuccess(userFactory.createSupabaseUser());
+
+// Mock database query
+mockDatabaseQuery('recipes', recipeFactory.createList(5));
+```
+
+### Testing Async Operations
+
+```typescript
+import { waitFor } from '@testing-library/react-native';
+
+it('loads data on mount', async () => {
+  renderWithProviders(<RecipeList />);
+
+  await waitFor(() => {
+    expect(screen.getByText('Recipe 1')).toBeTruthy();
+  });
+});
+```
+
+### Testing Error States
+
+```typescript
+import { mockDatabaseError } from '@/test/mocks/supabase';
+
+it('shows error when fetch fails', async () => {
+  mockDatabaseError('recipes', 'Network error');
+
+  renderWithProviders(<RecipeList />);
+
+  await waitFor(() => {
+    expect(screen.getByText(/error/i)).toBeTruthy();
+  });
+});
+```
+
+---
+
+## File Locations
+
+| What | Where |
+|------|-------|
+| Test utilities | `yyx-app/test/utils/` |
+| Mock helpers | `yyx-app/test/mocks/` |
+| Test factories | `yyx-app/test/factories/` |
+| Component tests | `yyx-app/components/**/__tests__/` |
+| Service tests | `yyx-app/services/__tests__/` |
+| Hook tests | `yyx-app/hooks/__tests__/` |
+| Deno test helpers | `yyx-server/supabase/functions/_shared/test-helpers/` |
+| Deno unit tests | Next to source file as `*.test.ts` |
+| Integration tests | `yyx-server/supabase/functions/__tests__/` |
+
+---
+
+## Troubleshooting
+
+### "Cannot find module" in tests
+
+Ensure Jest moduleNameMapper in `jest.config.js` matches tsconfig paths.
+
+### Mock not working
+
+Mocks must be defined BEFORE importing the module that uses them:
+```typescript
+// CORRECT
+jest.mock('@/lib/supabase');
+import { supabase } from '@/lib/supabase';
+
+// WRONG - import before mock
+import { supabase } from '@/lib/supabase';
+jest.mock('@/lib/supabase');
+```
+
+### Test passes locally but fails in CI
+
+- Check for time-dependent tests (use fake timers)
+- Check for random data (use seeded factories)
+- Check for environment-specific code
+
+---
+
+## Resources
+
+- [TESTING.md](./docs/Operations/TESTING.md) - Full testing documentation
+- [CLAUDE.md](./CLAUDE.md) - General development guidelines
+- Example tests:
+  - `yyx-app/components/common/__tests__/Button.test.tsx`
+  - `yyx-server/supabase/functions/_shared/__tests__/recipe-validator.test.ts`
