@@ -53,6 +53,10 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
     const [isSyncing, setIsSyncing] = useState(false);
     const [pendingCount, setPendingCount] = useState(0);
     const wasOfflineRef = useRef(false);
+    const syncNowRef = useRef<() => Promise<void>>(async () => { });
+    const autoSyncRef = useRef(autoSync);
+    const isConnectedRef = useRef(isConnected);
+    const initialAutoSyncNamespaceRef = useRef<string | null>(null);
 
     const isOffline = !isConnected;
 
@@ -176,23 +180,52 @@ export function useOfflineSync(options: UseOfflineSyncOptions = {}): UseOfflineS
         return id;
     }, [refreshPendingCount]);
 
+    useEffect(() => {
+        syncNowRef.current = syncNow;
+    }, [syncNow]);
+
+    useEffect(() => {
+        autoSyncRef.current = autoSync;
+    }, [autoSync]);
+
+    useEffect(() => {
+        isConnectedRef.current = isConnected;
+    }, [isConnected]);
+
     // Initialize queue namespace based on current user and keep in sync on auth changes
     useEffect(() => {
         let isMounted = true;
 
+        const maybeRunInitialAutoSync = async (namespace?: string | null) => {
+            const normalizedNamespace = namespace ?? 'anon';
+
+            // Only run once per namespace to avoid duplicate startup sync calls.
+            if (initialAutoSyncNamespaceRef.current === normalizedNamespace) return;
+            if (!autoSyncRef.current || !isConnectedRef.current) return;
+
+            initialAutoSyncNamespaceRef.current = normalizedNamespace;
+            await syncNowRef.current();
+        };
+
         const initNamespace = async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            mutationQueue.setNamespace(user?.id);
+            const namespace = user?.id ?? null;
+            mutationQueue.setNamespace(namespace);
             if (isMounted) {
-                refreshPendingCount();
+                await refreshPendingCount();
+                await maybeRunInitialAutoSync(namespace);
             }
         };
 
         initNamespace();
 
-        const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-            mutationQueue.setNamespace(session?.user?.id);
-            refreshPendingCount();
+        const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (!isMounted) return;
+
+            const namespace = session?.user?.id ?? null;
+            mutationQueue.setNamespace(namespace);
+            await refreshPendingCount();
+            await maybeRunInitialAutoSync(namespace);
         });
 
         return () => {

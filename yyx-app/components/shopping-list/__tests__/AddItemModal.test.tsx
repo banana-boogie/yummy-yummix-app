@@ -87,4 +87,26 @@ describe('AddItemModal', () => {
       notes: undefined,
     });
   });
+
+  it('renders all provided categories in the selector', () => {
+    const categories = Array.from({ length: 8 }, (_, index) =>
+      shoppingListFactory.createCategory({
+        id: `category-${index + 1}`,
+        nameEn: `Category ${index + 1}`,
+        nameEs: `Categoria ${index + 1}`,
+        displayOrder: index + 1,
+      })
+    );
+
+    render(
+      <AddItemModal
+        visible
+        onClose={jest.fn()}
+        onAddItem={jest.fn()}
+        categories={categories}
+      />
+    );
+
+    expect(screen.getByText('Category 8')).toBeTruthy();
+  });
 });

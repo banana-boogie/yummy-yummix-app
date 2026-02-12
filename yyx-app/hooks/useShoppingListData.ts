@@ -123,6 +123,10 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
                 });
                 toast.showSuccess(i18n.t('shoppingList.itemRestored'));
             },
+            onError: () => {
+                toast.showError(i18n.t('common.errors.title'), i18n.t('common.errors.default'));
+                void fetchListRef.current?.(true);
+            },
         }
     );
 
@@ -416,7 +420,7 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
             } else {
                 await shoppingListService.updateItemsOrder(updates, listId);
             }
-        } catch (error) {
+        } catch {
             setList(previousList);
             toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.reorderError'));
         }

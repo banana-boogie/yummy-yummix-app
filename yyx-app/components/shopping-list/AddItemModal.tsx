@@ -157,7 +157,7 @@ export function AddItemModal({ visible, onClose, onAddItem, categories }: AddIte
                     <View className="mb-md">
                         <Text preset="caption" className="text-text-secondary mb-xs">{i18n.t('shoppingList.item.category')}</Text>
                         <View className="flex-row flex-wrap">
-                            {categories.slice(0, 6).map(cat => (
+                            {categories.map(cat => (
                                 <TouchableOpacity key={cat.id} onPress={() => setSelectedCategory(cat.id)} className={`px-md py-sm rounded-xl mr-xs mb-xs ${selectedCategory === cat.id ? 'bg-primary-medium' : 'bg-grey-lightest'}`}>
                                     <Text preset="caption" className={selectedCategory === cat.id ? 'text-text-default' : 'text-text-secondary'}>{getCategoryName(cat.id)}</Text>
                                 </TouchableOpacity>

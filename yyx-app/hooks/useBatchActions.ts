@@ -59,6 +59,20 @@ export function useBatchActions({
     const [isBatchUnchecking, setIsBatchUnchecking] = useState(false);
     const [isBatchDeleting, setIsBatchDeleting] = useState(false);
     const [isClearingChecked, setIsClearingChecked] = useState(false);
+    const currentListId = list?.id;
+
+    const refreshListFromServer = useCallback(async () => {
+        if (!currentListId) return;
+
+        try {
+            const latestList = await shoppingListService.getShoppingListById(currentListId, false);
+            if (latestList) {
+                setList(latestList);
+            }
+        } catch (error) {
+            console.error('Failed to refresh shopping list after commit error:', error);
+        }
+    }, [currentListId, setList]);
 
     // Undoable batch delete hook
     const { queueDeletion: queueBatchDeletion } = useUndoableDelete<ShoppingListItem[]>(
@@ -105,6 +119,10 @@ export function useBatchActions({
                 });
                 toast.showSuccess(i18n.t('shoppingList.itemsRestored', { count: items.length }));
             },
+            onError: () => {
+                toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.batchError'));
+                void refreshListFromServer();
+            },
         }
     );
 
@@ -144,7 +162,7 @@ export function useBatchActions({
             const toastKey = isChecked ? 'shoppingList.batchCheckSuccess' : 'shoppingList.batchUncheckSuccess';
             toast.showSuccess(i18n.t(toastKey, { count: itemIds.length }));
             clearSelection();
-        } catch (error) {
+        } catch {
             setList(previousList);
             toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.batchError'));
         } finally {
@@ -166,7 +184,6 @@ export function useBatchActions({
         setIsBatchDeleting(true);
 
         const itemIds = Array.from(selectedItems);
-        const previousList = list;
         const listId = list?.id;
 
         // Collect items being deleted for undo
@@ -227,7 +244,6 @@ export function useBatchActions({
         if (!list) return;
 
         setIsClearingChecked(true);
-        const previousList = list;
         const listId = list?.id;
 
         // Collect all checked items
