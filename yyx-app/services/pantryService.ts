@@ -1,13 +1,13 @@
 import i18n from '@/i18n';
 import { supabase } from '@/lib/supabase';
 import { PantryItem, PantryItemCreate, PantryItemUpdate, FavoriteShoppingItem, FavoriteShoppingItemCreate, ShoppingCategory } from '@/types/shopping-list.types';
-import { MeasurementUnit } from '@/types/recipe.types';
 import { shoppingListService } from './shoppingListService';
+import { getLanguageSuffix, mapIngredient, mapMeasurementUnit } from './utils/mapSupabaseItem';
 
-const getLangSuffix = () => `_${i18n.locale}`;
+const getLangSuffix = getLanguageSuffix;
 
 export const pantryService = {
-    async getPantryItems(): Promise<{ categories: (ShoppingCategory & { items: PantryItem[] })[] }> {
+    async getPantryItems(): Promise<{ categories: (ShoppingCategory & { localizedName: string; items: PantryItem[] })[] }> {
         const lang = getLangSuffix();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
@@ -24,29 +24,25 @@ export const pantryService = {
 
         if (error) throw new Error(`Error fetching pantry items: ${error.message}`);
 
-        const items: PantryItem[] = (data ?? []).map((item: any) => ({
-            id: item.id,
-            userId: item.user_id,
-            ingredientId: item.ingredient_id,
-            categoryId: item.category_id,
-            name: item.ingredient?.[`name${lang}`] ?? item.name_custom ?? '',
-            pluralName: item.ingredient?.[`plural_name${lang}`],
-            pictureUrl: item.ingredient?.picture_url,
-            quantity: parseFloat(item.quantity) || 1,
-            unit: item.measurement_unit ? {
-                id: item.measurement_unit.id,
-                type: item.measurement_unit.type,
-                system: item.measurement_unit.system,
-                name: item.measurement_unit[`name${lang}`],
-                symbol: item.measurement_unit[`symbol${lang}`],
-            } as MeasurementUnit : undefined,
-            createdAt: item.created_at,
-            updatedAt: item.updated_at,
-        }));
+        const items: PantryItem[] = (data ?? []).map((item: any) => {
+            const ingredient = mapIngredient(item.ingredient, lang, item.name_custom);
+            return {
+                id: item.id,
+                userId: item.user_id,
+                ingredientId: item.ingredient_id,
+                categoryId: item.category_id,
+                ...ingredient,
+                quantity: parseFloat(item.quantity) || 1,
+                unit: mapMeasurementUnit(item.measurement_unit, lang),
+                createdAt: item.created_at,
+                updatedAt: item.updated_at,
+            };
+        });
 
         const categories = await shoppingListService.getCategories();
         const categoriesWithItems = categories.map(cat => ({
             ...cat,
+            localizedName: i18n.locale === 'es' ? cat.nameEs : cat.nameEn,
             items: items.filter(item => item.categoryId === cat.id),
         })).filter(cat => cat.items.length > 0);
 
@@ -77,22 +73,15 @@ export const pantryService = {
 
         if (error) throw new Error(`Error adding pantry item: ${error.message}`);
 
+        const ingredient = mapIngredient(data.ingredient as any, lang, data.name_custom);
         return {
             id: data.id,
             userId: data.user_id,
             ingredientId: data.ingredient_id,
             categoryId: data.category_id,
-            name: (data.ingredient as any)?.[`name${lang}`] ?? data.name_custom ?? '',
-            pluralName: (data.ingredient as any)?.[`plural_name${lang}`],
-            pictureUrl: (data.ingredient as any)?.picture_url,
+            ...ingredient,
             quantity: parseFloat(data.quantity) || 1,
-            unit: data.measurement_unit ? {
-                id: (data.measurement_unit as any).id,
-                type: (data.measurement_unit as any).type,
-                system: (data.measurement_unit as any).system,
-                name: (data.measurement_unit as any)[`name${lang}`],
-                symbol: (data.measurement_unit as any)[`symbol${lang}`],
-            } as MeasurementUnit : undefined,
+            unit: mapMeasurementUnit(data.measurement_unit as any, lang),
             createdAt: data.created_at,
             updatedAt: data.updated_at,
         };
@@ -130,26 +119,21 @@ export const pantryService = {
 
         if (error) throw new Error(`Error fetching favorites: ${error.message}`);
 
-        return (data ?? []).map((item: any) => ({
-            id: item.id,
-            userId: item.user_id,
-            ingredientId: item.ingredient_id,
-            categoryId: item.category_id,
-            name: item.ingredient?.[`name${lang}`] ?? item.name_custom ?? '',
-            pluralName: item.ingredient?.[`plural_name${lang}`],
-            pictureUrl: item.ingredient?.picture_url,
-            defaultQuantity: parseFloat(item.default_quantity) || 1,
-            defaultUnit: item.measurement_unit ? {
-                id: item.measurement_unit.id,
-                type: item.measurement_unit.type,
-                system: item.measurement_unit.system,
-                name: item.measurement_unit[`name${lang}`],
-                symbol: item.measurement_unit[`symbol${lang}`],
-            } as MeasurementUnit : undefined,
-            purchaseCount: item.purchase_count,
-            createdAt: item.created_at,
-            updatedAt: item.updated_at,
-        }));
+        return (data ?? []).map((item: any) => {
+            const ingredient = mapIngredient(item.ingredient, lang, item.name_custom);
+            return {
+                id: item.id,
+                userId: item.user_id,
+                ingredientId: item.ingredient_id,
+                categoryId: item.category_id,
+                ...ingredient,
+                defaultQuantity: parseFloat(item.default_quantity) || 1,
+                defaultUnit: mapMeasurementUnit(item.measurement_unit, lang),
+                purchaseCount: item.purchase_count,
+                createdAt: item.created_at,
+                updatedAt: item.updated_at,
+            };
+        });
     },
 
     async addToFavorites(item: FavoriteShoppingItemCreate): Promise<FavoriteShoppingItem> {
@@ -176,22 +160,15 @@ export const pantryService = {
 
         if (error) throw new Error(`Error adding to favorites: ${error.message}`);
 
+        const ingredient = mapIngredient(data.ingredient as any, lang, data.name_custom);
         return {
             id: data.id,
             userId: data.user_id,
             ingredientId: data.ingredient_id,
             categoryId: data.category_id,
-            name: (data.ingredient as any)?.[`name${lang}`] ?? data.name_custom ?? '',
-            pluralName: (data.ingredient as any)?.[`plural_name${lang}`],
-            pictureUrl: (data.ingredient as any)?.picture_url,
+            ...ingredient,
             defaultQuantity: parseFloat(data.default_quantity) || 1,
-            defaultUnit: data.measurement_unit ? {
-                id: (data.measurement_unit as any).id,
-                type: (data.measurement_unit as any).type,
-                system: (data.measurement_unit as any).system,
-                name: (data.measurement_unit as any)[`name${lang}`],
-                symbol: (data.measurement_unit as any)[`symbol${lang}`],
-            } as MeasurementUnit : undefined,
+            defaultUnit: mapMeasurementUnit(data.measurement_unit as any, lang),
             purchaseCount: data.purchase_count,
             createdAt: data.created_at,
             updatedAt: data.updated_at,

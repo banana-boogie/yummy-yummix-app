@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, FlatList, TouchableOpacity } from 'react-native';
+import { View, FlatList } from 'react-native';
 import { Stack } from 'expo-router';
 import { Text } from '@/components/common';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 import { pantryService } from '@/services/pantryService';
 import { FavoriteShoppingItem } from '@/types/shopping-list.types';
@@ -41,12 +39,6 @@ export default function FavoritesScreen() {
                                 {i18n.t('shoppingList.purchasedTimes', { count: item.purchaseCount })}
                             </Text>
                         </View>
-                        <TouchableOpacity
-                            onPress={() => { /* TODO: Add to specific list modal */ }}
-                            className="bg-primary-light p-sm rounded-full"
-                        >
-                            <Ionicons name="add" size={24} color={COLORS.primary.darkest} />
-                        </TouchableOpacity>
                     </View>
                 )}
                 contentContainerStyle={{ padding: 0 }}

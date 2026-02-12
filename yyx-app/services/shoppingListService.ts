@@ -11,15 +11,15 @@ import {
     ConsolidationResult,
     IngredientSuggestion,
 } from '@/types/shopping-list.types';
-import { MeasurementUnit } from '@/types/recipe.types';
 import {
     shoppingListDetailCache,
     shoppingListsSummaryCache,
     shoppingCategoryCache,
     invalidateAllShoppingListCaches,
 } from './cache/shoppingListCache';
+import { getLanguageSuffix, mapIngredient, mapMeasurementUnit } from './utils/mapSupabaseItem';
 
-const getLangSuffix = () => `_${i18n.locale}`;
+const getLangSuffix = getLanguageSuffix;
 const getCurrentUserId = async (): Promise<string | undefined> => {
     const { data: { user } } = await supabase.auth.getUser();
     return user?.id;
@@ -120,30 +120,25 @@ export const shoppingListService = {
 
         const categories = await this.getCategories();
 
-        const items: ShoppingListItem[] = (itemsData ?? []).map((item: any) => ({
-            id: item.id,
-            shoppingListId: item.shopping_list_id,
-            ingredientId: item.ingredient_id,
-            categoryId: item.category_id,
-            name: item.ingredient?.[`name${lang}`] ?? item.name_custom ?? '',
-            pluralName: item.ingredient?.[`plural_name${lang}`],
-            pictureUrl: item.ingredient?.picture_url,
-            quantity: parseFloat(item.quantity) || 1,
-            unit: item.measurement_unit ? {
-                id: item.measurement_unit.id,
-                type: item.measurement_unit.type,
-                system: item.measurement_unit.system,
-                name: item.measurement_unit[`name${lang}`],
-                symbol: item.measurement_unit[`symbol${lang}`],
-            } as MeasurementUnit : undefined,
-            notes: item.notes,
-            isChecked: item.is_checked,
-            checkedAt: item.checked_at,
-            recipeId: item.recipe_id,
-            displayOrder: item.display_order,
-            createdAt: item.created_at,
-            updatedAt: item.updated_at,
-        }));
+        const items: ShoppingListItem[] = (itemsData ?? []).map((item: any) => {
+            const ingredient = mapIngredient(item.ingredient, lang, item.name_custom);
+            return {
+                id: item.id,
+                shoppingListId: item.shopping_list_id,
+                ingredientId: item.ingredient_id,
+                categoryId: item.category_id,
+                ...ingredient,
+                quantity: parseFloat(item.quantity) || 1,
+                unit: mapMeasurementUnit(item.measurement_unit, lang),
+                notes: item.notes,
+                isChecked: item.is_checked,
+                checkedAt: item.checked_at,
+                recipeId: item.recipe_id,
+                displayOrder: item.display_order,
+                createdAt: item.created_at,
+                updatedAt: item.updated_at,
+            };
+        });
 
         const categoriesWithItems: ShoppingCategoryWithItems[] = categories.map(category => ({
             ...category,
@@ -244,22 +239,15 @@ export const shoppingListService = {
         const userId = await getCurrentUserId();
         await invalidateShoppingCaches(userId, item.shoppingListId);
 
+        const ingredient = mapIngredient(data.ingredient as any, lang, data.name_custom);
         return {
             id: data.id,
             shoppingListId: data.shopping_list_id,
             ingredientId: data.ingredient_id,
             categoryId: data.category_id,
-            name: (data.ingredient as any)?.[`name${lang}`] ?? data.name_custom ?? '',
-            pluralName: (data.ingredient as any)?.[`plural_name${lang}`],
-            pictureUrl: (data.ingredient as any)?.picture_url,
+            ...ingredient,
             quantity: parseFloat(data.quantity) || 1,
-            unit: data.measurement_unit ? {
-                id: (data.measurement_unit as any).id,
-                type: (data.measurement_unit as any).type,
-                system: (data.measurement_unit as any).system,
-                name: (data.measurement_unit as any)[`name${lang}`],
-                symbol: (data.measurement_unit as any)[`symbol${lang}`],
-            } as MeasurementUnit : undefined,
+            unit: mapMeasurementUnit(data.measurement_unit as any, lang),
             notes: data.notes,
             isChecked: data.is_checked,
             checkedAt: data.checked_at,
@@ -412,6 +400,8 @@ export const shoppingListService = {
             name: ing[`name${lang}`],
             pluralName: ing[`plural_name${lang}`],
             pictureUrl: ing.picture_url,
+            // Ingredients table has no category mapping. Default to 'other';
+            // users can reassign the category when adding to their list.
             categoryId: 'other',
         }));
     },

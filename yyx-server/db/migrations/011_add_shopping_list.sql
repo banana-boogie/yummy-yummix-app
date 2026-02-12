@@ -128,6 +128,15 @@ CREATE INDEX idx_pantry_user ON pantry_items(user_id);
 CREATE INDEX idx_favorites_user ON favorite_shopping_items(user_id);
 CREATE INDEX idx_purchase_history_user ON purchase_history(user_id);
 
+-- Function to update updated_at timestamp (CREATE OR REPLACE is safe if already exists)
+CREATE OR REPLACE FUNCTION update_modified_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Trigger to update updated_at
 CREATE TRIGGER update_shopping_lists_modtime BEFORE UPDATE ON shopping_lists FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 CREATE TRIGGER update_shopping_list_items_modtime BEFORE UPDATE ON shopping_list_items FOR EACH ROW EXECUTE PROCEDURE update_modified_column();

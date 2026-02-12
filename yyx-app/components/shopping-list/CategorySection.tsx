@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, TouchableOpacity, LayoutAnimation, Platform, UIManager } from 'react-native';
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { Text } from '@/components/common';
@@ -30,7 +30,7 @@ interface CategorySectionProps {
     onSelectAllInCategory?: (categoryId: string, itemIds: string[]) => void;
 }
 
-export function CategorySection({ category, onCheckItem, onDeleteItem, onPressItem, onQuantityChange, onReorderItems, defaultExpanded = true, isExpanded: controlledExpanded, onToggleExpand, isSelectMode = false, selectedItems, onToggleSelection, onSelectAllInCategory }: CategorySectionProps) {
+export const CategorySection = React.memo(function CategorySection({ category, onCheckItem, onDeleteItem, onPressItem, onQuantityChange, onReorderItems, defaultExpanded = true, isExpanded: controlledExpanded, onToggleExpand, isSelectMode = false, selectedItems, onToggleSelection, onSelectAllInCategory }: CategorySectionProps) {
     const [localExpanded, setLocalExpanded] = useState(defaultExpanded);
 
     // Use controlled state if provided, otherwise use local state
@@ -75,7 +75,7 @@ export function CategorySection({ category, onCheckItem, onDeleteItem, onPressIt
         }
     };
 
-    const renderItem = ({ item, drag, isActive }: RenderItemParams<ShoppingListItem>) => (
+    const renderItem = useCallback(({ item, drag, isActive }: RenderItemParams<ShoppingListItem>) => (
         <DraggableShoppingListItem
             item={item}
             drag={isSelectMode ? undefined : drag}
@@ -99,7 +99,7 @@ export function CategorySection({ category, onCheckItem, onDeleteItem, onPressIt
             isSelectMode={isSelectMode}
             isSelected={selectedItems?.has(item.id)}
         />
-    );
+    ), [isSelectMode, onToggleSelection, onCheckItem, onDeleteItem, onPressItem, onQuantityChange, selectedItems]);
 
     return (
         <View className="mb-md">
@@ -193,6 +193,6 @@ export function CategorySection({ category, onCheckItem, onDeleteItem, onPressIt
             )}
         </View>
     );
-}
+});
 
 export default CategorySection;

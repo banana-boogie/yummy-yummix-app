@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { View, FlatList, Alert } from 'react-native';
+import { View, FlatList } from 'react-native';
 import { Stack } from 'expo-router';
 import { Text } from '@/components/common';
 import i18n from '@/i18n';
 import { pantryService } from '@/services/pantryService';
 import { PantryItem, ShoppingCategory } from '@/types/shopping-list.types';
+import { useToast } from '@/hooks/useToast';
 
 export default function PantryScreen() {
-    const [data, setData] = useState<(ShoppingCategory & { items: PantryItem[] })[]>([]);
+    const [data, setData] = useState<(ShoppingCategory & { localizedName: string; items: PantryItem[] })[]>([]);
     const [loading, setLoading] = useState(true);
+    const toast = useToast();
 
     const fetchData = async () => {
         try {
@@ -16,7 +18,7 @@ export default function PantryScreen() {
             setData(categories);
         } catch (error) {
             console.error(error);
-            Alert.alert(i18n.t('common.errors.title'), i18n.t('common.errors.default'));
+            toast.showError(i18n.t('common.errors.title'), i18n.t('common.errors.default'));
         } finally {
             setLoading(false);
         }
@@ -39,7 +41,7 @@ export default function PantryScreen() {
                 renderItem={({ item }) => (
                     <View className="mb-md px-md">
                         <Text preset="subheading" className="mb-xs">{item.localizedName}</Text>
-                        {item.items.map((pantryItem: any) => (
+                        {item.items.map((pantryItem: PantryItem) => (
                             <View key={pantryItem.id} className="flex-row justify-between py-sm border-b border-grey-lightest">
                                 <Text>{pantryItem.name}</Text>
                                 <Text className="text-text-secondary">{pantryItem.quantity} {pantryItem.unit?.symbol}</Text>

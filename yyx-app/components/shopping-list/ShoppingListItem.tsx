@@ -110,11 +110,6 @@ export const ShoppingListItemRow = React.memo(function ShoppingListItemRow({
         return `${formattedQty} ${unit}`.trim();
     };
 
-    // Determine checkbox state based on mode
-    const checkboxState = isSelectMode
-        ? (isSelected ? 'selected' : 'unselected')
-        : (item.isChecked ? 'checked' : 'unchecked');
-
     return (
         <View className="mb-xs">
             {/* Delete button background - hidden in select mode */}

@@ -110,13 +110,14 @@ export function useBatchActions({
 
     const isAnyBatchOperationInProgress = isBatchChecking || isBatchUnchecking || isBatchDeleting || isClearingChecked;
 
-    // Batch check handler
-    const handleBatchCheck = useCallback(async () => {
+    // Shared batch toggle handler
+    const handleBatchToggle = useCallback(async (isChecked: boolean) => {
         const itemIds = Array.from(selectedItems);
         const previousList = list;
         const listId = list?.id;
+        const setLoading = isChecked ? setIsBatchChecking : setIsBatchUnchecking;
 
-        setIsBatchChecking(true);
+        setLoading(true);
 
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setList(current => {
@@ -124,7 +125,7 @@ export function useBatchActions({
             const updatedCategories = current.categories.map(cat => ({
                 ...cat,
                 items: cat.items.map(item =>
-                    selectedItems.has(item.id) ? { ...item, isChecked: true } : item
+                    selectedItems.has(item.id) ? { ...item, isChecked } : item
                 ),
             }));
             const newCheckedCount = updatedCategories.reduce(
@@ -136,59 +137,23 @@ export function useBatchActions({
 
         try {
             if (isOffline) {
-                await queueMutation('BATCH_CHECK', { itemIds, isChecked: true, listId });
+                await queueMutation('BATCH_CHECK', { itemIds, isChecked, listId });
             } else {
-                await shoppingListService.batchUpdateItems(itemIds, { isChecked: true }, listId);
+                await shoppingListService.batchUpdateItems(itemIds, { isChecked }, listId);
             }
-            toast.showSuccess(i18n.t('shoppingList.batchCheckSuccess', { count: itemIds.length }));
+            const toastKey = isChecked ? 'shoppingList.batchCheckSuccess' : 'shoppingList.batchUncheckSuccess';
+            toast.showSuccess(i18n.t(toastKey, { count: itemIds.length }));
             clearSelection();
         } catch (error) {
             setList(previousList);
             toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.batchError'));
         } finally {
-            setIsBatchChecking(false);
+            setLoading(false);
         }
     }, [list, selectedItems, isOffline, queueMutation, toast, clearSelection, setList]);
 
-    // Batch uncheck handler
-    const handleBatchUncheck = useCallback(async () => {
-        const itemIds = Array.from(selectedItems);
-        const previousList = list;
-        const listId = list?.id;
-
-        setIsBatchUnchecking(true);
-
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setList(current => {
-            if (!current) return null;
-            const updatedCategories = current.categories.map(cat => ({
-                ...cat,
-                items: cat.items.map(item =>
-                    selectedItems.has(item.id) ? { ...item, isChecked: false } : item
-                ),
-            }));
-            const newCheckedCount = updatedCategories.reduce(
-                (count, cat) => count + cat.items.filter(item => item.isChecked).length,
-                0
-            );
-            return { ...current, categories: updatedCategories, checkedCount: newCheckedCount };
-        });
-
-        try {
-            if (isOffline) {
-                await queueMutation('BATCH_CHECK', { itemIds, isChecked: false, listId });
-            } else {
-                await shoppingListService.batchUpdateItems(itemIds, { isChecked: false }, listId);
-            }
-            toast.showSuccess(i18n.t('shoppingList.batchUncheckSuccess', { count: itemIds.length }));
-            clearSelection();
-        } catch (error) {
-            setList(previousList);
-            toast.showError(i18n.t('common.errors.title'), i18n.t('shoppingList.batchError'));
-        } finally {
-            setIsBatchUnchecking(false);
-        }
-    }, [list, selectedItems, isOffline, queueMutation, toast, clearSelection, setList]);
+    const handleBatchCheck = useCallback(() => handleBatchToggle(true), [handleBatchToggle]);
+    const handleBatchUncheck = useCallback(() => handleBatchToggle(false), [handleBatchToggle]);
 
     // Show delete confirmation modal
     const handleBatchDeleteRequest = useCallback(() => {

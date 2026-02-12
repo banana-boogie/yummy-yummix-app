@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import Toast from 'react-native-toast-message';
 import * as Haptics from 'expo-haptics';
 
@@ -122,11 +122,11 @@ export function useToast(): UseToastReturn {
     Toast.hide();
   }, []);
 
-  return {
+  return useMemo(() => ({
     showSuccess,
     showError,
     showInfo,
     showWarning,
     hide,
-  };
+  }), [showSuccess, showError, showInfo, showWarning, hide]);
 }
