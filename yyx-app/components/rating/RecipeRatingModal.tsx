@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Modal,
@@ -43,6 +43,16 @@ export function RecipeRatingModal({
     const [feedback, setFeedback] = useState('');
     const [showSuccess, setShowSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Clear timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
+        };
+    }, []);
 
     // Initialize rating with existing value if user has already rated
     useEffect(() => {
@@ -74,7 +84,7 @@ export function RecipeRatingModal({
             setShowSuccess(true);
 
             // Auto-close after showing success
-            setTimeout(() => {
+            timeoutRef.current = setTimeout(() => {
                 setShowSuccess(false);
                 setRating(0);
                 setFeedback('');

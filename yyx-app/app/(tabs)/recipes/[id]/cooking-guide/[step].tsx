@@ -47,7 +47,11 @@ export default function CookingStep() {
             if (recipe?.id && recipe?.name) {
                 eventService.logCookComplete(recipe.id, recipe.name);
             }
-            await completionService.recordCompletion(id as string);
+            try {
+                await completionService.recordCompletion(id as string);
+            } catch {
+                // Don't block rating modal or navigation on completion failure
+            }
             if (user) {
                 setShowRatingModal(true);
             } else {

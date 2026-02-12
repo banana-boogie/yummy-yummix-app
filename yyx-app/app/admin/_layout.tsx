@@ -60,7 +60,7 @@ export default function AdminLayout() {
         <Stack.Screen
           name="feedback"
           options={{
-            title: i18n.t('admin.common.manageFeedback')
+            title: i18n.t('admin.feedback.title')
           }}
         />
       </Stack>

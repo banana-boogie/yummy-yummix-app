@@ -9,7 +9,7 @@ interface RatingDistributionSkeletonProps {
 /**
  * Skeleton placeholder for rating distribution while data is loading.
  */
-export function RatingDistributionSkeleton({
+export const RatingDistributionSkeleton = React.memo(function RatingDistributionSkeleton({
   className = '',
   style,
 }: RatingDistributionSkeletonProps) {
@@ -32,6 +32,6 @@ export function RatingDistributionSkeleton({
       ))}
     </View>
   );
-}
+});
 
 export default RatingDistributionSkeleton;

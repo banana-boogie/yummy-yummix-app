@@ -1,5 +1,5 @@
 -- Migration: Add recipe completions tracking
--- Created: 2026-01-12
+-- Created: 2026-02-11
 -- Description: Track when users complete recipes for AI learning and rating gating
 
 -- ============================================================================

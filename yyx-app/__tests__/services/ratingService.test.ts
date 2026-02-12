@@ -1,4 +1,5 @@
 import { ratingService } from '@/services/ratingService';
+import { validateRecipeIsPublished } from '@/services/recipeValidation';
 import { supabase } from '@/lib/supabase';
 
 // Mock Supabase
@@ -11,61 +12,18 @@ jest.mock('@/lib/supabase', () => ({
   },
 }));
 
+// Mock shared validation
+jest.mock('@/services/recipeValidation', () => ({
+  validateRecipeIsPublished: jest.fn(),
+}));
+
 describe('ratingService', () => {
   const mockUser = { id: 'user-123', email: 'test@example.com' };
   const mockRecipeId = 'recipe-456';
 
   beforeEach(() => {
     jest.clearAllMocks();
-  });
-
-  describe('validateRecipe', () => {
-    it('should validate a published recipe successfully', async () => {
-      const mockFrom = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: { id: mockRecipeId, status: 'published' },
-          error: null,
-        }),
-      };
-
-      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
-
-      await expect(ratingService.validateRecipe(mockRecipeId)).resolves.not.toThrow();
-    });
-
-    it('should throw error if recipe not found', async () => {
-      const mockFrom = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: null,
-          error: { message: 'Not found' },
-        }),
-      };
-
-      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
-
-      await expect(ratingService.validateRecipe(mockRecipeId)).rejects.toThrow('Recipe not found');
-    });
-
-    it('should throw error if recipe is not published', async () => {
-      const mockFrom = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: { id: mockRecipeId, status: 'draft' },
-          error: null,
-        }),
-      };
-
-      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
-
-      await expect(ratingService.validateRecipe(mockRecipeId)).rejects.toThrow(
-        'Recipe is not available for rating'
-      );
-    });
+    (validateRecipeIsPublished as jest.Mock).mockResolvedValue(undefined);
   });
 
   describe('submitRating', () => {
@@ -75,12 +33,6 @@ describe('ratingService', () => {
       });
 
       const mockFrom = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: { id: mockRecipeId, status: 'published' },
-          error: null,
-        }),
         upsert: jest.fn().mockResolvedValue({ error: null }),
       };
 
@@ -88,6 +40,7 @@ describe('ratingService', () => {
 
       await expect(ratingService.submitRating(mockRecipeId, 4)).resolves.not.toThrow();
 
+      expect(validateRecipeIsPublished).toHaveBeenCalledWith(mockRecipeId);
       expect(mockFrom.upsert).toHaveBeenCalledWith(
         {
           user_id: mockUser.id,
@@ -148,12 +101,6 @@ describe('ratingService', () => {
       });
 
       const mockFrom = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: { id: mockRecipeId, status: 'published' },
-          error: null,
-        }),
         insert: jest.fn().mockResolvedValue({ error: null }),
       };
 
@@ -162,6 +109,7 @@ describe('ratingService', () => {
       const feedback = 'This recipe was amazing!';
       await expect(ratingService.submitFeedback(mockRecipeId, feedback)).resolves.not.toThrow();
 
+      expect(validateRecipeIsPublished).toHaveBeenCalledWith(mockRecipeId);
       expect(mockFrom.insert).toHaveBeenCalledWith({
         user_id: mockUser.id,
         recipe_id: mockRecipeId,
@@ -206,12 +154,6 @@ describe('ratingService', () => {
       });
 
       const mockFrom = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: { id: mockRecipeId, status: 'published' },
-          error: null,
-        }),
         insert: jest.fn().mockResolvedValue({ error: null }),
       };
 
@@ -320,6 +262,70 @@ describe('ratingService', () => {
         averageRating: null,
         ratingCount: 0,
       });
+    });
+  });
+
+  describe('getRatingDistribution', () => {
+    it('should return grouped distribution from a single query', async () => {
+      const mockFrom = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+      };
+      // Simulate the final resolved value (after select + eq chain)
+      mockFrom.eq.mockResolvedValue({
+        data: [
+          { rating: 5 },
+          { rating: 5 },
+          { rating: 5 },
+          { rating: 4 },
+          { rating: 4 },
+          { rating: 3 },
+          { rating: 1 },
+        ],
+        error: null,
+      });
+
+      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
+
+      const result = await ratingService.getRatingDistribution(mockRecipeId);
+
+      expect(result.distribution).toEqual({ 1: 1, 2: 0, 3: 1, 4: 2, 5: 3 });
+      expect(result.total).toBe(7);
+    });
+
+    it('should return empty distribution when no ratings exist', async () => {
+      const mockFrom = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+      };
+      mockFrom.eq.mockResolvedValue({
+        data: [],
+        error: null,
+      });
+
+      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
+
+      const result = await ratingService.getRatingDistribution(mockRecipeId);
+
+      expect(result.distribution).toEqual({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
+      expect(result.total).toBe(0);
+    });
+
+    it('should throw on query error', async () => {
+      const mockFrom = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+      };
+      mockFrom.eq.mockResolvedValue({
+        data: null,
+        error: { message: 'DB error' },
+      });
+
+      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
+
+      await expect(ratingService.getRatingDistribution(mockRecipeId)).rejects.toThrow(
+        'Failed to get rating distribution: DB error'
+      );
     });
   });
 });

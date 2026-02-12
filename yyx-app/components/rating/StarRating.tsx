@@ -1,11 +1,17 @@
 import React from 'react';
 import { View, StyleProp, ViewStyle } from 'react-native';
 import { Text } from '@/components/common';
+import { COLORS } from '@/constants/design-tokens';
 
-// Star rating colors matching the app's warm branding
 const STAR_COLORS = {
-    filled: '#FFA000', // Warm amber (from status.warning)
-    empty: '#E0E0E0',  // Light gray
+    filled: COLORS.status.warning,
+    empty: COLORS.grey.medium,
+};
+
+const SIZE_CONFIG = {
+    sm: { starSize: 12, fontSize: 11, gap: 1 },
+    md: { starSize: 16, fontSize: 13, gap: 2 },
+    lg: { starSize: 22, fontSize: 16, gap: 3 },
 };
 
 interface StarRatingProps {
@@ -19,9 +25,9 @@ interface StarRatingProps {
 
 /**
  * Display-only star rating component
- * Shows filled/empty stars based on rating value
+ * Shows filled/half/empty stars based on rating value
  */
-export function StarRating({
+export const StarRating = React.memo(function StarRating({
     rating,
     size = 'md',
     showCount = false,
@@ -29,14 +35,7 @@ export function StarRating({
     className = '',
     style,
 }: StarRatingProps) {
-    // Size configurations
-    const sizeConfig = {
-        sm: { starSize: 12, fontSize: 11, gap: 1 },
-        md: { starSize: 16, fontSize: 13, gap: 2 },
-        lg: { starSize: 22, fontSize: 16, gap: 3 },
-    };
-
-    const config = sizeConfig[size];
+    const config = SIZE_CONFIG[size];
 
     // Clamp rating between 0 and 5
     const clampedRating = Math.max(0, Math.min(5, rating));
@@ -59,15 +58,16 @@ export function StarRating({
                 key={index}
                 style={{ marginRight: index < 4 ? config.gap : 0 }}
             >
+                {/* Base star: empty glyph for 0% and 50%, filled for 100% */}
                 <Text
                     style={{
                         fontSize: config.starSize,
-                        color: fillPercentage > 0 ? STAR_COLORS.filled : STAR_COLORS.empty,
+                        color: fillPercentage === 100 ? STAR_COLORS.filled : STAR_COLORS.empty,
                     }}
                 >
-                    {fillPercentage === 100 ? '★' : fillPercentage === 50 ? '★' : '☆'}
+                    {fillPercentage === 100 ? '★' : '☆'}
                 </Text>
-                {/* Half star overlay for 50% fill */}
+                {/* Half star overlay — clips a filled star to 50% width */}
                 {fillPercentage === 50 && (
                     <View
                         style={{
@@ -106,6 +106,6 @@ export function StarRating({
             )}
         </View>
     );
-}
+});
 
 export default StarRating;

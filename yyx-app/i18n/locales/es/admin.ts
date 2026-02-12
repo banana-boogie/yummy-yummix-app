@@ -518,4 +518,16 @@ export const admin = {
       },
     },
   },
+  feedback: {
+    title: "Comentarios de Usuarios",
+    loading: "Cargando comentarios...",
+    error: "Error al cargar comentarios",
+    retry: "Reintentar",
+    noFeedbackTitle: "Sin Comentarios Aún",
+    noFeedbackDescription: "Los comentarios de los usuarios aparecerán aquí después de\nque califiquen y reseñen las recetas.",
+    entriesCount: "{{count}} entradas de comentarios",
+    from: "De: {{email}}",
+    previous: "Anterior",
+    next: "Siguiente",
+  },
 };

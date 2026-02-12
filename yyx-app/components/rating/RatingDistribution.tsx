@@ -17,7 +17,7 @@ interface RatingDistributionProps {
  * Displays rating distribution with percentage bars for each star level
  * Shows breakdown like "X% gave 5 stars, Y% gave 4 stars, etc."
  */
-export function RatingDistribution({
+export const RatingDistribution = React.memo(function RatingDistribution({
     distribution,
     total,
     averageRating,
@@ -110,6 +110,6 @@ export function RatingDistribution({
             </View>
         </View>
     );
-}
+});
 
 export default RatingDistribution;

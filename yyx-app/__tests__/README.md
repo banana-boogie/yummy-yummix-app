@@ -22,43 +22,48 @@ npm test -- --coverage
 
 ### Services
 - **`services/ratingService.test.ts`** - Tests for rating submission, feedback, and validation
-  - Recipe validation (published status check)
   - Rating submission (1-5 stars, integer validation)
   - Feedback submission (length validation, trimming)
   - User rating retrieval
   - Rating statistics
+  - Rating distribution (single query + client-side grouping)
+
+- **`services/completionService.test.ts`** - Tests for recipe completion tracking
+  - Recording completions (insert and update paths)
+  - Race condition handling (23505 unique violation retry)
+  - Unauthenticated user handling
+  - Completion existence checks
+  - Completion count retrieval
 
 ### Components
-- **`components/StarRatingInput.test.tsx`** - Tests for the interactive star rating component
-  - Star rendering (5 stars)
-  - Rating display and selection
-  - Disabled state
-  - Size variations (md, lg)
-  - Accessibility labels
-  - User interactions
+- **`components/RecipeRatingModal.test.tsx`** - Tests for the rating modal
+  - Modal rendering and visibility
+  - Skip and submit flows
+  - Error states (no rating selected)
+  - Feedback input rendering
 
 ### Hooks
 - **`hooks/useRecipeRating.test.ts`** - Tests for React Query integration
   - User rating fetching
-  - Rating submission with optimistic updates
-  - Feedback submission
+  - Rating distribution fetching
+  - Rating submission mutations
+  - Feedback submission mutations
   - Error handling
-  - Query invalidation
 
 ## Coverage Goals
 
 These tests focus on **critical business logic** and **user interactions**:
 
-✅ **Covered:**
+Covered:
 - Rating validation rules
-- Recipe existence checks
+- Recipe existence checks (via shared `validateRecipeIsPublished`)
 - User authentication checks
 - Input validation (rating range, feedback length)
 - Error states and edge cases
-- Component interactions
+- Race condition handling
 - React Query caching and invalidation
 
-❌ **Not Covered (Intentionally):**
+Not Covered (Intentionally):
 - Simple display components (StarRating - pure presentation)
 - Layout components
 - Translation strings
@@ -129,11 +134,3 @@ const { result } = renderHook(() => useMyHook(), { wrapper });
 ### Async test failures
 - Use `waitFor()` from `@testing-library/react-native`
 - Ensure proper cleanup in `beforeEach()`
-
-## Future Test Additions
-
-Consider adding:
-- Integration tests for the complete rating flow
-- Snapshot tests for UI components
-- E2E tests for critical user journeys
-- Performance tests for list rendering
