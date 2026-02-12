@@ -15,6 +15,7 @@ import { useToast } from './useToast';
 import { useUndoableDelete } from './useUndoableDelete';
 import { useOfflineSync } from './useOfflineSync';
 import i18n from '@/i18n';
+import { getLocalizedCategoryName } from '@/services/utils/mapSupabaseItem';
 
 interface UseShoppingListDataOptions {
     listId: string | undefined;
@@ -109,7 +110,7 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
                         if (category) {
                             updatedCategories.push({
                                 ...category,
-                                localizedName: i18n.locale === 'es' ? category.nameEs : category.nameEn,
+                                localizedName: getLocalizedCategoryName(category),
                                 items: [item],
                             });
                         }
@@ -174,8 +175,10 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
     }, [list?.categories, searchQuery]);
 
     // Calculate progress
-    const progressPercentage = list ?
-        Math.round((list.checkedCount / Math.max(list.itemCount, 1)) * 100) : 0;
+    const progressPercentage = useMemo(() =>
+        list ? Math.round((list.checkedCount / Math.max(list.itemCount, 1)) * 100) : 0,
+        [list?.checkedCount, list?.itemCount]
+    );
 
     // Fetch list data
     const fetchList = useCallback(async (forceRefresh = false) => {
@@ -331,7 +334,7 @@ export function useShoppingListData({ listId }: UseShoppingListDataOptions): Use
                 // Category doesn't exist in list, create it
                 const newCategory: ShoppingCategoryWithItems = {
                     ...category,
-                    localizedName: i18n.locale === 'es' ? category.nameEs : category.nameEn,
+                    localizedName: getLocalizedCategoryName(category),
                     items: [tempItem],
                 };
                 return {

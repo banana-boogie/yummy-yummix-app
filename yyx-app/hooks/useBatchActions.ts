@@ -6,6 +6,7 @@ import { useToast } from './useToast';
 import { useUndoableDelete } from './useUndoableDelete';
 import { MutationType, MutationPayloads } from '@/services/offlineQueue/mutationQueue';
 import i18n from '@/i18n';
+import { getLocalizedCategoryName } from '@/services/utils/mapSupabaseItem';
 
 interface UseBatchActionsOptions {
     list: ShoppingListWithItems | null;
@@ -102,7 +103,7 @@ export function useBatchActions({
                             if (category) {
                                 updatedCategories.push({
                                     ...category,
-                                    localizedName: i18n.locale === 'es' ? category.nameEs : category.nameEn,
+                                    localizedName: getLocalizedCategoryName(category),
                                     items: [item],
                                 });
                             }

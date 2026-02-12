@@ -82,7 +82,6 @@ describe('CategorySection', () => {
     );
 
     expect(onSelectAllInCategory).toHaveBeenCalledWith(
-      category.id,
       category.items.map((item) => item.id)
     );
   });

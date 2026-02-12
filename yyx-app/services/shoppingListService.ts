@@ -17,9 +17,8 @@ import {
     shoppingCategoryCache,
     invalidateAllShoppingListCaches,
 } from './cache/shoppingListCache';
-import { getLanguageSuffix, mapIngredient, mapMeasurementUnit } from './utils/mapSupabaseItem';
+import { getLanguageSuffix, mapIngredient, mapMeasurementUnit, getLocalizedCategoryName } from './utils/mapSupabaseItem';
 
-const getLangSuffix = getLanguageSuffix;
 const getCurrentUserId = async (): Promise<string | undefined> => {
     const { data: { user } } = await supabase.auth.getUser();
     return user?.id;
@@ -95,7 +94,7 @@ export const shoppingListService = {
             }
         }
 
-        const lang = getLangSuffix();
+        const lang = getLanguageSuffix();
 
         const { data: listData, error: listError } = await supabase
             .from('shopping_lists')
@@ -142,7 +141,7 @@ export const shoppingListService = {
 
         const categoriesWithItems: ShoppingCategoryWithItems[] = categories.map(category => ({
             ...category,
-            localizedName: i18n.locale === 'es' ? category.nameEs : category.nameEn,
+            localizedName: getLocalizedCategoryName(category),
             items: items.filter(item => item.categoryId === category.id),
         })).filter(category => category.items.length > 0);
 
@@ -201,7 +200,7 @@ export const shoppingListService = {
     },
 
     async addItem(item: ShoppingListItemCreate): Promise<ShoppingListItem> {
-        const lang = getLangSuffix();
+        const lang = getLanguageSuffix();
 
         const { data: maxOrderData } = await supabase
             .from('shopping_list_items')
@@ -210,7 +209,7 @@ export const shoppingListService = {
             .eq('category_id', item.categoryId)
             .order('display_order', { ascending: false })
             .limit(1)
-            .single();
+            .maybeSingle();
 
         const displayOrder = (maxOrderData?.display_order ?? 0) + 1;
 
@@ -378,7 +377,7 @@ export const shoppingListService = {
     },
 
     async searchIngredients(query: string, limit = 10): Promise<IngredientSuggestion[]> {
-        const lang = getLangSuffix();
+        const lang = getLanguageSuffix();
 
         // Escape special LIKE/ILIKE characters to prevent injection
         const sanitizedQuery = query

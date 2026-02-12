@@ -24,7 +24,7 @@ interface FloatingActionBarProps {
     disabled?: boolean;
 }
 
-export function FloatingActionBar({
+export const FloatingActionBar = React.memo(function FloatingActionBar({
     selectedCount,
     totalCount,
     onCheckAll,
@@ -160,6 +160,6 @@ export function FloatingActionBar({
             </View>
         </Animated.View>
     );
-}
+});
 
 export default FloatingActionBar;

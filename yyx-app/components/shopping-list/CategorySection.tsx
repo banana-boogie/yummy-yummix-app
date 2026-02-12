@@ -9,6 +9,62 @@ import { ShoppingListItemRow } from './ShoppingListItem';
 import { DraggableShoppingListItem } from './DraggableShoppingListItem';
 import i18n from '@/i18n';
 
+// Wrapper to avoid inline closures per checked item in the .map() render
+const CheckedItemRow = React.memo(function CheckedItemRow({
+    item,
+    onCheckItem,
+    onDeleteItem,
+    onPressItem,
+    onQuantityChange,
+    isSelectMode,
+    onToggleSelection,
+    selectedItems,
+}: {
+    item: ShoppingListItem;
+    onCheckItem: (itemId: string, isChecked: boolean) => void;
+    onDeleteItem: (itemId: string) => void;
+    onPressItem: (itemId: string) => void;
+    onQuantityChange?: (itemId: string, quantity: number) => void;
+    isSelectMode: boolean;
+    onToggleSelection?: (itemId: string) => void;
+    selectedItems?: Set<string>;
+}) {
+    const handleCheck = useCallback(() => {
+        if (isSelectMode && onToggleSelection) {
+            onToggleSelection(item.id);
+        } else {
+            onCheckItem(item.id, !item.isChecked);
+        }
+    }, [isSelectMode, onToggleSelection, onCheckItem, item.id, item.isChecked]);
+
+    const handleDelete = useCallback(() => onDeleteItem(item.id), [onDeleteItem, item.id]);
+
+    const handlePress = useCallback(() => {
+        if (isSelectMode && onToggleSelection) {
+            onToggleSelection(item.id);
+        } else {
+            onPressItem(item.id);
+        }
+    }, [isSelectMode, onToggleSelection, onPressItem, item.id]);
+
+    const handleQuantityChange = useCallback(
+        (qty: number) => onQuantityChange?.(item.id, qty),
+        [onQuantityChange, item.id]
+    );
+
+    return (
+        <ShoppingListItemRow
+            item={item}
+            onCheck={handleCheck}
+            onDelete={handleDelete}
+            onPress={handlePress}
+            onQuantityChange={isSelectMode ? undefined : (onQuantityChange ? handleQuantityChange : undefined)}
+            isSelectMode={isSelectMode}
+            isSelected={selectedItems?.has(item.id)}
+        />
+    );
+});
+
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -27,7 +83,7 @@ interface CategorySectionProps {
     isSelectMode?: boolean;
     selectedItems?: Set<string>;
     onToggleSelection?: (itemId: string) => void;
-    onSelectAllInCategory?: (categoryId: string, itemIds: string[]) => void;
+    onSelectAllInCategory?: (itemIds: string[]) => void;
 }
 
 export const CategorySection = React.memo(function CategorySection({ category, onCheckItem, onDeleteItem, onPressItem, onQuantityChange, onReorderItems, defaultExpanded = true, isExpanded: controlledExpanded, onToggleExpand, isSelectMode = false, selectedItems, onToggleSelection, onSelectAllInCategory }: CategorySectionProps) {
@@ -57,7 +113,7 @@ export const CategorySection = React.memo(function CategorySection({ category, o
         if (isSelectMode && onSelectAllInCategory) {
             // In select mode, toggle selection of all items in this category
             const allItemIds = category.items.map(item => item.id);
-            onSelectAllInCategory(category.id, allItemIds);
+            onSelectAllInCategory(allItemIds);
         } else {
             toggleExpanded();
         }
@@ -166,27 +222,16 @@ export const CategorySection = React.memo(function CategorySection({ category, o
 
                     {/* Non-draggable checked items */}
                     {checkedItems.map(item => (
-                        <ShoppingListItemRow
+                        <CheckedItemRow
                             key={item.id}
                             item={item}
-                            onCheck={() => {
-                                if (isSelectMode && onToggleSelection) {
-                                    onToggleSelection(item.id);
-                                } else {
-                                    onCheckItem(item.id, !item.isChecked);
-                                }
-                            }}
-                            onDelete={() => onDeleteItem(item.id)}
-                            onPress={() => {
-                                if (isSelectMode && onToggleSelection) {
-                                    onToggleSelection(item.id);
-                                } else {
-                                    onPressItem(item.id);
-                                }
-                            }}
-                            onQuantityChange={isSelectMode ? undefined : (onQuantityChange ? (qty) => onQuantityChange(item.id, qty) : undefined)}
+                            onCheckItem={onCheckItem}
+                            onDeleteItem={onDeleteItem}
+                            onPressItem={onPressItem}
+                            onQuantityChange={onQuantityChange}
                             isSelectMode={isSelectMode}
-                            isSelected={selectedItems?.has(item.id)}
+                            onToggleSelection={onToggleSelection}
+                            selectedItems={selectedItems}
                         />
                     ))}
                 </View>

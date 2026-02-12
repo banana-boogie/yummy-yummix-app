@@ -1,11 +1,12 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { View, FlatList, TouchableOpacity, TextInput, Animated, RefreshControl, Keyboard } from 'react-native';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { Text, OfflineBanner, AlertModal } from '@/components/common';
 import { CategorySection, AddItemModal, FloatingActionBar } from '@/components/shopping-list';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '@/constants/design-tokens';
+import { COLORS, SPACING } from '@/constants/design-tokens';
 import i18n from '@/i18n';
+import { ShoppingListItem } from '@/types/shopping-list.types';
 import { useShoppingListData } from '@/hooks/useShoppingListData';
 import { useSelectionMode } from '@/hooks/useSelectionMode';
 import { useBatchActions } from '@/hooks/useBatchActions';
@@ -224,6 +225,22 @@ export default function ShoppingListDetailScreen() {
         Keyboard.dismiss();
     }, []);
 
+    // Stable no-op for item press
+    const handlePressItem = useCallback(() => {
+        // Item press - no action needed for now
+    }, []);
+
+    // Stable callback for reorder that binds category ID
+    const handleCategoryReorder = useCallback((categoryId: string, items: ShoppingListItem[]) => {
+        handleReorderItems(categoryId, items);
+    }, [handleReorderItems]);
+
+    // Extract contentContainerStyle to avoid object re-creation
+    const listContentContainerStyle = useMemo(() => ({
+        padding: SPACING.md,
+        paddingBottom: SPACING.xxxxl,
+    }), []);
+
     if (loading) {
         return (
             <View className="flex-1 bg-background-primary">
@@ -360,8 +377,8 @@ export default function ShoppingListDetailScreen() {
                             category={item}
                             onCheckItem={handleCheckItem}
                             onDeleteItem={handleDeleteItem}
-                            onPressItem={() => { /* Item press - no action needed for now */ }}
-                            onReorderItems={(items) => handleReorderItems(item.id, items)}
+                            onPressItem={handlePressItem}
+                            onReorderItems={(items) => handleCategoryReorder(item.id, items)}
                             isExpanded={!collapsedCategories.has(item.id)}
                             onToggleExpand={() => toggleCategoryCollapse(item.id)}
                             isSelectMode={isSelectMode}
@@ -370,7 +387,7 @@ export default function ShoppingListDetailScreen() {
                             onSelectAllInCategory={handleSelectAllInCategory}
                         />
                     )}
-                    contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+                    contentContainerStyle={listContentContainerStyle}
                     refreshControl={
                         <RefreshControl
                             refreshing={isRefreshing}

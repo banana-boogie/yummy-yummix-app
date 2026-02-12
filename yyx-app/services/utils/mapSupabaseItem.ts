@@ -1,5 +1,6 @@
 import i18n from '@/i18n';
 import { MeasurementUnit } from '@/types/recipe.types';
+import { ShoppingCategory } from '@/types/shopping-list.types';
 
 // Raw Supabase join types (use index signatures for locale-dynamic keys)
 interface RawIngredientJoin {
@@ -35,6 +36,10 @@ export function mapIngredient(
         pluralName: ingredient?.[`plural_name${langSuffix}`] as string | undefined,
         pictureUrl: ingredient?.picture_url as string | undefined,
     };
+}
+
+export function getLocalizedCategoryName(category: ShoppingCategory): string {
+    return i18n.locale === 'es' ? category.nameEs : category.nameEn;
 }
 
 export function mapMeasurementUnit(

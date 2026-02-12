@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text, Button } from '@/components/common';
 import { ShoppingListCard } from '@/components/shopping-list';
-import { COLORS } from '@/constants/design-tokens';
+import { COLORS, SPACING } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 import { shoppingListService } from '@/services/shoppingListService';
 import { ShoppingList } from '@/types/shopping-list.types';
@@ -91,7 +91,7 @@ export default function ShoppingListsScreen() {
                         onPress={() => router.push(`/shopping/${item.id}`)}
                     />
                 )}
-                contentContainerStyle={{ padding: 24 }}
+                contentContainerStyle={{ padding: SPACING.lg }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
                 ListEmptyComponent={
                     !loading ? (

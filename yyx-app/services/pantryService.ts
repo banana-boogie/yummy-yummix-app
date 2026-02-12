@@ -2,13 +2,11 @@ import i18n from '@/i18n';
 import { supabase } from '@/lib/supabase';
 import { PantryItem, PantryItemCreate, PantryItemUpdate, FavoriteShoppingItem, FavoriteShoppingItemCreate, ShoppingCategory } from '@/types/shopping-list.types';
 import { shoppingListService } from './shoppingListService';
-import { getLanguageSuffix, mapIngredient, mapMeasurementUnit } from './utils/mapSupabaseItem';
-
-const getLangSuffix = getLanguageSuffix;
+import { getLanguageSuffix, mapIngredient, mapMeasurementUnit, getLocalizedCategoryName } from './utils/mapSupabaseItem';
 
 export const pantryService = {
     async getPantryItems(): Promise<{ categories: (ShoppingCategory & { localizedName: string; items: PantryItem[] })[] }> {
-        const lang = getLangSuffix();
+        const lang = getLanguageSuffix();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
 
@@ -42,7 +40,7 @@ export const pantryService = {
         const categories = await shoppingListService.getCategories();
         const categoriesWithItems = categories.map(cat => ({
             ...cat,
-            localizedName: i18n.locale === 'es' ? cat.nameEs : cat.nameEn,
+            localizedName: getLocalizedCategoryName(cat),
             items: items.filter(item => item.categoryId === cat.id),
         })).filter(cat => cat.items.length > 0);
 
@@ -50,7 +48,7 @@ export const pantryService = {
     },
 
     async addPantryItem(item: PantryItemCreate): Promise<PantryItem> {
-        const lang = getLangSuffix();
+        const lang = getLanguageSuffix();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
 
@@ -103,7 +101,7 @@ export const pantryService = {
     },
 
     async getFavorites(): Promise<FavoriteShoppingItem[]> {
-        const lang = getLangSuffix();
+        const lang = getLanguageSuffix();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
 
@@ -137,7 +135,7 @@ export const pantryService = {
     },
 
     async addToFavorites(item: FavoriteShoppingItemCreate): Promise<FavoriteShoppingItem> {
-        const lang = getLangSuffix();
+        const lang = getLanguageSuffix();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
 
@@ -185,22 +183,33 @@ export const pantryService = {
     },
 
     async addFavoriteToList(favoriteId: string, shoppingListId: string): Promise<void> {
-        const favorites = await this.getFavorites();
-        const favorite = favorites.find(f => f.id === favoriteId);
-        if (!favorite) throw new Error('Favorite not found');
+        const lang = getLanguageSuffix();
+        const { data, error } = await supabase
+            .from('favorite_shopping_items')
+            .select(`
+                id, ingredient_id, category_id, name_custom, default_quantity, default_unit_id, purchase_count,
+                ingredient:ingredients (id, name${lang}, plural_name${lang}, picture_url),
+                measurement_unit:measurement_units (id, type, system, symbol${lang}, name${lang}, name${lang}_plural)
+            `)
+            .eq('id', favoriteId)
+            .single();
+
+        if (error || !data) throw new Error('Favorite not found');
+
+        const ingredient = mapIngredient(data.ingredient as any, lang, data.name_custom);
 
         await shoppingListService.addItem({
             shoppingListId,
-            ingredientId: favorite.ingredientId,
-            categoryId: favorite.categoryId,
-            nameCustom: favorite.ingredientId ? undefined : favorite.name,
-            quantity: favorite.defaultQuantity,
-            unitId: favorite.defaultUnit?.id,
+            ingredientId: data.ingredient_id,
+            categoryId: data.category_id,
+            nameCustom: data.ingredient_id ? undefined : ingredient.name,
+            quantity: parseFloat(data.default_quantity) || 1,
+            unitId: data.default_unit_id,
         });
 
         await supabase
             .from('favorite_shopping_items')
-            .update({ purchase_count: favorite.purchaseCount + 1 })
+            .update({ purchase_count: (data.purchase_count ?? 0) + 1 })
             .eq('id', favoriteId);
     },
 };

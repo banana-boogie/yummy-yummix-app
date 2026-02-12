@@ -28,7 +28,7 @@ interface UseSelectionModeReturn {
     toggleItemSelection: (itemId: string) => void;
     handleSelectAll: () => void;
     handleDeselectAll: () => void;
-    handleSelectAllInCategory: (categoryId: string, itemIds: string[]) => void;
+    handleSelectAllInCategory: (itemIds: string[]) => void;
     clearSelection: () => void;
     setSelectedItems: React.Dispatch<React.SetStateAction<Set<string>>>;
 }
@@ -160,7 +160,7 @@ export function useSelectionMode({ listId, categories }: UseSelectionModeOptions
     }, []);
 
     // Toggle selection of all items in a category
-    const handleSelectAllInCategory = useCallback((categoryId: string, itemIds: string[]) => {
+    const handleSelectAllInCategory = useCallback((itemIds: string[]) => {
         setSelectedItems(prev => {
             const next = new Set(prev);
             const allSelected = itemIds.every(id => next.has(id));

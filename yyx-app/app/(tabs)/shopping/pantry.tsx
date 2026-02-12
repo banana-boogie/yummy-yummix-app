@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, FlatList } from 'react-native';
 import { Stack } from 'expo-router';
 import { Text } from '@/components/common';
+import { SPACING } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 import { pantryService } from '@/services/pantryService';
 import { PantryItem, ShoppingCategory } from '@/types/shopping-list.types';
@@ -49,7 +50,7 @@ export default function PantryScreen() {
                         ))}
                     </View>
                 )}
-                contentContainerStyle={{ paddingVertical: 16 }}
+                contentContainerStyle={{ paddingVertical: SPACING.md }}
                 ListEmptyComponent={!loading ? <Text className="text-center mt-xl text-text-secondary">{i18n.t('shoppingList.emptyPantry')}</Text> : null}
             />
         </View>

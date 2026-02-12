@@ -7,6 +7,7 @@ import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 import { shoppingListService } from '@/services/shoppingListService';
 import { IngredientSuggestion, ShoppingCategory } from '@/types/shopping-list.types';
+import { getLocalizedCategoryName } from '@/services/utils/mapSupabaseItem';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface AddItemModalProps {
@@ -97,7 +98,7 @@ export function AddItemModal({ visible, onClose, onAddItem, categories }: AddIte
     const canAdd = searchQuery.trim().length > 0;
     const getCategoryName = (categoryId: string) => {
         const cat = categories.find(c => c.id === categoryId);
-        return cat ? (i18n.locale === 'es' ? cat.nameEs : cat.nameEn) : '';
+        return cat ? getLocalizedCategoryName(cat) : '';
     };
 
     return (
