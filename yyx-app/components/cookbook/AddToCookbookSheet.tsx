@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Modal, Pressable, FlatList, Alert } from 'react-native';
-import { Text, Button, TextInput } from '@/components/common';
+import { Text, Button } from '@/components/common';
+import { TextInput } from '@/components/form';
 import { Ionicons } from '@expo/vector-icons';
 import { Cookbook, CreateCookbookInput, UpdateCookbookInput } from '@/types/cookbook.types';
 import {
@@ -168,14 +169,15 @@ export function AddToCookbookSheet({
     };
 
     return (
-        <Modal
-            visible={visible}
-            transparent
-            animationType="slide"
-            onRequestClose={onClose}
-        >
-            <View className="flex-1 bg-black/50 justify-end">
-                <View className="bg-primary-lightest rounded-t-xl p-lg max-h-[70%]">
+        <>
+            <Modal
+                visible={visible}
+                transparent
+                animationType="slide"
+                onRequestClose={onClose}
+            >
+                <View className="flex-1 bg-black/50 justify-end">
+                    <View className="bg-primary-lightest rounded-t-xl p-lg max-h-[70%]">
                     {/* Header */}
                     <View className="flex-row items-center justify-between mb-md">
                         {step === 'notes' && (
@@ -289,15 +291,16 @@ export function AddToCookbookSheet({
                             <View className="h-8" />
                         </>
                     )}
+                    </View>
                 </View>
-            </View>
-        </Modal>
+            </Modal>
 
-        <CreateEditCookbookModal
-            visible={showCreateModal}
-            onClose={() => setShowCreateModal(false)}
-            onSave={handleCreateCookbook}
-            isLoading={createCookbookMutation.isPending}
-        />
+            <CreateEditCookbookModal
+                visible={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+                onSave={handleCreateCookbook}
+                isLoading={createCookbookMutation.isPending}
+            />
+        </>
     );
 }
