@@ -35,8 +35,8 @@ import {
 
 // Module imports
 import type {
-  OpenAIMessage,
-  OpenAIToolCall,
+  ChatMessage,
+  ToolCall,
   RequestContext,
   ToolExecutionResult,
 } from "./types.ts";
@@ -46,7 +46,6 @@ import { ensureSessionId } from "./session.ts";
 import { detectMealContext } from "./meal-context.ts";
 import {
   buildNoResultsFallback,
-  buildResumeAction,
   getTemplateSuggestions,
 } from "./suggestions.ts";
 import { detectModificationIntent } from "./modification.ts";
@@ -76,12 +75,6 @@ serve(async (req) => {
   const requestStartTime = Date.now();
 
   try {
-    // Validate OpenAI API key is configured
-    if (!Deno.env.get("OPENAI_API_KEY")) {
-      log.error("OPENAI_API_KEY not configured");
-      return errorResponse("Service configuration error", 500);
-    }
-
     let body: { message: string; sessionId?: string; mode?: "text" | "voice" } | null = null;
     try {
       body = await req.json();
@@ -182,9 +175,6 @@ async function buildRequestContext(
 ): Promise<RequestContext> {
   const contextBuilder = createContextBuilder(supabase);
   const userContext = await contextBuilder.buildContext(userId, sessionId);
-  const resumableSession = await contextBuilder.getResumableCookingSession(
-    userId,
-  );
 
   // Detect meal context from user message
   const mealContext = detectMealContext(message);
@@ -192,11 +182,10 @@ async function buildRequestContext(
   const systemPrompt = buildSystemPrompt(
     userContext,
     mode,
-    resumableSession,
     mealContext,
   );
 
-  const messages: OpenAIMessage[] = [
+  const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
     ...userContext.conversationHistory.map((m) => ({
       role: m.role as "user" | "assistant",
@@ -205,7 +194,7 @@ async function buildRequestContext(
     { role: "user", content: message },
   ];
 
-  return { userContext, messages, resumableSession };
+  return { userContext, messages };
 }
 
 /**
@@ -217,12 +206,12 @@ async function buildRequestContext(
  */
 async function executeToolCalls(
   supabase: SupabaseClient,
-  toolCalls: OpenAIToolCall[],
+  toolCalls: ToolCall[],
   userContext: UserContext,
   log: Logger,
   onPartialRecipe?: PartialRecipeCallback,
 ): Promise<ToolExecutionResult> {
-  const toolMessages: OpenAIMessage[] = [];
+  const toolMessages: ChatMessage[] = [];
   let recipes: RecipeCard[] | undefined;
   let customRecipeResult: GenerateRecipeResult | undefined;
   let retrievalResult: RetrieveCustomRecipeResult | undefined;
@@ -347,7 +336,7 @@ function handleStreamingRequest(
         }
         send({ type: "status", status: "thinking" });
 
-        const { userContext, messages, resumableSession: streamResumable } =
+        const { userContext, messages } =
           await buildRequestContext(
             supabase,
             userId,
@@ -357,11 +346,6 @@ function handleStreamingRequest(
           );
         timings.context_build_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
-
-        // Build resume action if applicable
-        const streamResumeActions: QuickAction[] = streamResumable
-          ? [buildResumeAction(streamResumable, userContext.language)]
-          : [];
 
         let recipes: RecipeCard[] | undefined;
         let customRecipeResult: GenerateRecipeResult | undefined;
@@ -534,7 +518,7 @@ function handleStreamingRequest(
               undefined,
               undefined,
               fallback.suggestions,
-              streamResumeActions,
+              undefined,
             );
             timings.total_ms = Math.round(performance.now() - startTime);
             log.info("No-results fallback", timings);

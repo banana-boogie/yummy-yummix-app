@@ -58,9 +58,9 @@ TOOL USAGE:
  */
 export const GOODBYE_KEYWORDS = [
   'bye', 'goodbye', 'good bye', 'see you',
-  'thanks', 'thank you', "that's all", 'thats all', 'that is all',
+  "that's all", 'thats all', 'that is all',
   "i'm done", 'im done', "we're done", 'were done',
-  'adiós', 'adios', 'hasta luego', 'gracias',
+  'adiós', 'adios', 'hasta luego',
   'eso es todo', 'ya terminé', 'ya termine', 'terminamos'
 ];
 
@@ -80,7 +80,7 @@ export class InactivityTimer {
   private timeoutId: NodeJS.Timeout | null = null;
   private readonly timeoutMs: number;
 
-  constructor(timeoutMs: number = 30000) {
+  constructor(timeoutMs: number = 10000) {
     this.timeoutMs = timeoutMs;
   }
 

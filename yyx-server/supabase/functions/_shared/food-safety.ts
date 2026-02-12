@@ -68,6 +68,11 @@ function getRulePattern(ruleCanonical: string): RegExp {
  * Load food safety rules from database.
  * Caches indefinitely - rules are USDA guidelines that rarely change.
  * Cache clears on function restart (deploys) or via clearFoodSafetyCache().
+ *
+ * NOTE: A DB round-trip is used (rather than embedded constants) so that
+ * safety rules can be updated without redeploying edge functions. Since this
+ * is USDA data that rarely changes, the indefinite in-memory cache means
+ * only the first request per function instance hits the database.
  */
 export async function loadFoodSafetyRules(
   supabase: SupabaseClient,
@@ -204,33 +209,6 @@ export async function checkRecipeSafety(
     safe: warnings.length === 0,
     warnings,
   };
-}
-
-/**
- * Get recommended internal temperature for an ingredient.
- */
-export async function getRecommendedTemp(
-  supabase: SupabaseClient,
-  ingredientName: string,
-  measurementSystem: "imperial" | "metric",
-  language: "en" | "es",
-): Promise<string | null> {
-  const rules = await loadFoodSafetyRules(supabase);
-  const normalized = await normalizeIngredient(
-    supabase,
-    ingredientName,
-    language,
-  );
-
-  for (const rule of rules) {
-    if (ingredientMatchesRule(normalized, rule.ingredient_canonical)) {
-      return measurementSystem === "imperial"
-        ? `${rule.min_temp_f}°F`
-        : `${rule.min_temp_c}°C`;
-    }
-  }
-
-  return null;
 }
 
 /**

@@ -13,7 +13,7 @@ import {
 } from "../_shared/ai-gateway/index.ts";
 import { getRegisteredAiTools } from "../_shared/tools/tool-registry.ts";
 import { normalizeMessagesForAi } from "./message-normalizer.ts";
-import type { OpenAIMessage } from "./types.ts";
+import type { ChatMessage } from "./types.ts";
 
 /**
  * Call AI via the AI Gateway.
@@ -21,10 +21,10 @@ import type { OpenAIMessage } from "./types.ts";
  * @param toolChoice - "auto" (default) or "required" (force tool use)
  */
 export async function callAI(
-  messages: OpenAIMessage[],
+  messages: ChatMessage[],
   includeTools: boolean = true,
   toolChoice?: "auto" | "required",
-): Promise<{ choices: Array<{ message: OpenAIMessage }> }> {
+): Promise<{ choices: Array<{ message: ChatMessage }> }> {
   const aiMessages = normalizeMessagesForAi(messages);
 
   // Convert tools to AI Gateway format
@@ -64,7 +64,7 @@ export async function callAI(
  * Streams tokens via callback and returns full content.
  */
 export async function callAIStream(
-  messages: OpenAIMessage[],
+  messages: ChatMessage[],
   onToken: (token: string) => void,
 ): Promise<string> {
   const aiMessages = normalizeMessagesForAi(messages);

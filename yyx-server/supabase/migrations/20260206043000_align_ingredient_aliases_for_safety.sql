@@ -1,5 +1,6 @@
--- Align ingredient aliases with food safety canonicals and enforce
--- case-insensitive uniqueness on alias + language.
+-- [Ingredient Matching 3/4] Align ingredient aliases with food safety canonicals
+-- Related: 20260206025947 (threshold), 20260206035255 (batch), 20260206050655 (batch fix)
+-- Enforces case-insensitive uniqueness on alias + language.
 
 -- Remove case-insensitive duplicates first (keep oldest row deterministically).
 WITH ranked_aliases AS (

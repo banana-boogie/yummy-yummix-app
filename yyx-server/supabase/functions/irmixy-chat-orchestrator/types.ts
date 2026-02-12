@@ -8,14 +8,14 @@ import type { GenerateRecipeResult } from "../_shared/tools/generate-custom-reci
 import type { RetrieveCustomRecipeResult } from "../_shared/tools/retrieve-custom-recipe.ts";
 import type { RecipeCard } from "../_shared/irmixy-schemas.ts";
 
-export interface OpenAIMessage {
+export interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
   content: string | null;
-  tool_calls?: OpenAIToolCall[];
+  tool_calls?: ToolCall[];
   tool_call_id?: string;
 }
 
-export interface OpenAIToolCall {
+export interface ToolCall {
   id: string;
   type: "function";
   function: {
@@ -24,23 +24,13 @@ export interface OpenAIToolCall {
   };
 }
 
-export interface ResumableSession {
-  sessionId: string;
-  recipeName: string;
-  recipeType: "custom" | "database";
-  currentStep: number;
-  totalSteps: number;
-  recipeId: string;
-}
-
 export interface RequestContext {
   userContext: import("../_shared/irmixy-schemas.ts").UserContext;
-  messages: OpenAIMessage[];
-  resumableSession: ResumableSession | null;
+  messages: ChatMessage[];
 }
 
 export interface ToolExecutionResult {
-  toolMessages: OpenAIMessage[];
+  toolMessages: ChatMessage[];
   recipes: RecipeCard[] | undefined;
   customRecipeResult: GenerateRecipeResult | undefined;
   retrievalResult: RetrieveCustomRecipeResult | undefined;

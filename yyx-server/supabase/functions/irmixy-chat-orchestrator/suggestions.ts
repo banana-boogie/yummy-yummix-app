@@ -5,8 +5,7 @@
  * Uses pre-defined templates to avoid AI call latency.
  */
 
-import type { QuickAction, SuggestionChip } from "../_shared/irmixy-schemas.ts";
-import type { ResumableSession } from "./types.ts";
+import type { SuggestionChip } from "../_shared/irmixy-schemas.ts";
 
 /**
  * Get template suggestions for chat responses.
@@ -82,24 +81,3 @@ export function buildNoResultsFallback(language: "en" | "es"): {
   };
 }
 
-/**
- * Build resume_cooking action for a resumable session.
- * Per irmixy-completion-plan.md Section 6.11
- */
-export function buildResumeAction(
-  session: ResumableSession,
-  language: "en" | "es",
-): QuickAction {
-  return {
-    type: "resume_cooking",
-    label: language === "es" ? "Continuar cocinando" : "Resume cooking",
-    payload: {
-      sessionId: session.sessionId,
-      recipeId: session.recipeId,
-      recipeType: session.recipeType,
-      currentStep: session.currentStep,
-      totalSteps: session.totalSteps,
-      recipeName: session.recipeName,
-    },
-  };
-}

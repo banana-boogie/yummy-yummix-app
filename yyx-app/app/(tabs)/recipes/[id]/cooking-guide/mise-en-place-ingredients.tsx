@@ -12,7 +12,7 @@ import { useDevice } from '@/hooks/useDevice';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { MiseEnPlaceIngredient } from '@/components/cooking-guide/MiseEnPlaceIngredient';
 import { Text } from '@/components/common/Text';
-import { LAYOUT } from '@/constants/design-tokens';
+import { LAYOUT, COLORS } from '@/constants/design-tokens';
 
 // Define the ingredient type
 type CheckableIngredient = RecipeIngredient & { checked: boolean };
@@ -86,7 +86,7 @@ export default function IngredientsStep() {
             type: 'cooking',
             recipeId: id as string,
             recipeTitle: recipe?.name,
-            stepInstructions: "Prepare your ingredients.",
+            stepInstructions: i18n.t('chat.prepareIngredients'),
             ingredients: ingredients.map(ing => ({
               name: ing.name,
               amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
@@ -97,11 +97,11 @@ export default function IngredientsStep() {
         {/* Content wrapper - centered on desktop with max-width */}
         <View
           className="px-md pb-[120px]"
-          style={!isMobile ? {
+          style={isMobile ? undefined : {
             maxWidth: LAYOUT.maxWidth.cookingGuide,
             alignSelf: 'center',
             width: '100%'
-          } : undefined}
+          }}
         >
           {/* Ingredients Section */}
           <View className="mb-lg">

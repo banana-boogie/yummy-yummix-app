@@ -438,11 +438,11 @@ function notFoundResult(language: "en" | "es"): RetrieveCustomRecipeResult {
     suggestions: [
       {
         label: language === "es"
-          ? "Crear desde ingredientes"
+          ? "Crear con ingredientes"
           : "Create from ingredients",
         message: language === "es"
-          ? "Quiero crear una receta nueva con ingredientes"
-          : "I want to create a new recipe from ingredients",
+          ? "Quiero crear una receta con mis ingredientes"
+          : "I want to create a recipe from my ingredients",
       },
       {
         label: language === "es" ? "Sorpréndeme" : "Surprise me",

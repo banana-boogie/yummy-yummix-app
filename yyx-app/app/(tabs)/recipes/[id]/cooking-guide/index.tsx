@@ -11,6 +11,7 @@ import { PageLayout } from '@/components/layouts/PageLayout';
 import { useDevice } from '@/hooks/useDevice';
 import i18n from '@/i18n';
 import { eventService } from '@/services/eventService';
+import { COLORS } from '@/constants/design-tokens';
 
 import * as Haptics from 'expo-haptics';
 
@@ -38,7 +39,7 @@ export default function CookingGuide() {
   return (
     <View style={{ flex: 1 }}>
       <PageLayout
-        backgroundColor="#f9f9f9"
+        backgroundColor={COLORS.grey.light}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 180 }}
         contentPaddingHorizontal={0}

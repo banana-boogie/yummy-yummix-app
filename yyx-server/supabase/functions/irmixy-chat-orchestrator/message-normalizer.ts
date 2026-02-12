@@ -1,5 +1,5 @@
 import type { AIMessage } from "../_shared/ai-gateway/index.ts";
-import type { OpenAIMessage } from "./types.ts";
+import type { ChatMessage } from "./types.ts";
 
 /**
  * Convert orchestrator OpenAI-like messages into AI gateway messages.
@@ -7,7 +7,7 @@ import type { OpenAIMessage } from "./types.ts";
  * remain grounded in tool output for both streaming and non-streaming flows.
  */
 export function normalizeMessagesForAi(
-  messages: OpenAIMessage[],
+  messages: ChatMessage[],
 ): AIMessage[] {
   const aiMessages: AIMessage[] = [];
   let i = 0;

@@ -53,7 +53,7 @@ const RecipeDetail: React.FC = () => {
   }, [recipe?.id, recipe?.name]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
-  const { isSmall, isMedium } = useDevice();
+  const { isMedium } = useDevice();
   const { language: currentLanguage } = useLanguage();
 
   // Handle back navigation for web and native

@@ -17,8 +17,6 @@ import { Gender, ActivityLevel } from '@/types/user';
 import { DietaryRestriction, DietType, CuisinePreference } from '@/types/dietary';
 import { StatusModal } from '@/components/common/StatusModal';
 import { PageLayout } from '@/components/layouts/PageLayout';
-import { useDevice } from '@/hooks/useDevice';
-
 interface FormData {
   gender: string;
   birthDate: Date;
@@ -35,8 +33,6 @@ interface FormData {
 export default function PersonalData() {
   const { userProfile, updateUserProfile } = useUserProfile();
   const { measurementSystem } = useMeasurement();
-
-  const { isLarge, isPhone } = useDevice();
 
   const [showDietaryModal, setShowDietaryModal] = useState(false);
   const [showDietModal, setShowDietModal] = useState(false);

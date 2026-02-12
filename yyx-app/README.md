@@ -29,23 +29,23 @@ YummyYummix is a cross-platform recipe discovery application that makes cooking 
 
 ### Prerequisites
 
-- Node.js (v16 or higher)
-- npm or yarn
-- Expo CLI
+- Node.js (v18 or higher)
+- npm
+- Xcode (for iOS development)
+- Android Studio (for Android development)
 - Supabase account
-- OpenAI API account
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/banana-boogie/yyx-app.git
-
 # Install dependencies
 npm install
 
-# Start the development server
-npx expo start
+# Run on iOS
+npm run ios
+
+# Run on Android
+npm run android
 ```
 
 ## ⚙️ Environment Setup
@@ -74,42 +74,19 @@ This repository is intended for YummyYummix developers. To get started with deve
 3. Follow the installation steps above
 4. Refer to our internal documentation for API endpoints and database schema
 
-## 🧪 Local Development (Recommended Workflow)
+## 🧪 Development Workflow
 
-### 1) Switch environment
-- Local (LAN IP for physical devices):
+YummyYummix uses **Supabase Cloud** (no local Supabase instance). See the root [CLAUDE.md](../CLAUDE.md) for detailed setup and development commands.
+
+### Quick Start
 ```bash
-cd yyx-app
-npm run env:local
+npm run ios           # Run on physical iPhone
+npm run ios:sim       # Run on iOS Simulator
+npm run android       # Run on physical Android
 ```
 
-- Staging (Apple/Magic Link testing):
-```bash
-cd yyx-app
-npm run env:staging
-```
-
-> `env:staging` reads from `yyx-app/.env.staging` (you create this file locally).
-
-### 2) Verify local setup
-```bash
-cd yyx-app
-npm run dev:check
-```
-
-### 3) Start the app
-```bash
-cd yyx-app
-npm start
-```
-
-### 4) Seed + login dev user (local)
-```bash
-cd yyx-server
-npm run seed-test-user
-```
-
-Then use the **Developer Login** button on the login screen (dev builds only).
+### Dev Login
+On the login screen, tap **"Dev Login"** to sign in with pre-configured dev credentials (requires `EXPO_PUBLIC_DEV_LOGIN_EMAIL` and `EXPO_PUBLIC_DEV_LOGIN_PASSWORD` in `.env.local`).
 
 ## 📝 Contributing
 We welcome contributions from the YummyYummix development team. Please:
@@ -165,7 +142,7 @@ Supabase Edge Functions are located in the `yyx-server` repository:
 
 ### Database Schema
 
-Our database schema is managed through Supabase and SQL migration files located in `yyx-server/db/setup/`:
+Our database schema is managed through Supabase and SQL migration files located in `yyx-server/supabase/migrations/`.
 
 
 ## 🚀 Deployment

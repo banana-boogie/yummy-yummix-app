@@ -28,7 +28,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private sessionId: string | null = null;
   private sessionStartTime: number | null = null;
   private sessionTimeoutId: NodeJS.Timeout | null = null;
-  private inactivityTimer = new InactivityTimer(30000); // 30 seconds
+  private inactivityTimer = new InactivityTimer(10000); // 10 seconds
   private eventListeners: Map<VoiceEvent, Set<Function>> = new Map();
   private currentContext: ConversationContext | null = null;
   private dataChannelReady: boolean = false;

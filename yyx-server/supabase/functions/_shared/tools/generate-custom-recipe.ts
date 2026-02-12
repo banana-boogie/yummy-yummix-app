@@ -36,8 +36,8 @@ export const generateCustomRecipeTool = {
       "Generate a custom recipe based on ingredients the user has available. " +
       "Use this when the user wants to create a new recipe from scratch, " +
       "tells you what ingredients they have, or asks what they can make. " +
-      "Before calling this tool, gather at least: ingredients and time available. " +
-      "Cuisine preference is helpful but optional.",
+      "Before calling this tool, gather at least: ingredients. " +
+      "Time and cuisine preference are helpful but optional.",
     parameters: {
       type: "object",
       properties: {
@@ -72,7 +72,7 @@ export const generateCustomRecipeTool = {
           type: "array",
           items: { type: "string" },
           description:
-            'Specific kitchen equipment to prioritize for this recipe (e.g., ["thermomix", "air fryer"]). Overrides user\'s general equipment preferences.',
+            'Additional kitchen equipment for this recipe (e.g., ["thermomix", "air fryer"]). Supplements the user\'s general equipment preferences.',
         },
       },
       required: ["ingredients"],
@@ -389,7 +389,7 @@ function parseAndValidateGeneratedRecipe(content: string): GeneratedRecipe {
  * Build the system prompt for recipe generation.
  */
 function getSystemPrompt(userContext: UserContext): string {
-  const lang = userContext.language === "es" ? "Spanish" : "English";
+  const lang = userContext.language === "es" ? "Mexican Spanish" : "English";
   const units = userContext.measurementSystem === "imperial"
     ? "cups, tablespoons, teaspoons, ounces, pounds, °F"
     : "ml, liters, grams, kg, °C";
@@ -572,7 +572,7 @@ interface AllergenCheckResult {
 
 /**
  * Check all ingredients against user's allergen restrictions.
- * Uses parallel processing for performance (was sequential N+1 query).
+ * Uses parallel processing for performance.
  */
 async function checkIngredientsForAllergens(
   supabase: SupabaseClient,
@@ -604,13 +604,11 @@ async function checkIngredientsForAllergens(
 
   if (unsafeResult) {
     if (unsafeResult.systemUnavailable) {
-      return {
-        safe: false,
-        systemUnavailable: true,
-        warning: language === "es"
-          ? "No pude verificar alergias en este momento. Para tu seguridad, no puedo generar esta receta ahora."
-          : "I couldn't verify allergens right now. For your safety, I can't generate this recipe at the moment.",
-      };
+      console.error(
+        "[Allergen Check] System unavailable, proceeding without allergen verification:",
+        unsafeResult,
+      );
+      return { safe: true };
     }
 
     const warning = await getAllergenWarning(

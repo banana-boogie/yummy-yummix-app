@@ -191,7 +191,6 @@ Deno.test("searchRecipesHybrid returns hybrid no_semantic_candidates when vector
       "healthy dinner",
       {},
       BASE_USER_CONTEXT,
-      undefined,
       mockSupabase as any, // explicit semantic client
     );
 
@@ -254,7 +253,6 @@ Deno.test("searchRecipesHybrid returns low_confidence when too few results above
       "healthy dinner",
       {},
       BASE_USER_CONTEXT,
-      undefined,
       mockSupabase as any, // explicit semantic client
     );
 

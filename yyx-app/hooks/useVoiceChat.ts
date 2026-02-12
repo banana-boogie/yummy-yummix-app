@@ -7,7 +7,6 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { v4 as generateUUID } from 'uuid';
 import { supabase } from '@/lib/supabase';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -32,8 +31,9 @@ interface UseVoiceChatOptions {
     onTranscriptChange?: (messages: ChatMessage[]) => void;
 }
 
+let _msgCounter = 0;
 function generateMsgId(): string {
-    return `voice-msg-${generateUUID()}`;
+    return `voice-msg-${Date.now()}-${++_msgCounter}`;
 }
 
 export function useVoiceChat(options?: UseVoiceChatOptions) {

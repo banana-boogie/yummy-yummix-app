@@ -11,6 +11,7 @@ import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideSt
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
 import { eventService } from '@/services/eventService';
+import { COLORS } from '@/constants/design-tokens';
 
 export default function CookingStep() {
     const { id, step: stepParam } = useLocalSearchParams();
@@ -101,7 +102,7 @@ export default function CookingStep() {
         <View className="flex-1">
             <PageLayout
                 footer={<Footer />}
-                backgroundColor="#f9f9f9"
+                backgroundColor={COLORS.grey.light}
                 contentContainerStyle={{ paddingHorizontal: 0 }}
                 contentPaddingHorizontal={0}
                 scrollEnabled={true}

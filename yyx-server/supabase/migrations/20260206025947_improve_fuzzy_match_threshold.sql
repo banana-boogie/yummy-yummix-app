@@ -1,4 +1,5 @@
--- Improve fuzzy match threshold to prevent false positives
+-- [Ingredient Matching 1/4] Improve fuzzy match threshold to prevent false positives
+-- Related: 20260206035255 (batch function), 20260206043000 (aliases), 20260206050655 (batch fix)
 -- Example: "chili powder" was matching "cinnamon powder" with score 0.46
 -- Raising threshold from 0.3 to 0.5 requires at least 50% similarity
 

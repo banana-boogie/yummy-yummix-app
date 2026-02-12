@@ -13,11 +13,6 @@ import type { UserContext } from "../_shared/irmixy-schemas.ts";
 export function buildSystemPrompt(
   userContext: UserContext,
   mode: "text" | "voice",
-  resumableSession: {
-    recipeName: string;
-    currentStep: number;
-    totalSteps: number;
-  } | null,
   mealContext?: { mealType?: string; timePreference?: string },
 ): string {
   const basePrompt =
@@ -68,7 +63,7 @@ ${
 </user_context>
 
 IMPORTANT RULES:
-1. Always respond in ${userContext.language === "es" ? "Spanish" : "English"}
+1. Always respond in ${userContext.language === "es" ? "Mexican Spanish" : "English"}
 2. Use ${userContext.measurementSystem} measurements (${
       userContext.measurementSystem === "imperial"
         ? "cups, oz, °F"
@@ -165,53 +160,15 @@ Example of what to IGNORE:
   // Add meal context section
   let mealContextSection = "";
   if (mealContext?.mealType) {
-    const constraints = {
-      breakfast: {
-        appropriate:
-          "eggs, pancakes, oatmeal, toast, smoothies, waffles, cereals, breakfast meats",
-        avoid: "Heavy dinner items, desserts only, complex multi-course meals",
-      },
-      lunch: {
-        appropriate: "sandwiches, salads, soups, light mains, bowls, wraps",
-        avoid: "Breakfast items (unless brunch), heavy dinner courses",
-      },
-      dinner: {
-        appropriate:
-          "Main courses, complete meals, hearty dishes, proteins with sides",
-        avoid: "Breakfast items, desserts ONLY, appetizers ONLY",
-      },
-      snack: {
-        appropriate: "Small portions, finger foods, appetizers, light bites",
-        avoid: "Full meals, complex multi-step dishes",
-      },
-    };
-
-    const mealConstraints =
-      constraints[mealContext.mealType as keyof typeof constraints];
-
     mealContextSection = `\n\n## MEAL CONTEXT
 
 The user is planning: ${mealContext.mealType.toUpperCase()}
-
-CRITICAL CONSTRAINTS FOR ${mealContext.mealType.toUpperCase()}:
-- Appropriate: ${mealConstraints.appropriate}
-- AVOID: ${mealConstraints.avoid}
 ${
       mealContext.timePreference
-        ? `\nTime constraint: ${mealContext.timePreference} (adjust recipe complexity accordingly)\n`
+        ? `Time constraint: ${mealContext.timePreference} (adjust recipe complexity accordingly)`
         : ""
     }
-
-IMPORTANT: Only suggest recipes appropriate for ${mealContext.mealType}. Do NOT suggest items from the "AVOID" list.`;
-  }
-
-  // Add resumable session context
-  let sessionContext = "";
-  if (resumableSession) {
-    sessionContext = `\n\nACTIVE COOKING SESSION:
-The user has an incomplete cooking session for "${resumableSession.recipeName}".
-They stopped at step ${resumableSession.currentStep} of ${resumableSession.totalSteps}.
-Ask if they'd like to resume cooking.`;
+Suggest recipes appropriate for this meal type.`;
   }
 
   // Add mode-specific instructions
@@ -224,5 +181,5 @@ This will be spoken aloud, so:
 - Ask one question at a time`
     : "";
 
-  return basePrompt + mealContextSection + sessionContext + modeInstructions;
+  return basePrompt + mealContextSection + modeInstructions;
 }

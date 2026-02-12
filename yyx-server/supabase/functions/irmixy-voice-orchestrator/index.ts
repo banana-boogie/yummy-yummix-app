@@ -4,6 +4,12 @@
  * Single endpoint for voice flows:
  * - start_session: quota check + OpenAI ephemeral token + session record
  * - execute_tool: secure backend execution of whitelisted voice tools
+ *
+ * NOTE: This function uses the OpenAI Realtime API directly (not the AI Gateway).
+ * The Realtime API uses WebRTC for bidirectional audio streaming, which is a
+ * fundamentally different protocol from chat completions. The gateway's chat()
+ * interface does not apply here — this endpoint only fetches an ephemeral token
+ * for the client-side WebRTC connection.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";

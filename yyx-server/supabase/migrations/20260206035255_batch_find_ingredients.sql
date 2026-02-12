@@ -1,4 +1,5 @@
--- Batch find ingredients for performance optimization
+-- [Ingredient Matching 2/4] Batch find ingredients for performance optimization
+-- Related: 20260206025947 (threshold), 20260206043000 (aliases), 20260206050655 (batch fix)
 -- Reduces N+1 queries in enrichIngredientsWithImages() to a single query
 -- Each ingredient gets exact match OR fuzzy fallback
 

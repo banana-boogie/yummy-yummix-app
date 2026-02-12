@@ -68,9 +68,6 @@ export function createContextBuilder(supabase: SupabaseClient) {
   return {
     buildContext: (userId: string, sessionId?: string) =>
       buildContext(supabase, userId, sessionId),
-    getResumableCookingSession: (userId: string) =>
-      getResumableCookingSession(supabase, userId),
-    markStaleSessions: () => markStaleSessions(supabase),
   };
 }
 
@@ -135,10 +132,7 @@ async function buildContext(
   });
 
   // Diet types - MEDIUM constraint (affects ingredient selection)
-  // Filter out 'mediterranean' if it somehow got in (should be in cuisine_preferences)
-  const dietTypes = sanitizeList(profile?.diet_types).filter((d) =>
-    d !== "mediterranean"
-  );
+  const dietTypes = sanitizeList(profile?.diet_types);
 
   // Cuisine preferences - SOFT constraint (inspirational, not restrictive)
   const cuisinePreferences = sanitizeList(profile?.cuisine_preferences);
@@ -198,64 +192,3 @@ async function loadConversationHistory(
   }));
 }
 
-/**
- * Check for a resumable cooking session (active, within 24h).
- */
-async function getResumableCookingSession(
-  supabase: SupabaseClient,
-  userId: string,
-): Promise<
-  {
-    sessionId: string;
-    recipeName: string;
-    recipeType: "custom" | "database";
-    currentStep: number;
-    totalSteps: number;
-    recipeId: string;
-  } | null
-> {
-  const { data, error } = await supabase
-    .from("cooking_sessions")
-    .select(
-      "id, recipe_id, recipe_type, recipe_name, current_step, total_steps, last_active_at",
-    )
-    .eq("user_id", userId)
-    .eq("status", "active")
-    .order("last_active_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error || !data) {
-    return null;
-  }
-
-  // Check if session is within 24h
-  const lastActive = new Date(data.last_active_at);
-  const now = new Date();
-  const hoursSinceActive = (now.getTime() - lastActive.getTime()) /
-    (1000 * 60 * 60);
-
-  if (hoursSinceActive > 24) {
-    return null;
-  }
-
-  return {
-    sessionId: data.id,
-    recipeName: data.recipe_name || "Unknown recipe",
-    recipeType: data.recipe_type === "custom" ? "custom" : "database",
-    currentStep: data.current_step,
-    totalSteps: data.total_steps,
-    recipeId: data.recipe_id,
-  };
-}
-
-/**
- * Mark stale cooking sessions as abandoned.
- * Calls the database function that handles >24h sessions.
- */
-async function markStaleSessions(supabase: SupabaseClient): Promise<void> {
-  const { error } = await supabase.rpc("mark_stale_cooking_sessions");
-  if (error) {
-    console.error("Failed to mark stale sessions:", error);
-  }
-}

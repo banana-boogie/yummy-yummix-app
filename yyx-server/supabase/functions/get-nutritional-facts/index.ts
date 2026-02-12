@@ -1,8 +1,7 @@
 //@ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-//@ts-ignore
-import OpenAI from "https://deno.land/x/openai@v4.69.0/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { chat } from "../_shared/ai-gateway/index.ts";
 import {
   applyRoundingRulesToData,
   convertToPer100g,
@@ -77,46 +76,53 @@ class USDAService {
   }
 }
 
-class OpenAIService {
-  private static client = new OpenAI({
-    apiKey: Deno.env.get("OPENAI_API_KEY"),
-    fetch: fetch,
-  });
-
+class AIService {
   static async getNutritionalFacts(
     ingredientName: string,
   ): Promise<NutritionalData | null> {
-    console.info(`Looking up nutrition for '${ingredientName}' via OpenAI`);
+    console.info(`Looking up nutrition for '${ingredientName}' via AI gateway`);
     try {
-      const completion = await this.client.chat.completions.create({
-        model: "gpt-4o-mini",
+      const response = await chat({
+        usageType: "parsing",
         messages: [{
           role: "user",
           content:
             `Provide nutritional facts per 100g for ${ingredientName}. Return ONLY a JSON object in this exact format: {"calories": number, "protein": number, "fat": number, "carbohydrates": number}`,
         }],
         temperature: 0.3,
+        responseFormat: {
+          type: "json_schema",
+          schema: {
+            type: "object",
+            properties: {
+              calories: { type: "number" },
+              protein: { type: "number" },
+              fat: { type: "number" },
+              carbohydrates: { type: "number" },
+            },
+            required: ["calories", "protein", "fat", "carbohydrates"],
+            additionalProperties: false,
+          },
+        },
       });
 
-      if (!completion.choices[0]?.message?.content) {
-        console.warn(`No content in OpenAI response for '${ingredientName}'`);
+      if (!response.content) {
+        console.warn(`No content in AI response for '${ingredientName}'`);
         return null;
       }
 
       try {
-        const nutritionalData = JSON.parse(
-          completion.choices[0].message.content,
-        );
+        const nutritionalData = JSON.parse(response.content);
 
         if (validateNutritionalData(nutritionalData)) {
           console.info(
-            `Successfully retrieved OpenAI nutrition data for '${ingredientName}'`,
+            `Successfully retrieved AI nutrition data for '${ingredientName}'`,
           );
           applyRoundingRulesToData(nutritionalData);
           return nutritionalData;
         } else {
           console.warn(
-            `Invalid nutrition data format from OpenAI for '${ingredientName}'`,
+            `Invalid nutrition data format from AI for '${ingredientName}'`,
           );
           return null;
         }
@@ -125,7 +131,7 @@ class OpenAIService {
         return null;
       }
     } catch (error) {
-      console.error(`OpenAI service error for '${ingredientName}':`, error);
+      console.error(`AI service error for '${ingredientName}':`, error);
       return null;
     }
   }
@@ -160,8 +166,8 @@ serve(async (req) => {
     );
 
     if (!nutritionalFacts) {
-      console.info(`USDA lookup failed for '${ingredientName}', trying OpenAI`);
-      nutritionalFacts = await OpenAIService.getNutritionalFacts(
+      console.info(`USDA lookup failed for '${ingredientName}', trying AI`);
+      nutritionalFacts = await AIService.getNutritionalFacts(
         ingredientName,
       );
     }

@@ -5,6 +5,7 @@ import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { IrmixyAvatar } from '@/components/chat/IrmixyAvatar';
 import i18n from '@/i18n';
 import type { RecipeContext, QuotaInfo } from '@/services/voice/types';
+import { COLORS } from '@/constants/design-tokens';
 
 interface VoiceAssistantButtonProps {
     recipeContext?: RecipeContext;
@@ -32,8 +33,8 @@ export function VoiceAssistantButton({
         recipeContext,
         onQuotaWarning: (info: QuotaInfo) => {
             Alert.alert(
-                'Voice Usage Warning',
-                info.warning || `You have ${info.remainingMinutes.toFixed(1)} minutes remaining this month.`,
+                i18n.t('chat.voice.quotaWarningTitle'),
+                info.warning || i18n.t('chat.voice.quotaWarning', { minutes: info.remainingMinutes.toFixed(1) }),
                 [{ text: 'OK' }]
             );
         }
@@ -83,8 +84,8 @@ export function VoiceAssistantButton({
     const getStatusColor = () => {
         switch (status) {
             case 'listening': return 'bg-status-success'; // Consistently use design tokens
-            case 'processing': return 'bg-yellow-500';
-            case 'speaking': return 'bg-blue-500';
+            case 'processing': return 'bg-status-warning';
+            case 'speaking': return 'bg-primary-dark';
             case 'error': return 'bg-status-error';
             default: return 'bg-primary-medium';
         }
@@ -113,7 +114,7 @@ export function VoiceAssistantButton({
             {status === 'connecting' && (
                 <View className="absolute bottom-24 left-6 right-6 bg-primary-default rounded-lg p-4 shadow-lg z-50 border-2 border-primary-medium">
                     <View className="flex-row items-center justify-center gap-3">
-                        <ActivityIndicator color="#FFBFB7" size="small" />
+                        <ActivityIndicator color={COLORS.primary.medium} size="small" />
                         <Text preset="body" className="text-text-default font-semibold">
                             {i18n.t('chat.voice.connecting')}
                         </Text>
@@ -135,7 +136,7 @@ export function VoiceAssistantButton({
                 <View className="absolute bottom-24 left-6 right-6 bg-white rounded-lg p-4 shadow-lg z-50">
                     {transcript ? (
                         <Text preset="bodySmall" className="text-text-secondary mb-2">
-                            You: {transcript}
+                            {i18n.t('chat.voice.userPrefix')}{transcript}
                         </Text>
                     ) : null}
                     {response ? (
@@ -150,7 +151,7 @@ export function VoiceAssistantButton({
             {error && (
                 <View className="absolute bottom-24 left-6 right-6 bg-status-error rounded-lg p-4 shadow-lg z-50">
                     <Text preset="body" className="text-white">
-                        Error: {error}
+                        {i18n.t('chat.voice.errorPrefix')}{error}
                     </Text>
                 </View>
             )}

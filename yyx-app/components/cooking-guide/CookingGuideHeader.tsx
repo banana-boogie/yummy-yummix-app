@@ -4,7 +4,7 @@ import { Text } from '@/components/common/Text';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BackButton } from '@/components/navigation/BackButton';
 import { HamburgerMenu } from '@/components/navigation/HamburgerMenu';
-import { FONTS, TextPreset } from '@/constants/design-tokens';
+import { FONTS, TextPreset, COLORS } from '@/constants/design-tokens';
 import { Image } from 'expo-image';
 import { useDevice } from '@/hooks/useDevice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -76,12 +76,12 @@ export function CookingGuideHeader({
                         <LinearGradient
                             colors={[
                                 'transparent',
-                                'rgba(252, 246, 242, 0.1)',
-                                'rgba(252, 246, 242, 0.3)',
-                                'rgba(252, 246, 242, 0.5)',
-                                'rgba(252, 246, 242, 0.7)',
-                                'rgba(252, 246, 242, 0.9)',
-                                '#FCF6F2' // COLORS.background.SECONDARY
+                                `${COLORS.primary.lightest}1A`,
+                                `${COLORS.primary.lightest}4D`,
+                                `${COLORS.primary.lightest}80`,
+                                `${COLORS.primary.lightest}B3`,
+                                `${COLORS.primary.lightest}E6`,
+                                COLORS.primary.lightest,
                             ]}
                             locations={[0, 0.2, 0.4, 0.6, 0.8, 0.9, 1]}
                             className="absolute bottom-0 left-0 right-0 h-[70px] lg:h-[140px]"

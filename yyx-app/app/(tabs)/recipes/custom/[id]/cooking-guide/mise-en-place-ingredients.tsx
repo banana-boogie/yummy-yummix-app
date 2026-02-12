@@ -26,7 +26,6 @@ export default function CustomIngredientsStep() {
   const [ingredients, setIngredients] = useState<CheckableIngredient[]>([]);
   const { isMobile } = useDevice();
 
-  // Calculate number of columns based on screen size
   const numColumns = 2;
 
   // Reset ingredients when recipe ID changes or recipe data loads
@@ -102,11 +101,11 @@ export default function CustomIngredientsStep() {
         {/* Content wrapper - centered on desktop with max-width */}
         <View
           className="px-md pb-[120px]"
-          style={!isMobile ? {
+          style={isMobile ? undefined : {
             maxWidth: LAYOUT.maxWidth.cookingGuide,
             alignSelf: 'center',
             width: '100%'
-          } : undefined}
+          }}
         >
           {/* Ingredients Section */}
           <View className="mb-lg">

@@ -1,8 +1,5 @@
--- [Ingredient Matching 4/4] Fix batch_find_ingredients: add NULL/empty guard and return all input ingredients
--- Related: 20260206025947 (threshold), 20260206035255 (batch), 20260206043000 (aliases)
--- Issues addressed:
--- 1. SQL function missing NULL/empty array validation
--- 2. Unmatched ingredients dropped from results (FULL OUTER JOIN issue)
+-- Raise batch_find_ingredients similarity threshold from 0.5 to 0.7
+-- Reduces false positive matches (e.g., "rice" matching "rice vinegar")
 
 CREATE OR REPLACE FUNCTION public.batch_find_ingredients(
   ingredient_names text[],
@@ -19,7 +16,7 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  similarity_threshold CONSTANT real := 0.5;
+  similarity_threshold CONSTANT real := 0.7;
 BEGIN
   -- Guard: return empty if no input
   IF ingredient_names IS NULL OR array_length(ingredient_names, 1) IS NULL THEN
@@ -88,4 +85,4 @@ COMMENT ON FUNCTION public.batch_find_ingredients IS
   'Batch find ingredient matches for multiple names in a single query.
    Returns ALL input ingredients (with NULLs for unmatched).
    Exact matches first, fuzzy fallback for unmatched.
-   Threshold of 0.5 prevents false positives.';
+   Threshold of 0.7 to reduce false positive matches.';

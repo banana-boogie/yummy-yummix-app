@@ -131,7 +131,6 @@ export async function searchRecipes(
         limit: params.limit,
       },
       userContext,
-      undefined,
       semanticSupabase,
     );
 
