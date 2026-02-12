@@ -28,9 +28,9 @@ npm test -- --coverage
   - Rating statistics
   - Rating distribution (single query + client-side grouping)
 
-- **`services/completionService.test.ts`** - Tests for recipe completion tracking
-  - Recording completions (insert and update paths)
-  - Race condition handling (23505 unique violation retry)
+- **`services/recipeCompletionService.test.ts`** - Tests for recipe completion tracking
+  - Recording append-only completion events (insert path)
+  - Concurrent insert behavior
   - Unauthenticated user handling
   - Completion existence checks
   - Completion count retrieval

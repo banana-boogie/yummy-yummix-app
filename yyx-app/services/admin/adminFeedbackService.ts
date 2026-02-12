@@ -1,14 +1,20 @@
 import { supabase } from '@/lib/supabase';
 import { AdminFeedbackItem } from '@/types/rating.types';
 
-interface RawFeedbackRow {
+interface FeedbackRpcRow {
     id: string;
     feedback: string;
     created_at: string;
     user_id: string;
     recipe_id: string;
-    recipe: Record<string, string> | null;
-    user: { id: string; email: string } | null;
+    recipe_name: string | null;
+    user_email: string | null;
+}
+
+interface FeedbackRpcResult {
+    data: FeedbackRpcRow[];
+    count: number;
+    hasMore: boolean;
 }
 
 interface RawRecipeRow {
@@ -41,77 +47,54 @@ export const adminFeedbackService = {
         page = 1,
         pageSize = 20
     ): Promise<FeedbackListResult> {
-        // Use language from filters, default to 'en'
         const language = filters.language || 'en';
-        const langSuffix = `_${language}`;
-        const offset = (page - 1) * pageSize;
-
-        let query = supabase
-            .from('recipe_feedback')
-            .select(`
-        id,
-        feedback,
-        created_at,
-        user_id,
-        recipe_id,
-        recipe:recipes!inner (
-          id,
-          name${langSuffix}
-        ),
-        user:user_profiles!inner (
-          id,
-          email
-        )
-      `, { count: 'exact' })
-            .order('created_at', { ascending: false })
-            .range(offset, offset + pageSize - 1);
-
-        // Apply filters
-        if (filters.recipeId) {
-            query = query.eq('recipe_id', filters.recipeId);
-        }
-        if (filters.startDate) {
-            query = query.gte('created_at', filters.startDate);
-        }
-        if (filters.endDate) {
-            query = query.lte('created_at', filters.endDate);
-        }
-
-        const { data, count, error } = await query;
+        const { data, error } = await supabase.rpc('admin_recipe_feedback_list', {
+            p_page: page,
+            p_page_size: pageSize,
+            p_recipe_id: filters.recipeId ?? null,
+            p_start_date: filters.startDate ?? null,
+            p_end_date: filters.endDate ?? null,
+            p_language: language,
+        });
 
         if (error) {
             throw new Error(`Failed to fetch feedback: ${error.message}`);
         }
 
-        // Transform the data
-        const transformedData: AdminFeedbackItem[] = ((data || []) as RawFeedbackRow[]).map((item) => ({
+        const payload = (data as FeedbackRpcResult | null) ?? {
+            data: [],
+            count: 0,
+            hasMore: false,
+        };
+
+        const transformedData: AdminFeedbackItem[] = payload.data.map((item) => ({
             id: item.id,
             feedback: item.feedback,
             createdAt: item.created_at,
             recipeId: item.recipe_id,
-            recipeName: item.recipe?.[`name${langSuffix}`] || 'Unknown Recipe',
+            recipeName: item.recipe_name || 'Unknown Recipe',
             userId: item.user_id,
-            userEmail: item.user?.email || 'Unknown User',
+            userEmail: item.user_email || 'Unknown User',
         }));
 
         return {
             data: transformedData,
-            count: count || 0,
-            hasMore: offset + pageSize < (count || 0),
+            count: payload.count || 0,
+            hasMore: payload.hasMore || false,
         };
     },
 
     /**
      * Get list of recipes for filter dropdown
      */
-    async getRecipesForFilter(language: 'en' | 'es' = 'en'): Promise<Array<{ id: string; name: string }>> {
-        const langSuffix = `_${language}`;
+    async getRecipesForFilter(language: 'en' | 'es' = 'en'): Promise<{ id: string; name: string }[]> {
+        const nameColumn = language === 'es' ? 'name_es' : 'name_en';
 
         const { data, error } = await supabase
             .from('recipes')
-            .select(`id, name${langSuffix}`)
+            .select(`id, ${nameColumn}`)
             .eq('is_published', true)
-            .order(`name${langSuffix}`);
+            .order(nameColumn);
 
         if (error) {
             throw new Error(`Failed to fetch recipes: ${error.message}`);
@@ -119,7 +102,7 @@ export const adminFeedbackService = {
 
         return ((data || []) as RawRecipeRow[]).map((recipe) => ({
             id: recipe.id,
-            name: recipe[`name${langSuffix}`],
+            name: recipe[nameColumn],
         }));
     },
 };

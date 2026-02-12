@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 
 /**
  * Validate that a recipe exists and is published.
- * Shared by ratingService and completionService.
+ * Shared by ratingService and recipeCompletionService.
  */
 export async function validateRecipeIsPublished(recipeId: string): Promise<void> {
     const { data, error } = await supabase
