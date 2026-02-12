@@ -29,15 +29,13 @@ import type { RetrieveCustomRecipeResult } from "../_shared/tools/retrieve-custo
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { executeTool } from "../_shared/tools/execute-tool.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
-import {
-  hasHighRecipeIntent,
-} from "./recipe-intent.ts";
+import { hasHighRecipeIntent } from "./recipe-intent.ts";
 
 // Module imports
 import type {
   ChatMessage,
-  ToolCall,
   RequestContext,
+  ToolCall,
   ToolExecutionResult,
 } from "./types.ts";
 import { SessionOwnershipError } from "./types.ts";
@@ -75,7 +73,9 @@ serve(async (req) => {
   const requestStartTime = Date.now();
 
   try {
-    let body: { message: string; sessionId?: string; mode?: "text" | "voice" } | null = null;
+    let body:
+      | { message: string; sessionId?: string; mode?: "text" | "voice" }
+      | null = null;
     try {
       body = await req.json();
     } catch {
@@ -302,7 +302,12 @@ function handleStreamingRequest(
           streamTimedOut = true;
           controller.enqueue(
             encoder.encode(
-              `data: ${JSON.stringify({ type: "error", error: "Stream timeout — no data for 30 seconds" })}\n\n`,
+              `data: ${
+                JSON.stringify({
+                  type: "error",
+                  error: "Stream timeout — no data for 30 seconds",
+                })
+              }\n\n`,
             ),
           );
           controller.close();
@@ -336,14 +341,13 @@ function handleStreamingRequest(
         }
         send({ type: "status", status: "thinking" });
 
-        const { userContext, messages } =
-          await buildRequestContext(
-            supabase,
-            userId,
-            sessionId,
-            message,
-            mode,
-          );
+        const { userContext, messages } = await buildRequestContext(
+          supabase,
+          userId,
+          sessionId,
+          message,
+          mode,
+        );
         timings.context_build_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
 
@@ -533,7 +537,9 @@ function handleStreamingRequest(
         // NOTE: Don't send content here when recipe exists - it will be included in the "done" response
         // This ensures the recipe card renders before/with the text, not after
         let finalText: string;
-        let suggestions: import("../_shared/irmixy-schemas.ts").SuggestionChip[] | undefined;
+        let suggestions:
+          | import("../_shared/irmixy-schemas.ts").SuggestionChip[]
+          | undefined;
 
         if (customRecipeResult?.recipe) {
           // Fixed message asking about changes - sent with completion, not streamed
@@ -585,7 +591,6 @@ function handleStreamingRequest(
           recipes,
           customRecipeResult,
           suggestions,
-          streamResumeActions,
         );
         timings.finalize_ms = Math.round(performance.now() - phaseStart);
         timings.total_ms = Math.round(performance.now() - startTime);

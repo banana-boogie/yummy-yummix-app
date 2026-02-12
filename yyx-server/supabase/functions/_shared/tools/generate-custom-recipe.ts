@@ -604,11 +604,13 @@ async function checkIngredientsForAllergens(
 
   if (unsafeResult) {
     if (unsafeResult.systemUnavailable) {
-      console.error(
-        "[Allergen Check] System unavailable, proceeding without allergen verification:",
-        unsafeResult,
-      );
-      return { safe: true };
+      return {
+        safe: false,
+        systemUnavailable: true,
+        warning: language === "es"
+          ? "No pude verificar alergias en este momento. Para tu seguridad, no puedo generar esta receta ahora."
+          : "I couldn't verify allergens right now. For your safety, I can't generate this recipe at the moment.",
+      };
     }
 
     const warning = await getAllergenWarning(

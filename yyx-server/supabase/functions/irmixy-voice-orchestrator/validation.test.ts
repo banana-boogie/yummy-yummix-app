@@ -13,14 +13,19 @@ import {
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 
 // Must match irmixy-voice-orchestrator/index.ts
-const ALLOWED_ACTIONS = ["start_session", "execute_tool"] as const;
+const ALLOWED_ACTIONS = [
+  "start_session",
+  "execute_tool",
+  "check_quota",
+] as const;
 const ALLOWED_TOOLS = ["search_recipes", "generate_custom_recipe"] as const;
 const MAX_PAYLOAD_BYTES = 10_000;
 
 Deno.test("ALLOWED_ACTIONS contains exactly the expected actions", () => {
-  assertEquals(ALLOWED_ACTIONS.length, 2);
+  assertEquals(ALLOWED_ACTIONS.length, 3);
   assert(ALLOWED_ACTIONS.includes("start_session"));
   assert(ALLOWED_ACTIONS.includes("execute_tool"));
+  assert(ALLOWED_ACTIONS.includes("check_quota"));
 });
 
 Deno.test("action validation rejects unknown actions", () => {
@@ -126,6 +131,13 @@ Deno.test("JSON parse succeeds for valid execute_tool request", () => {
   assertEquals(parsed.action, "execute_tool");
   assertEquals(parsed.toolName, "search_recipes");
   assertEquals(parsed.toolArgs.query, "pasta");
+});
+
+Deno.test("JSON parse succeeds for valid check_quota request", () => {
+  const rawBody = JSON.stringify({ action: "check_quota" });
+  const parsed = JSON.parse(rawBody);
+
+  assertEquals(parsed.action, "check_quota");
 });
 
 Deno.test("JSON parse fails for malformed body", () => {

@@ -20,12 +20,16 @@ import {
 } from "./tool-validators.ts";
 import {
   enrichIngredientsWithImages,
+  generateCustomRecipe,
   TEMP_REGEX,
   VALID_NUMERIC_SPEEDS,
   VALID_SPECIAL_SPEEDS,
   VALID_SPECIAL_TEMPS,
   validateThermomixSteps,
 } from "./generate-custom-recipe.ts";
+import { clearAllergenCache } from "../allergen-filter.ts";
+import { clearFoodSafetyCache } from "../food-safety.ts";
+import { clearAliasCache } from "../ingredient-normalization.ts";
 
 // ============================================================
 // Test Data Helpers
@@ -41,6 +45,7 @@ function createMockUserContext(
     householdSize: number | null;
     conversationHistory: Array<{ role: string; content: string }>;
     dietTypes: string[];
+    cuisinePreferences: string[];
     customAllergies: string[];
     kitchenEquipment: string[];
   }>,
@@ -54,6 +59,7 @@ function createMockUserContext(
     householdSize: null,
     conversationHistory: [],
     dietTypes: [],
+    cuisinePreferences: [],
     customAllergies: [],
     kitchenEquipment: [],
     ...overrides,
@@ -90,6 +96,34 @@ function createMockGeneratedRecipeResponse(
     tags: ["quick", "easy"],
     ...overrides,
   };
+}
+
+function resetSharedCaches() {
+  clearAllergenCache();
+  clearFoodSafetyCache();
+  clearAliasCache();
+}
+
+function createAllergenOutageSupabaseMock() {
+  return {
+    from: (table: string) => ({
+      select: (_fields: string) => {
+        if (table === "allergen_groups") {
+          return Promise.resolve({
+            data: null,
+            error: { message: "allergen db unavailable" },
+          });
+        }
+        if (table === "food_safety_rules") {
+          return Promise.resolve({ data: [], error: null });
+        }
+        if (table === "ingredient_aliases") {
+          return Promise.resolve({ data: [], error: null });
+        }
+        return Promise.resolve({ data: [], error: null });
+      },
+    }),
+  } as any;
 }
 
 // ============================================================
@@ -386,6 +420,56 @@ Deno.test("UserContext supports equipment preferences", () => {
 
   assertEquals(imperialContext.measurementSystem, "imperial");
   assertEquals(metricContext.measurementSystem, "metric");
+});
+
+// ============================================================
+// generateCustomRecipe Allergen Safety Tests
+// ============================================================
+
+Deno.test("generateCustomRecipe fails safe when allergen system is unavailable", async () => {
+  resetSharedCaches();
+  const supabase = createAllergenOutageSupabaseMock();
+  const userContext = createMockUserContext({
+    language: "en",
+    dietaryRestrictions: ["nuts"],
+  });
+
+  const result = await generateCustomRecipe(
+    supabase,
+    { ingredients: ["chicken"] },
+    userContext,
+  );
+
+  assertEquals(result.safetyFlags?.error, true);
+  assertStringIncludes(
+    result.safetyFlags?.allergenWarning ?? "",
+    "couldn't verify allergens",
+  );
+  assertEquals(result.recipe.suggestedName, "Recipe unavailable");
+  assertEquals(result.recipe.ingredients.length, 0);
+});
+
+Deno.test("generateCustomRecipe returns localized fail-safe warning in Spanish", async () => {
+  resetSharedCaches();
+  const supabase = createAllergenOutageSupabaseMock();
+  const userContext = createMockUserContext({
+    language: "es",
+    dietaryRestrictions: ["nuts"],
+  });
+
+  const result = await generateCustomRecipe(
+    supabase,
+    { ingredients: ["pollo"] },
+    userContext,
+  );
+
+  assertEquals(result.safetyFlags?.error, true);
+  assertStringIncludes(
+    result.safetyFlags?.allergenWarning ?? "",
+    "No pude verificar alergias",
+  );
+  assertEquals(result.recipe.suggestedName, "Receta no disponible");
+  assertEquals(result.recipe.ingredients.length, 0);
 });
 
 // ============================================================
