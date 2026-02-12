@@ -21,9 +21,7 @@ export interface RecipeCompletion {
     id: string;
     userId: string;
     recipeId: string;
-    completionCount: number;
-    firstCompletedAt: string;
-    lastCompletedAt: string;
+    completedAt: string;
 }
 
 export interface RecipeRatingStats {
@@ -53,9 +51,7 @@ export interface RawRecipeCompletion {
     id: string;
     user_id: string;
     recipe_id: string;
-    completion_count: number;
-    first_completed_at: string;
-    last_completed_at: string;
+    completed_at: string;
 }
 
 // Admin feedback view with joined data

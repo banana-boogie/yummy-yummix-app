@@ -14,6 +14,7 @@ import { useRecipeRating } from '@/hooks/useRecipeRating';
 import { COLORS } from '@/constants/design-tokens';
 import * as Haptics from 'expo-haptics';
 import i18n from '@/i18n';
+import { RATING_REQUIRES_COMPLETION_ERROR } from '@/services/ratingService';
 
 interface RecipeRatingModalProps {
     visible: boolean;
@@ -91,7 +92,10 @@ export function RecipeRatingModal({
                 onClose();
             }, 1500);
         } catch (err) {
-            setError(i18n.t('recipes.rating.submitError'));
+            const errorMessage = err instanceof Error && err.message === RATING_REQUIRES_COMPLETION_ERROR
+                ? i18n.t('recipes.rating.completeRecipeToRate')
+                : i18n.t('recipes.rating.submitError');
+            setError(errorMessage);
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         }
     };

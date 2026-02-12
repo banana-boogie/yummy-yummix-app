@@ -13,7 +13,7 @@ import { eventService } from '@/services/eventService';
 import { COLORS } from '@/constants/design-tokens';
 import { RecipeRatingModal } from '@/components/rating/RecipeRatingModal';
 import { useAuth } from '@/contexts/AuthContext';
-import { completionService } from '@/services/completionService';
+import { recipeCompletionService } from '@/services/recipeCompletionService';
 
 export default function CookingStep() {
     const { id, step: stepParam } = useLocalSearchParams();
@@ -48,7 +48,7 @@ export default function CookingStep() {
                 eventService.logCookComplete(recipe.id, recipe.name);
             }
             try {
-                await completionService.recordCompletion(id as string);
+                await recipeCompletionService.recordCompletion(id as string);
             } catch {
                 // Don't block rating modal or navigation on completion failure
             }
@@ -121,12 +121,12 @@ export default function CookingStep() {
                 <View className="px-md mb-md">
                     <RecipeStepContent step={currentStep} />
                 </View>
-            <RecipeRatingModal
-                visible={showRatingModal}
-                onClose={handleRatingModalClose}
-                recipeId={id as string}
-                recipeName={recipe.name}
-            />
+                <RecipeRatingModal
+                    visible={showRatingModal}
+                    onClose={handleRatingModalClose}
+                    recipeId={id as string}
+                    recipeName={recipe.name}
+                />
             </PageLayout>
         </View>
     );

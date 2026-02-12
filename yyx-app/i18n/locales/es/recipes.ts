@@ -87,6 +87,7 @@ export const recipes = {
     yourRating: "Tu calificación",
     rateThisRecipe: "Califica esta receta",
     tapToUpdateRating: "Toca una estrella para actualizar tu calificación",
+    completeRecipeToRate: "Termina esta receta para poder calificarla",
     rateStar: "Califica con {{count}} estrella",
     rateStars: "Califica con {{count}} estrellas",
     ratingsCount: "{{count}} calificaciones",

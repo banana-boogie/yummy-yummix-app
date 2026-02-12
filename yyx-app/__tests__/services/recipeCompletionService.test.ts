@@ -1,4 +1,4 @@
-import { completionService } from '@/services/completionService';
+import { recipeCompletionService } from '@/services/recipeCompletionService';
 import { validateRecipeIsPublished } from '@/services/recipeValidation';
 import { supabase } from '@/lib/supabase';
 
@@ -17,7 +17,7 @@ jest.mock('@/services/recipeValidation', () => ({
   validateRecipeIsPublished: jest.fn(),
 }));
 
-describe('completionService', () => {
+describe('recipeCompletionService', () => {
   const mockUser = { id: 'user-123', email: 'test@example.com' };
   const mockRecipeId = 'recipe-456';
 
@@ -27,102 +27,25 @@ describe('completionService', () => {
   });
 
   describe('recordCompletion', () => {
-    it('should insert a new completion for first-time completion', async () => {
+    it('should insert a new completion event', async () => {
       (supabase.auth.getUser as jest.Mock).mockResolvedValue({
         data: { user: mockUser },
       });
 
       const mockFrom = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: null,
-          error: { code: 'PGRST116' }, // No rows found
-        }),
         insert: jest.fn().mockResolvedValue({ error: null }),
-        // For user_events fire-and-forget
-        then: jest.fn().mockImplementation((cb) => { cb?.(); return Promise.resolve(); }),
       };
 
       (supabase.from as jest.Mock).mockReturnValue(mockFrom);
 
-      await completionService.recordCompletion(mockRecipeId);
+      await recipeCompletionService.recordCompletion(mockRecipeId);
 
       expect(validateRecipeIsPublished).toHaveBeenCalledWith(mockRecipeId);
       expect(mockFrom.insert).toHaveBeenCalledWith(
         expect.objectContaining({
           user_id: mockUser.id,
           recipe_id: mockRecipeId,
-          completion_count: 1,
-        })
-      );
-    });
-
-    it('should update existing completion', async () => {
-      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
-        data: { user: mockUser },
-      });
-
-      const mockFrom = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: { id: 'comp-1', completion_count: 2 },
-          error: null,
-        }),
-        update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({ error: null }),
-        }),
-        insert: jest.fn().mockResolvedValue({ error: null }),
-        then: jest.fn().mockImplementation((cb) => { cb?.(); return Promise.resolve(); }),
-      };
-
-      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
-
-      await completionService.recordCompletion(mockRecipeId);
-
-      expect(mockFrom.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          completion_count: 3,
-        })
-      );
-    });
-
-    it('should handle race condition (23505 unique violation)', async () => {
-      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
-        data: { user: mockUser },
-      });
-
-      let selectCallCount = 0;
-      const mockFrom = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockImplementation(() => {
-          selectCallCount++;
-          if (selectCallCount === 1) {
-            // First call: no existing record
-            return Promise.resolve({ data: null, error: { code: 'PGRST116' } });
-          }
-          // Second call (retry after 23505): record exists now
-          return Promise.resolve({ data: { id: 'comp-1', completion_count: 1 }, error: null });
-        }),
-        insert: jest.fn().mockResolvedValue({
-          error: { code: '23505', message: 'unique violation' },
-        }),
-        update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockResolvedValue({ error: null }),
-        }),
-        then: jest.fn().mockImplementation((cb) => { cb?.(); return Promise.resolve(); }),
-      };
-
-      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
-
-      await completionService.recordCompletion(mockRecipeId);
-
-      // Should have retried with update
-      expect(mockFrom.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          completion_count: 2,
+          completed_at: expect.any(String),
         })
       );
     });
@@ -132,10 +55,47 @@ describe('completionService', () => {
         data: { user: null },
       });
 
-      await completionService.recordCompletion(mockRecipeId);
+      await recipeCompletionService.recordCompletion(mockRecipeId);
 
       expect(validateRecipeIsPublished).not.toHaveBeenCalled();
       expect(supabase.from).not.toHaveBeenCalled();
+    });
+
+    it('should throw when insert fails', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: mockUser },
+      });
+
+      const mockFrom = {
+        insert: jest.fn().mockResolvedValue({
+          error: { message: 'insert failed' },
+        }),
+      };
+
+      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
+
+      await expect(recipeCompletionService.recordCompletion(mockRecipeId)).rejects.toThrow(
+        'Failed to record recipe completion. Please try again.'
+      );
+    });
+
+    it('should support concurrent completion inserts without update fallback logic', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: mockUser },
+      });
+
+      const mockFrom = {
+        insert: jest.fn().mockResolvedValue({ error: null }),
+      };
+
+      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
+
+      await Promise.all([
+        recipeCompletionService.recordCompletion(mockRecipeId),
+        recipeCompletionService.recordCompletion(mockRecipeId),
+      ]);
+
+      expect(mockFrom.insert).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -156,7 +116,7 @@ describe('completionService', () => {
 
       (supabase.from as jest.Mock).mockReturnValue(mockFrom);
 
-      const result = await completionService.hasCompletedRecipe(mockRecipeId);
+      const result = await recipeCompletionService.hasCompletedRecipe(mockRecipeId);
       expect(result).toBe(true);
     });
 
@@ -176,7 +136,7 @@ describe('completionService', () => {
 
       (supabase.from as jest.Mock).mockReturnValue(mockFrom);
 
-      const result = await completionService.hasCompletedRecipe(mockRecipeId);
+      const result = await recipeCompletionService.hasCompletedRecipe(mockRecipeId);
       expect(result).toBe(false);
     });
 
@@ -185,8 +145,29 @@ describe('completionService', () => {
         data: { user: null },
       });
 
-      const result = await completionService.hasCompletedRecipe(mockRecipeId);
+      const result = await recipeCompletionService.hasCompletedRecipe(mockRecipeId);
       expect(result).toBe(false);
+    });
+
+    it('should throw when completion status query fails', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: mockUser },
+      });
+
+      const mockFrom = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { code: '42501' },
+        }),
+      };
+
+      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
+
+      await expect(recipeCompletionService.hasCompletedRecipe(mockRecipeId)).rejects.toThrow(
+        'Failed to check recipe completion status. Please try again.'
+      );
     });
   });
 
@@ -199,15 +180,19 @@ describe('completionService', () => {
       const mockFrom = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: { completion_count: 5 },
-          error: null,
-        }),
       };
+
+      mockFrom.eq
+        .mockReturnValueOnce(mockFrom)
+        .mockResolvedValueOnce({
+          data: null,
+          count: 5,
+          error: null,
+        });
 
       (supabase.from as jest.Mock).mockReturnValue(mockFrom);
 
-      const count = await completionService.getCompletionCount(mockRecipeId);
+      const count = await recipeCompletionService.getCompletionCount(mockRecipeId);
       expect(count).toBe(5);
     });
 
@@ -219,15 +204,19 @@ describe('completionService', () => {
       const mockFrom = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: null,
-          error: null,
-        }),
       };
+
+      mockFrom.eq
+        .mockReturnValueOnce(mockFrom)
+        .mockResolvedValueOnce({
+          data: null,
+          count: 0,
+          error: null,
+        });
 
       (supabase.from as jest.Mock).mockReturnValue(mockFrom);
 
-      const count = await completionService.getCompletionCount(mockRecipeId);
+      const count = await recipeCompletionService.getCompletionCount(mockRecipeId);
       expect(count).toBe(0);
     });
 
@@ -236,8 +225,33 @@ describe('completionService', () => {
         data: { user: null },
       });
 
-      const count = await completionService.getCompletionCount(mockRecipeId);
+      const count = await recipeCompletionService.getCompletionCount(mockRecipeId);
       expect(count).toBe(0);
+    });
+
+    it('should throw on count query error', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: mockUser },
+      });
+
+      const mockFrom = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+      };
+
+      mockFrom.eq
+        .mockReturnValueOnce(mockFrom)
+        .mockResolvedValueOnce({
+          data: null,
+          count: null,
+          error: { message: 'DB error' },
+        });
+
+      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
+
+      await expect(recipeCompletionService.getCompletionCount(mockRecipeId)).rejects.toThrow(
+        'Failed to fetch recipe completion count. Please try again.'
+      );
     });
   });
 });

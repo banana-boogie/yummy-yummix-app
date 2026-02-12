@@ -2,6 +2,7 @@ import { View, Platform, StatusBar, Animated } from 'react-native';
 import React, { useRef, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Head from 'expo-router/head';
+import { useQuery } from '@tanstack/react-query';
 
 import { Text } from '@/components/common/Text';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
@@ -28,6 +29,8 @@ import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { RatingDistribution, RatingDistributionSkeleton, StarRating, StarRatingInput } from '@/components/rating';
 import { useRecipeRating } from '@/hooks/useRecipeRating';
+import { recipeCompletionService } from '@/services/recipeCompletionService';
+import { RATING_REQUIRES_COMPLETION_ERROR } from '@/services/ratingService';
 
 const RecipeDetail: React.FC = () => {
   const { id, from } = useLocalSearchParams();
@@ -46,13 +49,6 @@ const RecipeDetail: React.FC = () => {
   const validId = id && isValidUUID(id as string) ? (id as string) : '';
   const { recipe, loading, error } = useRecipe(validId);
 
-  // Track recipe view when recipe loads successfully
-  useEffect(() => {
-    if (recipe?.id && recipe?.name) {
-      eventService.logRecipeView(recipe.id, recipe.name);
-    }
-  }, [recipe?.id, recipe?.name]);
-
   // Fetch rating distribution and user rating
   const {
     ratingDistribution,
@@ -65,6 +61,23 @@ const RecipeDetail: React.FC = () => {
     isSubmittingRating,
     ratingError,
   } = useRecipeRating(validId);
+
+  const {
+    data: hasCompletedRecipe = false,
+    isLoading: isLoadingCompletionStatus,
+  } = useQuery({
+    queryKey: ['recipe-completion-status', validId, isLoggedIn],
+    queryFn: () => recipeCompletionService.hasCompletedRecipe(validId),
+    enabled: isLoggedIn && !!validId,
+    staleTime: 1000 * 60, // 1 minute
+  });
+
+  // Track recipe view when recipe loads successfully
+  useEffect(() => {
+    if (recipe?.id && recipe?.name) {
+      eventService.logRecipeView(recipe.id, recipe.name);
+    }
+  }, [recipe?.id, recipe?.name]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const { isMedium } = useDevice();
@@ -107,6 +120,16 @@ const RecipeDetail: React.FC = () => {
 
   const ratingCount = recipe.ratingCount ?? 0;
   const averageRating = recipe.averageRating ?? null;
+  const isRatingGated = isLoggedIn && !isLoadingCompletionStatus && !hasCompletedRecipe;
+  const isRatingInputDisabled = isSubmittingRating || isLoadingRating || isLoadingCompletionStatus || isRatingGated;
+  const ratingErrorMessage = ratingError instanceof Error && ratingError.message === RATING_REQUIRES_COMPLETION_ERROR
+    ? i18n.t('recipes.rating.completeRecipeToRate')
+    : i18n.t('recipes.rating.submitError');
+  const ratingHelperText = isRatingGated
+    ? i18n.t('recipes.rating.completeRecipeToRate')
+    : userRating
+      ? i18n.t('recipes.rating.tapToUpdateRating')
+      : i18n.t('recipes.rating.rateThisRecipe');
 
   return (
     <>
@@ -168,17 +191,15 @@ const RecipeDetail: React.FC = () => {
                     <StarRatingInput
                       value={userRating ?? 0}
                       onChange={submitRating}
-                      disabled={isSubmittingRating || isLoadingRating}
+                      disabled={isRatingInputDisabled}
                       size="md"
                     />
                     <Text preset="caption" className="text-text-secondary mt-xs">
-                      {userRating
-                        ? i18n.t('recipes.rating.tapToUpdateRating')
-                        : i18n.t('recipes.rating.rateThisRecipe')}
+                      {ratingHelperText}
                     </Text>
                     {ratingError && (
                       <Text preset="caption" className="text-status-error mt-xs">
-                        {i18n.t('recipes.rating.submitError')}
+                        {ratingErrorMessage}
                       </Text>
                     )}
                   </View>

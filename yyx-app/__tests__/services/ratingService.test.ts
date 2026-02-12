@@ -1,4 +1,4 @@
-import { ratingService } from '@/services/ratingService';
+import { RATING_REQUIRES_COMPLETION_ERROR, ratingService } from '@/services/ratingService';
 import { validateRecipeIsPublished } from '@/services/recipeValidation';
 import { supabase } from '@/lib/supabase';
 
@@ -90,6 +90,27 @@ describe('ratingService', () => {
 
       await expect(ratingService.submitRating(mockRecipeId, 3.5)).rejects.toThrow(
         'Rating must be a whole number between 1 and 5'
+      );
+    });
+
+    it('should throw completion-gated error when blocked by rating policy', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: mockUser },
+      });
+
+      const mockFrom = {
+        upsert: jest.fn().mockResolvedValue({
+          error: {
+            code: '42501',
+            message: 'new row violates row-level security policy for table "recipe_ratings"',
+          },
+        }),
+      };
+
+      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
+
+      await expect(ratingService.submitRating(mockRecipeId, 4)).rejects.toThrow(
+        RATING_REQUIRES_COMPLETION_ERROR
       );
     });
   });

@@ -1,6 +1,20 @@
 import { supabase } from '@/lib/supabase';
 import { validateRecipeIsPublished } from '@/services/recipeValidation';
 
+export const RATING_REQUIRES_COMPLETION_ERROR = 'RATING_REQUIRES_COMPLETION';
+
+function isRatingCompletionPolicyError(error: { code?: string; message?: string }): boolean {
+    if (error.code === '42501') {
+        return true;
+    }
+
+    if (!error.message) {
+        return false;
+    }
+
+    return /row-level security policy.*recipe_ratings/i.test(error.message);
+}
+
 /**
  * Service for managing recipe ratings and feedback
  */
@@ -37,6 +51,10 @@ export const ratingService = {
             );
 
         if (error) {
+            if (isRatingCompletionPolicyError(error)) {
+                throw new Error(RATING_REQUIRES_COMPLETION_ERROR);
+            }
+
             throw new Error(`Failed to submit rating: ${error.message}`);
         }
     },
