@@ -8,6 +8,7 @@ import { AdminFeedbackItem } from '@/types/rating.types';
 import { COLORS } from '@/constants/design-tokens';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { useLanguage } from '@/contexts/LanguageContext';
+import i18n from '@/i18n';
 
 export default function AdminFeedbackPage() {
     const { language } = useLanguage();
@@ -21,7 +22,7 @@ export default function AdminFeedbackPage() {
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
+        return date.toLocaleDateString(language === 'es' ? 'es-MX' : 'en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric',
@@ -44,7 +45,7 @@ export default function AdminFeedbackPage() {
                 {item.feedback}
             </Text>
             <Text preset="caption" className="text-text-secondary">
-                From: {item.userEmail}
+                {i18n.t('admin.feedback.from', { email: item.userEmail })}
             </Text>
         </View>
     );
@@ -54,7 +55,9 @@ export default function AdminFeedbackPage() {
             return (
                 <View className="flex-1 justify-center items-center py-xl">
                     <ActivityIndicator size="large" color={COLORS.primary.DEFAULT} />
-                    <Text preset="body" className="mt-md text-text-secondary">Loading feedback...</Text>
+                    <Text preset="body" className="mt-md text-text-secondary">
+                        {i18n.t('admin.feedback.loading')}
+                    </Text>
                 </View>
             );
         }
@@ -63,9 +66,13 @@ export default function AdminFeedbackPage() {
             return (
                 <View className="flex-1 justify-center items-center py-xl">
                     <Text preset="body" className="text-status-error mb-md">
-                        Failed to load feedback
+                        {i18n.t('admin.feedback.error')}
                     </Text>
-                    <Button label="Retry" onPress={() => refetch()} variant="primary" />
+                    <Button
+                        label={i18n.t('admin.feedback.retry')}
+                        onPress={() => refetch()}
+                        variant="primary"
+                    />
                 </View>
             );
         }
@@ -73,9 +80,11 @@ export default function AdminFeedbackPage() {
         if (!data?.data.length) {
             return (
                 <View className="flex-1 justify-center items-center py-xl">
-                    <Text preset="h2" className="text-text-secondary mb-sm">No Feedback Yet</Text>
+                    <Text preset="h2" className="text-text-secondary mb-sm">
+                        {i18n.t('admin.feedback.noFeedbackTitle')}
+                    </Text>
                     <Text preset="body" className="text-text-secondary text-center">
-                        User feedback will appear here after{'\n'}users rate and review recipes.
+                        {i18n.t('admin.feedback.noFeedbackDescription')}
                     </Text>
                 </View>
             );
@@ -91,7 +100,7 @@ export default function AdminFeedbackPage() {
                     <View className="flex-row justify-center gap-md py-md">
                         {page > 1 && (
                             <Button
-                                label="Previous"
+                                label={i18n.t('admin.feedback.previous')}
                                 onPress={() => setPage(p => p - 1)}
                                 variant="outline"
                                 size="small"
@@ -99,7 +108,7 @@ export default function AdminFeedbackPage() {
                         )}
                         {data.hasMore && (
                             <Button
-                                label="Next"
+                                label={i18n.t('admin.feedback.next')}
                                 onPress={() => setPage(p => p + 1)}
                                 variant="outline"
                                 size="small"
@@ -113,10 +122,10 @@ export default function AdminFeedbackPage() {
 
     return (
         <View className="flex-1 bg-background-secondary">
-            <AdminHeader title="User Feedback" showBackButton />
+            <AdminHeader title={i18n.t('admin.feedback.title')} showBackButton />
             <View className="px-md py-sm bg-white border-b border-border-default">
                 <Text preset="caption" className="text-text-secondary">
-                    {data?.count ?? 0} feedback entries
+                    {i18n.t('admin.feedback.entriesCount', { count: data?.count ?? 0 })}
                 </Text>
             </View>
             {renderContent()}

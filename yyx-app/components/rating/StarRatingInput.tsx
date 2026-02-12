@@ -3,6 +3,7 @@ import { View, Pressable, StyleProp, ViewStyle } from 'react-native';
 import { Text } from '@/components/common';
 import * as Haptics from 'expo-haptics';
 import Animated, {
+    SharedValue,
     useSharedValue,
     useAnimatedStyle,
     withSpring,
@@ -17,6 +18,58 @@ const STAR_COLORS = {
     empty: COLORS.grey.medium, // Gray
 };
 
+interface AnimatedStarProps {
+    index: number;
+    isFilled: boolean;
+    scale: SharedValue<number>;
+    starSize: number;
+    hitSlop: number;
+    gap: number;
+    disabled: boolean;
+    onPress: () => void;
+    accessibilityLabel: string;
+}
+
+function AnimatedStar({
+    index,
+    isFilled,
+    scale,
+    starSize,
+    hitSlop,
+    gap,
+    disabled,
+    onPress,
+    accessibilityLabel,
+}: AnimatedStarProps) {
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+
+    return (
+        <Pressable
+            onPress={onPress}
+            disabled={disabled}
+            hitSlop={hitSlop}
+            style={{ marginRight: index < 4 ? gap : 0 }}
+            accessibilityRole="button"
+            accessibilityLabel={accessibilityLabel}
+            accessibilityState={{ selected: isFilled }}
+        >
+            <Animated.View style={animatedStyle}>
+                <Text
+                    style={{
+                        fontSize: starSize,
+                        color: isFilled ? STAR_COLORS.filled : STAR_COLORS.empty,
+                        opacity: disabled ? 0.5 : 1,
+                    }}
+                >
+                    {isFilled ? '★' : '☆'}
+                </Text>
+            </Animated.View>
+        </Pressable>
+    );
+}
+
 interface StarRatingInputProps {
     value: number;
     onChange: (rating: number) => void;
@@ -25,6 +78,11 @@ interface StarRatingInputProps {
     className?: string;
     style?: StyleProp<ViewStyle>;
 }
+
+const SIZE_CONFIG = {
+    md: { starSize: 28, hitSlop: 8, gap: 8 },
+    lg: { starSize: 40, hitSlop: 12, gap: 12 },
+};
 
 /**
  * Interactive star rating input component
@@ -38,22 +96,15 @@ export function StarRatingInput({
     className = '',
     style,
 }: StarRatingInputProps) {
-    // Size configurations
-    const sizeConfig = {
-        md: { starSize: 28, hitSlop: 8, gap: 8 },
-        lg: { starSize: 40, hitSlop: 12, gap: 12 },
-    };
+    const config = SIZE_CONFIG[size];
 
-    const config = sizeConfig[size];
-
-    // Animation values for each star
-    const scales = [
-        useSharedValue(1),
-        useSharedValue(1),
-        useSharedValue(1),
-        useSharedValue(1),
-        useSharedValue(1),
-    ];
+    // Animation values for each star — called at top level (not in a loop)
+    const scale1 = useSharedValue(1);
+    const scale2 = useSharedValue(1);
+    const scale3 = useSharedValue(1);
+    const scale4 = useSharedValue(1);
+    const scale5 = useSharedValue(1);
+    const scales = [scale1, scale2, scale3, scale4, scale5];
 
     const handleStarPress = async (starValue: number) => {
         if (disabled) return;
@@ -70,46 +121,30 @@ export function StarRatingInput({
         onChange(starValue);
     };
 
-    const renderStar = (index: number) => {
-        const starValue = index + 1;
-        const isFilled = value >= starValue;
-        const accessibilityLabel = starValue === 1
-            ? i18n.t('recipes.rating.rateStar', { count: starValue })
-            : i18n.t('recipes.rating.rateStars', { count: starValue });
-
-        const animatedStyle = useAnimatedStyle(() => ({
-            transform: [{ scale: scales[index].value }],
-        }));
-
-        return (
-            <Pressable
-                key={index}
-                onPress={() => handleStarPress(starValue)}
-                disabled={disabled}
-                hitSlop={config.hitSlop}
-                style={{ marginRight: index < 4 ? config.gap : 0 }}
-                accessibilityRole="button"
-                accessibilityLabel={accessibilityLabel}
-                accessibilityState={{ selected: isFilled }}
-            >
-                <Animated.View style={animatedStyle}>
-                    <Text
-                        style={{
-                            fontSize: config.starSize,
-                            color: isFilled ? STAR_COLORS.filled : STAR_COLORS.empty,
-                            opacity: disabled ? 0.5 : 1,
-                        }}
-                    >
-                        {isFilled ? '★' : '☆'}
-                    </Text>
-                </Animated.View>
-            </Pressable>
-        );
-    };
-
     return (
         <View className={`flex-row items-center justify-center ${className}`} style={style}>
-            {[0, 1, 2, 3, 4].map(renderStar)}
+            {scales.map((scale, index) => {
+                const starValue = index + 1;
+                const isFilled = value >= starValue;
+                const accessibilityLabel = starValue === 1
+                    ? i18n.t('recipes.rating.rateStar', { count: starValue })
+                    : i18n.t('recipes.rating.rateStars', { count: starValue });
+
+                return (
+                    <AnimatedStar
+                        key={index}
+                        index={index}
+                        isFilled={isFilled}
+                        scale={scale}
+                        starSize={config.starSize}
+                        hitSlop={config.hitSlop}
+                        gap={config.gap}
+                        disabled={disabled}
+                        onPress={() => handleStarPress(starValue)}
+                        accessibilityLabel={accessibilityLabel}
+                    />
+                );
+            })}
         </View>
     );
 }

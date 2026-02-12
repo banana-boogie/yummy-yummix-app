@@ -625,4 +625,16 @@ export const admin = {
     fieldSection: "Section",
     fieldNotes: "Notes",
   },
+  feedback: {
+    title: "User Feedback",
+    loading: "Loading feedback...",
+    error: "Failed to load feedback",
+    retry: "Retry",
+    noFeedbackTitle: "No Feedback Yet",
+    noFeedbackDescription: "User feedback will appear here after\nusers rate and review recipes.",
+    entriesCount: "{{count}} feedback entries",
+    from: "From: {{email}}",
+    previous: "Previous",
+    next: "Next",
+  },
 };

@@ -1,6 +1,21 @@
 import { supabase } from '@/lib/supabase';
 import { AdminFeedbackItem } from '@/types/rating.types';
 
+interface RawFeedbackRow {
+    id: string;
+    feedback: string;
+    created_at: string;
+    user_id: string;
+    recipe_id: string;
+    recipe: Record<string, string> | null;
+    user: { id: string; email: string } | null;
+}
+
+interface RawRecipeRow {
+    id: string;
+    [key: string]: string;
+}
+
 export interface FeedbackFilters {
     recipeId?: string;
     startDate?: string;
@@ -69,7 +84,7 @@ export const adminFeedbackService = {
         }
 
         // Transform the data
-        const transformedData: AdminFeedbackItem[] = (data || []).map((item: any) => ({
+        const transformedData: AdminFeedbackItem[] = ((data || []) as RawFeedbackRow[]).map((item) => ({
             id: item.id,
             feedback: item.feedback,
             createdAt: item.created_at,
@@ -102,7 +117,7 @@ export const adminFeedbackService = {
             throw new Error(`Failed to fetch recipes: ${error.message}`);
         }
 
-        return (data || []).map((recipe: any) => ({
+        return ((data || []) as RawRecipeRow[]).map((recipe) => ({
             id: recipe.id,
             name: recipe[`name${langSuffix}`],
         }));

@@ -1,28 +1,10 @@
 import { supabase } from '@/lib/supabase';
+import { validateRecipeIsPublished } from '@/services/recipeValidation';
 
 /**
  * Service for managing recipe ratings and feedback
  */
 export const ratingService = {
-    /**
-     * Validate that a recipe exists and is published
-     */
-    async validateRecipe(recipeId: string): Promise<void> {
-        const { data, error } = await supabase
-            .from('recipes')
-            .select('id, status')
-            .eq('id', recipeId)
-            .single();
-
-        if (error || !data) {
-            throw new Error('Recipe not found');
-        }
-
-        if (data.status !== 'published') {
-            throw new Error('Recipe is not available for rating');
-        }
-    },
-
     /**
      * Submit or update a rating for a recipe
      * Uses upsert to handle both new ratings and updates
@@ -39,7 +21,7 @@ export const ratingService = {
         }
 
         // Validate recipe exists and is published
-        await this.validateRecipe(recipeId);
+        await validateRecipeIsPublished(recipeId);
 
         const { error } = await supabase
             .from('recipe_ratings')
@@ -75,7 +57,7 @@ export const ratingService = {
         }
 
         // Validate recipe exists and is published
-        await this.validateRecipe(recipeId);
+        await validateRecipeIsPublished(recipeId);
 
         const { error } = await supabase
             .from('recipe_feedback')
@@ -148,10 +130,16 @@ export const ratingService = {
         distribution: { [key: number]: number };
         total: number;
     }> {
-        // Validate recipe exists and is published
-        await this.validateRecipe(recipeId);
+        const { data, error } = await supabase
+            .from('recipe_ratings')
+            .select('rating')
+            .eq('recipe_id', recipeId);
 
-        // Initialize distribution with zeros
+        if (error) {
+            throw new Error(`Failed to get rating distribution: ${error.message}`);
+        }
+
+        // Group client-side
         const distribution: { [key: number]: number } = {
             1: 0,
             2: 0,
@@ -160,25 +148,13 @@ export const ratingService = {
             5: 0,
         };
 
-        const ratingBuckets = [1, 2, 3, 4, 5];
-        const results = await Promise.all(
-            ratingBuckets.map((rating) =>
-                supabase
-                    .from('recipe_ratings')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('recipe_id', recipeId)
-                    .eq('rating', rating)
-            )
-        );
-
-        results.forEach((result, index) => {
-            if (result.error) {
-                throw new Error(`Failed to get rating distribution: ${result.error.message}`);
+        for (const row of data || []) {
+            if (row.rating >= 1 && row.rating <= 5) {
+                distribution[row.rating]++;
             }
-            distribution[ratingBuckets[index]] = result.count ?? 0;
-        });
+        }
 
-        const total = ratingBuckets.reduce((sum, rating) => sum + distribution[rating], 0);
+        const total = (data || []).length;
 
         return { distribution, total };
     },
