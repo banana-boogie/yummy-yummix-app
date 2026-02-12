@@ -4,6 +4,8 @@ import { Text } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { Cookbook } from '@/types/cookbook.types';
 import { getGradientForCookbook } from '@/utils/gradients';
+import { getRecipeCountText } from '@/utils/formatters';
+import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 
 interface CookbookCardProps {
@@ -23,11 +25,7 @@ export const CookbookCard = React.memo(function CookbookCard({
     // For grid, usually handled by parent container width, but let's enforce min height
     const height = size === 'small' ? 120 : size === 'large' ? 200 : 160;
 
-    const recipeCountText = `${cookbook.recipeCount} ${
-        cookbook.recipeCount === 1
-            ? i18n.t('cookbooks.recipe')
-            : i18n.t('cookbooks.recipes')
-    }`;
+    const recipeCountText = getRecipeCountText(cookbook.recipeCount, i18n);
 
     return (
         <Pressable
@@ -50,7 +48,7 @@ export const CookbookCard = React.memo(function CookbookCard({
                             className="bg-white/30 rounded-full p-xs"
                             accessibilityLabel={i18n.t('cookbooks.a11y.favoritesCookbook')}
                         >
-                            <Ionicons name="heart" size={16} color="#D83A3A" />
+                            <Ionicons name="heart" size={16} color={COLORS.primary.darkest} />
                         </View>
                     )}
                     {!cookbook.isPublic && !cookbook.isDefault && (
@@ -58,7 +56,7 @@ export const CookbookCard = React.memo(function CookbookCard({
                             className="bg-black/10 rounded-full p-xs"
                             accessibilityLabel={i18n.t('cookbooks.a11y.privateCookbook')}
                         >
-                            <Ionicons name="lock-closed" size={14} color="#333" />
+                            <Ionicons name="lock-closed" size={14} color={COLORS.grey.dark} />
                         </View>
                     )}
                     {cookbook.isPublic && (
@@ -66,7 +64,7 @@ export const CookbookCard = React.memo(function CookbookCard({
                             className="bg-white/30 rounded-full p-xs"
                             accessibilityLabel={i18n.t('cookbooks.a11y.publicCookbook')}
                         >
-                            <Ionicons name="globe-outline" size={14} color="#333" />
+                            <Ionicons name="globe-outline" size={14} color={COLORS.grey.dark} />
                         </View>
                     )}
                 </View>
@@ -87,12 +85,13 @@ export const CookbookCard = React.memo(function CookbookCard({
         </Pressable>
     );
 }, (prevProps, nextProps) => {
-    // Only re-render if cookbook data or size actually changed
     return (
         prevProps.cookbook.id === nextProps.cookbook.id &&
         prevProps.cookbook.updatedAt === nextProps.cookbook.updatedAt &&
         prevProps.cookbook.recipeCount === nextProps.cookbook.recipeCount &&
         prevProps.cookbook.name === nextProps.cookbook.name &&
+        prevProps.cookbook.isPublic === nextProps.cookbook.isPublic &&
+        prevProps.cookbook.isDefault === nextProps.cookbook.isDefault &&
         prevProps.size === nextProps.size
     );
 });

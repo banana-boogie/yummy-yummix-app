@@ -172,32 +172,6 @@ jest.mock('react-native-gesture-handler', () => {
   };
 });
 
-// Shopify FlashList (used for long lists)
-jest.mock(
-  '@shopify/flash-list',
-  () => {
-    const React = require('react');
-    const { View } = require('react-native');
-    return {
-      FlashList: ({ data, renderItem, ListHeaderComponent }) => (
-        <View>
-          {ListHeaderComponent
-            ? React.isValidElement(ListHeaderComponent)
-              ? ListHeaderComponent
-              : <ListHeaderComponent />
-            : null}
-          {(data ?? []).map((item, index) => (
-            <View key={item?.cookbookRecipeId ?? item?.id ?? index}>
-              {renderItem({ item, index })}
-            </View>
-          ))}
-        </View>
-      ),
-    };
-  },
-  { virtual: true }
-);
-
 // ============================================================
 // NATIVEWIND MOCK
 // ============================================================

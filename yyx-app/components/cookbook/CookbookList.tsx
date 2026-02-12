@@ -4,7 +4,12 @@ import { Text } from '@/components/common';
 import { Cookbook } from '@/types/cookbook.types';
 import { CookbookCard } from './CookbookCard';
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
+
+type CookbookListItem = Cookbook | { id: string; isCreateAction: true };
+
+const gridContentStyle = { padding: 16 } as const;
 
 interface CookbookListProps {
     cookbooks: Cookbook[];
@@ -32,7 +37,7 @@ export function CookbookList({
             className="rounded-lg border-2 border-dashed border-neutral-300 flex-1 mx-xs mb-md h-[160px] items-center justify-center bg-neutral-50 active:bg-neutral-100"
         >
             <View className="bg-white rounded-full p-sm shadow-sm mb-sm">
-                <Ionicons name="add" size={32} color="#666" />
+                <Ionicons name="add" size={32} color={COLORS.text.secondary} />
             </View>
             <Text preset="body" className="text-text-secondary font-medium">
                 {i18n.t('cookbooks.createNew')}
@@ -48,19 +53,19 @@ export function CookbookList({
         );
     }
 
-    // Prepend a "fake" item for the Create button if we want it in the grid, 
-    // or handle it as a ListHeaderComponent or separate.
-    // Actually, putting it as the first item is cleanest for grid layout.
-    const dataWithCreate = [{ id: 'create_new_action', isCreateAction: true } as any, ...cookbooks];
+    const dataWithCreate: CookbookListItem[] = [
+        { id: 'create_new_action', isCreateAction: true },
+        ...cookbooks,
+    ];
 
     return (
-        <FlatList
+        <FlatList<CookbookListItem>
             data={dataWithCreate}
             keyExtractor={(item) => item.id}
             numColumns={numColumns}
-            contentContainerStyle={{ padding: 16 }}
+            contentContainerStyle={gridContentStyle}
             renderItem={({ item }) => {
-                if (item.isCreateAction) {
+                if ('isCreateAction' in item) {
                     return renderCreateCard();
                 }
                 return (
@@ -70,11 +75,6 @@ export function CookbookList({
                     />
                 );
             }}
-            ListEmptyComponent={
-                // Only shows if dataWithCreate is empty, which it won't be because of create button
-                // So we handle "empty state" visually via the grid having only the create button
-                null
-            }
         />
     );
 }

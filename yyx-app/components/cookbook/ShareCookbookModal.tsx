@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { Cookbook } from '@/types/cookbook.types';
 import { useRegenerateShareToken, useUpdateCookbook } from '@/hooks/useCookbookQuery';
+import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 import { getAppBaseUrl } from '@/utils/urls';
 
@@ -105,7 +106,7 @@ export function ShareCookbookModal({
                             accessibilityLabel={i18n.t('cookbooks.a11y.closeModal')}
                             className="p-xs"
                         >
-                            <Ionicons name="close" size={24} color="#2D2D2D" />
+                            <Ionicons name="close" size={24} color={COLORS.text.default} />
                         </Pressable>
                     </View>
 
@@ -121,7 +122,7 @@ export function ShareCookbookModal({
                             <Ionicons
                                 name={cookbook.isPublic ? "globe-outline" : "lock-closed-outline"}
                                 size={14}
-                                color="#666"
+                                color={COLORS.text.secondary}
                             />
                             <Text preset="caption" className="text-text-secondary ml-xs">
                                 {cookbook.isPublic
@@ -152,7 +153,7 @@ export function ShareCookbookModal({
                             value={shareEnabled}
                             onValueChange={handleToggleSharing}
                             disabled={regenerateTokenMutation.isPending || updateCookbookMutation.isPending}
-                            trackColor={{ false: '#ccc', true: '#78A97A' }}
+                            trackColor={{ false: COLORS.grey.medium, true: COLORS.status.success }}
                         />
                     </View>
 
@@ -182,7 +183,7 @@ export function ShareCookbookModal({
                             <Ionicons
                                 name={copied ? 'checkmark' : 'copy-outline'}
                                 size={20}
-                                color={copied ? '#78A97A' : '#666'}
+                                color={copied ? COLORS.status.success : COLORS.text.secondary}
                             />
                         </Pressable>
                     </View>
@@ -193,7 +194,7 @@ export function ShareCookbookModal({
                             variant="primary"
                             onPress={handleShare}
                             disabled={!shareEnabled}
-                            icon={<Ionicons name="share-outline" size={18} color="#2D2D2D" />}
+                            icon={<Ionicons name="share-outline" size={18} color={COLORS.text.default} />}
                         >
                             {i18n.t('cookbooks.shareLink')}
                         </Button>

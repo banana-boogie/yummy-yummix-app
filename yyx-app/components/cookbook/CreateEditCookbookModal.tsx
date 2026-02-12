@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Modal, Switch } from 'react-native';
-import { Text, Button, TextInput } from '@/components/common';
+import { Text, Button } from '@/components/common';
+import { TextInput } from '@/components/form';
 import { Cookbook, CreateCookbookInput, UpdateCookbookInput } from '@/types/cookbook.types';
+import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -213,7 +215,7 @@ export function CreateEditCookbookModal({
                         <Switch
                             value={isPublic}
                             onValueChange={setIsPublic}
-                            trackColor={{ false: '#ccc', true: '#78A97A' }} // Using a known green/brand color
+                            trackColor={{ false: COLORS.grey.medium, true: COLORS.status.success }}
                         />
                     </View>
 

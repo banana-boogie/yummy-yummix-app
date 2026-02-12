@@ -8,6 +8,8 @@ import { CreateEditCookbookModal } from './CreateEditCookbookModal';
 import { useUpdateCookbook, useDeleteCookbook } from '@/hooks/useCookbookQuery';
 import { UpdateCookbookInput } from '@/types/cookbook.types';
 import { getGradientForCookbook } from '@/utils/gradients';
+import { getRecipeCountText } from '@/utils/formatters';
+import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 import { router } from 'expo-router';
 
@@ -97,7 +99,7 @@ export const CookbookHeader = React.memo(function CookbookHeader({
               accessibilityLabel={i18n.t('cookbooks.a11y.shareCookbook')}
               className="bg-white/30 rounded-full p-sm active:bg-white/50"
             >
-              <Ionicons name="share-outline" size={20} color="#2D2D2D" />
+              <Ionicons name="share-outline" size={20} color={COLORS.text.default} />
             </Pressable>
           )}
 
@@ -107,7 +109,7 @@ export const CookbookHeader = React.memo(function CookbookHeader({
             accessibilityLabel={i18n.t('cookbooks.a11y.editCookbook')}
             className="bg-white/30 rounded-full p-sm active:bg-white/50"
           >
-            <Ionicons name="create-outline" size={20} color="#2D2D2D" />
+            <Ionicons name="create-outline" size={20} color={COLORS.text.default} />
           </Pressable>
 
           {!cookbook.isDefault && (
@@ -117,7 +119,7 @@ export const CookbookHeader = React.memo(function CookbookHeader({
               accessibilityLabel={i18n.t('cookbooks.a11y.deleteCookbook')}
               className="bg-white/30 rounded-full p-sm active:bg-white/50"
             >
-              <Ionicons name="trash-outline" size={20} color="#D83A3A" />
+              <Ionicons name="trash-outline" size={20} color={COLORS.primary.darkest} />
             </Pressable>
           )}
         </View>
@@ -126,7 +128,7 @@ export const CookbookHeader = React.memo(function CookbookHeader({
         <View>
           <View className="flex-row items-center mb-xs">
             {cookbook.isDefault && (
-              <Ionicons name="heart" size={18} color="#D83A3A" className="mr-xs" />
+              <Ionicons name="heart" size={18} color={COLORS.primary.darkest} className="mr-xs" />
             )}
             <Text preset="h1" className="text-text-primary flex-1" numberOfLines={2}>
               {cookbook.name}
@@ -145,10 +147,7 @@ export const CookbookHeader = React.memo(function CookbookHeader({
 
           <View className="flex-row items-center gap-md">
             <Text preset="caption" className="text-text-secondary">
-              {cookbook.recipeCount}{' '}
-              {cookbook.recipeCount === 1
-                ? i18n.t('cookbooks.recipe')
-                : i18n.t('cookbooks.recipes')}
+              {getRecipeCountText(cookbook.recipeCount, i18n)}
             </Text>
 
             {!cookbook.isDefault && (
@@ -156,7 +155,7 @@ export const CookbookHeader = React.memo(function CookbookHeader({
                 <Ionicons
                   name={cookbook.isPublic ? 'globe-outline' : 'lock-closed'}
                   size={12}
-                  color="#666"
+                  color={COLORS.text.secondary}
                 />
                 <Text preset="caption" className="text-text-secondary ml-xs">
                   {cookbook.isPublic
@@ -188,12 +187,14 @@ export const CookbookHeader = React.memo(function CookbookHeader({
     </>
   );
 }, (prevProps, nextProps) => {
-    // Only re-render if cookbook data actually changed
     return (
         prevProps.cookbook.id === nextProps.cookbook.id &&
         prevProps.cookbook.updatedAt === nextProps.cookbook.updatedAt &&
         prevProps.cookbook.name === nextProps.cookbook.name &&
         prevProps.cookbook.description === nextProps.cookbook.description &&
-        prevProps.cookbook.isPublic === nextProps.cookbook.isPublic
+        prevProps.cookbook.isPublic === nextProps.cookbook.isPublic &&
+        prevProps.cookbook.recipeCount === nextProps.cookbook.recipeCount &&
+        prevProps.cookbook.shareEnabled === nextProps.cookbook.shareEnabled &&
+        prevProps.cookbook.shareToken === nextProps.cookbook.shareToken
     );
 });
