@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Pressable, Alert } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
+import { View, Pressable, Alert, FlatList } from 'react-native';
 import { Text } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { CookbookRecipe } from '@/types/cookbook.types';
@@ -8,7 +7,11 @@ import { RecipeImage } from '@/components/recipe/RecipeImage';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useRemoveRecipeFromCookbook } from '@/hooks/useCookbookQuery';
+import { formatTimeInHoursAndMinutes, getDifficultyLabel } from '@/utils/formatters';
+import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
+
+const listContentStyle = { paddingVertical: 16 } as const;
 
 interface CookbookRecipeListProps {
   recipes: CookbookRecipe[];
@@ -36,30 +39,6 @@ export function CookbookRecipeList({
     }
     return copy.sort((a, b) => a.displayOrder - b.displayOrder);
   }, [recipes, sortBy]);
-
-  const formatMinutesShort = (minutes?: number) => {
-    if (minutes === undefined || minutes === null) return '';
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    if (hours > 0 && remainingMinutes > 0) {
-      return `${i18n.t('recipes.common.time.hoursShort', { count: hours })} ${i18n.t(
-        'recipes.common.time.minutesShort',
-        { count: remainingMinutes }
-      )}`;
-    }
-    if (hours > 0) {
-      return i18n.t('recipes.common.time.hoursShort', { count: hours });
-    }
-    return i18n.t('recipes.common.time.minutesShort', { count: remainingMinutes });
-  };
-
-  const getDifficultyLabel = (difficulty?: string) => {
-    if (!difficulty) return '';
-    if (['easy', 'medium', 'hard'].includes(difficulty)) {
-      return i18n.t(`recipes.common.difficulty.${difficulty}`);
-    }
-    return difficulty;
-  };
 
   const handleRecipePress = async (recipeId: string) => {
     await Haptics.selectionAsync();
@@ -135,25 +114,25 @@ export function CookbookRecipeList({
           <View className="flex-row items-center gap-md">
             {item.prepTimeMinutes && (
               <View className="flex-row items-center">
-                <Ionicons name="time-outline" size={14} color="#666" />
+                <Ionicons name="time-outline" size={14} color={COLORS.text.secondary} />
                 <Text preset="caption" className="text-text-secondary ml-xs">
-                  {formatMinutesShort(item.prepTimeMinutes)}
+                  {formatTimeInHoursAndMinutes(item.prepTimeMinutes ?? null)}
                 </Text>
               </View>
             )}
 
             {item.difficulty && (
               <View className="flex-row items-center">
-                <Ionicons name="bar-chart-outline" size={14} color="#666" />
+                <Ionicons name="bar-chart-outline" size={14} color={COLORS.text.secondary} />
                 <Text preset="caption" className="text-text-secondary ml-xs">
-                  {getDifficultyLabel(item.difficulty)}
+                  {getDifficultyLabel(item.difficulty, i18n)}
                 </Text>
               </View>
             )}
 
             {item.servings && (
               <View className="flex-row items-center">
-                <Ionicons name="people-outline" size={14} color="#666" />
+                <Ionicons name="people-outline" size={14} color={COLORS.text.secondary} />
                 <Text preset="caption" className="text-text-secondary ml-xs">
                   {item.servings} {i18n.t('recipes.common.portions')}
                 </Text>
@@ -171,7 +150,7 @@ export function CookbookRecipeList({
             className="p-xs ml-sm"
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="close-circle" size={24} color="#D83A3A" />
+            <Ionicons name="close-circle" size={24} color={COLORS.primary.darkest} />
           </Pressable>
         )}
       </View>
@@ -180,7 +159,7 @@ export function CookbookRecipeList({
       {item.notes && (
         <View className="bg-primary-lightest/50 px-md py-sm border-t border-neutral-100">
           <Text preset="caption" className="text-text-secondary italic">
-            <Ionicons name="document-text-outline" size={12} color="#666" /> {item.notes}
+            <Ionicons name="document-text-outline" size={12} color={COLORS.text.secondary} /> {item.notes}
           </Text>
         </View>
       )}
@@ -189,7 +168,7 @@ export function CookbookRecipeList({
 
   const renderEmpty = () => (
     <View className="flex-1 items-center justify-center p-xl mt-xl">
-      <Ionicons name="restaurant-outline" size={64} color="#ccc" />
+      <Ionicons name="restaurant-outline" size={64} color={COLORS.grey.medium} />
       <Text preset="h2" className="text-text-secondary mt-md text-center">
         {emptyMessage || i18n.t('cookbooks.noRecipesYet')}
       </Text>
@@ -204,12 +183,11 @@ export function CookbookRecipeList({
   }
 
   return (
-    <FlashList
+    <FlatList
       data={sortedRecipes}
       renderItem={renderRecipeItem}
       keyExtractor={(item) => item.cookbookRecipeId}
-      estimatedItemSize={140}
-      contentContainerStyle={{ paddingVertical: 16 }}
+      contentContainerStyle={listContentStyle}
       ListHeaderComponent={
         recipes.length > 1 ? (
           <View className="px-md pb-sm">

@@ -8,6 +8,8 @@ import { useSharedCookbookQuery } from '@/hooks/useCookbookQuery';
 import { useAuth } from '@/contexts/AuthContext';
 import { getGradientForCookbook } from '@/utils/gradients';
 import { Ionicons } from '@expo/vector-icons';
+import { getRecipeCountText } from '@/utils/formatters';
+import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 
 /**
@@ -25,7 +27,7 @@ export default function SharedCookbookScreen() {
     return (
       <PageLayout>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#FFBFB7" />
+          <ActivityIndicator size="large" color={COLORS.primary.medium} />
           <Text preset="body" className="text-text-secondary mt-md">
             {i18n.t('common.loading')}...
           </Text>
@@ -38,7 +40,7 @@ export default function SharedCookbookScreen() {
     return (
       <PageLayout>
         <View className="flex-1 items-center justify-center p-lg">
-          <Ionicons name="lock-closed-outline" size={64} color="#ccc" />
+          <Ionicons name="lock-closed-outline" size={64} color={COLORS.grey.medium} />
           <Text preset="h2" className="text-text-secondary text-center mt-md">
             {i18n.t('cookbooks.notFound')}
           </Text>
@@ -66,14 +68,14 @@ export default function SharedCookbookScreen() {
             onPress={() => router.back()}
             className="absolute top-12 left-4 bg-white/30 rounded-full p-sm active:bg-white/50"
           >
-            <Ionicons name="arrow-back" size={24} color="#2D2D2D" />
+            <Ionicons name="arrow-back" size={24} color={COLORS.text.default} />
           </Pressable>
 
           <View className="flex-row items-center mb-xs">
             <Ionicons
               name={cookbook.isPublic ? 'globe-outline' : 'lock-closed'}
               size={18}
-              color="#666"
+              color={COLORS.text.secondary}
               className="mr-xs"
             />
             <Text preset="caption" className="text-text-secondary">
@@ -98,10 +100,7 @@ export default function SharedCookbookScreen() {
           )}
 
           <Text preset="caption" className="text-text-secondary">
-            {cookbook.recipeCount}{' '}
-            {cookbook.recipeCount === 1
-              ? i18n.t('cookbooks.recipe')
-              : i18n.t('cookbooks.recipes')}
+            {getRecipeCountText(cookbook.recipeCount, i18n)}
           </Text>
         </View>
 
@@ -109,7 +108,7 @@ export default function SharedCookbookScreen() {
         {!user && (
           <View className="bg-primary-medium/20 p-md mx-md mt-md rounded-md border border-primary-medium/30">
             <View className="flex-row items-center mb-sm">
-              <Ionicons name="heart-outline" size={20} color="#D83A3A" />
+              <Ionicons name="heart-outline" size={20} color={COLORS.primary.darkest} />
               <Text preset="subheading" className="ml-sm">
                 {i18n.t('cookbooks.likeThis')}
               </Text>

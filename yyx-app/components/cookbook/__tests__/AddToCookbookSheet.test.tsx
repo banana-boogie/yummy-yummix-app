@@ -4,6 +4,10 @@ import { renderWithProviders } from '@/test/utils/render';
 import { AddToCookbookSheet } from '../AddToCookbookSheet';
 import i18n from '@/i18n';
 
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({ user: { id: 'user-1' } }),
+}));
+
 jest.mock('@/hooks/useCookbookQuery', () => ({
   useUserCookbooksQuery: jest.fn(),
   useAddRecipeToCookbook: jest.fn(),

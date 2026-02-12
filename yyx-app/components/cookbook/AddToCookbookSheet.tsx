@@ -12,6 +12,8 @@ import {
 import { cookbookService } from '@/services/cookbookService';
 import { useAuth } from '@/contexts/AuthContext';
 import * as Haptics from 'expo-haptics';
+import { getRecipeCountText } from '@/utils/formatters';
+import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 import { CreateEditCookbookModal } from './CreateEditCookbookModal';
 
@@ -148,21 +150,18 @@ export function AddToCookbookSheet({
                 <Ionicons
                     name={item.isDefault ? 'heart' : 'book-outline'}
                     size={24}
-                    color={item.isDefault ? '#D83A3A' : '#666'}
+                    color={item.isDefault ? COLORS.primary.darkest : COLORS.text.secondary}
                 />
                 <View className="flex-1 ml-md">
                     <Text preset="subheading">{item.name}</Text>
                     <Text preset="caption" className="text-text-secondary">
-                        {item.recipeCount}{' '}
-                        {item.recipeCount === 1
-                            ? i18n.t('cookbooks.recipe')
-                            : i18n.t('cookbooks.recipes')}
+                        {getRecipeCountText(item.recipeCount, i18n)}
                     </Text>
                 </View>
                 {alreadyHasRecipe ? (
-                    <Ionicons name="checkmark-circle" size={24} color="#78A97A" />
+                    <Ionicons name="checkmark-circle" size={24} color={COLORS.status.success} />
                 ) : (
-                    <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                    <Ionicons name="chevron-forward" size={20} color={COLORS.grey.medium} />
                 )}
             </Pressable>
         );
@@ -182,7 +181,7 @@ export function AddToCookbookSheet({
                     <View className="flex-row items-center justify-between mb-md">
                         {step === 'notes' && (
                             <Pressable onPress={handleBack} className="p-xs">
-                                <Ionicons name="arrow-back" size={24} color="#2D2D2D" />
+                                <Ionicons name="arrow-back" size={24} color={COLORS.text.default} />
                             </Pressable>
                         )}
                         <Text preset="h2" className="flex-1 ml-sm">
@@ -191,7 +190,7 @@ export function AddToCookbookSheet({
                                 : i18n.t('cookbooks.addNotes')}
                         </Text>
                         <Pressable onPress={onClose} className="p-xs">
-                            <Ionicons name="close" size={24} color="#2D2D2D" />
+                            <Ionicons name="close" size={24} color={COLORS.text.default} />
                         </Pressable>
                     </View>
 
@@ -216,7 +215,7 @@ export function AddToCookbookSheet({
                                 </View>
                             ) : cookbooks.length === 0 ? (
                                 <View className="items-center justify-center p-xl">
-                                    <Ionicons name="book-outline" size={48} color="#ccc" />
+                                    <Ionicons name="book-outline" size={48} color={COLORS.grey.medium} />
                                     <Text preset="body" className="text-text-secondary mt-md text-center">
                                         {i18n.t('cookbooks.noCookbooksYet')}
                                     </Text>
@@ -234,7 +233,7 @@ export function AddToCookbookSheet({
                                 <Button
                                     variant="outline"
                                     onPress={() => setShowCreateModal(true)}
-                                    icon={<Ionicons name="add" size={18} color="#2D2D2D" />}
+                                    icon={<Ionicons name="add" size={18} color={COLORS.text.default} />}
                                 >
                                     {i18n.t('cookbooks.createCookbook')}
                                 </Button>

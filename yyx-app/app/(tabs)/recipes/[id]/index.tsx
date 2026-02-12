@@ -205,9 +205,6 @@ const RecipeDetail: React.FC = () => {
           onClose={() => setShowCookbookSheet(false)}
           recipeId={recipe.id}
           recipeName={recipe.name}
-          onSuccess={() => {
-            console.log('Recipe added to cookbook');
-          }}
         />
 
         <VoiceAssistantButton

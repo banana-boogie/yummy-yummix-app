@@ -6,6 +6,7 @@ import { Text } from '@/components/common';
 import { CookbookHeader, CookbookRecipeList } from '@/components/cookbook';
 import { useCookbookQuery } from '@/hooks/useCookbookQuery';
 import { useAuth } from '@/contexts/AuthContext';
+import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 
 export default function CookbookDetailScreen() {
@@ -19,7 +20,7 @@ export default function CookbookDetailScreen() {
     return (
       <PageLayout>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#FFBFB7" />
+          <ActivityIndicator size="large" color={COLORS.primary.medium} />
         </View>
       </PageLayout>
     );
