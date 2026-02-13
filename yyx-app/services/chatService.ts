@@ -262,7 +262,6 @@ export function sendMessage(
                         body: JSON.stringify({
                             message,
                             sessionId,
-                            mode: 'text',
                         }),
                         // Disable automatic reconnection - we handle errors ourselves
                         pollingInterval: 0,

@@ -2,17 +2,16 @@
  * System Prompt Builder
  *
  * Builds the system prompt with user context, meal context,
- * mode-specific instructions, and security rules.
+ * and security rules.
  */
 
 import type { UserContext } from "../_shared/irmixy-schemas.ts";
 
 /**
- * Build system prompt with user context and mode-specific instructions.
+ * Build system prompt with user context.
  */
 export function buildSystemPrompt(
   userContext: UserContext,
-  mode: "text" | "voice",
   mealContext?: { mealType?: string; timePreference?: string },
 ): string {
   const basePrompt =
@@ -63,7 +62,9 @@ ${
 </user_context>
 
 IMPORTANT RULES:
-1. Always respond in ${userContext.language === "es" ? "Mexican Spanish" : "English"}
+1. Always respond in ${
+      userContext.language === "es" ? "Mexican Spanish" : "English"
+    }
 2. Use ${userContext.measurementSystem} measurements (${
       userContext.measurementSystem === "imperial"
         ? "cups, oz, °F"
@@ -171,15 +172,5 @@ ${
 Suggest recipes appropriate for this meal type.`;
   }
 
-  // Add mode-specific instructions
-  const modeInstructions = mode === "voice"
-    ? `\n\nVOICE MODE:
-Keep the "message" in responses SHORT and conversational (1-2 sentences).
-This will be spoken aloud, so:
-- Avoid lists, use natural speech
-- Say "I found a few options" not "Here are 4 recipes:"
-- Ask one question at a time`
-    : "";
-
-  return basePrompt + mealContextSection + modeInstructions;
+  return basePrompt + mealContextSection;
 }

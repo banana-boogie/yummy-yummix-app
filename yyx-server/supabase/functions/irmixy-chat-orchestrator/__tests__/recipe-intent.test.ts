@@ -15,7 +15,7 @@ import {
 import {
   detectModificationHeuristic,
   hasHighRecipeIntent,
-} from "./recipe-intent.ts";
+} from "../recipe-intent.ts";
 
 // ============================================================
 // English Pattern Tests

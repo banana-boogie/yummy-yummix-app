@@ -1,7 +1,7 @@
 /**
- * Irmixy AI Orchestrator
+ * Irmixy Chat Orchestrator
  *
- * Unified entry point for all Irmixy AI interactions (text and voice).
+ * Text-chat entry point for Irmixy AI interactions.
  * Handles context loading, LLM tool calls (with proper tool loop),
  * and structured response generation.
  */
@@ -14,11 +14,7 @@ import {
   createContextBuilder,
   sanitizeContent,
 } from "../_shared/context-builder.ts";
-import type {
-  QuickAction,
-  RecipeCard,
-  UserContext,
-} from "../_shared/irmixy-schemas.ts";
+import type { RecipeCard, UserContext } from "../_shared/irmixy-schemas.ts";
 import { ValidationError } from "../_shared/irmixy-schemas.ts";
 import type {
   GenerateRecipeResult,
@@ -74,7 +70,7 @@ serve(async (req) => {
 
   try {
     let body:
-      | { message: string; sessionId?: string; mode?: "text" | "voice" }
+      | { message: string; sessionId?: string }
       | null = null;
     try {
       body = await req.json();
@@ -86,10 +82,8 @@ serve(async (req) => {
     const sessionId = typeof body?.sessionId === "string"
       ? body.sessionId
       : undefined;
-    const mode = body?.mode === "voice" ? "voice" : "text";
 
     log.info("Request received", {
-      mode,
       hasSessionId: !!sessionId,
       messageLength: message.length,
     });
@@ -139,7 +133,6 @@ serve(async (req) => {
       user.id,
       effectiveSessionId,
       sanitizedMessage,
-      mode,
       log,
     );
   } catch (error) {
@@ -171,7 +164,6 @@ async function buildRequestContext(
   userId: string,
   sessionId: string | undefined,
   message: string,
-  mode: "text" | "voice",
 ): Promise<RequestContext> {
   const contextBuilder = createContextBuilder(supabase);
   const userContext = await contextBuilder.buildContext(userId, sessionId);
@@ -179,11 +171,7 @@ async function buildRequestContext(
   // Detect meal context from user message
   const mealContext = detectMealContext(message);
 
-  const systemPrompt = buildSystemPrompt(
-    userContext,
-    mode,
-    mealContext,
-  );
+  const systemPrompt = buildSystemPrompt(userContext, mealContext);
 
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
@@ -286,7 +274,6 @@ function handleStreamingRequest(
   userId: string,
   sessionId: string | undefined,
   message: string,
-  mode: "text" | "voice",
   log: Logger,
 ): Response {
   const encoder = new TextEncoder();
@@ -346,7 +333,6 @@ function handleStreamingRequest(
           userId,
           sessionId,
           message,
-          mode,
         );
         timings.context_build_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();

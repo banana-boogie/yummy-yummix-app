@@ -1,6 +1,6 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { normalizeMessagesForAi } from "./message-normalizer.ts";
-import type { ChatMessage } from "./types.ts";
+import { normalizeMessagesForAi } from "../message-normalizer.ts";
+import type { ChatMessage } from "../types.ts";
 
 Deno.test("normalizeMessagesForAi folds tool results into assistant context", () => {
   const input: ChatMessage[] = [

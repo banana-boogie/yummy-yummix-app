@@ -8,8 +8,8 @@ import {
   assertEquals,
   assertRejects,
 } from "https://deno.land/std@0.192.0/testing/asserts.ts";
-import type { IrmixyResponse } from "../_shared/irmixy-schemas.ts";
-import { saveMessageToHistory } from "./history.ts";
+import type { IrmixyResponse } from "../../_shared/irmixy-schemas.ts";
+import { saveMessageToHistory } from "../history.ts";
 
 type MockSupabase = {
   from: (table: string) => {
@@ -102,4 +102,3 @@ Deno.test("saveMessageToHistory - propagates insert failure", async () => {
     "insert failed",
   );
 });
-

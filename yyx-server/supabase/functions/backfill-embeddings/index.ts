@@ -1,7 +1,7 @@
 /**
  * Backfill Embeddings Edge Function
  *
- * Generates vector embeddings for published recipes using OpenAI text-embedding-3-large.
+ * Generates vector embeddings for published recipes using the AI Gateway embedding route.
  * Service-role auth required. Idempotent via content hash.
  * Per irmixy-completion-plan.md Sections 5.5, 5.6
  *
@@ -13,8 +13,17 @@
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { embed } from "../_shared/ai-gateway/index.ts";
+import { embed, getProviderConfig } from "../_shared/ai-gateway/index.ts";
+import {
+  createServiceClient,
+  getSupabaseUrl,
+} from "../_shared/supabase-client.ts";
+import type { RecipeEmbeddingRow } from "../_shared/recipe-query-types.ts";
+import {
+  buildEmbeddingText,
+  computeContentHash,
+  getEmbeddingModel,
+} from "./embedding-utils.ts";
 
 // ============================================================
 // Types
@@ -24,31 +33,6 @@ interface BackfillParams {
   batchSize: number;
   dryRun: boolean;
   forceRegenerate: boolean;
-}
-
-interface RecipeForEmbedding {
-  id: string;
-  name_en: string | null;
-  name_es: string | null;
-  tips_and_tricks_en: string | null;
-  tips_and_tricks_es: string | null;
-  recipe_ingredients: Array<{
-    ingredients: {
-      name_en: string | null;
-      name_es: string | null;
-    } | null;
-  }>;
-  recipe_to_tag: Array<{
-    recipe_tags: {
-      name_en: string | null;
-      name_es: string | null;
-    } | null;
-  }>;
-  recipe_steps: Array<{
-    instruction_en: string | null;
-    instruction_es: string | null;
-    order: number;
-  }>;
 }
 
 interface BatchResult {
@@ -66,98 +50,9 @@ interface BatchResult {
 const DEFAULT_BATCH_SIZE = 50;
 const MAX_BATCH_SIZE = 200;
 const MAX_RETRIES = 3;
-const EMBEDDING_MODEL = "text-embedding-3-large";
 
 // ============================================================
-// Content Hash
-// ============================================================
-
-/**
- * Compute SHA-256 content hash for a recipe.
- * Hash = SHA-256(embedding_model|full_embedding_text)
- */
-async function computeContentHash(embeddingText: string): Promise<string> {
-  const content = `${EMBEDDING_MODEL}|${embeddingText}`;
-  const encoder = new TextEncoder();
-  const data = encoder.encode(content);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-// ============================================================
-// Embedding Text Builder
-// ============================================================
-
-/**
- * Build rich bilingual text for embedding generation.
- * Includes recipe name, ingredients, tags, tips, and first few steps
- * in both EN and ES for cross-language search support.
- */
-function buildEmbeddingText(recipe: RecipeForEmbedding): string {
-  const sections: string[] = [];
-
-  // Recipe names
-  if (recipe.name_en) sections.push(`Recipe: ${recipe.name_en}`);
-  if (recipe.name_es) sections.push(`Receta: ${recipe.name_es}`);
-
-  // Ingredients (both languages)
-  const ingredientsEN = (recipe.recipe_ingredients || [])
-    .map((ri) => ri.ingredients?.name_en)
-    .filter((name): name is string => !!name)
-    .sort((a, b) => a.localeCompare(b));
-  const ingredientsES = (recipe.recipe_ingredients || [])
-    .map((ri) => ri.ingredients?.name_es)
-    .filter((name): name is string => !!name)
-    .sort((a, b) => a.localeCompare(b));
-
-  if (ingredientsEN.length > 0) {
-    sections.push(`Ingredients: ${ingredientsEN.join(", ")}`);
-  }
-  if (ingredientsES.length > 0) {
-    sections.push(`Ingredientes: ${ingredientsES.join(", ")}`);
-  }
-
-  // Tags (both languages)
-  const tagsEN = (recipe.recipe_to_tag || [])
-    .map((rt) => rt.recipe_tags?.name_en)
-    .filter((name): name is string => !!name)
-    .sort((a, b) => a.localeCompare(b));
-  const tagsES = (recipe.recipe_to_tag || [])
-    .map((rt) => rt.recipe_tags?.name_es)
-    .filter((name): name is string => !!name)
-    .sort((a, b) => a.localeCompare(b));
-
-  if (tagsEN.length > 0) sections.push(`Tags: ${tagsEN.join(", ")}`);
-  if (tagsES.length > 0) sections.push(`Etiquetas: ${tagsES.join(", ")}`);
-
-  // Tips (both languages, first 200 chars each)
-  if (recipe.tips_and_tricks_en) {
-    sections.push(
-      `Tips: ${recipe.tips_and_tricks_en.slice(0, 200)}`,
-    );
-  }
-  if (recipe.tips_and_tricks_es) {
-    sections.push(
-      `Consejos: ${recipe.tips_and_tricks_es.slice(0, 200)}`,
-    );
-  }
-
-  // First 3 steps (EN only, for instruction context)
-  const sortedSteps = (recipe.recipe_steps || [])
-    .sort((a, b) => a.order - b.order)
-    .slice(0, 3);
-  for (const step of sortedSteps) {
-    if (step.instruction_en) {
-      sections.push(`Step ${step.order}: ${step.instruction_en.slice(0, 150)}`);
-    }
-  }
-
-  return sections.join("\n");
-}
-
-// ============================================================
-// OpenAI Embedding API
+// AI Gateway Embedding API
 // ============================================================
 
 /**
@@ -198,18 +93,20 @@ async function runBackfill(params: BackfillParams): Promise<{
   totalErrors: number;
   batches: BatchResult[];
 }> {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseUrl = getSupabaseUrl();
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
+  const embeddingProviderConfig = getProviderConfig("embedding");
+  const embeddingApiKey = Deno.env.get(embeddingProviderConfig.apiKeyEnvVar);
+  const embeddingModel = getEmbeddingModel();
 
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
   }
-  if (!openaiApiKey) {
-    throw new Error("Missing OPENAI_API_KEY");
+  if (!embeddingApiKey) {
+    throw new Error(`Missing ${embeddingProviderConfig.apiKeyEnvVar}`);
   }
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
+  const supabase = createServiceClient();
 
   // Fetch all published recipes with related data
   const { data: recipes, error: fetchError } = await supabase
@@ -241,7 +138,7 @@ async function runBackfill(params: BackfillParams): Promise<{
     };
   }
 
-  const typedRecipes = recipes as unknown as RecipeForEmbedding[];
+  const typedRecipes = recipes as unknown as RecipeEmbeddingRow[];
   console.log(`[backfill] Found ${typedRecipes.length} published recipes`);
 
   // Fetch existing embeddings for hash comparison (skip unchanged)
@@ -282,7 +179,10 @@ async function runBackfill(params: BackfillParams): Promise<{
     for (const recipe of batch) {
       try {
         const embeddingText = buildEmbeddingText(recipe);
-        const contentHash = await computeContentHash(embeddingText);
+        const contentHash = await computeContentHash(
+          embeddingText,
+          embeddingModel,
+        );
 
         // Skip if hash matches and not forcing regeneration
         if (
@@ -313,7 +213,7 @@ async function runBackfill(params: BackfillParams): Promise<{
             {
               recipe_id: recipe.id,
               embedding: JSON.stringify(embedding),
-              embedding_model: EMBEDDING_MODEL,
+              embedding_model: embeddingModel,
               content_hash: contentHash,
               updated_at: new Date().toISOString(),
             },

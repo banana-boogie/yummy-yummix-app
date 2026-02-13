@@ -8,7 +8,7 @@ import { assertEquals } from "https://deno.land/std@0.192.0/testing/asserts.ts";
 import {
   buildNoResultsFallback,
   getTemplateSuggestions,
-} from "./suggestions.ts";
+} from "../suggestions.ts";
 
 Deno.test("getTemplateSuggestions returns chat templates when no recipes are present", () => {
   const en = getTemplateSuggestions("en", false);

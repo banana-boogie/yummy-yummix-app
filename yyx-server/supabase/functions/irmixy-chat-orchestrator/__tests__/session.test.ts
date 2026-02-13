@@ -8,8 +8,8 @@ import {
   assertEquals,
   assertRejects,
 } from "https://deno.land/std@0.192.0/testing/asserts.ts";
-import { ensureSessionId, generateSessionTitle } from "./session.ts";
-import { SessionOwnershipError } from "./types.ts";
+import { ensureSessionId, generateSessionTitle } from "../session.ts";
+import { SessionOwnershipError } from "../types.ts";
 
 type MockOptions = {
   existingSession?: { id: string } | null;

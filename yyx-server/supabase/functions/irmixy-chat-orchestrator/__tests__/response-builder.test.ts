@@ -8,8 +8,8 @@ import {
   assertEquals,
   assertRejects,
 } from "https://deno.land/std@0.192.0/testing/asserts.ts";
-import type { UserContext } from "../_shared/irmixy-schemas.ts";
-import { finalizeResponse } from "./response-builder.ts";
+import type { UserContext } from "../../_shared/irmixy-schemas.ts";
+import { finalizeResponse } from "../response-builder.ts";
 
 function createUserContext(
   overrides: Partial<UserContext> = {},

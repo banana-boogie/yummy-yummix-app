@@ -8,7 +8,7 @@ import {
   assertEquals,
   assertStringIncludes,
 } from "https://deno.land/std@0.192.0/testing/asserts.ts";
-import { createLogger } from "./logger.ts";
+import { createLogger } from "../logger.ts";
 
 Deno.test("createLogger.error - includes error stack and merged metadata", () => {
   const originalConsoleError = console.error;
@@ -42,4 +42,3 @@ Deno.test("createLogger.error - includes error stack and merged metadata", () =>
   assertEquals(payload.phase, "streaming");
   assertStringIncludes(payload.stack ?? "", "stream exploded");
 });
-
