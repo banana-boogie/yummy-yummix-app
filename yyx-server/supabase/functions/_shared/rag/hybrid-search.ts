@@ -43,8 +43,7 @@ export interface HybridSearchResult {
   method: "hybrid" | "lexical";
   degradationReason?:
     | "embedding_failure"
-    | "no_semantic_candidates"
-    | "low_confidence";
+    | "no_semantic_candidates";
 }
 
 interface RecipeTagJoin {
@@ -80,15 +79,13 @@ interface ScoredRecipe {
 // Hybrid Scoring Weights (per plan Section 6.5)
 // ============================================================
 
-const SEMANTIC_WEIGHT = 0.55;
-const LEXICAL_WEIGHT = 0.25;
+const SEMANTIC_WEIGHT = 0.40;
+const LEXICAL_WEIGHT = 0.35;
 const METADATA_WEIGHT = 0.10;
-const PERSONALIZATION_WEIGHT = 0.10;
+const PERSONALIZATION_WEIGHT = 0.15;
 
 // Thresholds
 const INCLUDE_THRESHOLD = 0.35;
-const FALLBACK_TOP_THRESHOLD = 0.42;
-const MIN_RESULTS_BEFORE_FALLBACK = 2;
 
 // ============================================================
 // Embedding
@@ -402,16 +399,14 @@ export async function searchRecipesHybrid(
     .filter((r) => r.finalScore >= INCLUDE_THRESHOLD)
     .sort((a, b) => b.finalScore - a.finalScore);
 
-  // Check fallback conditions
-  const topScore = aboveThreshold[0]?.finalScore || 0;
-  const needsFallback = aboveThreshold.length < MIN_RESULTS_BEFORE_FALLBACK ||
-    topScore < FALLBACK_TOP_THRESHOLD;
+  // Fall back to lexical only when zero recipes pass the include threshold
+  const needsFallback = aboveThreshold.length === 0;
 
   console.log("[hybrid-search] Threshold filtering", {
     totalScored: scored.length,
     afterHardFilters: filtered.length,
     aboveThreshold: aboveThreshold.length,
-    topScore: topScore.toFixed(3),
+    topScore: (aboveThreshold[0]?.finalScore || 0).toFixed(3),
     needsFallback,
   });
 
@@ -419,7 +414,7 @@ export async function searchRecipesHybrid(
     return {
       recipes: [],
       method: "hybrid",
-      degradationReason: "low_confidence",
+      degradationReason: "no_semantic_candidates",
     };
   }
 

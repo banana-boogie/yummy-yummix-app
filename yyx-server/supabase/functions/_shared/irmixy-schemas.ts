@@ -18,6 +18,7 @@ export const RecipeCardSchema = z.object({
   totalTime: z.number().int().nonnegative(), // Allow 0 for recipes with unknown time
   difficulty: z.enum(["easy", "medium", "hard"]),
   portions: z.number().int().positive(),
+  allergenWarnings: z.array(z.string()).optional(),
 });
 
 export const SuggestionChipSchema = z.object({

@@ -109,6 +109,26 @@ export const ChatRecipeCard = memo(function ChatRecipeCard({ recipe }: ChatRecip
                     <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.grey.medium} />
                 </View>
             </View>
+
+            {/* Allergen warnings */}
+            {recipe.allergenWarnings && recipe.allergenWarnings.length > 0 && (
+                <View
+                    className="flex-row items-center px-sm py-xs bg-status-warning/10 border-t border-border-default"
+                    accessible={true}
+                    accessibilityRole="alert"
+                    accessibilityLabel={recipe.allergenWarnings.join(', ')}
+                >
+                    <MaterialCommunityIcons
+                        name="alert-outline"
+                        size={14}
+                        color={COLORS.status.warning}
+                        accessibilityElementsHidden={true}
+                    />
+                    <Text className="text-text-secondary text-xs ml-xs flex-1" numberOfLines={2}>
+                        {recipe.allergenWarnings.join(' · ')}
+                    </Text>
+                </View>
+            )}
         </TouchableOpacity>
     );
 });

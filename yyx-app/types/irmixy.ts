@@ -10,6 +10,7 @@ export interface RecipeCard {
   totalTime: number;
   difficulty: 'easy' | 'medium' | 'hard';
   portions: number;
+  allergenWarnings?: string[];
 }
 
 export interface SuggestionChip {

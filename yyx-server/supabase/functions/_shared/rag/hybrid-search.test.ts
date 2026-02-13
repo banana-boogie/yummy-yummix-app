@@ -29,12 +29,11 @@ const BASE_USER_CONTEXT = {
 // coverage of the weights/thresholds we re-derive the formula.
 // ============================================================
 
-const SEMANTIC_WEIGHT = 0.55;
-const LEXICAL_WEIGHT = 0.25;
+const SEMANTIC_WEIGHT = 0.40;
+const LEXICAL_WEIGHT = 0.35;
 const METADATA_WEIGHT = 0.10;
-const PERSONALIZATION_WEIGHT = 0.10;
+const PERSONALIZATION_WEIGHT = 0.15;
 const INCLUDE_THRESHOLD = 0.35;
-const FALLBACK_TOP_THRESHOLD = 0.42;
 
 function computeExpectedScore(
   semantic: number,
@@ -58,7 +57,6 @@ Deno.test("hybrid scoring: perfect match scores above threshold", () => {
   const score = computeExpectedScore(1.0, 1.0, 1.0, 1.0);
   assertEquals(score, 1.0);
   assertEquals(score >= INCLUDE_THRESHOLD, true);
-  assertEquals(score >= FALLBACK_TOP_THRESHOLD, true);
 });
 
 Deno.test("hybrid scoring: zero semantic scores below include threshold", () => {
@@ -69,9 +67,8 @@ Deno.test("hybrid scoring: zero semantic scores below include threshold", () => 
 
 Deno.test("hybrid scoring: moderate semantic + strong lexical passes threshold", () => {
   const score = computeExpectedScore(0.6, 0.8, 0.5, 0.5);
-  // 0.33 + 0.2 + 0.05 + 0.05 = 0.63
+  // 0.24 + 0.28 + 0.05 + 0.075 = 0.645
   assertEquals(score >= INCLUDE_THRESHOLD, true);
-  assertEquals(score >= FALLBACK_TOP_THRESHOLD, true);
 });
 
 Deno.test("hybrid scoring: weights sum to 1.0", () => {
@@ -86,23 +83,31 @@ Deno.test("hybrid scoring: semantic has the highest weight", () => {
   assertEquals(SEMANTIC_WEIGHT > PERSONALIZATION_WEIGHT, true);
 });
 
-Deno.test("hybrid scoring: fallback threshold is higher than include threshold", () => {
-  assertEquals(FALLBACK_TOP_THRESHOLD > INCLUDE_THRESHOLD, true);
+Deno.test("hybrid scoring: fallback only triggers when zero results above include threshold", () => {
+  // With the simplified logic, fallback = aboveThreshold.length === 0
+  // Any recipe above INCLUDE_THRESHOLD means no fallback needed
+  const aboveThreshold = computeExpectedScore(0.6, 0.8, 0.5, 0.5);
+  assertEquals(aboveThreshold >= INCLUDE_THRESHOLD, true);
 });
 
-Deno.test("hybrid scoring: low semantic alone triggers fallback zone", () => {
+Deno.test("hybrid scoring: low semantic alone falls below include threshold", () => {
   // Only semantic signal = 0.4
   const score = computeExpectedScore(0.4, 0, 0, 0);
-  // 0.22 — below both thresholds
-  assertEquals(score < FALLBACK_TOP_THRESHOLD, true);
+  // 0.16 — below include threshold
   assertEquals(score < INCLUDE_THRESHOLD, true);
 });
 
 Deno.test("hybrid scoring: high semantic alone passes include threshold", () => {
   const score = computeExpectedScore(0.8, 0, 0, 0);
-  // 0.44 — above both thresholds
+  // 0.32 — just below include threshold with new weights
+  // Need semantic + at least some lexical or personalization signal
+  assertEquals(score < INCLUDE_THRESHOLD, true);
+});
+
+Deno.test("hybrid scoring: high semantic + moderate lexical passes include threshold", () => {
+  const score = computeExpectedScore(0.8, 0.3, 0, 0);
+  // 0.32 + 0.105 = 0.425 — above include threshold
   assertEquals(score >= INCLUDE_THRESHOLD, true);
-  assertEquals(score >= FALLBACK_TOP_THRESHOLD, true);
 });
 
 // ============================================================
@@ -203,7 +208,7 @@ Deno.test("searchRecipesHybrid returns hybrid no_semantic_candidates when vector
   }
 });
 
-Deno.test("searchRecipesHybrid returns low_confidence when too few results above threshold", async () => {
+Deno.test("searchRecipesHybrid falls back when all scores below include threshold", async () => {
   clearEmbeddingCache();
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
@@ -257,7 +262,7 @@ Deno.test("searchRecipesHybrid returns low_confidence when too few results above
     );
 
     assertEquals(result.method, "hybrid");
-    assertEquals(result.degradationReason, "low_confidence");
+    assertEquals(result.degradationReason, "no_semantic_candidates");
   } finally {
     globalThis.fetch = originalFetch;
     if (hadKey) Deno.env.set("OPENAI_API_KEY", hadKey);

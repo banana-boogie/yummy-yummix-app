@@ -14,7 +14,8 @@ import {
   SearchRecipesParams,
   UserContext,
 } from "../irmixy-schemas.ts";
-import { filterByAllergens } from "../allergen-filter.ts";
+import { getAllergenMap, loadAllergenGroups } from "../allergen-filter.ts";
+import { normalizeIngredient } from "../ingredient-normalization.ts";
 import { searchRecipesHybrid } from "../rag/hybrid-search.ts";
 import { validateSearchRecipesParams } from "./tool-validators.ts";
 
@@ -62,8 +63,8 @@ export const searchRecipesTool = {
     description:
       "Search the recipe database for existing recipes based on user criteria. " +
       "Use this when the user wants to find recipes from the database (not create custom ones). " +
-      "Returns recipe cards that match the filters. Results are automatically filtered by " +
-      "the user's dietary restrictions and allergens.",
+      "Returns recipe cards that match the filters. Recipes containing user allergens are " +
+      "returned with warning labels rather than being excluded.",
     parameters: {
       type: "object",
       properties: {
@@ -147,34 +148,27 @@ export async function searchRecipes(
         method: hybridResult.method,
         count: hybridResult.recipes.length,
       });
-      // Hybrid returned results — apply allergen filtering then return
+      // Annotate recipes with allergen warnings instead of filtering
       if (userContext.dietaryRestrictions.length > 0) {
         const recipeIds = hybridResult.recipes.map((r) => r.recipeId);
         const recipesWithIngredients = await fetchRecipesWithIngredients(
           supabase,
           recipeIds,
         );
-        const safeRecipes = await filterByAllergens(
+        const annotated = await annotateAllergenWarnings(
           supabase,
+          hybridResult.recipes,
           recipesWithIngredients,
           userContext.dietaryRestrictions,
           userContext.language,
         );
-        const safeIds = new Set(safeRecipes.map((r) => r.id));
-        const filtered = hybridResult.recipes.filter((r) =>
-          safeIds.has(r.recipeId)
-        );
-        console.log("[search] Allergen filtering", {
-          before: hybridResult.recipes.length,
-          after: filtered.length,
-        });
-        return filtered;
+        return annotated;
       }
       return hybridResult.recipes;
     }
 
-    // All degradation reasons (embedding_failure, no_semantic_candidates,
-    // low_confidence) fall through to lexical search as graceful degradation.
+    // All degradation reasons (embedding_failure, no_semantic_candidates)
+    // fall through to lexical search as graceful degradation.
     console.log(
       "[search] Hybrid returned no results, falling back to lexical",
       {
@@ -274,7 +268,7 @@ export async function searchRecipes(
     portions: recipe.portions,
   }));
 
-  // Filter by user's dietary restrictions (allergen-based)
+  // Annotate recipes with allergen warnings instead of filtering
   if (userContext.dietaryRestrictions.length > 0 && recipeCards.length > 0) {
     const recipeIds = recipeCards.map((r) => r.recipeId);
     const recipesWithIngredients = await fetchRecipesWithIngredients(
@@ -282,19 +276,16 @@ export async function searchRecipes(
       recipeIds,
     );
 
-    const safeRecipes = await filterByAllergens(
+    recipeCards = await annotateAllergenWarnings(
       supabase,
+      recipeCards,
       recipesWithIngredients,
       userContext.dietaryRestrictions,
       userContext.language,
     );
-
-    const safeIds = new Set(safeRecipes.map((r) => r.id));
-    const beforeCount = recipeCards.length;
-    recipeCards = recipeCards.filter((r) => safeIds.has(r.recipeId));
-    console.log("[search] Lexical allergen filtering", {
-      before: beforeCount,
-      after: recipeCards.length,
+    console.log("[search] Allergen annotation", {
+      total: recipeCards.length,
+      flagged: recipeCards.filter((r) => r.allergenWarnings?.length).length,
     });
   }
 
@@ -504,6 +495,109 @@ function scoreByQuery(
   scored.sort((a, b) => b.score - a.score);
 
   return scored.map((s) => s.card);
+}
+
+/**
+ * Annotate recipe cards with allergen warnings instead of filtering them out.
+ * Checks each recipe's ingredients against the user's dietary restrictions
+ * and attaches warning strings to flagged recipes.
+ */
+async function annotateAllergenWarnings(
+  supabase: SupabaseClient,
+  cards: RecipeCard[],
+  recipesWithIngredients: Array<{
+    id: string;
+    ingredients: Array<{ name_en: string; name_es: string }>;
+  }>,
+  userRestrictions: string[],
+  language: "en" | "es",
+): Promise<RecipeCard[]> {
+  if (userRestrictions.length === 0) return cards;
+
+  const allergenMap = await getAllergenMap(supabase);
+  if (allergenMap.size === 0) {
+    // Cannot verify allergens — return cards without warnings
+    console.warn(
+      "[search] Allergen map empty; cannot annotate warnings",
+    );
+    return cards;
+  }
+
+  const allergenEntries = await loadAllergenGroups(supabase);
+
+  // Build ingredient lookup by recipe ID
+  const ingredientsByRecipe = new Map(
+    recipesWithIngredients.map((r) => [r.id, r.ingredients]),
+  );
+
+  // Pre-normalize all unique ingredient names
+  const allNames = [
+    ...new Set(
+      recipesWithIngredients.flatMap((r) =>
+        r.ingredients
+          .map((i) => (language === "es" ? i.name_es : i.name_en))
+          .filter(Boolean)
+      ),
+    ),
+  ];
+  const normalizedEntries = await Promise.all(
+    allNames.map(async (name) =>
+      [name, await normalizeIngredient(supabase, name, language)] as const
+    ),
+  );
+  const normalizedMap = new Map(normalizedEntries);
+
+  return cards.map((card) => {
+    const ingredients = ingredientsByRecipe.get(card.recipeId) || [];
+    const warnings: string[] = [];
+    const matchedCategories = new Set<string>();
+
+    for (const ingredient of ingredients) {
+      const ingredientName = language === "es"
+        ? ingredient.name_es
+        : ingredient.name_en;
+      if (!ingredientName) continue;
+
+      const normalized = normalizedMap.get(ingredientName) ?? ingredientName;
+
+      for (const restriction of userRestrictions) {
+        if (matchedCategories.has(restriction)) continue;
+        const allergens = allergenMap.get(restriction) || [];
+
+        for (const allergen of allergens) {
+          const escaped = allergen.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const pattern = escaped.replace(/_/g, "[\\s_-]");
+          const regex = new RegExp(
+            `(^|[\\s,_-])${pattern}([\\s,_-]|$)`,
+            "i",
+          );
+
+          if (normalized === allergen || regex.test(normalized)) {
+            // Find user-facing name for the allergen
+            const entry = allergenEntries.find(
+              (a) => a.ingredient_canonical === allergen,
+            );
+            const allergenName = entry
+              ? (language === "es" ? entry.name_es : entry.name_en)
+              : allergen.replace(/_/g, " ");
+
+            warnings.push(
+              language === "es"
+                ? `Contiene ${allergenName} (${restriction})`
+                : `Contains ${allergenName} (${restriction})`,
+            );
+            matchedCategories.add(restriction);
+            break;
+          }
+        }
+      }
+    }
+
+    if (warnings.length > 0) {
+      return { ...card, allergenWarnings: warnings };
+    }
+    return card;
+  });
 }
 
 /**
