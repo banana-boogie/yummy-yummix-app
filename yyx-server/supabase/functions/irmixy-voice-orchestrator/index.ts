@@ -70,9 +70,10 @@ function jsonResponse(
  */
 async function handleCheckQuota(
   userId: string,
+  authHeader: string,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
-  const supabase = createServiceClient();
+  const supabase = createUserClient(authHeader);
   const currentMonth = new Date().toISOString().slice(0, 7);
 
   const { data: usage } = await supabase
@@ -98,12 +99,13 @@ async function handleCheckQuota(
 
 async function handleStartSession(
   userId: string,
+  authHeader: string,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
-  const supabase = createServiceClient();
+  const userClient = createUserClient(authHeader);
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
 
-  const { data: usage } = await supabase
+  const { data: usage } = await userClient
     .from("ai_voice_usage")
     .select("minutes_used, conversations_count")
     .eq("user_id", userId)
@@ -185,7 +187,9 @@ async function handleStartSession(
     );
   }
 
-  const { data: session, error: sessionError } = await supabase
+  // Service client for INSERT — no user INSERT policy on ai_voice_sessions
+  const serviceClient = createServiceClient();
+  const { data: session, error: sessionError } = await serviceClient
     .from("ai_voice_sessions")
     .insert({
       user_id: userId,
@@ -375,11 +379,11 @@ serve(async (req) => {
     }
 
     if (action === "check_quota") {
-      return await handleCheckQuota(user.id, corsHeaders);
+      return await handleCheckQuota(user.id, authHeader!, corsHeaders);
     }
 
     if (action === "start_session") {
-      return await handleStartSession(user.id, corsHeaders);
+      return await handleStartSession(user.id, authHeader!, corsHeaders);
     }
 
     return await handleExecuteTool(

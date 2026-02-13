@@ -17,7 +17,6 @@ interface RawPreferenceRow {
   name_en: string;
   name_es: string;
   icon_name: string | null;
-  display_order: number;
 }
 
 class PreferencesService extends BaseService {
@@ -31,8 +30,27 @@ class PreferencesService extends BaseService {
       slug: row.slug,
       name: language === 'es' ? row.name_es : row.name_en,
       iconName: row.icon_name ?? undefined,
-      displayOrder: row.display_order,
     };
+  }
+
+  /**
+   * Fetch options from a preference table, sorted alphabetically by localized name.
+   */
+  private async fetchPreferences(table: string, language: Language): Promise<PreferenceOption[]> {
+    const { data, error } = await this.supabase
+      .from(table)
+      .select('id, slug, name_en, name_es, icon_name');
+
+    if (error) {
+      console.error(`Failed to fetch ${table}:`, error);
+      throw error;
+    }
+
+    if (!data) return [];
+
+    return data
+      .map((row) => this.transformToOption(row as RawPreferenceRow, language))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   /**
@@ -40,19 +58,7 @@ class PreferencesService extends BaseService {
    * These represent allergen categories (nuts, dairy, gluten, etc.)
    */
   async getFoodAllergies(language: Language): Promise<PreferenceOption[]> {
-    const { data, error } = await this.supabase
-      .from('food_allergies')
-      .select('id, slug, name_en, name_es, icon_name, display_order')
-      .order('display_order', { ascending: true });
-
-    if (error) {
-      console.error('Failed to fetch food allergies:', error);
-      throw error;
-    }
-
-    if (!data) return [];
-
-    return data.map((row) => this.transformToOption(row as RawPreferenceRow, language));
+    return this.fetchPreferences('food_allergies', language);
   }
 
   /**
@@ -61,19 +67,7 @@ class PreferencesService extends BaseService {
    * Does NOT include cuisines like mediterranean.
    */
   async getDietTypes(language: Language): Promise<PreferenceOption[]> {
-    const { data, error } = await this.supabase
-      .from('diet_types')
-      .select('id, slug, name_en, name_es, icon_name, display_order')
-      .order('display_order', { ascending: true });
-
-    if (error) {
-      console.error('Failed to fetch diet types:', error);
-      throw error;
-    }
-
-    if (!data) return [];
-
-    return data.map((row) => this.transformToOption(row as RawPreferenceRow, language));
+    return this.fetchPreferences('diet_types', language);
   }
 
   /**
@@ -82,19 +76,7 @@ class PreferencesService extends BaseService {
    * These are SOFT preferences that inspire recipe generation.
    */
   async getCuisinePreferences(language: Language): Promise<PreferenceOption[]> {
-    const { data, error } = await this.supabase
-      .from('cuisine_preferences')
-      .select('id, slug, name_en, name_es, icon_name, display_order')
-      .order('display_order', { ascending: true });
-
-    if (error) {
-      console.error('Failed to fetch cuisine preferences:', error);
-      throw error;
-    }
-
-    if (!data) return [];
-
-    return data.map((row) => this.transformToOption(row as RawPreferenceRow, language));
+    return this.fetchPreferences('cuisine_preferences', language);
   }
 
   /**

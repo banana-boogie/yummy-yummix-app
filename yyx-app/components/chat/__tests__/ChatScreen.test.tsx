@@ -8,7 +8,6 @@
 
 import React from 'react';
 import { render, fireEvent, screen, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
 
 // Mock all dependencies before importing ChatScreen
 jest.mock('@/i18n', () => ({
@@ -34,10 +33,6 @@ jest.mock('@/i18n', () => ({
       'common.cancel': 'Cancel',
       'chat.messageCopied': 'Message copied to clipboard',
       'chat.error.title': 'Error',
-      'chat.resume.resumeCooking': 'Resume cooking',
-      'chat.resume.resumePrompt': 'Resume prompt',
-      'chat.resume.startOver': 'Start over',
-      'chat.resume.startOverFailed': 'Unable to start over right now. Please try again.',
     };
     return translations[key] || key;
   },
@@ -87,17 +82,6 @@ jest.mock('@/services/chatService', () => ({
 const mockInvalidateQueries = jest.fn().mockResolvedValue(undefined);
 jest.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
-}));
-
-const mockGetResumableSession = jest.fn().mockResolvedValue(null);
-const mockAbandonSession = jest.fn().mockResolvedValue(true);
-jest.mock('@/hooks/useCookingProgress', () => ({
-  useCookingProgress: () => ({
-    getResumableSession: mockGetResumableSession,
-    abandonSession: mockAbandonSession,
-    upsertProgress: jest.fn(),
-    completeSession: jest.fn(),
-  }),
 }));
 
 // Mock markdown
@@ -154,8 +138,6 @@ describe('ChatScreen', () => {
     jest.clearAllMocks();
     mockAuthUser = mockUser;
     mockLoadChatHistory.mockResolvedValue([]);
-    mockGetResumableSession.mockResolvedValue(null);
-    mockAbandonSession.mockResolvedValue(true);
   });
 
   // ============================================================
@@ -358,75 +340,4 @@ describe('ChatScreen', () => {
     });
   });
 
-  // ============================================================
-  // RESUME PROMPT TESTS
-  // ============================================================
-
-  describe('resume prompt', () => {
-    it('start over abandons session before navigating', async () => {
-      const activeSession = {
-        id: 'session-abc',
-        recipeId: 'recipe-123',
-        recipeType: 'custom' as const,
-        recipeName: 'Weeknight Tacos',
-        currentStep: 3,
-        totalSteps: 8,
-        status: 'active' as const,
-      };
-      mockGetResumableSession.mockResolvedValue(activeSession);
-
-      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title: any, _message: any, buttons: any) => {
-        const startOverButton = buttons?.find((b: any) => b.text === 'Start over');
-        startOverButton?.onPress?.();
-      });
-
-      render(<ChatScreen />);
-
-      await waitFor(() => {
-        expect(mockAbandonSession).toHaveBeenCalledWith('recipe-123');
-      });
-      await waitFor(() => {
-        expect(mockRouterPush).toHaveBeenCalledWith('/(tabs)/recipes/custom/recipe-123/cooking-guide/1?from=chat');
-      });
-
-      alertSpy.mockRestore();
-    });
-
-    it('shows localized error and does not navigate when abandon fails', async () => {
-      const activeSession = {
-        id: 'session-abc',
-        recipeId: 'recipe-123',
-        recipeType: 'custom' as const,
-        recipeName: 'Weeknight Tacos',
-        currentStep: 3,
-        totalSteps: 8,
-        status: 'active' as const,
-      };
-      mockGetResumableSession.mockResolvedValue(activeSession);
-      mockAbandonSession.mockResolvedValue(false);
-
-      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((title: any, _message: any, buttons: any) => {
-        if (title === 'Resume cooking') {
-          const startOverButton = buttons?.find((b: any) => b.text === 'Start over');
-          startOverButton?.onPress?.();
-        }
-      });
-
-      render(<ChatScreen />);
-
-      await waitFor(() => {
-        expect(mockAbandonSession).toHaveBeenCalledWith('recipe-123');
-      });
-      await waitFor(() => {
-        expect(alertSpy).toHaveBeenCalledWith(
-          'Error',
-          'Unable to start over right now. Please try again.',
-          expect.any(Array)
-        );
-      });
-      expect(mockRouterPush).not.toHaveBeenCalled();
-
-      alertSpy.mockRestore();
-    });
-  });
 });

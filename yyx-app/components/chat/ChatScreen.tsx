@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
     View,
     TextInput,
@@ -27,7 +27,6 @@ import {
 import { customRecipeService } from '@/services/customRecipeService';
 import { useQueryClient } from '@tanstack/react-query';
 import { customRecipeKeys } from '@/hooks/useCustomRecipe';
-import { useCookingProgress } from '@/hooks/useCookingProgress';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -63,7 +62,6 @@ export function ChatScreen({
 }: Props) {
     const { user } = useAuth();
     const { language } = useLanguage();
-    const { getResumableSession, abandonSession } = useCookingProgress();
     const queryClient = useQueryClient();
     const insets = useSafeAreaInsets();
     const flatListRef = useRef<FlatList>(null);
@@ -76,7 +74,6 @@ export function ChatScreen({
     const chunkTimerRef = useRef<NodeJS.Timeout | null>(null);
     const isNearBottomRef = useRef(true); // Assume at bottom initially
     const skipNextScrollToEndRef = useRef(false); // Skip scroll-to-end after recipe card scroll
-    const resumePromptShownRef = useRef(false);
 
     // Use external messages if provided (lifted state), otherwise use local state
     const [internalMessages, setInternalMessages] = useState<ChatMessage[]>([]);
@@ -144,11 +141,6 @@ export function ChatScreen({
             setDynamicSuggestions(lastSuggested?.suggestions ?? null);
         }
     }, [initialSessionId, currentSessionId, messages, resetStreamingState]);
-
-    // Reset resume prompt guard when session/user context changes
-    useEffect(() => {
-        resumePromptShownRef.current = false;
-    }, [currentSessionId, user?.id]);
 
     useEffect(() => {
         setDynamicSuggestions(null);
@@ -675,113 +667,9 @@ export function ChatScreen({
         }
     }, [queryClient, setMessages]);
 
-    const navigateToCookingGuide = useCallback((
-        recipeType: 'custom' | 'database',
-        recipeId: string,
-        currentStep: number
-    ) => {
-        if (recipeType === 'custom') {
-            router.push(`/(tabs)/recipes/custom/${recipeId}/cooking-guide/${currentStep}?from=chat`);
-        } else {
-            router.push(`/(tabs)/recipes/${recipeId}/cooking-guide/${currentStep}?from=chat`);
-        }
-    }, []);
-
-    useEffect(() => {
-        let cancelled = false;
-
-        if (!user || currentSessionId || isLoading || messages.length > 0 || resumePromptShownRef.current) {
-            return () => { };
-        }
-
-        const promptResume = async () => {
-            const session = await getResumableSession();
-            if (cancelled || !session) return;
-
-            resumePromptShownRef.current = true;
-            Alert.alert(
-                i18n.t('chat.resume.resumeCooking'),
-                i18n.t('chat.resume.resumePrompt', {
-                    recipeName: session.recipeName,
-                    step: session.currentStep,
-                    total: session.totalSteps,
-                }),
-                [
-                    {
-                        text: i18n.t('common.cancel'),
-                        style: 'cancel',
-                    },
-                    {
-                        text: i18n.t('chat.resume.startOver'),
-                        style: 'destructive',
-                        onPress: () => {
-                            void (async () => {
-                                const abandoned = await abandonSession(session.recipeId);
-                                if (!abandoned) {
-                                    Alert.alert(
-                                        i18n.t('chat.error.title'),
-                                        i18n.t('chat.resume.startOverFailed'),
-                                        [{ text: i18n.t('common.ok') }]
-                                    );
-                                    return;
-                                }
-                                navigateToCookingGuide(session.recipeType, session.recipeId, 1);
-                            })();
-                        },
-                    },
-                    {
-                        text: i18n.t('chat.resume.resumeCooking'),
-                        onPress: () => {
-                            navigateToCookingGuide(
-                                session.recipeType,
-                                session.recipeId,
-                                session.currentStep
-                            );
-                        },
-                    },
-                ]
-            );
-        };
-
-        void promptResume();
-
-        return () => {
-            cancelled = true;
-        };
-    // Full dep list for linter compliance. The resumePromptShownRef guard
-    // (line 952) prevents re-prompting even if callback identities change.
-    }, [
-        user,
-        currentSessionId,
-        isLoading,
-        messages.length,
-        getResumableSession,
-        abandonSession,
-        navigateToCookingGuide,
-        language,
-    ]);
-
     const handleActionPress = useCallback((action: QuickAction) => {
         const payload = action.payload || {};
         switch (action.type) {
-            case 'resume_cooking': {
-                const recipeType = payload.recipeType === 'custom' || payload.recipeType === 'database'
-                    ? payload.recipeType
-                    : null;
-                const recipeId = typeof payload.recipeId === 'string' ? payload.recipeId : null;
-                const currentStepRaw = payload.currentStep;
-                const currentStep = typeof currentStepRaw === 'number'
-                    ? currentStepRaw
-                    : Number(currentStepRaw);
-
-                if (!recipeType || !recipeId || !Number.isFinite(currentStep) || currentStep < 1) {
-                    if (__DEV__) console.warn('[ChatScreen] Invalid resume_cooking payload:', payload);
-                    return;
-                }
-
-                navigateToCookingGuide(recipeType, recipeId, currentStep);
-                break;
-            }
             case 'view_recipe': {
                 const recipeId = payload.recipeId as string;
                 if (recipeId) {
@@ -792,7 +680,7 @@ export function ChatScreen({
             default:
                 break;
         }
-    }, [navigateToCookingGuide]);
+    }, []);
 
     // Memoize the last message ID to avoid recalculating on every render
     const lastMessageId = messages.length > 0 ? messages[messages.length - 1]?.id : null;

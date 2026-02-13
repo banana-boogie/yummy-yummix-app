@@ -44,7 +44,6 @@ export interface PreferenceOption {
   slug: string;
   name: string; // Localized name based on user's language
   iconName?: string;
-  displayOrder: number;
 }
 
 /**

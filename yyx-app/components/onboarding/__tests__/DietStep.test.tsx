@@ -45,9 +45,9 @@ jest.mock('@/services/preferencesService', () => ({
   __esModule: true,
   default: {
     getDietTypes: jest.fn().mockResolvedValue([
-      { id: '1', slug: 'vegan', name: 'Vegan', iconName: 'vegan-diet', displayOrder: 1 },
-      { id: '2', slug: 'vegetarian', name: 'Vegetarian', iconName: 'vegetarian-diet', displayOrder: 2 },
-      { id: '3', slug: 'keto', name: 'Keto', iconName: 'keto-diet', displayOrder: 3 },
+      { id: '1', slug: 'vegan', name: 'Vegan', iconName: 'vegan-diet' },
+      { id: '2', slug: 'vegetarian', name: 'Vegetarian', iconName: 'vegetarian-diet' },
+      { id: '3', slug: 'keto', name: 'Keto', iconName: 'keto-diet' },
     ]),
   },
 }));

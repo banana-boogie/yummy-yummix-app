@@ -1,12 +1,11 @@
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCustomRecipe } from "@/hooks/useCustomRecipe";
-import { useCookingProgress } from "@/hooks/useCookingProgress";
 import { CookingGuideHeader } from "@/components/cooking-guide/CookingGuideHeader";
 import { RecipeStepContent } from "@/components/cooking-guide/RecipeStepContent";
 import { Text } from "@/components/common/Text";
 import i18n from "@/i18n";
-import React, { useEffect } from "react";
+import React from "react";
 import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideStepNavigationButtons';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
@@ -15,25 +14,11 @@ import { COLORS } from '@/constants/design-tokens';
 export default function CustomCookingStep() {
     const { id, step: stepParam, from } = useLocalSearchParams<{ id: string; step: string; from?: string }>();
     const { recipe } = useCustomRecipe(id as string);
-    const { upsertProgress, completeSession } = useCookingProgress();
 
     const currentStepNumber = Number(stepParam);
     const steps = recipe?.steps;
     const currentStep = steps?.[currentStepNumber - 1];
-    const recipeName = recipe?.name;
     const totalSteps = steps?.length || 0;
-
-    // Persist cooking progress on each step change
-    useEffect(() => {
-        if (!steps || !currentStep || !recipeName) return;
-        void upsertProgress({
-            recipeId: id as string,
-            recipeType: 'custom',
-            recipeName,
-            currentStep: currentStepNumber,
-            totalSteps,
-        });
-    }, [id, currentStepNumber, recipeName, totalSteps, steps, currentStep, upsertProgress]);
 
     if (!steps) return null;
     if (!currentStep) return null;
@@ -53,7 +38,6 @@ export default function CustomCookingStep() {
             router.replace(`/(tabs)/recipes/custom/${id}/cooking-guide/${currentStepNumber + 1}`);
         },
         finish: () => {
-            void completeSession(id as string);
             if (from === 'chat') {
                 router.replace('/(tabs)/chat');
             } else {
