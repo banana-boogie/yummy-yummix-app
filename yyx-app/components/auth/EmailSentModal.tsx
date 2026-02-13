@@ -86,7 +86,7 @@ export function EmailSentModal({ visible, email, onOpenEmail, onClose, className
             )}
 
             <Image
-              source={require('@/assets/images/irmixy/irmixy-laptop.png')}
+              source={require('@/assets/images/irmixy-avatar/irmixy-presenting.png')}
               className="w-[180px] h-[180px] mt-xl mb-[-24px]"
             />
           </View>

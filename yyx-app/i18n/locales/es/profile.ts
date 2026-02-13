@@ -11,6 +11,7 @@ export const profile = {
   bioPlaceholder: "Cuéntanos sobre ti",
   save: "Guardar Cambios",
   features: {
+    sectionTitle: "Tu Cocina",
     planner: "Mi planificador",
     recipes: "Mis recetas",
     shoppingList: "Mi lista de compras",
