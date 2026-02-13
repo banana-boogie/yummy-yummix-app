@@ -13,6 +13,8 @@ jest.mock('@/i18n', () => ({
     const translations: Record<string, string> = {
       'chat.voice.connecting': 'Connecting...',
       'chat.voice.greeting': 'Hi! How can I help you cook today?',
+      'chat.voice.userPrefix': 'You: ',
+      'chat.voice.errorPrefix': 'Error: ',
     };
     return translations[key] || key;
   },
