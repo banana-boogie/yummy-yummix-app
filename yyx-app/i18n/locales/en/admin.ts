@@ -106,6 +106,7 @@ export const admin = {
     },
   },
   recipes: {
+    status: "Status",
     list: {
       title: "Recipes",
       createButton: "Create Recipe",

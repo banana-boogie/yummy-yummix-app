@@ -18,7 +18,6 @@ export function VoiceAssistantButton({
     position = 'bottom-right',
     size = 'medium'
 }: VoiceAssistantButtonProps) {
-    const [showTranscript, setShowTranscript] = useState(false);
     const [showGreeting, setShowGreeting] = useState(false);
 
     const {
@@ -26,7 +25,6 @@ export function VoiceAssistantButton({
         transcript,
         response,
         error,
-        quotaInfo,
         startConversation,
         stopConversation
     } = useVoiceChat({
@@ -35,7 +33,7 @@ export function VoiceAssistantButton({
             Alert.alert(
                 i18n.t('chat.voice.quotaWarningTitle'),
                 info.warning || i18n.t('chat.voice.quotaWarning', { minutes: info.remainingMinutes.toFixed(1) }),
-                [{ text: 'OK' }]
+                [{ text: i18n.t('common.ok') }]
             );
         }
     });
