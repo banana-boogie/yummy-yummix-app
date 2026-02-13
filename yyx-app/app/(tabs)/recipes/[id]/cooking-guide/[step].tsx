@@ -3,27 +3,28 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useRecipe } from "@/hooks/useRecipe";
 import { CookingGuideHeader } from "@/components/cooking-guide/CookingGuideHeader";
 import { RecipeStepContent } from "@/components/cooking-guide/RecipeStepContent";
+import { Text } from "@/components/common/Text";
 import i18n from "@/i18n";
 import React from "react";
-import { Text } from "@/components/common/Text";
 import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideStepNavigationButtons';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
 import { eventService } from '@/services/eventService';
+import { COLORS } from '@/constants/design-tokens';
 
 export default function CookingStep() {
     const { id, step: stepParam } = useLocalSearchParams();
     const { recipe } = useRecipe(id as string);
 
-    if (!recipe?.steps) return null;
-
     const currentStepNumber = Number(stepParam);
-    const currentStep = recipe.steps[currentStepNumber - 1];
+    const steps = recipe?.steps;
+    const currentStep = steps?.[currentStepNumber - 1];
+    const totalSteps = steps?.length || 0;
 
-    // Guard against invalid step number or out of bounds
+    if (!steps) return null;
     if (!currentStep) return null;
 
-    const isLastStep = currentStepNumber === recipe.steps.length;
+    const isLastStep = currentStepNumber === steps.length;
 
     const handleNavigation = {
         back: () => {
@@ -38,7 +39,6 @@ export default function CookingStep() {
             router.replace(`/(tabs)/recipes/${id}/cooking-guide/${currentStepNumber + 1}`);
         },
         finish: () => {
-            // Track cook complete event
             if (recipe?.id && recipe?.name) {
                 eventService.logCookComplete(recipe.id, recipe.name);
             }
@@ -50,11 +50,23 @@ export default function CookingStep() {
         <CookingGuideHeader
             title={i18n.t('recipes.cookingGuide.navigation.step', {
                 step: currentStepNumber,
-                total: recipe.steps?.length || 0
+                total: totalSteps
             })}
             showSubtitle={false}
             pictureUrl={recipe.pictureUrl}
             onBackPress={handleNavigation.back}
+            recipeContext={{
+                type: 'cooking',
+                recipeId: id as string,
+                recipeTitle: recipe.name,
+                currentStep: currentStepNumber,
+                totalSteps,
+                stepInstructions: currentStep.instruction,
+                ingredients: currentStep.ingredients?.map(ing => ({
+                    name: ing.name,
+                    amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
+                }))
+            }}
         />
     );
 
@@ -70,24 +82,27 @@ export default function CookingStep() {
     );
 
     return (
-        <PageLayout
-            footer={<Footer />}
-            backgroundColor="#f9f9f9"
-            contentContainerStyle={{ paddingHorizontal: 0 }}
-            contentPaddingHorizontal={0}
-            scrollEnabled={true}
-        >
-            <Header />
-            {currentStep.recipeSection && shouldDisplayRecipeSection(currentStep.recipeSection) ? (
-                <View className="px-md">
-                    <Text preset="h1" className="text-text-default mb-sm">
-                        {currentStep.recipeSection}
-                    </Text>
+        <View className="flex-1">
+            <PageLayout
+                footer={<Footer />}
+                backgroundColor={COLORS.grey.light}
+                contentContainerStyle={{ paddingHorizontal: 0 }}
+                contentPaddingHorizontal={0}
+                scrollEnabled={true}
+            >
+                <Header />
+                {/* Show section title if present */}
+                {currentStep.recipeSection && shouldDisplayRecipeSection(currentStep.recipeSection) && (
+                    <View className="px-sm mb-sm">
+                        <Text preset="h2" className="text-text-secondary">
+                            {currentStep.recipeSection}
+                        </Text>
+                    </View>
+                )}
+                <View className="px-md mb-md">
+                    <RecipeStepContent step={currentStep} />
                 </View>
-            ) : null}
-            <View className="px-md mb-md">
-                <RecipeStepContent step={currentStep} />
-            </View>
-        </PageLayout>
+            </PageLayout>
+        </View>
     );
 }

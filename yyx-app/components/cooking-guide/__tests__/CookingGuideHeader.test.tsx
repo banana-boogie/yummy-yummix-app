@@ -1,95 +1,106 @@
 /**
- * CookingGuideHeader Tests
+ * CookingGuideHeader Component Tests
  *
- * Tests for cooking guide header component covering:
- * - Title and subtitle display
- * - Image rendering
- * - Responsive behavior
+ * Tests for the cooking guide header with title, subtitle, image, and voice assistant.
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { render, fireEvent, screen } from '@testing-library/react-native';
 import { CookingGuideHeader } from '../CookingGuideHeader';
 
-// Mock dependencies
-jest.mock('expo-linear-gradient', () => ({
-  LinearGradient: 'LinearGradient',
+// Mock the hooks
+jest.mock('@/hooks/useDevice', () => ({
+  useDevice: () => ({
+    isLarge: false,
+    isWeb: false,
+    isPhone: true,
+    isTablet: false,
+  }),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 44, bottom: 34, left: 0, right: 0 }),
 }));
 
-jest.mock('@/hooks/useDevice', () => ({
-  useDevice: () => ({
-    isPhone: true,
-    isLarge: false,
-    isWeb: false,
-  }),
+// Mock expo-linear-gradient
+jest.mock('expo-linear-gradient', () => ({
+  LinearGradient: 'LinearGradient',
 }));
 
+// Mock navigation components
 jest.mock('@/components/navigation/BackButton', () => ({
-  BackButton: 'BackButton',
+  BackButton: ({ onPress }: { onPress?: () => void }) => {
+    const { TouchableOpacity, Text } = require('react-native');
+    return (
+      <TouchableOpacity testID="back-button" onPress={onPress}>
+        <Text>Back</Text>
+      </TouchableOpacity>
+    );
+  },
 }));
 
 jest.mock('@/components/navigation/HamburgerMenu', () => ({
-  HamburgerMenu: 'HamburgerMenu',
+  HamburgerMenu: () => null,
+}));
+
+// Mock VoiceAssistantButton
+jest.mock('@/components/common/VoiceAssistantButton', () => ({
+  VoiceAssistantButton: ({ recipeContext }: { recipeContext?: any }) => {
+    const { View, Text } = require('react-native');
+    return (
+      <View testID="voice-assistant-button">
+        <Text>Voice Assistant</Text>
+      </View>
+    );
+  },
 }));
 
 describe('CookingGuideHeader', () => {
-  // ============================================================
-  // TITLE TESTS
-  // ============================================================
-
-  describe('title display', () => {
-    it('renders title when provided', () => {
-      render(<CookingGuideHeader title="Chocolate Cake" />);
-
-      expect(screen.getByText('Chocolate Cake')).toBeTruthy();
-    });
-
-    it('does not render title when showTitle is false', () => {
-      render(<CookingGuideHeader title="Chocolate Cake" showTitle={false} />);
-
-      expect(screen.queryByText('Chocolate Cake')).toBeNull();
-    });
-
-    it('renders with custom title preset', () => {
-      const { toJSON } = render(
-        <CookingGuideHeader title="Test Title" titlePreset="h2" />
-      );
-
-      expect(toJSON()).toBeTruthy();
-    });
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
   // ============================================================
-  // SUBTITLE TESTS
+  // RENDERING TESTS
   // ============================================================
 
-  describe('subtitle display', () => {
-    it('renders subtitle when provided', () => {
-      render(<CookingGuideHeader subtitle="Step 1 of 5" />);
+  describe('rendering', () => {
+    it('renders title when showTitle is true', () => {
+      render(<CookingGuideHeader title="Pasta Recipe" showTitle />);
+
+      expect(screen.getByText('Pasta Recipe')).toBeTruthy();
+    });
+
+    it('renders subtitle when showSubtitle is true', () => {
+      render(<CookingGuideHeader title="Recipe" subtitle="Step 1 of 5" showSubtitle />);
 
       expect(screen.getByText('Step 1 of 5')).toBeTruthy();
     });
 
-    it('does not render subtitle when showSubtitle is false', () => {
-      render(<CookingGuideHeader subtitle="Step 1 of 5" showSubtitle={false} />);
-
-      expect(screen.queryByText('Step 1 of 5')).toBeNull();
-    });
-
-    it('renders both title and subtitle together', () => {
+    it('renders both title and subtitle', () => {
       render(
         <CookingGuideHeader
-          title="Mix Ingredients"
-          subtitle="Step 1 of 5"
+          title="Chocolate Cake"
+          subtitle="Preparation"
+          showTitle
+          showSubtitle
         />
       );
 
-      expect(screen.getByText('Mix Ingredients')).toBeTruthy();
-      expect(screen.getByText('Step 1 of 5')).toBeTruthy();
+      expect(screen.getByText('Chocolate Cake')).toBeTruthy();
+      expect(screen.getByText('Preparation')).toBeTruthy();
+    });
+
+    it('does not render title when showTitle is false', () => {
+      render(<CookingGuideHeader title="Hidden Title" showTitle={false} />);
+
+      expect(screen.queryByText('Hidden Title')).toBeNull();
+    });
+
+    it('does not render subtitle when showSubtitle is false', () => {
+      render(<CookingGuideHeader subtitle="Hidden Subtitle" showSubtitle={false} />);
+
+      expect(screen.queryByText('Hidden Subtitle')).toBeNull();
     });
   });
 
@@ -97,87 +108,111 @@ describe('CookingGuideHeader', () => {
   // IMAGE TESTS
   // ============================================================
 
-  describe('image display', () => {
-    it('renders with image when pictureUrl is provided', () => {
+  describe('image handling', () => {
+    it('renders recipe image when pictureUrl is provided', () => {
       const { toJSON } = render(
-        <CookingGuideHeader pictureUrl="https://example.com/recipe.jpg" />
+        <CookingGuideHeader title="Recipe" pictureUrl="https://example.com/recipe.jpg" />
       );
 
-      expect(toJSON()).toBeTruthy();
+      // Image component should be rendered (expo-image is mocked)
+      expect(toJSON()).not.toBeNull();
     });
 
-    it('renders without image when no pictureUrl', () => {
-      const { toJSON } = render(<CookingGuideHeader title="Test" />);
+    it('renders without image when pictureUrl is not provided', () => {
+      const { toJSON } = render(<CookingGuideHeader title="Recipe" />);
 
-      expect(toJSON()).toBeTruthy();
+      expect(toJSON()).not.toBeNull();
     });
   });
 
   // ============================================================
-  // DEFAULTS TESTS
+  // BACK BUTTON TESTS
   // ============================================================
 
-  describe('defaults', () => {
-    it('defaults showTitle to true', () => {
-      render(<CookingGuideHeader title="Visible Title" />);
+  describe('back button', () => {
+    it('shows back button when showBackButton is true', () => {
+      render(<CookingGuideHeader title="Recipe" showBackButton />);
 
-      expect(screen.getByText('Visible Title')).toBeTruthy();
+      expect(screen.getByTestId('back-button')).toBeTruthy();
     });
 
-    it('defaults showSubtitle to true', () => {
-      render(<CookingGuideHeader subtitle="Visible Subtitle" />);
+    it('does not show back button when showBackButton is false', () => {
+      render(<CookingGuideHeader title="Recipe" showBackButton={false} />);
 
-      expect(screen.getByText('Visible Subtitle')).toBeTruthy();
+      expect(screen.queryByTestId('back-button')).toBeNull();
+    });
+
+    it('calls onBackPress when back button is pressed', () => {
+      const onBackPress = jest.fn();
+      render(<CookingGuideHeader title="Recipe" showBackButton onBackPress={onBackPress} />);
+
+      fireEvent.press(screen.getByTestId('back-button'));
+
+      expect(onBackPress).toHaveBeenCalledTimes(1);
     });
   });
 
   // ============================================================
-  // STYLING TESTS
+  // VOICE ASSISTANT BUTTON TESTS
   // ============================================================
 
-  describe('styling', () => {
-    it('applies custom className', () => {
-      const { toJSON } = render(
-        <CookingGuideHeader title="Test" className="mt-lg" />
-      );
+  describe('voice assistant button', () => {
+    it('renders VoiceAssistantButton when recipeContext is provided', () => {
+      const recipeContext = {
+        recipeId: 'recipe-123',
+        recipeName: 'Test Recipe',
+        currentStep: 1,
+        totalSteps: 5,
+      };
 
-      expect(toJSON()).toBeTruthy();
+      render(<CookingGuideHeader title="Recipe" recipeContext={recipeContext} />);
+
+      expect(screen.getByTestId('voice-assistant-button')).toBeTruthy();
     });
 
-    it('applies custom style', () => {
-      const { toJSON } = render(
-        <CookingGuideHeader
-          title="Test"
-          style={{ marginTop: 20 }}
-        />
-      );
+    it('does not render VoiceAssistantButton when recipeContext is not provided', () => {
+      render(<CookingGuideHeader title="Recipe" />);
 
-      expect(toJSON()).toBeTruthy();
+      expect(screen.queryByTestId('voice-assistant-button')).toBeNull();
+    });
+
+    it('renders VoiceAssistantButton inline with title', () => {
+      const recipeContext = {
+        recipeId: 'recipe-123',
+        recipeName: 'Test Recipe',
+      };
+
+      render(<CookingGuideHeader title="Recipe" recipeContext={recipeContext} />);
+
+      // Both title and voice button should be present
+      expect(screen.getByText('Recipe')).toBeTruthy();
+      expect(screen.getByTestId('voice-assistant-button')).toBeTruthy();
     });
   });
 
   // ============================================================
-  // EDGE CASES TESTS
+  // PRESET TESTS
   // ============================================================
 
-  describe('edge cases', () => {
-    it('renders without any props', () => {
-      const { toJSON } = render(<CookingGuideHeader />);
+  describe('text presets', () => {
+    it('uses h1 preset for title by default', () => {
+      const { toJSON } = render(<CookingGuideHeader title="Recipe" />);
 
-      expect(toJSON()).toBeTruthy();
+      expect(toJSON()).not.toBeNull();
     });
 
-    it('handles empty title string', () => {
-      const { toJSON } = render(<CookingGuideHeader title="" />);
+    it('uses custom title preset when provided', () => {
+      const { toJSON } = render(<CookingGuideHeader title="Recipe" titlePreset="h2" />);
 
-      expect(toJSON()).toBeTruthy();
+      expect(toJSON()).not.toBeNull();
     });
 
-    it('handles very long title', () => {
-      const longTitle = 'A'.repeat(200);
-      const { toJSON } = render(<CookingGuideHeader title={longTitle} />);
+    it('uses custom subtitle preset when provided', () => {
+      const { toJSON } = render(
+        <CookingGuideHeader subtitle="Step 1" subtitlePreset="body" showSubtitle />
+      );
 
-      expect(toJSON()).toBeTruthy();
+      expect(toJSON()).not.toBeNull();
     });
   });
 });

@@ -60,6 +60,7 @@ const status = {
     success: '#78A97A', // GREEN
     warning: '#FFA000', // ORANGE
     error: primary.darkest, // RED
+    medium: '#ca8a04', // YELLOW-600 (difficulty medium)
 };
 
 // Sidebar Colors (for large screen navigation)

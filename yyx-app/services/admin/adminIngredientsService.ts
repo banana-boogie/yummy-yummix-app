@@ -17,7 +17,7 @@ export class AdminIngredientsService extends BaseService {
         name_es,
         plural_name_en,
         plural_name_es,
-        picture_url,
+        image_url,
         nutritional_facts
       `)
       .order(sortBy, { ascending: true });
@@ -33,7 +33,7 @@ export class AdminIngredientsService extends BaseService {
       nameEs: item.name_es || undefined,
       pluralNameEn: item.plural_name_en || undefined,
       pluralNameEs: item.plural_name_es || undefined,
-      pictureUrl: item.picture_url,
+      pictureUrl: item.image_url,
       nutritionalFacts: item.nutritional_facts
     }));
   }
@@ -72,7 +72,7 @@ export class AdminIngredientsService extends BaseService {
       // First, get the current ingredient to get its image URL
       const { data: currentIngredient, error: fetchError } = await this.supabase
         .from('ingredients')
-        .select('picture_url')
+        .select('image_url')
         .eq('id', id)
         .single();
 
@@ -82,13 +82,13 @@ export class AdminIngredientsService extends BaseService {
 
       // Only process image if it's actually different
       const isNewImage = typeof ingredient.pictureUrl === 'object';
-      const isDifferentUrl = ingredient.pictureUrl !== currentIngredient?.picture_url;
+      const isDifferentUrl = ingredient.pictureUrl !== currentIngredient?.image_url;
 
       if (isNewImage || isDifferentUrl) {
         // If there's an existing image and we're updating to a new one, delete the old one
-        if (currentIngredient?.picture_url) {
+        if (currentIngredient?.image_url) {
           try {
-            await this.deleteImage(currentIngredient.picture_url);
+            await this.deleteImage(currentIngredient.image_url);
           } catch (error) {
             console.error('Error deleting old image:', error);
             // Continue with update even if image deletion fails
@@ -97,14 +97,14 @@ export class AdminIngredientsService extends BaseService {
 
         // If the new pictureUrl is a file object, upload it
         if (isNewImage) {
-          ingredientData.picture_url = await this.handleImageUpload(
+          ingredientData.image_url = await this.handleImageUpload(
             ingredient.pictureUrl,
             ingredient.nameEs,
             ingredient.nameEn
           );
         } else {
           // If it's a different URL string, use it directly
-          ingredientData.picture_url = ingredient.pictureUrl;
+          ingredientData.image_url = ingredient.pictureUrl;
         }
       }
     }
@@ -145,12 +145,12 @@ export class AdminIngredientsService extends BaseService {
       name_es: ingredient.nameEs,
       plural_name_en: ingredient.pluralNameEn,
       plural_name_es: ingredient.pluralNameEs,
-      picture_url: '',
+      image_url: '',
       nutritional_facts: ingredient.nutritionalFacts,
     };
 
     if (ingredient.pictureUrl) {
-      ingredientData.picture_url = await this.handleImageUpload(
+      ingredientData.image_url = await this.handleImageUpload(
         ingredient.pictureUrl,
         ingredient.nameEs,
         ingredient.nameEn

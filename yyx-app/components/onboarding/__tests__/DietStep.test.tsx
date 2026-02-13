@@ -2,21 +2,21 @@
  * DietStep Tests
  *
  * Tests for diet step component covering:
- * - Diet type options display
+ * - Diet type options display (now database-driven)
  * - Single and multiple selection
  * - "None" option behavior
  * - "Other" option with custom input
- * - Form completion submission
- * - Navigation
+ * - Navigation to next step
  */
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 import { DietStep } from '../steps/DietStep';
 
 // Create stable references for mocks
 const mockUpdateFormData = jest.fn();
 const mockGoToPreviousStep = jest.fn();
+const mockGoToNextStep = jest.fn();
 
 // Test state that gets read dynamically
 let mockFormData: any = { dietTypes: [] };
@@ -31,7 +31,25 @@ jest.mock('@/contexts/OnboardingContext', () => ({
       mockFormData = { ...mockFormData, ...updates };
     },
     goToPreviousStep: mockGoToPreviousStep,
+    goToNextStep: mockGoToNextStep,
   }),
+}));
+
+// Mock LanguageContext
+jest.mock('@/contexts/LanguageContext', () => ({
+  useLanguage: () => ({ language: 'en' }),
+}));
+
+// Mock preferencesService
+jest.mock('@/services/preferencesService', () => ({
+  __esModule: true,
+  default: {
+    getDietTypes: jest.fn().mockResolvedValue([
+      { id: '1', slug: 'vegan', name: 'Vegan', iconName: 'vegan-diet' },
+      { id: '2', slug: 'vegetarian', name: 'Vegetarian', iconName: 'vegetarian-diet' },
+      { id: '3', slug: 'keto', name: 'Keto', iconName: 'keto-diet' },
+    ]),
+  },
 }));
 
 // Mock i18n
@@ -42,9 +60,6 @@ jest.mock('@/i18n', () => ({
       const translations: Record<string, string> = {
         'onboarding.steps.diet.title': 'Dietary preferences?',
         'onboarding.steps.diet.subtitle': 'Select all that apply',
-        'onboarding.steps.diet.options.vegetarian': 'Vegetarian',
-        'onboarding.steps.diet.options.vegan': 'Vegan',
-        'onboarding.steps.diet.options.keto': 'Keto',
         'onboarding.steps.diet.options.none': 'No specific diet',
         'onboarding.steps.diet.options.other': 'Other',
         'onboarding.steps.diet.otherPlaceholder': 'Enter other diet',
@@ -74,16 +89,15 @@ jest.mock('@/components/common/SelectableCard', () => ({
 
 // Mock StepNavigationButtons
 jest.mock('@/components/onboarding/StepNavigationButtons', () => ({
-  StepNavigationButtons: ({ onNext, onBack, disabled, loading, isLastStep }: any) => {
+  StepNavigationButtons: ({ onNext, onBack, disabled }: any) => {
     const { View, Pressable, Text } = require('react-native');
     return (
       <View>
         <Pressable testID="back-button" onPress={onBack}>
           <Text>Back</Text>
         </Pressable>
-        <Pressable testID="next-button" onPress={onNext} disabled={disabled || loading}>
-          <Text>{isLastStep ? 'Complete' : 'Next'}</Text>
-          {loading && <Text testID="loading-indicator">Loading...</Text>}
+        <Pressable testID="next-button" onPress={onNext} disabled={disabled}>
+          <Text>Next</Text>
         </Pressable>
       </View>
     );
@@ -115,23 +129,16 @@ jest.mock('@/components/form/OtherInputField', () => ({
   },
 }));
 
-// Mock diet types
-jest.mock('@/types/dietary', () => ({
-  DIET_TYPES: ['vegetarian', 'vegan', 'keto', 'none', 'other'],
-}));
-
 // Mock dietary icons
 jest.mock('@/constants/dietaryIcons', () => ({
   getDietTypeIcon: () => null,
+  DIETARY_RESTRICTION_ICONS: {
+    none: 1,
+    other: 2,
+  },
 }));
 
 describe('DietStep', () => {
-  const mockOnComplete = jest.fn();
-  const defaultProps = {
-    onComplete: mockOnComplete,
-    isSubmitting: false,
-  };
-
   beforeEach(() => {
     jest.clearAllMocks();
     mockFormData = { dietTypes: [] };
@@ -142,25 +149,31 @@ describe('DietStep', () => {
   // ============================================================
 
   describe('rendering', () => {
-    it('displays title', () => {
-      render(<DietStep {...defaultProps} />);
+    it('displays title', async () => {
+      render(<DietStep />);
 
-      expect(screen.getByText('Dietary preferences?')).toBeTruthy();
+      await waitFor(() => {
+        expect(screen.getByText('Dietary preferences?')).toBeTruthy();
+      });
     });
 
-    it('displays subtitle', () => {
-      render(<DietStep {...defaultProps} />);
+    it('displays subtitle', async () => {
+      render(<DietStep />);
 
-      expect(screen.getByText('Select all that apply')).toBeTruthy();
+      await waitFor(() => {
+        expect(screen.getByText('Select all that apply')).toBeTruthy();
+      });
     });
 
-    it('displays diet options', () => {
-      render(<DietStep {...defaultProps} />);
+    it('displays diet options from database', async () => {
+      render(<DietStep />);
 
-      expect(screen.getByText('Vegetarian')).toBeTruthy();
-      expect(screen.getByText('Vegan')).toBeTruthy();
-      expect(screen.getByText('Keto')).toBeTruthy();
-      expect(screen.getByText('No specific diet')).toBeTruthy();
+      await waitFor(() => {
+        expect(screen.getByText('Vegan')).toBeTruthy();
+        expect(screen.getByText('Vegetarian')).toBeTruthy();
+        expect(screen.getByText('Keto')).toBeTruthy();
+        expect(screen.getByText('No specific diet')).toBeTruthy();
+      });
     });
   });
 
@@ -169,38 +182,50 @@ describe('DietStep', () => {
   // ============================================================
 
   describe('selection', () => {
-    it('selects a diet option', () => {
-      render(<DietStep {...defaultProps} />);
+    it('selects a diet option', async () => {
+      render(<DietStep />);
 
-      const vegetarianOption = screen.getByTestId('diet-option-vegetarian');
-      fireEvent.press(vegetarianOption);
-
-      expect(mockUpdateFormData).toHaveBeenCalledWith({
-        dietTypes: ['vegetarian'],
+      await waitFor(() => {
+        expect(screen.getByText('Vegan')).toBeTruthy();
       });
-    });
-
-    it('allows multiple selections', () => {
-      mockFormData = { dietTypes: ['vegetarian'] };
-      render(<DietStep {...defaultProps} />);
 
       const veganOption = screen.getByTestId('diet-option-vegan');
       fireEvent.press(veganOption);
 
       expect(mockUpdateFormData).toHaveBeenCalledWith({
-        dietTypes: ['vegetarian', 'vegan'],
+        dietTypes: ['vegan'],
       });
     });
 
-    it('deselects a diet option', () => {
-      mockFormData = { dietTypes: ['vegetarian', 'vegan'] };
-      render(<DietStep {...defaultProps} />);
+    it('allows multiple selections', async () => {
+      mockFormData = { dietTypes: ['vegan'] };
+      render(<DietStep />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Vegetarian')).toBeTruthy();
+      });
 
       const vegetarianOption = screen.getByTestId('diet-option-vegetarian');
       fireEvent.press(vegetarianOption);
 
       expect(mockUpdateFormData).toHaveBeenCalledWith({
-        dietTypes: ['vegan'],
+        dietTypes: ['vegan', 'vegetarian'],
+      });
+    });
+
+    it('deselects a diet option', async () => {
+      mockFormData = { dietTypes: ['vegan', 'vegetarian'] };
+      render(<DietStep />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Vegan')).toBeTruthy();
+      });
+
+      const veganOption = screen.getByTestId('diet-option-vegan');
+      fireEvent.press(veganOption);
+
+      expect(mockUpdateFormData).toHaveBeenCalledWith({
+        dietTypes: ['vegetarian'],
       });
     });
   });
@@ -210,9 +235,13 @@ describe('DietStep', () => {
   // ============================================================
 
   describe('"none" option', () => {
-    it('clears other selections when "none" is selected', () => {
-      mockFormData = { dietTypes: ['vegetarian', 'vegan'] };
-      render(<DietStep {...defaultProps} />);
+    it('clears other selections when "none" is selected', async () => {
+      mockFormData = { dietTypes: ['vegan', 'vegetarian'] };
+      render(<DietStep />);
+
+      await waitFor(() => {
+        expect(screen.getByText('No specific diet')).toBeTruthy();
+      });
 
       const noneOption = screen.getByTestId('diet-option-no-specific-diet');
       fireEvent.press(noneOption);
@@ -223,15 +252,19 @@ describe('DietStep', () => {
       });
     });
 
-    it('removes "none" when selecting another option', () => {
+    it('removes "none" when selecting another option', async () => {
       mockFormData = { dietTypes: ['none'] };
-      render(<DietStep {...defaultProps} />);
+      render(<DietStep />);
 
-      const vegetarianOption = screen.getByTestId('diet-option-vegetarian');
-      fireEvent.press(vegetarianOption);
+      await waitFor(() => {
+        expect(screen.getByText('Vegan')).toBeTruthy();
+      });
+
+      const veganOption = screen.getByTestId('diet-option-vegan');
+      fireEvent.press(veganOption);
 
       expect(mockUpdateFormData).toHaveBeenCalledWith({
-        dietTypes: ['vegetarian'],
+        dietTypes: ['vegan'],
       });
     });
   });
@@ -241,51 +274,24 @@ describe('DietStep', () => {
   // ============================================================
 
   describe('"other" option', () => {
-    it('shows input field when "other" is selected', () => {
+    it('shows input field when "other" is selected', async () => {
       mockFormData = { dietTypes: ['other'] };
-      render(<DietStep {...defaultProps} />);
+      render(<DietStep />);
 
-      expect(screen.getByTestId('other-input-container')).toBeTruthy();
+      await waitFor(() => {
+        expect(screen.getByTestId('other-input-container')).toBeTruthy();
+      });
     });
 
-    it('does not show input field when "other" is not selected', () => {
-      mockFormData = { dietTypes: ['vegetarian'] };
-      render(<DietStep {...defaultProps} />);
+    it('does not show input field when "other" is not selected', async () => {
+      mockFormData = { dietTypes: ['vegan'] };
+      render(<DietStep />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Vegan')).toBeTruthy();
+      });
 
       expect(screen.queryByTestId('other-input-container')).toBeNull();
-    });
-  });
-
-  // ============================================================
-  // COMPLETION TESTS
-  // ============================================================
-
-  describe('completion', () => {
-    it('calls onComplete with form data when valid', () => {
-      mockFormData = { dietTypes: ['vegetarian'], name: 'Test' };
-      render(<DietStep {...defaultProps} />);
-
-      const completeButton = screen.getByTestId('next-button');
-      fireEvent.press(completeButton);
-
-      expect(mockOnComplete).toHaveBeenCalledWith(mockFormData);
-    });
-
-    it('does not call onComplete when no selection', () => {
-      mockFormData = { dietTypes: [] };
-      render(<DietStep {...defaultProps} />);
-
-      const completeButton = screen.getByTestId('next-button');
-      fireEvent.press(completeButton);
-
-      expect(mockOnComplete).not.toHaveBeenCalled();
-    });
-
-    it('shows loading state when submitting', () => {
-      mockFormData = { dietTypes: ['vegetarian'] };
-      render(<DietStep {...defaultProps} isSubmitting={true} />);
-
-      expect(screen.getByTestId('loading-indicator')).toBeTruthy();
     });
   });
 
@@ -294,40 +300,45 @@ describe('DietStep', () => {
   // ============================================================
 
   describe('navigation', () => {
-    it('does not complete when no selection', () => {
+    it('does not go to next step when no selection', async () => {
       mockFormData = { dietTypes: [] };
-      render(<DietStep {...defaultProps} />);
+      render(<DietStep />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('next-button')).toBeTruthy();
+      });
 
       const nextButton = screen.getByTestId('next-button');
       fireEvent.press(nextButton);
 
-      expect(mockOnComplete).not.toHaveBeenCalled();
+      expect(mockGoToNextStep).not.toHaveBeenCalled();
     });
 
-    it('completes when selection made', () => {
-      mockFormData = { dietTypes: ['vegetarian'] };
-      render(<DietStep {...defaultProps} />);
+    it('goes to next step when selection made', async () => {
+      mockFormData = { dietTypes: ['vegan'] };
+      render(<DietStep />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('next-button')).toBeTruthy();
+      });
 
       const nextButton = screen.getByTestId('next-button');
       fireEvent.press(nextButton);
 
-      expect(mockOnComplete).toHaveBeenCalled();
+      expect(mockGoToNextStep).toHaveBeenCalled();
     });
 
-    it('goes to previous step', () => {
-      render(<DietStep {...defaultProps} />);
+    it('goes to previous step', async () => {
+      render(<DietStep />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('back-button')).toBeTruthy();
+      });
 
       const backButton = screen.getByTestId('back-button');
       fireEvent.press(backButton);
 
       expect(mockGoToPreviousStep).toHaveBeenCalled();
-    });
-
-    it('shows Complete button text (is last step)', () => {
-      mockFormData = { dietTypes: ['vegetarian'] };
-      render(<DietStep {...defaultProps} />);
-
-      expect(screen.getByText('Complete')).toBeTruthy();
     });
   });
 });

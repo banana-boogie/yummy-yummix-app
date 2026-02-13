@@ -1,30 +1,33 @@
-import React, { useState, useRef } from 'react';
-import { View, ScrollView, KeyboardAvoidingView, Platform, StyleProp, ViewStyle } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, ScrollView, KeyboardAvoidingView, Platform, StyleProp, ViewStyle, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { useOnboarding } from '@/contexts/OnboardingContext';
-import { DietType, DIET_TYPES } from '@/types/dietary';
+import { DietType, PreferenceOption } from '@/types/dietary';
 import i18n from '@/i18n';
 import { SelectableCard } from '@/components/common/SelectableCard';
-import { OnboardingData } from '@/types/onboarding';
 import { StepNavigationButtons } from '@/components/onboarding/StepNavigationButtons';
-import { getDietTypeIcon } from '@/constants/dietaryIcons';
+import { getDietTypeIcon, DIETARY_RESTRICTION_ICONS } from '@/constants/dietaryIcons';
 import { OtherInputField } from '@/components/form/OtherInputField';
+import { useLanguage } from '@/contexts/LanguageContext';
+import preferencesService from '@/services/preferencesService';
 
 interface DietStepProps {
-  onComplete: (data: OnboardingData) => Promise<void>;
-  isSubmitting: boolean;
-  className?: string; // Add className
+  className?: string;
   style?: StyleProp<ViewStyle>;
 }
 
 export function DietStep({
-  onComplete,
-  isSubmitting,
   className = '',
   style
 }: DietStepProps) {
-  const { formData, updateFormData, goToPreviousStep } = useOnboarding();
+  const { formData, updateFormData, goToPreviousStep, goToNextStep } = useOnboarding();
+  const { language } = useLanguage();
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // State for database-driven options
+  const [dietOptions, setDietOptions] = useState<PreferenceOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // State management
   const currentDietTypes = formData.dietTypes ?? [];
@@ -33,11 +36,30 @@ export function DietStep({
   );
   const [error, setError] = useState('');
 
-  const handleSelect = (dietType: DietType) => {
-    if (dietType === 'none') {
+  // Fetch diet options from database
+  useEffect(() => {
+    async function loadOptions() {
+      try {
+        setLoading(true);
+        setFetchError(null);
+        const options = await preferencesService.getDietTypes(language as 'en' | 'es');
+        setDietOptions(options);
+      } catch (err) {
+        console.error('Failed to load diet options:', err);
+        setFetchError(i18n.t('common.errors.loadOptions'));
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadOptions();
+  }, [language]);
+
+  const handleSelect = (dietSlug: string) => {
+    if (dietSlug === 'none') {
       // If selecting "none", clear other selections
       updateFormData({
-        dietTypes: ['none'],
+        dietTypes: ['none'] as DietType[],
         otherDiet: []
       });
       setOtherDiets([]);
@@ -46,13 +68,13 @@ export function DietStep({
     }
 
     // Handle toggling diet types
-    const isSelected = currentDietTypes.includes(dietType);
+    const isSelected = currentDietTypes.includes(dietSlug as DietType);
     const newDietTypes = isSelected
-      ? currentDietTypes.filter(d => d !== dietType)
-      : [...currentDietTypes.filter(d => d !== 'none'), dietType];
+      ? currentDietTypes.filter(d => d !== dietSlug)
+      : [...currentDietTypes.filter(d => d !== 'none'), dietSlug as DietType];
 
     // Clear other diets when deselecting "other"
-    if (isSelected && dietType === 'other') {
+    if (isSelected && dietSlug === 'other') {
       setOtherDiets([]);
       updateFormData({
         dietTypes: newDietTypes,
@@ -62,7 +84,7 @@ export function DietStep({
     }
 
     // Initialize "other" diets when selecting it
-    if (!isSelected && dietType === 'other') {
+    if (!isSelected && dietSlug === 'other') {
       setOtherDiets(['']);
       scrollToBottom();
     }
@@ -93,7 +115,7 @@ export function DietStep({
     updateFormData({ otherDiet: newOtherDiets.filter(Boolean) });
   };
 
-  const handleComplete = () => {
+  const handleNext = () => {
     if (!formData.dietTypes?.length) return;
 
     if (currentDietTypes.includes('other')) {
@@ -108,7 +130,7 @@ export function DietStep({
       }
     }
 
-    onComplete(formData as OnboardingData);
+    goToNextStep();
   };
 
   const isNextDisabled = () => {
@@ -121,6 +143,38 @@ export function DietStep({
 
     return false;
   };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <View className={`flex-1 px-md pt-sm justify-center items-center ${className}`} style={style}>
+        <ActivityIndicator size="large" color="#FFBFB7" />
+      </View>
+    );
+  }
+
+  // Show error state
+  if (fetchError) {
+    return (
+      <View className={`flex-1 px-md pt-sm justify-center items-center ${className}`} style={style}>
+        <Text preset="body" className="text-center text-status-error mb-md">
+          {fetchError}
+        </Text>
+        <StepNavigationButtons
+          onNext={goToNextStep}
+          onBack={goToPreviousStep}
+          disabled={false}
+        />
+      </View>
+    );
+  }
+
+  // Build the list of options: "none" + database options + "other"
+  const displayOptions = [
+    { slug: 'none', name: i18n.t('onboarding.steps.diet.options.none'), iconName: undefined },
+    ...dietOptions,
+    { slug: 'other', name: i18n.t('onboarding.steps.diet.options.other'), iconName: undefined },
+  ];
 
   return (
     <KeyboardAvoidingView
@@ -148,16 +202,22 @@ export function DietStep({
           </View>
 
           <View className="gap-sm">
-            {DIET_TYPES.map((dietType) => (
-              <React.Fragment key={dietType}>
+            {displayOptions.map((option) => (
+              <React.Fragment key={option.slug}>
                 <SelectableCard
-                  selected={currentDietTypes.includes(dietType)}
-                  onPress={() => handleSelect(dietType)}
-                  label={i18n.t(`onboarding.steps.diet.options.${dietType}`)}
+                  selected={currentDietTypes.includes(option.slug as DietType)}
+                  onPress={() => handleSelect(option.slug)}
+                  label={option.name}
                   className="mb-xs"
-                  icon={getDietTypeIcon(dietType)}
+                  icon={
+                    option.slug === 'none'
+                      ? DIETARY_RESTRICTION_ICONS.none
+                      : option.slug === 'other'
+                        ? DIETARY_RESTRICTION_ICONS.other
+                        : getDietTypeIcon(option.slug)
+                  }
                 />
-                {dietType === 'other' && currentDietTypes.includes('other') && (
+                {option.slug === 'other' && currentDietTypes.includes('other') && (
                   <OtherInputField
                     items={otherDiets}
                     onItemsChange={handleOtherDietChange}
@@ -175,11 +235,9 @@ export function DietStep({
       </View>
 
       <StepNavigationButtons
-        onNext={handleComplete}
+        onNext={handleNext}
         onBack={goToPreviousStep}
-        loading={isSubmitting}
         disabled={isNextDisabled()}
-        isLastStep={true}
       />
     </KeyboardAvoidingView>
   );

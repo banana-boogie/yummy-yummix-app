@@ -2,6 +2,7 @@ import React from 'react';
 import { TouchableOpacity, StyleProp, ViewStyle, TextStyle } from 'react-native';
 import { Text } from './Text';
 import { useDevice } from '@/hooks/useDevice';
+import { COLORS } from '@/constants/design-tokens';
 
 export interface DangerButtonProps {
   label: string;
@@ -38,11 +39,11 @@ export function DangerButton({
     >
       <Text
         className={`
-          text-red-600 text-base font-medium
+          text-base font-medium
           ${isLarge ? 'text-md' : ''}
-          ${disabled ? 'text-text-secondary' : ''}
           ${textClassName}
         `}
+        color={disabled ? COLORS.text.secondary : COLORS.status.error}
         style={textStyle as any}
       >
         {label}

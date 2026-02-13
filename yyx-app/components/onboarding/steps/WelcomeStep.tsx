@@ -32,7 +32,7 @@ export function WelcomeStep({ className = '', style }: WelcomeStepProps) {
       </View>
 
       <Image
-        source={require('@/assets/images/irmixy/irmixy-welcome.png')}
+        source={require('@/assets/images/irmixy-avatar/3.png')}
         className="w-full h-[250px] md:h-[350px] lg:h-[330px] my-auto self-center"
         contentFit="contain"
         cachePolicy="memory-disk"

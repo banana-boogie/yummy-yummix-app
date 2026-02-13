@@ -114,5 +114,7 @@ export const profile = {
     otherDietPlaceholder: "Ingresa tu dieta",
     otherAllergyPlaceholder: "Ingresa tu alergia",
     addAnother: "Agregar otro",
+    cuisinePreferences: "Preferencias de Cocina",
+    cuisineSubtitle: "Selecciona las cocinas que inspiran tu comida",
   },
 };

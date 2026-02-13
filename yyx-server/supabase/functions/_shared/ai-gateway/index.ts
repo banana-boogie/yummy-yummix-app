@@ -7,22 +7,20 @@
  *
  * To switch providers:
  * 1. Modify router.ts default config, OR
- * 2. Set environment variables: AI_TEXT_MODEL, AI_TRANSCRIPTION_MODEL, AI_TTS_MODEL
+ * 2. Set environment variables: AI_TEXT_MODEL, AI_PARSING_MODEL, AI_REASONING_MODEL
  */
 
 import {
   AICompletionRequest,
   AICompletionResponse,
-  AITextToSpeechRequest,
-  AITextToSpeechResponse,
-  AITranscriptionRequest,
-  AITranscriptionResponse,
+  AIEmbeddingRequest,
+  AIEmbeddingResponse,
 } from "./types.ts";
 import { getProviderConfig } from "./router.ts";
 import {
   callOpenAI,
-  textToSpeechOpenAI,
-  transcribeOpenAI,
+  callOpenAIEmbedding,
+  callOpenAIStream,
 } from "./providers/openai.ts";
 
 /**
@@ -56,13 +54,13 @@ export async function chat(
 }
 
 /**
- * Transcribe audio to text.
- * Routes to the appropriate provider based on 'transcription' usage type.
+ * Make an AI chat request with streaming.
+ * Returns an async generator that yields content chunks.
  */
-export async function transcribe(
-  request: AITranscriptionRequest,
-): Promise<AITranscriptionResponse> {
-  const config = getProviderConfig("transcription");
+export async function* chatStream(
+  request: AICompletionRequest,
+): AsyncGenerator<string, void, unknown> {
+  const config = getProviderConfig(request.usageType);
   const model = request.model ?? config.model;
   const apiKey = Deno.env.get(config.apiKeyEnvVar);
 
@@ -72,14 +70,14 @@ export async function transcribe(
 
   switch (config.provider) {
     case "openai":
-      return transcribeOpenAI(request, model, apiKey);
+      yield* callOpenAIStream(request, model, apiKey);
+      break;
 
     case "anthropic":
-      throw new Error("Anthropic does not support transcription");
+      throw new Error("Anthropic streaming not yet implemented");
 
     case "google":
-      // TODO: Implement Google Speech-to-Text
-      throw new Error("Google transcription not yet implemented");
+      throw new Error("Google streaming not yet implemented");
 
     default:
       throw new Error(`Unknown provider: ${config.provider}`);
@@ -87,13 +85,13 @@ export async function transcribe(
 }
 
 /**
- * Convert text to speech.
- * Routes to the appropriate provider based on 'tts' usage type.
+ * Generate a text embedding.
+ * Routes to the appropriate provider based on the "embedding" usage type.
  */
-export async function textToSpeech(
-  request: AITextToSpeechRequest,
-): Promise<AITextToSpeechResponse> {
-  const config = getProviderConfig("tts");
+export async function embed(
+  request: AIEmbeddingRequest,
+): Promise<AIEmbeddingResponse> {
+  const config = getProviderConfig(request.usageType);
   const model = request.model ?? config.model;
   const apiKey = Deno.env.get(config.apiKeyEnvVar);
 
@@ -101,19 +99,26 @@ export async function textToSpeech(
     throw new Error(`Missing API key: ${config.apiKeyEnvVar}`);
   }
 
-  switch (config.provider) {
-    case "openai":
-      return textToSpeechOpenAI(request, model, apiKey);
+  try {
+    switch (config.provider) {
+      case "openai":
+        return await callOpenAIEmbedding(request.text, model, apiKey);
 
-    case "anthropic":
-      throw new Error("Anthropic does not support TTS");
+      case "anthropic":
+        throw new Error("Anthropic embeddings not yet implemented");
 
-    case "google":
-      // TODO: Implement Google Text-to-Speech
-      throw new Error("Google TTS not yet implemented");
+      case "google":
+        throw new Error("Google embeddings not yet implemented");
 
-    default:
-      throw new Error(`Unknown provider: ${config.provider}`);
+      default:
+        throw new Error(`Unknown provider: ${config.provider}`);
+    }
+  } catch (error) {
+    console.error(
+      "[ai-gateway:embedding] Failed:",
+      error instanceof Error ? error.message : String(error),
+    );
+    throw error;
   }
 }
 

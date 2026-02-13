@@ -11,8 +11,7 @@ export type AIUsageType =
   | "voice"
   | "parsing"
   | "reasoning"
-  | "transcription"
-  | "tts";
+  | "embedding";
 
 export type AIProvider = "openai" | "anthropic" | "google";
 
@@ -39,35 +38,11 @@ export interface AICompletionRequest {
   };
   /** Optional: Tools the AI can call */
   tools?: AITool[];
-}
-
-export interface AITranscriptionRequest {
-  /** Audio blob to transcribe */
-  audio: Blob;
-  /** Optional: Language hint (e.g., 'en', 'es') */
-  language?: string;
-  /** Optional: Override the default model */
-  model?: string;
-}
-
-export interface AITranscriptionResponse {
-  text: string;
-  model: string;
-}
-
-export interface AITextToSpeechRequest {
-  /** Text to convert to speech */
-  text: string;
-  /** Voice to use */
-  voice?: "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer";
-  /** Optional: Override the default model */
-  model?: string;
-}
-
-export interface AITextToSpeechResponse {
-  /** Base64-encoded audio */
-  audioBase64: string;
-  model: string;
+  /** Optional: Force tool usage - "required" forces any tool, or specify a function name */
+  toolChoice?: "auto" | "required" | {
+    type: "function";
+    function: { name: string };
+  };
 }
 
 export interface AITool {
@@ -96,6 +71,19 @@ export interface AIProviderConfig {
   provider: AIProvider;
   model: string;
   apiKeyEnvVar: string;
+}
+
+export interface AIEmbeddingRequest {
+  usageType: "embedding";
+  text: string;
+  /** Optional: Override the default embedding model */
+  model?: string;
+}
+
+export interface AIEmbeddingResponse {
+  embedding: number[];
+  model: string;
+  usage: { inputTokens: number };
 }
 
 /** Configuration mapping usage types to provider/model */

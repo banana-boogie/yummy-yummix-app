@@ -1,12 +1,12 @@
 /**
  * useAudioPlayback Hook
- * 
+ *
  * Handles audio playback with expo-audio (replacing deprecated expo-av).
  * Supports playing from URI or base64 data.
  */
 
-import { useState, useCallback, useRef } from 'react';
-import { useAudioPlayer, AudioSource } from 'expo-audio';
+import { useState, useCallback, useEffect } from 'react';
+import { useAudioPlayer, AudioSource, setAudioModeAsync } from 'expo-audio';
 
 export interface UseAudioPlaybackReturn {
     isPlaying: boolean;
@@ -36,6 +36,13 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
             stop();
 
             setIsLoading(true);
+            console.log('[Audio] Starting playback for URI:', uri.substring(0, 50) + '...');
+
+            // Configure audio for media playback through speaker
+            // This ensures volume button controls media (not ringer)
+            await setAudioModeAsync({
+                playsInSilentMode: true, // Play even when phone is on silent
+            });
 
             // Replace the audio source
             player.replace({ uri } as AudioSource);
@@ -45,9 +52,9 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
             setIsPlaying(true);
             setIsLoading(false);
 
-            console.log('Playing audio');
+            console.log('[Audio] Playback started');
         } catch (error) {
-            console.error('Failed to play audio:', error);
+            console.error('[Audio] Failed to play:', error);
             setIsLoading(false);
             setIsPlaying(false);
             throw error;

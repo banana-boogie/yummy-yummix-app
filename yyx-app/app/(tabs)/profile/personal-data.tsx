@@ -12,12 +12,11 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useMeasurement } from '@/contexts/MeasurementContext';
 import { DietaryRestrictionsModal } from '@/components/profile/DietaryRestrictionsModal';
 import { DietModal } from '@/components/profile/DietModal';
+import { CuisineModal } from '@/components/profile/CuisineModal';
 import { Gender, ActivityLevel } from '@/types/user';
-import { DietaryRestriction, DietType } from '@/types/dietary';
+import { DietaryRestriction, DietType, CuisinePreference } from '@/types/dietary';
 import { StatusModal } from '@/components/common/StatusModal';
 import { PageLayout } from '@/components/layouts/PageLayout';
-import { useDevice } from '@/hooks/useDevice';
-
 interface FormData {
   gender: string;
   birthDate: Date;
@@ -26,6 +25,7 @@ interface FormData {
   activityLevel: string;
   dietaryRestrictions: DietaryRestriction[];
   dietTypes: DietType[];
+  cuisinePreferences: CuisinePreference[];
   otherDiet: string[];
   otherAllergy: string[];
 }
@@ -34,10 +34,9 @@ export default function PersonalData() {
   const { userProfile, updateUserProfile } = useUserProfile();
   const { measurementSystem } = useMeasurement();
 
-  const { isLarge, isPhone } = useDevice();
-
   const [showDietaryModal, setShowDietaryModal] = useState(false);
   const [showDietModal, setShowDietModal] = useState(false);
+  const [showCuisineModal, setShowCuisineModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
 
@@ -77,6 +76,7 @@ export default function PersonalData() {
     activityLevel: '',
     dietaryRestrictions: [],
     dietTypes: [],
+    cuisinePreferences: [],
     otherDiet: [],
     otherAllergy: [],
   });
@@ -95,6 +95,7 @@ export default function PersonalData() {
         activityLevel: userProfile.activityLevel || '',
         dietaryRestrictions: userProfile.dietaryRestrictions || [],
         dietTypes: userProfile.dietTypes || [],
+        cuisinePreferences: userProfile.cuisinePreferences || [],
         otherDiet: userProfile.otherDiet || [],
         otherAllergy: userProfile.otherAllergy || [],
       });
@@ -195,6 +196,31 @@ export default function PersonalData() {
     }
   };
 
+  const handleCuisineUpdate = async (cuisinePreferences: CuisinePreference[]) => {
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+
+      const updatedProfile = {
+        ...formData,
+        cuisinePreferences,
+      };
+
+      await updateUserProfile({
+        cuisinePreferences,
+      });
+
+      setFormData(updatedProfile);
+      setShowCuisineModal(false);
+    } catch (error) {
+      console.error('Error updating cuisine preferences:', error);
+      setSaveError(i18n.t('common.errors.default'));
+      setShowErrorModal(true);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <PageLayout
       header={<HeaderWithBack title={i18n.t('profile.personalData.title')} />}
@@ -209,20 +235,29 @@ export default function PersonalData() {
           keyboardShouldPersistTaps="handled"
         >
           <View className="gap-xl w-full max-w-[800px] self-center">
-            <View className="flex-row gap-md flex-wrap justify-center">
+            <View className="gap-md">
+              <View className="flex-row gap-md flex-wrap justify-center">
+                <Button
+                  variant="flat"
+                  size="medium"
+                  label={i18n.t('profile.personalData.dietaryRestrictions')}
+                  onPress={() => setShowDietaryModal(true)}
+                  className="flex-1 px-sm py-sm min-w-[200px]"
+                />
+                <Button
+                  variant="flat"
+                  size="medium"
+                  label={i18n.t('profile.personalData.diet')}
+                  onPress={() => setShowDietModal(true)}
+                  className="flex-1 px-sm py-sm min-w-[200px]"
+                />
+              </View>
               <Button
                 variant="flat"
                 size="medium"
-                label={i18n.t('profile.personalData.dietaryRestrictions')}
-                onPress={() => setShowDietaryModal(true)}
-                className="flex-1 px-sm py-sm min-w-[200px]"
-              />
-              <Button
-                variant="flat"
-                size="medium"
-                label={i18n.t('profile.personalData.diet')}
-                onPress={() => setShowDietModal(true)}
-                className="flex-1 px-sm py-sm min-w-[200px]"
+                label={i18n.t('profile.personalData.cuisinePreferences')}
+                onPress={() => setShowCuisineModal(true)}
+                className="px-sm py-sm"
               />
             </View>
 
@@ -293,6 +328,13 @@ export default function PersonalData() {
         currentDietTypes={formData.dietTypes}
         currentOtherDiet={formData.otherDiet}
         onSave={handleDietUpdate}
+      />
+
+      <CuisineModal
+        visible={showCuisineModal}
+        onClose={() => setShowCuisineModal(false)}
+        currentCuisines={formData.cuisinePreferences}
+        onSave={handleCuisineUpdate}
       />
 
       <StatusModal

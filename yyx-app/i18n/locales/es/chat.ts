@@ -23,6 +23,7 @@ export const chat = {
   thinking: "Irmixy está pensando...",
   searching: "Buscando recetas...",
   generating: "Creando algo especial...",
+  enriching: "Añadiendo los toques finales...",
   voice: {
     greeting: "¡Hola! Soy Irmixy, tu sous chef. ¿En qué puedo ayudarte?",
     connecting: "Conectando con Irmixy...",
@@ -38,9 +39,13 @@ export const chat = {
     hearing: "Escuchándote...",
     silenceDetected: "Silencio detectado",
     waitingForSpeech: "Esperando que hables...",
+    quotaWarningTitle: "Aviso de uso de voz",
     quotaWarning: "Te quedan {{minutes}} minutos este mes.",
     quotaExceeded: "Has usado todos tus minutos de voz este mes.",
+    userPrefix: "Tú: ",
+    errorPrefix: "Error: ",
     minsRemaining: "{{mins}} mins restantes",
+    executingTool: "Trabajando en ello...",
   },
   suggestions: {
     suggestRecipe: "Sugiéreme una receta",
@@ -76,4 +81,25 @@ export const chat = {
   andMore: "y {{count}} más",
   miseEnPlace: "Mise en place",
   prepareIngredients: "Prepara tus ingredientes.",
+  // Cooking progress & resume
+  resume: {
+    resumeCooking: "Continuar cocinando",
+    resumePrompt: "Estabas cocinando {{recipeName}} — paso {{step}} de {{total}}. ¿Quieres retomar donde lo dejaste?",
+    startOver: "Empezar de nuevo",
+    startOverFailed: "No se pudo empezar de nuevo en este momento. Inténtalo otra vez.",
+  },
+  // Fallback when no recipes found
+  fallback: {
+    noResults: "No encontré recetas que coincidan, ¡pero puedo crear algo personalizado!",
+    createFromIngredients: "Crear con ingredientes",
+    createFromIngredientsMessage: "Ayúdame a crear una receta con los ingredientes que tengo",
+    surpriseMe: "Sorpréndeme",
+    surpriseMeMessage: "Crea una receta divertida para mí",
+  },
+  // Replay / retrieval
+  replay: {
+    foundOne: "¡Lo encontré! Aquí está tu receta.",
+    foundMultiple: "Encontré varias coincidencias. ¿Cuál querías?",
+    notFound: "No pude encontrar esa receta. ¿Quieres crear una nueva?",
+  },
 };
