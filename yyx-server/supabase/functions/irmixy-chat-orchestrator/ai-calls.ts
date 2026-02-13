@@ -4,13 +4,8 @@
  * Wrappers around the AI Gateway for tool-calling and streaming.
  */
 
-import type {
-  AITool,
-} from "../_shared/ai-gateway/index.ts";
-import {
-  chat,
-  chatStream,
-} from "../_shared/ai-gateway/index.ts";
+import type { AITool } from "../_shared/ai-gateway/index.ts";
+import { chat, chatStream } from "../_shared/ai-gateway/index.ts";
 import { getRegisteredAiTools } from "../_shared/tools/tool-registry.ts";
 import { normalizeMessagesForAi } from "./message-normalizer.ts";
 import type { ChatMessage } from "./types.ts";

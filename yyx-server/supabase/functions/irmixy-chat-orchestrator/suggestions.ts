@@ -80,4 +80,3 @@ export function buildNoResultsFallback(language: "en" | "es"): {
     ],
   };
 }
-

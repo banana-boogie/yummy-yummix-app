@@ -25,11 +25,13 @@ import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
 import { getAllowedVoiceToolNames } from "../_shared/tools/tool-registry.ts";
 
 const ALLOWED_VOICE_TOOLS = new Set(getAllowedVoiceToolNames());
-const ALLOWED_ACTIONS = new Set([
-  "start_session",
-  "execute_tool",
-  "check_quota",
-] as const);
+const ALLOWED_ACTIONS = new Set(
+  [
+    "start_session",
+    "execute_tool",
+    "check_quota",
+  ] as const,
+);
 const MAX_PAYLOAD_BYTES = 10_000; // 10KB
 const QUOTA_LIMIT_MINUTES = 30;
 
@@ -63,7 +65,6 @@ function jsonResponse(
     },
   });
 }
-
 
 /**
  * Read-only quota check — no session created, no ephemeral token generated.

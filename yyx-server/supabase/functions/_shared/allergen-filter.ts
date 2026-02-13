@@ -131,17 +131,18 @@ export async function filterByAllergens<
   const allNames = [
     ...new Set(
       recipes.flatMap((r) =>
-        r.ingredients.map((i) =>
-          language === "es" ? i.name_es : i.name_en
-        ).filter(Boolean)
+        r.ingredients.map((i) => language === "es" ? i.name_es : i.name_en)
+          .filter(Boolean)
       ),
     ),
   ];
   const normalizedEntries = await Promise.all(
-    allNames.map(async (name) => [
-      name,
-      await normalizeIngredient(supabase, name, language),
-    ] as const),
+    allNames.map(async (name) =>
+      [
+        name,
+        await normalizeIngredient(supabase, name, language),
+      ] as const
+    ),
   );
   const normalizedMap = new Map(normalizedEntries);
 

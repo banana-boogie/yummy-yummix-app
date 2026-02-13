@@ -64,8 +64,7 @@ Deno.test("executeTool - throws ToolValidationError for unknown tool", async () 
   const userContext = createMockUserContext();
 
   const error = await assertRejects(
-    () =>
-      executeTool(supabase, "nonexistent_tool", "{}", userContext),
+    () => executeTool(supabase, "nonexistent_tool", "{}", userContext),
     ToolValidationError,
   );
   assertEquals(error.message, "Unknown tool: nonexistent_tool");
@@ -166,8 +165,7 @@ Deno.test("executeTool - search_recipes rejects when no query or filters", async
   const userContext = createMockUserContext();
 
   await assertRejects(
-    () =>
-      executeTool(supabase, "search_recipes", "{}", userContext),
+    () => executeTool(supabase, "search_recipes", "{}", userContext),
     ToolValidationError,
     "requires a query or at least one filter",
   );
