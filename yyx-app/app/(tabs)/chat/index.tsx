@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity, Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { ChatScreen } from '@/components/chat/ChatScreen';
 import { VoiceChatScreen } from '@/components/chat/VoiceChatScreen';
@@ -20,7 +20,7 @@ import i18n from '@/i18n';
 type ChatMode = 'text' | 'voice';
 
 export default function ChatPage() {
-    const [mode, setMode] = useState<ChatMode>('voice'); // Default to voice mode
+    const [mode, setMode] = useState<ChatMode>(Platform.OS === 'web' ? 'text' : 'voice'); // Default to text on web, voice on mobile
     const [sessionId, setSessionId] = useState<string | null>(null);
     // Lift messages state to preserve recipes when switching modes
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -57,19 +57,20 @@ export default function ChatPage() {
                             onNewChat={handleNewChat}
                         />
                     ),
-                    headerRight: () => (
-                        <TouchableOpacity
-                            onPress={toggleMode}
-                            className="mr-md w-10 h-10 rounded-full border-2 border-primary-darkest items-center justify-center"
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                            <MaterialCommunityIcons
-                                name={mode === 'text' ? 'microphone' : 'keyboard'}
-                                size={22}
-                                color={COLORS.primary.darkest}
-                            />
-                        </TouchableOpacity>
-                    ),
+                    headerRight: () =>
+                        Platform.OS !== 'web' ? (
+                            <TouchableOpacity
+                                onPress={toggleMode}
+                                className="mr-md w-10 h-10 rounded-full border-2 border-primary-darkest items-center justify-center"
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <MaterialCommunityIcons
+                                    name={mode === 'text' ? 'microphone' : 'keyboard'}
+                                    size={22}
+                                    color={COLORS.primary.darkest}
+                                />
+                            </TouchableOpacity>
+                        ) : undefined,
                 }}
             />
             {mode === 'voice' ? (
