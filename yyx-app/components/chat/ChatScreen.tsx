@@ -8,7 +8,12 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Alert,
+    Animated,
 } from 'react-native';
+import {
+    ExpoSpeechRecognitionModule,
+    useSpeechRecognitionEvent,
+} from 'expo-speech-recognition';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/common/Text';
 import { SuggestionChips } from '@/components/chat/SuggestionChips';
@@ -99,6 +104,62 @@ export function ChatScreen({
     const [currentStatus, setCurrentStatus] = useState<IrmixyStatus>(null);
     const [dynamicSuggestions, setDynamicSuggestions] = useState<SuggestionChip[] | null>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+
+    // Pulse animation for mic button while listening
+    useEffect(() => {
+        if (isListening) {
+            const pulse = Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseAnim, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+                    Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                ])
+            );
+            pulse.start();
+            return () => pulse.stop();
+        } else {
+            pulseAnim.setValue(1);
+        }
+    }, [isListening, pulseAnim]);
+
+    // Speech recognition events
+    useSpeechRecognitionEvent('result', (event) => {
+        const transcript = event.results[0]?.transcript;
+        if (transcript) {
+            setInputText(transcript);
+        }
+    });
+
+    useSpeechRecognitionEvent('end', () => {
+        setIsListening(false);
+    });
+
+    useSpeechRecognitionEvent('error', (event) => {
+        setIsListening(false);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            Alert.alert(i18n.t('chat.voice.micPermissionDenied'));
+        }
+    });
+
+    const handleMicPress = useCallback(async () => {
+        if (isListening) {
+            ExpoSpeechRecognitionModule.stop();
+            return;
+        }
+
+        const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+        if (!granted) {
+            Alert.alert(i18n.t('chat.voice.micPermissionDenied'));
+            return;
+        }
+
+        setIsListening(true);
+        ExpoSpeechRecognitionModule.start({
+            lang: language === 'es' ? 'es-MX' : 'en-US',
+            interimResults: true,
+        });
+    }, [isListening, language]);
 
     const resetStreamingState = useCallback(() => {
         streamCancelRef.current?.();
@@ -819,12 +880,28 @@ export function ChatScreen({
                     className="flex-1 min-h-[40px] max-h-[120px] bg-background-secondary rounded-lg px-md py-sm text-base text-text-primary mr-sm"
                     value={inputText}
                     onChangeText={setInputText}
-                    placeholder={i18n.t('chat.inputPlaceholder')}
+                    placeholder={isListening ? i18n.t('chat.voice.listening') : i18n.t('chat.inputPlaceholder')}
                     placeholderTextColor={COLORS.text.secondary}
                     multiline
                     maxLength={2000}
                     editable={!isLoading}
                 />
+                {Platform.OS !== 'web' && ((!inputText.trim() && !isLoading) || isListening) && (
+                    <TouchableOpacity onPress={handleMicPress} className="mr-sm">
+                        <Animated.View
+                            className={`w-10 h-10 rounded-full justify-center items-center ${
+                                isListening ? 'bg-status-error' : 'bg-grey-medium'
+                            }`}
+                            style={isListening ? { opacity: pulseAnim } : undefined}
+                        >
+                            <MaterialCommunityIcons
+                                name={isListening ? 'stop' : 'microphone'}
+                                size={20}
+                                color="#fff"
+                            />
+                        </Animated.View>
+                    </TouchableOpacity>
+                )}
                 <TouchableOpacity
                     className={`w-10 h-10 rounded-full justify-center items-center ${
                         isLoading ? 'bg-primary-medium' :

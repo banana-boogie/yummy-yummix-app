@@ -46,6 +46,7 @@ export const chat = {
     errorPrefix: "Error: ",
     minsRemaining: "{{mins}} mins remaining",
     executingTool: "Working on it...",
+    micPermissionDenied: "Microphone access denied",
   },
   suggestions: {
     suggestRecipe: "Suggest a recipe",
