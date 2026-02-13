@@ -1,0 +1,608 @@
+import i18n from '@/i18n';
+import { supabase } from '@/lib/supabase';
+import {
+  Cookbook,
+  CookbookWithRecipes,
+  CookbookApiResponse,
+  CookbookWithRecipesApiResponse,
+  CreateCookbookInput,
+  UpdateCookbookInput,
+  AddRecipeToCookbookInput,
+  UpdateCookbookRecipeInput,
+  CookbookRecipe,
+} from '@/types/cookbook.types';
+
+// ============================================================================
+// RPC Response Types (for SECURITY DEFINER functions)
+// ============================================================================
+
+/**
+ * Response shape from get_cookbook_by_share_token() RPC function
+ */
+interface SharedCookbookRpcResponse {
+  id: string;
+  user_id: string;
+  name_en: string;
+  name_es: string | null;
+  description_en: string | null;
+  description_es: string | null;
+  is_public: boolean;
+  is_default: boolean;
+  share_token: string;
+  share_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Response shape from get_cookbook_recipes_by_share_token() RPC function
+ */
+interface SharedCookbookRecipeRpcResponse {
+  cookbook_recipe_id: string;
+  cookbook_id: string;
+  recipe_id: string;
+  notes_en: string | null;
+  notes_es: string | null;
+  display_order: number;
+  added_at: string;
+  recipe_name_en: string;
+  recipe_name_es: string | null;
+  recipe_description_en: string | null;
+  recipe_description_es: string | null;
+  recipe_image_url: string | null;
+  recipe_prep_time_minutes: number | null;
+  recipe_cook_time_minutes: number | null;
+  recipe_servings: number | null;
+  recipe_difficulty: string | null;
+}
+
+/**
+ * Response shape for cookbook with recipe count aggregate
+ */
+interface CookbookWithRecipeCountResponse extends CookbookApiResponse {
+  cookbook_recipes: Array<{ recipe_id: string; id: string }>;
+  total_recipes: Array<{ count: number }>;
+}
+
+// ============================================================================
+// Transformation Functions
+// ============================================================================
+
+/**
+ * Transform API response to frontend Cookbook type
+ */
+function transformCookbook(raw: CookbookApiResponse, recipeCount = 0): Cookbook {
+  const lang = i18n.locale;
+  const isDefault = raw.is_default;
+  const name =
+    isDefault && lang === 'es' && raw.name_es
+      ? raw.name_es
+      : raw.name_en || raw.name_es || '';
+  const description =
+    isDefault && lang === 'es' && raw.description_es
+      ? raw.description_es
+      : raw.description_en || raw.description_es || undefined;
+  return {
+    id: raw.id,
+    userId: raw.user_id,
+    name,
+    description,
+    isPublic: raw.is_public,
+    isDefault: raw.is_default,
+    shareEnabled: raw.share_enabled,
+    shareToken: raw.share_token,
+    recipeCount,
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+  };
+}
+
+/**
+ * Transform cookbook with recipes
+ */
+function transformCookbookWithRecipes(
+  raw: CookbookWithRecipesApiResponse
+): CookbookWithRecipes {
+  const lang = i18n.locale;
+  const recipes: CookbookRecipe[] = (raw.cookbook_recipes || []).map((cr) => ({
+    id: cr.recipes.id,
+    name:
+      lang === 'es' && cr.recipes.name_es
+        ? cr.recipes.name_es
+        : cr.recipes.name_en,
+    description:
+      lang === 'es' && cr.recipes.description_es
+        ? cr.recipes.description_es
+        : cr.recipes.description_en || undefined,
+    imageUrl: cr.recipes.image_url || undefined,
+    prepTimeMinutes: cr.recipes.prep_time_minutes || undefined,
+    cookTimeMinutes: cr.recipes.cook_time_minutes || undefined,
+    servings: cr.recipes.servings || undefined,
+    difficulty: cr.recipes.difficulty || undefined,
+    notes: cr.notes_en || cr.notes_es || undefined,
+    displayOrder: cr.display_order,
+    addedAt: cr.added_at,
+    cookbookRecipeId: cr.id,
+  }));
+
+  // Sort by display order
+  recipes.sort((a, b) => a.displayOrder - b.displayOrder);
+
+  return {
+    ...transformCookbook(raw, recipes.length),
+    recipes,
+  };
+}
+
+// ============================================================================
+// Service Functions
+// ============================================================================
+
+/**
+ * Get all cookbooks for a user
+ */
+async function getUserCookbooks(userId: string): Promise<Cookbook[]> {
+  const { data, error } = await supabase
+    .from('cookbooks')
+    .select(
+      `
+      *,
+      cookbook_recipes(count)
+    `
+    )
+    .eq('user_id', userId)
+    .order('is_default', { ascending: false }) // Favorites first
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching cookbooks:', error);
+    throw new Error(error.message);
+  }
+
+  return (data || []).map((raw) => {
+    // cookbook_recipes(count) returns [{ count: number }] when using count aggregate
+    const recipeCountResult = raw.cookbook_recipes as unknown as
+      | [{ count: number }]
+      | null;
+    const recipeCount = recipeCountResult?.[0]?.count ?? 0;
+    return transformCookbook(raw, recipeCount);
+  });
+}
+
+/**
+ * Get a single cookbook by ID with all recipes
+ */
+async function getCookbookById(cookbookId: string): Promise<CookbookWithRecipes> {
+  const { data, error } = await supabase
+    .from('cookbooks')
+    .select(
+      `
+      *,
+      cookbook_recipes(
+        *,
+        recipes(
+          id,
+          name_en,
+          name_es,
+          description_en,
+          description_es,
+          image_url,
+          prep_time_minutes,
+          cook_time_minutes,
+          servings,
+          difficulty
+        )
+      )
+    `
+    )
+    .eq('id', cookbookId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching cookbook:', error);
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    throw new Error('Cookbook not found');
+  }
+
+  return transformCookbookWithRecipes(data);
+}
+
+/**
+ * Get a cookbook by share token (for unauthenticated users)
+ * Uses SECURITY DEFINER function to bypass RLS in a controlled manner
+ */
+async function getCookbookByShareToken(
+  shareToken: string
+): Promise<CookbookWithRecipes> {
+  // Input validation - fail fast for invalid tokens
+  const trimmedToken = shareToken?.trim();
+  if (!trimmedToken || trimmedToken.length === 0) {
+    throw new Error('Share token is required');
+  }
+
+  // Call the SECURITY DEFINER function to get cookbook data
+  // This bypasses RLS but only returns the specific cookbook matching the token
+  const { data: cookbookData, error: cookbookError } = await supabase.rpc(
+    'get_cookbook_by_share_token',
+    { p_share_token: trimmedToken }
+  );
+
+  if (cookbookError) {
+    console.error('Error fetching shared cookbook:', cookbookError);
+    throw new Error(cookbookError.message);
+  }
+
+  const typedCookbookData = cookbookData as SharedCookbookRpcResponse[] | null;
+
+  if (!typedCookbookData || typedCookbookData.length === 0) {
+    throw new Error('Cookbook not found');
+  }
+
+  const cookbook = typedCookbookData[0];
+
+  // Call the SECURITY DEFINER function to get cookbook recipes
+  // Returns flattened rows with both junction table and recipe data
+  const { data: recipesData, error: recipesError } = await supabase.rpc(
+    'get_cookbook_recipes_by_share_token',
+    { p_share_token: trimmedToken }
+  );
+
+  if (recipesError) {
+    console.error('Error fetching shared cookbook recipes:', recipesError);
+    throw new Error(recipesError.message);
+  }
+
+  const typedRecipesData = recipesData as SharedCookbookRecipeRpcResponse[] | null;
+
+  // Transform RPC flat rows back to nested structure expected by transformCookbookWithRecipes
+  // RPC returns: { cookbook_recipe_id, recipe_name_en, ... } (flat)
+  // Expected:    { id, recipes: { name_en, ... } } (nested)
+  const transformedRecipes = (typedRecipesData || []).map((item) => ({
+    // Junction table fields (cookbook_recipes)
+    id: item.cookbook_recipe_id,
+    cookbook_id: item.cookbook_id,
+    recipe_id: item.recipe_id,
+    notes_en: item.notes_en,
+    notes_es: item.notes_es,
+    display_order: item.display_order,
+    added_at: item.added_at,
+    // Nested recipe object (recipes table)
+    recipes: {
+      id: item.recipe_id,
+      name_en: item.recipe_name_en,
+      name_es: item.recipe_name_es,
+      description_en: item.recipe_description_en,
+      description_es: item.recipe_description_es,
+      image_url: item.recipe_image_url,
+      prep_time_minutes: item.recipe_prep_time_minutes,
+      cook_time_minutes: item.recipe_cook_time_minutes,
+      servings: item.recipe_servings,
+      difficulty: item.recipe_difficulty,
+    },
+  }));
+
+  // Reconstruct the data structure to match CookbookWithRecipesApiResponse
+  const reconstructedData = {
+    ...cookbook,
+    cookbook_recipes: transformedRecipes,
+  };
+
+  return transformCookbookWithRecipes(reconstructedData as CookbookWithRecipesApiResponse);
+}
+
+/**
+ * Create a new cookbook
+ */
+async function createCookbook(
+  userId: string,
+  input: CreateCookbookInput
+): Promise<Cookbook> {
+  const { data, error } = await supabase
+    .from('cookbooks')
+    .insert({
+      user_id: userId,
+      name_en: input.nameEn,
+      name_es: input.nameEs || null,
+      description_en: input.descriptionEn || null,
+      description_es: input.descriptionEs || null,
+      is_public: input.isPublic || false,
+      is_default: input.isDefault || false,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating cookbook:', error);
+    throw new Error(error.message);
+  }
+
+  return transformCookbook(data, 0);
+}
+
+/**
+ * Update an existing cookbook
+ */
+async function updateCookbook(
+  cookbookId: string,
+  input: UpdateCookbookInput
+): Promise<void> {
+  const updateData: Partial<{
+    name_en: string;
+    name_es: string | null;
+    description_en: string | null;
+    description_es: string | null;
+    is_public: boolean;
+    share_enabled: boolean;
+  }> = {};
+
+  if (input.nameEn !== undefined) updateData.name_en = input.nameEn;
+  if (input.nameEs !== undefined) updateData.name_es = input.nameEs;
+  if (input.descriptionEn !== undefined)
+    updateData.description_en = input.descriptionEn;
+  if (input.descriptionEs !== undefined)
+    updateData.description_es = input.descriptionEs;
+  if (input.isPublic !== undefined) updateData.is_public = input.isPublic;
+  if (input.shareEnabled !== undefined)
+    updateData.share_enabled = input.shareEnabled;
+
+  const { error } = await supabase
+    .from('cookbooks')
+    .update(updateData)
+    .eq('id', cookbookId);
+
+  if (error) {
+    console.error('Error updating cookbook:', error);
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Delete a cookbook
+ */
+async function deleteCookbook(cookbookId: string): Promise<void> {
+  const { error } = await supabase
+    .from('cookbooks')
+    .delete()
+    .eq('id', cookbookId);
+
+  if (error) {
+    console.error('Error deleting cookbook:', error);
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Add a recipe to a cookbook
+ */
+async function addRecipeToCookbook(input: AddRecipeToCookbookInput): Promise<void> {
+  // Get current max display order
+  const { data: existing } = await supabase
+    .from('cookbook_recipes')
+    .select('display_order')
+    .eq('cookbook_id', input.cookbookId)
+    .order('display_order', { ascending: false })
+    .limit(1);
+
+  const nextOrder = existing && existing.length > 0 ? existing[0].display_order + 1 : 0;
+
+  const { error } = await supabase.from('cookbook_recipes').insert({
+    cookbook_id: input.cookbookId,
+    recipe_id: input.recipeId,
+    notes_en: input.notesEn || null,
+    notes_es: input.notesEs || null,
+    display_order: input.displayOrder ?? nextOrder,
+  });
+
+  if (error) {
+    console.error('Error adding recipe to cookbook:', error);
+    // Handle unique constraint violation (recipe already in cookbook)
+    if (error.code === '23505') {
+      throw new Error('RECIPE_ALREADY_ADDED');
+    }
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Remove a recipe from a cookbook
+ */
+async function removeRecipeFromCookbook(
+  cookbookId: string,
+  recipeId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('cookbook_recipes')
+    .delete()
+    .eq('cookbook_id', cookbookId)
+    .eq('recipe_id', recipeId);
+
+  if (error) {
+    console.error('Error removing recipe from cookbook:', error);
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Update recipe notes or display order in a cookbook
+ */
+async function updateCookbookRecipe(
+  cookbookRecipeId: string,
+  input: UpdateCookbookRecipeInput
+): Promise<void> {
+  const updateData: Partial<{
+    notes_en: string | null;
+    notes_es: string | null;
+    display_order: number;
+  }> = {};
+
+  if (input.notesEn !== undefined) updateData.notes_en = input.notesEn;
+  if (input.notesEs !== undefined) updateData.notes_es = input.notesEs;
+  if (input.displayOrder !== undefined)
+    updateData.display_order = input.displayOrder;
+
+  const { error } = await supabase
+    .from('cookbook_recipes')
+    .update(updateData)
+    .eq('id', cookbookRecipeId);
+
+  if (error) {
+    console.error('Error updating cookbook recipe:', error);
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Get cookbook IDs that contain a specific recipe for a user
+ */
+async function getCookbookIdsContainingRecipe(
+  userId: string,
+  recipeId: string
+): Promise<string[]> {
+  // Input validation - fail fast for invalid parameters
+  if (!userId || !recipeId) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('cookbook_recipes')
+    .select('cookbook_id, cookbooks!inner(user_id)')
+    .eq('recipe_id', recipeId)
+    .eq('cookbooks.user_id', userId);
+
+  if (error) {
+    console.error('Error fetching cookbook ids containing recipe:', error);
+    return [];
+  }
+
+  return (data || []).map((row) => row.cookbook_id);
+}
+
+/**
+ * Get cookbooks that contain a specific recipe for a user
+ * More efficient than fetching all cookbooks and filtering
+ * Returns cookbooks with their TOTAL recipe count (not just the filtered one)
+ */
+async function getCookbooksContainingRecipe(
+  userId: string,
+  recipeId: string
+): Promise<Cookbook[]> {
+  // Input validation - fail fast for invalid parameters
+  if (!userId || !recipeId) {
+    return [];
+  }
+
+  // Use inner join to filter cookbooks containing the recipe,
+  // plus a separate count aggregate for the total recipe count
+  const { data, error } = await supabase
+    .from('cookbooks')
+    .select(
+      `
+      *,
+      cookbook_recipes!inner(recipe_id, id),
+      total_recipes:cookbook_recipes(count)
+    `
+    )
+    .eq('user_id', userId)
+    .eq('cookbook_recipes.recipe_id', recipeId);
+
+  if (error) {
+    console.error('Error fetching cookbooks containing recipe:', error);
+    throw new Error(error.message);
+  }
+
+  return (data || []).map((raw) => {
+    // Cast to typed response for proper access
+    const typedRaw = raw as unknown as CookbookWithRecipeCountResponse;
+
+    // Use the total_recipes aggregate for the actual total count
+    // This gives us ALL recipes in the cookbook, not just the filtered one
+    const recipeCount = typedRaw.total_recipes?.[0]?.count ?? 0;
+
+    return transformCookbook(typedRaw, recipeCount);
+  });
+}
+
+/**
+ * Ensure default "Favorites" cookbook exists for user
+ * Creates it if it doesn't exist
+ */
+async function ensureDefaultCookbook(userId: string): Promise<Cookbook> {
+  // Check if default cookbook exists
+  const { data: existing, error: checkError } = await supabase
+    .from('cookbooks')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('is_default', true)
+    .single();
+
+  if (checkError && checkError.code !== 'PGRST116') {
+    // PGRST116 = not found, which is fine
+    console.error('Error checking for default cookbook:', checkError);
+    throw new Error(checkError.message);
+  }
+
+  if (existing) {
+    return transformCookbook(existing, 0);
+  }
+
+  // Create default "Favorites" cookbook
+  return createCookbook(userId, {
+    nameEn: 'Favorites',
+    nameEs: 'Favoritos',
+    descriptionEn: 'My favorite recipes',
+    descriptionEs: 'Mis recetas favoritas',
+    isPublic: false,
+    isDefault: true,
+  });
+}
+
+/**
+ * Regenerate share token for a cookbook
+ */
+async function regenerateShareToken(cookbookId: string): Promise<string> {
+  // Supabase will generate a new UUID via gen_random_uuid()
+  const { data, error } = await supabase.rpc('regenerate_cookbook_share_token', {
+    cookbook_id: cookbookId,
+  });
+
+  if (error) {
+    // Fallback: generate token on client side if RPC doesn't exist
+    const newToken = crypto.randomUUID();
+    const { error: updateError } = await supabase
+      .from('cookbooks')
+      .update({ share_token: newToken, share_enabled: true })
+      .eq('id', cookbookId);
+
+    if (updateError) {
+      console.error('Error regenerating share token:', updateError);
+      throw new Error(updateError.message);
+    }
+
+    return newToken;
+  }
+
+  return data;
+}
+
+// ============================================================================
+// Exports
+// ============================================================================
+
+export const cookbookService = {
+  getUserCookbooks,
+  getCookbookById,
+  getCookbookByShareToken,
+  createCookbook,
+  updateCookbook,
+  deleteCookbook,
+  addRecipeToCookbook,
+  removeRecipeFromCookbook,
+  updateCookbookRecipe,
+  ensureDefaultCookbook,
+  regenerateShareToken,
+  getCookbookIdsContainingRecipe,
+  getCookbooksContainingRecipe,
+};

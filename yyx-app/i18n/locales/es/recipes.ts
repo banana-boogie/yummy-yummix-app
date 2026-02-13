@@ -14,6 +14,10 @@ export const recipes = {
       medium: "Medio",
       hard: "Difícil",
     },
+    time: {
+      minutesShort: "{{count}} min",
+      hoursShort: "{{count}} h",
+    },
     emptyState: "No se encontraron recetas",
     usefulItems: "Elementos Útiles",
   },

@@ -103,6 +103,15 @@ jest.mock('expo-haptics', () => ({
   },
 }));
 
+// Expo Clipboard
+jest.mock(
+  'expo-clipboard',
+  () => ({
+    setStringAsync: jest.fn(),
+  }),
+  { virtual: true }
+);
+
 // Expo Constants
 jest.mock('expo-constants', () => ({
   expoConfig: {
@@ -247,6 +256,14 @@ beforeEach(() => {
 });
 
 // ============================================================
+// CONTEXT MOCKS
+// ============================================================
+
+jest.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({ user: { id: 'user-1' } }),
+}));
+
+// ============================================================
 // GLOBAL TEST UTILITIES
 // ============================================================
 
@@ -279,6 +296,21 @@ beforeAll(() => {
 afterAll(() => {
   console.warn = originalConsoleWarn;
   console.error = originalConsoleError;
+});
+
+beforeEach(() => {
+  if (!global.window) {
+    global.window = {};
+  }
+  if (!global.window.dispatchEvent) {
+    global.window.dispatchEvent = jest.fn();
+  }
+  if (!global.window.addEventListener) {
+    global.window.addEventListener = jest.fn();
+  }
+  if (!global.window.removeEventListener) {
+    global.window.removeEventListener = jest.fn();
+  }
 });
 
 // Global helper to create mock functions with better typing
