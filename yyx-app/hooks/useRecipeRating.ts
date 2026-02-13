@@ -98,5 +98,3 @@ export function useRecipeRating(recipeId: string) {
         isLoadingDistribution,
     };
 }
-
-export default useRecipeRating;

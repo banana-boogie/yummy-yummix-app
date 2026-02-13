@@ -33,13 +33,6 @@ BEGIN
     ) sub
     WHERE id = COALESCE(NEW.recipe_id, OLD.recipe_id);
 
-    -- Handle case where all ratings are deleted
-    IF NOT FOUND THEN
-        UPDATE public.recipes
-        SET average_rating = NULL, rating_count = 0
-        WHERE id = COALESCE(NEW.recipe_id, OLD.recipe_id);
-    END IF;
-
     RETURN COALESCE(NEW, OLD);
 END;
 $$;

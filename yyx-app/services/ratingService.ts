@@ -119,29 +119,6 @@ export const ratingService = {
     },
 
     /**
-     * Get rating statistics for a recipe
-     */
-    async getRecipeRatingStats(recipeId: string): Promise<{
-        averageRating: number | null;
-        ratingCount: number;
-    }> {
-        const { data, error } = await supabase
-            .from('recipes')
-            .select('average_rating, rating_count')
-            .eq('id', recipeId)
-            .single();
-
-        if (error) {
-            throw new Error(`Failed to get rating stats: ${error.message}`);
-        }
-
-        return {
-            averageRating: data?.average_rating ?? null,
-            ratingCount: data?.rating_count ?? 0,
-        };
-    },
-
-    /**
      * Get rating distribution for a recipe (count of each star rating)
      */
     async getRatingDistribution(recipeId: string): Promise<{
@@ -177,5 +154,3 @@ export const ratingService = {
         return { distribution, total };
     },
 };
-
-export default ratingService;
