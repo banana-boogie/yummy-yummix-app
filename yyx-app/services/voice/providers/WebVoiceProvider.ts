@@ -20,24 +20,28 @@ import type {
   RecipeContext,
   QuotaInfo,
 } from '../types';
+import i18n from '@/i18n';
+
+const getMobileOnlyMessage = () => i18n.t('chat.voice.mobileOnly.message');
+const getMobileOnlyHint = () => i18n.t('chat.voice.mobileOnly.hint');
 
 export class WebVoiceProvider implements VoiceAssistantProvider {
   private status: VoiceStatus = 'idle';
   private eventListeners: Map<VoiceEvent, Set<Function>> = new Map();
 
   constructor() {
-    console.warn('WebVoiceProvider: Voice chat is only available on mobile app');
+    console.warn(`[WebVoiceProvider] ${getMobileOnlyHint()}`);
   }
 
   async initialize(config: ProviderConfig): Promise<any> {
     this.setStatus('idle');
-    console.warn('WebVoiceProvider: Voice chat requires the mobile app');
+    console.warn(`[WebVoiceProvider] ${getMobileOnlyHint()}`);
     return null;
   }
 
   async startConversation(context: ConversationContext): Promise<void> {
     this.setStatus('error');
-    this.emit('error', new Error('Voice chat is not available on web. Please use the mobile app for voice features.'));
+    this.emit('error', new Error(getMobileOnlyMessage()));
   }
 
   stopConversation(): void {
@@ -72,7 +76,7 @@ export class WebVoiceProvider implements VoiceAssistantProvider {
       remainingMinutes: 0,
       minutesUsed: 0,
       quotaLimit: 0,
-      warning: 'Voice chat is available on the mobile app only.',
+      warning: getMobileOnlyHint(),
     };
   }
 
