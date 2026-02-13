@@ -1,23 +1,21 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Animated, View, Platform, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { Animated, View } from 'react-native';
 import { useRecipes } from '@/hooks/useRecipes';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { SPACING } from '@/constants/design-tokens';
 
 import { RecipeListHeader } from '@/components/recipe/RecipeListHeader';
 import { SearchBar } from '@/components/common/SearchBar';
+import { RecipeSectionList, RecipeSection } from '@/components/recipe/RecipeSectionList';
 import { RecipeList } from '@/components/recipe/RecipeList';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import i18n from '@/i18n';
 import { eventService } from '@/services/eventService';
+import { filterQuick, filterByDiet, filterFamily, filterRecent } from '@/utils/recipeFilters';
 
-// Main component
 const Recipes = () => {
-  // State
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Hooks
   const {
     recipes,
     loading,
@@ -25,24 +23,19 @@ const Recipes = () => {
     error,
     hasMore,
     loadMore,
-    refresh,
     setSearch
   } = useRecipes();
 
   const { userProfile } = useUserProfile();
 
-  // Track the last logged search to avoid duplicate logs
   const lastLoggedSearch = useRef<string>('');
 
-  // Handler for search changes - now the debounce happens inside the SearchBar
   const handleSearchChange = useCallback((text: string) => {
     setSearchQuery(text);
     setSearch(text);
   }, [setSearch]);
 
-  // Log search events after debounce (when searchQuery changes from SearchBar)
   useEffect(() => {
-    // Only log if we have a non-empty query that's different from the last logged one
     if (searchQuery && searchQuery.trim().length > 0 && searchQuery !== lastLoggedSearch.current) {
       lastLoggedSearch.current = searchQuery;
       eventService.logSearch(searchQuery);
@@ -53,7 +46,6 @@ const Recipes = () => {
   const [headerHeight, setHeaderHeight] = useState(180);
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  // Fix: Clamp scrollY to 0 to prevent header interaction with iOS bounce (overscroll)
   const clampedScrollY = scrollY.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 1],
@@ -67,12 +59,51 @@ const Recipes = () => {
     outputRange: [0, -headerHeight],
   });
 
-  const handleLogoPress = () => {
-    router.push('/(tabs)/profile');
-  };
-
-  // Ensure we have a name to display
   const displayName = userProfile?.name || '';
+
+  // Build recipe sections for the sectioned feed
+  const sections = useMemo((): RecipeSection[] => {
+    if (!recipes.length) return [];
+
+    const allSections: RecipeSection[] = [
+      {
+        id: 'for-you',
+        title: i18n.t('recipes.sections.forYou'),
+        recipes: filterByDiet(recipes, userProfile),
+        layout: 'horizontal',
+      },
+      {
+        id: 'quick',
+        title: i18n.t('recipes.sections.quick'),
+        recipes: filterQuick(recipes, 30),
+        layout: 'horizontal',
+      },
+      {
+        id: 'family',
+        title: i18n.t('recipes.sections.family'),
+        recipes: filterFamily(recipes, 4),
+        layout: 'horizontal',
+      },
+      {
+        id: 'new',
+        title: i18n.t('recipes.sections.new'),
+        recipes: filterRecent(recipes, 7),
+        layout: 'horizontal',
+      },
+      {
+        id: 'all',
+        title: i18n.t('recipes.sections.all'),
+        recipes: recipes,
+        layout: 'grid',
+      },
+    ];
+
+    // Remove empty sections
+    return allSections.filter(section => section.recipes.length > 0);
+  }, [recipes, userProfile]);
+
+  // When searching, collapse to flat grid
+  const isSearching = searchQuery.trim().length > 0;
 
   return (
     <PageLayout contentPaddingHorizontal={0} disableMaxWidth={true}>
@@ -90,33 +121,52 @@ const Recipes = () => {
       >
         <RecipeListHeader
           displayName={displayName}
-          onLogoPress={handleLogoPress}
+          onLogoPress={() => {}}
         />
-        <View className="pb-sm px-md bg-background-default w-full max-w-[1200px] self-center">
+        <View className="pb-md px-md bg-background-default w-full max-w-[1200px] self-center">
           <SearchBar
             searchQuery={searchQuery}
             setSearchQuery={handleSearchChange}
-            placeholder={i18n.t('recipes.common.search')}
+            placeholder={i18n.t('recipes.header.subtitle')}
             useDebounce={true}
             debounceDelay={300}
+            variant="warm"
           />
         </View>
       </Animated.View>
 
       <View className="flex-1 w-full max-w-[1200px] self-center">
-        <RecipeList
-          recipes={recipes}
-          loading={loading}
-          initialLoading={initialLoading}
-          error={error}
-          hasMore={hasMore}
-          onLoadMore={loadMore}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
-          )}
-          contentContainerStyle={{ paddingTop: headerHeight, paddingHorizontal: SPACING.md }}
-        />
+        {isSearching ? (
+          /* When searching, fall back to flat grid list */
+          <RecipeList
+            recipes={recipes}
+            loading={loading}
+            initialLoading={initialLoading}
+            error={error}
+            hasMore={hasMore}
+            onLoadMore={loadMore}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: true }
+            )}
+            contentContainerStyle={{ paddingTop: headerHeight, paddingHorizontal: SPACING.md }}
+          />
+        ) : (
+          /* Default: sectioned feed */
+          <RecipeSectionList
+            sections={sections}
+            loading={loading}
+            initialLoading={initialLoading}
+            error={error}
+            hasMore={hasMore}
+            onLoadMore={loadMore}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: true }
+            )}
+            contentContainerStyle={{ paddingTop: headerHeight }}
+          />
+        )}
       </View>
     </PageLayout>
   );

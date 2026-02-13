@@ -1,4 +1,15 @@
 export const recipes = {
+  sections: {
+    quick: "Cenas Rápidas Entre Semana",
+    forYou: "Solo para Ti",
+    family: "Favoritos de la Familia",
+    new: "Nuevo Esta Semana",
+    all: "Todas las Recetas",
+  },
+  header: {
+    greeting: "¡Hola, {{name}}!",
+    subtitle: "¿Qué cocinamos hoy?",
+  },
   common: {
     search: "¿Qué se te antoja comer?",
     loading: "Cargando recetas...",
