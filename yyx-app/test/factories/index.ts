@@ -25,6 +25,7 @@
 
 export { recipeFactory } from './recipe.factory';
 export { userFactory } from './user.factory';
+export { shoppingListFactory } from './shopping-list.factory';
 
 // Re-export individual functions for convenience
 export {
@@ -51,6 +52,17 @@ export {
   resetIdCounter as resetUserIdCounter,
 } from './user.factory';
 
+export {
+  createShoppingList,
+  createShoppingListItem,
+  createShoppingListItemList,
+  createShoppingCategory,
+  createShoppingCategoryWithItems,
+  createShoppingListWithItems,
+  createIngredientSuggestion,
+  resetIdCounter as resetShoppingListIdCounter,
+} from './shopping-list.factory';
+
 /**
  * Resets all factory ID counters for deterministic test behavior.
  * This is called automatically in beforeEach via jest.setup.js.
@@ -58,6 +70,8 @@ export {
 export function resetAllFactories(): void {
   const { resetIdCounter: resetRecipe } = require('./recipe.factory');
   const { resetIdCounter: resetUser } = require('./user.factory');
+  const { resetIdCounter: resetShoppingList } = require('./shopping-list.factory');
   resetRecipe();
   resetUser();
+  resetShoppingList();
 }

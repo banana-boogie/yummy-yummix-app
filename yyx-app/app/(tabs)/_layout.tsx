@@ -17,6 +17,12 @@ const TAB_CONFIG = [
     href: '/recipes',
   },
   {
+    name: 'shopping',
+    icon: 'cart-outline',
+    iconActive: 'cart',
+    href: '/shopping',
+  },
+  {
     name: 'chat',
     icon: 'chatbubble-outline',
     iconActive: 'chatbubble',

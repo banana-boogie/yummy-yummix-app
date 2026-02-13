@@ -11,6 +11,8 @@ export const common = {
   cancel: "Cancelar",
   import: "Import",
   done: "Listo",
+  create: "Crear",
+  undo: "Deshacer",
   selectDate: "Seleccionar Fecha",
   showAll: "Mostrar {{count}} más",
   showLess: "Mostrar menos",
@@ -32,4 +34,7 @@ export const common = {
   today: "Hoy",
   yesterday: "Ayer",
   daysAgo: "Hace {{count}} días",
+  undo: "Deshacer",
+  create: "Crear",
+  clear: "Limpiar",
 };

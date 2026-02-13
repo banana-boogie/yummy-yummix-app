@@ -7,6 +7,12 @@ import { useRouter } from 'expo-router';
 import { Storage } from '@/utils/storage';
 import { queryClient } from '@/lib/queryClient';
 import { userProfileKeys } from '@/lib/queryKeys';
+import { mutationQueue } from '@/services/offlineQueue/mutationQueue';
+import {
+  shoppingListDetailCache,
+  shoppingListsSummaryCache,
+  shoppingCategoryCache,
+} from '@/services/cache/shoppingListCache';
 
 type AuthContextType = {
   user: User | null;
@@ -33,6 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      mutationQueue.setNamespace(session?.user?.id);
       setLoading(false);
     });
 
@@ -54,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setSession(session);
       setUser(session?.user ?? null);
+      mutationQueue.setNamespace(session?.user?.id);
       setLoading(false);
 
       // If user just logged in, check for pending deep links
@@ -262,6 +270,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Clear TanStack Query cache for user profile to ensure fresh data on next login
       queryClient.removeQueries({ queryKey: userProfileKeys.all });
+
+      // Clear shopping list caches and offline queue to avoid cross-account leakage
+      const currentUserId = user?.id;
+      mutationQueue.setNamespace(currentUserId);
+      await mutationQueue.clear();
+      await Promise.all([
+        shoppingListDetailCache.clearCache(),
+        shoppingListsSummaryCache.clearCache(),
+        shoppingCategoryCache.clearCache(),
+      ]);
 
       // For web platform, manually clear the Supabase auth token from localStorage
       if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
