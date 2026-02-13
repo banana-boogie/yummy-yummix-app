@@ -117,6 +117,14 @@ export async function searchRecipes(
   // Validate and sanitize params
   const params = validateSearchRecipesParams(rawParams);
 
+  console.log("[search] Entry", {
+    query: params.query,
+    cuisine: params.cuisine,
+    maxTime: params.maxTime,
+    difficulty: params.difficulty,
+    limit: params.limit,
+  });
+
   // Try hybrid search when query and API key are present
   if (params.query && Deno.env.get("OPENAI_API_KEY")) {
     // Embedding RPC is service-role only; use service client when available.
@@ -135,6 +143,10 @@ export async function searchRecipes(
     );
 
     if (hybridResult.recipes.length > 0) {
+      console.log("[search] Hybrid search returned results", {
+        method: hybridResult.method,
+        count: hybridResult.recipes.length,
+      });
       // Hybrid returned results — apply allergen filtering then return
       if (userContext.dietaryRestrictions.length > 0) {
         const recipeIds = hybridResult.recipes.map((r) => r.recipeId);
@@ -149,22 +161,27 @@ export async function searchRecipes(
           userContext.language,
         );
         const safeIds = new Set(safeRecipes.map((r) => r.id));
-        return hybridResult.recipes.filter((r) => safeIds.has(r.recipeId));
+        const filtered = hybridResult.recipes.filter((r) =>
+          safeIds.has(r.recipeId)
+        );
+        console.log("[search] Allergen filtering", {
+          before: hybridResult.recipes.length,
+          after: filtered.length,
+        });
+        return filtered;
       }
       return hybridResult.recipes;
     }
 
-    // low_confidence means hybrid ran fully and found nothing good —
-    // signal orchestrator to show deterministic no-results fallback.
-    if (
-      hybridResult.method === "hybrid" &&
-      hybridResult.degradationReason === "low_confidence"
-    ) {
-      return [];
-    }
-
-    // embedding_failure and no_semantic_candidates fall through
-    // to lexical search as graceful degradation.
+    // All degradation reasons (embedding_failure, no_semantic_candidates,
+    // low_confidence) fall through to lexical search as graceful degradation.
+    console.log(
+      "[search] Hybrid returned no results, falling back to lexical",
+      {
+        method: hybridResult.method,
+        degradationReason: hybridResult.degradationReason,
+      },
+    );
   }
 
   // Lexical search path (existing implementation)
@@ -205,15 +222,40 @@ export async function searchRecipes(
   const { data, error } = await query.limit(fetchLimit);
 
   if (error) {
-    console.error("Recipe search error:", error);
+    console.error("[search] Recipe search error:", error);
     throw new Error("Failed to search recipes");
   }
 
-  if (!data || data.length === 0) {
-    return [];
+  let results = (data || []) as unknown as RecipeSearchResult[];
+  console.log("[search] Lexical name search", { count: results.length });
+
+  // Pass 2: Tag-based search when name-only results are insufficient
+  if (params.query && results.length < (params.limit || 10)) {
+    const tagResults = await searchByTags(
+      supabase,
+      params.query,
+      params.difficulty,
+      params.maxTime,
+      fetchLimit,
+    );
+
+    if (tagResults.length > 0) {
+      // Merge and deduplicate by recipe ID
+      const existingIds = new Set(results.map((r) => r.id));
+      const newFromTags = tagResults.filter((r) => !existingIds.has(r.id));
+      results = [...results, ...newFromTags];
+      console.log("[search] Tag search added", {
+        tagMatches: tagResults.length,
+        newRecipes: newFromTags.length,
+        totalAfterMerge: results.length,
+      });
+    }
   }
 
-  const results = data as unknown as RecipeSearchResult[];
+  if (results.length === 0) {
+    console.log("[search] No lexical results found");
+    return [];
+  }
 
   // Filter by cuisine if specified (in-memory using tags)
   let filtered: RecipeSearchResult[] = results;
@@ -248,7 +290,12 @@ export async function searchRecipes(
     );
 
     const safeIds = new Set(safeRecipes.map((r) => r.id));
+    const beforeCount = recipeCards.length;
     recipeCards = recipeCards.filter((r) => safeIds.has(r.recipeId));
+    console.log("[search] Lexical allergen filtering", {
+      before: beforeCount,
+      after: recipeCards.length,
+    });
   }
 
   // Apply query-based relevance scoring
@@ -262,7 +309,9 @@ export async function searchRecipes(
   }
 
   // Apply final limit after all filtering and scoring
-  return recipeCards.slice(0, params.limit || 10);
+  const finalResults = recipeCards.slice(0, params.limit || 10);
+  console.log("[search] Final results", { count: finalResults.length });
+  return finalResults;
 }
 
 // ============================================================
@@ -292,6 +341,77 @@ function getSemanticSearchClient(
     }
   }
   return _semanticClient;
+}
+
+/**
+ * Search recipes by matching tag names via ILIKE.
+ * Returns recipes where any associated tag name matches the query.
+ */
+async function searchByTags(
+  supabase: SupabaseClient,
+  query: string,
+  difficulty?: "easy" | "medium" | "hard",
+  maxTime?: number,
+  limit: number = 30,
+): Promise<RecipeSearchResult[]> {
+  const searchTerm = `%${query}%`;
+
+  // Find tag IDs matching the query
+  const { data: matchingTags, error: tagError } = await supabase
+    .from("recipe_tags")
+    .select("id")
+    .or(`name_en.ilike.${searchTerm},name_es.ilike.${searchTerm}`);
+
+  if (tagError || !matchingTags || matchingTags.length === 0) {
+    return [];
+  }
+
+  const tagIds = matchingTags.map((t: { id: string }) => t.id);
+
+  // Find recipe IDs linked to those tags
+  const { data: joins, error: joinError } = await supabase
+    .from("recipe_to_tag")
+    .select("recipe_id")
+    .in("tag_id", tagIds);
+
+  if (joinError || !joins || joins.length === 0) {
+    return [];
+  }
+
+  const recipeIds = [
+    ...new Set(joins.map((j: { recipe_id: string }) => j.recipe_id)),
+  ];
+
+  // Fetch full recipe data for those IDs
+  let recipeQuery = supabase
+    .from("recipes")
+    .select(`
+      id,
+      name_en,
+      name_es,
+      image_url,
+      total_time,
+      difficulty,
+      portions,
+      recipe_to_tag ( recipe_tags ( name_en, name_es, categories ) )
+    `)
+    .in("id", recipeIds)
+    .eq("is_published", true);
+
+  if (difficulty) {
+    recipeQuery = recipeQuery.eq("difficulty", difficulty);
+  }
+  if (maxTime) {
+    recipeQuery = recipeQuery.lte("total_time", maxTime);
+  }
+
+  const { data, error } = await recipeQuery.limit(limit);
+
+  if (error || !data) {
+    return [];
+  }
+
+  return data as unknown as RecipeSearchResult[];
 }
 
 /**

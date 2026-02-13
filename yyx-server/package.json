@@ -12,6 +12,9 @@
     "backup:all": "npm run backup:db && npm run backup:storage",
     "backup:schema": "mkdir -p backups && supabase db dump -f backups/schema_$(date +%Y%m%d).sql --schema-only",
     "get-test-jwt": "bash scripts/get-test-jwt.sh",
+    "backfill-embeddings": "bash scripts/backfill-embeddings.sh",
+    "backfill-embeddings:dry": "bash scripts/backfill-embeddings.sh --dry-run",
+    "backfill-embeddings:force": "bash scripts/backfill-embeddings.sh --force",
     "test": "deno task test",
     "test:watch": "deno task test:watch",
     "test:integration": "deno task test:integration"

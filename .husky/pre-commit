@@ -49,7 +49,11 @@ if [ -n "$YYX_SERVER_FILES" ]; then
   fi
 
   echo "🔍 Running deno lint for yyx-server..."
-  deno lint supabase/functions/
+  # Only lint staged .ts files, using deno.json config for rule exclusions
+  LINT_FILES=$(echo "$YYX_SERVER_FILES" | grep '\.ts$' | sed 's|^yyx-server/||' || true)
+  if [ -n "$LINT_FILES" ]; then
+    echo "$LINT_FILES" | xargs deno lint --config deno.json
+  fi
   echo "✅ Lint check passed"
 
   cd ..

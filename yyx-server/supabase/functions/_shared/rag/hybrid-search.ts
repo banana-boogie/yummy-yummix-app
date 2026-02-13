@@ -258,8 +258,14 @@ export async function searchRecipesHybrid(
 ): Promise<HybridSearchResult> {
   // Try to generate query embedding with graceful fallback
   let queryEmbedding: number[] | null = null;
+  const embedStart = performance.now();
   try {
     queryEmbedding = await embedQuery(query);
+    console.log("[hybrid-search] Embedding generated", {
+      query,
+      dimensions: queryEmbedding.length,
+      ms: Math.round(performance.now() - embedStart),
+    });
   } catch (err) {
     console.warn(
       "[hybrid-search] Embedding failed, falling back to lexical:",
@@ -281,6 +287,16 @@ export async function searchRecipesHybrid(
     queryEmbedding,
     50,
   );
+
+  // Log top semantic matches for diagnostics
+  const top5 = semanticMatches.slice(0, 5).map((m) => ({
+    id: m.recipe_id.substring(0, 8),
+    sim: m.similarity.toFixed(3),
+  }));
+  console.log("[hybrid-search] Semantic matches", {
+    total: semanticMatches.length,
+    top5,
+  });
 
   if (semanticMatches.length === 0) {
     return {
@@ -352,6 +368,15 @@ export async function searchRecipesHybrid(
       METADATA_WEIGHT * metadataScore +
       PERSONALIZATION_WEIGHT * personalizationScore;
 
+    console.log("[hybrid-search] Score", {
+      name,
+      semantic: semanticScore.toFixed(3),
+      lexical: lexicalScore.toFixed(3),
+      metadata: metadataScore.toFixed(3),
+      personalization: personalizationScore.toFixed(3),
+      final: finalScore.toFixed(3),
+    });
+
     return {
       recipeId: recipe.id,
       name,
@@ -382,11 +407,15 @@ export async function searchRecipesHybrid(
   const needsFallback = aboveThreshold.length < MIN_RESULTS_BEFORE_FALLBACK ||
     topScore < FALLBACK_TOP_THRESHOLD;
 
+  console.log("[hybrid-search] Threshold filtering", {
+    totalScored: scored.length,
+    afterHardFilters: filtered.length,
+    aboveThreshold: aboveThreshold.length,
+    topScore: topScore.toFixed(3),
+    needsFallback,
+  });
+
   if (needsFallback) {
-    console.log("[hybrid-search] Below threshold, signaling fallback", {
-      resultCount: aboveThreshold.length,
-      topScore: topScore.toFixed(3),
-    });
     return {
       recipes: [],
       method: "hybrid",
