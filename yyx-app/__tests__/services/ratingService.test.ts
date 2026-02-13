@@ -244,48 +244,6 @@ describe('ratingService', () => {
     });
   });
 
-  describe('getRecipeRatingStats', () => {
-    it('should return rating statistics', async () => {
-      const mockFrom = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: { average_rating: 4.5, rating_count: 10 },
-          error: null,
-        }),
-      };
-
-      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
-
-      const stats = await ratingService.getRecipeRatingStats(mockRecipeId);
-
-      expect(stats).toEqual({
-        averageRating: 4.5,
-        ratingCount: 10,
-      });
-    });
-
-    it('should return null for averageRating if not set', async () => {
-      const mockFrom = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
-          data: { average_rating: null, rating_count: 0 },
-          error: null,
-        }),
-      };
-
-      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
-
-      const stats = await ratingService.getRecipeRatingStats(mockRecipeId);
-
-      expect(stats).toEqual({
-        averageRating: null,
-        ratingCount: 0,
-      });
-    });
-  });
-
   describe('getRatingDistribution', () => {
     it('should return grouped distribution from a single query', async () => {
       const mockFrom = {

@@ -48,41 +48,12 @@ export const recipeCompletionService = {
             .select('id')
             .eq('user_id', user.id)
             .eq('recipe_id', recipeId)
-            .single();
+            .limit(1);
 
         if (error) {
-            if (error.code === 'PGRST116') {
-                return false;
-            }
-
-            throw new Error('Failed to check recipe completion status. Please try again.');
+            throw new Error('Failed to check recipe completion status.');
         }
 
-        return !!data;
-    },
-
-    /**
-     * Get completion count for a recipe
-     */
-    async getCompletionCount(recipeId: string): Promise<number> {
-        const { data: { user } } = await supabase.auth.getUser();
-
-        if (!user) {
-            return 0;
-        }
-
-        const { count, error } = await supabase
-            .from('recipe_completions')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', user.id)
-            .eq('recipe_id', recipeId);
-
-        if (error) {
-            throw new Error('Failed to fetch recipe completion count. Please try again.');
-        }
-
-        return count ?? 0;
+        return (data?.length ?? 0) > 0;
     },
 };
-
-export default recipeCompletionService;

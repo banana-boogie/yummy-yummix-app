@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, ActivityIndicator, FlatList } from 'react-native';
+import { View, ActivityIndicator, FlatList } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Text, Button } from '@/components/common';
 import { AdminHeader } from '../_layout';
