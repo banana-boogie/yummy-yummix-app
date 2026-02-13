@@ -28,7 +28,7 @@ const RecipeItemWrapper = React.memo(({
   itemWidth
 }: {
   item: Recipe;
-  itemWidth: number | string;
+  itemWidth: number;
 }) => (
   <View style={{ width: itemWidth, marginBottom: SPACING.xl }}>
     <RecipeCard recipe={item} />
@@ -59,7 +59,7 @@ export const RecipeList: React.FC<RecipeListProps> = ({
   const gap = SPACING.md;
   const availableWidth = Math.min(screenWidth, 1200) - containerPadding;
   const itemWidth = numColumns === 1
-    ? '100%'
+    ? availableWidth
     : (availableWidth - gap) / 2;
 
   // Separate the first item to render it at full width (featured)
@@ -151,4 +151,3 @@ export const RecipeList: React.FC<RecipeListProps> = ({
     </View>
   );
 };
-

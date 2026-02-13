@@ -15,6 +15,8 @@ export interface RawRecipe {
   is_published: boolean;
   created_at: string;
   updated_at: string;
+  average_rating?: number | null;
+  rating_count?: number;
   [key: `name_${string}`]: string;
   [key: `tips_and_tricks_${string}`]: string;
 }

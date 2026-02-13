@@ -5,16 +5,21 @@ import { CookingGuideHeader } from "@/components/cooking-guide/CookingGuideHeade
 import { RecipeStepContent } from "@/components/cooking-guide/RecipeStepContent";
 import { Text } from "@/components/common/Text";
 import i18n from "@/i18n";
-import React from "react";
+import React, { useState } from "react";
 import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideStepNavigationButtons';
 import { PageLayout } from '@/components/layouts/PageLayout';
+import { COLORS } from '@/constants/design-tokens';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
 import { eventService } from '@/services/eventService';
-import { COLORS } from '@/constants/design-tokens';
+import { RecipeRatingModal } from '@/components/rating/RecipeRatingModal';
+import { useAuth } from '@/contexts/AuthContext';
+import { recipeCompletionService } from '@/services/recipeCompletionService';
 
 export default function CookingStep() {
     const { id, step: stepParam } = useLocalSearchParams();
     const { recipe } = useRecipe(id as string);
+    const { user } = useAuth();
+    const [showRatingModal, setShowRatingModal] = useState(false);
 
     const currentStepNumber = Number(stepParam);
     const steps = recipe?.steps;
@@ -38,12 +43,26 @@ export default function CookingStep() {
         next: () => {
             router.replace(`/(tabs)/recipes/${id}/cooking-guide/${currentStepNumber + 1}`);
         },
-        finish: () => {
+        finish: async () => {
             if (recipe?.id && recipe?.name) {
                 eventService.logCookComplete(recipe.id, recipe.name);
             }
-            router.replace('/(tabs)/recipes');
+            try {
+                await recipeCompletionService.recordCompletion(id as string);
+            } catch {
+                // Don't block rating modal or navigation on completion failure
+            }
+            if (user) {
+                setShowRatingModal(true);
+            } else {
+                router.replace('/(tabs)/recipes');
+            }
         }
+    };
+
+    const handleRatingModalClose = () => {
+        setShowRatingModal(false);
+        router.replace('/(tabs)/recipes');
     };
 
     const Header = () => (
@@ -91,7 +110,6 @@ export default function CookingStep() {
                 scrollEnabled={true}
             >
                 <Header />
-                {/* Show section title if present */}
                 {currentStep.recipeSection && shouldDisplayRecipeSection(currentStep.recipeSection) && (
                     <View className="px-sm mb-sm">
                         <Text preset="h2" className="text-text-secondary">
@@ -102,6 +120,13 @@ export default function CookingStep() {
                 <View className="px-md mb-md">
                     <RecipeStepContent step={currentStep} />
                 </View>
+
+                <RecipeRatingModal
+                    visible={showRatingModal}
+                    onClose={handleRatingModalClose}
+                    recipeId={id as string}
+                    recipeName={recipe.name}
+                />
             </PageLayout>
         </View>
     );

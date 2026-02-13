@@ -29,6 +29,9 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
         steps: this.transformSteps(raw.steps, lang, measurementSystem),
         tipsAndTricks: raw[`tips_and_tricks_${lang}`],
         usefulItems: this.transformUsefulItems(raw.useful_items, lang),
+        // Rating fields
+        averageRating: raw.average_rating ?? null,
+        ratingCount: raw.rating_count ?? 0,
       };
     }
 
