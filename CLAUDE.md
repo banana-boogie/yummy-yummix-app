@@ -451,6 +451,48 @@ font-heading (Quicksand), font-subheading (Lexend), font-body (Montserrat), font
 <View className="flex-col md:flex-row gap-md">...</View>
 ```
 
+### Platform-Specific Providers
+
+For features that are only available on certain platforms (e.g., native features), use Metro's `.web.ts` file extension pattern:
+
+**Pattern:**
+- `services/feature/FeatureFactory.ts` - Native implementation (iOS/Android)
+- `services/feature/FeatureFactory.web.ts` - Web implementation (stub or alternative)
+
+**How it works:**
+- Metro automatically selects the `.web.ts` file when building for web
+- Native platforms continue using the standard `.ts` file
+- No runtime overhead - resolution happens at build time
+- Zero dynamic imports or conditional logic needed
+
+**Example: Voice Chat**
+```
+services/voice/
+├── VoiceProviderFactory.ts      ← Native (iOS/Android) returns OpenAIRealtimeProvider
+├── VoiceProviderFactory.web.ts  ← Web returns WebVoiceProvider stub
+├── providers/
+│   ├── OpenAIRealtimeProvider.ts  ← Uses react-native-webrtc
+│   └── WebVoiceProvider.ts        ← Stub with clear error messaging
+└── types.ts                       ← Shared interface (used by both)
+```
+
+**Why this approach:**
+- ✅ No native package imports on web (prevents build crashes)
+- ✅ Type-safe - both implementations must match the interface
+- ✅ Clear file structure - obvious which platform uses what
+- ✅ Industry standard - same pattern used by Expo and React Native core
+- ✅ Future-proof - easy to upgrade web stub to real implementation later
+
+**When to use:**
+- Native-only features (WebRTC, native APIs, native packages)
+- Platform-specific performance optimizations
+- Different implementations per platform
+
+**UI considerations:**
+- UI layer stays platform-agnostic (uses the interface)
+- Platform-specific UI (show/hide features) uses `Platform.OS !== 'web'`
+- See `app/(tabs)/chat/index.tsx` for example
+
 ### Layouts
 ```tsx
 import { PageLayout } from '@/components/layouts/PageLayout';
