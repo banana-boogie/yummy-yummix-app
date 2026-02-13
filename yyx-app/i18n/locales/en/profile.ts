@@ -118,4 +118,19 @@ export const profile = {
     cuisinePreferences: "Cuisine Preferences",
     cuisineSubtitle: "Select cuisines that inspire your cooking",
   },
+  sections: {
+    aboutYou: "About You",
+    kitchenProfile: "Your Kitchen Profile",
+    healthActivity: "Health & Activity",
+    account: "Account",
+  },
+  summaries: {
+    diet: "Diet",
+    allergies: "Allergies",
+    cuisine: "Cuisine",
+    noDiet: "No diet preferences set",
+    noAllergies: "No allergies set",
+    noCuisine: "No cuisine preferences set",
+    edit: "Edit",
+  },
 };

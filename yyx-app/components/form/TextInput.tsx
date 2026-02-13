@@ -92,7 +92,7 @@ export function TextInput({
 
       {/* Input Container */}
       <View className={`
-        flex-row items-center bg-background-default rounded-md border-[1.5px] border-border-default
+        flex-row items-center min-h-[56px] bg-background-default rounded-md border-[1.5px] border-border-default
         ${isFocused ? 'border-border-focus' : ''}
         ${error ? 'border-status-error bg-primary-lighter' : ''}
       `}>

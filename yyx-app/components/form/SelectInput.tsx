@@ -120,14 +120,14 @@ export function SelectInput({
   return (
     <View className={containerClassName} style={containerStyle}>
       {label ? (
-        <Text preset="body" className="text-xs text-text-default ml-xxs">
+        <Text className="text-text-default text-sm font-semibold pl-xxs mb-xxs">
           {label} {required ? '*' : ''}
         </Text>
       ) : null}
       <TouchableOpacity
         className={`
-          flex-row items-center justify-between h-12 px-md bg-background-secondary rounded-md
-          ${error ? 'border border-status-error' : ''}
+          flex-row items-center justify-between min-h-[56px] px-md bg-background-default rounded-md border-[1.5px] border-border-default
+          ${error ? 'border-status-error' : ''}
           ${className}
         `}
         onPress={() => setModalVisible(true)}
@@ -177,11 +177,11 @@ export function SelectInput({
                 size="small"
               />
             </View>
-            <View className="h-[216px]">
+            <View className="h-[280px]">
               <Picker
                 selectedValue={tempValue}
                 onValueChange={setTempValue}
-                className="h-[216px]"
+                className="h-[280px]"
               >
                 {options.map((item) => (
                   <Picker.Item

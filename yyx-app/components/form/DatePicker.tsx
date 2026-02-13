@@ -167,9 +167,9 @@ export function DatePicker({
 
   // Mobile version
   return (
-    <View className={`gap-2 mb-sm ${className}`} style={[style, containerStyle]}>
+    <View className={`mb-sm ${className}`} style={[style, containerStyle]}>
       {label && (
-        <Text preset="body" className="mb-1">
+        <Text className="text-text-default text-sm font-semibold pl-xxs mb-xxs">
           {label}
         </Text>
       )}
@@ -179,7 +179,7 @@ export function DatePicker({
         label={value instanceof Date && !isNaN(value.getTime())
           ? value.toLocaleDateString()
           : DEFAULT_DATE.toLocaleDateString()}
-        className="bg-background-secondary rounded-lg min-h-[48px] py-2 px-4 flex-row items-center justify-between"
+        className="bg-background-default rounded-md min-h-[56px] py-2 px-4 flex-row items-center justify-between border-[1.5px] border-border-default"
       />
       {showPicker && Platform.OS === 'android' && (
         <DateTimePicker
