@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ScrollView, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { Text } from '@/components/common';
@@ -49,6 +49,7 @@ export default function CookbookDetailScreen() {
         {/* Header with gradient cover */}
         <CookbookHeader
           cookbook={cookbook}
+          isOwner={isOwner}
           onDelete={() => router.back()}
         />
 

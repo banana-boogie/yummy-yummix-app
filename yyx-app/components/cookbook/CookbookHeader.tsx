@@ -3,7 +3,6 @@ import { View, Pressable, Alert } from 'react-native';
 import { Text } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { Cookbook } from '@/types/cookbook.types';
-import { ShareCookbookModal } from './ShareCookbookModal';
 import { CreateEditCookbookModal } from './CreateEditCookbookModal';
 import { useUpdateCookbook, useDeleteCookbook } from '@/hooks/useCookbookQuery';
 import { UpdateCookbookInput } from '@/types/cookbook.types';
@@ -11,18 +10,18 @@ import { getGradientForCookbook } from '@/utils/gradients';
 import { getRecipeCountText } from '@/utils/formatters';
 import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
-import { router } from 'expo-router';
 
 interface CookbookHeaderProps {
   cookbook: Cookbook;
+  isOwner: boolean;
   onDelete?: () => void;
 }
 
 export const CookbookHeader = React.memo(function CookbookHeader({
   cookbook,
+  isOwner,
   onDelete,
 }: CookbookHeaderProps) {
-  const [showShareModal, setShowShareModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
   const updateMutation = useUpdateCookbook();
@@ -70,7 +69,6 @@ export const CookbookHeader = React.memo(function CookbookHeader({
             try {
               await deleteMutation.mutateAsync(cookbook.id);
               onDelete?.();
-              router.back();
             } catch (error) {
               const err = error as Error;
               Alert.alert(
@@ -91,38 +89,29 @@ export const CookbookHeader = React.memo(function CookbookHeader({
         style={{ backgroundColor: colors[0] }}
       >
         {/* Action buttons */}
-        <View className="flex-row justify-end gap-sm mb-md">
-          {!cookbook.isDefault && (
+        {isOwner && (
+          <View className="flex-row justify-end gap-sm mb-md">
             <Pressable
-              onPress={() => setShowShareModal(true)}
+              onPress={() => setShowEditModal(true)}
               accessibilityRole="button"
-              accessibilityLabel={i18n.t('cookbooks.a11y.shareCookbook')}
+              accessibilityLabel={i18n.t('cookbooks.a11y.editCookbook')}
               className="bg-white/30 rounded-full p-sm active:bg-white/50"
             >
-              <Ionicons name="share-outline" size={20} color={COLORS.text.default} />
+              <Ionicons name="create-outline" size={20} color={COLORS.text.default} />
             </Pressable>
-          )}
 
-          <Pressable
-            onPress={() => setShowEditModal(true)}
-            accessibilityRole="button"
-            accessibilityLabel={i18n.t('cookbooks.a11y.editCookbook')}
-            className="bg-white/30 rounded-full p-sm active:bg-white/50"
-          >
-            <Ionicons name="create-outline" size={20} color={COLORS.text.default} />
-          </Pressable>
-
-          {!cookbook.isDefault && (
-            <Pressable
-              onPress={handleDelete}
-              accessibilityRole="button"
-              accessibilityLabel={i18n.t('cookbooks.a11y.deleteCookbook')}
-              className="bg-white/30 rounded-full p-sm active:bg-white/50"
-            >
-              <Ionicons name="trash-outline" size={20} color={COLORS.primary.darkest} />
-            </Pressable>
-          )}
-        </View>
+            {!cookbook.isDefault && (
+              <Pressable
+                onPress={handleDelete}
+                accessibilityRole="button"
+                accessibilityLabel={i18n.t('cookbooks.a11y.deleteCookbook')}
+                className="bg-white/30 rounded-full p-sm active:bg-white/50"
+              >
+                <Ionicons name="trash-outline" size={20} color={COLORS.primary.darkest} />
+              </Pressable>
+            )}
+          </View>
+        )}
 
         {/* Cookbook info */}
         <View>
@@ -169,26 +158,21 @@ export const CookbookHeader = React.memo(function CookbookHeader({
       </View>
 
       {/* Modals */}
-      {!cookbook.isDefault && (
-        <ShareCookbookModal
-          visible={showShareModal}
-          onClose={() => setShowShareModal(false)}
+      {isOwner && (
+        <CreateEditCookbookModal
+          visible={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onSave={handleEdit}
           cookbook={cookbook}
+          isLoading={updateMutation.isPending}
         />
       )}
-
-      <CreateEditCookbookModal
-        visible={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        onSave={handleEdit}
-        cookbook={cookbook}
-        isLoading={updateMutation.isPending}
-      />
     </>
   );
 }, (prevProps, nextProps) => {
     return (
         prevProps.cookbook.id === nextProps.cookbook.id &&
+        prevProps.isOwner === nextProps.isOwner &&
         prevProps.cookbook.updatedAt === nextProps.cookbook.updatedAt &&
         prevProps.cookbook.name === nextProps.cookbook.name &&
         prevProps.cookbook.description === nextProps.cookbook.description &&
