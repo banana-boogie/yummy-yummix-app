@@ -3,6 +3,7 @@ import { View, Modal, Platform, TouchableOpacity, StyleProp, ViewStyle } from 'r
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Text, Button } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 
 interface DatePickerProps {
@@ -173,14 +174,17 @@ export function DatePicker({
           {label}
         </Text>
       )}
-      <Button
-        variant="secondary"
+      <TouchableOpacity
         onPress={() => setShowPicker(true)}
-        label={value instanceof Date && !isNaN(value.getTime())
-          ? value.toLocaleDateString()
-          : DEFAULT_DATE.toLocaleDateString()}
-        className="bg-background-default rounded-md min-h-[56px] py-2 px-4 flex-row items-center justify-between border-[1.5px] border-border-default"
-      />
+        className="bg-background-default rounded-md min-h-[56px] px-md flex-row items-center justify-between border-[1.5px] border-border-default"
+      >
+        <Text preset="body" className="text-text-default">
+          {value instanceof Date && !isNaN(value.getTime())
+            ? value.toLocaleDateString()
+            : DEFAULT_DATE.toLocaleDateString()}
+        </Text>
+        <Ionicons name="calendar-outline" size={20} color={COLORS.text.secondary} />
+      </TouchableOpacity>
       {showPicker && Platform.OS === 'android' && (
         <DateTimePicker
           value={ensureValidDate(value)}
