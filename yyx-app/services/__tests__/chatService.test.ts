@@ -463,6 +463,95 @@ describe('chatService', () => {
       expect(result.action).toBe('continue');
     });
 
+    it('returns resolve even when onComplete throws', () => {
+      const callbacks = {
+        onChunk: jest.fn(),
+        onComplete: jest.fn(() => { throw new Error('callback error'); }),
+      };
+
+      const result = routeSSEMessage(
+        { type: 'done', response: { message: 'test', version: '1.0' } },
+        callbacks,
+      );
+
+      expect(result.action).toBe('resolve');
+      expect(callbacks.onComplete).toHaveBeenCalled();
+    });
+
+    it('returns continue even when onChunk throws', () => {
+      const callbacks = {
+        onChunk: jest.fn(() => { throw new Error('render error'); }),
+      };
+
+      const result = routeSSEMessage(
+        { type: 'content', content: 'hello' },
+        callbacks,
+      );
+
+      expect(result.action).toBe('continue');
+      expect(callbacks.onChunk).toHaveBeenCalled();
+    });
+
+    it('returns continue even when onSessionId throws', () => {
+      const callbacks = {
+        onChunk: jest.fn(),
+        onSessionId: jest.fn(() => { throw new Error('state error'); }),
+      };
+
+      const result = routeSSEMessage(
+        { type: 'session', sessionId: 'sess-123' },
+        callbacks,
+      );
+
+      expect(result.action).toBe('continue');
+      expect(callbacks.onSessionId).toHaveBeenCalled();
+    });
+
+    it('returns continue even when onStatus throws', () => {
+      const callbacks = {
+        onChunk: jest.fn(),
+        onStatus: jest.fn(() => { throw new Error('status error'); }),
+      };
+
+      const result = routeSSEMessage(
+        { type: 'status', status: 'thinking' },
+        callbacks,
+      );
+
+      expect(result.action).toBe('continue');
+      expect(callbacks.onStatus).toHaveBeenCalled();
+    });
+
+    it('returns continue even when onStreamComplete throws', () => {
+      const callbacks = {
+        onChunk: jest.fn(),
+        onStreamComplete: jest.fn(() => { throw new Error('stream error'); }),
+      };
+
+      const result = routeSSEMessage(
+        { type: 'stream_complete' },
+        callbacks,
+      );
+
+      expect(result.action).toBe('continue');
+      expect(callbacks.onStreamComplete).toHaveBeenCalled();
+    });
+
+    it('returns continue even when onPartialRecipe throws', () => {
+      const callbacks = {
+        onChunk: jest.fn(),
+        onPartialRecipe: jest.fn(() => { throw new Error('recipe error'); }),
+      };
+
+      const result = routeSSEMessage(
+        { type: 'recipe_partial', recipe: { suggestedName: 'Test' } },
+        callbacks,
+      );
+
+      expect(result.action).toBe('continue');
+      expect(callbacks.onPartialRecipe).toHaveBeenCalled();
+    });
+
     it('simple wrapper callback mapping keeps onComplete in final slot', () => {
       const onChunk = jest.fn();
       const onSessionId = jest.fn();

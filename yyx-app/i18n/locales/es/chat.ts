@@ -2,7 +2,7 @@ export const chat = {
   title: "Irmixy",
   greeting:
     "¡Hola! Soy Irmixy, tu asistente de cocina con IA. ¡Pregúntame lo que quieras sobre cocina!",
-  inputPlaceholder: "Pregúntame lo que quieras sobre cocina...",
+  inputPlaceholder: "Pregunta a Irmixy...",
   sendButton: "Enviar",
   error: {
     default: "Lo siento, algo salió mal. Por favor, inténtalo de nuevo.",

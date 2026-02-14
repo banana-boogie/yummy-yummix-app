@@ -2,7 +2,7 @@ export const chat = {
   title: "Irmixy",
   greeting:
     "Hi! I'm Irmixy, your AI chef assistant. Ask me anything about cooking!",
-  inputPlaceholder: "Ask me anything about cooking...",
+  inputPlaceholder: "Ask Irmixy...",
   sendButton: "Send",
   error: {
     default: "Sorry, something went wrong. Please try again.",

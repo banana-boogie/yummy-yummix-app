@@ -40,7 +40,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import i18n from '@/i18n';
-import { COLORS } from '@/constants/design-tokens';
+import { COLORS, SPACING } from '@/constants/design-tokens';
 
 // Constants
 const SCROLL_THROTTLE_MS = 100; // Throttle scroll calls to avoid excessive layout calculations
@@ -79,6 +79,7 @@ export function ChatScreen({
     const chunkTimerRef = useRef<NodeJS.Timeout | null>(null);
     const isNearBottomRef = useRef(true); // Assume at bottom initially
     const skipNextScrollToEndRef = useRef(false); // Skip scroll-to-end after recipe card scroll
+    const hasRecipeInCurrentStreamRef = useRef(false); // Prevent auto-scroll when recipe card is showing
 
     // Use external messages if provided (lifted state), otherwise use local state
     const [internalMessages, setInternalMessages] = useState<ChatMessage[]>([]);
@@ -105,6 +106,7 @@ export function ChatScreen({
     const [dynamicSuggestions, setDynamicSuggestions] = useState<SuggestionChip[] | null>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [isListening, setIsListening] = useState(false);
+    const speechStoppedByUserRef = useRef(false); // Guards against late speech results after send
     const pulseAnim = useRef(new Animated.Value(1)).current;
 
     // Pulse animation for mic button while listening
@@ -125,6 +127,8 @@ export function ChatScreen({
 
     // Speech recognition events
     useSpeechRecognitionEvent('result', (event) => {
+        // Ignore late results after user sent a message
+        if (speechStoppedByUserRef.current) return;
         const transcript = event.results[0]?.transcript;
         if (transcript) {
             setInputText(transcript);
@@ -133,6 +137,9 @@ export function ChatScreen({
 
     useSpeechRecognitionEvent('end', () => {
         setIsListening(false);
+        // Don't reset speechStoppedByUserRef here — it guards against late
+        // result events that would re-fill the input after send cleared it.
+        // The ref is reset when the user starts a new dictation session.
     });
 
     useSpeechRecognitionEvent('error', (event) => {
@@ -154,6 +161,7 @@ export function ChatScreen({
             return;
         }
 
+        speechStoppedByUserRef.current = false;
         setIsListening(true);
         ExpoSpeechRecognitionModule.start({
             lang: language === 'es' ? 'es-MX' : 'en-US',
@@ -273,13 +281,14 @@ export function ChatScreen({
     }, [currentStatus]);
 
     // Scroll to bottom when new messages arrive or content updates
-    // Skip if we just scrolled to a recipe card (to keep recipe at top)
+    // Skip when recipe card is showing (keeps recipe card pinned at top)
     useEffect(() => {
         if (messages.length > 0) {
             if (skipNextScrollToEndRef.current) {
                 skipNextScrollToEndRef.current = false;
                 return;
             }
+            if (hasRecipeInCurrentStreamRef.current) return;
             setTimeout(() => {
                 scrollToEndThrottled(true);
             }, SCROLL_DELAY_MS);
@@ -302,6 +311,12 @@ export function ChatScreen({
         const requestId = streamRequestIdRef.current;
         const isActiveRequest = () =>
             isMountedRef.current && streamRequestIdRef.current === requestId;
+
+        // Always stop speech recognition on send — the conditional `isListening`
+        // check used a stale closure value. stop() is a safe no-op when inactive.
+        speechStoppedByUserRef.current = true;
+        ExpoSpeechRecognitionModule.stop();
+        setIsListening(false);
 
         const trimmedMessage = messageText.trim();
         const userMessage: ChatMessage = {
@@ -333,6 +348,7 @@ export function ChatScreen({
 
         // Reset to auto-scroll for new message
         isNearBottomRef.current = true;
+        hasRecipeInCurrentStreamRef.current = false;
 
         // Clear chunk buffer for new message
         chunkBufferRef.current = '';
@@ -369,7 +385,9 @@ export function ChatScreen({
                 }
                 return updated;
             });
-            scrollToEndThrottled(false);
+            if (!hasRecipeInCurrentStreamRef.current) {
+                scrollToEndThrottled(false);
+            }
         };
 
         try {
@@ -428,6 +446,9 @@ export function ChatScreen({
                         });
                     }
 
+                    // Prevent auto-scroll to bottom while recipe card is visible
+                    hasRecipeInCurrentStreamRef.current = true;
+
                     // Update message with partial recipe to show card immediately
                     setMessages(prev => {
                         const updated = [...prev];
@@ -448,6 +469,17 @@ export function ChatScreen({
                         }
                         return updated;
                     });
+
+                    // Scroll to recipe card at top of viewport
+                    if (assistantIndexRef.current !== null) {
+                        setTimeout(() => {
+                            flatListRef.current?.scrollToIndex({
+                                index: assistantIndexRef.current!,
+                                viewPosition: 0,
+                                animated: true,
+                            });
+                        }, SCROLL_DELAY_MS);
+                    }
                 },
                 // onComplete - receive full IrmixyResponse with recipes/suggestions/customRecipe
                 (response) => {
@@ -536,15 +568,15 @@ export function ChatScreen({
                         });
                     }
 
-                    // Scroll to show recipe card title at top (not bottom)
-                    if (response.customRecipe && assistantIndexRef.current !== null) {
+                    // When recipes/cards arrive, scroll the assistant message to the top
+                    // so the user sees the intro text with cards flowing below it
+                    if (hasRecipeData && assistantIndexRef.current !== null) {
                         const scrollToIdx = assistantIndexRef.current;
-                        // Prevent the messages useEffect from scrolling to bottom
                         skipNextScrollToEndRef.current = true;
                         setTimeout(() => {
                             flatListRef.current?.scrollToIndex({
                                 index: scrollToIdx,
-                                viewPosition: 0, // Align at top
+                                viewPosition: 0,
                                 animated: true,
                             });
                         }, SCROLL_DELAY_MS);
@@ -561,6 +593,7 @@ export function ChatScreen({
                     setIsLoading(false);
                     setIsStreaming(false);
                     setCurrentStatus(null);
+                    hasRecipeInCurrentStreamRef.current = false;
                     completedSuccessfully = true;
                 }
             );
@@ -873,49 +906,74 @@ export function ChatScreen({
             )}
 
             <View
-                className="flex-row items-end px-md pt-sm border-t border-border-default bg-background-default"
-                style={{ paddingBottom: insets.bottom || 16 }}
+                className="border-t border-border-default bg-background-default"
+                style={{ paddingTop: SPACING.sm, paddingBottom: SPACING.md }}
             >
-                <TextInput
-                    className="flex-1 min-h-[40px] max-h-[120px] bg-background-secondary rounded-lg px-md py-sm text-base text-text-primary mr-sm"
-                    value={inputText}
-                    onChangeText={setInputText}
-                    placeholder={isListening ? i18n.t('chat.voice.listening') : i18n.t('chat.inputPlaceholder')}
-                    placeholderTextColor={COLORS.text.secondary}
-                    multiline
-                    maxLength={2000}
-                    editable={!isLoading}
-                />
-                {Platform.OS !== 'web' && ((!inputText.trim() && !isLoading) || isListening) && (
-                    <TouchableOpacity onPress={handleMicPress} className="mr-sm">
+                {/* Mic pill — inside bordered section, above input row */}
+                {Platform.OS !== 'web' && (!isLoading || isListening) && (
+                    <TouchableOpacity
+                        onPress={handleMicPress}
+                        activeOpacity={0.7}
+                        style={{ paddingHorizontal: SPACING.md, marginBottom: SPACING.sm }}
+                    >
                         <Animated.View
-                            className={`w-10 h-10 rounded-full justify-center items-center ${
-                                isListening ? 'bg-status-error' : 'bg-grey-medium'
+                            className={`flex-row items-center justify-center rounded-full ${
+                                isListening
+                                    ? 'bg-status-error'
+                                    : 'bg-background-secondary border border-border-default'
                             }`}
-                            style={isListening ? { opacity: pulseAnim } : undefined}
+                            style={[
+                                { height: SPACING.xxl, paddingHorizontal: SPACING.md },
+                                isListening ? { opacity: pulseAnim } : undefined,
+                            ]}
                         >
                             <MaterialCommunityIcons
                                 name={isListening ? 'stop' : 'microphone'}
-                                size={20}
-                                color="#fff"
+                                size={SPACING.lg - 4}
+                                color={isListening ? '#fff' : COLORS.text.secondary}
                             />
+                            <Text
+                                className={`ml-xs text-sm font-medium ${
+                                    isListening ? 'text-white' : 'text-text-secondary'
+                                }`}
+                            >
+                                {isListening
+                                    ? i18n.t('chat.voice.listening')
+                                    : i18n.t('chat.voice.tapToSpeak')}
+                            </Text>
                         </Animated.View>
                     </TouchableOpacity>
                 )}
-                <TouchableOpacity
-                    className={`w-10 h-10 rounded-full justify-center items-center ${
-                        isLoading ? 'bg-primary-medium' :
-                        !inputText.trim() ? 'bg-grey-medium' : 'bg-primary-darkest'
-                    }`}
-                    onPress={handleSend}
-                    disabled={isLoading || !inputText.trim()}
+                <View
+                    className="flex-row items-center"
+                    style={{ paddingHorizontal: SPACING.sm }}
                 >
-                    {isLoading ? (
-                        <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                        <MaterialCommunityIcons name="send" size={20} color="#fff" />
-                    )}
-                </TouchableOpacity>
+                    <TextInput
+                        className="flex-1 bg-background-secondary rounded-xl text-base text-text-primary"
+                        style={{ height: SPACING.xxl, paddingLeft: SPACING.md, paddingRight: SPACING.sm }}
+                        value={inputText}
+                        onChangeText={setInputText}
+                        placeholder={isListening ? i18n.t('chat.voice.listening') : i18n.t('chat.inputPlaceholder')}
+                        placeholderTextColor={COLORS.text.secondary}
+                        maxLength={2000}
+                        editable={!isLoading}
+                    />
+                    <TouchableOpacity
+                        className={`rounded-full justify-center items-center ${
+                            isLoading ? 'bg-primary-medium' :
+                            !inputText.trim() ? 'bg-grey-medium' : 'bg-primary-darkest'
+                        }`}
+                        style={{ width: SPACING.xxl, height: SPACING.xxl, marginLeft: SPACING.xs }}
+                        onPress={handleSend}
+                        disabled={isLoading || !inputText.trim()}
+                    >
+                        {isLoading ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                            <MaterialCommunityIcons name="send" size={SPACING.lg - 4} color="#fff" />
+                        )}
+                    </TouchableOpacity>
+                </View>
             </View>
 
         </KeyboardAvoidingView>

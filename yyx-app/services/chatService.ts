@@ -108,25 +108,41 @@ export function routeSSEMessage(
 
     switch (data.type) {
         case 'session':
-            if (typeof data.sessionId === 'string') {
-                callbacks.onSessionId?.(data.sessionId);
+            try {
+                if (typeof data.sessionId === 'string') {
+                    callbacks.onSessionId?.(data.sessionId);
+                }
+            } catch (e) {
+                if (__DEV__) console.error('[SSE] onSessionId callback error:', e);
             }
             return { action: 'continue' };
 
         case 'status':
-            if (typeof data.status === 'string') {
-                callbacks.onStatus?.(data.status as IrmixyStatus);
+            try {
+                if (typeof data.status === 'string') {
+                    callbacks.onStatus?.(data.status as IrmixyStatus);
+                }
+            } catch (e) {
+                if (__DEV__) console.error('[SSE] onStatus callback error:', e);
             }
             return { action: 'continue' };
 
         case 'content':
-            if (typeof data.content === 'string') {
-                callbacks.onChunk(data.content);
+            try {
+                if (typeof data.content === 'string') {
+                    callbacks.onChunk(data.content);
+                }
+            } catch (e) {
+                if (__DEV__) console.error('[SSE] onChunk callback error:', e);
             }
             return { action: 'continue' };
 
         case 'stream_complete':
-            callbacks.onStreamComplete?.();
+            try {
+                callbacks.onStreamComplete?.();
+            } catch (e) {
+                if (__DEV__) console.error('[SSE] onStreamComplete callback error:', e);
+            }
             return { action: 'continue' };
 
         case 'recipe_partial':
@@ -136,8 +152,12 @@ export function routeSSEMessage(
                     recipeName: (data.recipe as any)?.suggestedName,
                 });
             }
-            if (data.recipe) {
-                callbacks.onPartialRecipe?.(data.recipe as GeneratedRecipe);
+            try {
+                if (data.recipe) {
+                    callbacks.onPartialRecipe?.(data.recipe as GeneratedRecipe);
+                }
+            } catch (e) {
+                if (__DEV__) console.error('[SSE] onPartialRecipe callback error:', e);
             }
             return { action: 'continue' };
 
@@ -150,8 +170,12 @@ export function routeSSEMessage(
                     customRecipeName: (data.response as any)?.customRecipe?.suggestedName,
                 });
             }
-            if (data.response) {
-                callbacks.onComplete?.(data.response as IrmixyResponse);
+            try {
+                if (data.response) {
+                    callbacks.onComplete?.(data.response as IrmixyResponse);
+                }
+            } catch (e) {
+                if (__DEV__) console.error('[SSE] onComplete callback error:', e);
             }
             return { action: 'resolve' };
 
