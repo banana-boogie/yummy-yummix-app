@@ -1,4 +1,4 @@
-# AGENT.md
+# AGENTS.md
 
 Guidelines for AI coding agents working on the YummyYummix codebase. This file supplements [CLAUDE.md](./CLAUDE.md) with AI-specific instructions.
 
