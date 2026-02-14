@@ -155,6 +155,15 @@ Consumers choose the appropriate label — "PR Hygiene" for PR reviews, "Commit 
   - PR is a reasonable size (warn if >50 files or >1000 lines added)
   - PR description explains the "why"
 
+### 9. Documentation
+
+- **Stale docs**: Changes introduce or modify patterns documented in `CLAUDE.md`, `docs/agent-guidelines/`, or `docs/architecture/` but the docs weren't updated to match
+- **Missing entries**: New edge functions, components, services, or hooks not reflected in directory maps or guideline docs
+- **Broken references**: File paths in docs that no longer exist due to renames, moves, or deletions
+- **Convention drift**: Code establishes a new pattern that contradicts what docs describe as the convention
+
+Severity: **Suggestion** for minor gaps (e.g., a new hook not listed in a directory map). **Warning** for misleading docs (e.g., docs describe a pattern the code no longer follows).
+
 ---
 
 ## Severity Levels
@@ -185,7 +194,7 @@ Thresholds are the same regardless of context; labels adapt to the review type.
 Every review report should include these standardized sections (names are canonical):
 
 1. **Highlights** — Good patterns, clean implementations, smart design choices. Balanced reviews are constructive.
-2. **Findings** — Grouped by the 8 review categories above, each tagged with a severity level.
+2. **Findings** — Grouped by the 9 review categories above, each tagged with a severity level.
 3. **Suggestions & Improvements** — Concrete ideas ranked by impact-to-effort ratio. Each includes impact (high/med/low) and effort (high/med/low).
 4. **Recommendations** — Actionable improvements beyond findings: robustness, missing edge cases, patterns to adopt.
 5. **Blind Spots** — Areas the review couldn't fully evaluate (runtime behavior, accessibility, integration effects, large diffs).

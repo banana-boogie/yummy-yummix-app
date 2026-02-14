@@ -180,7 +180,7 @@ deno task test:coverage           # Run with coverage
 deno task test:integration        # Run integration tests (requires staging env)
 ```
 
-For detailed testing documentation, see [TESTING.md](./docs/Operations/TESTING.md).
+For detailed testing documentation, see [TESTING.md](./docs/operations/TESTING.md).
 
 ---
 
@@ -397,6 +397,54 @@ See `generate-custom-recipe.ts` for Thermomix system prompt section.
 - **`irmixy-chat-orchestrator/`**, **`irmixy-voice-orchestrator/`** - AI endpoints
 - **`get-nutritional-facts/`**, **`parse-recipe-markdown/`** - Recipe utilities
 
+## Agent Team
+
+YummyYummix has specialized domain agents in `.claude/agents/`. Delegate to them when working in their domain — they know the codebase patterns deeply and produce better results than doing everything in the main session.
+
+### When to Delegate
+
+| Domain | Agent | When to Use |
+|--------|-------|-------------|
+| **Product** | `yummyyummix:product` | Brainstorming features, scoping MVPs, identifying highest-value work, writing user stories. Use before building to think about *what* to build. |
+| **Frontend** | `yummyyummix:frontend` | Building or modifying screens, components, services, hooks in `yyx-app/`. |
+| **Backend** | `yummyyummix:backend` | Building or modifying Edge Functions, shared utilities in `yyx-server/`. |
+| **AI** | `yummyyummix:ai-engineer` | Anything touching the AI Gateway, tool system, RAG, orchestrators, or AI-powered features. |
+| **Database** | `yummyyummix:database` | Schema design, migrations, RLS policies, RPC functions, query optimization. |
+| **Designer** | `yummyyummix:designer` | UI/UX design decisions, visual specs, component layout. Knows the target audience (Thermomix owners) and brand identity. |
+| **Testing** | `yummyyummix:test-engineer` | Dedicated test creation — improving coverage, writing regression tests, backfilling tests. |
+| **Docs** | `yummyyummix:docs` | Keeping documentation in sync after feature changes. |
+| **Code Review** | `yummyyummix:code-reviewer` | Cross-cutting code review for bugs, dead code, conventions, type safety. |
+
+### How to Delegate
+
+Use the Task tool with `subagent_type` matching the agent name:
+```
+Task tool → subagent_type: "yummyyummix:frontend"
+```
+
+Domain agents write their own tests when building features. The test-engineer is for standalone testing tasks.
+
+### Skills
+
+| Skill | Description |
+|-------|-------------|
+| `/build-feature` | Guided 7-phase feature development — product thinking, exploration, design, implementation, review, docs |
+| `/review-pr` | Domain-aware PR review — routes files to specialized agents by path |
+| `/review-changes` | Same as review-pr but for local commits before opening a PR |
+| `/update-docs` | Syncs documentation after feature changes |
+
+### Guideline Docs
+
+Each agent references domain-specific playbooks in `docs/agent-guidelines/`:
+- `REVIEW-CRITERIA.md` — Review categories, severity levels, recommendation logic
+- `BACKEND-GUIDELINES.md` — Edge function patterns, SSE streaming, Deno conventions
+- `FRONTEND-GUIDELINES.md` — Component architecture, design tokens, NativeWind, i18n
+- `DESIGN-GUIDELINES.md` — Brand identity, target audience, visual design system
+- `AI-GUIDELINES.md` — Gateway API, tool system, RAG, safety systems
+- `DATABASE-GUIDELINES.md` — Migration workflow, RLS, naming conventions, schema
+- `TESTING-GUIDELINES.md` — Jest + Deno test patterns, decision tree, templates
+- `PRODUCT-GUIDELINES.md` — Mission, audience, feature map, prioritization framework
+
 ## Key Conventions
 
 ### Imports
@@ -536,7 +584,7 @@ const { data, error } = await supabase.from('recipes').select('*');
 
 ## Testing
 
-**Always write tests for critical components and workflows.** See [TESTING.md](./docs/Operations/TESTING.md) for comprehensive documentation.
+**Always write tests for critical components and workflows.** See [TESTING.md](./docs/operations/TESTING.md) for comprehensive documentation.
 
 ### Quick Reference
 
@@ -604,7 +652,7 @@ CI runs full test suites on every PR.
 
 ## Analytics
 
-When adding new features, consider what user engagement signals are worth tracking. See [ANALYTICS.md](./docs/Operations/ANALYTICS.md) for:
+When adding new features, consider what user engagement signals are worth tracking. See [ANALYTICS.md](./docs/operations/ANALYTICS.md) for:
 - Current tracked events and metrics
 - How to add new event tracking
 - Dashboard queries
