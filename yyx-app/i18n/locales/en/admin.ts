@@ -12,6 +12,7 @@ export const admin = {
     image: "Image",
     changeImage: "Change Image",
     uploadImage: "Upload Image",
+    adminPanel: "Admin Panel",
     adminPanelTitle: "YummyYummix - Admin Panel",
     adminDashboard: "Admin Dashboard",
     manageRecipes: "Manage Recipes",

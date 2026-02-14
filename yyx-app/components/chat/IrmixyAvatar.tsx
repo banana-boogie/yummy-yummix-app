@@ -15,13 +15,13 @@ import { View, Image, Animated } from 'react-native';
 
 // Avatar images for different states
 const AVATAR_IMAGES = {
-    idle: require('@/assets/images/irmixy-avatar/2.png'),
-    listening: require('@/assets/images/irmixy-avatar/5.png'),
-    thinking: require('@/assets/images/irmixy-avatar/4.png'),
-    searching: require('@/assets/images/irmixy-avatar/4.png'),
-    generating: require('@/assets/images/irmixy-avatar/4.png'),
-    enriching: require('@/assets/images/irmixy-avatar/4.png'),
-    speaking: require('@/assets/images/irmixy-avatar/3.png'),
+    idle: require('@/assets/images/irmixy-avatar/irmixy-waving.png'),
+    listening: require('@/assets/images/irmixy-avatar/irmixy-listening.png'),
+    thinking: require('@/assets/images/irmixy-avatar/irmixy-presenting.png'),
+    searching: require('@/assets/images/irmixy-avatar/irmixy-presenting.png'),
+    generating: require('@/assets/images/irmixy-avatar/irmixy-presenting.png'),
+    enriching: require('@/assets/images/irmixy-avatar/irmixy-presenting.png'),
+    speaking: require('@/assets/images/irmixy-avatar/irmixy-excited.png'),
 };
 
 export type AvatarState =

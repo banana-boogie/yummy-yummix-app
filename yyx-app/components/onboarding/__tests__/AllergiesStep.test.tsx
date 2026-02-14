@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, screen, fireEvent } from '@testing-library/react-native';
 import { AllergiesStep } from '../steps/AllergiesStep';
 
 if (typeof window !== 'undefined' && typeof window.dispatchEvent !== 'function') {
@@ -22,7 +22,6 @@ if (typeof window !== 'undefined' && typeof window.dispatchEvent !== 'function')
 const mockUpdateFormData = jest.fn();
 const mockGoToNextStep = jest.fn();
 const mockGoToPreviousStep = jest.fn();
-const mockGetFoodAllergies = jest.fn();
 
 // Test state that gets read dynamically
 let mockFormData: any = { dietaryRestrictions: [] };
@@ -49,10 +48,12 @@ jest.mock('@/i18n', () => ({
       const translations: Record<string, string> = {
         'onboarding.steps.allergies.title': 'Any food allergies?',
         'onboarding.steps.allergies.subtitle': 'Select all that apply',
-        'onboarding.steps.allergies.options.gluten_free': 'Gluten Free',
-        'onboarding.steps.allergies.options.dairy_free': 'Dairy Free',
-        'onboarding.steps.allergies.options.nut_free': 'Nut Free',
         'onboarding.steps.allergies.options.none': 'No allergies',
+        'onboarding.steps.allergies.options.nuts': 'Nuts',
+        'onboarding.steps.allergies.options.dairy': 'Dairy',
+        'onboarding.steps.allergies.options.eggs': 'Eggs',
+        'onboarding.steps.allergies.options.seafood': 'Seafood',
+        'onboarding.steps.allergies.options.gluten': 'Gluten',
         'onboarding.steps.allergies.options.other': 'Other',
         'onboarding.steps.allergies.otherPlaceholder': 'Enter other allergy',
         'onboarding.common.addAnother': 'Add another',
@@ -60,17 +61,6 @@ jest.mock('@/i18n', () => ({
       };
       return translations[key] || key;
     },
-  },
-}));
-
-jest.mock('@/contexts/LanguageContext', () => ({
-  useLanguage: () => ({ language: 'en' }),
-}));
-
-jest.mock('@/services/preferencesService', () => ({
-  __esModule: true,
-  default: {
-    getFoodAllergies: (...args: any[]) => mockGetFoodAllergies(...args),
   },
 }));
 
@@ -132,11 +122,6 @@ jest.mock('@/components/form/OtherInputField', () => ({
   },
 }));
 
-// Mock dietary types
-jest.mock('@/types/dietary', () => ({
-  DIETARY_RESTRICTIONS: ['gluten_free', 'dairy_free', 'nut_free', 'none', 'other'],
-}));
-
 // Mock dietary icons
 jest.mock('@/constants/dietaryIcons', () => ({
   getDietaryRestrictionIcon: () => null,
@@ -146,22 +131,10 @@ jest.mock('@/constants/dietaryIcons', () => ({
   },
 }));
 
-async function renderAllergiesStep() {
-  render(<AllergiesStep />);
-  await waitFor(() => {
-    expect(mockGetFoodAllergies).toHaveBeenCalledWith('en');
-  });
-}
-
 describe('AllergiesStep', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFormData = { dietaryRestrictions: [] };
-    mockGetFoodAllergies.mockResolvedValue([
-      { id: 'allergy-1', slug: 'gluten_free', name: 'Gluten Free' },
-      { id: 'allergy-2', slug: 'dairy_free', name: 'Dairy Free' },
-      { id: 'allergy-3', slug: 'nut_free', name: 'Nut Free' },
-    ]);
   });
 
   // ============================================================
@@ -169,24 +142,21 @@ describe('AllergiesStep', () => {
   // ============================================================
 
   describe('rendering', () => {
-    it('displays title', async () => {
-      await renderAllergiesStep();
-
+    it('displays title', () => {
+      render(<AllergiesStep />);
       expect(screen.getByText('Any food allergies?')).toBeTruthy();
     });
 
-    it('displays subtitle', async () => {
-      await renderAllergiesStep();
-
+    it('displays subtitle', () => {
+      render(<AllergiesStep />);
       expect(screen.getByText('Select all that apply')).toBeTruthy();
     });
 
-    it('displays allergy options', async () => {
-      await renderAllergiesStep();
-
-      expect(screen.getByText('Gluten Free')).toBeTruthy();
-      expect(screen.getByText('Dairy Free')).toBeTruthy();
-      expect(screen.getByText('Nut Free')).toBeTruthy();
+    it('displays allergy options', () => {
+      render(<AllergiesStep />);
+      expect(screen.getByText('Gluten')).toBeTruthy();
+      expect(screen.getByText('Dairy')).toBeTruthy();
+      expect(screen.getByText('Nuts')).toBeTruthy();
       expect(screen.getByText('No allergies')).toBeTruthy();
     });
   });
@@ -196,38 +166,38 @@ describe('AllergiesStep', () => {
   // ============================================================
 
   describe('selection', () => {
-    it('selects an allergy option', async () => {
-      await renderAllergiesStep();
+    it('selects an allergy option', () => {
+      render(<AllergiesStep />);
 
-      const glutenFreeOption = screen.getByTestId('allergy-option-gluten-free');
-      fireEvent.press(glutenFreeOption);
+      const glutenOption = screen.getByTestId('allergy-option-gluten');
+      fireEvent.press(glutenOption);
 
       expect(mockUpdateFormData).toHaveBeenCalledWith({
-        dietaryRestrictions: ['gluten_free'],
+        dietaryRestrictions: ['gluten'],
       });
     });
 
-    it('allows multiple selections', async () => {
-      mockFormData = { dietaryRestrictions: ['gluten_free'] };
-      await renderAllergiesStep();
+    it('allows multiple selections', () => {
+      mockFormData = { dietaryRestrictions: ['gluten'] };
+      render(<AllergiesStep />);
 
-      const dairyFreeOption = screen.getByTestId('allergy-option-dairy-free');
-      fireEvent.press(dairyFreeOption);
+      const dairyOption = screen.getByTestId('allergy-option-dairy');
+      fireEvent.press(dairyOption);
 
       expect(mockUpdateFormData).toHaveBeenCalledWith({
-        dietaryRestrictions: ['gluten_free', 'dairy_free'],
+        dietaryRestrictions: ['gluten', 'dairy'],
       });
     });
 
-    it('deselects an allergy option', async () => {
-      mockFormData = { dietaryRestrictions: ['gluten_free', 'dairy_free'] };
-      await renderAllergiesStep();
+    it('deselects an allergy option', () => {
+      mockFormData = { dietaryRestrictions: ['gluten', 'dairy'] };
+      render(<AllergiesStep />);
 
-      const glutenFreeOption = screen.getByTestId('allergy-option-gluten-free');
-      fireEvent.press(glutenFreeOption);
+      const glutenOption = screen.getByTestId('allergy-option-gluten');
+      fireEvent.press(glutenOption);
 
       expect(mockUpdateFormData).toHaveBeenCalledWith({
-        dietaryRestrictions: ['dairy_free'],
+        dietaryRestrictions: ['dairy'],
       });
     });
   });
@@ -237,9 +207,9 @@ describe('AllergiesStep', () => {
   // ============================================================
 
   describe('"none" option', () => {
-    it('clears other selections when "none" is selected', async () => {
-      mockFormData = { dietaryRestrictions: ['gluten_free', 'dairy_free'] };
-      await renderAllergiesStep();
+    it('clears other selections when "none" is selected', () => {
+      mockFormData = { dietaryRestrictions: ['gluten', 'dairy'] };
+      render(<AllergiesStep />);
 
       const noneOption = screen.getByTestId('allergy-option-no-allergies');
       fireEvent.press(noneOption);
@@ -250,15 +220,15 @@ describe('AllergiesStep', () => {
       });
     });
 
-    it('removes "none" when selecting another option', async () => {
+    it('removes "none" when selecting another option', () => {
       mockFormData = { dietaryRestrictions: ['none'] };
-      await renderAllergiesStep();
+      render(<AllergiesStep />);
 
-      const glutenFreeOption = screen.getByTestId('allergy-option-gluten-free');
-      fireEvent.press(glutenFreeOption);
+      const glutenOption = screen.getByTestId('allergy-option-gluten');
+      fireEvent.press(glutenOption);
 
       expect(mockUpdateFormData).toHaveBeenCalledWith({
-        dietaryRestrictions: ['gluten_free'],
+        dietaryRestrictions: ['gluten'],
       });
     });
   });
@@ -268,17 +238,15 @@ describe('AllergiesStep', () => {
   // ============================================================
 
   describe('"other" option', () => {
-    it('shows input field when "other" is selected', async () => {
+    it('shows input field when "other" is selected', () => {
       mockFormData = { dietaryRestrictions: ['other'] };
-      await renderAllergiesStep();
-
+      render(<AllergiesStep />);
       expect(screen.getByTestId('other-input-container')).toBeTruthy();
     });
 
-    it('does not show input field when "other" is not selected', async () => {
-      mockFormData = { dietaryRestrictions: ['gluten_free'] };
-      await renderAllergiesStep();
-
+    it('does not show input field when "other" is not selected', () => {
+      mockFormData = { dietaryRestrictions: ['gluten'] };
+      render(<AllergiesStep />);
       expect(screen.queryByTestId('other-input-container')).toBeNull();
     });
   });
@@ -288,20 +256,19 @@ describe('AllergiesStep', () => {
   // ============================================================
 
   describe('navigation', () => {
-    it('does not navigate when no selection', async () => {
+    it('does not navigate when no selection', () => {
       mockFormData = { dietaryRestrictions: [] };
-      await renderAllergiesStep();
+      render(<AllergiesStep />);
 
       const nextButton = screen.getByTestId('next-button');
       fireEvent.press(nextButton);
 
-      // Should not navigate because no selection
       expect(mockGoToNextStep).not.toHaveBeenCalled();
     });
 
-    it('navigates when selection made', async () => {
-      mockFormData = { dietaryRestrictions: ['gluten_free'] };
-      await renderAllergiesStep();
+    it('navigates when selection made', () => {
+      mockFormData = { dietaryRestrictions: ['gluten'] };
+      render(<AllergiesStep />);
 
       const nextButton = screen.getByTestId('next-button');
       fireEvent.press(nextButton);
@@ -309,8 +276,8 @@ describe('AllergiesStep', () => {
       expect(mockGoToNextStep).toHaveBeenCalled();
     });
 
-    it('goes to previous step', async () => {
-      await renderAllergiesStep();
+    it('goes to previous step', () => {
+      render(<AllergiesStep />);
 
       const backButton = screen.getByTestId('back-button');
       fireEvent.press(backButton);

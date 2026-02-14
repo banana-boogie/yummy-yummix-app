@@ -1,4 +1,15 @@
 export const recipes = {
+  sections: {
+    quick: "Quick Weeknight Dinners",
+    forYou: "Just for You",
+    family: "Family Favorites",
+    new: "New This Week",
+    all: "All Recipes",
+  },
+  header: {
+    greeting: "Hi, {{name}}!",
+    subtitle: "What should we cook today?",
+  },
   common: {
     search: "Search recipes...",
     loading: "Loading recipes...",

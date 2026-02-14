@@ -1,15 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, ScrollView, ActivityIndicator, StyleProp, ViewStyle } from 'react-native';
+import React, { useRef } from 'react';
+import { View, ScrollView, StyleProp, ViewStyle } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { useOnboarding } from '@/contexts/OnboardingContext';
-import { CuisinePreference } from '@/types/dietary';
+import { CuisinePreference, CUISINE_PREFERENCES } from '@/types/dietary';
 import { getCuisineIcon } from '@/constants/dietaryIcons';
 import i18n from '@/i18n';
 import { SelectableCard } from '@/components/common/SelectableCard';
 import { StepNavigationButtons } from '@/components/onboarding/StepNavigationButtons';
-import { useLanguage } from '@/contexts/LanguageContext';
-import preferencesService from '@/services/preferencesService';
-import { PreferenceOption } from '@/types/dietary';
 import { Button } from '@/components/common';
 import { OnboardingData } from '@/types/onboarding';
 
@@ -27,35 +24,10 @@ export function CuisineStep({
   style
 }: CuisineStepProps) {
   const { formData, updateFormData, goToPreviousStep } = useOnboarding();
-  const { language } = useLanguage();
   const scrollViewRef = useRef<ScrollView>(null);
-
-  // State for database-driven options
-  const [cuisineOptions, setCuisineOptions] = useState<PreferenceOption[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   // Current selections
   const currentCuisines = formData.cuisinePreferences ?? [];
-
-  // Fetch cuisine options from database
-  useEffect(() => {
-    async function loadOptions() {
-      try {
-        setLoading(true);
-        setError(null);
-        const options = await preferencesService.getCuisinePreferences(language as 'en' | 'es');
-        setCuisineOptions(options);
-      } catch (err) {
-        console.error('Failed to load cuisine options:', err);
-        setError(i18n.t('common.errors.loadOptions'));
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadOptions();
-  }, [language]);
 
   const handleSelect = (cuisineSlug: CuisinePreference) => {
     const isSelected = currentCuisines.includes(cuisineSlug);
@@ -75,33 +47,6 @@ export function CuisineStep({
   const handleComplete = () => {
     onComplete(formData as OnboardingData);
   };
-
-  // Show loading state
-  if (loading) {
-    return (
-      <View className={`flex-1 px-md pt-sm justify-center items-center ${className}`} style={style}>
-        <ActivityIndicator size="large" color="#FFBFB7" />
-      </View>
-    );
-  }
-
-  // Show error state
-  if (error) {
-    return (
-      <View className={`flex-1 px-md pt-sm justify-center items-center ${className}`} style={style}>
-        <Text preset="body" className="text-center text-status-error mb-md">
-          {error}
-        </Text>
-        <StepNavigationButtons
-          onNext={handleComplete}
-          onBack={goToPreviousStep}
-          loading={isSubmitting}
-          disabled={false}
-          isLastStep={true}
-        />
-      </View>
-    );
-  }
 
   return (
     <View className={`flex-1 px-md pt-sm ${className}`} style={style}>
@@ -124,13 +69,13 @@ export function CuisineStep({
           </View>
 
           <View className="gap-sm">
-            {cuisineOptions.map((cuisine) => (
+            {CUISINE_PREFERENCES.map((cuisine) => (
               <SelectableCard
-                key={cuisine.slug}
-                selected={currentCuisines.includes(cuisine.slug as CuisinePreference)}
-                onPress={() => handleSelect(cuisine.slug as CuisinePreference)}
-                label={cuisine.name}
-                icon={getCuisineIcon(cuisine.slug)}
+                key={cuisine}
+                selected={currentCuisines.includes(cuisine)}
+                onPress={() => handleSelect(cuisine)}
+                label={i18n.t(`onboarding.steps.cuisines.options.${cuisine}`)}
+                icon={getCuisineIcon(cuisine)}
               />
             ))}
           </View>

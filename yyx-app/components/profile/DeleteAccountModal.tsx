@@ -63,7 +63,7 @@ export function DeleteAccountModal({ visible, onClose, className = '', style }: 
             />
 
             <Image
-              source={require('@/assets/images/irmixy/irmixy-no.png')}
+              source={require('@/assets/images/irmixy-avatar/irmixy-waving.png')}
               className="w-[200px] h-[200px] mt-lg"
               contentFit="contain"
             />

@@ -767,7 +767,7 @@ export function ChatScreen({
                 ListEmptyComponent={
                     <View className="flex-1 justify-center items-center pt-xxxl">
                         <Image
-                            source={require('@/assets/images/irmixy-avatar/7.png')}
+                            source={require('@/assets/images/irmixy-avatar/irmixy-with-book.png')}
                             style={{ width: 120, height: 120 }}
                             contentFit="contain"
                         />

@@ -3,6 +3,7 @@ import { View, Modal, Platform, TouchableOpacity, StyleProp, ViewStyle } from 'r
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Text, Button } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 
 interface DatePickerProps {
@@ -167,20 +168,23 @@ export function DatePicker({
 
   // Mobile version
   return (
-    <View className={`gap-2 mb-sm ${className}`} style={[style, containerStyle]}>
+    <View className={`mb-sm ${className}`} style={[style, containerStyle]}>
       {label && (
-        <Text preset="body" className="mb-1">
+        <Text className="text-text-default text-sm font-semibold pl-xxs mb-xxs">
           {label}
         </Text>
       )}
-      <Button
-        variant="secondary"
+      <TouchableOpacity
         onPress={() => setShowPicker(true)}
-        label={value instanceof Date && !isNaN(value.getTime())
-          ? value.toLocaleDateString()
-          : DEFAULT_DATE.toLocaleDateString()}
-        className="bg-background-secondary rounded-lg min-h-[48px] py-2 px-4 flex-row items-center justify-between"
-      />
+        className="bg-background-default rounded-md min-h-[56px] px-md flex-row items-center justify-between border-[1.5px] border-border-default"
+      >
+        <Text preset="body" className="text-text-default">
+          {value instanceof Date && !isNaN(value.getTime())
+            ? value.toLocaleDateString()
+            : DEFAULT_DATE.toLocaleDateString()}
+        </Text>
+        <Ionicons name="calendar-outline" size={20} color={COLORS.text.secondary} />
+      </TouchableOpacity>
       {showPicker && Platform.OS === 'android' && (
         <DateTimePicker
           value={ensureValidDate(value)}
@@ -199,7 +203,7 @@ export function DatePicker({
           <View className="flex-1 justify-end bg-black/50">
             <View
               className="bg-white rounded-t-2xl pb-10"
-              style={{ backgroundColor: 'white' }}
+              style={{ backgroundColor: COLORS.background.default }}
             >
               <View className="flex-row justify-between items-center p-4 border-b border-border-default">
                 <Button
@@ -226,7 +230,7 @@ export function DatePicker({
                 maximumDate={maximumDate}
                 minimumDate={minimumDate}
                 className="w-full h-[250px] self-center"
-                textColor="#000000" // Fallback to black for spinner text
+                textColor={COLORS.text.default}
               />
             </View>
           </View>

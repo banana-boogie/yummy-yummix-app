@@ -1,15 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, ScrollView, KeyboardAvoidingView, Platform, StyleProp, ViewStyle, ActivityIndicator } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, ScrollView, KeyboardAvoidingView, Platform, StyleProp, ViewStyle } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { useOnboarding } from '@/contexts/OnboardingContext';
-import { DietType, PreferenceOption } from '@/types/dietary';
+import { DietType, SELECTABLE_DIET_TYPES } from '@/types/dietary';
 import i18n from '@/i18n';
 import { SelectableCard } from '@/components/common/SelectableCard';
 import { StepNavigationButtons } from '@/components/onboarding/StepNavigationButtons';
 import { getDietTypeIcon, DIETARY_RESTRICTION_ICONS } from '@/constants/dietaryIcons';
 import { OtherInputField } from '@/components/form/OtherInputField';
-import { useLanguage } from '@/contexts/LanguageContext';
-import preferencesService from '@/services/preferencesService';
 
 interface DietStepProps {
   className?: string;
@@ -21,13 +19,7 @@ export function DietStep({
   style
 }: DietStepProps) {
   const { formData, updateFormData, goToPreviousStep, goToNextStep } = useOnboarding();
-  const { language } = useLanguage();
   const scrollViewRef = useRef<ScrollView>(null);
-
-  // State for database-driven options
-  const [dietOptions, setDietOptions] = useState<PreferenceOption[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // State management
   const currentDietTypes = formData.dietTypes ?? [];
@@ -35,25 +27,6 @@ export function DietStep({
     formData.otherDiet?.length ? formData.otherDiet : ['']
   );
   const [error, setError] = useState('');
-
-  // Fetch diet options from database
-  useEffect(() => {
-    async function loadOptions() {
-      try {
-        setLoading(true);
-        setFetchError(null);
-        const options = await preferencesService.getDietTypes(language as 'en' | 'es');
-        setDietOptions(options);
-      } catch (err) {
-        console.error('Failed to load diet options:', err);
-        setFetchError(i18n.t('common.errors.loadOptions'));
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadOptions();
-  }, [language]);
 
   const handleSelect = (dietSlug: string) => {
     if (dietSlug === 'none') {
@@ -144,38 +117,6 @@ export function DietStep({
     return false;
   };
 
-  // Show loading state
-  if (loading) {
-    return (
-      <View className={`flex-1 px-md pt-sm justify-center items-center ${className}`} style={style}>
-        <ActivityIndicator size="large" color="#FFBFB7" />
-      </View>
-    );
-  }
-
-  // Show error state
-  if (fetchError) {
-    return (
-      <View className={`flex-1 px-md pt-sm justify-center items-center ${className}`} style={style}>
-        <Text preset="body" className="text-center text-status-error mb-md">
-          {fetchError}
-        </Text>
-        <StepNavigationButtons
-          onNext={goToNextStep}
-          onBack={goToPreviousStep}
-          disabled={false}
-        />
-      </View>
-    );
-  }
-
-  // Build the list of options: "none" + database options + "other"
-  const displayOptions = [
-    { slug: 'none', name: i18n.t('onboarding.steps.diet.options.none'), iconName: undefined },
-    ...dietOptions,
-    { slug: 'other', name: i18n.t('onboarding.steps.diet.options.other'), iconName: undefined },
-  ];
-
   return (
     <KeyboardAvoidingView
       className={`flex-1 px-md pt-sm ${className}`}
@@ -202,22 +143,22 @@ export function DietStep({
           </View>
 
           <View className="gap-sm">
-            {displayOptions.map((option) => (
-              <React.Fragment key={option.slug}>
+            {SELECTABLE_DIET_TYPES.map((dietType) => (
+              <React.Fragment key={dietType}>
                 <SelectableCard
-                  selected={currentDietTypes.includes(option.slug as DietType)}
-                  onPress={() => handleSelect(option.slug)}
-                  label={option.name}
+                  selected={currentDietTypes.includes(dietType)}
+                  onPress={() => handleSelect(dietType)}
+                  label={i18n.t(`onboarding.steps.diet.options.${dietType}`)}
                   className="mb-xs"
                   icon={
-                    option.slug === 'none'
+                    dietType === 'none'
                       ? DIETARY_RESTRICTION_ICONS.none
-                      : option.slug === 'other'
+                      : dietType === 'other'
                         ? DIETARY_RESTRICTION_ICONS.other
-                        : getDietTypeIcon(option.slug)
+                        : getDietTypeIcon(dietType)
                   }
                 />
-                {option.slug === 'other' && currentDietTypes.includes('other') && (
+                {dietType === 'other' && currentDietTypes.includes('other') && (
                   <OtherInputField
                     items={otherDiets}
                     onItemsChange={handleOtherDietChange}

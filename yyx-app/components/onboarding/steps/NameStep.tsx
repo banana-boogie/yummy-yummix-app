@@ -80,7 +80,7 @@ export function NameStep({ className = '', style }: NameStepProps) {
                 />
 
                 <Image
-                    source={require('@/assets/images/irmixy-avatar/2.png')}
+                    source={require('@/assets/images/irmixy-avatar/irmixy-waving.png')}
                     className="w-full h-[250px] lg:h-[275px] mt-auto self-center mr-lg max-w-[400px]"
                     contentFit="contain"
                 />

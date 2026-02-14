@@ -47,7 +47,7 @@ export default function CookingGuide() {
         footer={
           <View className="w-full max-w-[800px] self-center relative h-0" pointerEvents="none">
             <Image
-              source={require('@/assets/images/irmixy-avatar/1.png')}
+              source={require('@/assets/images/irmixy-avatar/irmixy-cooking.png')}
               className="absolute bottom-[-50px] right-0"
               style={{ width: chefSize.width, height: chefSize.height }}
               contentFit="contain"
