@@ -11,7 +11,7 @@ import { RecipeList } from '@/components/recipe/RecipeList';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import i18n from '@/i18n';
 import { eventService } from '@/services/eventService';
-import { filterQuick, filterByDiet, filterFamily, filterRecent } from '@/utils/recipeFilters';
+import { filterQuick, filterFamily, filterRecent } from '@/utils/recipeFilters';
 
 const Recipes = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -61,17 +61,19 @@ const Recipes = () => {
 
   const displayName = userProfile?.name || '';
 
+  const onScroll = useMemo(
+    () => Animated.event(
+      [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+      { useNativeDriver: true }
+    ),
+    [scrollY]
+  );
+
   // Build recipe sections for the sectioned feed
   const sections = useMemo((): RecipeSection[] => {
     if (!recipes.length) return [];
 
     const allSections: RecipeSection[] = [
-      {
-        id: 'for-you',
-        title: i18n.t('recipes.sections.forYou'),
-        recipes: filterByDiet(recipes, userProfile),
-        layout: 'horizontal',
-      },
       {
         id: 'quick',
         title: i18n.t('recipes.sections.quick'),
@@ -100,7 +102,7 @@ const Recipes = () => {
 
     // Remove empty sections
     return allSections.filter(section => section.recipes.length > 0);
-  }, [recipes, userProfile]);
+  }, [recipes]);
 
   // When searching, collapse to flat grid
   const isSearching = searchQuery.trim().length > 0;
@@ -145,10 +147,7 @@ const Recipes = () => {
             error={error}
             hasMore={hasMore}
             onLoadMore={loadMore}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-              { useNativeDriver: true }
-            )}
+            onScroll={onScroll}
             contentContainerStyle={{ paddingTop: headerHeight, paddingHorizontal: SPACING.md }}
           />
         ) : (
@@ -160,10 +159,7 @@ const Recipes = () => {
             error={error}
             hasMore={hasMore}
             onLoadMore={loadMore}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-              { useNativeDriver: true }
-            )}
+            onScroll={onScroll}
             contentContainerStyle={{ paddingTop: headerHeight }}
           />
         )}

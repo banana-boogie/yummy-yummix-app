@@ -8,6 +8,7 @@ import { useTabBarVisibility } from '@/hooks/useTabBarVisibility';
 import { COLORS, LAYOUT } from '@/constants/design-tokens';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
 type TabConfigItem = {
   name: string;
@@ -50,7 +51,7 @@ export default function TabLayout() {
   );
 }
 
-function PremiumTabBar({ state, navigation }: any) {
+function PremiumTabBar({ state, navigation }: BottomTabBarProps) {
   const { isLarge, isWeb, isPhone } = useDevice();
   const showTabBar = useTabBarVisibility();
   const insets = useSafeAreaInsets();

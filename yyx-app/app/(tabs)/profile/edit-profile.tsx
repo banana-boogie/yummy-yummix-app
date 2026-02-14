@@ -170,10 +170,16 @@ export default function EditProfile() {
   };
 
   const handleImageUpload = async (url: string) => {
-    if (userProfile?.profileImageUrl) {
-      await deleteProfileImage(userProfile.profileImageUrl);
+    try {
+      if (userProfile?.profileImageUrl) {
+        await deleteProfileImage(userProfile.profileImageUrl);
+      }
+      await updateUserProfile({ profileImageUrl: url });
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      setSaveError(i18n.t('common.errors.default'));
+      setShowErrorModal(true);
     }
-    await updateUserProfile({ profileImageUrl: url });
   };
 
   const handleImageDelete = async () => {
@@ -198,22 +204,19 @@ export default function EditProfile() {
     }
   };
 
-  const handleDietaryUpdate = async (restrictions: DietaryRestriction[], otherAllergies: string[]) => {
+  const handlePreferenceUpdate = async (
+    updates: Parameters<typeof updateUserProfile>[0],
+    formUpdates: Partial<typeof formData>,
+    closeModal: () => void,
+  ) => {
     try {
       setIsSaving(true);
       setSaveError(null);
-      await updateUserProfile({
-        dietaryRestrictions: restrictions,
-        otherAllergy: otherAllergies,
-      });
-      setFormData(prev => ({
-        ...prev,
-        dietaryRestrictions: restrictions,
-        otherAllergy: otherAllergies,
-      }));
-      setShowDietaryModal(false);
+      await updateUserProfile(updates);
+      setFormData(prev => ({ ...prev, ...formUpdates }));
+      closeModal();
     } catch (error) {
-      console.error('Error updating dietary restrictions:', error);
+      console.error('Error updating preferences:', error);
       setSaveError(i18n.t('common.errors.default'));
       setShowErrorModal(true);
     } finally {
@@ -221,49 +224,26 @@ export default function EditProfile() {
     }
   };
 
-  const handleDietUpdate = async (dietTypes: DietType[], otherDiet: string[]) => {
-    try {
-      setIsSaving(true);
-      setSaveError(null);
-      await updateUserProfile({
-        dietTypes,
-        otherDiet,
-      });
-      setFormData(prev => ({
-        ...prev,
-        dietTypes,
-        otherDiet,
-      }));
-      setShowDietModal(false);
-    } catch (error) {
-      console.error('Error updating diet types:', error);
-      setSaveError(i18n.t('common.errors.default'));
-      setShowErrorModal(true);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const handleDietaryUpdate = (restrictions: DietaryRestriction[], otherAllergies: string[]) =>
+    handlePreferenceUpdate(
+      { dietaryRestrictions: restrictions, otherAllergy: otherAllergies },
+      { dietaryRestrictions: restrictions, otherAllergy: otherAllergies },
+      () => setShowDietaryModal(false),
+    );
 
-  const handleCuisineUpdate = async (cuisinePreferences: CuisinePreference[]) => {
-    try {
-      setIsSaving(true);
-      setSaveError(null);
-      await updateUserProfile({
-        cuisinePreferences,
-      });
-      setFormData(prev => ({
-        ...prev,
-        cuisinePreferences,
-      }));
-      setShowCuisineModal(false);
-    } catch (error) {
-      console.error('Error updating cuisine preferences:', error);
-      setSaveError(i18n.t('common.errors.default'));
-      setShowErrorModal(true);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const handleDietUpdate = (dietTypes: DietType[], otherDiet: string[]) =>
+    handlePreferenceUpdate(
+      { dietTypes, otherDiet },
+      { dietTypes, otherDiet },
+      () => setShowDietModal(false),
+    );
+
+  const handleCuisineUpdate = (cuisinePreferences: CuisinePreference[]) =>
+    handlePreferenceUpdate(
+      { cuisinePreferences },
+      { cuisinePreferences },
+      () => setShowCuisineModal(false),
+    );
 
   // --- Display name mappers ---
 

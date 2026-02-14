@@ -19,12 +19,9 @@ import { useDevice } from '@/hooks/useDevice';
 export default function Profile() {
   const { userProfile, updateUserProfile, isAdmin, loading } = useUserProfile();
   const { deleteProfileImage } = useProfileImage();
-  const lastRouteRef = React.useRef<string | null>(null);
-
   const { isWeb } = useDevice();
 
   const handleEditProfile = () => {
-    lastRouteRef.current = 'edit-profile';
     router.push('/(tabs)/profile/edit-profile');
   };
 
@@ -154,7 +151,7 @@ export default function Profile() {
             activeOpacity={0.7}
           >
             <Ionicons name="shield-checkmark-outline" size={20} color={COLORS.grey.dark} />
-            <Text preset="bodySmall" className="text-grey-dark flex-1 ml-sm">Admin Panel</Text>
+            <Text preset="bodySmall" className="text-grey-dark flex-1 ml-sm">{i18n.t('admin.common.adminPanel')}</Text>
             <Ionicons name="chevron-forward" size={16} color={COLORS.grey.medium} />
           </TouchableOpacity>
         ) : null}

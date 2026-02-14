@@ -12,7 +12,7 @@ interface PreferenceSummaryProps {
   emptyText: string;
 }
 
-export function PreferenceSummary({ label, selected, onEdit, emptyText }: PreferenceSummaryProps) {
+export const PreferenceSummary = React.memo(function PreferenceSummary({ label, selected, onEdit, emptyText }: PreferenceSummaryProps) {
   return (
     <View className="gap-sm pb-lg border-b border-grey-default">
       <View className="flex-row justify-between items-center">
@@ -39,4 +39,4 @@ export function PreferenceSummary({ label, selected, onEdit, emptyText }: Prefer
       )}
     </View>
   );
-}
+});

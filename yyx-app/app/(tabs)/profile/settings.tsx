@@ -8,7 +8,6 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import { MeasurementSystem } from '@/types/user';
 import { SystemButtons } from '@/components/settings/SystemButtons';
 import { DangerButton } from '@/components/common/DangerButton';
-import { DeleteAccountModal } from '@/components/profile/DeleteAccountModal';
 import { StatusModal } from '@/components/common/StatusModal';
 import { HeaderWithBack } from '@/components/common/HeaderWithBack';
 import { PageLayout } from '@/components/layouts/PageLayout';
@@ -24,8 +23,6 @@ export default function Settings() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-
   const handleLanguageChange = async (newLanguage: string) => {
     try {
       setIsLoading(true);
@@ -104,19 +101,7 @@ export default function Settings() {
           onPress={handleSignOut}
           disabled={isLoading}
         />
-        {/* Delete Account — hidden for now, re-enable when ready */}
-        {/* <DangerButton
-          label={i18n.t('profile.deleteAccount')}
-          onPress={() => setShowDeleteModal(true)}
-          disabled={isLoading}
-          textClassName="text-sm"
-        /> */}
       </View>
-
-      <DeleteAccountModal
-        visible={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-      />
 
       <StatusModal
         visible={showSuccessModal}

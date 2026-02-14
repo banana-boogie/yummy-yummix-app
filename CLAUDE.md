@@ -532,7 +532,6 @@ const { data, error } = await supabase.from('recipes').select('*');
 
 ### Performance
 - Use `React.memo` for pure components
-- Use `FlashList` for long lists
 - Use `expo-image` for optimized images
 
 ## Testing

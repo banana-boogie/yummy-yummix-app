@@ -31,7 +31,7 @@ export function FormSection({
   return (
     <View
       className={`mb-lg rounded-sm w-full ${className}`}
-      style={[{ maxWidth, backgroundColor: 'transparent', paddingHorizontal: 16, borderWidth: 0 }, style]}
+      style={[{ maxWidth, backgroundColor: 'transparent', paddingHorizontal: SPACING.md, borderWidth: 0 }, style]}
     >
       {title ? (
         <>

@@ -4,6 +4,8 @@ import { Picker } from '@react-native-picker/picker';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '@/constants/design-tokens';
+import i18n from '@/i18n';
 
 // This type matches the SelectItem interface from the common Select component
 export interface SelectOption {
@@ -159,21 +161,21 @@ export function SelectInput({
             className="bg-white rounded-t-xl"
             style={{
               paddingBottom: Platform.OS === 'ios' ? 40 : 0,
-              backgroundColor: 'white'
+              backgroundColor: COLORS.background.default
             }}
           >
             <View className="flex-row justify-between items-center p-md border-b border-border-default">
               <Button
                 variant="secondary"
                 onPress={handleCancel}
-                label="Cancel"
+                label={i18n.t('common.cancel')}
                 size="small"
               />
               <Text preset="body" className="flex-1 text-center font-bold">{label}</Text>
               <Button
                 variant="primary"
                 onPress={handleConfirm}
-                label="Done"
+                label={i18n.t('common.done')}
                 size="small"
               />
             </View>
@@ -188,7 +190,7 @@ export function SelectInput({
                     key={item.value}
                     label={item.label}
                     value={item.value}
-                    color="#000000" // Standard black for picker items
+                    color={COLORS.text.default}
                   />
                 ))}
               </Picker>

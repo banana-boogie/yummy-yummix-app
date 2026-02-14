@@ -203,7 +203,7 @@ export function DatePicker({
           <View className="flex-1 justify-end bg-black/50">
             <View
               className="bg-white rounded-t-2xl pb-10"
-              style={{ backgroundColor: 'white' }}
+              style={{ backgroundColor: COLORS.background.default }}
             >
               <View className="flex-row justify-between items-center p-4 border-b border-border-default">
                 <Button
@@ -230,7 +230,7 @@ export function DatePicker({
                 maximumDate={maximumDate}
                 minimumDate={minimumDate}
                 className="w-full h-[250px] self-center"
-                textColor="#000000" // Fallback to black for spinner text
+                textColor={COLORS.text.default}
               />
             </View>
           </View>
