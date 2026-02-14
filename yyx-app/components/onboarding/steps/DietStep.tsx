@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { View, ScrollView, KeyboardAvoidingView, Platform, StyleProp, ViewStyle } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { useOnboarding } from '@/contexts/OnboardingContext';
-import { DietType, DIET_TYPES } from '@/types/dietary';
+import { DietType, SELECTABLE_DIET_TYPES } from '@/types/dietary';
 import i18n from '@/i18n';
 import { SelectableCard } from '@/components/common/SelectableCard';
 import { StepNavigationButtons } from '@/components/onboarding/StepNavigationButtons';
@@ -143,7 +143,7 @@ export function DietStep({
           </View>
 
           <View className="gap-sm">
-            {DIET_TYPES.map((dietType) => (
+            {SELECTABLE_DIET_TYPES.map((dietType) => (
               <React.Fragment key={dietType}>
                 <SelectableCard
                   selected={currentDietTypes.includes(dietType)}

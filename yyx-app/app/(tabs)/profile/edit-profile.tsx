@@ -24,6 +24,7 @@ import { HeaderWithBack } from '@/components/common/HeaderWithBack';
 import { Gender, ActivityLevel } from '@/types/user';
 import { DietaryRestriction, DietType, CuisinePreference } from '@/types/dietary';
 import { COLORS } from '@/constants/design-tokens';
+import { normalizeDietAndCuisinePreferences } from '@/utils/preferencesNormalization';
 
 const BIO_MAX_LENGTH = 140;
 const NAME_MAX_LENGTH = 30;
@@ -114,6 +115,11 @@ export default function EditProfile() {
   // Load user profile into form state
   useEffect(() => {
     if (userProfile) {
+      const normalizedPreferences = normalizeDietAndCuisinePreferences(
+        userProfile.dietTypes || [],
+        userProfile.cuisinePreferences || []
+      );
+
       setName(userProfile.name || '');
       setBio(userProfile.biography || '');
       setBioLength(userProfile.biography?.length || 0);
@@ -124,8 +130,8 @@ export default function EditProfile() {
         weight: userProfile.weight?.toString() || '',
         activityLevel: userProfile.activityLevel || '',
         dietaryRestrictions: userProfile.dietaryRestrictions || [],
-        dietTypes: userProfile.dietTypes || [],
-        cuisinePreferences: userProfile.cuisinePreferences || [],
+        dietTypes: normalizedPreferences.dietTypes,
+        cuisinePreferences: normalizedPreferences.cuisinePreferences,
         otherDiet: userProfile.otherDiet || [],
         otherAllergy: userProfile.otherAllergy || [],
       });
@@ -139,6 +145,10 @@ export default function EditProfile() {
     try {
       setIsSaving(true);
       setSaveError(null);
+      const normalizedPreferences = normalizeDietAndCuisinePreferences(
+        formData.dietTypes,
+        formData.cuisinePreferences
+      );
 
       const birthDate = new Date(formData.birthDate);
       birthDate.setMinutes(birthDate.getMinutes() - birthDate.getTimezoneOffset());
@@ -152,7 +162,8 @@ export default function EditProfile() {
         weight: formData.weight ? parseFloat(formData.weight) : undefined,
         activityLevel: formData.activityLevel ? (formData.activityLevel as ActivityLevel) : undefined,
         dietaryRestrictions: formData.dietaryRestrictions,
-        dietTypes: formData.dietTypes,
+        dietTypes: normalizedPreferences.dietTypes,
+        cuisinePreferences: normalizedPreferences.cuisinePreferences,
         otherDiet: formData.otherDiet,
         otherAllergy: formData.otherAllergy,
       });
@@ -232,11 +243,25 @@ export default function EditProfile() {
     );
 
   const handleDietUpdate = (dietTypes: DietType[], otherDiet: string[]) =>
-    handlePreferenceUpdate(
-      { dietTypes, otherDiet },
-      { dietTypes, otherDiet },
-      () => setShowDietModal(false),
-    );
+    {
+      const normalizedPreferences = normalizeDietAndCuisinePreferences(
+        dietTypes,
+        formData.cuisinePreferences
+      );
+      return handlePreferenceUpdate(
+        {
+          dietTypes: normalizedPreferences.dietTypes,
+          cuisinePreferences: normalizedPreferences.cuisinePreferences,
+          otherDiet
+        },
+        {
+          dietTypes: normalizedPreferences.dietTypes,
+          cuisinePreferences: normalizedPreferences.cuisinePreferences,
+          otherDiet
+        },
+        () => setShowDietModal(false),
+      );
+    };
 
   const handleCuisineUpdate = (cuisinePreferences: CuisinePreference[]) =>
     handlePreferenceUpdate(

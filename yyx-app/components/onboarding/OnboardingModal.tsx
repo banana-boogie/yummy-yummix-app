@@ -22,6 +22,7 @@ import { DietStep } from './steps/DietStep';
 import { CuisineStep } from './steps/CuisineStep';
 import { AppPreferencesStep } from './steps/AppPreferencesStep';
 import { useDevice } from '@/hooks/useDevice';
+import { normalizeDietAndCuisinePreferences } from '@/utils/preferencesNormalization';
 
 interface OnboardingModalProps {
   visible: boolean;
@@ -55,9 +56,15 @@ export function OnboardingModal({ visible }: OnboardingModalProps) {
 
       // Remove kitchenEquipment from formData to avoid duplicates (it will be added as kitchen_equipment)
       const { kitchenEquipment, ...restFormData } = formData;
+      const normalizedPreferences = normalizeDietAndCuisinePreferences(
+        formData.dietTypes ?? [],
+        formData.cuisinePreferences ?? []
+      );
 
       const profileUpdate = {
         ...restFormData,
+        dietTypes: normalizedPreferences.dietTypes,
+        cuisinePreferences: normalizedPreferences.cuisinePreferences,
         onboardingComplete: true,
         measurementSystem: formData.measurementSystem as MeasurementSystem,
         kitchen_equipment: formattedEquipment, // Use snake_case for database column

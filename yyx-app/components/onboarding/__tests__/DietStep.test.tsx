@@ -158,6 +158,11 @@ describe('DietStep', () => {
       expect(screen.getByText('Keto')).toBeTruthy();
       expect(screen.getByText('No specific diet')).toBeTruthy();
     });
+
+    it('does not display legacy mediterranean as a diet option', () => {
+      render(<DietStep />);
+      expect(screen.queryByText('Mediterranean')).toBeNull();
+    });
   });
 
   // ============================================================

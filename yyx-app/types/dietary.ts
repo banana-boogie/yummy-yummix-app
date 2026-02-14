@@ -26,6 +26,13 @@ export const DIET_TYPES = [
 
 export type DietType = typeof DIET_TYPES[number];
 
+export const LEGACY_DIET_TYPE_MEDITERRANEAN = 'mediterranean' as const;
+
+export const SELECTABLE_DIET_TYPES = DIET_TYPES.filter(
+  (dietType): dietType is Exclude<DietType, typeof LEGACY_DIET_TYPE_MEDITERRANEAN> =>
+    dietType !== LEGACY_DIET_TYPE_MEDITERRANEAN
+);
+
 export const CUISINE_PREFERENCES = [
   'mediterranean',
   'italian',

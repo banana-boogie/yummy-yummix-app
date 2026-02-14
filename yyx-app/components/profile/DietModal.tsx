@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, ScrollView, Modal, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Pressable, StyleProp, ViewStyle } from 'react-native';
 import { Text } from '@/components/common/Text';
-import { DietType, DIET_TYPES } from '@/types/dietary';
+import { DietType, SELECTABLE_DIET_TYPES } from '@/types/dietary';
 import { getDietTypeIcon } from '@/constants/dietaryIcons';
 import i18n from '@/i18n';
 import { SelectableCard } from '@/components/common/SelectableCard';
@@ -35,7 +35,7 @@ export function DietModal({
   );
   const [error, setError] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
-  const { isWeb, isPhone } = useDevice();
+  const { isWeb } = useDevice();
 
   useEffect(() => {
     setDietTypes(currentDietTypes);
@@ -140,7 +140,7 @@ export function DietModal({
                 keyboardShouldPersistTaps="always"
               >
                 <View className="gap-sm">
-                  {DIET_TYPES.map((dietType) => (
+                  {SELECTABLE_DIET_TYPES.map((dietType) => (
                     <React.Fragment key={dietType}>
                       <SelectableCard
                         selected={dietTypes.includes(dietType)}
