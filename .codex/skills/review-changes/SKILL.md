@@ -19,12 +19,17 @@ Review recent local changes in a single pass and return prioritized, actionable 
 
 ## Review Criteria
 
-Read `references/REVIEW-CRITERIA.md` for canonical definitions of:
+Read `docs/agent-guidelines/REVIEW-CRITERIA.md` for canonical definitions of:
 - Engineering preferences
-- Review categories (8 categories with full checklists)
+- Review categories (9 categories with full checklists)
 - Severity levels (Critical / Warning / Suggestion)
 - Recommendation logic (pre-PR context: READY FOR PR / QUICK FIXES THEN PR / NEEDS WORK)
 - Report sections
+
+Read `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md` for canonical definitions of:
+- Output section order and purposes
+- Finding format (including options/tradeoffs for Critical findings)
+- Next Steps prompt contract
 
 Apply these criteria throughout the review.
 
@@ -77,9 +82,21 @@ Untracked-file handling:
 - Infrastructure/Tooling: `.github/`, config files, scripts
 - Documentation: `*.md`
 
+## Domain Delegation
+
+Route changed files to specialized domain skills for deeper review. Invoke skills for domains with changed files:
+
+- **Frontend files** (`yyx-app/`) → `$yummyyummix:frontend` — review for convention violations (@/ imports, Text/Button from common, design tokens, FlashList, expo-image, i18n), performance issues, and component architecture.
+- **Backend files** (`yyx-server/` excluding AI/migrations) → `$yummyyummix:backend` — review for edge function patterns, auth handling, error leakage, SSE streaming issues, and Deno conventions.
+- **AI files** (`_shared/ai-gateway/`, `_shared/tools/`, `_shared/rag/`, orchestrators) → `$yummyyummix:ai-engineer` — review for gateway pattern violations, tool registry consistency, safety system gaps, and AI-specific issues.
+- **Database files** (`yyx-server/supabase/migrations/`) → `$yummyyummix:database` — review for missing RLS, naming convention violations, unsafe DDL, missing indexes, and rollback concerns.
+- **All files** → `$yummyyummix:code-reviewer` — cross-cutting: dead code, DRY violations, correctness bugs, type safety.
+
+Only invoke skills for domains that have changed files (except code-reviewer which always runs). Tell each skill it is in **review mode** — analysis only, no modifications. Pass the relevant file list and diff context.
+
 ## Review Dimensions
 
-Evaluate all 8 categories from `references/REVIEW-CRITERIA.md`:
+Evaluate all 9 categories from `docs/agent-guidelines/REVIEW-CRITERIA.md`:
 1. Architecture & Design
 2. Correctness
 3. Security
@@ -88,10 +105,11 @@ Evaluate all 8 categories from `references/REVIEW-CRITERIA.md`:
 6. Testing
 7. i18n
 8. Hygiene (use "Commit Hygiene" label for this context)
+9. Documentation
 
 ## Severity and Depth Rules
 
-Use severity labels from `references/REVIEW-CRITERIA.md`: **Critical**, **Warning**, **Suggestion**.
+Use severity labels from `docs/agent-guidelines/REVIEW-CRITERIA.md`: **Critical**, **Warning**, **Suggestion**.
 
 For every finding:
 - Include file path and line number when possible.
@@ -135,7 +153,7 @@ Use this structure:
 **Includes Uncommitted:** yes (staged + unstaged + untracked)
 **Files Touched:** <count>
 
-### Good Patterns Observed
+### Highlights
 - <specific positive pattern>
 - <specific positive pattern>
 
@@ -179,16 +197,9 @@ Use this structure:
 - [Suggestion] <issue>
   - Recommendation: <specific recommendation>
 
-### Suggestions and Improvements (Ranked by Impact vs Effort)
-| Rank | Suggestion | Impact | Effort | Rationale |
-|------|------------|--------|--------|-----------|
-| 1 | <suggestion> | High | Medium | <reason> |
-| 2 | <suggestion> | Medium | Low | <reason> |
-| 3 | <suggestion> | Medium | Medium | <reason> |
-
-### Potential Misses
-- <uncertain area not fully verified and why>
-- <additional validation recommended>
+#### Documentation
+- [Suggestion] `path/to/file.md:18` - <issue>
+  - Recommendation: <specific recommendation>
 
 ### Summary
 - Critical: <count>
@@ -197,25 +208,54 @@ Use this structure:
 
 **Readiness:** <READY FOR PR | QUICK FIXES THEN PR | NEEDS WORK>
 
-### Next-Step Agent Prompt
+### Recommendations
+
+| Rank | Recommendation | Impact | Effort | Rationale |
+|------|----------------|--------|--------|-----------|
+| 1 | <high-value improvement outside Findings> | High | Low | <reason> |
+| 2 | <opportunity the changes open up> | Medium | Medium | <reason> |
+
+Do NOT repeat issues already listed in Findings. These are opportunities related to the changes that the author may have missed.
+
+### Potential Misses
+- <uncertain area not fully verified and why>
+- <additional validation recommended>
+
+### Next Steps
+
 ```text
-You are the implementation agent for this change set.
+You are the implementation agent for branch <branch-name>.
 
-Objective:
-- Improve this change set by addressing high-value findings and applying worthwhile improvements while preserving the original feature intent.
+## Review Findings — Fix All
 
-Workflow:
-1. Create an implementation plan first.
-2. Prioritize items by user impact, risk reduction, and effort.
-3. Implement only recommendations worth doing for this objective.
-4. Defer low-value or out-of-scope items with explicit rationale.
-5. Run targeted validation (tests/checks) for touched areas.
-6. Report: implemented items, deferred items, validation results, residual risks.
+### Critical
+- [Critical] `file:line` — description
+
+### Warning
+- [Warning] `file:line` — description
+
+## Suggestions — Implement If Worthwhile
+
+### Suggestion
+- [Suggestion] `file:line` — description
+
+## Recommendations — Implement If Worthwhile
+
+| Rank | Recommendation | Impact | Effort |
+|------|----------------|--------|--------|
+| 1 | ... | High | Low |
+
+## Workflow
+
+1. Read the relevant files to understand context.
+2. Create an implementation plan that addresses all Critical/Warning findings plus any Suggestions/Recommendations worth implementing.
+3. Implement the plan.
+4. Run tests and validation for changed areas.
+5. Report what was done and flag any issues encountered.
 
 Constraints:
-- Do not modify `.claude/`.
-- Keep changes scoped and avoid unrelated refactors.
-- Prefer explicit, maintainable solutions.
+- Keep changes scoped to the branch objective.
+- Avoid unrelated refactors.
 ```
 ````
 

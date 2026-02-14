@@ -191,11 +191,11 @@ Thresholds are the same regardless of context; labels adapt to the review type.
 
 ## Report Sections
 
-Every review report should include these standardized sections (names are canonical):
+Every review report should include these standardized sections (names are canonical). For full section definitions, finding format, and the Next Steps prompt contract, see [REVIEW-OUTPUT-SPEC.md](./REVIEW-OUTPUT-SPEC.md).
 
 1. **Highlights** — Good patterns, clean implementations, smart design choices. Balanced reviews are constructive.
 2. **Findings** — Grouped by the 9 review categories above, each tagged with a severity level.
-3. **Suggestions & Improvements** — Concrete ideas ranked by impact-to-effort ratio. Each includes impact (high/med/low) and effort (high/med/low).
-4. **Recommendations** — Actionable improvements beyond findings: robustness, missing edge cases, patterns to adopt.
-5. **Blind Spots** — Areas the review couldn't fully evaluate (runtime behavior, accessibility, integration effects, large diffs).
-6. **Next Steps** — Self-contained prompt for an AI coding agent to act on findings without reading the full review.
+3. **Summary** — Severity counts and overall recommendation (APPROVE/REQUEST CHANGES or READY/NEEDS WORK).
+4. **Recommendations** — High-value improvements related to the changes but outside what was flagged in Findings. Do NOT repeat Findings. Ranked by impact vs effort.
+5. **Potential Misses** — Areas the review couldn't fully evaluate (runtime behavior, accessibility, integration effects, large diffs).
+6. **Next Steps** — Self-contained prompt where Critical/Warning findings are required fixes and Suggestions/Recommendations are "implement if worthwhile", without requiring the implementation agent to read the full review.
