@@ -417,12 +417,11 @@ Agent roles are defined in `docs/agent-guidelines/AGENT-ROLES.yaml` (single sour
 | **Docs** | `yummyyummix:docs` | Keeping documentation in sync after feature changes. |
 | **Code Review** | `yummyyummix:code-reviewer` | Cross-cutting code review for bugs, dead code, conventions, type safety. |
 
-### How to Delegate
+### How to Use Agents
 
-Use the Task tool with `subagent_type` matching the agent name:
-```
-Task tool → subagent_type: "yummyyummix:frontend"
-```
+Agents are invoked directly by the user (e.g., "ask the frontend agent to build this component"). They are **not** programmatically delegated from skills — custom agents can't be launched via the Task tool's `subagent_type`.
+
+Skills use the same guideline docs that agents reference (`docs/agent-guidelines/*.md`) to get domain expertise inline. There's no magic in the agents beyond reading those docs.
 
 Domain agents write their own tests when building features. The test-engineer is for standalone testing tasks.
 
@@ -431,7 +430,7 @@ Domain agents write their own tests when building features. The test-engineer is
 | Skill | Description |
 |-------|-------------|
 | `/build-feature` | Guided 7-phase feature development — product thinking, exploration, design, implementation, review, docs |
-| `/review-pr` | Domain-aware PR review — routes files to specialized agents by path |
+| `/review-pr` | PR review against project standards with structured report output |
 | `/review-changes` | Same as review-pr but for local commits before opening a PR |
 | `/update-docs` | Syncs documentation after feature changes |
 

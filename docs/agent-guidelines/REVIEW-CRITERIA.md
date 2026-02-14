@@ -113,7 +113,7 @@ Never put components, types, or business logic directly in `app/`.
 
 ### 6. Testing
 
-**Requirements table** (from [AGENT.md](../../AGENT.md)):
+**Requirements table** (from [AGENTS.md](../../AGENTS.md)):
 
 | What You Create/Modify | Required Tests |
 |------------------------|----------------|
@@ -195,7 +195,9 @@ Every review report should include these standardized sections (names are canoni
 
 1. **Highlights** — Good patterns, clean implementations, smart design choices. Balanced reviews are constructive.
 2. **Findings** — Grouped by the 9 review categories above, each tagged with a severity level.
-3. **Summary** — Severity counts and overall recommendation (APPROVE/REQUEST CHANGES or READY/NEEDS WORK).
+3. **Summary** — Severity counts and overall recommendation:
+   - PR context: APPROVE / COMMENT / REQUEST CHANGES
+   - Pre-PR context: READY FOR PR / QUICK FIXES THEN PR / NEEDS WORK
 4. **Recommendations** — High-value improvements related to the changes but outside what was flagged in Findings. Do NOT repeat Findings. Ranked by impact vs effort.
 5. **Potential Misses** — Areas the review couldn't fully evaluate (runtime behavior, accessibility, integration effects, large diffs).
 6. **Next Steps** — Self-contained prompt where Critical/Warning findings are required fixes and Suggestions/Recommendations are "implement if worthwhile", without requiring the implementation agent to read the full review.

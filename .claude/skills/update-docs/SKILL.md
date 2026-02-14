@@ -1,6 +1,6 @@
 ---
 name: yummyyummix:update-docs
-description: Sync project documentation after feature changes. Delegates to the docs agent to update architecture docs, CLAUDE.md, agent guidelines, and verify accuracy.
+description: Sync project documentation after feature changes by reading affected files and updating guideline docs, CLAUDE.md, and architecture docs directly.
 disable-model-invocation: true
 ---
 
@@ -32,23 +32,23 @@ Group changed files into domains:
 - **Testing** (test files, test infrastructure) — May affect TESTING-GUIDELINES.md, TESTING.md
 - **Config/Structure** (new directories, renamed files) — May affect CLAUDE.md
 
-### Step 2: Delegate to Docs Agent
+### Step 2: Read and Update Documentation
 
-Use the **yummyyummix:docs** sub-agent (via the Task tool with `subagent_type: "yummyyummix:docs"`) with a detailed prompt that includes:
+For each affected domain:
 
-1. The list of changed files and their domains
-2. A summary of what changed (new features, renamed files, new patterns, removed code)
-3. Instructions to:
-   - Read each affected guideline doc
-   - Verify file paths still exist
+1. **Read the changed source files** to understand what was added, removed, or modified
+2. **Read each affected guideline doc** in `docs/agent-guidelines/`:
+   - `FRONTEND-GUIDELINES.md`, `BACKEND-GUIDELINES.md`, `AI-GUIDELINES.md`, `DATABASE-GUIDELINES.md`, `DESIGN-GUIDELINES.md`, `TESTING-GUIDELINES.md`, `PRODUCT-GUIDELINES.md`
+3. **Update each doc** as needed:
+   - Verify file paths still exist (use Glob to spot-check)
    - Update descriptions that no longer match the code
-   - Add new patterns/files that were introduced
+   - Add new patterns, files, or conventions that were introduced
    - Remove references to deleted or renamed files
-   - Check cross-doc consistency
+   - Check cross-doc consistency (e.g., if one doc references a section in another)
 
 ### Step 3: Verify Key Documents
 
-After the docs agent completes, verify these critical documents yourself:
+After updating, verify these critical documents:
 
 1. **`CLAUDE.md`** — Does the project overview, architecture section, and conventions still match?
 2. **`yyx-server/CLAUDE.md`** — Does the edge function list and migration info still match?

@@ -74,24 +74,7 @@ Read the following project standards files for context:
 - `CLAUDE.md` (architecture and key conventions)
 - `docs/operations/TESTING.md` (test patterns and conventions)
 
-### Step 4: Delegate Detailed File Review
-
-Launch domain-specific agents in parallel to review files in their area of expertise. Route files by path:
-
-**Domain-specific reviews** (launch in parallel via Task tool):
-- **AI files** (`_shared/ai-gateway/`, `_shared/tools/`, `_shared/rag/`, orchestrators) → `yummyyummix:ai-engineer` — Ask it to review for gateway pattern violations, tool registry consistency, safety system gaps, and AI-specific issues. Pass the relevant file list and diff.
-- **Database files** (`yyx-server/supabase/migrations/`) → `yummyyummix:database` — Ask it to review for missing RLS, naming convention violations, unsafe DDL, missing indexes, and rollback concerns. Pass the migration files and diff.
-- **Backend files** (`yyx-server/` other than AI/migrations) → `yummyyummix:backend` — Ask it to review for edge function patterns, auth handling, error leakage, SSE streaming issues, and Deno conventions. Pass the relevant file list and diff.
-- **Frontend files** (`yyx-app/`) → `yummyyummix:frontend` — Ask it to review for convention violations (@/ imports, Text/Button from common, design tokens, FlashList, expo-image, i18n), performance issues, and component architecture. Pass the relevant file list and diff.
-
-Only launch agents for domains that have changed files. Tell each agent it is in **review mode** — read-only analysis, no code modifications.
-
-**Cross-cutting review** (also launch in parallel):
-- `yummyyummix:code-reviewer` — Still runs on ALL changed files for cross-cutting concerns: dead code, DRY violations, correctness bugs, type safety.
-
-Review the diff output yourself for correctness, security, testing, i18n, and commit hygiene checks.
-
-### Step 5: Review Criteria
+### Step 4: Review Criteria
 
 Evaluate the changes against each of the 9 categories defined in `docs/agent-guidelines/REVIEW-CRITERIA.md`:
 
@@ -115,7 +98,7 @@ Apply the **Engineering Preferences** from that document throughout. Use the **S
 
 **Documentation check:** Flag when changes introduce or modify patterns that are documented in `CLAUDE.md`, `docs/agent-guidelines/`, or `docs/architecture/` but the docs weren't updated to match. Look for: new edge functions not listed, changed conventions, new components not added to directory maps, renamed files/directories with stale doc references. Severity: Suggestion for minor gaps, Warning for misleading docs.
 
-### Step 5b: Prepare Additional Sections
+### Step 4b: Prepare Additional Sections
 
 After completing the review criteria evaluation, prepare material for these additional report sections:
 
@@ -131,7 +114,7 @@ After completing the review criteria evaluation, prepare material for these addi
 3. Instruct the agent to: read relevant files, create an implementation plan addressing all Critical/Warning findings plus selected Suggestions/Recommendations, implement the plan, run tests/validation
 4. Be fully self-contained — executable without reading this review
 
-### Step 6: Output the Report
+### Step 5: Output the Report
 
 Format findings as a structured report following `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md`:
 

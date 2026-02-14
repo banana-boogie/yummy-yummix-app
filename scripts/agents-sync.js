@@ -106,6 +106,12 @@ function checkFileDrift(filePath, expectedContent, relativePath) {
   return false;
 }
 
+function isGeneratedCodexSkill(skillContent) {
+  // Codex SKILL.md files start with YAML frontmatter; the generated marker may
+  // appear after the frontmatter block. Check only the leading section.
+  return skillContent.split('\n').slice(0, 40).join('\n').includes(GENERATED_HEADER);
+}
+
 // ---------------------------------------------------------------------------
 // Templates
 // ---------------------------------------------------------------------------
@@ -333,7 +339,7 @@ function main() {
         if (!fs.existsSync(skillFile)) continue;
 
         const skillContent = fs.readFileSync(skillFile, 'utf8');
-        const isGenerated = skillContent.startsWith(GENERATED_HEADER);
+        const isGenerated = isGeneratedCodexSkill(skillContent);
         if (isGenerated && !yamlIds.has(id)) {
           console.error(
             `DRIFT: .codex/skills/${id}/SKILL.md is generated but "${id}" is not defined in AGENT-ROLES.yaml`
