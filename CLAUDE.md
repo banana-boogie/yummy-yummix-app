@@ -6,6 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **YummyYummix** is a cross-platform cooking app with recipe discovery, step-by-step cooking guides, and AI-powered sous chef features. **The app is designed with Thermomix users as the primary audience**, providing specialized cooking parameters and equipment-specific recipe adaptations.
 
+### Target Audience
+**Primary users are women aged 30-60** who are Thermomix owners. They are:
+- Busy home cooks balancing multiple responsibilities (family, work, health)
+- Health-conscious and interested in nutrition and dietary wellness
+- Looking for time-saving solutions (30-min meals, make-ahead, batch cooking)
+- Family-oriented (cooking for households, kid-friendly options)
+- Value practical, easy-to-read interfaces over overly playful designs
+- Appreciate inspirational content that feels achievable, not exclusionary
+- Want warmth and approachability without sacrificing sophistication
+
 ### Repository Structure
 - `yyx-app/` - React Native mobile app (Expo)
 - `yyx-server/` - Backend with Supabase Edge Functions (Deno/TypeScript)
@@ -451,6 +461,48 @@ font-heading (Quicksand), font-subheading (Lexend), font-body (Montserrat), font
 <View className="flex-col md:flex-row gap-md">...</View>
 ```
 
+### Platform-Specific Providers
+
+For features that are only available on certain platforms (e.g., native features), use Metro's `.web.ts` file extension pattern:
+
+**Pattern:**
+- `services/feature/FeatureFactory.ts` - Native implementation (iOS/Android)
+- `services/feature/FeatureFactory.web.ts` - Web implementation (stub or alternative)
+
+**How it works:**
+- Metro automatically selects the `.web.ts` file when building for web
+- Native platforms continue using the standard `.ts` file
+- No runtime overhead - resolution happens at build time
+- Zero dynamic imports or conditional logic needed
+
+**Example: Voice Chat**
+```
+services/voice/
+├── VoiceProviderFactory.ts      ← Native (iOS/Android) returns OpenAIRealtimeProvider
+├── VoiceProviderFactory.web.ts  ← Web returns WebVoiceProvider stub
+├── providers/
+│   ├── OpenAIRealtimeProvider.ts  ← Uses react-native-webrtc
+│   └── WebVoiceProvider.ts        ← Stub with clear error messaging
+└── types.ts                       ← Shared interface (used by both)
+```
+
+**Why this approach:**
+- ✅ No native package imports on web (prevents build crashes)
+- ✅ Type-safe - both implementations must match the interface
+- ✅ Clear file structure - obvious which platform uses what
+- ✅ Industry standard - same pattern used by Expo and React Native core
+- ✅ Future-proof - easy to upgrade web stub to real implementation later
+
+**When to use:**
+- Native-only features (WebRTC, native APIs, native packages)
+- Platform-specific performance optimizations
+- Different implementations per platform
+
+**UI considerations:**
+- UI layer stays platform-agnostic (uses the interface)
+- Platform-specific UI (show/hide features) uses `Platform.OS !== 'web'`
+- See `app/(tabs)/chat/index.tsx` for example
+
 ### Layouts
 ```tsx
 import { PageLayout } from '@/components/layouts/PageLayout';
@@ -480,7 +532,6 @@ const { data, error } = await supabase.from('recipes').select('*');
 
 ### Performance
 - Use `React.memo` for pure components
-- Use `FlashList` for long lists
 - Use `expo-image` for optimized images
 
 ## Testing

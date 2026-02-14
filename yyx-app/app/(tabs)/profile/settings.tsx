@@ -23,7 +23,6 @@ export default function Settings() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
-
   const handleLanguageChange = async (newLanguage: string) => {
     try {
       setIsLoading(true);
@@ -96,9 +95,8 @@ export default function Settings() {
         onMeasurementChange={handleMeasurementChange}
       />
 
-      <View className="flex-1 justify-end pb-lg">
+      <View className="flex-1 justify-end pb-lg gap-lg">
         <DangerButton
-          className="mt-lg"
           label={i18n.t('settings.signOut')}
           onPress={handleSignOut}
           disabled={isLoading}

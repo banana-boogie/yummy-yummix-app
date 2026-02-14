@@ -137,14 +137,14 @@ export function DietaryRestrictionsModal({
               className={`bg-background-default w-full max-w-[400px] self-center p-lg shadow-md lg:rounded-lg rounded-t-lg ${isWeb ? 'max-h-[80%]' : 'h-[90%]'} ${className}`}
               style={style}
             >
-              <View className="flex-row justify-between items-center mb-lg">
-                <Text preset="h1" className="flex-1 text-center">
-                  {title || i18n.t('profile.personalData.updateDietaryRestrictions')}
-                </Text>
-                <TouchableOpacity onPress={onClose} className="absolute right-0 p-1">
+              <View className="items-end mb-xs">
+                <TouchableOpacity onPress={onClose} className="p-1">
                   <Feather name="x" size={24} className="text-text-default" />
                 </TouchableOpacity>
               </View>
+              <Text preset="h1" className="text-center mb-lg">
+                {title || i18n.t('profile.personalData.updateDietaryRestrictions')}
+              </Text>
 
               <ScrollView
                 ref={scrollViewRef}

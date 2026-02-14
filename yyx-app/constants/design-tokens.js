@@ -18,6 +18,7 @@ const primary = {
 const grey = {
     default: '#EDEDED',
     light: '#F8F8F8',
+    lightest: '#FAFAFA',
     medium: '#B5B1B1',
     medium_dark: '#828181',
     dark: '#4A4A4A',

@@ -47,6 +47,11 @@ export const chat = {
     minsRemaining: "{{mins}} mins restantes",
     executingTool: "Trabajando en ello...",
     micPermissionDenied: "Acceso al micrófono denegado",
+    mobileOnly: {
+      title: "Chat de Voz",
+      message: "El chat de voz está disponible en nuestra app móvil. Usa el chat de texto abajo, o descarga la app para chatear con Irmixy usando tu voz.",
+      hint: "Usa el chat de texto abajo, o descarga nuestra app móvil para funciones de voz",
+    },
   },
   suggestions: {
     suggestRecipe: "Sugiéreme una receta",

@@ -47,6 +47,11 @@ export const chat = {
     minsRemaining: "{{mins}} mins remaining",
     executingTool: "Working on it...",
     micPermissionDenied: "Microphone access denied",
+    mobileOnly: {
+      title: "Voice Chat",
+      message: "Voice chat is available on our mobile app. Use text chat below, or download the app to chat with Irmixy using your voice.",
+      hint: "Use text chat below, or download our mobile app for voice features",
+    },
   },
   suggestions: {
     suggestRecipe: "Suggest a recipe",
