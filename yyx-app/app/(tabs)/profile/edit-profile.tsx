@@ -5,7 +5,6 @@ import i18n from '@/i18n';
 import { TextInput } from '@/components/form/TextInput';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useMeasurement } from '@/contexts/MeasurementContext';
-import { useLanguage } from '@/contexts/LanguageContext';
 import { useProfileImage } from '@/hooks/useProfileImage';
 
 import ImageUpload from '@/components/profile/ImageUpload';
@@ -23,8 +22,7 @@ import { StatusModal } from '@/components/common/StatusModal';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { HeaderWithBack } from '@/components/common/HeaderWithBack';
 import { Gender, ActivityLevel } from '@/types/user';
-import { DietaryRestriction, DietType, CuisinePreference, PreferenceOption } from '@/types/dietary';
-import preferencesService from '@/services/preferencesService';
+import { DietaryRestriction, DietType, CuisinePreference } from '@/types/dietary';
 import { COLORS } from '@/constants/design-tokens';
 
 const BIO_MAX_LENGTH = 140;
@@ -47,7 +45,6 @@ export default function EditProfile() {
   const { userProfile, updateUserProfile } = useUserProfile();
   const { deleteProfileImage } = useProfileImage();
   const { measurementSystem } = useMeasurement();
-  const { language } = useLanguage();
 
   // Basic profile state
   const [name, setName] = useState('');
@@ -69,9 +66,6 @@ export default function EditProfile() {
   // Validation state
   const [heightError, setHeightError] = useState<string | undefined>();
   const [weightError, setWeightError] = useState<string | undefined>();
-
-  // Cuisine options for slug → display name mapping
-  const [cuisineOptions, setCuisineOptions] = useState<PreferenceOption[]>([]);
 
   const getDefaultDate = useMemo(() => {
     if (userProfile?.birthDate) {
@@ -138,19 +132,6 @@ export default function EditProfile() {
       setIsLoading(false);
     }
   }, [userProfile, getDefaultDate]);
-
-  // Load cuisine options for display name mapping
-  useEffect(() => {
-    async function loadCuisineOptions() {
-      try {
-        const options = await preferencesService.getCuisinePreferences(language as 'en' | 'es');
-        setCuisineOptions(options);
-      } catch (err) {
-        console.error('Failed to load cuisine options:', err);
-      }
-    }
-    loadCuisineOptions();
-  }, [language]);
 
   // --- Handlers ---
 
@@ -294,10 +275,9 @@ export default function EditProfile() {
     .filter(slug => slug !== 'none')
     .map(slug => i18n.t(`onboarding.steps.allergies.options.${slug}`));
 
-  const cuisineDisplayNames = formData.cuisinePreferences.map((slug) => {
-    const option = cuisineOptions.find((o) => o.slug === slug);
-    return option?.name || slug.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-  });
+  const cuisineDisplayNames = formData.cuisinePreferences.map(
+    slug => i18n.t(`onboarding.steps.cuisines.options.${slug}`)
+  );
 
   // --- Render ---
 

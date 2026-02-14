@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, Modal, TouchableOpacity, ActivityIndicator, Pressable, Keyboard, StyleProp, ViewStyle } from 'react-native';
+import { View, ScrollView, Modal, TouchableOpacity, Pressable, Keyboard, StyleProp, ViewStyle } from 'react-native';
 import { Text } from '@/components/common/Text';
-import { CuisinePreference, PreferenceOption } from '@/types/dietary';
+import { CuisinePreference, CUISINE_PREFERENCES } from '@/types/dietary';
 import { getCuisineIcon } from '@/constants/dietaryIcons';
 import i18n from '@/i18n';
 import { SelectableCard } from '@/components/common/SelectableCard';
 import { Button } from '@/components/common/Button';
 import { Feather } from '@expo/vector-icons';
 import { useDevice } from '@/hooks/useDevice';
-import { useLanguage } from '@/contexts/LanguageContext';
-import preferencesService from '@/services/preferencesService';
 
 interface CuisineModalProps {
   visible: boolean;
@@ -29,31 +27,11 @@ export function CuisineModal({
   style,
 }: CuisineModalProps) {
   const [cuisines, setCuisines] = useState<CuisinePreference[]>(currentCuisines);
-  const [cuisineOptions, setCuisineOptions] = useState<PreferenceOption[]>([]);
-  const [loading, setLoading] = useState(true);
   const { isWeb } = useDevice();
-  const { language } = useLanguage();
 
   useEffect(() => {
     setCuisines(currentCuisines);
   }, [currentCuisines]);
-
-  useEffect(() => {
-    async function loadOptions() {
-      if (!visible) return;
-      try {
-        setLoading(true);
-        const options = await preferencesService.getCuisinePreferences(language as 'en' | 'es');
-        setCuisineOptions(options);
-      } catch (err) {
-        console.error('Failed to load cuisine options:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadOptions();
-  }, [visible, language]);
 
   const handleSelect = (cuisineSlug: CuisinePreference) => {
     if (cuisines.includes(cuisineSlug)) {
@@ -94,30 +72,24 @@ export function CuisineModal({
               {i18n.t('profile.personalData.cuisineSubtitle')}
             </Text>
 
-            {loading ? (
-              <View className="flex-1 justify-center items-center">
-                <ActivityIndicator size="large" color="#FFBFB7" />
+            <ScrollView
+              className="flex-1"
+              contentContainerStyle={{ paddingBottom: 24 }}
+              showsVerticalScrollIndicator={false}
+            >
+              <View className="gap-sm">
+                {CUISINE_PREFERENCES.map((cuisine) => (
+                  <SelectableCard
+                    key={cuisine}
+                    selected={cuisines.includes(cuisine)}
+                    onPress={() => handleSelect(cuisine)}
+                    label={i18n.t(`onboarding.steps.cuisines.options.${cuisine}`)}
+                    className="mb-xs"
+                    icon={getCuisineIcon(cuisine)}
+                  />
+                ))}
               </View>
-            ) : (
-              <ScrollView
-                className="flex-1"
-                contentContainerStyle={{ paddingBottom: 24 }}
-                showsVerticalScrollIndicator={false}
-              >
-                <View className="gap-sm">
-                  {cuisineOptions.map((cuisine) => (
-                    <SelectableCard
-                      key={cuisine.slug}
-                      selected={cuisines.includes(cuisine.slug as CuisinePreference)}
-                      onPress={() => handleSelect(cuisine.slug as CuisinePreference)}
-                      label={cuisine.name}
-                      className="mb-xs"
-                      icon={getCuisineIcon(cuisine.slug)}
-                    />
-                  ))}
-                </View>
-              </ScrollView>
-            )}
+            </ScrollView>
 
             <View className="pt-md border-t border-grey-default">
               <Button
