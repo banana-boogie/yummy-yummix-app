@@ -113,7 +113,7 @@ Never put components, types, or business logic directly in `app/`.
 
 ### 6. Testing
 
-**Requirements table** (from [AGENTS.md](../../AGENTS.md)):
+**Requirements table** (canonical source: [`docs/agent-guidelines/shared/testing.md`](./shared/testing.md)):
 
 | What You Create/Modify | Required Tests |
 |------------------------|----------------|

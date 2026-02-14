@@ -119,6 +119,7 @@ If the user says "whatever you think is best", provide your recommendation and g
 
 **Actions**:
 Build in dependency order. Write tests for each domain as you go.
+Refer to `docs/agent-guidelines/shared/testing.md` for testing requirements and patterns.
 
 1. **Database** (if needed) — Write migration files following the migration workflow:
    - `npm run backup` → `npm run migration:new <name>` → edit SQL → `npm run db:push`

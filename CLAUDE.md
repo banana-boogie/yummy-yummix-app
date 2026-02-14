@@ -2,6 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+<!-- BEGIN:shared/project-overview -->
 ## Project Overview
 
 **YummyYummix** is a cross-platform cooking app with recipe discovery, step-by-step cooking guides, and AI-powered sous chef features. **The app is designed with Thermomix users as the primary audience**, providing specialized cooking parameters and equipment-specific recipe adaptations.
@@ -21,6 +22,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `yyx-server/` - Backend with Supabase Edge Functions (Deno/TypeScript)
 - `supabase/` - Supabase configuration
 
+<!-- END:shared/project-overview -->
+
+<!-- BEGIN:shared/development-setup -->
 ## Development Setup
 
 ### Prerequisites
@@ -261,6 +265,9 @@ Check Supabase Dashboard logs: `Edge Functions -> irmixy-chat-orchestrator -> Lo
 - **Supabase Dashboard**: https://supabase.com/dashboard
 - **Project Settings**: https://supabase.com/dashboard/project/YOUR_PROJECT/settings/api
 
+<!-- END:shared/development-setup -->
+
+<!-- BEGIN:shared/architecture -->
 ## Tech Stack
 
 | Layer | Technology |
@@ -278,12 +285,12 @@ Check Supabase Dashboard logs: `Edge Functions -> irmixy-chat-orchestrator -> Lo
 **All AI interactions must go through the AI Gateway.** Never call OpenAI, Anthropic, or other providers directly.
 
 #### Why Use the Gateway?
-- ✅ **Provider Independence** - Switch models/providers via env vars without code changes
-- ✅ **Usage-Based Routing** - Different models for different tasks (`text`, `parsing`, `reasoning`)
-- ✅ **Cost Optimization** - Use cheaper models for simple tasks
-- ✅ **Consistent Interface** - Same API for all providers
-- ✅ **Structured Output** - JSON schema validation built-in
-- ✅ **Streaming Support** - SSE streaming with `chatStream()`
+- **Provider Independence** - Switch models/providers via env vars without code changes
+- **Usage-Based Routing** - Different models for different tasks (`text`, `parsing`, `reasoning`)
+- **Cost Optimization** - Use cheaper models for simple tasks
+- **Consistent Interface** - Same API for all providers
+- **Structured Output** - JSON schema validation built-in
+- **Streaming Support** - SSE streaming with `chatStream()`
 
 #### How to Use:
 
@@ -357,7 +364,7 @@ AI_REASONING_MODEL=o1             # Override reasoning model
 The gateway uses **OpenAI's format as the universal interface** (same pattern as Vercel AI SDK and LangChain). Each provider translates from this common format to their specific API:
 
 ```
-Developer Code → Gateway (OpenAI format) → Provider (translates to native format) → AI Service
+Developer Code -> Gateway (OpenAI format) -> Provider (translates to native format) -> AI Service
 ```
 
 This design:
@@ -396,6 +403,50 @@ See `generate-custom-recipe.ts` for Thermomix system prompt section.
 - **`_shared/`** - Shared utilities (CORS, auth, AI gateway)
 - **`irmixy-chat-orchestrator/`**, **`irmixy-voice-orchestrator/`** - AI endpoints
 - **`get-nutritional-facts/`**, **`parse-recipe-markdown/`** - Recipe utilities
+
+### Platform-Specific Providers
+
+For features that are only available on certain platforms (e.g., native features), use Metro's `.web.ts` file extension pattern:
+
+**Pattern:**
+- `services/feature/FeatureFactory.ts` - Native implementation (iOS/Android)
+- `services/feature/FeatureFactory.web.ts` - Web implementation (stub or alternative)
+
+**How it works:**
+- Metro automatically selects the `.web.ts` file when building for web
+- Native platforms continue using the standard `.ts` file
+- No runtime overhead - resolution happens at build time
+- Zero dynamic imports or conditional logic needed
+
+**Example: Voice Chat**
+```
+services/voice/
+├── VoiceProviderFactory.ts      <- Native (iOS/Android) returns OpenAIRealtimeProvider
+├── VoiceProviderFactory.web.ts  <- Web returns WebVoiceProvider stub
+├── providers/
+│   ├── OpenAIRealtimeProvider.ts  <- Uses react-native-webrtc
+│   └── WebVoiceProvider.ts        <- Stub with clear error messaging
+└── types.ts                       <- Shared interface (used by both)
+```
+
+**Why this approach:**
+- No native package imports on web (prevents build crashes)
+- Type-safe - both implementations must match the interface
+- Clear file structure - obvious which platform uses what
+- Industry standard - same pattern used by Expo and React Native core
+- Future-proof - easy to upgrade web stub to real implementation later
+
+**When to use:**
+- Native-only features (WebRTC, native APIs, native packages)
+- Platform-specific performance optimizations
+- Different implementations per platform
+
+**UI considerations:**
+- UI layer stays platform-agnostic (uses the interface)
+- Platform-specific UI (show/hide features) uses `Platform.OS !== 'web'`
+- See `app/(tabs)/chat/index.tsx` for example
+
+<!-- END:shared/architecture -->
 
 ## Agent Team
 
@@ -446,6 +497,7 @@ Each agent references domain-specific playbooks in `docs/agent-guidelines/`:
 - `TESTING-GUIDELINES.md` — Jest + Deno test patterns, decision tree, templates
 - `PRODUCT-GUIDELINES.md` — Mission, audience, feature map, prioritization framework
 
+<!-- BEGIN:shared/conventions -->
 ## Key Conventions
 
 ### Imports
@@ -510,48 +562,6 @@ font-heading (Quicksand), font-subheading (Lexend), font-body (Montserrat), font
 <View className="flex-col md:flex-row gap-md">...</View>
 ```
 
-### Platform-Specific Providers
-
-For features that are only available on certain platforms (e.g., native features), use Metro's `.web.ts` file extension pattern:
-
-**Pattern:**
-- `services/feature/FeatureFactory.ts` - Native implementation (iOS/Android)
-- `services/feature/FeatureFactory.web.ts` - Web implementation (stub or alternative)
-
-**How it works:**
-- Metro automatically selects the `.web.ts` file when building for web
-- Native platforms continue using the standard `.ts` file
-- No runtime overhead - resolution happens at build time
-- Zero dynamic imports or conditional logic needed
-
-**Example: Voice Chat**
-```
-services/voice/
-├── VoiceProviderFactory.ts      ← Native (iOS/Android) returns OpenAIRealtimeProvider
-├── VoiceProviderFactory.web.ts  ← Web returns WebVoiceProvider stub
-├── providers/
-│   ├── OpenAIRealtimeProvider.ts  ← Uses react-native-webrtc
-│   └── WebVoiceProvider.ts        ← Stub with clear error messaging
-└── types.ts                       ← Shared interface (used by both)
-```
-
-**Why this approach:**
-- ✅ No native package imports on web (prevents build crashes)
-- ✅ Type-safe - both implementations must match the interface
-- ✅ Clear file structure - obvious which platform uses what
-- ✅ Industry standard - same pattern used by Expo and React Native core
-- ✅ Future-proof - easy to upgrade web stub to real implementation later
-
-**When to use:**
-- Native-only features (WebRTC, native APIs, native packages)
-- Platform-specific performance optimizations
-- Different implementations per platform
-
-**UI considerations:**
-- UI layer stays platform-agnostic (uses the interface)
-- Platform-specific UI (show/hide features) uses `Platform.OS !== 'web'`
-- See `app/(tabs)/chat/index.tsx` for example
-
 ### Layouts
 ```tsx
 import { PageLayout } from '@/components/layouts/PageLayout';
@@ -583,6 +593,9 @@ const { data, error } = await supabase.from('recipes').select('*');
 - Use `React.memo` for pure components
 - Use `expo-image` for optimized images
 
+<!-- END:shared/conventions -->
+
+<!-- BEGIN:shared/testing -->
 ## Testing
 
 **Always write tests for critical components and workflows.** See [TESTING.md](./docs/operations/TESTING.md) for comprehensive documentation.
@@ -601,13 +614,28 @@ deno task test:integration  # Integration tests
 
 ### What Must Be Tested
 
-| Category | Examples | Required Coverage |
-|----------|----------|-------------------|
-| **Critical Components** | Button, Text, Form inputs, Navigation | Unit tests |
-| **Authentication Flows** | Login, logout, session refresh | Unit + integration |
-| **Data Services** | Recipe CRUD, user profile operations | Unit tests |
-| **Edge Functions** | AI chat, recipe parsing, nutrition | Unit + integration |
-| **Business Logic** | Validation, calculations, transformations | Unit tests |
+| What You Create/Modify | Required Tests |
+|------------------------|----------------|
+| New component | Unit test covering rendering, interactions, states |
+| New service function | Unit test with mocked dependencies |
+| New Edge Function | Deno unit test + update integration tests |
+| Bug fix | Regression test that would have caught the bug |
+| Auth/security code | Comprehensive tests for success AND failure paths |
+
+### Critical vs Non-Critical Code
+
+**Always test (critical):**
+- Authentication (login, logout, session management, protected routes)
+- Data mutations (create, update, delete)
+- User input validation (forms, search, filters)
+- Core components (Button, Text, Input, Modal, Form)
+- Business logic (calculations, conversions, scoring)
+- Edge Functions (all serverless functions)
+
+**Optional tests (non-critical):**
+- Pure presentational components with no logic
+- Static pages
+- Simple wrappers around library components
 
 ### Test Patterns
 
@@ -651,6 +679,9 @@ Tests don't run on pre-commit (too slow), but linting does:
 
 CI runs full test suites on every PR.
 
+<!-- END:shared/testing -->
+
+<!-- BEGIN:shared/analytics -->
 ## Analytics
 
 When adding new features, consider what user engagement signals are worth tracking. See [ANALYTICS.md](./docs/operations/ANALYTICS.md) for:
@@ -660,6 +691,9 @@ When adding new features, consider what user engagement signals are worth tracki
 
 **Philosophy**: Track what tells us if users are happy and coming back, not vanity metrics.
 
+<!-- END:shared/analytics -->
+
+<!-- BEGIN:shared/git-conventions -->
 ## Git Conventions
 
 ### Branch Naming
@@ -673,6 +707,8 @@ feat(recipe): add search by ingredients
 fix(auth): resolve login timeout issue
 docs: update API documentation
 ```
+
+<!-- END:shared/git-conventions -->
 
 ## AI Collaboration Prompts
 
