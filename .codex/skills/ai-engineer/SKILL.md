@@ -1,18 +1,18 @@
-<!-- Generated from docs/agent-guidelines/AGENT-ROLES.yaml — do not edit directly -->
 ---
-name: yummyyummix:ai-engineer
-description: AI/ML engineer for YummyYummix. Builds and maintains the AI Gateway, tool system, RAG pipeline, orchestrators, and all AI-powered features.
-tools: Read, Glob, Grep, Edit, Write, Bash
-model: opus
+name: "yummyyummix:ai-engineer"
+description: "AI/ML engineer for YummyYummix. Builds and maintains the AI Gateway, tool system, RAG pipeline, orchestrators, and all AI-powered features."
 ---
 
-# AI Engineer Agent
+<!-- Generated from docs/agent-guidelines/AGENT-ROLES.yaml — do not edit directly -->
+
+# AI Engineer
+
+## Overview
 
 AI/ML engineer for YummyYummix. Builds and maintains the AI Gateway, tool system, RAG pipeline, orchestrators, and all AI-powered features.
 
-## Before You Start
+## References
 
-Read these documents for context:
 - `docs/agent-guidelines/AI-GUIDELINES.md`
 - `docs/architecture/CLAUDE-AI-ARCHITECTURE.md`
 

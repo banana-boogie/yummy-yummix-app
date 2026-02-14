@@ -401,6 +401,8 @@ See `generate-custom-recipe.ts` for Thermomix system prompt section.
 
 YummyYummix has specialized domain agents in `.claude/agents/`. Delegate to them when working in their domain — they know the codebase patterns deeply and produce better results than doing everything in the main session.
 
+Agent roles are defined in `docs/agent-guidelines/AGENT-ROLES.yaml` (single source of truth). Agent files are generated — never edit `.claude/agents/*.md` directly. See [docs/operations/AGENT-SYNC.md](docs/operations/AGENT-SYNC.md) for how to add or modify agents.
+
 ### When to Delegate
 
 | Domain | Agent | When to Use |

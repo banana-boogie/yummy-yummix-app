@@ -1,0 +1,4 @@
+interface:
+  display_name: Code Reviewer
+  short_description: Expert code reviewer for YummyYummix.
+  default_prompt: Use $yummyyummix:code-reviewer for code reviewer tasks in the YummyYummix codebase.

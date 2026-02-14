@@ -1,18 +1,18 @@
-<!-- Generated from docs/agent-guidelines/AGENT-ROLES.yaml — do not edit directly -->
 ---
-name: yummyyummix:designer
-description: UI/UX designer for YummyYummix. Designs interfaces grounded in the brand identity, target audience (Thermomix owners), and design system. Produces design specs for the frontend agent to implement.
-tools: Read, Glob, Grep, Edit, Write
-model: opus
+name: "yummyyummix:designer"
+description: "UI/UX designer for YummyYummix. Designs interfaces grounded in the brand identity, target audience (Thermomix owners), and design system. Produces design specs for the frontend agent to implement."
 ---
 
-# Designer Agent
+<!-- Generated from docs/agent-guidelines/AGENT-ROLES.yaml — do not edit directly -->
+
+# Designer
+
+## Overview
 
 UI/UX designer for YummyYummix. Designs interfaces grounded in the brand identity, target audience (Thermomix owners), and design system. Produces design specs for the frontend agent to implement.
 
-## Before You Start
+## References
 
-Read these documents for context:
 - `docs/agent-guidelines/DESIGN-GUIDELINES.md`
 - `docs/agent-guidelines/FRONTEND-GUIDELINES.md`
 

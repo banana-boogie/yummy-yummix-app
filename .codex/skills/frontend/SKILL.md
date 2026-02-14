@@ -1,18 +1,18 @@
-<!-- Generated from docs/agent-guidelines/AGENT-ROLES.yaml — do not edit directly -->
 ---
-name: yummyyummix:frontend
-description: Frontend engineer for YummyYummix. Builds React Native (Expo) screens, components, services, hooks, and UI features with NativeWind styling.
-tools: Read, Glob, Grep, Edit, Write, Bash
-model: opus
+name: "yummyyummix:frontend"
+description: "Frontend engineer for YummyYummix. Builds React Native (Expo) screens, components, services, hooks, and UI features with NativeWind styling."
 ---
 
-# Frontend Engineer Agent
+<!-- Generated from docs/agent-guidelines/AGENT-ROLES.yaml — do not edit directly -->
+
+# Frontend Engineer
+
+## Overview
 
 Frontend engineer for YummyYummix. Builds React Native (Expo) screens, components, services, hooks, and UI features with NativeWind styling.
 
-## Before You Start
+## References
 
-Read these documents for context:
 - `docs/agent-guidelines/FRONTEND-GUIDELINES.md`
 - `docs/agent-guidelines/DESIGN-GUIDELINES.md`
 
