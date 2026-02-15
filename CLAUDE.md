@@ -718,4 +718,4 @@ When working with multiple AIs iteratively:
 3. **Review** - Have another AI review the changes
 4. **Iterate** - Address feedback and repeat until satisfied
 
-See [docs/ai-prompts.md](docs/ai-prompts.md) for copy-paste prompts.
+See [docs/ai-prompts/ai-prompts.md](docs/ai-prompts/ai-prompts.md) for copy-paste prompts.

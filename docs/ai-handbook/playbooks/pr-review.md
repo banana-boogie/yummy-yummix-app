@@ -346,7 +346,7 @@ For cases where a human wants to follow the same criteria without the skill:
 - [ ] No duplicated logic or copy-pasted blocks
 
 ### Testing
-- [ ] New critical code has tests (per AGENT.md table)
+- [ ] New critical code has tests (per AGENTS.md table)
 - [ ] Auth/security changes have success AND failure tests
 - [ ] Tests follow project patterns (factories, `renderWithProviders`)
 

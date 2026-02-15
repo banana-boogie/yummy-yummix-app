@@ -135,7 +135,7 @@ For `Suggestion` findings:
 - Be constructive and explicitly acknowledge good patterns.
 - Prioritize high user impact and risk reduction.
 - Be aggressive about DRY violations.
-- Check project conventions against `CLAUDE.md` and `AGENT.md`.
+- Check project conventions against `CLAUDE.md` and `AGENTS.md`.
 - Favor explicit and maintainable code over cleverness.
 - Call out under-engineering and over-engineering.
 - Emphasize edge cases and failure paths.
