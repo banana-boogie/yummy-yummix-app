@@ -1,0 +1,4 @@
+interface:
+  display_name: Product Strategist
+  short_description: Product strategist for YummyYummix.
+  default_prompt: Use $yummyyummix:product for product strategist tasks in the YummyYummix codebase.

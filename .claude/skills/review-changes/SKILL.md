@@ -62,7 +62,7 @@ git log --format="%H %s" $RANGE
 Group the changed files from the diff into these areas:
 - **Frontend** (`yyx-app/`) — React Native app changes
 - **Backend** (`yyx-server/`) — Edge Functions and server changes
-- **Database** (`supabase/migrations/`) — Schema migrations
+- **Database** (`yyx-server/supabase/migrations/`) — Schema migrations
 - **Infrastructure** (`.github/`, config files) — CI/CD and tooling
 - **Documentation** (`*.md`) — Docs changes
 
@@ -70,22 +70,13 @@ Group the changed files from the diff into these areas:
 
 Read the following project standards files for context:
 - `docs/agent-guidelines/REVIEW-CRITERIA.md` (canonical review criteria, categories, severity, and recommendation logic)
+- `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md` (canonical output sections, finding format, and Next Steps prompt contract)
 - `CLAUDE.md` (architecture and key conventions)
-- `TESTING.md` (test patterns and conventions)
+- `docs/operations/TESTING.md` (test patterns and conventions)
 
-### Step 4: Delegate Detailed File Review
+### Step 4: Review Criteria
 
-Use the **yummyyummix:code-reviewer** sub-agent (via the Task tool with `subagent_type: "yummyyummix:code-reviewer"`) to perform deep file-level analysis. Pass it the list of changed files and ask it to review against:
-- Architecture & design fit
-- Dead code & cleanup
-- Performance issues
-- Project convention violations
-
-Review the diff output yourself for correctness, security, testing, i18n, and commit hygiene checks.
-
-### Step 5: Review Criteria
-
-Evaluate the changes against each of the 8 categories defined in `docs/agent-guidelines/REVIEW-CRITERIA.md`:
+Evaluate the changes against each of the 9 categories defined in `docs/agent-guidelines/REVIEW-CRITERIA.md`:
 
 1. Architecture & Design
 2. Correctness
@@ -95,28 +86,39 @@ Evaluate the changes against each of the 8 categories defined in `docs/agent-gui
 6. Testing
 7. i18n
 8. Hygiene (use "Commit Hygiene" label for this context)
+9. Documentation
 
 Apply the **Engineering Preferences** from that document throughout. Use the **Severity Levels** (Critical / Warning / Suggestion) and **Readiness Logic** (pre-PR context column) defined there.
 
-### Step 5b: Prepare Additional Sections
+**Finding format** — Follow the format defined in `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md`:
+- Every finding: severity tag, file path, line number (when possible), concrete description, specific recommendation.
+- Critical findings: include 2-3 options with effort/risk/impact/maintenance tradeoffs. Recommended option first.
+- Warning findings that affect readiness: also include options/tradeoffs.
+- Suggestion findings: concise, no option matrix needed.
+
+**Documentation check:** Flag when changes introduce or modify patterns that are documented in `CLAUDE.md`, `docs/agent-guidelines/`, or `docs/architecture/` but the docs weren't updated to match. Look for: new edge functions not listed, changed conventions, new components not added to directory maps, renamed files/directories with stale doc references. Severity: Suggestion for minor gaps, Warning for misleading docs.
+
+### Step 4b: Prepare Additional Sections
 
 After completing the review criteria evaluation, prepare material for these additional report sections:
 
 **Highlights** — Acknowledge good patterns, clean implementations, or smart design choices. This is a self-review, so constructive feedback matters. Examples: good use of existing utilities, clean separation of concerns, thorough error handling, well-structured commits.
 
-**Suggestions & Improvements** — Concrete ideas to make the code better, ranked by impact-to-complexity ratio. Each should include an impact level (high/med/low) and effort level (high/med/low). These go beyond flagged issues — they're opportunities, not problems.
+**Recommendations** — High-value improvements **related to the changes but outside what was flagged in Findings**. These are opportunities the author may have missed, not a restatement of issues already found. Think about: adjacent code that could benefit from similar treatment, patterns elsewhere in the codebase worth adopting, opportunities this change opens up, missing tests for related (not just changed) code, documentation that would help future developers. **Do NOT repeat issues already listed in Findings.** Rank by impact vs effort. Format as a table with Rank, Recommendation, Impact, Effort, and Rationale columns.
 
-**Recommendations** — Actionable improvements beyond the findings. Think about: Could the feature be more robust? Are there edge cases not handled? Would additional documentation, tests, or error handling improve confidence? Are there patterns elsewhere in the codebase that these changes could adopt?
+**Potential Misses** — Areas this review may have missed or couldn't fully evaluate. Think about: Files you couldn't read, runtime behavior you can't verify from a diff, integration concerns, UX flows, accessibility, areas where the diff was too large to review thoroughly, transitive dependencies.
 
-**Blind Spots** — Areas this review may have missed or couldn't fully evaluate. Think about: Files you couldn't read, runtime behavior you can't verify from a diff, integration concerns, UX flows, accessibility, areas where the diff was too large to review thoroughly, transitive dependencies.
+**Next Steps** — A self-contained prompt for an implementation agent, following the contract in `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md`. The prompt must:
+1. List **every** finding from the review (all Critical, Warning, and Suggestion) with severity, file:line, and description
+2. List Recommendations worth implementing
+3. Instruct the agent to: read relevant files, create an implementation plan addressing all Critical/Warning findings plus selected Suggestions/Recommendations, implement the plan, run tests/validation
+4. Be fully self-contained — executable without reading this review
 
-**Next Steps prompt** — Synthesize findings + recommendations + suggestions into a single self-contained prompt that another AI coding agent could execute without reading this review. Include: the branch name, what to fix, what to improve, what files to touch, and the instruction to plan first then implement.
+### Step 5: Output the Report
 
-### Step 6: Output the Report
+Format findings as a structured report following `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md`:
 
-Format findings as a structured report:
-
-```
+````markdown
 ## Review: <branch-name>
 
 **Commits:** <count> (<first-sha>..<last-sha>)
@@ -134,28 +136,35 @@ Format findings as a structured report:
 ### Findings
 
 #### Architecture & Design
-- [severity] description — file:line
+- [severity] `file:line` — description
+  - Recommendation: <specific recommendation>
+  - Options: (Critical/readiness-risk Warning only)
+    1. **A (Recommended)** ... — Effort: S/M/L, Risk: ..., Impact: ..., Maintenance: ...
+    2. **B** ... — Effort: ..., Risk: ..., Impact: ..., Maintenance: ...
 
 #### Correctness
-- [severity] description — file:line
+- [severity] `file:line` — description
 
 #### Security
-- [severity] description — file:line
+- [severity] `file:line` — description
 
 #### Performance
-- [severity] description — file:line
+- [severity] `file:line` — description
 
 #### Code Quality
-- [severity] description — file:line
+- [severity] `file:line` — description
 
 #### Testing
-- [severity] description — file:line
+- [severity] `file:line` — description
 
 #### i18n
-- [severity] description — file:line
+- [severity] `file:line` — description
 
 #### Commit Hygiene
 - [severity] description
+
+#### Documentation
+- [severity] `file:line` — description
 
 (Use *No issues found.* if a category is clean.)
 
@@ -167,27 +176,60 @@ Format findings as a structured report:
 **Warning:** <count> — Should fix
 **Suggestion:** <count> — Nice to have
 
-**Readiness:** <READY FOR PR / NEEDS WORK / QUICK FIXES THEN PR>
-
----
-
-### Suggestions & Improvements
-
-1. **<title>** — <description>. *Impact: high/med/low, Effort: high/med/low*
+**Readiness:** <READY FOR PR / QUICK FIXES THEN PR / NEEDS WORK>
 
 ---
 
 ### Recommendations
 
-Actionable improvements beyond the findings above. These are suggestions to strengthen the code before opening a PR:
-- <recommendation>
+| Rank | Recommendation | Impact | Effort | Rationale |
+|------|----------------|--------|--------|-----------|
+| 1 | <high-value improvement outside Findings> | High | Low | <reason> |
+| 2 | <opportunity the changes open up> | Medium | Medium | <reason> |
 
-### Blind Spots
+---
+
+### Potential Misses
 
 Areas this review may have missed or couldn't fully evaluate:
-- <blind spot>
+- <what may have been missed and why it is uncertain>
+
+---
 
 ### Next Steps
 
-<A ready-to-execute prompt for an AI coding agent that: (1) reads this review, (2) creates an implementation plan addressing the findings, recommendations, and suggestions worth acting on given the branch's context and objective, and (3) implements the plan. The prompt should reference specific files and findings by name.>
+```text
+You are the implementation agent for branch <branch-name>.
+
+## Review Findings — Fix All
+
+### Critical
+- [Critical] `file:line` — description
+
+### Warning
+- [Warning] `file:line` — description
+
+## Suggestions — Implement If Worthwhile
+
+### Suggestion
+- [Suggestion] `file:line` — description
+
+## Recommendations — Implement If Worthwhile
+
+| Rank | Recommendation | Impact | Effort |
+|------|----------------|--------|--------|
+| 1 | ... | High | Low |
+
+## Workflow
+
+1. Read the relevant files to understand context.
+2. Create an implementation plan that addresses all Critical/Warning findings plus any Suggestions/Recommendations worth implementing.
+3. Implement the plan.
+4. Run tests and validation for changed areas.
+5. Report what was done and flag any issues encountered.
+
+Constraints:
+- Keep changes scoped to the branch objective.
+- Avoid unrelated refactors.
 ```
+````

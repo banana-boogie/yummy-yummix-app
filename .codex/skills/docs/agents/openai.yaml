@@ -1,0 +1,4 @@
+interface:
+  display_name: Documentation Engineer
+  short_description: Documentation engineer for YummyYummix.
+  default_prompt: Use $yummyyummix:docs for documentation engineer tasks in the YummyYummix codebase.

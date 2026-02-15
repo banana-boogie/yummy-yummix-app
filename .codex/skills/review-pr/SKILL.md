@@ -20,12 +20,17 @@ If the PR identifier is provided but invalid, ask for a valid PR number or URL b
 
 ## Review Criteria
 
-Read `references/REVIEW-CRITERIA.md` for canonical definitions of:
+Read `docs/agent-guidelines/REVIEW-CRITERIA.md` for canonical definitions of:
 - Engineering preferences
-- Review categories (8 categories with full checklists)
+- Review categories (9 categories with full checklists)
 - Severity levels (Critical / Warning / Suggestion)
 - Recommendation logic (PR context: APPROVE / COMMENT / REQUEST CHANGES)
 - Report sections
+
+Read `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md` for canonical definitions of:
+- Output section order and purposes
+- Finding format (including options/tradeoffs for Critical findings)
+- Next Steps prompt contract
 
 Apply these criteria throughout the review.
 
@@ -53,6 +58,18 @@ gh pr view --json number,url,title,headRefName,baseRefName,state,isDraft
 - Proceed only after user confirms.
 - If no PR is found or branch resolution cannot be completed, ask user for explicit PR number or URL.
 - Do not infer PR number from stale/previous session results when current resolution fails.
+
+## Domain Delegation
+
+Route changed files to specialized domain skills for deeper review. Invoke skills for domains with changed files:
+
+- **Frontend files** (`yyx-app/`) → `$yummyyummix:frontend` — review for convention violations (@/ imports, Text/Button from common, design tokens, FlashList, expo-image, i18n), performance issues, and component architecture.
+- **Backend files** (`yyx-server/` excluding AI/migrations) → `$yummyyummix:backend` — review for edge function patterns, auth handling, error leakage, SSE streaming issues, and Deno conventions.
+- **AI files** (`_shared/ai-gateway/`, `_shared/tools/`, `_shared/rag/`, orchestrators) → `$yummyyummix:ai-engineer` — review for gateway pattern violations, tool registry consistency, safety system gaps, and AI-specific issues.
+- **Database files** (`yyx-server/supabase/migrations/`) → `$yummyyummix:database` — review for missing RLS, naming convention violations, unsafe DDL, missing indexes, and rollback concerns.
+- **All files** → `$yummyyummix:code-reviewer` — cross-cutting: dead code, DRY violations, correctness bugs, type safety.
+
+Only invoke skills for domains that have changed files (except code-reviewer which always runs). Tell each skill it is in **review mode** — analysis only, no modifications. Pass the relevant file list and diff context.
 
 ## Workflow
 
@@ -82,10 +99,11 @@ git log --oneline "origin/$BASE_BRANCH..origin/$HEAD_BRANCH"
 - Database: `yyx-server/supabase/migrations/`
 - Infra/tooling: CI, config, scripts
 - Docs: markdown and process files
-4. Review against all 8 categories from `references/REVIEW-CRITERIA.md`:
-   Architecture & Design, Correctness, Security, Performance, Code Quality, Testing, i18n, Hygiene (use "PR Hygiene" label).
-5. Produce findings with severity (Critical / Warning / Suggestion) per the canonical definitions.
-6. Derive recommendation per the PR context column in the recommendation logic table.
+4. Delegate to domain skills (see Domain Delegation above).
+5. Review against all 9 categories from `docs/agent-guidelines/REVIEW-CRITERIA.md`:
+   Architecture & Design, Correctness, Security, Performance, Code Quality, Testing, i18n, Hygiene (use "PR Hygiene" label), Documentation.
+6. Produce findings with severity (Critical / Warning / Suggestion) per the canonical definitions.
+7. Derive recommendation per the PR context column in the recommendation logic table.
 
 ## Severity and Depth Rules
 
@@ -106,7 +124,7 @@ git log --oneline "origin/$BASE_BRANCH..origin/$HEAD_BRANCH"
 - Distinguish confirmed issues from assumptions or unknowns.
 - Do not duplicate lint/type/test failures already fully covered by CI unless there is additional risk context.
 - Keep recommendations tied to the PR objective and expected user impact.
-- Call out potential blind spots explicitly when confidence is limited.
+- Call out potential misses explicitly when confidence is limited.
 - Be constructive and explicitly acknowledge good patterns.
 
 ## Output Format
@@ -126,7 +144,7 @@ Use this structure:
 - Server CI: <pass/fail/pending/skipped>
 - PR Checks: <pass/fail/pending>
 
-### Good Patterns Observed
+### Highlights
 - <specific pattern worth keeping>
 - <specific pattern worth keeping>
 
@@ -174,44 +192,62 @@ Use this structure:
 - [Suggestion] `path/to/file.md:18` - <finding>
   - Recommendation: <specific recommendation>
 
-### Recommendations
-| Rank | Recommendation | Impact | Complexity | Rationale |
-|------|----------------|--------|------------|-----------|
-| 1 | <feature improvement tied to PR goal and user value> | High | Medium | <reason> |
-| 2 | <PR improvement tied to testing/docs/rollout/risk> | Medium | Low | <reason> |
-| 3 | <maintainability improvement worth doing now> | Medium | Medium | <reason> |
-
-### Potential Misses
-- <what may have been missed and why it is uncertain>
-- <what to validate manually or with targeted tests>
-
-### Next-Step Agent Prompt
-```text
-You are the implementation agent for PR #<number>.
-
-Objective:
-- Improve this PR by fixing high-value findings and applying worthwhile recommendations while preserving the PR's intent.
-
-Instructions:
-1. Create an implementation plan first.
-2. Prioritize items by impact, risk, and effort.
-3. Implement only fixes/recommendations that are worth doing given the PR objective and context.
-4. Skip low-value or out-of-scope changes; explain why they were deferred.
-5. Run targeted validation (tests/checks) for changed areas.
-6. Report: implemented items, deferred items, validation results, and any residual risks.
-
-Constraints:
-- Do not modify `.claude/`.
-- Keep changes scoped to the PR objective.
-- Avoid unrelated refactors.
-```
-
 ### Summary
 - Critical: <count>
 - Warning: <count>
 - Suggestion: <count>
 
 **Recommendation:** <APPROVE | COMMENT | REQUEST CHANGES>
+
+### Recommendations
+
+| Rank | Recommendation | Impact | Effort | Rationale |
+|------|----------------|--------|--------|-----------|
+| 1 | <high-value improvement outside Findings> | High | Low | <reason> |
+| 2 | <opportunity the PR opens up> | Medium | Medium | <reason> |
+
+Do NOT repeat issues already listed in Findings. These are opportunities related to the PR that the author may have missed.
+
+### Potential Misses
+- <what may have been missed and why it is uncertain>
+- <what to validate manually or with targeted tests>
+
+### Next Steps
+
+```text
+You are the implementation agent for PR #<number>.
+
+## Review Findings — Fix All
+
+### Critical
+- [Critical] `file:line` — description
+
+### Warning
+- [Warning] `file:line` — description
+
+## Suggestions — Implement If Worthwhile
+
+### Suggestion
+- [Suggestion] `file:line` — description
+
+## Recommendations — Implement If Worthwhile
+
+| Rank | Recommendation | Impact | Effort |
+|------|----------------|--------|--------|
+| 1 | ... | High | Low |
+
+## Workflow
+
+1. Read the relevant files to understand context.
+2. Create an implementation plan that addresses all Critical/Warning findings plus any Suggestions/Recommendations worth implementing.
+3. Implement the plan.
+4. Run tests and validation for changed areas.
+5. Report what was done and flag any issues encountered.
+
+Constraints:
+- Keep changes scoped to the PR objective.
+- Avoid unrelated refactors.
+```
 ````
 
 For a reusable invocation template, use `references/review-pr-prompt.md`.

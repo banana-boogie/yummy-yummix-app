@@ -1,0 +1,4 @@
+interface:
+  display_name: Backend Engineer
+  short_description: Backend engineer for YummyYummix.
+  default_prompt: Use $yummyyummix:backend for backend engineer tasks in the YummyYummix codebase.

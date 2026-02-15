@@ -1,0 +1,4 @@
+interface:
+  display_name: Test Engineer
+  short_description: Test engineer for YummyYummix.
+  default_prompt: Use $yummyyummix:test-engineer for test engineer tasks in the YummyYummix codebase.

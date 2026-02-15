@@ -1,0 +1,4 @@
+interface:
+  display_name: AI Engineer
+  short_description: AI/ML engineer for YummyYummix.
+  default_prompt: Use $yummyyummix:ai-engineer for ai engineer tasks in the YummyYummix codebase.

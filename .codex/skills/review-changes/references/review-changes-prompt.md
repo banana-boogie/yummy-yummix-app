@@ -11,7 +11,11 @@ Scope:
   - <N> for last N commits
   - <A..B> for an explicit commit range
 
-Evaluate against all 8 review categories in references/REVIEW-CRITERIA.md:
+Domain delegation:
+- Route changed files to specialized domain skills ($yummyyummix:frontend, $yummyyummix:backend, $yummyyummix:ai-engineer, $yummyyummix:database) for deeper review.
+- Always run $yummyyummix:code-reviewer on all files for cross-cutting concerns.
+
+Evaluate against all 9 review categories in docs/agent-guidelines/REVIEW-CRITERIA.md:
 1. Architecture & Design
 2. Correctness
 3. Security
@@ -20,19 +24,17 @@ Evaluate against all 8 review categories in references/REVIEW-CRITERIA.md:
 6. Testing
 7. i18n
 8. Commit Hygiene
+9. Documentation
 
 Output requirements:
 - Constructive feedback with explicit acknowledgment of good patterns.
 - Findings with file path, line references, severity (Critical/Warning/Suggestion), and fix recommendation.
 - For Critical findings: provide 2-3 options with effort, risk, impact, maintenance burden; put recommended option first.
 - Warning findings that materially affect readiness should also include options.
-- Suggestions and Improvements section ranked by impact/effort.
+- Summary with severity counts and readiness recommendation (READY FOR PR / QUICK FIXES THEN PR / NEEDS WORK).
+- Recommendations section: high-value improvements outside Findings, ranked by impact vs effort. Do NOT repeat Findings.
 - Potential Misses section for uncertainty areas and extra validation.
-- Summary counts by severity and readiness recommendation (READY FOR PR / QUICK FIXES THEN PR / NEEDS WORK).
-- Next-Step Agent Prompt that tells a follow-up coding agent to:
-  1) create an implementation plan first,
-  2) implement only worthwhile items aligned with objective,
-  3) report deferred items with rationale.
+- Next Steps section: self-contained prompt where Critical/Warning findings are "Fix All", while Suggestions and Recommendations are "Implement If Worthwhile".
 ```
 
 ## Example Invocations

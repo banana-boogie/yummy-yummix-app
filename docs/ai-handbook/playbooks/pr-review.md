@@ -104,7 +104,7 @@ Never put components, types, or business logic directly in `app/`.
 
 ### Testing
 
-Based on the [AGENT.md](../../../AGENT.md) requirements table:
+Based on the [AGENTS.md](../../../AGENTS.md) requirements table:
 
 | What You Create/Modify | Required Tests |
 |------------------------|----------------|
@@ -214,7 +214,7 @@ Nice to have. Examples:
 
 ---
 
-## Highlights, Suggestions & Improvements, Recommendations, Blind Spots & Next Steps
+## Highlights, Recommendations, Potential Misses & Next Steps
 
 Every review report includes these sections after the findings summary. They add context that findings alone can't provide.
 
@@ -227,24 +227,17 @@ Examples:
 - "Good use of the existing `useDebounce` hook for search input"
 - "Well-structured conventional commits that make the PR easy to follow"
 
-### Suggestions & Improvements
+### Recommendations
 
-Concrete ideas to make the code better, ranked by impact-to-complexity ratio. Each suggestion includes an impact level (high/med/low) and effort level (high/med/low). These go beyond flagged issues — they're opportunities, not problems.
+High-value improvements related to the PR but outside what was flagged in Findings. These are opportunities the author may have missed, not a restatement of issues already found. Ranked by impact vs effort.
 
 Examples:
 - "**Extract recipe card skeleton** — The loading placeholder is duplicated in 3 list screens. *Impact: med, Effort: low*"
 - "**Add optimistic updates to favorites** — Would make the UI feel instant. *Impact: high, Effort: med*"
-
-### Recommendations
-
-Actionable improvements that go beyond flagged issues. These aren't problems — they're opportunities to strengthen the PR.
-
-Examples:
 - "Add an integration test for the new edge function to catch regressions at the API boundary"
 - "The recipe scoring logic could reuse the existing `calculateNutritionScore` utility in `services/nutritionService`"
-- "Consider adding a loading skeleton to the search results screen for better perceived performance"
 
-### Blind Spots
+### Potential Misses
 
 Honest acknowledgment of what the review couldn't fully evaluate. Helps the author know where to focus their own attention.
 
@@ -353,7 +346,7 @@ For cases where a human wants to follow the same criteria without the skill:
 - [ ] No duplicated logic or copy-pasted blocks
 
 ### Testing
-- [ ] New critical code has tests (per AGENT.md table)
+- [ ] New critical code has tests (per AGENTS.md table)
 - [ ] Auth/security changes have success AND failure tests
 - [ ] Tests follow project patterns (factories, `renderWithProviders`)
 
@@ -367,10 +360,9 @@ For cases where a human wants to follow the same criteria without the skill:
 - [ ] Type label present
 - [ ] Description explains the "why"
 
-### Highlights, Suggestions & Additional Sections
+### Highlights, Recommendations, Potential Misses & Next Steps
 - [ ] Acknowledged good patterns in the PR
-- [ ] Identified concrete improvement opportunities with impact/effort ranking
-- [ ] Noted actionable recommendations beyond findings
+- [ ] Identified high-value recommendations beyond findings, ranked by impact vs effort
 - [ ] Identified areas the review couldn't fully evaluate (runtime behavior, accessibility, integration effects)
 - [ ] Documented next steps for follow-up
 
@@ -379,8 +371,8 @@ For cases where a human wants to follow the same criteria without the skill:
 ## Related Documentation
 
 - [CLAUDE.md](../../../CLAUDE.md) — Development setup and key conventions
-- [AGENT.md](../../../AGENT.md) — AI agent guidelines and testing requirements
-- [TESTING.md](../../../TESTING.md) — Comprehensive testing documentation
+- [AGENTS.md](../../../AGENTS.md) — AI agent guidelines and testing requirements
+- [TESTING.md](../../operations/TESTING.md) — Comprehensive testing documentation
 - `.claude/skills/review-pr/SKILL.md` — The `yummyyummix:review-pr` skill prompt (for debugging or updating the skill)
 - `.claude/skills/review-changes/SKILL.md` — The `yummyyummix:review-changes` skill prompt (pre-PR local commit review)
 - `.claude/agents/code-reviewer.md` — The `yummyyummix:code-reviewer` sub-agent prompt
