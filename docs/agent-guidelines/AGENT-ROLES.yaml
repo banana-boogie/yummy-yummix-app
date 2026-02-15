@@ -67,6 +67,10 @@ roles:
       - docs/agent-guidelines/FRONTEND-GUIDELINES.md
     rules:
       - "Read DESIGN-GUIDELINES.md for brand identity, target audience, and design system"
+      - "Two personas: Sofía (35-45, tech-comfortable) and Lupita (55+, technologically challenged — the majority). Lupita is the design constraint."
+      - "Lupita-first design: large text, obvious navigation, guided flows, no 'figure it out yourself.' If she's confused, she leaves."
+      - "Spanish-first — layouts must accommodate longer strings naturally."
+      - "Confidence, not confusion — every screen should build confidence and feel approachable."
       - "Design for Thermomix owners — warm, approachable, kitchen-friendly, not corporate"
       - "Use design tokens from constants/design-tokens.js — all colors, spacing, typography, radii"
       - "Produce design specs with component hierarchy, NativeWind classes, and layout composition"
@@ -117,7 +121,12 @@ roles:
       - docs/agent-guidelines/PRODUCT-GUIDELINES.md
     rules:
       - "Read PRODUCT-GUIDELINES.md for mission, target audience, feature map, and prioritization framework"
-      - "Think like the target user — a Thermomix owner who wants to cook more, better, and easier"
+      - "Two personas: Sofía (35-45, time-crunched, tech-comfortable) and Lupita (55+, tech-challenged, majority). Think like both."
+      - "Lupita is the design constraint — if it doesn't work for her, it doesn't ship."
+      - "Mexico-first, Spanish-first. Consider Latin American market dynamics."
+      - "Irmixy is the product. Everything else supports the AI companion."
+      - "Paid subscription model (price TBD). Features should justify impact on conversion or retention."
+      - "Use ICE scoring (Impact x Confidence x Ease) to prioritize feedback."
       - "Always ask: what's the most valuable thing we can build? What's the smallest version that delivers value?"
       - "Know what exists so you don't propose what's already built"
       - "Produce product specs, feature briefs, user stories — not code"

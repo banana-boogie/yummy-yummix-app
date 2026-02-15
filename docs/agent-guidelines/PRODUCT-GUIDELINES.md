@@ -6,19 +6,74 @@ Domain playbook for product thinking in YummyYummix — who we serve, what we've
 
 ## Mission
 
-**YummyYummix makes Thermomix cooking effortless, inspiring, and personal.**
+**Make cooking better for every Thermomix owner.**
 
-We help Thermomix owners discover recipes, get AI-powered cooking help, and cook step-by-step with Thermomix-specific parameters (time, temperature, speed).
+- For people who don't have time or energy — make it feel **easy**
+- For people who love cooking — help them **explore creativity** and find new recipes
+- For people intimidated by their Thermomix — build **confidence** and unlock full potential
+
+**Positioning:** "Make cooking easy and stress-free, with a dash of fun."
+
+The vehicle is **Irmixy** — an AI cooking companion that delivers this mission. Everything we build supports the AI companion. We don't just give you recipes — Irmixy helps you actually cook them.
 
 ---
 
 ## Target Audience
 
-### Primary User: The Thermomix Home Cook
+### Sofía — The Busy Professional (35-45)
 
-- **Who:** Owns a Thermomix (TM5 or TM6). Cooks regularly, often for family. Ranges from enthusiastic beginners to experienced home cooks.
-- **Where:** Initially targeting English and Mexican Spanish speakers.
-- **Motivation:** Wants to use their Thermomix more — it's an expensive appliance and they want to get their money's worth.
+- Grew up with technology, comfortable with apps
+- Fairly new to Thermomix — sees it as a smart investment for efficiency
+- Both parents work; she's in charge of the kitchen
+- Demands of feeding a family, may have young kids or babies
+- Wants to ease the kitchen load, not explore gourmet cooking (yet)
+- Will try new things when she has time, but time is scarce
+- Less intimidated by the machine, more frustrated by the time crunch
+- Core need: **"Make dinner happen without the stress"**
+
+### Lupita — The Experienced Home Cook (55+) — THE MAJORITY
+
+- Retired or semi-retired, grew up cooking her whole life
+- Has more time now to explore recipes she never had time for
+- Loves the Thermomix for what it makes easier — dough, cookies, desserts
+- Social — hosts friends, attends cooking workshops
+- **The majority segment** of Thermomix users (the bigger group)
+- **Technologically challenged** — needs help logging into email, that level
+- If something requires self-guided discovery or figuring things out alone, she abandons it
+- Core need: **"Help me explore and enjoy cooking without tech frustration"**
+
+### Shared Traits
+
+- Women, Mexico-based
+- Looking for healthy, homemade recipes for day-to-day life
+- Some love desserts specifically
+- Everyone wants cooking to feel easy and stress-free
+- Want Thermomix-specific parameters (time, temperature, speed)
+
+### Design Constraint: Lupita First
+
+Lupita is the critical design constraint. She's the bigger segment, and if the app works for her, it works for everyone. Sofía will tolerate a slightly rough edge; Lupita will not. This means:
+- Onboarding must be guided, not self-service
+- UI must be large, clear, and obvious
+- No "figure it out yourself" flows
+- Irmixy (voice) becomes even more important — she can talk to it instead of navigating menus
+
+### Per-Persona Feature Mapping
+
+| Feature | For Sofía | For Lupita |
+|---------|-----------|------------|
+| AI Chat (Irmixy) | Quick recipe suggestions from ingredients on hand | Patient companion that guides her through new recipes |
+| Voice Assistant | Hands-free cooking while multitasking | **Primary interface** — talk, don't navigate |
+| Recipe Discovery | Fast filters: 30-min meals, kid-friendly | Explore by category, desserts, traditional recipes |
+| Step-by-Step Guide | Efficient — just show the Thermomix settings | Detailed, reassuring, with clear parameters |
+| Onboarding | Quick setup, she'll figure it out | Fully guided, every step explained |
+| Custom Recipes | "What can I make with what I have?" | "I want to try something new for my workshop" |
+
+### Geographic & Cultural Focus
+
+- **Mexico-first** — Spanish is the primary language
+- Latin American market dynamics (consider OXXO for payments, WhatsApp as communication channel)
+- Content and recipes should reflect Mexican and Latin American cuisine
 
 ### Pain Points
 
@@ -28,12 +83,13 @@ We help Thermomix owners discover recipes, get AI-powered cooking help, and cook
 | Adapting regular recipes for Thermomix requires guessing settings | High | AI-generated recipes with validated TM parameters |
 | Forgetting the right time/temp/speed during cooking | Medium | Step-by-step cooking guide with TM parameters per step |
 | Dietary restrictions make recipe discovery harder | Medium | AI-aware of allergies, diets, dislikes |
-| Cooking alone can feel isolating | Low-Medium | Irmixy AI sous chef as a conversational companion |
+| Cooking alone can feel isolating | Low-Medium | Irmixy AI companion as a conversational friend |
+| Technology is intimidating for the majority segment | High | Voice interface, guided flows, zero self-discovery |
 
 ### Delights
 
 - Irmixy feels like a knowledgeable friend, not a search engine
-- Voice-guided cooking keeps hands free
+- Voice-guided cooking keeps hands free (essential for Lupita)
 - AI remembers preferences and adapts suggestions
 - Step-by-step guide with exact Thermomix settings removes guesswork
 - Bilingual support feels natural, not translated
@@ -62,11 +118,12 @@ We help Thermomix owners discover recipes, get AI-powered cooking help, and cook
 
 ### When evaluating a feature idea, ask:
 
-1. **Who benefits?** — Does this serve our primary user (Thermomix home cook)?
+1. **Who benefits?** — Does this serve Sofía, Lupita, or both?
 2. **What problem does it solve?** — Is this a real pain point or a nice-to-have?
 3. **How often would it be used?** — Daily feature vs occasional feature?
 4. **What's the smallest version that delivers value?** — MVP scope.
 5. **Does it reinforce our differentiation?** — Thermomix-specific, AI-powered, personal.
+6. **Does it work for Lupita?** — If it requires self-guided discovery, forget about it.
 
 ### Prioritization Lens
 
@@ -77,7 +134,17 @@ We help Thermomix owners discover recipes, get AI-powered cooking help, and cook
 | Thermomix differentiation | Medium | Does this leverage our TM-specific advantage? |
 | User-requested | Medium | Have users explicitly asked for this? |
 | Technical feasibility | Medium | Can we build this well with current architecture? |
-| Revenue potential | Low (for now) | Will this support monetization later? |
+| Revenue potential | Medium | Will this support conversion and retention? |
+
+### ICE Scoring
+
+For rapid prioritization, use **ICE scoring**: Impact x Confidence x Ease (each 1-10).
+
+| Score | Action |
+|-------|--------|
+| 200+ | Do this week |
+| 100-199 | Next sprint |
+| < 100 | Backlog |
 
 ### Build-Measure-Learn
 
@@ -87,31 +154,46 @@ We help Thermomix owners discover recipes, get AI-powered cooking help, and cook
 
 ---
 
-## Competitive Landscape
+## What Makes Us Different
 
-### Cookidoo (Vorwerk's official app)
-- **Strengths:** Massive recipe library, official TM integration, guided cooking
-- **Weaknesses:** Subscription-only, no AI, limited personalization, no custom recipe generation, corporate feel
-- **Our advantage:** AI-powered personalization, custom recipe generation, free tier, warmer UX
+Irmixy is an AI cooking companion built specifically for Thermomix owners. Unlike Cookidoo (subscription recipe library, no AI) or general recipe apps (no Thermomix awareness), we combine:
 
-### General Recipe Apps (Paprika, Mealime, etc.)
-- **Strengths:** Large recipe databases, meal planning, grocery lists
-- **Weaknesses:** No Thermomix awareness, no AI cooking help, no TM-specific parameters
-- **Our advantage:** Thermomix-first design, AI sous chef, TM parameters per step
+- **AI-powered personalization** — Irmixy knows your dietary needs, preferences, and skill level
+- **Thermomix-first** — Every recipe has validated TM parameters (time, temperature, speed)
+- **Voice-guided cooking** — Hands-free cooking help, especially valuable for users who prefer talking over navigating
 
-### AI Cooking Assistants (ChatGPT, etc.)
-- **Strengths:** General AI capability, broad knowledge
-- **Weaknesses:** No Thermomix expertise, no validated parameters, no persistent preferences, no cooking mode
-- **Our advantage:** Purpose-built for Thermomix, validated safety parameters, persistent user context, dedicated cooking UX
+**One-line positioning:** "We don't just give you recipes — Irmixy helps you actually cook them."
+
+---
+
+## Monetization Strategy
+
+- **Paid subscription** model — price target ~$5 USD/month (to be validated in beta)
+- Payments via **Stripe on YummyYummix website**
+- App Store / Google Play IAP may be added later if needed
+- **Mexico market:** consider cash-payment options (OXXO) for users without credit cards
+- Features should be evaluated by impact on **conversion** (free → paid) and **retention** (monthly renewals)
+
+---
+
+## Key Metrics
+
+| Metric | Type | What It Tells Us |
+|--------|------|-----------------|
+| **Cooking sessions** | Primary engagement | How often users actually cook using the app |
+| **Chef Sessions** | Core loop | Full loop: AI recipe generation → cook → complete |
+| Onboarding completion + first Irmixy interaction | Activation | Did the user get to the "aha moment"? |
+| 7-day and 30-day return rates | Retention | Are users coming back? |
+| Irmixy chats per active user per week | Engagement | Is the AI companion sticky? |
 
 ---
 
 ## User Story Format
 
-When writing user stories:
+When writing user stories, use the persona that best fits:
 
 ```
-As a [Thermomix owner who...],
+As [Sofía / Lupita / a Thermomix owner who...],
 I want to [action],
 so that [benefit].
 
@@ -138,6 +220,8 @@ When helping scope an MVP:
 ### MVP Checklist
 - [ ] Solves the core problem for the primary user
 - [ ] Works on iOS (primary platform)
+- [ ] Spanish-first (Mexico primary market)
+- [ ] Works for Lupita — guided flows, no self-discovery required
 - [ ] Supports both EN and ES
 - [ ] Handles errors gracefully
 - [ ] Respects user's dietary restrictions
@@ -154,13 +238,13 @@ When producing a feature brief:
 ## Feature: [Name]
 
 ### Problem
-What problem does this solve? Who has this problem?
+What problem does this solve? Who has this problem — Sofía, Lupita, or both?
 
 ### Proposed Solution
 What should we build? How does it work?
 
 ### User Stories
-1. [Primary user story]
+1. [Primary user story — use persona name]
 2. [Secondary user story]
 
 ### MVP Scope

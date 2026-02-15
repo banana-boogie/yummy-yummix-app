@@ -6,14 +6,29 @@ Domain playbook for UI/UX design in YummyYummix — grounded in the brand, the a
 
 ## Who We're Designing For
 
-### Target Audience
+### Two Personas
 
-**Thermomix owners** — home cooks who love their Thermomix and want to get more out of it.
+**Sofía — The Busy Professional (35-45)**
+- Tech-comfortable, grew up with apps
+- Fairly new to Thermomix — uses it for efficiency
+- Both parents work; she manages the kitchen for the family
+- Wants quick answers: "What can I make with what I have?"
+- Core need: **"Make dinner happen without the stress"**
+- Design for her: efficiency-focused, quick access, can handle more features but still values simplicity
 
-- **Primary persona:** A home cook (often cooking for family) who owns a Thermomix and wants easy, reliable recipes with Thermomix-specific settings (time, temperature, speed)
-- **Pain points:** Finding TM-compatible recipes is hard. Adapting regular recipes for Thermomix is tedious. Remembering the right settings is stressful when cooking.
-- **Delights:** Step-by-step guides with exact Thermomix parameters. An AI that knows their dietary needs and preferences. Voice-guided cooking so they can keep their hands free.
-- **Emotional need:** The app should feel like a **helpful friend in the kitchen** — warm, approachable, encouraging. Not a corporate tool. Not overwhelming.
+**Lupita — The Experienced Home Cook (55+) — THE MAJORITY**
+- Has more time to explore recipes she never had time for
+- Loves her Thermomix for what it makes easier — dough, cookies, desserts
+- Social — hosts friends, attends cooking workshops
+- **The bigger segment** of Thermomix users
+- **Technologically challenged** — needs help logging into email, that level
+- If something requires self-guided discovery, she abandons it
+- Core need: **"Help me explore and enjoy cooking without tech frustration"**
+- Design for her: large touch targets, clear labels, no hidden features, guided flows, simple navigation, large readable text, minimal cognitive load. **Voice chat (Irmixy) as the primary interface — talk, don't navigate.**
+
+### Design Constraint: Lupita First
+
+Lupita is the critical design constraint. She's the bigger segment, and if the app works for her, it works for everyone. Sofía will tolerate a slightly rough edge; Lupita will not.
 
 ### Design Implications
 
@@ -21,7 +36,10 @@ Domain playbook for UI/UX design in YummyYummix — grounded in the brand, the a
 - **Warmth over clinical** — The warm peach palette and rounded shapes create a kitchen-friendly feel
 - **Confidence over complexity** — Clear instructions, visible Thermomix parameters, reassuring feedback
 - **Personal over generic** — Handwritten font touches, personalized recommendations, dietary awareness
-- **Bilingual** — English and Mexican Spanish. Design must accommodate both (Spanish strings are often longer)
+- **Guided over self-discovery** — If a user has to figure something out alone, we've failed the majority segment
+- **Spanish-first** — Layouts must accommodate 20-30% longer strings naturally. Mexico is the primary market.
+- **Accessible to all ages** — Text sizes, contrast, and touch targets must work for the 55+ segment
+- **Lupita-first design** — Design for the technologically challenged majority; Sofía benefits naturally
 
 ---
 
@@ -33,11 +51,26 @@ Domain playbook for UI/UX design in YummyYummix — grounded in the brand, the a
 - **Approachable** — Clean hierarchy, generous whitespace, no intimidating complexity
 - **Personal** — ComingSoon handwritten font for personal touches, suggestion chips that feel conversational
 
+### Positioning
+
+YummyYummix is a **cooking companion**, not just a recipe app. "We don't just give you recipes — Irmixy helps you actually cook them." The warm palette connects to confidence and kitchen warmth.
+
 ### What We Are Not
 - Corporate or sterile (no sharp corners, no cold blues/grays as primary)
 - Childish or toy-like (we're friendly, not infantile)
 - Information-dense (we're a cooking companion, not a recipe database)
 - Generic (every design choice should feel intentional and on-brand)
+- Intimidating or complex (no tech-savvy required to navigate)
+- Requiring self-guided discovery (if Lupita can't find it immediately, it doesn't exist)
+
+---
+
+## Photography & Imagery Style
+
+- **Real, achievable home cooking** — not restaurant plating or Pinterest-perfect. Food should look like something you'd actually make.
+- **Kitchen context:** countertops, Thermomix visible, everyday kitchenware. Not a studio set.
+- **People:** reflect both personas — women across age range, Latin American. Show confidence and enjoyment.
+- **Illustrations:** warm, hand-drawn style consistent with the ComingSoon font. Friendly, not clinical.
 
 ---
 
@@ -193,3 +226,5 @@ When producing design specs for the frontend agent, include:
 3. **Bold when appropriate** — Don't be afraid of the peach. The warm palette is the brand. Use it confidently.
 4. **Hierarchy first** — Before choosing colors or fonts, establish what the user should see first, second, third.
 5. **Kitchen context** — Users may have flour on their hands, a timer beeping, kids asking questions. Design for distraction and imperfect attention.
+6. **Confidence, not confusion** — Every screen should build confidence. No jargon without explanation. Progressive disclosure. If the user is confused, we've failed.
+7. **Guided, not guessed** — The majority of our users (Lupita) won't explore on their own. Guide them explicitly through every flow. If it requires self-guided discovery, forget about it.

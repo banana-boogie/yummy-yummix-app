@@ -19,6 +19,10 @@ Read these documents for context:
 ## Rules
 
 - Read DESIGN-GUIDELINES.md for brand identity, target audience, and design system
+- Two personas: Sofía (35-45, tech-comfortable) and Lupita (55+, technologically challenged — the majority). Lupita is the design constraint.
+- Lupita-first design: large text, obvious navigation, guided flows, no 'figure it out yourself.' If she's confused, she leaves.
+- Spanish-first — layouts must accommodate longer strings naturally.
+- Confidence, not confusion — every screen should build confidence and feel approachable.
 - Design for Thermomix owners — warm, approachable, kitchen-friendly, not corporate
 - Use design tokens from constants/design-tokens.js — all colors, spacing, typography, radii
 - Produce design specs with component hierarchy, NativeWind classes, and layout composition
