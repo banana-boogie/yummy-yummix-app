@@ -176,8 +176,10 @@ Refer to `docs/agent-guidelines/shared/testing.md` for testing requirements and 
    - **Tests written** — What was tested
    - **Suggested next steps** — Phase 2 ideas, manual testing to do
 
-3. Update documentation directly:
+3. Update documentation:
    - Check each affected guideline doc in `docs/agent-guidelines/` for stale references
-   - Update `CLAUDE.md` if architecture, conventions, or directory maps changed
+   - If shared content changed (architecture, conventions, testing, etc.), edit the canonical source in `docs/agent-guidelines/shared/` — not CLAUDE.md or AGENTS.md directly
+   - Run `npm run ai-docs:sync` to propagate shared block changes
+   - If agent roles changed, update `docs/agent-guidelines/AGENT-ROLES.yaml` and run `npm run agents:sync`
    - Verify file paths referenced in docs still exist
    - Add new patterns/files that were introduced

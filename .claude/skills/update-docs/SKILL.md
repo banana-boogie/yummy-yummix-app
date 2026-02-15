@@ -1,6 +1,6 @@
 ---
 name: yummyyummix:update-docs
-description: Sync project documentation after feature changes by reading affected files and updating guideline docs, CLAUDE.md, and architecture docs directly.
+description: Sync project documentation after feature changes by reading affected files and updating guideline docs, shared blocks, and running sync scripts.
 disable-model-invocation: true
 ---
 
@@ -30,7 +30,9 @@ Group changed files into domains:
 - **Database** (`yyx-server/supabase/migrations/`) — May affect DATABASE-GUIDELINES.md
 - **AI** (`_shared/ai-gateway/`, `_shared/tools/`, orchestrators) — May affect AI-GUIDELINES.md, CLAUDE-AI-ARCHITECTURE.md
 - **Testing** (test files, test infrastructure) — May affect TESTING-GUIDELINES.md, TESTING.md
-- **Config/Structure** (new directories, renamed files) — May affect CLAUDE.md
+- **Config/Structure** (new directories, renamed files) — May affect CLAUDE.md shared blocks or manual sections
+- **Shared blocks** (`docs/agent-guidelines/shared/`) — Content injected into CLAUDE.md and AGENTS.md via markers
+- **Agent roles** (`docs/agent-guidelines/AGENT-ROLES.yaml`) — Generates `.claude/agents/*.md` and `.codex/skills/`
 
 ### Step 2: Read and Update Documentation
 
@@ -39,24 +41,49 @@ For each affected domain:
 1. **Read the changed source files** to understand what was added, removed, or modified
 2. **Read each affected guideline doc** in `docs/agent-guidelines/`:
    - `FRONTEND-GUIDELINES.md`, `BACKEND-GUIDELINES.md`, `AI-GUIDELINES.md`, `DATABASE-GUIDELINES.md`, `DESIGN-GUIDELINES.md`, `TESTING-GUIDELINES.md`, `PRODUCT-GUIDELINES.md`
-3. **Update each doc** as needed:
+3. **Read shared block files** in `docs/agent-guidelines/shared/` if architecture, conventions, testing, development setup, or other shared content changed
+4. **Update each doc** as needed:
    - Verify file paths still exist (use Glob to spot-check)
    - Update descriptions that no longer match the code
    - Add new patterns, files, or conventions that were introduced
    - Remove references to deleted or renamed files
    - Check cross-doc consistency (e.g., if one doc references a section in another)
 
-### Step 3: Verify Key Documents
+**Important — managed vs manual sections:**
+- `CLAUDE.md` and `AGENTS.md` contain **managed blocks** between `<!-- BEGIN:shared/... -->` and `<!-- END:shared/... -->` markers. Never edit these directly — edit the canonical source in `docs/agent-guidelines/shared/` instead.
+- Content **outside** managed blocks in `CLAUDE.md` (like the Agent Team section) can be edited directly.
+- `yyx-server/CLAUDE.md` is not managed by sync — edit it directly.
+- Agent files in `.claude/agents/` are **generated** from `AGENT-ROLES.yaml` — never edit them directly.
 
-After updating, verify these critical documents:
+### Step 3: Run Sync Scripts
 
-1. **`CLAUDE.md`** — Does the project overview, architecture section, and conventions still match?
+If any canonical sources were updated, run the appropriate sync commands:
+
+1. **If shared block files changed** (`docs/agent-guidelines/shared/`):
+   ```bash
+   npm run ai-docs:sync
+   ```
+2. **If AGENT-ROLES.yaml changed** (`docs/agent-guidelines/AGENT-ROLES.yaml`):
+   ```bash
+   npm run agents:sync
+   ```
+3. **Verify syncs succeeded**:
+   ```bash
+   npm run ai-docs:check
+   npm run agents:check
+   ```
+
+### Step 4: Verify Key Documents
+
+After updating and syncing, verify these critical documents:
+
+1. **`CLAUDE.md`** — Do the manual sections (Agent Team, AI Collaboration Prompts) still match? Are managed blocks up to date after sync?
 2. **`yyx-server/CLAUDE.md`** — Does the edge function list and migration info still match?
 3. **Agent guideline docs** — Do directory maps match actual directory structure?
 
 Use Glob to spot-check that file paths referenced in updated docs actually exist.
 
-### Step 4: Report
+### Step 5: Report
 
 Output a summary:
 
@@ -65,7 +92,11 @@ Output a summary:
 
 ### Files Updated
 - `docs/agent-guidelines/BACKEND-GUIDELINES.md` — [what changed]
-- `CLAUDE.md` — [what changed]
+- `docs/agent-guidelines/shared/architecture.md` — [what changed]
+
+### Syncs Run
+- `ai-docs:sync` — [pass/fail]
+- `agents:sync` — [pass/fail]
 
 ### Files Verified (no changes needed)
 - `docs/agent-guidelines/FRONTEND-GUIDELINES.md` — up to date
