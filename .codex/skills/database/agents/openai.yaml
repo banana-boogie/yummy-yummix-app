@@ -1,0 +1,4 @@
+interface:
+  display_name: Database Engineer
+  short_description: Database engineer for YummyYummix.
+  default_prompt: Use $yummyyummix:database for database engineer tasks in the YummyYummix codebase.

@@ -156,7 +156,7 @@ Check Supabase Dashboard logs: `Edge Functions -> irmixy-chat-orchestrator -> Lo
 
 - **CLAUDE.md**: Detailed conventions for AI assistance
 - **AGENTS.md**: Guidelines for AI coding agents
-- **docs/Operations/TESTING.md**: Testing documentation
+- **docs/operations/TESTING.md**: Testing documentation
 
 ## License
 

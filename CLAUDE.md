@@ -2,9 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+<!-- BEGIN:shared/project-overview -->
 ## Project Overview
 
-**YummyYummix** is a cross-platform cooking app with recipe discovery, step-by-step cooking guides, and AI-powered sous chef features. **The app is designed with Thermomix users as the primary audience**, providing specialized cooking parameters and equipment-specific recipe adaptations.
+**YummyYummix** is a cross-platform cooking app with recipe discovery, step-by-step cooking guides, and AI-powered sous chef features. **The app is designed with Thermomix users as the primary audience**, providing specialized cooking parameters and equipment-specific recipe adaptations. Our mission: "Make cooking easy and stress-free, with a dash of fun." **Irmixy** is the AI cooking companion that delivers this mission.
 
 ### Target Audience
 **Primary users are women aged 30-60** who are Thermomix owners. They are:
@@ -16,11 +17,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Appreciate inspirational content that feels achievable, not exclusionary
 - Want warmth and approachability without sacrificing sophistication
 
+**Two key segments:**
+- **Sofía (35-45)**: Busy professional, tech-comfortable, wants kitchen efficiency, may have young family
+- **Lupita (55+)**: Experienced home cook, has time to explore, **technologically challenged — the majority segment**. Design must guide her explicitly — no self-discovery.
+
+**Mexico-first launch** — Spanish is the primary language.
+
 ### Repository Structure
 - `yyx-app/` - React Native mobile app (Expo)
 - `yyx-server/` - Backend with Supabase Edge Functions (Deno/TypeScript)
 - `supabase/` - Supabase configuration
 
+<!-- END:shared/project-overview -->
+
+<!-- BEGIN:shared/development-setup -->
 ## Development Setup
 
 ### Prerequisites
@@ -180,7 +190,7 @@ deno task test:coverage           # Run with coverage
 deno task test:integration        # Run integration tests (requires staging env)
 ```
 
-For detailed testing documentation, see [TESTING.md](./docs/Operations/TESTING.md).
+For detailed testing documentation, see [TESTING.md](./docs/operations/TESTING.md).
 
 ---
 
@@ -261,6 +271,9 @@ Check Supabase Dashboard logs: `Edge Functions -> irmixy-chat-orchestrator -> Lo
 - **Supabase Dashboard**: https://supabase.com/dashboard
 - **Project Settings**: https://supabase.com/dashboard/project/YOUR_PROJECT/settings/api
 
+<!-- END:shared/development-setup -->
+
+<!-- BEGIN:shared/architecture -->
 ## Tech Stack
 
 | Layer | Technology |
@@ -278,12 +291,12 @@ Check Supabase Dashboard logs: `Edge Functions -> irmixy-chat-orchestrator -> Lo
 **All AI interactions must go through the AI Gateway.** Never call OpenAI, Anthropic, or other providers directly.
 
 #### Why Use the Gateway?
-- ✅ **Provider Independence** - Switch models/providers via env vars without code changes
-- ✅ **Usage-Based Routing** - Different models for different tasks (`text`, `parsing`, `reasoning`)
-- ✅ **Cost Optimization** - Use cheaper models for simple tasks
-- ✅ **Consistent Interface** - Same API for all providers
-- ✅ **Structured Output** - JSON schema validation built-in
-- ✅ **Streaming Support** - SSE streaming with `chatStream()`
+- **Provider Independence** - Switch models/providers via env vars without code changes
+- **Usage-Based Routing** - Different models for different tasks (`text`, `parsing`, `reasoning`)
+- **Cost Optimization** - Use cheaper models for simple tasks
+- **Consistent Interface** - Same API for all providers
+- **Structured Output** - JSON schema validation built-in
+- **Streaming Support** - SSE streaming with `chatStream()`
 
 #### How to Use:
 
@@ -357,7 +370,7 @@ AI_REASONING_MODEL=o1             # Override reasoning model
 The gateway uses **OpenAI's format as the universal interface** (same pattern as Vercel AI SDK and LangChain). Each provider translates from this common format to their specific API:
 
 ```
-Developer Code → Gateway (OpenAI format) → Provider (translates to native format) → AI Service
+Developer Code -> Gateway (OpenAI format) -> Provider (translates to native format) -> AI Service
 ```
 
 This design:
@@ -397,6 +410,100 @@ See `generate-custom-recipe.ts` for Thermomix system prompt section.
 - **`irmixy-chat-orchestrator/`**, **`irmixy-voice-orchestrator/`** - AI endpoints
 - **`get-nutritional-facts/`**, **`parse-recipe-markdown/`** - Recipe utilities
 
+### Platform-Specific Providers
+
+For features that are only available on certain platforms (e.g., native features), use Metro's `.web.ts` file extension pattern:
+
+**Pattern:**
+- `services/feature/FeatureFactory.ts` - Native implementation (iOS/Android)
+- `services/feature/FeatureFactory.web.ts` - Web implementation (stub or alternative)
+
+**How it works:**
+- Metro automatically selects the `.web.ts` file when building for web
+- Native platforms continue using the standard `.ts` file
+- No runtime overhead - resolution happens at build time
+- Zero dynamic imports or conditional logic needed
+
+**Example: Voice Chat**
+```
+services/voice/
+├── VoiceProviderFactory.ts      <- Native (iOS/Android) returns OpenAIRealtimeProvider
+├── VoiceProviderFactory.web.ts  <- Web returns WebVoiceProvider stub
+├── providers/
+│   ├── OpenAIRealtimeProvider.ts  <- Uses react-native-webrtc
+│   └── WebVoiceProvider.ts        <- Stub with clear error messaging
+└── types.ts                       <- Shared interface (used by both)
+```
+
+**Why this approach:**
+- No native package imports on web (prevents build crashes)
+- Type-safe - both implementations must match the interface
+- Clear file structure - obvious which platform uses what
+- Industry standard - same pattern used by Expo and React Native core
+- Future-proof - easy to upgrade web stub to real implementation later
+
+**When to use:**
+- Native-only features (WebRTC, native APIs, native packages)
+- Platform-specific performance optimizations
+- Different implementations per platform
+
+**UI considerations:**
+- UI layer stays platform-agnostic (uses the interface)
+- Platform-specific UI (show/hide features) uses `Platform.OS !== 'web'`
+- See `app/(tabs)/chat/index.tsx` for example
+
+<!-- END:shared/architecture -->
+
+## Agent Team
+
+YummyYummix has specialized domain agents in `.claude/agents/`. Delegate to them when working in their domain — they know the codebase patterns deeply and produce better results than doing everything in the main session.
+
+Agent roles are defined in `docs/agent-guidelines/AGENT-ROLES.yaml` (single source of truth). Agent files are generated — never edit `.claude/agents/*.md` directly. See [docs/operations/AGENT-SYNC.md](docs/operations/AGENT-SYNC.md) for how to add or modify agents.
+
+### When to Delegate
+
+| Domain | Agent | When to Use |
+|--------|-------|-------------|
+| **Product** | `yummyyummix:product` | Brainstorming features, scoping MVPs, identifying highest-value work, writing user stories. Use before building to think about *what* to build. |
+| **Frontend** | `yummyyummix:frontend` | Building or modifying screens, components, services, hooks in `yyx-app/`. |
+| **Backend** | `yummyyummix:backend` | Building or modifying Edge Functions, shared utilities in `yyx-server/`. |
+| **AI** | `yummyyummix:ai-engineer` | Anything touching the AI Gateway, tool system, RAG, orchestrators, or AI-powered features. |
+| **Database** | `yummyyummix:database` | Schema design, migrations, RLS policies, RPC functions, query optimization. |
+| **Designer** | `yummyyummix:designer` | UI/UX design decisions, visual specs, component layout. Knows the target audience (Thermomix owners) and brand identity. |
+| **Testing** | `yummyyummix:test-engineer` | Dedicated test creation — improving coverage, writing regression tests, backfilling tests. |
+| **Docs** | `yummyyummix:docs` | Keeping documentation in sync after feature changes. |
+| **Code Review** | `yummyyummix:code-reviewer` | Cross-cutting code review for bugs, dead code, conventions, type safety. |
+
+### How to Use Agents
+
+Agents are invoked directly by the user (e.g., "ask the frontend agent to build this component"). They are **not** programmatically delegated from skills — custom agents can't be launched via the Task tool's `subagent_type`.
+
+Skills use the same guideline docs that agents reference (`docs/agent-guidelines/*.md`) to get domain expertise inline. There's no magic in the agents beyond reading those docs.
+
+Domain agents write their own tests when building features. The test-engineer is for standalone testing tasks.
+
+### Skills
+
+| Skill | Description |
+|-------|-------------|
+| `/build-feature` | Guided 7-phase feature development — product thinking, exploration, design, implementation, review, docs |
+| `/review-pr` | PR review against project standards with structured report output |
+| `/review-changes` | Same as review-pr but for local commits before opening a PR |
+| `/update-docs` | Syncs documentation after feature changes |
+
+### Guideline Docs
+
+Each agent references domain-specific playbooks in `docs/agent-guidelines/`:
+- `REVIEW-CRITERIA.md` — Review categories, severity levels, recommendation logic
+- `BACKEND-GUIDELINES.md` — Edge function patterns, SSE streaming, Deno conventions
+- `FRONTEND-GUIDELINES.md` — Component architecture, design tokens, NativeWind, i18n
+- `DESIGN-GUIDELINES.md` — Brand identity, target audience, visual design system
+- `AI-GUIDELINES.md` — Gateway API, tool system, RAG, safety systems
+- `DATABASE-GUIDELINES.md` — Migration workflow, RLS, naming conventions, schema
+- `TESTING-GUIDELINES.md` — Jest + Deno test patterns, decision tree, templates
+- `PRODUCT-GUIDELINES.md` — Mission, audience, feature map, prioritization framework
+
+<!-- BEGIN:shared/conventions -->
 ## Key Conventions
 
 ### Imports
@@ -461,48 +568,6 @@ font-heading (Quicksand), font-subheading (Lexend), font-body (Montserrat), font
 <View className="flex-col md:flex-row gap-md">...</View>
 ```
 
-### Platform-Specific Providers
-
-For features that are only available on certain platforms (e.g., native features), use Metro's `.web.ts` file extension pattern:
-
-**Pattern:**
-- `services/feature/FeatureFactory.ts` - Native implementation (iOS/Android)
-- `services/feature/FeatureFactory.web.ts` - Web implementation (stub or alternative)
-
-**How it works:**
-- Metro automatically selects the `.web.ts` file when building for web
-- Native platforms continue using the standard `.ts` file
-- No runtime overhead - resolution happens at build time
-- Zero dynamic imports or conditional logic needed
-
-**Example: Voice Chat**
-```
-services/voice/
-├── VoiceProviderFactory.ts      ← Native (iOS/Android) returns OpenAIRealtimeProvider
-├── VoiceProviderFactory.web.ts  ← Web returns WebVoiceProvider stub
-├── providers/
-│   ├── OpenAIRealtimeProvider.ts  ← Uses react-native-webrtc
-│   └── WebVoiceProvider.ts        ← Stub with clear error messaging
-└── types.ts                       ← Shared interface (used by both)
-```
-
-**Why this approach:**
-- ✅ No native package imports on web (prevents build crashes)
-- ✅ Type-safe - both implementations must match the interface
-- ✅ Clear file structure - obvious which platform uses what
-- ✅ Industry standard - same pattern used by Expo and React Native core
-- ✅ Future-proof - easy to upgrade web stub to real implementation later
-
-**When to use:**
-- Native-only features (WebRTC, native APIs, native packages)
-- Platform-specific performance optimizations
-- Different implementations per platform
-
-**UI considerations:**
-- UI layer stays platform-agnostic (uses the interface)
-- Platform-specific UI (show/hide features) uses `Platform.OS !== 'web'`
-- See `app/(tabs)/chat/index.tsx` for example
-
 ### Layouts
 ```tsx
 import { PageLayout } from '@/components/layouts/PageLayout';
@@ -534,9 +599,12 @@ const { data, error } = await supabase.from('recipes').select('*');
 - Use `React.memo` for pure components
 - Use `expo-image` for optimized images
 
+<!-- END:shared/conventions -->
+
+<!-- BEGIN:shared/testing -->
 ## Testing
 
-**Always write tests for critical components and workflows.** See [TESTING.md](./docs/Operations/TESTING.md) for comprehensive documentation.
+**Always write tests for critical components and workflows.** See [TESTING.md](./docs/operations/TESTING.md) for comprehensive documentation.
 
 ### Quick Reference
 
@@ -552,13 +620,28 @@ deno task test:integration  # Integration tests
 
 ### What Must Be Tested
 
-| Category | Examples | Required Coverage |
-|----------|----------|-------------------|
-| **Critical Components** | Button, Text, Form inputs, Navigation | Unit tests |
-| **Authentication Flows** | Login, logout, session refresh | Unit + integration |
-| **Data Services** | Recipe CRUD, user profile operations | Unit tests |
-| **Edge Functions** | AI chat, recipe parsing, nutrition | Unit + integration |
-| **Business Logic** | Validation, calculations, transformations | Unit tests |
+| What You Create/Modify | Required Tests |
+|------------------------|----------------|
+| New component | Unit test covering rendering, interactions, states |
+| New service function | Unit test with mocked dependencies |
+| New Edge Function | Deno unit test + update integration tests |
+| Bug fix | Regression test that would have caught the bug |
+| Auth/security code | Comprehensive tests for success AND failure paths |
+
+### Critical vs Non-Critical Code
+
+**Always test (critical):**
+- Authentication (login, logout, session management, protected routes)
+- Data mutations (create, update, delete)
+- User input validation (forms, search, filters)
+- Core components (Button, Text, Input, Modal, Form)
+- Business logic (calculations, conversions, scoring)
+- Edge Functions (all serverless functions)
+
+**Optional tests (non-critical):**
+- Pure presentational components with no logic
+- Static pages
+- Simple wrappers around library components
 
 ### Test Patterns
 
@@ -602,15 +685,21 @@ Tests don't run on pre-commit (too slow), but linting does:
 
 CI runs full test suites on every PR.
 
+<!-- END:shared/testing -->
+
+<!-- BEGIN:shared/analytics -->
 ## Analytics
 
-When adding new features, consider what user engagement signals are worth tracking. See [ANALYTICS.md](./docs/Operations/ANALYTICS.md) for:
+When adding new features, consider what user engagement signals are worth tracking. See [ANALYTICS.md](./docs/operations/ANALYTICS.md) for:
 - Current tracked events and metrics
 - How to add new event tracking
 - Dashboard queries
 
 **Philosophy**: Track what tells us if users are happy and coming back, not vanity metrics.
 
+<!-- END:shared/analytics -->
+
+<!-- BEGIN:shared/git-conventions -->
 ## Git Conventions
 
 ### Branch Naming
@@ -625,6 +714,8 @@ fix(auth): resolve login timeout issue
 docs: update API documentation
 ```
 
+<!-- END:shared/git-conventions -->
+
 ## AI Collaboration Prompts
 
 When working with multiple AIs iteratively:
@@ -633,4 +724,4 @@ When working with multiple AIs iteratively:
 3. **Review** - Have another AI review the changes
 4. **Iterate** - Address feedback and repeat until satisfied
 
-See [docs/ai-prompts.md](docs/ai-prompts.md) for copy-paste prompts.
+See [docs/ai-prompts/ai-prompts.md](docs/ai-prompts/ai-prompts.md) for copy-paste prompts.
