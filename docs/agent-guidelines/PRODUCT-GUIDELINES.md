@@ -72,7 +72,7 @@ Lupita is the critical design constraint. She's the bigger segment, and if the a
 ### Geographic & Cultural Focus
 
 - **Mexico-first** — Spanish is the primary language
-- Latin American market dynamics (consider OXXO for payments, WhatsApp as communication channel)
+- Latin American market dynamics (WhatsApp as communication channel)
 - Content and recipes should reflect Mexican and Latin American cuisine
 
 ### Pain Points
@@ -171,7 +171,7 @@ Irmixy is an AI cooking companion built specifically for Thermomix owners. Unlik
 - **Paid subscription** model — price target ~$5 USD/month (to be validated in beta)
 - Payments via **Stripe on YummyYummix website**
 - App Store / Google Play IAP may be added later if needed
-- **Mexico market:** consider cash-payment options (OXXO) for users without credit cards
+- **Mexico market:** credit/debit cards via Stripe — the payment method our audience is familiar with
 - Features should be evaluated by impact on **conversion** (free → paid) and **retention** (monthly renewals)
 
 ---

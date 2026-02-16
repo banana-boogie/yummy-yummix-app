@@ -61,16 +61,16 @@ If any canonical sources were updated, run the appropriate sync commands:
 
 1. **If shared block files changed** (`docs/agent-guidelines/shared/`):
    ```bash
-   npm run ai-docs:sync
+   npm run dev:docs-sync
    ```
 2. **If AGENT-ROLES.yaml changed** (`docs/agent-guidelines/AGENT-ROLES.yaml`):
    ```bash
-   npm run agents:sync
+   npm run dev:agents-sync
    ```
 3. **Verify syncs succeeded**:
    ```bash
-   npm run ai-docs:check
-   npm run agents:check
+   npm run dev:docs-check
+   npm run dev:agents-check
    ```
 
 ### Step 4: Verify Key Documents
@@ -95,8 +95,8 @@ Output a summary:
 - `docs/agent-guidelines/shared/architecture.md` — [what changed]
 
 ### Syncs Run
-- `ai-docs:sync` — [pass/fail]
-- `agents:sync` — [pass/fail]
+- `dev:docs-sync` — [pass/fail]
+- `dev:agents-sync` — [pass/fail]
 
 ### Files Verified (no changes needed)
 - `docs/agent-guidelines/FRONTEND-GUIDELINES.md` — up to date

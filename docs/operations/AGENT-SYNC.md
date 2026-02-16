@@ -11,7 +11,7 @@ AGENT-ROLES.yaml  →  agents-sync.js  →  .claude/agents/*.md
 
 1. **`docs/agent-guidelines/AGENT-ROLES.yaml`** defines all agent roles: id, description, model tier, mode, references, rules
 2. **`scripts/agents-sync.js`** reads the YAML and generates platform-specific artifacts for Claude and Codex role skills
-3. **`npm run agents:check`** compares generated output against committed files — fails on drift
+3. **`npm run dev:agents-check`** compares generated output against committed files — fails on drift
 
 ## File Map
 
@@ -19,9 +19,9 @@ AGENT-ROLES.yaml  →  agents-sync.js  →  .claude/agents/*.md
 |------|------|-------|
 | `docs/agent-guidelines/AGENT-ROLES.yaml` | Canonical source | Yes — this is where you edit roles |
 | `scripts/agents-sync.js` | Generator | Only to change templates or add platforms |
-| `.claude/agents/*.md` | Generated | No — run `agents:sync` instead |
-| `.codex/skills/<role-id>/SKILL.md` | Generated (role skills) | No — run `agents:sync` instead |
-| `.codex/skills/<role-id>/agents/openai.yaml` | Generated (role skill UI metadata) | No — run `agents:sync` instead |
+| `.claude/agents/*.md` | Generated | No — run `dev:agents-sync` instead |
+| `.codex/skills/<role-id>/SKILL.md` | Generated (role skills) | No — run `dev:agents-sync` instead |
+| `.codex/skills/<role-id>/agents/openai.yaml` | Generated (role skill UI metadata) | No — run `dev:agents-sync` instead |
 | `docs/agent-guidelines/*.md` | Hand-authored guidelines | Yes — these are platform-agnostic playbooks |
 | `.claude/skills/*.md` | Hand-authored skills | Yes — not managed by sync |
 | `.codex/skills/review-pr/*` | Hand-authored skill | Yes — excluded from role sync |
@@ -30,38 +30,38 @@ AGENT-ROLES.yaml  →  agents-sync.js  →  .claude/agents/*.md
 ## Commands
 
 ```bash
-npm run agents:sync    # Generate Claude agent files and Codex role skills from YAML
-npm run agents:check   # Verify generated files match committed (CI-safe)
+npm run dev:agents-sync    # Generate Claude agent files and Codex role skills from YAML
+npm run dev:agents-check   # Verify generated files match committed (CI-safe)
 ```
 
 ## How to Add a New Agent
 
 1. Add a new role entry to `docs/agent-guidelines/AGENT-ROLES.yaml`
 2. Optionally create a guideline doc in `docs/agent-guidelines/` and reference it
-3. Run `npm run agents:sync`
+3. Run `npm run dev:agents-sync`
 4. Commit the YAML, generated Claude + Codex role files, and any new guideline docs
 
 ## How to Modify an Agent
 
 1. Edit the role in `docs/agent-guidelines/AGENT-ROLES.yaml` (never edit generated files directly)
-2. Run `npm run agents:sync`
+2. Run `npm run dev:agents-sync`
 3. Commit the YAML and regenerated Claude + Codex role files
 
 ## How to Remove an Agent
 
 1. Remove the role from `docs/agent-guidelines/AGENT-ROLES.yaml`
-2. Run `npm run agents:sync`
+2. Run `npm run dev:agents-sync`
 3. Delete orphaned generated files:
    - `.claude/agents/<id>.md`
    - `.codex/skills/<id>/`
-4. `npm run agents:check` will flag leftover generated files (manual Codex skills are ignored)
+4. `npm run dev:agents-check` will flag leftover generated files (manual Codex skills are ignored)
 5. Commit
 
 ## How to Add a New Guideline Doc
 
 1. Create the doc in `docs/agent-guidelines/` (e.g., `NEW-DOMAIN-GUIDELINES.md`)
 2. Add the path to the role's `references` array in `AGENT-ROLES.yaml`
-3. Run `npm run agents:sync`
+3. Run `npm run dev:agents-sync`
 4. Commit
 
 ## YAML Schema
@@ -97,7 +97,7 @@ roles:
 Add to your CI pipeline:
 
 ```bash
-npm run agents:check
+npm run dev:agents-check
 ```
 
 Exits 0 if all agent files match YAML. Exits 1 and lists drifted files if not.
@@ -105,7 +105,7 @@ Exits 0 if all agent files match YAML. Exits 1 and lists drifted files if not.
 ## Troubleshooting
 
 **"DRIFT: file differs from generated output"**
-You edited a generated agent file directly. Run `npm run agents:sync` to regenerate from YAML.
+You edited a generated agent file directly. Run `npm run dev:agents-sync` to regenerate from YAML.
 
 **"DRIFT: file exists but id is not defined in AGENT-ROLES.yaml"**
 An agent file exists that isn't in the YAML. Either add it to YAML or delete the orphaned file.

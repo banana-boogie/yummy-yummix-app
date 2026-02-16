@@ -11,7 +11,7 @@ Domain playbook for testing YummyYummix — Jest (frontend) and Deno.test (backe
 ```
 Is this new code?
 ├── Yes → Is it critical? (auth, data mutations, business logic, edge functions)
-│   ├── Yes → MUST test (Warning/Critical if missing)
+│   ├── Yes → MUST test (High/Critical if missing)
 │   └── No → Is it a component with logic/interactions?
 │       ├── Yes → Should test
 │       └── No → Optional (pure presentational, static pages)
@@ -229,12 +229,12 @@ deno task test:integration  # Integration tests (requires staging env)
 | What | Required Tests | Severity if Missing |
 |------|---------------|-------------------|
 | Authentication flows | Success AND failure paths | Critical |
-| Data mutations (CRUD) | Happy path + error handling | Warning |
-| User input validation | Valid, invalid, edge cases | Warning |
-| Core components (Button, Text, Input) | Rendering, interactions, states | Warning |
-| Business logic (calculations, scoring) | Expected outputs, edge cases | Warning |
-| Edge Functions | Auth, input validation, response format | Warning |
-| Bug fixes | Regression test that catches the bug | Warning |
+| Data mutations (CRUD) | Happy path + error handling | High |
+| User input validation | Valid, invalid, edge cases | High |
+| Core components (Button, Text, Input) | Rendering, interactions, states | High |
+| Business logic (calculations, scoring) | Expected outputs, edge cases | High |
+| Edge Functions | Auth, input validation, response format | High |
+| Bug fixes | Regression test that catches the bug | High |
 
 ## What Is Optional
 

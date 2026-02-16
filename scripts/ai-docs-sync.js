@@ -197,7 +197,7 @@ function main() {
 
   if (checkMode) {
     if (driftFound) {
-      console.error('\nManaged blocks are out of sync. Run "npm run ai-docs:sync" to update.');
+      console.error('\nManaged blocks are out of sync. Run "npm run dev:docs-sync" to update.');
       process.exit(1);
     } else {
       console.log('All managed blocks are in sync with canonical sources.');

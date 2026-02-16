@@ -350,7 +350,7 @@ function main() {
     }
 
     if (driftFound) {
-      console.error('\nAgent files are out of sync. Run "npm run agents:sync" to regenerate.');
+      console.error('\nAgent files are out of sync. Run "npm run dev:agents-sync" to regenerate.');
       process.exit(1);
     } else {
       console.log('All agent files are in sync with AGENT-ROLES.yaml.');

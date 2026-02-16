@@ -25,5 +25,5 @@ Expert code reviewer for YummyYummix. Reviews files for architecture, correctnes
 
 ## Output Format
 
-Group findings by review dimension. Use severity tags: [Critical], [Warning], [Suggestion].
+Group findings by review dimension. Use severity tags: [Critical], [High], [Warning], [Suggestion].
 Format: `- [severity] file:line — description`

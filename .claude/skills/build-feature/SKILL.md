@@ -28,16 +28,17 @@ Initial request: $ARGUMENTS
 **Actions**:
 1. Create todo list with all 7 phases
 2. Read `docs/agent-guidelines/PRODUCT-GUIDELINES.md` for product strategy context
-3. Analyze the feature as a product strategist:
+3. **Tip:** Consider asking the `product` agent for feature brainstorming and MVP scoping before diving in.
+4. Analyze the feature as a product strategist:
    - What problem does this solve for Thermomix owners?
    - What's the highest-value slice (MVP)?
    - What user stories does this serve?
    - What are the risks and open questions?
-4. If the feature is unclear, ask the user for clarification:
+5. If the feature is unclear, ask the user for clarification:
    - What problem are they solving?
    - What should the feature do?
    - Any constraints or requirements?
-5. Summarize understanding and confirm with user
+6. Summarize understanding and confirm with user
 
 ---
 
@@ -52,13 +53,14 @@ Initial request: $ARGUMENTS
    - **Backend** → `docs/agent-guidelines/BACKEND-GUIDELINES.md`
    - **AI** → `docs/agent-guidelines/AI-GUIDELINES.md`
    - **Database** → `docs/agent-guidelines/DATABASE-GUIDELINES.md`
-3. Explore each affected domain using Glob, Grep, and Read:
+3. **Tip:** For deep domain exploration, consider asking the relevant domain agent (`frontend`, `backend`, `ai-engineer`, `database`) to investigate.
+4. Explore each affected domain using Glob, Grep, and Read:
    - **Frontend** — Find existing patterns similar to the feature. List key files in `yyx-app/`.
    - **Backend** — Find edge function patterns relevant to the feature. List key files in `yyx-server/`.
    - **AI** — Find AI system integration points. List key files in `_shared/ai-gateway/`, `_shared/tools/`.
    - **Database** — Find current schema relevant to the feature. List key tables/migrations.
-4. Read all key files identified to build deep understanding
-5. Present comprehensive summary of findings
+5. Read all key files identified to build deep understanding
+6. Present comprehensive summary of findings
 
 ---
 
@@ -87,6 +89,8 @@ If the user says "whatever you think is best", provide your recommendation and g
 ## Phase 4: Architecture & Design
 
 **Goal**: Design the implementation approach.
+
+**Tip:** Consider asking domain agents for architecture input: `designer` for UI/UX specs, `frontend` for component architecture, `backend` for edge function design, `database` for schema design, `ai-engineer` for AI system integration.
 
 **Actions**:
 1. If UI is involved, read `docs/agent-guidelines/DESIGN-GUIDELINES.md` and produce a design spec:
@@ -179,7 +183,8 @@ Refer to `docs/agent-guidelines/shared/testing.md` for testing requirements and 
 3. Update documentation:
    - Check each affected guideline doc in `docs/agent-guidelines/` for stale references
    - If shared content changed (architecture, conventions, testing, etc.), edit the canonical source in `docs/agent-guidelines/shared/` — not CLAUDE.md or AGENTS.md directly
-   - Run `npm run ai-docs:sync` to propagate shared block changes
-   - If agent roles changed, update `docs/agent-guidelines/AGENT-ROLES.yaml` and run `npm run agents:sync`
+   - Run `npm run dev:docs-sync` to propagate shared block changes
+   - If agent roles changed, update `docs/agent-guidelines/AGENT-ROLES.yaml` and run `npm run dev:agents-sync`
    - Verify file paths referenced in docs still exist
    - Add new patterns/files that were introduced
+4. **Tip:** Consider running the `/update-docs` skill to sync documentation.

@@ -26,7 +26,7 @@ Use *No issues found.* for clean categories.
 
 ### 4. Summary
 
-Severity counts (Critical, Warning, Suggestion) and overall recommendation:
+Severity counts (Critical, High, Warning, Suggestion) and overall recommendation:
 - PR context: APPROVE / COMMENT / REQUEST CHANGES
 - Pre-PR context: READY FOR PR / QUICK FIXES THEN PR / NEEDS WORK
 
@@ -64,7 +64,7 @@ A self-contained prompt for an implementation agent. See [Next Steps Prompt Cont
 ## Finding Format
 
 Every finding must include:
-- Severity tag: `[Critical]`, `[Warning]`, or `[Suggestion]`
+- Severity tag: `[Critical]`, `[High]`, `[Warning]`, or `[Suggestion]`
 - File path and line number (when possible)
 - Concrete description of the issue
 - Specific recommendation/fix
@@ -84,6 +84,10 @@ Must include 2-3 options with tradeoffs:
 
 Put the recommended option first and explain why.
 
+### High Findings
+
+Also include options/tradeoffs (same format as Critical).
+
 ### Warning Findings That Affect Merge/Readiness Risk
 
 Also include options/tradeoffs (same format as Critical).
@@ -98,7 +102,7 @@ Concise recommendation, no option matrix needed.
 
 The Next Steps section must produce a **self-contained prompt** that an implementation agent can execute without reading the review report. The prompt must:
 
-1. List **Critical and Warning** findings from the review with severity, file:line, and description under "Fix All"
+1. List **Critical, High, and Warning** findings from the review with severity, file:line, and description under "Fix All"
 2. List **Suggestion** findings under "Implement If Worthwhile"
 3. List Recommendations worth implementing under "Implement If Worthwhile"
 4. Instruct the agent to: read relevant files, create an implementation plan addressing required findings plus selected suggestions/recommendations, implement the plan, run tests/validation
@@ -113,6 +117,9 @@ You are the implementation agent for [PR #N / branch-name].
 
 ### Critical
 - [Critical] `file:line` — description
+
+### High
+- [High] `file:line` — description
 
 ### Warning
 - [Warning] `file:line` — description
@@ -131,7 +138,7 @@ You are the implementation agent for [PR #N / branch-name].
 ## Workflow
 
 1. Read the relevant files to understand context.
-2. Create an implementation plan that addresses all Critical/Warning findings plus any Suggestions/Recommendations worth implementing.
+2. Create an implementation plan that addresses all Critical/High/Warning findings plus any Suggestions/Recommendations worth implementing.
 3. Implement the plan.
 4. Run tests and validation for changed areas.
 5. Report what was done and flag any issues encountered.
@@ -142,6 +149,6 @@ Constraints:
 ```
 
 Key rules:
-- Critical/Warning findings are required fixes.
+- Critical/High/Warning findings are required fixes.
 - Suggestions and Recommendations are listed separately and marked "implement if worthwhile" — the agent uses judgment here.
 - The prompt never references the review report — it is the complete instruction set.

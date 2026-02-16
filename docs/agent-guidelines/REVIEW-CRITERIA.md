@@ -12,7 +12,7 @@ These preferences calibrate reviewer behavior across all categories:
 - **Flag both over- and under-engineering** — premature abstractions are as bad as duplicated logic
 - **Bias toward more edge case handling** — missing error handling and unhandled states should be flagged
 - **Prefer explicit over clever** — complex one-liners, obscure patterns, and implicit behavior are worth flagging
-- **Missing tests for critical code = Warning or Critical**, not Suggestion
+- **Missing tests for critical code = High or Critical**, not Suggestion
 
 ---
 
@@ -136,7 +136,7 @@ Never put components, types, or business logic directly in `app/`.
 - Static pages
 - Simple wrappers around library components
 
-Missing tests for critical code should be **Warning** or **Critical**, not Suggestion.
+Missing tests for critical code should be **High** or **Critical**, not Suggestion.
 
 ### 7. i18n
 
@@ -157,7 +157,7 @@ Consumers choose the appropriate label — "PR Hygiene" for PR reviews, "Commit 
 
 ### 9. Documentation
 
-- **Stale docs**: Changes introduce or modify patterns documented in `CLAUDE.md`, `docs/agent-guidelines/`, or `docs/architecture/` but the docs weren't updated to match
+- **Stale docs**: Changes introduce or modify patterns documented in `CLAUDE.md`, `AGENTS.md`, `docs/agent-guidelines/`, or `docs/architecture/` but the docs weren't updated to match
 - **Missing entries**: New edge functions, components, services, or hooks not reflected in directory maps or guideline docs
 - **Broken references**: File paths in docs that no longer exist due to renames, moves, or deletions
 - **Convention drift**: Code establishes a new pattern that contradicts what docs describe as the convention
@@ -171,7 +171,8 @@ Severity: **Suggestion** for minor gaps (e.g., a new hook not listed in a direct
 Tag each finding with one of:
 
 - **Critical** — Must fix. Bugs, security vulnerabilities (missing RLS, exposed secrets, injection), broken CI, missing tests for auth/security code, data loss risk.
-- **Warning** — Should fix. Performance issues (missing memoization, N+1 queries), missing tests for new features, convention violations that affect maintainability, missing error handling for likely edge cases, dead code that adds confusion.
+- **High** — Should fix before merge. Missing tests for important features (CRUD, validation, business logic, edge functions), significant convention violations, missing error handling for common edge cases.
+- **Warning** — Should fix. Performance issues (missing memoization, N+1 queries), minor convention violations that affect maintainability, dead code that adds confusion.
 - **Suggestion** — Nice to have. Minor style preferences beyond what linters catch, optional performance optimizations, documentation improvements, code organization preferences.
 
 ---
@@ -183,7 +184,7 @@ Thresholds are the same regardless of context; labels adapt to the review type.
 | Findings | PR Context | Pre-PR Context |
 |----------|-----------|----------------|
 | Any **Critical** | REQUEST CHANGES | NEEDS WORK |
-| 3+ **Warning** | REQUEST CHANGES | NEEDS WORK |
+| Any **High** or 3+ **Warning** | REQUEST CHANGES | NEEDS WORK |
 | 1-2 **Warning** | COMMENT | QUICK FIXES THEN PR |
 | Only **Suggestion** or clean | APPROVE | READY FOR PR |
 
@@ -200,4 +201,4 @@ Every review report should include these standardized sections (names are canoni
    - Pre-PR context: READY FOR PR / QUICK FIXES THEN PR / NEEDS WORK
 4. **Recommendations** — High-value improvements related to the changes but outside what was flagged in Findings. Do NOT repeat Findings. Ranked by impact vs effort.
 5. **Potential Misses** — Areas the review couldn't fully evaluate (runtime behavior, accessibility, integration effects, large diffs).
-6. **Next Steps** — Self-contained prompt where Critical/Warning findings are required fixes and Suggestions/Recommendations are "implement if worthwhile", without requiring the implementation agent to read the full review.
+6. **Next Steps** — Self-contained prompt where Critical/High/Warning findings are required fixes and Suggestions/Recommendations are "implement if worthwhile", without requiring the implementation agent to read the full review.

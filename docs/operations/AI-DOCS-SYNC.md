@@ -19,8 +19,8 @@ Content **between** markers is managed by the script and will be overwritten on 
 ## Commands
 
 ```bash
-npm run ai-docs:sync    # Update managed sections in CLAUDE.md and AGENTS.md
-npm run ai-docs:check   # Verify managed sections match canonical sources (exit 1 on drift)
+npm run dev:docs-sync    # Update managed sections in CLAUDE.md and AGENTS.md
+npm run dev:docs-check   # Verify managed sections match canonical sources (exit 1 on drift)
 ```
 
 ## Managed Blocks
@@ -52,13 +52,13 @@ npm run ai-docs:check   # Verify managed sections match canonical sources (exit 
    <!-- BEGIN:shared/my-block -->
    <!-- END:shared/my-block -->
    ```
-4. Run `npm run ai-docs:sync`
+4. Run `npm run dev:docs-sync`
 
 ## Editing Shared Content
 
 1. Edit the canonical file in `docs/agent-guidelines/shared/`
-2. Run `npm run ai-docs:sync` to propagate changes
-3. Verify with `npm run ai-docs:check`
+2. Run `npm run dev:docs-sync` to propagate changes
+3. Verify with `npm run dev:docs-check`
 
 Never edit content between markers directly in `CLAUDE.md` or `AGENTS.md` — it will be overwritten on next sync.
 
@@ -74,7 +74,7 @@ A file has two `<!-- BEGIN:shared/X -->` markers for the same block. Each block 
 There's a closing marker without a matching opening marker. Check for typos in marker names.
 
 ### Drift detected in CI
-Run `npm run ai-docs:sync` locally, review the changes, and commit.
+Run `npm run dev:docs-sync` locally, review the changes, and commit.
 
 ## Related
 

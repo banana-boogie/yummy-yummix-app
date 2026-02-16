@@ -25,5 +25,5 @@ Read these documents for context:
 
 ## Output Format
 
-Group findings by review dimension. Use severity tags: [Critical], [Warning], [Suggestion].
+Group findings by review dimension. Use severity tags: [Critical], [High], [Warning], [Suggestion].
 Format: `- [severity] file:line — description`

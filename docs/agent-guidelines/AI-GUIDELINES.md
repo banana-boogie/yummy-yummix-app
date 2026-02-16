@@ -73,7 +73,14 @@ yyx-server/supabase/functions/
 ## AI Gateway
 
 ### Core Rule
-**ALL AI calls go through the gateway. Never call OpenAI/Anthropic/etc. directly.**
+**ALL non-voice AI calls go through the gateway. Never call OpenAI/Anthropic/etc. directly.**
+
+### Scope
+The gateway handles **chat completions and embeddings** — the two standard request/response AI patterns:
+- `chat()` and `chatStream()` for text generation (all usage types)
+- `embed()` for vector embeddings (semantic search)
+
+**Voice is excluded.** The voice orchestrator uses OpenAI's Realtime API via WebRTC, which is a fundamentally different protocol (persistent bidirectional connection vs request/response). It bypasses the gateway by design — see `irmixy-voice-orchestrator/`.
 
 ### Public API
 
