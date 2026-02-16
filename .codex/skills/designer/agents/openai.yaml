@@ -1,0 +1,4 @@
+interface:
+  display_name: Designer
+  short_description: UI/UX designer for YummyYummix.
+  default_prompt: Use $yummyyummix:designer for designer tasks in the YummyYummix codebase.
