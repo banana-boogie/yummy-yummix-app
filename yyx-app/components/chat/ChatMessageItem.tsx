@@ -11,7 +11,7 @@ import {
     QuickAction,
 } from '@/services/chatService';
 import Markdown from 'react-native-markdown-display';
-import { COLORS } from '@/constants/design-tokens';
+import { COLORS, FONTS } from '@/constants/design-tokens';
 
 // ============================================================
 // Helpers
@@ -19,7 +19,7 @@ import { COLORS } from '@/constants/design-tokens';
 
 /** Strip markdown image syntax from text (used when recipe cards already show the images). */
 function stripMarkdownImages(content: string): string {
-    return content.replace(/!\[.*?\]\(.*?\)\n*/g, '').replace(/\n{3,}/g, '\n\n').trim();
+    return content.replace(/!\[.*?\]\(.*?\)\s*/g, '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 // ============================================================
@@ -32,12 +32,38 @@ export const markdownStyles = {
         fontSize: 16,
         lineHeight: 24,
     },
+    heading1: {
+        fontFamily: FONTS.HEADING,
+        fontWeight: '700' as const,
+        fontSize: 22,
+        marginBottom: 8,
+        marginTop: 12,
+        color: COLORS.text.default,
+    },
+    heading2: {
+        fontFamily: FONTS.HEADING,
+        fontWeight: '600' as const,
+        fontSize: 19,
+        marginBottom: 6,
+        marginTop: 10,
+        color: COLORS.text.default,
+    },
+    heading3: {
+        fontFamily: FONTS.HEADING,
+        fontWeight: '600' as const,
+        fontSize: 17,
+        marginBottom: 4,
+        marginTop: 8,
+        color: COLORS.text.default,
+    },
     paragraph: {
         marginTop: 0,
-        marginBottom: 8,
+        marginBottom: 12,
+        lineHeight: 22,
     },
     strong: {
-        fontWeight: '600' as const,
+        fontWeight: '700' as const,
+        color: COLORS.text.default,
     },
     em: {
         fontStyle: 'italic' as const,
@@ -47,9 +73,23 @@ export const markdownStyles = {
     },
     bullet_list: {
         marginBottom: 8,
+        paddingLeft: 16,
     },
     ordered_list: {
         marginBottom: 8,
+        paddingLeft: 16,
+    },
+    blockquote: {
+        borderLeftWidth: 3,
+        borderLeftColor: COLORS.primary.medium,
+        paddingLeft: 12,
+        marginVertical: 8,
+        opacity: 0.9,
+    },
+    hr: {
+        marginVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.grey.default,
     },
     code_inline: {
         backgroundColor: COLORS.background.secondary,
@@ -82,7 +122,7 @@ export interface ChatMessageItemProps {
     currentStatus: IrmixyStatus;
     statusText: string;
     onCopyMessage: (content: string) => void;
-    onStartCooking: (recipe: GeneratedRecipe, finalName: string, messageId: string, savedRecipeId?: string) => void;
+    onStartCooking: (recipe: GeneratedRecipe, finalName: string, messageId: string, savedRecipeId?: string) => Promise<void>;
     onActionPress: (action: QuickAction) => void;
 }
 
@@ -153,6 +193,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                         onStartCooking={onStartCooking}
                         messageId={item.id}
                         savedRecipeId={item.savedRecipeId}
+                        compact={true}
                     />
                 </View>
             )}

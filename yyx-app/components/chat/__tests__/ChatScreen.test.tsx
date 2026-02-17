@@ -11,7 +11,11 @@ import { render, fireEvent, screen, waitFor } from '@testing-library/react-nativ
 
 // Mock all dependencies before importing ChatScreen
 jest.mock('@/i18n', () => ({
-  t: (key: string) => {
+  t: (key: string, params?: Record<string, unknown>) => {
+    if (key === 'chat.resume.chatAbout') {
+      return `You were chatting about '${params?.title}'`;
+    }
+
     const translations: Record<string, string> = {
       'chat.greeting': 'Hi! I\'m Irmixy, your AI sous chef. How can I help?',
       'chat.loginRequired': 'Please log in to use the chat.',
@@ -21,6 +25,8 @@ jest.mock('@/i18n', () => ({
       'chat.generating': 'Creating response',
       'chat.error.default': 'Something went wrong. Please try again.',
       'chat.title': 'Irmixy',
+      'chat.resume.previousConversations': 'Previous conversations',
+      'chat.resume.continue': 'Continue',
       'chat.suggestions.suggestRecipe': 'Suggest a recipe',
       'chat.suggestions.whatCanICook': 'What can I cook?',
       'chat.suggestions.quickMeal': 'Quick meal ideas',
@@ -73,10 +79,12 @@ const mockSendMessage = jest.fn().mockReturnValue({
   done: Promise.resolve(),
   cancel: jest.fn(),
 });
+const mockGetLastSessionWithMessages = jest.fn().mockResolvedValue(null);
 
 jest.mock('@/services/chatService', () => ({
   loadChatHistory: (...args: any[]) => mockLoadChatHistory(...args),
   sendMessage: (...args: any[]) => mockSendMessage(...args),
+  getLastSessionWithMessages: (...args: any[]) => mockGetLastSessionWithMessages(...args),
 }));
 
 const mockInvalidateQueries = jest.fn().mockResolvedValue(undefined);
@@ -138,6 +146,7 @@ describe('ChatScreen', () => {
     jest.clearAllMocks();
     mockAuthUser = mockUser;
     mockLoadChatHistory.mockResolvedValue([]);
+    mockGetLastSessionWithMessages.mockResolvedValue(null);
   });
 
   // ============================================================
@@ -337,6 +346,23 @@ describe('ChatScreen', () => {
       render(<ChatScreen messages={externalMessages} />);
 
       expect(screen.getByText('External message content')).toBeTruthy();
+    });
+  });
+
+  describe('resume banner', () => {
+    it('shows resume banner when a recent titled session exists', async () => {
+      mockGetLastSessionWithMessages.mockResolvedValue({
+        sessionId: 'session-1',
+        title: 'Pasta Carbonara',
+        messageCount: 3,
+        lastMessageAt: new Date(),
+      });
+
+      render(<ChatScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("You were chatting about 'Pasta Carbonara'")).toBeTruthy();
+      });
     });
   });
 

@@ -87,12 +87,21 @@ export const chat = {
   andMore: "y {{count}} más",
   miseEnPlace: "Mise en place",
   prepareIngredients: "Prepara tus ingredientes.",
+  // Compact recipe card
+  seeFullRecipe: "Ver Receta Completa",
+  ingredientsSummary: "{{count}} ingredientes",
+  stepsSummary: "{{count}} pasos",
+  aiGeneratedRecipe: "Receta generada por IA",
+  aiGeneratedDisclaimer: "Esta receta fue creada por IA. Por favor verifica tiempos de cocción, temperaturas y alérgenos antes de preparar.",
   // Cooking progress & resume
   resume: {
     resumeCooking: "Continuar cocinando",
     resumePrompt: "Estabas cocinando {{recipeName}} — paso {{step}} de {{total}}. ¿Quieres retomar donde lo dejaste?",
     startOver: "Empezar de nuevo",
     startOverFailed: "No se pudo empezar de nuevo en este momento. Inténtalo otra vez.",
+    chatAbout: "Estabas hablando sobre '{{title}}'",
+    continue: "Continuar",
+    previousConversations: "Conversaciones anteriores",
   },
   // Fallback when no recipes found
   fallback: {

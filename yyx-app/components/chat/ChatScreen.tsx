@@ -17,12 +17,14 @@ import { SuggestionChips } from '@/components/chat/SuggestionChips';
 import { IrmixyAvatar } from '@/components/chat/IrmixyAvatar';
 import { TypingDots } from '@/components/chat/TypingIndicator';
 import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
+import { ChatResumeBar } from '@/components/chat/ChatResumeBar';
 import {
     ChatMessage,
     IrmixyStatus,
     SuggestionChip,
     GeneratedRecipe,
     QuickAction,
+    getLastSessionWithMessages,
     loadChatHistory,
     sendMessage,
 } from '@/services/chatService';
@@ -52,6 +54,7 @@ interface Props {
     // Optional: lift messages state to parent to preserve recipes when switching modes
     messages?: ChatMessage[];
     onMessagesChange?: (messages: ChatMessage[]) => void;
+    onOpenSessionsMenu?: () => void;
 }
 
 // Stable keyExtractor to avoid recreation on each render
@@ -62,6 +65,7 @@ export function ChatScreen({
     onSessionCreated,
     messages: externalMessages,
     onMessagesChange,
+    onOpenSessionsMenu,
 }: Props) {
     const { user } = useAuth();
     const { language } = useLanguage();
@@ -103,6 +107,8 @@ export function ChatScreen({
     const [currentStatus, setCurrentStatus] = useState<IrmixyStatus>(null);
     const [dynamicSuggestions, setDynamicSuggestions] = useState<SuggestionChip[] | null>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
+    const [resumeSession, setResumeSession] = useState<{ sessionId: string; title: string } | null>(null);
+    const [resumeDismissed, setResumeDismissed] = useState(false);
 
     const { isListening, pulseAnim, handleMicPress, stopAndGuard } = useSpeechRecognition({
         language,
@@ -142,6 +148,9 @@ export function ChatScreen({
         if (nextSessionId !== currentSessionId) {
             resetStreamingState();
             setCurrentSessionId(nextSessionId);
+            if (nextSessionId) {
+                setResumeSession(null);
+            }
 
             // Restore suggestions from latest assistant message in this session
             const lastSuggested = [...messages]
@@ -180,6 +189,26 @@ export function ChatScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialSessionId, user]);
 
+    // Check for resumable session on mount
+    useEffect(() => {
+        if (initialSessionId || messages.length > 0 || resumeDismissed) return;
+
+        getLastSessionWithMessages().then((result) => {
+            if (!isMountedRef.current) return;
+            if (!result) return;
+
+            // Only show if session is less than 24 hours old
+            const hoursSince = (Date.now() - result.lastMessageAt.getTime()) / (1000 * 60 * 60);
+            if (hoursSince < 24 && result.title.trim().length > 0) {
+                setResumeSession({ sessionId: result.sessionId, title: result.title });
+            }
+        }).catch(() => {
+            // Silently fail - resume is non-critical
+        });
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const scrollToEndThrottled = useCallback((animated: boolean) => {
         // Only auto-scroll if user is near bottom (prevents interrupting reading)
         if (!isNearBottomRef.current && !animated) return;
@@ -192,10 +221,13 @@ export function ChatScreen({
     }, []);
 
     // Get initial suggestions from i18n - recompute when language changes
-    const initialSuggestions = useMemo(() => [
-        { label: i18n.t('chat.suggestions.suggestRecipe'), message: i18n.t('chat.suggestions.suggestRecipe') },
-        { label: i18n.t('chat.suggestions.quickMeal'), message: i18n.t('chat.suggestions.quickMeal') },
-    ], [language]);
+    const initialSuggestions = useMemo(() => {
+        void language;
+        return [
+            { label: i18n.t('chat.suggestions.suggestRecipe'), message: i18n.t('chat.suggestions.suggestRecipe') },
+            { label: i18n.t('chat.suggestions.quickMeal'), message: i18n.t('chat.suggestions.quickMeal') },
+        ];
+    }, [language]);
 
     // Use dynamic suggestions if available, otherwise fallback to initial
     const currentSuggestions = dynamicSuggestions || initialSuggestions;
@@ -246,6 +278,10 @@ export function ChatScreen({
 
     const handleSendMessage = useCallback(async (messageText: string) => {
         if (!messageText.trim() || !user || isLoading) return;
+
+        if (resumeSession) {
+            setResumeSession(null);
+        }
 
         streamRequestIdRef.current += 1;
         const requestId = streamRequestIdRef.current;
@@ -625,8 +661,10 @@ export function ChatScreen({
         currentSessionId,
         isLoading,
         onSessionCreated,
+        resumeSession,
         scrollToEndThrottled,
         setMessages,
+        stopAndGuard,
         user,
         // messagesRef is intentionally excluded (refs are stable and don't need to be in deps)
         // assistantIndexRef, streamCancelRef, chunkTimerRef, etc. are also excluded for same reason
@@ -641,13 +679,31 @@ export function ChatScreen({
         handleSendMessage(suggestion.message);
     }, [handleSendMessage]);
 
+    const handleResumeContinue = useCallback(async () => {
+        if (!resumeSession) return;
+        try {
+            const history = await loadChatHistory(resumeSession.sessionId);
+            setMessages(history);
+            setCurrentSessionId(resumeSession.sessionId);
+            onSessionCreated?.(resumeSession.sessionId);
+            setResumeSession(null);
+        } catch (err) {
+            if (__DEV__) console.error('Failed to resume session:', err);
+        }
+    }, [onSessionCreated, resumeSession, setMessages]);
+
+    const handleResumeDismiss = useCallback(() => {
+        setResumeSession(null);
+        setResumeDismissed(true);
+    }, []);
+
     const handleCopyMessage = useCallback(async (content: string) => {
         try {
             await Clipboard.setStringAsync(content);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             // Show brief confirmation
             if (Platform.OS === 'ios') {
-                Alert.alert(i18n.t('common.copied'), i18n.t('chat.messageCopied'), [{ text: i18n.t('common.ok') }], { userInterfaceStyle: 'automatic' });
+                Alert.alert(i18n.t('common.copied'), i18n.t('chat.messageCopied'), [{ text: i18n.t('common.ok') }], { userInterfaceStyle: 'unspecified' });
             } else {
                 Alert.alert(i18n.t('common.copied'), i18n.t('chat.messageCopied'));
             }
@@ -774,6 +830,15 @@ export function ChatScreen({
                 renderItem={renderMessage}
                 keyExtractor={keyExtractor}
                 contentContainerStyle={{ padding: 16, flexGrow: 1 }}
+                ListHeaderComponent={
+                    resumeSession && !resumeDismissed && messages.length === 0 && !currentSessionId ? (
+                        <ChatResumeBar
+                            sessionTitle={resumeSession.title}
+                            onContinue={handleResumeContinue}
+                            onDismiss={handleResumeDismiss}
+                        />
+                    ) : null
+                }
                 onScroll={handleScroll}
                 scrollEventThrottle={200}
                 // Performance optimizations to prevent flashing and reduce re-renders
@@ -841,6 +906,19 @@ export function ChatScreen({
                     onSelect={handleSuggestionSelect}
                     disabled={isLoading}
                 />
+            )}
+            {messages.length === 0 && onOpenSessionsMenu && (
+                <View className="px-md pb-sm">
+                    <TouchableOpacity
+                        onPress={onOpenSessionsMenu}
+                        accessibilityRole="button"
+                        accessibilityLabel={i18n.t('chat.resume.previousConversations')}
+                    >
+                        <Text className="text-primary-darkest underline">
+                            {i18n.t('chat.resume.previousConversations')}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
             )}
 
             <View
