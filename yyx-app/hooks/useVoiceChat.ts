@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useMeasurement } from '@/contexts/MeasurementContext';
+import { useVoiceSession } from '@/contexts/VoiceSessionContext';
 import { VoiceProviderFactory } from '@/services/voice/VoiceProviderFactory';
 import type {
     VoiceAssistantProvider,
@@ -75,8 +76,10 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     const { userProfile } = useUserProfile();
     const { language } = useLanguage();
     const { measurementSystem } = useMeasurement();
+    const { registerSession, unregisterSession } = useVoiceSession();
 
     const providerRef = useRef<VoiceAssistantProvider | null>(null);
+    const hookIdRef = useRef(generateMsgId());
 
     const resetStreamingRefs = useCallback((preserveLastAssistant = false) => {
         if (deltaTimerRef.current) {
@@ -125,8 +128,9 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             }
             listenersRef.current = [];
             providerRef.current?.destroy();
+            unregisterSession(hookIdRef.current);
         };
-    }, [resetStreamingRefs]);
+    }, [resetStreamingRefs, unregisterSession]);
 
     // Helper to append a message to the transcript
     const appendMessage = useCallback((msg: ChatMessage) => {
@@ -413,16 +417,24 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                 recipeContext: options?.recipeContext
             });
 
+            registerSession(hookIdRef.current, () => {
+                providerRef.current?.stopConversation();
+                resetStreamingRefs();
+                unregisterSession(hookIdRef.current);
+            });
+
         } catch (err) {
             console.error('[VoiceChat] Start error:', err);
             setError(err instanceof Error ? err.message : 'Unknown error');
+            unregisterSession(hookIdRef.current);
         }
-    }, [language, measurementSystem, userProfile, options, appendMessage, updateStreamingMessage, finalizeAssistantMessage, resetStreamingRefs]);
+    }, [language, measurementSystem, userProfile, options, appendMessage, updateStreamingMessage, finalizeAssistantMessage, resetStreamingRefs, registerSession, unregisterSession]);
 
     const stopConversation = useCallback(() => {
         providerRef.current?.stopConversation();
         resetStreamingRefs();
-    }, [resetStreamingRefs]);
+        unregisterSession(hookIdRef.current);
+    }, [resetStreamingRefs, unregisterSession]);
 
     const updateContext = useCallback((recipeContext: RecipeContext) => {
         if (!providerRef.current) return;
