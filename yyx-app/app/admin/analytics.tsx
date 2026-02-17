@@ -12,6 +12,7 @@ import {
   TopRecipe,
   TopSearch,
   AIMetrics,
+  AIUsageMetrics,
   PatternMetrics,
   RetentionMetrics,
 } from '@/services/analyticsService';
@@ -361,8 +362,21 @@ function SearchesSection({ data }: { data: TopSearch[] | null }) {
   );
 }
 
-function AISection({ data }: { data: AIMetrics | null }) {
-  if (!data) return <LoadingState />;
+function AISection({
+  adoptionData,
+  usageData,
+}: {
+  adoptionData: AIMetrics | null;
+  usageData: AIUsageMetrics | null;
+}) {
+  if (!adoptionData || !usageData) return <LoadingState />;
+
+  const summary = usageData.summary;
+  const maxDailyCost = Math.max(
+    ...usageData.dailyCost.map((item) => item.cost),
+    0.01
+  );
+  const formatUsd = (value: number) => `$${value.toFixed(2)}`;
 
   return (
     <View>
@@ -370,18 +384,18 @@ function AISection({ data }: { data: AIMetrics | null }) {
       <View className="flex-row flex-wrap">
         <MetricCard
           title={i18n.t('admin.analytics.labels.adoptionRate')}
-          value={`${data.aiAdoptionRate.toFixed(1)}%`}
+          value={`${adoptionData.aiAdoptionRate.toFixed(1)}%`}
           icon="sparkles"
           subtitle={i18n.t('admin.analytics.labels.usersWhoTriedAi')}
         />
         <MetricCard
           title={i18n.t('admin.analytics.labels.aiUsers')}
-          value={data.aiUserCount}
+          value={adoptionData.aiUserCount}
           icon="people"
         />
         <MetricCard
           title={i18n.t('admin.analytics.labels.returnUsers')}
-          value={data.returnAIUsers}
+          value={adoptionData.returnAIUsers}
           icon="repeat"
           subtitle={i18n.t('admin.analytics.labels.usedAiMultipleTimes')}
         />
@@ -391,12 +405,123 @@ function AISection({ data }: { data: AIMetrics | null }) {
       <View className="flex-row flex-wrap">
         <MetricCard
           title={i18n.t('admin.analytics.labels.chatSessions')}
-          value={data.totalChatSessions}
+          value={adoptionData.totalChatSessions}
           icon="chatbubbles"
         />
         <MetricCard
           title={i18n.t('admin.analytics.labels.voiceSessions')}
-          value={data.totalVoiceSessions}
+          value={adoptionData.totalVoiceSessions}
+          icon="mic"
+        />
+      </View>
+
+      <SectionTitle>{i18n.t('admin.analytics.sections.aiCostsUsage')}</SectionTitle>
+      <View className="flex-row flex-wrap">
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.totalCost')}
+          value={formatUsd(summary.totalCostUsd)}
+          icon="cash"
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.textCost')}
+          value={formatUsd(summary.textCostUsd)}
+          icon="chatbox"
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.voiceCost')}
+          value={formatUsd(summary.voiceCostUsd)}
+          icon="mic-circle"
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.totalTokens')}
+          value={summary.textTokens.toLocaleString()}
+          icon="stats-chart"
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.avgTokensPerRequest')}
+          value={summary.avgTokensPerRequest.toFixed(0)}
+          icon="analytics"
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.avgCostPerUser')}
+          value={formatUsd(summary.avgCostPerUser)}
+          icon="person"
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.avgLatency')}
+          value={`${summary.avgLatencyMs.toFixed(0)} ms`}
+          icon="timer"
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.errorRate')}
+          value={`${summary.errorRate.toFixed(1)}%`}
+          icon="alert-circle"
+        />
+      </View>
+
+      <SectionTitle>{i18n.t('admin.analytics.sections.modelBreakdown')}</SectionTitle>
+      {usageData.modelBreakdown.length === 0 ? (
+        <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noDataYet')}</Text>
+      ) : (
+        usageData.modelBreakdown.map((row, index) => (
+          <ListItem
+            key={`${row.model}:${index}`}
+            rank={index + 1}
+            label={`${row.model} • ${formatUsd(row.totalCostUsd)}`}
+            value={row.requests}
+          />
+        ))
+      )}
+
+      <SectionTitle>{i18n.t('admin.analytics.sections.dailyCostTrend')}</SectionTitle>
+      {usageData.dailyCost.length === 0 ? (
+        <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noDataYet')}</Text>
+      ) : (
+        <View className="bg-white rounded-lg p-md">
+          {usageData.dailyCost.map((day) => {
+            const widthPercent = Math.max((day.cost / maxDailyCost) * 100, 2);
+            return (
+              <View key={day.date} className="mb-sm">
+                <View className="flex-row items-center justify-between mb-xxs">
+                  <Text preset="caption" className="text-text-secondary">{day.date}</Text>
+                  <Text preset="caption" className="text-text-default">{formatUsd(day.cost)}</Text>
+                </View>
+                <View className="h-[8px] bg-grey-light rounded-full overflow-hidden">
+                  <View
+                    className="h-full bg-primary-medium"
+                    style={{ width: `${widthPercent}%` }}
+                  />
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      <SectionTitle>{i18n.t('admin.analytics.sections.phaseBreakdown')}</SectionTitle>
+      {usageData.phaseBreakdown.length === 0 ? (
+        <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noDataYet')}</Text>
+      ) : (
+        usageData.phaseBreakdown.map((row, index) => (
+          <ListItem
+            key={`${row.phase}:${index}`}
+            rank={index + 1}
+            label={`${row.phase} • ${row.errorRate.toFixed(1)}% ${i18n.t('admin.analytics.labels.errorRate').toLowerCase()}`}
+            value={Math.round(row.avgTokens)}
+          />
+        ))
+      )}
+
+      <SectionTitle>{i18n.t('admin.analytics.sections.voiceUsage')}</SectionTitle>
+      <View className="flex-row flex-wrap">
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.voiceMinutes')}
+          value={summary.voiceMinutes.toFixed(1)}
+          icon="time"
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.voiceSessions')}
+          value={summary.voiceSessions}
           icon="mic"
         />
       </View>
@@ -471,6 +596,7 @@ export default function AnalyticsDashboard() {
   const [cookedRecipes, setCookedRecipes] = useState<TopRecipe[] | null>(null);
   const [searches, setSearches] = useState<TopSearch[] | null>(null);
   const [aiData, setAIData] = useState<AIMetrics | null>(null);
+  const [aiUsageData, setAIUsageData] = useState<AIUsageMetrics | null>(null);
   const [patternsData, setPatternsData] = useState<PatternMetrics | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
@@ -513,8 +639,14 @@ export default function AnalyticsDashboard() {
             if (!cancelled) setSearches(result);
             break;
           case 'ai':
-            result = await analyticsService.getAIMetrics();
-            if (!cancelled) setAIData(result);
+            const [adoption, usage] = await Promise.all([
+              analyticsService.getAIMetrics(timeframe),
+              analyticsService.getAIUsageMetrics(timeframe),
+            ]);
+            if (!cancelled) {
+              setAIData(adoption);
+              setAIUsageData(usage);
+            }
             break;
           case 'patterns':
             result = await analyticsService.getPatternMetrics();
@@ -537,7 +669,7 @@ export default function AnalyticsDashboard() {
     return () => { cancelled = true; };
   }, [activeTab, timeframe, retryKey]);
 
-  const showTimeframeFilter = ['funnel', 'recipes', 'searches'].includes(activeTab);
+  const showTimeframeFilter = ['funnel', 'recipes', 'searches', 'ai'].includes(activeTab);
 
   const renderContent = () => {
     if (loading) return <LoadingState />;
@@ -555,7 +687,7 @@ export default function AnalyticsDashboard() {
       case 'searches':
         return <SearchesSection data={searches} />;
       case 'ai':
-        return <AISection data={aiData} />;
+        return <AISection adoptionData={aiData} usageData={aiUsageData} />;
       case 'patterns':
         return <PatternsSection data={patternsData} />;
       default:

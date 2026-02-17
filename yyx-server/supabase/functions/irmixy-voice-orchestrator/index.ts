@@ -230,6 +230,7 @@ async function handleExecuteTool(
   payload: RequestPayload,
   userId: string,
   authHeader: string,
+  requestId: string,
   startTime: number,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
@@ -282,6 +283,13 @@ async function handleExecuteTool(
     toolName,
     argsString,
     userContext,
+    undefined,
+    {
+      userId,
+      sessionId,
+      requestId,
+      functionName: "irmixy-voice-orchestrator",
+    },
   );
 
   const elapsed = Math.round(performance.now() - startTime);
@@ -310,6 +318,7 @@ serve(async (req) => {
   }
 
   const startTime = performance.now();
+  const requestId = crypto.randomUUID();
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -391,6 +400,7 @@ serve(async (req) => {
       payload,
       user.id,
       authHeader!,
+      requestId,
       startTime,
       corsHeaders,
     );

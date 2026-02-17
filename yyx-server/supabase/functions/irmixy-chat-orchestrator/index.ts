@@ -17,6 +17,7 @@ import {
 import type { RecipeCard, UserContext } from "../_shared/irmixy-schemas.ts";
 import { ValidationError } from "../_shared/irmixy-schemas.ts";
 import type {
+  AIUsageLogContext,
   GenerateRecipeResult,
   PartialRecipeCallback,
 } from "../_shared/tools/generate-custom-recipe.ts";
@@ -46,6 +47,7 @@ import { detectModificationIntent } from "./modification.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { callAI, callAIStream } from "./ai-calls.ts";
 import { errorResponse, finalizeResponse } from "./response-builder.ts";
+import { logAIUsage } from "../_shared/usage-logger.ts";
 
 // ============================================================
 // Config
@@ -134,6 +136,7 @@ serve(async (req) => {
       effectiveSessionId,
       sanitizedMessage,
       log,
+      requestId,
     );
   } catch (error) {
     log.error("Orchestrator error", error);
@@ -197,6 +200,7 @@ async function executeToolCalls(
   toolCalls: ToolCall[],
   userContext: UserContext,
   log: Logger,
+  usageContext: AIUsageLogContext,
   onPartialRecipe?: PartialRecipeCallback,
 ): Promise<ToolExecutionResult> {
   const toolMessages: ChatMessage[] = [];
@@ -214,6 +218,7 @@ async function executeToolCalls(
           args,
           userContext,
           onPartialRecipe,
+          usageContext,
         );
 
         return {
@@ -275,6 +280,7 @@ function handleStreamingRequest(
   sessionId: string | undefined,
   message: string,
   log: Logger,
+  requestId: string,
 ): Response {
   const encoder = new TextEncoder();
 
@@ -341,6 +347,12 @@ function handleStreamingRequest(
         let customRecipeResult: GenerateRecipeResult | undefined;
         let retrievalResult: RetrieveCustomRecipeResult | undefined;
         let streamMessages = messages;
+        const usageContext: AIUsageLogContext = {
+          userId,
+          sessionId,
+          requestId,
+          functionName: "irmixy-chat-orchestrator",
+        };
 
         // Check for modification of existing custom recipe (same logic as non-streaming)
         const lastCustomRecipeMessage = userContext.conversationHistory
@@ -384,6 +396,7 @@ function handleStreamingRequest(
                   userContext,
                   undefined,
                   onPartialRecipe,
+                  usageContext,
                 );
 
               customRecipeResult = { recipe: modifiedRecipe, safetyFlags };
@@ -437,11 +450,36 @@ function handleStreamingRequest(
           log.info("High recipe intent detected, forcing tool use");
         }
 
-        const firstResponse = await callAI(
-          messages,
-          true,
-          forceToolUse ? "required" : "auto",
-        );
+        const llmCallStart = performance.now();
+        let firstResponse: Awaited<ReturnType<typeof callAI>>;
+        try {
+          firstResponse = await callAI(
+            messages,
+            true,
+            forceToolUse ? "required" : "auto",
+          );
+        } catch (error) {
+          void logAIUsage({
+            userId,
+            sessionId,
+            requestId,
+            callPhase: "tool_decision",
+            status: "error",
+            functionName: "irmixy-chat-orchestrator",
+            usageType: "text",
+            model: null,
+            inputTokens: null,
+            outputTokens: null,
+            durationMs: Math.round(performance.now() - llmCallStart),
+            metadata: {
+              streaming: false,
+              forced_tool_use: forceToolUse,
+              request_type: "tool_decision",
+            },
+          });
+          throw error;
+        }
+
         timings.llm_call_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
         const assistantMessage = firstResponse.choices[0].message;
@@ -450,6 +488,29 @@ function handleStreamingRequest(
           hasToolCalls: !!assistantMessage.tool_calls?.length,
           toolNames: assistantMessage.tool_calls?.map((tc) => tc.function.name),
           forcedToolUse: forceToolUse,
+        });
+
+        void logAIUsage({
+          userId,
+          sessionId,
+          requestId,
+          callPhase: "tool_decision",
+          status: "success",
+          functionName: "irmixy-chat-orchestrator",
+          usageType: "text",
+          model: firstResponse.model,
+          inputTokens: firstResponse.usage.inputTokens,
+          outputTokens: firstResponse.usage.outputTokens,
+          durationMs: Math.round(performance.now() - llmCallStart),
+          metadata: {
+            streaming: false,
+            request_type: "tool_decision",
+            forced_tool_use: forceToolUse,
+            tool_names: assistantMessage.tool_calls?.map((tc) =>
+              tc.function.name
+            ),
+            has_tool_calls: !!assistantMessage.tool_calls?.length,
+          },
         });
 
         if (
@@ -472,6 +533,7 @@ function handleStreamingRequest(
             assistantMessage.tool_calls,
             userContext,
             log,
+            usageContext,
             onPartialRecipe,
           );
           timings.tool_exec_ms = Math.round(performance.now() - phaseStart);
@@ -538,26 +600,108 @@ function handleStreamingRequest(
           timings.suggestions_ms = 0;
         } else if (retrievalResult) {
           // Retrieval result: stream AI response grounded in tool results, use retrieval suggestions
-          finalText = await callAIStream(
-            streamMessages,
-            (token) => send({ type: "content", content: token }),
-          );
-          timings.stream_ms = Math.round(performance.now() - phaseStart);
-          phaseStart = performance.now();
-          send({ type: "stream_complete" });
+          const streamStart = performance.now();
+          try {
+            const streamResult = await callAIStream(
+              streamMessages,
+              (token) => send({ type: "content", content: token }),
+            );
+            finalText = streamResult.content;
+            timings.stream_ms = Math.round(performance.now() - phaseStart);
+            phaseStart = performance.now();
+            send({ type: "stream_complete" });
+
+            void logAIUsage({
+              userId,
+              sessionId,
+              requestId,
+              callPhase: "response_stream",
+              status: streamResult.streamStatus,
+              functionName: "irmixy-chat-orchestrator",
+              usageType: "text",
+              model: streamResult.model,
+              inputTokens: streamResult.usage?.inputTokens ?? null,
+              outputTokens: streamResult.usage?.outputTokens ?? null,
+              durationMs: Math.round(performance.now() - streamStart),
+              metadata: {
+                streaming: true,
+                request_type: "retrieval_response",
+              },
+            });
+          } catch (error) {
+            void logAIUsage({
+              userId,
+              sessionId,
+              requestId,
+              callPhase: "response_stream",
+              status: "error",
+              functionName: "irmixy-chat-orchestrator",
+              usageType: "text",
+              model: null,
+              inputTokens: null,
+              outputTokens: null,
+              durationMs: Math.round(performance.now() - streamStart),
+              metadata: {
+                streaming: true,
+                request_type: "retrieval_response",
+              },
+            });
+            throw error;
+          }
           suggestions = retrievalResult.suggestions;
           timings.suggestions_ms = 0;
         } else {
           // Normal streaming for non-recipe responses
-          finalText = await callAIStream(
-            streamMessages,
-            (token) => send({ type: "content", content: token }),
-          );
-          timings.stream_ms = Math.round(performance.now() - phaseStart);
-          phaseStart = performance.now();
+          const streamStart = performance.now();
+          try {
+            const streamResult = await callAIStream(
+              streamMessages,
+              (token) => send({ type: "content", content: token }),
+            );
+            finalText = streamResult.content;
+            timings.stream_ms = Math.round(performance.now() - phaseStart);
+            phaseStart = performance.now();
 
-          // Signal that streaming is complete - frontend can enable input now
-          send({ type: "stream_complete" });
+            // Signal that streaming is complete - frontend can enable input now
+            send({ type: "stream_complete" });
+
+            void logAIUsage({
+              userId,
+              sessionId,
+              requestId,
+              callPhase: "response_stream",
+              status: streamResult.streamStatus,
+              functionName: "irmixy-chat-orchestrator",
+              usageType: "text",
+              model: streamResult.model,
+              inputTokens: streamResult.usage?.inputTokens ?? null,
+              outputTokens: streamResult.usage?.outputTokens ?? null,
+              durationMs: Math.round(performance.now() - streamStart),
+              metadata: {
+                streaming: true,
+                request_type: "chat_response",
+              },
+            });
+          } catch (error) {
+            void logAIUsage({
+              userId,
+              sessionId,
+              requestId,
+              callPhase: "response_stream",
+              status: "error",
+              functionName: "irmixy-chat-orchestrator",
+              usageType: "text",
+              model: null,
+              inputTokens: null,
+              outputTokens: null,
+              durationMs: Math.round(performance.now() - streamStart),
+              metadata: {
+                streaming: true,
+                request_type: "chat_response",
+              },
+            });
+            throw error;
+          }
 
           // Use template suggestions immediately to avoid blocking
           // This eliminates the 2.9s AI call for suggestions

@@ -79,6 +79,15 @@ jest.mock('@/services/chatService', () => ({
   sendMessage: (...args: any[]) => mockSendMessage(...args),
 }));
 
+const mockLogRecipeGenerate = jest.fn();
+const mockLogSuggestionClick = jest.fn();
+jest.mock('@/services/eventService', () => ({
+  eventService: {
+    logRecipeGenerate: (...args: any[]) => mockLogRecipeGenerate(...args),
+    logSuggestionClick: (...args: any[]) => mockLogSuggestionClick(...args),
+  },
+}));
+
 const mockInvalidateQueries = jest.fn().mockResolvedValue(undefined);
 jest.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
@@ -296,6 +305,16 @@ describe('ChatScreen', () => {
   // ============================================================
 
   describe('suggestion handling', () => {
+    it('tracks suggestion click analytics when suggestion is selected', async () => {
+      render(<ChatScreen />);
+
+      fireEvent.press(screen.getByText('Suggest a recipe'));
+
+      await waitFor(() => {
+        expect(mockLogSuggestionClick).toHaveBeenCalledWith('Suggest a recipe', 'chat_screen');
+      });
+    });
+
     it('hides initial suggestions when messages exist', () => {
       const messages = [
         {

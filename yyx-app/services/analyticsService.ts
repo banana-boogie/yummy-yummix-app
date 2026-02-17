@@ -10,7 +10,8 @@ export type AnalyticsAction =
   | 'top_cooked_recipes'
   | 'top_searches'
   | 'ai'
-  | 'patterns';
+  | 'patterns'
+  | 'recipe_generation';
 
 async function fetchAdminAnalytics<T>(
   action: AnalyticsAction,
@@ -78,6 +79,50 @@ export interface PatternMetrics {
   languageSplit: { language: string; count: number }[];
 }
 
+export interface RecipeGenerationMetrics {
+  totalGenerated: number;
+  totalFailed: number;
+  successRate: number;
+  avgDurationMs: number | null;
+}
+
+export interface AIUsageSummary {
+  textRequests: number;
+  textTokens: number;
+  textCostUsd: number;
+  voiceSessions: number;
+  voiceMinutes: number;
+  voiceCostUsd: number;
+  totalCostUsd: number;
+  uniqueAiUsers: number;
+  avgTokensPerRequest: number;
+  avgCostPerRequest: number;
+  avgCostPerUser: number;
+  avgLatencyMs: number;
+  errorRate: number;
+}
+
+export interface AIUsageMetrics {
+  summary: AIUsageSummary;
+  modelBreakdown: Array<{
+    model: string;
+    requests: number;
+    totalTokens: number;
+    totalCostUsd: number;
+  }>;
+  dailyCost: Array<{
+    date: string;
+    cost: number;
+    requests: number;
+  }>;
+  phaseBreakdown: Array<{
+    phase: string;
+    requests: number;
+    avgTokens: number;
+    errorRate: number;
+  }>;
+}
+
 export const analyticsService = {
   /**
    * Get overview metrics (DAU, WAU, MAU, signups, onboarding rate)
@@ -120,8 +165,21 @@ export const analyticsService = {
   /**
    * Get AI feature metrics
    */
-  async getAIMetrics(): Promise<AIMetrics> {
-    return fetchAdminAnalytics<AIMetrics>('ai');
+  async getAIMetrics(timeframe: TimeframeFilter = '7_days'): Promise<AIMetrics> {
+    return fetchAdminAnalytics<AIMetrics>('ai', { timeframe });
+  },
+
+  /**
+   * Get AI usage and cost metrics.
+   */
+  async getAIUsageMetrics(timeframe: TimeframeFilter): Promise<AIUsageMetrics> {
+    const { data, error } = await supabase.rpc('admin_ai_usage', { timeframe });
+
+    if (error) {
+      throw error;
+    }
+
+    return data as AIUsageMetrics;
   },
 
   /**
@@ -136,6 +194,15 @@ export const analyticsService = {
    */
   async getRetentionMetrics(): Promise<RetentionMetrics> {
     return fetchAdminAnalytics<RetentionMetrics>('retention');
+  },
+
+  /**
+   * Get recipe generation success/failure metrics.
+   */
+  async getRecipeGenerationMetrics(
+    timeframe: TimeframeFilter
+  ): Promise<RecipeGenerationMetrics> {
+    return fetchAdminAnalytics<RecipeGenerationMetrics>('recipe_generation', { timeframe });
   },
 };
 

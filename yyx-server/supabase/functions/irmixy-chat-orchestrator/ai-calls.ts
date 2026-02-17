@@ -4,11 +4,27 @@
  * Wrappers around the AI Gateway for tool-calling and streaming.
  */
 
-import type { AITool } from "../_shared/ai-gateway/index.ts";
+import type { AIStreamUsage, AITool } from "../_shared/ai-gateway/index.ts";
 import { chat, chatStream } from "../_shared/ai-gateway/index.ts";
 import { getRegisteredAiTools } from "../_shared/tools/tool-registry.ts";
 import { normalizeMessagesForAi } from "./message-normalizer.ts";
 import type { ChatMessage } from "./types.ts";
+
+export interface CallAIResult {
+  choices: Array<{ message: ChatMessage }>;
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+  };
+  model: string;
+}
+
+export interface CallAIStreamResult {
+  content: string;
+  usage: AIStreamUsage | null;
+  model: string | null;
+  streamStatus: "success" | "partial";
+}
 
 /**
  * Call AI via the AI Gateway.
@@ -19,7 +35,7 @@ export async function callAI(
   messages: ChatMessage[],
   includeTools: boolean = true,
   toolChoice?: "auto" | "required",
-): Promise<{ choices: Array<{ message: ChatMessage }> }> {
+): Promise<CallAIResult> {
   const aiMessages = normalizeMessagesForAi(messages);
 
   // Convert tools to AI Gateway format
@@ -51,6 +67,8 @@ export async function callAI(
         })),
       },
     }],
+    usage: response.usage,
+    model: response.model,
   };
 }
 
@@ -61,21 +79,29 @@ export async function callAI(
 export async function callAIStream(
   messages: ChatMessage[],
   onToken: (token: string) => void,
-): Promise<string> {
+): Promise<CallAIStreamResult> {
   const aiMessages = normalizeMessagesForAi(messages);
+  const streamResult = await chatStream({
+    usageType: "text",
+    messages: aiMessages,
+    temperature: 0.7,
+  });
 
   let fullContent = "";
 
   for await (
-    const chunk of chatStream({
-      usageType: "text",
-      messages: aiMessages,
-      temperature: 0.7,
-    })
+    const chunk of streamResult.stream
   ) {
     fullContent += chunk;
     onToken(chunk);
   }
 
-  return fullContent;
+  const usage = await streamResult.getUsage();
+
+  return {
+    content: fullContent,
+    usage,
+    model: streamResult.model,
+    streamStatus: usage ? "success" : "partial",
+  };
 }

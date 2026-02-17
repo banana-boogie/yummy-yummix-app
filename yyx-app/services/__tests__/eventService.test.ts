@@ -118,6 +118,89 @@ describe('eventService', () => {
     expect(insertMock).not.toHaveBeenCalled();
   });
 
+  it('queues recipe_generate events with success payload', async () => {
+    const insertMock = jest.fn().mockResolvedValue({ error: null });
+
+    jest.doMock('@/lib/supabase', () => ({
+      supabase: {
+        auth: {
+          getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
+          onAuthStateChange: jest.fn(() => ({
+            data: { subscription: { unsubscribe: jest.fn() } },
+          })),
+        },
+        from: jest.fn(() => ({
+          insert: insertMock,
+        })),
+      },
+    }));
+
+    jest.doMock('react-native', () => ({
+      AppState: {
+        addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+      },
+      Platform: { OS: 'ios' },
+    }));
+
+    const { eventService } = require('../eventService');
+    await flushPromises();
+
+    eventService.logRecipeGenerate('Pasta Roja', true, 1823);
+    await eventService.flush();
+
+    expect(insertMock).toHaveBeenCalledTimes(1);
+    const [row] = insertMock.mock.calls[0][0];
+    expect(row.event_type).toBe('recipe_generate');
+    expect(row.payload).toEqual(
+      expect.objectContaining({
+        recipe_name: 'Pasta Roja',
+        success: true,
+        duration_ms: 1823,
+      })
+    );
+  });
+
+  it('queues suggestion_click events and trims label', async () => {
+    const insertMock = jest.fn().mockResolvedValue({ error: null });
+
+    jest.doMock('@/lib/supabase', () => ({
+      supabase: {
+        auth: {
+          getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
+          onAuthStateChange: jest.fn(() => ({
+            data: { subscription: { unsubscribe: jest.fn() } },
+          })),
+        },
+        from: jest.fn(() => ({
+          insert: insertMock,
+        })),
+      },
+    }));
+
+    jest.doMock('react-native', () => ({
+      AppState: {
+        addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+      },
+      Platform: { OS: 'ios' },
+    }));
+
+    const { eventService } = require('../eventService');
+    await flushPromises();
+
+    eventService.logSuggestionClick('  Quick dinner  ', 'chat_screen');
+    await eventService.flush();
+
+    expect(insertMock).toHaveBeenCalledTimes(1);
+    const [row] = insertMock.mock.calls[0][0];
+    expect(row.event_type).toBe('suggestion_click');
+    expect(row.payload).toEqual(
+      expect.objectContaining({
+        label: 'Quick dinner',
+        location: 'chat_screen',
+      })
+    );
+  });
+
   it('auto-flushes when batch size is reached', async () => {
     const insertMock = jest.fn().mockResolvedValue({ error: null });
 
@@ -193,8 +276,9 @@ describe('eventService', () => {
     eventService.logRecipeView('recipe-2', 'Recipe 2');
 
     // Simulate sign out
-    if (authStateCallback) {
-      authStateCallback('SIGNED_OUT', null);
+    const signOutHandler = authStateCallback;
+    if (typeof signOutHandler === 'function') {
+      signOutHandler('SIGNED_OUT', null);
     }
 
     // Flush should have nothing to send

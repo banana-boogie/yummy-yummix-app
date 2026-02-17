@@ -19,12 +19,28 @@ export function generateRequestId(): string {
  */
 export function createLogger(requestId: string) {
   const prefix = `[${requestId}]`;
+  const configuredLevel = normalizeLogLevel(Deno.env.get("LOG_LEVEL"));
+  const levelWeight = {
+    debug: 10,
+    info: 20,
+    warn: 30,
+    error: 40,
+  } as const;
+
+  const shouldLog = (level: keyof typeof levelWeight) =>
+    levelWeight[level] >= levelWeight[configuredLevel];
 
   return {
+    debug: (message: string, data?: Record<string, unknown>) => {
+      if (!shouldLog("debug")) return;
+      console.debug(prefix, message, data ? JSON.stringify(data) : "");
+    },
     info: (message: string, data?: Record<string, unknown>) => {
+      if (!shouldLog("info")) return;
       console.log(prefix, message, data ? JSON.stringify(data) : "");
     },
     warn: (message: string, data?: Record<string, unknown>) => {
+      if (!shouldLog("warn")) return;
       console.warn(prefix, message, data ? JSON.stringify(data) : "");
     },
     error: (
@@ -32,20 +48,40 @@ export function createLogger(requestId: string) {
       error?: unknown,
       data?: Record<string, unknown>,
     ) => {
+      if (!shouldLog("error")) return;
       const errorInfo = error instanceof Error
         ? { name: error.name, message: error.message, stack: error.stack }
         : { value: String(error) };
       console.error(prefix, message, JSON.stringify({ ...errorInfo, ...data }));
     },
     timing: (operation: string, startTime: number) => {
+      if (!shouldLog("debug")) return;
       const duration = Date.now() - startTime;
-      console.log(
+      console.debug(
         prefix,
         `${operation} completed`,
         JSON.stringify({ duration_ms: duration }),
       );
     },
   };
+}
+
+function normalizeLogLevel(level: string | undefined):
+  | "debug"
+  | "info"
+  | "warn"
+  | "error" {
+  if (!level) return "info";
+
+  const normalized = level.trim().toLowerCase();
+  if (
+    normalized === "debug" || normalized === "info" ||
+    normalized === "warn" || normalized === "error"
+  ) {
+    return normalized;
+  }
+
+  return "info";
 }
 
 export type Logger = ReturnType<typeof createLogger>;

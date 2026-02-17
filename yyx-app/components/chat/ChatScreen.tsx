@@ -26,6 +26,7 @@ import {
     loadChatHistory,
     sendMessage,
 } from '@/services/chatService';
+import { eventService } from '@/services/eventService';
 import { customRecipeService } from '@/services/customRecipeService';
 import { useQueryClient } from '@tanstack/react-query';
 import { customRecipeKeys } from '@/hooks/useCustomRecipe';
@@ -256,6 +257,8 @@ export function ChatScreen({
         stopAndGuard();
 
         const trimmedMessage = messageText.trim();
+        const requestStartTime = Date.now();
+        let recipeGenerationTriggered = false;
         const userMessage: ChatMessage = {
             id: `temp-${Date.now()}`,
             role: 'user',
@@ -361,6 +364,9 @@ export function ChatScreen({
                 (status) => {
                     if (!isActiveRequest()) return;
                     setCurrentStatus(status);
+                    if (status === 'generating') {
+                        recipeGenerationTriggered = true;
+                    }
                 },
                 // onStreamComplete - text streaming finished, enable input before suggestions arrive
                 () => {
@@ -526,6 +532,14 @@ export function ChatScreen({
                         setDynamicSuggestions([]);
                     }
 
+                    if (response.customRecipe) {
+                        eventService.logRecipeGenerate(
+                            response.customRecipe.suggestedName || 'custom_recipe',
+                            true,
+                            Date.now() - requestStartTime
+                        );
+                    }
+
                     // Allow user to start typing immediately after response completes
                     // Don't wait for handle.done - text and suggestions are already received
                     setIsLoading(false);
@@ -584,6 +598,14 @@ export function ChatScreen({
             if (isActiveRequest()) {
                 const errorMessage = getErrorMessage();
 
+                if (recipeGenerationTriggered) {
+                    eventService.logRecipeGenerate(
+                        trimmedMessage,
+                        false,
+                        Date.now() - requestStartTime
+                    );
+                }
+
                 setMessages(prev => {
                     const updated = [...prev];
                     let assistantIdx = assistantIndexRef.current;
@@ -638,6 +660,7 @@ export function ChatScreen({
 
     const handleSuggestionSelect = useCallback((suggestion: SuggestionChip) => {
         // Use the message field for sending (may differ from label)
+        eventService.logSuggestionClick(suggestion.label || suggestion.message, 'chat_screen');
         handleSendMessage(suggestion.message);
     }, [handleSendMessage]);
 

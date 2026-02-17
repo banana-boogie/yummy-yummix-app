@@ -15,6 +15,7 @@ import {
   AICompletionResponse,
   AIEmbeddingRequest,
   AIEmbeddingResponse,
+  AIStreamResult,
 } from "./types.ts";
 import { getProviderConfig } from "./router.ts";
 import {
@@ -55,11 +56,11 @@ export async function chat(
 
 /**
  * Make an AI chat request with streaming.
- * Returns an async generator that yields content chunks.
+ * Returns stream chunks and deferred usage details.
  */
-export async function* chatStream(
+export async function chatStream(
   request: AICompletionRequest,
-): AsyncGenerator<string, void, unknown> {
+): Promise<AIStreamResult> {
   const config = getProviderConfig(request.usageType);
   const model = request.model ?? config.model;
   const apiKey = Deno.env.get(config.apiKeyEnvVar);
@@ -70,8 +71,7 @@ export async function* chatStream(
 
   switch (config.provider) {
     case "openai":
-      yield* callOpenAIStream(request, model, apiKey);
-      break;
+      return await callOpenAIStream(request, model, apiKey);
 
     case "anthropic":
       throw new Error("Anthropic streaming not yet implemented");
