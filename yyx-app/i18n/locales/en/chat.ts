@@ -2,7 +2,7 @@ export const chat = {
   title: "Irmixy",
   greeting:
     "Hi! I'm Irmixy, your AI chef assistant. Ask me anything about cooking!",
-  inputPlaceholder: "Ask me anything about cooking...",
+  inputPlaceholder: "Ask Irmixy...",
   sendButton: "Send",
   error: {
     default: "Sorry, something went wrong. Please try again.",
@@ -46,6 +46,7 @@ export const chat = {
     errorPrefix: "Error: ",
     minsRemaining: "{{mins}} mins remaining",
     executingTool: "Working on it...",
+    micPermissionDenied: "Microphone access denied",
     mobileOnly: {
       title: "Voice Chat",
       message: "Voice chat is available on our mobile app. Use text chat below, or download the app to chat with Irmixy using your voice.",

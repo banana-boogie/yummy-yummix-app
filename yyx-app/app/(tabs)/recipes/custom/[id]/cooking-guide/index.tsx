@@ -1,6 +1,8 @@
+import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { useCustomRecipe } from '@/hooks/useCustomRecipe';
@@ -15,9 +17,31 @@ import { COLORS } from '@/constants/design-tokens';
 import * as Haptics from 'expo-haptics';
 
 export default function CustomCookingGuide() {
-  const { id, session } = useLocalSearchParams();
+  const { id, session, from } = useLocalSearchParams<{ id: string; session?: string; from?: string }>();
   const { recipe, loading, error } = useCustomRecipe(id as string);
   const { isPhone } = useDevice();
+  const navigation = useNavigation();
+  const isRedirectingRef = useRef(false);
+
+  // Intercept back gesture/navigation to redirect to chat when opened from chat
+  useEffect(() => {
+    if (from !== 'chat') return;
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (isRedirectingRef.current) return; // allow redirect to proceed
+      e.preventDefault();
+      isRedirectingRef.current = true;
+      router.navigate('/(tabs)/chat');
+    });
+    return unsubscribe;
+  }, [navigation, from]);
+
+  const handleBackPress = () => {
+    if (from === 'chat') {
+      router.navigate('/(tabs)/chat');
+    } else {
+      router.back();
+    }
+  };
 
   // Debug: log recipe ID and session to trace navigation issues
   if (__DEV__) {
@@ -51,7 +75,7 @@ export default function CustomCookingGuide() {
         <Button
           variant="secondary"
           label={i18n.t('common.back')}
-          onPress={() => router.back()}
+          onPress={handleBackPress}
           className="mt-lg"
         />
       </View>
@@ -81,6 +105,7 @@ export default function CustomCookingGuide() {
           showTitle={false}
           showSubtitle={false}
           showBackButton={true}
+          onBackPress={handleBackPress}
           pictureUrl={recipe?.pictureUrl}
           isCustomRecipe={true}
         />

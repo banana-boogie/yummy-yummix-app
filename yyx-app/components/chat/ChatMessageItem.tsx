@@ -1,4 +1,4 @@
-import React, { useMemo, memo } from 'react';
+import React, { memo } from 'react';
 import { View, TouchableOpacity, Pressable } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { ChatRecipeCard } from '@/components/chat/ChatRecipeCard';
@@ -7,15 +7,20 @@ import { RecipeGeneratingSkeleton } from '@/components/chat/RecipeGeneratingSkel
 import {
     ChatMessage,
     IrmixyStatus,
-    RecipeCard,
     GeneratedRecipe,
     QuickAction,
 } from '@/services/chatService';
-import { Image } from 'expo-image';
 import Markdown from 'react-native-markdown-display';
-import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
 import { COLORS } from '@/constants/design-tokens';
+
+// ============================================================
+// Helpers
+// ============================================================
+
+/** Strip markdown image syntax from text (used when recipe cards already show the images). */
+function stripMarkdownImages(content: string): string {
+    return content.replace(/!\[.*?\]\(.*?\)\n*/g, '').replace(/\n{3,}/g, '\n\n').trim();
+}
 
 // ============================================================
 // Markdown Styles
@@ -64,70 +69,7 @@ export const markdownStyles = {
         color: COLORS.primary.darkest,
         textDecorationLine: 'underline' as const,
     },
-    image: {
-        width: 200,
-        height: 150,
-        borderRadius: 8,
-        marginVertical: 8,
-    },
 };
-
-// ============================================================
-// Markdown Rules
-// ============================================================
-
-const markdownRulesCache = new WeakMap<RecipeCard[], ReturnType<typeof createMarkdownRulesImpl>>();
-
-function createMarkdownRulesImpl(recipes?: RecipeCard[]) {
-    return {
-        image: (node: any, _children: any, _parent: any, styles: any) => {
-            const { src } = node.attributes;
-
-            // Try to find matching recipe by image URL
-            const matchingRecipe = recipes?.find(r => r.imageUrl === src);
-
-            const imageElement = (
-                <Image
-                    key={node.key}
-                    source={{ uri: src }}
-                    style={styles.image}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                    transition={0}
-                    placeholder={null}
-                />
-            );
-
-            // If we found a matching recipe, make the image clickable
-            if (matchingRecipe?.recipeId) {
-                return (
-                    <TouchableOpacity
-                        key={node.key}
-                        onPress={() => {
-                            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            router.push(`/(tabs)/recipes/${matchingRecipe.recipeId}?from=chat`);
-                        }}
-                        activeOpacity={0.8}
-                    >
-                        {imageElement}
-                    </TouchableOpacity>
-                );
-            }
-
-            return imageElement;
-        },
-    };
-}
-
-export function createMarkdownRules(recipes?: RecipeCard[]) {
-    if (!recipes) return createMarkdownRulesImpl(undefined);
-    let cached = markdownRulesCache.get(recipes);
-    if (!cached) {
-        cached = createMarkdownRulesImpl(recipes);
-        markdownRulesCache.set(recipes, cached);
-    }
-    return cached;
-}
 
 // ============================================================
 // ChatMessageItem Component
@@ -157,46 +99,20 @@ export const ChatMessageItem = memo(function ChatMessageItem({
     const isUser = item.role === 'user';
     const showRecipeSkeleton = !isUser && !item.customRecipe && isLoading
         && (currentStatus === 'generating' || currentStatus === 'enriching') && isLastMessage;
-
-    // Memoize markdown rules for this message's recipes
-    const markdownRules = useMemo(
-        () => createMarkdownRules(item.recipes),
-        [item.recipes]
+    const hasRecipeVisualData = !isUser && (
+        (item.recipes?.length ?? 0) > 0 || !!item.customRecipe
     );
+
+    // Strip markdown images only when recipe visuals are rendered as cards.
+    // If there are no cards, keep markdown images in the message bubble.
+    const displayContent = !isUser
+        ? (hasRecipeVisualData ? stripMarkdownImages(item.content) : item.content)
+        : item.content;
 
     return (
         <View className="mb-sm">
-            {/* RECIPE CARDS FIRST (for assistant messages) */}
-            {!isUser && item.recipes && item.recipes.length > 0 && (
-                <View className="mb-sm w-full">
-                    {item.recipes.map((recipe) => (
-                        <ChatRecipeCard key={recipe.recipeId} recipe={recipe} />
-                    ))}
-                </View>
-            )}
-
-            {/* Custom recipe card (for AI-generated recipes) */}
-            {!isUser && item.customRecipe && (
-                <View className="mb-sm w-full">
-                    <CustomRecipeCard
-                        recipe={item.customRecipe}
-                        safetyFlags={item.safetyFlags}
-                        onStartCooking={onStartCooking}
-                        messageId={item.id}
-                        savedRecipeId={item.savedRecipeId}
-                    />
-                </View>
-            )}
-
-            {/* Show skeleton while generating/enriching recipe - stays visible until customRecipe is populated */}
-            {showRecipeSkeleton && (
-                <View className="mb-sm w-full">
-                    <RecipeGeneratingSkeleton statusMessage={statusText} />
-                </View>
-            )}
-
-            {/* TEXT MESSAGE BUBBLE (after cards) */}
-            {item.content && item.content.trim().length > 0 && (
+            {/* TEXT MESSAGE BUBBLE (first — provides context before cards) */}
+            {displayContent && displayContent.trim().length > 0 && (
                 isUser ? (
                     <TouchableOpacity
                         onLongPress={() => onCopyMessage(item.content)}
@@ -208,19 +124,44 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                         </Text>
                     </TouchableOpacity>
                 ) : (
-                    // Use Pressable for assistant messages to allow individual image touches
                     <Pressable
                         onLongPress={() => onCopyMessage(item.content)}
                         className="max-w-[80%] p-sm rounded-lg self-start bg-background-secondary"
                     >
-                        <Markdown
-                            style={markdownStyles}
-                            rules={markdownRules}
-                        >
-                            {item.content}
+                        <Markdown style={markdownStyles}>
+                            {displayContent}
                         </Markdown>
                     </Pressable>
                 )
+            )}
+
+            {/* Recipe cards (after text so the message provides context) */}
+            {!isUser && item.recipes && item.recipes.length > 0 && (
+                <View className="mt-sm w-full gap-md">
+                    {item.recipes.map((recipe) => (
+                        <ChatRecipeCard key={recipe.recipeId} recipe={recipe} />
+                    ))}
+                </View>
+            )}
+
+            {/* Custom recipe card (for AI-generated recipes) */}
+            {!isUser && item.customRecipe && (
+                <View className="mt-sm w-full">
+                    <CustomRecipeCard
+                        recipe={item.customRecipe}
+                        safetyFlags={item.safetyFlags}
+                        onStartCooking={onStartCooking}
+                        messageId={item.id}
+                        savedRecipeId={item.savedRecipeId}
+                    />
+                </View>
+            )}
+
+            {/* Show skeleton while generating/enriching recipe */}
+            {showRecipeSkeleton && (
+                <View className="mt-sm w-full">
+                    <RecipeGeneratingSkeleton statusMessage={statusText} />
+                </View>
             )}
 
             {/* Quick action buttons */}

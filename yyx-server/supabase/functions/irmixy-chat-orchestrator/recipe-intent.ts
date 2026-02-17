@@ -12,6 +12,8 @@ const ENGLISH_RECIPE_PATTERNS = [
   /\bcook\s+(?:me\s+)?(?:something|a\s+meal)/i,
   /\bi\s+(?:want|need)\s+(?:a\s+)?(?:recipe|meal|dish)/i,
   /\bhelp\s+me\s+(?:make|cook|prepare)/i,
+  /\b(?:find|show|search|look\s+for)\s+(?:me\s+)?(?:some\s+)?(?:\w+\s+)*recipe/i,
+  /\b(?:find|show|search|look\s+for)\s+(?:me\s+)?(?:some\s+)?\w+\s+(?:recipes|meals|dishes)/i,
 ];
 
 // Direct recipe request patterns (ES)
@@ -25,6 +27,8 @@ const SPANISH_RECIPE_PATTERNS = [
   /\bquiero\s+(?:una?\s+)?(?:receta|comida|plato)/i,
   /\bay[úu]dame\s+a\s+(?:hacer|cocinar|preparar)/i,
   /\bprep[áa]rame\s+(?:algo|una?\s+(?:receta|comida))/i,
+  /\b(?:busca|encuentra|muestra|ens[ée][ñn]ame)\s+(?:me\s+)?(?:unas?\s+)?receta/i,
+  /\b(?:busca|encuentra|muestra|ens[ée][ñn]ame)\s+(?:me\s+)?recetas\s+(?:de|para)\b/i,
 ];
 
 const RECIPE_INTENT_PATTERNS = [

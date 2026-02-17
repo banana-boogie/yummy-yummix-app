@@ -5,7 +5,7 @@ import { Tabs, Redirect } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDevice } from '@/hooks/useDevice';
 import { useTabBarVisibility } from '@/hooks/useTabBarVisibility';
-import { COLORS, LAYOUT } from '@/constants/design-tokens';
+import { COLORS, LAYOUT, SPACING } from '@/constants/design-tokens';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -124,13 +124,13 @@ function PremiumTabBar({ state, navigation }: BottomTabBarProps) {
     <View
       className="bg-white border-t border-grey-light"
       style={{
-        paddingBottom: insets.bottom > 0 ? insets.bottom : 12,
-        paddingTop: 12,
-        shadowColor: '#000',
+        paddingBottom: insets.bottom > 0 ? insets.bottom : SPACING.xs,
+        paddingTop: SPACING.sm,
+        shadowColor: COLORS.shadow.default,
         shadowOffset: { width: 0, height: -2 },
         shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 8,
+        shadowRadius: SPACING.xs,
+        elevation: SPACING.xs,
       }}
     >
       <View className="flex-row items-center justify-around px-lg">
@@ -141,20 +141,21 @@ function PremiumTabBar({ state, navigation }: BottomTabBarProps) {
           return (
             <TouchableOpacity
               key={tab.name}
-              className="items-center justify-center py-xs"
+              className="items-center justify-center py-xxs"
               onPress={() => navigation.navigate(tab.name)}
               activeOpacity={0.7}
-              style={{ minWidth: 64 }}
+              style={{ minWidth: SPACING.xxl }}
             >
               <View
-                className={`w-12 h-12 rounded-2xl items-center justify-center ${isActive ? 'bg-primary-light' : 'bg-transparent'
+                className={`rounded-md items-center justify-center ${isActive ? 'bg-primary-light' : 'bg-transparent'
                   }`}
+                style={{ width: SPACING['2xl'], height: SPACING['2xl'] }}
               >
                 {renderTabIcon(tab, isActive, iconSize)}
               </View>
               {isActive && (
                 <View
-                  className="w-1 h-1 rounded-full bg-primary-darkest mt-xs"
+                  className="w-xxxs h-xxxs rounded-full bg-primary-darkest mt-xxs"
                 />
               )}
             </TouchableOpacity>
