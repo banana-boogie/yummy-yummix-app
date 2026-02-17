@@ -19,7 +19,7 @@ export async function callAI(
   messages: ChatMessage[],
   includeTools: boolean = true,
   toolChoice?: "auto" | "required",
-): Promise<{ choices: Array<{ message: ChatMessage }> }> {
+): Promise<{ choices: Array<{ message: ChatMessage }>; model: string }> {
   const aiMessages = normalizeMessagesForAi(messages);
 
   // Convert tools to AI Gateway format
@@ -37,6 +37,7 @@ export async function callAI(
 
   // Convert back to OpenAI response format for compatibility
   return {
+    model: response.model,
     choices: [{
       message: {
         role: "assistant",

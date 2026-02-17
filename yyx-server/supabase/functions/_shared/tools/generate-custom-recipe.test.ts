@@ -21,6 +21,7 @@ import {
 import {
   enrichIngredientsWithImages,
   generateCustomRecipe,
+  getSystemPrompt,
   TEMP_REGEX,
   VALID_NUMERIC_SPEEDS,
   VALID_SPECIAL_SPEEDS,
@@ -263,6 +264,16 @@ Deno.test("validateGenerateRecipeParams sanitizes additionalRequests", () => {
   assertEquals(result.additionalRequests, "make it spicy");
 });
 
+Deno.test("validateGenerateRecipeParams allows longer modification context in additionalRequests", () => {
+  const longContext = "a".repeat(2200);
+  const result = validateGenerateRecipeParams({
+    ingredients: ["chicken"],
+    additionalRequests: longContext,
+  });
+
+  assertEquals(result.additionalRequests?.length, 2000);
+});
+
 Deno.test("validateGenerateRecipeParams handles JSON string input", () => {
   const result = validateGenerateRecipeParams(
     JSON.stringify({
@@ -422,6 +433,18 @@ Deno.test("UserContext supports equipment preferences", () => {
   assertEquals(metricContext.measurementSystem, "metric");
 });
 
+Deno.test("getSystemPrompt Thermomix section uses 120°C guidance", () => {
+  const prompt = getSystemPrompt(
+    createMockUserContext({
+      measurementSystem: "metric",
+      kitchenEquipment: ["thermomix"],
+    }),
+  );
+
+  assertStringIncludes(prompt, '"37°C"-"120°C"');
+  assertStringIncludes(prompt, "Temperature guidance: low (37-60°C");
+});
+
 // ============================================================
 // generateCustomRecipe Allergen Safety Tests
 // ============================================================
@@ -470,6 +493,142 @@ Deno.test("generateCustomRecipe returns localized fail-safe warning in Spanish",
   );
   assertEquals(result.recipe.suggestedName, "Receta no disponible");
   assertEquals(result.recipe.ingredients.length, 0);
+});
+
+Deno.test("generateCustomRecipe bypasses allergen block and returns warning with recipe", async () => {
+  resetSharedCaches();
+
+  let capturedModel: string | undefined;
+  const originalFetch = globalThis.fetch;
+  const previousOpenAiKey = Deno.env.get("OPENAI_API_KEY");
+
+  Deno.env.set("OPENAI_API_KEY", "test-openai-key");
+  globalThis.fetch = async (
+    _input: string | URL | Request,
+    init?: RequestInit,
+  ) => {
+    const body = JSON.parse(String(init?.body ?? "{}"));
+    capturedModel = body.model;
+
+    return new Response(
+      JSON.stringify({
+        id: "chatcmpl-test",
+        model: body.model,
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              schemaVersion: "1.0",
+              suggestedName: "Peanut Rice Bowl",
+              measurementSystem: "imperial",
+              language: "en",
+              ingredients: [
+                { name: "peanut", quantity: 1, unit: "cup" },
+                { name: "rice", quantity: 2, unit: "cups" },
+              ],
+              steps: [
+                {
+                  order: 1,
+                  instruction: "Toast peanuts and cook rice.",
+                  ingredientsUsed: ["peanut", "rice"],
+                },
+              ],
+              totalTime: 25,
+              difficulty: "easy",
+              portions: 2,
+              tags: [],
+            }),
+          },
+        }],
+        usage: {
+          prompt_tokens: 12,
+          completion_tokens: 24,
+        },
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  };
+
+  const supabase = {
+    from: (table: string) => ({
+      select: (_fields: string) => {
+        if (table === "allergen_groups") {
+          return Promise.resolve({
+            data: [{
+              category: "nuts",
+              ingredient_canonical: "peanut",
+              name_en: "peanut",
+              name_es: "cacahuate",
+            }],
+            error: null,
+          });
+        }
+        if (table === "food_safety_rules") {
+          return Promise.resolve({ data: [], error: null });
+        }
+        if (table === "ingredient_aliases") {
+          return Promise.resolve({ data: [], error: null });
+        }
+        if (table === "useful_items") {
+          return {
+            limit: async (_n: number) => ({ data: [], error: null }),
+          };
+        }
+        return Promise.resolve({ data: [], error: null });
+      },
+    }),
+    rpc: (
+      functionName: string,
+      args?: { ingredient_names?: string[] },
+    ) => {
+      if (functionName === "batch_find_ingredients") {
+        const names = args?.ingredient_names ?? [];
+        return Promise.resolve({
+          data: names.map((name) => ({
+            input_name: name,
+            matched_name: null,
+            matched_name_es: null,
+            image_url: null,
+            match_score: null,
+          })),
+          error: null,
+        });
+      }
+      return Promise.resolve({
+        data: null,
+        error: { message: "unknown rpc" },
+      });
+    },
+  } as any;
+
+  try {
+    const result = await generateCustomRecipe(
+      supabase,
+      { ingredients: ["peanut", "rice"] },
+      createMockUserContext({
+        language: "en",
+        dietaryRestrictions: ["nuts"],
+      }),
+      undefined,
+      undefined,
+      { bypassAllergenBlock: true },
+    );
+
+    assertEquals(capturedModel, "gpt-4o");
+    assertEquals(result.recipe.suggestedName, "Peanut Rice Bowl");
+    assertStringIncludes(result.safetyFlags?.allergenWarning ?? "", "Contains");
+    assertEquals(result.safetyFlags?.error, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousOpenAiKey === undefined) {
+      Deno.env.delete("OPENAI_API_KEY");
+    } else {
+      Deno.env.set("OPENAI_API_KEY", previousOpenAiKey);
+    }
+    resetSharedCaches();
+  }
 });
 
 // ============================================================

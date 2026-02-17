@@ -45,3 +45,20 @@ Deno.test("buildSystemPrompt includes meal context section when detected", () =>
   assertStringIncludes(prompt, "DINNER");
   assertStringIncludes(prompt, "Time constraint: quick");
 });
+
+Deno.test("buildSystemPrompt includes search-first strategy guidance", () => {
+  const prompt = buildSystemPrompt(createUserContext());
+
+  assertStringIncludes(prompt, "SEARCH-FIRST STRATEGY");
+  assertStringIncludes(prompt, "call search_recipes FIRST");
+  assertStringIncludes(prompt, "named or known dish");
+});
+
+Deno.test("buildSystemPrompt includes scope guardrails section", () => {
+  const prompt = buildSystemPrompt(createUserContext({ language: "es" }));
+
+  assertStringIncludes(prompt, "SCOPE GUARDRAILS");
+  assertStringIncludes(prompt, "cooking-only");
+  assertStringIncludes(prompt, "Example EN");
+  assertStringIncludes(prompt, "Example ES");
+});

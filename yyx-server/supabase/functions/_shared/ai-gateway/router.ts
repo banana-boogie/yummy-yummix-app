@@ -24,6 +24,12 @@ const defaultRoutingConfig: AIRoutingConfig = {
     model: "gpt-4o-mini",
     apiKeyEnvVar: "OPENAI_API_KEY",
   },
+  // High-quality long-form generation (recipes, richer creative outputs)
+  generation: {
+    provider: "openai",
+    model: "gpt-4o",
+    apiKeyEnvVar: "OPENAI_API_KEY",
+  },
   // Structured data parsing
   parsing: {
     provider: "openai",

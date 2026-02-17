@@ -7,6 +7,7 @@
 import { assertEquals } from "https://deno.land/std@0.192.0/testing/asserts.ts";
 import {
   buildNoResultsFallback,
+  getContextualSuggestions,
   getTemplateSuggestions,
 } from "../suggestions.ts";
 
@@ -14,11 +15,12 @@ Deno.test("getTemplateSuggestions returns chat templates when no recipes are pre
   const en = getTemplateSuggestions("en", false);
   const es = getTemplateSuggestions("es", false);
 
-  assertEquals(en.length, 3);
+  assertEquals(en.length, 2);
   assertEquals(en[0].label, "Make me a recipe");
   assertEquals(en[0].label, en[0].message);
+  assertEquals(en.some((chip) => chip.label === "Search recipes"), false);
 
-  assertEquals(es.length, 3);
+  assertEquals(es.length, 2);
   assertEquals(es[0].label, "Hazme una receta");
   assertEquals(es[0].label, es[0].message);
 });
@@ -27,13 +29,44 @@ Deno.test("getTemplateSuggestions returns post-search templates when recipes are
   const en = getTemplateSuggestions("en", true);
   const es = getTemplateSuggestions("es", true);
 
-  assertEquals(en.length, 3);
+  assertEquals(en.length, 2);
   assertEquals(en[0].label, "Show more options");
-  assertEquals(en[1].label, "Create recipe");
+  assertEquals(en[1].label, "Something different");
 
-  assertEquals(es.length, 3);
+  assertEquals(es.length, 2);
   assertEquals(es[0].label, "Ver más opciones");
-  assertEquals(es[1].label, "Crear receta");
+  assertEquals(es[1].label, "Algo diferente");
+});
+
+Deno.test("getContextualSuggestions includes top recipe names and truncates labels", () => {
+  const suggestions = getContextualSuggestions({
+    language: "en",
+    hasRecipes: true,
+    recipeNames: [
+      "Tinga Poblana de Pollo con Salsa Roja Tradicional",
+      "Pasta Carbonara",
+      "Ignored third recipe",
+    ],
+  });
+
+  assertEquals(suggestions.length, 3);
+  assertEquals(suggestions[0].label.endsWith("…"), true);
+  assertEquals(
+    suggestions[0].message,
+    'I want the "Tinga Poblana de Pollo con Salsa Roja Tradicional" recipe',
+  );
+  assertEquals(suggestions[1].label, "Pasta Carbonara");
+  assertEquals(suggestions[2].label, "Something different");
+});
+
+Deno.test("getContextualSuggestions returns empty suggestions after custom recipe generation", () => {
+  const suggestions = getContextualSuggestions({
+    language: "es",
+    hasRecipes: false,
+    hasCustomRecipe: true,
+  });
+
+  assertEquals(suggestions.length, 0);
 });
 
 Deno.test("buildNoResultsFallback returns deterministic localized fallback", () => {

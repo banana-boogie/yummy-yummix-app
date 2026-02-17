@@ -71,6 +71,7 @@ Deno.test("finalizeResponse skips history persistence when sessionId is undefine
 
   assertEquals(response.message, "Assistant response");
   assertEquals(response.suggestions?.length, 1);
+  assertEquals(response.isAIGenerated, undefined);
   assertEquals(tables.length, 0);
   assertEquals(inserts.length, 0);
 });
@@ -89,6 +90,7 @@ Deno.test("finalizeResponse persists user and assistant messages when sessionId 
   );
 
   assertEquals(response.message, "Sure, let's do it.");
+  assertEquals(response.isAIGenerated, undefined);
   assertEquals(tables, ["user_chat_messages", "user_chat_messages"]);
   assertEquals(inserts.length, 2);
   assertEquals(inserts[0], {
@@ -136,6 +138,7 @@ Deno.test("finalizeResponse uses fixed short message when a custom recipe is pre
 
   assertEquals(response.message, "Ready! Want to change anything?");
   assertEquals(response.customRecipe?.suggestedName, "Weeknight Pasta");
+  assertEquals(response.isAIGenerated, true);
 });
 
 Deno.test("finalizeResponse propagates history insert failures", async () => {

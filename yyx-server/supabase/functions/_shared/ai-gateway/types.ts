@@ -9,6 +9,7 @@
 export type AIUsageType =
   | "text"
   | "voice"
+  | "generation"
   | "parsing"
   | "reasoning"
   | "embedding";

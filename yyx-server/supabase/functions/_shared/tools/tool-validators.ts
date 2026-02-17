@@ -200,7 +200,7 @@ export function validateGenerateRecipeParams(
       ? validateEnum(p.difficulty, ["easy", "medium", "hard"] as const)
       : undefined,
     additionalRequests: p.additionalRequests
-      ? sanitizeString(p.additionalRequests, 500)
+      ? sanitizeString(p.additionalRequests, 2000)
       : undefined,
     useful_items,
   };

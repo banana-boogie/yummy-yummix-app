@@ -7,24 +7,62 @@
 
 import type { SuggestionChip } from "../_shared/irmixy-schemas.ts";
 
+const MAX_RECIPE_CHIP_LABEL = 30;
+
+export interface SuggestionContext {
+  language: "en" | "es";
+  hasRecipes: boolean;
+  recipeNames?: string[];
+  hasCustomRecipe?: boolean;
+}
+
+function truncateLabel(label: string, maxLength: number): string {
+  if (label.length <= maxLength) return label;
+  return `${label.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
 /**
- * Get template suggestions for chat responses.
- * Uses pre-defined templates to avoid a 2.9s AI call.
+ * Get contextual suggestions for chat responses.
+ * Uses deterministic templates to avoid additional AI latency.
  */
-export function getTemplateSuggestions(
-  language: "en" | "es",
-  hasRecipes: boolean,
+export function getContextualSuggestions(
+  context: SuggestionContext,
 ): SuggestionChip[] {
+  const { language, hasRecipes, recipeNames, hasCustomRecipe } = context;
+
+  if (hasCustomRecipe) {
+    return [];
+  }
+
   if (hasRecipes) {
-    // Suggestions after search results
+    const topRecipeNames = (recipeNames || [])
+      .filter((name): name is string =>
+        typeof name === "string" && name.trim().length > 0
+      )
+      .slice(0, 2);
+
+    if (topRecipeNames.length > 0) {
+      const recipeChips = topRecipeNames.map((name) => {
+        const trimmedName = name.trim();
+        return {
+          label: truncateLabel(trimmedName, MAX_RECIPE_CHIP_LABEL),
+          message: language === "es"
+            ? `Quiero la receta "${trimmedName}"`
+            : `I want the "${trimmedName}" recipe`,
+        };
+      });
+
+      recipeChips.push({
+        label: language === "es" ? "Algo diferente" : "Something different",
+        message: language === "es" ? "Algo diferente" : "Something different",
+      });
+      return recipeChips;
+    }
+
     return [
       {
         label: language === "es" ? "Ver más opciones" : "Show more options",
         message: language === "es" ? "Ver más opciones" : "Show more options",
-      },
-      {
-        label: language === "es" ? "Crear receta" : "Create recipe",
-        message: language === "es" ? "Crear receta" : "Create recipe",
       },
       {
         label: language === "es" ? "Algo diferente" : "Something different",
@@ -40,14 +78,20 @@ export function getTemplateSuggestions(
       message: language === "es" ? "Hazme una receta" : "Make me a recipe",
     },
     {
-      label: language === "es" ? "Buscar recetas" : "Search recipes",
-      message: language === "es" ? "Buscar recetas" : "Search recipes",
-    },
-    {
       label: language === "es" ? "¿Qué puedo cocinar?" : "What can I cook?",
       message: language === "es" ? "¿Qué puedo cocinar?" : "What can I cook?",
     },
   ];
+}
+
+/**
+ * Backward-compatible wrapper around contextual suggestions.
+ */
+export function getTemplateSuggestions(
+  language: "en" | "es",
+  hasRecipes: boolean,
+): SuggestionChip[] {
+  return getContextualSuggestions({ language, hasRecipes });
 }
 
 /**

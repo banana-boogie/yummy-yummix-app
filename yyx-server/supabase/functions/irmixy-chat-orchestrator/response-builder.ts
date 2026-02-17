@@ -50,6 +50,7 @@ export async function finalizeResponse(
     status: null,
     recipes,
     customRecipe: customRecipeResult?.recipe,
+    isAIGenerated: customRecipeResult?.recipe ? true : undefined,
     safetyFlags: customRecipeResult?.safetyFlags,
     suggestions,
     actions: actions && actions.length > 0 ? actions : undefined,

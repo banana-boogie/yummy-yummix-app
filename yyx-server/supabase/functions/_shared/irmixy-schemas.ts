@@ -82,9 +82,12 @@ export const IrmixyResponseSchema = z.object({
   version: z.literal("1.0"),
   message: z.string(),
   language: z.enum(["en", "es"]),
-  status: z.enum(["thinking", "searching", "generating"]).nullable().optional(),
+  status: z.enum(["thinking", "searching", "generating", "cooking_it_up"])
+    .nullable()
+    .optional(),
   recipes: z.array(RecipeCardSchema).optional(),
   customRecipe: GeneratedRecipeSchema.optional(),
+  isAIGenerated: z.boolean().optional(),
   suggestions: z.array(SuggestionChipSchema).optional(),
   actions: z.array(QuickActionSchema).optional(),
   memoryUsed: z.array(z.string()).optional(),

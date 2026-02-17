@@ -157,6 +157,8 @@ async function handleStartSession(
       body: JSON.stringify({
         model: "gpt-realtime-mini",
         voice: "alloy",
+        instructions:
+          "You are Irmixy, a cooking assistant. Stay within cooking topics only: recipes, ingredients, tools, meal planning, and food safety. Keep responses brief and practical for voice. If user asks off-topic questions, politely redirect back to cooking help.",
       }),
     },
   );

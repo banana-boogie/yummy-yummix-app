@@ -34,8 +34,9 @@ export const generateCustomRecipeTool = {
     name: "generate_custom_recipe",
     description:
       "Generate a custom recipe based on ingredients the user has available. " +
-      "Use this when the user wants to create a new recipe from scratch, " +
-      "tells you what ingredients they have, or asks what they can make. " +
+      "Use this only when the user wants a new custom creation (from ingredients/preferences) " +
+      "or explicitly asks for something original. " +
+      "Do NOT use this for named or known dishes from the recipe database — use search_recipes first. " +
       "Before calling this tool, gather at least: ingredients. " +
       "Time and cuisine preference are helpful but optional.",
     parameters: {
@@ -109,6 +110,7 @@ export async function generateCustomRecipe(
   userContext: UserContext,
   _openaiApiKey?: string,
   onPartialRecipe?: PartialRecipeCallback,
+  options?: { bypassAllergenBlock?: boolean },
 ): Promise<GenerateRecipeResult> {
   // Timing instrumentation for performance monitoring
   const timings: Record<string, number> = {};
@@ -117,6 +119,8 @@ export async function generateCustomRecipe(
 
   // Validate and sanitize params
   const params = validateGenerateRecipeParams(rawParams);
+  const bypassAllergenBlock = options?.bypassAllergenBlock === true;
+  let bypassedAllergenWarning: string | undefined;
 
   // Run allergen check and safety reminders in parallel
   const [allergenCheck, safetyReminders] = await Promise.all([
@@ -138,18 +142,32 @@ export async function generateCustomRecipe(
   phaseStart = performance.now();
 
   if (!allergenCheck.safe) {
-    timings.total_ms = Math.round(performance.now() - totalStart);
-    console.log(
-      "[GenerateRecipe Timings] Early exit (allergen):",
-      JSON.stringify(timings),
+    if (!bypassAllergenBlock) {
+      timings.total_ms = Math.round(performance.now() - totalStart);
+      console.log(
+        "[GenerateRecipe Timings] Early exit (allergen):",
+        JSON.stringify(timings),
+      );
+      return {
+        recipe: createEmptyRecipe(userContext),
+        safetyFlags: {
+          allergenWarning: allergenCheck.warning,
+          error: true,
+        },
+      };
+    }
+
+    bypassedAllergenWarning = allergenCheck.warning || (
+      userContext.language === "es"
+        ? "Advertencia de alérgenos: revisa cuidadosamente los ingredientes."
+        : "Allergen warning: please review ingredients carefully."
     );
-    return {
-      recipe: createEmptyRecipe(userContext),
-      safetyFlags: {
-        allergenWarning: allergenCheck.warning,
-        error: true,
+    console.warn(
+      "[GenerateRecipe] Bypassing allergen block due to request flag",
+      {
+        warning: bypassedAllergenWarning,
       },
-    };
+    );
   }
 
   // Generate the recipe using AI
@@ -206,11 +224,19 @@ export async function generateCustomRecipe(
   timings.total_ms = Math.round(performance.now() - totalStart);
   console.log("[GenerateRecipe Timings]", JSON.stringify(timings));
 
-  if (!safetyCheck.safe) {
+  const warningMessages: string[] = [];
+  if (bypassedAllergenWarning) {
+    warningMessages.push(bypassedAllergenWarning);
+  }
+  if (!safetyCheck.safe && safetyCheck.warnings.length > 0) {
+    warningMessages.push(safetyCheck.warnings.join(" "));
+  }
+
+  if (warningMessages.length > 0) {
     return {
       recipe,
       safetyFlags: {
-        allergenWarning: safetyCheck.warnings.join(" "),
+        allergenWarning: warningMessages.join(" "),
       },
     };
   }
@@ -296,7 +322,7 @@ export function buildRecipeJsonSchema(
 
 /**
  * Call AI Gateway to generate the recipe.
- * Uses the 'parsing' usage type for structured JSON output.
+ * Uses the 'generation' usage type for higher-quality recipe output.
  * Uses one local retry if parsing/validation fails.
  */
 async function callRecipeGenerationAI(
@@ -317,7 +343,7 @@ async function callRecipeGenerationAI(
   for (let attempt = 0; attempt < 2; attempt++) {
     const isRetry = attempt === 1;
     const response = await chat({
-      usageType: "parsing",
+      usageType: "generation",
       messages: [
         { role: "system", content: systemPrompt },
         {
@@ -388,7 +414,7 @@ function parseAndValidateGeneratedRecipe(content: string): GeneratedRecipe {
 /**
  * Build the system prompt for recipe generation.
  */
-function getSystemPrompt(userContext: UserContext): string {
+export function getSystemPrompt(userContext: UserContext): string {
   const lang = userContext.language === "es" ? "Mexican Spanish" : "English";
   const units = userContext.measurementSystem === "imperial"
     ? "cups, tablespoons, teaspoons, ounces, pounds, °F"
@@ -413,10 +439,11 @@ function getSystemPrompt(userContext: UserContext): string {
 
 ## THERMOMIX USAGE (User owns Thermomix - maximize usage!)
 
-For each applicable step, include: thermomixTime (seconds), thermomixTemp ("37°C"-"100°C" or "Varoma"), thermomixSpeed ("1"-"10", "Spoon", or "Reverse")
+For each applicable step, include: thermomixTime (seconds), thermomixTemp ("37°C"-"120°C" or "Varoma"), thermomixSpeed ("1"-"10", "Spoon", or "Reverse")
 
 Use Thermomix for: chopping (speed 5-7), sautéing (100°C, speed 1, reverse), cooking/boiling (temp+speed), blending (speed 8-10), steaming (Varoma)
 Skip Thermomix for: plating, garnishing, oven/grill tasks, manual shaping
+Temperature guidance: low (37-60°C for melting/gentle warming), medium (70-100°C for simmering/cooking), high (100-120°C for sautéing/reduction), Varoma (~120°C for steaming)
 
 Example step with Thermomix: {"order": 2, "instruction": "Sauté onions", "ingredientsUsed": ["onion"], "thermomixTime": 180, "thermomixTemp": "100°C", "thermomixSpeed": "1"}`
     : "";

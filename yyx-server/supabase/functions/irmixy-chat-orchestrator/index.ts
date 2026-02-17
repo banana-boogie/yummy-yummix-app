@@ -8,12 +8,17 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { createUserClient } from "../_shared/supabase-client.ts";
+import {
+  createServiceClient,
+  createUserClient,
+} from "../_shared/supabase-client.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
   createContextBuilder,
   sanitizeContent,
 } from "../_shared/context-builder.ts";
+import { checkRateLimit } from "../_shared/rate-limiter.ts";
+import { getProviderConfig } from "../_shared/ai-gateway/index.ts";
 import type { RecipeCard, UserContext } from "../_shared/irmixy-schemas.ts";
 import { ValidationError } from "../_shared/irmixy-schemas.ts";
 import type {
@@ -40,7 +45,7 @@ import { ensureSessionId } from "./session.ts";
 import { detectMealContext } from "./meal-context.ts";
 import {
   buildNoResultsFallback,
-  getTemplateSuggestions,
+  getContextualSuggestions,
 } from "./suggestions.ts";
 import { detectModificationIntent } from "./modification.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
@@ -70,7 +75,7 @@ serve(async (req) => {
 
   try {
     let body:
-      | { message: string; sessionId?: string }
+      | { message: string; sessionId?: string; bypassAllergenBlock?: boolean }
       | null = null;
     try {
       body = await req.json();
@@ -82,6 +87,7 @@ serve(async (req) => {
     const sessionId = typeof body?.sessionId === "string"
       ? body.sessionId
       : undefined;
+    const bypassAllergenBlock = body?.bypassAllergenBlock === true;
 
     log.info("Request received", {
       hasSessionId: !!sessionId,
@@ -116,6 +122,25 @@ serve(async (req) => {
 
     log.info("User authenticated", { userId: user.id.substring(0, 8) + "..." });
 
+    const rateLimit = await checkRateLimit(createServiceClient(), user.id);
+    if (!rateLimit.allowed) {
+      const retryAfterMs = rateLimit.retryAfterMs ?? 60_000;
+      return new Response(
+        JSON.stringify({
+          error: "Rate limit exceeded",
+          retryAfterMs,
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": Math.ceil(retryAfterMs / 1000).toString(),
+          },
+        },
+      );
+    }
+
     // Sanitize the incoming message
     const sanitizedMessage = sanitizeContent(message);
 
@@ -134,6 +159,7 @@ serve(async (req) => {
       effectiveSessionId,
       sanitizedMessage,
       log,
+      bypassAllergenBlock,
     );
   } catch (error) {
     log.error("Orchestrator error", error);
@@ -198,6 +224,7 @@ async function executeToolCalls(
   userContext: UserContext,
   log: Logger,
   onPartialRecipe?: PartialRecipeCallback,
+  bypassAllergenBlock?: boolean,
 ): Promise<ToolExecutionResult> {
   const toolMessages: ChatMessage[] = [];
   let recipes: RecipeCard[] | undefined;
@@ -213,7 +240,10 @@ async function executeToolCalls(
           name,
           args,
           userContext,
-          onPartialRecipe,
+          {
+            onPartialRecipe,
+            bypassAllergenBlock,
+          },
         );
 
         return {
@@ -275,6 +305,7 @@ function handleStreamingRequest(
   sessionId: string | undefined,
   message: string,
   log: Logger,
+  bypassAllergenBlock: boolean,
 ): Response {
   const encoder = new TextEncoder();
 
@@ -341,6 +372,7 @@ function handleStreamingRequest(
         let customRecipeResult: GenerateRecipeResult | undefined;
         let retrievalResult: RetrieveCustomRecipeResult | undefined;
         let streamMessages = messages;
+        let selectedModel: string | undefined;
 
         // Check for modification of existing custom recipe (same logic as non-streaming)
         const lastCustomRecipeMessage = userContext.conversationHistory
@@ -361,7 +393,7 @@ function handleStreamingRequest(
 
           if (modIntent.isModification) {
             log.info("Modification detected, forcing regeneration");
-            send({ type: "status", status: "generating" });
+            send({ type: "status", status: "cooking_it_up" });
 
             // Two-phase SSE for modification flow
             const onPartialRecipe: PartialRecipeCallback = (partialRecipe) => {
@@ -371,19 +403,44 @@ function handleStreamingRequest(
 
             const lastRecipe = lastCustomRecipeMessage.metadata.customRecipe;
             try {
+              const recipeStepsSummary = Array.isArray(lastRecipe.steps)
+                ? lastRecipe.steps
+                  .slice(0, 25)
+                  .map((step: { order?: number; instruction?: string }) =>
+                    `${step.order ?? "?"}. ${step.instruction ?? ""}`
+                  )
+                  .join(" | ")
+                : "";
+              const richModificationContext = [
+                `ORIGINAL RECIPE: "${
+                  lastRecipe.suggestedName || "previous recipe"
+                }"`,
+                `Steps: ${recipeStepsSummary || "not available"}`,
+                `Difficulty: ${lastRecipe.difficulty || "not specified"}`,
+                `Portions: ${lastRecipe.portions || "not specified"}`,
+                `MODIFICATION REQUESTED: ${modIntent.modifications}`,
+              ].join("\n");
+
               const { recipe: modifiedRecipe, safetyFlags } =
                 await generateCustomRecipe(
                   supabase,
                   {
                     ingredients: lastRecipe.ingredients.map((i: any) => i.name),
-                    cuisinePreference: lastRecipe.cuisine,
                     targetTime: lastRecipe.totalTime,
-                    additionalRequests: modIntent.modifications,
-                    useful_items: lastRecipe.useful_items || [],
+                    difficulty: lastRecipe.difficulty,
+                    additionalRequests: richModificationContext,
+                    useful_items: Array.isArray(lastRecipe.usefulItems)
+                      ? lastRecipe.usefulItems
+                        .map((item: { name?: string }) => item.name)
+                        .filter((name: unknown): name is string =>
+                          typeof name === "string" && name.length > 0
+                        )
+                      : [],
                   },
                   userContext,
                   undefined,
                   onPartialRecipe,
+                  { bypassAllergenBlock },
                 );
 
               customRecipeResult = { recipe: modifiedRecipe, safetyFlags };
@@ -415,6 +472,12 @@ function handleStreamingRequest(
 
               log.info("Modification flow complete", {
                 type: "modification",
+                model: getProviderConfig("generation").model,
+                ...timings,
+              });
+              log.info("PERF_SUMMARY", {
+                type: "modification",
+                model: getProviderConfig("generation").model,
                 ...timings,
               });
 
@@ -442,6 +505,7 @@ function handleStreamingRequest(
           true,
           forceToolUse ? "required" : "auto",
         );
+        selectedModel = firstResponse.model;
         timings.llm_call_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
         const assistantMessage = firstResponse.choices[0].message;
@@ -458,7 +522,11 @@ function handleStreamingRequest(
           const toolName = assistantMessage.tool_calls[0].function.name;
           send({
             type: "status",
-            status: toolName === "search_recipes" ? "searching" : "generating",
+            status: toolName === "search_recipes"
+              ? "searching"
+              : toolName === "generate_custom_recipe"
+              ? "cooking_it_up"
+              : "generating",
           });
 
           // Two-phase SSE: emit partial recipe before enrichment for perceived latency
@@ -473,6 +541,7 @@ function handleStreamingRequest(
             userContext,
             log,
             onPartialRecipe,
+            bypassAllergenBlock,
           );
           timings.tool_exec_ms = Math.round(performance.now() - phaseStart);
           phaseStart = performance.now();
@@ -512,6 +581,11 @@ function handleStreamingRequest(
             );
             timings.total_ms = Math.round(performance.now() - startTime);
             log.info("No-results fallback", timings);
+            log.info("PERF_SUMMARY", {
+              type: "recipe_search",
+              model: selectedModel,
+              ...timings,
+            });
             send({ type: "done", response });
             clearStreamTimeout();
             controller.close();
@@ -561,10 +635,12 @@ function handleStreamingRequest(
 
           // Use template suggestions immediately to avoid blocking
           // This eliminates the 2.9s AI call for suggestions
-          suggestions = getTemplateSuggestions(
-            userContext.language,
-            !!recipes?.length,
-          );
+          suggestions = getContextualSuggestions({
+            language: userContext.language,
+            hasRecipes: !!recipes?.length,
+            recipeNames: recipes?.map((recipe) => recipe.name),
+            hasCustomRecipe: !!customRecipeResult?.recipe,
+          });
           timings.suggestions_ms = 0; // No AI call needed
         }
 
@@ -595,6 +671,12 @@ function handleStreamingRequest(
           : "chat";
         log.info("Request complete", {
           type: requestType,
+          model: selectedModel,
+          ...timings,
+        });
+        log.info("PERF_SUMMARY", {
+          type: requestType,
+          model: selectedModel,
           ...timings,
         });
 

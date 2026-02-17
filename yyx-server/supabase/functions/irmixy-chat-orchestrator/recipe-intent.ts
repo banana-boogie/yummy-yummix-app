@@ -54,6 +54,28 @@ export interface ModificationResult {
   modifications: string;
 }
 
+// Serving size patterns (EN/ES)
+const SERVING_SIZE_PATTERNS = [
+  /\b(?:make|adjust|scale)\s+(?:it\s+)?(?:for|to)\s+(\d+)\s*(?:people|persons|servings?)\b/i,
+  /\b(?:haz|hazlo|ajusta|ajústalo|escala)\s+(?:para|a)\s+(\d+)\s*(?:personas?|porciones?)\b/i,
+];
+
+// Dietary adaptation patterns (EN/ES)
+const DIETARY_ADAPTATION_PATTERNS = [
+  /\b(?:make|turn)\s+it\s+(vegan|vegetarian|gluten[-\s]?free|dairy[-\s]?free|keto)\b/i,
+  /\b(vegan|vegetarian|gluten[-\s]?free|dairy[-\s]?free)\s+version\b/i,
+  /\b(?:haz|hazlo|vu[eé]lvelo)\s+(vegano|vegetariano|sin\s+gluten|sin\s+l[áa]cteos)\b/i,
+  /\bversi[oó]n\s+(vegana|vegetariana|sin\s+gluten|sin\s+l[áa]cteos)\b/i,
+];
+
+// Speed/simplification patterns (EN/ES)
+const SPEED_PATTERNS = [
+  /\b(?:make|keep)\s+it\s+(faster|quicker|simpler)\b/i,
+  /\b(?:simplify|speed\s+it\s+up|faster\s+version|quick\s+version)\b/i,
+  /\bhazlo?\s+m[áa]s\s+r[áa]pido\b/i,
+  /\b(?:simplifica|versi[oó]n\s+r[áa]pida|m[áa]s\s+r[áa]pido)\b/i,
+];
+
 // Removal patterns — keep these specific to avoid conversational false positives.
 const REMOVAL_SPECIFIC = [
   // EN specific
@@ -124,6 +146,36 @@ export function detectModificationHeuristic(
 ): ModificationResult {
   const trimmed = message.trim();
   if (!trimmed) return { isModification: false, modifications: "" };
+
+  // Prioritize explicit serving-size requests before generic patterns.
+  for (const pattern of SERVING_SIZE_PATTERNS) {
+    const match = trimmed.match(pattern);
+    if (match) {
+      return {
+        isModification: true,
+        modifications: `adjust servings to ${match[1]}`,
+      };
+    }
+  }
+
+  for (const pattern of DIETARY_ADAPTATION_PATTERNS) {
+    const match = trimmed.match(pattern);
+    if (match) {
+      return {
+        isModification: true,
+        modifications: `adapt to ${match[1].trim().toLowerCase()}`,
+      };
+    }
+  }
+
+  for (const pattern of SPEED_PATTERNS) {
+    if (pattern.test(trimmed)) {
+      return {
+        isModification: true,
+        modifications: "make it faster and simpler",
+      };
+    }
+  }
 
   // Try removal patterns
   for (const pattern of REMOVAL_SPECIFIC) {

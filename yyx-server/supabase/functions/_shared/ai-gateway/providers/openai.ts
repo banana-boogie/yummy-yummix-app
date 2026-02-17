@@ -89,6 +89,7 @@ export async function callOpenAI(
   model: string,
   apiKey: string,
 ): Promise<AICompletionResponse> {
+  const startedAt = performance.now();
   const openaiRequest: OpenAIRequest = {
     model,
     messages: request.messages.map((m) => ({
@@ -139,11 +140,24 @@ export async function callOpenAI(
 
   if (!response.ok) {
     const errorBody = await response.text();
+    console.error("[ai-gateway:openai] Chat request failed", {
+      model,
+      status: response.status,
+      duration_ms: Math.round(performance.now() - startedAt),
+    });
     throw new Error(`OpenAI API error (${response.status}): ${errorBody}`);
   }
 
   const data: OpenAIResponse = await response.json();
   const choice = data.choices[0];
+  const durationMs = Math.round(performance.now() - startedAt);
+  console.log("[ai-gateway:openai] Chat request complete", {
+    model: data.model || model,
+    duration_ms: durationMs,
+    input_tokens: data.usage.prompt_tokens,
+    output_tokens: data.usage.completion_tokens,
+    has_tool_calls: !!choice.message.tool_calls?.length,
+  });
 
   return {
     content: choice.message.content ?? "",
@@ -169,6 +183,7 @@ export async function* callOpenAIStream(
   model: string,
   apiKey: string,
 ): AsyncGenerator<string, void, unknown> {
+  const startedAt = performance.now();
   const openaiRequest = {
     model,
     messages: request.messages.map((m) => ({
@@ -191,8 +206,17 @@ export async function* callOpenAIStream(
 
   if (!response.ok) {
     const errorBody = await response.text();
+    console.error("[ai-gateway:openai] Stream request failed", {
+      model,
+      status: response.status,
+      duration_ms: Math.round(performance.now() - startedAt),
+    });
     throw new Error(`OpenAI API error (${response.status}): ${errorBody}`);
   }
+  console.log("[ai-gateway:openai] Stream connected", {
+    model,
+    connect_ms: Math.round(performance.now() - startedAt),
+  });
 
   const reader = response.body?.getReader();
   if (!reader) throw new Error("No response body");
@@ -224,6 +248,11 @@ export async function* callOpenAIStream(
       }
     }
   }
+
+  console.log("[ai-gateway:openai] Stream completed", {
+    model,
+    total_ms: Math.round(performance.now() - startedAt),
+  });
 }
 
 // =============================================================================
@@ -238,6 +267,7 @@ export async function callOpenAIEmbedding(
   model: string,
   apiKey: string,
 ): Promise<AIEmbeddingResponse> {
+  const startedAt = performance.now();
   const response = await fetch(OPENAI_EMBEDDINGS_URL, {
     method: "POST",
     headers: {
@@ -253,6 +283,11 @@ export async function callOpenAIEmbedding(
       `[ai-gateway:embedding] OpenAI API error (${response.status}):`,
       errorBody,
     );
+    console.error("[ai-gateway:openai] Embedding request failed", {
+      model,
+      status: response.status,
+      duration_ms: Math.round(performance.now() - startedAt),
+    });
     throw new Error(
       `OpenAI embeddings API error (${response.status}): ${errorBody}`,
     );
@@ -264,6 +299,13 @@ export async function callOpenAIEmbedding(
   if (!Array.isArray(embedding)) {
     throw new Error("Invalid embedding response from OpenAI");
   }
+
+  console.log("[ai-gateway:openai] Embedding request complete", {
+    model: data.model || model,
+    duration_ms: Math.round(performance.now() - startedAt),
+    input_tokens: data.usage?.prompt_tokens ?? 0,
+    input_length: text.length,
+  });
 
   return {
     embedding,

@@ -195,6 +195,12 @@ function computeMetadataScore(
   recipe: { total_time: number; difficulty: string },
   filters: HybridSearchFilters,
 ): number {
+  const difficultyOrder: Record<"easy" | "medium" | "hard", number> = {
+    easy: 0,
+    medium: 1,
+    hard: 2,
+  };
+
   let score = 0;
   let factors = 0;
 
@@ -204,6 +210,8 @@ function computeMetadataScore(
       score += 1;
     } else if (recipe.total_time <= filters.maxTime * 1.2) {
       score += 0.5;
+    } else if (recipe.total_time <= filters.maxTime * 1.5) {
+      score += 0.2;
     }
   }
 
@@ -211,6 +219,14 @@ function computeMetadataScore(
     factors++;
     if (recipe.difficulty === filters.difficulty) {
       score += 1;
+    } else if (
+      recipe.difficulty in difficultyOrder &&
+      Math.abs(
+          difficultyOrder[recipe.difficulty as "easy" | "medium" | "hard"] -
+            difficultyOrder[filters.difficulty],
+        ) === 1
+    ) {
+      score += 0.4;
     }
   }
 
@@ -373,17 +389,8 @@ export async function searchRecipesHybrid(
     };
   });
 
-  // Apply hard filters
-  let filtered = scored;
-  if (filters.difficulty) {
-    filtered = filtered.filter((r) => r.difficulty === filters.difficulty);
-  }
-  if (filters.maxTime) {
-    filtered = filtered.filter((r) => r.totalTime <= filters.maxTime!);
-  }
-
   // Apply threshold and sort
-  const aboveThreshold = filtered
+  const aboveThreshold = scored
     .filter((r) => r.finalScore >= INCLUDE_THRESHOLD)
     .sort((a, b) => b.finalScore - a.finalScore);
 
@@ -392,7 +399,6 @@ export async function searchRecipesHybrid(
 
   console.log("[hybrid-search] Threshold filtering", {
     totalScored: scored.length,
-    afterHardFilters: filtered.length,
     aboveThreshold: aboveThreshold.length,
     topScore: (aboveThreshold[0]?.finalScore || 0).toFixed(3),
     needsFallback,

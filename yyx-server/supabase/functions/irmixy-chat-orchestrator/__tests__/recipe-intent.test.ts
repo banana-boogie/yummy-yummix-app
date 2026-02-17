@@ -441,6 +441,60 @@ Deno.test("modHeuristic - ES: ponle más ajo", () => {
   assertEquals(r.modifications, "add más ajo");
 });
 
+// --- Serving size (EN/ES) ---
+
+Deno.test("modHeuristic - EN: make it for 2 people", () => {
+  const r = detectModificationHeuristic("Make it for 2 people");
+  assert(r.isModification);
+  assertEquals(r.modifications, "adjust servings to 2");
+});
+
+Deno.test("modHeuristic - ES: hazlo para 6 personas", () => {
+  const r = detectModificationHeuristic("Hazlo para 6 personas");
+  assert(r.isModification);
+  assertEquals(r.modifications, "adjust servings to 6");
+});
+
+// --- Dietary adaptation (EN/ES) ---
+
+Deno.test("modHeuristic - EN: make it vegan", () => {
+  const r = detectModificationHeuristic("Make it vegan");
+  assert(r.isModification);
+  assertEquals(r.modifications, "adapt to vegan");
+});
+
+Deno.test("modHeuristic - EN: gluten-free version", () => {
+  const r = detectModificationHeuristic("Gluten-free version");
+  assert(r.isModification);
+  assertEquals(r.modifications, "adapt to gluten-free");
+});
+
+Deno.test("modHeuristic - ES: hazlo vegano", () => {
+  const r = detectModificationHeuristic("Hazlo vegano");
+  assert(r.isModification);
+  assertEquals(r.modifications, "adapt to vegano");
+});
+
+// --- Speed/simplification (EN/ES) ---
+
+Deno.test("modHeuristic - EN: make it faster", () => {
+  const r = detectModificationHeuristic("Make it faster");
+  assert(r.isModification);
+  assertEquals(r.modifications, "make it faster and simpler");
+});
+
+Deno.test("modHeuristic - EN: simplify it", () => {
+  const r = detectModificationHeuristic("Simplify it");
+  assert(r.isModification);
+  assertEquals(r.modifications, "make it faster and simpler");
+});
+
+Deno.test("modHeuristic - ES: hazlo más rápido", () => {
+  const r = detectModificationHeuristic("Hazlo más rápido");
+  assert(r.isModification);
+  assertEquals(r.modifications, "make it faster and simpler");
+});
+
 // --- Negative Tests (should NOT detect modification) ---
 
 Deno.test("modHeuristic - negative: hello", () => {
