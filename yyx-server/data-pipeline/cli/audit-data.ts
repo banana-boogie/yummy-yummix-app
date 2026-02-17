@@ -34,7 +34,7 @@ interface AuditEntity {
   id: string;
   name_en: string;
   name_es: string;
-  picture_url?: string;
+  image_url?: string;
 }
 
 function auditEntities(
@@ -44,7 +44,7 @@ function auditEntities(
 ): AuditIssue[] {
   const issues: AuditIssue[] = [];
   for (const entity of entities) {
-    if (!entity.picture_url) {
+    if (!entity.image_url) {
       issues.push({
         type,
         id: entity.id,

@@ -43,7 +43,7 @@ function createIngredientRow(
     name_es: 'cebolla',
     plural_name_en: 'onions',
     plural_name_es: 'cebollas',
-    picture_url: '',
+    image_url: '',
     nutritional_facts: null,
     ...overrides,
   };

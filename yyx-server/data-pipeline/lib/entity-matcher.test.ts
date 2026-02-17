@@ -29,7 +29,7 @@ const ingredients: DbIngredient[] = [
     name_es: 'Tomate',
     plural_name_en: 'Tomatoes',
     plural_name_es: 'Tomates',
-    picture_url: '',
+    image_url: '',
     nutritional_facts: null,
   },
   {
@@ -38,7 +38,7 @@ const ingredients: DbIngredient[] = [
     name_es: 'Azúcar',
     plural_name_en: 'Sugar',
     plural_name_es: 'Azúcar',
-    picture_url: '',
+    image_url: '',
     nutritional_facts: null,
   },
   {
@@ -47,7 +47,7 @@ const ingredients: DbIngredient[] = [
     name_es: 'Azúcar Moreno',
     plural_name_en: 'Brown Sugar',
     plural_name_es: 'Azúcar Moreno',
-    picture_url: '',
+    image_url: '',
     nutritional_facts: null,
   },
   {
@@ -56,7 +56,7 @@ const ingredients: DbIngredient[] = [
     name_es: 'Aceite de Oliva',
     plural_name_en: 'Olive Oil',
     plural_name_es: 'Aceite de Oliva',
-    picture_url: '',
+    image_url: '',
     nutritional_facts: null,
   },
 ];
@@ -67,8 +67,8 @@ const tags: DbRecipeTag[] = [
 ];
 
 const usefulItems: DbUsefulItem[] = [
-  { id: 'ui-1', name_en: 'Whisk', name_es: 'Batidor', picture_url: '' },
-  { id: 'ui-2', name_en: 'Cutting Board', name_es: 'Tabla de Cortar', picture_url: '' },
+  { id: 'ui-1', name_en: 'Whisk', name_es: 'Batidor', image_url: '' },
+  { id: 'ui-2', name_en: 'Cutting Board', name_es: 'Tabla de Cortar', image_url: '' },
 ];
 
 const units: DbMeasurementUnit[] = [

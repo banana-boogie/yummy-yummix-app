@@ -90,12 +90,14 @@ export function createPipelineConfig(env: Environment): PipelineConfig {
     const envLocal = loadEnvFile(`${appRoot}/.env.local`);
     supabaseUrl = envLocal['EXPO_PUBLIC_SUPABASE_URL'] || '';
 
-    // For API keys, try .env in yyx-server first, then yyx-app
+    // For API keys, try .env.local first, then .env, then env vars
+    const serverEnvLocal = loadEnvFile(`${serverRoot}/.env.local`);
     const serverEnv = loadEnvFile(`${serverRoot}/.env`);
     const appEnv = loadEnvFile(`${appRoot}/.env`);
 
     // Prefer service role key for DB writes (bypasses RLS), fall back to anon key
-    const serviceKey = serverEnv['SUPABASE_SERVICE_ROLE_KEY'] ||
+    const serviceKey = serverEnvLocal['SUPABASE_SERVICE_ROLE_KEY'] ||
+      serverEnv['SUPABASE_SERVICE_ROLE_KEY'] ||
       appEnv['SUPABASE_SERVICE_ROLE_KEY'] ||
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     if (serviceKey) {
@@ -106,18 +108,20 @@ export function createPipelineConfig(env: Environment): PipelineConfig {
       keyType = 'anon';
     }
 
-    openaiApiKey = serverEnv['OPENAI_API_KEY'] || appEnv['OPENAI_API_KEY'] ||
-      Deno.env.get('OPENAI_API_KEY') || '';
-    usdaApiKey = serverEnv['USDA_API_KEY'] || appEnv['USDA_API_KEY'] ||
-      Deno.env.get('USDA_API_KEY') || '';
+    openaiApiKey = serverEnvLocal['OPENAI_API_KEY'] || serverEnv['OPENAI_API_KEY'] ||
+      appEnv['OPENAI_API_KEY'] || Deno.env.get('OPENAI_API_KEY') || '';
+    usdaApiKey = serverEnvLocal['USDA_API_KEY'] || serverEnv['USDA_API_KEY'] ||
+      appEnv['USDA_API_KEY'] || Deno.env.get('USDA_API_KEY') || '';
   } else {
     const appEnv = loadEnvFile(`${appRoot}/.env`);
     supabaseUrl = appEnv['EXPO_PUBLIC_SUPABASE_URL'] || '';
 
+    const serverEnvLocal = loadEnvFile(`${serverRoot}/.env.local`);
     const serverEnv = loadEnvFile(`${serverRoot}/.env`);
 
     // Production requires service role key for DB writes (RLS blocks anon inserts)
-    const serviceKey = serverEnv['SUPABASE_SERVICE_ROLE_KEY'] ||
+    const serviceKey = serverEnvLocal['SUPABASE_SERVICE_ROLE_KEY'] ||
+      serverEnv['SUPABASE_SERVICE_ROLE_KEY'] ||
       appEnv['SUPABASE_SERVICE_ROLE_KEY'] ||
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     if (!serviceKey) {
@@ -131,10 +135,10 @@ export function createPipelineConfig(env: Environment): PipelineConfig {
     supabaseKey = serviceKey;
     keyType = 'service_role';
 
-    openaiApiKey = serverEnv['OPENAI_API_KEY'] || appEnv['OPENAI_API_KEY'] ||
-      Deno.env.get('OPENAI_API_KEY') || '';
-    usdaApiKey = serverEnv['USDA_API_KEY'] || appEnv['USDA_API_KEY'] ||
-      Deno.env.get('USDA_API_KEY') || '';
+    openaiApiKey = serverEnvLocal['OPENAI_API_KEY'] || serverEnv['OPENAI_API_KEY'] ||
+      appEnv['OPENAI_API_KEY'] || Deno.env.get('OPENAI_API_KEY') || '';
+    usdaApiKey = serverEnvLocal['USDA_API_KEY'] || serverEnv['USDA_API_KEY'] ||
+      appEnv['USDA_API_KEY'] || Deno.env.get('USDA_API_KEY') || '';
   }
 
   if (!supabaseUrl || !supabaseKey) {

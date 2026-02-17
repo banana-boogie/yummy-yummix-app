@@ -193,10 +193,10 @@ const ingredientConfig: EntityProcessorConfig<
   fetchAll: () => db.fetchAllIngredients(config.supabase),
   getName: (e) => e.name_en || e.name_es,
   getId: (e) => e.id,
-  hasPicture: (e) => !!e.picture_url,
+  hasPicture: (e) => !!e.image_url,
   buildPrompt: ingredientPrompt,
   storageBucket: 'ingredients',
-  updateEntity: (id, url) => db.updateIngredient(config.supabase, id, { picture_url: url }),
+  updateEntity: (id, url) => db.updateIngredient(config.supabase, id, { image_url: url }),
 };
 
 const recipeConfig: EntityProcessorConfig<Awaited<ReturnType<typeof db.fetchAllRecipes>>[number]> =
@@ -205,10 +205,10 @@ const recipeConfig: EntityProcessorConfig<Awaited<ReturnType<typeof db.fetchAllR
     fetchAll: () => db.fetchAllRecipes(config.supabase),
     getName: (e) => e.name_en || e.name_es,
     getId: (e) => e.id,
-    hasPicture: (e) => !!e.picture_url,
+    hasPicture: (e) => !!e.image_url,
     buildPrompt: recipePrompt,
     storageBucket: 'recipes',
-    updateEntity: (id, url) => db.updateRecipe(config.supabase, id, { picture_url: url }),
+    updateEntity: (id, url) => db.updateRecipe(config.supabase, id, { image_url: url }),
   };
 
 const usefulItemConfig: EntityProcessorConfig<
@@ -218,10 +218,10 @@ const usefulItemConfig: EntityProcessorConfig<
   fetchAll: () => db.fetchAllUsefulItems(config.supabase),
   getName: (e) => e.name_en || e.name_es,
   getId: (e) => e.id,
-  hasPicture: (e) => !!e.picture_url,
+  hasPicture: (e) => !!e.image_url,
   buildPrompt: usefulItemPrompt,
   storageBucket: 'useful-items',
-  updateEntity: (id, url) => db.updateUsefulItem(config.supabase, id, { picture_url: url }),
+  updateEntity: (id, url) => db.updateUsefulItem(config.supabase, id, { image_url: url }),
 };
 
 // ─── Main ────────────────────────────────────────────────

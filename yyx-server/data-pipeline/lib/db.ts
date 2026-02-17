@@ -18,7 +18,7 @@ import type {
 export async function fetchAllIngredients(supabase: SupabaseClient): Promise<DbIngredient[]> {
   const { data, error } = await supabase
     .from('ingredients')
-    .select('id, name_en, name_es, plural_name_en, plural_name_es, picture_url, nutritional_facts')
+    .select('id, name_en, name_es, plural_name_en, plural_name_es, image_url, nutritional_facts')
     .order('name_en', { ascending: true })
     .limit(5000);
   if (error) throw new Error(`Failed to fetch ingredients: ${error.message}`);
@@ -38,7 +38,7 @@ export async function fetchAllTags(supabase: SupabaseClient): Promise<DbRecipeTa
 export async function fetchAllUsefulItems(supabase: SupabaseClient): Promise<DbUsefulItem[]> {
   const { data, error } = await supabase
     .from('useful_items')
-    .select('id, name_en, name_es, picture_url')
+    .select('id, name_en, name_es, image_url')
     .order('name_en', { ascending: true })
     .limit(5000);
   if (error) throw new Error(`Failed to fetch useful items: ${error.message}`);
@@ -62,14 +62,14 @@ export async function fetchAllRecipes(supabase: SupabaseClient): Promise<
     id: string;
     name_en: string;
     name_es: string;
-    picture_url: string;
+    image_url: string;
     is_published: boolean;
     nutritional_facts: Record<string, unknown> | null;
   }>
 > {
   const { data, error } = await supabase
     .from('recipes')
-    .select('id, name_en, name_es, picture_url, is_published, nutritional_facts')
+    .select('id, name_en, name_es, image_url, is_published, nutritional_facts')
     .order('name_en', { ascending: true })
     .limit(5000);
   if (error) throw new Error(`Failed to fetch recipes: ${error.message}`);
@@ -85,7 +85,7 @@ export async function createIngredient(
     name_es: string;
     plural_name_en: string;
     plural_name_es: string;
-    picture_url?: string;
+    image_url?: string;
     nutritional_facts?: Record<string, unknown> | null;
   },
 ): Promise<DbIngredient> {
@@ -96,7 +96,7 @@ export async function createIngredient(
       name_es: ingredient.name_es,
       plural_name_en: ingredient.plural_name_en,
       plural_name_es: ingredient.plural_name_es,
-      picture_url: ingredient.picture_url || '',
+      image_url: ingredient.image_url || '',
       nutritional_facts: ingredient.nutritional_facts || {},
     })
     .select('*')
@@ -109,14 +109,14 @@ export async function createIngredient(
 
 export async function createUsefulItem(
   supabase: SupabaseClient,
-  item: { name_en: string; name_es: string; picture_url?: string },
+  item: { name_en: string; name_es: string; image_url?: string },
 ): Promise<DbUsefulItem> {
   const { data, error } = await supabase
     .from('useful_items')
     .insert({
       name_en: item.name_en,
       name_es: item.name_es,
-      picture_url: item.picture_url || '',
+      image_url: item.image_url || '',
     })
     .select('*')
     .single();
@@ -146,7 +146,7 @@ export async function createTag(
 export interface RecipeInsertData {
   name_en: string;
   name_es: string;
-  picture_url?: string;
+  image_url?: string;
   difficulty: string;
   prep_time: number;
   total_time: number;

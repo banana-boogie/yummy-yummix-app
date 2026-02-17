@@ -20,7 +20,7 @@ export interface DbIngredient {
   name_es: string;
   plural_name_en: string;
   plural_name_es: string;
-  picture_url: string;
+  image_url: string;
   nutritional_facts: Record<string, unknown> | null;
 }
 
@@ -28,7 +28,7 @@ export interface DbUsefulItem {
   id: string;
   name_en: string;
   name_es: string;
-  picture_url: string;
+  image_url: string;
 }
 
 export interface DbRecipeTag {
