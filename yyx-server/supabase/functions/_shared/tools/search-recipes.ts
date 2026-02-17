@@ -1,8 +1,9 @@
 /**
  * Recipe Search Tool
  *
- * Searches the recipe database with filters and allergen exclusion.
- * Returns RecipeCard[] for display.
+ * Searches the recipe database with filters and allergen warnings.
+ * Returns RecipeCard[] for display, annotating matches with allergen
+ * warnings rather than excluding them.
  */
 
 import {

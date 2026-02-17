@@ -10,10 +10,7 @@ import {
     Alert,
     Animated,
 } from 'react-native';
-import {
-    ExpoSpeechRecognitionModule,
-    useSpeechRecognitionEvent,
-} from 'expo-speech-recognition';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/common/Text';
 import { SuggestionChips } from '@/components/chat/SuggestionChips';
@@ -47,6 +44,7 @@ const SCROLL_THROTTLE_MS = 100; // Throttle scroll calls to avoid excessive layo
 const SCROLL_DELAY_MS = 100; // Allow render to complete before scrolling
 const CHUNK_BATCH_MS = 50; // Batch streaming chunks to reduce re-renders
 const SCROLL_THRESHOLD = 100; // Distance from bottom to consider "at bottom" (px)
+const ICON_SIZE = 20; // Icon size for mic and send buttons
 
 interface Props {
     sessionId?: string | null;
@@ -105,69 +103,11 @@ export function ChatScreen({
     const [currentStatus, setCurrentStatus] = useState<IrmixyStatus>(null);
     const [dynamicSuggestions, setDynamicSuggestions] = useState<SuggestionChip[] | null>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
-    const [isListening, setIsListening] = useState(false);
-    const speechStoppedByUserRef = useRef(false); // Guards against late speech results after send
-    const pulseAnim = useRef(new Animated.Value(1)).current;
 
-    // Pulse animation for mic button while listening
-    useEffect(() => {
-        if (isListening) {
-            const pulse = Animated.loop(
-                Animated.sequence([
-                    Animated.timing(pulseAnim, { toValue: 0.4, duration: 800, useNativeDriver: true }),
-                    Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-                ])
-            );
-            pulse.start();
-            return () => pulse.stop();
-        } else {
-            pulseAnim.setValue(1);
-        }
-    }, [isListening, pulseAnim]);
-
-    // Speech recognition events
-    useSpeechRecognitionEvent('result', (event) => {
-        // Ignore late results after user sent a message
-        if (speechStoppedByUserRef.current) return;
-        const transcript = event.results[0]?.transcript;
-        if (transcript) {
-            setInputText(transcript);
-        }
+    const { isListening, pulseAnim, handleMicPress, stopAndGuard } = useSpeechRecognition({
+        language,
+        onTranscript: setInputText,
     });
-
-    useSpeechRecognitionEvent('end', () => {
-        setIsListening(false);
-        // Don't reset speechStoppedByUserRef here — it guards against late
-        // result events that would re-fill the input after send cleared it.
-        // The ref is reset when the user starts a new dictation session.
-    });
-
-    useSpeechRecognitionEvent('error', (event) => {
-        setIsListening(false);
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-            Alert.alert(i18n.t('chat.voice.micPermissionDenied'));
-        }
-    });
-
-    const handleMicPress = useCallback(async () => {
-        if (isListening) {
-            ExpoSpeechRecognitionModule.stop();
-            return;
-        }
-
-        const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-        if (!granted) {
-            Alert.alert(i18n.t('chat.voice.micPermissionDenied'));
-            return;
-        }
-
-        speechStoppedByUserRef.current = false;
-        setIsListening(true);
-        ExpoSpeechRecognitionModule.start({
-            lang: language === 'es' ? 'es-MX' : 'en-US',
-            interimResults: true,
-        });
-    }, [isListening, language]);
 
     const resetStreamingState = useCallback(() => {
         streamCancelRef.current?.();
@@ -312,11 +252,8 @@ export function ChatScreen({
         const isActiveRequest = () =>
             isMountedRef.current && streamRequestIdRef.current === requestId;
 
-        // Always stop speech recognition on send — the conditional `isListening`
-        // check used a stale closure value. stop() is a safe no-op when inactive.
-        speechStoppedByUserRef.current = true;
-        ExpoSpeechRecognitionModule.stop();
-        setIsListening(false);
+        // Always stop speech recognition on send — stop() is a safe no-op when inactive.
+        stopAndGuard();
 
         const trimmedMessage = messageText.trim();
         const userMessage: ChatMessage = {
@@ -472,9 +409,10 @@ export function ChatScreen({
 
                     // Scroll to recipe card at top of viewport
                     if (assistantIndexRef.current !== null) {
+                        const scrollToIdx = assistantIndexRef.current;
                         setTimeout(() => {
                             flatListRef.current?.scrollToIndex({
-                                index: assistantIndexRef.current!,
+                                index: scrollToIdx,
                                 viewPosition: 0,
                                 animated: true,
                             });
@@ -929,8 +867,8 @@ export function ChatScreen({
                         >
                             <MaterialCommunityIcons
                                 name={isListening ? 'stop' : 'microphone'}
-                                size={SPACING.lg - 4}
-                                color={isListening ? '#fff' : COLORS.text.secondary}
+                                size={ICON_SIZE}
+                                color={isListening ? COLORS.neutral.white : COLORS.text.secondary}
                             />
                             <Text
                                 className={`ml-xs text-sm font-medium ${
@@ -950,11 +888,12 @@ export function ChatScreen({
                 >
                     <TextInput
                         className="flex-1 bg-background-secondary rounded-xl text-base text-text-primary"
-                        style={{ height: SPACING.xxl, paddingLeft: SPACING.md, paddingRight: SPACING.sm }}
+                        style={{ minHeight: SPACING.xxl, maxHeight: 120, paddingLeft: SPACING.md, paddingRight: SPACING.sm, paddingVertical: SPACING.xs }}
                         value={inputText}
                         onChangeText={setInputText}
                         placeholder={isListening ? i18n.t('chat.voice.listening') : i18n.t('chat.inputPlaceholder')}
                         placeholderTextColor={COLORS.text.secondary}
+                        multiline
                         maxLength={2000}
                         editable={!isLoading}
                     />
@@ -968,9 +907,9 @@ export function ChatScreen({
                         disabled={isLoading || !inputText.trim()}
                     >
                         {isLoading ? (
-                            <ActivityIndicator size="small" color="#fff" />
+                            <ActivityIndicator size="small" color={COLORS.neutral.white} />
                         ) : (
-                            <MaterialCommunityIcons name="send" size={SPACING.lg - 4} color="#fff" />
+                            <MaterialCommunityIcons name="send" size={ICON_SIZE} color={COLORS.neutral.white} />
                         )}
                     </TouchableOpacity>
                 </View>
