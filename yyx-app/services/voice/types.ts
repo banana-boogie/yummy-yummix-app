@@ -8,6 +8,7 @@ export type VoiceEvent =
     | 'userTranscriptComplete'       // Full user speech text after transcription
     | 'assistantTranscriptDelta'     // Streaming assistant text chunk
     | 'assistantTranscriptComplete'  // Full assistant response text
+    | 'responseInterrupted'          // Assistant response was interrupted/cancelled
     // Tool call events
     | 'toolCall';                    // OpenAI wants to call a tool
 

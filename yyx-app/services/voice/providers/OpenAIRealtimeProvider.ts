@@ -35,6 +35,8 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private pendingEvents: any[] = [];
   // Function call tracking (keyed by call_id to handle interleaved calls)
   private pendingToolCalls: Map<string, { name: string; args: string }> = new Map();
+  // Tracks the currently active assistant response for interruption correlation
+  private activeResponseId: string | null = null;
   // Token tracking for cost calculation (separated by type for accurate pricing)
   private sessionInputTokens: number = 0;
   private sessionOutputTokens: number = 0;
@@ -217,9 +219,9 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         input_audio_transcription: { model: "whisper-1" },
         turn_detection: {
           type: "server_vad",
-          threshold: 0.5,
+          threshold: 0.6,
           prefix_padding_ms: 300,
-          silence_duration_ms: 800,
+          silence_duration_ms: 1200,
         },
         tools: voiceTools,
       },
@@ -268,6 +270,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
     // Reset tool call tracking
     this.pendingToolCalls.clear();
+    this.activeResponseId = null;
 
     // Reset token counters for next session
     this.sessionInputTokens = 0;
@@ -451,6 +454,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       // Response events
       case "response.created":
+        this.activeResponseId = message.response?.id ?? null;
         this.setStatus("processing");
         break;
 
@@ -498,11 +502,12 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         }
         break;
 
-      case "response.audio_transcript.delta":
+      case "response.output_audio_transcript.delta":
         // Streaming transcript of assistant's response
         if (message.delta) {
+          const responseId = message.response_id ?? this.activeResponseId;
           this.emit("transcript", message.delta);
-          this.emit("assistantTranscriptDelta", message.delta);
+          this.emit("assistantTranscriptDelta", message.delta, responseId);
         }
         break;
 
@@ -511,11 +516,12 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         this.setStatus("speaking");
         break;
 
-      case "response.audio_transcript.done":
+      case "response.output_audio_transcript.done":
         // Complete transcript of what AI said
         if (message.transcript) {
+          const responseId = message.response_id ?? this.activeResponseId;
           this.emit("response", { text: message.transcript });
-          this.emit("assistantTranscriptComplete", message.transcript);
+          this.emit("assistantTranscriptComplete", message.transcript, responseId);
         }
         break;
 
@@ -524,6 +530,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         break;
 
       case "response.done":
+        if (message.response?.status === "cancelled") {
+          this.emit("responseInterrupted", message.response?.id ?? this.activeResponseId);
+        }
+
         // Extract token usage from response
         if (message.response?.usage) {
           const usage = message.response.usage;
@@ -551,6 +561,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
           );
         }
 
+        this.activeResponseId = null;
         this.setStatus("listening");
         break;
 
@@ -566,7 +577,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         break;
 
       default:
-        // Ignore unhandled events silently
+        if (__DEV__) console.log("[OpenAI] Unhandled event:", message.type);
         break;
     }
   }
