@@ -63,7 +63,9 @@ export function convertToPer100g(
   currentPortionSize: number,
 ): void {
   if (currentPortionSize <= 0) {
-    throw new Error(`Invalid portion size: ${currentPortionSize}. Must be greater than 0.`);
+    throw new Error(
+      `Invalid portion size: ${currentPortionSize}. Must be greater than 0.`,
+    );
   }
   const conversionFactor = 100 / currentPortionSize;
   data.calories *= conversionFactor;
