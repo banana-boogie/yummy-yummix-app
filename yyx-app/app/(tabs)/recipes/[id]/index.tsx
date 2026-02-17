@@ -139,6 +139,7 @@ const RecipeDetail: React.FC = () => {
               <RecipeInfo
                 totalTime={recipe.totalTime}
                 prepTime={recipe.prepTime}
+                difficulty={recipe.difficulty}
                 portions={recipe.portions}
                 className="mb-xl"
               />

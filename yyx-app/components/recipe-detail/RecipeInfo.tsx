@@ -2,6 +2,7 @@ import React from 'react';
 import { View, ImageSourcePropType, StyleProp, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from '@/components/common/Text';
+import { RecipeDifficulty } from '@/types/recipe.types';
 import i18n from '@/i18n';
 import { formatTimeInHoursAndMinutes } from '@/utils/formatters';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,7 @@ interface InfoItemProps {
 export interface RecipeInfoProps {
   totalTime: number | null;
   prepTime: number | null;
+  difficulty?: RecipeDifficulty | null;
   portions?: number;
   className?: string;
   style?: StyleProp<ViewStyle>;
@@ -58,6 +60,7 @@ const InfoItem: React.FC<InfoItemProps> = ({
 export const RecipeInfo: React.FC<RecipeInfoProps> = ({
   totalTime,
   prepTime,
+  difficulty,
   portions,
   className = '',
   style
@@ -75,6 +78,13 @@ export const RecipeInfo: React.FC<RecipeInfoProps> = ({
           label={i18n.t('recipes.common.prepTime')}
           value={formatTimeInHoursAndMinutes(prepTime)}
         />
+        {difficulty ? (
+          <InfoItem
+            icon="bar-chart-outline"
+            label={i18n.t('recipes.common.difficultyLabel')}
+            value={i18n.t(`recipes.common.difficulty.${difficulty}`)}
+          />
+        ) : null}
       </View>
       {portions && (
         <InfoItem

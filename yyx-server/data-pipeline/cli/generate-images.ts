@@ -234,6 +234,12 @@ async function main() {
     Deno.exit(1);
   }
 
+  const validTypes = ['ingredient', 'recipe', 'useful_item', 'all'];
+  if (!validTypes.includes(entityType)) {
+    logger.error(`Invalid --type "${entityType}". Valid: ${validTypes.join(', ')}`);
+    Deno.exit(1);
+  }
+
   if (dryRun) {
     logger.warn('DRY RUN MODE - no images will be generated');
   }

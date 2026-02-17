@@ -47,7 +47,11 @@ export function ReviewForm({ recipe, onUpdateRecipe }: ReviewFormProps) {
         ) : null}
 
         <View className="self-center">
-          <RecipeInfo totalTime={recipe.totalTime || 0} prepTime={recipe.prepTime || 0} />
+          <RecipeInfo
+            totalTime={recipe.totalTime || 0}
+            prepTime={recipe.prepTime || 0}
+            difficulty={recipe.difficulty}
+          />
         </View>
 
         <View className="mb-md">

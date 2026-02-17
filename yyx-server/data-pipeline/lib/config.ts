@@ -6,6 +6,7 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { Logger } from './logger.ts';
 
 export type Environment = 'local' | 'production';
 
@@ -35,6 +36,7 @@ export function parseEnvironment(args: string[]): Environment {
     return resolveEnvironment(args);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    // console.error intentional: called before any Logger is created
     console.error(`Error: ${message}`);
     Deno.exit(1);
   }
@@ -119,6 +121,7 @@ export function createPipelineConfig(env: Environment): PipelineConfig {
       appEnv['SUPABASE_SERVICE_ROLE_KEY'] ||
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
     if (!serviceKey) {
+      // console.error intentional: Logger not yet available during bootstrap
       console.error(
         'Error: SUPABASE_SERVICE_ROLE_KEY is required for production. ' +
           'Set it in yyx-server/.env or as an environment variable.',
@@ -135,6 +138,7 @@ export function createPipelineConfig(env: Environment): PipelineConfig {
   }
 
   if (!supabaseUrl || !supabaseKey) {
+    // console.error intentional: Logger not yet available during bootstrap
     console.error(`Missing Supabase credentials for ${env} environment`);
     Deno.exit(1);
   }
@@ -146,10 +150,11 @@ export function createPipelineConfig(env: Environment): PipelineConfig {
     },
   });
 
-  console.log(`[config] Environment: ${env}`);
-  console.log(`[config] Supabase URL: ${supabaseUrl}`);
-  console.log(`[config] Supabase key type: ${keyType}`);
-  console.log(`[config] OpenAI API key: ${openaiApiKey ? 'configured' : 'MISSING'}`);
+  const logger = new Logger('config');
+  logger.info(`Environment: ${env}`);
+  logger.info(`Supabase URL: ${supabaseUrl}`);
+  logger.info(`Supabase key type: ${keyType}`);
+  logger.info(`OpenAI API key: ${openaiApiKey ? 'configured' : 'MISSING'}`);
 
   return {
     environment: env,

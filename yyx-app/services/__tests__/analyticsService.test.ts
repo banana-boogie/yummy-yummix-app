@@ -80,6 +80,43 @@ describe('analyticsService', () => {
       const result = await analyticsService.getRetentionMetrics();
 
       expect(result).toEqual(mockData);
+      expect(mockClient.rpc).toHaveBeenCalledWith('admin_analytics', {
+        action: 'retention',
+        timeframe: undefined,
+        limit_count: undefined,
+      });
+    });
+
+    it('getTopCookedRecipes returns data and passes params', async () => {
+      const mockData = [
+        { recipeId: 'recipe-1', recipeName: 'Soup', count: 12 },
+      ];
+      mockClient.rpc.mockResolvedValueOnce({ data: mockData, error: null });
+
+      const result = await analyticsService.getTopCookedRecipes('30_days', 3);
+
+      expect(result).toEqual(mockData);
+      expect(mockClient.rpc).toHaveBeenCalledWith('admin_analytics', {
+        action: 'top_cooked_recipes',
+        timeframe: '30_days',
+        limit_count: 3,
+      });
+    });
+
+    it('getTopSearches returns data and passes params', async () => {
+      const mockData = [
+        { query: 'pasta', count: 20 },
+      ];
+      mockClient.rpc.mockResolvedValueOnce({ data: mockData, error: null });
+
+      const result = await analyticsService.getTopSearches('today', 7);
+
+      expect(result).toEqual(mockData);
+      expect(mockClient.rpc).toHaveBeenCalledWith('admin_analytics', {
+        action: 'top_searches',
+        timeframe: 'today',
+        limit_count: 7,
+      });
     });
   });
 
@@ -100,6 +137,31 @@ describe('analyticsService', () => {
       mockClient.rpc.mockResolvedValueOnce({ data: null, error: rpcError });
 
       await expect(analyticsService.getTopViewedRecipes('30_days')).rejects.toEqual(rpcError);
+    });
+
+    it('throws on RPC error for funnel metrics', async () => {
+      const rpcError = { message: 'Funnel failed', code: '50000' };
+      mockClient.rpc.mockResolvedValueOnce({ data: null, error: rpcError });
+
+      await expect(analyticsService.getFunnelMetrics('7_days')).rejects.toEqual(rpcError);
+    });
+
+    it('throws on RPC error for retention metrics', async () => {
+      const rpcError = { message: 'Retention failed', code: '50000' };
+      mockClient.rpc.mockResolvedValueOnce({ data: null, error: rpcError });
+
+      await expect(analyticsService.getRetentionMetrics()).rejects.toEqual(rpcError);
+    });
+
+    it('throws on RPC error for top cooked and top searches', async () => {
+      const firstError = { message: 'Top cooked failed', code: '50000' };
+      const secondError = { message: 'Top searches failed', code: '50000' };
+
+      mockClient.rpc.mockResolvedValueOnce({ data: null, error: firstError });
+      await expect(analyticsService.getTopCookedRecipes('7_days')).rejects.toEqual(firstError);
+
+      mockClient.rpc.mockResolvedValueOnce({ data: null, error: secondError });
+      await expect(analyticsService.getTopSearches('7_days')).rejects.toEqual(secondError);
     });
   });
 

@@ -32,6 +32,7 @@ import {
 } from '../lib/entity-matcher.ts';
 import { resolveStepIngredients } from '../lib/step-ingredient-resolver.ts';
 import * as db from '../lib/db.ts';
+import { assertRequiredApiKey } from '../lib/cli-validations.ts';
 
 const logger = new Logger('import');
 const env = parseEnvironment(Deno.args);
@@ -342,6 +343,13 @@ async function importRecipe(
 
 async function main() {
   logger.section(`Recipe Import (${env})`);
+
+  try {
+    assertRequiredApiKey('OPENAI_API_KEY', config.openaiApiKey);
+  } catch (error) {
+    logger.error(error instanceof Error ? error.message : String(error));
+    Deno.exit(1);
+  }
 
   // Load markdown files
   let markdownFiles: Array<{ filename: string; content: string }>;

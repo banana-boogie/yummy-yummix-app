@@ -31,8 +31,8 @@ npm run backup:all    # Backup both database and storage
 ```
 
 Verify backup files are created in `yyx-server/backups/`:
-- `backup_YYYYMMDD_HHMMSS.sql` - Database dump
-- `storage_YYYYMMDD_HHMMSS/` - Storage files
+- `<Month-Day_HH-MMam-or-pm>/database.sql.gz` - Database dump
+- `<Month-Day_HH-MMam-or-pm>/storage/` - Storage files
 
 ### Migration Review
 
@@ -44,7 +44,7 @@ Verify backup files are created in `yyx-server/backups/`:
 
 2. Test migrations locally (if using local development):
    ```bash
-   npm run db:reset   # Reset and reapply all migrations
+   supabase db reset   # Reset and reapply all migrations
    ```
 
 3. Check for destructive operations:
@@ -102,16 +102,16 @@ cd yyx-server
 npm run deploy:all
 
 # Or deploy specific functions
-npm run deploy ai-chat
-npm run deploy ai-orchestrator
-npm run deploy ai-voice
-npm run deploy get-nutritional-facts
-npm run deploy parse-recipe-markdown
+supabase functions deploy ai-chat
+supabase functions deploy ai-orchestrator
+supabase functions deploy ai-voice
+supabase functions deploy get-nutritional-facts
+supabase functions deploy parse-recipe-markdown
 ```
 
 **Verify deployment:**
 ```bash
-npm run logs ai-chat   # Check for errors
+supabase functions logs ai-chat   # Check for errors
 ```
 
 ### 3. Mobile App Build & Submission
@@ -176,8 +176,8 @@ eas submit --platform android
 
 2. Check logs regularly:
    ```bash
-   npm run logs ai-chat
-   npm run logs ai-voice
+   supabase functions logs ai-chat
+   supabase functions logs ai-voice
    ```
 
 ---
@@ -202,7 +202,11 @@ eas submit --platform android
    # Only use if other options have failed
 
    # Restore specific backup
-   npm run restore backups/backup_YYYYMMDD_HHMMSS.sql
+   # 1) Decompress the selected backup
+   gunzip -k backups/<Month-Day_HH-MMam-or-pm>/database.sql.gz
+
+   # 2) Restore into the target database
+   psql "$DATABASE_URL" < backups/<Month-Day_HH-MMam-or-pm>/database.sql
    ```
 
 ### Edge Function Rollback

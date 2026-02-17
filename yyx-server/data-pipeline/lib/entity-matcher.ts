@@ -62,7 +62,7 @@ const PREP_PREFIXES = [
   'grated ',
   'large ',
   'freshly squeezed ',
-  ' cloves ',
+  'cloves ',
   'fresh ',
   'extra virgin ',
 ];
@@ -83,6 +83,7 @@ function stripPrep(name: string): string {
 function isVariation(name1: string, name2: string): boolean {
   const n1 = normalize(name1);
   const n2 = normalize(name2);
+  if (!n1 && !n2) return false;
   if (n1 === n2) return true;
 
   // Check distinct ingredients

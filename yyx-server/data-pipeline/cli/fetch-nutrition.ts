@@ -39,6 +39,10 @@ async function fetchFromUSDA(ingredientName: string): Promise<NutritionData | nu
     });
 
     const res = await fetch(`https://api.nal.usda.gov/fdc/v1/foods/search?${params}`);
+    if (!res.ok) {
+      logger.warn(`USDA API returned ${res.status} for "${ingredientName}"`);
+      return null;
+    }
     const data = await res.json();
 
     if (!data.foods || data.foods.length === 0) return null;
@@ -111,8 +115,14 @@ async function fetchFromOpenAI(ingredientName: string): Promise<NutritionData | 
       const content = data.choices?.[0]?.message?.content;
       if (!content) return null;
 
-      const nutrition = parseJsonFromLLM(content) as Record<string, unknown>;
-      if (typeof nutrition.calories !== 'number') return null;
+      const nutrition = parseJsonFromLLM(content) as Record<string, unknown> | null;
+      if (
+        !nutrition ||
+        typeof nutrition.calories !== 'number' ||
+        typeof nutrition.protein !== 'number' ||
+        typeof nutrition.fat !== 'number' ||
+        typeof nutrition.carbohydrates !== 'number'
+      ) return null;
 
       return {
         calories: Math.round(nutrition.calories),

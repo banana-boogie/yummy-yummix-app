@@ -19,7 +19,8 @@ export async function fetchAllIngredients(supabase: SupabaseClient): Promise<DbI
   const { data, error } = await supabase
     .from('ingredients')
     .select('id, name_en, name_es, plural_name_en, plural_name_es, picture_url, nutritional_facts')
-    .order('name_en', { ascending: true });
+    .order('name_en', { ascending: true })
+    .limit(5000);
   if (error) throw new Error(`Failed to fetch ingredients: ${error.message}`);
   return data || [];
 }
@@ -28,7 +29,8 @@ export async function fetchAllTags(supabase: SupabaseClient): Promise<DbRecipeTa
   const { data, error } = await supabase
     .from('recipe_tags')
     .select('id, name_en, name_es, categories')
-    .order('name_en', { ascending: true });
+    .order('name_en', { ascending: true })
+    .limit(5000);
   if (error) throw new Error(`Failed to fetch tags: ${error.message}`);
   return data || [];
 }
@@ -37,7 +39,8 @@ export async function fetchAllUsefulItems(supabase: SupabaseClient): Promise<DbU
   const { data, error } = await supabase
     .from('useful_items')
     .select('id, name_en, name_es, picture_url')
-    .order('name_en', { ascending: true });
+    .order('name_en', { ascending: true })
+    .limit(5000);
   if (error) throw new Error(`Failed to fetch useful items: ${error.message}`);
   return data || [];
 }
@@ -48,7 +51,8 @@ export async function fetchAllMeasurementUnits(
   const { data, error } = await supabase
     .from('measurement_units')
     .select('id, type, system, name_en, name_es, symbol_en, symbol_es')
-    .order('name_en', { ascending: true });
+    .order('name_en', { ascending: true })
+    .limit(5000);
   if (error) throw new Error(`Failed to fetch measurement units: ${error.message}`);
   return data || [];
 }
@@ -66,7 +70,8 @@ export async function fetchAllRecipes(supabase: SupabaseClient): Promise<
   const { data, error } = await supabase
     .from('recipes')
     .select('id, name_en, name_es, picture_url, is_published, nutritional_facts')
-    .order('name_en', { ascending: true });
+    .order('name_en', { ascending: true })
+    .limit(5000);
   if (error) throw new Error(`Failed to fetch recipes: ${error.message}`);
   return data || [];
 }

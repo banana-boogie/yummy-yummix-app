@@ -29,6 +29,10 @@ jest.mock('@/i18n', () => ({
         'recipes.common.totalTime': 'Total Time',
         'recipes.common.prepTime': 'Prep Time',
         'recipes.common.portions': 'Portions',
+        'recipes.common.difficultyLabel': 'Difficulty',
+        'recipes.common.difficulty.easy': 'Easy',
+        'recipes.common.difficulty.medium': 'Medium',
+        'recipes.common.difficulty.hard': 'Hard',
       };
       return translations[key] || key;
     },
@@ -127,6 +131,21 @@ describe('RecipeInfo', () => {
       render(<RecipeInfo {...defaultProps} portions={24} />);
 
       expect(screen.getByText('24')).toBeTruthy();
+    });
+  });
+
+  describe('difficulty display', () => {
+    it('displays difficulty when provided', () => {
+      render(<RecipeInfo {...defaultProps} difficulty="hard" />);
+
+      expect(screen.getByText('Difficulty:')).toBeTruthy();
+      expect(screen.getByText('Hard')).toBeTruthy();
+    });
+
+    it('does not display difficulty when omitted', () => {
+      render(<RecipeInfo {...defaultProps} />);
+
+      expect(screen.queryByText('Difficulty:')).toBeNull();
     });
   });
 

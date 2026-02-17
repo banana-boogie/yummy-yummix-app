@@ -12,15 +12,18 @@
  */
 
 import { createPipelineConfig, hasFlag, parseEnvironment, parseFlag } from '../lib/config.ts';
+import { assertRequiredApiKey } from '../lib/cli-validations.ts';
 import { Logger } from '../lib/logger.ts';
 import * as db from '../lib/db.ts';
+import { allocateTranslationLimit } from '../lib/translation-limit.ts';
 import { sleep } from '../lib/utils.ts';
 
 const logger = new Logger('translate');
 const env = parseEnvironment(Deno.args);
 const config = createPipelineConfig(env);
 
-const limit = parseInt(parseFlag(Deno.args, '--limit', '50') || '50', 10);
+const parsedLimit = parseInt(parseFlag(Deno.args, '--limit', '50') || '50', 10);
+const limit = Number.isNaN(parsedLimit) ? 50 : parsedLimit;
 const dryRun = hasFlag(Deno.args, '--dry-run');
 
 // ─── Translation via OpenAI ──────────────────────────────
@@ -81,8 +84,10 @@ async function translatePair(
 async function main() {
   logger.section(`Content Translation (${env})`);
 
-  if (!config.openaiApiKey) {
-    logger.error('OPENAI_API_KEY not configured.');
+  try {
+    assertRequiredApiKey('OPENAI_API_KEY', config.openaiApiKey);
+  } catch (error) {
+    logger.error(error instanceof Error ? error.message : String(error));
     Deno.exit(1);
   }
 
@@ -92,16 +97,39 @@ async function main() {
 
   let totalTranslated = 0;
 
-  // ─── Translate Ingredients ─────────────────────────────
   logger.info('Checking ingredients...');
   const ingredients = await db.fetchAllIngredients(config.supabase);
   const needsTranslation = ingredients.filter(
     (i) => (!i.name_en && i.name_es) || (i.name_en && !i.name_es),
   );
 
+  logger.info('Checking useful items...');
+  const items = await db.fetchAllUsefulItems(config.supabase);
+  const itemsNeedTranslation = items.filter(
+    (i) => (!i.name_en && i.name_es) || (i.name_en && !i.name_es),
+  );
+
+  logger.info('Checking tags...');
+  const tags = await db.fetchAllTags(config.supabase);
+  const tagsNeedTranslation = tags.filter(
+    (t) => (!t.name_en && t.name_es) || (t.name_en && !t.name_es),
+  );
+
+  const allocation = allocateTranslationLimit(
+    needsTranslation.length,
+    itemsNeedTranslation.length,
+    tagsNeedTranslation.length,
+    limit,
+  );
+
+  logger.info(
+    `Global limit allocation -> ingredients: ${allocation.ingredientCount}, useful items: ${allocation.usefulItemCount}, tags: ${allocation.tagCount}`,
+  );
+
+  // ─── Translate Ingredients ─────────────────────────────
   if (needsTranslation.length > 0) {
     logger.info(`Found ${needsTranslation.length} ingredients needing translation`);
-    for (const ing of needsTranslation.slice(0, limit)) {
+    for (const ing of needsTranslation.slice(0, allocation.ingredientCount)) {
       const name = ing.name_en || ing.name_es;
       if (dryRun) {
         logger.info(`[DRY RUN] Would translate ingredient: ${name}`);
@@ -129,15 +157,9 @@ async function main() {
   }
 
   // ─── Translate Useful Items ────────────────────────────
-  logger.info('Checking useful items...');
-  const items = await db.fetchAllUsefulItems(config.supabase);
-  const itemsNeedTranslation = items.filter(
-    (i) => (!i.name_en && i.name_es) || (i.name_en && !i.name_es),
-  );
-
   if (itemsNeedTranslation.length > 0) {
     logger.info(`Found ${itemsNeedTranslation.length} useful items needing translation`);
-    for (const item of itemsNeedTranslation.slice(0, limit)) {
+    for (const item of itemsNeedTranslation.slice(0, allocation.usefulItemCount)) {
       const name = item.name_en || item.name_es;
       if (dryRun) {
         logger.info(`[DRY RUN] Would translate useful item: ${name}`);
@@ -161,15 +183,9 @@ async function main() {
   }
 
   // ─── Translate Tags ────────────────────────────────────
-  logger.info('Checking tags...');
-  const tags = await db.fetchAllTags(config.supabase);
-  const tagsNeedTranslation = tags.filter(
-    (t) => (!t.name_en && t.name_es) || (t.name_en && !t.name_es),
-  );
-
   if (tagsNeedTranslation.length > 0) {
     logger.info(`Found ${tagsNeedTranslation.length} tags needing translation`);
-    for (const tag of tagsNeedTranslation.slice(0, limit)) {
+    for (const tag of tagsNeedTranslation.slice(0, allocation.tagCount)) {
       const name = tag.name_en || tag.name_es;
       if (dryRun) {
         logger.info(`[DRY RUN] Would translate tag: ${name}`);
@@ -191,9 +207,11 @@ async function main() {
   }
 
   logger.summary({
+    'Global translation limit': limit,
     'Ingredients needing translation': needsTranslation.length,
     'Useful items needing translation': itemsNeedTranslation.length,
     'Tags needing translation': tagsNeedTranslation.length,
+    'Allocated for this run': allocation.total,
     'Total translated': totalTranslated,
   });
 }

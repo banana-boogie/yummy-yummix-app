@@ -48,11 +48,8 @@ export class ProgressTracker {
   }
 
   markFailed(id: string, error: string): void {
-    this.state.failed.push({
-      id,
-      error,
-      timestamp: new Date().toISOString(),
-    });
+    this.state.failed = this.state.failed.filter((f) => f.id !== id);
+    this.state.failed.push({ id, error, timestamp: new Date().toISOString() });
     this.save();
   }
 

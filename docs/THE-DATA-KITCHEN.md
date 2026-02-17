@@ -354,7 +354,18 @@ yyx-server/
 │   │   ├── entity-matcher.ts      # Fuzzy name matching
 │   │   ├── entity-matcher.test.ts # 21 matcher tests
 │   │   ├── budget.ts              # Shared rate limiter
-│   │   └── recipe-parser.ts       # Markdown → structured recipe
+│   │   ├── budget.test.ts         # Budget utility tests
+│   │   ├── recipe-parser.ts       # Markdown → structured recipe
+│   │   ├── recipe-parser.test.ts  # Recipe parser tests
+│   │   ├── step-ingredient-resolver.ts   # Step-ingredient resolution
+│   │   ├── step-ingredient-resolver.test.ts # Resolver tests
+│   │   ├── progress-tracker.ts    # Resumable batch progress
+│   │   ├── config.test.ts         # Config utility tests
+│   │   ├── db.test.ts             # Database operation tests
+│   │   ├── cli-validations.ts     # Shared CLI input validation
+│   │   ├── cli-validations.test.ts # CLI validation tests
+│   │   ├── translation-limit.ts   # Translation rate/cost limiting
+│   │   └── translation-limit.test.ts # Translation limit tests
 │   └── data/
 │       └── failed-uploads/        # Fallback for failed image uploads
 ├── scripts/
