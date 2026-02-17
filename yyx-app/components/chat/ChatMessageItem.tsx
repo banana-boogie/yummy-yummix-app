@@ -99,12 +99,14 @@ export const ChatMessageItem = memo(function ChatMessageItem({
     const isUser = item.role === 'user';
     const showRecipeSkeleton = !isUser && !item.customRecipe && isLoading
         && (currentStatus === 'generating' || currentStatus === 'enriching') && isLastMessage;
+    const hasRecipeVisualData = !isUser && (
+        (item.recipes?.length ?? 0) > 0 || !!item.customRecipe
+    );
 
-    // Always strip markdown images from assistant messages — recipe images are shown
-    // via dedicated cards, and stripping during streaming prevents a flash when
-    // images render briefly before cards arrive.
+    // Strip markdown images only when recipe visuals are rendered as cards.
+    // If there are no cards, keep markdown images in the message bubble.
     const displayContent = !isUser
-        ? stripMarkdownImages(item.content)
+        ? (hasRecipeVisualData ? stripMarkdownImages(item.content) : item.content)
         : item.content;
 
     return (

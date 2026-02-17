@@ -44,6 +44,50 @@ Deno.test("normalizeMessagesForAi folds tool results into assistant context with
   );
 });
 
+Deno.test("normalizeMessagesForAi includes allergen warnings from search tool results", () => {
+  const input: ChatMessage[] = [
+    { role: "system", content: "system prompt" },
+    { role: "user", content: "Find me quick dinners" },
+    {
+      role: "assistant",
+      content: "Calling tool",
+      tool_calls: [{
+        id: "tool_1",
+        type: "function",
+        function: {
+          name: "search_recipes",
+          arguments: '{"query":"quick dinner"}',
+        },
+      }],
+    },
+    {
+      role: "tool",
+      content: JSON.stringify([{
+        name: "Creamy Pasta",
+        totalTime: 25,
+        allergenWarnings: ["Contains milk (dairy)"],
+        allergenVerificationWarning:
+          "Allergen verification is temporarily unavailable.",
+      }]),
+      tool_call_id: "tool_1",
+    },
+  ];
+
+  const result = normalizeMessagesForAi(input);
+
+  assertEquals(result.length, 3);
+  assertEquals(
+    result[2].content.includes("Allergen warnings: Contains milk (dairy)"),
+    true,
+  );
+  assertEquals(
+    result[2].content.includes(
+      "Verification warning: Allergen verification is temporarily unavailable.",
+    ),
+    true,
+  );
+});
+
 Deno.test("normalizeMessagesForAi summarizes standalone tool message", () => {
   const input: ChatMessage[] = [
     { role: "system", content: "system" },

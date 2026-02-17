@@ -19,6 +19,8 @@ export const RecipeCardSchema = z.object({
   difficulty: z.enum(["easy", "medium", "hard"]),
   portions: z.number().int().positive(),
   allergenWarnings: z.array(z.string()).optional(),
+  // Present when allergen verification data is temporarily unavailable.
+  allergenVerificationWarning: z.string().optional(),
 });
 
 export const SuggestionChipSchema = z.object({

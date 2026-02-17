@@ -43,7 +43,8 @@ export interface HybridSearchResult {
   method: "hybrid" | "lexical";
   degradationReason?:
     | "embedding_failure"
-    | "no_semantic_candidates";
+    | "no_semantic_candidates"
+    | "low_confidence";
 }
 
 interface RecipeTagJoin {
@@ -259,7 +260,8 @@ export async function searchRecipesHybrid(
   try {
     queryEmbedding = await embedQuery(query);
     console.log("[hybrid-search] Embedding generated", {
-      query,
+      queryLength: query.length,
+      hasQuery: query.length > 0,
       dimensions: queryEmbedding.length,
       ms: Math.round(performance.now() - embedStart),
     });
@@ -285,14 +287,9 @@ export async function searchRecipesHybrid(
     50,
   );
 
-  // Log top semantic matches for diagnostics
-  const top5 = semanticMatches.slice(0, 5).map((m) => ({
-    id: m.recipe_id.substring(0, 8),
-    sim: m.similarity.toFixed(3),
-  }));
   console.log("[hybrid-search] Semantic matches", {
     total: semanticMatches.length,
-    top5,
+    bestSimilarity: semanticMatches[0]?.similarity?.toFixed(3) ?? null,
   });
 
   if (semanticMatches.length === 0) {
@@ -365,15 +362,6 @@ export async function searchRecipesHybrid(
       METADATA_WEIGHT * metadataScore +
       PERSONALIZATION_WEIGHT * personalizationScore;
 
-    console.log("[hybrid-search] Score", {
-      name,
-      semantic: semanticScore.toFixed(3),
-      lexical: lexicalScore.toFixed(3),
-      metadata: metadataScore.toFixed(3),
-      personalization: personalizationScore.toFixed(3),
-      final: finalScore.toFixed(3),
-    });
-
     return {
       recipeId: recipe.id,
       name,
@@ -414,7 +402,7 @@ export async function searchRecipesHybrid(
     return {
       recipes: [],
       method: "hybrid",
-      degradationReason: "no_semantic_candidates",
+      degradationReason: "low_confidence",
     };
   }
 

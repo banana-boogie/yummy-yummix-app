@@ -208,7 +208,7 @@ Deno.test("searchRecipesHybrid returns hybrid no_semantic_candidates when vector
   }
 });
 
-Deno.test("searchRecipesHybrid falls back when all scores below include threshold", async () => {
+Deno.test("searchRecipesHybrid returns low_confidence when all scores are below include threshold", async () => {
   clearEmbeddingCache();
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
@@ -262,7 +262,7 @@ Deno.test("searchRecipesHybrid falls back when all scores below include threshol
     );
 
     assertEquals(result.method, "hybrid");
-    assertEquals(result.degradationReason, "no_semantic_candidates");
+    assertEquals(result.degradationReason, "low_confidence");
   } finally {
     globalThis.fetch = originalFetch;
     if (hadKey) Deno.env.set("OPENAI_API_KEY", hadKey);

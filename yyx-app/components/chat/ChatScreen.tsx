@@ -845,7 +845,10 @@ export function ChatScreen({
 
             <View
                 className="border-t border-border-default bg-background-default"
-                style={{ paddingTop: SPACING.sm, paddingBottom: SPACING.md }}
+                style={{
+                    paddingTop: SPACING.sm,
+                    paddingBottom: Math.max(insets.bottom, SPACING.md),
+                }}
             >
                 {/* Mic pill — inside bordered section, above input row */}
                 {Platform.OS !== 'web' && (!isLoading || isListening) && (

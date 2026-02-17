@@ -26,15 +26,18 @@ fi
 # Parse flags
 DRY_RUN="${DRY_RUN:-false}"
 FORCE="${FORCE:-false}"
+EXECUTE="${EXECUTE:-false}"
 
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN="true" ;;
     --force)   FORCE="true" ;;
+    --execute) EXECUTE="true" ;;
     --help|-h)
-      echo "Usage: backfill-embeddings.sh [--dry-run] [--force]"
+      echo "Usage: backfill-embeddings.sh [--dry-run] [--execute] [--force]"
       echo ""
       echo "  --dry-run   Preview what would be processed without saving"
+      echo "  --execute   Apply changes (required for non-dry-run execution)"
       echo "  --force     Regenerate all embeddings (ignore content hash)"
       exit 0
       ;;
@@ -44,6 +47,21 @@ for arg in "$@"; do
       ;;
   esac
 done
+
+if [[ "$FORCE" == "true" && "$DRY_RUN" == "true" ]]; then
+  echo "Cannot combine --force with --dry-run." >&2
+  exit 1
+fi
+
+if [[ "$FORCE" == "true" && "$EXECUTE" != "true" ]]; then
+  echo "--force requires --execute for safety." >&2
+  exit 1
+fi
+
+if [[ "$DRY_RUN" != "true" && "$EXECUTE" != "true" ]]; then
+  echo "Safety mode: defaulting to dry-run. Pass --execute to apply changes."
+  DRY_RUN="true"
+fi
 
 if [[ "$DRY_RUN" == "true" ]]; then
   echo "🔍 Dry run — previewing what would be processed..."
@@ -56,6 +74,7 @@ fi
 resp=$(curl -s -w "\n%{http_code}" -X POST \
   "$SUPABASE_URL/functions/v1/backfill-embeddings" \
   -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
   -H "Content-Type: application/json" \
   -d "{\"dryRun\": $DRY_RUN, \"forceRegenerate\": $FORCE}")
 

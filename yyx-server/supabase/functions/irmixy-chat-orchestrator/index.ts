@@ -452,16 +452,6 @@ function handleStreamingRequest(
           forcedToolUse: forceToolUse,
         });
 
-        // Log tool call arguments for search diagnostics
-        if (assistantMessage.tool_calls?.length) {
-          for (const tc of assistantMessage.tool_calls) {
-            console.log("[search] Tool call args", {
-              tool: tc.function.name,
-              args: tc.function.arguments,
-            });
-          }
-        }
-
         if (
           assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0
         ) {

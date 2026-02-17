@@ -15,7 +15,11 @@ import {
   SearchRecipesParams,
   UserContext,
 } from "../irmixy-schemas.ts";
-import { getAllergenMap, loadAllergenGroups } from "../allergen-filter.ts";
+import {
+  getAllergenMap,
+  loadAllergenGroups,
+  matchesAllergen,
+} from "../allergen-filter.ts";
 import { normalizeIngredient } from "../ingredient-normalization.ts";
 import { searchRecipesHybrid } from "../rag/hybrid-search.ts";
 import { validateSearchRecipesParams } from "./tool-validators.ts";
@@ -107,7 +111,7 @@ export const searchRecipesTool = {
 // ============================================================
 
 /**
- * Search recipes with filters and allergen exclusion.
+ * Search recipes with filters and allergen warnings.
  * Tries hybrid (semantic + lexical) search when query and API key are present.
  * Falls back to lexical-only search on embedding failure.
  */
@@ -120,11 +124,12 @@ export async function searchRecipes(
   const params = validateSearchRecipesParams(rawParams);
 
   console.log("[search] Entry", {
-    query: params.query,
-    cuisine: params.cuisine,
-    maxTime: params.maxTime,
-    difficulty: params.difficulty,
-    limit: params.limit,
+    hasQuery: !!params.query,
+    queryLength: params.query?.length ?? 0,
+    hasCuisine: !!params.cuisine,
+    maxTime: params.maxTime ?? null,
+    difficulty: params.difficulty ?? null,
+    limit: params.limit ?? 10,
   });
 
   // Try hybrid search when query and API key are present
@@ -152,23 +157,30 @@ export async function searchRecipes(
       // Annotate recipes with allergen warnings instead of filtering
       if (userContext.dietaryRestrictions.length > 0) {
         const recipeIds = hybridResult.recipes.map((r) => r.recipeId);
-        const recipesWithIngredients = await fetchRecipesWithIngredients(
+        const ingredientLookupResult = await fetchRecipesWithIngredients(
           supabase,
           recipeIds,
         );
-        const annotated = await annotateAllergenWarnings(
+        const annotation = await annotateAllergenWarnings(
           supabase,
           hybridResult.recipes,
-          recipesWithIngredients,
+          ingredientLookupResult.recipes,
           userContext.dietaryRestrictions,
           userContext.language,
+          ingredientLookupResult.failed,
         );
-        return annotated;
+        console.log("[search] Hybrid allergen annotation", {
+          total: annotation.cards.length,
+          flagged: annotation.cards.filter((r) => r.allergenWarnings?.length)
+            .length,
+          verificationUnavailable: annotation.verificationUnavailable,
+        });
+        return annotation.cards;
       }
       return hybridResult.recipes;
     }
 
-    // All degradation reasons (embedding_failure, no_semantic_candidates)
+    // All degradation reasons (embedding_failure, no_semantic_candidates, low_confidence)
     // fall through to lexical search as graceful degradation.
     console.log(
       "[search] Hybrid returned no results, falling back to lexical",
@@ -272,21 +284,24 @@ export async function searchRecipes(
   // Annotate recipes with allergen warnings instead of filtering
   if (userContext.dietaryRestrictions.length > 0 && recipeCards.length > 0) {
     const recipeIds = recipeCards.map((r) => r.recipeId);
-    const recipesWithIngredients = await fetchRecipesWithIngredients(
+    const ingredientLookupResult = await fetchRecipesWithIngredients(
       supabase,
       recipeIds,
     );
 
-    recipeCards = await annotateAllergenWarnings(
+    const annotation = await annotateAllergenWarnings(
       supabase,
       recipeCards,
-      recipesWithIngredients,
+      ingredientLookupResult.recipes,
       userContext.dietaryRestrictions,
       userContext.language,
+      ingredientLookupResult.failed,
     );
+    recipeCards = annotation.cards;
     console.log("[search] Allergen annotation", {
       total: recipeCards.length,
       flagged: recipeCards.filter((r) => r.allergenWarnings?.length).length,
+      verificationUnavailable: annotation.verificationUnavailable,
     });
   }
 
@@ -503,6 +518,58 @@ function scoreByQuery(
  * Checks each recipe's ingredients against the user's dietary restrictions
  * and attaches warning strings to flagged recipes.
  */
+interface AllergenAnnotationResult {
+  cards: RecipeCard[];
+  verificationUnavailable: boolean;
+}
+
+interface RestrictionLabel {
+  en: string;
+  es: string;
+}
+
+const RESTRICTION_LABELS: Record<string, RestrictionLabel> = {
+  dairy: { en: "dairy", es: "lácteos" },
+  eggs: { en: "eggs", es: "huevo" },
+  egg: { en: "egg", es: "huevo" },
+  fish: { en: "fish", es: "pescado" },
+  gluten: { en: "gluten", es: "gluten" },
+  nuts: { en: "tree nuts", es: "nueces" },
+  peanuts: { en: "peanuts", es: "cacahuates" },
+  sesame: { en: "sesame", es: "sésamo" },
+  shellfish: { en: "shellfish", es: "mariscos" },
+  soy: { en: "soy", es: "soya" },
+};
+
+function getVerificationWarning(language: "en" | "es"): string {
+  return language === "es"
+    ? "La verificación de alérgenos no está disponible temporalmente. Revisa los ingredientes antes de cocinar."
+    : "Allergen verification is temporarily unavailable. Please check ingredients before cooking.";
+}
+
+function formatRestrictionLabel(
+  restriction: string,
+  language: "en" | "es",
+): string {
+  const normalized = restriction.toLowerCase().replace(/[_-]+/g, " ").trim();
+  const known = RESTRICTION_LABELS[normalized];
+  if (known) {
+    return language === "es" ? known.es : known.en;
+  }
+  return normalized;
+}
+
+function applyVerificationWarning(
+  cards: RecipeCard[],
+  language: "en" | "es",
+): RecipeCard[] {
+  const warning = getVerificationWarning(language);
+  return cards.map((card) => ({
+    ...card,
+    allergenVerificationWarning: warning,
+  }));
+}
+
 async function annotateAllergenWarnings(
   supabase: SupabaseClient,
   cards: RecipeCard[],
@@ -512,16 +579,32 @@ async function annotateAllergenWarnings(
   }>,
   userRestrictions: string[],
   language: "en" | "es",
-): Promise<RecipeCard[]> {
-  if (userRestrictions.length === 0) return cards;
+  ingredientsFetchFailed = false,
+): Promise<AllergenAnnotationResult> {
+  if (userRestrictions.length === 0) {
+    return { cards, verificationUnavailable: false };
+  }
+
+  if (ingredientsFetchFailed) {
+    console.warn(
+      "[search] Ingredient lookup unavailable; tagging results with verification warning",
+    );
+    return {
+      cards: applyVerificationWarning(cards, language),
+      verificationUnavailable: true,
+    };
+  }
 
   const allergenMap = await getAllergenMap(supabase);
   if (allergenMap.size === 0) {
-    // Cannot verify allergens — return cards without warnings
+    // Cannot verify allergens — return results with explicit warning
     console.warn(
-      "[search] Allergen map empty; cannot annotate warnings",
+      "[search] Allergen map empty; tagging results with verification warning",
     );
-    return cards;
+    return {
+      cards: applyVerificationWarning(cards, language),
+      verificationUnavailable: true,
+    };
   }
 
   const allergenEntries = await loadAllergenGroups(supabase);
@@ -548,7 +631,7 @@ async function annotateAllergenWarnings(
   );
   const normalizedMap = new Map(normalizedEntries);
 
-  return cards.map((card) => {
+  const annotatedCards = cards.map((card) => {
     const ingredients = ingredientsByRecipe.get(card.recipeId) || [];
     const warnings: string[] = [];
     const matchedCategories = new Set<string>();
@@ -566,14 +649,9 @@ async function annotateAllergenWarnings(
         const allergens = allergenMap.get(restriction) || [];
 
         for (const allergen of allergens) {
-          const escaped = allergen.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          const pattern = escaped.replace(/_/g, "[\\s_-]");
-          const regex = new RegExp(
-            `(^|[\\s,_-])${pattern}([\\s,_-]|$)`,
-            "i",
-          );
-
-          if (normalized === allergen || regex.test(normalized)) {
+          if (
+            normalized === allergen || matchesAllergen(normalized, allergen)
+          ) {
             // Find user-facing name for the allergen
             const entry = allergenEntries.find(
               (a) => a.ingredient_canonical === allergen,
@@ -581,11 +659,15 @@ async function annotateAllergenWarnings(
             const allergenName = entry
               ? (language === "es" ? entry.name_es : entry.name_en)
               : allergen.replace(/_/g, " ");
+            const restrictionLabel = formatRestrictionLabel(
+              restriction,
+              language,
+            );
 
             warnings.push(
               language === "es"
-                ? `Contiene ${allergenName} (${restriction})`
-                : `Contains ${allergenName} (${restriction})`,
+                ? `Contiene ${allergenName} (${restrictionLabel})`
+                : `Contains ${allergenName} (${restrictionLabel})`,
             );
             matchedCategories.add(restriction);
             break;
@@ -594,11 +676,13 @@ async function annotateAllergenWarnings(
       }
     }
 
-    if (warnings.length > 0) {
-      return { ...card, allergenWarnings: warnings };
-    }
-    return card;
+    return warnings.length > 0 ? { ...card, allergenWarnings: warnings } : card;
   });
+
+  return {
+    cards: annotatedCards,
+    verificationUnavailable: false,
+  };
 }
 
 /**
@@ -608,11 +692,16 @@ async function annotateAllergenWarnings(
 async function fetchRecipesWithIngredients(
   supabase: SupabaseClient,
   recipeIds: string[],
-): Promise<
-  Array<
+): Promise<{
+  recipes: Array<
     { id: string; ingredients: Array<{ name_en: string; name_es: string }> }
-  >
-> {
+  >;
+  failed: boolean;
+}> {
+  if (recipeIds.length === 0) {
+    return { recipes: [], failed: false };
+  }
+
   const { data, error } = await supabase
     .from("recipes")
     .select(`
@@ -622,17 +711,20 @@ async function fetchRecipesWithIngredients(
     .in("id", recipeIds);
 
   if (error || !data) {
-    console.error("Failed to fetch recipe ingredients:", error);
-    return [];
+    console.error("[search] Failed to fetch recipe ingredients:", error);
+    return { recipes: [], failed: true };
   }
 
-  return (data as unknown as RecipeWithIngredients[]).map((recipe) => ({
-    id: recipe.id,
-    ingredients: (recipe.recipe_ingredients || [])
-      .filter((ri) => ri.ingredients !== null)
-      .map((ri) => ({
-        name_en: ri.ingredients!.name_en || "",
-        name_es: ri.ingredients!.name_es || "",
-      })),
-  }));
+  return {
+    recipes: (data as unknown as RecipeWithIngredients[]).map((recipe) => ({
+      id: recipe.id,
+      ingredients: (recipe.recipe_ingredients || [])
+        .filter((ri) => ri.ingredients !== null)
+        .map((ri) => ({
+          name_en: ri.ingredients!.name_en || "",
+          name_es: ri.ingredients!.name_es || "",
+        })),
+    })),
+    failed: false,
+  };
 }

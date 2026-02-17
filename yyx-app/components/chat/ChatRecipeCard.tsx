@@ -115,6 +115,24 @@ export const ChatRecipeCard = memo(function ChatRecipeCard({ recipe }: ChatRecip
             </View>
 
             {/* Allergen warnings */}
+            {recipe.allergenVerificationWarning && (
+                <View
+                    className="flex-row items-center px-md py-xs bg-status-warning/10 border-t border-border-default"
+                    accessible={true}
+                    accessibilityRole="alert"
+                    accessibilityLabel={recipe.allergenVerificationWarning}
+                >
+                    <MaterialCommunityIcons
+                        name="alert-outline"
+                        size={14}
+                        color={COLORS.status.warning}
+                        accessibilityElementsHidden={true}
+                    />
+                    <Text className="text-text-secondary text-xs ml-xs flex-1" numberOfLines={2}>
+                        {recipe.allergenVerificationWarning}
+                    </Text>
+                </View>
+            )}
             {recipe.allergenWarnings && recipe.allergenWarnings.length > 0 && (
                 <View
                     className="flex-row items-center px-md py-xs bg-status-warning/10 border-t border-border-default"

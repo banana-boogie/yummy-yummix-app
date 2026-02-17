@@ -11,6 +11,7 @@ export interface RecipeCard {
   difficulty: 'easy' | 'medium' | 'hard';
   portions: number;
   allergenWarnings?: string[];
+  allergenVerificationWarning?: string;
 }
 
 export interface SuggestionChip {

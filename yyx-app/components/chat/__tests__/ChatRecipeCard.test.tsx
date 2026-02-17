@@ -87,6 +87,18 @@ describe('ChatRecipeCard', () => {
       // Image component should be rendered (expo-image is mocked)
       expect(screen.getByText(recipe.name)).toBeTruthy();
     });
+
+    it('renders allergen verification warning when provided', () => {
+      const recipe = createMockRecipeCard({
+        allergenVerificationWarning: 'Allergen verification temporarily unavailable.',
+      });
+
+      render(<ChatRecipeCard recipe={recipe} />);
+
+      expect(
+        screen.getByText('Allergen verification temporarily unavailable.')
+      ).toBeTruthy();
+    });
   });
 
   // ============================================================

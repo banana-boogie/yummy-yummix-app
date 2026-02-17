@@ -7,7 +7,7 @@ import {
 import i18n from '@/i18n';
 
 interface UseSpeechRecognitionOptions {
-    language: string;
+    language: 'en' | 'es';
     onTranscript: (text: string) => void;
 }
 
@@ -67,23 +67,33 @@ export function useSpeechRecognition({
     });
 
     const handleMicPress = useCallback(async () => {
-        if (isListening) {
-            ExpoSpeechRecognitionModule.stop();
-            return;
-        }
+        try {
+            if (isListening) {
+                speechStoppedByUserRef.current = true;
+                ExpoSpeechRecognitionModule.stop();
+                setIsListening(false);
+                return;
+            }
 
-        const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-        if (!granted) {
-            Alert.alert(i18n.t('chat.voice.micPermissionDenied'));
-            return;
-        }
+            const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+            if (!granted) {
+                Alert.alert(i18n.t('chat.voice.micPermissionDenied'));
+                return;
+            }
 
-        speechStoppedByUserRef.current = false;
-        setIsListening(true);
-        ExpoSpeechRecognitionModule.start({
-            lang: language === 'es' ? 'es-MX' : 'en-US',
-            interimResults: true,
-        });
+            speechStoppedByUserRef.current = false;
+            setIsListening(true);
+            ExpoSpeechRecognitionModule.start({
+                lang: language === 'es' ? 'es-MX' : 'en-US',
+                interimResults: true,
+            });
+        } catch (error) {
+            setIsListening(false);
+            if (__DEV__) {
+                console.error('[useSpeechRecognition] Failed to start/stop recognition:', error);
+            }
+            Alert.alert(i18n.t('chat.error.default'));
+        }
     }, [isListening, language]);
 
     const stopAndGuard = useCallback(() => {

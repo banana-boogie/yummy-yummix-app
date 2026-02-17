@@ -556,21 +556,28 @@ Results are scored using weighted combination:
 
 | Factor | Weight | What it measures |
 |--------|--------|-----------------|
-| Semantic similarity | 55% | How conceptually close the recipe is to the query |
-| Lexical match | 25% | How well keywords match |
-| Metadata | 10% | Recipe quality signals (ratings, completeness) |
-| Personalization | 10% | Match with user's preferences (cuisine, equipment) |
+| Semantic similarity | 40% | How conceptually close the recipe is to the query |
+| Lexical match | 35% | How well query terms match name/tags |
+| Metadata | 10% | Match against explicit constraints (time, difficulty) |
+| Personalization | 15% | Match with user's cuisine preferences |
 
 ### Graceful degradation
 
-If the embedding API call fails (network issue, rate limit), the search gracefully falls back to **lexical-only mode**. The user still gets results, just without semantic understanding. This is logged but transparent to the user.
+Hybrid retrieval can degrade for three reasons:
+
+1. **`embedding_failure`** - embedding generation fails (network/rate-limit/provider issue)
+2. **`no_semantic_candidates`** - vector search returns no matches
+3. **`low_confidence`** - semantic candidates exist, but all final scores are below the include threshold
+
+In all three cases, `search_recipes` gracefully falls back to lexical search so the user still gets results.
 
 ### Post-search filtering
 
 After scoring, results are:
-1. **Allergen filtered** - Recipes containing the user's allergens are removed
-2. **Confidence thresholded** - Only recipes above a minimum relevance score are included
-3. **Limited** - Top results returned (typically 3-5)
+1. **Confidence thresholded** - Hybrid mode keeps only recipes above the minimum relevance score
+2. **Allergen annotated (not removed)** - Matching allergens are attached as warning labels on recipe cards
+3. **Verification warning added when needed** - If ingredient lookup/allergen map is unavailable, cards include an explicit verification warning
+4. **Limited** - Top results returned (default up to 10)
 
 ### Caching
 

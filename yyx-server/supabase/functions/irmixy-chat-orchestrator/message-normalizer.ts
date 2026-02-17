@@ -21,6 +21,25 @@ function summarizeToolContent(content: string): string {
         const parts = [r.name || r.title];
         if (r.totalTime) parts.push(`${r.totalTime} min`);
         if (r.cuisine) parts.push(r.cuisine as string);
+        if (
+          Array.isArray(r.allergenWarnings) &&
+          r.allergenWarnings.length > 0
+        ) {
+          const warnings = r.allergenWarnings.filter((w): w is string =>
+            typeof w === "string" && w.length > 0
+          );
+          if (warnings.length > 0) {
+            parts.push(`Allergen warnings: ${warnings.join("; ")}`);
+          }
+        }
+        if (
+          typeof r.allergenVerificationWarning === "string" &&
+          r.allergenVerificationWarning.length > 0
+        ) {
+          parts.push(
+            `Verification warning: ${r.allergenVerificationWarning}`,
+          );
+        }
         return parts.filter(Boolean).join(" - ");
       });
       return `Found ${parsed.length} recipe(s):\n${

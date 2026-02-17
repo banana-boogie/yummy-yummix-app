@@ -79,7 +79,7 @@ export async function getAllergenMap(
  * Check if a normalized ingredient matches an allergen using word-boundary matching.
  * Prevents false positives like "egg" matching "eggplant".
  */
-function matchesAllergen(
+export function matchesAllergen(
   normalizedIngredient: string,
   allergen: string,
 ): boolean {

@@ -28,6 +28,10 @@ const mockStop = ExpoSpeechRecognitionModule.stop as jest.Mock;
 
 beforeEach(() => {
     jest.clearAllMocks();
+    mockUseSpeechRecognitionEvent.mockReset();
+    mockRequestPermissions.mockReset();
+    mockStart.mockReset();
+    mockStop.mockReset();
     // Reset captured handlers
     Object.keys(eventHandlers).forEach(k => delete eventHandlers[k]);
 
@@ -141,6 +145,42 @@ describe('useSpeechRecognition', () => {
             });
 
             expect(mockStop).toHaveBeenCalled();
+            expect(result.current.isListening).toBe(false);
+        });
+    });
+
+    describe('handleMicPress — unexpected failures', () => {
+        it('handles permission request errors gracefully', async () => {
+            mockRequestPermissions.mockRejectedValue(new Error('permission failure'));
+            const alertSpy = jest.spyOn(Alert, 'alert');
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+            const { result } = renderSpeechHook();
+
+            await act(async () => {
+                await expect(result.current.handleMicPress()).resolves.toBeUndefined();
+            });
+
+            expect(mockStart).not.toHaveBeenCalled();
+            expect(result.current.isListening).toBe(false);
+            expect(alertSpy).toHaveBeenCalled();
+            consoleErrorSpy.mockRestore();
+        });
+
+        it('handles start errors gracefully', async () => {
+            mockStart.mockImplementation(() => {
+                throw new Error('start failure');
+            });
+            const alertSpy = jest.spyOn(Alert, 'alert');
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+            const { result } = renderSpeechHook();
+
+            await act(async () => {
+                await expect(result.current.handleMicPress()).resolves.toBeUndefined();
+            });
+
+            expect(result.current.isListening).toBe(false);
+            expect(alertSpy).toHaveBeenCalled();
+            consoleErrorSpy.mockRestore();
         });
     });
 
