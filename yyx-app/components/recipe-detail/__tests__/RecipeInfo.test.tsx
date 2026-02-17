@@ -29,6 +29,10 @@ jest.mock('@/i18n', () => ({
         'recipes.common.totalTime': 'Total Time',
         'recipes.common.prepTime': 'Prep Time',
         'recipes.common.portions': 'Portions',
+        'recipes.common.difficultyLabel': 'Difficulty',
+        'recipes.common.difficulty.easy': 'Easy',
+        'recipes.common.difficulty.medium': 'Medium',
+        'recipes.common.difficulty.hard': 'Hard',
       };
       return translations[key] || key;
     },
@@ -49,7 +53,6 @@ describe('RecipeInfo', () => {
   const defaultProps: RecipeInfoProps = {
     totalTime: 60,
     prepTime: 15,
-    difficulty: 'medium',
   };
 
   // ============================================================
@@ -131,6 +134,21 @@ describe('RecipeInfo', () => {
     });
   });
 
+  describe('difficulty display', () => {
+    it('displays difficulty when provided', () => {
+      render(<RecipeInfo {...defaultProps} difficulty="hard" />);
+
+      expect(screen.getByText('Difficulty:')).toBeTruthy();
+      expect(screen.getByText('Hard')).toBeTruthy();
+    });
+
+    it('does not display difficulty when omitted', () => {
+      render(<RecipeInfo {...defaultProps} />);
+
+      expect(screen.queryByText('Difficulty:')).toBeNull();
+    });
+  });
+
   // ============================================================
   // RENDERING TESTS
   // ============================================================
@@ -141,7 +159,6 @@ describe('RecipeInfo', () => {
         <RecipeInfo
           totalTime={30}
           prepTime={10}
-          difficulty="easy"
         />
       );
 
@@ -153,7 +170,6 @@ describe('RecipeInfo', () => {
         <RecipeInfo
           totalTime={60}
           prepTime={20}
-          difficulty="hard"
           portions={8}
         />
       );
@@ -214,7 +230,6 @@ describe('RecipeInfo', () => {
         <RecipeInfo
           totalTime={null}
           prepTime={null}
-          difficulty="easy"
         />
       );
 

@@ -1,3 +1,4 @@
+import React from 'react';
 import { Pressable, View, DimensionValue, StyleProp, ViewStyle } from 'react-native';
 import Animated, {
   withTiming,
@@ -32,7 +33,7 @@ type MiseEnPlaceUsefulItemProps = {
  * - Image with checkbox overlay
  * - Name prominent and centered
  */
-export function MiseEnPlaceUsefulItem({
+export const MiseEnPlaceUsefulItem = React.memo(function MiseEnPlaceUsefulItem({
   item,
   onPress,
   width,
@@ -98,4 +99,4 @@ export function MiseEnPlaceUsefulItem({
       </Animated.View>
     </Pressable>
   );
-}
+});

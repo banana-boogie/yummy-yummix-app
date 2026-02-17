@@ -7,7 +7,10 @@
  * - Data normalization
  */
 
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  assertEquals,
+  assertThrows,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
 
 import {
   applyRoundingRulesToData,
@@ -250,6 +253,36 @@ Deno.test("validateNutritionalData - ignores extra fields", () => {
 // ============================================================
 // CONVERSION TESTS
 // ============================================================
+
+Deno.test("convertToPer100g - throws on zero portion size", () => {
+  const data: NutritionalData = {
+    calories: 100,
+    protein: 10,
+    fat: 5,
+    carbohydrates: 30,
+  };
+
+  assertThrows(
+    () => convertToPer100g(data, 0),
+    Error,
+    "Invalid portion size",
+  );
+});
+
+Deno.test("convertToPer100g - throws on negative portion size", () => {
+  const data: NutritionalData = {
+    calories: 100,
+    protein: 10,
+    fat: 5,
+    carbohydrates: 30,
+  };
+
+  assertThrows(
+    () => convertToPer100g(data, -50),
+    Error,
+    "Invalid portion size",
+  );
+});
 
 Deno.test("convertToPer100g - converts 200g portion to 100g", () => {
   const data: NutritionalData = {

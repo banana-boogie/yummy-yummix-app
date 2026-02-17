@@ -599,6 +599,11 @@ const { data, error } = await supabase.from('recipes').select('*');
 - Use `React.memo` for pure components
 - Use `expo-image` for optimized images
 
+### Dependencies
+- Prefer built-in/native solutions over third-party packages
+- Use existing project utilities before adding new dependencies
+- Only add a dependency when no built-in alternative exists and the package provides clear value
+
 <!-- END:shared/conventions -->
 
 <!-- BEGIN:shared/testing -->
