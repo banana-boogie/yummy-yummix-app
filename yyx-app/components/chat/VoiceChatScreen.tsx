@@ -1,122 +1,197 @@
 /**
- * VoiceChatScreen Component
- * 
- * Voice-first chat interface with Irmixy avatar.
- * Uses i18n for all user-facing text and NativeWind for styling.
+ * VoiceChatScreen Component - OpenAI Realtime Edition
+ *
+ * Hybrid layout: shrunk avatar + live scrollable transcript with recipe cards.
+ * When idle (no messages), avatar displays centered at full size.
+ * Once conversation starts, avatar shrinks to top and transcript grows.
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { View, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Alert, FlatList, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Text } from '@/components/common/Text';
 import { IrmixyAvatar, AvatarState } from './IrmixyAvatar';
 import { VoiceButton } from './VoiceButton';
-import { useVoiceRecording } from '@/hooks/useVoiceRecording';
-import { useAudioPlayback } from '@/hooks/useAudioPlayback';
+import { ChatRecipeCard } from './ChatRecipeCard';
+import { CustomRecipeCard } from './CustomRecipeCard';
+import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { useAuth } from '@/contexts/AuthContext';
-import { sendVoiceMessage, base64ToAudioUri } from '@/services/voiceService';
+import { customRecipeService } from '@/services/customRecipeService';
+import { COLORS } from '@/constants/design-tokens';
+import type { QuotaInfo, VoiceStatus } from '@/services/voice/types';
+import type { ChatMessage } from '@/services/chatService';
+import type { GeneratedRecipe } from '@/types/irmixy';
 import i18n from '@/i18n';
-
-interface ChatMessage {
-    role: 'user' | 'assistant';
-    content: string;
-}
 
 interface Props {
     sessionId?: string | null;
     onSessionCreated?: (sessionId: string) => void;
+    /** External transcript messages for mode-switch persistence */
+    transcriptMessages?: ChatMessage[];
+    onTranscriptChange?: (messages: ChatMessage[]) => void;
 }
 
-export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated }: Props) {
+export function VoiceChatScreen({
+    sessionId: initialSessionId,
+    onSessionCreated,
+    transcriptMessages: externalMessages,
+    onTranscriptChange,
+}: Props) {
     const { user } = useAuth();
+    const router = useRouter();
     const insets = useSafeAreaInsets();
+    const [duration, setDuration] = useState(0);
+    const flatListRef = useRef<FlatList>(null);
 
-    const { isRecording, startRecording, stopRecording, hasPermission, requestPermission } = useVoiceRecording();
-    const { isPlaying, play, stop: stopPlayback } = useAudioPlayback();
-
-    const [avatarState, setAvatarState] = useState<AvatarState>('idle');
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
-    const [error, setError] = useState<string | null>(null);
-
-    const handleVoicePress = useCallback(async () => {
-        setError(null);
-
-        if (isRecording) {
-            // Stop recording and process
-            try {
-                setAvatarState('thinking');
-                setIsProcessing(true);
-
-                const audioUri = await stopRecording();
-
-                if (!audioUri) {
-                    console.log('No audio URI returned');
-                    setAvatarState('idle');
-                    setIsProcessing(false);
-                    return;
-                }
-
-                console.log('Sending voice message with URI:', audioUri);
-
-                // Send to backend
-                const response = await sendVoiceMessage(audioUri, currentSessionId);
-
-                console.log('Got response:', response);
-
-                // Add messages to chat
-                setMessages(prev => [
-                    ...prev,
-                    { role: 'user', content: response.transcription },
-                    { role: 'assistant', content: response.response },
-                ]);
-
-                if (!currentSessionId && response.sessionId) {
-                    setCurrentSessionId(response.sessionId);
-                    onSessionCreated?.(response.sessionId);
-                }
-
-                // Play audio response
-                setAvatarState('speaking');
-                const audioDataUri = base64ToAudioUri(response.audioBase64);
-                await play(audioDataUri);
-
-            } catch (err: any) {
-                console.error('Voice processing error:', err);
-                setError(err.message || i18n.t('chat.error'));
-                setAvatarState('idle');
-            } finally {
-                setIsProcessing(false);
-            }
-        } else {
-            // Start recording
-            try {
-                if (!hasPermission) {
-                    const granted = await requestPermission();
-                    if (!granted) {
-                        setError(i18n.t('chat.voice.permissionRequired'));
-                        return;
-                    }
-                }
-
-                stopPlayback();
-                await startRecording();
-                setAvatarState('listening');
-            } catch (err: any) {
-                console.error('Recording start error:', err);
-                setError(err.message);
-                setAvatarState('idle');
-            }
+    const {
+        status,
+        transcript,
+        response,
+        error,
+        quotaInfo,
+        transcriptMessages,
+        isExecutingTool,
+        updateMessage,
+        startConversation,
+        stopConversation
+    } = useVoiceChat({
+        sessionId: initialSessionId,
+        initialTranscriptMessages: externalMessages,
+        onTranscriptChange,
+        onQuotaWarning: (info: QuotaInfo) => {
+            Alert.alert(
+                i18n.t('common.errors.title'),
+                info.warning || i18n.t('chat.voice.quotaWarning', { minutes: info.remainingMinutes.toFixed(1) }),
+                [{ text: i18n.t('common.ok') }]
+            );
         }
-    }, [isRecording, stopRecording, startRecording, currentSessionId, onSessionCreated, hasPermission, requestPermission, play, stopPlayback]);
+    });
 
-    // Update avatar state when playback finishes
+    const hasMessages = transcriptMessages.length > 0;
+
+    // Map voice status to avatar state
+    const getAvatarState = (voiceStatus: VoiceStatus): AvatarState => {
+        switch (voiceStatus) {
+            case 'connecting': return 'thinking';
+            case 'listening': return 'listening';
+            case 'processing': return 'thinking';
+            case 'speaking': return 'speaking';
+            case 'error': return 'idle';
+            default: return 'idle';
+        }
+    };
+
+    const isConnected = status !== 'idle' && status !== 'error';
+    const isConnecting = status === 'connecting';
+
+    // Timer for active session (only when truly active, not during connecting)
+    const isActive = isConnected && !isConnecting;
     useEffect(() => {
-        if (!isPlaying && avatarState === 'speaking') {
-            setAvatarState('idle');
+        let interval: NodeJS.Timeout;
+        if (isActive) {
+            interval = setInterval(() => setDuration(d => d + 1), 1000);
+        } else if (!isConnected) {
+            setDuration(0);
         }
-    }, [isPlaying, avatarState]);
+        return () => clearInterval(interval);
+    }, [isActive, isConnected]);
+
+    // Error handling
+    useEffect(() => {
+        if (error) {
+            Alert.alert(i18n.t('common.errors.title'), error);
+        }
+    }, [error]);
+
+    const formatDuration = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const handleVoicePress = async () => {
+        if (isConnected) {
+            stopConversation();
+        } else {
+            if (quotaInfo && quotaInfo.remainingMinutes <= 0) {
+                Alert.alert(i18n.t('common.errors.title'), i18n.t('chat.voice.quotaExceeded'));
+                return;
+            }
+            await startConversation();
+        }
+    };
+
+    const handleStartCooking = useCallback(async (
+        recipe: GeneratedRecipe,
+        finalName: string,
+        messageId: string,
+        savedRecipeId?: string
+    ) => {
+        try {
+            let recipeId = savedRecipeId;
+            if (!recipeId) {
+                const { userRecipeId } = await customRecipeService.save(recipe, finalName);
+                recipeId = userRecipeId;
+                // Write back savedRecipeId to prevent duplicate saves on repeated taps
+                if (recipeId) {
+                    updateMessage(messageId, { savedRecipeId: recipeId });
+                }
+            }
+            if (recipeId) {
+                router.push(`/(tabs)/recipes/start-cooking/${recipeId}?from=chat`);
+            }
+        } catch (err) {
+            console.error('[VoiceChatScreen] Start cooking error:', err);
+            Alert.alert(i18n.t('common.errors.title'), i18n.t('common.errors.generic'));
+        }
+    }, [router, updateMessage]);
+
+    const renderMessageItem = useCallback(({ item }: { item: ChatMessage }) => {
+        const isUser = item.role === 'user';
+
+        return (
+            <View className={`px-md mb-sm ${isUser ? 'items-end' : 'items-start'}`}>
+                {/* Message bubble */}
+                <View
+                    className={`max-w-[85%] px-md py-sm rounded-xl ${
+                        isUser
+                            ? 'bg-primary-medium rounded-br-sm'
+                            : 'bg-background-secondary rounded-bl-sm'
+                    }`}
+                >
+                    <Text
+                        preset="body"
+                        className={isUser ? 'text-white' : 'text-text-default'}
+                    >
+                        {item.content}
+                    </Text>
+                </View>
+
+                {/* Recipe cards (assistant only) */}
+                {!isUser && item.recipes && item.recipes.length > 0 && (
+                    <View className="mt-sm w-full gap-sm">
+                        {item.recipes.map(recipe => (
+                            <ChatRecipeCard key={recipe.recipeId} recipe={recipe} />
+                        ))}
+                    </View>
+                )}
+
+                {/* Custom recipe card (assistant only) */}
+                {!isUser && item.customRecipe && (
+                    <View className="mt-sm w-full">
+                        <CustomRecipeCard
+                            recipe={item.customRecipe}
+                            safetyFlags={item.safetyFlags}
+                            onStartCooking={handleStartCooking}
+                            messageId={item.id}
+                            savedRecipeId={item.savedRecipeId}
+                        />
+                    </View>
+                )}
+            </View>
+        );
+    }, [handleStartCooking]);
 
     if (!user) {
         return (
@@ -128,100 +203,115 @@ export function VoiceChatScreen({ sessionId: initialSessionId, onSessionCreated 
         );
     }
 
-    const getButtonState = () => {
-        if (isProcessing) return 'processing';
-        if (isRecording) return 'recording';
-        return 'ready';
-    };
-
     return (
         <View
             className="flex-1 bg-background-default"
-            style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+            style={{ paddingBottom: insets.bottom }}
         >
-            {/* Avatar area */}
-            <View className="items-center pt-lg">
-                <IrmixyAvatar state={avatarState} size={180} />
-
-                {/* Status text */}
-                <View className="mt-md px-xl">
-                    {avatarState === 'listening' && (
-                        <Text preset="subheading" className="text-primary-darkest text-center">
-                            {i18n.t('chat.voice.listening')}
+            {/* Header / Timer */}
+            <View className="items-center pt-md">
+                {isActive && (
+                    <View className="bg-background-secondary px-sm py-xs rounded-full">
+                        <Text preset="caption" className="text-primary-darkest font-bold">
+                            {formatDuration(duration)}
                         </Text>
-                    )}
-                    {avatarState === 'thinking' && (
-                        <Text preset="body" className="text-text-secondary text-center">
-                            {i18n.t('chat.voice.thinking')}
-                        </Text>
-                    )}
-                    {avatarState === 'speaking' && (
-                        <Text preset="subheading" className="text-primary-darkest text-center">
-                            {i18n.t('chat.voice.speaking')}
-                        </Text>
-                    )}
-                    {avatarState === 'idle' && messages.length === 0 && (
-                        <Text preset="body" className="text-text-secondary text-center">
-                            {i18n.t('chat.greeting')}
-                        </Text>
-                    )}
-                </View>
+                    </View>
+                )}
             </View>
 
-            {/* Chat transcript - scrollable message bubbles */}
-            <ScrollView
-                className="flex-1 px-md mt-md"
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 16 }}
-            >
-                {messages.map((msg, index) => (
-                    <View
-                        key={index}
-                        className={`mb-sm max-w-[85%] ${msg.role === 'user' ? 'self-end' : 'self-start'
-                            }`}
-                    >
-                        <View
-                            className={`rounded-xl p-sm ${msg.role === 'user'
-                                    ? 'bg-primary-light rounded-br-sm'
-                                    : 'bg-background-secondary rounded-bl-sm'
-                                }`}
-                        >
-                            {msg.role === 'assistant' && (
-                                <Text preset="caption" className="text-primary-darkest mb-xs font-bold">
-                                    Irmixy
-                                </Text>
-                            )}
-                            <Text preset="body" className="text-text-default">
-                                {msg.content}
+            {/* Avatar area — shrinks when messages exist */}
+            <View className={`items-center ${hasMessages ? 'py-sm' : 'py-md'} bg-background-default`}>
+                <IrmixyAvatar state={getAvatarState(status)} size={hasMessages ? 100 : 160} />
+
+                {!hasMessages && (
+                    <View className="mt-lg h-24 px-md w-full">
+                        {status === 'connecting' && (
+                            <Text preset="body" className="text-text-secondary text-center">
+                                {i18n.t('chat.voice.connecting')}
+                            </Text>
+                        )}
+                        {status === 'listening' && (
+                            <Text preset="body" className="text-primary-darkest text-center font-bold">
+                                {i18n.t('chat.voice.listening')}
+                            </Text>
+                        )}
+                        {(status === 'processing' || status === 'speaking') && transcript ? (
+                            <Text preset="bodySmall" className="text-text-secondary text-center italic mb-xs" numberOfLines={2}>
+                                {`"${transcript}"`}
+                            </Text>
+                        ) : null}
+                        {status === 'idle' && (
+                            <Text preset="body" className="text-text-secondary text-center">
+                                {i18n.t('chat.voice.tapToSpeak')}
+                            </Text>
+                        )}
+                    </View>
+                )}
+
+                {hasMessages && (
+                    <Text preset="caption" className="text-text-secondary mt-xs">
+                        {status === 'listening' ? i18n.t('chat.voice.listening')
+                            : status === 'connecting' ? i18n.t('chat.voice.connecting')
+                            : status === 'processing' ? i18n.t('chat.voice.thinking')
+                            : status === 'speaking' ? i18n.t('chat.voice.speaking')
+                            : ''}
+                    </Text>
+                )}
+            </View>
+
+            {/* Scrollable Transcript */}
+            {hasMessages && (
+                <View className="flex-1">
+                    <FlatList
+                        ref={flatListRef}
+                        data={transcriptMessages}
+                        keyExtractor={item => item.id}
+                        renderItem={renderMessageItem}
+                        contentContainerStyle={{ paddingVertical: 8 }}
+                        showsVerticalScrollIndicator={false}
+                        removeClippedSubviews={Platform.OS !== 'web'}
+                        maxToRenderPerBatch={3}
+                        updateCellsBatchingPeriod={50}
+                        windowSize={5}
+                        initialNumToRender={8}
+                        onContentSizeChange={() => {
+                            flatListRef.current?.scrollToEnd({ animated: true });
+                        }}
+                    />
+
+                    {/* Tool execution indicator */}
+                    {isExecutingTool && (
+                        <View className="flex-row items-center justify-center py-sm gap-sm">
+                            <ActivityIndicator size="small" color={COLORS.primary.darkest} />
+                            <Text preset="caption" className="text-primary-darkest">
+                                {i18n.t('chat.voice.executingTool')}
                             </Text>
                         </View>
-                    </View>
-                ))}
-            </ScrollView>
-
-            {/* Error display */}
-            {error && (
-                <View className="px-xl pb-sm">
-                    <Text preset="bodySmall" className="text-status-error text-center">
-                        {error}
-                    </Text>
+                    )}
                 </View>
             )}
 
-            {/* Voice button */}
-            <View className="items-center pb-xl">
+            {/* Controls */}
+            <View className="items-center py-xl border-t border-grey-light bg-background-default">
                 <VoiceButton
-                    state={getButtonState()}
+                    state={isActive ? 'recording' : 'ready'}
                     onPress={handleVoicePress}
                     size={80}
-                    disabled={isProcessing}
+                    disabled={isConnecting}
                 />
                 <Text preset="caption" className="text-text-secondary mt-sm">
-                    {isRecording
-                        ? i18n.t('chat.voice.tapToStop')
-                        : i18n.t('chat.voice.tapToSpeak')
+                    {isConnecting
+                        ? i18n.t('chat.voice.connecting')
+                        : isConnected
+                            ? i18n.t('chat.voice.tapToStop')
+                            : i18n.t('chat.voice.tapToSpeak')
                     }
                 </Text>
+                {quotaInfo && !isConnected && (
+                    <Text preset="caption" className="text-text-secondary mt-xs text-xs">
+                        {i18n.t('chat.voice.minsRemaining', { mins: quotaInfo.remainingMinutes.toFixed(1) })}
+                    </Text>
+                )}
             </View>
         </View>
     );

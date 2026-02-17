@@ -5,7 +5,7 @@
  * Supports role-based access control.
  */
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 export interface AuthUser {
   id: string;
@@ -51,7 +51,8 @@ export async function validateAuth(
       },
     });
 
-    const { data: { user }, error } = await supabase.auth.getUser();
+    // Pass token directly to getUser() for edge function environments
+    const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
       return { user: null, error: error?.message ?? "Invalid token" };

@@ -52,7 +52,7 @@ describe('AdminRecipeService', () => {
     id: 'recipe-1',
     name_en: 'Chocolate Cake',
     name_es: 'Pastel de Chocolate',
-    picture_url: 'https://example.com/cake.png',
+    image_url: 'https://example.com/cake.png',
     difficulty: 'medium',
     prep_time: 30,
     total_time: 60,

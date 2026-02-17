@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Keyboard, Image, KeyboardAvoidingView, Platform, StyleProp, ViewStyle } from 'react-native';
+import { View, Keyboard, KeyboardAvoidingView, Platform, StyleProp, ViewStyle } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from '@/components/common/Text';
 import { TextInput } from '@/components/form/TextInput';
 import { useOnboarding } from '@/contexts/OnboardingContext';
@@ -79,9 +80,9 @@ export function NameStep({ className = '', style }: NameStepProps) {
                 />
 
                 <Image
-                    source={require('@/assets/images/irmixy/irmixy-hello.png')}
+                    source={require('@/assets/images/irmixy-avatar/irmixy-waving.png')}
                     className="w-full h-[250px] lg:h-[275px] mt-auto self-center mr-lg max-w-[400px]"
-                    resizeMode="contain"
+                    contentFit="contain"
                 />
             </View>
 

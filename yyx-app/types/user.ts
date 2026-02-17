@@ -1,4 +1,4 @@
-import { DietType, DietaryRestriction } from "./dietary";
+import { DietType, DietaryRestriction, CuisinePreference } from "./dietary";
 
 export type Gender = 'male' | 'female' | 'other' | 'preferNotToSay';
 
@@ -22,6 +22,7 @@ export interface UserProfile {
   activityLevel?: ActivityLevel;
   dietaryRestrictions: DietaryRestriction[];
   dietTypes: DietType[];
+  cuisinePreferences: CuisinePreference[];
   measurementSystem: MeasurementSystem;
   language: string;
   profileImageUrl: string | null;

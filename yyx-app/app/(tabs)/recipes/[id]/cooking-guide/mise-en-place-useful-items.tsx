@@ -5,6 +5,7 @@ import i18n from '@/i18n';
 import { useRecipe } from '@/hooks/useRecipe';
 import { useLocalSearchParams, router } from 'expo-router';
 import { CookingGuideHeader } from '@/components/cooking-guide/CookingGuideHeader';
+import { CookingGuidePageHeader } from '@/components/cooking-guide/CookingGuidePageHeader';
 import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideStepNavigationButtons';
 import { useDevice } from '@/hooks/useDevice';
 import { PageLayout } from '@/components/layouts/PageLayout';
@@ -28,7 +29,6 @@ export default function UsefulItemsStep() {
     const [usefulItems, setUsefulItems] = useState<CheckableUsefulItem[]>([]);
     const { isMobile } = useDevice();
 
-    // Calculate number of columns based on screen size
     const numColumns = 2;
 
     useEffect(() => {
@@ -53,49 +53,61 @@ export default function UsefulItemsStep() {
     };
 
     return (
-        <PageLayout
-            scrollEnabled={true}
-            contentPaddingHorizontal={0}
-            footer={
-                <StepNavigationButtons
-                    onBack={() => router.back()}
-                    onNext={() => router.push(`/(tabs)/recipes/${id}/cooking-guide/1`)}
-                    backText={i18n.t('recipes.cookingGuide.navigation.back')}
-                    nextText={i18n.t('recipes.cookingGuide.navigation.next')}
-                />
-            }
-        >
-            <CookingGuideHeader
-                title={recipe?.name || ''}
-                pictureUrl={recipe?.pictureUrl}
-            />
-
-            {/* Content wrapper - centered on desktop with max-width */}
-            <View
-                className="px-md pb-[120px]"
-                style={!isMobile ? {
-                    maxWidth: LAYOUT.maxWidth.cookingGuide,
-                    alignSelf: 'center',
-                    width: '100%'
-                } : undefined}
+        <View className="flex-1">
+            <PageLayout
+                scrollEnabled={true}
+                contentPaddingHorizontal={0}
+                footer={
+                    <StepNavigationButtons
+                        onBack={() => router.back()}
+                        onNext={() => router.push(`/(tabs)/recipes/${id}/cooking-guide/1`)}
+                        backText={i18n.t('recipes.cookingGuide.navigation.back')}
+                        nextText={i18n.t('recipes.cookingGuide.navigation.next')}
+                    />
+                }
             >
-                <View className="mb-xl">
-                    <Text preset="subheading" className="mb-sm">
-                        {i18n.t('recipes.cookingGuide.miseEnPlace.usefulItems.heading')}
-                    </Text>
-                    {/* Indented content grid */}
-                    <View className="flex-row flex-wrap pl-sm">
-                        {usefulItems.map((item, index) => (
-                            <MiseEnPlaceUsefulItem
-                                key={item.id}
-                                item={item}
-                                onPress={() => handleUsefulItemPress(index)}
-                                width={`${100 / numColumns}%`}
-                            />
-                        ))}
+                <CookingGuideHeader
+                    showTitle={false}
+                    pictureUrl={recipe?.pictureUrl}
+                />
+
+                <CookingGuidePageHeader
+                    title={recipe?.name || ''}
+                    recipeContext={{
+                        type: 'prep',
+                        recipeId: id as string,
+                        recipeTitle: recipe?.name || '',
+                        usefulItems: usefulItems.map(item => item.name)
+                    }}
+                />
+
+                {/* Content wrapper - centered on desktop with max-width */}
+                <View
+                    className="px-md pb-[120px]"
+                    style={isMobile ? undefined : {
+                        maxWidth: LAYOUT.maxWidth.cookingGuide,
+                        alignSelf: 'center',
+                        width: '100%'
+                    }}
+                >
+                    <View className="mb-xl">
+                        <Text preset="subheading" className="mb-sm">
+                            {i18n.t('recipes.cookingGuide.miseEnPlace.usefulItems.heading')}
+                        </Text>
+                        {/* Indented content grid */}
+                        <View className="flex-row flex-wrap pl-sm">
+                            {usefulItems.map((item, index) => (
+                                <MiseEnPlaceUsefulItem
+                                    key={item.id}
+                                    item={item}
+                                    onPress={() => handleUsefulItemPress(index)}
+                                    width={`${100 / numColumns}%`}
+                                />
+                            ))}
+                        </View>
                     </View>
                 </View>
-            </View>
-        </PageLayout>
+            </PageLayout>
+        </View>
     );
 }

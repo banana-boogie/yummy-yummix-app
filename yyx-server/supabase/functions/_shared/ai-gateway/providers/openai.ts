@@ -2,23 +2,18 @@
  * AI Gateway - OpenAI Provider
  *
  * Implementation of the AI provider interface for OpenAI.
- * Includes: chat completions, transcription (Whisper), and text-to-speech.
+ * Includes: chat completions and streaming chat completions.
  */
 
 import {
   AICompletionRequest,
   AICompletionResponse,
-  AITextToSpeechRequest,
-  AITextToSpeechResponse,
+  AIEmbeddingResponse,
   AITool,
-  AITranscriptionRequest,
-  AITranscriptionResponse,
 } from "../types.ts";
 
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
-const OPENAI_TRANSCRIPTION_URL =
-  "https://api.openai.com/v1/audio/transcriptions";
-const OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech";
+const OPENAI_EMBEDDINGS_URL = "https://api.openai.com/v1/embeddings";
 
 // =============================================================================
 // Chat Completions
@@ -50,6 +45,10 @@ interface OpenAIRequest {
       parameters: Record<string, unknown>;
     };
   }>;
+  tool_choice?: "auto" | "required" | {
+    type: "function";
+    function: { name: string };
+  };
 }
 
 interface OpenAIResponse {
@@ -71,6 +70,15 @@ interface OpenAIResponse {
     prompt_tokens: number;
     completion_tokens: number;
   };
+}
+
+function safeParseToolArguments(raw: string) {
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    console.warn("[OpenAI] Failed to parse tool arguments:", error);
+    return {};
+  }
 }
 
 /**
@@ -113,6 +121,11 @@ export async function callOpenAI(
         parameters: tool.parameters,
       },
     }));
+
+    // Add tool_choice if specified
+    if (request.toolChoice) {
+      openaiRequest.tool_choice = request.toolChoice;
+    }
   }
 
   const response = await fetch(OPENAI_CHAT_URL, {
@@ -142,88 +155,119 @@ export async function callOpenAI(
     toolCalls: choice.message.tool_calls?.map((tc) => ({
       id: tc.id,
       name: tc.function.name,
-      arguments: JSON.parse(tc.function.arguments),
+      arguments: safeParseToolArguments(tc.function.arguments),
     })),
   };
 }
 
-// =============================================================================
-// Transcription (Whisper)
-// =============================================================================
-
 /**
- * Transcribe audio using OpenAI Whisper API.
+ * Call OpenAI's chat completions API with streaming.
+ * Returns an async generator that yields content chunks.
  */
-export async function transcribeOpenAI(
-  request: AITranscriptionRequest,
+export async function* callOpenAIStream(
+  request: AICompletionRequest,
   model: string,
   apiKey: string,
-): Promise<AITranscriptionResponse> {
-  const formData = new FormData();
-  formData.append("file", request.audio, "audio.m4a");
-  formData.append("model", model);
+): AsyncGenerator<string, void, unknown> {
+  const openaiRequest = {
+    model,
+    messages: request.messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    })),
+    temperature: request.temperature ?? 0.7,
+    max_tokens: request.maxTokens ?? 4096,
+    stream: true,
+  };
 
-  if (request.language) {
-    formData.append("language", request.language);
-  }
-
-  const response = await fetch(OPENAI_TRANSCRIPTION_URL, {
+  const response = await fetch(OPENAI_CHAT_URL, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
     },
-    body: formData,
+    body: JSON.stringify(openaiRequest),
   });
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`OpenAI Whisper error (${response.status}): ${errorBody}`);
+    throw new Error(`OpenAI API error (${response.status}): ${errorBody}`);
   }
 
-  const result = await response.json();
-  return {
-    text: result.text,
-    model: model,
-  };
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("No response body");
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed === "data: [DONE]") continue;
+      if (!trimmed.startsWith("data: ")) continue;
+
+      try {
+        const json = JSON.parse(trimmed.slice(6));
+        const content = json.choices?.[0]?.delta?.content;
+        if (content) {
+          yield content;
+        }
+      } catch {
+        // Skip malformed JSON
+      }
+    }
+  }
 }
 
 // =============================================================================
-// Text-to-Speech
+// Embeddings
 // =============================================================================
 
 /**
- * Generate speech from text using OpenAI TTS API.
+ * Call OpenAI's embeddings API.
  */
-export async function textToSpeechOpenAI(
-  request: AITextToSpeechRequest,
+export async function callOpenAIEmbedding(
+  text: string,
   model: string,
   apiKey: string,
-): Promise<AITextToSpeechResponse> {
-  const response = await fetch(OPENAI_TTS_URL, {
+): Promise<AIEmbeddingResponse> {
+  const response = await fetch(OPENAI_EMBEDDINGS_URL, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model: model,
-      input: request.text,
-      voice: request.voice ?? "nova",
-      response_format: "mp3",
-    }),
+    body: JSON.stringify({ model, input: text }),
   });
 
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`OpenAI TTS error (${response.status}): ${errorBody}`);
+    console.error(
+      `[ai-gateway:embedding] OpenAI API error (${response.status}):`,
+      errorBody,
+    );
+    throw new Error(
+      `OpenAI embeddings API error (${response.status}): ${errorBody}`,
+    );
   }
 
-  // Convert to base64
-  const audioBuffer = await response.arrayBuffer();
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+  const data = await response.json();
+  const embedding = data?.data?.[0]?.embedding;
+
+  if (!Array.isArray(embedding)) {
+    throw new Error("Invalid embedding response from OpenAI");
+  }
 
   return {
-    audioBase64: base64,
-    model: model,
+    embedding,
+    model: data.model,
+    usage: { inputTokens: data.usage?.prompt_tokens ?? 0 },
   };
 }

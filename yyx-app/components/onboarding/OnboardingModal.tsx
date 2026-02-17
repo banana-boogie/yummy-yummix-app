@@ -4,6 +4,7 @@ import { Modal, View, Platform, KeyboardAvoidingView } from 'react-native';
 import { Image } from 'expo-image';
 
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { OnboardingData, OnboardingData as OnboardingDataContext } from '@/types/onboarding';
 import { GRADIENT } from '@/constants';
@@ -15,15 +16,20 @@ import { MeasurementSystem } from '@/types/user';
 import { WelcomeStep } from './steps/WelcomeStep';
 import { NameStep } from './steps/NameStep';
 import { AllergiesStep } from './steps/AllergiesStep';
+import { EquipmentStep } from './steps/EquipmentStep';
+import { formatEquipmentForStorage } from '@/constants/equipment';
 import { DietStep } from './steps/DietStep';
+import { CuisineStep } from './steps/CuisineStep';
 import { AppPreferencesStep } from './steps/AppPreferencesStep';
 import { useDevice } from '@/hooks/useDevice';
+import { normalizeDietAndCuisinePreferences } from '@/utils/preferencesNormalization';
 
 interface OnboardingModalProps {
   visible: boolean;
 }
 
 export function OnboardingModal({ visible }: OnboardingModalProps) {
+  const { signOut } = useAuth();
   const { updateUserProfile } = useUserProfile();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,10 +49,25 @@ export function OnboardingModal({ visible }: OnboardingModalProps) {
         await setMeasurementSystem(formData.measurementSystem as MeasurementSystem);
       }
 
+      // Format kitchen equipment for storage
+      const formattedEquipment = formData.kitchenEquipment?.map(eq =>
+        formatEquipmentForStorage(eq.type, eq.model)
+      ) ?? [];
+
+      // Remove kitchenEquipment from formData to avoid duplicates (it will be added as kitchen_equipment)
+      const { kitchenEquipment, ...restFormData } = formData;
+      const normalizedPreferences = normalizeDietAndCuisinePreferences(
+        formData.dietTypes ?? [],
+        formData.cuisinePreferences ?? []
+      );
+
       const profileUpdate = {
-        ...formData,
+        ...restFormData,
+        dietTypes: normalizedPreferences.dietTypes,
+        cuisinePreferences: normalizedPreferences.cuisinePreferences,
         onboardingComplete: true,
-        measurementSystem: formData.measurementSystem as MeasurementSystem
+        measurementSystem: formData.measurementSystem as MeasurementSystem,
+        kitchen_equipment: formattedEquipment, // Use snake_case for database column
       };
 
       await updateUserProfile(profileUpdate);
@@ -54,6 +75,13 @@ export function OnboardingModal({ visible }: OnboardingModalProps) {
       router.replace('/');
     } catch (error) {
       console.error('Failed to complete onboarding:', error);
+
+      // Handle stale session (profile doesn't exist for current user)
+      if (error instanceof Error && error.message === 'PROFILE_NOT_FOUND') {
+        console.warn('Stale session detected - signing out and redirecting to login');
+        await signOut();
+        router.replace('/auth/login');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -134,9 +162,13 @@ function StepRenderer({ onComplete, isSubmitting }: { onComplete: (data: Onboard
     case 2:
       return <AppPreferencesStep />;
     case 3:
-      return <AllergiesStep />;
+      return <EquipmentStep />;
     case 4:
-      return <DietStep onComplete={onComplete} isSubmitting={isSubmitting} />;
+      return <AllergiesStep />;
+    case 5:
+      return <DietStep />;
+    case 6:
+      return <CuisineStep onComplete={onComplete} isSubmitting={isSubmitting} />;
     default:
       return null;
   }

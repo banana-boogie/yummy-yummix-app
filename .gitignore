@@ -1,11 +1,25 @@
 # Dependencies
 node_modules/
 
-# Environment variables
+# Environment files (all contain secrets - NEVER commit)
 .env
 .env.local
 .env.*.local
+**/.env
+**/.env.local
+**/.env.*.local
+
+# ONLY commit .env.example files (templates with dummy values)
+!.env.example
+!**/.env.example
+
+# EAS config
 .eas.json
+
+# Database backups (contain user data - don't commit)
+**/backups/*.sql
+**/backups/*.gz
+**/backups/storage/
 
 # Build output
 dist/
@@ -19,7 +33,12 @@ expo-env.d.ts
 # Supabase
 .branches
 .temp
+.supabase/
 backups/
+
+# Deno
+.deno.lock
+deno.lock
 
 # macOS
 .DS_Store
@@ -55,3 +74,4 @@ apple-jwt.txt
 
 # Testing
 coverage/
+.claude/settings.local.json

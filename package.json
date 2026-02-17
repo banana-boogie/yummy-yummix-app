@@ -6,9 +6,14 @@
   "scripts": {
     "prepare": "husky",
     "verify-hooks": "test -x .husky/pre-commit && echo '✅ Git hooks are installed' || (echo '❌ Git hooks not installed. Run: npm install' && exit 1)",
-    "precommit": ".husky/pre-commit"
+    "precommit": ".husky/pre-commit",
+    "dev:agents-sync": "node scripts/agents-sync.js",
+    "dev:agents-check": "node scripts/agents-sync.js --check",
+    "dev:docs-sync": "node scripts/ai-docs-sync.js",
+    "dev:docs-check": "node scripts/ai-docs-sync.js --check"
   },
   "devDependencies": {
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "js-yaml": "^4.1.1"
   }
 }

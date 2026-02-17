@@ -18,5 +18,5 @@ export default function Index() {
   }
 
   // If everything complete, go to main app
-  return <Redirect href="/(tabs)/recipes" />;
+  return <Redirect href="/(tabs)/chat" />;
 } 

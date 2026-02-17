@@ -3,7 +3,7 @@ import { ThermomixSpeedValue, ThermomixTemperature, ThermomixTemperatureUnit } f
 
 export interface RawRecipe {
   id: string;
-  picture_url?: string;
+  image_url?: string;
   difficulty: RecipeDifficulty;
   prep_time: number;
   total_time: number;
@@ -38,7 +38,7 @@ export interface RawIngredient {
   name_es?: string;
   plural_name_en?: string;
   plural_name_es?: string;
-  picture_url?: string;
+  image_url?: string;
 }
 
 export interface RawMeasurementUnit {
@@ -110,5 +110,5 @@ export interface RawUsefulItem {
   id: string;
   name_en: string;
   name_es: string;
-  picture_url: string;
+  image_url: string;
 }

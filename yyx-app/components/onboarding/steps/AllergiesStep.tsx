@@ -3,14 +3,14 @@ import { View, ScrollView, KeyboardAvoidingView, Platform, StyleProp, ViewStyle 
 import { Text } from '@/components/common/Text';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { DietaryRestriction, DIETARY_RESTRICTIONS } from '@/types/dietary';
-import { getDietaryRestrictionIcon } from '@/constants/dietaryIcons';
+import { getDietaryRestrictionIcon, DIETARY_RESTRICTION_ICONS } from '@/constants/dietaryIcons';
 import i18n from '@/i18n';
 import { SelectableCard } from '@/components/common/SelectableCard';
 import { StepNavigationButtons } from '@/components/onboarding/StepNavigationButtons';
 import { OtherInputField } from '@/components/form/OtherInputField';
 
 interface AllergiesStepProps {
-  className?: string; // Add className
+  className?: string;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -25,11 +25,11 @@ export function AllergiesStep({ className = '', style }: AllergiesStepProps) {
   );
   const [error, setError] = useState('');
 
-  const handleSelect = (restriction: DietaryRestriction) => {
-    if (restriction === 'none') {
+  const handleSelect = (allergySlug: string) => {
+    if (allergySlug === 'none') {
       // If selecting "none", clear other selections
       updateFormData({
-        dietaryRestrictions: ['none'],
+        dietaryRestrictions: ['none'] as DietaryRestriction[],
         otherAllergy: []
       });
       setOtherAllergies([]);
@@ -38,13 +38,13 @@ export function AllergiesStep({ className = '', style }: AllergiesStepProps) {
     }
 
     // Handle toggling restrictions
-    const isSelected = currentRestrictions.includes(restriction);
+    const isSelected = currentRestrictions.includes(allergySlug as DietaryRestriction);
     const newRestrictions = isSelected
-      ? currentRestrictions.filter(r => r !== restriction)
-      : [...currentRestrictions.filter(r => r !== 'none'), restriction];
+      ? currentRestrictions.filter(r => r !== allergySlug)
+      : [...currentRestrictions.filter(r => r !== 'none'), allergySlug as DietaryRestriction];
 
     // Clear other allergies when deselecting "other"
-    if (isSelected && restriction === 'other') {
+    if (isSelected && allergySlug === 'other') {
       setOtherAllergies([]);
       updateFormData({
         dietaryRestrictions: newRestrictions,
@@ -54,7 +54,7 @@ export function AllergiesStep({ className = '', style }: AllergiesStepProps) {
     }
 
     // Initialize "other" allergies when selecting it
-    if (!isSelected && restriction === 'other') {
+    if (!isSelected && allergySlug === 'other') {
       setOtherAllergies(['']);
       scrollToBottom();
     }
@@ -145,7 +145,13 @@ export function AllergiesStep({ className = '', style }: AllergiesStepProps) {
                   selected={currentRestrictions.includes(restriction)}
                   onPress={() => handleSelect(restriction)}
                   label={i18n.t(`onboarding.steps.allergies.options.${restriction}`)}
-                  icon={getDietaryRestrictionIcon(restriction)}
+                  icon={
+                    restriction === 'none'
+                      ? DIETARY_RESTRICTION_ICONS.none
+                      : restriction === 'other'
+                        ? DIETARY_RESTRICTION_ICONS.other
+                        : getDietaryRestrictionIcon(restriction)
+                  }
                 />
                 {restriction === 'other' && currentRestrictions.includes('other') && (
                   <OtherInputField

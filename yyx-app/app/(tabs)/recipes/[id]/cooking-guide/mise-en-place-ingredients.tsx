@@ -6,12 +6,13 @@ import { useRecipe } from '@/hooks/useRecipe';
 import { RecipeIngredient } from '@/types/recipe.types';
 import { useLocalSearchParams, router } from 'expo-router';
 import { CookingGuideHeader } from '@/components/cooking-guide/CookingGuideHeader';
+import { CookingGuidePageHeader } from '@/components/cooking-guide/CookingGuidePageHeader';
 import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideStepNavigationButtons';
 import { useDevice } from '@/hooks/useDevice';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { MiseEnPlaceIngredient } from '@/components/cooking-guide/MiseEnPlaceIngredient';
 import { Text } from '@/components/common/Text';
-import { LAYOUT } from '@/constants/design-tokens';
+import { LAYOUT, COLORS } from '@/constants/design-tokens';
 
 // Define the ingredient type
 type CheckableIngredient = RecipeIngredient & { checked: boolean };
@@ -61,51 +62,67 @@ export default function IngredientsStep() {
   };
 
   return (
-    <PageLayout
-      scrollEnabled={true}
-      contentPaddingHorizontal={0}
-      footer={
-        <StepNavigationButtons
-          onBack={() => router.back()}
-          onNext={handleNext}
-          backText={i18n.t('recipes.cookingGuide.navigation.back')}
-          nextText={i18n.t('recipes.cookingGuide.navigation.next')}
-        />
-      }
-    >
-      <CookingGuideHeader
-        title={recipe?.name || ''}
-        pictureUrl={recipe?.pictureUrl}
-      />
-
-      {/* Content wrapper - centered on desktop with max-width */}
-      <View
-        className="px-md pb-[120px]"
-        style={!isMobile ? {
-          maxWidth: LAYOUT.maxWidth.cookingGuide,
-          alignSelf: 'center',
-          width: '100%'
-        } : undefined}
+    <View style={{ flex: 1 }}>
+      <PageLayout
+        scrollEnabled={true}
+        contentPaddingHorizontal={0}
+        footer={
+          <StepNavigationButtons
+            onBack={() => router.back()}
+            onNext={handleNext}
+            backText={i18n.t('recipes.cookingGuide.navigation.back')}
+            nextText={i18n.t('recipes.cookingGuide.navigation.next')}
+          />
+        }
       >
-        {/* Ingredients Section */}
-        <View className="mb-lg">
-          <Text preset="subheading" className="mb-sm">
-            {i18n.t('recipes.cookingGuide.miseEnPlace.ingredients.heading')}
-          </Text>
-          {/* Indented content grid */}
-          <View className="flex-row flex-wrap pl-sm">
-            {ingredients.map((ingredient, index) => (
-              <MiseEnPlaceIngredient
-                key={ingredient.id}
-                ingredient={ingredient}
-                onPress={() => handleIngredientPress(index)}
-                width={`${100 / numColumns}%`}
-              />
-            ))}
+        <CookingGuideHeader
+          showTitle={false}
+          pictureUrl={recipe?.pictureUrl}
+        />
+
+        <CookingGuidePageHeader
+          title={recipe?.name || ''}
+          recipeContext={{
+            type: 'cooking',
+            recipeId: id as string,
+            recipeTitle: recipe?.name,
+            stepInstructions: i18n.t('chat.prepareIngredients'),
+            ingredients: ingredients.map(ing => ({
+              name: ing.name,
+              amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
+            }))
+          }}
+        />
+
+        {/* Content wrapper - centered on desktop with max-width */}
+        <View
+          className="px-md pb-[120px]"
+          style={isMobile ? undefined : {
+            maxWidth: LAYOUT.maxWidth.cookingGuide,
+            alignSelf: 'center',
+            width: '100%'
+          }}
+        >
+          {/* Ingredients Section */}
+          <View className="mb-lg">
+            <Text preset="subheading" className="mb-sm">
+              {i18n.t('recipes.cookingGuide.miseEnPlace.ingredients.heading')}
+            </Text>
+            {/* Indented content grid */}
+            <View className="flex-row flex-wrap pl-sm">
+              {ingredients.map((ingredient, index) => (
+                <MiseEnPlaceIngredient
+                  key={ingredient.id}
+                  ingredient={ingredient}
+                  onPress={() => handleIngredientPress(index)}
+                  width={`${100 / numColumns}%`}
+                />
+              ))}
+            </View>
           </View>
         </View>
-      </View>
 
-    </PageLayout>
+      </PageLayout>
+    </View>
   );
 }

@@ -11,6 +11,7 @@ export const profile = {
   bioPlaceholder: "Tell us about yourself",
   save: "Save Changes",
   features: {
+    sectionTitle: "Your Kitchen",
     planner: "My Planner",
     recipes: "My Recipes",
     shoppingList: "My Shopping List",
@@ -114,5 +115,22 @@ export const profile = {
     otherDietPlaceholder: "Enter your diet",
     otherAllergyPlaceholder: "Enter your allergy",
     addAnother: "Add another",
+    cuisinePreferences: "Cuisine Preferences",
+    cuisineSubtitle: "Select cuisines that inspire your cooking",
+  },
+  sections: {
+    aboutYou: "About You",
+    kitchenProfile: "Your Kitchen Profile",
+    healthActivity: "Health & Activity",
+    account: "Account",
+  },
+  summaries: {
+    diet: "Diet",
+    allergies: "Allergies",
+    cuisine: "Cuisine",
+    noDiet: "No diet preferences set",
+    noAllergies: "No allergies set",
+    noCuisine: "No cuisine preferences set",
+    edit: "Edit",
   },
 };

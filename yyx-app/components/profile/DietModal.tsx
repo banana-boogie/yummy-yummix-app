@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, ScrollView, Modal, TouchableOpacity, KeyboardAvoidingView, Platform, Keyboard, Pressable, StyleProp, ViewStyle } from 'react-native';
 import { Text } from '@/components/common/Text';
-import { DietType, DIET_TYPES } from '@/types/dietary';
+import { DietType, SELECTABLE_DIET_TYPES } from '@/types/dietary';
 import { getDietTypeIcon } from '@/constants/dietaryIcons';
 import i18n from '@/i18n';
 import { SelectableCard } from '@/components/common/SelectableCard';
@@ -35,7 +35,7 @@ export function DietModal({
   );
   const [error, setError] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
-  const { isWeb, isPhone } = useDevice();
+  const { isWeb } = useDevice();
 
   useEffect(() => {
     setDietTypes(currentDietTypes);
@@ -123,14 +123,14 @@ export function DietModal({
               className={`bg-background-default rounded-lg self-center p-lg shadow-md w-full max-w-[400px] ${isWeb ? 'max-h-[80%] h-auto' : 'h-[90%] rounded-b-none'} ${className}`}
               style={style}
             >
-              <View className="flex-row justify-between items-center mb-lg">
-                <Text preset="h1" className="flex-1 text-center">
-                  {i18n.t('profile.personalData.diet')}
-                </Text>
-                <TouchableOpacity onPress={onClose} className="absolute right-0 p-1">
+              <View className="items-end mb-xs">
+                <TouchableOpacity onPress={onClose} className="p-1">
                   <Feather name="x" size={24} className="text-text-default" />
                 </TouchableOpacity>
               </View>
+              <Text preset="h1" className="text-center mb-lg">
+                {i18n.t('profile.personalData.diet')}
+              </Text>
 
               <ScrollView
                 ref={scrollViewRef}
@@ -140,7 +140,7 @@ export function DietModal({
                 keyboardShouldPersistTaps="always"
               >
                 <View className="gap-sm">
-                  {DIET_TYPES.map((dietType) => (
+                  {SELECTABLE_DIET_TYPES.map((dietType) => (
                     <React.Fragment key={dietType}>
                       <SelectableCard
                         selected={dietTypes.includes(dietType)}

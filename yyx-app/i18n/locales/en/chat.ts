@@ -23,6 +23,7 @@ export const chat = {
   thinking: "Irmixy is thinking...",
   searching: "Searching for recipes...",
   generating: "Creating something special...",
+  enriching: "Adding finishing touches...",
   voice: {
     greeting: "Hi! I'm Irmixy, your sous chef. What can I help you with?",
     connecting: "Connecting to Irmixy...",
@@ -38,9 +39,18 @@ export const chat = {
     hearing: "Hearing you...",
     silenceDetected: "Silence detected",
     waitingForSpeech: "Waiting for speech...",
+    quotaWarningTitle: "Voice Usage Warning",
     quotaWarning: "You have {{minutes}} minutes remaining this month.",
     quotaExceeded: "You have used all your voice minutes for this month.",
+    userPrefix: "You: ",
+    errorPrefix: "Error: ",
     minsRemaining: "{{mins}} mins remaining",
+    executingTool: "Working on it...",
+    mobileOnly: {
+      title: "Voice Chat",
+      message: "Voice chat is available on our mobile app. Use text chat below, or download the app to chat with Irmixy using your voice.",
+      hint: "Use text chat below, or download our mobile app for voice features",
+    },
   },
   suggestions: {
     suggestRecipe: "Suggest a recipe",
@@ -76,4 +86,25 @@ export const chat = {
   andMore: "and {{count}} more",
   miseEnPlace: "Mise en place",
   prepareIngredients: "Prepare your ingredients.",
+  // Cooking progress & resume
+  resume: {
+    resumeCooking: "Resume cooking",
+    resumePrompt: "You were cooking {{recipeName}} — step {{step}} of {{total}}. Want to pick up where you left off?",
+    startOver: "Start over",
+    startOverFailed: "Couldn't start over right now. Please try again.",
+  },
+  // Fallback when no recipes found
+  fallback: {
+    noResults: "I couldn't find recipes matching that, but I can create something custom!",
+    createFromIngredients: "Create from ingredients",
+    createFromIngredientsMessage: "Help me create a recipe from ingredients I have",
+    surpriseMe: "Surprise me",
+    surpriseMeMessage: "Create a fun recipe for me",
+  },
+  // Replay / retrieval
+  replay: {
+    foundOne: "Found it! Here's your recipe.",
+    foundMultiple: "I found a few matches. Which one did you mean?",
+    notFound: "I couldn't find that recipe. Want to create a new one?",
+  },
 };

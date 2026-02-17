@@ -1,206 +1,163 @@
 # YummyYummix
 
-A cross-platform cooking app with recipe discovery, step-by-step cooking guides, and AI-powered sous chef features.
+A cross-platform cooking app with recipe discovery, step-by-step cooking guides, and AI-powered sous chef features. Designed for Thermomix users.
 
 ## Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
-- Docker Desktop (for local Supabase)
 - Supabase CLI: `brew install supabase/tap/supabase`
 - Xcode (for iOS) or Android Studio (for Android)
 
-### Setup
+### First-Time Setup
 
-1. **Clone and install**
-   ```bash
-   git clone <repo-url>
-   cd yummy-yummix-app
-   cd yyx-app && npm install
-   ```
+```bash
+# Clone and install
+git clone <repo-url>
+cd yummy-yummix-app/yyx-app
+npm install
 
-2. **Start local Supabase**
-   ```bash
-   cd ../yyx-server
-   supabase start
-   ```
+# Link to Supabase Cloud (first time only)
+cd ../yyx-server
+npm run link
 
-   Note the local API URL and credentials shown.
+# Run the app
+cd ../yyx-app
+npm run ios
+```
 
-3. **Configure environment (if needed)**
-
-   `.env.local` is already configured for local development. If your local network IP changes:
-   ```bash
-   # Find your IP
-   ifconfig | grep "inet " | grep -v 127.0.0.1
-
-   # Update yyx-app/.env.local with your IP
-   EXPO_PUBLIC_SUPABASE_URL=http://YOUR_IP:54321
-   ```
-
-4. **Run the app**
-   ```bash
-   cd ../yyx-app
-   npm run ios:device    # Physical iPhone
-   npm run ios           # iOS Simulator
-   npm run android       # Android
-   ```
+On the login screen, tap **"Dev Login"** to sign in instantly.
 
 ## Development Workflow
 
-### Daily Development
-
+### Run the App
 ```bash
-# 1. Start Supabase (if not running)
-cd yyx-server && supabase start
-
-# 2. Run the app
-cd ../yyx-app && npm run ios:device
+cd yyx-app
+npm run ios           # Physical iPhone
+npm run ios:sim       # iOS Simulator
+npm run android       # Physical Android
 ```
 
 ### Database Changes
-
-**Create migration:**
 ```bash
 cd yyx-server
-supabase migration new add_feature_name
+npm run backup        # ALWAYS backup first!
+npm run migration:new add_feature_name
+# Edit: supabase/migrations/TIMESTAMP_add_feature_name.sql
+npm run db:push       # Push to cloud
 ```
 
-**Edit the migration:**
-- File: `yyx-server/supabase/migrations/TIMESTAMP_add_feature_name.sql`
-- Add your SQL (CREATE TABLE, ALTER TABLE, etc.)
-
-**Test locally:**
-```bash
-supabase db reset  # Drops DB, reapplies all migrations from scratch
-```
-
-**Deploy to production:**
-```bash
-supabase db push
-```
-
-### Edge Functions
-
-**Test locally:**
+### Deploy Edge Functions
 ```bash
 cd yyx-server
-supabase functions serve [function-name] --env-file .env
+npm run deploy irmixy-chat-orchestrator  # Single function
+npm run deploy:all                       # All functions
 ```
 
-**Deploy:**
-```bash
-supabase functions deploy [function-name]
-```
+### View Logs
+Use Supabase Dashboard: `Edge Functions -> irmixy-chat-orchestrator -> Logs`.
 
 ## Project Structure
 
 ```
 yummy-yummix-app/
 ├── yyx-app/              # React Native mobile app (Expo)
-│   ├── app/              # Expo Router screens (file-based routing)
+│   ├── app/              # Expo Router screens
 │   ├── components/       # Reusable UI components
-│   ├── contexts/         # React contexts (Auth, Language, etc.)
+│   ├── contexts/         # React contexts
 │   ├── services/         # API services
-│   ├── hooks/            # Custom React hooks
-│   ├── lib/              # Supabase client setup
-│   ├── .env              # Production config (gitignored)
-│   └── .env.local        # Local dev config (committed)
+│   └── .env.local        # Cloud config (gitignored)
 │
-└── yyx-server/           # Backend
-    └── supabase/
-        ├── functions/    # Edge Functions (Deno/TypeScript)
-        └── migrations/   # Database migrations
+└── yyx-server/           # Backend (Supabase)
+    ├── supabase/
+    │   ├── functions/    # Edge Functions (Deno/TypeScript)
+    │   └── migrations/   # Database migrations
+    ├── scripts/          # Backup and utility scripts
+    └── .env.local        # Cloud config (gitignored)
 ```
 
 ## Tech Stack
 
 - **Framework**: React Native + Expo
 - **Styling**: NativeWind (Tailwind for React Native)
-- **Backend**: Supabase (Auth, Database, Storage, Edge Functions)
+- **Backend**: Supabase Cloud (Auth, Database, Storage, Edge Functions)
 - **Routing**: Expo Router (file-based)
 - **Languages**: TypeScript, i18n (English + Spanish)
 
 ## Common Commands
 
-### Mobile App
+### Mobile App (yyx-app/)
 ```bash
-npm start            # Start Expo dev server
-npm run ios:device   # Run on physical iPhone (local dev)
-npm run ios:prod     # Build with production Supabase
-npm run android      # Run on Android
+npm run ios          # Run on physical iPhone
+npm run ios:sim      # Run on iOS Simulator
+npm run android      # Run on physical Android
 npm test             # Run tests
 npm run lint         # Lint code
 ```
 
-### Supabase
+### Supabase (yyx-server/)
 ```bash
-supabase start       # Start all local services
-supabase stop        # Stop services
-supabase status      # Check status
-supabase db reset    # Reset and reapply all migrations
-supabase db push     # Deploy migrations to production
+npm run link         # Link to cloud project
+npm run db:push      # Push migrations
+npm run deploy:all   # Deploy all functions
+npm run backup:all   # Backup database + storage
 ```
 
-## Environment Variables
+## Environment Setup
 
-### `.env.local` (Local Development - Committed)
-Points to local Supabase instance. Safe to commit (no secrets).
+Copy the example files and add your credentials:
 
-```env
-EXPO_PUBLIC_SUPABASE_URL=http://192.168.1.x:54321
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc... # Local dev key (public)
+```bash
+cp yyx-app/.env.example yyx-app/.env.local
+cp yyx-server/.env.example yyx-server/.env.local
 ```
 
-### `.env` (Production - Gitignored)
-Contains production URLs and API keys. Never commit.
+Get credentials from:
+- Supabase: https://supabase.com/dashboard/project/YOUR_PROJECT/settings/api
+- OpenAI: https://platform.openai.com/api-keys
 
-```env
-EXPO_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=xxx
-OPENAI_API_KEY=sk-proj-xxx
-USDA_API_KEY=xxx
+## Backup Strategy
+
+**Always backup before migrations:**
+```bash
+cd yyx-server
+npm run backup:all    # Database + Storage
 ```
+
+Supabase Free tier has NO automated backups. Run `npm run backup:all` before any migration or deployment.
+
+## Migration Rollback
+
+If a migration breaks the database:
+
+1. Create rollback migration:
+   ```bash
+   npm run migration:new rollback_bad_feature
+   # Edit to undo changes (DROP TABLE, DROP COLUMN, etc.)
+   ```
+
+2. Push rollback:
+   ```bash
+   npm run db:push
+   ```
 
 ## Troubleshooting
 
-### Can't connect to local Supabase
+### App can't connect
+- Verify `.env.local` has correct cloud URLs
+- Check project is active at https://supabase.com/dashboard
+- Clear caches: `rm -rf .expo node_modules/.cache`
 
-1. Check Supabase is running: `supabase status`
-2. Verify your IP matches `.env.local`: `ifconfig | grep "inet "`
-3. Ensure Mac and device are on same WiFi
-4. Check firewall allows port 54321
-
-### Migrations out of sync
-
-```bash
-cd yyx-server
-supabase db pull    # Pull current production schema
-supabase db reset   # Reset local to match
-```
-
-### Build artifacts appearing in git
-
-Native folders (`ios/`, `android/`) are gitignored. They regenerate automatically.
-
-## Contributing
-
-1. Create a feature branch: `git checkout -b feature/my-feature`
-2. Make changes and test locally with `supabase db reset`
-3. Commit using conventional commits: `feat(scope): description`
-4. Push and create a PR
+### Edge function errors
+Check Supabase Dashboard logs: `Edge Functions -> irmixy-chat-orchestrator -> Logs`.
 
 ## Documentation
 
 - **CLAUDE.md**: Detailed conventions for AI assistance
-- **README.md**: This file - getting started guide
-- **Supabase Docs**: https://supabase.com/docs
+- **AGENTS.md**: Guidelines for AI coding agents
+- **docs/operations/TESTING.md**: Testing documentation
 
 ## License
 
 [Add your license]
-
-## Support
-
-[Add contact/support information]

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { Tabs, Redirect } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDevice } from '@/hooks/useDevice';
@@ -7,27 +8,20 @@ import { useTabBarVisibility } from '@/hooks/useTabBarVisibility';
 import { COLORS, LAYOUT } from '@/constants/design-tokens';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
-// Tab configuration with proper Ionicons names
-const TAB_CONFIG = [
-  {
-    name: 'recipes',
-    icon: 'home',
-    iconActive: 'home',
-    href: '/recipes',
-  },
-  {
-    name: 'chat',
-    icon: 'chatbubble-outline',
-    iconActive: 'chatbubble',
-    href: '/chat',
-  },
-  {
-    name: 'profile',
-    icon: 'person-outline',
-    iconActive: 'person',
-    href: '/profile',
-  },
+type TabConfigItem = {
+  name: string;
+  href: string;
+  icon?: string;
+  iconActive?: string;
+  image?: ReturnType<typeof require>;
+};
+
+const TAB_CONFIG: TabConfigItem[] = [
+  { name: 'recipes', icon: 'sparkles-outline', iconActive: 'sparkles', href: '/recipes' },
+  { name: 'chat', image: require('@/assets/images/irmixy-avatar/irmixy-face.png'), href: '/chat' },
+  { name: 'profile', icon: 'person-outline', iconActive: 'person', href: '/profile' },
 ];
 
 export default function TabLayout() {
@@ -38,6 +32,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      initialRouteName="chat"
       screenOptions={{
         headerShown: false,
       }}
@@ -56,10 +51,32 @@ export default function TabLayout() {
   );
 }
 
-function PremiumTabBar({ state, navigation }: any) {
+function PremiumTabBar({ state, navigation }: BottomTabBarProps) {
   const { isLarge, isWeb, isPhone } = useDevice();
   const showTabBar = useTabBarVisibility();
   const insets = useSafeAreaInsets();
+  const activeRouteName = state.routes[state.index]?.name;
+
+  const renderTabIcon = (tab: TabConfigItem, isActive: boolean, size: number) => {
+    if (tab.image) {
+      return (
+        <Image
+          source={tab.image}
+          style={{ width: size, height: size, borderRadius: size / 2, opacity: isActive ? 1 : 0.35 }}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+        />
+      );
+    }
+    const iconName = isActive ? tab.iconActive : tab.icon;
+    return (
+      <Ionicons
+        name={iconName as any}
+        size={size}
+        color={isActive ? COLORS.primary.darkest : COLORS.grey.medium}
+      />
+    );
+  };
 
   // Don't show tab bar on mobile web or when it should be hidden based on route
   if ((isWeb && isPhone) || !showTabBar) return null;
@@ -78,9 +95,8 @@ function PremiumTabBar({ state, navigation }: any) {
         }}
       >
         <View className="flex-col items-center justify-start gap-lg pt-lg">
-          {TAB_CONFIG.map((tab, index) => {
-            const isActive = state.index === index;
-            const iconName = isActive ? tab.iconActive : tab.icon;
+          {TAB_CONFIG.map((tab) => {
+            const isActive = activeRouteName === tab.name;
 
             return (
               <TouchableOpacity
@@ -93,11 +109,7 @@ function PremiumTabBar({ state, navigation }: any) {
                   className={`w-12 h-12 rounded-xl items-center justify-center ${isActive ? 'bg-primary-light' : 'bg-transparent'
                     }`}
                 >
-                  <Ionicons
-                    name={iconName as any}
-                    size={24}
-                    color={isActive ? COLORS.primary.darkest : COLORS.grey.medium}
-                  />
+                  {renderTabIcon(tab, isActive, tab.image ? 32 : 24)}
                 </View>
               </TouchableOpacity>
             );
@@ -122,9 +134,9 @@ function PremiumTabBar({ state, navigation }: any) {
       }}
     >
       <View className="flex-row items-center justify-around px-lg">
-        {TAB_CONFIG.map((tab, index) => {
-          const isActive = state.index === index;
-          const iconName = isActive ? tab.iconActive : tab.icon;
+        {TAB_CONFIG.map((tab) => {
+          const isActive = activeRouteName === tab.name;
+          const iconSize = tab.image ? (isActive ? 34 : 32) : (isActive ? 26 : 24);
 
           return (
             <TouchableOpacity
@@ -138,11 +150,7 @@ function PremiumTabBar({ state, navigation }: any) {
                 className={`w-12 h-12 rounded-2xl items-center justify-center ${isActive ? 'bg-primary-light' : 'bg-transparent'
                   }`}
               >
-                <Ionicons
-                  name={iconName as any}
-                  size={isActive ? 26 : 24}
-                  color={isActive ? COLORS.primary.darkest : COLORS.grey.medium}
-                />
+                {renderTabIcon(tab, isActive, iconSize)}
               </View>
               {isActive && (
                 <View

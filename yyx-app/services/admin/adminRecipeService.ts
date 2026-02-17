@@ -17,7 +17,7 @@ class AdminRecipeService extends BaseService {
         id,
         name_en,
         name_es,
-        picture_url,
+        image_url,
         difficulty,
         prep_time,
         total_time,
@@ -50,7 +50,7 @@ class AdminRecipeService extends BaseService {
         id,
         name_en,
         name_es,
-        picture_url,
+        image_url,
         difficulty,
         prep_time,
         total_time,
@@ -66,7 +66,7 @@ class AdminRecipeService extends BaseService {
             id,
             name_en,
             name_es,
-            picture_url
+            image_url
           )
         ),
         ingredients:recipe_ingredients(
@@ -88,7 +88,7 @@ class AdminRecipeService extends BaseService {
             name_es,
             plural_name_en,
             plural_name_es,
-            picture_url
+            image_url
           ),
           measurement_unit:measurement_units(
             id,
@@ -137,7 +137,7 @@ class AdminRecipeService extends BaseService {
               name_es,
               plural_name_en,
               plural_name_es,
-              picture_url
+              image_url
             ),
             measurement_unit:measurement_units(
               id,
@@ -231,13 +231,13 @@ class AdminRecipeService extends BaseService {
       // Get old recipe to get the old image url
       const oldRecipe = await this.supabase
         .from('recipes')
-        .select('picture_url')
+        .select('image_url')
         .eq('id', id)
         .single();
 
-      if (oldRecipe?.data?.picture_url) {
+      if (oldRecipe?.data?.image_url) {
         try {
-          await this.deleteImage(oldRecipe.data.picture_url);
+          await this.deleteImage(oldRecipe.data.image_url);
         } catch (error) {
           console.error('Error deleting old image:', error);
         }
@@ -519,14 +519,14 @@ class AdminRecipeService extends BaseService {
       // Get the recipe to check if it has an image to delete
       const { data: recipe } = await this.supabase
         .from('recipes')
-        .select('picture_url')
+        .select('image_url')
         .eq('id', id)
         .single();
         
       // If recipe had an image, delete it from storage
-      if (recipe?.picture_url) {
+      if (recipe?.image_url) {
         try {
-          await this.deleteImage(recipe.picture_url);
+          await this.deleteImage(recipe.image_url);
         } catch (imageError) {
           console.error('Error deleting recipe image:', imageError);
           // Continue execution even if image deletion fails

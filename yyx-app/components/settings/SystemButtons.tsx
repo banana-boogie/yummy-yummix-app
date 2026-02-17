@@ -16,50 +16,65 @@ export function SystemButtons({
   language,
   onLanguageChange,
   measurementSystem,
-  onMeasurementChange
+  onMeasurementChange,
 }: SystemButtonsProps) {
   const { isLarge: isLargeScreen } = useDevice();
 
   const renderButton = (
     label: string,
     isActive: boolean,
-    onPress: () => void
+    onPress: () => void,
+    sublabel?: string
   ) => (
     <TouchableOpacity
-      className={`
-        flex-1 items-center justify-center rounded-md py-sm px-md
-        ${isActive ? 'bg-primary-medium' : 'bg-background-secondary'}
-        ${isLargeScreen ? 'py-md px-lg' : ''}
-      `}
       onPress={onPress}
+      className={`flex-1 items-center justify-center py-md px-sm rounded-lg border-2 ${isActive
+          ? 'bg-primary-medium border-primary-darkest'
+          : 'bg-white border-grey-medium'
+        }`}
     >
       <Text
-        className={`
-          text-center text-base
-          ${isActive ? 'text-neutral-white font-semibold' : 'text-text-default'}
-          ${isLargeScreen ? 'text-md' : ''}
-        `}
+        className={`text-sm font-semibold ${isActive ? 'text-white' : 'text-text-default'
+          }`}
       >
         {label}
       </Text>
+      {sublabel && (
+        <Text
+          className={`text-xs mt-xs ${isActive ? 'text-white/70' : 'text-text-secondary'
+            }`}
+        >
+          {sublabel}
+        </Text>
+      )}
     </TouchableOpacity>
   );
 
   return (
-    <View className="mb-lg px-md">
+    <View>
+      {/* Language Selection */}
       <View className="mb-xl">
         <Text className="text-text-secondary text-base mb-sm font-medium">
-          {i18n.t('profile.language')}
+          {i18n.t('settings.language')}
         </Text>
         <View className={`flex-row gap-sm ${isLargeScreen ? 'gap-md max-w-[600px]' : ''}`}>
-          {renderButton('Español', language === 'es', () => onLanguageChange('es'))}
-          {renderButton('English', language === 'en', () => onLanguageChange('en'))}
+          {renderButton(
+            i18n.t('common.english'),
+            language === 'en',
+            () => onLanguageChange('en')
+          )}
+          {renderButton(
+            i18n.t('common.spanish'),
+            language === 'es',
+            () => onLanguageChange('es')
+          )}
         </View>
       </View>
 
+      {/* Measurement System Selection */}
       <View className="mb-xl">
         <Text className="text-text-secondary text-base mb-sm font-medium">
-          {i18n.t('profile.measurementSystem')}
+          {i18n.t('settings.measurementSystem')}
         </Text>
         <View className={`flex-row gap-sm ${isLargeScreen ? 'gap-md max-w-[600px]' : ''}`}>
           {renderButton(

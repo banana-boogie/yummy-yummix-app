@@ -2,123 +2,135 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+<!-- BEGIN:shared/project-overview -->
 ## Project Overview
 
-**YummyYummix** is a cross-platform cooking app with recipe discovery, step-by-step cooking guides, and AI-powered sous chef features.
+**YummyYummix** is a cross-platform cooking app with recipe discovery, step-by-step cooking guides, and AI-powered sous chef features. **The app is designed with Thermomix users as the primary audience**, providing specialized cooking parameters and equipment-specific recipe adaptations. Our mission: "Make cooking easy and stress-free, with a dash of fun." **Irmixy** is the AI cooking companion that delivers this mission.
+
+### Target Audience
+**Primary users are women aged 30-60** who are Thermomix owners. They are:
+- Busy home cooks balancing multiple responsibilities (family, work, health)
+- Health-conscious and interested in nutrition and dietary wellness
+- Looking for time-saving solutions (30-min meals, make-ahead, batch cooking)
+- Family-oriented (cooking for households, kid-friendly options)
+- Value practical, easy-to-read interfaces over overly playful designs
+- Appreciate inspirational content that feels achievable, not exclusionary
+- Want warmth and approachability without sacrificing sophistication
+
+**Two key segments:**
+- **Sofía (35-45)**: Busy professional, tech-comfortable, wants kitchen efficiency, may have young family
+- **Lupita (55+)**: Experienced home cook, has time to explore, **technologically challenged — the majority segment**. Design must guide her explicitly — no self-discovery.
+
+**Mexico-first launch** — Spanish is the primary language.
 
 ### Repository Structure
 - `yyx-app/` - React Native mobile app (Expo)
 - `yyx-server/` - Backend with Supabase Edge Functions (Deno/TypeScript)
 - `supabase/` - Supabase configuration
 
+<!-- END:shared/project-overview -->
+
+<!-- BEGIN:shared/development-setup -->
 ## Development Setup
 
 ### Prerequisites
 - **Node.js** (v18+)
-- **Docker Desktop** (for local Supabase)
 - **Supabase CLI**: `brew install supabase/tap/supabase`
 - **iOS**: Xcode (for iOS development)
 - **Android**: Android Studio (for Android development)
 
 ### First-Time Setup
 
-1. **Install dependencies**
-   ```bash
-   cd yyx-app
-   npm install
-   ```
+YummyYummix uses Supabase Cloud. Credentials are configured in `.env.local` files.
 
-2. **Start local Supabase**
-   ```bash
-   cd yyx-server
-   supabase start
-   ```
+```bash
+# Clone and install
+cd yyx-app
+npm install
 
-   This will:
-   - Start PostgreSQL, PostgREST, GoTrue, Storage, and other services
-   - Apply all migrations from `supabase/migrations/`
-   - Give you local URLs and credentials
+# Link workspace to cloud project (first time only)
+cd ../yyx-server
+npm run link          # Follow prompts to link to cloud project
 
-3. **Environment Configuration**
+# Run the app
+cd ../yyx-app
+npm run ios           # Build and run on iPhone
+```
 
-   The app uses two environment files:
-   - **`.env.local`** (committed) - Local development, points to `http://192.168.1.x:54321`
-   - **`.env`** (gitignored) - Production secrets, points to cloud Supabase
+### Logging In
 
-   By default, `.env.local` takes priority, so you'll use local Supabase automatically.
-
-   **Note**: If your local network IP changes, update `EXPO_PUBLIC_SUPABASE_URL` in `.env.local`
-   ```bash
-   # Find your IP
-   ifconfig | grep "inet " | grep -v 127.0.0.1
-   ```
-
-4. **Build and run**
-   ```bash
-   cd yyx-app
-   npm run ios:device    # For physical iPhone
-   npm run ios           # For iOS Simulator
-   npm run android       # For Android
-   ```
+On the login screen, tap **"Dev Login"** to sign in with pre-configured dev credentials.
 
 ---
 
 ## Daily Development Workflow
 
-### 1. Start Local Supabase
-```bash
-cd yyx-server
-supabase start        # Start all services
-supabase status       # Check if running
-supabase stop         # Stop when done
-```
-
-### 2. Run the App
+### Quick Start
 ```bash
 cd yyx-app
-npm run ios:device    # Local dev on physical device
-npm run ios:local     # Same as above
-npm run ios:prod      # Production build (uses cloud Supabase)
+npm run ios           # Run the app on iPhone
 ```
 
-### 3. Making Database Changes
+### Making Database Changes
 
 **Create a new migration:**
 ```bash
 cd yyx-server
-supabase migration new add_my_feature
+npm run backup        # ALWAYS backup before migrations!
+npm run migration:new add_my_feature
 ```
 
 **Edit the migration:**
 - File will be in: `yyx-server/supabase/migrations/TIMESTAMP_add_my_feature.sql`
 - Write your SQL (CREATE TABLE, ALTER TABLE, etc.)
 
-**Test locally:**
+**Push to cloud:**
 ```bash
-supabase db reset     # Drops DB, reapplies all migrations
+npm run db:push       # Applies new migrations to cloud
 ```
 
-**Push to production:**
-```bash
-supabase db push      # Applies new migrations to cloud
-```
-
-**Why `db reset` vs `migration up`?**
-- `db reset` validates your entire migration chain works from scratch
-- Catches ordering issues before production
-- Recommended for local development
-- Production uses `db push` which only applies new migrations
-
-### 4. Working with Edge Functions
+### Deploying Edge Functions
 ```bash
 cd yyx-server
-
-# Test locally
-supabase functions serve [function-name] --env-file .env
-
-# Deploy to production
-supabase functions deploy [function-name]
+npm run deploy irmixy-chat-orchestrator  # Deploy single function
+npm run deploy:all                       # Deploy all functions
 ```
+
+### Viewing Logs
+Use Supabase Dashboard: `Edge Functions -> <function> -> Logs`.
+
+### Backup Before Deploy (REQUIRED)
+
+**Always backup before deploying migrations:**
+```bash
+cd yyx-server
+npm run backup:all    # Database + Storage
+```
+
+Backup commands:
+- `npm run backup` - Database only
+- `npm run backup:storage` - Storage files only
+- `npm run backup:all` - Both (recommended)
+
+### Migration Rollback
+
+If a migration breaks the database:
+
+1. **Create rollback migration:**
+   ```bash
+   npm run migration:new rollback_bad_feature
+   # Edit migration to undo changes (DROP TABLE, DROP COLUMN, etc.)
+   ```
+
+2. **Push rollback:**
+   ```bash
+   npm run db:push
+   ```
+
+**Prevention:**
+- Always backup before migrations
+- Keep migrations small and reversible
+- Run tests before pushing
 
 ---
 
@@ -126,28 +138,37 @@ supabase functions deploy [function-name]
 
 ### Mobile App (yyx-app/)
 ```bash
-npm install          # Install dependencies
-npm start            # Start Expo dev server
-npm run ios          # Run on iOS Simulator
-npm run ios:device   # Run on physical iPhone (local dev)
-npm run ios:local    # Same as above
-npm run ios:prod     # Build with production Supabase
-npm run android      # Run on Android
+npm run ios          # Run on physical iPhone
+npm run ios:sim      # Run on iOS Simulator
+npm run android      # Run on physical Android
+npm run android:sim  # Run on Android Emulator
 npm run web          # Run web version
 npm test             # Run tests with Jest (watch mode)
+npm run test:ci      # Run tests once with coverage
 npm run lint         # Run ESLint
 ```
 
 ### Supabase (yyx-server/)
 ```bash
-supabase start                    # Start all local services
-supabase stop                     # Stop all services
-supabase status                   # Check service status
-supabase migration new <name>    # Create new migration
-supabase db reset                # Reset and reapply all migrations
-supabase db push                 # Push migrations to production
-supabase functions serve         # Run edge functions locally
-supabase functions deploy <name> # Deploy edge function
+# Cloud operations
+npm run link         # Link workspace to cloud project
+npm run db:push      # Push migrations to cloud
+npm run db:pull      # Pull cloud schema
+npm run deploy       # Deploy single edge function
+npm run deploy:all   # Deploy all edge functions
+
+# Backups (ALWAYS run before migrations!)
+npm run backup       # Database backup
+npm run backup:storage  # Storage backup
+npm run backup:all   # Both database and storage
+
+# Migrations
+npm run migration:new <name>  # Create new migration
+
+# Testing
+npm test             # Run unit tests
+npm run test:integration  # Integration tests
+npm run get-test-jwt # Get JWT for curl testing
 ```
 
 ### Running Tests
@@ -169,40 +190,68 @@ deno task test:coverage           # Run with coverage
 deno task test:integration        # Run integration tests (requires staging env)
 ```
 
-For detailed testing documentation, see [TESTING.md](./TESTING.md).
+For detailed testing documentation, see [TESTING.md](./docs/operations/TESTING.md).
 
 ---
 
 ## Environment Variables
 
-### Local Development (`.env.local` - committed)
+**Environment Strategy:**
+- `.env.example` files are committed (templates with dummy values)
+- `.env.local` and `.env` files are gitignored (contain real credentials)
+
+### Setup
 ```bash
-EXPO_PUBLIC_SUPABASE_URL=http://192.168.1.222:54321
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc... # Local dev key (safe to commit)
-EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL=http://192.168.1.222:54321/functions/v1
+# Copy templates
+cp yyx-app/.env.example yyx-app/.env.local
+cp yyx-server/.env.example yyx-server/.env.local
+
+# Edit with real values from Supabase dashboard
 ```
 
-### Production (`.env` - gitignored, contains secrets)
+### Mobile App (yyx-app/.env.local)
 ```bash
 EXPO_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc... # Production key (secret)
+EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGc...
 EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL=https://xxx.supabase.co/functions/v1
-OPENAI_API_KEY=sk-proj-xxx          # Secret
-USDA_API_KEY=xxx                     # Secret
+EXPO_PUBLIC_DEV_LOGIN_EMAIL=dev@yummyyummix.local
+EXPO_PUBLIC_DEV_LOGIN_PASSWORD=devpassword123
 ```
 
-**Priority**: `.env.local` overrides `.env` when present.
+### Server (yyx-server/.env.local)
+```bash
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_ANON_KEY=eyJhbGc...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...  # Get from dashboard (NEVER via MCP)
+OPENAI_API_KEY=sk-proj-xxx
+USDA_API_KEY=xxx
+```
+
+### MCP Security Note
+
+**NEVER ask Claude to fetch sensitive credentials via MCP tools.**
+
+MCP tool results pass through Anthropic's servers. Get sensitive keys directly:
+- Supabase keys: https://supabase.com/dashboard/project/YOUR_PROJECT/settings/api
+- OpenAI: https://platform.openai.com/api-keys
+
+**Safe MCP operations:** logs, schema info, deployments, SQL queries.
+**Unsafe via MCP:** service_role_key, API keys, passwords.
 
 ---
 
 ## Troubleshooting
 
-### App can't connect to local Supabase
-1. Check Supabase is running: `cd yyx-server && supabase status`
-2. Verify your IP hasn't changed: `ifconfig | grep "inet " | grep -v 127.0.0.1`
-3. Update `.env.local` if IP changed
-4. Ensure Mac and device are on same WiFi network
-5. Check firewall isn't blocking port 54321
+### App can't connect to Supabase
+1. Verify `.env.local` has correct cloud URLs
+2. Check the project is active: https://supabase.com/dashboard
+3. Clear app caches: `rm -rf .expo node_modules/.cache`
+4. Restart: `npm run ios`
+
+### Dev Login button doesn't appear
+The Dev Login button only shows when:
+- Running in development mode (`__DEV__` is true)
+- `EXPO_PUBLIC_DEV_LOGIN_EMAIL` and `EXPO_PUBLIC_DEV_LOGIN_PASSWORD` are set in `.env.local`
 
 ### Native build folders (`ios/`, `android/`) appear
 - These are auto-generated and gitignored
@@ -211,14 +260,20 @@ USDA_API_KEY=xxx                     # Secret
 
 ### Migrations out of sync
 ```bash
-# Pull current production schema
 cd yyx-server
-supabase db pull
-
-# Reset local DB to match
-supabase db reset
+npm run db:pull       # Pull current cloud schema
 ```
 
+### Edge function errors
+Check Supabase Dashboard logs: `Edge Functions -> irmixy-chat-orchestrator -> Logs`.
+
+### Useful URLs
+- **Supabase Dashboard**: https://supabase.com/dashboard
+- **Project Settings**: https://supabase.com/dashboard/project/YOUR_PROJECT/settings/api
+
+<!-- END:shared/development-setup -->
+
+<!-- BEGIN:shared/architecture -->
 ## Tech Stack
 
 | Layer | Technology |
@@ -228,6 +283,113 @@ supabase db reset
 | Backend | Supabase (Auth, DB, Storage, Edge Functions) |
 | Routing | Expo Router (file-based in `app/`) |
 | Edge Functions | Deno + TypeScript |
+
+## AI Architecture
+
+### AI Gateway (`yyx-server/supabase/functions/_shared/ai-gateway/`)
+
+**All AI interactions must go through the AI Gateway.** Never call OpenAI, Anthropic, or other providers directly.
+
+#### Why Use the Gateway?
+- **Provider Independence** - Switch models/providers via env vars without code changes
+- **Usage-Based Routing** - Different models for different tasks (`text`, `parsing`, `reasoning`)
+- **Cost Optimization** - Use cheaper models for simple tasks
+- **Consistent Interface** - Same API for all providers
+- **Structured Output** - JSON schema validation built-in
+- **Streaming Support** - SSE streaming with `chatStream()`
+
+#### How to Use:
+
+```typescript
+import { chat, chatStream } from '../_shared/ai-gateway/index.ts';
+
+// For structured output (always use JSON schema):
+const response = await chat({
+  usageType: 'text',  // or 'parsing', 'reasoning', 'voice'
+  messages: [
+    { role: 'system', content: 'You are a helpful assistant' },
+    { role: 'user', content: 'Hello!' },
+  ],
+  temperature: 0.7,
+  responseFormat: {
+    type: 'json_schema',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        suggestions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              label: { type: 'string' },
+              message: { type: 'string' },
+            },
+            required: ['label', 'message'],
+          },
+        },
+      },
+      required: ['message', 'suggestions'],
+    },
+  },
+});
+
+// For streaming:
+for await (const chunk of chatStream({
+  usageType: 'text',
+  messages: [...],
+  temperature: 0.7,
+})) {
+  console.log(chunk);
+}
+```
+
+#### Usage Types:
+
+| Type | Default Model | Use Case | Cost |
+|------|--------------|----------|------|
+| `text` | gpt-4o-mini | Chat completions, general text generation | Low |
+| `parsing` | gpt-4o-mini | Intent classification, structured data extraction | Very low |
+| `reasoning` | o1-mini | Complex reasoning, multi-step problems | High |
+| `voice` | gpt-4o-mini | Voice-optimized short responses | Low |
+
+#### Configuration:
+
+```bash
+# Required API Keys (in .env or Supabase secrets)
+OPENAI_API_KEY=sk-proj-xxx      # For text, voice, parsing, reasoning
+
+# Optional: Override default models
+AI_TEXT_MODEL=gpt-4o              # Override chat model (default: gpt-4o-mini)
+AI_PARSING_MODEL=gpt-4o-mini      # Override parsing model
+AI_REASONING_MODEL=o1             # Override reasoning model
+```
+
+#### Design Pattern:
+
+The gateway uses **OpenAI's format as the universal interface** (same pattern as Vercel AI SDK and LangChain). Each provider translates from this common format to their specific API:
+
+```
+Developer Code -> Gateway (OpenAI format) -> Provider (translates to native format) -> AI Service
+```
+
+This design:
+- Uses OpenAI format because it's the industry standard
+- Each provider handles translation (already implemented for OpenAI)
+- Adding new providers (Anthropic, Google) just requires a new translator
+- NOT OpenAI-specific - it's using OpenAI format as the **lingua franca**
+
+**When adding new providers:** Implement translation logic in `ai-gateway/providers/<provider>.ts`. The gateway interface stays the same.
+
+#### Thermomix-First Design
+
+When generating recipes for users with Thermomix equipment:
+- The system prompt automatically includes Thermomix instructions
+- AI generates `thermomixTime`, `thermomixTemp`, and `thermomixSpeed` parameters
+- Validation ensures parameters are within valid ranges
+- Frontend displays Thermomix cooking parameters in step-by-step guide
+
+See `generate-custom-recipe.ts` for Thermomix system prompt section.
 
 ## Architecture
 
@@ -245,9 +407,103 @@ supabase db reset
 
 ### Edge Functions (`yyx-server/supabase/functions/`)
 - **`_shared/`** - Shared utilities (CORS, auth, AI gateway)
-- **`ai-chat/`**, **`ai-voice/`** - AI sous chef endpoints
+- **`irmixy-chat-orchestrator/`**, **`irmixy-voice-orchestrator/`** - AI endpoints
 - **`get-nutritional-facts/`**, **`parse-recipe-markdown/`** - Recipe utilities
 
+### Platform-Specific Providers
+
+For features that are only available on certain platforms (e.g., native features), use Metro's `.web.ts` file extension pattern:
+
+**Pattern:**
+- `services/feature/FeatureFactory.ts` - Native implementation (iOS/Android)
+- `services/feature/FeatureFactory.web.ts` - Web implementation (stub or alternative)
+
+**How it works:**
+- Metro automatically selects the `.web.ts` file when building for web
+- Native platforms continue using the standard `.ts` file
+- No runtime overhead - resolution happens at build time
+- Zero dynamic imports or conditional logic needed
+
+**Example: Voice Chat**
+```
+services/voice/
+├── VoiceProviderFactory.ts      <- Native (iOS/Android) returns OpenAIRealtimeProvider
+├── VoiceProviderFactory.web.ts  <- Web returns WebVoiceProvider stub
+├── providers/
+│   ├── OpenAIRealtimeProvider.ts  <- Uses react-native-webrtc
+│   └── WebVoiceProvider.ts        <- Stub with clear error messaging
+└── types.ts                       <- Shared interface (used by both)
+```
+
+**Why this approach:**
+- No native package imports on web (prevents build crashes)
+- Type-safe - both implementations must match the interface
+- Clear file structure - obvious which platform uses what
+- Industry standard - same pattern used by Expo and React Native core
+- Future-proof - easy to upgrade web stub to real implementation later
+
+**When to use:**
+- Native-only features (WebRTC, native APIs, native packages)
+- Platform-specific performance optimizations
+- Different implementations per platform
+
+**UI considerations:**
+- UI layer stays platform-agnostic (uses the interface)
+- Platform-specific UI (show/hide features) uses `Platform.OS !== 'web'`
+- See `app/(tabs)/chat/index.tsx` for example
+
+<!-- END:shared/architecture -->
+
+## Agent Team
+
+YummyYummix has specialized domain agents in `.claude/agents/`. Delegate to them when working in their domain — they know the codebase patterns deeply and produce better results than doing everything in the main session.
+
+Agent roles are defined in `docs/agent-guidelines/AGENT-ROLES.yaml` (single source of truth). Agent files are generated — never edit `.claude/agents/*.md` directly. See [docs/operations/AGENT-SYNC.md](docs/operations/AGENT-SYNC.md) for how to add or modify agents.
+
+### When to Delegate
+
+| Domain | Agent | When to Use |
+|--------|-------|-------------|
+| **Product** | `yummyyummix:product` | Brainstorming features, scoping MVPs, identifying highest-value work, writing user stories. Use before building to think about *what* to build. |
+| **Frontend** | `yummyyummix:frontend` | Building or modifying screens, components, services, hooks in `yyx-app/`. |
+| **Backend** | `yummyyummix:backend` | Building or modifying Edge Functions, shared utilities in `yyx-server/`. |
+| **AI** | `yummyyummix:ai-engineer` | Anything touching the AI Gateway, tool system, RAG, orchestrators, or AI-powered features. |
+| **Database** | `yummyyummix:database` | Schema design, migrations, RLS policies, RPC functions, query optimization. |
+| **Designer** | `yummyyummix:designer` | UI/UX design decisions, visual specs, component layout. Knows the target audience (Thermomix owners) and brand identity. |
+| **Testing** | `yummyyummix:test-engineer` | Dedicated test creation — improving coverage, writing regression tests, backfilling tests. |
+| **Docs** | `yummyyummix:docs` | Keeping documentation in sync after feature changes. |
+| **Code Review** | `yummyyummix:code-reviewer` | Cross-cutting code review for bugs, dead code, conventions, type safety. |
+
+### How to Use Agents
+
+Agents are invoked directly by the user (e.g., "ask the frontend agent to build this component"). They are **not** programmatically delegated from skills — custom agents can't be launched via the Task tool's `subagent_type`.
+
+Skills use the same guideline docs that agents reference (`docs/agent-guidelines/*.md`) to get domain expertise inline. There's no magic in the agents beyond reading those docs.
+
+Domain agents write their own tests when building features. The test-engineer is for standalone testing tasks.
+
+### Skills
+
+| Skill | Description |
+|-------|-------------|
+| `/build-feature` | Guided 7-phase feature development — product thinking, exploration, design, implementation, review, docs |
+| `/review-pr` | PR review against project standards with structured report output |
+| `/review-changes` | Same as review-pr but for local commits before opening a PR |
+| `/update-docs` | Syncs documentation after feature changes |
+
+### Guideline Docs
+
+Each agent references domain-specific playbooks in `docs/agent-guidelines/`:
+- `REVIEW-CRITERIA.md` — Review categories, severity levels, recommendation logic
+- `BACKEND-GUIDELINES.md` — Edge function patterns, SSE streaming, Deno conventions
+- `FRONTEND-GUIDELINES.md` — Component architecture, design tokens, NativeWind, i18n
+- `DESIGN-GUIDELINES.md` — Brand identity, target audience, visual design system
+- `AI-GUIDELINES.md` — Gateway API, tool system, RAG, safety systems
+- `DATABASE-GUIDELINES.md` — Migration workflow, RLS, naming conventions, schema
+- `TESTING-GUIDELINES.md` — Jest + Deno test patterns, decision tree, templates
+- `PRODUCT-GUIDELINES.md` — Mission, audience, feature map, prioritization framework
+
+<!-- BEGIN:shared/conventions -->
 ## Key Conventions
 
 ### Imports
@@ -341,7 +597,6 @@ const { data, error } = await supabase.from('recipes').select('*');
 
 ### Performance
 - Use `React.memo` for pure components
-- Use `FlashList` for long lists
 - Use `expo-image` for optimized images
 
 ### Dependencies
@@ -349,9 +604,12 @@ const { data, error } = await supabase.from('recipes').select('*');
 - Use existing project utilities before adding new dependencies
 - Only add a dependency when no built-in alternative exists and the package provides clear value
 
+<!-- END:shared/conventions -->
+
+<!-- BEGIN:shared/testing -->
 ## Testing
 
-**Always write tests for critical components and workflows.** See [TESTING.md](./TESTING.md) for comprehensive documentation.
+**Always write tests for critical components and workflows.** See [TESTING.md](./docs/operations/TESTING.md) for comprehensive documentation.
 
 ### Quick Reference
 
@@ -367,13 +625,28 @@ deno task test:integration  # Integration tests
 
 ### What Must Be Tested
 
-| Category | Examples | Required Coverage |
-|----------|----------|-------------------|
-| **Critical Components** | Button, Text, Form inputs, Navigation | Unit tests |
-| **Authentication Flows** | Login, logout, session refresh | Unit + integration |
-| **Data Services** | Recipe CRUD, user profile operations | Unit tests |
-| **Edge Functions** | AI chat, recipe parsing, nutrition | Unit + integration |
-| **Business Logic** | Validation, calculations, transformations | Unit tests |
+| What You Create/Modify | Required Tests |
+|------------------------|----------------|
+| New component | Unit test covering rendering, interactions, states |
+| New service function | Unit test with mocked dependencies |
+| New Edge Function | Deno unit test + update integration tests |
+| Bug fix | Regression test that would have caught the bug |
+| Auth/security code | Comprehensive tests for success AND failure paths |
+
+### Critical vs Non-Critical Code
+
+**Always test (critical):**
+- Authentication (login, logout, session management, protected routes)
+- Data mutations (create, update, delete)
+- User input validation (forms, search, filters)
+- Core components (Button, Text, Input, Modal, Form)
+- Business logic (calculations, conversions, scoring)
+- Edge Functions (all serverless functions)
+
+**Optional tests (non-critical):**
+- Pure presentational components with no logic
+- Static pages
+- Simple wrappers around library components
 
 ### Test Patterns
 
@@ -417,15 +690,21 @@ Tests don't run on pre-commit (too slow), but linting does:
 
 CI runs full test suites on every PR.
 
+<!-- END:shared/testing -->
+
+<!-- BEGIN:shared/analytics -->
 ## Analytics
 
-When adding new features, consider what user engagement signals are worth tracking. See [ANALYTICS.md](./ANALYTICS.md) for:
+When adding new features, consider what user engagement signals are worth tracking. See [ANALYTICS.md](./docs/operations/ANALYTICS.md) for:
 - Current tracked events and metrics
 - How to add new event tracking
 - Dashboard queries
 
 **Philosophy**: Track what tells us if users are happy and coming back, not vanity metrics.
 
+<!-- END:shared/analytics -->
+
+<!-- BEGIN:shared/git-conventions -->
 ## Git Conventions
 
 ### Branch Naming
@@ -439,3 +718,15 @@ feat(recipe): add search by ingredients
 fix(auth): resolve login timeout issue
 docs: update API documentation
 ```
+
+<!-- END:shared/git-conventions -->
+
+## AI Collaboration Prompts
+
+When working with multiple AIs iteratively:
+1. **Plan** - Use plan mode to create implementation plan
+2. **Implement** - Follow the plan and commit changes
+3. **Review** - Have another AI review the changes
+4. **Iterate** - Address feedback and repeat until satisfied
+
+See [docs/ai-prompts/ai-prompts.md](docs/ai-prompts/ai-prompts.md) for copy-paste prompts.

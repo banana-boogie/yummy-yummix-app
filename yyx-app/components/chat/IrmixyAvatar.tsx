@@ -15,13 +15,23 @@ import { View, Image, Animated } from 'react-native';
 
 // Avatar images for different states
 const AVATAR_IMAGES = {
-    idle: require('@/assets/images/irmixy-avatar/2.png'),
-    listening: require('@/assets/images/irmixy-avatar/5.png'),
-    thinking: require('@/assets/images/irmixy-avatar/4.png'),
-    speaking: require('@/assets/images/irmixy-avatar/3.png'),
+    idle: require('@/assets/images/irmixy-avatar/irmixy-waving.png'),
+    listening: require('@/assets/images/irmixy-avatar/irmixy-listening.png'),
+    thinking: require('@/assets/images/irmixy-avatar/irmixy-presenting.png'),
+    searching: require('@/assets/images/irmixy-avatar/irmixy-presenting.png'),
+    generating: require('@/assets/images/irmixy-avatar/irmixy-presenting.png'),
+    enriching: require('@/assets/images/irmixy-avatar/irmixy-presenting.png'),
+    speaking: require('@/assets/images/irmixy-avatar/irmixy-excited.png'),
 };
 
-export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking';
+export type AvatarState =
+    | 'idle'
+    | 'listening'
+    | 'thinking'
+    | 'searching'
+    | 'generating'
+    | 'enriching'
+    | 'speaking';
 
 interface Props {
     state: AvatarState;
@@ -77,6 +87,9 @@ export function IrmixyAvatar({ state, size = 200 }: Props) {
                 break;
 
             case 'thinking':
+            case 'searching':
+            case 'generating':
+            case 'enriching':
                 animation = Animated.loop(
                     Animated.sequence([
                         Animated.timing(bounceAnim, {
@@ -109,6 +122,24 @@ export function IrmixyAvatar({ state, size = 200 }: Props) {
                     ])
                 );
                 break;
+
+            default:
+                // Fallback to idle animation for unknown states
+                animation = Animated.loop(
+                    Animated.sequence([
+                        Animated.timing(pulseAnim, {
+                            toValue: 1.02,
+                            duration: 2000,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(pulseAnim, {
+                            toValue: 1,
+                            duration: 2000,
+                            useNativeDriver: true,
+                        }),
+                    ])
+                );
+                break;
         }
 
         animation.start();
@@ -118,7 +149,7 @@ export function IrmixyAvatar({ state, size = 200 }: Props) {
         };
     }, [state, pulseAnim, glowAnim, bounceAnim]);
 
-    const avatarImage = AVATAR_IMAGES[state];
+    const avatarImage = AVATAR_IMAGES[state] || AVATAR_IMAGES.idle;
 
     return (
         <View

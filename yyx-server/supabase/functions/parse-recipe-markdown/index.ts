@@ -1,6 +1,7 @@
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { chat } from "../_shared/ai-gateway/index.ts";
 import {
   forbiddenResponse,
   hasRole,
@@ -594,42 +595,29 @@ serve(async (req: Request) => {
       );
     }
 
-    console.info(`[${requestId}] Calling OpenAI API...`);
-    const apiKey = Deno.env.get("OPENAI_API_KEY");
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
+    console.info(`[${requestId}] Calling AI gateway...`);
+    const response = await chat({
+      usageType: "parsing",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: markdown },
+      ],
+      temperature: 0.3,
+      maxTokens: 10000,
+      responseFormat: {
+        type: "json_schema",
+        schema: jsonSchema.schema,
       },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: 0.3,
-        max_output_tokens: 10000,
-        text: {
-          format: {
-            type: "json_schema",
-            name: "ParseRecipe",
-            schema: jsonSchema.schema,
-          },
-        },
-        input: markdown,
-        instructions: systemPrompt,
-      }),
     });
 
-    console.info(`[${requestId}] OpenAI response status: ${response.status}`);
-    const responseData = await response.json();
-
-    const content = responseData?.output?.[0]?.content?.[0]?.text || null;
+    const content = response.content || null;
 
     if (!content) {
       console.error(
-        `[${requestId}] Missing content from OpenAI response:`,
-        responseData,
+        `[${requestId}] Missing content from AI response`,
       );
       return new Response(
-        JSON.stringify({ error: "Failed to get a response from OpenAI" }),
+        JSON.stringify({ error: "Failed to get a response from AI" }),
         {
           status: 500,
           headers: { "Content-Type": "application/json", ...corsHeaders },

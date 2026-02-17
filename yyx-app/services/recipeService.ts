@@ -16,7 +16,7 @@ const getRecipeListQuery = () => {
   return `
     id,
     name${lang},
-    picture_url,
+    image_url,
     difficulty,
     prep_time,
     total_time,
@@ -46,7 +46,7 @@ const getRecipeDetailQuery = () => {
   return `
     id,
     name${lang},
-    picture_url,
+    image_url,
     difficulty,
     prep_time,
     total_time,
@@ -73,7 +73,7 @@ const getRecipeDetailQuery = () => {
           id,
           name${lang},
           plural_name${lang},
-          picture_url
+          image_url
         ),
         measurement_unit:measurement_units!inner (
           id,
@@ -96,7 +96,7 @@ const getRecipeDetailQuery = () => {
         id,
         name${lang},
         plural_name${lang},
-        picture_url
+        image_url
       ),
       measurement_unit:measurement_units !inner(
         id,
@@ -121,7 +121,7 @@ const getRecipeDetailQuery = () => {
       useful_item:useful_items (
         id,
         name${lang},
-        picture_url
+        image_url
       )
     )
   `;
