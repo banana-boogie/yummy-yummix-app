@@ -48,10 +48,7 @@ import { SessionOwnershipError } from "./types.ts";
 import { createLogger, generateRequestId, type Logger } from "./logger.ts";
 import { ensureSessionId } from "./session.ts";
 import { detectMealContext } from "./meal-context.ts";
-import {
-  buildNoResultsFallback,
-  getContextualSuggestions,
-} from "./suggestions.ts";
+import { buildNoResultsFallback } from "./suggestions.ts";
 import { detectModificationIntent } from "./modification.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { callAI, callAIStream } from "./ai-calls.ts";
@@ -774,9 +771,7 @@ function handleStreamingRequest(
         // NOTE: Don't send content here when recipe exists - it will be included in the "done" response
         // This ensures the recipe card renders before/with the text, not after
         let finalText: string;
-        let suggestions:
-          | import("../_shared/irmixy-schemas.ts").SuggestionChip[]
-          | undefined;
+        const suggestions = undefined;
 
         if (hasSuccessfulCustomRecipe) {
           // Fixed message asking about changes - sent with completion, not streamed
@@ -787,12 +782,8 @@ function handleStreamingRequest(
           if (generationWarningMessage) {
             finalText = `${finalText}\n\n${generationWarningMessage}`;
           }
-
-          // No suggestions for recipes - the prompt text invites modifications
-          suggestions = undefined;
-          timings.suggestions_ms = 0;
         } else if (retrievalResult) {
-          // Retrieval result: stream AI response grounded in tool results, use retrieval suggestions
+          // Retrieval result: stream AI response grounded in tool results
           finalText = await callAIStream(
             streamMessages,
             (token) => send({ type: "content", content: token }),
@@ -800,8 +791,6 @@ function handleStreamingRequest(
           timings.stream_ms = Math.round(performance.now() - phaseStart);
           phaseStart = performance.now();
           send({ type: "stream_complete" });
-          suggestions = retrievalResult.suggestions;
-          timings.suggestions_ms = 0;
         } else {
           // Normal streaming for non-recipe responses
           finalText = await callAIStream(
@@ -813,24 +802,6 @@ function handleStreamingRequest(
 
           // Signal that streaming is complete - frontend can enable input now
           send({ type: "stream_complete" });
-
-          // Use template suggestions immediately to avoid blocking
-          // This eliminates the 2.9s AI call for suggestions
-          const suppressGenericSuggestions =
-            !firstAssistantUsedTools &&
-            !recipes?.length &&
-            !customRecipeResult?.recipe &&
-            finalText.trim().length > 100;
-
-          suggestions = suppressGenericSuggestions
-            ? undefined
-            : getContextualSuggestions({
-              language: userContext.language,
-              hasRecipes: !!recipes?.length,
-              recipeNames: recipes?.map((recipe) => recipe.name),
-              hasCustomRecipe: !!customRecipeResult?.recipe,
-            });
-          timings.suggestions_ms = 0; // No AI call needed
         }
 
         const response = await finalizeResponse(
