@@ -23,20 +23,16 @@ import {
   sanitizeContent,
 } from "../_shared/context-builder.ts";
 import { checkRateLimit } from "../_shared/rate-limiter.ts";
-import { getProviderConfig } from "../_shared/ai-gateway/index.ts";
 import type { RecipeCard, UserContext } from "../_shared/irmixy-schemas.ts";
 import { ValidationError } from "../_shared/irmixy-schemas.ts";
 import type {
   GenerateRecipeResult,
   PartialRecipeCallback,
 } from "../_shared/tools/generate-custom-recipe.ts";
-import { generateCustomRecipe } from "../_shared/tools/generate-custom-recipe.ts";
 import type { RetrieveCustomRecipeResult } from "../_shared/tools/retrieve-custom-recipe.ts";
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { executeTool } from "../_shared/tools/execute-tool.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
-import { hasHighRecipeIntent, hasSearchIntent } from "./recipe-intent.ts";
-
 // Module imports
 import type {
   ChatMessage,
@@ -49,7 +45,6 @@ import { createLogger, generateRequestId, type Logger } from "./logger.ts";
 import { ensureSessionId } from "./session.ts";
 import { detectMealContext } from "./meal-context.ts";
 import { buildNoResultsFallback } from "./suggestions.ts";
-import { detectModificationIntent } from "./modification.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { callAI, callAIStream } from "./ai-calls.ts";
 import { errorResponse, finalizeResponse } from "./response-builder.ts";
@@ -375,252 +370,9 @@ function handleStreamingRequest(
         let customRecipeResult: GenerateRecipeResult | undefined;
         let retrievalResult: RetrieveCustomRecipeResult | undefined;
         let streamMessages = messages;
-        let firstAssistantUsedTools = false;
 
-        // Check for modification of existing custom recipe (same logic as non-streaming)
-        const lastCustomRecipeMessage = userContext.conversationHistory
-          .slice()
-          .reverse()
-          .find((m) => m.role === "assistant" && m.metadata?.customRecipe);
-
-        if (lastCustomRecipeMessage?.metadata?.customRecipe) {
-          const modIntent = detectModificationIntent(message, {
-            hasRecipe: true,
-            lastRecipeName:
-              lastCustomRecipeMessage.metadata.customRecipe.suggestedName ||
-              "previous recipe",
-          });
-
-          timings.mod_detection_ms = Math.round(performance.now() - phaseStart);
-          phaseStart = performance.now();
-
-          if (modIntent.isModification) {
-            log.info("Modification detected, forcing regeneration");
-
-            const generationBudget = await checkGenerationBudget(
-              createServiceClient(),
-              userId,
-            );
-            if (!generationBudget.allowed) {
-              const blockedMessage = buildGenerationBudgetExceededMessage(
-                userContext.language,
-                generationBudget.resetAt,
-              );
-              const response = await finalizeResponse(
-                supabase,
-                sessionId,
-                message,
-                blockedMessage,
-                userContext,
-                undefined,
-                undefined,
-                undefined,
-              );
-              send({ type: "content", content: blockedMessage });
-              send({ type: "done", response });
-              clearStreamTimeout();
-              controller.close();
-              return;
-            }
-
-            send({ type: "status", status: "cooking_it_up" });
-
-            // Two-phase SSE for modification flow
-            const onPartialRecipe: PartialRecipeCallback = (partialRecipe) => {
-              send({ type: "recipe_partial", recipe: partialRecipe });
-              send({ type: "status", status: "enriching" });
-            };
-
-            const lastRecipe = lastCustomRecipeMessage.metadata.customRecipe;
-            try {
-              const recipeStepsSummary = Array.isArray(lastRecipe.steps)
-                ? lastRecipe.steps
-                  .slice(0, 25)
-                  .map((step: { order?: number; instruction?: string }) =>
-                    `${step.order ?? "?"}. ${step.instruction ?? ""}`
-                  )
-                  .join(" | ")
-                : "";
-              const ingredientSummary = Array.isArray(lastRecipe.ingredients)
-                ? lastRecipe.ingredients
-                  .map((ing: { name?: string; quantity?: number; unit?: string }) =>
-                    `${ing.quantity ?? "?"} ${ing.unit ?? ""} ${ing.name ?? ""}`
-                  )
-                  .join(" | ")
-                : "";
-
-              const normalizedModification = modIntent.modifications
-                .toLowerCase();
-              const hardRequirements: string[] = [];
-
-              const servingMatch = normalizedModification.match(
-                /adjust servings to (\d+)/,
-              );
-              if (servingMatch) {
-                const targetServings = Number(servingMatch[1]);
-                const originalServings = Number(lastRecipe.portions || 0);
-                if (Number.isFinite(targetServings) && targetServings > 0) {
-                  hardRequirements.push(
-                    `CRITICAL SERVINGS: Original recipe serves ${
-                      originalServings > 0 ? originalServings : "unknown"
-                    }. Scale ALL ingredient quantities proportionally to ${targetServings} servings and set portions=${targetServings}.`,
-                  );
-                }
-              }
-
-              if (normalizedModification.includes("adapt to vegan")) {
-                hardRequirements.push(
-                  "CRITICAL DIETARY: This must be VEGAN. Replace ALL meat, dairy, eggs, and honey with plant-based alternatives.",
-                );
-              } else if (
-                normalizedModification.includes("adapt to vegetarian")
-              ) {
-                hardRequirements.push(
-                  "CRITICAL DIETARY: This must be VEGETARIAN. Remove all meat and seafood and use vegetarian substitutions.",
-                );
-              } else if (
-                normalizedModification.includes("adapt to gluten-free")
-              ) {
-                hardRequirements.push(
-                  "CRITICAL DIETARY: This must be GLUTEN-FREE. Replace all gluten-containing ingredients with gluten-free alternatives.",
-                );
-              } else if (
-                normalizedModification.includes("adapt to dairy-free")
-              ) {
-                hardRequirements.push(
-                  "CRITICAL DIETARY: This must be DAIRY-FREE. Replace all dairy ingredients with non-dairy alternatives.",
-                );
-              }
-
-              if (normalizedModification.includes("faster and simpler")) {
-                hardRequirements.push(
-                  "CRITICAL SPEED: Keep the same flavor profile but reduce complexity and total time. Prefer fewer steps and quicker techniques.",
-                );
-              }
-
-              const richModificationContext = [
-                `ORIGINAL RECIPE: "${
-                  lastRecipe.suggestedName || "previous recipe"
-                }"`,
-                `Ingredients: ${ingredientSummary || "not available"}`,
-                `Steps: ${recipeStepsSummary || "not available"}`,
-                `Difficulty: ${lastRecipe.difficulty || "not specified"}`,
-                `Portions: ${lastRecipe.portions || "not specified"}`,
-                `MODIFICATION REQUESTED: ${modIntent.modifications}`,
-                ...(hardRequirements.length > 0
-                  ? [`HARD REQUIREMENTS:\n${hardRequirements.join("\n")}`]
-                  : []),
-              ].join("\n");
-
-              const { recipe: modifiedRecipe, safetyFlags } =
-                await generateCustomRecipe(
-                  supabase,
-                  {
-                    ingredients: Array.isArray(lastRecipe.ingredients)
-                      ? lastRecipe.ingredients
-                        .map((ingredient: { name?: string } | string) =>
-                          typeof ingredient === "string"
-                            ? ingredient
-                            : ingredient.name
-                        )
-                        .filter((name: unknown): name is string =>
-                          typeof name === "string" && name.length > 0
-                        )
-                      : [],
-                    targetTime: lastRecipe.totalTime,
-                    difficulty: lastRecipe.difficulty,
-                    additionalRequests: richModificationContext,
-                    useful_items: Array.isArray(lastRecipe.usefulItems)
-                      ? lastRecipe.usefulItems
-                        .map((item: { name?: string }) => item.name)
-                        .filter((name: unknown): name is string =>
-                          typeof name === "string" && name.length > 0
-                        )
-                      : [],
-                  },
-                  userContext,
-                  undefined,
-                  onPartialRecipe,
-                  { bypassAllergenBlock },
-                );
-
-              customRecipeResult = { recipe: modifiedRecipe, safetyFlags };
-              timings.recipe_gen_ms = Math.round(
-                performance.now() - phaseStart,
-              );
-              phaseStart = performance.now();
-
-              // Use fixed message for modification
-              let finalText = userContext.language === "es"
-                ? "¡Aquí está tu receta actualizada!"
-                : "Here's your updated recipe!";
-
-              if (customRecipeResult?.safetyFlags?.error !== true) {
-                const usageUpdate = await recordGenerationUsage(
-                  createServiceClient(),
-                  userId,
-                  userContext.language,
-                );
-                if (usageUpdate.warningMessage) {
-                  finalText = `${finalText}\n\n${usageUpdate.warningMessage}`;
-                }
-              }
-
-              // No suggestions for recipes - the prompt text invites modifications
-              timings.suggestions_ms = 0;
-
-              const response = await finalizeResponse(
-                supabase,
-                sessionId,
-                message,
-                finalText,
-                userContext,
-                undefined,
-                customRecipeResult,
-                undefined,
-              );
-              timings.finalize_ms = Math.round(performance.now() - phaseStart);
-              timings.total_ms = Math.round(performance.now() - startTime);
-
-              log.info("Modification flow complete", {
-                type: "modification",
-                model: getProviderConfig("generation").model,
-                ...timings,
-              });
-              log.info("PERF_SUMMARY", {
-                type: "modification",
-                model: getProviderConfig("generation").model,
-                ...timings,
-              });
-
-              // Send content right before completion
-              send({ type: "content", content: response.message });
-              send({ type: "done", response });
-              clearStreamTimeout();
-              controller.close();
-              return;
-            } catch (error) {
-              log.error("Modification failed", error);
-              // Fall through to normal AI flow
-            }
-          }
-        }
-
-        // Detect discovery/search intent and force search_recipes specifically when needed.
-        const forceSearchTool = hasSearchIntent(message);
-        const forceToolUse = forceSearchTool || hasHighRecipeIntent(message);
-
-        if (forceSearchTool) {
-          log.info("Search intent detected, forcing search_recipes tool");
-        } else if (forceToolUse) {
-          log.info("High recipe intent detected, forcing tool usage");
-        }
-
-        const toolChoice = forceSearchTool
-          ? { type: "function" as const, function: { name: "search_recipes" } }
-          : forceToolUse
-          ? "required"
-          : "auto";
+        // Let the AI decide tool usage — no heuristic intent detection
+        const toolChoice = "auto" as const;
 
         const firstResponse = await callAI(
           messages,
@@ -631,13 +383,10 @@ function handleStreamingRequest(
         timings.llm_call_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
         const assistantMessage = firstResponse.choices[0].message;
-        firstAssistantUsedTools = !!assistantMessage.tool_calls?.length;
 
         log.info("AI response", {
           hasToolCalls: !!assistantMessage.tool_calls?.length,
           toolNames: assistantMessage.tool_calls?.map((tc) => tc.function.name),
-          forcedToolUse: forceToolUse,
-          forcedSearchTool: forceSearchTool,
         });
 
         if (

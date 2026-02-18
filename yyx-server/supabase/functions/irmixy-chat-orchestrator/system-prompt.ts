@@ -155,6 +155,12 @@ RECIPE GENERATION FLOW:
    Keep response brief. The recipe card is the focus.
    Ask if they want changes. Provide modification suggestions.
 
+6. **MODIFYING A PREVIOUS RECIPE:**
+   When the user asks to modify a previous recipe (e.g., "make it spicier", "without garlic", "for 4 people"):
+   - Use generate_custom_recipe with the original ingredients and modification details in additionalRequests
+   - Include specific instructions like "MODIFY: [original recipe name]. Change: [user's request]"
+   - Preserve the original recipe's ingredients, time, and difficulty unless the modification changes them
+
 6. **AFTER SEARCH RESULTS:**
    When you've just called search_recipes tool and returned results:
    - Keep your text response brief
