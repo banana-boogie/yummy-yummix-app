@@ -58,7 +58,12 @@ export const useRecipes = (initialFilters: RecipeFilters = { isPublished: true }
 
     return flattened.filter((recipe) => {
       const normalizedName = normalize(recipe.name || '');
-      return searchTerms.every((token) => normalizedName.includes(token));
+      const normalizedIngredients = (recipe.ingredients || [])
+        .map(ing => normalize(ing.name || '')).join(' ');
+      const normalizedTags = (recipe.tags || [])
+        .map(tag => normalize(tag.name || '')).join(' ');
+      const searchableText = `${normalizedName} ${normalizedIngredients} ${normalizedTags}`;
+      return searchTerms.every((token) => searchableText.includes(token));
     });
   }, [data, searchInput]);
 
