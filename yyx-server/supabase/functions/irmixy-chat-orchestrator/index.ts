@@ -14,6 +14,11 @@ import {
 } from "../_shared/supabase-client.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
+  buildGenerationBudgetExceededMessage,
+  checkGenerationBudget,
+  recordGenerationUsage,
+} from "../_shared/generation-budget.ts";
+import {
   createContextBuilder,
   sanitizeContent,
 } from "../_shared/context-builder.ts";
@@ -30,7 +35,7 @@ import type { RetrieveCustomRecipeResult } from "../_shared/tools/retrieve-custo
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { executeTool } from "../_shared/tools/execute-tool.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
-import { hasHighRecipeIntent } from "./recipe-intent.ts";
+import { hasHighRecipeIntent, hasSearchIntent } from "./recipe-intent.ts";
 
 // Module imports
 import type {
@@ -92,6 +97,7 @@ serve(async (req) => {
     log.info("Request received", {
       hasSessionId: !!sessionId,
       messageLength: message.length,
+      messagePreview: message.trim().slice(0, 180),
     });
 
     // Validate request
@@ -372,7 +378,7 @@ function handleStreamingRequest(
         let customRecipeResult: GenerateRecipeResult | undefined;
         let retrievalResult: RetrieveCustomRecipeResult | undefined;
         let streamMessages = messages;
-        let selectedModel: string | undefined;
+        let firstAssistantUsedTools = false;
 
         // Check for modification of existing custom recipe (same logic as non-streaming)
         const lastCustomRecipeMessage = userContext.conversationHistory
@@ -393,6 +399,33 @@ function handleStreamingRequest(
 
           if (modIntent.isModification) {
             log.info("Modification detected, forcing regeneration");
+
+            const generationBudget = await checkGenerationBudget(
+              createServiceClient(),
+              userId,
+            );
+            if (!generationBudget.allowed) {
+              const blockedMessage = buildGenerationBudgetExceededMessage(
+                userContext.language,
+                generationBudget.resetAt,
+              );
+              const response = await finalizeResponse(
+                supabase,
+                sessionId,
+                message,
+                blockedMessage,
+                userContext,
+                undefined,
+                undefined,
+                undefined,
+              );
+              send({ type: "content", content: blockedMessage });
+              send({ type: "done", response });
+              clearStreamTimeout();
+              controller.close();
+              return;
+            }
+
             send({ type: "status", status: "cooking_it_up" });
 
             // Two-phase SSE for modification flow
@@ -411,21 +444,92 @@ function handleStreamingRequest(
                   )
                   .join(" | ")
                 : "";
+              const ingredientSummary = Array.isArray(lastRecipe.ingredients)
+                ? lastRecipe.ingredients
+                  .map((ing: { name?: string; quantity?: number; unit?: string }) =>
+                    `${ing.quantity ?? "?"} ${ing.unit ?? ""} ${ing.name ?? ""}`
+                  )
+                  .join(" | ")
+                : "";
+
+              const normalizedModification = modIntent.modifications
+                .toLowerCase();
+              const hardRequirements: string[] = [];
+
+              const servingMatch = normalizedModification.match(
+                /adjust servings to (\d+)/,
+              );
+              if (servingMatch) {
+                const targetServings = Number(servingMatch[1]);
+                const originalServings = Number(lastRecipe.portions || 0);
+                if (Number.isFinite(targetServings) && targetServings > 0) {
+                  hardRequirements.push(
+                    `CRITICAL SERVINGS: Original recipe serves ${
+                      originalServings > 0 ? originalServings : "unknown"
+                    }. Scale ALL ingredient quantities proportionally to ${targetServings} servings and set portions=${targetServings}.`,
+                  );
+                }
+              }
+
+              if (normalizedModification.includes("adapt to vegan")) {
+                hardRequirements.push(
+                  "CRITICAL DIETARY: This must be VEGAN. Replace ALL meat, dairy, eggs, and honey with plant-based alternatives.",
+                );
+              } else if (
+                normalizedModification.includes("adapt to vegetarian")
+              ) {
+                hardRequirements.push(
+                  "CRITICAL DIETARY: This must be VEGETARIAN. Remove all meat and seafood and use vegetarian substitutions.",
+                );
+              } else if (
+                normalizedModification.includes("adapt to gluten-free")
+              ) {
+                hardRequirements.push(
+                  "CRITICAL DIETARY: This must be GLUTEN-FREE. Replace all gluten-containing ingredients with gluten-free alternatives.",
+                );
+              } else if (
+                normalizedModification.includes("adapt to dairy-free")
+              ) {
+                hardRequirements.push(
+                  "CRITICAL DIETARY: This must be DAIRY-FREE. Replace all dairy ingredients with non-dairy alternatives.",
+                );
+              }
+
+              if (normalizedModification.includes("faster and simpler")) {
+                hardRequirements.push(
+                  "CRITICAL SPEED: Keep the same flavor profile but reduce complexity and total time. Prefer fewer steps and quicker techniques.",
+                );
+              }
+
               const richModificationContext = [
                 `ORIGINAL RECIPE: "${
                   lastRecipe.suggestedName || "previous recipe"
                 }"`,
+                `Ingredients: ${ingredientSummary || "not available"}`,
                 `Steps: ${recipeStepsSummary || "not available"}`,
                 `Difficulty: ${lastRecipe.difficulty || "not specified"}`,
                 `Portions: ${lastRecipe.portions || "not specified"}`,
                 `MODIFICATION REQUESTED: ${modIntent.modifications}`,
+                ...(hardRequirements.length > 0
+                  ? [`HARD REQUIREMENTS:\n${hardRequirements.join("\n")}`]
+                  : []),
               ].join("\n");
 
               const { recipe: modifiedRecipe, safetyFlags } =
                 await generateCustomRecipe(
                   supabase,
                   {
-                    ingredients: lastRecipe.ingredients.map((i: any) => i.name),
+                    ingredients: Array.isArray(lastRecipe.ingredients)
+                      ? lastRecipe.ingredients
+                        .map((ingredient: { name?: string } | string) =>
+                          typeof ingredient === "string"
+                            ? ingredient
+                            : ingredient.name
+                        )
+                        .filter((name: unknown): name is string =>
+                          typeof name === "string" && name.length > 0
+                        )
+                      : [],
                     targetTime: lastRecipe.totalTime,
                     difficulty: lastRecipe.difficulty,
                     additionalRequests: richModificationContext,
@@ -450,9 +554,20 @@ function handleStreamingRequest(
               phaseStart = performance.now();
 
               // Use fixed message for modification
-              const finalText = userContext.language === "es"
+              let finalText = userContext.language === "es"
                 ? "¡Aquí está tu receta actualizada!"
                 : "Here's your updated recipe!";
+
+              if (customRecipeResult?.safetyFlags?.error !== true) {
+                const usageUpdate = await recordGenerationUsage(
+                  createServiceClient(),
+                  userId,
+                  userContext.language,
+                );
+                if (usageUpdate.warningMessage) {
+                  finalText = `${finalText}\n\n${usageUpdate.warningMessage}`;
+                }
+              }
 
               // No suggestions for recipes - the prompt text invites modifications
               timings.suggestions_ms = 0;
@@ -494,32 +609,82 @@ function handleStreamingRequest(
           }
         }
 
-        // Detect high recipe intent to force tool use (prevents AI from just chatting)
-        const forceToolUse = hasHighRecipeIntent(message);
-        if (forceToolUse) {
-          log.info("High recipe intent detected, forcing tool use");
+        // Detect discovery/search intent and force search_recipes specifically when needed.
+        const forceSearchTool = hasSearchIntent(message);
+        const forceToolUse = forceSearchTool || hasHighRecipeIntent(message);
+
+        if (forceSearchTool) {
+          log.info("Search intent detected, forcing search_recipes tool");
+        } else if (forceToolUse) {
+          log.info("High recipe intent detected, forcing tool usage");
         }
+
+        const toolChoice = forceSearchTool
+          ? { type: "function" as const, function: { name: "search_recipes" } }
+          : forceToolUse
+          ? "required"
+          : "auto";
 
         const firstResponse = await callAI(
           messages,
           true,
-          forceToolUse ? "required" : "auto",
+          toolChoice,
         );
-        selectedModel = firstResponse.model;
+        const selectedModel = firstResponse.model;
         timings.llm_call_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
         const assistantMessage = firstResponse.choices[0].message;
+        firstAssistantUsedTools = !!assistantMessage.tool_calls?.length;
 
         log.info("AI response", {
           hasToolCalls: !!assistantMessage.tool_calls?.length,
           toolNames: assistantMessage.tool_calls?.map((tc) => tc.function.name),
           forcedToolUse: forceToolUse,
+          forcedSearchTool: forceSearchTool,
         });
 
         if (
           assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0
         ) {
           const toolName = assistantMessage.tool_calls[0].function.name;
+          const hasGenerateToolCall = assistantMessage.tool_calls.some((tc) =>
+            tc.function.name === "generate_custom_recipe"
+          );
+
+          if (hasGenerateToolCall) {
+            const generationBudget = await checkGenerationBudget(
+              createServiceClient(),
+              userId,
+            );
+            if (!generationBudget.allowed) {
+              const blockedMessage = buildGenerationBudgetExceededMessage(
+                userContext.language,
+                generationBudget.resetAt,
+              );
+              send({ type: "content", content: blockedMessage });
+              const response = await finalizeResponse(
+                supabase,
+                sessionId,
+                message,
+                blockedMessage,
+                userContext,
+                undefined,
+                undefined,
+                undefined,
+              );
+              timings.total_ms = Math.round(performance.now() - startTime);
+              log.info("Generation blocked by monthly budget", {
+                type: "budget_block",
+                model: selectedModel,
+                ...timings,
+              });
+              send({ type: "done", response });
+              clearStreamTimeout();
+              controller.close();
+              return;
+            }
+          }
+
           send({
             type: "status",
             status: toolName === "search_recipes"
@@ -593,6 +758,18 @@ function handleStreamingRequest(
           }
         }
 
+        let generationWarningMessage: string | undefined;
+        const hasSuccessfulCustomRecipe = !!customRecipeResult?.recipe &&
+          customRecipeResult?.safetyFlags?.error !== true;
+        if (hasSuccessfulCustomRecipe) {
+          const usageUpdate = await recordGenerationUsage(
+            createServiceClient(),
+            userId,
+            userContext.language,
+          );
+          generationWarningMessage = usageUpdate.warningMessage;
+        }
+
         // If a custom recipe was generated, use a fixed short message instead of streaming AI text
         // NOTE: Don't send content here when recipe exists - it will be included in the "done" response
         // This ensures the recipe card renders before/with the text, not after
@@ -601,11 +778,15 @@ function handleStreamingRequest(
           | import("../_shared/irmixy-schemas.ts").SuggestionChip[]
           | undefined;
 
-        if (customRecipeResult?.recipe) {
+        if (hasSuccessfulCustomRecipe) {
           // Fixed message asking about changes - sent with completion, not streamed
           finalText = userContext.language === "es"
             ? "¡Listo! ¿Quieres cambiar algo?"
             : "Ready! Want to change anything?";
+
+          if (generationWarningMessage) {
+            finalText = `${finalText}\n\n${generationWarningMessage}`;
+          }
 
           // No suggestions for recipes - the prompt text invites modifications
           suggestions = undefined;
@@ -635,12 +816,20 @@ function handleStreamingRequest(
 
           // Use template suggestions immediately to avoid blocking
           // This eliminates the 2.9s AI call for suggestions
-          suggestions = getContextualSuggestions({
-            language: userContext.language,
-            hasRecipes: !!recipes?.length,
-            recipeNames: recipes?.map((recipe) => recipe.name),
-            hasCustomRecipe: !!customRecipeResult?.recipe,
-          });
+          const suppressGenericSuggestions =
+            !firstAssistantUsedTools &&
+            !recipes?.length &&
+            !customRecipeResult?.recipe &&
+            finalText.trim().length > 100;
+
+          suggestions = suppressGenericSuggestions
+            ? undefined
+            : getContextualSuggestions({
+              language: userContext.language,
+              hasRecipes: !!recipes?.length,
+              recipeNames: recipes?.map((recipe) => recipe.name),
+              hasCustomRecipe: !!customRecipeResult?.recipe,
+            });
           timings.suggestions_ms = 0; // No AI call needed
         }
 
@@ -659,12 +848,12 @@ function handleStreamingRequest(
 
         // If we have a custom recipe, send the content right before completion
         // so they arrive together and the recipe card renders with the text
-        if (customRecipeResult?.recipe) {
+        if (hasSuccessfulCustomRecipe) {
           send({ type: "content", content: response.message });
         }
 
         // Performance timing log
-        const requestType = customRecipeResult?.recipe
+        const requestType = hasSuccessfulCustomRecipe
           ? "recipe_gen"
           : recipes?.length
           ? "recipe_search"

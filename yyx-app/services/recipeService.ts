@@ -127,6 +127,87 @@ const getRecipeDetailQuery = () => {
   `;
 };
 
+type IdRow = { id: string };
+type RecipeIdRow = { recipe_id: string };
+
+const normalizeSearchTerm = (searchTerm: string) => searchTerm.trim().toLowerCase();
+
+/**
+ * Resolve recipe IDs for search across recipe names, ingredients, and tags.
+ * Keeps the active locale column for name matching.
+ */
+const findRecipeIdsForSearch = async (
+  rawSearchTerm: string,
+  isPublished: boolean | undefined,
+): Promise<string[]> => {
+  const searchTerm = normalizeSearchTerm(rawSearchTerm);
+  if (!searchTerm) return [];
+
+  const langSuffix = getLangSuffix();
+  const nameColumn = `name${langSuffix}`;
+  const pattern = `%${searchTerm}%`;
+
+  const recipeIds = new Set<string>();
+
+  // 1) Direct recipe name matches
+  let nameQuery = supabase
+    .from('recipes')
+    .select('id')
+    .ilike(nameColumn, pattern)
+    .limit(200);
+
+  if (isPublished !== undefined) {
+    nameQuery = nameQuery.eq('is_published', isPublished);
+  }
+
+  const { data: nameMatches } = await nameQuery as unknown as PostgrestResponse<IdRow[]>;
+  for (const row of nameMatches ?? []) {
+    recipeIds.add(row.id);
+  }
+
+  // 2) Ingredient name matches -> recipe IDs
+  const { data: ingredientMatches } = await supabase
+    .from('ingredients')
+    .select('id')
+    .ilike(nameColumn, pattern)
+    .limit(200) as unknown as PostgrestResponse<IdRow[]>;
+
+  const ingredientIds = (ingredientMatches ?? []).map((row) => row.id);
+  if (ingredientIds.length > 0) {
+    const { data: recipeIngredientRows } = await supabase
+      .from('recipe_ingredients')
+      .select('recipe_id')
+      .in('ingredient_id', ingredientIds)
+      .limit(500) as unknown as PostgrestResponse<RecipeIdRow[]>;
+
+    for (const row of recipeIngredientRows ?? []) {
+      recipeIds.add(row.recipe_id);
+    }
+  }
+
+  // 3) Tag matches -> recipe IDs
+  const { data: tagMatches } = await supabase
+    .from('recipe_tags')
+    .select('id')
+    .ilike(nameColumn, pattern)
+    .limit(200) as unknown as PostgrestResponse<IdRow[]>;
+
+  const tagIds = (tagMatches ?? []).map((row) => row.id);
+  if (tagIds.length > 0) {
+    const { data: recipeTagRows } = await supabase
+      .from('recipe_to_tag')
+      .select('recipe_id')
+      .in('tag_id', tagIds)
+      .limit(500) as unknown as PostgrestResponse<RecipeIdRow[]>;
+
+    for (const row of recipeTagRows ?? []) {
+      recipeIds.add(row.recipe_id);
+    }
+  }
+
+  return [...recipeIds];
+};
+
 // Track in-flight requests to prevent duplicates
 const inFlightRequests: Record<string, Promise<any>> = {};
 
@@ -186,10 +267,22 @@ export const recipeService = {
           query = query.eq('is_published', filters.isPublished);
         }
 
-        // Apply search if provided
+        // Apply search if provided (name + ingredients + tags)
         if (searchTerm) {
-          const langSuffix = getLangSuffix();
-          query = query.ilike(`name${langSuffix}`, `%${searchTerm}%`);
+          const matchedRecipeIds = await findRecipeIdsForSearch(
+            searchTerm,
+            filters.isPublished,
+          );
+
+          if (matchedRecipeIds.length === 0) {
+            return {
+              data: [],
+              nextCursor: null,
+              hasMore: false,
+            };
+          }
+
+          query = query.in('id', matchedRecipeIds);
         }
 
         // Apply cursor-based pagination

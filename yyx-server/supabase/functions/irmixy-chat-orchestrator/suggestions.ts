@@ -9,6 +9,18 @@ import type { SuggestionChip } from "../_shared/irmixy-schemas.ts";
 
 const MAX_RECIPE_CHIP_LABEL = 30;
 
+function getSearchDifferentChip(language: "en" | "es"): SuggestionChip {
+  return language === "es"
+    ? {
+      label: "Busca otras recetas",
+      message: "Busca otras recetas",
+    }
+    : {
+      label: "Search for different recipes",
+      message: "Search for different recipes",
+    };
+}
+
 export interface SuggestionContext {
   language: "en" | "es";
   hasRecipes: boolean;
@@ -52,10 +64,7 @@ export function getContextualSuggestions(
         };
       });
 
-      recipeChips.push({
-        label: language === "es" ? "Algo diferente" : "Something different",
-        message: language === "es" ? "Algo diferente" : "Something different",
-      });
+      recipeChips.push(getSearchDifferentChip(language));
       return recipeChips;
     }
 
@@ -64,10 +73,7 @@ export function getContextualSuggestions(
         label: language === "es" ? "Ver más opciones" : "Show more options",
         message: language === "es" ? "Ver más opciones" : "Show more options",
       },
-      {
-        label: language === "es" ? "Algo diferente" : "Something different",
-        message: language === "es" ? "Algo diferente" : "Something different",
-      },
+      getSearchDifferentChip(language),
     ];
   }
 
@@ -104,22 +110,24 @@ export function buildNoResultsFallback(language: "en" | "es"): {
 } {
   return {
     message: language === "es"
-      ? "No encontré recetas que coincidan, ¡pero puedo crear algo personalizado!"
-      : "I couldn't find recipes matching that, but I can create something custom!",
+      ? "No encontré esa receta. ¿Quieres que busque algo similar o que cree una versión personalizada?"
+      : "I didn't find that recipe. Do you want me to search for something similar, or create a custom version?",
     suggestions: [
       {
         label: language === "es"
-          ? "Crear desde ingredientes"
-          : "Create from ingredients",
+          ? "Buscar similares"
+          : "Search similar recipes",
         message: language === "es"
-          ? "Quiero crear una receta nueva con ingredientes"
-          : "I want to create a new recipe from ingredients",
+          ? "Busca recetas similares"
+          : "Search for similar recipes",
       },
       {
-        label: language === "es" ? "Sorpréndeme" : "Surprise me",
+        label: language === "es"
+          ? "Crear versión personalizada"
+          : "Create custom version",
         message: language === "es"
-          ? "Hazme una receta sorpresa"
-          : "Make me a surprise recipe",
+          ? "Crea una versión personalizada"
+          : "Create a custom version",
       },
     ],
   };

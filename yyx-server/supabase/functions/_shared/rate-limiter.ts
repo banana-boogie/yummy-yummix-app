@@ -27,7 +27,7 @@ export async function checkRateLimit(
 
   try {
     const { data, error } = await supabase.rpc(
-      "check_and_increment_chat_rate_limit",
+      "check_and_increment_ai_chat_rate_limit",
       {
         p_user_id: userId,
         p_limit: limit,

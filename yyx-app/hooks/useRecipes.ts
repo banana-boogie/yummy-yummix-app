@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Recipe } from '@/types/recipe.types';
 import { useRecipesInfiniteQuery, flattenRecipePages } from './useRecipeQuery';
+import { useDebounce } from './useDebounce';
 
 // Types to match existing API
 type RecipeFilters = {
@@ -27,7 +28,8 @@ type RecipesResult = {
  */
 export const useRecipes = (initialFilters: RecipeFilters = { isPublished: true }): RecipesResult => {
   const [filters, setFilters] = useState<RecipeFilters>(initialFilters);
-  const [searchTerm, setSearchTerm] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState<string>('');
+  const debouncedSearchTerm = useDebounce(searchInput.trim(), 300);
 
   const {
     data,
@@ -39,11 +41,26 @@ export const useRecipes = (initialFilters: RecipeFilters = { isPublished: true }
     refetch,
   } = useRecipesInfiniteQuery({
     isPublished: filters.isPublished,
-    searchTerm,
+    searchTerm: debouncedSearchTerm || null,
   });
 
-  // Flatten all pages into a single array
-  const recipes = useMemo(() => flattenRecipePages(data), [data]);
+  const normalize = (value: string) =>
+    value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+  // Flatten all pages and apply instant local filtering while debounced search catches up.
+  const recipes = useMemo(() => {
+    const flattened = flattenRecipePages(data);
+    const term = searchInput.trim();
+    if (!term) return flattened;
+
+    const searchTerms = normalize(term).split(/\s+/).filter(Boolean);
+    if (searchTerms.length === 0) return flattened;
+
+    return flattened.filter((recipe) => {
+      const normalizedName = normalize(recipe.name || '');
+      return searchTerms.every((token) => normalizedName.includes(token));
+    });
+  }, [data, searchInput]);
 
   // Load more recipes (next page)
   const loadMore = useCallback(async () => {
@@ -59,7 +76,7 @@ export const useRecipes = (initialFilters: RecipeFilters = { isPublished: true }
 
   // Update search term
   const setSearch = useCallback((term: string) => {
-    setSearchTerm(term ? term : null);
+    setSearchInput(term || '');
   }, []);
 
   // Update filters

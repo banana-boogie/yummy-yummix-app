@@ -143,7 +143,7 @@ describe('ChatRecipeCard', () => {
 
       fireEvent.press(screen.getByText(recipe.name));
 
-      expect(mockRouterPush).toHaveBeenCalledWith('/(tabs)/recipes/recipe-123?from=chat');
+      expect(mockRouterPush).toHaveBeenCalledWith('/recipe/recipe-123?from=chat');
     });
 
     it('triggers haptic feedback on press', () => {

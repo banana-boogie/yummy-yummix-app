@@ -52,6 +52,15 @@ Deno.test("buildSystemPrompt includes search-first strategy guidance", () => {
   assertStringIncludes(prompt, "SEARCH-FIRST STRATEGY");
   assertStringIncludes(prompt, "call search_recipes FIRST");
   assertStringIncludes(prompt, "named or known dish");
+  assertStringIncludes(prompt, "broad discovery");
+  assertStringIncludes(prompt, "something sweet/light/quick/healthy");
+});
+
+Deno.test("buildSystemPrompt uses confirm-first allergen language", () => {
+  const prompt = buildSystemPrompt(createUserContext());
+
+  assertStringIncludes(prompt, "ask for confirmation first");
+  assertStringIncludes(prompt, "Only proceed when the user explicitly confirms");
 });
 
 Deno.test("buildSystemPrompt includes scope guardrails section", () => {

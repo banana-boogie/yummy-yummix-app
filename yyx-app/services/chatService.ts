@@ -68,6 +68,10 @@ export interface StreamHandle {
     cancel: () => void;
 }
 
+export interface SendMessageOptions {
+    bypassAllergenBlock?: boolean;
+}
+
 export type SSERouteAction = 'continue' | 'resolve' | 'reject';
 
 export interface SSERouteResult {
@@ -207,6 +211,7 @@ export function sendMessage(
     onStreamComplete?: () => void,
     onPartialRecipe?: (recipe: GeneratedRecipe) => void,
     onComplete?: (response: IrmixyResponse) => void,
+    options?: SendMessageOptions,
 ): StreamHandle {
     let finished = false;
     let es: EventSource | null = null;
@@ -276,6 +281,15 @@ export function sendMessage(
 
                 // Wrap connection in Promise to handle retry logic
                 await new Promise<void>((resolveConnection, rejectConnection) => {
+                    const requestBody: Record<string, unknown> = {
+                        message,
+                        sessionId,
+                    };
+
+                    if (options?.bypassAllergenBlock === true) {
+                        requestBody.bypassAllergenBlock = true;
+                    }
+
                     // Create EventSource with POST method and body
                     es = new EventSource(IRMIXY_CHAT_ORCHESTRATOR_URL, {
                         method: 'POST',
@@ -283,10 +297,7 @@ export function sendMessage(
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${session.access_token}`,
                         },
-                        body: JSON.stringify({
-                            message,
-                            sessionId,
-                        }),
+                        body: JSON.stringify(requestBody),
                         // Disable automatic reconnection - we handle errors ourselves
                         pollingInterval: 0,
                     });

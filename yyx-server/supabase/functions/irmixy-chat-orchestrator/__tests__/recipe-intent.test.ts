@@ -15,6 +15,7 @@ import {
 import {
   detectModificationHeuristic,
   hasHighRecipeIntent,
+  hasSearchIntent,
 } from "../recipe-intent.ts";
 
 // ============================================================
@@ -262,6 +263,34 @@ Deno.test("hasHighRecipeIntent - embedded in longer sentence", () => {
 Deno.test("hasHighRecipeIntent - mixed EN/ES", () => {
   // This should match on "recipe for"
   assert(hasHighRecipeIntent("I need a recipe para la cena"));
+});
+
+// ============================================================
+// hasSearchIntent Tests
+// ============================================================
+
+Deno.test("hasSearchIntent - EN: i want something sweet", () => {
+  assert(hasSearchIntent("I want something sweet to eat"));
+});
+
+Deno.test("hasSearchIntent - EN: show me more recipes", () => {
+  assert(hasSearchIntent("Show me more recipes"));
+});
+
+Deno.test("hasSearchIntent - EN: something different", () => {
+  assert(hasSearchIntent("Something different"));
+});
+
+Deno.test("hasSearchIntent - ES: quiero algo dulce", () => {
+  assert(hasSearchIntent("Quiero algo dulce"));
+});
+
+Deno.test("hasSearchIntent - ES: muestrame mas recetas", () => {
+  assert(hasSearchIntent("Muestrame mas recetas"));
+});
+
+Deno.test("hasSearchIntent - negative: direct modification", () => {
+  assertEquals(hasSearchIntent("Make it vegan"), false);
 });
 
 // ============================================================

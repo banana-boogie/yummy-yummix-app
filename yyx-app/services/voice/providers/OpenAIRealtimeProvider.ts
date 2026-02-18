@@ -28,7 +28,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private sessionId: string | null = null;
   private sessionStartTime: number | null = null;
   private sessionTimeoutId: NodeJS.Timeout | null = null;
-  private inactivityTimer = new InactivityTimer(10000); // 10 seconds
+  private inactivityTimer = new InactivityTimer(30000); // 30 seconds
   private eventListeners: Map<VoiceEvent, Set<Function>> = new Map();
   private currentContext: ConversationContext | null = null;
   private dataChannelReady: boolean = false;
@@ -198,7 +198,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     InCallManager.start({ media: "audio", ringback: "" });
     InCallManager.setForceSpeakerphoneOn(true);
 
-    // Start inactivity timer (will auto-end if no speech for 30 seconds)
+    // Start inactivity timer (auto-end if no speech for 30 seconds)
     this.inactivityTimer.reset(() => {
       this.stopConversation();
     });
@@ -519,6 +519,13 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         }
         break;
 
+      case "response.audio.done":
+        // AI finished speaking - give user a fresh inactivity window to respond.
+        this.inactivityTimer.reset(() => {
+          this.stopConversation();
+        });
+        break;
+
       case "response.output_item.done":
       case "response.content_part.done":
         break;
@@ -551,6 +558,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
           );
         }
 
+        // Reset inactivity timer when AI turn fully completes.
+        this.inactivityTimer.reset(() => {
+          this.stopConversation();
+        });
         this.setStatus("listening");
         break;
 

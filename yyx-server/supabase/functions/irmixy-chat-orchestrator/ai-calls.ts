@@ -10,15 +10,20 @@ import { getRegisteredAiTools } from "../_shared/tools/tool-registry.ts";
 import { normalizeMessagesForAi } from "./message-normalizer.ts";
 import type { ChatMessage } from "./types.ts";
 
+type AIToolChoice = "auto" | "required" | {
+  type: "function";
+  function: { name: string };
+};
+
 /**
  * Call AI via the AI Gateway.
  * Supports tools and tool choice control.
- * @param toolChoice - "auto" (default) or "required" (force tool use)
+ * @param toolChoice - "auto" (default), "required", or specific function
  */
 export async function callAI(
   messages: ChatMessage[],
   includeTools: boolean = true,
-  toolChoice?: "auto" | "required",
+  toolChoice: AIToolChoice = "auto",
 ): Promise<{ choices: Array<{ message: ChatMessage }>; model: string }> {
   const aiMessages = normalizeMessagesForAi(messages);
 

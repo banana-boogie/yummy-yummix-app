@@ -31,11 +31,11 @@ Deno.test("getTemplateSuggestions returns post-search templates when recipes are
 
   assertEquals(en.length, 2);
   assertEquals(en[0].label, "Show more options");
-  assertEquals(en[1].label, "Something different");
+  assertEquals(en[1].label, "Search for different recipes");
 
   assertEquals(es.length, 2);
   assertEquals(es[0].label, "Ver más opciones");
-  assertEquals(es[1].label, "Algo diferente");
+  assertEquals(es[1].label, "Busca otras recetas");
 });
 
 Deno.test("getContextualSuggestions includes top recipe names and truncates labels", () => {
@@ -56,7 +56,7 @@ Deno.test("getContextualSuggestions includes top recipe names and truncates labe
     'I want the "Tinga Poblana de Pollo con Salsa Roja Tradicional" recipe',
   );
   assertEquals(suggestions[1].label, "Pasta Carbonara");
-  assertEquals(suggestions[2].label, "Something different");
+  assertEquals(suggestions[2].label, "Search for different recipes");
 });
 
 Deno.test("getContextualSuggestions returns empty suggestions after custom recipe generation", () => {
@@ -75,15 +75,15 @@ Deno.test("buildNoResultsFallback returns deterministic localized fallback", () 
 
   assertEquals(
     en.message,
-    "I couldn't find recipes matching that, but I can create something custom!",
+    "I didn't find that recipe. Do you want me to search for something similar, or create a custom version?",
   );
   assertEquals(en.suggestions.length, 2);
-  assertEquals(en.suggestions[0].label, "Create from ingredients");
+  assertEquals(en.suggestions[0].label, "Search similar recipes");
 
   assertEquals(
     es.message,
-    "No encontré recetas que coincidan, ¡pero puedo crear algo personalizado!",
+    "No encontré esa receta. ¿Quieres que busque algo similar o que cree una versión personalizada?",
   );
   assertEquals(es.suggestions.length, 2);
-  assertEquals(es.suggestions[0].label, "Crear desde ingredientes");
+  assertEquals(es.suggestions[0].label, "Buscar similares");
 });

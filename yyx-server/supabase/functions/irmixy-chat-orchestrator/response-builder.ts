@@ -34,18 +34,9 @@ export async function finalizeResponse(
   suggestions?: SuggestionChip[],
   actions?: QuickAction[],
 ): Promise<IrmixyResponse> {
-  // When a custom recipe is generated, use a fixed short message
-  // This ensures consistent, brief responses regardless of AI output
-  let responseMessage = finalText;
-  if (customRecipeResult?.recipe) {
-    responseMessage = userContext.language === "es"
-      ? "¡Listo! ¿Quieres cambiar algo?"
-      : "Ready! Want to change anything?";
-  }
-
   const irmixyResponse: IrmixyResponse = {
     version: "1.0",
-    message: responseMessage,
+    message: finalText,
     language: userContext.language,
     status: null,
     recipes,

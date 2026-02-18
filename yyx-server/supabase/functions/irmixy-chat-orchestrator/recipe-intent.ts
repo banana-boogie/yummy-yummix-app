@@ -36,6 +36,31 @@ const RECIPE_INTENT_PATTERNS = [
   ...SPANISH_RECIPE_PATTERNS,
 ];
 
+// Discovery/search intent patterns (EN)
+const ENGLISH_SEARCH_PATTERNS = [
+  /\bi\s+(?:want|need)\s+something\s+(?:sweet|light|healthy|quick|different|new)\b/i,
+  /\bsomething\s+(?:sweet|light|healthy|quick|different|new)\b/i,
+  /\b(?:show|find|search)\s+(?:me\s+)?(?:more|other|different)\s+(?:recipes?|options?)\b/i,
+  /\b(?:what\s+else|anything\s+else|something\s+different)\b/i,
+  /\b(?:dessert|snack|breakfast|lunch|dinner)\s+(?:ideas?|options?)\b/i,
+  /\bshow\s+me\s+more\s+recipes\b/i,
+];
+
+// Discovery/search intent patterns (ES)
+const SPANISH_SEARCH_PATTERNS = [
+  /\b(?:quiero|necesito)\s+algo\s+(?:dulce|ligero|saludable|r[aá]pido|diferente|nuevo)\b/i,
+  /\balgo\s+(?:dulce|ligero|saludable|r[aá]pido|diferente|nuevo)\b/i,
+  /\b(?:mu[eé]strame|busca|encuentra)\s+(?:m[aá]s|otras?)\s+(?:recetas?|opciones?)\b/i,
+  /\b(?:qu[eé]\s+m[aá]s|algo\s+diferente|otra\s+opci[oó]n)\b/i,
+  /\b(?:postres?|snacks?|desayunos?|comidas?|cenas?)\s+(?:ideas?|opciones?)\b/i,
+  /\bmu[eé]strame\s+m[aá]s\s+recetas\b/i,
+];
+
+const SEARCH_INTENT_PATTERNS = [
+  ...ENGLISH_SEARCH_PATTERNS,
+  ...SPANISH_SEARCH_PATTERNS,
+];
+
 /**
  * Detect if user message has high recipe generation intent.
  * Returns true when we should force tool usage to avoid chat-only responses.
@@ -43,6 +68,15 @@ const RECIPE_INTENT_PATTERNS = [
 export function hasHighRecipeIntent(message: string): boolean {
   const lowerMessage = message.toLowerCase();
   return RECIPE_INTENT_PATTERNS.some((pattern) => pattern.test(lowerMessage));
+}
+
+/**
+ * Detect discovery/search intent where we should force `search_recipes`.
+ * This covers broad asks like "I want something sweet" or "show me more recipes".
+ */
+export function hasSearchIntent(message: string): boolean {
+  const lowerMessage = message.toLowerCase();
+  return SEARCH_INTENT_PATTERNS.some((pattern) => pattern.test(lowerMessage));
 }
 
 // ============================================================

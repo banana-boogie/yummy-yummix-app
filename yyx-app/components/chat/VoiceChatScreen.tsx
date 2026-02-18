@@ -23,6 +23,7 @@ import type { QuotaInfo, VoiceStatus } from '@/services/voice/types';
 import type { ChatMessage } from '@/services/chatService';
 import type { GeneratedRecipe } from '@/types/irmixy';
 import i18n from '@/i18n';
+import { getChatCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
 
 interface Props {
     sessionId?: string | null;
@@ -139,7 +140,7 @@ export function VoiceChatScreen({
                 }
             }
             if (recipeId) {
-                router.push(`/(tabs)/recipes/start-cooking/${recipeId}?from=chat`);
+                router.push(getChatCustomCookingGuidePath(recipeId));
             }
         } catch (err) {
             console.error('[VoiceChatScreen] Start cooking error:', err);

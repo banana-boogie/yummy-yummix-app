@@ -23,6 +23,7 @@ export const chat = {
   thinking: "Irmixy is thinking...",
   searching: "Searching for recipes...",
   generating: "Creating something special...",
+  cookingItUp: "Cooking it up...",
   enriching: "Adding finishing touches...",
   voice: {
     greeting: "Hi! I'm Irmixy, your sous chef. What can I help you with?",
@@ -96,11 +97,11 @@ export const chat = {
   },
   // Fallback when no recipes found
   fallback: {
-    noResults: "I couldn't find recipes matching that, but I can create something custom!",
-    createFromIngredients: "Create from ingredients",
-    createFromIngredientsMessage: "Help me create a recipe from ingredients I have",
-    surpriseMe: "Surprise me",
-    surpriseMeMessage: "Create a fun recipe for me",
+    noResults: "I didn't find that recipe. Want me to search for something similar or create a custom version?",
+    createFromIngredients: "Search similar recipes",
+    createFromIngredientsMessage: "Search for similar recipes",
+    surpriseMe: "Create custom version",
+    surpriseMeMessage: "Create a custom version",
   },
   // Replay / retrieval
   replay: {

@@ -111,13 +111,13 @@ Deno.test("finalizeResponse persists user and assistant messages when sessionId 
   });
 });
 
-Deno.test("finalizeResponse uses fixed short message when a custom recipe is present", async () => {
+Deno.test("finalizeResponse preserves provided message when a custom recipe is present", async () => {
   const { supabase } = createMockSupabase();
   const response = await finalizeResponse(
     supabase as unknown as any,
     undefined,
     "make me a recipe",
-    "This message should be overridden",
+    "Custom recipe is ready.",
     createUserContext({ language: "en" }),
     undefined,
     {
@@ -136,7 +136,7 @@ Deno.test("finalizeResponse uses fixed short message when a custom recipe is pre
     },
   );
 
-  assertEquals(response.message, "Ready! Want to change anything?");
+  assertEquals(response.message, "Custom recipe is ready.");
   assertEquals(response.customRecipe?.suggestedName, "Weeknight Pasta");
   assertEquals(response.isAIGenerated, true);
 });

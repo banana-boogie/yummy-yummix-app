@@ -38,6 +38,10 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import i18n from '@/i18n';
 import { COLORS, SPACING } from '@/constants/design-tokens';
+import {
+    getChatCustomCookingGuidePath,
+    getChatRecipeDetailPath,
+} from '@/utils/navigation/recipeRoutes';
 
 // Constants
 const SCROLL_THROTTLE_MS = 100; // Throttle scroll calls to avoid excessive layout calculations
@@ -45,6 +49,10 @@ const SCROLL_DELAY_MS = 100; // Allow render to complete before scrolling
 const CHUNK_BATCH_MS = 50; // Batch streaming chunks to reduce re-renders
 const SCROLL_THRESHOLD = 100; // Distance from bottom to consider "at bottom" (px)
 const ICON_SIZE = 20; // Icon size for mic and send buttons
+const ALLERGEN_CONFIRMATION_PATTERNS = [
+    /\b(?:yes|yeah|yep|ok|okay|go ahead|proceed|continue|do it|make it anyway)\b/i,
+    /\b(?:si|sí|dale|adelante|continua|continúa|procede|hazlo)\b/i,
+];
 
 interface Props {
     sessionId?: string | null;
@@ -56,6 +64,21 @@ interface Props {
 
 // Stable keyExtractor to avoid recreation on each render
 const keyExtractor = (item: ChatMessage) => item.id;
+
+function shouldBypassAllergenBlock(
+    messageText: string,
+    history: ChatMessage[]
+): boolean {
+    const trimmed = messageText.trim();
+    if (!trimmed) return false;
+
+    const lastAssistant = [...history].reverse().find((msg) => msg.role === 'assistant');
+    const hasPendingAllergenWarning = !!lastAssistant?.safetyFlags?.allergenWarning &&
+        lastAssistant?.safetyFlags?.error === true;
+
+    if (!hasPendingAllergenWarning) return false;
+    return ALLERGEN_CONFIRMATION_PATTERNS.some((pattern) => pattern.test(trimmed));
+}
 
 export function ChatScreen({
     sessionId: initialSessionId,
@@ -213,6 +236,8 @@ export function ChatScreen({
                 return i18n.t('chat.searching');
             case 'generating':
                 return i18n.t('chat.generating');
+            case 'cooking_it_up':
+                return i18n.t('chat.cookingItUp');
             case 'enriching':
                 return i18n.t('chat.enriching');
             default:
@@ -246,6 +271,11 @@ export function ChatScreen({
 
     const handleSendMessage = useCallback(async (messageText: string) => {
         if (!messageText.trim() || !user || isLoading) return;
+
+        const bypassAllergenBlock = shouldBypassAllergenBlock(
+            messageText,
+            messagesRef.current,
+        );
 
         streamRequestIdRef.current += 1;
         const requestId = streamRequestIdRef.current;
@@ -533,7 +563,10 @@ export function ChatScreen({
                     setCurrentStatus(null);
                     hasRecipeInCurrentStreamRef.current = false;
                     completedSuccessfully = true;
-                }
+                },
+                {
+                    bypassAllergenBlock,
+                },
             );
 
             // Wrap cancel to flush partial message before canceling
@@ -686,9 +719,7 @@ export function ChatScreen({
                 console.log('[ChatScreen] Starting cooking - recipe ID:', recipeId, 'name:', finalName, 'wasAlreadySaved:', !!savedRecipeId);
             }
 
-            // Navigate to redirect screen which handles the cooking guide navigation
-            // This avoids the Expo Router issue where replace to same route pattern doesn't work
-            router.push(`/(tabs)/recipes/start-cooking/${recipeId}?from=chat`);
+            router.push(getChatCustomCookingGuidePath(recipeId));
         } catch (error) {
             if (__DEV__) console.error('Failed to save custom recipe:', error);
             Alert.alert(
@@ -705,7 +736,7 @@ export function ChatScreen({
             case 'view_recipe': {
                 const recipeId = payload.recipeId as string;
                 if (recipeId) {
-                    router.push(`/(tabs)/recipes/${recipeId}?from=chat`);
+                    router.push(getChatRecipeDetailPath(recipeId));
                 }
                 break;
             }

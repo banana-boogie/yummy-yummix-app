@@ -175,6 +175,10 @@ export async function generateCustomRecipe(
     params,
     userContext,
     safetyReminders,
+    {
+      bypassAllergenBlock,
+      allergenWarning: bypassedAllergenWarning,
+    },
   );
   timings.recipe_llm_ms = Math.round(performance.now() - phaseStart);
   phaseStart = performance.now();
@@ -329,8 +333,12 @@ async function callRecipeGenerationAI(
   params: GenerateRecipeParams,
   userContext: UserContext,
   safetyReminders: string,
+  options?: {
+    bypassAllergenBlock?: boolean;
+    allergenWarning?: string;
+  },
 ): Promise<GeneratedRecipe> {
-  const prompt = buildRecipePrompt(params, userContext, safetyReminders);
+  const prompt = buildRecipePrompt(params, userContext, safetyReminders, options);
   const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
   const recipeSchema = buildRecipeJsonSchema(isThermomixUser);
   const systemPrompt = getSystemPrompt(userContext);
@@ -450,7 +458,7 @@ Example step with Thermomix: {"order": 2, "instruction": "Sauté onions", "ingre
 
   return `Professional recipe creator. Output in ${lang}, ${userContext.measurementSystem} units (${units}).
 
-RULES: Use practical quantities (1/3 cup not 0.333). Include meat cooking temps. Name recipes naturally without dietary labels (GOOD: "Chicken Ramen", BAD: "Sugar-Free Ramen"). Preferences guide creativity; allergens/dislikes are strict.
+RULES: Use practical quantities (1/3 cup not 0.333). Include meat cooking temps. Name recipes naturally without dietary labels (GOOD: "Chicken Ramen", BAD: "Sugar-Free Ramen"). Preferences guide creativity; ingredient dislikes are strict. Allergens are strict UNLESS the user prompt explicitly confirms an allergen override.
 ${thermomixSection}
 
 OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Use this structure:
@@ -470,6 +478,10 @@ function buildRecipePrompt(
   params: GenerateRecipeParams,
   userContext: UserContext,
   safetyReminders: string,
+  options?: {
+    bypassAllergenBlock?: boolean;
+    allergenWarning?: string;
+  },
 ): string {
   const parts: string[] = [];
 
@@ -582,6 +594,19 @@ function buildRecipePrompt(
   // Safety reminders
   if (safetyReminders) {
     parts.push(`\n${safetyReminders}`);
+  }
+
+  if (options?.bypassAllergenBlock) {
+    parts.push("\n⚠️ ALLERGEN CONFIRMATION OVERRIDE:");
+    parts.push(
+      "The user explicitly confirmed they want to proceed despite allergen risk.",
+    );
+    parts.push(
+      "Include requested allergen ingredients instead of removing them, and add a clear safety note in the recipe instructions.",
+    );
+    if (options.allergenWarning) {
+      parts.push(`Reference warning: ${options.allergenWarning}`);
+    }
   }
 
   return parts.join("\n");
