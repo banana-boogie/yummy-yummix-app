@@ -9,6 +9,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Alert, FlatList, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { Text } from '@/components/common/Text';
 import { IrmixyAvatar, AvatarState } from './IrmixyAvatar';
@@ -85,6 +86,15 @@ export function VoiceChatScreen({
 
     const isConnected = status !== 'idle' && status !== 'error';
     const isConnecting = status === 'connecting';
+
+    // Stop voice when navigating away from this screen
+    useFocusEffect(
+        useCallback(() => {
+            return () => {
+                if (isConnected) stopConversation();
+            };
+        }, [isConnected, stopConversation])
+    );
 
     // Timer for active session (only when truly active, not during connecting)
     const isActive = isConnected && !isConnecting;
