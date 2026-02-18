@@ -3,22 +3,43 @@ set -euo pipefail
 
 # Quick smoke-test for ai chat burst limiter.
 # Usage:
-#   JWT="<token>" SUPABASE_FUNCTIONS_URL="https://<project>.supabase.co/functions/v1" ./scripts/test-chat-rate-limit.sh
+#   ./scripts/test-chat-rate-limit.sh          # auto-sources JWT from get-test-jwt.sh
+#   JWT="<token>" ./scripts/test-chat-rate-limit.sh  # or provide manually
 # Optional:
 #   REQUESTS=25 MESSAGE="ping" SESSION_ID="<uuid>" ./scripts/test-chat-rate-limit.sh
 
-JWT="${JWT:-}"
-SUPABASE_FUNCTIONS_URL="${SUPABASE_FUNCTIONS_URL:-}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Auto-source JWT if not provided
+if [[ -z "${JWT:-}" ]]; then
+  if [[ -f "$SCRIPT_DIR/get-test-jwt.sh" ]]; then
+    echo "Auto-sourcing JWT from get-test-jwt.sh..."
+    eval "$("$SCRIPT_DIR/get-test-jwt.sh")"
+    JWT="${YYX_JWT:-}"
+  fi
+fi
+
+# Auto-load SUPABASE_URL for functions URL if not set
+if [[ -z "${SUPABASE_FUNCTIONS_URL:-}" ]]; then
+  ENV_FILE="$SCRIPT_DIR/../.env.local"
+  if [[ -f "$ENV_FILE" ]]; then
+    set -a
+    source "$ENV_FILE"
+    set +a
+    SUPABASE_FUNCTIONS_URL="${SUPABASE_URL:-}/functions/v1"
+  fi
+fi
+
 REQUESTS="${REQUESTS:-25}"
 MESSAGE="${MESSAGE:-rate-limit-check}"
 SESSION_ID="${SESSION_ID:-}"
 
-if [[ -z "$JWT" ]]; then
-  echo "Missing JWT env var."
+if [[ -z "${JWT:-}" ]]; then
+  echo "Missing JWT env var. Set JWT or configure get-test-jwt.sh."
   exit 1
 fi
 
-if [[ -z "$SUPABASE_FUNCTIONS_URL" ]]; then
+if [[ -z "${SUPABASE_FUNCTIONS_URL:-}" ]]; then
   echo "Missing SUPABASE_FUNCTIONS_URL env var."
   exit 1
 fi
