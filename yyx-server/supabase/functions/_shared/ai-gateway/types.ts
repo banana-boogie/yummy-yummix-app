@@ -8,10 +8,8 @@
 /** Usage types for routing to appropriate models */
 export type AIUsageType =
   | "text"
-  | "voice"
-  | "generation"
+  | "recipe_generation"
   | "parsing"
-  | "reasoning"
   | "embedding";
 
 export type AIProvider = "openai" | "anthropic" | "google";

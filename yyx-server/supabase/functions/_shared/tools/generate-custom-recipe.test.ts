@@ -616,7 +616,7 @@ Deno.test("generateCustomRecipe bypasses allergen block and returns warning with
       { bypassAllergenBlock: true },
     );
 
-    assertEquals(capturedModel, "gpt-4o");
+    assertEquals(capturedModel, "gpt-5-mini");
     assertEquals(result.recipe.suggestedName, "Peanut Rice Bowl");
     assertStringIncludes(result.safetyFlags?.allergenWarning ?? "", "Contains");
     assertEquals(result.safetyFlags?.error, undefined);

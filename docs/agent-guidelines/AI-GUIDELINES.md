@@ -114,13 +114,12 @@ const embedding = await embed({
 
 | Type | Default Model | Use Case | Cost |
 |------|--------------|----------|------|
-| `text` | gpt-4o-mini | Chat, general text generation | Low |
-| `voice` | gpt-4o-mini | Voice-optimized short responses | Low |
-| `parsing` | gpt-4o-mini | Intent classification, structured extraction | Very low |
-| `reasoning` | o1-mini | Complex reasoning, multi-step problems | High |
+| `text` | gpt-5-mini | Chat orchestrator (tool calling + streaming) | Low |
+| `recipe_generation` | gpt-5-mini | Recipe generation (structured JSON output) | Low |
+| `parsing` | gpt-4o-mini | Admin parsing, nutritional data extraction | Very low |
 | `embedding` | text-embedding-3-large | Vector search (3072 dimensions) | Low |
 
-Override via env vars: `AI_TEXT_MODEL`, `AI_PARSING_MODEL`, `AI_REASONING_MODEL`.
+Override via env vars: `AI_TEXT_MODEL`, `AI_RECIPE_GENERATION_MODEL`, `AI_PARSING_MODEL`.
 
 ### Design Pattern
 OpenAI format is the **universal interface** (lingua franca). Each provider translates from this common format to their native API. This is NOT OpenAI-specific — it's the industry standard (same as Vercel AI SDK, LangChain).

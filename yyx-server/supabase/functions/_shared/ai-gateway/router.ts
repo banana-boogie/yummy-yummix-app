@@ -12,34 +12,22 @@ import { AIProviderConfig, AIRoutingConfig, AIUsageType } from "./types.ts";
  * Can be overridden via environment variables.
  */
 const defaultRoutingConfig: AIRoutingConfig = {
-  // Chat completions
+  // Chat completions (orchestrator tool calling + streaming)
   text: {
     provider: "openai",
-    model: "gpt-4o-mini",
+    model: "gpt-5-mini",
     apiKeyEnvVar: "OPENAI_API_KEY",
   },
-  // Voice-optimized chat (shorter responses)
-  voice: {
+  // Recipe generation (structured JSON output)
+  recipe_generation: {
     provider: "openai",
-    model: "gpt-4o-mini",
+    model: "gpt-5-mini",
     apiKeyEnvVar: "OPENAI_API_KEY",
   },
-  // High-quality long-form generation (recipes, richer creative outputs)
-  generation: {
-    provider: "openai",
-    model: "gpt-4o",
-    apiKeyEnvVar: "OPENAI_API_KEY",
-  },
-  // Structured data parsing
+  // Structured data parsing (admin, nutrition extraction)
   parsing: {
     provider: "openai",
     model: "gpt-4o-mini",
-    apiKeyEnvVar: "OPENAI_API_KEY",
-  },
-  // Complex reasoning tasks
-  reasoning: {
-    provider: "openai",
-    model: "o1-mini",
     apiKeyEnvVar: "OPENAI_API_KEY",
   },
   // Text embeddings for vector search
@@ -56,8 +44,8 @@ const defaultRoutingConfig: AIRoutingConfig = {
  *
  * Override examples:
  * - AI_TEXT_MODEL=gpt-4o
+ * - AI_RECIPE_GENERATION_MODEL=gpt-4o
  * - AI_PARSING_MODEL=gpt-4o-mini
- * - AI_REASONING_MODEL=o1
  */
 export function getProviderConfig(usageType: AIUsageType): AIProviderConfig {
   const envOverride = Deno.env.get(`AI_${usageType.toUpperCase()}_MODEL`);

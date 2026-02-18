@@ -326,7 +326,7 @@ export function buildRecipeJsonSchema(
 
 /**
  * Call AI Gateway to generate the recipe.
- * Uses the 'generation' usage type for higher-quality recipe output.
+ * Uses the 'recipe_generation' usage type for structured recipe output.
  * Uses one local retry if parsing/validation fails.
  */
 async function callRecipeGenerationAI(
@@ -351,7 +351,7 @@ async function callRecipeGenerationAI(
   for (let attempt = 0; attempt < 2; attempt++) {
     const isRetry = attempt === 1;
     const response = await chat({
-      usageType: "generation",
+      usageType: "recipe_generation",
       messages: [
         { role: "system", content: systemPrompt },
         {
