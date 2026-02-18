@@ -23,6 +23,7 @@ interface CustomRecipeCardProps {
     loading?: boolean;
     messageId: string;
     savedRecipeId?: string;
+    onConfirmAllergen?: () => void;
 }
 
 export const CustomRecipeCard = memo(function CustomRecipeCard({
@@ -32,6 +33,7 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
     loading = false,
     messageId,
     savedRecipeId,
+    onConfirmAllergen,
 }: CustomRecipeCardProps) {
     const [recipeName, setRecipeName] = useState(recipe.suggestedName);
     const [isEditing, setIsEditing] = useState(false);
@@ -39,7 +41,7 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
     const [showAllSteps, setShowAllSteps] = useState(false);
     const [isStartingCooking, setIsStartingCooking] = useState(false);
 
-    const handleStartCooking = useCallback(() => {
+    const handleStartCooking = useCallback(async () => {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         // Debug: log which recipe is being started
@@ -47,11 +49,14 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
             console.log('[CustomRecipeCard] Start cooking - recipe name:', recipeName, 'savedRecipeId:', savedRecipeId);
         }
 
-        // Show loading state immediately
         setIsStartingCooking(true);
-
-        // Fire and forget - the redirect screen handles the loading state
-        void onStartCooking(recipe, recipeName, messageId, savedRecipeId);
+        try {
+            await onStartCooking(recipe, recipeName, messageId, savedRecipeId);
+        } catch (err) {
+            if (__DEV__) console.error('[CustomRecipeCard] Start cooking error:', err);
+        } finally {
+            setIsStartingCooking(false);
+        }
     }, [onStartCooking, recipe, recipeName, messageId, savedRecipeId]);
 
     const handleEditPress = useCallback(() => {
@@ -109,6 +114,16 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                      safetyFlags?.dietaryConflict ||
                      i18n.t('chat.error.recipeGeneration')}
                 </Text>
+                {safetyFlags?.allergenWarning && onConfirmAllergen && (
+                    <Button
+                        variant="outline"
+                        size="small"
+                        onPress={onConfirmAllergen}
+                        className="mt-sm self-start"
+                    >
+                        {i18n.t('chat.allergenProceedAnyway')}
+                    </Button>
+                )}
             </View>
         );
     }

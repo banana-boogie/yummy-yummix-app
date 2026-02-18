@@ -699,6 +699,11 @@ export function ChatScreen({
         }
     }, []);
 
+    // Handle allergen bypass — sends "yes, proceed" to trigger existing shouldBypassAllergenBlock
+    const handleConfirmAllergen = useCallback((_messageId: string) => {
+        handleSendMessage('yes, proceed');
+    }, [handleSendMessage]);
+
     // Memoize the last message ID to avoid recalculating on every render
     const lastMessageId = messages.length > 0 ? messages[messages.length - 1]?.id : null;
 
@@ -717,9 +722,10 @@ export function ChatScreen({
                 onCopyMessage={handleCopyMessage}
                 onStartCooking={handleStartCooking}
                 onActionPress={handleActionPress}
+                onConfirmAllergen={handleConfirmAllergen}
             />
         );
-    }, [lastMessageId, isLoading, currentStatus, statusText, handleCopyMessage, handleStartCooking, handleActionPress]);
+    }, [lastMessageId, isLoading, currentStatus, statusText, handleCopyMessage, handleStartCooking, handleActionPress, handleConfirmAllergen]);
 
     const handleScroll = useCallback((event: any) => {
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;

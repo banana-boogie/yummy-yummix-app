@@ -84,6 +84,7 @@ export const chat = {
   saving: "Saving...",
   gatheringInfo: "Let me help you create a recipe...",
   recipeError: "Unable to create recipe",
+  allergenProceedAnyway: "Proceed anyway",
   warningPrefix: "Warning",
   andMore: "and {{count}} more",
   miseEnPlace: "Mise en place",
