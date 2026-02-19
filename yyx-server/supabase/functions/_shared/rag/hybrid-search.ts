@@ -86,7 +86,7 @@ const METADATA_WEIGHT = 0.10;
 const PERSONALIZATION_WEIGHT = 0.15;
 
 // Thresholds
-const INCLUDE_THRESHOLD = 0.35;
+const INCLUDE_THRESHOLD = 0.42;
 
 // ============================================================
 // Embedding

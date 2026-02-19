@@ -97,7 +97,10 @@ export async function callOpenAI(
       content: m.content,
     })),
     max_completion_tokens: request.maxTokens ?? 4096,
-    ...(request.reasoningEffort && { reasoning_effort: request.reasoningEffort }),
+    ...(request.reasoningEffort &&
+      (model.startsWith("gpt-5") || model.startsWith("o")) && {
+        reasoning_effort: request.reasoningEffort,
+      }),
   };
 
   // Add response format if specified
@@ -191,7 +194,10 @@ export async function* callOpenAIStream(
       content: m.content,
     })),
     max_completion_tokens: request.maxTokens ?? 4096,
-    ...(request.reasoningEffort && { reasoning_effort: request.reasoningEffort }),
+    ...(request.reasoningEffort &&
+      (model.startsWith("gpt-5") || model.startsWith("o")) && {
+        reasoning_effort: request.reasoningEffort,
+      }),
     stream: true,
   };
 

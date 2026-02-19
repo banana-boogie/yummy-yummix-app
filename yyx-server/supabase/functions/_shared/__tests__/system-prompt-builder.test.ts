@@ -80,6 +80,10 @@ Deno.test("buildPersonalityBlock returns English for 'en'", () => {
 
   assertStringIncludes(personality, "IDENTITY & VOICE");
   assertStringIncludes(personality, "warm, fun friend");
+  assertStringIncludes(personality, "One thought per message");
+  assertStringIncludes(personality, "single best answer");
+  assertStringIncludes(personality, "Never use bullet points or numbered lists");
+  assertStringIncludes(personality, "Never use markdown formatting");
   assertEquals(personality.includes("IDENTIDAD"), false);
 });
 
@@ -90,6 +94,10 @@ Deno.test("buildPersonalityBlock returns Mexican Spanish for 'es'", () => {
   assertStringIncludes(personality, "amiga cálida y divertida");
   assertStringIncludes(personality, "vocabulario mexicano");
   assertStringIncludes(personality, "jitomate");
+  assertStringIncludes(personality, "Una idea por mensaje");
+  assertStringIncludes(personality, "mejor respuesta, no una lista");
+  assertStringIncludes(personality, "Nunca uses viñetas ni listas numeradas");
+  assertStringIncludes(personality, "Nunca uses formato markdown");
   assertEquals(personality.includes("IDENTITY & VOICE"), false);
 });
 
@@ -129,31 +137,31 @@ Deno.test("buildVoiceInstructions includes user context block", () => {
 Deno.test("buildVoiceInstructions includes voice-specific rules", () => {
   const instructions = buildVoiceInstructions(createUserContext());
 
-  assertStringIncludes(instructions, "VOICE RULES");
   assertStringIncludes(instructions, "1-2 short sentences");
   assertStringIncludes(instructions, "speaking, not writing");
+  assertStringIncludes(instructions, "brief spoken summary");
 });
 
 Deno.test("buildVoiceInstructions includes scope guardrails", () => {
   const instructions = buildVoiceInstructions(createUserContext());
 
-  assertStringIncludes(instructions, "SCOPE GUARDRAILS");
-  assertStringIncludes(instructions, "cooking-only");
+  assertStringIncludes(instructions, "cooking, recipes, ingredients");
 });
 
 Deno.test("buildVoiceInstructions includes security rules", () => {
   const instructions = buildVoiceInstructions(createUserContext());
 
-  assertStringIncludes(instructions, "SECURITY RULES");
+  assertStringIncludes(instructions, "SECURITY:");
   assertStringIncludes(instructions, "DATA ONLY");
+  assertStringIncludes(instructions, "override these rules");
 });
 
 Deno.test("buildVoiceInstructions does NOT include chat-specific rules", () => {
   const instructions = buildVoiceInstructions(createUserContext());
 
-  assertEquals(instructions.includes("CRITICAL - TOOL USAGE"), false);
-  assertEquals(instructions.includes("SEARCH-FIRST STRATEGY"), false);
-  assertEquals(instructions.includes("RECIPE GENERATION FLOW"), false);
+  assertEquals(instructions.includes("search_recipes"), false);
+  assertEquals(instructions.includes("generate_custom_recipe"), false);
+  assertEquals(instructions.includes("SEARCH-FIRST"), false);
 });
 
 Deno.test("buildVoiceInstructions uses correct measurement system", () => {

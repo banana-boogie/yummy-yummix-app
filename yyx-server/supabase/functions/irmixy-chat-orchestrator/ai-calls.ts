@@ -35,7 +35,6 @@ export async function callAI(
   const response = await chat({
     usageType: "text",
     messages: aiMessages,
-    reasoningEffort: "low",
     tools,
     toolChoice: includeTools ? toolChoice : undefined,
   });
@@ -76,7 +75,6 @@ export async function callAIStream(
     const chunk of chatStream({
       usageType: "text",
       messages: aiMessages,
-      reasoningEffort: "low",
     })
   ) {
     fullContent += chunk;

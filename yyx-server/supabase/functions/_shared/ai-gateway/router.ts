@@ -15,7 +15,7 @@ const defaultRoutingConfig: AIRoutingConfig = {
   // Chat completions (orchestrator tool calling + streaming)
   text: {
     provider: "openai",
-    model: "gpt-5-mini",
+    model: "gpt-4.1-mini",
     apiKeyEnvVar: "OPENAI_API_KEY",
   },
   // Recipe generation (structured JSON output)
