@@ -126,6 +126,12 @@ export const chat = {
     stage6: "¡Listo!",
     stall: "Ya casi...",
   },
+  // Action labels
+  actions: {
+    share_recipe: "Compartir Receta",
+    view_recipe: "Ver Receta",
+    shared: "¡Receta compartida!",
+  },
   // Replay / retrieval
   replay: {
     foundOne: "¡Lo encontré! Aquí está tu receta.",

@@ -9,7 +9,7 @@ import {
     ChatMessage,
     IrmixyStatus,
     GeneratedRecipe,
-    QuickAction,
+    Action,
 } from '@/services/chatService';
 import Markdown from '@ronradtke/react-native-markdown-display';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '@/constants/design-tokens';
@@ -134,7 +134,7 @@ export interface ChatMessageItemProps {
     showAvatar?: boolean;
     onCopyMessage: (content: string) => void;
     onStartCooking: (recipe: GeneratedRecipe, finalName: string, messageId: string, savedRecipeId?: string) => Promise<void>;
-    onActionPress: (action: QuickAction) => void;
+    onActionPress: (action: Action) => void;
 }
 
 export const ChatMessageItem = memo(function ChatMessageItem({
