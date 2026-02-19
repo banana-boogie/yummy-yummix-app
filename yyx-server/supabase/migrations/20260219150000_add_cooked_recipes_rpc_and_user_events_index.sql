@@ -32,11 +32,13 @@ RETURNS TABLE (
   portions integer,
   last_cooked_at timestamptz
 )
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY INVOKER
 SET search_path = public
 AS $$
+BEGIN
+RETURN QUERY
 WITH params AS (
   SELECT
     CASE
@@ -162,6 +164,7 @@ FROM filtered f
 CROSS JOIN params p
 ORDER BY f.cooked_at DESC, f.match_score DESC
 LIMIT p.limit_rows;
+END;
 $$;
 
 COMMENT ON FUNCTION public.get_cooked_recipes(text, text, timestamptz, timestamptz, integer)

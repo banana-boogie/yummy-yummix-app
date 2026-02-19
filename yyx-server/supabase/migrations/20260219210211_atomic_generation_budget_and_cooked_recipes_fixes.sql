@@ -80,11 +80,13 @@ RETURNS TABLE (
   portions integer,
   last_cooked_at timestamptz
 )
-LANGUAGE sql
+LANGUAGE plpgsql
 STABLE
 SECURITY INVOKER
 SET search_path = public
 AS $$
+BEGIN
+RETURN QUERY
 WITH params AS (
   SELECT
     CASE
@@ -212,6 +214,7 @@ ORDER BY
   CASE WHEN p.query_text IS NOT NULL THEN f.match_score END DESC NULLS LAST,
   f.cooked_at DESC
 LIMIT p.limit_rows;
+END;
 $$;
 
 -- ============================================================
