@@ -26,7 +26,9 @@ export interface GenerationUsageUpdate extends GenerationBudgetStatus {
 }
 
 function getMonthStart(date = new Date()): string {
-  const monthStart = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+  const monthStart = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1),
+  );
   return monthStart.toISOString().slice(0, 10);
 }
 

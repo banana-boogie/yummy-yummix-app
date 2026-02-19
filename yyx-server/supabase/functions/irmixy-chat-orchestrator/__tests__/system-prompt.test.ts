@@ -73,7 +73,11 @@ Deno.test("buildSystemPrompt places personality BEFORE rules", () => {
 
   const personalityIndex = prompt.indexOf("IDENTITY & VOICE");
   const rulesIndex = prompt.indexOf("RULES:");
-  assertEquals(personalityIndex < rulesIndex, true, "Personality should appear before RULES");
+  assertEquals(
+    personalityIndex < rulesIndex,
+    true,
+    "Personality should appear before RULES",
+  );
 });
 
 Deno.test("buildSystemPrompt includes shared personality block for EN", () => {

@@ -52,7 +52,10 @@ Deno.test("buildUserContextBlock includes all user context fields", () => {
   );
 
   assertStringIncludes(block, "<language>es</language>");
-  assertStringIncludes(block, "<measurement_system>metric</measurement_system>");
+  assertStringIncludes(
+    block,
+    "<measurement_system>metric</measurement_system>",
+  );
   assertStringIncludes(block, "<skill_level>beginner</skill_level>");
   assertStringIncludes(block, "<household_size>4</household_size>");
   assertStringIncludes(block, "- gluten");
@@ -67,8 +70,14 @@ Deno.test("buildUserContextBlock shows defaults for empty/null fields", () => {
 
   assertStringIncludes(block, "<skill_level>not specified</skill_level>");
   assertStringIncludes(block, "<household_size>not specified</household_size>");
-  assertStringIncludes(block, "<dietary_restrictions>\nnone\n</dietary_restrictions>");
-  assertStringIncludes(block, "<kitchen_equipment>\nnot specified\n</kitchen_equipment>");
+  assertStringIncludes(
+    block,
+    "<dietary_restrictions>\nnone\n</dietary_restrictions>",
+  );
+  assertStringIncludes(
+    block,
+    "<kitchen_equipment>\nnot specified\n</kitchen_equipment>",
+  );
 });
 
 // ============================================================
@@ -82,7 +91,10 @@ Deno.test("buildPersonalityBlock returns English for 'en'", () => {
   assertStringIncludes(personality, "warm, fun friend");
   assertStringIncludes(personality, "One thought per message");
   assertStringIncludes(personality, "single best answer");
-  assertStringIncludes(personality, "Never use bullet points or numbered lists");
+  assertStringIncludes(
+    personality,
+    "Never use bullet points or numbered lists",
+  );
   assertStringIncludes(personality, "Never use markdown formatting");
   assertEquals(personality.includes("IDENTIDAD"), false);
 });

@@ -338,7 +338,12 @@ async function callRecipeGenerationAI(
     allergenWarning?: string;
   },
 ): Promise<GeneratedRecipe> {
-  const prompt = buildRecipePrompt(params, userContext, safetyReminders, options);
+  const prompt = buildRecipePrompt(
+    params,
+    userContext,
+    safetyReminders,
+    options,
+  );
   const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
   const recipeSchema = buildRecipeJsonSchema(isThermomixUser);
   const systemPrompt = getSystemPrompt(userContext);

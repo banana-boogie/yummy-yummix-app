@@ -22,10 +22,11 @@ Deno.test("checkRateLimit allows requests when under limit", async () => {
 
 Deno.test("checkRateLimit blocks requests when limit is exceeded", async () => {
   const supabase = {
-    rpc: () => Promise.resolve({
-      data: [{ allowed: false, retry_after_ms: 42500 }],
-      error: null,
-    }),
+    rpc: () =>
+      Promise.resolve({
+        data: [{ allowed: false, retry_after_ms: 42500 }],
+        error: null,
+      }),
   } as unknown as RateLimitSupabase;
 
   const result = await checkRateLimit(supabase, "user-1");
@@ -35,10 +36,11 @@ Deno.test("checkRateLimit blocks requests when limit is exceeded", async () => {
 
 Deno.test("checkRateLimit fails open when RPC errors", async () => {
   const supabase = {
-    rpc: () => Promise.resolve({
-      data: null,
-      error: { message: "db down" },
-    }),
+    rpc: () =>
+      Promise.resolve({
+        data: null,
+        error: { message: "db down" },
+      }),
   } as unknown as RateLimitSupabase;
 
   const result = await checkRateLimit(supabase, "user-1");
@@ -47,10 +49,11 @@ Deno.test("checkRateLimit fails open when RPC errors", async () => {
 
 Deno.test("checkRateLimit fails open on unexpected payload", async () => {
   const supabase = {
-    rpc: () => Promise.resolve({
-      data: [{ allowed: "yes" }],
-      error: null,
-    }),
+    rpc: () =>
+      Promise.resolve({
+        data: [{ allowed: "yes" }],
+        error: null,
+      }),
   } as unknown as RateLimitSupabase;
 
   const result = await checkRateLimit(supabase, "user-1");
