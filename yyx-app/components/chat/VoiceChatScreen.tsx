@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Alert, FlatList, ActivityIndicator, Platform } from 'react-native';
+import { View, Alert, FlatList, ActivityIndicator, Platform, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Text } from '@/components/common/Text';
@@ -21,7 +21,9 @@ import { customRecipeService } from '@/services/customRecipeService';
 import { COLORS } from '@/constants/design-tokens';
 import type { QuotaInfo, VoiceStatus } from '@/services/voice/types';
 import type { ChatMessage } from '@/services/chatService';
-import type { GeneratedRecipe } from '@/types/irmixy';
+import type { Action, GeneratedRecipe } from '@/types/irmixy';
+import { executeAction } from '@/services/actions/actionRegistry';
+import type { ActionContext } from '@/services/actions/actionRegistry';
 import i18n from '@/i18n';
 
 interface Props {
@@ -122,6 +124,10 @@ export function VoiceChatScreen({
         }
     };
 
+    const handleActionPress = useCallback((action: Action, context?: ActionContext) => {
+        executeAction(action, context);
+    }, []);
+
     const handleStartCooking = useCallback(async (
         recipe: GeneratedRecipe,
         finalName: string,
@@ -189,9 +195,29 @@ export function VoiceChatScreen({
                         />
                     </View>
                 )}
+
+                {/* Action buttons */}
+                {!isUser && item.actions && item.actions.length > 0 && (
+                    <View className="mt-xs gap-xs">
+                        {item.actions.map((action, idx) => (
+                            <TouchableOpacity
+                                key={action.id || `${action.type}-${idx}`}
+                                onPress={() => handleActionPress(action, {
+                                    currentRecipe: item.customRecipe,
+                                    recipes: item.recipes,
+                                })}
+                                className="self-start bg-primary-medium px-md py-xs rounded-lg"
+                            >
+                                <Text preset="body" className="text-sm font-medium text-white">
+                                    {action.label}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
             </View>
         );
-    }, [handleStartCooking]);
+    }, [handleStartCooking, handleActionPress]);
 
     if (!user) {
         return (

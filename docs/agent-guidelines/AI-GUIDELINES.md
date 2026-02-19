@@ -155,6 +155,7 @@ Current tools:
 - `search_recipes` — Search published recipes (voice-enabled)
 - `generate_custom_recipe` — AI-generated personalized recipes (voice-enabled)
 - `retrieve_custom_recipe` — Fetch previously generated recipes (voice-enabled)
+- `app_action` — Trigger frontend-only actions via validated pass-through (voice-enabled)
 
 ### Adding New Tools (4-step process)
 
@@ -170,6 +171,30 @@ AI returns tool_call → execute-tool.ts validates + dispatches
   → Result shaped for frontend
   → AI receives result and generates final response
 ```
+
+### The `app_action` Tool
+
+**Location:** `_shared/tools/app-action.ts`
+
+A **pass-through tool** for frontend-only actions. Unlike other tools that do real server-side work (DB queries, AI generation), `app_action` only validates and forwards.
+
+**How it works:**
+1. AI calls `app_action({ action: "share_recipe" })`
+2. Backend validates `"share_recipe"` is in the `ALLOWED_ACTIONS` allow-list
+3. Returns `{ action: "share_recipe", params: {} }` as the tool result
+4. The orchestrator's `action-builder.ts` converts this into an `Action` object
+5. The `Action` is included in the `IrmixyResponse.actions` array
+6. Frontend's `actionRegistry.ts` looks up the handler and executes it
+
+**Allow-list pattern:** Only actions listed in `ALLOWED_ACTIONS` are accepted. If the AI hallucinates an action not in the list, the backend rejects it with an error. This prevents the AI from triggering arbitrary frontend behavior.
+
+**When to use `app_action` vs a dedicated tool:**
+- Use `app_action` when the action is **purely frontend** (sharing, navigation, UI toggles) and needs no server-side data
+- Use a dedicated tool when the action requires **server-side work** (database queries, AI generation, external APIs)
+
+**Adding a new frontend-only action (2 files):**
+1. `_shared/tools/app-action.ts` — Add to `ALLOWED_ACTIONS`, update tool description
+2. `yyx-app/services/actions/actionRegistry.ts` — Add handler to `ACTION_HANDLERS`
 
 ---
 

@@ -20,6 +20,8 @@ import type {
     QuotaInfo,
 } from '@/services/voice/types';
 import type { ChatMessage } from '@/services/chatService';
+import type { Action } from '@/types/irmixy';
+import i18n from '@/i18n';
 
 interface UseVoiceChatOptions {
     recipeContext?: RecipeContext;
@@ -56,6 +58,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
         recipes?: ChatMessage['recipes'];
         customRecipe?: ChatMessage['customRecipe'];
         safetyFlags?: ChatMessage['safetyFlags'];
+        actions?: Action[];
     } | null>(null);
     // Ref to hold the streaming assistant message ID for updates
     const streamingMsgIdRef = useRef<string | null>(null);
@@ -149,6 +152,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                 ...(pending?.recipes ? { recipes: pending.recipes } : {}),
                 ...(pending?.customRecipe ? { customRecipe: pending.customRecipe } : {}),
                 ...(pending?.safetyFlags ? { safetyFlags: pending.safetyFlags } : {}),
+                ...(pending?.actions ? { actions: pending.actions } : {}),
             };
             pendingRecipeDataRef.current = null;
             return updated;
@@ -247,6 +251,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                         ...(pendingRecipeDataRef.current?.recipes ? { recipes: pendingRecipeDataRef.current.recipes } : {}),
                         ...(pendingRecipeDataRef.current?.customRecipe ? { customRecipe: pendingRecipeDataRef.current.customRecipe } : {}),
                         ...(pendingRecipeDataRef.current?.safetyFlags ? { safetyFlags: pendingRecipeDataRef.current.safetyFlags } : {}),
+                        ...(pendingRecipeDataRef.current?.actions ? { actions: pendingRecipeDataRef.current.actions } : {}),
                     });
                     pendingRecipeDataRef.current = null;
                     assistantTextRef.current = '';
@@ -266,11 +271,31 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
 
                     // Store recipe data for the next assistant message
                     if (result.recipes) {
-                        pendingRecipeDataRef.current = { recipes: result.recipes };
+                        pendingRecipeDataRef.current = {
+                            ...pendingRecipeDataRef.current,
+                            recipes: result.recipes as ChatMessage['recipes'],
+                        };
                     } else if (result.customRecipe) {
                         pendingRecipeDataRef.current = {
-                            customRecipe: result.customRecipe,
-                            safetyFlags: result.safetyFlags,
+                            ...pendingRecipeDataRef.current,
+                            customRecipe: result.customRecipe as ChatMessage['customRecipe'],
+                            safetyFlags: result.safetyFlags as ChatMessage['safetyFlags'],
+                        };
+                    }
+
+                    // Handle app actions (independent of recipe results)
+                    if (result.appAction && typeof result.appAction === 'object') {
+                        const appAction = result.appAction as { action: string; params?: Record<string, unknown> };
+                        const action: Action = {
+                            id: `${appAction.action}_${Date.now()}`,
+                            type: appAction.action as Action['type'],
+                            label: i18n.t(`chat.actions.${appAction.action}`),
+                            payload: appAction.params || {},
+                            autoExecute: true,
+                        };
+                        pendingRecipeDataRef.current = {
+                            ...pendingRecipeDataRef.current,
+                            actions: [action],
                         };
                     }
 

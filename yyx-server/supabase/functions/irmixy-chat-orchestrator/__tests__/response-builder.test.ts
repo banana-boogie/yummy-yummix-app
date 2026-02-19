@@ -138,6 +138,38 @@ Deno.test("finalizeResponse uses fixed short message when a custom recipe is pre
   assertEquals(response.customRecipe?.suggestedName, "Weeknight Pasta");
 });
 
+Deno.test("finalizeResponse persists actions in tool_calls when provided", async () => {
+  const { supabase, inserts } = createMockSupabase();
+  const actions = [
+    {
+      id: "share_recipe_123",
+      type: "share_recipe" as const,
+      label: "Share Recipe",
+      payload: {},
+      autoExecute: true,
+    },
+  ];
+  const response = await finalizeResponse(
+    supabase as unknown as any,
+    "session-123",
+    "Share this recipe",
+    "Sure, sharing now!",
+    createUserContext(),
+    undefined,
+    undefined,
+    undefined,
+    actions,
+  );
+
+  assertEquals(response.actions?.length, 1);
+  assertEquals(response.actions?.[0].type, "share_recipe");
+  // Check that actions are in the persisted tool_calls
+  const assistantInsert = inserts[1] as Record<string, unknown>;
+  const toolCalls = assistantInsert.tool_calls as Record<string, unknown>;
+  assertEquals(Array.isArray(toolCalls.actions), true);
+  assertEquals((toolCalls.actions as unknown[]).length, 1);
+});
+
 Deno.test("finalizeResponse propagates history insert failures", async () => {
   const { supabase } = createMockSupabase({ throwOnInsertCall: 1 });
 

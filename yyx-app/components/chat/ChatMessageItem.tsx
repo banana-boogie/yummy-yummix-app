@@ -9,7 +9,7 @@ import {
     IrmixyStatus,
     RecipeCard,
     GeneratedRecipe,
-    QuickAction,
+    Action,
 } from '@/services/chatService';
 import { Image } from 'expo-image';
 import Markdown from 'react-native-markdown-display';
@@ -141,7 +141,7 @@ export interface ChatMessageItemProps {
     statusText: string;
     onCopyMessage: (content: string) => void;
     onStartCooking: (recipe: GeneratedRecipe, finalName: string, messageId: string, savedRecipeId?: string) => void;
-    onActionPress: (action: QuickAction) => void;
+    onActionPress: (action: Action) => void;
 }
 
 export const ChatMessageItem = memo(function ChatMessageItem({

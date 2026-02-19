@@ -6,8 +6,8 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import type {
+  Action,
   IrmixyResponse,
-  QuickAction,
   RecipeCard,
   SuggestionChip,
   UserContext,
@@ -32,7 +32,7 @@ export async function finalizeResponse(
   recipes: RecipeCard[] | undefined,
   customRecipeResult: GenerateRecipeResult | undefined,
   suggestions?: SuggestionChip[],
-  actions?: QuickAction[],
+  actions?: Action[],
 ): Promise<IrmixyResponse> {
   // When a custom recipe is generated, use a fixed short message
   // This ensures consistent, brief responses regardless of AI output

@@ -101,6 +101,12 @@ export const chat = {
     surpriseMe: "Surprise me",
     surpriseMeMessage: "Create a fun recipe for me",
   },
+  // Action labels
+  actions: {
+    share_recipe: "Share Recipe",
+    view_recipe: "View Recipe",
+    shared: "Recipe shared!",
+  },
   // Replay / retrieval
   replay: {
     foundOne: "Found it! Here's your recipe.",

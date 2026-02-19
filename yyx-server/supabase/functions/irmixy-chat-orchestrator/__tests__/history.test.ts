@@ -87,6 +87,54 @@ Deno.test("saveMessageToHistory - inserts user then assistant payloads", async (
   });
 });
 
+Deno.test("saveMessageToHistory - includes actions in tool_calls when present", async () => {
+  const { supabase, inserts } = createMockSupabase();
+  const response: IrmixyResponse = {
+    version: "1.0",
+    message: "Sharing the recipe!",
+    language: "en",
+    status: null,
+    actions: [
+      {
+        id: "share_recipe_123",
+        type: "share_recipe",
+        label: "Share Recipe",
+        payload: {},
+        autoExecute: true,
+      },
+    ],
+  };
+
+  await saveMessageToHistory(
+    supabase as unknown as any,
+    "session-456",
+    "Share this",
+    response,
+  );
+
+  assertEquals(inserts.length, 2);
+  const assistantInsert = inserts[1] as Record<string, unknown>;
+  const toolCalls = assistantInsert.tool_calls as Record<string, unknown>;
+  assertEquals(Array.isArray(toolCalls.actions), true);
+  assertEquals((toolCalls.actions as unknown[]).length, 1);
+});
+
+Deno.test("saveMessageToHistory - does not include actions when absent", async () => {
+  const { supabase, inserts } = createMockSupabase();
+  const response = createResponse();
+
+  await saveMessageToHistory(
+    supabase as unknown as any,
+    "session-789",
+    "Hello",
+    response,
+  );
+
+  const assistantInsert = inserts[1] as Record<string, unknown>;
+  const toolCalls = assistantInsert.tool_calls as Record<string, unknown>;
+  assertEquals(toolCalls.actions, undefined);
+});
+
 Deno.test("saveMessageToHistory - propagates insert failure", async () => {
   const { supabase } = createMockSupabase({ throwOnInsertCall: 1 });
 

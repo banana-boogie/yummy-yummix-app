@@ -17,10 +17,13 @@ export interface SuggestionChip {
   message: string;
 }
 
-export interface QuickAction {
-  type: 'start_cooking' | 'view_recipe' | 'save_recipe' | 'set_timer' | 'resume_cooking';
+export interface Action {
+  id: string;
+  type: 'view_recipe' | 'share_recipe';
   label: string;
   payload: Record<string, unknown>;
+  autoExecute?: boolean;
+  confirmationMessage?: string;
 }
 
 export interface GeneratedIngredient {
@@ -73,7 +76,7 @@ export interface IrmixyResponse {
   recipes?: RecipeCard[];
   customRecipe?: GeneratedRecipe;
   suggestions?: SuggestionChip[];
-  actions?: QuickAction[];
+  actions?: Action[];
   memoryUsed?: string[];
   safetyFlags?: SafetyFlags;
 }

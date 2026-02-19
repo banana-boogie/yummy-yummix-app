@@ -21,7 +21,8 @@ yyx-server/supabase/functions/
 │   │   ├── shape-tool-response.ts    # Normalize results for frontend
 │   │   ├── generate-custom-recipe.ts # Recipe generation pipeline
 │   │   ├── search-recipes.ts         # Hybrid search tool
-│   │   └── retrieve-custom-recipe.ts # Past recipe retrieval
+│   │   ├── retrieve-custom-recipe.ts # Past recipe retrieval
+│   │   └── app-action.ts             # Pass-through tool for frontend-only actions
 │   ├── rag/
 │   │   └── hybrid-search.ts          # Semantic + lexical search engine
 │   ├── auth.ts                       # Auth helpers
@@ -49,7 +50,8 @@ yyx-server/supabase/functions/
 │   ├── recipe-intent.ts              # Intent detection heuristics
 │   ├── meal-context.ts               # Meal type extraction
 │   ├── modification.ts               # Recipe modification detection
-│   └── suggestions.ts                # Template suggestion chips
+│   ├── suggestions.ts                # Template suggestion chips
+│   └── action-builder.ts             # Converts tool results to Action objects
 ├── irmixy-voice-orchestrator/        # Voice sessions (WebRTC, quota)
 ├── get-nutritional-facts/            # USDA API integration
 ├── parse-recipe-markdown/            # Recipe parsing

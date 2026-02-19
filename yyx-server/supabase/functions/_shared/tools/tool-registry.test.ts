@@ -37,6 +37,12 @@ Deno.test("tool registry: has retrieve_custom_recipe registered", () => {
   assertEquals(reg!.aiTool.name, "retrieve_custom_recipe");
 });
 
+Deno.test("tool registry: has app_action registered", () => {
+  const reg = getToolRegistration("app_action");
+  assertNotEquals(reg, undefined);
+  assertEquals(reg!.aiTool.name, "app_action");
+});
+
 Deno.test("tool registry: unknown tool returns undefined", () => {
   const reg = getToolRegistration("nonexistent_tool");
   assertEquals(reg, undefined);
@@ -100,6 +106,11 @@ Deno.test("voice tools: generate_custom_recipe is voice-allowed", () => {
 Deno.test("voice tools: retrieve_custom_recipe is voice-allowed", () => {
   const voiceNames = getAllowedVoiceToolNames();
   assertEquals(voiceNames.includes("retrieve_custom_recipe"), true);
+});
+
+Deno.test("voice tools: app_action is voice-allowed", () => {
+  const voiceNames = getAllowedVoiceToolNames();
+  assertEquals(voiceNames.includes("app_action"), true);
 });
 
 Deno.test("voice tools: all registered tools have execute and shapeResult", () => {
@@ -167,4 +178,22 @@ Deno.test("tool registry: retrieve_custom_recipe shapeResult handles null", () =
   const reg = getToolRegistration("retrieve_custom_recipe")!;
   const shaped = reg.shapeResult(null);
   assertEquals(shaped.result, null);
+});
+
+Deno.test("tool registry: app_action shapeResult handles valid result", () => {
+  const reg = getToolRegistration("app_action")!;
+  const shaped = reg.shapeResult({ action: "share_recipe", params: {} });
+  assertEquals(shaped.appAction?.action, "share_recipe");
+});
+
+Deno.test("tool registry: app_action shapeResult handles null", () => {
+  const reg = getToolRegistration("app_action")!;
+  const shaped = reg.shapeResult(null);
+  assertEquals(shaped.result, null);
+});
+
+Deno.test("tool registry: app_action shapeResult handles non-object", () => {
+  const reg = getToolRegistration("app_action")!;
+  const shaped = reg.shapeResult("unexpected");
+  assertEquals(shaped.result, "unexpected");
 });

@@ -20,10 +20,12 @@ import {
     IrmixyStatus,
     SuggestionChip,
     GeneratedRecipe,
-    QuickAction,
+    Action,
     loadChatHistory,
     sendMessage,
 } from '@/services/chatService';
+import { executeAction } from '@/services/actions/actionRegistry';
+import type { ActionContext } from '@/services/actions/actionRegistry';
 import { customRecipeService } from '@/services/customRecipeService';
 import { useQueryClient } from '@tanstack/react-query';
 import { customRecipeKeys } from '@/hooks/useCustomRecipe';
@@ -74,6 +76,7 @@ export function ChatScreen({
     const chunkTimerRef = useRef<NodeJS.Timeout | null>(null);
     const isNearBottomRef = useRef(true); // Assume at bottom initially
     const skipNextScrollToEndRef = useRef(false); // Skip scroll-to-end after recipe card scroll
+    const executedActionIdsRef = useRef(new Set<string>()); // Dedupe auto-executed actions
 
     // Use external messages if provided (lifted state), otherwise use local state
     const [internalMessages, setInternalMessages] = useState<ChatMessage[]>([]);
@@ -495,6 +498,24 @@ export function ChatScreen({
                         setDynamicSuggestions([]);
                     }
 
+                    // Auto-execute actions with dedupe guard (only on fresh responses, not history)
+                    if (response.actions) {
+                        for (const action of response.actions) {
+                            if (
+                                action.autoExecute &&
+                                action.id &&
+                                !executedActionIdsRef.current.has(action.id)
+                            ) {
+                                executedActionIdsRef.current.add(action.id);
+                                const actionContext: ActionContext = {
+                                    currentRecipe: response.customRecipe,
+                                    recipes: response.recipes,
+                                };
+                                executeAction(action, actionContext);
+                            }
+                        }
+                    }
+
                     // Allow user to start typing immediately after response completes
                     // Don't wait for handle.done - text and suggestions are already received
                     setIsLoading(false);
@@ -667,19 +688,8 @@ export function ChatScreen({
         }
     }, [queryClient, setMessages]);
 
-    const handleActionPress = useCallback((action: QuickAction) => {
-        const payload = action.payload || {};
-        switch (action.type) {
-            case 'view_recipe': {
-                const recipeId = payload.recipeId as string;
-                if (recipeId) {
-                    router.push(`/(tabs)/recipes/${recipeId}?from=chat`);
-                }
-                break;
-            }
-            default:
-                break;
-        }
+    const handleActionPress = useCallback((action: Action, context?: ActionContext) => {
+        executeAction(action, context);
     }, []);
 
     // Memoize the last message ID to avoid recalculating on every render

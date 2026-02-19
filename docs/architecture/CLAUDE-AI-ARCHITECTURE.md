@@ -12,14 +12,15 @@ A comprehensive guide to how the AI features work in YummyYummix, from the user 
 4. [Voice Chat: End-to-End](#4-voice-chat-end-to-end)
 5. [The AI Gateway](#5-the-ai-gateway)
 6. [The Tools System](#6-the-tools-system)
-7. [Recipe Generation Deep Dive](#7-recipe-generation-deep-dive)
-8. [Recipe Search: Hybrid Retrieval](#8-recipe-search-hybrid-retrieval)
-9. [Context and Personalization](#9-context-and-personalization)
-10. [Intent Detection and Smart Shortcuts](#10-intent-detection-and-smart-shortcuts)
-11. [Frontend Implementation](#11-frontend-implementation)
-12. [Security and Safety](#12-security-and-safety)
-13. [Database Schema](#13-database-schema)
-14. [Key File Reference](#14-key-file-reference)
+7. [Agentic Action System](#7-agentic-action-system)
+8. [Recipe Generation Deep Dive](#8-recipe-generation-deep-dive)
+9. [Recipe Search: Hybrid Retrieval](#9-recipe-search-hybrid-retrieval)
+10. [Context and Personalization](#10-context-and-personalization)
+11. [Intent Detection and Smart Shortcuts](#11-intent-detection-and-smart-shortcuts)
+12. [Frontend Implementation](#12-frontend-implementation)
+13. [Security and Safety](#13-security-and-safety)
+14. [Database Schema](#14-database-schema)
+15. [Key File Reference](#15-key-file-reference)
 
 ---
 
@@ -375,13 +376,14 @@ Tools are actions the AI can take during a conversation. When the AI decides it 
 
 **Location:** `yyx-server/supabase/functions/_shared/tools/`
 
-### The three tools
+### The four tools
 
 | Tool | What it does | When the AI uses it |
 |------|-------------|-------------------|
 | `search_recipes` | Searches the recipe database using hybrid semantic + keyword matching | User asks to find recipes ("show me pasta recipes", "something quick for dinner") |
 | `generate_custom_recipe` | Creates a brand-new recipe from scratch | User wants a custom recipe ("make me a chicken stir fry") |
 | `retrieve_custom_recipe` | Looks up recipes the user previously generated | User references past recipes ("what was that soup from last week?") |
+| `app_action` | Triggers a frontend-only action (validated pass-through) | User requests an app action like sharing a recipe ("share this recipe") |
 
 ### Tool registry pattern
 
@@ -419,11 +421,96 @@ Result sent back to orchestrator for inclusion in the response
 
 ### Voice tool whitelist
 
-For security, only certain tools are allowed in voice mode. The `allowedInVoice` flag in each registration controls this. The voice orchestrator checks `getAllowedVoiceToolNames()` before executing any tool call from the WebRTC data channel. Currently all three tools are allowed in voice, but this gate exists so sensitive tools can be restricted to text-only if needed.
+For security, only certain tools are allowed in voice mode. The `allowedInVoice` flag in each registration controls this. The voice orchestrator checks `getAllowedVoiceToolNames()` before executing any tool call from the WebRTC data channel. Currently all four tools are allowed in voice, but this gate exists so sensitive tools can be restricted to text-only if needed.
 
 ---
 
-## 7. Recipe Generation Deep Dive
+## 7. Agentic Action System
+
+The AI can trigger actions in the app - things like sharing a recipe, navigating to a screen, or opening the device's share sheet. These are called **actions** and they flow from the AI's tool calls all the way through to frontend execution.
+
+### Two categories of actions
+
+**Category 1: Backend tool results that produce actions.** When a tool like `search_recipes` returns recipe cards, the orchestrator's `action-builder.ts` can automatically attach actions (e.g., `view_recipe` with a `recipeId` payload). These are derived from server-side data.
+
+**Category 2: Frontend-only actions via `app_action`.** When the AI needs to trigger something that requires no server-side work (e.g., sharing a recipe via the device's share sheet), it calls the `app_action` tool. This is a pass-through: the backend validates the action type against an allow-list and passes it to the frontend unchanged.
+
+### End-to-end flow
+
+```
+User: "Share this recipe with my friend"
+    │
+    ▼
+AI decides to call app_action({ action: "share_recipe" })
+    │
+    ▼
+Backend: tool-registry dispatches to executeAppAction()
+    │ Validates "share_recipe" is in ALLOWED_ACTIONS
+    │ Returns { action: "share_recipe", params: {} }
+    │
+    ▼
+Orchestrator: action-builder.ts converts to Action object
+    │ { id: "share_recipe_171...", type: "share_recipe",
+    │   label: "Compartir Receta", payload: {}, autoExecute: true }
+    │
+    ▼
+SSE done event includes the Action in the IrmixyResponse
+    │
+    ▼
+Frontend: ChatScreen receives Action, calls actionRegistry.executeAction()
+    │ Looks up "share_recipe" in ACTION_HANDLERS
+    │ Handler formats the recipe text and opens the device share sheet
+```
+
+### The Action object
+
+Actions are part of the `IrmixyResponse` schema (defined in `irmixy-schemas.ts`):
+
+```typescript
+{
+  id: string;               // Unique identifier
+  type: string;             // "view_recipe" | "share_recipe" | ...
+  label: string;            // Localized display label
+  payload: Record<string, unknown>;  // Action-specific parameters
+  autoExecute?: boolean;    // If true, frontend executes immediately without user tap
+}
+```
+
+### The `app_action` tool
+
+**Location:** `_shared/tools/app-action.ts`
+
+This is a special tool in the registry. Unlike `search_recipes` or `generate_custom_recipe` which do real server-side work, `app_action` is a **validated pass-through**. Its only job is to:
+
+1. Confirm the requested action is in the `ALLOWED_ACTIONS` allow-list
+2. Return the validated action type and params
+
+The allow-list pattern prevents the AI from inventing arbitrary actions. If the AI hallucinates `delete_account` as an action, the backend rejects it.
+
+Currently allowed actions: `share_recipe`.
+
+### How to add a new frontend-only action
+
+Only **2 files** need changes:
+
+1. **`_shared/tools/app-action.ts`** (backend) — Add the action name to `ALLOWED_ACTIONS` and update the tool description so the AI knows when to use it.
+
+2. **`services/actions/actionRegistry.ts`** (frontend) — Add a handler to `ACTION_HANDLERS` that implements the action logic.
+
+Optionally, add a localized label in `action-builder.ts` so the button text renders in the user's language.
+
+### How to add a new server-derived action
+
+If the action depends on server-side data (e.g., `view_recipe` needs a `recipeId` from a tool result):
+
+1. Add the logic in `action-builder.ts` to construct the `Action` from the tool result
+2. Add a handler in `actionRegistry.ts` on the frontend
+
+No changes to `app-action.ts` are needed since the action isn't triggered by the AI calling `app_action`.
+
+---
+
+## 8. Recipe Generation Deep Dive
 
 Recipe generation is the most complex feature in the AI system. Here's how `generate_custom_recipe` works step by step.
 
@@ -530,7 +617,7 @@ This avoids a slower LLM call for intent detection (~1.5s) by using fast regex p
 
 ---
 
-## 8. Recipe Search: Hybrid Retrieval
+## 9. Recipe Search: Hybrid Retrieval
 
 When a user asks "find me quick chicken recipes", the `search_recipes` tool uses a hybrid approach combining two search strategies.
 
@@ -580,7 +667,7 @@ After scoring, results are:
 
 ---
 
-## 9. Context and Personalization
+## 10. Context and Personalization
 
 Every AI interaction is personalized based on what the system knows about the user. The `context-builder.ts` module is responsible for loading this information.
 
@@ -632,7 +719,7 @@ This adds constraints to the system prompt so the AI won't suggest dinner recipe
 
 ---
 
-## 10. Intent Detection and Smart Shortcuts
+## 11. Intent Detection and Smart Shortcuts
 
 Several optimizations avoid unnecessary AI calls, reducing latency and cost.
 
@@ -666,7 +753,7 @@ When detected, the orchestrator forces the AI to use a tool (`tool_choice: "requ
 
 ---
 
-## 11. Frontend Implementation
+## 12. Frontend Implementation
 
 ### Chat UI architecture
 
@@ -741,7 +828,7 @@ When the user taps "Start Cooking" on a `CustomRecipeCard`:
 
 ---
 
-## 12. Security and Safety
+## 13. Security and Safety
 
 ### Authentication
 
@@ -787,7 +874,7 @@ Two layers of protection:
 
 ---
 
-## 13. Database Schema
+## 14. Database Schema
 
 ### Chat tables
 
@@ -831,7 +918,7 @@ Two layers of protection:
 
 ---
 
-## 14. Key File Reference
+## 15. Key File Reference
 
 ### Backend - Edge Functions
 
@@ -839,6 +926,7 @@ Two layers of protection:
 |------|---------|
 | `functions/irmixy-chat-orchestrator/index.ts` | Main text chat orchestrator (auth, context, AI loop, streaming, response finalization) |
 | `functions/irmixy-chat-orchestrator/recipe-intent.ts` | Recipe intent detection and modification heuristics |
+| `functions/irmixy-chat-orchestrator/action-builder.ts` | Converts tool results to Action objects for frontend execution |
 | `functions/irmixy-chat-orchestrator/message-normalizer.ts` | Converts message formats between orchestrator and AI gateway |
 | `functions/irmixy-voice-orchestrator/index.ts` | Voice session management, quota checking, tool execution |
 
@@ -854,6 +942,7 @@ Two layers of protection:
 | `functions/_shared/tools/execute-tool.ts` | Tool dispatch and execution |
 | `functions/_shared/tools/shape-tool-response.ts` | Normalize tool results to common format |
 | `functions/_shared/tools/tool-validators.ts` | Parameter validation for each tool |
+| `functions/_shared/tools/app-action.ts` | Pass-through tool for frontend-only actions (allow-list + validation) |
 | `functions/_shared/tools/generate-custom-recipe.ts` | Recipe generation pipeline |
 | `functions/_shared/tools/search-recipes.ts` | Recipe search with hybrid retrieval |
 | `functions/_shared/tools/retrieve-custom-recipe.ts` | Past recipe lookup with natural language |
@@ -871,6 +960,7 @@ Two layers of protection:
 |------|---------|
 | `services/chatService.ts` | SSE streaming, session management, message routing (`routeSSEMessage`) |
 | `services/customRecipeService.ts` | Save AI-generated recipes to database |
+| `services/actions/actionRegistry.ts` | Handler map for frontend action execution (share, navigate, etc.) |
 | `services/voice/providers/OpenAIRealtimeProvider.ts` | WebRTC connection to OpenAI Realtime |
 | `services/voice/VoiceProviderFactory.ts` | Factory for voice provider instances |
 | `services/voice/types.ts` | Voice status, events, tool call types |

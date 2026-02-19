@@ -26,6 +26,8 @@ import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { executeTool } from "../_shared/tools/execute-tool.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
 import { hasHighRecipeIntent } from "./recipe-intent.ts";
+import type { AppActionResult } from "../_shared/tools/app-action.ts";
+import { buildActions } from "./action-builder.ts";
 
 // Module imports
 import type {
@@ -203,6 +205,7 @@ async function executeToolCalls(
   let recipes: RecipeCard[] | undefined;
   let customRecipeResult: GenerateRecipeResult | undefined;
   let retrievalResult: RetrieveCustomRecipeResult | undefined;
+  let appActionResult: AppActionResult | undefined;
 
   const results = await Promise.all(
     toolCalls.map(async (toolCall) => {
@@ -257,9 +260,20 @@ async function executeToolCalls(
       retrievalResult = execution.shaped
         .retrievalResult as RetrieveCustomRecipeResult;
     }
+
+    // Independent if — a turn can have both recipe results and app actions
+    if (execution.shaped.appAction) {
+      appActionResult = execution.shaped.appAction;
+    }
   }
 
-  return { toolMessages, recipes, customRecipeResult, retrievalResult };
+  return {
+    toolMessages,
+    recipes,
+    customRecipeResult,
+    retrievalResult,
+    appActionResult,
+  };
 }
 
 // ============================================================
@@ -340,6 +354,7 @@ function handleStreamingRequest(
         let recipes: RecipeCard[] | undefined;
         let customRecipeResult: GenerateRecipeResult | undefined;
         let retrievalResult: RetrieveCustomRecipeResult | undefined;
+        let toolAppActionResult: AppActionResult | undefined;
         let streamMessages = messages;
 
         // Check for modification of existing custom recipe (same logic as non-streaming)
@@ -409,6 +424,7 @@ function handleStreamingRequest(
                 undefined,
                 customRecipeResult,
                 undefined,
+                undefined, // No actions in modification flow
               );
               timings.finalize_ms = Math.round(performance.now() - phaseStart);
               timings.total_ms = Math.round(performance.now() - startTime);
@@ -479,6 +495,7 @@ function handleStreamingRequest(
           recipes = toolResult.recipes;
           customRecipeResult = toolResult.customRecipeResult;
           retrievalResult = toolResult.retrievalResult;
+          toolAppActionResult = toolResult.appActionResult;
 
           log.info("Tool execution result", {
             hasRecipes: !!recipes?.length,
@@ -499,6 +516,10 @@ function handleStreamingRequest(
           ) {
             const fallback = buildNoResultsFallback(userContext.language);
             send({ type: "content", content: fallback.message });
+            const fallbackActions = buildActions(
+              userContext.language,
+              toolResult.appActionResult,
+            );
             const response = await finalizeResponse(
               supabase,
               sessionId,
@@ -508,7 +529,7 @@ function handleStreamingRequest(
               undefined,
               undefined,
               fallback.suggestions,
-              undefined,
+              fallbackActions.length > 0 ? fallbackActions : undefined,
             );
             timings.total_ms = Math.round(performance.now() - startTime);
             log.info("No-results fallback", timings);
@@ -568,6 +589,10 @@ function handleStreamingRequest(
           timings.suggestions_ms = 0; // No AI call needed
         }
 
+        const actions = buildActions(
+          userContext.language,
+          toolAppActionResult,
+        );
         const response = await finalizeResponse(
           supabase,
           sessionId,
@@ -577,6 +602,7 @@ function handleStreamingRequest(
           recipes,
           customRecipeResult,
           suggestions,
+          actions.length > 0 ? actions : undefined,
         );
         timings.finalize_ms = Math.round(performance.now() - phaseStart);
         timings.total_ms = Math.round(performance.now() - startTime);

@@ -18,6 +18,11 @@ import {
   retrieveCustomRecipeTool,
 } from "./retrieve-custom-recipe.ts";
 import { searchRecipes, searchRecipesTool } from "./search-recipes.ts";
+import {
+  type AppActionResult,
+  appActionTool,
+  executeAppAction,
+} from "./app-action.ts";
 
 export interface ToolExecutionContext {
   supabase: SupabaseClient;
@@ -30,6 +35,7 @@ export interface ToolShape {
   customRecipe?: GenerateRecipeResult["recipe"];
   safetyFlags?: GenerateRecipeResult["safetyFlags"];
   retrievalResult?: RetrieveCustomRecipeResult;
+  appAction?: AppActionResult;
   result?: unknown;
 }
 
@@ -112,6 +118,24 @@ const TOOL_REGISTRY: Record<string, ToolRegistration> = {
       return {
         retrievalResult: result as RetrieveCustomRecipeResult,
       };
+    },
+  },
+  app_action: {
+    aiTool: {
+      name: appActionTool.function.name,
+      description: appActionTool.function.description,
+      parameters: appActionTool.function.parameters as Record<
+        string,
+        unknown
+      >,
+    },
+    allowedInVoice: true,
+    execute: async (args) => executeAppAction(args),
+    shapeResult: (result) => {
+      if (result && typeof result === "object" && "action" in result) {
+        return { appAction: result as AppActionResult };
+      }
+      return { result: result ?? null };
     },
   },
 };

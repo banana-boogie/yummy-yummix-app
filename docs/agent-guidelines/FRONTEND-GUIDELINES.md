@@ -40,6 +40,8 @@ yyx-app/
 │   ├── eventService.ts
 │   ├── preferencesService.ts
 │   ├── analyticsService.ts
+│   ├── actions/            # Action execution system
+│   │   └── actionRegistry.ts  # Handler map for frontend action execution
 │   ├── voice/              # Voice provider system
 │   ├── admin/              # Admin services
 │   └── cache/              # Caching layer
@@ -271,6 +273,45 @@ Platform prefixes in NativeWind:
 <View className="native:p-lg" />          // Only on native
 <View className="flex-col md:flex-row" /> // Responsive breakpoint
 ```
+
+---
+
+## Action Registry
+
+**Location:** `services/actions/actionRegistry.ts`
+
+The action registry maps action types (from `IrmixyResponse.actions`) to frontend handler functions. When the AI triggers an action (e.g., `share_recipe`), the registry looks up the handler and executes it.
+
+### Pattern
+
+```typescript
+const ACTION_HANDLERS: Record<string, ActionHandler> = {
+    share_recipe: {
+        execute: async (_payload, context) => {
+            // Use context.currentRecipe or context.recipes
+            await Share.share({ message: formatRecipeForSharing(context.currentRecipe) });
+            return true;  // handled
+        },
+    },
+    view_recipe: {
+        execute: (payload) => {
+            router.push(`/(tabs)/recipes/${payload.recipeId}?from=chat`);
+            return true;
+        },
+    },
+};
+```
+
+- Each handler receives `(payload, context?)` and returns `boolean` (or `Promise<boolean>`)
+- `payload` comes from `Action.payload` — action-specific parameters
+- `context` provides the current message's recipe data (`ActionContext`)
+- Return `true` if handled, `false` if not (missing data, unknown type)
+
+### Adding a new action handler
+
+Add an entry to `ACTION_HANDLERS` in `actionRegistry.ts`. The key must match the action `type` string sent from the backend.
+
+For frontend-only actions triggered by the AI's `app_action` tool, you also need to add the action to the backend allow-list in `_shared/tools/app-action.ts`.
 
 ---
 

@@ -38,6 +38,9 @@ export async function saveMessageToHistory(
   if (assistantResponse.suggestions) {
     toolCallsData.suggestions = assistantResponse.suggestions;
   }
+  if (assistantResponse.actions) {
+    toolCallsData.actions = assistantResponse.actions;
+  }
 
   await supabase.from("user_chat_messages").insert({
     session_id: sessionId,
