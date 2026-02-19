@@ -124,10 +124,35 @@ export async function recordGenerationUsage(
 ): Promise<GenerationUsageUpdate> {
   const monthStart = getMonthStart();
   const resetAt = getNextMonthStart(monthStart);
-  const row = await getUsageRow(supabase, userId, monthStart);
-  const used = row?.generation_count ?? 0;
 
-  if (used >= limit) {
+  // Atomic check-and-increment via Postgres RPC (prevents TOCTOU race)
+  const { data, error: rpcError } = await supabase.rpc(
+    "check_and_increment_ai_generation_usage",
+    { p_user_id: userId, p_limit: limit },
+  );
+
+  if (rpcError) {
+    console.warn("[generation-budget] Atomic RPC failed, falling back", {
+      message: rpcError.message,
+    });
+    // On RPC failure, allow the request (fail open) but don't warn
+    return { allowed: true, used: 0, limit, resetAt };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) {
+    console.warn("[generation-budget] Atomic RPC returned no rows");
+    return { allowed: true, used: 0, limit, resetAt };
+  }
+
+  const { allowed, used, was_80_warning_sent, was_90_warning_sent } = row as {
+    allowed: boolean;
+    used: number;
+    was_80_warning_sent: boolean;
+    was_90_warning_sent: boolean;
+  };
+
+  if (!allowed) {
     return {
       allowed: false,
       used,
@@ -137,45 +162,37 @@ export async function recordGenerationUsage(
     };
   }
 
-  const nextUsed = used + 1;
-  const nowIso = new Date().toISOString();
+  // Check if we just crossed a warning threshold
   const warning80Threshold = Math.ceil(limit * WARNING_80_FRACTION);
   const warning90Threshold = Math.ceil(limit * WARNING_90_FRACTION);
 
   let warningLevel: 80 | 90 | undefined;
-  const upsertPayload: Record<string, unknown> = {
-    user_id: userId,
-    month_start: monthStart,
-    generation_count: nextUsed,
-    updated_at: nowIso,
-  };
 
-  if (nextUsed >= warning90Threshold && !row?.warning_90_sent_at) {
+  if (used >= warning90Threshold && !was_90_warning_sent) {
     warningLevel = 90;
-    upsertPayload.warning_90_sent_at = nowIso;
-  } else if (nextUsed >= warning80Threshold && !row?.warning_80_sent_at) {
+    // Mark warning as sent
+    await supabase
+      .from("ai_monthly_generation_usage")
+      .update({ warning_90_sent_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .eq("month_start", monthStart);
+  } else if (used >= warning80Threshold && !was_80_warning_sent) {
     warningLevel = 80;
-    upsertPayload.warning_80_sent_at = nowIso;
-  }
-
-  const { error } = await supabase
-    .from("ai_monthly_generation_usage")
-    .upsert(upsertPayload, { onConflict: "user_id,month_start" });
-
-  if (error) {
-    console.warn("[generation-budget] Failed persisting usage row", {
-      message: error.message,
-    });
+    await supabase
+      .from("ai_monthly_generation_usage")
+      .update({ warning_80_sent_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .eq("month_start", monthStart);
   }
 
   return {
     allowed: true,
-    used: nextUsed,
+    used,
     limit,
     resetAt,
     warningLevel,
     warningMessage: warningLevel
-      ? buildWarningMessage(language, nextUsed, limit, resetAt, warningLevel)
+      ? buildWarningMessage(language, used, limit, resetAt, warningLevel)
       : undefined,
   };
 }

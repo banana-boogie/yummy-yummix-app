@@ -68,7 +68,7 @@ export interface StreamHandle {
 }
 
 export interface SendMessageOptions {
-    bypassAllergenBlock?: boolean;
+    // Reserved for future options
 }
 
 export type SSERouteAction = 'continue' | 'resolve' | 'reject';
@@ -284,10 +284,6 @@ export function sendMessage(
                         message,
                         sessionId,
                     };
-
-                    if (options?.bypassAllergenBlock === true) {
-                        requestBody.bypassAllergenBlock = true;
-                    }
 
                     // Create EventSource with POST method and body
                     es = new EventSource(IRMIXY_CHAT_ORCHESTRATOR_URL, {

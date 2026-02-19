@@ -47,10 +47,6 @@ const SCROLL_DELAY_MS = 100; // Allow render to complete before scrolling
 const CHUNK_BATCH_MS = 50; // Batch streaming chunks to reduce re-renders
 const SCROLL_THRESHOLD = 100; // Distance from bottom to consider "at bottom" (px)
 const ICON_SIZE = 20; // Icon size for mic and send buttons
-const ALLERGEN_CONFIRMATION_PATTERNS = [
-    /\b(?:yes|yeah|yep|ok|okay|go ahead|proceed|continue|do it|make it anyway)\b/i,
-    /\b(?:si|sí|dale|adelante|continua|continúa|procede|hazlo)\b/i,
-];
 
 interface Props {
     sessionId?: string | null;
@@ -62,21 +58,6 @@ interface Props {
 
 // Stable keyExtractor to avoid recreation on each render
 const keyExtractor = (item: ChatMessage) => item.id;
-
-function shouldBypassAllergenBlock(
-    messageText: string,
-    history: ChatMessage[]
-): boolean {
-    const trimmed = messageText.trim();
-    if (!trimmed) return false;
-
-    const lastAssistant = [...history].reverse().find((msg) => msg.role === 'assistant');
-    const hasPendingAllergenWarning = !!lastAssistant?.safetyFlags?.allergenWarning &&
-        lastAssistant?.safetyFlags?.error === true;
-
-    if (!hasPendingAllergenWarning) return false;
-    return ALLERGEN_CONFIRMATION_PATTERNS.some((pattern) => pattern.test(trimmed));
-}
 
 export function ChatScreen({
     sessionId: initialSessionId,
@@ -238,11 +219,6 @@ export function ChatScreen({
 
     const handleSendMessage = useCallback(async (messageText: string) => {
         if (!messageText.trim() || !user || isLoading) return;
-
-        const bypassAllergenBlock = shouldBypassAllergenBlock(
-            messageText,
-            messagesRef.current,
-        );
 
         streamRequestIdRef.current += 1;
         const requestId = streamRequestIdRef.current;
@@ -523,9 +499,6 @@ export function ChatScreen({
                     hasRecipeInCurrentStreamRef.current = false;
                     completedSuccessfully = true;
                 },
-                {
-                    bypassAllergenBlock,
-                },
             );
 
             // Wrap cancel to flush partial message before canceling
@@ -699,11 +672,6 @@ export function ChatScreen({
         }
     }, []);
 
-    // Handle allergen bypass — sends "yes, proceed" to trigger existing shouldBypassAllergenBlock
-    const handleConfirmAllergen = useCallback((_messageId: string) => {
-        handleSendMessage('yes, proceed');
-    }, [handleSendMessage]);
-
     // Memoize the last message ID to avoid recalculating on every render
     const lastMessageId = messages.length > 0 ? messages[messages.length - 1]?.id : null;
 
@@ -722,10 +690,9 @@ export function ChatScreen({
                 onCopyMessage={handleCopyMessage}
                 onStartCooking={handleStartCooking}
                 onActionPress={handleActionPress}
-                onConfirmAllergen={handleConfirmAllergen}
             />
         );
-    }, [lastMessageId, isLoading, currentStatus, statusText, handleCopyMessage, handleStartCooking, handleActionPress, handleConfirmAllergen]);
+    }, [lastMessageId, isLoading, currentStatus, statusText, handleCopyMessage, handleStartCooking, handleActionPress]);
 
     const handleScroll = useCallback((event: any) => {
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
@@ -883,6 +850,7 @@ export function ChatScreen({
                         editable={!isLoading}
                     />
                     <TouchableOpacity
+                        testID="send-button"
                         className={`rounded-full justify-center items-center ${
                             isLoading ? 'bg-primary-medium' :
                             !inputText.trim() ? 'bg-grey-medium' : 'bg-primary-darkest'

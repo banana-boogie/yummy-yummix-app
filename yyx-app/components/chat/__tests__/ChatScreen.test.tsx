@@ -203,12 +203,9 @@ describe('ChatScreen', () => {
       // Type a message and send
       const input = screen.getByPlaceholderText('Ask Irmixy...');
       fireEvent.changeText(input, 'Hello');
-      // Find the send button (the touchable next to input)
-      const sendButtons = screen.getAllByRole('button');
-      // Press the last button which should be the send button
-      if (sendButtons.length > 0) {
-        fireEvent.press(sendButtons[sendButtons.length - 1]);
-      }
+      // Find the send button by testID
+      const sendButton = screen.getByTestId('send-button');
+      fireEvent.press(sendButton);
 
       await waitFor(() => {
         expect(mockSendMessage).toHaveBeenCalled();

@@ -84,7 +84,6 @@ export interface ChatMessageItemProps {
     onCopyMessage: (content: string) => void;
     onStartCooking: (recipe: GeneratedRecipe, finalName: string, messageId: string, savedRecipeId?: string) => void;
     onActionPress: (action: QuickAction) => void;
-    onConfirmAllergen?: (messageId: string) => void;
 }
 
 export const ChatMessageItem = memo(function ChatMessageItem({
@@ -96,7 +95,6 @@ export const ChatMessageItem = memo(function ChatMessageItem({
     onCopyMessage,
     onStartCooking,
     onActionPress,
-    onConfirmAllergen,
 }: ChatMessageItemProps) {
     const isUser = item.role === 'user';
     const showRecipeSkeleton = !isUser && !item.customRecipe && isLoading
@@ -155,7 +153,6 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                         onStartCooking={onStartCooking}
                         messageId={item.id}
                         savedRecipeId={item.savedRecipeId}
-                        onConfirmAllergen={onConfirmAllergen ? () => onConfirmAllergen(item.id) : undefined}
                     />
                 </View>
             )}

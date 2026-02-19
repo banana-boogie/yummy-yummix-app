@@ -110,7 +110,6 @@ export async function generateCustomRecipe(
   userContext: UserContext,
   _openaiApiKey?: string,
   onPartialRecipe?: PartialRecipeCallback,
-  options?: { bypassAllergenBlock?: boolean },
 ): Promise<GenerateRecipeResult> {
   // Timing instrumentation for performance monitoring
   const timings: Record<string, number> = {};
@@ -119,8 +118,7 @@ export async function generateCustomRecipe(
 
   // Validate and sanitize params
   const params = validateGenerateRecipeParams(rawParams);
-  const bypassAllergenBlock = options?.bypassAllergenBlock === true;
-  let bypassedAllergenWarning: string | undefined;
+  let allergenWarning: string | undefined;
 
   // Run allergen check and safety reminders in parallel
   const [allergenCheck, safetyReminders] = await Promise.all([
@@ -141,32 +139,16 @@ export async function generateCustomRecipe(
   timings.allergen_and_safety_ms = Math.round(performance.now() - phaseStart);
   phaseStart = performance.now();
 
+  // Allergens are non-blocking: always proceed, but set warning for display
   if (!allergenCheck.safe) {
-    if (!bypassAllergenBlock) {
-      timings.total_ms = Math.round(performance.now() - totalStart);
-      console.log(
-        "[GenerateRecipe Timings] Early exit (allergen):",
-        JSON.stringify(timings),
-      );
-      return {
-        recipe: createEmptyRecipe(userContext),
-        safetyFlags: {
-          allergenWarning: allergenCheck.warning,
-          error: true,
-        },
-      };
-    }
-
-    bypassedAllergenWarning = allergenCheck.warning || (
+    allergenWarning = allergenCheck.warning || (
       userContext.language === "es"
         ? "Advertencia de alérgenos: revisa cuidadosamente los ingredientes."
         : "Allergen warning: please review ingredients carefully."
     );
     console.warn(
-      "[GenerateRecipe] Bypassing allergen block due to request flag",
-      {
-        warning: bypassedAllergenWarning,
-      },
+      "[GenerateRecipe] Allergen detected, proceeding with warning",
+      { warning: allergenWarning },
     );
   }
 
@@ -175,10 +157,7 @@ export async function generateCustomRecipe(
     params,
     userContext,
     safetyReminders,
-    {
-      bypassAllergenBlock,
-      allergenWarning: bypassedAllergenWarning,
-    },
+    allergenWarning ? { allergenWarning } : undefined,
   );
   timings.recipe_llm_ms = Math.round(performance.now() - phaseStart);
   phaseStart = performance.now();
@@ -229,8 +208,8 @@ export async function generateCustomRecipe(
   console.log("[GenerateRecipe Timings]", JSON.stringify(timings));
 
   const warningMessages: string[] = [];
-  if (bypassedAllergenWarning) {
-    warningMessages.push(bypassedAllergenWarning);
+  if (allergenWarning) {
+    warningMessages.push(allergenWarning);
   }
   if (!safetyCheck.safe && safetyCheck.warnings.length > 0) {
     warningMessages.push(safetyCheck.warnings.join(" "));
@@ -334,7 +313,6 @@ async function callRecipeGenerationAI(
   userContext: UserContext,
   safetyReminders: string,
   options?: {
-    bypassAllergenBlock?: boolean;
     allergenWarning?: string;
   },
 ): Promise<GeneratedRecipe> {
@@ -364,8 +342,8 @@ async function callRecipeGenerationAI(
           content: isRetry ? prompt + strictRetryPromptSuffix : prompt,
         },
       ],
-      reasoningEffort: "medium",
-      maxTokens: 2048,
+      reasoningEffort: "low",
+      maxTokens: 6144,
       responseFormat: {
         type: "json_schema",
         schema: recipeSchema,
@@ -484,7 +462,6 @@ function buildRecipePrompt(
   userContext: UserContext,
   safetyReminders: string,
   options?: {
-    bypassAllergenBlock?: boolean;
     allergenWarning?: string;
   },
 ): string {
@@ -601,17 +578,13 @@ function buildRecipePrompt(
     parts.push(`\n${safetyReminders}`);
   }
 
-  if (options?.bypassAllergenBlock) {
-    parts.push("\n⚠️ ALLERGEN CONFIRMATION OVERRIDE:");
+  if (options?.allergenWarning) {
+    parts.push("\n⚠️ ALLERGEN SAFETY NOTE:");
     parts.push(
-      "The user explicitly confirmed they want to proceed despite allergen risk.",
+      "Some ingredients may trigger allergen concerns for this user. " +
+      "Mention any relevant allergen info naturally in the recipe instructions.",
     );
-    parts.push(
-      "Include requested allergen ingredients instead of removing them, and add a clear safety note in the recipe instructions.",
-    );
-    if (options.allergenWarning) {
-      parts.push(`Reference warning: ${options.allergenWarning}`);
-    }
+    parts.push(`Detected: ${options.allergenWarning}`);
   }
 
   return parts.join("\n");

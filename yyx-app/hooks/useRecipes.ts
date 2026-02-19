@@ -20,9 +20,12 @@ type RecipesResult = {
   updateFilters: (filters: Partial<RecipeFilters>) => void;
 };
 
+const normalize = (value: string) =>
+  value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
 /**
  * Hook to fetch paginated recipes
- * 
+ *
  * This is the backward-compatible wrapper that maintains the same API
  * but now uses TanStack Query's useInfiniteQuery internally.
  */
@@ -43,9 +46,6 @@ export const useRecipes = (initialFilters: RecipeFilters = { isPublished: true }
     isPublished: filters.isPublished,
     searchTerm: debouncedSearchTerm || null,
   });
-
-  const normalize = (value: string) =>
-    value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
   // Flatten all pages and apply instant local filtering while debounced search catches up.
   const recipes = useMemo(() => {

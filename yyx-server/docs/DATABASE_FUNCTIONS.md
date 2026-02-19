@@ -11,6 +11,8 @@ Custom PostgreSQL functions available via Supabase RPC.
 | `find_closest_ingredient(name, lang)` | Find ingredient by fuzzy name match | Custom recipe generation |
 | `update_ai_voice_usage()` | Track AI voice minutes | Voice endpoints |
 | `upsert_cooking_session_progress(recipe_id, recipe_type, recipe_name, current_step, total_steps)` | Upsert active cooking progress per user+recipe | Cooking guide progress + resume prompt |
+| `check_and_increment_ai_generation_usage(p_user_id, p_limit)` | Atomic check-and-increment for monthly recipe generation budget | Chat/voice orchestrators |
+| `get_cooked_recipes(p_user_id, p_query_text, p_limit)` | Retrieve user's cooked recipe history with optional search | Cooked recipes tool |
 | `match_recipe_embeddings(query_embedding, match_threshold, match_count)` | Vector similarity search for published recipes | Hybrid recipe search tool |
 
 ## Function Details
@@ -84,6 +86,43 @@ Search recipe vectors via cosine similarity for hybrid search ranking.
 - `SECURITY DEFINER` with explicit search path (`public, extensions`)
 - Execute is restricted to `service_role`
 - Intended to be called from server-side edge functions only
+
+### `check_and_increment_ai_generation_usage(p_user_id, p_limit)`
+
+Atomically checks whether a user is within their monthly recipe generation budget and increments the counter in one step. Prevents TOCTOU race conditions where two concurrent requests could both pass a separate check.
+
+**Parameters:**
+- `p_user_id` (uuid): The user to check/increment
+- `p_limit` (integer, default 120): Monthly generation cap
+
+**Returns:** `{allowed, used, was_80_warning_sent, was_90_warning_sent}`
+- `allowed` (boolean): Whether the user is within budget (counter was incremented)
+- `used` (integer): Current count after increment (or current count if blocked)
+- `was_80_warning_sent` (boolean): Whether the 80% warning has been sent previously
+- `was_90_warning_sent` (boolean): Whether the 90% warning has been sent previously
+
+**Security/Behavior:**
+- `SECURITY DEFINER` with explicit `SET search_path = public`
+- Execute restricted to `service_role` only
+- Uses `FOR UPDATE` row lock to prevent concurrent increments
+- Creates the usage row if it doesn't exist (upsert on first call of the month)
+
+### `get_cooked_recipes(p_user_id, p_query_text, p_limit)`
+
+Retrieve a user's cooked recipe history, optionally filtered by a search query. Returns recipes the user has marked as cooked, sorted by relevance when searching or by most recent otherwise.
+
+**Parameters:**
+- `p_user_id` (uuid): The user whose history to fetch
+- `p_query_text` (text, nullable): Optional search term for filtering by recipe name
+- `p_limit` (integer, default 10): Maximum results to return
+
+**Returns:** `{recipe_id, name, image_url, cooked_at, match_score}`
+
+**Security/Behavior:**
+- `SECURITY INVOKER` — runs with caller's permissions
+- Execute granted to `authenticated` role
+- When `p_query_text` is provided, results are sorted by `match_score DESC` (relevance first), then by `cooked_at DESC`
+- When `p_query_text` is null, results are sorted by `cooked_at DESC` only
 
 ---
 

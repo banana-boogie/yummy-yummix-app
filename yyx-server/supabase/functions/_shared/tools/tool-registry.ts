@@ -22,7 +22,6 @@ export interface ToolExecutionContext {
   supabase: SupabaseClient;
   userContext: UserContext;
   onPartialRecipe?: PartialRecipeCallback;
-  bypassAllergenBlock?: boolean;
 }
 
 export interface ToolShape {
@@ -76,7 +75,6 @@ const TOOL_REGISTRY: Record<string, ToolRegistration> = {
         context.userContext,
         undefined,
         context.onPartialRecipe,
-        { bypassAllergenBlock: context.bypassAllergenBlock },
       ),
     shapeResult: (result) => {
       if (!result || typeof result !== "object") {

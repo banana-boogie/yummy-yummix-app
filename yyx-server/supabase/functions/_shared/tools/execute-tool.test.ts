@@ -178,7 +178,7 @@ Deno.test("executeTool - accepts execution options object", async () => {
     "search_recipes",
     JSON.stringify({ query: "chicken" }),
     userContext,
-    { bypassAllergenBlock: true },
+    { onPartialRecipe: () => {} },
   );
 
   const cards = result as Array<{ recipeId: string }>;

@@ -160,25 +160,28 @@ const findRecipeIdsForSearch = async (
     nameQuery = nameQuery.eq('is_published', isPublished);
   }
 
-  const { data: nameMatches } = await nameQuery as unknown as PostgrestResponse<IdRow[]>;
+  const { data: nameMatches, error: nameError } = await nameQuery as unknown as PostgrestResponse<IdRow[]>;
+  if (nameError) console.warn('[recipeService] Name search error:', nameError.message);
   for (const row of nameMatches ?? []) {
     recipeIds.add(row.id);
   }
 
   // 2) Ingredient name matches -> recipe IDs
-  const { data: ingredientMatches } = await supabase
+  const { data: ingredientMatches, error: ingredientError } = await supabase
     .from('ingredients')
     .select('id')
     .ilike(nameColumn, pattern)
     .limit(200) as unknown as PostgrestResponse<IdRow[]>;
+  if (ingredientError) console.warn('[recipeService] Ingredient search error:', ingredientError.message);
 
   const ingredientIds = (ingredientMatches ?? []).map((row) => row.id);
   if (ingredientIds.length > 0) {
-    const { data: recipeIngredientRows } = await supabase
+    const { data: recipeIngredientRows, error: riError } = await supabase
       .from('recipe_ingredients')
       .select('recipe_id')
       .in('ingredient_id', ingredientIds)
       .limit(500) as unknown as PostgrestResponse<RecipeIdRow[]>;
+    if (riError) console.warn('[recipeService] Recipe-ingredient join error:', riError.message);
 
     for (const row of recipeIngredientRows ?? []) {
       recipeIds.add(row.recipe_id);
@@ -186,19 +189,21 @@ const findRecipeIdsForSearch = async (
   }
 
   // 3) Tag matches -> recipe IDs
-  const { data: tagMatches } = await supabase
+  const { data: tagMatches, error: tagError } = await supabase
     .from('recipe_tags')
     .select('id')
     .ilike(nameColumn, pattern)
     .limit(200) as unknown as PostgrestResponse<IdRow[]>;
+  if (tagError) console.warn('[recipeService] Tag search error:', tagError.message);
 
   const tagIds = (tagMatches ?? []).map((row) => row.id);
   if (tagIds.length > 0) {
-    const { data: recipeTagRows } = await supabase
+    const { data: recipeTagRows, error: rtError } = await supabase
       .from('recipe_to_tag')
       .select('recipe_id')
       .in('tag_id', tagIds)
       .limit(500) as unknown as PostgrestResponse<RecipeIdRow[]>;
+    if (rtError) console.warn('[recipeService] Recipe-tag join error:', rtError.message);
 
     for (const row of recipeTagRows ?? []) {
       recipeIds.add(row.recipe_id);

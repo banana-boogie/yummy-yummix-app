@@ -449,53 +449,100 @@ Deno.test("getSystemPrompt Thermomix section uses 120°C guidance", () => {
 // generateCustomRecipe Allergen Safety Tests
 // ============================================================
 
-Deno.test("generateCustomRecipe fails safe when allergen system is unavailable", async () => {
+Deno.test("generateCustomRecipe proceeds with warning when allergen system is unavailable", async () => {
   resetSharedCaches();
-  const supabase = createAllergenOutageSupabaseMock();
-  const userContext = createMockUserContext({
-    language: "en",
-    dietaryRestrictions: ["nuts"],
-  });
 
-  const result = await generateCustomRecipe(
-    supabase,
-    { ingredients: ["chicken"] },
-    userContext,
-  );
+  // Mock: allergen DB outage, but AI still generates recipe
+  let capturedModel: string | undefined;
+  const originalFetch = globalThis.fetch;
+  const previousOpenAiKey = Deno.env.get("OPENAI_API_KEY");
+  Deno.env.set("OPENAI_API_KEY", "test-openai-key");
 
-  assertEquals(result.safetyFlags?.error, true);
-  assertStringIncludes(
-    result.safetyFlags?.allergenWarning ?? "",
-    "couldn't verify allergens",
-  );
-  assertEquals(result.recipe.suggestedName, "Recipe unavailable");
-  assertEquals(result.recipe.ingredients.length, 0);
+  globalThis.fetch = async (
+    _input: string | URL | Request,
+    init?: RequestInit,
+  ) => {
+    const body = JSON.parse(String(init?.body ?? "{}"));
+    capturedModel = body.model;
+    return new Response(
+      JSON.stringify({
+        id: "chatcmpl-test",
+        model: body.model,
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              schemaVersion: "1.0",
+              suggestedName: "Chicken Dish",
+              measurementSystem: "imperial",
+              language: "en",
+              ingredients: [{ name: "chicken", quantity: 1, unit: "lb" }],
+              steps: [{ order: 1, instruction: "Cook chicken.", ingredientsUsed: ["chicken"] }],
+              totalTime: 20,
+              difficulty: "easy",
+              portions: 2,
+              tags: [],
+            }),
+          },
+        }],
+        usage: { prompt_tokens: 12, completion_tokens: 24 },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  };
+
+  const supabase = {
+    ...createAllergenOutageSupabaseMock(),
+    rpc: (functionName: string, args?: { ingredient_names?: string[] }) => {
+      if (functionName === "batch_find_ingredients") {
+        const names = args?.ingredient_names ?? [];
+        return Promise.resolve({
+          data: names.map((name) => ({
+            input_name: name, matched_name: null, matched_name_es: null,
+            image_url: null, match_score: null,
+          })),
+          error: null,
+        });
+      }
+      return Promise.resolve({ data: null, error: { message: "unknown rpc" } });
+    },
+  } as any;
+
+  // Override from() to also handle useful_items
+  const originalFrom = supabase.from.bind(supabase);
+  supabase.from = (table: string) => {
+    if (table === "useful_items") {
+      return { select: () => ({ limit: async () => ({ data: [], error: null }) }) };
+    }
+    return originalFrom(table);
+  };
+
+  try {
+    const result = await generateCustomRecipe(
+      supabase,
+      { ingredients: ["chicken"] },
+      createMockUserContext({ language: "en", dietaryRestrictions: ["nuts"] }),
+    );
+
+    // Allergens are non-blocking: recipe should be generated with a warning
+    assertEquals(result.recipe.suggestedName, "Chicken Dish");
+    assertStringIncludes(
+      result.safetyFlags?.allergenWarning ?? "",
+      "couldn't verify allergens",
+    );
+    // No error flag — just a warning
+    assertEquals(result.safetyFlags?.error, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousOpenAiKey === undefined) {
+      Deno.env.delete("OPENAI_API_KEY");
+    } else {
+      Deno.env.set("OPENAI_API_KEY", previousOpenAiKey);
+    }
+    resetSharedCaches();
+  }
 });
 
-Deno.test("generateCustomRecipe returns localized fail-safe warning in Spanish", async () => {
-  resetSharedCaches();
-  const supabase = createAllergenOutageSupabaseMock();
-  const userContext = createMockUserContext({
-    language: "es",
-    dietaryRestrictions: ["nuts"],
-  });
-
-  const result = await generateCustomRecipe(
-    supabase,
-    { ingredients: ["pollo"] },
-    userContext,
-  );
-
-  assertEquals(result.safetyFlags?.error, true);
-  assertStringIncludes(
-    result.safetyFlags?.allergenWarning ?? "",
-    "No pude verificar alergias",
-  );
-  assertEquals(result.recipe.suggestedName, "Receta no disponible");
-  assertEquals(result.recipe.ingredients.length, 0);
-});
-
-Deno.test("generateCustomRecipe bypasses allergen block and returns warning with recipe", async () => {
+Deno.test("generateCustomRecipe proceeds with allergen warning when allergen detected", async () => {
   resetSharedCaches();
 
   let capturedModel: string | undefined;
@@ -611,9 +658,6 @@ Deno.test("generateCustomRecipe bypasses allergen block and returns warning with
         language: "en",
         dietaryRestrictions: ["nuts"],
       }),
-      undefined,
-      undefined,
-      { bypassAllergenBlock: true },
     );
 
     assertEquals(capturedModel, "gpt-5-mini");

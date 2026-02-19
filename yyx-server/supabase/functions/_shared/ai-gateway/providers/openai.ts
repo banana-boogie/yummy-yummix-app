@@ -97,11 +97,18 @@ export async function callOpenAI(
       content: m.content,
     })),
     max_completion_tokens: request.maxTokens ?? 4096,
-    ...(request.reasoningEffort &&
-      (model.startsWith("gpt-5") || model.startsWith("o")) && {
-      reasoning_effort: request.reasoningEffort,
-    }),
   };
+
+  // Add reasoning effort for models that support it
+  if (request.reasoningEffort) {
+    if (model.startsWith("gpt-5") || model.startsWith("o")) {
+      openaiRequest.reasoning_effort = request.reasoningEffort;
+    } else {
+      console.warn(
+        `[ai-gateway:openai] reasoningEffort '${request.reasoningEffort}' ignored for model '${model}'`,
+      );
+    }
+  }
 
   // Add response format if specified
   if (request.responseFormat) {
@@ -187,19 +194,26 @@ export async function* callOpenAIStream(
   apiKey: string,
 ): AsyncGenerator<string, void, unknown> {
   const startedAt = performance.now();
-  const openaiRequest = {
+  const openaiRequest: Record<string, unknown> = {
     model,
     messages: request.messages.map((m) => ({
       role: m.role,
       content: m.content,
     })),
     max_completion_tokens: request.maxTokens ?? 4096,
-    ...(request.reasoningEffort &&
-      (model.startsWith("gpt-5") || model.startsWith("o")) && {
-      reasoning_effort: request.reasoningEffort,
-    }),
     stream: true,
   };
+
+  // Add reasoning effort for models that support it
+  if (request.reasoningEffort) {
+    if (model.startsWith("gpt-5") || model.startsWith("o")) {
+      openaiRequest.reasoning_effort = request.reasoningEffort;
+    } else {
+      console.warn(
+        `[ai-gateway:openai] reasoningEffort '${request.reasoningEffort}' ignored for model '${model}'`,
+      );
+    }
+  }
 
   const response = await fetch(OPENAI_CHAT_URL, {
     method: "POST",

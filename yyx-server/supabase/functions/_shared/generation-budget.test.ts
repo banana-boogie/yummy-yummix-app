@@ -16,11 +16,15 @@ type UsageRow = {
   warning_90_sent_at: string | null;
 };
 
-function createMockSupabase(initialRow: UsageRow | null) {
+function createMockSupabase(
+  initialRow: UsageRow | null,
+  opts?: { limit?: number },
+) {
   let row = initialRow;
+  const limit = opts?.limit ?? 10;
 
   return {
-    from: () => ({
+    from: (table: string) => ({
       select: () => ({
         eq: () => ({
           eq: () => ({
@@ -28,15 +32,61 @@ function createMockSupabase(initialRow: UsageRow | null) {
           }),
         }),
       }),
-      upsert: (payload: Record<string, unknown>) => {
-        row = {
-          generation_count: Number(payload.generation_count ?? 0),
-          warning_80_sent_at: (payload.warning_80_sent_at as string) ?? null,
-          warning_90_sent_at: (payload.warning_90_sent_at as string) ?? null,
+      update: (payload: Record<string, unknown>) => {
+        if (row) {
+          row = { ...row, ...payload } as UsageRow;
+        }
+        return {
+          eq: () => ({
+            eq: () => Promise.resolve({ error: null }),
+          }),
         };
-        return Promise.resolve({ error: null });
       },
     }),
+    rpc: (_fn: string, params: { p_user_id: string; p_limit: number }) => {
+      if (!row) {
+        // No row = first usage, create one
+        row = {
+          generation_count: 1,
+          warning_80_sent_at: null,
+          warning_90_sent_at: null,
+        };
+        return Promise.resolve({
+          data: [{
+            allowed: true,
+            used: 1,
+            was_80_warning_sent: false,
+            was_90_warning_sent: false,
+          }],
+          error: null,
+        });
+      }
+
+      const currentCount = row.generation_count;
+      if (currentCount >= params.p_limit) {
+        return Promise.resolve({
+          data: [{
+            allowed: false,
+            used: currentCount,
+            was_80_warning_sent: row.warning_80_sent_at !== null,
+            was_90_warning_sent: row.warning_90_sent_at !== null,
+          }],
+          error: null,
+        });
+      }
+
+      // Increment
+      row = { ...row, generation_count: currentCount + 1 };
+      return Promise.resolve({
+        data: [{
+          allowed: true,
+          used: currentCount + 1,
+          was_80_warning_sent: row.warning_80_sent_at !== null,
+          was_90_warning_sent: row.warning_90_sent_at !== null,
+        }],
+        error: null,
+      });
+    },
     getRow: () => row,
   };
 }

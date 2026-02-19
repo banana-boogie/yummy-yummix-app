@@ -87,13 +87,17 @@ export function VoiceChatScreen({
     const isConnected = status !== 'idle' && status !== 'error';
     const isConnecting = status === 'connecting';
 
+    // Ref-stabilize stopConversation to avoid stale closure in useFocusEffect
+    const stopConversationRef = useRef(stopConversation);
+    useEffect(() => { stopConversationRef.current = stopConversation; }, [stopConversation]);
+
     // Stop voice when navigating away from this screen
     useFocusEffect(
         useCallback(() => {
             return () => {
-                if (isConnected) stopConversation();
+                stopConversationRef.current();
             };
-        }, [isConnected, stopConversation])
+        }, [])
     );
 
     // Timer for active session (only when truly active, not during connecting)

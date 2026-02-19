@@ -77,7 +77,7 @@ serve(async (req) => {
 
   try {
     let body:
-      | { message: string; sessionId?: string; bypassAllergenBlock?: boolean }
+      | { message: string; sessionId?: string }
       | null = null;
     try {
       body = await req.json();
@@ -89,12 +89,10 @@ serve(async (req) => {
     const sessionId = typeof body?.sessionId === "string"
       ? body.sessionId
       : undefined;
-    const bypassAllergenBlock = body?.bypassAllergenBlock === true;
 
     log.info("Request received", {
       hasSessionId: !!sessionId,
       messageLength: message.length,
-      messagePreview: message.trim().slice(0, 180),
     });
 
     // Validate request
@@ -146,6 +144,9 @@ serve(async (req) => {
 
     // Sanitize the incoming message
     const sanitizedMessage = sanitizeContent(message);
+    log.info("Message sanitized", {
+      messagePreview: sanitizedMessage.slice(0, 180),
+    });
 
     const sessionResult = await ensureSessionId(
       supabase,
@@ -162,7 +163,6 @@ serve(async (req) => {
       effectiveSessionId,
       sanitizedMessage,
       log,
-      bypassAllergenBlock,
     );
   } catch (error) {
     log.error("Orchestrator error", error);
@@ -227,7 +227,6 @@ async function executeToolCalls(
   userContext: UserContext,
   log: Logger,
   onPartialRecipe?: PartialRecipeCallback,
-  bypassAllergenBlock?: boolean,
 ): Promise<ToolExecutionResult> {
   const toolMessages: ChatMessage[] = [];
   let recipes: RecipeCard[] | undefined;
@@ -245,7 +244,6 @@ async function executeToolCalls(
           userContext,
           {
             onPartialRecipe,
-            bypassAllergenBlock,
           },
         );
 
@@ -308,7 +306,6 @@ function handleStreamingRequest(
   sessionId: string | undefined,
   message: string,
   log: Logger,
-  bypassAllergenBlock: boolean,
 ): Response {
   const encoder = new TextEncoder();
 
@@ -456,7 +453,6 @@ function handleStreamingRequest(
             userContext,
             log,
             onPartialRecipe,
-            bypassAllergenBlock,
           );
           timings.tool_exec_ms = Math.round(performance.now() - phaseStart);
           phaseStart = performance.now();

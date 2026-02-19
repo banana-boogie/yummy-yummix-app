@@ -28,7 +28,6 @@ export async function executeTool(
   userContext: UserContext,
   executionOptions?: {
     onPartialRecipe?: PartialRecipeCallback;
-    bypassAllergenBlock?: boolean;
   },
 ): Promise<unknown> {
   let parsedArgs: unknown;
@@ -47,6 +46,5 @@ export async function executeTool(
     supabase,
     userContext,
     onPartialRecipe: executionOptions?.onPartialRecipe,
-    bypassAllergenBlock: executionOptions?.bypassAllergenBlock,
   });
 }

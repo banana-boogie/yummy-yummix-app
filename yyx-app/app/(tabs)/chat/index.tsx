@@ -49,10 +49,9 @@ export default function ChatPage() {
 
     // Handler for selecting a session from the hamburger menu
     const handleSelectSession = useCallback((newSessionId: string, sessionMessages: ChatMessage[]) => {
-        setSessionId(newSessionId);
+        updateSessionId(newSessionId);
         setMessages(sessionMessages);
-        AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, newSessionId).catch(() => {});
-    }, []);
+    }, [updateSessionId]);
 
     // Handler for starting a new chat from the hamburger menu
     const handleNewChat = useCallback(() => {
