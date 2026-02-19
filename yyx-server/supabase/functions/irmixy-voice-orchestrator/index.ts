@@ -23,6 +23,7 @@ import { executeTool } from "../_shared/tools/execute-tool.ts";
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
 import { getAllowedVoiceToolNames } from "../_shared/tools/tool-registry.ts";
+import { buildVoiceInstructions } from "../_shared/system-prompt-builder.ts";
 
 const ALLOWED_VOICE_TOOLS = new Set(getAllowedVoiceToolNames());
 const ALLOWED_ACTIONS = new Set(
@@ -136,6 +137,10 @@ async function handleStartSession(
     } of ${QUOTA_LIMIT_MINUTES} minutes this month.`
     : null;
 
+  // Fetch user context for personalized voice instructions
+  const contextBuilder = createContextBuilder(userClient);
+  const userContext = await contextBuilder.buildContext(userId);
+
   const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openaiApiKey) {
     console.error("[irmixy-voice-orchestrator] OPENAI_API_KEY is missing");
@@ -157,8 +162,7 @@ async function handleStartSession(
       body: JSON.stringify({
         model: "gpt-realtime-mini",
         voice: "alloy",
-        instructions:
-          "You are Irmixy, a cooking assistant. Stay within cooking topics only: recipes, ingredients, kitchen tools, meal planning, and food safety. Keep responses brief and practical for voice. If user asks off-topic questions, politely redirect: 'I'm best at cooking help. Want a recipe or meal idea?'",
+        instructions: buildVoiceInstructions(userContext),
       }),
     },
   );

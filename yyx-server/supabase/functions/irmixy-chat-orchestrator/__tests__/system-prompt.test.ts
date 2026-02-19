@@ -1,7 +1,8 @@
 /**
  * System Prompt Tests
  *
- * Verifies text-only prompt behavior and meal context inclusion.
+ * Verifies text-only prompt behavior, meal context inclusion,
+ * and correct use of shared building blocks.
  */
 
 import {
@@ -31,7 +32,7 @@ function createUserContext(overrides: Partial<UserContext> = {}): UserContext {
 Deno.test("buildSystemPrompt is text-only and never adds voice instructions", () => {
   const prompt = buildSystemPrompt(createUserContext());
 
-  assertEquals(prompt.includes("VOICE MODE"), false);
+  assertEquals(prompt.includes("VOICE RULES"), false);
   assertStringIncludes(prompt, "CRITICAL - TOOL USAGE");
 });
 
@@ -56,11 +57,11 @@ Deno.test("buildSystemPrompt includes search-first strategy guidance", () => {
   assertStringIncludes(prompt, "something sweet/light/quick/healthy");
 });
 
-Deno.test("buildSystemPrompt uses confirm-first allergen language", () => {
+Deno.test("buildSystemPrompt uses warm allergen language (non-blocking)", () => {
   const prompt = buildSystemPrompt(createUserContext());
 
-  assertStringIncludes(prompt, "ask for confirmation first");
-  assertStringIncludes(prompt, "Only proceed when the user explicitly confirms");
+  assertStringIncludes(prompt, "mention it briefly and warmly");
+  assertStringIncludes(prompt, "Do not block the recipe or require confirmation");
 });
 
 Deno.test("buildSystemPrompt includes scope guardrails section", () => {
@@ -68,6 +69,37 @@ Deno.test("buildSystemPrompt includes scope guardrails section", () => {
 
   assertStringIncludes(prompt, "SCOPE GUARDRAILS");
   assertStringIncludes(prompt, "cooking-only");
-  assertStringIncludes(prompt, "Example EN");
-  assertStringIncludes(prompt, "Example ES");
+});
+
+Deno.test("buildSystemPrompt includes shared personality block for EN", () => {
+  const prompt = buildSystemPrompt(createUserContext({ language: "en" }));
+
+  assertStringIncludes(prompt, "IDENTITY & VOICE");
+  assertStringIncludes(prompt, "warm, fun friend");
+  assertEquals(prompt.includes("IDENTIDAD Y VOZ"), false);
+});
+
+Deno.test("buildSystemPrompt includes shared personality block for ES", () => {
+  const prompt = buildSystemPrompt(createUserContext({ language: "es" }));
+
+  assertStringIncludes(prompt, "IDENTIDAD Y VOZ");
+  assertStringIncludes(prompt, "amiga cálida y divertida");
+  assertStringIncludes(prompt, "vocabulario mexicano");
+  assertEquals(prompt.includes("IDENTITY & VOICE"), false);
+});
+
+Deno.test("buildSystemPrompt includes user context XML block", () => {
+  const prompt = buildSystemPrompt(
+    createUserContext({
+      kitchenEquipment: ["Thermomix"],
+      dietTypes: ["vegetarian"],
+      customAllergies: ["peanuts"],
+    }),
+  );
+
+  assertStringIncludes(prompt, "<user_context>");
+  assertStringIncludes(prompt, "<kitchen_equipment>");
+  assertStringIncludes(prompt, "- Thermomix");
+  assertStringIncludes(prompt, "- vegetarian");
+  assertStringIncludes(prompt, "- peanuts");
 });
