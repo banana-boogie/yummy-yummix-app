@@ -91,7 +91,7 @@ import { chat, chatStream, embed } from '../_shared/ai-gateway/index.ts';
 const response = await chat({
   usageType: 'text',
   messages: [{ role: 'system', content: '...' }, { role: 'user', content: '...' }],
-  temperature: 0.7,
+  reasoningEffort: 'low',
   responseFormat: { type: 'json_schema', schema: { /* JSON Schema */ } },
 });
 
@@ -112,12 +112,12 @@ const embedding = await embed({
 
 ### Usage Types
 
-| Type | Default Model | Use Case | Cost |
-|------|--------------|----------|------|
-| `text` | gpt-5-mini | Chat orchestrator (tool calling + streaming) | Low |
-| `recipe_generation` | gpt-5-mini | Recipe generation (structured JSON output) | Low |
-| `parsing` | gpt-4o-mini | Admin parsing, nutritional data extraction | Very low |
-| `embedding` | text-embedding-3-large | Vector search (3072 dimensions) | Low |
+| Type | Default Model | Reasoning Effort | Use Case | Cost |
+|------|--------------|------------------|----------|------|
+| `text` | gpt-5-mini | `low` | Chat orchestrator (tool calling + streaming) | Low |
+| `recipe_generation` | gpt-5-mini | `medium` | Recipe generation (structured JSON output) | Low |
+| `parsing` | gpt-5-nano | `minimal` | Admin parsing, nutritional data extraction | Very low |
+| `embedding` | text-embedding-3-large | N/A | Vector search (3072 dimensions) | Low |
 
 Override via env vars: `AI_TEXT_MODEL`, `AI_RECIPE_GENERATION_MODEL`, `AI_PARSING_MODEL`.
 

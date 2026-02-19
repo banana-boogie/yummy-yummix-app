@@ -35,7 +35,7 @@ export async function callAI(
   const response = await chat({
     usageType: "text",
     messages: aiMessages,
-    temperature: 0.7,
+    reasoningEffort: "low",
     tools,
     toolChoice: includeTools ? toolChoice : undefined,
   });
@@ -76,7 +76,7 @@ export async function callAIStream(
     const chunk of chatStream({
       usageType: "text",
       messages: aiMessages,
-      temperature: 0.7,
+      reasoningEffort: "low",
     })
   ) {
     fullContent += chunk;

@@ -27,8 +27,8 @@ interface OpenAIMessage {
 interface OpenAIRequest {
   model: string;
   messages: OpenAIMessage[];
-  temperature?: number;
-  max_tokens?: number;
+  reasoning_effort?: string;
+  max_completion_tokens?: number;
   response_format?: {
     type: "json_schema";
     json_schema: {
@@ -96,8 +96,8 @@ export async function callOpenAI(
       role: m.role,
       content: m.content,
     })),
-    temperature: request.temperature ?? 0.7,
-    max_tokens: request.maxTokens ?? 4096,
+    max_completion_tokens: request.maxTokens ?? 4096,
+    ...(request.reasoningEffort && { reasoning_effort: request.reasoningEffort }),
   };
 
   // Add response format if specified
@@ -190,8 +190,8 @@ export async function* callOpenAIStream(
       role: m.role,
       content: m.content,
     })),
-    temperature: request.temperature ?? 0.7,
-    max_tokens: request.maxTokens ?? 4096,
+    max_completion_tokens: request.maxTokens ?? 4096,
+    ...(request.reasoningEffort && { reasoning_effort: request.reasoningEffort }),
     stream: true,
   };
 

@@ -26,8 +26,8 @@ export interface AICompletionRequest {
   messages: AIMessage[];
   /** Optional: Override the default model for this usage type */
   model?: string;
-  /** Optional: Temperature (0-2, lower = more deterministic) */
-  temperature?: number;
+  /** Optional: Reasoning effort for GPT-5 family models */
+  reasoningEffort?: "minimal" | "low" | "medium" | "high";
   /** Optional: Maximum tokens to generate */
   maxTokens?: number;
   /** Optional: JSON schema for structured output */

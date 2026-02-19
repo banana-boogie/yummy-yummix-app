@@ -602,7 +602,7 @@ serve(async (req: Request) => {
         { role: "system", content: systemPrompt },
         { role: "user", content: markdown },
       ],
-      temperature: 0.3,
+      reasoningEffort: "minimal",
       maxTokens: 10000,
       responseFormat: {
         type: "json_schema",

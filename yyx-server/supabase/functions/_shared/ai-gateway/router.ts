@@ -27,7 +27,7 @@ const defaultRoutingConfig: AIRoutingConfig = {
   // Structured data parsing (admin, nutrition extraction)
   parsing: {
     provider: "openai",
-    model: "gpt-4o-mini",
+    model: "gpt-5-nano",
     apiKeyEnvVar: "OPENAI_API_KEY",
   },
   // Text embeddings for vector search
@@ -43,9 +43,9 @@ const defaultRoutingConfig: AIRoutingConfig = {
  * Checks for environment variable overrides first.
  *
  * Override examples:
- * - AI_TEXT_MODEL=gpt-4o
- * - AI_RECIPE_GENERATION_MODEL=gpt-4o
- * - AI_PARSING_MODEL=gpt-4o-mini
+ * - AI_TEXT_MODEL=gpt-5
+ * - AI_RECIPE_GENERATION_MODEL=gpt-5
+ * - AI_PARSING_MODEL=gpt-5-mini
  */
 export function getProviderConfig(usageType: AIUsageType): AIProviderConfig {
   const envOverride = Deno.env.get(`AI_${usageType.toUpperCase()}_MODEL`);
