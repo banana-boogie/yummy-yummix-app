@@ -12,7 +12,6 @@ import type {
   IrmixyResponse,
   IrmixyStatus,
   RecipeCard,
-  SuggestionChip,
   GeneratedRecipe,
   GeneratedIngredient,
   GeneratedStep,
@@ -102,29 +101,6 @@ export function createMockRecipeCardList(count: number): RecipeCard[] {
 }
 
 /**
- * Creates a mock SuggestionChip.
- */
-export function createMockSuggestionChip(overrides?: Partial<SuggestionChip>): SuggestionChip {
-  return {
-    label: 'Try this',
-    message: 'What about this suggestion?',
-    ...overrides,
-  };
-}
-
-/**
- * Creates a list of mock SuggestionChips.
- */
-export function createMockSuggestionChipList(count: number): SuggestionChip[] {
-  return Array.from({ length: count }, (_, i) =>
-    createMockSuggestionChip({
-      label: `Suggestion ${i + 1}`,
-      message: `Try suggestion ${i + 1}`,
-    })
-  );
-}
-
-/**
  * Creates a mock IrmixyResponse.
  */
 export function createMockIrmixyResponse(overrides?: Partial<IrmixyResponse>): IrmixyResponse {
@@ -146,15 +122,6 @@ export function createMockIrmixyResponseWithRecipes(recipeCount = 2): IrmixyResp
   });
 }
 
-/**
- * Creates a mock IrmixyResponse with suggestions.
- */
-export function createMockIrmixyResponseWithSuggestions(suggestionCount = 3): IrmixyResponse {
-  return createMockIrmixyResponse({
-    suggestions: createMockSuggestionChipList(suggestionCount),
-  });
-}
-
 // ============================================================
 // CHAT MESSAGE FACTORIES
 // ============================================================
@@ -171,7 +138,6 @@ export function createMockChatMessage(overrides?: {
     recipes?: RecipeCard[];
     customRecipe?: GeneratedRecipe;
     safetyFlags?: SafetyFlags;
-    suggestions?: SuggestionChip[];
   };
 }) {
   return {

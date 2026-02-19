@@ -44,9 +44,12 @@ import { createLogger, generateRequestId, type Logger } from "./logger.ts";
 import { ensureSessionId } from "./session.ts";
 import { detectMealContext } from "./meal-context.ts";
 import {
-  buildCookedHistoryFallback,
-  buildNoResultsFallback,
-} from "./suggestions.ts";
+  buildCookedHistoryEmptyMessage,
+  buildCookedHistoryMessage,
+  buildCustomRecipeMessage,
+  buildNoResultsMessage,
+  buildSearchResultsMessage,
+} from "./fixed-messages.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { callAI, callAIStream } from "./ai-calls.ts";
 import { errorResponse, finalizeResponse } from "./response-builder.ts";
@@ -418,7 +421,6 @@ function handleStreamingRequest(
                 userContext,
                 undefined,
                 undefined,
-                undefined,
               );
               timings.total_ms = Math.round(performance.now() - startTime);
               log.info("Generation blocked by monthly budget", {
@@ -481,19 +483,17 @@ function handleStreamingRequest(
             recipes !== undefined && recipes.length === 0 &&
             !customRecipeResult
           ) {
-            const fallback = recipesSourceTool === "retrieve_cooked_recipes"
-              ? buildCookedHistoryFallback(userContext.language)
-              : buildNoResultsFallback(userContext.language);
-            send({ type: "content", content: fallback.message });
+            const fallbackText = recipesSourceTool === "retrieve_cooked_recipes"
+              ? buildCookedHistoryEmptyMessage(userContext.language)
+              : buildNoResultsMessage(userContext.language);
+            send({ type: "content", content: fallbackText });
             const response = await finalizeResponse(
               supabase,
               sessionId,
               message,
-              fallback.message,
+              fallbackText,
               userContext,
               undefined,
-              undefined,
-              fallback.suggestions,
               undefined,
             );
             timings.total_ms = Math.round(performance.now() - startTime);
@@ -522,23 +522,27 @@ function handleStreamingRequest(
           generationWarningMessage = usageUpdate.warningMessage;
         }
 
-        // If a custom recipe was generated, use a fixed short message instead of streaming AI text
-        // NOTE: Don't send content here when recipe exists - it will be included in the "done" response
-        // This ensures the recipe card renders before/with the text, not after
+        // Build the final user-facing text.
+        // Three paths:
+        //  1. Custom recipe generated → fixed message (no AI call)
+        //  2. Search/retrieval found results → fixed warm message (no AI call)
+        //  3. Pure chat (no tools) → stream AI response
         let finalText: string;
-        const suggestions = undefined;
 
         if (hasSuccessfulCustomRecipe) {
-          // Fixed message asking about changes - sent with completion, not streamed
-          finalText = userContext.language === "es"
-            ? "¡Listo! ¿Quieres cambiar algo?"
-            : "Ready! Want to change anything?";
-
+          finalText = buildCustomRecipeMessage(userContext.language);
           if (generationWarningMessage) {
             finalText = `${finalText}\n\n${generationWarningMessage}`;
           }
+          timings.stream_ms = 0;
+        } else if (recipes && recipes.length > 0) {
+          finalText = recipesSourceTool === "retrieve_cooked_recipes"
+            ? buildCookedHistoryMessage(userContext.language)
+            : buildSearchResultsMessage(userContext.language);
+          send({ type: "content", content: finalText });
+          timings.stream_ms = 0;
         } else {
-          // Normal streaming for non-recipe responses
+          // Pure chat — stream AI response
           finalText = await callAIStream(
             streamMessages,
             (token) => send({ type: "content", content: token }),
@@ -558,7 +562,6 @@ function handleStreamingRequest(
           userContext,
           recipes,
           customRecipeResult,
-          suggestions,
         );
         timings.finalize_ms = Math.round(performance.now() - phaseStart);
         timings.total_ms = Math.round(performance.now() - startTime);

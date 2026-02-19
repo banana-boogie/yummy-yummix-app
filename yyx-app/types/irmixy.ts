@@ -15,11 +15,6 @@ export interface RecipeCard {
   allergenVerificationWarning?: string;
 }
 
-export interface SuggestionChip {
-  label: string;
-  message: string;
-}
-
 export interface QuickAction {
   type: 'start_cooking' | 'view_recipe' | 'save_recipe' | 'set_timer' | 'resume_cooking';
   label: string;
@@ -76,7 +71,6 @@ export interface IrmixyResponse {
   recipes?: RecipeCard[];
   customRecipe?: GeneratedRecipe;
   isAIGenerated?: boolean;
-  suggestions?: SuggestionChip[];
   actions?: QuickAction[];
   memoryUsed?: string[];
   safetyFlags?: SafetyFlags;

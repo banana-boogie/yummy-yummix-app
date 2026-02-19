@@ -88,6 +88,11 @@ Deno.test("buildSystemPrompt includes shared personality block for ES", () => {
   assertEquals(prompt.includes("IDENTITY & VOICE"), false);
 });
 
+Deno.test("buildSystemPrompt includes anti-narration guardrail", () => {
+  const prompt = buildSystemPrompt(createUserContext());
+  assertStringIncludes(prompt, "NEVER reference internal tool names");
+});
+
 Deno.test("buildSystemPrompt includes user context XML block", () => {
   const prompt = buildSystemPrompt(
     createUserContext({

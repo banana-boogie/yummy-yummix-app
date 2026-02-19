@@ -358,11 +358,11 @@ export function ChatScreen({
                     if (!isActiveRequest()) return;
                     setCurrentStatus(status);
                 },
-                // onStreamComplete - text streaming finished, enable input before suggestions arrive
+                // onStreamComplete - text streaming finished, enable input
                 () => {
                     if (!isActiveRequest()) return;
                     // Enable input immediately when text streaming completes
-                    // Don't wait for suggestions - they'll update the UI when they arrive
+                    // Enable input immediately when text streaming completes
                     setIsLoading(false);
                     setIsStreaming(false);
                     setCurrentStatus(null);
@@ -415,7 +415,7 @@ export function ChatScreen({
                         }, SCROLL_DELAY_MS);
                     }
                 },
-                // onComplete - receive full IrmixyResponse with recipes/suggestions/customRecipe
+                // onComplete - receive full IrmixyResponse with recipes/customRecipe
                 (response) => {
                     if (!isActiveRequest()) return;
 
@@ -427,7 +427,7 @@ export function ChatScreen({
                             hasCustomRecipe: !!response.customRecipe,
                             customRecipeName: response.customRecipe?.suggestedName,
                             hasRecipes: !!response.recipes?.length,
-                            hasSuggestions: !!response.suggestions?.length,
+                            hasActions: !!response.actions?.length,
                             safetyFlags: response.safetyFlags,
                         });
                     }
@@ -516,7 +516,7 @@ export function ChatScreen({
                         }, SCROLL_DELAY_MS);
                     }
                     // Allow user to start typing immediately after response completes
-                    // Don't wait for handle.done - text and suggestions are already received
+                    // Don't wait for handle.done - text and response are already received
                     setIsLoading(false);
                     setIsStreaming(false);
                     setCurrentStatus(null);

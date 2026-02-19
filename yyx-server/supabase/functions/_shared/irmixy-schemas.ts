@@ -27,11 +27,6 @@ export const RecipeCardSchema = z.object({
   allergenVerificationWarning: z.string().optional(),
 });
 
-export const SuggestionChipSchema = z.object({
-  label: z.string(),
-  message: z.string(),
-});
-
 export const QuickActionSchema = z.object({
   type: z.enum([
     "start_cooking",
@@ -92,7 +87,6 @@ export const IrmixyResponseSchema = z.object({
   recipes: z.array(RecipeCardSchema).optional(),
   customRecipe: GeneratedRecipeSchema.optional(),
   isAIGenerated: z.boolean().optional(),
-  suggestions: z.array(SuggestionChipSchema).optional(),
   actions: z.array(QuickActionSchema).optional(),
   memoryUsed: z.array(z.string()).optional(),
   safetyFlags: SafetyFlagsSchema.optional(),
@@ -103,7 +97,6 @@ export const IrmixyResponseSchema = z.object({
 // ============================================================
 
 export type RecipeCard = z.infer<typeof RecipeCardSchema>;
-export type SuggestionChip = z.infer<typeof SuggestionChipSchema>;
 export type QuickAction = z.infer<typeof QuickActionSchema>;
 export type UsefulItem = z.infer<typeof UsefulItemSchema>;
 export type GeneratedRecipe = z.infer<typeof GeneratedRecipeSchema>;

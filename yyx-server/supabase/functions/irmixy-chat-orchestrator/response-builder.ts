@@ -9,7 +9,6 @@ import type {
   IrmixyResponse,
   QuickAction,
   RecipeCard,
-  SuggestionChip,
   UserContext,
 } from "../_shared/irmixy-schemas.ts";
 import {
@@ -31,7 +30,6 @@ export async function finalizeResponse(
   userContext: UserContext,
   recipes: RecipeCard[] | undefined,
   customRecipeResult: GenerateRecipeResult | undefined,
-  suggestions?: SuggestionChip[],
   actions?: QuickAction[],
 ): Promise<IrmixyResponse> {
   const irmixyResponse: IrmixyResponse = {
@@ -43,7 +41,6 @@ export async function finalizeResponse(
     customRecipe: customRecipeResult?.recipe,
     isAIGenerated: customRecipeResult?.recipe ? true : undefined,
     safetyFlags: customRecipeResult?.safetyFlags,
-    suggestions,
     actions: actions && actions.length > 0 ? actions : undefined,
   };
 
