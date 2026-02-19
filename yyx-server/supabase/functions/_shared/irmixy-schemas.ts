@@ -13,6 +13,10 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 export const RecipeCardSchema = z.object({
   recipeId: z.string().uuid(),
+  // Deployment-safe default: existing cards without this field are treated as catalog.
+  recipeTable: z.enum(["recipes", "user_recipes"]).optional().default(
+    "recipes",
+  ),
   name: z.string(),
   imageUrl: z.string().optional(),
   totalTime: z.number().int().nonnegative(), // Allow 0 for recipes with unknown time

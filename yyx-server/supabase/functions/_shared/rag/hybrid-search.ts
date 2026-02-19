@@ -418,6 +418,7 @@ export async function searchRecipesHybrid(
     .slice(0, limit)
     .map((r) => ({
       recipeId: r.recipeId,
+      recipeTable: "recipes",
       name: r.name,
       imageUrl: r.imageUrl,
       totalTime: r.totalTime,

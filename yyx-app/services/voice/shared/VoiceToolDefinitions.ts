@@ -91,4 +91,26 @@ export const voiceTools = [
             required: ["ingredients"],
         },
     },
+    {
+        type: "function" as const,
+        name: "retrieve_cooked_recipes",
+        description:
+            "Retrieve recipes the user has previously cooked. " +
+            "If query is provided, match by recipe name. " +
+            "If query is omitted, return most recently cooked recipes.",
+        parameters: {
+            type: "object",
+            properties: {
+                query: {
+                    type: "string",
+                    description: 'Optional recipe name hint (e.g., \"chipotle dressing\")',
+                },
+                timeframe: {
+                    type: "string",
+                    description: 'Optional time reference (e.g., \"last week\", \"yesterday\", \"January\")',
+                },
+            },
+            required: [],
+        },
+    },
 ];

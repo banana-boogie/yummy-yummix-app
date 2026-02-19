@@ -38,3 +38,31 @@ export function buildNoResultsFallback(language: "en" | "es"): {
     ],
   };
 }
+
+/**
+ * Build deterministic fallback when cooked-history retrieval returns no matches.
+ */
+export function buildCookedHistoryFallback(language: "en" | "es"): {
+  message: string;
+  suggestions: SuggestionChip[];
+} {
+  return {
+    message: language === "es"
+      ? "No encontré recetas que hayas cocinado recientemente. ¿Quieres buscar recetas o crear una nueva con Irmixy?"
+      : "I couldn't find recipes you've cooked recently. Want to search recipes, or create a new one with Irmixy?",
+    suggestions: [
+      {
+        label: language === "es" ? "Buscar recetas" : "Search recipes",
+        message: language === "es"
+          ? "Busca recetas para cocinar"
+          : "Search recipes to cook",
+      },
+      {
+        label: language === "es" ? "Crear con Irmixy" : "Create with Irmixy",
+        message: language === "es"
+          ? "Crea una receta nueva con Irmixy"
+          : "Create a new recipe with Irmixy",
+      },
+    ],
+  };
+}

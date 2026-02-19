@@ -29,7 +29,6 @@ import type {
   GenerateRecipeResult,
   PartialRecipeCallback,
 } from "../_shared/tools/generate-custom-recipe.ts";
-import type { RetrieveCustomRecipeResult } from "../_shared/tools/retrieve-custom-recipe.ts";
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { executeTool } from "../_shared/tools/execute-tool.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
@@ -44,7 +43,10 @@ import { SessionOwnershipError } from "./types.ts";
 import { createLogger, generateRequestId, type Logger } from "./logger.ts";
 import { ensureSessionId } from "./session.ts";
 import { detectMealContext } from "./meal-context.ts";
-import { buildNoResultsFallback } from "./suggestions.ts";
+import {
+  buildCookedHistoryFallback,
+  buildNoResultsFallback,
+} from "./suggestions.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { callAI, callAIStream } from "./ai-calls.ts";
 import { errorResponse, finalizeResponse } from "./response-builder.ts";
@@ -226,8 +228,8 @@ async function executeToolCalls(
 ): Promise<ToolExecutionResult> {
   const toolMessages: ChatMessage[] = [];
   let recipes: RecipeCard[] | undefined;
+  let recipesSourceTool: string | undefined;
   let customRecipeResult: GenerateRecipeResult | undefined;
-  let retrievalResult: RetrieveCustomRecipeResult | undefined;
 
   const results = await Promise.all(
     toolCalls.map(async (toolCall) => {
@@ -250,6 +252,7 @@ async function executeToolCalls(
             content: JSON.stringify(result),
             tool_call_id: toolCall.id,
           },
+          toolName: name,
           shaped: shapeToolResponse(name, result),
         };
       } catch (toolError) {
@@ -264,6 +267,7 @@ async function executeToolCalls(
             content: JSON.stringify({ error: errorMsg }),
             tool_call_id: toolCall.id,
           },
+          toolName: name,
           shaped: undefined,
         };
       }
@@ -276,18 +280,16 @@ async function executeToolCalls(
 
     if (execution.shaped.recipes) {
       recipes = execution.shaped.recipes;
+      recipesSourceTool = execution.toolName;
     } else if (execution.shaped.customRecipe) {
       customRecipeResult = {
         recipe: execution.shaped.customRecipe,
         safetyFlags: execution.shaped.safetyFlags,
       };
-    } else if (execution.shaped.retrievalResult) {
-      retrievalResult = execution.shaped
-        .retrievalResult as RetrieveCustomRecipeResult;
     }
   }
 
-  return { toolMessages, recipes, customRecipeResult, retrievalResult };
+  return { toolMessages, recipes, recipesSourceTool, customRecipeResult };
 }
 
 // ============================================================
@@ -367,8 +369,8 @@ function handleStreamingRequest(
         phaseStart = performance.now();
 
         let recipes: RecipeCard[] | undefined;
+        let recipesSourceTool: string | undefined;
         let customRecipeResult: GenerateRecipeResult | undefined;
-        let retrievalResult: RetrieveCustomRecipeResult | undefined;
         let streamMessages = messages;
 
         // Let the AI decide tool usage — no heuristic intent detection
@@ -457,27 +459,31 @@ function handleStreamingRequest(
           timings.tool_exec_ms = Math.round(performance.now() - phaseStart);
           phaseStart = performance.now();
           recipes = toolResult.recipes;
+          recipesSourceTool = toolResult.recipesSourceTool;
           customRecipeResult = toolResult.customRecipeResult;
-          retrievalResult = toolResult.retrievalResult;
 
           log.info("Tool execution result", {
             hasRecipes: !!recipes?.length,
             hasCustomRecipe: !!customRecipeResult?.recipe,
-            hasRetrieval: !!retrievalResult,
+            recipesSourceTool: recipesSourceTool ?? null,
           });
 
+          // Drop the assistant's narration text (e.g. "Calling search_recipes...")
+          // so the streaming call doesn't echo or continue that style.
           streamMessages = [...messages, {
             role: "assistant" as const,
-            content: assistantMessage.content,
+            content: null,
             tool_calls: assistantMessage.tool_calls,
           }, ...toolResult.toolMessages];
 
-          // No-results fallback for search
+          // Tool-aware no-results fallback
           if (
             recipes !== undefined && recipes.length === 0 &&
-            !customRecipeResult && !retrievalResult
+            !customRecipeResult
           ) {
-            const fallback = buildNoResultsFallback(userContext.language);
+            const fallback = recipesSourceTool === "retrieve_cooked_recipes"
+              ? buildCookedHistoryFallback(userContext.language)
+              : buildNoResultsFallback(userContext.language);
             send({ type: "content", content: fallback.message });
             const response = await finalizeResponse(
               supabase,
@@ -531,15 +537,6 @@ function handleStreamingRequest(
           if (generationWarningMessage) {
             finalText = `${finalText}\n\n${generationWarningMessage}`;
           }
-        } else if (retrievalResult) {
-          // Retrieval result: stream AI response grounded in tool results
-          finalText = await callAIStream(
-            streamMessages,
-            (token) => send({ type: "content", content: token }),
-          );
-          timings.stream_ms = Math.round(performance.now() - phaseStart);
-          phaseStart = performance.now();
-          send({ type: "stream_complete" });
         } else {
           // Normal streaming for non-recipe responses
           finalText = await callAIStream(

@@ -5,6 +5,7 @@
 
 export interface RecipeCard {
   recipeId: string;
+  recipeTable?: 'recipes' | 'user_recipes';
   name: string;
   imageUrl?: string;
   totalTime: number;

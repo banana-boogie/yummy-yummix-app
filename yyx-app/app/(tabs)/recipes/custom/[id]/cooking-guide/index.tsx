@@ -15,6 +15,7 @@ import i18n from '@/i18n';
 import { COLORS } from '@/constants/design-tokens';
 import * as Haptics from 'expo-haptics';
 import { getCustomCookingGuidePath, isFromChat } from '@/utils/navigation/recipeRoutes';
+import { eventService } from '@/services/eventService';
 
 export default function CustomCookingGuide() {
   const { id, session, from } = useLocalSearchParams<{ id: string; session?: string; from?: string }>();
@@ -43,6 +44,9 @@ export default function CustomCookingGuide() {
 
   const handleStart = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    if (recipe?.id && recipe?.name) {
+      eventService.logCookStart(recipe.id, recipe.name, 'user_recipes');
+    }
     router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-ingredients'));
   };
 

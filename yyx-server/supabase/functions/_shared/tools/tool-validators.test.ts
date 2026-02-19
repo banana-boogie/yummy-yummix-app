@@ -7,6 +7,7 @@ import {
   sanitizeString,
   ToolValidationError,
   validateEnum,
+  validateRetrieveCookedRecipesParams,
   validateSearchRecipesParams,
   validateUUID,
 } from "./tool-validators.ts";
@@ -262,4 +263,39 @@ Deno.test("validateSearchRecipesParams handles SQL injection attempts", () => {
     query: "test, SELECT * FROM users",
   });
   assertEquals(params2.query?.includes(","), false);
+});
+
+// ============================================================
+// validateRetrieveCookedRecipesParams Tests
+// ============================================================
+
+Deno.test("validateRetrieveCookedRecipesParams allows missing query", () => {
+  const params = validateRetrieveCookedRecipesParams({
+    timeframe: "last week",
+  });
+  assertEquals(params.query, undefined);
+  assertEquals(params.timeframe, "last week");
+});
+
+Deno.test("validateRetrieveCookedRecipesParams sanitizes and truncates query", () => {
+  const longQuery = `${"'".repeat(20)}${"a".repeat(300)}`;
+  const params = validateRetrieveCookedRecipesParams({ query: longQuery });
+  assertEquals((params.query || "").includes("'"), false);
+  assertEquals((params.query || "").length <= 200, true);
+});
+
+Deno.test("validateRetrieveCookedRecipesParams handles JSON string input", () => {
+  const params = validateRetrieveCookedRecipesParams(
+    '{"query":"chipotle dressing","timeframe":"yesterday"}',
+  );
+  assertEquals(params.query, "chipotle dressing");
+  assertEquals(params.timeframe, "yesterday");
+});
+
+Deno.test("validateRetrieveCookedRecipesParams rejects invalid JSON", () => {
+  assertThrows(
+    () => validateRetrieveCookedRecipesParams("not valid json"),
+    ToolValidationError,
+    "Invalid JSON",
+  );
 });

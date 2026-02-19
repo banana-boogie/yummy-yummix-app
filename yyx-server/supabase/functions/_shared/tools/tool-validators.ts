@@ -207,27 +207,27 @@ export function validateGenerateRecipeParams(
 }
 
 // ============================================================
-// Retrieve Custom Recipe Params
+// Retrieve Cooked Recipes Params
 // ============================================================
 
-export interface RetrieveCustomRecipeValidatedParams {
-  query: string;
+export interface RetrieveCookedRecipesValidatedParams {
+  query?: string;
   timeframe?: string;
 }
 
 /**
- * Validate and sanitize retrieve_custom_recipe tool arguments.
+ * Validate and sanitize retrieve_cooked_recipes tool arguments.
  */
-export function validateRetrieveCustomRecipeParams(
+export function validateRetrieveCookedRecipesParams(
   raw: unknown,
-): RetrieveCustomRecipeValidatedParams {
+): RetrieveCookedRecipesValidatedParams {
   let params: unknown;
   if (typeof raw === "string") {
     try {
       params = JSON.parse(raw);
     } catch {
       throw new ToolValidationError(
-        "Invalid JSON in retrieve_custom_recipe params",
+        "Invalid JSON in retrieve_cooked_recipes params",
       );
     }
   } else {
@@ -236,20 +236,17 @@ export function validateRetrieveCustomRecipeParams(
 
   if (!params || typeof params !== "object") {
     throw new ToolValidationError(
-      "retrieve_custom_recipe params must be an object",
+      "retrieve_cooked_recipes params must be an object",
     );
   }
 
   const p = params as Record<string, unknown>;
-
-  if (!p.query || typeof p.query !== "string" || p.query.trim().length === 0) {
-    throw new ToolValidationError(
-      "retrieve_custom_recipe requires a non-empty query",
-    );
-  }
+  const query = typeof p.query === "string"
+    ? sanitizeSearchQuery(p.query, 200)
+    : "";
 
   return {
-    query: sanitizeSearchQuery(p.query, 200),
+    query: query.length > 0 ? query : undefined,
     timeframe: p.timeframe ? sanitizeString(p.timeframe, 100) : undefined,
   };
 }

@@ -278,6 +278,7 @@ export async function searchRecipes(
   // Transform to RecipeCard format
   let recipeCards: RecipeCard[] = filtered.map((recipe) => ({
     recipeId: recipe.id,
+    recipeTable: "recipes",
     name: (userContext.language === "es" ? recipe.name_es : recipe.name_en) ||
       "Untitled",
     imageUrl: recipe.image_url || undefined,

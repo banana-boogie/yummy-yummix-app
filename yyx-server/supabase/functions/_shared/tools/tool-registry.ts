@@ -13,10 +13,9 @@ import {
   PartialRecipeCallback,
 } from "./generate-custom-recipe.ts";
 import {
-  retrieveCustomRecipe,
-  RetrieveCustomRecipeResult,
-  retrieveCustomRecipeTool,
-} from "./retrieve-custom-recipe.ts";
+  retrieveCookedRecipes,
+  retrieveCookedRecipesTool,
+} from "./retrieve-cooked-recipes.ts";
 import { searchRecipes, searchRecipesTool } from "./search-recipes.ts";
 
 export interface ToolExecutionContext {
@@ -30,7 +29,6 @@ export interface ToolShape {
   recipes?: RecipeCard[];
   customRecipe?: GenerateRecipeResult["recipe"];
   safetyFlags?: GenerateRecipeResult["safetyFlags"];
-  retrievalResult?: RetrieveCustomRecipeResult;
   result?: unknown;
 }
 
@@ -91,30 +89,24 @@ const TOOL_REGISTRY: Record<string, ToolRegistration> = {
       };
     },
   },
-  retrieve_custom_recipe: {
+  retrieve_cooked_recipes: {
     aiTool: {
-      name: retrieveCustomRecipeTool.function.name,
-      description: retrieveCustomRecipeTool.function.description,
-      parameters: retrieveCustomRecipeTool.function.parameters as Record<
+      name: retrieveCookedRecipesTool.function.name,
+      description: retrieveCookedRecipesTool.function.description,
+      parameters: retrieveCookedRecipesTool.function.parameters as Record<
         string,
         unknown
       >,
     },
     allowedInVoice: true,
     execute: async (args, context) =>
-      await retrieveCustomRecipe(
+      await retrieveCookedRecipes(
         context.supabase,
         args,
         context.userContext,
       ),
-    shapeResult: (result) => {
-      if (!result || typeof result !== "object") {
-        return { result };
-      }
-      return {
-        retrievalResult: result as RetrieveCustomRecipeResult,
-      };
-    },
+    shapeResult: (result) =>
+      Array.isArray(result) ? { recipes: result as RecipeCard[] } : { result },
   },
 };
 
