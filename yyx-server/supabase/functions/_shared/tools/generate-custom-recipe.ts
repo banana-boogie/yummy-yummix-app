@@ -582,7 +582,7 @@ function buildRecipePrompt(
     parts.push("\n⚠️ ALLERGEN SAFETY NOTE:");
     parts.push(
       "Some ingredients may trigger allergen concerns for this user. " +
-      "Mention any relevant allergen info naturally in the recipe instructions.",
+        "Mention any relevant allergen info naturally in the recipe instructions.",
     );
     parts.push(`Detected: ${options.allergenWarning}`);
   }

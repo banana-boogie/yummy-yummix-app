@@ -476,7 +476,11 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
               measurementSystem: "imperial",
               language: "en",
               ingredients: [{ name: "chicken", quantity: 1, unit: "lb" }],
-              steps: [{ order: 1, instruction: "Cook chicken.", ingredientsUsed: ["chicken"] }],
+              steps: [{
+                order: 1,
+                instruction: "Cook chicken.",
+                ingredientsUsed: ["chicken"],
+              }],
               totalTime: 20,
               difficulty: "easy",
               portions: 2,
@@ -497,8 +501,11 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
         const names = args?.ingredient_names ?? [];
         return Promise.resolve({
           data: names.map((name) => ({
-            input_name: name, matched_name: null, matched_name_es: null,
-            image_url: null, match_score: null,
+            input_name: name,
+            matched_name: null,
+            matched_name_es: null,
+            image_url: null,
+            match_score: null,
           })),
           error: null,
         });
@@ -511,7 +518,9 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
   const originalFrom = supabase.from.bind(supabase);
   supabase.from = (table: string) => {
     if (table === "useful_items") {
-      return { select: () => ({ limit: async () => ({ data: [], error: null }) }) };
+      return {
+        select: () => ({ limit: async () => ({ data: [], error: null }) }),
+      };
     }
     return originalFrom(table);
   };
