@@ -287,6 +287,27 @@ const { isPhone, isMedium, isLarge } = useDevice();
 
 ---
 
+## Visual Polish
+
+Implementation should feel crafted, not just technically correct. These principles complement the design system — they're about *how* you build, not *what* you build.
+
+### Principles
+- **Animate state changes** — Don't snap between loading/loaded/error. Use `Animated` or `LayoutAnimation` for smooth transitions. A skeleton shimmer feels faster than a spinner.
+- **Depth through shadows** — Cards and elevated elements should use soft shadows (`shadow-sm`). Flat UI with no elevation looks generic.
+- **Warm backgrounds** — Prefer subtle gradients (e.g., `primary-lightest` to white) over flat solid colors for page backgrounds and headers. This is the brand warmth.
+- **Generous spacing** — When in doubt, add more whitespace. Cramped layouts feel stressful; spacious layouts feel calm. Lupita needs calm.
+- **Intentional hierarchy** — Hero elements should be noticeably larger, not just a few pixels bigger. Make the visual priority obvious.
+- **Brand personality in details** — Use `font-handwritten` (ComingSoon) for personal touches like greeting messages or tips. Use the peach palette confidently. If a screen could belong to any app, it needs more YummyYummix.
+
+### Implementation Notes
+- Use `react-native-reanimated` for performant animations on native
+- Use `LayoutAnimation` for simple layout transitions (add/remove items)
+- Keep animations 150-300ms — snappy, not sluggish
+- Prefer CSS/NativeWind transitions where possible before reaching for animation libraries
+- Test animations on lower-end devices — they must stay smooth
+
+---
+
 ## Performance
 
 - **`React.memo`** for pure components that receive complex props
