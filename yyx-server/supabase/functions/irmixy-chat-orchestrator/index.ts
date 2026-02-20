@@ -43,13 +43,6 @@ import { SessionOwnershipError } from "./types.ts";
 import { createLogger, generateRequestId, type Logger } from "./logger.ts";
 import { ensureSessionId } from "./session.ts";
 import { detectMealContext } from "./meal-context.ts";
-import {
-  buildCookedHistoryEmptyMessage,
-  buildCookedHistoryMessage,
-  buildCustomRecipeMessage,
-  buildNoResultsMessage,
-  buildSearchResultsMessage,
-} from "./fixed-messages.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { callAI, callAIStream } from "./ai-calls.ts";
 import { errorResponse, finalizeResponse } from "./response-builder.ts";
@@ -59,6 +52,8 @@ import { errorResponse, finalizeResponse } from "./response-builder.ts";
 // ============================================================
 
 const STREAM_TIMEOUT_MS = 30_000;
+const HEARTBEAT_INTERVAL_MS = 15_000;
+const MAX_HEARTBEATS = 4; // Cap at 60s of tool execution
 
 // ============================================================
 // Main Handler
@@ -444,13 +439,29 @@ function handleStreamingRequest(
             send({ type: "status", status: "enriching" });
           };
 
-          const toolResult = await executeToolCalls(
-            supabase,
-            assistantMessage.tool_calls,
-            userContext,
-            log,
-            onPartialRecipe,
-          );
+          // Keep stream alive during long tool execution (recipe gen can take 45s+)
+          let heartbeatCount = 0;
+          const heartbeatId = setInterval(() => {
+            heartbeatCount++;
+            if (heartbeatCount > MAX_HEARTBEATS) {
+              clearInterval(heartbeatId);
+              return;
+            }
+            send({ type: "heartbeat" });
+          }, HEARTBEAT_INTERVAL_MS);
+
+          let toolResult: ToolExecutionResult;
+          try {
+            toolResult = await executeToolCalls(
+              supabase,
+              assistantMessage.tool_calls,
+              userContext,
+              log,
+              onPartialRecipe,
+            );
+          } finally {
+            clearInterval(heartbeatId);
+          }
           timings.tool_exec_ms = Math.round(performance.now() - phaseStart);
           phaseStart = performance.now();
           recipes = toolResult.recipes;
@@ -470,37 +481,6 @@ function handleStreamingRequest(
             content: null,
             tool_calls: assistantMessage.tool_calls,
           }, ...toolResult.toolMessages];
-
-          // Tool-aware no-results fallback
-          if (
-            recipes !== undefined && recipes.length === 0 &&
-            !customRecipeResult
-          ) {
-            const fallbackText = recipesSourceTool === "retrieve_cooked_recipes"
-              ? buildCookedHistoryEmptyMessage(userContext.language)
-              : buildNoResultsMessage(userContext.language);
-            send({ type: "content", content: fallbackText });
-            const response = await finalizeResponse(
-              supabase,
-              sessionId,
-              message,
-              fallbackText,
-              userContext,
-              undefined,
-              undefined,
-            );
-            timings.total_ms = Math.round(performance.now() - startTime);
-            log.info("No-results fallback", timings);
-            log.info("PERF_SUMMARY", {
-              type: "recipe_search",
-              model: selectedModel,
-              ...timings,
-            });
-            send({ type: "done", response });
-            clearStreamTimeout();
-            controller.close();
-            return;
-          }
         }
 
         let generationWarningMessage: string | undefined;
@@ -543,37 +523,22 @@ function handleStreamingRequest(
           generationWarningMessage = usageUpdate.warningMessage;
         }
 
-        // Build the final user-facing text.
-        // Three paths:
-        //  1. Custom recipe generated → fixed message (no AI call)
-        //  2. Search/retrieval found results → fixed warm message (no AI call)
-        //  3. Pure chat (no tools) → stream AI response
-        let finalText: string;
+        // Always stream AI response — natural conversation, no fixed messages.
+        // Text streams first, then tool results (recipes/custom recipe) arrive in the done event.
+        let finalText = await callAIStream(
+          streamMessages,
+          (token) => send({ type: "content", content: token }),
+        );
+        timings.stream_ms = Math.round(performance.now() - phaseStart);
+        phaseStart = performance.now();
 
-        if (hasSuccessfulCustomRecipe) {
-          finalText = buildCustomRecipeMessage(userContext.language);
-          if (generationWarningMessage) {
-            finalText = `${finalText}\n\n${generationWarningMessage}`;
-          }
-          timings.stream_ms = 0;
-        } else if (recipes && recipes.length > 0) {
-          finalText = recipesSourceTool === "retrieve_cooked_recipes"
-            ? buildCookedHistoryMessage(userContext.language)
-            : buildSearchResultsMessage(userContext.language);
-          send({ type: "content", content: finalText });
-          timings.stream_ms = 0;
-        } else {
-          // Pure chat — stream AI response
-          finalText = await callAIStream(
-            streamMessages,
-            (token) => send({ type: "content", content: token }),
-          );
-          timings.stream_ms = Math.round(performance.now() - phaseStart);
-          phaseStart = performance.now();
-
-          // Signal that streaming is complete - frontend can enable input now
-          send({ type: "stream_complete" });
+        if (generationWarningMessage) {
+          finalText = `${finalText}\n\n${generationWarningMessage}`;
+          send({ type: "content", content: `\n\n${generationWarningMessage}` });
         }
+
+        // Signal that streaming is complete - frontend can enable input now
+        send({ type: "stream_complete" });
 
         const response = await finalizeResponse(
           supabase,
@@ -586,12 +551,6 @@ function handleStreamingRequest(
         );
         timings.finalize_ms = Math.round(performance.now() - phaseStart);
         timings.total_ms = Math.round(performance.now() - startTime);
-
-        // If we have a custom recipe, send the content right before completion
-        // so they arrive together and the recipe card renders with the text
-        if (hasSuccessfulCustomRecipe) {
-          send({ type: "content", content: response.message });
-        }
 
         // Performance timing log
         const requestType = hasSuccessfulCustomRecipe

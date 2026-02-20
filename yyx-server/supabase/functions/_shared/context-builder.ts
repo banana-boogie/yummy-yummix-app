@@ -8,7 +8,7 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { UserContext } from "./irmixy-schemas.ts";
 
-const MAX_HISTORY_MESSAGES = 10;
+const MAX_HISTORY_MESSAGES = 50;
 const MAX_CONTENT_LENGTH = 2000;
 const MAX_LIST_ITEMS = 20;
 
@@ -160,8 +160,65 @@ async function buildContext(
 }
 
 /**
+ * Summarize stored tool results into a context line for historical messages.
+ *
+ * Search results: full card attributes (name, time, difficulty, portions, allergens)
+ * Generated recipes: name + ingredient names + time + portions + difficulty
+ *
+ * This gives the model enough context for follow-ups ("which was quicker?",
+ * "make it without nuts") without cluttering history with full step-by-step
+ * instructions that belong in the cooking guide UI.
+ */
+export function summarizeHistoryToolResults(
+  toolCalls: Record<string, unknown>,
+): string {
+  const parts: string[] = [];
+
+  // Search results — include full RecipeCard attributes (already concise)
+  if (Array.isArray(toolCalls.recipes) && toolCalls.recipes.length > 0) {
+    const summaries = toolCalls.recipes.map(
+      (r: Record<string, unknown>) => {
+        const attrs: string[] = [];
+        if (r.name) attrs.push(r.name as string);
+        if (r.totalTime) attrs.push(`${r.totalTime} min`);
+        if (r.difficulty) attrs.push(r.difficulty as string);
+        if (r.portions) attrs.push(`${r.portions} portions`);
+        if (
+          Array.isArray(r.allergenWarnings) && r.allergenWarnings.length > 0
+        ) {
+          attrs.push(`allergens: ${r.allergenWarnings.join(", ")}`);
+        }
+        return attrs.join(", ");
+      },
+    );
+    parts.push(
+      `[Showed ${summaries.length} recipe(s): ${summaries.join(" | ")}]`,
+    );
+  }
+
+  // Generated recipes — name + ingredient names + key attributes (no steps)
+  if (toolCalls.customRecipe && typeof toolCalls.customRecipe === "object") {
+    const recipe = toolCalls.customRecipe as Record<string, unknown>;
+    const attrs: string[] = [];
+    if (recipe.suggestedName) attrs.push(`"${recipe.suggestedName}"`);
+    if (Array.isArray(recipe.ingredients)) {
+      const names = recipe.ingredients
+        .map((i: Record<string, unknown>) => i.name || i.ingredient)
+        .filter(Boolean);
+      if (names.length > 0) attrs.push(`ingredients: ${names.join(", ")}`);
+    }
+    if (recipe.totalTime) attrs.push(`${recipe.totalTime} min`);
+    if (recipe.portions) attrs.push(`${recipe.portions} portions`);
+    if (recipe.difficulty) attrs.push(recipe.difficulty as string);
+    parts.push(`[Generated recipe: ${attrs.join(", ")}]`);
+  }
+
+  return parts.join(" ");
+}
+
+/**
  * Load conversation history for a session.
- * Gets the newest 10 messages, then reverses for chronological order.
+ * Gets the newest messages, then reverses for chronological order.
  */
 async function loadConversationHistory(
   supabase: SupabaseClient,
@@ -183,11 +240,14 @@ async function loadConversationHistory(
     return [];
   }
 
-  // Reverse to get chronological order (oldest first)
-  // and sanitize content
-  return data.reverse().map((msg) => ({
-    role: msg.role,
-    content: sanitizeContent(msg.content),
-    metadata: msg.tool_calls, // Contains recipes/customRecipe
-  }));
+  // Reverse to get chronological order (oldest first),
+  // sanitize content, and enrich assistant messages with tool result summaries
+  return data.reverse().map((msg) => {
+    let content = sanitizeContent(msg.content);
+    if (msg.role === "assistant" && msg.tool_calls) {
+      const summary = summarizeHistoryToolResults(msg.tool_calls);
+      if (summary) content += `\n${summary}`;
+    }
+    return { role: msg.role, content, metadata: msg.tool_calls };
+  });
 }
