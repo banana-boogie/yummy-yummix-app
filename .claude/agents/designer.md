@@ -28,3 +28,5 @@ Read these documents for context:
 - Produce design specs with component hierarchy, NativeWind classes, and layout composition
 - Consider all states: loading, empty, error, success
 - Consider accessibility: color contrast, touch targets, screen reader support
+- Specify motion and transitions in design specs — how screens load, how states change, what animates. Don't leave animation decisions to the implementer.
+- Design for visual depth — use shadows, warm gradients, and layered composition. Flat solid-color layouts feel generic.
