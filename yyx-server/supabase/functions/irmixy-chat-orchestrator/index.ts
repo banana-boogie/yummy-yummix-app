@@ -372,16 +372,13 @@ function handleStreamingRequest(
         let recipesSourceTool: string | undefined;
         let customRecipeResult: GenerateRecipeResult | undefined;
         let streamMessages = messages;
-
-        // Let the AI decide tool usage — no heuristic intent detection
-        const toolChoice = "auto" as const;
-
+        let selectedModel = "unknown";
         const firstResponse = await callAI(
           messages,
           true,
-          toolChoice,
+          "auto",
         );
-        const selectedModel = firstResponse.model;
+        selectedModel = firstResponse.model;
         timings.llm_call_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
         const assistantMessage = firstResponse.choices[0].message;
@@ -515,6 +512,34 @@ function handleStreamingRequest(
             userId,
             userContext.language,
           );
+          if (!usageUpdate.allowed) {
+            const blockedMessage = usageUpdate.warningMessage ??
+              buildGenerationBudgetExceededMessage(
+                userContext.language,
+                usageUpdate.resetAt,
+              );
+            send({ type: "content", content: blockedMessage });
+            const response = await finalizeResponse(
+              supabase,
+              sessionId,
+              message,
+              blockedMessage,
+              userContext,
+              undefined,
+              undefined,
+            );
+            timings.finalize_ms = Math.round(performance.now() - phaseStart);
+            timings.total_ms = Math.round(performance.now() - startTime);
+            log.info("Generation blocked after atomic usage update", {
+              type: "budget_block_post_generation",
+              model: selectedModel,
+              ...timings,
+            });
+            send({ type: "done", response });
+            clearStreamTimeout();
+            controller.close();
+            return;
+          }
           generationWarningMessage = usageUpdate.warningMessage;
         }
 
