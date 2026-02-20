@@ -120,6 +120,7 @@ export function validateUUID(input: unknown): string {
 // ============================================================
 
 export interface GenerateRecipeParams {
+  recipeDescription?: string;
   ingredients: string[];
   cuisinePreference?: string;
   targetTime?: number;
@@ -189,6 +190,9 @@ export function validateGenerateRecipeParams(
   }
 
   return {
+    recipeDescription: p.recipeDescription
+      ? sanitizeString(p.recipeDescription, 500)
+      : undefined,
     ingredients,
     cuisinePreference: p.cuisinePreference
       ? sanitizeString(p.cuisinePreference, 50)

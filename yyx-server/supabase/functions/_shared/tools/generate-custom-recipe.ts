@@ -33,15 +33,19 @@ export const generateCustomRecipeTool = {
   function: {
     name: "generate_custom_recipe",
     description:
-      "Generate a custom recipe based on ingredients the user has available. " +
-      "Use this only when the user wants a new custom creation (from ingredients/preferences) " +
-      "or explicitly asks for something original. " +
-      "Do NOT use this for named or known dishes from the recipe database — use search_recipes first. " +
-      "Before calling this tool, gather at least: ingredients. " +
-      "Time and cuisine preference are helpful but optional.",
+      "Generate a custom recipe. ONLY call this when the user explicitly asks you to create/make a recipe " +
+      "or agrees to you making one. Never call this for discovery or vague cravings — use search_recipes instead. " +
+      "The user must have given you a direction (ingredients, a dish type, or a clear request). " +
+      "Use their ingredients as the foundation and add complementary ones creatively (seasonings, herbs, pantry staples). " +
+      "Never contradict the user's intent (e.g. dessert must be a dessert).",
     parameters: {
       type: "object",
       properties: {
+        recipeDescription: {
+          type: "string",
+          description:
+            'What the user wants to eat — the dish concept (e.g. "banana bread loaf", "creamy chicken pasta", "chocolate lava cake"). Always pass this when the user has a specific dish in mind.',
+        },
         ingredients: {
           type: "array",
           items: { type: "string" },
@@ -67,7 +71,7 @@ export const generateCustomRecipeTool = {
         additionalRequests: {
           type: "string",
           description:
-            'Additional requests or constraints (e.g., "make it spicy", "kid-friendly", "low carb")',
+            'Additional requests, constraints, or modifications (e.g., "make it spicy", "increase to 8 portions", "kid-friendly")',
         },
         useful_items: {
           type: "array",
@@ -342,7 +346,7 @@ async function callRecipeGenerationAI(
           content: isRetry ? prompt + strictRetryPromptSuffix : prompt,
         },
       ],
-      reasoningEffort: "low",
+      reasoningEffort: "medium",
       maxTokens: 6144,
       responseFormat: {
         type: "json_schema",
@@ -467,10 +471,17 @@ function buildRecipePrompt(
 ): string {
   const parts: string[] = [];
 
-  // Core request
-  parts.push(
-    `Create a recipe using these ingredients: ${params.ingredients.join(", ")}`,
-  );
+  // Core request — dish concept first, then ingredients
+  if (params.recipeDescription) {
+    parts.push(`Create a recipe for: ${params.recipeDescription}`);
+    parts.push(`Available ingredients: ${params.ingredients.join(", ")}`);
+  } else {
+    parts.push(
+      `Create a recipe using these ingredients: ${
+        params.ingredients.join(", ")
+      }`,
+    );
+  }
 
   // Time constraint
   if (params.targetTime) {
@@ -489,7 +500,6 @@ function buildRecipePrompt(
     parts.push(`Difficulty level: ${params.difficulty}.`);
   }
 
-  // Additional requests
   if (params.additionalRequests) {
     parts.push(`Additional requirements: ${params.additionalRequests}`);
   }

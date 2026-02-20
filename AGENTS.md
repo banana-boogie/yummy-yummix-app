@@ -359,9 +359,9 @@ for await (const chunk of chatStream({
 
 | Type | Default Model | Reasoning Effort | Use Case | Cost |
 |------|--------------|------------------|----------|------|
-| `text` | gpt-5-mini | `low` | Chat orchestrator (tool calling + streaming) | Low |
-| `recipe_generation` | gpt-5-mini | `medium` | Recipe generation (structured JSON output) | Low |
-| `parsing` | gpt-5-nano | `minimal` | Admin parsing, nutritional data extraction | Very low |
+| `text` | gpt-4.1-mini | N/A | Chat orchestrator (tool calling + streaming) | Low |
+| `recipe_generation` | gpt-5-mini | `medium` | Recipe generation (structured JSON output) — quality critical | Low |
+| `parsing` | gpt-4.1-nano | N/A | Admin parsing, nutritional data extraction | Very low |
 | `embedding` | text-embedding-3-large | N/A | Vector search (3072 dimensions) | Low |
 
 #### Configuration:
@@ -371,9 +371,9 @@ for await (const chunk of chatStream({
 OPENAI_API_KEY=sk-proj-xxx      # For text, recipe_generation, parsing
 
 # Optional: Override default models
-AI_TEXT_MODEL=gpt-5               # Override chat model (default: gpt-5-mini)
+AI_TEXT_MODEL=gpt-5-mini          # Override chat model (default: gpt-4.1-mini)
 AI_RECIPE_GENERATION_MODEL=gpt-5  # Override recipe model (default: gpt-5-mini)
-AI_PARSING_MODEL=gpt-5-mini       # Override parsing model (default: gpt-5-nano)
+AI_PARSING_MODEL=gpt-5-nano       # Override parsing model (default: gpt-4.1-nano)
 ```
 
 #### Design Pattern:

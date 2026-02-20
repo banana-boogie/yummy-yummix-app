@@ -98,7 +98,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
 }: ChatMessageItemProps) {
     const isUser = item.role === 'user';
     const showRecipeSkeleton = !isUser && !item.customRecipe && isLoading
-        && (currentStatus === 'generating' || currentStatus === 'enriching') && isLastMessage;
+        && (currentStatus === 'cooking_it_up' || currentStatus === 'generating' || currentStatus === 'enriching') && isLastMessage;
     const hasRecipeVisualData = !isUser && (
         (item.recipes?.length ?? 0) > 0 || !!item.customRecipe
     );

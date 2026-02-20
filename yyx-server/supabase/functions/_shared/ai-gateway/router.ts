@@ -18,16 +18,16 @@ const defaultRoutingConfig: AIRoutingConfig = {
     model: "gpt-4.1-mini",
     apiKeyEnvVar: "OPENAI_API_KEY",
   },
-  // Recipe generation (structured JSON output)
+  // Recipe generation (structured JSON output) — quality is critical here
   recipe_generation: {
     provider: "openai",
     model: "gpt-5-mini",
     apiKeyEnvVar: "OPENAI_API_KEY",
   },
-  // Structured data parsing (admin, nutrition extraction)
+  // Structured data parsing (admin, nutrition extraction) — speed over reasoning
   parsing: {
     provider: "openai",
-    model: "gpt-5-nano",
+    model: "gpt-4.1-nano",
     apiKeyEnvVar: "OPENAI_API_KEY",
   },
   // Text embeddings for vector search
