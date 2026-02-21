@@ -16,6 +16,7 @@ const ACTION_LABELS: Record<string, Record<"en" | "es", string>> = {
 
 /**
  * Build actions from tool execution results.
+ * Keep in sync with useVoiceChat.ts (client-side equivalent for voice chat path).
  *
  * @param language - User's language for label localization
  * @param appActionResult - Result from the app_action pass-through tool
