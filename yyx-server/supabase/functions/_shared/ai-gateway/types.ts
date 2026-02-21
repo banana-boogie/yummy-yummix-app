@@ -43,6 +43,8 @@ export interface AICompletionRequest {
     type: "function";
     function: { name: string };
   };
+  /** Optional: AbortSignal to cancel in-flight requests */
+  signal?: AbortSignal;
 }
 
 export interface AITool {

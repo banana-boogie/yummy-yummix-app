@@ -134,6 +134,7 @@ serve(async (req) => {
       effectiveSessionId,
       sanitizedMessage,
       log,
+      req.signal,
     );
   } catch (error) {
     log.error("Orchestrator error", error);
@@ -275,8 +276,18 @@ function handleStreamingRequest(
   sessionId: string | undefined,
   message: string,
   log: Logger,
+  reqSignal?: AbortSignal,
 ): Response {
   const encoder = new TextEncoder();
+
+  // Unified abort controller: fires when client disconnects OR stream is cancelled
+  const abortController = new AbortController();
+  const signal = abortController.signal;
+  if (reqSignal) {
+    reqSignal.addEventListener("abort", () => abortController.abort(), {
+      once: true,
+    });
+  }
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -309,7 +320,7 @@ function handleStreamingRequest(
       };
 
       const send = (data: Record<string, unknown>) => {
-        if (streamTimedOut) return;
+        if (streamTimedOut || signal.aborted) return;
         controller.enqueue(
           encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
         );
@@ -441,6 +452,7 @@ function handleStreamingRequest(
           messages,
           true,
           forceToolUse ? "required" : "auto",
+          signal,
         );
         timings.llm_call_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
@@ -451,6 +463,13 @@ function handleStreamingRequest(
           toolNames: assistantMessage.tool_calls?.map((tc) => tc.function.name),
           forcedToolUse: forceToolUse,
         });
+
+        if (signal.aborted) {
+          log.info("Request aborted by client (after first LLM call)");
+          clearStreamTimeout();
+          controller.close();
+          return;
+        }
 
         if (
           assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0
@@ -519,6 +538,13 @@ function handleStreamingRequest(
           }
         }
 
+        if (signal.aborted) {
+          log.info("Request aborted by client (after tool execution)");
+          clearStreamTimeout();
+          controller.close();
+          return;
+        }
+
         // If a custom recipe was generated, use a fixed short message instead of streaming AI text
         // NOTE: Don't send content here when recipe exists - it will be included in the "done" response
         // This ensures the recipe card renders before/with the text, not after
@@ -541,6 +567,7 @@ function handleStreamingRequest(
           finalText = await callAIStream(
             streamMessages,
             (token) => send({ type: "content", content: token }),
+            signal,
           );
           timings.stream_ms = Math.round(performance.now() - phaseStart);
           phaseStart = performance.now();
@@ -552,6 +579,7 @@ function handleStreamingRequest(
           finalText = await callAIStream(
             streamMessages,
             (token) => send({ type: "content", content: token }),
+            signal,
           );
           timings.stream_ms = Math.round(performance.now() - phaseStart);
           phaseStart = performance.now();
@@ -566,6 +594,13 @@ function handleStreamingRequest(
             !!recipes?.length,
           );
           timings.suggestions_ms = 0; // No AI call needed
+        }
+
+        if (signal.aborted) {
+          log.info("Request aborted by client (after streaming)");
+          clearStreamTimeout();
+          controller.close();
+          return;
         }
 
         const response = await finalizeResponse(
@@ -602,6 +637,12 @@ function handleStreamingRequest(
         clearStreamTimeout();
         controller.close();
       } catch (error) {
+        if (signal.aborted) {
+          log.info("Request aborted by client");
+          clearStreamTimeout();
+          controller.close();
+          return;
+        }
         log.error("Streaming error", error);
         send({
           type: "error",
@@ -610,6 +651,9 @@ function handleStreamingRequest(
         clearStreamTimeout();
         controller.close();
       }
+    },
+    cancel() {
+      abortController.abort();
     },
   });
 
