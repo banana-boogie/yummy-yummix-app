@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -15,29 +14,19 @@ import i18n from '@/i18n';
 
 import { COLORS } from '@/constants/design-tokens';
 import * as Haptics from 'expo-haptics';
+import { getCustomCookingGuidePath, isFromChat } from '@/utils/navigation/recipeRoutes';
+import { eventService } from '@/services/eventService';
 
 export default function CustomCookingGuide() {
   const { id, session, from } = useLocalSearchParams<{ id: string; session?: string; from?: string }>();
   const { recipe, loading, error } = useCustomRecipe(id as string);
   const { isPhone } = useDevice();
   const navigation = useNavigation();
-  const isRedirectingRef = useRef(false);
-
-  // Intercept back gesture/navigation to redirect to chat when opened from chat
-  useEffect(() => {
-    if (from !== 'chat') return;
-    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-      if (isRedirectingRef.current) return; // allow redirect to proceed
-      e.preventDefault();
-      isRedirectingRef.current = true;
-      router.navigate('/(tabs)/chat');
-    });
-    return unsubscribe;
-  }, [navigation, from]);
+  const isChatFlow = isFromChat(from);
 
   const handleBackPress = () => {
-    if (from === 'chat') {
-      router.navigate('/(tabs)/chat');
+    if (isChatFlow && !navigation.canGoBack()) {
+      router.replace('/(tabs)/chat');
     } else {
       router.back();
     }
@@ -55,7 +44,10 @@ export default function CustomCookingGuide() {
 
   const handleStart = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    router.push(`/(tabs)/recipes/custom/${id}/cooking-guide/mise-en-place-ingredients`);
+    if (recipe?.id && recipe?.name) {
+      eventService.logCookStart(recipe.id, recipe.name, 'user_recipes');
+    }
+    router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-ingredients'));
   };
 
   if (loading) {

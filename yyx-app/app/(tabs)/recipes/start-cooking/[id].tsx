@@ -4,6 +4,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Text } from '@/components/common/Text';
 import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
+import { getCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
 
 /**
  * Redirect screen for starting cooking from chat.
@@ -19,7 +20,7 @@ export default function StartCookingRedirect() {
     useEffect(() => {
         if (id) {
             // Replace this screen with the cooking guide
-            router.replace(`/(tabs)/recipes/custom/${id}/cooking-guide?from=${from || 'chat'}`);
+            router.replace(getCustomCookingGuidePath(id, from));
         }
     }, [id, from]);
 

@@ -13,6 +13,7 @@ import { PageLayout } from '@/components/layouts/PageLayout';
 import { MiseEnPlaceIngredient } from '@/components/cooking-guide/MiseEnPlaceIngredient';
 import { Text } from '@/components/common/Text';
 import { LAYOUT } from '@/constants/design-tokens';
+import { getCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
 
 // Define the ingredient type
 type CheckableIngredient = RecipeIngredient & { checked: boolean };
@@ -21,7 +22,7 @@ type CheckableIngredient = RecipeIngredient & { checked: boolean };
  * Mise en place screen for custom recipe cooking guide - Ingredients Prep
  */
 export default function CustomIngredientsStep() {
-  const { id } = useLocalSearchParams();
+  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
   const { recipe } = useCustomRecipe(id as string);
   const [ingredients, setIngredients] = useState<CheckableIngredient[]>([]);
   const { isMobile } = useDevice();
@@ -58,9 +59,9 @@ export default function CustomIngredientsStep() {
   const handleNext = () => {
     // If useful items exist, go to useful-items prep page
     if (recipe?.usefulItems && recipe.usefulItems.length > 0) {
-      router.push(`/(tabs)/recipes/custom/${id}/cooking-guide/mise-en-place-useful-items`);
+      router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-useful-items'));
     } else {
-      router.push(`/(tabs)/recipes/custom/${id}/cooking-guide/1`);
+      router.push(getCustomCookingGuidePath(id as string, from, '1'));
     }
   };
 

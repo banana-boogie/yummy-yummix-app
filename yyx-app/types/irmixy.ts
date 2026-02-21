@@ -5,6 +5,7 @@
 
 export interface RecipeCard {
   recipeId: string;
+  recipeTable?: 'recipes' | 'user_recipes';
   name: string;
   imageUrl?: string;
   totalTime: number;
@@ -12,11 +13,6 @@ export interface RecipeCard {
   portions: number;
   allergenWarnings?: string[];
   allergenVerificationWarning?: string;
-}
-
-export interface SuggestionChip {
-  label: string;
-  message: string;
 }
 
 export interface QuickAction {
@@ -71,13 +67,19 @@ export interface IrmixyResponse {
   version: '1.0';
   message: string;
   language: 'en' | 'es';
-  status?: 'thinking' | 'searching' | 'generating' | null;
+  status?: 'thinking' | 'searching' | 'generating' | 'cooking_it_up' | null;
   recipes?: RecipeCard[];
   customRecipe?: GeneratedRecipe;
-  suggestions?: SuggestionChip[];
+  isAIGenerated?: boolean;
   actions?: QuickAction[];
   memoryUsed?: string[];
   safetyFlags?: SafetyFlags;
 }
 
-export type IrmixyStatus = 'thinking' | 'searching' | 'generating' | 'enriching' | null;
+export type IrmixyStatus =
+  | 'thinking'
+  | 'searching'
+  | 'generating'
+  | 'cooking_it_up'
+  | 'enriching'
+  | null;

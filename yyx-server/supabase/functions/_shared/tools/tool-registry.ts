@@ -12,11 +12,11 @@ import {
   GenerateRecipeResult,
   PartialRecipeCallback,
 } from "./generate-custom-recipe.ts";
+import { modifyRecipe, modifyRecipeTool } from "./modify-recipe.ts";
 import {
-  retrieveCustomRecipe,
-  RetrieveCustomRecipeResult,
-  retrieveCustomRecipeTool,
-} from "./retrieve-custom-recipe.ts";
+  retrieveCookedRecipes,
+  retrieveCookedRecipesTool,
+} from "./retrieve-cooked-recipes.ts";
 import { searchRecipes, searchRecipesTool } from "./search-recipes.ts";
 
 export interface ToolExecutionContext {
@@ -29,7 +29,6 @@ export interface ToolShape {
   recipes?: RecipeCard[];
   customRecipe?: GenerateRecipeResult["recipe"];
   safetyFlags?: GenerateRecipeResult["safetyFlags"];
-  retrievalResult?: RetrieveCustomRecipeResult;
   result?: unknown;
 }
 
@@ -75,7 +74,6 @@ const TOOL_REGISTRY: Record<string, ToolRegistration> = {
         context.supabase,
         args,
         context.userContext,
-        undefined,
         context.onPartialRecipe,
       ),
     shapeResult: (result) => {
@@ -89,30 +87,52 @@ const TOOL_REGISTRY: Record<string, ToolRegistration> = {
       };
     },
   },
-  retrieve_custom_recipe: {
+  modify_recipe: {
     aiTool: {
-      name: retrieveCustomRecipeTool.function.name,
-      description: retrieveCustomRecipeTool.function.description,
-      parameters: retrieveCustomRecipeTool.function.parameters as Record<
+      name: modifyRecipeTool.function.name,
+      description: modifyRecipeTool.function.description,
+      parameters: modifyRecipeTool.function.parameters as Record<
         string,
         unknown
       >,
     },
     allowedInVoice: true,
     execute: async (args, context) =>
-      await retrieveCustomRecipe(
+      await modifyRecipe(
         context.supabase,
         args,
         context.userContext,
+        context.onPartialRecipe,
       ),
     shapeResult: (result) => {
       if (!result || typeof result !== "object") {
         return { result };
       }
+      const generated = result as GenerateRecipeResult;
       return {
-        retrievalResult: result as RetrieveCustomRecipeResult,
+        customRecipe: generated.recipe,
+        safetyFlags: generated.safetyFlags,
       };
     },
+  },
+  retrieve_cooked_recipes: {
+    aiTool: {
+      name: retrieveCookedRecipesTool.function.name,
+      description: retrieveCookedRecipesTool.function.description,
+      parameters: retrieveCookedRecipesTool.function.parameters as Record<
+        string,
+        unknown
+      >,
+    },
+    allowedInVoice: true,
+    execute: async (args, context) =>
+      await retrieveCookedRecipes(
+        context.supabase,
+        args,
+        context.userContext,
+      ),
+    shapeResult: (result) =>
+      Array.isArray(result) ? { recipes: result as RecipeCard[] } : { result },
   },
 };
 

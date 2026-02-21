@@ -120,6 +120,7 @@ export function validateUUID(input: unknown): string {
 // ============================================================
 
 export interface GenerateRecipeParams {
+  recipeDescription?: string;
   ingredients: string[];
   cuisinePreference?: string;
   targetTime?: number;
@@ -189,6 +190,9 @@ export function validateGenerateRecipeParams(
   }
 
   return {
+    recipeDescription: p.recipeDescription
+      ? sanitizeString(p.recipeDescription, 500)
+      : undefined,
     ingredients,
     cuisinePreference: p.cuisinePreference
       ? sanitizeString(p.cuisinePreference, 50)
@@ -200,34 +204,34 @@ export function validateGenerateRecipeParams(
       ? validateEnum(p.difficulty, ["easy", "medium", "hard"] as const)
       : undefined,
     additionalRequests: p.additionalRequests
-      ? sanitizeString(p.additionalRequests, 500)
+      ? sanitizeString(p.additionalRequests, 2000)
       : undefined,
     useful_items,
   };
 }
 
 // ============================================================
-// Retrieve Custom Recipe Params
+// Retrieve Cooked Recipes Params
 // ============================================================
 
-export interface RetrieveCustomRecipeValidatedParams {
-  query: string;
+export interface RetrieveCookedRecipesValidatedParams {
+  query?: string;
   timeframe?: string;
 }
 
 /**
- * Validate and sanitize retrieve_custom_recipe tool arguments.
+ * Validate and sanitize retrieve_cooked_recipes tool arguments.
  */
-export function validateRetrieveCustomRecipeParams(
+export function validateRetrieveCookedRecipesParams(
   raw: unknown,
-): RetrieveCustomRecipeValidatedParams {
+): RetrieveCookedRecipesValidatedParams {
   let params: unknown;
   if (typeof raw === "string") {
     try {
       params = JSON.parse(raw);
     } catch {
       throw new ToolValidationError(
-        "Invalid JSON in retrieve_custom_recipe params",
+        "Invalid JSON in retrieve_cooked_recipes params",
       );
     }
   } else {
@@ -236,21 +240,67 @@ export function validateRetrieveCustomRecipeParams(
 
   if (!params || typeof params !== "object") {
     throw new ToolValidationError(
-      "retrieve_custom_recipe params must be an object",
+      "retrieve_cooked_recipes params must be an object",
+    );
+  }
+
+  const p = params as Record<string, unknown>;
+  const query = typeof p.query === "string"
+    ? sanitizeSearchQuery(p.query, 200)
+    : "";
+
+  return {
+    query: query.length > 0 ? query : undefined,
+    timeframe: p.timeframe ? sanitizeString(p.timeframe, 100) : undefined,
+  };
+}
+
+// ============================================================
+// Modify Recipe Params
+// ============================================================
+
+export interface ModifyRecipeParams {
+  modificationRequest: string;
+}
+
+/**
+ * Validate and sanitize modify_recipe tool arguments.
+ */
+export function validateModifyRecipeParams(
+  raw: unknown,
+): ModifyRecipeParams {
+  let params: unknown;
+  if (typeof raw === "string") {
+    try {
+      params = JSON.parse(raw);
+    } catch {
+      throw new ToolValidationError(
+        "Invalid JSON in modify_recipe params",
+      );
+    }
+  } else {
+    params = raw;
+  }
+
+  if (!params || typeof params !== "object") {
+    throw new ToolValidationError(
+      "modify_recipe params must be an object",
     );
   }
 
   const p = params as Record<string, unknown>;
 
-  if (!p.query || typeof p.query !== "string" || p.query.trim().length === 0) {
+  if (
+    typeof p.modificationRequest !== "string" ||
+    !p.modificationRequest.trim()
+  ) {
     throw new ToolValidationError(
-      "retrieve_custom_recipe requires a non-empty query",
+      "modify_recipe requires a non-empty modificationRequest",
     );
   }
 
   return {
-    query: sanitizeSearchQuery(p.query, 200),
-    timeframe: p.timeframe ? sanitizeString(p.timeframe, 100) : undefined,
+    modificationRequest: sanitizeString(p.modificationRequest, 2000),
   };
 }
 

@@ -12,6 +12,7 @@ import { PageLayout } from '@/components/layouts/PageLayout';
 import { MiseEnPlaceUsefulItem } from '@/components/cooking-guide/MiseEnPlaceUsefulItem';
 import { Text } from '@/components/common/Text';
 import { LAYOUT } from '@/constants/design-tokens';
+import { getCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
 
 type CheckableUsefulItem = {
     id: string;
@@ -24,7 +25,7 @@ type CheckableUsefulItem = {
  * Useful items prep screen for custom recipe cooking guide
  */
 export default function CustomUsefulItemsStep() {
-    const { id } = useLocalSearchParams();
+    const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
     const { recipe } = useCustomRecipe(id as string);
     const [usefulItems, setUsefulItems] = useState<CheckableUsefulItem[]>([]);
     const { isMobile } = useDevice();
@@ -66,7 +67,7 @@ export default function CustomUsefulItemsStep() {
                 footer={
                     <StepNavigationButtons
                         onBack={() => router.back()}
-                        onNext={() => router.push(`/(tabs)/recipes/custom/${id}/cooking-guide/1`)}
+                        onNext={() => router.push(getCustomCookingGuidePath(id as string, from, '1'))}
                         backText={i18n.t('recipes.cookingGuide.navigation.back')}
                         nextText={i18n.t('recipes.cookingGuide.navigation.next')}
                     />

@@ -16,8 +16,8 @@
 
 #### Why Use the Gateway?
 - **Provider Independence** - Switch models/providers via env vars without code changes
-- **Usage-Based Routing** - Different models for different tasks (`text`, `parsing`, `reasoning`)
-- **Cost Optimization** - Use cheaper models for simple tasks
+- **Usage-Based Routing** - Different models for different tasks (`text`, `recipe_generation`, `parsing`)
+- **Cost Optimization** - Use cheaper models and lower reasoning effort for simple tasks
 - **Consistent Interface** - Same API for all providers
 - **Structured Output** - JSON schema validation built-in
 - **Streaming Support** - SSE streaming with `chatStream()`
@@ -29,12 +29,12 @@ import { chat, chatStream } from '../_shared/ai-gateway/index.ts';
 
 // For structured output (always use JSON schema):
 const response = await chat({
-  usageType: 'text',  // or 'parsing', 'reasoning', 'voice'
+  usageType: 'text',  // or 'recipe_generation', 'parsing'
   messages: [
     { role: 'system', content: 'You are a helpful assistant' },
     { role: 'user', content: 'Hello!' },
   ],
-  temperature: 0.7,
+  reasoningEffort: 'low',
   responseFormat: {
     type: 'json_schema',
     schema: {
@@ -62,7 +62,7 @@ const response = await chat({
 for await (const chunk of chatStream({
   usageType: 'text',
   messages: [...],
-  temperature: 0.7,
+  reasoningEffort: 'low',
 })) {
   console.log(chunk);
 }
@@ -70,23 +70,23 @@ for await (const chunk of chatStream({
 
 #### Usage Types:
 
-| Type | Default Model | Use Case | Cost |
-|------|--------------|----------|------|
-| `text` | gpt-4o-mini | Chat completions, general text generation | Low |
-| `parsing` | gpt-4o-mini | Intent classification, structured data extraction | Very low |
-| `reasoning` | o1-mini | Complex reasoning, multi-step problems | High |
-| `voice` | gpt-4o-mini | Voice-optimized short responses | Low |
+| Type | Default Model | Reasoning Effort | Use Case | Cost |
+|------|--------------|------------------|----------|------|
+| `text` | gpt-4.1-mini | N/A | Chat orchestrator (tool calling + streaming) | Low |
+| `recipe_generation` | gpt-5-mini | `medium` | Recipe generation (structured JSON output) — quality critical | Low |
+| `parsing` | gpt-4.1-nano | N/A | Admin parsing, nutritional data extraction | Very low |
+| `embedding` | text-embedding-3-large | N/A | Vector search (3072 dimensions) | Low |
 
 #### Configuration:
 
 ```bash
 # Required API Keys (in .env or Supabase secrets)
-OPENAI_API_KEY=sk-proj-xxx      # For text, voice, parsing, reasoning
+OPENAI_API_KEY=sk-proj-xxx      # For text, recipe_generation, parsing
 
 # Optional: Override default models
-AI_TEXT_MODEL=gpt-4o              # Override chat model (default: gpt-4o-mini)
-AI_PARSING_MODEL=gpt-4o-mini      # Override parsing model
-AI_REASONING_MODEL=o1             # Override reasoning model
+AI_TEXT_MODEL=gpt-5-mini          # Override chat model (default: gpt-4.1-mini)
+AI_RECIPE_GENERATION_MODEL=gpt-5  # Override recipe model (default: gpt-5-mini)
+AI_PARSING_MODEL=gpt-5-nano       # Override parsing model (default: gpt-4.1-nano)
 ```
 
 #### Design Pattern:

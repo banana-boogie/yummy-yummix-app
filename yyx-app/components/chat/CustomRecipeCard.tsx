@@ -4,7 +4,7 @@
  * Displays an AI-generated recipe with editable name and "Start Cooking" button.
  * Used in chat when the AI generates a custom recipe from user's ingredients.
  */
-import React, { useState, useCallback, memo } from 'react';
+import React, { useState, useCallback, useRef, useEffect, memo } from 'react';
 import { View, TouchableOpacity, TextInput } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
@@ -38,8 +38,10 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
     const [showAllIngredients, setShowAllIngredients] = useState(false);
     const [showAllSteps, setShowAllSteps] = useState(false);
     const [isStartingCooking, setIsStartingCooking] = useState(false);
+    const isMountedRef = useRef(true);
+    useEffect(() => () => { isMountedRef.current = false; }, []);
 
-    const handleStartCooking = useCallback(() => {
+    const handleStartCooking = useCallback(async () => {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         // Debug: log which recipe is being started
@@ -47,11 +49,14 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
             console.log('[CustomRecipeCard] Start cooking - recipe name:', recipeName, 'savedRecipeId:', savedRecipeId);
         }
 
-        // Show loading state immediately
         setIsStartingCooking(true);
-
-        // Fire and forget - the redirect screen handles the loading state
-        void onStartCooking(recipe, recipeName, messageId, savedRecipeId);
+        try {
+            await onStartCooking(recipe, recipeName, messageId, savedRecipeId);
+        } catch (err) {
+            if (__DEV__) console.error('[CustomRecipeCard] Start cooking error:', err);
+        } finally {
+            if (isMountedRef.current) setIsStartingCooking(false);
+        }
     }, [onStartCooking, recipe, recipeName, messageId, savedRecipeId]);
 
     const handleEditPress = useCallback(() => {

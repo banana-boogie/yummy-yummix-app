@@ -9,6 +9,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Alert, FlatList, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { Text } from '@/components/common/Text';
 import { IrmixyAvatar, AvatarState } from './IrmixyAvatar';
@@ -23,6 +24,7 @@ import type { QuotaInfo, VoiceStatus } from '@/services/voice/types';
 import type { ChatMessage } from '@/services/chatService';
 import type { GeneratedRecipe } from '@/types/irmixy';
 import i18n from '@/i18n';
+import { getChatCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
 
 interface Props {
     sessionId?: string | null;
@@ -85,6 +87,19 @@ export function VoiceChatScreen({
     const isConnected = status !== 'idle' && status !== 'error';
     const isConnecting = status === 'connecting';
 
+    // Ref-stabilize stopConversation to avoid stale closure in useFocusEffect
+    const stopConversationRef = useRef(stopConversation);
+    useEffect(() => { stopConversationRef.current = stopConversation; }, [stopConversation]);
+
+    // Stop voice when navigating away from this screen
+    useFocusEffect(
+        useCallback(() => {
+            return () => {
+                stopConversationRef.current();
+            };
+        }, [])
+    );
+
     // Timer for active session (only when truly active, not during connecting)
     const isActive = isConnected && !isConnecting;
     useEffect(() => {
@@ -139,7 +154,7 @@ export function VoiceChatScreen({
                 }
             }
             if (recipeId) {
-                router.push(`/(tabs)/recipes/start-cooking/${recipeId}?from=chat`);
+                router.push(getChatCustomCookingGuidePath(recipeId));
             }
         } catch (err) {
             console.error('[VoiceChatScreen] Start cooking error:', err);

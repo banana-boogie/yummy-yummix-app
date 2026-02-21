@@ -66,11 +66,10 @@ Deno.test("finalizeResponse skips history persistence when sessionId is undefine
     createUserContext(),
     undefined,
     undefined,
-    [{ label: "Show more options", message: "Show more options" }],
   );
 
   assertEquals(response.message, "Assistant response");
-  assertEquals(response.suggestions?.length, 1);
+  assertEquals(response.isAIGenerated, undefined);
   assertEquals(tables.length, 0);
   assertEquals(inserts.length, 0);
 });
@@ -85,10 +84,10 @@ Deno.test("finalizeResponse persists user and assistant messages when sessionId 
     createUserContext(),
     undefined,
     undefined,
-    [{ label: "Show more options", message: "Show more options" }],
   );
 
   assertEquals(response.message, "Sure, let's do it.");
+  assertEquals(response.isAIGenerated, undefined);
   assertEquals(tables, ["user_chat_messages", "user_chat_messages"]);
   assertEquals(inserts.length, 2);
   assertEquals(inserts[0], {
@@ -100,22 +99,17 @@ Deno.test("finalizeResponse persists user and assistant messages when sessionId 
     session_id: "session-123",
     role: "assistant",
     content: "Sure, let's do it.",
-    tool_calls: {
-      suggestions: [{
-        label: "Show more options",
-        message: "Show more options",
-      }],
-    },
+    tool_calls: null,
   });
 });
 
-Deno.test("finalizeResponse uses fixed short message when a custom recipe is present", async () => {
+Deno.test("finalizeResponse preserves provided message when a custom recipe is present", async () => {
   const { supabase } = createMockSupabase();
   const response = await finalizeResponse(
     supabase as unknown as any,
     undefined,
     "make me a recipe",
-    "This message should be overridden",
+    "Custom recipe is ready.",
     createUserContext({ language: "en" }),
     undefined,
     {
@@ -134,8 +128,9 @@ Deno.test("finalizeResponse uses fixed short message when a custom recipe is pre
     },
   );
 
-  assertEquals(response.message, "Ready! Want to change anything?");
+  assertEquals(response.message, "Custom recipe is ready.");
   assertEquals(response.customRecipe?.suggestedName, "Weeknight Pasta");
+  assertEquals(response.isAIGenerated, true);
 });
 
 Deno.test("finalizeResponse propagates history insert failures", async () => {

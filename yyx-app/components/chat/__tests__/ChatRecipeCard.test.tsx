@@ -143,7 +143,20 @@ describe('ChatRecipeCard', () => {
 
       fireEvent.press(screen.getByText(recipe.name));
 
-      expect(mockRouterPush).toHaveBeenCalledWith('/(tabs)/recipes/recipe-123?from=chat');
+      expect(mockRouterPush).toHaveBeenCalledWith('/recipe/recipe-123?from=chat');
+    });
+
+    it('navigates to custom cooking guide for user_recipes cards', () => {
+      const recipe = createMockRecipeCard({
+        recipeId: 'recipe-456',
+        recipeTable: 'user_recipes',
+      });
+
+      render(<ChatRecipeCard recipe={recipe} />);
+
+      fireEvent.press(screen.getByText(recipe.name));
+
+      expect(mockRouterPush).toHaveBeenCalledWith('/recipe/custom/recipe-456/cooking-guide?from=chat');
     });
 
     it('triggers haptic feedback on press', () => {

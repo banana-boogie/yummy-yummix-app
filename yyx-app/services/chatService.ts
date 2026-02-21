@@ -2,7 +2,7 @@
  * Chat API Client
  *
  * Handles communication with the Irmixy chat orchestrator Edge Function.
- * Uses irmixy-chat-orchestrator for structured responses with recipes, suggestions, etc.
+ * Uses irmixy-chat-orchestrator for structured responses with recipes, etc.
  *
  * SSE = Server-Sent Events: A standard for servers to push data to clients
  * over HTTP. Used here for streaming AI responses token-by-token.
@@ -10,7 +10,7 @@
 
 import { supabase } from '@/lib/supabase';
 import EventSource from 'react-native-sse';
-import type { IrmixyResponse, IrmixyStatus, RecipeCard, SuggestionChip, GeneratedRecipe, SafetyFlags, QuickAction } from '@/types/irmixy';
+import type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, QuickAction } from '@/types/irmixy';
 import i18n from '@/i18n';
 
 export interface ChatMessage {
@@ -20,7 +20,6 @@ export interface ChatMessage {
     createdAt: Date;
     // Structured response data (only for assistant messages)
     recipes?: RecipeCard[];
-    suggestions?: SuggestionChip[];
     customRecipe?: GeneratedRecipe;
     safetyFlags?: SafetyFlags;
     actions?: QuickAction[];
@@ -36,7 +35,7 @@ export interface ChatSession {
 }
 
 // Re-export types for convenience
-export type { IrmixyResponse, IrmixyStatus, RecipeCard, SuggestionChip, GeneratedRecipe, SafetyFlags, QuickAction };
+export type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, QuickAction };
 
 // Constants
 const MAX_MESSAGE_LENGTH = 2000;
@@ -66,6 +65,10 @@ export interface StreamCallbacks {
 export interface StreamHandle {
     done: Promise<void>;
     cancel: () => void;
+}
+
+export interface SendMessageOptions {
+    // Reserved for future options
 }
 
 export type SSERouteAction = 'continue' | 'resolve' | 'reject';
@@ -207,6 +210,7 @@ export function sendMessage(
     onStreamComplete?: () => void,
     onPartialRecipe?: (recipe: GeneratedRecipe) => void,
     onComplete?: (response: IrmixyResponse) => void,
+    options?: SendMessageOptions,
 ): StreamHandle {
     let finished = false;
     let es: EventSource | null = null;
@@ -276,6 +280,11 @@ export function sendMessage(
 
                 // Wrap connection in Promise to handle retry logic
                 await new Promise<void>((resolveConnection, rejectConnection) => {
+                    const requestBody: Record<string, unknown> = {
+                        message,
+                        sessionId,
+                    };
+
                     // Create EventSource with POST method and body
                     es = new EventSource(IRMIXY_CHAT_ORCHESTRATOR_URL, {
                         method: 'POST',
@@ -283,10 +292,7 @@ export function sendMessage(
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${session.access_token}`,
                         },
-                        body: JSON.stringify({
-                            message,
-                            sessionId,
-                        }),
+                        body: JSON.stringify(requestBody),
                         // Disable automatic reconnection - we handle errors ourselves
                         pollingInterval: 0,
                     });
@@ -455,9 +461,6 @@ export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]>
             }
             if (toolCalls.safetyFlags) {
                 message.safetyFlags = toolCalls.safetyFlags;
-            }
-            if (toolCalls.suggestions) {
-                message.suggestions = toolCalls.suggestions;
             }
             if (toolCalls.actions) {
                 message.actions = toolCalls.actions;

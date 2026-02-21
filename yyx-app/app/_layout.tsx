@@ -79,6 +79,7 @@ export default function RootLayout() {
               <Stack.Screen name="index" options={{ headerShown: false, title: '' }} />
               <Stack.Screen name="auth" options={{ headerShown: false, title: '' }} />
               <Stack.Screen name="admin" options={{ headerShown: false, title: '' }} />
+              <Stack.Screen name="recipe" options={{ headerShown: false, title: '' }} />
               <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '' }} />
             </Stack>
           </NavigationGuard>

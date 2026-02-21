@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { AppState, Platform } from 'react-native';
 
 type EventType = 'view_recipe' | 'cook_start' | 'cook_complete' | 'search';
+type RecipeTable = 'recipes' | 'user_recipes';
 
 interface QueuedEvent {
   eventType: EventType;
@@ -160,10 +161,15 @@ class EventService {
    * Log when a user starts cooking a recipe.
    * Tracks activation - user intent to cook.
    */
-  logCookStart(recipeId: string, recipeName: string): void {
+  logCookStart(
+    recipeId: string,
+    recipeName: string,
+    recipeTable: RecipeTable = 'recipes',
+  ): void {
     this.queueEvent('cook_start', {
       recipe_id: recipeId,
       recipe_name: recipeName,
+      recipe_table: recipeTable,
     });
   }
 
@@ -171,10 +177,15 @@ class EventService {
    * Log when a user completes cooking a recipe.
    * Core value metric - user actually cooked something.
    */
-  logCookComplete(recipeId: string, recipeName: string): void {
+  logCookComplete(
+    recipeId: string,
+    recipeName: string,
+    recipeTable: RecipeTable = 'recipes',
+  ): void {
     this.queueEvent('cook_complete', {
       recipe_id: recipeId,
       recipe_name: recipeName,
+      recipe_table: recipeTable,
     });
   }
 

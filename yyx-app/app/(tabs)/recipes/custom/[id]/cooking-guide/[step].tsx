@@ -10,10 +10,13 @@ import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideSt
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
 import { COLORS } from '@/constants/design-tokens';
+import { getCustomCookingGuidePath, isFromChat } from '@/utils/navigation/recipeRoutes';
+import { eventService } from '@/services/eventService';
 
 export default function CustomCookingStep() {
     const { id, step: stepParam, from } = useLocalSearchParams<{ id: string; step: string; from?: string }>();
     const { recipe } = useCustomRecipe(id as string);
+    const isChatFlow = isFromChat(from);
 
     const currentStepNumber = Number(stepParam);
     const steps = recipe?.steps;
@@ -29,16 +32,19 @@ export default function CustomCookingStep() {
         back: () => {
             const previousStep = currentStepNumber - 1;
             if (previousStep >= 1) {
-                router.replace(`/(tabs)/recipes/custom/${id}/cooking-guide/${previousStep}`);
+                router.replace(getCustomCookingGuidePath(id as string, from, String(previousStep)));
             } else {
                 router.back();
             }
         },
         next: () => {
-            router.replace(`/(tabs)/recipes/custom/${id}/cooking-guide/${currentStepNumber + 1}`);
+            router.replace(getCustomCookingGuidePath(id as string, from, String(currentStepNumber + 1)));
         },
         finish: () => {
-            if (from === 'chat') {
+            if (recipe?.id && recipe?.name) {
+                eventService.logCookComplete(recipe.id, recipe.name, 'user_recipes');
+            }
+            if (isChatFlow) {
                 router.replace('/(tabs)/chat');
             } else {
                 router.replace('/(tabs)/recipes');

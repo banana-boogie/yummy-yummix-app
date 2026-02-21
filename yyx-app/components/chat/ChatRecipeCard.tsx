@@ -13,6 +13,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { RecipeCard } from '@/types/irmixy';
 import i18n from '@/i18n';
 import { COLORS } from '@/constants/design-tokens';
+import {
+    getChatCustomCookingGuidePath,
+    getChatRecipeDetailPath
+} from '@/utils/navigation/recipeRoutes';
 
 const HERO_IMAGE_HEIGHT = 140;
 
@@ -30,8 +34,12 @@ export const ChatRecipeCard = memo(function ChatRecipeCard({ recipe }: ChatRecip
 
         // Haptic feedback for premium feel
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        // Pass 'from=chat' so the recipe detail knows to navigate back to chat
-        router.push(`/(tabs)/recipes/${recipe.recipeId}?from=chat`);
+        const isUserRecipe = recipe.recipeTable === 'user_recipes';
+        router.push(
+            isUserRecipe
+                ? getChatCustomCookingGuidePath(recipe.recipeId)
+                : getChatRecipeDetailPath(recipe.recipeId)
+        );
     };
 
     const getDifficultyColor = (difficulty: string) => {

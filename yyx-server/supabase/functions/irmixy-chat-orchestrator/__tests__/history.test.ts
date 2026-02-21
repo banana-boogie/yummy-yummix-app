@@ -53,9 +53,6 @@ function createResponse(): IrmixyResponse {
     message: "Assistant response",
     language: "en",
     status: null,
-    suggestions: [
-      { label: "Show more options", message: "Show more options" },
-    ],
   };
 }
 
@@ -81,9 +78,7 @@ Deno.test("saveMessageToHistory - inserts user then assistant payloads", async (
     session_id: "session-123",
     role: "assistant",
     content: "Assistant response",
-    tool_calls: {
-      suggestions: response.suggestions,
-    },
+    tool_calls: null,
   });
 });
 
