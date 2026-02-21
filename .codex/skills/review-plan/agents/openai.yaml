@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Plan"
+  short_description: "Review implementation plans for quality and feasibility"
+  default_prompt: "Use $yummyyummix:review-plan to review a plan; if I do not provide a file path, scan docs/plans/ for recent plans and ask for confirmation."
