@@ -13,23 +13,11 @@ You are reviewing an implementation plan for the YummyYummix codebase. Follow th
 
 ### Step 1: Resolve Plan Input
 
-`$ARGUMENTS` can be one of three things:
+Resolve `$ARGUMENTS` in this order:
 
-| Input | Detection | Behavior |
-|-------|-----------|----------|
-| **File path** | Starts with `/`, `./`, `docs/`, or ends with `.md` | Read the file |
-| **Inline plan content** | Contains markdown structure (headers, lists, >100 chars) | Use the pasted content directly as the plan |
-| **Empty** | No argument | Scan `docs/plans/*.md`, present candidates sorted by recency, ask user to confirm. If none found, ask for file path or pasted content. |
-
-For empty arguments, list discovered plans and ask:
-
-> I found the following plans:
-> 1. `docs/plans/plan-name.md` (modified: <date>)
-> 2. `docs/plans/other-plan.md` (modified: <date>)
->
-> Which plan should I review? Or paste plan content directly.
-
-Proceed only after the user confirms.
+1. **No argument** — Scan `docs/plans/*.md`, present candidates sorted by recency, ask user to confirm. If none found, ask for file path or pasted content.
+2. **File path** (starts with `/`, `./`, `docs/`, or ends with `.md`) — Read the file.
+3. **Anything else** — Treat as inline plan content pasted directly after the command.
 
 ### Step 2: Read Plan and Gather Context
 
