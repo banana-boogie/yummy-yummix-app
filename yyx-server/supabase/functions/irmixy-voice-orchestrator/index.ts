@@ -23,10 +23,7 @@ import { executeTool } from "../_shared/tools/execute-tool.ts";
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
 import { getAllowedVoiceToolNames } from "../_shared/tools/tool-registry.ts";
-import {
-  getDefaultVoiceQuotaMinutes,
-  getQuotaLimitForUser,
-} from "./quota.ts";
+import { getDefaultVoiceQuotaMinutes, getQuotaLimitForUser } from "./quota.ts";
 
 const ALLOWED_VOICE_TOOLS = new Set(getAllowedVoiceToolNames());
 const ALLOWED_ACTIONS = new Set(
