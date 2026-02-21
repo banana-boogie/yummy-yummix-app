@@ -53,7 +53,6 @@ import { errorResponse, finalizeResponse } from "./response-builder.ts";
 
 const STREAM_TIMEOUT_MS = 30_000;
 const HEARTBEAT_INTERVAL_MS = 15_000;
-const MAX_HEARTBEATS = 4; // Cap at 60s of tool execution
 
 // ============================================================
 // Main Handler
@@ -307,13 +306,22 @@ function handleStreamingRequest(
   const stream = new ReadableStream({
     async start(controller) {
       let streamTimeoutId: ReturnType<typeof setTimeout> | null = null;
-      let streamTimedOut = false;
+      let streamClosed = false;
+
+      const safeEnqueue = (chunk: Uint8Array) => {
+        if (!streamClosed) controller.enqueue(chunk);
+      };
+      const safeClose = () => {
+        if (!streamClosed) {
+          streamClosed = true;
+          controller.close();
+        }
+      };
 
       const resetStreamTimeout = () => {
         if (streamTimeoutId) clearTimeout(streamTimeoutId);
         streamTimeoutId = setTimeout(() => {
-          streamTimedOut = true;
-          controller.enqueue(
+          safeEnqueue(
             encoder.encode(
               `data: ${
                 JSON.stringify({
@@ -323,7 +331,7 @@ function handleStreamingRequest(
               }\n\n`,
             ),
           );
-          controller.close();
+          safeClose();
         }, STREAM_TIMEOUT_MS);
       };
 
@@ -335,8 +343,8 @@ function handleStreamingRequest(
       };
 
       const send = (data: Record<string, unknown>) => {
-        if (streamTimedOut) return;
-        controller.enqueue(
+        if (streamClosed) return;
+        safeEnqueue(
           encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
         );
         resetStreamTimeout();
@@ -383,6 +391,11 @@ function handleStreamingRequest(
           toolNames: assistantMessage.tool_calls?.map((tc) => tc.function.name),
         });
 
+        // Stream preview text before tool execution (warm message while recipe generates)
+        if (assistantMessage.content) {
+          send({ type: "content", content: assistantMessage.content });
+        }
+
         if (
           assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0
         ) {
@@ -420,7 +433,7 @@ function handleStreamingRequest(
               });
               send({ type: "done", response });
               clearStreamTimeout();
-              controller.close();
+              safeClose();
               return;
             }
           }
@@ -442,13 +455,7 @@ function handleStreamingRequest(
           };
 
           // Keep stream alive during long tool execution (recipe gen can take 45s+)
-          let heartbeatCount = 0;
           const heartbeatId = setInterval(() => {
-            heartbeatCount++;
-            if (heartbeatCount > MAX_HEARTBEATS) {
-              clearInterval(heartbeatId);
-              return;
-            }
             send({ type: "heartbeat" });
           }, HEARTBEAT_INTERVAL_MS);
 
@@ -463,6 +470,8 @@ function handleStreamingRequest(
             );
           } finally {
             clearInterval(heartbeatId);
+            // Reset timeout for the streaming phase that follows
+            send({ type: "status", status: "generating" });
           }
           timings.tool_exec_ms = Math.round(performance.now() - phaseStart);
           phaseStart = performance.now();
@@ -519,7 +528,7 @@ function handleStreamingRequest(
             });
             send({ type: "done", response });
             clearStreamTimeout();
-            controller.close();
+            safeClose();
             return;
           }
           generationWarningMessage = usageUpdate.warningMessage;
@@ -573,7 +582,7 @@ function handleStreamingRequest(
 
         send({ type: "done", response });
         clearStreamTimeout();
-        controller.close();
+        safeClose();
       } catch (error) {
         log.error("Streaming error", error);
         send({
@@ -581,7 +590,7 @@ function handleStreamingRequest(
           error: "An unexpected error occurred",
         });
         clearStreamTimeout();
-        controller.close();
+        safeClose();
       }
     },
   });
