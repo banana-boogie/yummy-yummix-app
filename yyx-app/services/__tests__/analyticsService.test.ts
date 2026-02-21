@@ -63,6 +63,33 @@ describe('analyticsService', () => {
     });
   });
 
+  it('getAIChatSessionMetrics calls admin_ai_chat_session_depth RPC with timeframe', async () => {
+    const mockResponse = {
+      avgMessagesPerSession: 5.8,
+      avgUserMessagesPerSession: 2.9,
+      avgAssistantMessagesPerSession: 2.9,
+      avgSessionDurationMin: 12.0,
+      totalSessions: 141,
+      messageDistribution: [
+        { bucket: '2-4', count: 80 },
+        { bucket: '5-10', count: 40 },
+      ],
+      toolUsage: { withSearch: 45, withGeneration: 60, withBoth: 20, chatOnly: 16 },
+      sessionsExceedingWindow: 3,
+      topUsers: [{ userId: 'abc', sessions: 12, totalMessages: 84, avgMessages: 7.0 }],
+      dailySessions: [{ date: '2026-02-19', sessions: 5 }],
+    };
+
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: mockResponse, error: null });
+
+    const result = await analyticsService.getAIChatSessionMetrics('30_days');
+
+    expect(supabase.rpc).toHaveBeenCalledWith('admin_ai_chat_session_depth', {
+      timeframe: '30_days',
+    });
+    expect(result).toEqual(mockResponse);
+  });
+
   it('getRecipeGenerationMetrics routes to recipe_generation action', async () => {
     const payload = {
       totalGenerated: 12,
