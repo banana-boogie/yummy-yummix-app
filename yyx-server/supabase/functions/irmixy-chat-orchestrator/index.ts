@@ -440,7 +440,8 @@ function handleStreamingRequest(
 
           send({
             type: "status",
-            status: toolName === "search_recipes"
+            status: (toolName === "search_recipes" ||
+                toolName === "retrieve_cooked_recipes")
               ? "searching"
               : (toolName === "generate_custom_recipe" ||
                   toolName === "modify_recipe")
