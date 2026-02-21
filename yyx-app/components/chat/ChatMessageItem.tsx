@@ -11,6 +11,7 @@ import {
     GeneratedRecipe,
     Action,
 } from '@/services/chatService';
+import type { ActionContext } from '@/services/actions/actionRegistry';
 import { Image } from 'expo-image';
 import Markdown from 'react-native-markdown-display';
 import * as Haptics from 'expo-haptics';
@@ -141,7 +142,7 @@ export interface ChatMessageItemProps {
     statusText: string;
     onCopyMessage: (content: string) => void;
     onStartCooking: (recipe: GeneratedRecipe, finalName: string, messageId: string, savedRecipeId?: string) => void;
-    onActionPress: (action: Action) => void;
+    onActionPress: (action: Action, context?: ActionContext, sourceMessageId?: string) => void;
 }
 
 export const ChatMessageItem = memo(function ChatMessageItem({
@@ -229,7 +230,11 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                     {item.actions.map((action, idx) => (
                         <TouchableOpacity
                             key={`${action.type}-${idx}`}
-                            onPress={() => onActionPress(action)}
+                            onPress={() => onActionPress(
+                                action,
+                                { currentRecipe: item.customRecipe, recipes: item.recipes },
+                                item.id,
+                            )}
                             className="self-start bg-primary-medium px-md py-xs rounded-lg"
                         >
                             <Text className="text-sm font-medium text-white">

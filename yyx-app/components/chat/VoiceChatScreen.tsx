@@ -22,7 +22,7 @@ import { COLORS } from '@/constants/design-tokens';
 import type { QuotaInfo, VoiceStatus } from '@/services/voice/types';
 import type { ChatMessage } from '@/services/chatService';
 import type { Action, GeneratedRecipe } from '@/types/irmixy';
-import { executeAction } from '@/services/actions/actionRegistry';
+import { executeAction, resolveActionContext } from '@/services/actions/actionRegistry';
 import type { ActionContext } from '@/services/actions/actionRegistry';
 import i18n from '@/i18n';
 
@@ -45,6 +45,8 @@ export function VoiceChatScreen({
     const insets = useSafeAreaInsets();
     const [duration, setDuration] = useState(0);
     const flatListRef = useRef<FlatList>(null);
+    const executedActionIdsRef = useRef(new Set<string>());
+    const isConnectedRef = useRef(false);
 
     const {
         status,
@@ -87,6 +89,16 @@ export function VoiceChatScreen({
     const isConnected = status !== 'idle' && status !== 'error';
     const isConnecting = status === 'connecting';
 
+    useEffect(() => {
+        isConnectedRef.current = isConnected;
+    }, [isConnected]);
+
+    useEffect(() => {
+        if (transcriptMessages.length === 0) {
+            executedActionIdsRef.current.clear();
+        }
+    }, [transcriptMessages.length]);
+
     // Timer for active session (only when truly active, not during connecting)
     const isActive = isConnected && !isConnecting;
     useEffect(() => {
@@ -124,9 +136,44 @@ export function VoiceChatScreen({
         }
     };
 
-    const handleActionPress = useCallback((action: Action, context?: ActionContext) => {
-        executeAction(action, context);
-    }, []);
+    const handleActionPress = useCallback(
+        (action: Action, context?: ActionContext, sourceMessageId?: string) => {
+            const hasProvidedContext = !!context?.currentRecipe || !!context?.recipes?.length;
+            const resolvedContext = hasProvidedContext
+                ? context
+                : resolveActionContext(transcriptMessages, sourceMessageId);
+            Promise.resolve(executeAction(action, resolvedContext)).catch(() => {});
+        },
+        [transcriptMessages],
+    );
+
+    useEffect(() => {
+        if (!isConnectedRef.current || transcriptMessages.length === 0) {
+            return;
+        }
+
+        const latestMessage = transcriptMessages[transcriptMessages.length - 1];
+        if (latestMessage.role !== 'assistant' || !latestMessage.actions?.length) {
+            return;
+        }
+
+        for (const action of latestMessage.actions) {
+            if (!action.autoExecute || !action.id || executedActionIdsRef.current.has(action.id)) {
+                continue;
+            }
+
+            executedActionIdsRef.current.add(action.id);
+            const messageContext: ActionContext = {
+                currentRecipe: latestMessage.customRecipe,
+                recipes: latestMessage.recipes,
+            };
+            const hasMessageContext = !!messageContext.currentRecipe || !!messageContext.recipes?.length;
+            const resolvedContext = hasMessageContext
+                ? messageContext
+                : resolveActionContext(transcriptMessages, latestMessage.id);
+            Promise.resolve(executeAction(action, resolvedContext)).catch(() => {});
+        }
+    }, [transcriptMessages]);
 
     const handleStartCooking = useCallback(async (
         recipe: GeneratedRecipe,
@@ -205,7 +252,7 @@ export function VoiceChatScreen({
                                 onPress={() => handleActionPress(action, {
                                     currentRecipe: item.customRecipe,
                                     recipes: item.recipes,
-                                })}
+                                }, item.id)}
                                 className="self-start bg-primary-medium px-md py-xs rounded-lg"
                             >
                                 <Text preset="body" className="text-sm font-medium text-white">

@@ -1,13 +1,12 @@
-import { Share, Platform } from 'react-native';
+import { Share } from 'react-native';
 import { router } from 'expo-router';
-import { executeAction } from '../actionRegistry';
+import { executeAction, resolveActionContext } from '../actionRegistry';
 import type { Action } from '@/types/irmixy';
-import type { ActionContext } from '../actionRegistry';
+import type { ActionContext, ActionContextSource } from '../actionRegistry';
 
 // Mock react-native Share
 jest.mock('react-native', () => ({
     Share: { share: jest.fn().mockResolvedValue({ action: 'sharedAction' }) },
-    Platform: { OS: 'ios' },
 }));
 
 // Mock expo-router
@@ -148,6 +147,72 @@ describe('actionRegistry', () => {
             };
             const result = await executeAction(action, context);
             expect(result).toBe(false);
+        });
+    });
+
+    describe('resolveActionContext', () => {
+        it('returns preferred message context when message id has recipe data', () => {
+            const messages: ActionContextSource[] = [
+                { id: 'm1', role: 'assistant' },
+                {
+                    id: 'm2',
+                    role: 'assistant',
+                    customRecipe: {
+                        schemaVersion: '1.0',
+                        suggestedName: 'Preferred Recipe',
+                        measurementSystem: 'metric',
+                        language: 'en',
+                        ingredients: [],
+                        steps: [],
+                        totalTime: 15,
+                        difficulty: 'easy',
+                        portions: 2,
+                        tags: [],
+                    },
+                },
+            ];
+
+            const result = resolveActionContext(messages, 'm2');
+            expect(result?.currentRecipe?.suggestedName).toBe('Preferred Recipe');
+        });
+
+        it('falls back to latest assistant message with recipe data', () => {
+            const messages: ActionContextSource[] = [
+                { id: 'm1', role: 'assistant' },
+                {
+                    id: 'm2',
+                    role: 'assistant',
+                    recipes: [{
+                        recipeId: 'recipe-1',
+                        name: 'Latest Recipe',
+                        totalTime: 10,
+                        difficulty: 'easy',
+                        portions: 2,
+                    }],
+                },
+            ];
+
+            const result = resolveActionContext(messages, 'missing-id');
+            expect(result?.recipes?.[0]?.name).toBe('Latest Recipe');
+        });
+
+        it('ignores non-assistant messages when falling back', () => {
+            const messages: ActionContextSource[] = [
+                {
+                    id: 'u1',
+                    role: 'user',
+                    recipes: [{
+                        recipeId: 'recipe-1',
+                        name: 'User Recipe',
+                        totalTime: 10,
+                        difficulty: 'easy',
+                        portions: 2,
+                    }],
+                },
+            ];
+
+            const result = resolveActionContext(messages);
+            expect(result).toBeUndefined();
         });
     });
 });

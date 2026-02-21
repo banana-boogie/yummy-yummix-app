@@ -5,7 +5,7 @@
  * Adding a new action = adding an entry to ACTION_HANDLERS.
  */
 
-import { Share, Platform } from 'react-native';
+import { Share } from 'react-native';
 import { router } from 'expo-router';
 import type { Action, GeneratedRecipe, RecipeCard } from '@/types/irmixy';
 
@@ -16,8 +16,53 @@ export interface ActionContext {
     recipes?: RecipeCard[];
 }
 
+export interface ActionContextSource {
+    id?: string;
+    role?: string;
+    customRecipe?: GeneratedRecipe;
+    recipes?: RecipeCard[];
+}
+
 interface ActionHandler {
     execute: (payload: Record<string, unknown>, context?: ActionContext) => boolean | Promise<boolean>;
+}
+
+function hasRecipeContext(context?: ActionContext): boolean {
+    return !!context?.currentRecipe || !!context?.recipes?.length;
+}
+
+function toActionContext(source?: ActionContextSource): ActionContext | undefined {
+    if (!source) return undefined;
+    const context: ActionContext = {
+        currentRecipe: source.customRecipe,
+        recipes: source.recipes,
+    };
+    return hasRecipeContext(context) ? context : undefined;
+}
+
+/**
+ * Resolve action context from chat/transcript messages.
+ * 1) Prefer context from a specific message ID (if provided)
+ * 2) Fallback to the most recent assistant message with recipe data
+ */
+export function resolveActionContext(
+    messages: ActionContextSource[],
+    preferredMessageId?: string,
+): ActionContext | undefined {
+    if (preferredMessageId) {
+        const preferred = messages.find((message) => message.id === preferredMessageId);
+        const preferredContext = toActionContext(preferred);
+        if (preferredContext) return preferredContext;
+    }
+
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+        const message = messages[index];
+        if (message.role !== 'assistant') continue;
+        const context = toActionContext(message);
+        if (context) return context;
+    }
+
+    return undefined;
 }
 
 function formatRecipeForSharing(recipe: GeneratedRecipe): string {
@@ -72,9 +117,7 @@ const ACTION_HANDLERS: Record<string, ActionHandler> = {
             }
 
             try {
-                await Share.share({
-                    message: Platform.OS === 'ios' ? message : message,
-                });
+                await Share.share({ message });
                 return true;
             } catch {
                 return false;

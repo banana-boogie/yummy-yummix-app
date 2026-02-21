@@ -69,7 +69,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     const deltaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Listener tracking for proper cleanup via .off()
-    const listenersRef = useRef<Array<{ event: string; callback: (...args: any[]) => void }>>([]);
+    const listenersRef = useRef<{ event: string; callback: (...args: any[]) => void }[]>([]);
 
     const { userProfile } = useUserProfile();
     const { language } = useLanguage();
@@ -284,6 +284,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                     }
 
                     // Handle app actions (independent of recipe results)
+                    // Keep in sync with action-builder.ts (server-side equivalent for text chat path)
                     if (result.appAction && typeof result.appAction === 'object') {
                         const appAction = result.appAction as { action: string; params?: Record<string, unknown> };
                         const action: Action = {

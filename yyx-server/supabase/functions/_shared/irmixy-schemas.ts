@@ -34,7 +34,6 @@ export const ActionSchema = z.object({
   label: z.string(),
   payload: z.record(z.unknown()),
   autoExecute: z.boolean().optional(),
-  confirmationMessage: z.string().optional(),
 });
 
 export const UsefulItemSchema = z.object({

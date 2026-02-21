@@ -24,7 +24,7 @@ import {
     loadChatHistory,
     sendMessage,
 } from '@/services/chatService';
-import { executeAction } from '@/services/actions/actionRegistry';
+import { executeAction, resolveActionContext } from '@/services/actions/actionRegistry';
 import type { ActionContext } from '@/services/actions/actionRegistry';
 import { customRecipeService } from '@/services/customRecipeService';
 import { useQueryClient } from '@tanstack/react-query';
@@ -507,11 +507,17 @@ export function ChatScreen({
                                 !executedActionIdsRef.current.has(action.id)
                             ) {
                                 executedActionIdsRef.current.add(action.id);
-                                const actionContext: ActionContext = {
+                                const responseActionContext: ActionContext = {
                                     currentRecipe: response.customRecipe,
                                     recipes: response.recipes,
                                 };
-                                executeAction(action, actionContext);
+                                const hasResponseContext =
+                                    !!responseActionContext.currentRecipe ||
+                                    !!responseActionContext.recipes?.length;
+                                const actionContext = hasResponseContext
+                                    ? responseActionContext
+                                    : resolveActionContext(messagesRef.current, assistantMessageId);
+                                Promise.resolve(executeAction(action, actionContext)).catch(() => {});
                             }
                         }
                     }
@@ -688,8 +694,12 @@ export function ChatScreen({
         }
     }, [queryClient, setMessages]);
 
-    const handleActionPress = useCallback((action: Action, context?: ActionContext) => {
-        executeAction(action, context);
+    const handleActionPress = useCallback((action: Action, context?: ActionContext, sourceMessageId?: string) => {
+        const hasProvidedContext = !!context?.currentRecipe || !!context?.recipes?.length;
+        const resolvedContext = hasProvidedContext
+            ? context
+            : resolveActionContext(messagesRef.current, sourceMessageId);
+        Promise.resolve(executeAction(action, resolvedContext)).catch(() => {});
     }, []);
 
     // Memoize the last message ID to avoid recalculating on every render
