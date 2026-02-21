@@ -6,7 +6,6 @@ import {
     KeyboardAvoidingView,
     Platform,
     TouchableOpacity,
-    ActivityIndicator,
     Alert,
     Animated,
 } from 'react-native';
@@ -636,6 +635,10 @@ export function ChatScreen({
         handleSendMessage(inputText);
     }, [inputText, handleSendMessage]);
 
+    const handleStop = useCallback(() => {
+        resetStreamingState();
+    }, [resetStreamingState]);
+
     const handleSuggestionSelect = useCallback((suggestion: SuggestionChip) => {
         // Use the message field for sending (may differ from label)
         handleSendMessage(suggestion.message);
@@ -900,21 +903,26 @@ export function ChatScreen({
                         maxLength={2000}
                         editable={!isLoading}
                     />
-                    <TouchableOpacity
-                        className={`rounded-full justify-center items-center ${
-                            isLoading ? 'bg-primary-medium' :
-                            !inputText.trim() ? 'bg-grey-medium' : 'bg-primary-darkest'
-                        }`}
-                        style={{ width: SPACING.xxl, height: SPACING.xxl, marginLeft: SPACING.xs }}
-                        onPress={handleSend}
-                        disabled={isLoading || !inputText.trim()}
-                    >
-                        {isLoading ? (
-                            <ActivityIndicator size="small" color={COLORS.neutral.white} />
-                        ) : (
+                    {isLoading ? (
+                        <TouchableOpacity
+                            className="rounded-full justify-center items-center bg-status-error"
+                            style={{ width: SPACING.xxl, height: SPACING.xxl, marginLeft: SPACING.xs }}
+                            onPress={handleStop}
+                        >
+                            <MaterialCommunityIcons name="stop" size={ICON_SIZE} color={COLORS.neutral.white} />
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity
+                            className={`rounded-full justify-center items-center ${
+                                !inputText.trim() ? 'bg-grey-medium' : 'bg-primary-darkest'
+                            }`}
+                            style={{ width: SPACING.xxl, height: SPACING.xxl, marginLeft: SPACING.xs }}
+                            onPress={handleSend}
+                            disabled={!inputText.trim()}
+                        >
                             <MaterialCommunityIcons name="send" size={ICON_SIZE} color={COLORS.neutral.white} />
-                        )}
-                    </TouchableOpacity>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </View>
 

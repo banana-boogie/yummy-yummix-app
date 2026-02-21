@@ -19,6 +19,7 @@ export async function callAI(
   messages: ChatMessage[],
   includeTools: boolean = true,
   toolChoice?: "auto" | "required",
+  signal?: AbortSignal,
 ): Promise<{ choices: Array<{ message: ChatMessage }> }> {
   const aiMessages = normalizeMessagesForAi(messages);
 
@@ -33,6 +34,7 @@ export async function callAI(
     temperature: 0.7,
     tools,
     toolChoice: includeTools ? toolChoice : undefined,
+    signal,
   });
 
   // Convert back to OpenAI response format for compatibility
@@ -61,6 +63,7 @@ export async function callAI(
 export async function callAIStream(
   messages: ChatMessage[],
   onToken: (token: string) => void,
+  signal?: AbortSignal,
 ): Promise<string> {
   const aiMessages = normalizeMessagesForAi(messages);
 
@@ -71,8 +74,10 @@ export async function callAIStream(
       usageType: "text",
       messages: aiMessages,
       temperature: 0.7,
+      signal,
     })
   ) {
+    if (signal?.aborted) break;
     fullContent += chunk;
     onToken(chunk);
   }
