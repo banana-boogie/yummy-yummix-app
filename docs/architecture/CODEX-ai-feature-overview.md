@@ -167,7 +167,7 @@ Evidence: `yyx-app/services/chatService.ts:47`, `yyx-app/services/chatService.ts
 
 ### 3) Text UI State and Rendering (`ChatScreen`)
 - Optimizes streaming render with chunk batching (`CHUNK_BATCH_MS = 50`) and scroll throttling.
-- Shows `RecipeProgressTracker` during recipe generation instead of a generic skeleton. Gated by `isRecipeGenerating` boolean, which is set `true` when the SSE status is `generating`. The tracker receives `currentStatus` for SSE-driven stage advancement (e.g., `generating` -> stage 1, `enriching` -> stage 4). The bottom status bar is hidden while the tracker is visible.
+- Shows `RecipeProgressTracker` during recipe generation instead of a generic skeleton. Gated by `isRecipeGenerating` boolean, which is set `true` when the SSE status is `generating`. The tracker receives `currentStatus` for SSE-driven stage advancement (e.g., `generating` -> stage 2, `enriching` -> stage 5). The bottom status bar is hidden while the tracker is visible.
 - Enables input as soon as `stream_complete` arrives.
 - Performs atomic final assistant update in `onComplete` so recipe card + final text stay consistent.
 - Supports quick actions, including `resume_cooking` payload routing.

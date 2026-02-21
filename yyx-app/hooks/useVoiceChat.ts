@@ -75,20 +75,37 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
 
     const providerRef = useRef<VoiceAssistantProvider | null>(null);
 
-    // Sync from parent when external messages are explicitly reset (e.g. "New Chat").
-    // Track previous external length to only clear on a >0 → 0 transition,
-    // avoiding false resets when external starts as [] during normal flow.
+    // Sync transcript state from parent on session switches and explicit resets.
+    const sessionId = options?.sessionId ?? null;
     const externalMessages = options?.initialTranscriptMessages;
-    const prevExternalLengthRef = useRef(externalMessages?.length ?? 0);
+    const prevSyncRef = useRef<{ sessionId: string | null; externalMessages: ChatMessage[] | undefined }>({
+        sessionId,
+        externalMessages,
+    });
     useEffect(() => {
-        const prevLen = prevExternalLengthRef.current;
+        const prev = prevSyncRef.current;
+        const sessionChanged = prev.sessionId !== sessionId;
+        const prevLen = prev.externalMessages?.length ?? 0;
         const curLen = externalMessages?.length ?? 0;
-        prevExternalLengthRef.current = curLen;
 
-        if (prevLen > 0 && curLen === 0) {
+        if (sessionChanged) {
+            setTranscriptMessages(externalMessages ?? []);
+
+            // Reset in-flight streaming refs to avoid leaking partial content between sessions.
+            assistantTextRef.current = '';
+            pendingRecipeDataRef.current = null;
+            streamingMsgIdRef.current = null;
+            deltaBufferRef.current = '';
+            if (deltaTimerRef.current) {
+                clearTimeout(deltaTimerRef.current);
+                deltaTimerRef.current = null;
+            }
+        } else if (prevLen > 0 && curLen === 0) {
             setTranscriptMessages([]);
         }
-    }, [externalMessages]);
+
+        prevSyncRef.current = { sessionId, externalMessages };
+    }, [externalMessages, sessionId]);
 
     // Notify parent of transcript changes (stabilised via ref to avoid render storms)
     const onTranscriptChangeRef = useRef(options?.onTranscriptChange);

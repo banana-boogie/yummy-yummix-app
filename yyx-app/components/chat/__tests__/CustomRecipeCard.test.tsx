@@ -4,7 +4,9 @@ import * as Haptics from 'expo-haptics';
 import { CustomRecipeCard } from '../CustomRecipeCard';
 import {
   createMockGeneratedRecipe,
+  createMockGeneratedRecipeWithManyIngredients,
   createMockSafetyFlagsWithWarning,
+  createMockSafetyFlagsWithError,
 } from '@/test/mocks/chat';
 
 jest.mock('expo-haptics');
@@ -36,6 +38,7 @@ jest.mock('@/i18n', () => ({
       'recipes.common.difficulty.easy': 'Easy',
       'recipes.common.difficulty.medium': 'Medium',
       'recipes.common.difficulty.hard': 'Hard',
+      'common.items': 'items',
     };
 
     return translations[key] || key;
@@ -66,6 +69,22 @@ describe('CustomRecipeCard', () => {
     expect(screen.queryByText('Ingredients:')).toBeNull();
   });
 
+  it('renders expanded view when compact is false', () => {
+    const recipe = createMockGeneratedRecipe();
+
+    render(
+      <CustomRecipeCard
+        recipe={recipe}
+        onStartCooking={onStartCooking}
+        messageId="msg-1"
+        compact={false}
+      />
+    );
+
+    expect(screen.getByText('Ingredients:')).toBeTruthy();
+    expect(screen.queryByText('See Full Recipe')).toBeNull();
+  });
+
   it('expands to full recipe when pressing "See Full Recipe"', () => {
     const recipe = createMockGeneratedRecipe();
 
@@ -81,6 +100,48 @@ describe('CustomRecipeCard', () => {
 
     expect(screen.getByText('Ingredients:')).toBeTruthy();
     expect(screen.getByText('Instructions:')).toBeTruthy();
+  });
+
+  it('updates recipe name via edit flow before starting cooking', () => {
+    const recipe = createMockGeneratedRecipe({ suggestedName: 'Original Name' });
+
+    render(
+      <CustomRecipeCard
+        recipe={recipe}
+        onStartCooking={onStartCooking}
+        messageId="msg-1"
+      />
+    );
+
+    fireEvent.press(screen.getByText('Original Name'));
+
+    const input = screen.getByDisplayValue('Original Name');
+    fireEvent.changeText(input, 'Edited Name');
+    fireEvent(input, 'submitEditing');
+    fireEvent.press(screen.getByText('Start Cooking'));
+
+    expect(onStartCooking).toHaveBeenCalledWith(recipe, 'Edited Name', 'msg-1', undefined);
+  });
+
+  it('resets edited name when user submits empty value', () => {
+    const recipe = createMockGeneratedRecipe({ suggestedName: 'Original Name' });
+
+    render(
+      <CustomRecipeCard
+        recipe={recipe}
+        onStartCooking={onStartCooking}
+        messageId="msg-1"
+      />
+    );
+
+    fireEvent.press(screen.getByText('Original Name'));
+
+    const input = screen.getByDisplayValue('Original Name');
+    fireEvent.changeText(input, '');
+    fireEvent(input, 'blur');
+    fireEvent.press(screen.getByText('Start Cooking'));
+
+    expect(onStartCooking).toHaveBeenCalledWith(recipe, 'Original Name', 'msg-1', undefined);
   });
 
   it('renders description when present', () => {
@@ -135,6 +196,52 @@ describe('CustomRecipeCard', () => {
     expect(screen.queryByText('This recipe was created by AI.')).toBeNull();
   });
 
+  it('toggles ingredients expansion for long ingredient lists', () => {
+    const recipe = createMockGeneratedRecipeWithManyIngredients(8);
+
+    render(
+      <CustomRecipeCard
+        recipe={recipe}
+        onStartCooking={onStartCooking}
+        messageId="msg-1"
+      />
+    );
+
+    fireEvent.press(screen.getByText('See Full Recipe'));
+    expect(screen.getByText('Show 3 more')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('Show 3 more'));
+    expect(screen.getByText('Show less')).toBeTruthy();
+  });
+
+  it('toggles steps expansion for long step lists', () => {
+    const recipe = createMockGeneratedRecipe({
+      steps: [
+        { order: 1, instruction: 'Step 1' },
+        { order: 2, instruction: 'Step 2' },
+        { order: 3, instruction: 'Step 3' },
+        { order: 4, instruction: 'Step 4' },
+        { order: 5, instruction: 'Step 5' },
+      ],
+    });
+
+    render(
+      <CustomRecipeCard
+        recipe={recipe}
+        onStartCooking={onStartCooking}
+        messageId="msg-1"
+      />
+    );
+
+    fireEvent.press(screen.getByText('See Full Recipe'));
+    expect(screen.queryByText('Step 4')).toBeNull();
+    expect(screen.getByText('Show 2 more')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('Show 2 more'));
+    expect(screen.getByText('Step 4')).toBeTruthy();
+    expect(screen.getByText('Show less')).toBeTruthy();
+  });
+
   it('keeps safety warning visible in compact and expanded views', () => {
     const recipe = createMockGeneratedRecipe();
     const warning = 'May contain nuts';
@@ -152,6 +259,41 @@ describe('CustomRecipeCard', () => {
 
     fireEvent.press(screen.getByText('See Full Recipe'));
     expect(screen.getByText(warning)).toBeTruthy();
+  });
+
+  it('renders recipe error state and hides recipe actions', () => {
+    const recipe = createMockGeneratedRecipe({ suggestedName: 'Hidden Recipe' });
+
+    render(
+      <CustomRecipeCard
+        recipe={recipe}
+        safetyFlags={createMockSafetyFlagsWithError('Contains nuts')}
+        onStartCooking={onStartCooking}
+        messageId="msg-1"
+      />
+    );
+
+    expect(screen.getByText('Unable to create recipe')).toBeTruthy();
+    expect(screen.getByText('Contains nuts')).toBeTruthy();
+    expect(screen.queryByText('Start Cooking')).toBeNull();
+    expect(screen.queryByText('Hidden Recipe')).toBeNull();
+  });
+
+  it('does not start cooking when loading is true', () => {
+    const recipe = createMockGeneratedRecipe();
+
+    render(
+      <CustomRecipeCard
+        recipe={recipe}
+        onStartCooking={onStartCooking}
+        messageId="msg-1"
+        loading={true}
+      />
+    );
+
+    fireEvent.press(screen.getByText('Start Cooking'));
+
+    expect(onStartCooking).not.toHaveBeenCalled();
   });
 
   it('calls onStartCooking with recipe, final name, message id, and savedRecipeId', () => {

@@ -23,6 +23,7 @@ export default function ChatPage() {
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [sessionsMenuOpenSignal, setSessionsMenuOpenSignal] = useState(0);
+    const [newChatSignal, setNewChatSignal] = useState(0);
 
     const toggleMode = useCallback(() => {
         setMode((m) => (m === 'text' ? 'voice' : 'text'));
@@ -36,6 +37,7 @@ export default function ChatPage() {
     const handleNewChat = useCallback(() => {
         setSessionId(null);
         setMessages([]);
+        setNewChatSignal((prev) => prev + 1);
     }, []);
 
     const openSessionsMenu = useCallback(() => {
@@ -86,6 +88,7 @@ export default function ChatPage() {
                     messages={messages}
                     onMessagesChange={setMessages}
                     onOpenSessionsMenu={openSessionsMenu}
+                    newChatSignal={newChatSignal}
                 />
             )}
         </View>

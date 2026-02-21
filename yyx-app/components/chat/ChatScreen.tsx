@@ -55,6 +55,7 @@ interface Props {
     messages?: ChatMessage[];
     onMessagesChange?: (messages: ChatMessage[]) => void;
     onOpenSessionsMenu?: () => void;
+    newChatSignal?: number;
 }
 
 // Stable keyExtractor to avoid recreation on each render
@@ -66,6 +67,7 @@ export function ChatScreen({
     messages: externalMessages,
     onMessagesChange,
     onOpenSessionsMenu,
+    newChatSignal,
 }: Props) {
     const { user } = useAuth();
     const { language } = useLanguage();
@@ -110,6 +112,7 @@ export function ChatScreen({
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [resumeSession, setResumeSession] = useState<{ sessionId: string; title: string } | null>(null);
     const [resumeDismissed, setResumeDismissed] = useState(false);
+    const prevNewChatSignalRef = useRef<number | undefined>(newChatSignal);
 
     const { isListening, pulseAnim, handleMicPress, stopAndGuard } = useSpeechRecognition({
         language,
@@ -152,6 +155,10 @@ export function ChatScreen({
             setCurrentSessionId(nextSessionId);
             if (nextSessionId) {
                 setResumeSession(null);
+            } else {
+                // User explicitly started a new chat; don't immediately prompt to resume old one.
+                setResumeSession(null);
+                setResumeDismissed(true);
             }
 
             // Restore suggestions from latest assistant message in this session
@@ -172,6 +179,19 @@ export function ChatScreen({
             setDynamicSuggestions(null);
         }
     }, [messages.length]);
+
+    // Hide resume prompt when parent explicitly starts a new chat.
+    useEffect(() => {
+        if (
+            newChatSignal !== undefined &&
+            prevNewChatSignalRef.current !== undefined &&
+            newChatSignal !== prevNewChatSignalRef.current
+        ) {
+            setResumeSession(null);
+            setResumeDismissed(true);
+        }
+        prevNewChatSignalRef.current = newChatSignal;
+    }, [newChatSignal]);
 
     // Reload messages when component mounts if sessionId is set but no messages exist
     // Skip if external messages are provided (they already contain recipes)

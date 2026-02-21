@@ -286,7 +286,7 @@ Platform prefixes in NativeWind:
 
 | Mode | Trigger | How it works |
 |------|---------|-------------|
-| SSE-driven (text chat) | `currentStatus` prop from SSE events | Timer + SSE anchor snaps (e.g., `generating` -> stage 1, `enriching` -> stage 4) |
+| SSE-driven (text chat) | `currentStatus` prop from SSE events | Timer + SSE anchor snaps (e.g., `generating` -> stage 2, `enriching` -> stage 5) |
 | Timer-only (voice chat) | No `currentStatus` prop | Pure time-based advancement through stages |
 
 **Gating:**

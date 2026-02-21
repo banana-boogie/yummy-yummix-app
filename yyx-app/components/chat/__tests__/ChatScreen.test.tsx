@@ -9,6 +9,9 @@
 import React from 'react';
 import { render, fireEvent, screen, waitFor } from '@testing-library/react-native';
 
+import { ChatScreen } from '../ChatScreen';
+import { createMockRecipeCardList } from '@/test/mocks/chat';
+
 // Mock all dependencies before importing ChatScreen
 jest.mock('@/i18n', () => ({
   t: (key: string, params?: Record<string, unknown>) => {
@@ -137,9 +140,6 @@ jest.mock('@/components/chat/SuggestionChips', () => ({
     );
   },
 }));
-
-import { ChatScreen } from '../ChatScreen';
-import { createMockRecipeCardList } from '@/test/mocks/chat';
 
 describe('ChatScreen', () => {
   beforeEach(() => {
@@ -362,6 +362,90 @@ describe('ChatScreen', () => {
 
       await waitFor(() => {
         expect(screen.getByText("You were chatting about 'Pasta Carbonara'")).toBeTruthy();
+      });
+    });
+
+    it('continues a resumable session and loads history', async () => {
+      const onSessionCreated = jest.fn();
+      mockGetLastSessionWithMessages.mockResolvedValue({
+        sessionId: 'session-1',
+        title: 'Pasta Carbonara',
+        messageCount: 3,
+        lastMessageAt: new Date(),
+      });
+      mockLoadChatHistory.mockResolvedValueOnce([
+        {
+          id: 'restored-1',
+          role: 'assistant',
+          content: 'Restored message',
+          createdAt: new Date(),
+        },
+      ]);
+
+      render(<ChatScreen onSessionCreated={onSessionCreated} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("You were chatting about 'Pasta Carbonara'")).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Continue'));
+
+      await waitFor(() => {
+        expect(mockLoadChatHistory).toHaveBeenCalledWith('session-1');
+        expect(onSessionCreated).toHaveBeenCalledWith('session-1');
+        expect(screen.getByText('Restored message')).toBeTruthy();
+      });
+    });
+
+    it('dismisses resume banner when close is pressed', async () => {
+      mockGetLastSessionWithMessages.mockResolvedValue({
+        sessionId: 'session-1',
+        title: 'Pasta Carbonara',
+        messageCount: 3,
+        lastMessageAt: new Date(),
+      });
+
+      render(<ChatScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("You were chatting about 'Pasta Carbonara'")).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByLabelText('Cancel'));
+
+      await waitFor(() => {
+        expect(screen.queryByText("You were chatting about 'Pasta Carbonara'")).toBeNull();
+      });
+    });
+
+    it('opens sessions menu from previous conversations link', () => {
+      const onOpenSessionsMenu = jest.fn();
+
+      render(<ChatScreen onOpenSessionsMenu={onOpenSessionsMenu} />);
+
+      fireEvent.press(screen.getByText('Previous conversations'));
+
+      expect(onOpenSessionsMenu).toHaveBeenCalledTimes(1);
+    });
+
+    it('hides resume banner when new chat signal changes', async () => {
+      mockGetLastSessionWithMessages.mockResolvedValue({
+        sessionId: 'session-1',
+        title: 'Pasta Carbonara',
+        messageCount: 3,
+        lastMessageAt: new Date(),
+      });
+
+      const { rerender } = render(<ChatScreen newChatSignal={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("You were chatting about 'Pasta Carbonara'")).toBeTruthy();
+      });
+
+      rerender(<ChatScreen newChatSignal={1} />);
+
+      await waitFor(() => {
+        expect(screen.queryByText("You were chatting about 'Pasta Carbonara'")).toBeNull();
       });
     });
   });
