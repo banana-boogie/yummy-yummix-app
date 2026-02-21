@@ -8,6 +8,7 @@ Custom PostgreSQL functions available via Supabase RPC.
 |----------|---------|---------|
 | `is_admin()` | Check if current user has admin role | RLS policies |
 | `admin_analytics(action, timeframe, limit)` | Get admin dashboard metrics | Admin dashboard |
+| `admin_ai_usage(timeframe)` | Get AI usage and cost metrics (text + voice) | Admin AI tab |
 | `find_closest_ingredient(name, lang)` | Find ingredient by fuzzy name match | Custom recipe generation |
 | `update_ai_voice_usage()` | Track AI voice minutes | Voice endpoints |
 | `upsert_cooking_session_progress(recipe_id, recipe_type, recipe_name, current_step, total_steps)` | Upsert active cooking progress per user+recipe | Cooking guide progress + resume prompt |
@@ -39,11 +40,44 @@ SELECT * FROM find_closest_ingredient('mezcla de verduras', 'es');
 Get aggregated analytics for the admin dashboard. Requires admin role.
 
 **Parameters:**
-- `action` (text): 'overview', 'top_recipes', 'recent_signups', etc.
+- `action` (text): 'overview', 'funnel', 'top_viewed_recipes', 'top_cooked_recipes', 'top_searches', 'ai', 'patterns', 'retention', 'recipe_generation'
 - `timeframe` (text): 'today', '7_days', '30_days', 'all_time'
 - `limit_count` (int): Max items to return
 
 **Returns:** JSONB with metrics
+
+Notes:
+- `ai` action is timeframe-aware and returns adoption/session metrics.
+- `recipe_generation` action returns `totalGenerated`, `totalFailed`, `successRate`, `avgDurationMs`.
+
+### `admin_ai_usage(timeframe)`
+
+Get AI usage/cost breakdown for the admin dashboard. Requires admin role.
+
+**Parameters:**
+- `timeframe` (text): 'today', '7_days', '30_days', 'all_time'
+
+**Returns:** JSONB containing:
+- `summary`: text requests/tokens/cost, voice sessions/minutes/cost, total cost, unique users, latency, error rate
+- `modelBreakdown`: per-model request/token/cost totals for text usage
+- `dailyCost`: per-day cost and request totals (text + voice)
+- `phaseBreakdown`: per-call-phase request counts, avg tokens, error rate
+
+### `admin_ai_chat_session_depth(timeframe, filter_user_id)`
+
+Get AI chat session depth metrics for the admin dashboard. Requires admin role.
+
+**Parameters:**
+- `timeframe` (text): 'today', '7_days', '30_days', 'all_time'
+- `filter_user_id` (uuid, optional): Filter to a specific user
+
+**Returns:** JSONB containing:
+- `avgMessagesPerSession`, `avgUserMessagesPerSession`, `avgAssistantMessagesPerSession`, `avgSessionDurationMin`, `totalSessions`
+- `messageDistribution`: bucketed session counts (2-4, 5-10, 11-20, 21+)
+- `toolUsage`: sessions with search, generation, both, or chat-only
+- `sessionsExceedingWindow`: sessions exceeding 50-message context window
+- `topUsers`: top 10 users by session count
+- `dailySessions`: per-day session counts
 
 ### `is_admin()`
 

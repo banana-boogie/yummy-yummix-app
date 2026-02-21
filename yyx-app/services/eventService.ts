@@ -1,7 +1,13 @@
 import { supabase } from '@/lib/supabase';
 import { AppState, Platform } from 'react-native';
 
-type EventType = 'view_recipe' | 'cook_start' | 'cook_complete' | 'search';
+type EventType =
+  | 'view_recipe'
+  | 'cook_start'
+  | 'cook_complete'
+  | 'search'
+  | 'recipe_generate'
+  | 'suggestion_click';
 
 interface QueuedEvent {
   eventType: EventType;
@@ -189,6 +195,35 @@ class EventService {
     }
     this.queueEvent('search', {
       query: query.trim(),
+    });
+  }
+
+  /**
+   * Log when AI custom recipe generation succeeds or fails.
+   */
+  logRecipeGenerate(
+    recipeName: string,
+    success: boolean,
+    durationMs: number
+  ): void {
+    this.queueEvent('recipe_generate', {
+      recipe_name: recipeName,
+      success,
+      duration_ms: Math.round(durationMs),
+    });
+  }
+
+  /**
+   * Log user interaction with suggestion chips.
+   */
+  logSuggestionClick(label: string, location: string = 'chat'): void {
+    if (!label || label.trim().length === 0) {
+      return;
+    }
+
+    this.queueEvent('suggestion_click', {
+      label: label.trim(),
+      location,
     });
   }
 

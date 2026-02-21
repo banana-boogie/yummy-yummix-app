@@ -23,6 +23,7 @@ import {
 import { buildSafetyReminders, checkRecipeSafety } from "../food-safety.ts";
 import { chat } from "../ai-gateway/index.ts";
 import { hasThermomix } from "../equipment-utils.ts";
+import { logAIUsage } from "../usage-logger.ts";
 
 // ============================================================
 // Tool Definition (OpenAI Function Calling format)
@@ -89,6 +90,13 @@ export interface GenerateRecipeResult {
   safetyFlags?: SafetyFlags;
 }
 
+export interface AIUsageLogContext {
+  userId: string;
+  requestId: string;
+  sessionId?: string;
+  functionName: string;
+}
+
 /**
  * Callback for two-phase SSE: called with partial recipe before enrichment.
  * This allows the UI to display the recipe immediately while enrichment happens.
@@ -109,6 +117,7 @@ export async function generateCustomRecipe(
   userContext: UserContext,
   _openaiApiKey?: string,
   onPartialRecipe?: PartialRecipeCallback,
+  usageContext?: AIUsageLogContext,
 ): Promise<GenerateRecipeResult> {
   // Timing instrumentation for performance monitoring
   const timings: Record<string, number> = {};
@@ -157,6 +166,7 @@ export async function generateCustomRecipe(
     params,
     userContext,
     safetyReminders,
+    usageContext,
   );
   timings.recipe_llm_ms = Math.round(performance.now() - phaseStart);
   phaseStart = performance.now();
@@ -303,6 +313,7 @@ async function callRecipeGenerationAI(
   params: GenerateRecipeParams,
   userContext: UserContext,
   safetyReminders: string,
+  usageContext?: AIUsageLogContext,
 ): Promise<GeneratedRecipe> {
   const prompt = buildRecipePrompt(params, userContext, safetyReminders);
   const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
@@ -316,29 +327,107 @@ async function callRecipeGenerationAI(
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const isRetry = attempt === 1;
-    const response = await chat({
-      usageType: "parsing",
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: isRetry ? prompt + strictRetryPromptSuffix : prompt,
-        },
-      ],
-      temperature: 0.7,
-      maxTokens: 2048,
-      responseFormat: {
-        type: "json_schema",
-        schema: recipeSchema,
-      },
-    });
+    const llmStart = performance.now();
+    let response: {
+      content: string;
+      model: string;
+      usage: { inputTokens: number; outputTokens: number };
+    };
 
     try {
-      return parseAndValidateGeneratedRecipe(response.content);
+      response = await chat({
+        usageType: "parsing",
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: isRetry ? prompt + strictRetryPromptSuffix : prompt,
+          },
+        ],
+        temperature: 0.7,
+        maxTokens: 2048,
+        responseFormat: {
+          type: "json_schema",
+          schema: recipeSchema,
+        },
+      });
+    } catch (error) {
+      if (usageContext) {
+        void logAIUsage({
+          userId: usageContext.userId,
+          sessionId: usageContext.sessionId,
+          requestId: usageContext.requestId,
+          callPhase: "recipe_generation",
+          attempt,
+          status: "error",
+          functionName: usageContext.functionName,
+          usageType: "parsing",
+          model: null,
+          inputTokens: null,
+          outputTokens: null,
+          durationMs: Math.round(performance.now() - llmStart),
+          metadata: {
+            streaming: false,
+            request_type: "recipe_generation",
+            source: "generate_custom_recipe",
+          },
+        });
+      }
+
+      throw error;
+    }
+
+    try {
+      const parsedRecipe = parseAndValidateGeneratedRecipe(response.content);
+      if (usageContext) {
+        void logAIUsage({
+          userId: usageContext.userId,
+          sessionId: usageContext.sessionId,
+          requestId: usageContext.requestId,
+          callPhase: "recipe_generation",
+          attempt,
+          status: "success",
+          functionName: usageContext.functionName,
+          usageType: "parsing",
+          model: response.model,
+          inputTokens: response.usage.inputTokens,
+          outputTokens: response.usage.outputTokens,
+          durationMs: Math.round(performance.now() - llmStart),
+          metadata: {
+            streaming: false,
+            request_type: "recipe_generation",
+            source: "generate_custom_recipe",
+          },
+        });
+      }
+      return parsedRecipe;
     } catch (error) {
       lastError = error instanceof Error
         ? error
         : new Error("Recipe parsing failed");
+
+      if (usageContext) {
+        void logAIUsage({
+          userId: usageContext.userId,
+          sessionId: usageContext.sessionId,
+          requestId: usageContext.requestId,
+          callPhase: "recipe_generation",
+          attempt,
+          status: "error",
+          functionName: usageContext.functionName,
+          usageType: "parsing",
+          model: response.model,
+          inputTokens: response.usage.inputTokens,
+          outputTokens: response.usage.outputTokens,
+          durationMs: Math.round(performance.now() - llmStart),
+          metadata: {
+            streaming: false,
+            request_type: "recipe_generation",
+            source: "generate_custom_recipe",
+          },
+        });
+      }
+
       if (!isRetry) {
         console.warn(
           "[Recipe Generation] First parse/validation attempt failed, retrying once",

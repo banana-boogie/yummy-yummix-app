@@ -61,6 +61,17 @@ export interface AICompletionResponse {
   toolCalls?: AIToolCall[];
 }
 
+export interface AIStreamUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export interface AIStreamResult {
+  stream: AsyncIterable<string>;
+  getUsage: () => Promise<AIStreamUsage | null>;
+  model: string | null;
+}
+
 export interface AIToolCall {
   id: string;
   name: string;

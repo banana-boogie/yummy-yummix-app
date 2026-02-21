@@ -9,6 +9,7 @@ import {
   AICompletionRequest,
   AICompletionResponse,
   AIEmbeddingResponse,
+  AIStreamResult,
   AITool,
 } from "../types.ts";
 
@@ -29,6 +30,10 @@ interface OpenAIRequest {
   messages: OpenAIMessage[];
   temperature?: number;
   max_tokens?: number;
+  stream?: boolean;
+  stream_options?: {
+    include_usage: boolean;
+  };
   response_format?: {
     type: "json_schema";
     json_schema: {
@@ -162,14 +167,14 @@ export async function callOpenAI(
 
 /**
  * Call OpenAI's chat completions API with streaming.
- * Returns an async generator that yields content chunks.
+ * Returns a stream iterator and deferred usage accessor.
  */
-export async function* callOpenAIStream(
+export async function callOpenAIStream(
   request: AICompletionRequest,
   model: string,
   apiKey: string,
-): AsyncGenerator<string, void, unknown> {
-  const openaiRequest = {
+): Promise<AIStreamResult> {
+  const openaiRequest: OpenAIRequest = {
     model,
     messages: request.messages.map((m) => ({
       role: m.role,
@@ -178,6 +183,7 @@ export async function* callOpenAIStream(
     temperature: request.temperature ?? 0.7,
     max_tokens: request.maxTokens ?? 4096,
     stream: true,
+    stream_options: { include_usage: true },
   };
 
   const response = await fetch(OPENAI_CHAT_URL, {
@@ -199,31 +205,84 @@ export async function* callOpenAIStream(
 
   const decoder = new TextDecoder();
   let buffer = "";
+  let streamUsage: { inputTokens: number; outputTokens: number } | null = null;
+  let usageResolved = false;
+  let resolveUsage: (
+    usage: { inputTokens: number; outputTokens: number } | null,
+  ) => void = () => {};
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  const usagePromise = new Promise<
+    { inputTokens: number; outputTokens: number } | null
+  >((resolve) => {
+    resolveUsage = resolve;
+  });
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
+  const finalizeUsage = (
+    usage: { inputTokens: number; outputTokens: number } | null,
+  ) => {
+    if (usageResolved) return;
+    usageResolved = true;
+    resolveUsage(usage);
+  };
 
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed === "data: [DONE]") continue;
-      if (!trimmed.startsWith("data: ")) continue;
+  const parseLine = (
+    line: string,
+  ): { content: string | null } => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed === "data: [DONE]") return { content: null };
+    if (!trimmed.startsWith("data: ")) return { content: null };
 
-      try {
-        const json = JSON.parse(trimmed.slice(6));
-        const content = json.choices?.[0]?.delta?.content;
+    try {
+      const json = JSON.parse(trimmed.slice(6));
+      if (json?.usage) {
+        streamUsage = {
+          inputTokens: json.usage.prompt_tokens ?? 0,
+          outputTokens: json.usage.completion_tokens ?? 0,
+        };
+      }
+
+      const content = json.choices?.[0]?.delta?.content;
+      return { content: typeof content === "string" ? content : null };
+    } catch {
+      return { content: null };
+    }
+  };
+
+  const stream = (async function* (): AsyncGenerator<string, void, unknown> {
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const { content } = parseLine(line);
+          if (content) {
+            yield content;
+          }
+        }
+      }
+
+      // Parse any trailing buffered line.
+      if (buffer.trim().length > 0) {
+        const { content } = parseLine(buffer);
         if (content) {
           yield content;
         }
-      } catch {
-        // Skip malformed JSON
       }
+    } finally {
+      finalizeUsage(streamUsage);
     }
-  }
+  })();
+
+  return {
+    stream,
+    getUsage: async () => await usagePromise,
+    model,
+  };
 }
 
 // =============================================================================
