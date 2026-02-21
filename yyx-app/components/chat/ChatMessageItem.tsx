@@ -3,7 +3,7 @@ import { View, TouchableOpacity, Pressable } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { ChatRecipeCard } from '@/components/chat/ChatRecipeCard';
 import { CustomRecipeCard } from '@/components/chat/CustomRecipeCard';
-import { RecipeGeneratingSkeleton } from '@/components/chat/RecipeGeneratingSkeleton';
+import { RecipeProgressTracker } from '@/components/chat/RecipeProgressTracker';
 import {
     ChatMessage,
     IrmixyStatus,
@@ -11,7 +11,7 @@ import {
     QuickAction,
 } from '@/services/chatService';
 import Markdown from 'react-native-markdown-display';
-import { COLORS } from '@/constants/design-tokens';
+import { COLORS, FONTS } from '@/constants/design-tokens';
 
 // ============================================================
 // Helpers
@@ -19,7 +19,7 @@ import { COLORS } from '@/constants/design-tokens';
 
 /** Strip markdown image syntax from text (used when recipe cards already show the images). */
 function stripMarkdownImages(content: string): string {
-    return content.replace(/!\[.*?\]\(.*?\)\n*/g, '').replace(/\n{3,}/g, '\n\n').trim();
+    return content.replace(/!\[.*?\]\(.*?\)\s*/g, '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 // ============================================================
@@ -32,12 +32,38 @@ export const markdownStyles = {
         fontSize: 16,
         lineHeight: 24,
     },
+    heading1: {
+        fontFamily: FONTS.HEADING,
+        fontWeight: '700' as const,
+        fontSize: 22,
+        marginBottom: 8,
+        marginTop: 12,
+        color: COLORS.text.default,
+    },
+    heading2: {
+        fontFamily: FONTS.HEADING,
+        fontWeight: '600' as const,
+        fontSize: 19,
+        marginBottom: 6,
+        marginTop: 10,
+        color: COLORS.text.default,
+    },
+    heading3: {
+        fontFamily: FONTS.HEADING,
+        fontWeight: '600' as const,
+        fontSize: 17,
+        marginBottom: 4,
+        marginTop: 8,
+        color: COLORS.text.default,
+    },
     paragraph: {
         marginTop: 0,
-        marginBottom: 8,
+        marginBottom: 12,
+        lineHeight: 22,
     },
     strong: {
-        fontWeight: '600' as const,
+        fontWeight: '700' as const,
+        color: COLORS.text.default,
     },
     em: {
         fontStyle: 'italic' as const,
@@ -47,9 +73,23 @@ export const markdownStyles = {
     },
     bullet_list: {
         marginBottom: 8,
+        paddingLeft: 16,
     },
     ordered_list: {
         marginBottom: 8,
+        paddingLeft: 16,
+    },
+    blockquote: {
+        borderLeftWidth: 3,
+        borderLeftColor: COLORS.primary.medium,
+        paddingLeft: 12,
+        marginVertical: 8,
+        opacity: 0.9,
+    },
+    hr: {
+        marginVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.grey.default,
     },
     code_inline: {
         backgroundColor: COLORS.background.secondary,
@@ -79,10 +119,11 @@ export interface ChatMessageItemProps {
     item: ChatMessage;
     isLastMessage: boolean;
     isLoading: boolean;
+    isRecipeGenerating: boolean;
     currentStatus: IrmixyStatus;
     statusText: string;
     onCopyMessage: (content: string) => void;
-    onStartCooking: (recipe: GeneratedRecipe, finalName: string, messageId: string, savedRecipeId?: string) => void;
+    onStartCooking: (recipe: GeneratedRecipe, finalName: string, messageId: string, savedRecipeId?: string) => Promise<void>;
     onActionPress: (action: QuickAction) => void;
 }
 
@@ -90,6 +131,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
     item,
     isLastMessage,
     isLoading,
+    isRecipeGenerating,
     currentStatus,
     statusText,
     onCopyMessage,
@@ -97,8 +139,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
     onActionPress,
 }: ChatMessageItemProps) {
     const isUser = item.role === 'user';
-    const showRecipeSkeleton = !isUser && !item.customRecipe && isLoading
-        && (currentStatus === 'generating' || currentStatus === 'enriching') && isLastMessage;
+    const showRecipeTracker = !isUser && isRecipeGenerating && !item.customRecipe && isLastMessage;
     const hasRecipeVisualData = !isUser && (
         (item.recipes?.length ?? 0) > 0 || !!item.customRecipe
     );
@@ -153,14 +194,19 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                         onStartCooking={onStartCooking}
                         messageId={item.id}
                         savedRecipeId={item.savedRecipeId}
+                        compact={true}
                     />
                 </View>
             )}
 
-            {/* Show skeleton while generating/enriching recipe */}
-            {showRecipeSkeleton && (
+            {/* Recipe progress tracker (replaces skeleton during generation) */}
+            {showRecipeTracker && (
                 <View className="mt-sm w-full">
-                    <RecipeGeneratingSkeleton statusMessage={statusText} />
+                    <RecipeProgressTracker
+                        currentStatus={currentStatus}
+                        isActive={showRecipeTracker}
+                        hasRecipe={!!item.customRecipe}
+                    />
                 </View>
             )}
 

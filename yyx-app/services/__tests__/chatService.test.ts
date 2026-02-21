@@ -16,6 +16,7 @@ import {
   loadChatHistory,
   loadChatSessions,
   getLastSessionWithMessages,
+  getRecentlyCookedRecipes,
   createSimpleStreamCallbacks,
   routeSSEMessage,
 } from '../chatService';
@@ -274,6 +275,7 @@ describe('chatService', () => {
 
       expect(result).not.toBeNull();
       expect(result?.sessionId).toBe('session-abc');
+      expect(result?.title).toBe(mockSession.title);
     });
 
     it('returns null if no sessions exist', async () => {
@@ -313,6 +315,56 @@ describe('chatService', () => {
       const result = await getLastSessionWithMessages();
 
       expect(result).toBeNull();
+    });
+  });
+
+  // ============================================================
+  // getRecentlyCookedRecipes
+  // ============================================================
+
+  describe('getRecentlyCookedRecipes', () => {
+    it('returns mapped cook_complete events', async () => {
+      const mockEvents = [
+        {
+          payload: { recipe_id: 'recipe-1', recipe_name: 'Pasta' },
+          created_at: '2026-02-17T10:00:00Z',
+        },
+        {
+          payload: { recipe_id: 'recipe-2', recipe_name: 'Soup' },
+          created_at: '2026-02-16T10:00:00Z',
+        },
+      ];
+
+      (supabase.from as jest.Mock).mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({ data: mockEvents, error: null }),
+      });
+
+      const result = await getRecentlyCookedRecipes(2);
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        recipeId: 'recipe-1',
+        recipeName: 'Pasta',
+        cookedAt: new Date('2026-02-17T10:00:00Z'),
+      });
+      expect(result[1]).toEqual({
+        recipeId: 'recipe-2',
+        recipeName: 'Soup',
+        cookedAt: new Date('2026-02-16T10:00:00Z'),
+      });
+    });
+
+    it('returns empty array when user is not authenticated', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
+
+      const result = await getRecentlyCookedRecipes();
+      expect(result).toEqual([]);
     });
   });
 

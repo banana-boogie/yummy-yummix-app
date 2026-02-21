@@ -17,12 +17,14 @@ import { SuggestionChips } from '@/components/chat/SuggestionChips';
 import { IrmixyAvatar } from '@/components/chat/IrmixyAvatar';
 import { TypingDots } from '@/components/chat/TypingIndicator';
 import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
+import { ChatResumeBar } from '@/components/chat/ChatResumeBar';
 import {
     ChatMessage,
     IrmixyStatus,
     SuggestionChip,
     GeneratedRecipe,
     QuickAction,
+    getLastSessionWithMessages,
     loadChatHistory,
     sendMessage,
 } from '@/services/chatService';
@@ -52,6 +54,8 @@ interface Props {
     // Optional: lift messages state to parent to preserve recipes when switching modes
     messages?: ChatMessage[];
     onMessagesChange?: (messages: ChatMessage[]) => void;
+    onOpenSessionsMenu?: () => void;
+    newChatSignal?: number;
 }
 
 // Stable keyExtractor to avoid recreation on each render
@@ -62,6 +66,8 @@ export function ChatScreen({
     onSessionCreated,
     messages: externalMessages,
     onMessagesChange,
+    onOpenSessionsMenu,
+    newChatSignal,
 }: Props) {
     const { user } = useAuth();
     const { language } = useLanguage();
@@ -99,10 +105,14 @@ export function ChatScreen({
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isStreaming, setIsStreaming] = useState(false);
+    const [isRecipeGenerating, setIsRecipeGenerating] = useState(false);
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
     const [currentStatus, setCurrentStatus] = useState<IrmixyStatus>(null);
     const [dynamicSuggestions, setDynamicSuggestions] = useState<SuggestionChip[] | null>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
+    const [resumeSession, setResumeSession] = useState<{ sessionId: string; title: string } | null>(null);
+    const [resumeDismissed, setResumeDismissed] = useState(false);
+    const prevNewChatSignalRef = useRef<number | undefined>(newChatSignal);
 
     const { isListening, pulseAnim, handleMicPress, stopAndGuard } = useSpeechRecognition({
         language,
@@ -121,6 +131,7 @@ export function ChatScreen({
         streamRequestIdRef.current += 1; // Invalidate any in-flight callbacks
         setIsLoading(false);
         setIsStreaming(false);
+        setIsRecipeGenerating(false);
         setCurrentStatus(null);
     }, []);
 
@@ -142,6 +153,13 @@ export function ChatScreen({
         if (nextSessionId !== currentSessionId) {
             resetStreamingState();
             setCurrentSessionId(nextSessionId);
+            if (nextSessionId) {
+                setResumeSession(null);
+            } else {
+                // User explicitly started a new chat; don't immediately prompt to resume old one.
+                setResumeSession(null);
+                setResumeDismissed(true);
+            }
 
             // Restore suggestions from latest assistant message in this session
             const lastSuggested = [...messages]
@@ -162,6 +180,19 @@ export function ChatScreen({
         }
     }, [messages.length]);
 
+    // Hide resume prompt when parent explicitly starts a new chat.
+    useEffect(() => {
+        if (
+            newChatSignal !== undefined &&
+            prevNewChatSignalRef.current !== undefined &&
+            newChatSignal !== prevNewChatSignalRef.current
+        ) {
+            setResumeSession(null);
+            setResumeDismissed(true);
+        }
+        prevNewChatSignalRef.current = newChatSignal;
+    }, [newChatSignal]);
+
     // Reload messages when component mounts if sessionId is set but no messages exist
     // Skip if external messages are provided (they already contain recipes)
     useEffect(() => {
@@ -180,6 +211,26 @@ export function ChatScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialSessionId, user]);
 
+    // Check for resumable session on mount
+    useEffect(() => {
+        if (initialSessionId || messages.length > 0 || resumeDismissed) return;
+
+        getLastSessionWithMessages().then((result) => {
+            if (!isMountedRef.current) return;
+            if (!result) return;
+
+            // Only show if session is less than 24 hours old
+            const hoursSince = (Date.now() - result.lastMessageAt.getTime()) / (1000 * 60 * 60);
+            if (hoursSince < 24 && result.title.trim().length > 0) {
+                setResumeSession({ sessionId: result.sessionId, title: result.title });
+            }
+        }).catch(() => {
+            // Silently fail - resume is non-critical
+        });
+    // Only run on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const scrollToEndThrottled = useCallback((animated: boolean) => {
         // Only auto-scroll if user is near bottom (prevents interrupting reading)
         if (!isNearBottomRef.current && !animated) return;
@@ -192,10 +243,13 @@ export function ChatScreen({
     }, []);
 
     // Get initial suggestions from i18n - recompute when language changes
-    const initialSuggestions = useMemo(() => [
-        { label: i18n.t('chat.suggestions.suggestRecipe'), message: i18n.t('chat.suggestions.suggestRecipe') },
-        { label: i18n.t('chat.suggestions.quickMeal'), message: i18n.t('chat.suggestions.quickMeal') },
-    ], [language]);
+    const initialSuggestions = useMemo(() => {
+        void language;
+        return [
+            { label: i18n.t('chat.suggestions.suggestRecipe'), message: i18n.t('chat.suggestions.suggestRecipe') },
+            { label: i18n.t('chat.suggestions.quickMeal'), message: i18n.t('chat.suggestions.quickMeal') },
+        ];
+    }, [language]);
 
     // Use dynamic suggestions if available, otherwise fallback to initial
     const currentSuggestions = dynamicSuggestions || initialSuggestions;
@@ -246,6 +300,10 @@ export function ChatScreen({
 
     const handleSendMessage = useCallback(async (messageText: string) => {
         if (!messageText.trim() || !user || isLoading) return;
+
+        if (resumeSession) {
+            setResumeSession(null);
+        }
 
         streamRequestIdRef.current += 1;
         const requestId = streamRequestIdRef.current;
@@ -357,10 +415,14 @@ export function ChatScreen({
                         onSessionCreated?.(sessionId);
                     }
                 },
-                // onStatus - update loading indicator text
+                // onStatus - update loading indicator text and detect recipe generation
                 (status) => {
                     if (!isActiveRequest()) return;
                     setCurrentStatus(status);
+                    // 'generating' status is only sent for recipe generation/modification flows
+                    if (status === 'generating') {
+                        setIsRecipeGenerating(true);
+                    }
                 },
                 // onStreamComplete - text streaming finished, enable input before suggestions arrive
                 () => {
@@ -369,6 +431,7 @@ export function ChatScreen({
                     // Don't wait for suggestions - they'll update the UI when they arrive
                     setIsLoading(false);
                     setIsStreaming(false);
+                    setIsRecipeGenerating(false);
                     setCurrentStatus(null);
                 },
                 // onPartialRecipe - show recipe card immediately before enrichment completes
@@ -530,6 +593,7 @@ export function ChatScreen({
                     // Don't wait for handle.done - text and suggestions are already received
                     setIsLoading(false);
                     setIsStreaming(false);
+                    setIsRecipeGenerating(false);
                     setCurrentStatus(null);
                     hasRecipeInCurrentStreamRef.current = false;
                     completedSuccessfully = true;
@@ -616,6 +680,7 @@ export function ChatScreen({
             if (isActiveRequest() && !completedSuccessfully) {
                 setIsLoading(false);
                 setIsStreaming(false);
+                setIsRecipeGenerating(false);
                 setCurrentStatus(null);
             }
             // Always clear cancel ref
@@ -625,8 +690,10 @@ export function ChatScreen({
         currentSessionId,
         isLoading,
         onSessionCreated,
+        resumeSession,
         scrollToEndThrottled,
         setMessages,
+        stopAndGuard,
         user,
         // messagesRef is intentionally excluded (refs are stable and don't need to be in deps)
         // assistantIndexRef, streamCancelRef, chunkTimerRef, etc. are also excluded for same reason
@@ -641,13 +708,31 @@ export function ChatScreen({
         handleSendMessage(suggestion.message);
     }, [handleSendMessage]);
 
+    const handleResumeContinue = useCallback(async () => {
+        if (!resumeSession) return;
+        try {
+            const history = await loadChatHistory(resumeSession.sessionId);
+            setMessages(history);
+            setCurrentSessionId(resumeSession.sessionId);
+            onSessionCreated?.(resumeSession.sessionId);
+            setResumeSession(null);
+        } catch (err) {
+            if (__DEV__) console.error('Failed to resume session:', err);
+        }
+    }, [onSessionCreated, resumeSession, setMessages]);
+
+    const handleResumeDismiss = useCallback(() => {
+        setResumeSession(null);
+        setResumeDismissed(true);
+    }, []);
+
     const handleCopyMessage = useCallback(async (content: string) => {
         try {
             await Clipboard.setStringAsync(content);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             // Show brief confirmation
             if (Platform.OS === 'ios') {
-                Alert.alert(i18n.t('common.copied'), i18n.t('chat.messageCopied'), [{ text: i18n.t('common.ok') }], { userInterfaceStyle: 'automatic' });
+                Alert.alert(i18n.t('common.copied'), i18n.t('chat.messageCopied'), [{ text: i18n.t('common.ok') }], { userInterfaceStyle: 'unspecified' });
             } else {
                 Alert.alert(i18n.t('common.copied'), i18n.t('chat.messageCopied'));
             }
@@ -720,6 +805,10 @@ export function ChatScreen({
     // Memoize status text to avoid function call on each item
     const statusText = useMemo(() => getStatusText(), [getStatusText]);
 
+    // Derive whether to show the recipe tracker (for bottom status bar visibility)
+    const latestMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    const showRecipeTracker = isRecipeGenerating && !latestMessage?.customRecipe;
+
     // Use memoized component to avoid re-renders of all items when one changes
     const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
         return (
@@ -727,6 +816,7 @@ export function ChatScreen({
                 item={item}
                 isLastMessage={item.id === lastMessageId}
                 isLoading={isLoading}
+                isRecipeGenerating={isRecipeGenerating}
                 currentStatus={currentStatus}
                 statusText={statusText}
                 onCopyMessage={handleCopyMessage}
@@ -734,7 +824,7 @@ export function ChatScreen({
                 onActionPress={handleActionPress}
             />
         );
-    }, [lastMessageId, isLoading, currentStatus, statusText, handleCopyMessage, handleStartCooking, handleActionPress]);
+    }, [lastMessageId, isLoading, isRecipeGenerating, currentStatus, statusText, handleCopyMessage, handleStartCooking, handleActionPress]);
 
     const handleScroll = useCallback((event: any) => {
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
@@ -774,6 +864,15 @@ export function ChatScreen({
                 renderItem={renderMessage}
                 keyExtractor={keyExtractor}
                 contentContainerStyle={{ padding: 16, flexGrow: 1 }}
+                ListHeaderComponent={
+                    resumeSession && !resumeDismissed && messages.length === 0 && !currentSessionId ? (
+                        <ChatResumeBar
+                            sessionTitle={resumeSession.title}
+                            onContinue={handleResumeContinue}
+                            onDismiss={handleResumeDismiss}
+                        />
+                    ) : null
+                }
                 onScroll={handleScroll}
                 scrollEventThrottle={200}
                 // Performance optimizations to prevent flashing and reduce re-renders
@@ -821,8 +920,8 @@ export function ChatScreen({
                 </TouchableOpacity>
             )}
 
-            {/* Status indicator with avatar */}
-            {isLoading && (
+            {/* Status indicator with avatar (hidden when recipe tracker is visible) */}
+            {isLoading && !showRecipeTracker && (
                 <View className="px-md py-sm">
                     <View className="flex-row items-center">
                         <IrmixyAvatar state={currentStatus ?? 'thinking'} size={40} />
@@ -841,6 +940,19 @@ export function ChatScreen({
                     onSelect={handleSuggestionSelect}
                     disabled={isLoading}
                 />
+            )}
+            {messages.length === 0 && onOpenSessionsMenu && (
+                <View className="px-md pb-sm">
+                    <TouchableOpacity
+                        onPress={onOpenSessionsMenu}
+                        accessibilityRole="button"
+                        accessibilityLabel={i18n.t('chat.resume.previousConversations')}
+                    >
+                        <Text className="text-primary-darkest underline">
+                            {i18n.t('chat.resume.previousConversations')}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
             )}
 
             <View

@@ -30,10 +30,10 @@ jest.mock('@/components/chat/CustomRecipeCard', () => ({
   },
 }));
 
-jest.mock('@/components/chat/RecipeGeneratingSkeleton', () => ({
-  RecipeGeneratingSkeleton: () => {
+jest.mock('@/components/chat/RecipeProgressTracker', () => ({
+  RecipeProgressTracker: () => {
     const { View } = require('react-native');
-    return <View testID="recipe-generating-skeleton" />;
+    return <View testID="recipe-progress-tracker" />;
   },
 }));
 
@@ -47,6 +47,17 @@ describe('ChatMessageItem', () => {
     role: 'assistant',
     content: '',
     createdAt: new Date('2026-02-17T10:00:00.000Z'),
+  };
+
+  const defaultProps = {
+    isLastMessage: true,
+    isLoading: false,
+    isRecipeGenerating: false,
+    currentStatus: null as any,
+    statusText: '',
+    onCopyMessage,
+    onStartCooking,
+    onActionPress,
   };
 
   beforeEach(() => {
@@ -64,13 +75,7 @@ describe('ChatMessageItem', () => {
     render(
       <ChatMessageItem
         item={message}
-        isLastMessage={true}
-        isLoading={false}
-        currentStatus={null}
-        statusText=""
-        onCopyMessage={onCopyMessage}
-        onStartCooking={onStartCooking}
-        onActionPress={onActionPress}
+        {...defaultProps}
       />
     );
 
@@ -89,13 +94,7 @@ describe('ChatMessageItem', () => {
     render(
       <ChatMessageItem
         item={message}
-        isLastMessage={true}
-        isLoading={false}
-        currentStatus={null}
-        statusText=""
-        onCopyMessage={onCopyMessage}
-        onStartCooking={onStartCooking}
-        onActionPress={onActionPress}
+        {...defaultProps}
       />
     );
 
@@ -105,5 +104,102 @@ describe('ChatMessageItem', () => {
     expect(screen.getByText(/Here you go/)).toBeTruthy();
     expect(screen.getByText(/Enjoy!/)).toBeTruthy();
     expect(screen.getByTestId('chat-recipe-card')).toBeTruthy();
+  });
+
+  it('shows recipe progress tracker when generating recipe on last message', () => {
+    const message: ChatMessage = {
+      ...baseMessage,
+      content: 'Let me create that for you!',
+    };
+
+    render(
+      <ChatMessageItem
+        item={message}
+        {...defaultProps}
+        isRecipeGenerating={true}
+        isLastMessage={true}
+      />
+    );
+
+    expect(screen.getByTestId('recipe-progress-tracker')).toBeTruthy();
+  });
+
+  it('does not show tracker for non-last messages', () => {
+    const message: ChatMessage = {
+      ...baseMessage,
+      content: 'Let me create that for you!',
+    };
+
+    render(
+      <ChatMessageItem
+        item={message}
+        {...defaultProps}
+        isRecipeGenerating={true}
+        isLastMessage={false}
+      />
+    );
+
+    expect(screen.queryByTestId('recipe-progress-tracker')).toBeNull();
+  });
+
+  it('does not show tracker for user messages', () => {
+    const message: ChatMessage = {
+      ...baseMessage,
+      role: 'user',
+      content: 'Make me a pasta recipe',
+    };
+
+    render(
+      <ChatMessageItem
+        item={message}
+        {...defaultProps}
+        isRecipeGenerating={true}
+        isLastMessage={true}
+      />
+    );
+
+    expect(screen.queryByTestId('recipe-progress-tracker')).toBeNull();
+  });
+
+  it('hides tracker when customRecipe arrives', () => {
+    const message: ChatMessage = {
+      ...baseMessage,
+      content: 'Here is your recipe!',
+      customRecipe: {
+        suggestedName: 'Pasta Primavera',
+        ingredients: [],
+        steps: [],
+      } as any,
+    };
+
+    render(
+      <ChatMessageItem
+        item={message}
+        {...defaultProps}
+        isRecipeGenerating={true}
+        isLastMessage={true}
+      />
+    );
+
+    expect(screen.queryByTestId('recipe-progress-tracker')).toBeNull();
+    expect(screen.getByTestId('custom-recipe-card')).toBeTruthy();
+  });
+
+  it('does not show tracker when isRecipeGenerating is false', () => {
+    const message: ChatMessage = {
+      ...baseMessage,
+      content: 'Here is a response.',
+    };
+
+    render(
+      <ChatMessageItem
+        item={message}
+        {...defaultProps}
+        isRecipeGenerating={false}
+        isLastMessage={true}
+      />
+    );
+
+    expect(screen.queryByTestId('recipe-progress-tracker')).toBeNull();
   });
 });

@@ -87,12 +87,21 @@ export const chat = {
   andMore: "and {{count}} more",
   miseEnPlace: "Mise en place",
   prepareIngredients: "Prepare your ingredients.",
+  // Compact recipe card
+  seeFullRecipe: "See Full Recipe",
+  ingredientsSummary: "{{count}} ingredients",
+  stepsSummary: "{{count}} steps",
+  aiGeneratedRecipe: "AI-generated recipe",
+  aiGeneratedDisclaimer: "This recipe was created by AI. Please verify cooking times, temperatures, and allergens before preparing.",
   // Cooking progress & resume
   resume: {
     resumeCooking: "Resume cooking",
     resumePrompt: "You were cooking {{recipeName}} — step {{step}} of {{total}}. Want to pick up where you left off?",
     startOver: "Start over",
     startOverFailed: "Couldn't start over right now. Please try again.",
+    chatAbout: "You were chatting about '{{title}}'",
+    continue: "Continue",
+    previousConversations: "Previous conversations",
   },
   // Fallback when no recipes found
   fallback: {
@@ -101,6 +110,16 @@ export const chat = {
     createFromIngredientsMessage: "Help me create a recipe from ingredients I have",
     surpriseMe: "Surprise me",
     surpriseMeMessage: "Create a fun recipe for me",
+  },
+  // Recipe progress tracker
+  progressTracker: {
+    stage1: "Understanding your craving...",
+    stage2: "Selecting the best ingredients...",
+    stage3: "Planning cooking times...",
+    stage4: "Writing out the steps...",
+    stage5: "Final touches...",
+    stage6: "Ready!",
+    stall: "Almost there...",
   },
   // Replay / retrieval
   replay: {

@@ -4,7 +4,7 @@
  * Hamburger menu that shows chat sessions and allows switching or starting new chats.
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, TouchableOpacity, Modal, Pressable, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -24,17 +24,20 @@ interface ChatSessionsMenuProps {
     currentSessionId: string | null;
     onSelectSession: (sessionId: string, messages: ChatMessage[]) => void;
     onNewChat: () => void;
+    openSignal?: number;
 }
 
 export function ChatSessionsMenu({
     currentSessionId,
     onSelectSession,
     onNewChat,
+    openSignal,
 }: ChatSessionsMenuProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null);
+    const prevOpenSignalRef = useRef<number | undefined>(openSignal);
 
     const loadSessions = useCallback(async () => {
         setIsLoading(true);
@@ -53,6 +56,17 @@ export function ChatSessionsMenu({
             loadSessions();
         }
     }, [isOpen, loadSessions]);
+
+    useEffect(() => {
+        if (
+            openSignal !== undefined &&
+            prevOpenSignalRef.current !== undefined &&
+            openSignal !== prevOpenSignalRef.current
+        ) {
+            setIsOpen(true);
+        }
+        prevOpenSignalRef.current = openSignal;
+    }, [openSignal]);
 
     const handleOpen = useCallback(() => {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

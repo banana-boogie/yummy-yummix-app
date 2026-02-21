@@ -2,8 +2,7 @@
  * Chat Page with Text/Voice Mode Toggle
  *
  * Users can switch between text chat and voice conversation.
- * Messages state is lifted here to preserve recipes when switching modes.
- * Voice transcript messages are also lifted for mode-switch persistence.
+ * Messages state is lifted here as a single source of truth for both modes.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -20,28 +19,29 @@ import i18n from '@/i18n';
 type ChatMode = 'text' | 'voice';
 
 export default function ChatPage() {
-    const [mode, setMode] = useState<ChatMode>(Platform.OS === 'web' ? 'text' : 'voice'); // Default to text on web, voice on mobile
+    const [mode, setMode] = useState<ChatMode>(Platform.OS === 'web' ? 'text' : 'voice');
     const [sessionId, setSessionId] = useState<string | null>(null);
-    // Lift messages state to preserve recipes when switching modes
     const [messages, setMessages] = useState<ChatMessage[]>([]);
-    // Lift voice transcript messages for mode-switch persistence
-    const [voiceTranscriptMessages, setVoiceTranscriptMessages] = useState<ChatMessage[]>([]);
+    const [sessionsMenuOpenSignal, setSessionsMenuOpenSignal] = useState(0);
+    const [newChatSignal, setNewChatSignal] = useState(0);
 
-    const toggleMode = () => {
-        setMode(m => m === 'text' ? 'voice' : 'text');
-    };
+    const toggleMode = useCallback(() => {
+        setMode((m) => (m === 'text' ? 'voice' : 'text'));
+    }, []);
 
-    // Handler for selecting a session from the hamburger menu
     const handleSelectSession = useCallback((newSessionId: string, sessionMessages: ChatMessage[]) => {
         setSessionId(newSessionId);
         setMessages(sessionMessages);
     }, []);
 
-    // Handler for starting a new chat from the hamburger menu
     const handleNewChat = useCallback(() => {
         setSessionId(null);
         setMessages([]);
-        setVoiceTranscriptMessages([]);
+        setNewChatSignal((prev) => prev + 1);
+    }, []);
+
+    const openSessionsMenu = useCallback(() => {
+        setSessionsMenuOpenSignal((prev) => prev + 1);
     }, []);
 
     return (
@@ -55,6 +55,7 @@ export default function ChatPage() {
                             currentSessionId={sessionId}
                             onSelectSession={handleSelectSession}
                             onNewChat={handleNewChat}
+                            openSignal={sessionsMenuOpenSignal}
                         />
                     ),
                     headerRight: () =>
@@ -77,8 +78,8 @@ export default function ChatPage() {
                 <VoiceChatScreen
                     sessionId={sessionId}
                     onSessionCreated={setSessionId}
-                    transcriptMessages={voiceTranscriptMessages}
-                    onTranscriptChange={setVoiceTranscriptMessages}
+                    transcriptMessages={messages}
+                    onTranscriptChange={setMessages}
                 />
             ) : (
                 <ChatScreen
@@ -86,6 +87,8 @@ export default function ChatPage() {
                     onSessionCreated={setSessionId}
                     messages={messages}
                     onMessagesChange={setMessages}
+                    onOpenSessionsMenu={openSessionsMenu}
+                    newChatSignal={newChatSignal}
                 />
             )}
         </View>

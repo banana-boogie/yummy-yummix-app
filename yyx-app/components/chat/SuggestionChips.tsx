@@ -39,8 +39,9 @@ export function SuggestionChips({ suggestions, onSelect, disabled = false }: Sug
                         <Text
                             className={`text-sm ${disabled ? 'text-text-tertiary' : 'text-accent'
                                 }`}
+                            numberOfLines={1}
                         >
-                            {suggestion.message}
+                            {suggestion.label || suggestion.message}
                         </Text>
                     </TouchableOpacity>
                 ))}

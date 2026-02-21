@@ -500,6 +500,7 @@ export async function loadChatSessions(): Promise<{ id: string; title: string; c
  */
 export async function getLastSessionWithMessages(): Promise<{
     sessionId: string;
+    title: string;
     messageCount: number;
     lastMessageAt: Date;
 } | null> {
@@ -511,7 +512,7 @@ export async function getLastSessionWithMessages(): Promise<{
     // Get most recent session for this user
     const { data: sessions, error: sessionError } = await supabase
         .from('user_chat_sessions')
-        .select('id, created_at')
+        .select('id, title, created_at')
         .eq('user_id', userData.user.id)
         .order('created_at', { ascending: false })
         .limit(1);
@@ -546,7 +547,42 @@ export async function getLastSessionWithMessages(): Promise<{
 
     return {
         sessionId: session.id,
+        title: session.title || '',
         messageCount: count || 0,
         lastMessageAt: new Date(messages[0].created_at),
     };
+}
+
+/**
+ * Get recently cooked recipes from user_events.
+ * Note: eventService is batched/async with a 5-second flush interval,
+ * so very recent cook_complete events may not be immediately available.
+ */
+export async function getRecentlyCookedRecipes(limit = 5): Promise<{
+    recipeId: string;
+    recipeName: string;
+    cookedAt: Date;
+}[]> {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) {
+        return [];
+    }
+
+    const { data, error } = await supabase
+        .from('user_events')
+        .select('payload, created_at')
+        .eq('user_id', userData.user.id)
+        .eq('event_type', 'cook_complete')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (error || !data) {
+        return [];
+    }
+
+    return data.map((event: any) => ({
+        recipeId: event.payload?.recipe_id || '',
+        recipeName: event.payload?.recipe_name || '',
+        cookedAt: new Date(event.created_at),
+    }));
 }
