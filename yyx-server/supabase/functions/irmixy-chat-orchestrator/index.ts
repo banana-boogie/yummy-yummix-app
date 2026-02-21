@@ -471,8 +471,8 @@ function handleStreamingRequest(
             );
           } finally {
             clearInterval(heartbeatId);
-            // Reset timeout for the streaming phase that follows
-            send({ type: "status", status: "generating" });
+            // Reset stream timeout for the streaming phase that follows
+            send({ type: "status", status: "thinking" });
           }
           timings.tool_exec_ms = Math.round(performance.now() - phaseStart);
           phaseStart = performance.now();
