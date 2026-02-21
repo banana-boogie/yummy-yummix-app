@@ -74,7 +74,6 @@ const TOOL_REGISTRY: Record<string, ToolRegistration> = {
         context.supabase,
         args,
         context.userContext,
-        undefined,
         context.onPartialRecipe,
       ),
     shapeResult: (result) => {
@@ -103,7 +102,6 @@ const TOOL_REGISTRY: Record<string, ToolRegistration> = {
         context.supabase,
         args,
         context.userContext,
-        undefined,
         context.onPartialRecipe,
       ),
     shapeResult: (result) => {

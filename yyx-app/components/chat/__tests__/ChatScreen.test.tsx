@@ -9,6 +9,9 @@
 import React from 'react';
 import { render, fireEvent, screen, waitFor } from '@testing-library/react-native';
 
+import { ChatScreen } from '../ChatScreen';
+import { createMockRecipeCardList } from '@/test/mocks/chat';
+
 // Mock all dependencies before importing ChatScreen
 jest.mock('@/i18n', () => ({
   t: (key: string) => {
@@ -21,13 +24,6 @@ jest.mock('@/i18n', () => ({
       'chat.generating': 'Creating response',
       'chat.error.default': 'Something went wrong. Please try again.',
       'chat.title': 'Irmixy',
-      'chat.suggestions.suggestRecipe': 'Suggest a recipe',
-      'chat.suggestions.whatCanICook': 'What can I cook?',
-      'chat.suggestions.quickMeal': 'Quick meal ideas',
-      'chat.suggestions.ingredientsIHave': 'Ingredients I have',
-      'chat.suggestions.healthyOptions': 'Healthy options',
-      'chat.suggestions.createCustomRecipeLabel': 'Create a custom recipe',
-      'chat.suggestions.createCustomRecipeMessage': 'Create a custom recipe for me',
       'common.copied': 'Copied',
       'common.ok': 'OK',
       'common.cancel': 'Cancel',
@@ -112,9 +108,6 @@ jest.mock('@/components/chat/ChatRecipeCard', () => ({
     );
   },
 }));
-
-import { ChatScreen } from '../ChatScreen';
-import { createMockRecipeCardList } from '@/test/mocks/chat';
 
 describe('ChatScreen', () => {
   beforeEach(() => {

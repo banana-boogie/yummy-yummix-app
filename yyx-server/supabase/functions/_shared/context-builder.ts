@@ -19,6 +19,7 @@ const MAX_LIST_ITEMS = 20;
 export function sanitizeContent(content: string): string {
   if (!content) return "";
   // Remove control characters (except newlines and tabs)
+  // deno-lint-ignore no-control-regex
   const cleaned = content.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
   // Limit length
   return cleaned.slice(0, MAX_CONTENT_LENGTH);
@@ -169,36 +170,34 @@ async function buildContext(
  * "make it without nuts") without cluttering history with full step-by-step
  * instructions that belong in the cooking guide UI.
  */
-export function summarizeHistoryToolResults(
-  toolCalls: Record<string, unknown>,
-): string {
-  const parts: string[] = [];
 
-  // Search results — include full RecipeCard attributes (already concise)
-  if (Array.isArray(toolCalls.recipes) && toolCalls.recipes.length > 0) {
-    const summaries = toolCalls.recipes.map(
-      (r: Record<string, unknown>) => {
-        const attrs: string[] = [];
-        if (r.name) attrs.push(r.name as string);
-        if (r.totalTime) attrs.push(`${r.totalTime} min`);
-        if (r.difficulty) attrs.push(r.difficulty as string);
-        if (r.portions) attrs.push(`${r.portions} portions`);
-        if (
-          Array.isArray(r.allergenWarnings) && r.allergenWarnings.length > 0
-        ) {
-          attrs.push(`allergens: ${r.allergenWarnings.join(", ")}`);
-        }
-        return attrs.join(", ");
-      },
-    );
-    parts.push(
-      `[Showed ${summaries.length} recipe(s): ${summaries.join(" | ")}]`,
-    );
-  }
+type ToolResultSummarizer = (
+  data: unknown,
+) => string | null;
 
-  // Generated recipes — name + ingredient names + key attributes (no steps)
-  if (toolCalls.customRecipe && typeof toolCalls.customRecipe === "object") {
-    const recipe = toolCalls.customRecipe as Record<string, unknown>;
+/** Registry of tool result summarizers. Add new entries here for new tool types. */
+const TOOL_SUMMARIZERS: Record<string, ToolResultSummarizer> = {
+  recipes: (data) => {
+    if (!Array.isArray(data) || data.length === 0) return null;
+    const summaries = data.map((r: Record<string, unknown>) => {
+      const attrs: string[] = [];
+      if (r.name) attrs.push(r.name as string);
+      if (r.totalTime) attrs.push(`${r.totalTime} min`);
+      if (r.difficulty) attrs.push(r.difficulty as string);
+      if (r.portions) attrs.push(`${r.portions} portions`);
+      if (
+        Array.isArray(r.allergenWarnings) && r.allergenWarnings.length > 0
+      ) {
+        attrs.push(`allergens: ${r.allergenWarnings.join(", ")}`);
+      }
+      return attrs.join(", ");
+    });
+    return `[Showed ${summaries.length} recipe(s): ${summaries.join(" | ")}]`;
+  },
+
+  customRecipe: (data) => {
+    if (!data || typeof data !== "object") return null;
+    const recipe = data as Record<string, unknown>;
     const attrs: string[] = [];
     if (recipe.suggestedName) attrs.push(`"${recipe.suggestedName}"`);
     if (Array.isArray(recipe.ingredients)) {
@@ -210,9 +209,20 @@ export function summarizeHistoryToolResults(
     if (recipe.totalTime) attrs.push(`${recipe.totalTime} min`);
     if (recipe.portions) attrs.push(`${recipe.portions} portions`);
     if (recipe.difficulty) attrs.push(recipe.difficulty as string);
-    parts.push(`[Generated recipe: ${attrs.join(", ")}]`);
-  }
+    return `[Generated recipe: ${attrs.join(", ")}]`;
+  },
+};
 
+export function summarizeHistoryToolResults(
+  toolCalls: Record<string, unknown>,
+): string {
+  const parts: string[] = [];
+  for (const [key, summarize] of Object.entries(TOOL_SUMMARIZERS)) {
+    if (key in toolCalls) {
+      const result = summarize(toolCalls[key]);
+      if (result) parts.push(result);
+    }
+  }
   return parts.join(" ");
 }
 

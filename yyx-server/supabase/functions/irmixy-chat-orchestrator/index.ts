@@ -8,21 +8,12 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import {
-  createServiceClient,
-  createUserClient,
-} from "../_shared/supabase-client.ts";
+import { createUserClient } from "../_shared/supabase-client.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import {
-  buildGenerationBudgetExceededMessage,
-  checkGenerationBudget,
-  recordGenerationUsage,
-} from "../_shared/generation-budget.ts";
 import {
   createContextBuilder,
   sanitizeContent,
 } from "../_shared/context-builder.ts";
-import { checkRateLimit } from "../_shared/rate-limiter.ts";
 import type { RecipeCard, UserContext } from "../_shared/irmixy-schemas.ts";
 import { ValidationError } from "../_shared/irmixy-schemas.ts";
 import type {
@@ -116,25 +107,6 @@ serve(async (req) => {
     }
 
     log.info("User authenticated", { userId: user.id.substring(0, 8) + "..." });
-
-    const rateLimit = await checkRateLimit(createServiceClient(), user.id);
-    if (!rateLimit.allowed) {
-      const retryAfterMs = rateLimit.retryAfterMs ?? 60_000;
-      return new Response(
-        JSON.stringify({
-          error: "Rate limit exceeded",
-          retryAfterMs,
-        }),
-        {
-          status: 429,
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-            "Retry-After": Math.ceil(retryAfterMs / 1000).toString(),
-          },
-        },
-      );
-    }
 
     // Sanitize the incoming message
     const sanitizedMessage = sanitizeContent(message);
@@ -291,6 +263,18 @@ async function executeToolCalls(
 // Streaming
 // ============================================================
 
+/** Map tool name to a UI status for the frontend. */
+const TOOL_STATUS: Record<string, string> = {
+  search_recipes: "searching",
+  retrieve_cooked_recipes: "searching",
+  generate_custom_recipe: "cooking_it_up",
+  modify_recipe: "cooking_it_up",
+};
+
+function getToolStatus(toolName: string): string {
+  return TOOL_STATUS[toolName] ?? "generating";
+}
+
 /**
  * Handle streaming request with SSE.
  */
@@ -400,54 +384,8 @@ function handleStreamingRequest(
           assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0
         ) {
           const toolName = assistantMessage.tool_calls[0].function.name;
-          const hasGenerateToolCall = assistantMessage.tool_calls.some((tc) =>
-            tc.function.name === "generate_custom_recipe" ||
-            tc.function.name === "modify_recipe"
-          );
 
-          if (hasGenerateToolCall) {
-            const generationBudget = await checkGenerationBudget(
-              createServiceClient(),
-              userId,
-            );
-            if (!generationBudget.allowed) {
-              const blockedMessage = buildGenerationBudgetExceededMessage(
-                userContext.language,
-                generationBudget.resetAt,
-              );
-              send({ type: "content", content: blockedMessage });
-              const response = await finalizeResponse(
-                supabase,
-                sessionId,
-                message,
-                blockedMessage,
-                userContext,
-                undefined,
-                undefined,
-              );
-              timings.total_ms = Math.round(performance.now() - startTime);
-              log.info("Generation blocked by monthly budget", {
-                type: "budget_block",
-                model: selectedModel,
-                ...timings,
-              });
-              send({ type: "done", response });
-              clearStreamTimeout();
-              safeClose();
-              return;
-            }
-          }
-
-          send({
-            type: "status",
-            status: (toolName === "search_recipes" ||
-                toolName === "retrieve_cooked_recipes")
-              ? "searching"
-              : (toolName === "generate_custom_recipe" ||
-                  toolName === "modify_recipe")
-              ? "cooking_it_up"
-              : "generating",
-          });
+          send({ type: "status", status: getToolStatus(toolName) });
 
           // Two-phase SSE: emit partial recipe before enrichment for perceived latency
           const onPartialRecipe: PartialRecipeCallback = (partialRecipe) => {
@@ -495,59 +433,16 @@ function handleStreamingRequest(
           }, ...toolResult.toolMessages];
         }
 
-        let generationWarningMessage: string | undefined;
         const hasSuccessfulCustomRecipe = !!customRecipeResult?.recipe &&
           customRecipeResult?.safetyFlags?.error !== true;
-        if (hasSuccessfulCustomRecipe) {
-          const usageUpdate = await recordGenerationUsage(
-            createServiceClient(),
-            userId,
-            userContext.language,
-          );
-          if (!usageUpdate.allowed) {
-            const blockedMessage = usageUpdate.warningMessage ??
-              buildGenerationBudgetExceededMessage(
-                userContext.language,
-                usageUpdate.resetAt,
-              );
-            send({ type: "content", content: blockedMessage });
-            const response = await finalizeResponse(
-              supabase,
-              sessionId,
-              message,
-              blockedMessage,
-              userContext,
-              undefined,
-              undefined,
-            );
-            timings.finalize_ms = Math.round(performance.now() - phaseStart);
-            timings.total_ms = Math.round(performance.now() - startTime);
-            log.info("Generation blocked after atomic usage update", {
-              type: "budget_block_post_generation",
-              model: selectedModel,
-              ...timings,
-            });
-            send({ type: "done", response });
-            clearStreamTimeout();
-            safeClose();
-            return;
-          }
-          generationWarningMessage = usageUpdate.warningMessage;
-        }
 
-        // Always stream AI response — natural conversation, no fixed messages.
-        // Text streams first, then tool results (recipes/custom recipe) arrive in the done event.
-        let finalText = await callAIStream(
+        // Stream AI response — text first, then tool results arrive in the done event.
+        const finalText = await callAIStream(
           streamMessages,
           (token) => send({ type: "content", content: token }),
         );
         timings.stream_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
-
-        if (generationWarningMessage) {
-          finalText = `${finalText}\n\n${generationWarningMessage}`;
-          send({ type: "content", content: `\n\n${generationWarningMessage}` });
-        }
 
         // Signal that streaming is complete - frontend can enable input now
         send({ type: "stream_complete" });

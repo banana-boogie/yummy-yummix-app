@@ -175,7 +175,6 @@ export async function modifyRecipe(
   supabase: SupabaseClient,
   rawParams: unknown,
   userContext: UserContext,
-  _openaiApiKey?: string,
   onPartialRecipe?: PartialRecipeCallback,
 ): Promise<GenerateRecipeResult> {
   const timings: Record<string, number> = {};

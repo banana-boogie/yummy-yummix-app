@@ -112,7 +112,6 @@ export async function generateCustomRecipe(
   supabase: SupabaseClient,
   rawParams: unknown,
   userContext: UserContext,
-  _openaiApiKey?: string,
   onPartialRecipe?: PartialRecipeCallback,
 ): Promise<GenerateRecipeResult> {
   // Timing instrumentation for performance monitoring
@@ -447,7 +446,7 @@ Example step with Thermomix: {"order": 2, "instruction": "Sauté onions", "ingre
 
   return `Professional recipe creator. Output in ${lang}, ${userContext.measurementSystem} units (${units}).
 
-RULES: Use practical quantities (1/3 cup not 0.333). Include meat cooking temps. Name recipes naturally without dietary labels (GOOD: "Chicken Ramen", BAD: "Sugar-Free Ramen"). Preferences guide creativity; ingredient dislikes are strict. Allergens are strict UNLESS the user prompt explicitly confirms an allergen override.
+RULES: Use practical quantities (1/3 cup not 0.333). Include meat cooking temps. Name recipes naturally without dietary labels (GOOD: "Chicken Ramen", BAD: "Sugar-Free Ramen"). Preferences guide creativity; ingredient dislikes are strict. Avoid allergen ingredients by default.
 ${thermomixSection}
 
 OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Use this structure:

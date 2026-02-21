@@ -346,11 +346,12 @@ for await (const chunk of chatStream({
 
 #### Usage Types:
 
-| Type | Default Model | Reasoning Effort | Use Case | Cost |
-|------|--------------|------------------|----------|------|
+| Type | Default Model | Config | Use Case | Cost |
+|------|--------------|--------|----------|------|
 | `text` | gpt-4.1-mini | N/A | Chat orchestrator (tool calling + streaming) | Low |
-| `recipe_generation` | gpt-5-mini | `medium` | Recipe generation (structured JSON output) — quality critical | Low |
-| `parsing` | gpt-4.1-nano | N/A | Admin parsing, nutritional data extraction | Very low |
+| `recipe_generation` | gpt-5-mini | reasoning: `low` | Recipe generation (structured JSON output) — quality critical | Low |
+| `recipe_modification` | gpt-4.1-mini | N/A | Recipe modification (transform existing JSON) | Low |
+| `parsing` | gpt-4.1-nano | temperature: `1` | Admin parsing, nutritional data extraction | Very low |
 | `embedding` | text-embedding-3-large | N/A | Vector search (3072 dimensions) | Low |
 
 #### Configuration:

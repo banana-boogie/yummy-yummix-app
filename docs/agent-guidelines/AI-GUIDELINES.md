@@ -46,6 +46,7 @@ yyx-server/supabase/functions/
 │   │   ├── tool-validators.ts        # Zod parameter validation per tool
 │   │   ├── shape-tool-response.ts    # Normalizes results for frontend
 │   │   ├── generate-custom-recipe.ts # Recipe generation pipeline (1000+ lines)
+│   │   ├── modify-recipe.ts          # Recipe modification (reuses generation pipeline)
 │   │   ├── search-recipes.ts         # Hybrid search tool (420+ lines)
 │   │   └── retrieve-custom-recipe.ts # Past recipe retrieval (450+ lines)
 │   ├── rag/
@@ -122,12 +123,13 @@ const embedding = await embed({
 
 ### Usage Types
 
-| Type                | Default Model          | Reasoning Effort | Use Case                                     | Cost     |
-| ------------------- | ---------------------- | ---------------- | -------------------------------------------- | -------- |
-| `text`              | gpt-5-mini             | `low`            | Chat orchestrator (tool calling + streaming) | Low      |
-| `recipe_generation` | gpt-5-mini             | `medium`         | Recipe generation (structured JSON output)   | Low      |
-| `parsing`           | gpt-5-nano             | `minimal`        | Admin parsing, nutritional data extraction   | Very low |
-| `embedding`         | text-embedding-3-large | N/A              | Vector search (3072 dimensions)              | Low      |
+| Type                  | Default Model          | Config           | Use Case                                     | Cost     |
+| --------------------- | ---------------------- | ---------------- | -------------------------------------------- | -------- |
+| `text`                | gpt-4.1-mini           | N/A              | Chat orchestrator (tool calling + streaming) | Low      |
+| `recipe_generation`   | gpt-5-mini             | reasoning: `low` | Recipe generation (structured JSON output)   | Low      |
+| `recipe_modification` | gpt-4.1-mini           | N/A              | Recipe modification (transform existing JSON)| Low      |
+| `parsing`             | gpt-4.1-nano           | temperature: `1` | Admin parsing, nutritional data extraction   | Very low |
+| `embedding`           | text-embedding-3-large | N/A              | Vector search (3072 dimensions)              | Low      |
 
 Override via env vars: `AI_TEXT_MODEL`, `AI_RECIPE_GENERATION_MODEL`,
 `AI_PARSING_MODEL`.
@@ -169,6 +171,7 @@ Current tools:
 
 - `search_recipes` — Search published recipes (voice-enabled)
 - `generate_custom_recipe` — AI-generated personalized recipes (voice-enabled)
+- `modify_recipe` — Modify a previously generated recipe (voice-enabled)
 - `retrieve_cooked_recipes` — Fetch user cooked-history recipes (voice-enabled)
 
 ### Adding New Tools (4-step process)

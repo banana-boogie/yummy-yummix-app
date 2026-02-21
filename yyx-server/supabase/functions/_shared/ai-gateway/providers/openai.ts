@@ -28,6 +28,7 @@ interface OpenAIRequest {
   model: string;
   messages: OpenAIMessage[];
   reasoning_effort?: string;
+  temperature?: number;
   max_completion_tokens?: number;
   response_format?: {
     type: "json_schema";
@@ -99,7 +100,7 @@ export async function callOpenAI(
     max_completion_tokens: request.maxTokens ?? 4096,
   };
 
-  // Add reasoning effort for models that support it
+  // Add reasoning effort for models that support it (mutually exclusive with temperature)
   if (request.reasoningEffort) {
     if (model.startsWith("gpt-5") || model.startsWith("o")) {
       openaiRequest.reasoning_effort = request.reasoningEffort;
@@ -108,6 +109,8 @@ export async function callOpenAI(
         `[ai-gateway:openai] reasoningEffort '${request.reasoningEffort}' ignored for model '${model}'`,
       );
     }
+  } else if (request.temperature !== undefined) {
+    openaiRequest.temperature = request.temperature;
   }
 
   // Add response format if specified

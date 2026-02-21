@@ -29,6 +29,8 @@ export interface AICompletionRequest {
   model?: string;
   /** Optional: Reasoning effort for GPT-5 family models */
   reasoningEffort?: "minimal" | "low" | "medium" | "high";
+  /** Optional: Sampling temperature (0-2). Use 1 for deterministic tasks like parsing. Not used with reasoning models. */
+  temperature?: number;
   /** Optional: Maximum tokens to generate */
   maxTokens?: number;
   /** Optional: JSON schema for structured output */
