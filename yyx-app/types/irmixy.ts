@@ -21,7 +21,6 @@ export interface Action {
   label: string;
   payload: Record<string, unknown>;
   autoExecute?: boolean;
-  confirmationMessage?: string;
 }
 
 
