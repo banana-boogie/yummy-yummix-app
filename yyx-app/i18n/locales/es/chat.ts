@@ -31,7 +31,7 @@ export const chat = {
     thinking: "Pensando...",
     speaking: "¡Hablando!",
     tapToSpeak: "Toca para hablar",
-    tapToStop: "Toca para detener",
+    tapToStop: "Toca para parar",
     handsFreeModeActive:
       "Modo manos libres - Pararé cuando termines de hablar",
     permissionRequired: "Se requiere permiso del micrófono",
@@ -46,6 +46,8 @@ export const chat = {
     errorPrefix: "Error: ",
     minsRemaining: "{{mins}} mins restantes",
     executingTool: "Trabajando en ello...",
+    micActive: "Micrófono activo",
+    stopRecording: "Detener grabación de voz",
     micPermissionDenied: "Acceso al micrófono denegado",
     mobileOnly: {
       title: "Chat de Voz",

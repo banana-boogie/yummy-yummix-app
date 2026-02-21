@@ -46,6 +46,8 @@ export const chat = {
     errorPrefix: "Error: ",
     minsRemaining: "{{mins}} mins remaining",
     executingTool: "Working on it...",
+    micActive: "Mic active",
+    stopRecording: "Stop voice recording",
     micPermissionDenied: "Microphone access denied",
     mobileOnly: {
       title: "Voice Chat",

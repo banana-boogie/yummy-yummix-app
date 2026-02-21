@@ -1,14 +1,17 @@
-import React from 'react';
-import { View, TouchableOpacity, Platform } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, TouchableOpacity, Platform, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { Tabs, Redirect } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { VoiceSessionProvider, useVoiceSession } from '@/contexts/VoiceSessionContext';
 import { useDevice } from '@/hooks/useDevice';
 import { useTabBarVisibility } from '@/hooks/useTabBarVisibility';
 import { COLORS, LAYOUT, SPACING } from '@/constants/design-tokens';
+import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import i18n from '@/i18n';
 
 type TabConfigItem = {
   name: string;
@@ -31,23 +34,92 @@ export default function TabLayout() {
   if (!user) return <Redirect href="/auth/signup" />;
 
   return (
-    <Tabs
-      initialRouteName="chat"
-      screenOptions={{
-        headerShown: false,
+    <VoiceSessionProvider>
+      <View className="flex-1">
+        <Tabs
+          initialRouteName="chat"
+          screenOptions={{
+            headerShown: false,
+          }}
+          tabBar={(props) => <PremiumTabBar {...props} />}
+        >
+          {TAB_CONFIG.map((tab) => (
+            <Tabs.Screen
+              key={tab.name}
+              name={tab.name}
+              options={{
+                href: tab.href,
+              }}
+            />
+          ))}
+        </Tabs>
+        <MicActiveBanner />
+      </View>
+    </VoiceSessionProvider>
+  );
+}
+
+function MicActiveBanner() {
+  const { hasActiveSession, stopAllSessions } = useVoiceSession();
+  const insets = useSafeAreaInsets();
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!hasActiveSession) {
+      pulseAnim.stopAnimation();
+      pulseAnim.setValue(1);
+      return;
+    }
+
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 0.3,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    animation.start();
+
+    return () => animation.stop();
+  }, [hasActiveSession, pulseAnim]);
+
+  if (!hasActiveSession) {
+    return null;
+  }
+
+  return (
+    <TouchableOpacity
+      onPress={stopAllSessions}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={i18n.t('chat.voice.stopRecording')}
+      className="absolute top-0 left-0 right-0 z-[220] bg-status-error"
+      style={{
+        paddingTop: insets.top,
+        paddingBottom: SPACING.xs,
       }}
-      tabBar={(props) => <PremiumTabBar {...props} />}
     >
-      {TAB_CONFIG.map((tab) => (
-        <Tabs.Screen
-          key={tab.name}
-          name={tab.name}
-          options={{
-            href: tab.href,
+      <View className="flex-row items-center justify-center gap-xs px-md">
+        <Animated.View
+          className="rounded-full bg-white"
+          style={{
+            width: 8,
+            height: 8,
+            opacity: pulseAnim,
           }}
         />
-      ))}
-    </Tabs>
+        <Text preset="caption" className="text-white font-semibold">
+          {`${i18n.t('chat.voice.micActive')} - ${i18n.t('chat.voice.tapToStop')}`}
+        </Text>
+      </View>
+    </TouchableOpacity>
   );
 }
 

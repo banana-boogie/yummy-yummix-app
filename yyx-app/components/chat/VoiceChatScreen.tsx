@@ -1,28 +1,31 @@
-/**
- * VoiceChatScreen Component - OpenAI Realtime Edition
- *
- * Hybrid layout: shrunk avatar + live scrollable transcript with recipe cards.
- * When idle (no messages), avatar displays centered at full size.
- * Once conversation starts, avatar shrinks to top and transcript grows.
- */
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Alert, FlatList, ActivityIndicator, Platform } from 'react-native';
+import {
+    View,
+    Alert,
+    FlatList,
+    ActivityIndicator,
+    Platform,
+    TouchableOpacity,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/common/Text';
 import { IrmixyAvatar, AvatarState } from './IrmixyAvatar';
 import { VoiceButton } from './VoiceButton';
-import { ChatRecipeCard } from './ChatRecipeCard';
-import { CustomRecipeCard } from './CustomRecipeCard';
+import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { useAuth } from '@/contexts/AuthContext';
 import { customRecipeService } from '@/services/customRecipeService';
 import { COLORS } from '@/constants/design-tokens';
 import type { QuotaInfo, VoiceStatus } from '@/services/voice/types';
-import type { ChatMessage } from '@/services/chatService';
+import type { ChatMessage, IrmixyStatus, QuickAction } from '@/services/chatService';
 import type { GeneratedRecipe } from '@/types/irmixy';
 import i18n from '@/i18n';
+
+const SCROLL_THRESHOLD = 200;
 
 interface Props {
     sessionId?: string | null;
@@ -34,7 +37,6 @@ interface Props {
 
 export function VoiceChatScreen({
     sessionId: initialSessionId,
-    onSessionCreated,
     transcriptMessages: externalMessages,
     onTranscriptChange,
 }: Props) {
@@ -42,7 +44,9 @@ export function VoiceChatScreen({
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const [duration, setDuration] = useState(0);
+    const [showScrollButton, setShowScrollButton] = useState(false);
     const flatListRef = useRef<FlatList>(null);
+    const isNearBottomRef = useRef(true);
 
     const {
         status,
@@ -54,7 +58,7 @@ export function VoiceChatScreen({
         isExecutingTool,
         updateMessage,
         startConversation,
-        stopConversation
+        stopConversation,
     } = useVoiceChat({
         sessionId: initialSessionId,
         initialTranscriptMessages: externalMessages,
@@ -63,30 +67,53 @@ export function VoiceChatScreen({
             Alert.alert(
                 i18n.t('common.errors.title'),
                 info.warning || i18n.t('chat.voice.quotaWarning', { minutes: info.remainingMinutes.toFixed(1) }),
-                [{ text: i18n.t('common.ok') }]
+                [{ text: i18n.t('common.ok') }],
             );
-        }
+        },
     });
 
     const hasMessages = transcriptMessages.length > 0;
+    const isConnected = status !== 'idle' && status !== 'error';
+    const isConnecting = status === 'connecting';
+    const isActive = isConnected && !isConnecting;
+    const currentStatus: IrmixyStatus = isExecutingTool ? 'generating' : null;
+    const statusText = isExecutingTool ? i18n.t('chat.voice.executingTool') : '';
+    const lastMessageId = hasMessages ? transcriptMessages[transcriptMessages.length - 1]?.id : null;
 
-    // Map voice status to avatar state
     const getAvatarState = (voiceStatus: VoiceStatus): AvatarState => {
         switch (voiceStatus) {
-            case 'connecting': return 'thinking';
-            case 'listening': return 'listening';
-            case 'processing': return 'thinking';
-            case 'speaking': return 'speaking';
-            case 'error': return 'idle';
-            default: return 'idle';
+            case 'connecting':
+                return 'thinking';
+            case 'listening':
+                return 'listening';
+            case 'processing':
+                return 'thinking';
+            case 'speaking':
+                return 'speaking';
+            case 'error':
+                return 'idle';
+            default:
+                return 'idle';
         }
     };
 
-    const isConnected = status !== 'idle' && status !== 'error';
-    const isConnecting = status === 'connecting';
+    const getStatusText = useCallback((voiceStatus: VoiceStatus) => {
+        switch (voiceStatus) {
+            case 'listening':
+                return i18n.t('chat.voice.listening');
+            case 'connecting':
+                return i18n.t('chat.voice.connecting');
+            case 'processing':
+                return i18n.t('chat.voice.thinking');
+            case 'speaking':
+                return i18n.t('chat.voice.speaking');
+            case 'error':
+                return i18n.t('common.errors.title');
+            default:
+                return i18n.t('chat.voice.tapToSpeak');
+        }
+    }, []);
 
-    // Timer for active session (only when truly active, not during connecting)
-    const isActive = isConnected && !isConnecting;
     useEffect(() => {
         let interval: NodeJS.Timeout;
         if (isActive) {
@@ -97,7 +124,6 @@ export function VoiceChatScreen({
         return () => clearInterval(interval);
     }, [isActive, isConnected]);
 
-    // Error handling
     useEffect(() => {
         if (error) {
             Alert.alert(i18n.t('common.errors.title'), error);
@@ -113,85 +139,101 @@ export function VoiceChatScreen({
     const handleVoicePress = async () => {
         if (isConnected) {
             stopConversation();
-        } else {
-            if (quotaInfo && quotaInfo.remainingMinutes <= 0) {
-                Alert.alert(i18n.t('common.errors.title'), i18n.t('chat.voice.quotaExceeded'));
-                return;
-            }
-            await startConversation();
+            return;
         }
+
+        if (quotaInfo && quotaInfo.remainingMinutes <= 0) {
+            Alert.alert(i18n.t('common.errors.title'), i18n.t('chat.voice.quotaExceeded'));
+            return;
+        }
+
+        await startConversation();
     };
+
+    const handleCopyMessage = useCallback(async (content: string) => {
+        try {
+            await Clipboard.setStringAsync(content);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            if (Platform.OS === 'ios') {
+                Alert.alert(
+                    i18n.t('common.copied'),
+                    i18n.t('chat.messageCopied'),
+                    [{ text: i18n.t('common.ok') }],
+                    { userInterfaceStyle: 'automatic' },
+                );
+            } else {
+                Alert.alert(i18n.t('common.copied'), i18n.t('chat.messageCopied'));
+            }
+        } catch (copyError) {
+            if (__DEV__) console.error('[VoiceChatScreen] Failed to copy message:', copyError);
+        }
+    }, []);
 
     const handleStartCooking = useCallback(async (
         recipe: GeneratedRecipe,
         finalName: string,
         messageId: string,
-        savedRecipeId?: string
+        savedRecipeId?: string,
     ) => {
         try {
             let recipeId = savedRecipeId;
             if (!recipeId) {
                 const { userRecipeId } = await customRecipeService.save(recipe, finalName);
                 recipeId = userRecipeId;
-                // Write back savedRecipeId to prevent duplicate saves on repeated taps
                 if (recipeId) {
                     updateMessage(messageId, { savedRecipeId: recipeId });
                 }
             }
+
             if (recipeId) {
                 router.push(`/(tabs)/recipes/start-cooking/${recipeId}?from=chat`);
             }
-        } catch (err) {
-            console.error('[VoiceChatScreen] Start cooking error:', err);
+        } catch (startCookingError) {
+            console.error('[VoiceChatScreen] Start cooking error:', startCookingError);
             Alert.alert(i18n.t('common.errors.title'), i18n.t('common.errors.generic'));
         }
     }, [router, updateMessage]);
 
-    const renderMessageItem = useCallback(({ item }: { item: ChatMessage }) => {
-        const isUser = item.role === 'user';
+    const handleActionPress = useCallback((_action: QuickAction) => {
+        // Voice mode is speech-driven; no quick actions for now.
+    }, []);
 
-        return (
-            <View className={`px-md mb-sm ${isUser ? 'items-end' : 'items-start'}`}>
-                {/* Message bubble */}
-                <View
-                    className={`max-w-[85%] px-md py-sm rounded-xl ${
-                        isUser
-                            ? 'bg-primary-medium rounded-br-sm'
-                            : 'bg-background-secondary rounded-bl-sm'
-                    }`}
-                >
-                    <Text
-                        preset="body"
-                        className={isUser ? 'text-white' : 'text-text-default'}
-                    >
-                        {item.content}
-                    </Text>
-                </View>
+    const renderMessage = useCallback(({ item }: { item: ChatMessage }) => (
+        <View className="px-md mb-sm">
+            <ChatMessageItem
+                item={item}
+                isLastMessage={item.id === lastMessageId}
+                isLoading={isExecutingTool}
+                currentStatus={currentStatus}
+                statusText={statusText}
+                onCopyMessage={handleCopyMessage}
+                onStartCooking={handleStartCooking}
+                onActionPress={handleActionPress}
+            />
+        </View>
+    ), [
+        currentStatus,
+        handleActionPress,
+        handleCopyMessage,
+        handleStartCooking,
+        isExecutingTool,
+        lastMessageId,
+        statusText,
+    ]);
 
-                {/* Recipe cards (assistant only) */}
-                {!isUser && item.recipes && item.recipes.length > 0 && (
-                    <View className="mt-sm w-full gap-sm">
-                        {item.recipes.map(recipe => (
-                            <ChatRecipeCard key={recipe.recipeId} recipe={recipe} />
-                        ))}
-                    </View>
-                )}
+    const handleScroll = useCallback((event: any) => {
+        const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+        const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+        const isNearBottom = distanceFromBottom <= SCROLL_THRESHOLD;
+        isNearBottomRef.current = isNearBottom;
+        setShowScrollButton(!isNearBottom && contentSize.height > layoutMeasurement.height);
+    }, []);
 
-                {/* Custom recipe card (assistant only) */}
-                {!isUser && item.customRecipe && (
-                    <View className="mt-sm w-full">
-                        <CustomRecipeCard
-                            recipe={item.customRecipe}
-                            safetyFlags={item.safetyFlags}
-                            onStartCooking={handleStartCooking}
-                            messageId={item.id}
-                            savedRecipeId={item.savedRecipeId}
-                        />
-                    </View>
-                )}
-            </View>
-        );
-    }, [handleStartCooking]);
+    const handleScrollToBottom = useCallback(() => {
+        isNearBottomRef.current = true;
+        setShowScrollButton(false);
+        flatListRef.current?.scrollToEnd({ animated: true });
+    }, []);
 
     if (!user) {
         return (
@@ -204,70 +246,37 @@ export function VoiceChatScreen({
     }
 
     return (
-        <View
-            className="flex-1 bg-background-default"
-            style={{ paddingBottom: insets.bottom }}
-        >
-            {/* Header / Timer */}
-            <View className="items-center pt-md">
-                {isActive && (
-                    <View className="bg-background-secondary px-sm py-xs rounded-full">
-                        <Text preset="caption" className="text-primary-darkest font-bold">
-                            {formatDuration(duration)}
-                        </Text>
+        <View className="flex-1 bg-background-default" style={{ paddingBottom: insets.bottom }}>
+            {isConnected && (
+                <View className="border-b border-border-default px-md py-sm bg-background-default">
+                    <View className="flex-row items-center justify-center gap-sm">
+                        {isActive && (
+                            <View className="bg-background-secondary px-sm py-xs rounded-full">
+                                <Text preset="caption" className="text-primary-darkest font-bold">
+                                    {formatDuration(duration)}
+                                </Text>
+                            </View>
+                        )}
+                        <IrmixyAvatar state={getAvatarState(status)} size={40} />
+                        <View accessibilityLiveRegion="polite">
+                            <Text preset="caption" className="text-text-secondary">
+                                {getStatusText(status)}
+                            </Text>
+                        </View>
                     </View>
-                )}
-            </View>
+                </View>
+            )}
 
-            {/* Avatar area — shrinks when messages exist */}
-            <View className={`items-center ${hasMessages ? 'py-sm' : 'py-md'} bg-background-default`}>
-                <IrmixyAvatar state={getAvatarState(status)} size={hasMessages ? 100 : 160} />
-
-                {!hasMessages && (
-                    <View className="mt-lg h-24 px-md w-full">
-                        {status === 'connecting' && (
-                            <Text preset="body" className="text-text-secondary text-center">
-                                {i18n.t('chat.voice.connecting')}
-                            </Text>
-                        )}
-                        {status === 'listening' && (
-                            <Text preset="body" className="text-primary-darkest text-center font-bold">
-                                {i18n.t('chat.voice.listening')}
-                            </Text>
-                        )}
-                        {(status === 'processing' || status === 'speaking') && transcript ? (
-                            <Text preset="bodySmall" className="text-text-secondary text-center italic mb-xs" numberOfLines={2}>
-                                {`"${transcript}"`}
-                            </Text>
-                        ) : null}
-                        {status === 'idle' && (
-                            <Text preset="body" className="text-text-secondary text-center">
-                                {i18n.t('chat.voice.tapToSpeak')}
-                            </Text>
-                        )}
-                    </View>
-                )}
-
-                {hasMessages && (
-                    <Text preset="caption" className="text-text-secondary mt-xs">
-                        {status === 'listening' ? i18n.t('chat.voice.listening')
-                            : status === 'connecting' ? i18n.t('chat.voice.connecting')
-                            : status === 'processing' ? i18n.t('chat.voice.thinking')
-                            : status === 'speaking' ? i18n.t('chat.voice.speaking')
-                            : ''}
-                    </Text>
-                )}
-            </View>
-
-            {/* Scrollable Transcript */}
-            {hasMessages && (
+            {hasMessages ? (
                 <View className="flex-1">
                     <FlatList
                         ref={flatListRef}
                         data={transcriptMessages}
                         keyExtractor={item => item.id}
-                        renderItem={renderMessageItem}
+                        renderItem={renderMessage}
                         contentContainerStyle={{ paddingVertical: 8 }}
+                        onScroll={handleScroll}
+                        scrollEventThrottle={200}
                         showsVerticalScrollIndicator={false}
                         removeClippedSubviews={Platform.OS !== 'web'}
                         maxToRenderPerBatch={3}
@@ -275,38 +284,88 @@ export function VoiceChatScreen({
                         windowSize={5}
                         initialNumToRender={8}
                         onContentSizeChange={() => {
-                            flatListRef.current?.scrollToEnd({ animated: true });
+                            if (isNearBottomRef.current) {
+                                flatListRef.current?.scrollToEnd({ animated: true });
+                            }
                         }}
+                        ListFooterComponent={
+                            isExecutingTool ? (
+                                <View className="flex-row items-center justify-center py-sm gap-sm">
+                                    <ActivityIndicator size="small" color={COLORS.primary.darkest} />
+                                    <Text preset="caption" className="text-primary-darkest">
+                                        {i18n.t('chat.voice.executingTool')}
+                                    </Text>
+                                </View>
+                            ) : (
+                                <View className="py-sm" />
+                            )
+                        }
                     />
-
-                    {/* Tool execution indicator */}
-                    {isExecutingTool && (
-                        <View className="flex-row items-center justify-center py-sm gap-sm">
-                            <ActivityIndicator size="small" color={COLORS.primary.darkest} />
-                            <Text preset="caption" className="text-primary-darkest">
-                                {i18n.t('chat.voice.executingTool')}
+                </View>
+            ) : (
+                <View className="flex-1 items-center justify-center px-lg">
+                    <IrmixyAvatar state={getAvatarState(status)} size={120} />
+                    <View className="mt-lg px-md">
+                        <View accessibilityLiveRegion="polite">
+                            <Text preset="body" className="text-text-secondary text-center">
+                                {isConnected
+                                    ? getStatusText(status)
+                                    : i18n.t('chat.voice.tapToSpeak')}
                             </Text>
                         </View>
-                    )}
+                        {isConnected && transcript ? (
+                            <Text
+                                preset="bodySmall"
+                                className="text-text-secondary text-center italic mt-sm"
+                                numberOfLines={2}
+                            >
+                                {`"${transcript}"`}
+                            </Text>
+                        ) : null}
+                        {isConnected && response ? (
+                            <Text
+                                preset="bodySmall"
+                                className="text-text-secondary text-center italic mt-xs"
+                                numberOfLines={2}
+                            >
+                                {`"${response}"`}
+                            </Text>
+                        ) : null}
+                    </View>
                 </View>
             )}
 
-            {/* Controls */}
+            {showScrollButton && hasMessages && (
+                <TouchableOpacity
+                    onPress={handleScrollToBottom}
+                    className="absolute right-4 bottom-4 z-50 bg-primary-default rounded-full p-3 shadow-lg"
+                    style={{ elevation: 4 }}
+                >
+                    <MaterialCommunityIcons name="chevron-double-down" size={24} color="white" />
+                </TouchableOpacity>
+            )}
+
             <View className="items-center py-xl border-t border-grey-light bg-background-default">
                 <VoiceButton
-                    state={isActive ? 'recording' : 'ready'}
+                    state={isConnecting ? 'processing' : isActive ? 'recording' : 'ready'}
                     onPress={handleVoicePress}
-                    size={80}
+                    size={72}
                     disabled={isConnecting}
-                />
-                <Text preset="caption" className="text-text-secondary mt-sm">
-                    {isConnecting
-                        ? i18n.t('chat.voice.connecting')
-                        : isConnected
-                            ? i18n.t('chat.voice.tapToStop')
+                    accessibilityLabel={
+                        isConnected
+                            ? i18n.t('chat.voice.stopRecording')
                             : i18n.t('chat.voice.tapToSpeak')
                     }
-                </Text>
+                />
+                <View accessibilityLiveRegion="polite">
+                    <Text preset="caption" className="text-text-secondary mt-sm">
+                        {isConnecting
+                            ? i18n.t('chat.voice.connecting')
+                            : isConnected
+                                ? i18n.t('chat.voice.tapToStop')
+                                : i18n.t('chat.voice.tapToSpeak')}
+                    </Text>
+                </View>
                 {quotaInfo && !isConnected && (
                     <Text preset="caption" className="text-text-secondary mt-xs text-xs">
                         {i18n.t('chat.voice.minsRemaining', { mins: quotaInfo.remainingMinutes.toFixed(1) })}

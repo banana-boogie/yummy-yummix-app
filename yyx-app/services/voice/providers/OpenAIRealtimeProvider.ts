@@ -21,6 +21,20 @@ import type {
   QuotaInfo,
 } from "../types";
 
+/**
+ * OpenAI Realtime WebRTC voice provider.
+ *
+ * Lifecycle:
+ * 1) `initialize()` creates the RTCPeerConnection and data channel, retrieves an
+ *    ephemeral token from the backend, and performs the SDP handshake.
+ * 2) `startConversation()` sends a `session.update` with prompt/tools/VAD settings.
+ * 3) `handleServerMessage()` translates Realtime server events into provider events
+ *    consumed by the voice hook.
+ * 4) `stopConversation()` closes media/data channels and persists usage metadata.
+ *
+ * The provider also tracks token breakdown (text/audio in/out) for approximate
+ * session cost reporting during `updateSessionDuration()`.
+ */
 export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private pc: RTCPeerConnection | null = null;
   private dc: RTCDataChannel | null = null;
@@ -31,10 +45,14 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private inactivityTimer = new InactivityTimer(10000); // 10 seconds
   private eventListeners: Map<VoiceEvent, Set<Function>> = new Map();
   private currentContext: ConversationContext | null = null;
+  /** True when the Realtime data channel is open and ready to send JSON events. */
   private dataChannelReady: boolean = false;
+  /** Outbound events buffered until the data channel transitions to open. */
   private pendingEvents: any[] = [];
-  // Function call tracking (keyed by call_id to handle interleaved calls)
+  /** Function-call argument assembly keyed by `call_id` for interleaved tool calls. */
   private pendingToolCalls: Map<string, { name: string; args: string }> = new Map();
+  /** Active assistant response id used to ignore late deltas after interruptions. */
+  private activeResponseId: string | null = null;
   // Token tracking for cost calculation (separated by type for accurate pricing)
   private sessionInputTokens: number = 0;
   private sessionOutputTokens: number = 0;
@@ -43,6 +61,18 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private sessionOutputTextTokens: number = 0;
   private sessionOutputAudioTokens: number = 0;
 
+  /**
+   * Initialize a Realtime voice session transport.
+   *
+   * Setup sequence:
+   * 1) create RTCPeerConnection
+   * 2) acquire microphone track via getUserMedia and attach it to the connection
+   * 3) open the Realtime data channel used for JSON events
+   * 4) call backend `start_session` to enforce quota and obtain ephemeral token
+   * 5) create local SDP offer
+   * 6) exchange SDP with OpenAI Realtime endpoint
+   * 7) configure remote audio playback track handling
+   */
   async initialize(config: ProviderConfig): Promise<any> {
     this.setStatus("connecting");
 
@@ -189,6 +219,11 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     }
   }
 
+  /**
+   * Start an active conversation by pushing a `session.update` payload to Realtime.
+   * This configures model instructions, tools, transcription, VAD settings, and
+   * routes audio output to speaker mode with InCallManager.
+   */
   async startConversation(context: ConversationContext): Promise<void> {
     this.currentContext = context;
     // Don't start timer yet - wait until session.updated event confirms ready
@@ -206,6 +241,11 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     // Send session configuration with context via data channel
     const systemPrompt = buildSystemPrompt(context);
 
+    /**
+     * server_vad config
+     * - threshold 0.6 reduces false positives while keeping normal speech detection
+     * - silence_duration_ms 1200 avoids premature turn cuts in slower speech
+     */
     this.sendEvent({
       type: "session.update",
       session: {
@@ -217,9 +257,9 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         input_audio_transcription: { model: "whisper-1" },
         turn_detection: {
           type: "server_vad",
-          threshold: 0.5,
+          threshold: 0.6,
           prefix_padding_ms: 300,
-          silence_duration_ms: 800,
+          silence_duration_ms: 1200,
         },
         tools: voiceTools,
       },
@@ -268,6 +308,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
     // Reset tool call tracking
     this.pendingToolCalls.clear();
+    this.activeResponseId = null;
 
     // Reset token counters for next session
     this.sessionInputTokens = 0;
@@ -387,6 +428,24 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     }
   }
 
+  /**
+   * Realtime server event state machine.
+   *
+   * Typical turn flow:
+   * `input_audio_buffer.speech_started`
+   *   -> `input_audio_buffer.speech_stopped`
+   *   -> `conversation.item.input_audio_transcription.completed`
+   *   -> `response.created`
+   *   -> `response.output_audio_transcript.delta` (streaming text)
+   *   -> `response.output_audio_transcript.done`
+   *   -> `response.done`
+   *
+   * Tool flow can interleave with transcript deltas:
+   * `response.output_item.added(function_call)`
+   *   -> `response.function_call_arguments.delta`
+   *   -> `response.function_call_arguments.done`
+   *   -> emit `toolCall` to hook
+   */
   private handleServerMessage(message: any): void {
     switch (message.type) {
       // Session events
@@ -451,6 +510,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       // Response events
       case "response.created":
+        this.activeResponseId = message.response?.id ?? null;
         this.setStatus("processing");
         break;
 
@@ -498,11 +558,12 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         }
         break;
 
-      case "response.audio_transcript.delta":
+      case "response.output_audio_transcript.delta":
         // Streaming transcript of assistant's response
         if (message.delta) {
+          const responseId = message.response_id ?? this.activeResponseId;
           this.emit("transcript", message.delta);
-          this.emit("assistantTranscriptDelta", message.delta);
+          this.emit("assistantTranscriptDelta", message.delta, responseId);
         }
         break;
 
@@ -511,11 +572,12 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         this.setStatus("speaking");
         break;
 
-      case "response.audio_transcript.done":
+      case "response.output_audio_transcript.done":
         // Complete transcript of what AI said
         if (message.transcript) {
+          const responseId = message.response_id ?? this.activeResponseId;
           this.emit("response", { text: message.transcript });
-          this.emit("assistantTranscriptComplete", message.transcript);
+          this.emit("assistantTranscriptComplete", message.transcript, responseId);
         }
         break;
 
@@ -524,6 +586,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         break;
 
       case "response.done":
+        if (message.response?.status === "cancelled") {
+          this.emit("responseInterrupted", message.response?.id ?? this.activeResponseId);
+        }
+
         // Extract token usage from response
         if (message.response?.usage) {
           const usage = message.response.usage;
@@ -551,6 +617,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
           );
         }
 
+        this.activeResponseId = null;
         this.setStatus("listening");
         break;
 
@@ -566,11 +633,20 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         break;
 
       default:
-        // Ignore unhandled events silently
+        if (__DEV__) console.log("[OpenAI] Unhandled event:", message.type);
         break;
     }
   }
 
+  /**
+   * Persist session duration and usage costs to `ai_voice_sessions`.
+   *
+   * Cost formula:
+   * - input text:  $0.60 / 1M tokens
+   * - output text: $2.40 / 1M tokens
+   * - input audio: $10.00 / 1M tokens
+   * - output audio:$20.00 / 1M tokens
+   */
   private async updateSessionDuration(durationSeconds: number): Promise<void> {
     if (!this.sessionId) {
       console.warn("[OpenAI] No session ID to update");

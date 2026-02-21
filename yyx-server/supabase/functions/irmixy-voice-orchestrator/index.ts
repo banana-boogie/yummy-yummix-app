@@ -23,6 +23,7 @@ import { executeTool } from "../_shared/tools/execute-tool.ts";
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
 import { getAllowedVoiceToolNames } from "../_shared/tools/tool-registry.ts";
+import { getDefaultVoiceQuotaMinutes, getQuotaLimitForUser } from "./quota.ts";
 
 const ALLOWED_VOICE_TOOLS = new Set(getAllowedVoiceToolNames());
 const ALLOWED_ACTIONS = new Set(
@@ -33,7 +34,7 @@ const ALLOWED_ACTIONS = new Set(
   ] as const,
 );
 const MAX_PAYLOAD_BYTES = 10_000; // 10KB
-const QUOTA_LIMIT_MINUTES = 30;
+const DEFAULT_QUOTA_MINUTES = getDefaultVoiceQuotaMinutes();
 
 interface RequestPayload {
   action?: unknown;
@@ -74,10 +75,15 @@ async function handleCheckQuota(
   authHeader: string,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
-  const supabase = createUserClient(authHeader);
+  const userClient = createUserClient(authHeader);
   const currentMonth = new Date().toISOString().slice(0, 7);
+  const quotaLimit = await getQuotaLimitForUser(
+    userClient,
+    userId,
+    DEFAULT_QUOTA_MINUTES,
+  );
 
-  const { data: usage } = await supabase
+  const { data: usage } = await userClient
     .from("ai_voice_usage")
     .select("minutes_used")
     .eq("user_id", userId)
@@ -85,12 +91,12 @@ async function handleCheckQuota(
     .single();
 
   const minutesUsed = Number(usage?.minutes_used || 0);
-  const remainingMinutes = Math.max(0, QUOTA_LIMIT_MINUTES - minutesUsed);
+  const remainingMinutes = Math.max(0, quotaLimit - minutesUsed);
 
   return jsonResponse(
     {
       minutesUsed: minutesUsed.toFixed(1),
-      quotaLimit: QUOTA_LIMIT_MINUTES,
+      quotaLimit,
       remainingMinutes: remainingMinutes.toFixed(1),
     },
     200,
@@ -105,6 +111,11 @@ async function handleStartSession(
 ): Promise<Response> {
   const userClient = createUserClient(authHeader);
   const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const quotaLimit = await getQuotaLimitForUser(
+    userClient,
+    userId,
+    DEFAULT_QUOTA_MINUTES,
+  );
 
   const { data: usage } = await userClient
     .from("ai_voice_usage")
@@ -114,14 +125,14 @@ async function handleStartSession(
     .single();
 
   const minutesUsed = Number(usage?.minutes_used || 0);
-  const remainingMinutes = QUOTA_LIMIT_MINUTES - minutesUsed;
+  const remainingMinutes = quotaLimit - minutesUsed;
 
-  if (minutesUsed >= QUOTA_LIMIT_MINUTES) {
+  if (minutesUsed >= quotaLimit) {
     return jsonResponse(
       {
         error: "Monthly quota exceeded",
         minutesUsed,
-        quotaLimit: QUOTA_LIMIT_MINUTES,
+        quotaLimit,
         remainingMinutes: 0,
       },
       429,
@@ -129,11 +140,11 @@ async function handleStartSession(
     );
   }
 
-  const warningThreshold = QUOTA_LIMIT_MINUTES * 0.8;
+  const warningThreshold = quotaLimit * 0.8;
   const warning = minutesUsed >= warningThreshold
     ? `You've used ${
       minutesUsed.toFixed(1)
-    } of ${QUOTA_LIMIT_MINUTES} minutes this month.`
+    } of ${quotaLimit} minutes this month.`
     : null;
 
   const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
@@ -218,7 +229,7 @@ async function handleStartSession(
       ephemeralToken,
       remainingMinutes: remainingMinutes.toFixed(1),
       warning,
-      quotaLimit: QUOTA_LIMIT_MINUTES,
+      quotaLimit,
       minutesUsed: minutesUsed.toFixed(1),
     },
     200,

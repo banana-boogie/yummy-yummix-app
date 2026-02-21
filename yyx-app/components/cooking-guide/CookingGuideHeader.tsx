@@ -101,25 +101,17 @@ export function CookingGuideHeader({
                 </View>
             )}
 
-            <View className="px-sm mt-md mb-xxs lg:mb-sm lg:max-w-[1000px] lg:self-center lg:w-full">
+            <View
+                className="px-sm mt-md mb-xxs lg:mb-sm lg:max-w-[1000px] lg:self-center lg:w-full"
+                style={{ position: 'relative' }}
+            >
                 {!showImage && showBackButton && <BackButton onPress={onBackPress} className="mb-sm bg-black/5" />}
 
-                {/* Title row with optional VoiceAssistantButton */}
+                {/* Title */}
                 {showTitle && title !== undefined ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <View style={{ flex: 1, flexShrink: 1, marginRight: recipeContext ? 12 : 0 }}>
-                            <Text preset={titlePreset} className="mb-xxs">
-                                {title}
-                            </Text>
-                        </View>
-                        {recipeContext && (
-                            <VoiceAssistantButton
-                                position="inline"
-                                size="medium"
-                                recipeContext={recipeContext}
-                            />
-                        )}
-                    </View>
+                    <Text preset={titlePreset} className="mb-xxs">
+                        {title}
+                    </Text>
                 ) : null}
 
                 {showSubtitle && subtitle !== undefined ?
@@ -129,6 +121,16 @@ export function CookingGuideHeader({
                     :
                     null
                 }
+
+                {recipeContext && (
+                    <View style={{ position: 'absolute', bottom: 8, right: 8, zIndex: 50 }}>
+                        <VoiceAssistantButton
+                            position="inline"
+                            size="small"
+                            recipeContext={recipeContext}
+                        />
+                    </View>
+                )}
             </View>
         </View>
     );

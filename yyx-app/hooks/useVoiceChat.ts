@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useMeasurement } from '@/contexts/MeasurementContext';
+import { useVoiceSession } from '@/contexts/VoiceSessionContext';
 import { VoiceProviderFactory } from '@/services/voice/VoiceProviderFactory';
 import type {
     VoiceAssistantProvider,
@@ -59,6 +60,10 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     } | null>(null);
     // Ref to hold the streaming assistant message ID for updates
     const streamingMsgIdRef = useRef<string | null>(null);
+    // Ref to remember the most recent assistant message (for ordering correction)
+    const lastAssistantMsgIdRef = useRef<string | null>(null);
+    // Ref to track the active response ID and ignore late events from interrupted responses
+    const activeResponseIdRef = useRef<string | null>(null);
 
     // Delta batching — coalesce rapid assistantTranscriptDelta events
     const DELTA_BATCH_MS = 80;
@@ -71,8 +76,25 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     const { userProfile } = useUserProfile();
     const { language } = useLanguage();
     const { measurementSystem } = useMeasurement();
+    const { registerSession, unregisterSession } = useVoiceSession();
 
     const providerRef = useRef<VoiceAssistantProvider | null>(null);
+    const hookIdRef = useRef(generateMsgId());
+
+    const resetStreamingRefs = useCallback((preserveLastAssistant = false) => {
+        if (deltaTimerRef.current) {
+            clearTimeout(deltaTimerRef.current);
+            deltaTimerRef.current = null;
+        }
+        deltaBufferRef.current = '';
+        streamingMsgIdRef.current = null;
+        assistantTextRef.current = '';
+        pendingRecipeDataRef.current = null;
+        activeResponseIdRef.current = null;
+        if (!preserveLastAssistant) {
+            lastAssistantMsgIdRef.current = null;
+        }
+    }, []);
 
     // Sync from parent when external messages are explicitly reset (e.g. "New Chat").
     // Track previous external length to only clear on a >0 → 0 transition,
@@ -99,19 +121,16 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     useEffect(() => {
         // Cleanup on unmount
         return () => {
-            // Clear any pending delta batch
-            if (deltaTimerRef.current) {
-                clearTimeout(deltaTimerRef.current);
-                deltaTimerRef.current = null;
-            }
+            resetStreamingRefs();
             // Remove all tracked event listeners
             for (const { event, callback } of listenersRef.current) {
                 providerRef.current?.off(event as any, callback);
             }
             listenersRef.current = [];
             providerRef.current?.destroy();
+            unregisterSession(hookIdRef.current);
         };
-    }, []);
+    }, [resetStreamingRefs, unregisterSession]);
 
     // Helper to append a message to the transcript
     const appendMessage = useCallback((msg: ChatMessage) => {
@@ -143,24 +162,30 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             if (idx === -1) return prev;
             const updated = [...prev];
             const pending = pendingRecipeDataRef.current;
+            const existing = updated[idx];
+            const shouldApplyRecipes = !!pending?.recipes && !existing.recipes;
+            const shouldApplyCustomRecipe = !!pending?.customRecipe && !existing.customRecipe;
+            const shouldApplySafetyFlags = !!pending?.safetyFlags && !existing.safetyFlags;
             updated[idx] = {
-                ...updated[idx],
+                ...existing,
                 content: fullText,
-                ...(pending?.recipes ? { recipes: pending.recipes } : {}),
-                ...(pending?.customRecipe ? { customRecipe: pending.customRecipe } : {}),
-                ...(pending?.safetyFlags ? { safetyFlags: pending.safetyFlags } : {}),
+                ...(shouldApplyRecipes ? { recipes: pending?.recipes } : {}),
+                ...(shouldApplyCustomRecipe ? { customRecipe: pending?.customRecipe } : {}),
+                ...(shouldApplySafetyFlags ? { safetyFlags: pending?.safetyFlags } : {}),
             };
             pendingRecipeDataRef.current = null;
             return updated;
         });
         streamingMsgIdRef.current = null;
         assistantTextRef.current = '';
+        lastAssistantMsgIdRef.current = id;
     }, []);
 
     const startConversation = useCallback(async () => {
         setError(null);
         setTranscript('');
         setResponse('');
+        resetStreamingRefs();
 
         try {
             // 1. Check if authenticated
@@ -189,15 +214,35 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             // Transcript events for live transcript
             addListener('userTranscriptComplete', (text: string) => {
                 if (!text.trim()) return;
-                appendMessage({
+                const userMsg: ChatMessage = {
                     id: generateMsgId(),
                     role: 'user',
                     content: text,
                     createdAt: new Date(),
+                };
+                const targetId = streamingMsgIdRef.current || lastAssistantMsgIdRef.current;
+                setTranscriptMessages(prev => {
+                    if (targetId) {
+                        const idx = prev.findIndex(m => m.id === targetId);
+                        if (idx !== -1) {
+                            const next = [...prev];
+                            next.splice(idx, 0, userMsg);
+                            return next;
+                        }
+                    }
+                    return [...prev, userMsg];
                 });
+                lastAssistantMsgIdRef.current = null;
             });
 
-            addListener('assistantTranscriptDelta', (delta: string) => {
+            addListener('assistantTranscriptDelta', (delta: string, responseId?: string) => {
+                if (responseId && activeResponseIdRef.current && responseId !== activeResponseIdRef.current) {
+                    return;
+                }
+                if (responseId && !activeResponseIdRef.current) {
+                    activeResponseIdRef.current = responseId;
+                }
+
                 assistantTextRef.current += delta;
                 deltaBufferRef.current += delta;
 
@@ -205,6 +250,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                 if (!streamingMsgIdRef.current) {
                     const id = generateMsgId();
                     streamingMsgIdRef.current = id;
+                    lastAssistantMsgIdRef.current = id;
                     deltaBufferRef.current = '';
                     appendMessage({
                         id,
@@ -227,7 +273,11 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                 }
             });
 
-            addListener('assistantTranscriptComplete', (fullText: string) => {
+            addListener('assistantTranscriptComplete', (fullText: string, responseId?: string) => {
+                if (responseId && activeResponseIdRef.current && responseId !== activeResponseIdRef.current) {
+                    return;
+                }
+
                 // Flush any pending delta batch
                 if (deltaTimerRef.current) {
                     clearTimeout(deltaTimerRef.current);
@@ -240,7 +290,11 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                 } else if (fullText.trim()) {
                     // No streaming messages were created (shouldn't happen, but be safe)
                     appendMessage({
-                        id: generateMsgId(),
+                        id: (() => {
+                            const id = generateMsgId();
+                            lastAssistantMsgIdRef.current = id;
+                            return id;
+                        })(),
                         role: 'assistant',
                         content: fullText,
                         createdAt: new Date(),
@@ -251,6 +305,34 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                     pendingRecipeDataRef.current = null;
                     assistantTextRef.current = '';
                 }
+                activeResponseIdRef.current = null;
+            });
+
+            addListener('responseInterrupted', (responseId?: string) => {
+                if (responseId && activeResponseIdRef.current && responseId !== activeResponseIdRef.current) {
+                    return;
+                }
+
+                if (deltaTimerRef.current) {
+                    clearTimeout(deltaTimerRef.current);
+                    deltaTimerRef.current = null;
+                }
+
+                const currentStreamingId = streamingMsgIdRef.current;
+                if (currentStreamingId) {
+                    if (assistantTextRef.current.trim()) {
+                        finalizeAssistantMessage(currentStreamingId, assistantTextRef.current);
+                    } else {
+                        setTranscriptMessages(prev => prev.filter(m => m.id !== currentStreamingId));
+                        streamingMsgIdRef.current = null;
+                        assistantTextRef.current = '';
+                        lastAssistantMsgIdRef.current = null;
+                    }
+                }
+
+                deltaBufferRef.current = '';
+                pendingRecipeDataRef.current = null;
+                activeResponseIdRef.current = null;
             });
 
             // Tool call handler
@@ -264,14 +346,25 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                         options?.sessionId ?? undefined,
                     );
 
-                    // Store recipe data for the next assistant message
-                    if (result.recipes) {
-                        pendingRecipeDataRef.current = { recipes: result.recipes };
-                    } else if (result.customRecipe) {
-                        pendingRecipeDataRef.current = {
-                            customRecipe: result.customRecipe,
-                            safetyFlags: result.safetyFlags,
-                        };
+                    const recipeData = result.customRecipe
+                        ? {
+                            customRecipe: result.customRecipe as ChatMessage['customRecipe'],
+                            safetyFlags: result.safetyFlags as ChatMessage['safetyFlags'],
+                        }
+                        : result.recipes
+                            ? { recipes: result.recipes as ChatMessage['recipes'] }
+                            : null;
+
+                    if (recipeData) {
+                        const targetMsgId = streamingMsgIdRef.current;
+                        if (targetMsgId) {
+                            setTranscriptMessages(prev => prev.map(msg =>
+                                msg.id === targetMsgId ? { ...msg, ...recipeData } : msg
+                            ));
+                            pendingRecipeDataRef.current = null;
+                        } else {
+                            pendingRecipeDataRef.current = recipeData;
+                        }
                     }
 
                     // Send result back to OpenAI so it can speak about it
@@ -324,15 +417,24 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                 recipeContext: options?.recipeContext
             });
 
+            registerSession(hookIdRef.current, () => {
+                providerRef.current?.stopConversation();
+                resetStreamingRefs();
+                unregisterSession(hookIdRef.current);
+            });
+
         } catch (err) {
             console.error('[VoiceChat] Start error:', err);
             setError(err instanceof Error ? err.message : 'Unknown error');
+            unregisterSession(hookIdRef.current);
         }
-    }, [language, measurementSystem, userProfile, options, appendMessage, updateStreamingMessage, finalizeAssistantMessage]);
+    }, [language, measurementSystem, userProfile, options, appendMessage, updateStreamingMessage, finalizeAssistantMessage, resetStreamingRefs, registerSession, unregisterSession]);
 
     const stopConversation = useCallback(() => {
         providerRef.current?.stopConversation();
-    }, []);
+        resetStreamingRefs();
+        unregisterSession(hookIdRef.current);
+    }, [resetStreamingRefs, unregisterSession]);
 
     const updateContext = useCallback((recipeContext: RecipeContext) => {
         if (!providerRef.current) return;
