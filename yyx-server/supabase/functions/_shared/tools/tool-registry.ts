@@ -12,6 +12,7 @@ import {
   GenerateRecipeResult,
   PartialRecipeCallback,
 } from "./generate-custom-recipe.ts";
+import { modifyRecipe, modifyRecipeTool } from "./modify-recipe.ts";
 import {
   retrieveCookedRecipes,
   retrieveCookedRecipesTool,
@@ -70,6 +71,35 @@ const TOOL_REGISTRY: Record<string, ToolRegistration> = {
     allowedInVoice: true,
     execute: async (args, context) =>
       await generateCustomRecipe(
+        context.supabase,
+        args,
+        context.userContext,
+        undefined,
+        context.onPartialRecipe,
+      ),
+    shapeResult: (result) => {
+      if (!result || typeof result !== "object") {
+        return { result };
+      }
+      const generated = result as GenerateRecipeResult;
+      return {
+        customRecipe: generated.recipe,
+        safetyFlags: generated.safetyFlags,
+      };
+    },
+  },
+  modify_recipe: {
+    aiTool: {
+      name: modifyRecipeTool.function.name,
+      description: modifyRecipeTool.function.description,
+      parameters: modifyRecipeTool.function.parameters as Record<
+        string,
+        unknown
+      >,
+    },
+    allowedInVoice: true,
+    execute: async (args, context) =>
+      await modifyRecipe(
         context.supabase,
         args,
         context.userContext,

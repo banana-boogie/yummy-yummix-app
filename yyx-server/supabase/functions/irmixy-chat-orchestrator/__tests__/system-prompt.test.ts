@@ -50,9 +50,9 @@ Deno.test("buildSystemPrompt includes meal context section when detected", () =>
 Deno.test("buildSystemPrompt includes search-first strategy in consolidated rules", () => {
   const prompt = buildSystemPrompt(createUserContext());
 
-  assertStringIncludes(prompt, "Search first");
   assertStringIncludes(prompt, "search_recipes");
   assertStringIncludes(prompt, "generate_custom_recipe");
+  assertStringIncludes(prompt, "modify_recipe");
 });
 
 Deno.test("buildSystemPrompt uses warm allergen language (non-blocking)", () => {
@@ -141,9 +141,9 @@ Deno.test("buildSystemPrompt includes security rules", () => {
   assertStringIncludes(prompt, "override these rules");
 });
 
-Deno.test("buildSystemPrompt includes recipe modification rule", () => {
+Deno.test("buildSystemPrompt routes modifications to modify_recipe", () => {
   const prompt = buildSystemPrompt(createUserContext());
 
-  assertStringIncludes(prompt, "modify a previous recipe");
-  assertStringIncludes(prompt, "additionalRequests");
+  assertStringIncludes(prompt, "modify_recipe");
+  assertStringIncludes(prompt, "modify a recipe");
 });

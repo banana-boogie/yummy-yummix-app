@@ -374,7 +374,9 @@ async function callRecipeGenerationAI(
   throw lastError || new Error("Generated recipe does not match schema");
 }
 
-function parseAndValidateGeneratedRecipe(content: string): GeneratedRecipe {
+export function parseAndValidateGeneratedRecipe(
+  content: string,
+): GeneratedRecipe {
   // Strip code fences if model wraps response in ```json ... ```
   let jsonContent = content.trim();
   if (jsonContent.startsWith("```")) {
@@ -614,7 +616,7 @@ interface AllergenCheckResult {
  * Check all ingredients against user's allergen restrictions.
  * Uses parallel processing for performance.
  */
-async function checkIngredientsForAllergens(
+export async function checkIngredientsForAllergens(
   supabase: SupabaseClient,
   ingredients: string[],
   dietaryRestrictions: string[],
@@ -792,7 +794,7 @@ const USEFUL_ITEMS_CACHE_TTL_MS = 5 * 60 * 1000;
 let usefulItemsCache: UsefulItemRow[] | null = null;
 let usefulItemsCacheTimestamp = 0;
 
-async function getRelevantUsefulItems(
+export async function getRelevantUsefulItems(
   supabase: SupabaseClient,
   recipe: GeneratedRecipe,
   language: "en" | "es",
@@ -915,7 +917,7 @@ async function getRelevantUsefulItems(
 /**
  * Validate that Thermomix-enabled recipes include proper parameters
  */
-function validateThermomixUsage(
+export function validateThermomixUsage(
   recipe: GeneratedRecipe,
   hasThermomix: boolean,
 ): void {

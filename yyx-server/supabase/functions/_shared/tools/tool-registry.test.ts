@@ -71,6 +71,7 @@ Deno.test("voice tools: required tools are voice-allowed", () => {
     const name of [
       "search_recipes",
       "generate_custom_recipe",
+      "modify_recipe",
       "retrieve_cooked_recipes",
     ]
   ) {
@@ -114,6 +115,32 @@ Deno.test("tool registry: generate_custom_recipe shapeResult handles valid resul
 
 Deno.test("tool registry: generate_custom_recipe shapeResult handles null", () => {
   const reg = getToolRegistration("generate_custom_recipe")!;
+  const shaped = reg.shapeResult(null);
+  assertEquals(shaped.result, null);
+});
+
+Deno.test("tool registry: has modify_recipe registered", () => {
+  const reg = getToolRegistration("modify_recipe");
+  assertNotEquals(reg, undefined);
+  assertEquals(reg!.aiTool.name, "modify_recipe");
+});
+
+Deno.test("tool registry: modify_recipe is voice-allowed", () => {
+  const reg = getToolRegistration("modify_recipe");
+  assertEquals(reg!.allowedInVoice, true);
+});
+
+Deno.test("tool registry: modify_recipe shapeResult handles valid result", () => {
+  const reg = getToolRegistration("modify_recipe")!;
+  const shaped = reg.shapeResult({
+    recipe: { suggestedName: "Modified Pasta" },
+    safetyFlags: {},
+  });
+  assertEquals(shaped.customRecipe?.suggestedName, "Modified Pasta");
+});
+
+Deno.test("tool registry: modify_recipe shapeResult handles null", () => {
+  const reg = getToolRegistration("modify_recipe")!;
   const shaped = reg.shapeResult(null);
   assertEquals(shaped.result, null);
 });

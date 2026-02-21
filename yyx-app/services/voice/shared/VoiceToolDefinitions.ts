@@ -93,6 +93,25 @@ export const voiceTools = [
     },
     {
         type: "function" as const,
+        name: "modify_recipe",
+        description:
+            "Modify a previously generated recipe. Use when the user wants to change, adjust, or tweak " +
+            "a recipe that was just created (e.g. 'make it for 6', 'without nuts', 'make it spicier'). " +
+            "The original recipe is automatically extracted from conversation history.",
+        parameters: {
+            type: "object",
+            properties: {
+                modificationRequest: {
+                    type: "string",
+                    description:
+                        'What to change (e.g., "make it for 6 people", "remove nuts", "make it spicier")',
+                },
+            },
+            required: ["modificationRequest"],
+        },
+    },
+    {
+        type: "function" as const,
         name: "retrieve_cooked_recipes",
         description:
             "Retrieve recipes the user has previously cooked. " +

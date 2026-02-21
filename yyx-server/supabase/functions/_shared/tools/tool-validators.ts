@@ -256,6 +256,55 @@ export function validateRetrieveCookedRecipesParams(
 }
 
 // ============================================================
+// Modify Recipe Params
+// ============================================================
+
+export interface ModifyRecipeParams {
+  modificationRequest: string;
+}
+
+/**
+ * Validate and sanitize modify_recipe tool arguments.
+ */
+export function validateModifyRecipeParams(
+  raw: unknown,
+): ModifyRecipeParams {
+  let params: unknown;
+  if (typeof raw === "string") {
+    try {
+      params = JSON.parse(raw);
+    } catch {
+      throw new ToolValidationError(
+        "Invalid JSON in modify_recipe params",
+      );
+    }
+  } else {
+    params = raw;
+  }
+
+  if (!params || typeof params !== "object") {
+    throw new ToolValidationError(
+      "modify_recipe params must be an object",
+    );
+  }
+
+  const p = params as Record<string, unknown>;
+
+  if (
+    typeof p.modificationRequest !== "string" ||
+    !p.modificationRequest.trim()
+  ) {
+    throw new ToolValidationError(
+      "modify_recipe requires a non-empty modificationRequest",
+    );
+  }
+
+  return {
+    modificationRequest: sanitizeString(p.modificationRequest, 2000),
+  };
+}
+
+// ============================================================
 // Search Recipes Params
 // ============================================================
 

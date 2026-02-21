@@ -9,6 +9,7 @@
 export type AIUsageType =
   | "text"
   | "recipe_generation"
+  | "recipe_modification"
   | "parsing"
   | "embedding";
 

@@ -388,7 +388,8 @@ function handleStreamingRequest(
         ) {
           const toolName = assistantMessage.tool_calls[0].function.name;
           const hasGenerateToolCall = assistantMessage.tool_calls.some((tc) =>
-            tc.function.name === "generate_custom_recipe"
+            tc.function.name === "generate_custom_recipe" ||
+            tc.function.name === "modify_recipe"
           );
 
           if (hasGenerateToolCall) {
@@ -428,7 +429,8 @@ function handleStreamingRequest(
             type: "status",
             status: toolName === "search_recipes"
               ? "searching"
-              : toolName === "generate_custom_recipe"
+              : (toolName === "generate_custom_recipe" ||
+                  toolName === "modify_recipe")
               ? "cooking_it_up"
               : "generating",
           });

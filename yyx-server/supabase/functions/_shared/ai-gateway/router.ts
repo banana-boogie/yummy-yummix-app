@@ -24,6 +24,12 @@ const defaultRoutingConfig: AIRoutingConfig = {
     model: "gpt-5-mini",
     apiKeyEnvVar: "OPENAI_API_KEY",
   },
+  // Recipe modification (transform existing recipe JSON) — fast model, no reasoning
+  recipe_modification: {
+    provider: "openai",
+    model: "gpt-4.1-mini",
+    apiKeyEnvVar: "OPENAI_API_KEY",
+  },
   // Structured data parsing (admin, nutrition extraction) — speed over reasoning
   parsing: {
     provider: "openai",

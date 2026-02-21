@@ -65,6 +65,7 @@ Deno.test("parity: voice tools include search_recipes, generate_custom_recipe, r
   const required = [
     "search_recipes",
     "generate_custom_recipe",
+    "modify_recipe",
     "retrieve_cooked_recipes",
   ];
 
