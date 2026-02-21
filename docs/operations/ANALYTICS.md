@@ -92,10 +92,12 @@ Dashboard route: `/admin/analytics`
 Primary RPCs:
 - `admin_analytics(action, timeframe, limit_count)`
 - `admin_ai_usage(timeframe)`
+- `admin_ai_chat_session_depth(timeframe, filter_user_id)`
 
-AI tab shows two groups:
+AI tab shows three groups:
 1. **AI adoption** (chat/voice sessions, adoption rate, returning AI users)
 2. **AI costs & usage** (text cost, voice cost, total cost, token usage, latency, error rate, model and phase breakdowns, daily cost trend)
+3. **AI chat session depth** (avg messages, message distribution, tool usage breakdown, daily session trend, top users, context window health)
 
 Timeframes:
 - `today`

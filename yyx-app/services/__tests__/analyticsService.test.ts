@@ -90,6 +90,18 @@ describe('analyticsService', () => {
     expect(result).toEqual(mockResponse);
   });
 
+  it('getAIChatSessionMetrics throws when RPC returns error', async () => {
+    (supabase.rpc as jest.Mock).mockResolvedValue({
+      data: null,
+      error: { message: 'Admin access required', code: 'P0001' },
+    });
+
+    await expect(analyticsService.getAIChatSessionMetrics('7_days')).rejects.toEqual({
+      message: 'Admin access required',
+      code: 'P0001',
+    });
+  });
+
   it('getRecipeGenerationMetrics routes to recipe_generation action', async () => {
     const payload = {
       totalGenerated: 12,

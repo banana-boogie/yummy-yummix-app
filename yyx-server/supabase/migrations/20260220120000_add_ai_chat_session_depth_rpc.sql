@@ -43,8 +43,8 @@ BEGIN
       COUNT(*) FILTER (WHERE m.role = 'assistant')::int AS assistant_messages,
       EXTRACT(EPOCH FROM (MAX(m.created_at) - MIN(m.created_at))) / 60.0 AS duration_min,
       -- Tool detection: only check assistant rows, NULL-safe
-      COALESCE(BOOL_OR(m.role = 'assistant' AND m.tool_calls ? 'recipes'), false) AS has_search,
-      COALESCE(BOOL_OR(m.role = 'assistant' AND m.tool_calls ? 'customRecipe'), false) AS has_generation
+      COALESCE(BOOL_OR(m.role = 'assistant' AND m.tool_calls IS NOT NULL AND m.tool_calls ? 'recipes'), false) AS has_search,
+      COALESCE(BOOL_OR(m.role = 'assistant' AND m.tool_calls IS NOT NULL AND m.tool_calls ? 'customRecipe'), false) AS has_generation
     FROM user_chat_sessions s
     JOIN user_chat_messages m ON m.session_id = s.id
     WHERE (start_ts IS NULL OR s.created_at >= start_ts)

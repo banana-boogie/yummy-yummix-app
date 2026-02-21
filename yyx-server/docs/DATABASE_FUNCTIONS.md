@@ -63,6 +63,22 @@ Get AI usage/cost breakdown for the admin dashboard. Requires admin role.
 - `dailyCost`: per-day cost and request totals (text + voice)
 - `phaseBreakdown`: per-call-phase request counts, avg tokens, error rate
 
+### `admin_ai_chat_session_depth(timeframe, filter_user_id)`
+
+Get AI chat session depth metrics for the admin dashboard. Requires admin role.
+
+**Parameters:**
+- `timeframe` (text): 'today', '7_days', '30_days', 'all_time'
+- `filter_user_id` (uuid, optional): Filter to a specific user
+
+**Returns:** JSONB containing:
+- `avgMessagesPerSession`, `avgUserMessagesPerSession`, `avgAssistantMessagesPerSession`, `avgSessionDurationMin`, `totalSessions`
+- `messageDistribution`: bucketed session counts (2-4, 5-10, 11-20, 21+)
+- `toolUsage`: sessions with search, generation, both, or chat-only
+- `sessionsExceedingWindow`: sessions exceeding 50-message context window
+- `topUsers`: top 10 users by session count
+- `dailySessions`: per-day session counts
+
 ### `is_admin()`
 
 Check if the current authenticated user has admin privileges.
