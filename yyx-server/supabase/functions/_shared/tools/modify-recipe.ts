@@ -116,7 +116,7 @@ You are modifying an existing recipe, NOT creating one from scratch.
 - When scaling portions, adjust ALL ingredient quantities proportionally.
 - When removing an ingredient, update steps that reference it.
 - When adding an ingredient, add it to the ingredients list and update relevant steps.
-- Preserve the recipe name unless the modification fundamentally changes the dish.
+- Ensure the recipe name accurately describes the modified dish.
 - Preserve Thermomix parameters; adjust only if the modification requires it.
 - Return the COMPLETE modified recipe as JSON, same schema as the original.`;
 
