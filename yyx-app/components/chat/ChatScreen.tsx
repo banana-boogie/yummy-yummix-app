@@ -103,6 +103,7 @@ export function ChatScreen({
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isStreaming, setIsStreaming] = useState(false);
+    const [isRecipeGenerating, setIsRecipeGenerating] = useState(false);
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
     const [currentStatus, setCurrentStatus] = useState<IrmixyStatus>(null);
     const [dynamicSuggestions, setDynamicSuggestions] = useState<SuggestionChip[] | null>(null);
@@ -127,6 +128,7 @@ export function ChatScreen({
         streamRequestIdRef.current += 1; // Invalidate any in-flight callbacks
         setIsLoading(false);
         setIsStreaming(false);
+        setIsRecipeGenerating(false);
         setCurrentStatus(null);
     }, []);
 
@@ -393,10 +395,14 @@ export function ChatScreen({
                         onSessionCreated?.(sessionId);
                     }
                 },
-                // onStatus - update loading indicator text
+                // onStatus - update loading indicator text and detect recipe generation
                 (status) => {
                     if (!isActiveRequest()) return;
                     setCurrentStatus(status);
+                    // 'generating' status is only sent for recipe generation/modification flows
+                    if (status === 'generating') {
+                        setIsRecipeGenerating(true);
+                    }
                 },
                 // onStreamComplete - text streaming finished, enable input before suggestions arrive
                 () => {
@@ -405,6 +411,7 @@ export function ChatScreen({
                     // Don't wait for suggestions - they'll update the UI when they arrive
                     setIsLoading(false);
                     setIsStreaming(false);
+                    setIsRecipeGenerating(false);
                     setCurrentStatus(null);
                 },
                 // onPartialRecipe - show recipe card immediately before enrichment completes
@@ -566,6 +573,7 @@ export function ChatScreen({
                     // Don't wait for handle.done - text and suggestions are already received
                     setIsLoading(false);
                     setIsStreaming(false);
+                    setIsRecipeGenerating(false);
                     setCurrentStatus(null);
                     hasRecipeInCurrentStreamRef.current = false;
                     completedSuccessfully = true;
@@ -652,6 +660,7 @@ export function ChatScreen({
             if (isActiveRequest() && !completedSuccessfully) {
                 setIsLoading(false);
                 setIsStreaming(false);
+                setIsRecipeGenerating(false);
                 setCurrentStatus(null);
             }
             // Always clear cancel ref
@@ -776,6 +785,10 @@ export function ChatScreen({
     // Memoize status text to avoid function call on each item
     const statusText = useMemo(() => getStatusText(), [getStatusText]);
 
+    // Derive whether to show the recipe tracker (for bottom status bar visibility)
+    const latestMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    const showRecipeTracker = isRecipeGenerating && !latestMessage?.customRecipe;
+
     // Use memoized component to avoid re-renders of all items when one changes
     const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
         return (
@@ -783,6 +796,7 @@ export function ChatScreen({
                 item={item}
                 isLastMessage={item.id === lastMessageId}
                 isLoading={isLoading}
+                isRecipeGenerating={isRecipeGenerating}
                 currentStatus={currentStatus}
                 statusText={statusText}
                 onCopyMessage={handleCopyMessage}
@@ -790,7 +804,7 @@ export function ChatScreen({
                 onActionPress={handleActionPress}
             />
         );
-    }, [lastMessageId, isLoading, currentStatus, statusText, handleCopyMessage, handleStartCooking, handleActionPress]);
+    }, [lastMessageId, isLoading, isRecipeGenerating, currentStatus, statusText, handleCopyMessage, handleStartCooking, handleActionPress]);
 
     const handleScroll = useCallback((event: any) => {
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
@@ -886,8 +900,8 @@ export function ChatScreen({
                 </TouchableOpacity>
             )}
 
-            {/* Status indicator with avatar */}
-            {isLoading && (
+            {/* Status indicator with avatar (hidden when recipe tracker is visible) */}
+            {isLoading && !showRecipeTracker && (
                 <View className="px-md py-sm">
                     <View className="flex-row items-center">
                         <IrmixyAvatar state={currentStatus ?? 'thinking'} size={40} />

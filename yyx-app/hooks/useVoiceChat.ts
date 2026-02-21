@@ -43,6 +43,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     const [error, setError] = useState<string | null>(null);
     const [quotaInfo, setQuotaInfo] = useState<QuotaInfo | null>(null);
     const [isExecutingTool, setIsExecutingTool] = useState(false);
+    const [executingToolName, setExecutingToolName] = useState<string | null>(null);
 
     // Transcript messages for the live transcript UI
     const [transcriptMessages, setTranscriptMessages] = useState<ChatMessage[]>(
@@ -66,7 +67,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     const deltaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Listener tracking for proper cleanup via .off()
-    const listenersRef = useRef<Array<{ event: string; callback: (...args: any[]) => void }>>([]);
+    const listenersRef = useRef<{ event: string; callback: (...args: any[]) => void }[]>([]);
 
     const { userProfile } = useUserProfile();
     const { language } = useLanguage();
@@ -256,6 +257,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             // Tool call handler
             addListener('toolCall', async (toolCall: VoiceToolCall) => {
                 setIsExecutingTool(true);
+                setExecutingToolName(toolCall.name);
                 try {
                     const result = await executeToolOnBackend(
                         session.access_token,
@@ -289,6 +291,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                     );
                 } finally {
                     setIsExecutingTool(false);
+                    setExecutingToolName(null);
                 }
             });
 
@@ -355,6 +358,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
         quotaInfo,
         transcriptMessages,
         isExecutingTool,
+        executingToolName,
         updateMessage,
         startConversation,
         stopConversation,

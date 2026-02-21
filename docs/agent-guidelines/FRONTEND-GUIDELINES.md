@@ -20,7 +20,7 @@ yyx-app/
 ├── components/             # Reusable UI components
 │   ├── common/             # Core shared: Text, Button, SearchBar, Switch, AlertModal, ErrorMessage, CheckboxButton, Divider, GradientHeader, HeaderWithBack, LanguageBadge, ShareButton, StatusModal, SelectableCard, DangerButton, VoiceAssistantButton
 │   ├── layouts/            # PageLayout, ResponsiveLayout
-│   ├── chat/               # Chat-specific components
+│   ├── chat/               # Chat-specific components (RecipeProgressTracker, ChatScreen, VoiceChatScreen, etc.)
 │   ├── recipe/             # Recipe cards, lists
 │   ├── recipe-detail/      # Recipe detail views
 │   ├── cooking-guide/      # Cooking guide components
@@ -271,6 +271,42 @@ Platform prefixes in NativeWind:
 <View className="native:p-lg" />          // Only on native
 <View className="flex-col md:flex-row" /> // Responsive breakpoint
 ```
+
+---
+
+## Chat Components
+
+### RecipeProgressTracker
+
+`components/chat/RecipeProgressTracker.tsx` — a "Domino's tracker" style progress indicator shown during recipe generation. It replaces `RecipeGeneratingSkeleton` in both text and voice chat.
+
+**6 stages:** understanding -> ingredients -> cooking times -> steps -> final touches -> ready
+
+**Two operating modes:**
+
+| Mode | Trigger | How it works |
+|------|---------|-------------|
+| SSE-driven (text chat) | `currentStatus` prop from SSE events | Timer + SSE anchor snaps (e.g., `generating` -> stage 1, `enriching` -> stage 4) |
+| Timer-only (voice chat) | No `currentStatus` prop | Pure time-based advancement through stages |
+
+**Gating:**
+- **Text chat:** `isRecipeGenerating` boolean in `ChatScreen` — set `true` on `generating` SSE status. Bottom status bar is hidden while tracker is visible.
+- **Voice chat:** `executingToolName === 'generate_custom_recipe'` state from `useVoiceChat`.
+
+**PROGRESS_CONFIG** (exported constant for easy tuning):
+```typescript
+import { PROGRESS_CONFIG } from '@/components/chat/RecipeProgressTracker';
+```
+- `stages[].durationMs` — time budget per stage (total ~45s baseline as of Feb 2026)
+- `sseAnchors` — maps SSE status strings to minimum stage indices
+- `progressCap` (0.92) — prevents bar from reaching 100% before actual completion
+- `stallThresholdMs` (50s) — shows "Almost there..." message after this delay
+
+**Animation notes:**
+- Uses `scaleX` transform on progress bar for native driver compatibility
+- Logarithmic easing within each stage for natural feel
+- Label crossfade on stage transitions
+- Pulse animation on active stage icon via `MaterialCommunityIcons`
 
 ---
 

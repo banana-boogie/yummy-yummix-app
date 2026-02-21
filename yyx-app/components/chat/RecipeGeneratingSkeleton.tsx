@@ -1,6 +1,10 @@
 /**
  * Recipe Generating Skeleton
  *
+ * @deprecated Use RecipeProgressTracker instead. This component is kept for
+ * backward compatibility and test references but is no longer used in the
+ * main chat flow.
+ *
  * A shimmer loading skeleton displayed while a custom recipe is being generated.
  * Shows a preview of the card structure to reduce perceived loading time.
  */

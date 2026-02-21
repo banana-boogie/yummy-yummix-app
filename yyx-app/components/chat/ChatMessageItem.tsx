@@ -3,7 +3,7 @@ import { View, TouchableOpacity, Pressable } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { ChatRecipeCard } from '@/components/chat/ChatRecipeCard';
 import { CustomRecipeCard } from '@/components/chat/CustomRecipeCard';
-import { RecipeGeneratingSkeleton } from '@/components/chat/RecipeGeneratingSkeleton';
+import { RecipeProgressTracker } from '@/components/chat/RecipeProgressTracker';
 import {
     ChatMessage,
     IrmixyStatus,
@@ -119,6 +119,7 @@ export interface ChatMessageItemProps {
     item: ChatMessage;
     isLastMessage: boolean;
     isLoading: boolean;
+    isRecipeGenerating: boolean;
     currentStatus: IrmixyStatus;
     statusText: string;
     onCopyMessage: (content: string) => void;
@@ -130,6 +131,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
     item,
     isLastMessage,
     isLoading,
+    isRecipeGenerating,
     currentStatus,
     statusText,
     onCopyMessage,
@@ -137,8 +139,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
     onActionPress,
 }: ChatMessageItemProps) {
     const isUser = item.role === 'user';
-    const showRecipeSkeleton = !isUser && !item.customRecipe && isLoading
-        && (currentStatus === 'generating' || currentStatus === 'enriching') && isLastMessage;
+    const showRecipeTracker = !isUser && isRecipeGenerating && !item.customRecipe && isLastMessage;
     const hasRecipeVisualData = !isUser && (
         (item.recipes?.length ?? 0) > 0 || !!item.customRecipe
     );
@@ -198,10 +199,14 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                 </View>
             )}
 
-            {/* Show skeleton while generating/enriching recipe */}
-            {showRecipeSkeleton && (
+            {/* Recipe progress tracker (replaces skeleton during generation) */}
+            {showRecipeTracker && (
                 <View className="mt-sm w-full">
-                    <RecipeGeneratingSkeleton statusMessage={statusText} />
+                    <RecipeProgressTracker
+                        currentStatus={currentStatus}
+                        isActive={showRecipeTracker}
+                        hasRecipe={!!item.customRecipe}
+                    />
                 </View>
             )}
 

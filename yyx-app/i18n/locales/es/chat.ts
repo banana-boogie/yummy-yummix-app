@@ -111,6 +111,16 @@ export const chat = {
     surpriseMe: "Sorpréndeme",
     surpriseMeMessage: "Crea una receta divertida para mí",
   },
+  // Recipe progress tracker
+  progressTracker: {
+    stage1: "Entendiendo tu antojo...",
+    stage2: "Seleccionando los mejores ingredientes...",
+    stage3: "Planificando tiempos de cocción...",
+    stage4: "Escribiendo los pasos...",
+    stage5: "Toques finales...",
+    stage6: "¡Listo!",
+    stall: "Ya casi...",
+  },
   // Replay / retrieval
   replay: {
     foundOne: "¡Lo encontré! Aquí está tu receta.",
