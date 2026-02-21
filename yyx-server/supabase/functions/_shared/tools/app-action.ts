@@ -67,8 +67,9 @@ export function executeAppAction(
 
   return {
     action: action as AppActionType,
-    params: (params && typeof params === "object"
-      ? params
-      : {}) as Record<string, unknown>,
+    params: (params && typeof params === "object" ? params : {}) as Record<
+      string,
+      unknown
+    >,
   };
 }
