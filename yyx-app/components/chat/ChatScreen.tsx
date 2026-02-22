@@ -636,6 +636,7 @@ export function ChatScreen({
     }, [inputText, handleSendMessage]);
 
     const handleStop = useCallback(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         resetStreamingState();
     }, [resetStreamingState]);
 
@@ -908,6 +909,8 @@ export function ChatScreen({
                             className="rounded-full justify-center items-center bg-status-error"
                             style={{ width: SPACING.xxl, height: SPACING.xxl, marginLeft: SPACING.xs }}
                             onPress={handleStop}
+                            accessibilityLabel={i18n.t('chat.stopGenerating')}
+                            accessibilityRole="button"
                         >
                             <MaterialCommunityIcons name="stop" size={ICON_SIZE} color={COLORS.neutral.white} />
                         </TouchableOpacity>

@@ -293,6 +293,13 @@ function handleStreamingRequest(
     async start(controller) {
       let streamTimeoutId: ReturnType<typeof setTimeout> | null = null;
       let streamTimedOut = false;
+      let streamClosed = false;
+
+      const closeStream = () => {
+        if (streamClosed) return;
+        streamClosed = true;
+        controller.close();
+      };
 
       const resetStreamTimeout = () => {
         if (streamTimeoutId) clearTimeout(streamTimeoutId);
@@ -308,7 +315,7 @@ function handleStreamingRequest(
               }\n\n`,
             ),
           );
-          controller.close();
+          closeStream();
         }, STREAM_TIMEOUT_MS);
       };
 
@@ -433,7 +440,7 @@ function handleStreamingRequest(
               send({ type: "content", content: response.message });
               send({ type: "done", response });
               clearStreamTimeout();
-              controller.close();
+              closeStream();
               return;
             } catch (error) {
               log.error("Modification failed", error);
@@ -467,7 +474,7 @@ function handleStreamingRequest(
         if (signal.aborted) {
           log.info("Request aborted by client (after first LLM call)");
           clearStreamTimeout();
-          controller.close();
+          closeStream();
           return;
         }
 
@@ -533,7 +540,7 @@ function handleStreamingRequest(
             log.info("No-results fallback", timings);
             send({ type: "done", response });
             clearStreamTimeout();
-            controller.close();
+            closeStream();
             return;
           }
         }
@@ -541,7 +548,7 @@ function handleStreamingRequest(
         if (signal.aborted) {
           log.info("Request aborted by client (after tool execution)");
           clearStreamTimeout();
-          controller.close();
+          closeStream();
           return;
         }
 
@@ -599,7 +606,7 @@ function handleStreamingRequest(
         if (signal.aborted) {
           log.info("Request aborted by client (after streaming)");
           clearStreamTimeout();
-          controller.close();
+          closeStream();
           return;
         }
 
@@ -635,12 +642,12 @@ function handleStreamingRequest(
 
         send({ type: "done", response });
         clearStreamTimeout();
-        controller.close();
+        closeStream();
       } catch (error) {
         if (signal.aborted) {
           log.info("Request aborted by client");
           clearStreamTimeout();
-          controller.close();
+          closeStream();
           return;
         }
         log.error("Streaming error", error);
@@ -649,7 +656,7 @@ function handleStreamingRequest(
           error: "An unexpected error occurred",
         });
         clearStreamTimeout();
-        controller.close();
+        closeStream();
       }
     },
     cancel() {

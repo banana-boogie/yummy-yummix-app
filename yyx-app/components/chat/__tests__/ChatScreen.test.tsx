@@ -9,6 +9,9 @@
 import React from 'react';
 import { render, fireEvent, screen, waitFor } from '@testing-library/react-native';
 
+import { ChatScreen } from '../ChatScreen';
+import { createMockRecipeCardList } from '@/test/mocks/chat';
+
 // Mock all dependencies before importing ChatScreen
 jest.mock('@/i18n', () => ({
   t: (key: string) => {
@@ -33,6 +36,9 @@ jest.mock('@/i18n', () => ({
       'common.cancel': 'Cancel',
       'chat.messageCopied': 'Message copied to clipboard',
       'chat.error.title': 'Error',
+      'chat.stopGenerating': 'Stop generating',
+      'chat.voice.listening': 'Listening...',
+      'chat.voice.tapToSpeak': 'Tap to speak',
     };
     return translations[key] || key;
   },
@@ -129,9 +135,6 @@ jest.mock('@/components/chat/SuggestionChips', () => ({
     );
   },
 }));
-
-import { ChatScreen } from '../ChatScreen';
-import { createMockRecipeCardList } from '@/test/mocks/chat';
 
 describe('ChatScreen', () => {
   beforeEach(() => {
@@ -337,6 +340,108 @@ describe('ChatScreen', () => {
       render(<ChatScreen messages={externalMessages} />);
 
       expect(screen.getByText('External message content')).toBeTruthy();
+    });
+  });
+
+  // ============================================================
+  // STOP BUTTON TESTS
+  // ============================================================
+
+  describe('stop button', () => {
+    it('shows send button when not loading', () => {
+      render(<ChatScreen />);
+
+      // Send button icon should be present (not stop)
+      // The send button is always rendered when not loading
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      expect(input.props.editable).not.toBe(false);
+
+      // Stop button should not exist
+      expect(screen.queryByAccessibilityHint?.('Stop generating')).toBeNull();
+      expect(screen.queryByLabelText('Stop generating')).toBeNull();
+    });
+
+    it('shows stop button when loading', async () => {
+      const mockCancel = jest.fn();
+      // Never resolve done to keep loading state active
+      mockSendMessage.mockReturnValueOnce({
+        done: new Promise(() => {}),
+        cancel: mockCancel,
+      });
+
+      render(<ChatScreen />);
+
+      // Type and send a message to trigger loading
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      fireEvent.changeText(input, 'Make me a recipe');
+      fireEvent.press(screen.getByText('Suggest a recipe'));
+
+      await waitFor(() => {
+        expect(mockSendMessage).toHaveBeenCalled();
+      });
+
+      // Stop button should be visible via accessibility label
+      await waitFor(() => {
+        expect(screen.getByLabelText('Stop generating')).toBeTruthy();
+      });
+    });
+
+    it('cancels stream when stop button is pressed', async () => {
+      const mockCancel = jest.fn();
+      mockSendMessage.mockReturnValueOnce({
+        done: new Promise(() => {}),
+        cancel: mockCancel,
+      });
+
+      render(<ChatScreen />);
+
+      // Send a message via suggestion chip
+      fireEvent.press(screen.getByText('Suggest a recipe'));
+
+      await waitFor(() => {
+        expect(mockSendMessage).toHaveBeenCalled();
+      });
+
+      // Wait for stop button to appear and press it
+      await waitFor(() => {
+        expect(screen.getByLabelText('Stop generating')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByLabelText('Stop generating'));
+
+      // The cancel function from the stream handle should have been called
+      expect(mockCancel).toHaveBeenCalled();
+    });
+
+    it('re-enables input after stop button is pressed', async () => {
+      const mockCancel = jest.fn();
+      mockSendMessage.mockReturnValueOnce({
+        done: new Promise(() => {}),
+        cancel: mockCancel,
+      });
+
+      render(<ChatScreen />);
+
+      fireEvent.press(screen.getByText('Suggest a recipe'));
+
+      await waitFor(() => {
+        expect(mockSendMessage).toHaveBeenCalled();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Stop generating')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByLabelText('Stop generating'));
+
+      // Input should be re-enabled after stopping
+      await waitFor(() => {
+        const input = screen.getByPlaceholderText('Ask Irmixy...');
+        expect(input.props.editable).not.toBe(false);
+      });
+
+      // Stop button should be gone, replaced by send button
+      expect(screen.queryByLabelText('Stop generating')).toBeNull();
     });
   });
 
