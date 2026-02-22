@@ -47,6 +47,8 @@ export function VoiceChatScreen({
     const flatListRef = useRef<FlatList>(null);
     const executedActionIdsRef = useRef(new Set<string>());
     const isConnectedRef = useRef(false);
+    const transcriptMessagesRef = useRef(transcriptMessages);
+    transcriptMessagesRef.current = transcriptMessages;
 
     const {
         status,
@@ -141,10 +143,10 @@ export function VoiceChatScreen({
             const hasProvidedContext = !!context?.currentRecipe || !!context?.recipes?.length;
             const resolvedContext = hasProvidedContext
                 ? context
-                : resolveActionContext(transcriptMessages, sourceMessageId);
+                : resolveActionContext(transcriptMessagesRef.current, sourceMessageId);
             Promise.resolve(executeAction(action, resolvedContext)).catch(() => {});
         },
-        [transcriptMessages],
+        [],
     );
 
     useEffect(() => {
