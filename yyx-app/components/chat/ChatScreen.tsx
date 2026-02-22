@@ -153,12 +153,10 @@ export function ChatScreen({
         if (nextSessionId !== currentSessionId) {
             resetStreamingState();
             setCurrentSessionId(nextSessionId);
+            // Clear resume prompt when switching to a specific session.
+            // For explicit "new chat" dismissal, the newChatSignal effect handles it.
             if (nextSessionId) {
                 setResumeSession(null);
-            } else {
-                // User explicitly started a new chat; don't immediately prompt to resume old one.
-                setResumeSession(null);
-                setResumeDismissed(true);
             }
 
             // Restore suggestions from latest assistant message in this session
@@ -242,7 +240,9 @@ export function ChatScreen({
         }
     }, []);
 
-    // Get initial suggestions from i18n - recompute when language changes
+    // Get initial suggestions from i18n - recompute when language changes.
+    // `void language` forces useMemo to depend on language changes even though
+    // the value is only used indirectly via i18n.t() calls inside the memo.
     const initialSuggestions = useMemo(() => {
         void language;
         return [

@@ -174,6 +174,10 @@ export const RecipeProgressTracker = React.memo(function RecipeProgressTracker({
         pulseAnimRef.current?.stop();
         pulseAnim.setValue(1);
 
+        // Hide stall message
+        isStallRef.current = false;
+        setShowStall(false);
+
         // Stop interval
         if (intervalRef.current) {
             clearInterval(intervalRef.current);
@@ -276,7 +280,9 @@ export const RecipeProgressTracker = React.memo(function RecipeProgressTracker({
                 intervalRef.current = null;
             }
         };
-    // isActive is the only trigger for starting/stopping the timer
+    // isActive is the only trigger for starting/stopping the interval.
+    // Other values (advanceToStage, stages, progressCap, stallThresholdMs,
+    // stallOpacity, progressAnim, tickMs) are stable refs or module constants.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isActive]);
 

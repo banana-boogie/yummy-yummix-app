@@ -313,4 +313,79 @@ describe('CustomRecipeCard', () => {
     expect(Haptics.impactAsync).toHaveBeenCalledWith(Haptics.ImpactFeedbackStyle.Medium);
     expect(onStartCooking).toHaveBeenCalledWith(recipe, 'Test Recipe', 'msg-123', 'saved-1');
   });
+
+  it('has accessibility label with recipe name, time, difficulty and portions', () => {
+    const recipe = createMockGeneratedRecipe({
+      suggestedName: 'Chicken Stir Fry',
+      totalTime: 30,
+      difficulty: 'easy',
+      portions: 4,
+    });
+
+    render(
+      <CustomRecipeCard
+        recipe={recipe}
+        onStartCooking={onStartCooking}
+        messageId="msg-1"
+      />
+    );
+
+    expect(
+      screen.getByLabelText('Custom Recipe: Chicken Stir Fry. 30 min, Easy, 4 servings')
+    ).toBeTruthy();
+  });
+
+  it('disables Start Cooking button accessibly when loading', () => {
+    const recipe = createMockGeneratedRecipe();
+
+    render(
+      <CustomRecipeCard
+        recipe={recipe}
+        onStartCooking={onStartCooking}
+        messageId="msg-1"
+        loading={true}
+      />
+    );
+
+    const button = screen.getByLabelText(/Start Cooking/);
+    expect(button.props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it('shows fallback error message when no specific error details provided', () => {
+    const recipe = createMockGeneratedRecipe();
+
+    render(
+      <CustomRecipeCard
+        recipe={recipe}
+        safetyFlags={{ error: true }}
+        onStartCooking={onStartCooking}
+        messageId="msg-1"
+      />
+    );
+
+    expect(screen.getByText('Unable to create recipe')).toBeTruthy();
+    expect(screen.getByText('Recipe generation failed')).toBeTruthy();
+  });
+
+  it('renders useful items in expanded view', () => {
+    const recipe = createMockGeneratedRecipe({
+      usefulItems: [
+        { name: 'Wok' },
+        { name: 'Cutting board', imageUrl: 'https://example.com/board.png' },
+      ],
+    });
+
+    render(
+      <CustomRecipeCard
+        recipe={recipe}
+        onStartCooking={onStartCooking}
+        messageId="msg-1"
+        compact={false}
+      />
+    );
+
+    expect(screen.getByText('Useful Items:')).toBeTruthy();
+    expect(screen.getByText('Wok')).toBeTruthy();
+    expect(screen.getByText('Cutting board')).toBeTruthy();
+  });
 });

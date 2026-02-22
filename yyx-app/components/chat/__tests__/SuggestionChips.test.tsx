@@ -57,4 +57,15 @@ describe('SuggestionChips', () => {
 
     expect(screen.getByText(suggestion.label).props.numberOfLines).toBe(1);
   });
+
+  it('disables chips when disabled prop is true', () => {
+    const onSelect = jest.fn();
+    const suggestion = { label: 'Soup', message: 'Make soup' };
+
+    render(<SuggestionChips suggestions={[suggestion]} onSelect={onSelect} disabled={true} />);
+
+    fireEvent.press(screen.getByText('Soup'));
+
+    expect(onSelect).not.toHaveBeenCalled();
+  });
 });

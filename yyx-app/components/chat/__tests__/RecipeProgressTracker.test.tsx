@@ -225,6 +225,27 @@ describe('RecipeProgressTracker', () => {
     expect(screen.queryByText('Ready!')).toBeNull();
   });
 
+  it('transitions from stall to completion when recipe arrives', () => {
+    const { rerender } = render(
+      <RecipeProgressTracker isActive={true} hasRecipe={false} />
+    );
+
+    // Advance past stall threshold
+    act(() => {
+      jest.advanceTimersByTime(PROGRESS_CONFIG.stallThresholdMs + 100);
+    });
+
+    expect(screen.getByText('Almost there...')).toBeTruthy();
+
+    // Recipe arrives — should show Ready
+    rerender(
+      <RecipeProgressTracker isActive={true} hasRecipe={true} />
+    );
+
+    expect(screen.getByText('Ready!')).toBeTruthy();
+    expect(screen.queryByText('Almost there...')).toBeNull();
+  });
+
   it('has correct PROGRESS_CONFIG structure', () => {
     expect(PROGRESS_CONFIG.stages).toHaveLength(6);
     expect(PROGRESS_CONFIG.stages[0].key).toBe('understanding');

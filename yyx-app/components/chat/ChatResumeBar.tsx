@@ -22,7 +22,7 @@ interface ChatResumeBarProps {
     onDismiss: () => void;
 }
 
-export function ChatResumeBar({ sessionTitle, onContinue, onDismiss }: ChatResumeBarProps) {
+export const ChatResumeBar = React.memo(function ChatResumeBar({ sessionTitle, onContinue, onDismiss }: ChatResumeBarProps) {
     const handleDismiss = () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         onDismiss();
@@ -30,6 +30,7 @@ export function ChatResumeBar({ sessionTitle, onContinue, onDismiss }: ChatResum
 
     return (
         <View
+            testID="chat-resume-bar"
             className="mb-sm bg-primary-lightest rounded-xl p-md border border-primary-medium"
             accessible={true}
             accessibilityRole="alert"
@@ -67,4 +68,4 @@ export function ChatResumeBar({ sessionTitle, onContinue, onDismiss }: ChatResum
             </TouchableOpacity>
         </View>
     );
-}
+});

@@ -29,6 +29,11 @@ interface CustomRecipeCardProps {
     loading?: boolean;
     messageId: string;
     savedRecipeId?: string;
+    /**
+     * Show compact summary (ingredient/step counts + "See Full Recipe") instead of
+     * the fully expanded card. Defaults to `true` — all current callers
+     * (ChatMessageItem, VoiceChatScreen) pass `compact={true}` explicitly.
+     */
     compact?: boolean;
 }
 
@@ -82,6 +87,29 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setShowDisclaimer((prev) => !prev);
     }, []);
+
+    const startCookingButton = (className: string) => (
+        <Button
+            variant="primary"
+            onPress={handleStartCooking}
+            disabled={loading || isStartingCooking}
+            loading={isStartingCooking}
+            className={className}
+            accessibilityLabel={`${i18n.t('chat.startCooking')} ${recipeName}`}
+        >
+            <View className="flex-row items-center justify-center">
+                <MaterialCommunityIcons
+                    name="chef-hat"
+                    size={20}
+                    color="white"
+                    accessibilityElementsHidden={true}
+                />
+                <Text className="text-white font-semibold ml-sm">
+                    {i18n.t('chat.startCooking')}
+                </Text>
+            </View>
+        </Button>
+    );
 
     const getDifficultyColor = (difficulty: string) => {
         switch (difficulty) {
@@ -447,48 +475,10 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                                 {i18n.t('chat.seeFullRecipe')}
                             </Text>
                         </Button>
-                        <Button
-                            variant="primary"
-                            onPress={handleStartCooking}
-                            disabled={loading || isStartingCooking}
-                            loading={isStartingCooking}
-                            className="flex-1"
-                            accessibilityLabel={`${i18n.t('chat.startCooking')} ${recipeName}`}
-                        >
-                            <View className="flex-row items-center justify-center">
-                                <MaterialCommunityIcons
-                                    name="chef-hat"
-                                    size={20}
-                                    color="white"
-                                    accessibilityElementsHidden={true}
-                                />
-                                <Text className="text-white font-semibold ml-sm">
-                                    {i18n.t('chat.startCooking')}
-                                </Text>
-                            </View>
-                        </Button>
+                        {startCookingButton('flex-1')}
                     </View>
                 ) : (
-                    <Button
-                        variant="primary"
-                        onPress={handleStartCooking}
-                        disabled={loading || isStartingCooking}
-                        loading={isStartingCooking}
-                        className="w-full"
-                        accessibilityLabel={`${i18n.t('chat.startCooking')} ${recipeName}`}
-                    >
-                        <View className="flex-row items-center justify-center">
-                            <MaterialCommunityIcons
-                                name="chef-hat"
-                                size={20}
-                                color="white"
-                                accessibilityElementsHidden={true}
-                            />
-                            <Text className="text-white font-semibold ml-sm">
-                                {i18n.t('chat.startCooking')}
-                            </Text>
-                        </View>
-                    </Button>
+                    startCookingButton('w-full')
                 )}
             </View>
         </View>

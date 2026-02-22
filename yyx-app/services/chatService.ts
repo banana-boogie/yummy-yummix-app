@@ -580,9 +580,9 @@ export async function getRecentlyCookedRecipes(limit = 5): Promise<{
         return [];
     }
 
-    return data.map((event: any) => ({
-        recipeId: event.payload?.recipe_id || '',
-        recipeName: event.payload?.recipe_name || '',
+    return data.map((event: { payload: Record<string, unknown> | null; created_at: string }) => ({
+        recipeId: (event.payload?.recipe_id as string) || '',
+        recipeName: (event.payload?.recipe_name as string) || '',
         cookedAt: new Date(event.created_at),
     }));
 }
