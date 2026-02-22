@@ -147,9 +147,9 @@ export function ChatScreen({
     }, [initialSessionId, currentSessionId, resetStreamingState]);
 
     // Reload messages when component mounts if sessionId is set but no messages exist
-    // Skip if external messages are provided (they already contain recipes)
+    // Skip if external messages already contain data (e.g., user switched sessions)
     useEffect(() => {
-        if (initialSessionId && messages.length === 0 && user && !externalMessages) {
+        if (initialSessionId && messages.length === 0 && user && !externalMessages?.length) {
             loadChatHistory(initialSessionId)
                 .then((history) => {
                     if (isMountedRef.current && history.length > 0) {

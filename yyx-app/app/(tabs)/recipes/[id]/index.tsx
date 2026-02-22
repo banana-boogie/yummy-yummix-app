@@ -29,7 +29,7 @@ import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
 
 
 const RecipeDetail: React.FC = () => {
-  const { id, from } = useLocalSearchParams();
+  const { id } = useLocalSearchParams();
   const router = useRouter();
 
   // Validate ID early to prevent unnecessary API calls
