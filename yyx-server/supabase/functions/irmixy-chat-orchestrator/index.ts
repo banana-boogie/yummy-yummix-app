@@ -375,11 +375,6 @@ function handleStreamingRequest(
           toolNames: assistantMessage.tool_calls?.map((tc) => tc.function.name),
         });
 
-        // Stream preview text before tool execution (warm message while recipe generates)
-        if (assistantMessage.content) {
-          send({ type: "content", content: assistantMessage.content });
-        }
-
         if (
           assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0
         ) {
