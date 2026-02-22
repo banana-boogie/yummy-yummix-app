@@ -4,7 +4,7 @@ import { Text } from '@/components/common/Text';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BackButton } from '@/components/navigation/BackButton';
 import { HamburgerMenu } from '@/components/navigation/HamburgerMenu';
-import { FONTS, TextPreset, COLORS } from '@/constants/design-tokens';
+import { FONTS, TextPreset, COLORS, SPACING } from '@/constants/design-tokens';
 import { Image } from 'expo-image';
 import { useDevice } from '@/hooks/useDevice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -123,7 +123,7 @@ export function CookingGuideHeader({
                 }
 
                 {recipeContext && (
-                    <View style={{ position: 'absolute', bottom: 8, right: 8, zIndex: 50 }}>
+                    <View style={{ position: 'absolute', bottom: SPACING.xs, right: SPACING.xs, zIndex: 50 }}>
                         <VoiceAssistantButton
                             position="inline"
                             size="small"

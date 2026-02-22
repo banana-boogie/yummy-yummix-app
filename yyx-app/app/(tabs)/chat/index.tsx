@@ -76,7 +76,6 @@ export default function ChatPage() {
             {mode === 'voice' ? (
                 <VoiceChatScreen
                     sessionId={sessionId}
-                    onSessionCreated={setSessionId}
                     transcriptMessages={voiceTranscriptMessages}
                     onTranscriptChange={setVoiceTranscriptMessages}
                 />

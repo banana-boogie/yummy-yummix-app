@@ -71,7 +71,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     const deltaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Listener tracking for proper cleanup via .off()
-    const listenersRef = useRef<Array<{ event: string; callback: (...args: any[]) => void }>>([]);
+    const listenersRef = useRef<{ event: string; callback: (...args: any[]) => void }[]>([]);
 
     const { userProfile } = useUserProfile();
     const { language } = useLanguage();
@@ -289,12 +289,10 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                     finalizeAssistantMessage(streamingMsgIdRef.current, fullText);
                 } else if (fullText.trim()) {
                     // No streaming messages were created (shouldn't happen, but be safe)
+                    const newMsgId = generateMsgId();
+                    lastAssistantMsgIdRef.current = newMsgId;
                     appendMessage({
-                        id: (() => {
-                            const id = generateMsgId();
-                            lastAssistantMsgIdRef.current = id;
-                            return id;
-                        })(),
+                        id: newMsgId,
                         role: 'assistant',
                         content: fullText,
                         createdAt: new Date(),

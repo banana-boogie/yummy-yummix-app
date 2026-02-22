@@ -1,3 +1,5 @@
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+
 const FALLBACK_QUOTA_MINUTES = 30;
 
 export function getDefaultVoiceQuotaMinutes(): number {
@@ -12,7 +14,8 @@ export function getDefaultVoiceQuotaMinutes(): number {
 }
 
 export async function getQuotaLimitForUser(
-  supabase: any,
+  // deno-lint-ignore no-explicit-any
+  supabase: SupabaseClient<any, any, any>,
   userId: string,
   defaultQuotaMinutes: number = getDefaultVoiceQuotaMinutes(),
 ): Promise<number> {

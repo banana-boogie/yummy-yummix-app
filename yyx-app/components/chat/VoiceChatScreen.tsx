@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
     View,
     Alert,
@@ -6,6 +6,8 @@ import {
     ActivityIndicator,
     Platform,
     TouchableOpacity,
+    type NativeSyntheticEvent,
+    type NativeScrollEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -29,7 +31,6 @@ const SCROLL_THRESHOLD = 200;
 
 interface Props {
     sessionId?: string | null;
-    onSessionCreated?: (sessionId: string) => void;
     /** External transcript messages for mode-switch persistence */
     transcriptMessages?: ChatMessage[];
     onTranscriptChange?: (messages: ChatMessage[]) => void;
@@ -79,6 +80,18 @@ export function VoiceChatScreen({
     const currentStatus: IrmixyStatus = isExecutingTool ? 'generating' : null;
     const statusText = isExecutingTool ? i18n.t('chat.voice.executingTool') : '';
     const lastMessageId = hasMessages ? transcriptMessages[transcriptMessages.length - 1]?.id : null;
+
+    // Refs for volatile values to keep renderMessage callback stable
+    const lastMessageIdRef = useRef(lastMessageId);
+    lastMessageIdRef.current = lastMessageId;
+    const currentStatusRef = useRef(currentStatus);
+    currentStatusRef.current = currentStatus;
+    const isExecutingToolRef = useRef(isExecutingTool);
+    isExecutingToolRef.current = isExecutingTool;
+    const statusTextRef = useRef(statusText);
+    statusTextRef.current = statusText;
+
+    const extraData = useMemo(() => ({ lastMessageId, isExecutingTool }), [lastMessageId, isExecutingTool]);
 
     const getAvatarState = (voiceStatus: VoiceStatus): AvatarState => {
         switch (voiceStatus) {
@@ -202,26 +215,18 @@ export function VoiceChatScreen({
         <View className="px-md mb-sm">
             <ChatMessageItem
                 item={item}
-                isLastMessage={item.id === lastMessageId}
-                isLoading={isExecutingTool}
-                currentStatus={currentStatus}
-                statusText={statusText}
+                isLastMessage={item.id === lastMessageIdRef.current}
+                isLoading={isExecutingToolRef.current}
+                currentStatus={currentStatusRef.current}
+                statusText={statusTextRef.current}
                 onCopyMessage={handleCopyMessage}
                 onStartCooking={handleStartCooking}
                 onActionPress={handleActionPress}
             />
         </View>
-    ), [
-        currentStatus,
-        handleActionPress,
-        handleCopyMessage,
-        handleStartCooking,
-        isExecutingTool,
-        lastMessageId,
-        statusText,
-    ]);
+    ), [handleActionPress, handleCopyMessage, handleStartCooking]);
 
-    const handleScroll = useCallback((event: any) => {
+    const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
         const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
         const isNearBottom = distanceFromBottom <= SCROLL_THRESHOLD;
@@ -274,6 +279,7 @@ export function VoiceChatScreen({
                         data={transcriptMessages}
                         keyExtractor={item => item.id}
                         renderItem={renderMessage}
+                        extraData={extraData}
                         contentContainerStyle={{ paddingVertical: 8 }}
                         onScroll={handleScroll}
                         scrollEventThrottle={200}
