@@ -292,6 +292,56 @@ Deno.test("parseGeminiResponse - concatenates multiple text parts", () => {
   assertEquals(result.content, "Hello world!");
 });
 
+Deno.test("parseGeminiResponse - filters thought parts from output", () => {
+  const response = {
+    candidates: [
+      {
+        content: {
+          parts: [
+            { text: "I should confirm the search results.", thought: true },
+            { text: "Here are your results!" },
+          ],
+          role: "model",
+        },
+        finishReason: "STOP",
+      },
+    ],
+    usageMetadata: {
+      promptTokenCount: 10,
+      candidatesTokenCount: 15,
+      totalTokenCount: 25,
+    },
+  };
+
+  const result = parseGeminiResponse(response, "gemini-3-flash-preview");
+  assertEquals(result.content, "Here are your results!");
+});
+
+Deno.test("parseGeminiResponse - returns empty content when all parts are thoughts", () => {
+  const response = {
+    candidates: [
+      {
+        content: {
+          parts: [
+            { text: "Let me think about this...", thought: true },
+            { text: "The user wants pasta recipes.", thought: true },
+          ],
+          role: "model",
+        },
+        finishReason: "STOP",
+      },
+    ],
+    usageMetadata: {
+      promptTokenCount: 10,
+      candidatesTokenCount: 15,
+      totalTokenCount: 25,
+    },
+  };
+
+  const result = parseGeminiResponse(response, "gemini-3-flash-preview");
+  assertEquals(result.content, "");
+});
+
 Deno.test("parseGeminiResponse - uses modelVersion when present", () => {
   const response = {
     candidates: [
@@ -368,6 +418,96 @@ Deno.test("translateSchemaForGemini - strips additionalProperties in array items
   const items = result.items as Record<string, unknown>;
   assertEquals("additionalProperties" in items, false);
   assertEquals(items.type, "object");
+});
+
+Deno.test("translateSchemaForGemini - converts type array with null to nullable", () => {
+  const schema = {
+    type: "object",
+    properties: {
+      thermomixTime: { type: ["integer", "null"] },
+    },
+  };
+
+  const result = translateSchemaForGemini(schema);
+  const props = result.properties as Record<string, Record<string, unknown>>;
+  assertEquals(props.thermomixTime.type, "integer");
+  assertEquals(props.thermomixTime.nullable, true);
+});
+
+Deno.test("translateSchemaForGemini - type array with multiple non-null types picks first", () => {
+  const schema = {
+    type: "object",
+    properties: {
+      value: { type: ["number", "string", "null"] },
+    },
+  };
+
+  const result = translateSchemaForGemini(schema);
+  const props = result.properties as Record<string, Record<string, unknown>>;
+  assertEquals(props.value.type, "number");
+  assertEquals(props.value.nullable, true);
+});
+
+Deno.test("translateSchemaForGemini - converts type arrays nested in array items", () => {
+  const schema = {
+    type: "object",
+    properties: {
+      steps: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            thermomixTime: { type: ["integer", "null"] },
+            thermomixTemp: { type: ["integer", "null"] },
+            instruction: { type: "string" },
+          },
+        },
+      },
+    },
+  };
+
+  const result = translateSchemaForGemini(schema);
+  const steps = (result.properties as Record<string, Record<string, unknown>>)
+    .steps;
+  const items = steps.items as Record<string, unknown>;
+  const itemProps = items.properties as Record<
+    string,
+    Record<string, unknown>
+  >;
+  assertEquals(itemProps.thermomixTime.type, "integer");
+  assertEquals(itemProps.thermomixTime.nullable, true);
+  assertEquals(itemProps.thermomixTemp.type, "integer");
+  assertEquals(itemProps.thermomixTemp.nullable, true);
+  assertEquals(itemProps.instruction.type, "string");
+  assertEquals(itemProps.instruction.nullable, undefined);
+});
+
+Deno.test("translateSchemaForGemini - non-array type left untouched", () => {
+  const schema = {
+    type: "object",
+    properties: {
+      name: { type: "string" },
+    },
+  };
+
+  const result = translateSchemaForGemini(schema);
+  const props = result.properties as Record<string, Record<string, unknown>>;
+  assertEquals(props.name.type, "string");
+  assertEquals(props.name.nullable, undefined);
+});
+
+Deno.test("translateSchemaForGemini - type array without null picks first type, no nullable", () => {
+  const schema = {
+    type: "object",
+    properties: {
+      value: { type: ["integer", "number"] },
+    },
+  };
+
+  const result = translateSchemaForGemini(schema);
+  const props = result.properties as Record<string, Record<string, unknown>>;
+  assertEquals(props.value.type, "integer");
+  assertEquals(props.value.nullable, undefined);
 });
 
 // =============================================================================

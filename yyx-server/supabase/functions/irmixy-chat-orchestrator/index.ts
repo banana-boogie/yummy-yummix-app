@@ -431,11 +431,25 @@ function handleStreamingRequest(
         const hasSuccessfulCustomRecipe = !!customRecipeResult?.recipe &&
           customRecipeResult?.safetyFlags?.error !== true;
 
+        // Keep stream alive while waiting for the AI provider to start responding
+        const streamHeartbeatId = setInterval(() => {
+          send({ type: "heartbeat" });
+        }, HEARTBEAT_INTERVAL_MS);
+
         // Stream AI response — text first, then tool results arrive in the done event.
-        const finalText = await callAIStream(
-          streamMessages,
-          (token) => send({ type: "content", content: token }),
-        );
+        let finalText: string;
+        try {
+          finalText = await callAIStream(
+            streamMessages,
+            (token) => {
+              // First token arrived — stop heartbeat, real data is flowing
+              if (streamHeartbeatId) clearInterval(streamHeartbeatId);
+              send({ type: "content", content: token });
+            },
+          );
+        } finally {
+          clearInterval(streamHeartbeatId);
+        }
         timings.stream_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
 

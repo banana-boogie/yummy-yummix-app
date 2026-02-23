@@ -22,6 +22,7 @@ import {
   enrichIngredientsWithImages,
   generateCustomRecipe,
   getSystemPrompt,
+  parseThermomixSpeed,
   TEMP_REGEX,
   VALID_NUMERIC_SPEEDS,
   VALID_SPECIAL_SPEEDS,
@@ -681,7 +682,7 @@ Deno.test("generateCustomRecipe proceeds with allergen warning when allergen det
     );
 
     // Verify the request went to Gemini
-    assertStringIncludes(capturedUrl ?? "", "gemini-3-flash-preview");
+    assertStringIncludes(capturedUrl ?? "", "gemini-2.5-flash");
     assertEquals(result.recipe.suggestedName, "Peanut Rice Bowl");
     assertStringIncludes(result.safetyFlags?.allergenWarning ?? "", "Contains");
     assertEquals(result.safetyFlags?.error, undefined);
@@ -1040,4 +1041,69 @@ Deno.test("validateThermomixSteps handles mixed valid and invalid params", () =>
   assertEquals(result[0].thermomixTime, 30);
   assertEquals(result[0].thermomixTemp, "100°C");
   assertEquals(result[0].thermomixSpeed, undefined);
+});
+
+Deno.test("validateThermomixSteps preserves composite 'Reverse 1' speed", () => {
+  const steps = [
+    {
+      order: 1,
+      instruction: "Sauté onions",
+      thermomixTime: 180,
+      thermomixTemp: "100°C",
+      thermomixSpeed: "Reverse 1",
+    },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixSpeed, "Reverse 1");
+  assertEquals(result[0].thermomixTime, 180);
+  assertEquals(result[0].thermomixTemp, "100°C");
+});
+
+// ============================================================
+// parseThermomixSpeed Tests
+// ============================================================
+
+Deno.test("parseThermomixSpeed accepts composite 'Reverse 1'", () => {
+  assertEquals(parseThermomixSpeed("Reverse 1"), "Reverse 1");
+});
+
+Deno.test("parseThermomixSpeed normalizes lowercase composite 'reverse 5'", () => {
+  assertEquals(parseThermomixSpeed("reverse 5"), "Reverse 5");
+});
+
+Deno.test("parseThermomixSpeed accepts reversed order '1 reverse'", () => {
+  assertEquals(parseThermomixSpeed("1 reverse"), "Reverse 1");
+});
+
+Deno.test("parseThermomixSpeed rejects out-of-range 'Reverse 11'", () => {
+  assertEquals(parseThermomixSpeed("Reverse 11"), null);
+});
+
+Deno.test("parseThermomixSpeed accepts standalone 'Reverse'", () => {
+  assertEquals(parseThermomixSpeed("Reverse"), "Reverse");
+});
+
+Deno.test("parseThermomixSpeed accepts standalone 'Spoon'", () => {
+  assertEquals(parseThermomixSpeed("Spoon"), "Spoon");
+});
+
+Deno.test("parseThermomixSpeed accepts pure numeric '5'", () => {
+  assertEquals(parseThermomixSpeed("5"), "5");
+});
+
+Deno.test("parseThermomixSpeed accepts 'Reverse Spoon'", () => {
+  assertEquals(parseThermomixSpeed("Reverse Spoon"), "Reverse Spoon");
+});
+
+Deno.test("parseThermomixSpeed normalizes lowercase 'reverse spoon'", () => {
+  assertEquals(parseThermomixSpeed("reverse spoon"), "Reverse Spoon");
+});
+
+Deno.test("parseThermomixSpeed accepts reversed order 'spoon reverse'", () => {
+  assertEquals(parseThermomixSpeed("spoon reverse"), "Reverse Spoon");
+});
+
+Deno.test("parseThermomixSpeed rejects invalid 'turbo'", () => {
+  assertEquals(parseThermomixSpeed("turbo"), null);
 });

@@ -66,7 +66,7 @@ Deno.test("summarizeHistoryToolResults - single search result", () => {
   );
 });
 
-Deno.test("summarizeHistoryToolResults - generated recipe with full attributes", () => {
+Deno.test("summarizeHistoryToolResults - generated recipe with full attributes shows only name", () => {
   const result = summarizeHistoryToolResults({
     customRecipe: {
       suggestedName: "Healthy Green Bowl",
@@ -82,11 +82,11 @@ Deno.test("summarizeHistoryToolResults - generated recipe with full attributes",
   });
   assertEquals(
     result,
-    '[Generated recipe: "Healthy Green Bowl", ingredients: spinach, avocado, quinoa, 25 min, 2 portions, easy]',
+    '[Generated recipe: "Healthy Green Bowl"]',
   );
 });
 
-Deno.test("summarizeHistoryToolResults - generated recipe uses 'ingredient' field as fallback", () => {
+Deno.test("summarizeHistoryToolResults - generated recipe shows only name regardless of fields", () => {
   const result = summarizeHistoryToolResults({
     customRecipe: {
       suggestedName: "Test Recipe",
@@ -99,7 +99,7 @@ Deno.test("summarizeHistoryToolResults - generated recipe uses 'ingredient' fiel
   });
   assertEquals(
     result,
-    '[Generated recipe: "Test Recipe", ingredients: flour, sugar, 30 min]',
+    '[Generated recipe: "Test Recipe"]',
   );
 });
 
@@ -125,7 +125,7 @@ Deno.test("summarizeHistoryToolResults - both search results and generated recip
   });
   assertEquals(
     result,
-    '[Showed 1 recipe(s): Pasta Salad, 15 min, easy, 4 portions] [Generated recipe: "Custom Pasta", ingredients: pasta, tomato, 20 min]',
+    '[Showed 1 recipe(s): Pasta Salad, 15 min, easy, 4 portions] [Generated recipe: "Custom Pasta"]',
   );
 });
 
@@ -166,7 +166,7 @@ Deno.test("summarizeHistoryToolResults - recipe with empty ingredients array", (
       totalTime: 10,
     },
   });
-  assertEquals(result, '[Generated recipe: "Empty Recipe", 10 min]');
+  assertEquals(result, '[Generated recipe: "Empty Recipe"]');
 });
 
 Deno.test("summarizeHistoryToolResults - recipe with ingredients missing name fields", () => {

@@ -30,19 +30,19 @@ const defaultRoutingConfig: AIRoutingConfig = {
   // Chat completions (orchestrator tool calling + streaming)
   text: {
     provider: "google",
-    model: "gemini-3-flash-preview",
+    model: "gemini-2.5-flash",
     apiKeyEnvVar: "GEMINI_API_KEY",
   },
   // Recipe generation (structured JSON output) — quality + speed critical
   recipe_generation: {
     provider: "google",
-    model: "gemini-3-flash-preview",
+    model: "gemini-2.5-flash",
     apiKeyEnvVar: "GEMINI_API_KEY",
   },
   // Recipe modification (transform existing recipe JSON)
   recipe_modification: {
     provider: "google",
-    model: "gemini-3-flash-preview",
+    model: "gemini-2.5-flash",
     apiKeyEnvVar: "GEMINI_API_KEY",
   },
   // Structured data parsing (admin, nutrition extraction) — speed over quality

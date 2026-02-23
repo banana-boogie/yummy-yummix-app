@@ -25,6 +25,7 @@ const GEMINI_BASE_URL =
 
 interface GeminiPart {
   text?: string;
+  thought?: boolean; // Gemini 3 thinking part — filter from output
   functionCall?: { name: string; args: Record<string, unknown> };
   functionResponse?: { name: string; response: Record<string, unknown> };
 }
@@ -221,7 +222,9 @@ export function parseGeminiResponse(
   const parts = candidate.content?.parts || [];
 
   // Extract text content
-  const textParts = parts.filter((p) => p.text).map((p) => p.text!);
+  const textParts = parts.filter((p) => p.text && !p.thought).map((p) =>
+    p.text!
+  );
   const content = textParts.join("");
 
   // Extract tool calls
@@ -260,6 +263,20 @@ export function translateSchemaForGemini(
 
   // Gemini doesn't support additionalProperties — remove it
   delete translated.additionalProperties;
+
+  // Convert type arrays to Gemini-compatible format
+  // e.g. { type: ["integer", "null"] } → { type: "integer", nullable: true }
+  if (Array.isArray(translated.type)) {
+    const types = translated.type as string[];
+    const nonNullTypes = types.filter((t) => t !== "null");
+    const hasNull = types.includes("null");
+    if (nonNullTypes.length >= 1) {
+      translated.type = nonNullTypes[0];
+    }
+    if (hasNull) {
+      translated.nullable = true;
+    }
+  }
 
   // Recursively clean nested schemas
   if (translated.properties && typeof translated.properties === "object") {
@@ -512,7 +529,7 @@ export async function* callGeminiStream(
         const parts = json.candidates?.[0]?.content?.parts;
         if (parts) {
           for (const part of parts) {
-            if (part.text) {
+            if (part.text && !part.thought) {
               yield part.text;
             }
           }
