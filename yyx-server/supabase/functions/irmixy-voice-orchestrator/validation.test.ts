@@ -18,7 +18,11 @@ const ALLOWED_ACTIONS = [
   "execute_tool",
   "check_quota",
 ] as const;
-const ALLOWED_TOOLS = ["search_recipes", "generate_custom_recipe"] as const;
+const ALLOWED_TOOLS = [
+  "search_recipes",
+  "generate_custom_recipe",
+  "modify_recipe",
+] as const;
 const MAX_PAYLOAD_BYTES = 10_000;
 
 Deno.test("ALLOWED_ACTIONS contains exactly the expected actions", () => {
@@ -50,9 +54,10 @@ Deno.test("action validation rejects unknown actions", () => {
 });
 
 Deno.test("ALLOWED_TOOLS contains exactly the expected tools", () => {
-  assertEquals(ALLOWED_TOOLS.length, 2);
+  assertEquals(ALLOWED_TOOLS.length, 3);
   assert(ALLOWED_TOOLS.includes("search_recipes"));
   assert(ALLOWED_TOOLS.includes("generate_custom_recipe"));
+  assert(ALLOWED_TOOLS.includes("modify_recipe"));
 });
 
 Deno.test("tool allowlist rejects unknown tool names", () => {

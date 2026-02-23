@@ -13,7 +13,6 @@ import {
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/common/Text';
-import { SuggestionChips } from '@/components/chat/SuggestionChips';
 import { IrmixyAvatar } from '@/components/chat/IrmixyAvatar';
 import { TypingDots } from '@/components/chat/TypingIndicator';
 import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
@@ -21,7 +20,6 @@ import { ChatResumeBar } from '@/components/chat/ChatResumeBar';
 import {
     ChatMessage,
     IrmixyStatus,
-    SuggestionChip,
     GeneratedRecipe,
     QuickAction,
     getLastSessionWithMessages,
@@ -40,6 +38,10 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import i18n from '@/i18n';
 import { COLORS, SPACING } from '@/constants/design-tokens';
+import {
+    getChatCustomCookingGuidePath,
+    getChatRecipeDetailPath,
+} from '@/utils/navigation/recipeRoutes';
 
 // Constants
 const SCROLL_THROTTLE_MS = 100; // Throttle scroll calls to avoid excessive layout calculations
@@ -108,7 +110,6 @@ export function ChatScreen({
     const [isRecipeGenerating, setIsRecipeGenerating] = useState(false);
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
     const [currentStatus, setCurrentStatus] = useState<IrmixyStatus>(null);
-    const [dynamicSuggestions, setDynamicSuggestions] = useState<SuggestionChip[] | null>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [resumeSession, setResumeSession] = useState<{ sessionId: string; title: string } | null>(null);
     const [resumeDismissed, setResumeDismissed] = useState(false);
@@ -158,25 +159,8 @@ export function ChatScreen({
             if (nextSessionId) {
                 setResumeSession(null);
             }
-
-            // Restore suggestions from latest assistant message in this session
-            const lastSuggested = [...messages]
-                .reverse()
-                .find((msg) => msg.role === 'assistant' && msg.suggestions?.length);
-            setDynamicSuggestions(lastSuggested?.suggestions ?? null);
         }
-    }, [initialSessionId, currentSessionId, messages, resetStreamingState]);
-
-    useEffect(() => {
-        setDynamicSuggestions(null);
-    }, [language]);
-
-    // Reset suggestions when messages are cleared (new chat)
-    useEffect(() => {
-        if (messages.length === 0) {
-            setDynamicSuggestions(null);
-        }
-    }, [messages.length]);
+    }, [initialSessionId, currentSessionId, resetStreamingState]);
 
     // Hide resume prompt when parent explicitly starts a new chat.
     useEffect(() => {
@@ -192,9 +176,9 @@ export function ChatScreen({
     }, [newChatSignal]);
 
     // Reload messages when component mounts if sessionId is set but no messages exist
-    // Skip if external messages are provided (they already contain recipes)
+    // Skip if external messages already contain data (e.g., user switched sessions)
     useEffect(() => {
-        if (initialSessionId && messages.length === 0 && user && !externalMessages) {
+        if (initialSessionId && messages.length === 0 && user && !externalMessages?.length) {
             loadChatHistory(initialSessionId)
                 .then((history) => {
                     if (isMountedRef.current && history.length > 0) {
@@ -240,24 +224,6 @@ export function ChatScreen({
         }
     }, []);
 
-    // Get initial suggestions from i18n - recompute when language changes.
-    // `void language` forces useMemo to depend on language changes even though
-    // the value is only used indirectly via i18n.t() calls inside the memo.
-    const initialSuggestions = useMemo(() => {
-        void language;
-        return [
-            { label: i18n.t('chat.suggestions.suggestRecipe'), message: i18n.t('chat.suggestions.suggestRecipe') },
-            { label: i18n.t('chat.suggestions.quickMeal'), message: i18n.t('chat.suggestions.quickMeal') },
-        ];
-    }, [language]);
-
-    // Use dynamic suggestions if available, otherwise fallback to initial
-    const currentSuggestions = dynamicSuggestions || initialSuggestions;
-
-    // Show suggestions only when chat is empty OR when AI explicitly provides suggestions
-    const showSuggestions = messages.length === 0 ||
-        (dynamicSuggestions && dynamicSuggestions.length > 0 && !isLoading);
-
     // Get status text based on current status
     const getStatusText = useCallback(() => {
         switch (currentStatus) {
@@ -267,6 +233,8 @@ export function ChatScreen({
                 return i18n.t('chat.searching');
             case 'generating':
                 return i18n.t('chat.generating');
+            case 'cooking_it_up':
+                return i18n.t('chat.cookingItUp');
             case 'enriching':
                 return i18n.t('chat.enriching');
             default:
@@ -339,7 +307,6 @@ export function ChatScreen({
         setIsLoading(true);
         setIsStreaming(false); // Not streaming yet, just thinking
         setCurrentStatus('thinking');
-        setDynamicSuggestions(null); // Clear previous suggestions
 
         // Reset to auto-scroll for new message
         isNearBottomRef.current = true;
@@ -424,11 +391,11 @@ export function ChatScreen({
                         setIsRecipeGenerating(true);
                     }
                 },
-                // onStreamComplete - text streaming finished, enable input before suggestions arrive
+                // onStreamComplete - text streaming finished, enable input
                 () => {
                     if (!isActiveRequest()) return;
                     // Enable input immediately when text streaming completes
-                    // Don't wait for suggestions - they'll update the UI when they arrive
+                    // Enable input immediately when text streaming completes
                     setIsLoading(false);
                     setIsStreaming(false);
                     setIsRecipeGenerating(false);
@@ -482,7 +449,7 @@ export function ChatScreen({
                         }, SCROLL_DELAY_MS);
                     }
                 },
-                // onComplete - receive full IrmixyResponse with recipes/suggestions/customRecipe
+                // onComplete - receive full IrmixyResponse with recipes/customRecipe
                 (response) => {
                     if (!isActiveRequest()) return;
 
@@ -494,7 +461,7 @@ export function ChatScreen({
                             hasCustomRecipe: !!response.customRecipe,
                             customRecipeName: response.customRecipe?.suggestedName,
                             hasRecipes: !!response.recipes?.length,
-                            hasSuggestions: !!response.suggestions?.length,
+                            hasActions: !!response.actions?.length,
                             safetyFlags: response.safetyFlags,
                         });
                     }
@@ -582,22 +549,15 @@ export function ChatScreen({
                             });
                         }, SCROLL_DELAY_MS);
                     }
-                    // Update suggestions - only use backend suggestions
-                    if (response.suggestions && response.suggestions.length > 0) {
-                        setDynamicSuggestions(response.suggestions);
-                    } else {
-                        setDynamicSuggestions([]);
-                    }
-
                     // Allow user to start typing immediately after response completes
-                    // Don't wait for handle.done - text and suggestions are already received
+                    // Don't wait for handle.done - text and response are already received
                     setIsLoading(false);
                     setIsStreaming(false);
                     setIsRecipeGenerating(false);
                     setCurrentStatus(null);
                     hasRecipeInCurrentStreamRef.current = false;
                     completedSuccessfully = true;
-                }
+                },
             );
 
             // Wrap cancel to flush partial message before canceling
@@ -703,11 +663,6 @@ export function ChatScreen({
         handleSendMessage(inputText);
     }, [inputText, handleSendMessage]);
 
-    const handleSuggestionSelect = useCallback((suggestion: SuggestionChip) => {
-        // Use the message field for sending (may differ from label)
-        handleSendMessage(suggestion.message);
-    }, [handleSendMessage]);
-
     const handleResumeContinue = useCallback(async () => {
         if (!resumeSession) return;
         try {
@@ -771,9 +726,7 @@ export function ChatScreen({
                 console.log('[ChatScreen] Starting cooking - recipe ID:', recipeId, 'name:', finalName, 'wasAlreadySaved:', !!savedRecipeId);
             }
 
-            // Navigate to redirect screen which handles the cooking guide navigation
-            // This avoids the Expo Router issue where replace to same route pattern doesn't work
-            router.push(`/(tabs)/recipes/start-cooking/${recipeId}?from=chat`);
+            router.push(getChatCustomCookingGuidePath(recipeId));
         } catch (error) {
             if (__DEV__) console.error('Failed to save custom recipe:', error);
             Alert.alert(
@@ -790,7 +743,7 @@ export function ChatScreen({
             case 'view_recipe': {
                 const recipeId = payload.recipeId as string;
                 if (recipeId) {
-                    router.push(`/(tabs)/recipes/${recipeId}?from=chat`);
+                    router.push(getChatRecipeDetailPath(recipeId));
                 }
                 break;
             }
@@ -933,14 +886,6 @@ export function ChatScreen({
                 </View>
             )}
 
-            {/* Suggestion chips above input */}
-            {showSuggestions && (
-                <SuggestionChips
-                    suggestions={currentSuggestions}
-                    onSelect={handleSuggestionSelect}
-                    disabled={isLoading}
-                />
-            )}
             {messages.length === 0 && onOpenSessionsMenu && (
                 <View className="px-md pb-sm">
                     <TouchableOpacity
@@ -1013,6 +958,7 @@ export function ChatScreen({
                         editable={!isLoading}
                     />
                     <TouchableOpacity
+                        testID="send-button"
                         className={`rounded-full justify-center items-center ${
                             isLoading ? 'bg-primary-medium' :
                             !inputText.trim() ? 'bg-grey-medium' : 'bg-primary-darkest'

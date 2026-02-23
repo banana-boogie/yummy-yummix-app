@@ -30,13 +30,6 @@ jest.mock('@/i18n', () => ({
       'chat.title': 'Irmixy',
       'chat.resume.previousConversations': 'Previous conversations',
       'chat.resume.continue': 'Continue',
-      'chat.suggestions.suggestRecipe': 'Suggest a recipe',
-      'chat.suggestions.whatCanICook': 'What can I cook?',
-      'chat.suggestions.quickMeal': 'Quick meal ideas',
-      'chat.suggestions.ingredientsIHave': 'Ingredients I have',
-      'chat.suggestions.healthyOptions': 'Healthy options',
-      'chat.suggestions.createCustomRecipeLabel': 'Create a custom recipe',
-      'chat.suggestions.createCustomRecipeMessage': 'Create a custom recipe for me',
       'common.copied': 'Copied',
       'common.ok': 'OK',
       'common.cancel': 'Cancel',
@@ -124,23 +117,6 @@ jest.mock('@/components/chat/ChatRecipeCard', () => ({
   },
 }));
 
-// Mock SuggestionChips
-jest.mock('@/components/chat/SuggestionChips', () => ({
-  SuggestionChips: ({ suggestions, onSelect, disabled }: any) => {
-    const { View, Text, TouchableOpacity } = require('react-native');
-    if (!suggestions || suggestions.length === 0) return null;
-    return (
-      <View testID="suggestion-chips">
-        {suggestions.map((s: any, i: number) => (
-          <TouchableOpacity key={i} onPress={() => onSelect(s)} disabled={disabled}>
-            <Text>{s.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    );
-  },
-}));
-
 describe('ChatScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -176,13 +152,6 @@ describe('ChatScreen', () => {
   // ============================================================
 
   describe('empty state', () => {
-    it('renders suggestion chips when chat is empty', () => {
-      render(<ChatScreen />);
-
-      expect(screen.getByTestId('suggestion-chips')).toBeTruthy();
-      expect(screen.getByText('Suggest a recipe')).toBeTruthy();
-    });
-
     it('renders greeting in empty state', () => {
       render(<ChatScreen />);
 
@@ -233,7 +202,12 @@ describe('ChatScreen', () => {
 
       const { rerender } = render(<ChatScreen sessionId="session-1" />);
 
-      fireEvent.press(screen.getByText('Suggest a recipe'));
+      // Type a message and send
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      fireEvent.changeText(input, 'Hello');
+      // Find the send button by testID
+      const sendButton = screen.getByTestId('send-button');
+      fireEvent.press(sendButton);
 
       await waitFor(() => {
         expect(mockSendMessage).toHaveBeenCalled();
@@ -301,29 +275,13 @@ describe('ChatScreen', () => {
   });
 
   // ============================================================
-  // SUGGESTION HANDLING TESTS
+  // NO SUGGESTION CHIPS
   // ============================================================
 
-  describe('suggestion handling', () => {
-    it('hides initial suggestions when messages exist', () => {
-      const messages = [
-        {
-          id: 'msg-1',
-          role: 'user' as const,
-          content: 'Hello',
-          createdAt: new Date(),
-        },
-        {
-          id: 'msg-2',
-          role: 'assistant' as const,
-          content: 'Hi!',
-          createdAt: new Date(),
-        },
-      ];
+  describe('no suggestion chips', () => {
+    it('does not render suggestion chips anywhere', () => {
+      render(<ChatScreen />);
 
-      render(<ChatScreen messages={messages} />);
-
-      // Suggestions should not be shown with messages (unless dynamic)
       expect(screen.queryByTestId('suggestion-chips')).toBeNull();
     });
   });

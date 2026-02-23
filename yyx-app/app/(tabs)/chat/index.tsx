@@ -5,8 +5,9 @@
  * Messages state is lifted here as a single source of truth for both modes.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, TouchableOpacity, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack } from 'expo-router';
 import { ChatScreen } from '@/components/chat/ChatScreen';
 import { VoiceChatScreen } from '@/components/chat/VoiceChatScreen';
@@ -16,27 +17,45 @@ import { COLORS } from '@/constants/design-tokens';
 import { ChatMessage } from '@/services/chatService';
 import i18n from '@/i18n';
 
+const STORAGE_KEY_SESSION_ID = 'lastChatSessionId';
+
 type ChatMode = 'text' | 'voice';
 
 export default function ChatPage() {
     const [mode, setMode] = useState<ChatMode>(Platform.OS === 'web' ? 'text' : 'voice');
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [voiceTranscriptMessages, setVoiceTranscriptMessages] = useState<ChatMessage[]>([]);
     const [sessionsMenuOpenSignal, setSessionsMenuOpenSignal] = useState(0);
     const [newChatSignal, setNewChatSignal] = useState(0);
+
+    // Restore persisted sessionId on mount
+    useEffect(() => {
+        AsyncStorage.getItem(STORAGE_KEY_SESSION_ID).then((stored) => {
+            if (stored) setSessionId(stored);
+        }).catch(() => { /* ignore storage errors */ });
+    }, []);
+
+    // Wrapper that persists sessionId alongside state
+    const updateSessionId = useCallback((newSessionId: string) => {
+        setSessionId(newSessionId);
+        AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, newSessionId).catch(() => {});
+    }, []);
 
     const toggleMode = useCallback(() => {
         setMode((m) => (m === 'text' ? 'voice' : 'text'));
     }, []);
 
     const handleSelectSession = useCallback((newSessionId: string, sessionMessages: ChatMessage[]) => {
-        setSessionId(newSessionId);
+        updateSessionId(newSessionId);
         setMessages(sessionMessages);
-    }, []);
+    }, [updateSessionId]);
 
     const handleNewChat = useCallback(() => {
         setSessionId(null);
         setMessages([]);
+        setVoiceTranscriptMessages([]);
+        AsyncStorage.removeItem(STORAGE_KEY_SESSION_ID).catch(() => {});
         setNewChatSignal((prev) => prev + 1);
     }, []);
 
@@ -77,14 +96,14 @@ export default function ChatPage() {
             {mode === 'voice' ? (
                 <VoiceChatScreen
                     sessionId={sessionId}
-                    onSessionCreated={setSessionId}
-                    transcriptMessages={messages}
-                    onTranscriptChange={setMessages}
+                    onSessionCreated={updateSessionId}
+                    transcriptMessages={voiceTranscriptMessages}
+                    onTranscriptChange={setVoiceTranscriptMessages}
                 />
             ) : (
                 <ChatScreen
                     sessionId={sessionId}
-                    onSessionCreated={setSessionId}
+                    onSessionCreated={updateSessionId}
                     messages={messages}
                     onMessagesChange={setMessages}
                     onOpenSessionsMenu={openSessionsMenu}
