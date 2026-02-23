@@ -246,14 +246,14 @@ export function parseGeminiResponse(
 }
 
 // =============================================================================
-// Schema Translation
+// Schema Translation (exported for testing)
 // =============================================================================
 
 /**
  * Translate a JSON schema for Gemini's format.
  * Gemini doesn't support additionalProperties, so we strip it.
  */
-function translateSchemaForGemini(
+export function translateSchemaForGemini(
   schema: Record<string, unknown>,
 ): Record<string, unknown> {
   const translated = { ...schema };
@@ -518,7 +518,9 @@ export async function* callGeminiStream(
           }
         }
       } catch {
-        // Skip malformed JSON
+        console.warn("[ai-gateway:google] Skipped malformed SSE chunk", {
+          data: trimmed.slice(6, 200),
+        });
       }
     }
   }

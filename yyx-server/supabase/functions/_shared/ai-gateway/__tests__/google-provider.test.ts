@@ -17,6 +17,7 @@ import {
   mapReasoningToThinking,
   parseGeminiResponse,
   translateMessages,
+  translateSchemaForGemini,
   translateToolChoice,
 } from "../providers/google.ts";
 import { parseModelOverride } from "../router.ts";
@@ -309,6 +310,64 @@ Deno.test("parseGeminiResponse - uses modelVersion when present", () => {
 
   const result = parseGeminiResponse(response, "gemini-3-flash-preview");
   assertEquals(result.model, "gemini-3-flash-preview-2026-02");
+});
+
+// =============================================================================
+// translateSchemaForGemini
+// =============================================================================
+
+Deno.test("translateSchemaForGemini - strips top-level additionalProperties", () => {
+  const schema = {
+    type: "object",
+    properties: { name: { type: "string" } },
+    required: ["name"],
+    additionalProperties: false,
+  };
+
+  const result = translateSchemaForGemini(schema);
+  assertEquals(result.type, "object");
+  assertEquals(result.required, ["name"]);
+  assertEquals("additionalProperties" in result, false);
+});
+
+Deno.test("translateSchemaForGemini - strips nested additionalProperties in properties", () => {
+  const schema = {
+    type: "object",
+    properties: {
+      recipe: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+        },
+        additionalProperties: false,
+      },
+    },
+    additionalProperties: false,
+  };
+
+  const result = translateSchemaForGemini(schema);
+  assertEquals("additionalProperties" in result, false);
+  const recipe = result.properties as Record<string, Record<string, unknown>>;
+  assertEquals("additionalProperties" in recipe.recipe, false);
+  assertEquals(recipe.recipe.type, "object");
+});
+
+Deno.test("translateSchemaForGemini - strips additionalProperties in array items", () => {
+  const schema = {
+    type: "array",
+    items: {
+      type: "object",
+      properties: {
+        ingredient: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+  };
+
+  const result = translateSchemaForGemini(schema);
+  const items = result.items as Record<string, unknown>;
+  assertEquals("additionalProperties" in items, false);
+  assertEquals(items.type, "object");
 });
 
 // =============================================================================

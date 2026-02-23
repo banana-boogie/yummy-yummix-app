@@ -139,13 +139,15 @@ SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...  # Get from dashboard
 
-OPENAI_API_KEY=sk-proj-...
+GEMINI_API_KEY=AIza...        # For text, recipe_generation, recipe_modification
+OPENAI_API_KEY=sk-proj-...   # For parsing, embedding
 USDA_API_KEY=...
 ```
 
 ### Cloud Secrets
 
 API keys should also be set as cloud secrets for deployed functions:
+- GEMINI_API_KEY
 - OPENAI_API_KEY
 - USDA_API_KEY
 
