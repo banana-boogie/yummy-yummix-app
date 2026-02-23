@@ -152,3 +152,65 @@ Key rules:
 - Critical/High/Warning findings are required fixes.
 - Suggestions and Recommendations are listed separately and marked "implement if worthwhile" — the agent uses judgment here.
 - The prompt never references the review report — it is the complete instruction set.
+
+---
+
+## Plan Review Variant
+
+Plan reviews use the same output philosophy but with adaptations for reviewing design documents instead of code.
+
+For review categories, severity levels, and recommendation logic specific to plans, see [PLAN-REVIEW-CRITERIA.md](./PLAN-REVIEW-CRITERIA.md).
+
+### Differences from Code Review Output
+
+| Aspect | Code Review | Plan Review |
+|--------|------------|-------------|
+| **Finding references** | `file:line` | Section names/numbers (e.g., "Section 3.2", "Implementation Step 4") |
+| **CI Status section** | Included (PR) or omitted (pre-PR) | Always omitted |
+| **Recommendation labels** | APPROVE / COMMENT / REQUEST CHANGES (PR) or READY FOR PR / QUICK FIXES THEN PR / NEEDS WORK (pre-PR) | PROCEED / REFINE THEN PROCEED / RETHINK |
+| **Severity levels** | Critical / High / Warning / Suggestion | Same 4 levels (Critical and High are distinct) |
+| **Review categories** | 9 code-focused categories | 8 plan-focused categories |
+| **Potential Misses** | Areas review couldn't evaluate | Replaced by **Unverified Assumptions** |
+| **Next Steps** | Self-contained implementation prompt | Omitted — the entire output IS the feedback |
+
+### Finding Format
+
+Every plan review finding must include:
+- Severity tag: `[Critical]`, `[High]`, `[Warning]`, or `[Suggestion]`
+- Section reference (plan section name or number, not file:line)
+- Concrete description of the issue
+- Specific recommendation
+
+Critical and High findings include options with tradeoffs (same format as code review):
+
+```
+- [Critical] Section 3.2 — description
+  - Recommendation: <specific recommendation>
+  - Options:
+    1. **A (Recommended)** <option> — Effort: S/M/L, Risk: <...>, Impact: <...>
+    2. **B** <option> — Effort: S/M/L, Risk: <...>, Impact: <...>
+```
+
+### Unverified Assumptions
+
+Replaces "Potential Misses" from code reviews. Reframed as direct questions for the planner to confirm:
+
+```markdown
+### Unverified Assumptions
+
+Assumptions in the plan that couldn't be confirmed against the codebase. Please verify:
+- The `recipes` table has a `thermomix_params` JSONB column (couldn't find in current schema)
+- The AI Gateway supports streaming with structured output (current code only shows one or the other)
+```
+
+### Feedback Framing
+
+The entire plan review output is designed to be copy-pasted into the planning agent's chat as direct feedback. The report header tells the receiving agent what to do:
+
+```markdown
+## Plan Review Feedback: <plan-file-name>
+
+> This is feedback from a cross-AI plan review. Address all Critical, High, and Warning findings before implementing. Suggestions and Recommendations are optional improvements.
+```
+
+There is no "Next Steps" section — the receiving agent reads the findings directly and revises the plan accordingly.
