@@ -22,6 +22,7 @@ import {
   enrichIngredientsWithImages,
   generateCustomRecipe,
   getSystemPrompt,
+  parseThermomixSpeed,
   TEMP_REGEX,
   VALID_NUMERIC_SPEEDS,
   VALID_SPECIAL_SPEEDS,
@@ -453,42 +454,46 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
   resetSharedCaches();
 
   // Mock: allergen DB outage, but AI still generates recipe
-  let capturedModel: string | undefined;
   const originalFetch = globalThis.fetch;
-  const previousOpenAiKey = Deno.env.get("OPENAI_API_KEY");
-  Deno.env.set("OPENAI_API_KEY", "test-openai-key");
+  const previousGoogleKey = Deno.env.get("GEMINI_API_KEY");
+  Deno.env.set("GEMINI_API_KEY", "test-google-key");
 
   globalThis.fetch = async (
     _input: string | URL | Request,
-    init?: RequestInit,
+    _init?: RequestInit,
   ) => {
-    const body = JSON.parse(String(init?.body ?? "{}"));
-    capturedModel = body.model;
     return new Response(
       JSON.stringify({
-        id: "chatcmpl-test",
-        model: body.model,
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              schemaVersion: "1.0",
-              suggestedName: "Chicken Dish",
-              measurementSystem: "imperial",
-              language: "en",
-              ingredients: [{ name: "chicken", quantity: 1, unit: "lb" }],
-              steps: [{
-                order: 1,
-                instruction: "Cook chicken.",
-                ingredientsUsed: ["chicken"],
-              }],
-              totalTime: 20,
-              difficulty: "easy",
-              portions: 2,
-              tags: [],
-            }),
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                schemaVersion: "1.0",
+                suggestedName: "Chicken Dish",
+                measurementSystem: "imperial",
+                language: "en",
+                ingredients: [{ name: "chicken", quantity: 1, unit: "lb" }],
+                steps: [{
+                  order: 1,
+                  instruction: "Cook chicken.",
+                  ingredientsUsed: ["chicken"],
+                }],
+                totalTime: 20,
+                difficulty: "easy",
+                portions: 2,
+                tags: [],
+              }),
+            }],
+            role: "model",
           },
+          finishReason: "STOP",
         }],
-        usage: { prompt_tokens: 12, completion_tokens: 24 },
+        usageMetadata: {
+          promptTokenCount: 12,
+          candidatesTokenCount: 24,
+          totalTokenCount: 36,
+        },
+        modelVersion: "gemini-3-flash-preview",
       }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
@@ -542,10 +547,10 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
     assertEquals(result.safetyFlags?.error, undefined);
   } finally {
     globalThis.fetch = originalFetch;
-    if (previousOpenAiKey === undefined) {
-      Deno.env.delete("OPENAI_API_KEY");
+    if (previousGoogleKey === undefined) {
+      Deno.env.delete("GEMINI_API_KEY");
     } else {
-      Deno.env.set("OPENAI_API_KEY", previousOpenAiKey);
+      Deno.env.set("GEMINI_API_KEY", previousGoogleKey);
     }
     resetSharedCaches();
   }
@@ -554,51 +559,58 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
 Deno.test("generateCustomRecipe proceeds with allergen warning when allergen detected", async () => {
   resetSharedCaches();
 
-  let capturedModel: string | undefined;
+  let capturedUrl: string | undefined;
   const originalFetch = globalThis.fetch;
-  const previousOpenAiKey = Deno.env.get("OPENAI_API_KEY");
+  const previousGoogleKey = Deno.env.get("GEMINI_API_KEY");
 
-  Deno.env.set("OPENAI_API_KEY", "test-openai-key");
+  Deno.env.set("GEMINI_API_KEY", "test-google-key");
   globalThis.fetch = async (
-    _input: string | URL | Request,
-    init?: RequestInit,
+    input: string | URL | Request,
+    _init?: RequestInit,
   ) => {
-    const body = JSON.parse(String(init?.body ?? "{}"));
-    capturedModel = body.model;
+    capturedUrl = typeof input === "string"
+      ? input
+      : input instanceof URL
+      ? input.toString()
+      : input.url;
 
     return new Response(
       JSON.stringify({
-        id: "chatcmpl-test",
-        model: body.model,
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              schemaVersion: "1.0",
-              suggestedName: "Peanut Rice Bowl",
-              measurementSystem: "imperial",
-              language: "en",
-              ingredients: [
-                { name: "peanut", quantity: 1, unit: "cup" },
-                { name: "rice", quantity: 2, unit: "cups" },
-              ],
-              steps: [
-                {
-                  order: 1,
-                  instruction: "Toast peanuts and cook rice.",
-                  ingredientsUsed: ["peanut", "rice"],
-                },
-              ],
-              totalTime: 25,
-              difficulty: "easy",
-              portions: 2,
-              tags: [],
-            }),
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                schemaVersion: "1.0",
+                suggestedName: "Peanut Rice Bowl",
+                measurementSystem: "imperial",
+                language: "en",
+                ingredients: [
+                  { name: "peanut", quantity: 1, unit: "cup" },
+                  { name: "rice", quantity: 2, unit: "cups" },
+                ],
+                steps: [
+                  {
+                    order: 1,
+                    instruction: "Toast peanuts and cook rice.",
+                    ingredientsUsed: ["peanut", "rice"],
+                  },
+                ],
+                totalTime: 25,
+                difficulty: "easy",
+                portions: 2,
+                tags: [],
+              }),
+            }],
+            role: "model",
           },
+          finishReason: "STOP",
         }],
-        usage: {
-          prompt_tokens: 12,
-          completion_tokens: 24,
+        usageMetadata: {
+          promptTokenCount: 12,
+          candidatesTokenCount: 24,
+          totalTokenCount: 36,
         },
+        modelVersion: "gemini-3-flash-preview",
       }),
       {
         status: 200,
@@ -669,16 +681,17 @@ Deno.test("generateCustomRecipe proceeds with allergen warning when allergen det
       }),
     );
 
-    assertEquals(capturedModel, "gpt-5-mini");
+    // Verify the request went to Gemini
+    assertStringIncludes(capturedUrl ?? "", "gemini-2.5-flash");
     assertEquals(result.recipe.suggestedName, "Peanut Rice Bowl");
     assertStringIncludes(result.safetyFlags?.allergenWarning ?? "", "Contains");
     assertEquals(result.safetyFlags?.error, undefined);
   } finally {
     globalThis.fetch = originalFetch;
-    if (previousOpenAiKey === undefined) {
-      Deno.env.delete("OPENAI_API_KEY");
+    if (previousGoogleKey === undefined) {
+      Deno.env.delete("GEMINI_API_KEY");
     } else {
-      Deno.env.set("OPENAI_API_KEY", previousOpenAiKey);
+      Deno.env.set("GEMINI_API_KEY", previousGoogleKey);
     }
     resetSharedCaches();
   }
@@ -1028,4 +1041,69 @@ Deno.test("validateThermomixSteps handles mixed valid and invalid params", () =>
   assertEquals(result[0].thermomixTime, 30);
   assertEquals(result[0].thermomixTemp, "100°C");
   assertEquals(result[0].thermomixSpeed, undefined);
+});
+
+Deno.test("validateThermomixSteps preserves composite 'Reverse 1' speed", () => {
+  const steps = [
+    {
+      order: 1,
+      instruction: "Sauté onions",
+      thermomixTime: 180,
+      thermomixTemp: "100°C",
+      thermomixSpeed: "Reverse 1",
+    },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixSpeed, "Reverse 1");
+  assertEquals(result[0].thermomixTime, 180);
+  assertEquals(result[0].thermomixTemp, "100°C");
+});
+
+// ============================================================
+// parseThermomixSpeed Tests
+// ============================================================
+
+Deno.test("parseThermomixSpeed accepts composite 'Reverse 1'", () => {
+  assertEquals(parseThermomixSpeed("Reverse 1"), "Reverse 1");
+});
+
+Deno.test("parseThermomixSpeed normalizes lowercase composite 'reverse 5'", () => {
+  assertEquals(parseThermomixSpeed("reverse 5"), "Reverse 5");
+});
+
+Deno.test("parseThermomixSpeed accepts reversed order '1 reverse'", () => {
+  assertEquals(parseThermomixSpeed("1 reverse"), "Reverse 1");
+});
+
+Deno.test("parseThermomixSpeed rejects out-of-range 'Reverse 11'", () => {
+  assertEquals(parseThermomixSpeed("Reverse 11"), null);
+});
+
+Deno.test("parseThermomixSpeed accepts standalone 'Reverse'", () => {
+  assertEquals(parseThermomixSpeed("Reverse"), "Reverse");
+});
+
+Deno.test("parseThermomixSpeed accepts standalone 'Spoon'", () => {
+  assertEquals(parseThermomixSpeed("Spoon"), "Spoon");
+});
+
+Deno.test("parseThermomixSpeed accepts pure numeric '5'", () => {
+  assertEquals(parseThermomixSpeed("5"), "5");
+});
+
+Deno.test("parseThermomixSpeed accepts 'Reverse Spoon'", () => {
+  assertEquals(parseThermomixSpeed("Reverse Spoon"), "Reverse Spoon");
+});
+
+Deno.test("parseThermomixSpeed normalizes lowercase 'reverse spoon'", () => {
+  assertEquals(parseThermomixSpeed("reverse spoon"), "Reverse Spoon");
+});
+
+Deno.test("parseThermomixSpeed accepts reversed order 'spoon reverse'", () => {
+  assertEquals(parseThermomixSpeed("spoon reverse"), "Reverse Spoon");
+});
+
+Deno.test("parseThermomixSpeed rejects invalid 'turbo'", () => {
+  assertEquals(parseThermomixSpeed("turbo"), null);
 });
