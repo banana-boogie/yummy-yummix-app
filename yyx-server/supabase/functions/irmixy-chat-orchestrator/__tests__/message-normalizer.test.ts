@@ -35,11 +35,16 @@ Deno.test("normalizeMessagesForAi folds tool results into assistant context with
   assertEquals(result.length, 4);
   assertEquals(result[2].role, "assistant");
   assertEquals(
-    result[2].content.includes("[Tool result]: Found 1 recipe(s)"),
+    result[2].content.includes("Found 1 recipe(s)"),
+    true,
+  );
+  // Should include recipe names so AI can evaluate relevance
+  assertEquals(
+    result[2].content.includes("Pasta Carbonara"),
     true,
   );
   assertEquals(
-    result[2].content.includes("Pasta Carbonara"),
+    result[2].content.includes("Results are shown to the user"),
     true,
   );
 });
@@ -76,13 +81,14 @@ Deno.test("normalizeMessagesForAi includes allergen warnings from search tool re
   const result = normalizeMessagesForAi(input);
 
   assertEquals(result.length, 3);
+  // Allergen warnings must still reach the AI (safety-critical)
   assertEquals(
-    result[2].content.includes("Allergen warnings: Contains milk (dairy)"),
+    result[2].content.includes("Contains milk (dairy)"),
     true,
   );
   assertEquals(
     result[2].content.includes(
-      "Verification warning: Allergen verification is temporarily unavailable.",
+      "Allergen verification is temporarily unavailable.",
     ),
     true,
   );
@@ -99,7 +105,7 @@ Deno.test("normalizeMessagesForAi summarizes standalone tool message", () => {
   assertEquals(result.length, 2);
   assertEquals(result[1].role, "assistant");
   // Small JSON objects pass through as-is (under 300 char limit)
-  assertEquals(result[1].content, '[Tool result]: {"ok":true}');
+  assertEquals(result[1].content, 'The tool returned: {"ok":true}');
 });
 
 Deno.test("normalizeMessagesForAi summarizes custom recipe result", () => {
@@ -130,7 +136,15 @@ Deno.test("normalizeMessagesForAi summarizes custom recipe result", () => {
 
   assertEquals(result.length, 2);
   assertEquals(
-    result[1].content.includes('Custom recipe generated: "Chicken Stir Fry"'),
+    result[1].content.includes('Recipe "Chicken Stir Fry"'),
+    true,
+  );
+  assertEquals(
+    result[1].content.includes("displayed to the user"),
+    true,
+  );
+  assertEquals(
+    result[1].content.includes("Do not list ingredients"),
     true,
   );
 });

@@ -198,18 +198,10 @@ const TOOL_SUMMARIZERS: Record<string, ToolResultSummarizer> = {
   customRecipe: (data) => {
     if (!data || typeof data !== "object") return null;
     const recipe = data as Record<string, unknown>;
-    const attrs: string[] = [];
-    if (recipe.suggestedName) attrs.push(`"${recipe.suggestedName}"`);
-    if (Array.isArray(recipe.ingredients)) {
-      const names = recipe.ingredients
-        .map((i: Record<string, unknown>) => i.name || i.ingredient)
-        .filter(Boolean);
-      if (names.length > 0) attrs.push(`ingredients: ${names.join(", ")}`);
+    if (recipe.suggestedName) {
+      return `[Generated recipe: "${recipe.suggestedName}"]`;
     }
-    if (recipe.totalTime) attrs.push(`${recipe.totalTime} min`);
-    if (recipe.portions) attrs.push(`${recipe.portions} portions`);
-    if (recipe.difficulty) attrs.push(recipe.difficulty as string);
-    return `[Generated recipe: ${attrs.join(", ")}]`;
+    return "[Generated recipe]";
   },
 };
 

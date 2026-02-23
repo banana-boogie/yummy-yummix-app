@@ -35,7 +35,8 @@ export const generateCustomRecipeTool = {
     description:
       "Generate a custom recipe. ONLY call this when the user explicitly asks you to create/make a recipe " +
       "or agrees to you making one. Never call this for discovery or vague cravings — use search_recipes instead. " +
-      "The user must have given you a direction (ingredients, a dish type, or a clear request). " +
+      "The user must have provided SPECIFIC details: a dish name (e.g. 'banana bread') or ingredients (e.g. 'chicken and rice'). " +
+      "If the user is vague ('make me something', 'I don't know'), ask them what they want first — do NOT call this tool. " +
       "Use their ingredients as the foundation and add complementary ones creatively (seasonings, herbs, pantry staples). " +
       "Never contradict the user's intent (e.g. dessert must be a dessert).",
     parameters: {
@@ -345,7 +346,7 @@ async function callRecipeGenerationAI(
           content: isRetry ? prompt + strictRetryPromptSuffix : prompt,
         },
       ],
-      reasoningEffort: "low",
+      temperature: 0.7,
       maxTokens: 6144,
       responseFormat: {
         type: "json_schema",
@@ -435,9 +436,9 @@ export function getSystemPrompt(userContext: UserContext): string {
 
 ## THERMOMIX USAGE (User owns Thermomix - maximize usage!)
 
-For each applicable step, include: thermomixTime (seconds), thermomixTemp ("37°C"-"120°C" or "Varoma"), thermomixSpeed ("1"-"10", "Spoon", or "Reverse")
+For each applicable step, include: thermomixTime (seconds), thermomixTemp ("37°C"-"120°C" or "Varoma"), thermomixSpeed ("1"-"10", "Spoon", "Reverse", or "Reverse 1"-"Reverse 10")
 
-Use Thermomix for: chopping (speed 5-7), sautéing (100°C, speed 1, reverse), cooking/boiling (temp+speed), blending (speed 8-10), steaming (Varoma)
+Use Thermomix for: chopping (speed 5-7), sautéing (100°C, "Reverse 1"), cooking/boiling (temp+speed), blending (speed 8-10), steaming (Varoma)
 Skip Thermomix for: plating, garnishing, oven/grill tasks, manual shaping
 Temperature guidance: low (37-60°C for melting/gentle warming), medium (70-100°C for simmering/cooking), high (100-120°C for sautéing/reduction), Varoma (~120°C for steaming)
 
@@ -952,6 +953,46 @@ export function validateThermomixUsage(
 }
 
 /**
+ * Parse a Thermomix speed string into a normalized form.
+ * Accepts: "1"-"10", "Spoon", "Reverse", "Reverse 1"-"Reverse 10", "Reverse Spoon"
+ * Returns: normalized string or null if invalid.
+ * Exported for testing.
+ */
+export function parseThermomixSpeed(raw: string): string | null {
+  const lower = raw.toLowerCase().trim();
+
+  // Pure numeric: "1" through "10"
+  if (VALID_NUMERIC_SPEEDS.includes(lower as any)) return lower;
+
+  // Standalone special: "spoon", "reverse"
+  if (lower === "spoon") return "Spoon";
+  if (lower === "reverse") return "Reverse";
+
+  // Composite: "reverse spoon" — spoon attachment in reverse
+  if (lower === "reverse spoon" || lower === "spoon reverse") {
+    return "Reverse Spoon";
+  }
+
+  // Composite: "reverse 1", "Reverse 5", etc.
+  const reverseNumeric = lower.match(/^reverse\s+(\d+)$/);
+  if (reverseNumeric) {
+    const num = reverseNumeric[1];
+    if (VALID_NUMERIC_SPEEDS.includes(num as any)) return `Reverse ${num}`;
+    return null;
+  }
+
+  // Reversed order: "1 reverse", "5 reverse"
+  const numericReverse = lower.match(/^(\d+)\s+reverse$/);
+  if (numericReverse) {
+    const num = numericReverse[1];
+    if (VALID_NUMERIC_SPEEDS.includes(num as any)) return `Reverse ${num}`;
+    return null;
+  }
+
+  return null;
+}
+
+/**
  * Validate and sanitize Thermomix parameters in recipe steps.
  * Ensures speeds, temperatures, and times are within valid ranges.
  * Exported for testing.
@@ -996,21 +1037,16 @@ export function validateThermomixSteps(
       }
     }
 
-    // Validate speed (case-insensitive for special speeds)
+    // Validate speed (supports composite like "Reverse 1", "Spoon", "5")
     if (step.thermomixSpeed != null) {
-      const normalizedSpeed = step.thermomixSpeed.toLowerCase();
-      const isValid =
-        VALID_NUMERIC_SPEEDS.includes(step.thermomixSpeed as any) ||
-        VALID_SPECIAL_SPEEDS.includes(normalizedSpeed as any);
-      if (!isValid) {
+      const parsed = parseThermomixSpeed(step.thermomixSpeed);
+      if (!parsed) {
         console.warn(
           `Invalid Thermomix speed for step ${step.order}: ${step.thermomixSpeed}. Removing.`,
         );
         validated.thermomixSpeed = undefined;
-      } else if (VALID_SPECIAL_SPEEDS.includes(normalizedSpeed as any)) {
-        // Normalize to title case for consistency
-        validated.thermomixSpeed = step.thermomixSpeed.charAt(0).toUpperCase() +
-          step.thermomixSpeed.slice(1).toLowerCase();
+      } else {
+        validated.thermomixSpeed = parsed;
       }
     }
 

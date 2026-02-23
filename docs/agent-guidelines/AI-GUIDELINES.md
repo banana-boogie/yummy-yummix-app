@@ -39,7 +39,8 @@ yyx-server/supabase/functions/
 │   │   ├── router.ts                 # Usage-type → provider/model routing
 │   │   ├── types.ts                  # AICompletionRequest, AICompletionResponse, etc.
 │   │   └── providers/
-│   │       └── openai.ts             # OpenAI: completions, streaming, embeddings
+│   │       ├── openai.ts             # OpenAI: completions, streaming, embeddings
+│   │       └── google.ts             # Google Gemini: completions, streaming
 │   ├── tools/                        # AI function calling system
 │   │   ├── tool-registry.ts          # Single source of truth for all tools
 │   │   ├── execute-tool.ts           # Dispatches tool calls
@@ -123,16 +124,17 @@ const embedding = await embed({
 
 ### Usage Types
 
-| Type                  | Default Model          | Config           | Use Case                                     | Cost     |
-| --------------------- | ---------------------- | ---------------- | -------------------------------------------- | -------- |
-| `text`                | gpt-4.1-mini           | N/A              | Chat orchestrator (tool calling + streaming) | Low      |
-| `recipe_generation`   | gpt-5-mini             | reasoning: `low` | Recipe generation (structured JSON output)   | Low      |
-| `recipe_modification` | gpt-4.1-mini           | N/A              | Recipe modification (transform existing JSON)| Low      |
-| `parsing`             | gpt-4.1-nano           | temperature: `1` | Admin parsing, nutritional data extraction   | Very low |
-| `embedding`           | text-embedding-3-large | N/A              | Vector search (3072 dimensions)              | Low      |
+| Type                  | Default Model                    | Config            | Use Case                                     | Cost     |
+| --------------------- | -------------------------------- | ----------------- | -------------------------------------------- | -------- |
+| `text`                | google/gemini-2.5-flash          | thinking: minimal | Chat orchestrator (tool calling + streaming) | Low      |
+| `recipe_generation`   | google/gemini-2.5-flash          | thinking: minimal | Recipe generation (structured JSON output)   | Low      |
+| `recipe_modification` | google/gemini-2.5-flash          | thinking: minimal | Recipe modification (transform existing JSON)| Low      |
+| `parsing`             | openai/gpt-4.1-nano              | temperature: `1`  | Admin parsing, nutritional data extraction   | Very low |
+| `embedding`           | openai/text-embedding-3-large    | N/A               | Vector search (3072 dimensions)              | Low      |
 
-Override via env vars: `AI_TEXT_MODEL`, `AI_RECIPE_GENERATION_MODEL`,
-`AI_PARSING_MODEL`.
+Override via env vars (supports `provider:model` format):
+`AI_TEXT_MODEL=openai:gpt-4.1-mini`, `AI_RECIPE_GENERATION_MODEL=gemini-2.5-flash`,
+`AI_RECIPE_MODIFICATION_MODEL`, `AI_PARSING_MODEL`.
 
 ### Design Pattern
 
@@ -145,10 +147,11 @@ OpenAI-specific — it's the industry standard (same as Vercel AI SDK, LangChain
 ## Adding New Providers
 
 1. Create `ai-gateway/providers/<name>.ts`
-2. Implement the same interface as `openai.ts`: `callProvider()`,
-   `callProviderStream()`, `callProviderEmbedding()`
-3. Update `router.ts` to route appropriate usage types to the new provider
-4. The gateway interface (`index.ts`) stays unchanged
+2. Implement the same interface as `openai.ts` or `google.ts`: `callProvider()`,
+   `callProviderStream()`, and optionally `callProviderEmbedding()`
+3. Add the provider to the `case` statements in `index.ts`
+4. Update `router.ts` to route appropriate usage types to the new provider
+5. Add tests in `ai-gateway/__tests__/<name>-provider.test.ts`
 
 ---
 

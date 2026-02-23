@@ -4,7 +4,7 @@ import {
   assertExists,
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { clearAllergenCache } from "../allergen-filter.ts";
-import { searchRecipes } from "./search-recipes.ts";
+import { filterByAllKeywords, searchRecipes } from "./search-recipes.ts";
 
 type MockResult = { data: unknown; error: unknown };
 
@@ -322,4 +322,100 @@ Deno.test("searchRecipes query mode keeps near-over-time matches and ranks them 
   assertEquals(result.length, 2);
   assertEquals(result[0].recipeId, "11111111-1111-1111-1111-111111111111");
   assertEquals(result[1].recipeId, "22222222-2222-2222-2222-222222222222");
+});
+
+// ============================================================
+// filterByAllKeywords (pure function, no DB dependency)
+// ============================================================
+
+function makeRecipeWithTags(
+  id: string,
+  tags: Array<{ name_en: string | null; name_es: string | null }>,
+) {
+  return {
+    id,
+    name_en: id,
+    name_es: null,
+    image_url: null,
+    total_time: 30,
+    difficulty: "easy" as const,
+    portions: 4,
+    recipe_to_tag: tags.map((t) => ({
+      recipe_tags: { name_en: t.name_en, name_es: t.name_es, categories: [] },
+    })),
+  };
+}
+
+Deno.test("filterByAllKeywords - single word query passes all recipes through", () => {
+  const recipes = [
+    makeRecipeWithTags("r1", [{ name_en: "chicken", name_es: "pollo" }]),
+    makeRecipeWithTags("r2", [{ name_en: "pasta", name_es: "pasta" }]),
+  ];
+  const result = filterByAllKeywords(recipes, "chicken");
+  assertEquals(result.length, 2);
+});
+
+Deno.test("filterByAllKeywords - multi-word query keeps recipes matching all keywords", () => {
+  const recipes = [
+    makeRecipeWithTags("both", [
+      { name_en: "chicken", name_es: "pollo" },
+      { name_en: "pasta", name_es: "pasta" },
+    ]),
+    makeRecipeWithTags("chicken-only", [
+      { name_en: "chicken", name_es: "pollo" },
+    ]),
+    makeRecipeWithTags("pasta-only", [
+      { name_en: "pasta", name_es: "pasta" },
+    ]),
+  ];
+  const result = filterByAllKeywords(recipes, "chicken pasta");
+  assertEquals(result.length, 1);
+  assertEquals(result[0].id, "both");
+});
+
+Deno.test("filterByAllKeywords - matches Spanish tags too", () => {
+  const recipes = [
+    makeRecipeWithTags("r1", [
+      { name_en: null, name_es: "pollo" },
+      { name_en: null, name_es: "pasta" },
+    ]),
+  ];
+  const result = filterByAllKeywords(recipes, "pollo pasta");
+  assertEquals(result.length, 1);
+});
+
+Deno.test("filterByAllKeywords - short keywords (<=2 chars) are ignored", () => {
+  const recipes = [
+    makeRecipeWithTags("r1", [{ name_en: "chicken", name_es: "pollo" }]),
+  ];
+  // "de" is 2 chars, filtered out — only "chicken" remains → single keyword → pass-through
+  const result = filterByAllKeywords(recipes, "chicken de");
+  assertEquals(result.length, 1);
+});
+
+Deno.test("filterByAllKeywords - empty recipes returns empty", () => {
+  const result = filterByAllKeywords([], "chicken pasta");
+  assertEquals(result.length, 0);
+});
+
+Deno.test("filterByAllKeywords - case insensitive matching", () => {
+  const recipes = [
+    makeRecipeWithTags("r1", [
+      { name_en: "Chicken", name_es: null },
+      { name_en: "Pasta", name_es: null },
+    ]),
+  ];
+  const result = filterByAllKeywords(recipes, "CHICKEN PASTA");
+  assertEquals(result.length, 1);
+});
+
+Deno.test("filterByAllKeywords - partial tag match works", () => {
+  const recipes = [
+    makeRecipeWithTags("r1", [
+      { name_en: "chicken breast", name_es: null },
+      { name_en: "pasta dish", name_es: null },
+    ]),
+  ];
+  const result = filterByAllKeywords(recipes, "chicken pasta");
+  assertEquals(result.length, 1);
 });
