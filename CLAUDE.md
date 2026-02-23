@@ -348,9 +348,9 @@ for await (const chunk of chatStream({
 
 | Type | Default Model | Config | Use Case | Cost |
 |------|--------------|--------|----------|------|
-| `text` | google/gemini-3-flash-preview | thinking: minimal | Chat orchestrator (tool calling + streaming) | Low |
-| `recipe_generation` | google/gemini-3-flash-preview | thinking: minimal | Recipe generation (structured JSON output) — quality critical | Low |
-| `recipe_modification` | google/gemini-3-flash-preview | thinking: minimal | Recipe modification (transform existing JSON) | Low |
+| `text` | google/gemini-2.5-flash | thinking: minimal | Chat orchestrator (tool calling + streaming) | Low |
+| `recipe_generation` | google/gemini-2.5-flash | thinking: minimal | Recipe generation (structured JSON output) — quality critical | Low |
+| `recipe_modification` | google/gemini-2.5-flash | thinking: minimal | Recipe modification (transform existing JSON) | Low |
 | `parsing` | openai/gpt-4.1-nano | temperature: `1` | Admin parsing, nutritional data extraction | Very low |
 | `embedding` | openai/text-embedding-3-large | N/A | Vector search (3072 dimensions) | Low |
 

@@ -423,26 +423,34 @@ async function searchByTags(
     return [];
   }
 
-  let tagResults = data as unknown as RecipeSearchResult[];
+  const tagResults = data as unknown as RecipeSearchResult[];
+  return filterByAllKeywords(tagResults, query);
+}
 
-  // For multi-word queries, post-filter to require ALL keywords match across tags.
-  // Without this, "chicken pasta" returns any recipe tagged "chicken" OR "pasta".
+/**
+ * For multi-word queries, post-filter to require ALL keywords match across tags.
+ * Without this, "chicken pasta" returns any recipe tagged "chicken" OR "pasta".
+ * Single-word queries pass through unfiltered.
+ * Exported for testing.
+ */
+export function filterByAllKeywords(
+  recipes: RecipeSearchResult[],
+  query: string,
+): RecipeSearchResult[] {
   const keywords = query.toLowerCase().split(/\s+/).filter((k) => k.length > 2);
-  if (keywords.length > 1 && tagResults.length > 0) {
-    tagResults = tagResults.filter((recipe) => {
-      const recipeTags = (recipe.recipe_to_tag || [])
-        .map((join) => join.recipe_tags)
-        .filter(Boolean)
-        .flatMap((tag) => [tag!.name_en, tag!.name_es].filter(Boolean))
-        .map((t) => t!.toLowerCase());
+  if (keywords.length <= 1 || recipes.length === 0) return recipes;
 
-      return keywords.every((keyword) =>
-        recipeTags.some((tagName) => tagName.includes(keyword))
-      );
-    });
-  }
+  return recipes.filter((recipe) => {
+    const recipeTags = (recipe.recipe_to_tag || [])
+      .map((join) => join.recipe_tags)
+      .filter(Boolean)
+      .flatMap((tag) => [tag!.name_en, tag!.name_es].filter(Boolean))
+      .map((t) => t!.toLowerCase());
 
-  return tagResults;
+    return keywords.every((keyword) =>
+      recipeTags.some((tagName) => tagName.includes(keyword))
+    );
+  });
 }
 
 /**
