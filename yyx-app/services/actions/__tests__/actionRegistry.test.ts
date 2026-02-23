@@ -14,6 +14,12 @@ jest.mock('expo-router', () => ({
     router: { push: jest.fn() },
 }));
 
+// Mock eventService
+const mockLogActionExecute = jest.fn();
+jest.mock('@/services/eventService', () => ({
+    eventService: { logActionExecute: (...args: unknown[]) => mockLogActionExecute(...args) },
+}));
+
 function createAction(overrides: Partial<Action> = {}): Action {
     return {
         id: 'test_123',
@@ -147,6 +153,52 @@ describe('actionRegistry', () => {
             };
             const result = await executeAction(action, context);
             expect(result).toBe(false);
+        });
+    });
+
+    describe('analytics tracking', () => {
+        it('logs action_execute on successful sync action with tracking', () => {
+            const action = createAction({
+                type: 'view_recipe',
+                payload: { recipeId: 'abc-123' },
+            });
+            executeAction(action, undefined, { source: 'manual', path: 'text' });
+            expect(mockLogActionExecute).toHaveBeenCalledWith('view_recipe', 'manual', 'text');
+        });
+
+        it('logs action_execute on successful async action with tracking', async () => {
+            const action = createAction({ type: 'share_recipe' });
+            const context: ActionContext = {
+                currentRecipe: {
+                    schemaVersion: '1.0',
+                    suggestedName: 'Track Recipe',
+                    measurementSystem: 'metric',
+                    language: 'en',
+                    ingredients: [],
+                    steps: [],
+                    totalTime: 10,
+                    difficulty: 'easy',
+                    portions: 1,
+                    tags: [],
+                },
+            };
+            await executeAction(action, context, { source: 'auto', path: 'voice' });
+            expect(mockLogActionExecute).toHaveBeenCalledWith('share_recipe', 'auto', 'voice');
+        });
+
+        it('does not log when tracking is not provided', () => {
+            const action = createAction({
+                type: 'view_recipe',
+                payload: { recipeId: 'abc-123' },
+            });
+            executeAction(action);
+            expect(mockLogActionExecute).not.toHaveBeenCalled();
+        });
+
+        it('does not log on failed action', async () => {
+            const action = createAction({ type: 'share_recipe' });
+            await executeAction(action, undefined, { source: 'auto', path: 'text' });
+            expect(mockLogActionExecute).not.toHaveBeenCalled();
         });
     });
 

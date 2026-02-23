@@ -8,6 +8,7 @@
 import { Share } from 'react-native';
 import { router } from 'expo-router';
 import type { Action, GeneratedRecipe, RecipeCard } from '@/types/irmixy';
+import { eventService } from '@/services/eventService';
 
 export interface ActionContext {
     /** The current custom recipe from the message */
@@ -126,6 +127,11 @@ const ACTION_HANDLERS: Record<string, ActionHandler> = {
     },
 };
 
+export interface ActionTracking {
+    source: 'auto' | 'manual';
+    path: 'text' | 'voice';
+}
+
 /**
  * Execute an action via the registry.
  * Returns true if handled, false if not (unknown type, missing context, etc.)
@@ -133,12 +139,25 @@ const ACTION_HANDLERS: Record<string, ActionHandler> = {
 export function executeAction(
     action: Action,
     context?: ActionContext,
+    tracking?: ActionTracking,
 ): boolean | Promise<boolean> {
     const handler = ACTION_HANDLERS[action.type];
     if (!handler) return false;
 
     try {
-        return handler.execute(action.payload, context);
+        const result = handler.execute(action.payload, context);
+        if (result instanceof Promise) {
+            return result.then((success) => {
+                if (success && tracking) {
+                    eventService.logActionExecute(action.type, tracking.source, tracking.path);
+                }
+                return success;
+            });
+        }
+        if (result && tracking) {
+            eventService.logActionExecute(action.type, tracking.source, tracking.path);
+        }
+        return result;
     } catch {
         return false;
     }
