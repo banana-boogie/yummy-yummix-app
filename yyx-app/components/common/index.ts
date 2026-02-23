@@ -1,5 +1,6 @@
 export { Text } from './Text';
 export { Button } from './Button';
+export { ActionButton } from './ActionButton';
 export { DangerButton } from './DangerButton';
 export { GradientHeader } from './GradientHeader';
 export { HeaderWithBack } from './HeaderWithBack';
