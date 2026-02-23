@@ -811,6 +811,7 @@ export function ChatScreen({
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={insets.top + 60}
         >
+          <View className="flex-1 w-full self-center max-w-[500px] md:max-w-[700px] lg:max-w-[800px]">
             <FlatList
                 ref={flatListRef}
                 data={messages}
@@ -975,7 +976,7 @@ export function ChatScreen({
                     </TouchableOpacity>
                 </View>
             </View>
-
+          </View>
         </KeyboardAvoidingView>
     );
 }
