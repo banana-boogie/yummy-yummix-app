@@ -376,16 +376,6 @@ describe('ChatScreen', () => {
       });
     });
 
-    it('opens sessions menu from previous conversations link', () => {
-      const onOpenSessionsMenu = jest.fn();
-
-      render(<ChatScreen onOpenSessionsMenu={onOpenSessionsMenu} />);
-
-      fireEvent.press(screen.getByText('Previous conversations'));
-
-      expect(onOpenSessionsMenu).toHaveBeenCalledTimes(1);
-    });
-
     it('hides resume banner when new chat signal changes', async () => {
       mockGetLastSessionWithMessages.mockResolvedValue({
         sessionId: 'session-1',

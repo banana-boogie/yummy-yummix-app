@@ -202,8 +202,7 @@ export function VoiceChatScreen({
                             onStartCooking={handleStartCooking}
                             messageId={item.id}
                             savedRecipeId={item.savedRecipeId}
-                            compact={true}
-                        />
+                            />
                     </View>
                 )}
             </View>

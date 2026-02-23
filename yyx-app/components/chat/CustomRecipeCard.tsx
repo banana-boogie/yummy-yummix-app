@@ -2,7 +2,7 @@
  * Custom Recipe Card
  *
  * Displays an AI-generated recipe with editable name and "Start Cooking" button.
- * Supports compact (collapsed) and expanded views.
+ * Always shows the full expanded view: ingredients, steps, useful items, and Start Cooking.
  * Used in chat when the AI generates a custom recipe from user's ingredients.
  */
 import React, { useState, useCallback, useRef, useEffect, memo } from 'react';
@@ -29,12 +29,6 @@ interface CustomRecipeCardProps {
     loading?: boolean;
     messageId: string;
     savedRecipeId?: string;
-    /**
-     * Show compact summary (ingredient/step counts + "See Full Recipe") instead of
-     * the fully expanded card. Defaults to `true` — all current callers
-     * (ChatMessageItem, VoiceChatScreen) pass `compact={true}` explicitly.
-     */
-    compact?: boolean;
 }
 
 export const CustomRecipeCard = memo(function CustomRecipeCard({
@@ -44,11 +38,9 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
     loading = false,
     messageId,
     savedRecipeId,
-    compact = true,
 }: CustomRecipeCardProps) {
     const [recipeName, setRecipeName] = useState(recipe.suggestedName);
     const [isEditing, setIsEditing] = useState(false);
-    const [isExpanded, setIsExpanded] = useState(!compact);
     const [showAllIngredients, setShowAllIngredients] = useState(false);
     const [showAllSteps, setShowAllSteps] = useState(false);
     const [isStartingCooking, setIsStartingCooking] = useState(false);
@@ -85,24 +77,18 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
         }
     }, [recipe.suggestedName, recipeName]);
 
-    const handleExpand = useCallback(() => {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setIsExpanded(true);
-    }, []);
-
     const handleToggleDisclaimer = useCallback(() => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setShowDisclaimer((prev) => !prev);
     }, []);
 
-    const startCookingButton = (className: string) => (
+    const startCookingButton = () => (
         <Button
             variant="primary"
             onPress={handleStartCooking}
             disabled={loading || isStartingCooking}
             loading={isStartingCooking}
-            className={className}
+            className="w-full"
             accessibilityLabel={`${i18n.t('chat.startCooking')} ${recipeName}`}
         >
             <View className="flex-row items-center justify-center">
@@ -290,17 +276,7 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                 </View>
             </View>
 
-            {/* Compact summary line (only when collapsed) */}
-            {!isExpanded && (
-                <View className="px-md py-sm border-b border-border-default">
-                    <Text className="text-text-secondary text-sm">
-                        {i18n.t('chat.ingredientsSummary', { count: recipe.ingredients.length })} {' · '}
-                        {i18n.t('chat.stepsSummary', { count: recipe.steps.length })}
-                    </Text>
-                </View>
-            )}
-
-            {/* Safety warning — always visible regardless of compact/expanded */}
+            {/* Safety warning */}
             {safetyFlags?.allergenWarning && !safetyFlags.error && (
                 <View
                     className="flex-row items-center p-md bg-status-warning/10 border-b border-border-default"
@@ -320,11 +296,9 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                 </View>
             )}
 
-            {/* Expanded content (ingredients, steps, useful items) */}
-            {isExpanded && (
-                <>
-                    {/* Ingredient preview */}
-                    <View
+            {/* Ingredients, steps, useful items */}
+            {/* Ingredient preview */}
+            <View
                         className="p-md border-b border-border-default"
                         accessible={true}
                         accessibilityRole="list"
@@ -466,28 +440,9 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                             </View>
                         </View>
                     )}
-                </>
-            )}
-
-            {/* Action buttons */}
+            {/* Action button */}
             <View className="p-md">
-                {!isExpanded ? (
-                    <View className="flex-row gap-sm">
-                        <Button
-                            variant="outline"
-                            onPress={handleExpand}
-                            className="flex-1"
-                            accessibilityLabel={i18n.t('chat.seeFullRecipe')}
-                        >
-                            <Text className="text-primary-darkest font-semibold text-center">
-                                {i18n.t('chat.seeFullRecipe')}
-                            </Text>
-                        </Button>
-                        {startCookingButton('flex-1')}
-                    </View>
-                ) : (
-                    startCookingButton('w-full')
-                )}
+                {startCookingButton()}
             </View>
         </View>
     );

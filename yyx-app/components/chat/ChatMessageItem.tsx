@@ -194,7 +194,6 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                         onStartCooking={onStartCooking}
                         messageId={item.id}
                         savedRecipeId={item.savedRecipeId}
-                        compact={true}
                     />
                 </View>
             )}

@@ -52,7 +52,7 @@ describe('CustomRecipeCard', () => {
     jest.clearAllMocks();
   });
 
-  it('renders compact view by default', () => {
+  it('always renders expanded view with ingredients and instructions', () => {
     const recipe = createMockGeneratedRecipe();
 
     render(
@@ -62,44 +62,10 @@ describe('CustomRecipeCard', () => {
         messageId="msg-1"
       />
     );
-
-    expect(screen.getByText('See Full Recipe')).toBeTruthy();
-    expect(screen.getByText(/5 ingredients/)).toBeTruthy();
-    expect(screen.getByText(/3 steps/)).toBeTruthy();
-    expect(screen.queryByText('Ingredients:')).toBeNull();
-  });
-
-  it('renders expanded view when compact is false', () => {
-    const recipe = createMockGeneratedRecipe();
-
-    render(
-      <CustomRecipeCard
-        recipe={recipe}
-        onStartCooking={onStartCooking}
-        messageId="msg-1"
-        compact={false}
-      />
-    );
-
-    expect(screen.getByText('Ingredients:')).toBeTruthy();
-    expect(screen.queryByText('See Full Recipe')).toBeNull();
-  });
-
-  it('expands to full recipe when pressing "See Full Recipe"', () => {
-    const recipe = createMockGeneratedRecipe();
-
-    render(
-      <CustomRecipeCard
-        recipe={recipe}
-        onStartCooking={onStartCooking}
-        messageId="msg-1"
-      />
-    );
-
-    fireEvent.press(screen.getByText('See Full Recipe'));
 
     expect(screen.getByText('Ingredients:')).toBeTruthy();
     expect(screen.getByText('Instructions:')).toBeTruthy();
+    expect(screen.queryByText('See Full Recipe')).toBeNull();
   });
 
   it('updates recipe name via edit flow before starting cooking', () => {
@@ -207,7 +173,6 @@ describe('CustomRecipeCard', () => {
       />
     );
 
-    fireEvent.press(screen.getByText('See Full Recipe'));
     expect(screen.getByText('Show 3 more')).toBeTruthy();
 
     fireEvent.press(screen.getByText('Show 3 more'));
@@ -233,7 +198,6 @@ describe('CustomRecipeCard', () => {
       />
     );
 
-    fireEvent.press(screen.getByText('See Full Recipe'));
     expect(screen.queryByText('Step 4')).toBeNull();
     expect(screen.getByText('Show 2 more')).toBeTruthy();
 
@@ -242,7 +206,7 @@ describe('CustomRecipeCard', () => {
     expect(screen.getByText('Show less')).toBeTruthy();
   });
 
-  it('keeps safety warning visible in compact and expanded views', () => {
+  it('shows safety warning', () => {
     const recipe = createMockGeneratedRecipe();
     const warning = 'May contain nuts';
 
@@ -255,9 +219,6 @@ describe('CustomRecipeCard', () => {
       />
     );
 
-    expect(screen.getByText(warning)).toBeTruthy();
-
-    fireEvent.press(screen.getByText('See Full Recipe'));
     expect(screen.getByText(warning)).toBeTruthy();
   });
 
@@ -367,7 +328,7 @@ describe('CustomRecipeCard', () => {
     expect(screen.getByText('Recipe generation failed')).toBeTruthy();
   });
 
-  it('renders useful items in expanded view', () => {
+  it('renders useful items', () => {
     const recipe = createMockGeneratedRecipe({
       usefulItems: [
         { name: 'Wok' },
@@ -380,7 +341,6 @@ describe('CustomRecipeCard', () => {
         recipe={recipe}
         onStartCooking={onStartCooking}
         messageId="msg-1"
-        compact={false}
       />
     );
 

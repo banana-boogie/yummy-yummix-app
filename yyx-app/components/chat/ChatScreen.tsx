@@ -887,25 +887,11 @@ export function ChatScreen({
                 </View>
             )}
 
-            {messages.length === 0 && onOpenSessionsMenu && (
-                <View className="px-md pb-sm">
-                    <TouchableOpacity
-                        onPress={onOpenSessionsMenu}
-                        accessibilityRole="button"
-                        accessibilityLabel={i18n.t('chat.resume.previousConversations')}
-                    >
-                        <Text className="text-primary-darkest underline">
-                            {i18n.t('chat.resume.previousConversations')}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-
             <View
                 className="border-t border-border-default bg-background-default"
                 style={{
                     paddingTop: SPACING.sm,
-                    paddingBottom: Math.max(insets.bottom, SPACING.md),
+                    paddingBottom: insets.bottom > 0 ? 0 : SPACING.sm,
                 }}
             >
                 {/* Mic pill — inside bordered section, above input row */}
@@ -949,7 +935,7 @@ export function ChatScreen({
                 >
                     <TextInput
                         className="flex-1 bg-background-secondary rounded-xl text-base text-text-primary"
-                        style={{ minHeight: SPACING.xxl, maxHeight: 120, paddingLeft: SPACING.md, paddingRight: SPACING.sm, paddingVertical: SPACING.xs }}
+                        style={{ minHeight: SPACING.xxl, maxHeight: 120, paddingLeft: SPACING.md + 2, paddingRight: SPACING.sm, paddingTop: SPACING.sm, paddingBottom: SPACING.xs }}
                         value={inputText}
                         onChangeText={setInputText}
                         placeholder={isListening ? i18n.t('chat.voice.listening') : i18n.t('chat.inputPlaceholder')}
