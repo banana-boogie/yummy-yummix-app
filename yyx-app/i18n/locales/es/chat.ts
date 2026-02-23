@@ -23,6 +23,7 @@ export const chat = {
   thinking: "Irmixy está pensando...",
   searching: "Buscando recetas...",
   generating: "Creando algo especial...",
+  cookingItUp: "Cocinando algo delicioso...",
   enriching: "Añadiendo los toques finales...",
   voice: {
     greeting: "¡Hola! Soy Irmixy, tu sous chef. ¿En qué puedo ayudarte?",
@@ -53,19 +54,7 @@ export const chat = {
       hint: "Usa el chat de texto abajo, o descarga nuestra app móvil para funciones de voz",
     },
   },
-  suggestions: {
-    suggestRecipe: "Sugiéreme una receta",
-    whatCanICook: "¿Qué puedo cocinar hoy?",
-    quickMeal: "Comida rápida de 30 min",
-    ingredientsIHave: "Con ingredientes que tengo",
-    healthyOptions: "Opciones saludables",
-    createCustom: "Receta Personalizada",
-    createCustomRecipeLabel: "Crear receta personalizada",
-    createCustomRecipeMessage: "Ayúdame a crear algo",
-    tellMeAboutRecipe: "Cuéntame sobre {{recipeName}}",
-    modifyMore: "Modificar más",
-    startCooking: "Comenzar a cocinar",
-  },
+  suggestions: {},
   messageCopied: "Mensaje copiado al portapapeles",
   cancelledRequest: "Solicitud cancelada",
   sessions: {
@@ -83,6 +72,7 @@ export const chat = {
   saving: "Guardando...",
   gatheringInfo: "Déjame ayudarte a crear una receta...",
   recipeError: "No se pudo crear la receta",
+  allergenProceedAnyway: "Continuar de todos modos",
   warningPrefix: "Advertencia",
   andMore: "y {{count}} más",
   miseEnPlace: "Mise en place",
@@ -96,11 +86,11 @@ export const chat = {
   },
   // Fallback when no recipes found
   fallback: {
-    noResults: "No encontré recetas que coincidan, ¡pero puedo crear algo personalizado!",
-    createFromIngredients: "Crear con ingredientes",
-    createFromIngredientsMessage: "Ayúdame a crear una receta con los ingredientes que tengo",
-    surpriseMe: "Sorpréndeme",
-    surpriseMeMessage: "Crea una receta divertida para mí",
+    noResults: "No encontré esa receta. ¿Quieres que busque algo similar o cree una versión personalizada?",
+    createFromIngredients: "Buscar similares",
+    createFromIngredientsMessage: "Busca recetas similares",
+    surpriseMe: "Crear versión personalizada",
+    surpriseMeMessage: "Crea una versión personalizada",
   },
   // Replay / retrieval
   replay: {

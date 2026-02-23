@@ -1,4 +1,4 @@
-import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { recipeService } from '@/services/recipeService';
 import { useMeasurement } from '@/contexts/MeasurementContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -83,6 +83,7 @@ export function useRecipesInfiniteQuery(filters: RecipeFilters = { isPublished: 
         },
         getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextCursor : undefined,
         initialPageParam: null as string | null,
+        placeholderData: keepPreviousData,
         staleTime: 5 * 60 * 1000, // 5 minutes
     });
 }

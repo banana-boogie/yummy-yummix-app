@@ -7,7 +7,7 @@
  *
  * To switch providers:
  * 1. Modify router.ts default config, OR
- * 2. Set environment variables: AI_TEXT_MODEL, AI_PARSING_MODEL, AI_REASONING_MODEL
+ * 2. Set environment variables: AI_TEXT_MODEL, AI_RECIPE_GENERATION_MODEL, AI_PARSING_MODEL
  */
 
 import {

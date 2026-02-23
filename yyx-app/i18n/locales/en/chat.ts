@@ -23,6 +23,7 @@ export const chat = {
   thinking: "Irmixy is thinking...",
   searching: "Searching for recipes...",
   generating: "Creating something special...",
+  cookingItUp: "Cooking it up...",
   enriching: "Adding finishing touches...",
   voice: {
     greeting: "Hi! I'm Irmixy, your sous chef. What can I help you with?",
@@ -53,19 +54,7 @@ export const chat = {
       hint: "Use text chat below, or download our mobile app for voice features",
     },
   },
-  suggestions: {
-    suggestRecipe: "Suggest a recipe",
-    whatCanICook: "What can I cook today?",
-    quickMeal: "Quick 30-minute meal",
-    ingredientsIHave: "With ingredients I have",
-    healthyOptions: "Healthy options",
-    createCustom: "Custom Recipe",
-    createCustomRecipeLabel: "Create custom recipe",
-    createCustomRecipeMessage: "Help me create something",
-    tellMeAboutRecipe: "Tell me about {{recipeName}}",
-    modifyMore: "Modify more",
-    startCooking: "Start cooking",
-  },
+  suggestions: {},
   messageCopied: "Message copied to clipboard",
   cancelledRequest: "Request cancelled",
   sessions: {
@@ -83,6 +72,7 @@ export const chat = {
   saving: "Saving...",
   gatheringInfo: "Let me help you create a recipe...",
   recipeError: "Unable to create recipe",
+  allergenProceedAnyway: "Proceed anyway",
   warningPrefix: "Warning",
   andMore: "and {{count}} more",
   miseEnPlace: "Mise en place",
@@ -96,11 +86,11 @@ export const chat = {
   },
   // Fallback when no recipes found
   fallback: {
-    noResults: "I couldn't find recipes matching that, but I can create something custom!",
-    createFromIngredients: "Create from ingredients",
-    createFromIngredientsMessage: "Help me create a recipe from ingredients I have",
-    surpriseMe: "Surprise me",
-    surpriseMeMessage: "Create a fun recipe for me",
+    noResults: "I didn't find that recipe. Want me to search for something similar or create a custom version?",
+    createFromIngredients: "Search similar recipes",
+    createFromIngredientsMessage: "Search for similar recipes",
+    surpriseMe: "Create custom version",
+    surpriseMeMessage: "Create a custom version",
   },
   // Replay / retrieval
   replay: {

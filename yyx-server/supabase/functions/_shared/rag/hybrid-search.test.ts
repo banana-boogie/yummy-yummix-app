@@ -269,3 +269,164 @@ Deno.test("searchRecipesHybrid returns low_confidence when all scores are below 
     else Deno.env.delete("OPENAI_API_KEY");
   }
 });
+
+Deno.test("searchRecipesHybrid metadata scoring favors adjacent difficulty over non-adjacent", async () => {
+  clearEmbeddingCache();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        data: [{ embedding: [0.1, 0.2, 0.3] }],
+        model: "text-embedding-3-large",
+        usage: { prompt_tokens: 5 },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+
+  const hadKey = Deno.env.get("OPENAI_API_KEY");
+  Deno.env.set("OPENAI_API_KEY", "test-key");
+
+  const adjacentId = "33333333-3333-3333-3333-333333333333";
+  const nonAdjacentId = "44444444-4444-4444-4444-444444444444";
+
+  const mockSupabase = {
+    rpc: async () => ({
+      data: [
+        { recipe_id: adjacentId, similarity: 0.9 },
+        { recipe_id: nonAdjacentId, similarity: 0.9 },
+      ],
+      error: null,
+    }),
+    from: () => ({
+      select: () => ({
+        in: () => ({
+          eq: async () => ({
+            data: [
+              {
+                id: nonAdjacentId,
+                name_en: "Dinner Bowl",
+                name_es: "Tazón Cena",
+                image_url: null,
+                total_time: 30,
+                difficulty: "hard",
+                portions: 2,
+                recipe_to_tag: [],
+              },
+              {
+                id: adjacentId,
+                name_en: "Dinner Bowl",
+                name_es: "Tazón Cena",
+                image_url: null,
+                total_time: 30,
+                difficulty: "medium",
+                portions: 2,
+                recipe_to_tag: [],
+              },
+            ],
+            error: null,
+          }),
+        }),
+      }),
+    }),
+  };
+
+  try {
+    const result = await searchRecipesHybrid(
+      mockSupabase as any,
+      "dinner",
+      { difficulty: "easy", maxTime: 30, limit: 10 },
+      BASE_USER_CONTEXT,
+      mockSupabase as any,
+    );
+
+    assertEquals(result.method, "hybrid");
+    assertEquals(result.recipes.length >= 2, true);
+    assertEquals(result.recipes[0].recipeId, adjacentId);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (hadKey) Deno.env.set("OPENAI_API_KEY", hadKey);
+    else Deno.env.delete("OPENAI_API_KEY");
+  }
+});
+
+Deno.test("searchRecipesHybrid keeps recipes up to 50% over max time with lower score", async () => {
+  clearEmbeddingCache();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        data: [{ embedding: [0.1, 0.2, 0.3] }],
+        model: "text-embedding-3-large",
+        usage: { prompt_tokens: 5 },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+
+  const hadKey = Deno.env.get("OPENAI_API_KEY");
+  Deno.env.set("OPENAI_API_KEY", "test-key");
+
+  const withinId = "55555555-5555-5555-5555-555555555555";
+  const over50Id = "66666666-6666-6666-6666-666666666666";
+
+  const mockSupabase = {
+    rpc: async () => ({
+      data: [
+        { recipe_id: withinId, similarity: 0.95 },
+        { recipe_id: over50Id, similarity: 0.95 },
+      ],
+      error: null,
+    }),
+    from: () => ({
+      select: () => ({
+        in: () => ({
+          eq: async () => ({
+            data: [
+              {
+                id: withinId,
+                name_en: "Pasta",
+                name_es: "Pasta",
+                image_url: null,
+                total_time: 30,
+                difficulty: "easy",
+                portions: 2,
+                recipe_to_tag: [],
+              },
+              {
+                id: over50Id,
+                name_en: "Pasta",
+                name_es: "Pasta",
+                image_url: null,
+                total_time: 45,
+                difficulty: "easy",
+                portions: 2,
+                recipe_to_tag: [],
+              },
+            ],
+            error: null,
+          }),
+        }),
+      }),
+    }),
+  };
+
+  try {
+    const result = await searchRecipesHybrid(
+      mockSupabase as any,
+      "pasta",
+      { maxTime: 30, limit: 10 },
+      BASE_USER_CONTEXT,
+      mockSupabase as any,
+    );
+
+    assertEquals(result.method, "hybrid");
+    assertEquals(
+      result.recipes.some((recipe) => recipe.recipeId === over50Id),
+      true,
+    );
+    assertEquals(result.recipes[0].recipeId, withinId);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (hadKey) Deno.env.set("OPENAI_API_KEY", hadKey);
+    else Deno.env.delete("OPENAI_API_KEY");
+  }
+});
