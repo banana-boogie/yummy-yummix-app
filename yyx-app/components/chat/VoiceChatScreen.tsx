@@ -7,10 +7,11 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Alert, FlatList, ActivityIndicator, Platform, TouchableOpacity } from 'react-native';
+import { View, Alert, FlatList, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Text } from '@/components/common/Text';
+import { ActionButton } from '@/components/common/ActionButton';
 import { IrmixyAvatar, AvatarState } from './IrmixyAvatar';
 import { VoiceButton } from './VoiceButton';
 import { ChatRecipeCard } from './ChatRecipeCard';
@@ -144,7 +145,7 @@ export function VoiceChatScreen({
             const resolvedContext = hasProvidedContext
                 ? context
                 : resolveActionContext(transcriptMessagesRef.current, sourceMessageId);
-            Promise.resolve(executeAction(action, resolvedContext)).catch(() => {});
+            Promise.resolve(executeAction(action, resolvedContext, { source: 'manual', path: 'voice' })).catch(() => {});
         },
         [],
     );
@@ -173,7 +174,7 @@ export function VoiceChatScreen({
             const resolvedContext = hasMessageContext
                 ? messageContext
                 : resolveActionContext(transcriptMessages, latestMessage.id);
-            Promise.resolve(executeAction(action, resolvedContext)).catch(() => {});
+            Promise.resolve(executeAction(action, resolvedContext, { source: 'auto', path: 'voice' })).catch(() => {});
         }
     }, [transcriptMessages]);
 
@@ -249,18 +250,14 @@ export function VoiceChatScreen({
                 {!isUser && item.actions && item.actions.length > 0 && (
                     <View className="mt-xs gap-xs">
                         {item.actions.map((action, idx) => (
-                            <TouchableOpacity
+                            <ActionButton
                                 key={action.id || `${action.type}-${idx}`}
+                                label={action.label}
                                 onPress={() => handleActionPress(action, {
                                     currentRecipe: item.customRecipe,
                                     recipes: item.recipes,
                                 }, item.id)}
-                                className="self-start bg-primary-medium px-md py-xs rounded-lg"
-                            >
-                                <Text preset="body" className="text-sm font-medium text-white">
-                                    {action.label}
-                                </Text>
-                            </TouchableOpacity>
+                            />
                         ))}
                     </View>
                 )}

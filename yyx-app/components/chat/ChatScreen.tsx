@@ -517,7 +517,7 @@ export function ChatScreen({
                                 const actionContext = hasResponseContext
                                     ? responseActionContext
                                     : resolveActionContext(messagesRef.current, assistantMessageId);
-                                Promise.resolve(executeAction(action, actionContext)).catch(() => {});
+                                Promise.resolve(executeAction(action, actionContext, { source: 'auto', path: 'text' })).catch(() => {});
                             }
                         }
                     }
@@ -699,7 +699,7 @@ export function ChatScreen({
         const resolvedContext = hasProvidedContext
             ? context
             : resolveActionContext(messagesRef.current, sourceMessageId);
-        Promise.resolve(executeAction(action, resolvedContext)).catch(() => {});
+        Promise.resolve(executeAction(action, resolvedContext, { source: 'manual', path: 'text' })).catch(() => {});
     }, []);
 
     // Memoize the last message ID to avoid recalculating on every render

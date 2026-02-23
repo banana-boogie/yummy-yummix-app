@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { AppState, Platform } from 'react-native';
 
-type EventType = 'view_recipe' | 'cook_start' | 'cook_complete' | 'search';
+type EventType = 'view_recipe' | 'cook_start' | 'cook_complete' | 'search' | 'action_execute';
 
 interface QueuedEvent {
   eventType: EventType;
@@ -189,6 +189,18 @@ class EventService {
     }
     this.queueEvent('search', {
       query: query.trim(),
+    });
+  }
+
+  /**
+   * Log when an action is executed from chat (share, navigate, etc.).
+   * Tracks AI-driven engagement — are users triggering actions from Irmixy?
+   */
+  logActionExecute(actionType: string, source: 'auto' | 'manual', path: 'text' | 'voice'): void {
+    this.queueEvent('action_execute', {
+      action_type: actionType,
+      source,
+      path,
     });
   }
 

@@ -1,6 +1,7 @@
 import React, { useMemo, memo } from 'react';
 import { View, TouchableOpacity, Pressable } from 'react-native';
 import { Text } from '@/components/common/Text';
+import { ActionButton } from '@/components/common/ActionButton';
 import { ChatRecipeCard } from '@/components/chat/ChatRecipeCard';
 import { CustomRecipeCard } from '@/components/chat/CustomRecipeCard';
 import { RecipeGeneratingSkeleton } from '@/components/chat/RecipeGeneratingSkeleton';
@@ -228,19 +229,15 @@ export const ChatMessageItem = memo(function ChatMessageItem({
             {!isUser && item.actions && item.actions.length > 0 && (
                 <View className="mt-xs gap-xs">
                     {item.actions.map((action, idx) => (
-                        <TouchableOpacity
+                        <ActionButton
                             key={`${action.type}-${idx}`}
+                            label={action.label}
                             onPress={() => onActionPress(
                                 action,
                                 { currentRecipe: item.customRecipe, recipes: item.recipes },
                                 item.id,
                             )}
-                            className="self-start bg-primary-medium px-md py-xs rounded-lg"
-                        >
-                            <Text className="text-sm font-medium text-white">
-                                {action.label}
-                            </Text>
-                        </TouchableOpacity>
+                        />
                     ))}
                 </View>
             )}
