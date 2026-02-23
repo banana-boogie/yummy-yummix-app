@@ -453,42 +453,46 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
   resetSharedCaches();
 
   // Mock: allergen DB outage, but AI still generates recipe
-  let capturedModel: string | undefined;
   const originalFetch = globalThis.fetch;
-  const previousOpenAiKey = Deno.env.get("OPENAI_API_KEY");
-  Deno.env.set("OPENAI_API_KEY", "test-openai-key");
+  const previousGoogleKey = Deno.env.get("GEMINI_API_KEY");
+  Deno.env.set("GEMINI_API_KEY", "test-google-key");
 
   globalThis.fetch = async (
     _input: string | URL | Request,
-    init?: RequestInit,
+    _init?: RequestInit,
   ) => {
-    const body = JSON.parse(String(init?.body ?? "{}"));
-    capturedModel = body.model;
     return new Response(
       JSON.stringify({
-        id: "chatcmpl-test",
-        model: body.model,
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              schemaVersion: "1.0",
-              suggestedName: "Chicken Dish",
-              measurementSystem: "imperial",
-              language: "en",
-              ingredients: [{ name: "chicken", quantity: 1, unit: "lb" }],
-              steps: [{
-                order: 1,
-                instruction: "Cook chicken.",
-                ingredientsUsed: ["chicken"],
-              }],
-              totalTime: 20,
-              difficulty: "easy",
-              portions: 2,
-              tags: [],
-            }),
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                schemaVersion: "1.0",
+                suggestedName: "Chicken Dish",
+                measurementSystem: "imperial",
+                language: "en",
+                ingredients: [{ name: "chicken", quantity: 1, unit: "lb" }],
+                steps: [{
+                  order: 1,
+                  instruction: "Cook chicken.",
+                  ingredientsUsed: ["chicken"],
+                }],
+                totalTime: 20,
+                difficulty: "easy",
+                portions: 2,
+                tags: [],
+              }),
+            }],
+            role: "model",
           },
+          finishReason: "STOP",
         }],
-        usage: { prompt_tokens: 12, completion_tokens: 24 },
+        usageMetadata: {
+          promptTokenCount: 12,
+          candidatesTokenCount: 24,
+          totalTokenCount: 36,
+        },
+        modelVersion: "gemini-3-flash-preview",
       }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
@@ -542,10 +546,10 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
     assertEquals(result.safetyFlags?.error, undefined);
   } finally {
     globalThis.fetch = originalFetch;
-    if (previousOpenAiKey === undefined) {
-      Deno.env.delete("OPENAI_API_KEY");
+    if (previousGoogleKey === undefined) {
+      Deno.env.delete("GEMINI_API_KEY");
     } else {
-      Deno.env.set("OPENAI_API_KEY", previousOpenAiKey);
+      Deno.env.set("GEMINI_API_KEY", previousGoogleKey);
     }
     resetSharedCaches();
   }
@@ -554,51 +558,58 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
 Deno.test("generateCustomRecipe proceeds with allergen warning when allergen detected", async () => {
   resetSharedCaches();
 
-  let capturedModel: string | undefined;
+  let capturedUrl: string | undefined;
   const originalFetch = globalThis.fetch;
-  const previousOpenAiKey = Deno.env.get("OPENAI_API_KEY");
+  const previousGoogleKey = Deno.env.get("GEMINI_API_KEY");
 
-  Deno.env.set("OPENAI_API_KEY", "test-openai-key");
+  Deno.env.set("GEMINI_API_KEY", "test-google-key");
   globalThis.fetch = async (
-    _input: string | URL | Request,
-    init?: RequestInit,
+    input: string | URL | Request,
+    _init?: RequestInit,
   ) => {
-    const body = JSON.parse(String(init?.body ?? "{}"));
-    capturedModel = body.model;
+    capturedUrl = typeof input === "string"
+      ? input
+      : input instanceof URL
+      ? input.toString()
+      : input.url;
 
     return new Response(
       JSON.stringify({
-        id: "chatcmpl-test",
-        model: body.model,
-        choices: [{
-          message: {
-            content: JSON.stringify({
-              schemaVersion: "1.0",
-              suggestedName: "Peanut Rice Bowl",
-              measurementSystem: "imperial",
-              language: "en",
-              ingredients: [
-                { name: "peanut", quantity: 1, unit: "cup" },
-                { name: "rice", quantity: 2, unit: "cups" },
-              ],
-              steps: [
-                {
-                  order: 1,
-                  instruction: "Toast peanuts and cook rice.",
-                  ingredientsUsed: ["peanut", "rice"],
-                },
-              ],
-              totalTime: 25,
-              difficulty: "easy",
-              portions: 2,
-              tags: [],
-            }),
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                schemaVersion: "1.0",
+                suggestedName: "Peanut Rice Bowl",
+                measurementSystem: "imperial",
+                language: "en",
+                ingredients: [
+                  { name: "peanut", quantity: 1, unit: "cup" },
+                  { name: "rice", quantity: 2, unit: "cups" },
+                ],
+                steps: [
+                  {
+                    order: 1,
+                    instruction: "Toast peanuts and cook rice.",
+                    ingredientsUsed: ["peanut", "rice"],
+                  },
+                ],
+                totalTime: 25,
+                difficulty: "easy",
+                portions: 2,
+                tags: [],
+              }),
+            }],
+            role: "model",
           },
+          finishReason: "STOP",
         }],
-        usage: {
-          prompt_tokens: 12,
-          completion_tokens: 24,
+        usageMetadata: {
+          promptTokenCount: 12,
+          candidatesTokenCount: 24,
+          totalTokenCount: 36,
         },
+        modelVersion: "gemini-3-flash-preview",
       }),
       {
         status: 200,
@@ -669,16 +680,17 @@ Deno.test("generateCustomRecipe proceeds with allergen warning when allergen det
       }),
     );
 
-    assertEquals(capturedModel, "gpt-5-mini");
+    // Verify the request went to Gemini
+    assertStringIncludes(capturedUrl ?? "", "gemini-3-flash-preview");
     assertEquals(result.recipe.suggestedName, "Peanut Rice Bowl");
     assertStringIncludes(result.safetyFlags?.allergenWarning ?? "", "Contains");
     assertEquals(result.safetyFlags?.error, undefined);
   } finally {
     globalThis.fetch = originalFetch;
-    if (previousOpenAiKey === undefined) {
-      Deno.env.delete("OPENAI_API_KEY");
+    if (previousGoogleKey === undefined) {
+      Deno.env.delete("GEMINI_API_KEY");
     } else {
-      Deno.env.set("OPENAI_API_KEY", previousOpenAiKey);
+      Deno.env.set("GEMINI_API_KEY", previousGoogleKey);
     }
     resetSharedCaches();
   }

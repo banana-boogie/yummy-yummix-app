@@ -348,22 +348,24 @@ for await (const chunk of chatStream({
 
 | Type | Default Model | Config | Use Case | Cost |
 |------|--------------|--------|----------|------|
-| `text` | gpt-4.1-mini | N/A | Chat orchestrator (tool calling + streaming) | Low |
-| `recipe_generation` | gpt-5-mini | reasoning: `low` | Recipe generation (structured JSON output) — quality critical | Low |
-| `recipe_modification` | gpt-4.1-mini | N/A | Recipe modification (transform existing JSON) | Low |
-| `parsing` | gpt-4.1-nano | temperature: `1` | Admin parsing, nutritional data extraction | Very low |
-| `embedding` | text-embedding-3-large | N/A | Vector search (3072 dimensions) | Low |
+| `text` | google/gemini-3-flash-preview | thinking: minimal | Chat orchestrator (tool calling + streaming) | Low |
+| `recipe_generation` | google/gemini-3-flash-preview | thinking: minimal | Recipe generation (structured JSON output) — quality critical | Low |
+| `recipe_modification` | google/gemini-3-flash-preview | thinking: minimal | Recipe modification (transform existing JSON) | Low |
+| `parsing` | openai/gpt-4.1-nano | temperature: `1` | Admin parsing, nutritional data extraction | Very low |
+| `embedding` | openai/text-embedding-3-large | N/A | Vector search (3072 dimensions) | Low |
 
 #### Configuration:
 
 ```bash
 # Required API Keys (in .env or Supabase secrets)
-OPENAI_API_KEY=sk-proj-xxx      # For text, recipe_generation, parsing
+GEMINI_API_KEY=AIza...            # For text, recipe_generation, recipe_modification
+OPENAI_API_KEY=sk-proj-xxx        # For parsing, embedding
 
-# Optional: Override default models
-AI_TEXT_MODEL=gpt-5-mini          # Override chat model (default: gpt-4.1-mini)
-AI_RECIPE_GENERATION_MODEL=gpt-5  # Override recipe model (default: gpt-5-mini)
-AI_PARSING_MODEL=gpt-5-nano       # Override parsing model (default: gpt-4.1-nano)
+# Optional: Override default models (supports provider:model format)
+AI_TEXT_MODEL=openai:gpt-4.1-mini             # Switch to OpenAI
+AI_RECIPE_GENERATION_MODEL=gemini-2.5-flash   # Same provider, different model
+AI_RECIPE_MODIFICATION_MODEL=openai:gpt-5-mini # Switch provider entirely
+AI_PARSING_MODEL=gpt-5-nano                   # Same provider, different model
 ```
 
 #### Design Pattern:
@@ -376,8 +378,8 @@ Developer Code -> Gateway (OpenAI format) -> Provider (translates to native form
 
 This design:
 - Uses OpenAI format because it's the industry standard
-- Each provider handles translation (already implemented for OpenAI)
-- Adding new providers (Anthropic, Google) just requires a new translator
+- Each provider handles translation (implemented for OpenAI and Google)
+- Adding new providers (Anthropic) just requires a new translator
 - NOT OpenAI-specific - it's using OpenAI format as the **lingua franca**
 
 **When adding new providers:** Implement translation logic in `ai-gateway/providers/<provider>.ts`. The gateway interface stays the same.

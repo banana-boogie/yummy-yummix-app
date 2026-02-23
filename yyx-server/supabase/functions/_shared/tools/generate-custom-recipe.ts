@@ -345,7 +345,7 @@ async function callRecipeGenerationAI(
           content: isRetry ? prompt + strictRetryPromptSuffix : prompt,
         },
       ],
-      reasoningEffort: "low",
+      temperature: 0.7,
       maxTokens: 6144,
       responseFormat: {
         type: "json_schema",
