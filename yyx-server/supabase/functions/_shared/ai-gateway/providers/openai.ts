@@ -149,6 +149,7 @@ export async function callOpenAI(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(openaiRequest),
+    signal: request.signal,
   });
 
   if (!response.ok) {
@@ -225,6 +226,7 @@ export async function* callOpenAIStream(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(openaiRequest),
+    signal: request.signal,
   });
 
   if (!response.ok) {
@@ -247,29 +249,35 @@ export async function* callOpenAIStream(
   const decoder = new TextDecoder();
   let buffer = "";
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  try {
+    while (true) {
+      if (request.signal?.aborted) break;
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed === "data: [DONE]") continue;
-      if (!trimmed.startsWith("data: ")) continue;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
 
-      try {
-        const json = JSON.parse(trimmed.slice(6));
-        const content = json.choices?.[0]?.delta?.content;
-        if (content) {
-          yield content;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed === "data: [DONE]") continue;
+        if (!trimmed.startsWith("data: ")) continue;
+
+        try {
+          const json = JSON.parse(trimmed.slice(6));
+          const content = json.choices?.[0]?.delta?.content;
+          if (content) {
+            yield content;
+          }
+        } catch {
+          // Skip malformed JSON
         }
-      } catch {
-        // Skip malformed JSON
       }
     }
+  } finally {
+    reader.releaseLock();
   }
 
   console.log("[ai-gateway:openai] Stream completed", {

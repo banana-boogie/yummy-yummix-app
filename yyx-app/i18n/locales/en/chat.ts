@@ -4,6 +4,7 @@ export const chat = {
     "Hi! I'm Irmixy, your AI chef assistant. Ask me anything about cooking!",
   inputPlaceholder: "Ask Irmixy...",
   sendButton: "Send",
+  stopGenerating: "Stop generating",
   error: {
     default: "Sorry, something went wrong. Please try again.",
     messageTooLong:

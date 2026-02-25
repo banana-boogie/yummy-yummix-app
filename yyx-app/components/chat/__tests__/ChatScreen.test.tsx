@@ -35,6 +35,9 @@ jest.mock('@/i18n', () => ({
       'common.cancel': 'Cancel',
       'chat.messageCopied': 'Message copied to clipboard',
       'chat.error.title': 'Error',
+      'chat.stopGenerating': 'Stop generating',
+      'chat.voice.listening': 'Listening...',
+      'chat.voice.tapToSpeak': 'Tap to speak',
     };
     return translations[key] || key;
   },
@@ -307,6 +310,10 @@ describe('ChatScreen', () => {
     });
   });
 
+  // ============================================================
+  // RESUME BANNER TESTS
+  // ============================================================
+
   describe('resume banner', () => {
     it('shows resume banner when a recent titled session exists', async () => {
       mockGetLastSessionWithMessages.mockResolvedValue({
@@ -398,4 +405,109 @@ describe('ChatScreen', () => {
     });
   });
 
+  // ============================================================
+  // STOP BUTTON TESTS
+  // ============================================================
+
+  describe('stop button', () => {
+    it('shows send button when not loading', () => {
+      render(<ChatScreen />);
+
+      // Input should be editable
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      expect(input.props.editable).not.toBe(false);
+
+      // Stop button should not exist
+      expect(screen.queryByTestId('stop-button')).toBeNull();
+      expect(screen.queryByLabelText('Stop generating')).toBeNull();
+    });
+
+    it('shows stop button when loading', async () => {
+      const mockCancel = jest.fn();
+      mockSendMessage.mockReturnValueOnce({
+        done: new Promise(() => {}),
+        cancel: mockCancel,
+      });
+
+      render(<ChatScreen />);
+
+      // Type and send a message to trigger loading
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      fireEvent.changeText(input, 'Make me a recipe');
+      const sendButton = screen.getByTestId('send-button');
+      fireEvent.press(sendButton);
+
+      await waitFor(() => {
+        expect(mockSendMessage).toHaveBeenCalled();
+      });
+
+      // Stop button should be visible
+      await waitFor(() => {
+        expect(screen.getByTestId('stop-button')).toBeTruthy();
+        expect(screen.getByLabelText('Stop generating')).toBeTruthy();
+      });
+    });
+
+    it('cancels stream when stop button is pressed', async () => {
+      const mockCancel = jest.fn();
+      mockSendMessage.mockReturnValueOnce({
+        done: new Promise(() => {}),
+        cancel: mockCancel,
+      });
+
+      render(<ChatScreen />);
+
+      // Send a message
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      fireEvent.changeText(input, 'Make me a recipe');
+      fireEvent.press(screen.getByTestId('send-button'));
+
+      await waitFor(() => {
+        expect(mockSendMessage).toHaveBeenCalled();
+      });
+
+      // Wait for stop button to appear and press it
+      await waitFor(() => {
+        expect(screen.getByTestId('stop-button')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId('stop-button'));
+
+      // The cancel function from the stream handle should have been called
+      expect(mockCancel).toHaveBeenCalled();
+    });
+
+    it('re-enables input after stop button is pressed', async () => {
+      const mockCancel = jest.fn();
+      mockSendMessage.mockReturnValueOnce({
+        done: new Promise(() => {}),
+        cancel: mockCancel,
+      });
+
+      render(<ChatScreen />);
+
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      fireEvent.changeText(input, 'Make me a recipe');
+      fireEvent.press(screen.getByTestId('send-button'));
+
+      await waitFor(() => {
+        expect(mockSendMessage).toHaveBeenCalled();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('stop-button')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId('stop-button'));
+
+      // Input should be re-enabled after stopping
+      await waitFor(() => {
+        const refreshedInput = screen.getByPlaceholderText('Ask Irmixy...');
+        expect(refreshedInput.props.editable).not.toBe(false);
+      });
+
+      // Stop button should be gone, send button back
+      expect(screen.queryByTestId('stop-button')).toBeNull();
+    });
+  });
 });
