@@ -198,13 +198,6 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                     )}
                 </TouchableOpacity>
 
-                {/* Description (optional, from backend) */}
-                {recipe.description ? (
-                    <Text className="text-text-secondary text-sm mt-xs" numberOfLines={2}>
-                        {recipe.description}
-                    </Text>
-                ) : null}
-
                 {/* AI-generated recipe badge */}
                 <TouchableOpacity
                     onPress={handleToggleDisclaimer}
@@ -235,6 +228,13 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                         </Text>
                     </View>
                 )}
+
+                {/* Description (optional, from backend) */}
+                {recipe.description ? (
+                    <Text className="text-text-secondary text-base mt-sm">
+                        {recipe.description}
+                    </Text>
+                ) : null}
             </View>
 
             {/* Recipe info row (always visible) */}
