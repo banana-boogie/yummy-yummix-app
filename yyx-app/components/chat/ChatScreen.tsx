@@ -85,12 +85,13 @@ export function ChatScreen({
         flatListRef,
         showScrollButton,
         scrollToEndThrottled,
+        handleContentSizeChange,
+        handleLayout,
         handleScroll,
         handleScrollToEnd,
         isNearBottomRef,
         skipNextScrollToEndRef,
     } = useSmartScroll({
-        messagesLength: messages.length,
         hasRecipeInCurrentStreamRef,
     });
 
@@ -232,14 +233,15 @@ export function ChatScreen({
     const showRecipeTracker = isRecipeGenerating && !latestMessage?.customRecipe;
 
     const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
+        const isLast = item.id === lastMessageId;
         return (
             <ChatMessageItem
                 item={item}
-                isLastMessage={item.id === lastMessageId}
-                isLoading={isLoading}
-                isRecipeGenerating={isRecipeGenerating}
-                currentStatus={currentStatus}
-                statusText={statusText}
+                isLastMessage={isLast}
+                isLoading={isLast ? isLoading : false}
+                isRecipeGenerating={isLast ? isRecipeGenerating : false}
+                currentStatus={isLast ? currentStatus : null}
+                statusText={isLast ? statusText : ''}
                 onCopyMessage={handleCopyMessage}
                 onStartCooking={handleStartCooking}
                 onActionPress={handleActionPress}
@@ -277,6 +279,8 @@ export function ChatScreen({
                         />
                     ) : null
                 }
+                onContentSizeChange={handleContentSizeChange}
+                onLayout={handleLayout}
                 onScroll={handleScroll}
                 scrollEventThrottle={200}
                 removeClippedSubviews={Platform.OS !== 'web'}
@@ -285,9 +289,6 @@ export function ChatScreen({
                 windowSize={5}
                 initialNumToRender={8}
                 getItemLayout={undefined}
-                maintainVisibleContentPosition={{
-                    minIndexForVisible: 0,
-                }}
                 onScrollToIndexFailed={(info) => {
                     setTimeout(() => {
                         flatListRef.current?.scrollToIndex({
