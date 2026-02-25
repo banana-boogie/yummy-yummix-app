@@ -37,6 +37,7 @@ import { detectMealContext } from "./meal-context.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { callAI, callAIStream } from "./ai-calls.ts";
 import { errorResponse, finalizeResponse } from "./response-builder.ts";
+import { detectTextToolCall, stripToolCallText } from "./tool-call-text.ts";
 
 // ============================================================
 // Config
@@ -44,31 +45,6 @@ import { errorResponse, finalizeResponse } from "./response-builder.ts";
 
 const STREAM_TIMEOUT_MS = 30_000;
 const HEARTBEAT_INTERVAL_MS = 15_000;
-
-/** Registered tool names for pattern matching (static to avoid heavy imports) */
-const TOOL_NAMES = [
-  "search_recipes",
-  "generate_custom_recipe",
-  "modify_recipe",
-  "retrieve_cooked_recipes",
-];
-
-/** Detect if AI output tool-call syntax as plain text instead of structured calls */
-function detectTextToolCall(content: string): string | null {
-  if (!content) return null;
-  for (const name of TOOL_NAMES) {
-    if (content.includes(`call:${name}`) || content.includes(`${name}{`)) {
-      return name;
-    }
-  }
-  return null;
-}
-
-/** Strip any residual tool-call text that leaked into the response */
-function stripToolCallText(text: string): string {
-  if (!text) return text;
-  return text.replace(/\n?call:\w+\{[\s\S]*$/m, "").trim();
-}
 
 // ============================================================
 // Main Handler
@@ -394,20 +370,24 @@ function handleStreamingRequest(
         timings.llm_call_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
         const assistantMessage = firstResponse.choices[0].message;
+        const detectedTool = assistantMessage.content
+          ? detectTextToolCall(assistantMessage.content)
+          : null;
 
         // Gemini sometimes outputs tool-call syntax as plain text instead of
         // structured function calls. Detect this and retry with forced tool calling.
         if (
           !assistantMessage.tool_calls?.length &&
-          assistantMessage.content &&
-          detectTextToolCall(assistantMessage.content)
+          detectedTool
         ) {
           log.warn(
             "Detected tool call in text, retrying with required tool choice",
             {
-              detectedTool: detectTextToolCall(assistantMessage.content),
+              detectedTool,
             },
           );
+          // Keep SSE alive before the retry call. `send(...)` resets stream timeout.
+          send({ type: "status", status: "thinking" });
           const retryResponse = await callAI(messages, true, "required");
           selectedModel = retryResponse.model;
           Object.assign(assistantMessage, retryResponse.choices[0].message);

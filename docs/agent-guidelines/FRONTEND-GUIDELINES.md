@@ -297,10 +297,10 @@ Platform prefixes in NativeWind:
 ```typescript
 import { PROGRESS_CONFIG } from '@/components/chat/RecipeProgressTracker';
 ```
-- `stages[].durationMs` — time budget per stage (total ~45s baseline as of Feb 2026)
+- `stages[].durationMs` — time budget per stage (total ~5.6s baseline as of Feb 2026)
 - `sseAnchors` — maps SSE status strings to minimum stage indices
 - `progressCap` (0.92) — prevents bar from reaching 100% before actual completion
-- `stallThresholdMs` (50s) — shows "Almost there..." message after this delay
+- `stallThresholdMs` (15s) — shows "Almost there..." message after this delay
 
 **Animation notes:**
 - Uses `scaleX` transform on progress bar for native driver compatibility
