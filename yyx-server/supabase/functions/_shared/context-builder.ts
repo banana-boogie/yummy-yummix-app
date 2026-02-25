@@ -151,7 +151,7 @@ async function buildContext(
     skillLevel: profile?.skill_level || null,
     householdSize: profile?.household_size || null,
     conversationHistory: historyResult as Array<
-      { role: string; content: string; metadata?: any }
+      { role: string; content: string; metadata?: any; toolSummary?: string }
     >,
     dietTypes,
     cuisinePreferences,
@@ -181,14 +181,30 @@ const TOOL_SUMMARIZERS: Record<string, ToolResultSummarizer> = {
     if (!Array.isArray(data) || data.length === 0) return null;
     const summaries = data.map((r: Record<string, unknown>) => {
       const attrs: string[] = [];
-      if (r.name) attrs.push(r.name as string);
-      if (r.totalTime) attrs.push(`${r.totalTime} min`);
-      if (r.difficulty) attrs.push(r.difficulty as string);
-      if (r.portions) attrs.push(`${r.portions} portions`);
+      if (typeof r.name === "string") {
+        const safeName = sanitizeContent(r.name).trim();
+        if (safeName) attrs.push(safeName);
+      }
+      if (typeof r.totalTime === "number" && isFinite(r.totalTime)) {
+        attrs.push(`${r.totalTime} min`);
+      }
+      if (typeof r.difficulty === "string") {
+        const safeDifficulty = sanitizeContent(r.difficulty).trim();
+        if (safeDifficulty) attrs.push(safeDifficulty);
+      }
+      if (typeof r.portions === "number" && isFinite(r.portions)) {
+        attrs.push(`${r.portions} portions`);
+      }
       if (
         Array.isArray(r.allergenWarnings) && r.allergenWarnings.length > 0
       ) {
-        attrs.push(`allergens: ${r.allergenWarnings.join(", ")}`);
+        const safeAllergens = r.allergenWarnings
+          .filter((a): a is string => typeof a === "string")
+          .map((a) => sanitizeContent(a).trim())
+          .filter((a) => a.length > 0);
+        if (safeAllergens.length > 0) {
+          attrs.push(`allergens: ${safeAllergens.join(", ")}`);
+        }
       }
       return attrs.join(", ");
     });
@@ -200,8 +216,11 @@ const TOOL_SUMMARIZERS: Record<string, ToolResultSummarizer> = {
   customRecipe: (data) => {
     if (!data || typeof data !== "object") return null;
     const recipe = data as Record<string, unknown>;
-    if (recipe.suggestedName) {
-      return `(System: recipe "${recipe.suggestedName}" was generated via tool and shown to user in recipe card)`;
+    if (typeof recipe.suggestedName === "string") {
+      const safeSuggestedName = sanitizeContent(recipe.suggestedName).trim();
+      if (safeSuggestedName) {
+        return `(System: recipe "${safeSuggestedName}" was generated via tool and shown to user in recipe card)`;
+      }
     }
     return "(System: a recipe was generated via tool and shown to user in recipe card)";
   },

@@ -195,6 +195,22 @@ Deno.test("summarizeHistoryToolResults - unrelated keys are ignored", () => {
   );
 });
 
+Deno.test("summarizeHistoryToolResults - sanitizes interpolated summary fields", () => {
+  const result = summarizeHistoryToolResults({
+    recipes: [{
+      name: "Soup\x00",
+      allergenWarnings: ["nuts\x07", "\x01"],
+    }],
+    customRecipe: {
+      suggestedName: "Safe\x00Name",
+    },
+  });
+  assertEquals(
+    result,
+    '(System: showed 1 recipe card(s) to user — Soup, allergens: nuts) (System: recipe "SafeName" was generated via tool and shown to user in recipe card)',
+  );
+});
+
 // --- sanitizeContent (existing function, basic coverage) ---
 
 Deno.test("sanitizeContent - strips control characters", () => {

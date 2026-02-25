@@ -408,7 +408,7 @@ function handleStreamingRequest(
           detectedTool
         ) {
           log.warn(
-            "Detected tool call in text, retrying with required tool choice",
+            "Detected tool call in text, retrying with specific tool choice",
             {
               detectedTool,
             },
@@ -418,7 +418,7 @@ function handleStreamingRequest(
           const retryResponse = await callAI(
             messages,
             true,
-            "required",
+            { type: "function", function: { name: detectedTool } },
             signal,
           );
           selectedModel = retryResponse.model;
