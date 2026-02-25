@@ -170,12 +170,27 @@ async function buildRequestContext(
 
   const systemPrompt = buildSystemPrompt(userContext, mealContext);
 
-  const messages: ChatMessage[] = [
-    { role: "system", content: systemPrompt },
-    ...userContext.conversationHistory.map((m) => ({
+  // Build message array from conversation history.
+  // Tool result summaries are injected as system-role messages (not appended to
+  // assistant content) so the LLM interprets them as context, not its own prior
+  // output — preventing it from mimicking the format instead of calling tools.
+  const historyMessages: ChatMessage[] = [];
+  for (const m of userContext.conversationHistory) {
+    historyMessages.push({
       role: m.role as "user" | "assistant",
       content: m.content,
-    })),
+    });
+    if (m.toolSummary) {
+      historyMessages.push({
+        role: "system",
+        content: m.toolSummary,
+      });
+    }
+  }
+
+  const messages: ChatMessage[] = [
+    { role: "system", content: systemPrompt },
+    ...historyMessages,
     { role: "user", content: message },
   ];
 

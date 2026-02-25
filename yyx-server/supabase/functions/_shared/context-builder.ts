@@ -245,13 +245,15 @@ async function loadConversationHistory(
   }
 
   // Reverse to get chronological order (oldest first),
-  // sanitize content, and enrich assistant messages with tool result summaries
+  // sanitize content, and compute tool result summaries (kept separate from content
+  // so the LLM doesn't see them as its own prior output and mimic the format)
   return data.reverse().map((msg) => {
-    let content = sanitizeContent(msg.content);
+    const content = sanitizeContent(msg.content);
+    let toolSummary: string | undefined;
     if (msg.role === "assistant" && msg.tool_calls) {
       const summary = summarizeHistoryToolResults(msg.tool_calls);
-      if (summary) content += `\n${summary}`;
+      if (summary) toolSummary = summary;
     }
-    return { role: msg.role, content, metadata: msg.tool_calls };
+    return { role: msg.role, content, metadata: msg.tool_calls, toolSummary };
   });
 }

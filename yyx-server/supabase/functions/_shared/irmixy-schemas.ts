@@ -130,7 +130,9 @@ export interface UserContext {
   ingredientDislikes: string[];
   skillLevel: string | null;
   householdSize: number | null;
-  conversationHistory: Array<{ role: string; content: string; metadata?: any }>;
+  conversationHistory: Array<
+    { role: string; content: string; metadata?: any; toolSummary?: string }
+  >;
   // Additional context fields
   dietTypes: string[]; // MEDIUM constraint - affects ingredient selection (vegan, keto, etc.)
   cuisinePreferences: string[]; // SOFT constraint - inspirational only (italian, mexican, etc.)
