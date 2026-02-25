@@ -48,6 +48,7 @@ export const UsefulItemSchema = z.object({
 export const GeneratedRecipeSchema = z.object({
   schemaVersion: z.literal("1.0"),
   suggestedName: z.string(),
+  description: z.string().optional(),
   measurementSystem: z.enum(["imperial", "metric"]),
   language: z.enum(["en", "es"]),
   ingredients: z.array(z.object({

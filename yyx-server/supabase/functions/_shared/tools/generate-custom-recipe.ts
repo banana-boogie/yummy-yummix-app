@@ -262,6 +262,7 @@ export function buildRecipeJsonSchema(
     properties: {
       schemaVersion: { type: "string", enum: ["1.0"] },
       suggestedName: { type: "string" },
+      description: { type: "string" },
       measurementSystem: { type: "string", enum: ["imperial", "metric"] },
       language: { type: "string", enum: ["en", "es"] },
       ingredients: {
@@ -294,6 +295,7 @@ export function buildRecipeJsonSchema(
     required: [
       "schemaVersion",
       "suggestedName",
+      "description",
       "measurementSystem",
       "language",
       "ingredients",
@@ -451,7 +453,7 @@ RULES: Use practical quantities (1/3 cup not 0.333). Include meat cooking temps.
 ${thermomixSection}
 
 OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Use this structure:
-{"schemaVersion":"1.0","suggestedName":"...","measurementSystem":"${userContext.measurementSystem}","language":"${userContext.language}","ingredients":[{"name":"...","quantity":1,"unit":"..."}],"steps":[{"order":1,"instruction":"...","ingredientsUsed":["..."]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":[]}`;
+{"schemaVersion":"1.0","suggestedName":"...","description":"A brief 1-2 sentence description of the dish","measurementSystem":"${userContext.measurementSystem}","language":"${userContext.language}","ingredients":[{"name":"...","quantity":1,"unit":"..."}],"steps":[{"order":1,"instruction":"...","ingredientsUsed":["..."]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":[]}`;
 }
 
 /**
