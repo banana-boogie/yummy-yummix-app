@@ -29,12 +29,9 @@ export default function ChatPage() {
     const [sessionsMenuOpenSignal, setSessionsMenuOpenSignal] = useState(0);
     const [newChatSignal, setNewChatSignal] = useState(0);
 
-    // Restore persisted sessionId on mount
-    useEffect(() => {
-        AsyncStorage.getItem(STORAGE_KEY_SESSION_ID).then((stored) => {
-            if (stored) setSessionId(stored);
-        }).catch(() => { /* ignore storage errors */ });
-    }, []);
+    // Session ID is persisted to AsyncStorage for the resume bar,
+    // but NOT restored on mount — users always start with a fresh chat.
+    // The ChatResumeBar prompts to continue the previous session.
 
     // Wrapper that persists sessionId alongside state
     const updateSessionId = useCallback((newSessionId: string) => {

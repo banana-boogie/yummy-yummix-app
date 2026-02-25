@@ -257,9 +257,9 @@ export function ChatScreen({
         }
     }, [messages, scrollToEndThrottled]);
 
-    // Scroll to bottom when skeleton appears (status changes to generating)
+    // Scroll to bottom when recipe tracker appears (cooking_it_up/generating status)
     useEffect(() => {
-        if (currentStatus === 'generating') {
+        if (currentStatus === 'cooking_it_up' || currentStatus === 'generating') {
             setTimeout(() => {
                 scrollToEndThrottled(true);
             }, SCROLL_DELAY_MS);
@@ -386,20 +386,20 @@ export function ChatScreen({
                 (status) => {
                     if (!isActiveRequest()) return;
                     setCurrentStatus(status);
-                    // 'generating' status is only sent for recipe generation/modification flows
-                    if (status === 'generating') {
+                    // 'cooking_it_up' is sent when generate/modify recipe tools execute;
+                    // 'generating' is the fallback for unknown tools.
+                    if (status === 'cooking_it_up' || status === 'generating') {
                         setIsRecipeGenerating(true);
                     }
                 },
                 // onStreamComplete - text streaming finished, enable input
                 () => {
                     if (!isActiveRequest()) return;
-                    // Enable input immediately when text streaming completes
-                    // Enable input immediately when text streaming completes
                     setIsLoading(false);
                     setIsStreaming(false);
-                    setIsRecipeGenerating(false);
-                    setCurrentStatus(null);
+                    // Don't reset isRecipeGenerating or currentStatus here —
+                    // recipe generation continues after text streaming ends.
+                    // They are reset in onComplete when the full response arrives.
                 },
                 // onPartialRecipe - show recipe card immediately before enrichment completes
                 (partialRecipe) => {
@@ -480,61 +480,66 @@ export function ChatScreen({
                         (response.recipes && response.recipes.length > 0) || response.customRecipe;
 
                     // SINGLE atomic update with all data (text + recipe together)
-                    // This prevents race conditions where text appears without the recipe card
-                    if (bufferedContent || hasRecipeData) {
-                        setMessages(prev => {
-                            const updated = [...prev];
-                            let assistantIdx = assistantIndexRef.current;
-                            if (
-                                assistantIdx === null ||
-                                updated[assistantIdx]?.id !== assistantMessageId
-                            ) {
-                                assistantIdx = updated.findIndex(m => m.id === assistantMessageId);
-                                assistantIndexRef.current = assistantIdx !== -1 ? assistantIdx : null;
+                    // Always update the message — response.message provides text
+                    // even when no chunks were streamed (e.g. non-streaming flows).
+                    setMessages(prev => {
+                        const updated = [...prev];
+                        let assistantIdx = assistantIndexRef.current;
+                        if (
+                            assistantIdx === null ||
+                            updated[assistantIdx]?.id !== assistantMessageId
+                        ) {
+                            assistantIdx = updated.findIndex(m => m.id === assistantMessageId);
+                            assistantIndexRef.current = assistantIdx !== -1 ? assistantIdx : null;
+                        }
+
+                        if (assistantIdx !== null && assistantIdx !== -1) {
+                            // Determine final content
+                            let finalContent = updated[assistantIdx].content;
+
+                            // Append buffered content if any
+                            if (bufferedContent) {
+                                finalContent += bufferedContent;
                             }
 
-                            if (assistantIdx !== null && assistantIdx !== -1) {
-                                // Determine final content
-                                let finalContent = updated[assistantIdx].content;
-
-                                // Append buffered content if any
-                                if (bufferedContent) {
-                                    finalContent += bufferedContent;
-                                }
-
-                                // For recipes, use response.message (overrides streamed content)
-                                if (response.customRecipe && response.message) {
-                                    finalContent = response.message;
-                                }
-
-                                updated[assistantIdx] = {
-                                    ...updated[assistantIdx],
-                                    content: finalContent,
-                                    recipes: hasRecipeData
-                                        ? response.recipes
-                                        : updated[assistantIdx].recipes,
-                                    customRecipe: hasRecipeData
-                                        ? response.customRecipe
-                                        : updated[assistantIdx].customRecipe,
-                                    safetyFlags: hasRecipeData
-                                        ? response.safetyFlags
-                                        : updated[assistantIdx].safetyFlags,
-                                    actions: response.actions,
-                                };
-
-                                // DEBUG: Log the message update
-                                if (__DEV__) {
-                                    console.log('[ChatScreen] Updated message:', {
-                                        messageId: updated[assistantIdx].id,
-                                        hasCustomRecipe: !!updated[assistantIdx].customRecipe,
-                                        recipeName: updated[assistantIdx].customRecipe?.suggestedName,
-                                        hasBufferedContent: !!bufferedContent,
-                                    });
-                                }
+                            // Use response.message as fallback when nothing was streamed
+                            if (!finalContent && response.message) {
+                                finalContent = response.message;
                             }
-                            return updated;
-                        });
-                    }
+
+                            // For recipes, use response.message (overrides streamed content)
+                            if (response.customRecipe && response.message) {
+                                finalContent = response.message;
+                            }
+
+                            updated[assistantIdx] = {
+                                ...updated[assistantIdx],
+                                content: finalContent,
+                                recipes: hasRecipeData
+                                    ? response.recipes
+                                    : updated[assistantIdx].recipes,
+                                customRecipe: hasRecipeData
+                                    ? response.customRecipe
+                                    : updated[assistantIdx].customRecipe,
+                                safetyFlags: hasRecipeData
+                                    ? response.safetyFlags
+                                    : updated[assistantIdx].safetyFlags,
+                                actions: response.actions,
+                            };
+
+                            // DEBUG: Log the message update
+                            if (__DEV__) {
+                                console.log('[ChatScreen] Updated message:', {
+                                    messageId: updated[assistantIdx].id,
+                                    hasCustomRecipe: !!updated[assistantIdx].customRecipe,
+                                    recipeName: updated[assistantIdx].customRecipe?.suggestedName,
+                                    hasBufferedContent: !!bufferedContent,
+                                    usedResponseMessage: !!((!finalContent || finalContent === response.message) && response.message),
+                                });
+                            }
+                        }
+                        return updated;
+                    });
 
                     // When recipes/cards arrive, scroll the assistant message to the top
                     // so the user sees the intro text with cards flowing below it
@@ -892,6 +897,7 @@ export function ChatScreen({
                 style={{
                     paddingTop: SPACING.sm,
                     paddingBottom: insets.bottom > 0 ? 0 : SPACING.sm,
+                    marginBottom: insets.bottom > 0 ? SPACING.md : 0,
                 }}
             >
                 {/* Mic pill — inside bordered section, above input row */}
