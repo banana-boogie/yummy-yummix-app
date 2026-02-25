@@ -435,7 +435,7 @@ function handleStreamingRequest(
         if (signal.aborted) {
           log.info("Request aborted by client (after first LLM call)");
           clearStreamTimeout();
-          closeStream();
+          safeClose();
           return;
         }
 

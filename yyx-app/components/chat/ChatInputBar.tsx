@@ -114,7 +114,7 @@ export function ChatInputBar({
                         }`}
                         style={{ width: SPACING.xxl, height: SPACING.xxl, marginLeft: SPACING.xs }}
                         onPress={handleSend}
-                        disabled={isLoading || !inputText.trim()}
+                        disabled={!inputText.trim()}
                     >
                         <MaterialCommunityIcons name="send" size={ICON_SIZE} color={COLORS.neutral.white} />
                     </TouchableOpacity>
