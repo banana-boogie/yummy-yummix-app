@@ -192,16 +192,18 @@ const TOOL_SUMMARIZERS: Record<string, ToolResultSummarizer> = {
       }
       return attrs.join(", ");
     });
-    return `[Showed ${summaries.length} recipe(s): ${summaries.join(" | ")}]`;
+    return `(System: showed ${summaries.length} recipe card(s) to user — ${
+      summaries.join(" | ")
+    })`;
   },
 
   customRecipe: (data) => {
     if (!data || typeof data !== "object") return null;
     const recipe = data as Record<string, unknown>;
     if (recipe.suggestedName) {
-      return `[Generated recipe: "${recipe.suggestedName}"]`;
+      return `(System: recipe "${recipe.suggestedName}" was generated via tool and shown to user in recipe card)`;
     }
-    return "[Generated recipe]";
+    return "(System: a recipe was generated via tool and shown to user in recipe card)";
   },
 };
 
