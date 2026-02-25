@@ -24,6 +24,7 @@ import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
 import { getAllowedVoiceToolNames } from "../_shared/tools/tool-registry.ts";
 import { getDefaultVoiceQuotaMinutes, getQuotaLimitForUser } from "./quota.ts";
+import { buildVoiceInstructions } from "../_shared/system-prompt-builder.ts";
 
 const ALLOWED_VOICE_TOOLS = new Set(getAllowedVoiceToolNames());
 const ALLOWED_ACTIONS = new Set(
@@ -147,6 +148,10 @@ async function handleStartSession(
     } of ${quotaLimit} minutes this month.`
     : null;
 
+  // Fetch user context for personalized voice instructions
+  const contextBuilder = createContextBuilder(userClient);
+  const userContext = await contextBuilder.buildContext(userId);
+
   const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openaiApiKey) {
     console.error("[irmixy-voice-orchestrator] OPENAI_API_KEY is missing");
@@ -168,6 +173,7 @@ async function handleStartSession(
       body: JSON.stringify({
         model: "gpt-realtime-mini",
         voice: "alloy",
+        instructions: buildVoiceInstructions(userContext),
       }),
     },
   );

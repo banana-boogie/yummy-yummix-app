@@ -15,13 +15,13 @@ interface RecipeListHeaderProps {
 export const RecipeListHeader: React.FC<RecipeListHeaderProps> = ({
   displayName,
 }) => {
-  const { isWeb, isPhone, isLarge } = useDevice();
+  const { isWeb, isPhone } = useDevice();
   const isWebMobile = isWeb && isPhone;
 
   return (
     <GradientHeader>
       <View
-        className={`flex-row items-center justify-between w-full max-w-[1200px] self-center ${isPhone ? 'px-md' : 'px-0'} ${isLarge ? 'pl-[80px]' : ''}`}
+        className={`flex-row items-center justify-between w-full max-w-[1200px] self-center ${isPhone ? 'px-md' : 'px-0'}`}
       >
         <View className="flex-1 pt-xs pb-lg">
           <Text

@@ -44,6 +44,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     const [error, setError] = useState<string | null>(null);
     const [quotaInfo, setQuotaInfo] = useState<QuotaInfo | null>(null);
     const [isExecutingTool, setIsExecutingTool] = useState(false);
+    const [executingToolName, setExecutingToolName] = useState<string | null>(null);
 
     // Transcript messages for the live transcript UI
     const [transcriptMessages, setTranscriptMessages] = useState<ChatMessage[]>(
@@ -96,20 +97,37 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
         }
     }, []);
 
-    // Sync from parent when external messages are explicitly reset (e.g. "New Chat").
-    // Track previous external length to only clear on a >0 → 0 transition,
-    // avoiding false resets when external starts as [] during normal flow.
+    // Sync transcript state from parent on session switches and explicit resets.
+    const sessionId = options?.sessionId ?? null;
     const externalMessages = options?.initialTranscriptMessages;
-    const prevExternalLengthRef = useRef(externalMessages?.length ?? 0);
+    const prevSyncRef = useRef<{ sessionId: string | null; externalMessages: ChatMessage[] | undefined }>({
+        sessionId,
+        externalMessages,
+    });
     useEffect(() => {
-        const prevLen = prevExternalLengthRef.current;
+        const prev = prevSyncRef.current;
+        const sessionChanged = prev.sessionId !== sessionId;
+        const prevLen = prev.externalMessages?.length ?? 0;
         const curLen = externalMessages?.length ?? 0;
-        prevExternalLengthRef.current = curLen;
 
-        if (prevLen > 0 && curLen === 0) {
+        if (sessionChanged) {
+            setTranscriptMessages(externalMessages ?? []);
+
+            // Reset in-flight streaming refs to avoid leaking partial content between sessions.
+            assistantTextRef.current = '';
+            pendingRecipeDataRef.current = null;
+            streamingMsgIdRef.current = null;
+            deltaBufferRef.current = '';
+            if (deltaTimerRef.current) {
+                clearTimeout(deltaTimerRef.current);
+                deltaTimerRef.current = null;
+            }
+        } else if (prevLen > 0 && curLen === 0) {
             setTranscriptMessages([]);
         }
-    }, [externalMessages]);
+
+        prevSyncRef.current = { sessionId, externalMessages };
+    }, [externalMessages, sessionId]);
 
     // Notify parent of transcript changes (stabilised via ref to avoid render storms)
     const onTranscriptChangeRef = useRef(options?.onTranscriptChange);
@@ -336,6 +354,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             // Tool call handler
             addListener('toolCall', async (toolCall: VoiceToolCall) => {
                 setIsExecutingTool(true);
+                setExecutingToolName(toolCall.name);
                 try {
                     const result = await executeToolOnBackend(
                         session.access_token,
@@ -380,6 +399,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                     );
                 } finally {
                     setIsExecutingTool(false);
+                    setExecutingToolName(null);
                 }
             });
 
@@ -455,6 +475,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
         quotaInfo,
         transcriptMessages,
         isExecutingTool,
+        executingToolName,
         updateMessage,
         startConversation,
         stopConversation,

@@ -97,7 +97,6 @@ export function AuthFormScreen({ mode }: AuthFormScreenProps) {
   return (
     <PageLayout
       header={<AuthHeader title={i18n.t(`${i18nPrefix}.title`)} />}
-      adjustForTabBar={false}
     >
       <View className="flex-1 justify-start gap-lg">
         <View style={{ flex: isLarge ? 0.33 : 0.39 }} />

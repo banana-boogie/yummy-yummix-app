@@ -14,6 +14,7 @@ import { renderHook, act, waitFor } from '@testing-library/react-native';
 // ============================================================
 
 import { useVoiceChat } from '../useVoiceChat';
+import type { ChatMessage } from '@/services/chatService';
 
 // ============================================================
 // MOCK PROVIDER
@@ -123,6 +124,15 @@ async function startAndSetup(result: { current: ReturnType<typeof useVoiceChat> 
     });
     expect(mockProvider.initialize).toHaveBeenCalled();
     expect(mockProvider.startConversation).toHaveBeenCalled();
+}
+
+function createMessage(id: string, content: string): ChatMessage {
+    return {
+        id,
+        role: 'assistant',
+        content,
+        createdAt: new Date(),
+    };
 }
 
 // ============================================================
@@ -414,5 +424,65 @@ describe('full conversation flow', () => {
 
         expect(mockProvider.stopConversation).toHaveBeenCalled();
         expect(mockUnregisterSession).toHaveBeenCalled();
+    });
+});
+
+// ============================================================
+// SESSION SYNC (from main)
+// ============================================================
+
+describe('session sync', () => {
+    it('syncs transcript messages when sessionId changes', async () => {
+        const firstSessionMessages = [createMessage('s1-msg', 'session one message')];
+        const secondSessionMessages = [createMessage('s2-msg', 'session two message')];
+
+        const { result, rerender } = renderHook(
+            ({ sessionId, messages }) =>
+                useVoiceChat({
+                    sessionId,
+                    initialTranscriptMessages: messages,
+                }),
+            {
+                initialProps: {
+                    sessionId: 'session-1',
+                    messages: firstSessionMessages,
+                },
+            }
+        );
+
+        expect(result.current.transcriptMessages[0]?.id).toBe('s1-msg');
+
+        rerender({
+            sessionId: 'session-2',
+            messages: secondSessionMessages,
+        });
+
+        await waitFor(() => {
+            expect(result.current.transcriptMessages[0]?.id).toBe('s2-msg');
+            expect(result.current.transcriptMessages[0]?.content).toBe('session two message');
+        });
+    });
+
+    it('clears transcript when parent resets messages to empty', async () => {
+        const initialMessages = [createMessage('msg-1', 'hello')];
+
+        const { result, rerender } = renderHook(
+            ({ messages }) =>
+                useVoiceChat({
+                    sessionId: 'session-1',
+                    initialTranscriptMessages: messages,
+                }),
+            {
+                initialProps: { messages: initialMessages },
+            }
+        );
+
+        expect(result.current.transcriptMessages).toHaveLength(1);
+
+        rerender({ messages: [] });
+
+        await waitFor(() => {
+            expect(result.current.transcriptMessages).toEqual([]);
+        });
     });
 });

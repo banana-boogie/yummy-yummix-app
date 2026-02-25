@@ -10,7 +10,7 @@ import {
     type NativeScrollEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -18,6 +18,7 @@ import { Text } from '@/components/common/Text';
 import { IrmixyAvatar, AvatarState } from './IrmixyAvatar';
 import { VoiceButton } from './VoiceButton';
 import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
+import { RecipeProgressTracker } from './RecipeProgressTracker';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { useAuth } from '@/contexts/AuthContext';
 import { customRecipeService } from '@/services/customRecipeService';
@@ -26,11 +27,13 @@ import type { QuotaInfo, VoiceStatus } from '@/services/voice/types';
 import type { ChatMessage, IrmixyStatus, QuickAction } from '@/services/chatService';
 import type { GeneratedRecipe } from '@/types/irmixy';
 import i18n from '@/i18n';
+import { getChatCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
 
 const SCROLL_THRESHOLD = 200;
 
 interface Props {
     sessionId?: string | null;
+    onSessionCreated?: (sessionId: string) => void;
     /** External transcript messages for mode-switch persistence */
     transcriptMessages?: ChatMessage[];
     onTranscriptChange?: (messages: ChatMessage[]) => void;
@@ -38,6 +41,7 @@ interface Props {
 
 export function VoiceChatScreen({
     sessionId: initialSessionId,
+    onSessionCreated,
     transcriptMessages: externalMessages,
     onTranscriptChange,
 }: Props) {
@@ -57,6 +61,7 @@ export function VoiceChatScreen({
         quotaInfo,
         transcriptMessages,
         isExecutingTool,
+        executingToolName,
         updateMessage,
         startConversation,
         stopConversation,
@@ -126,6 +131,19 @@ export function VoiceChatScreen({
                 return i18n.t('chat.voice.tapToSpeak');
         }
     }, []);
+
+    // Ref-stabilize stopConversation to avoid stale closure in useFocusEffect
+    const stopConversationRef = useRef(stopConversation);
+    useEffect(() => { stopConversationRef.current = stopConversation; }, [stopConversation]);
+
+    // Stop voice when navigating away from this screen
+    useFocusEffect(
+        useCallback(() => {
+            return () => {
+                stopConversationRef.current();
+            };
+        }, [])
+    );
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -199,7 +217,7 @@ export function VoiceChatScreen({
             }
 
             if (recipeId) {
-                router.push(`/(tabs)/recipes/start-cooking/${recipeId}?from=chat`);
+                router.push(getChatCustomCookingGuidePath(recipeId));
             }
         } catch (startCookingError) {
             console.error('[VoiceChatScreen] Start cooking error:', startCookingError);
@@ -307,6 +325,16 @@ export function VoiceChatScreen({
                             )
                         }
                     />
+
+                    {/* Recipe progress tracker for recipe generation tool */}
+                    {isExecutingTool && executingToolName === 'generate_custom_recipe' && (
+                        <View className="px-md py-sm">
+                            <RecipeProgressTracker
+                                isActive={true}
+                                hasRecipe={false}
+                            />
+                        </View>
+                    )}
                 </View>
             ) : (
                 <View className="flex-1 items-center justify-center px-lg">

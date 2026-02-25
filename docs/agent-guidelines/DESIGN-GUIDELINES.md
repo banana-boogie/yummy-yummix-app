@@ -203,7 +203,16 @@ When producing design specs for the frontend agent, include:
 ## Interaction Patterns
 
 - **Touch targets:** Minimum 44x44px (iOS HIG). Use `p-sm` or `p-md` padding on interactive elements.
-- **Loading states:** Show skeleton or spinner, never blank screens
+- **Loading states:** Choose the right pattern for the wait duration and user expectation:
+
+  | Pattern | When to Use | Example |
+  |---------|------------|---------|
+  | **Spinner** | Brief waits (<2s), no content to preview | Button submission, navigation |
+  | **Skeleton** | Medium waits (2-5s), content shape is predictable | Loading recipe cards, chat messages |
+  | **Progress tracker** | Long waits (10s+) with meaningful stages | Recipe generation (~45s) — `RecipeProgressTracker` |
+
+  The `RecipeProgressTracker` uses a "Domino's tracker" pattern: 6 named stages with icons, a progress bar, and stage labels. This transforms a long wait into an engaging narrative ("Irmixy is selecting ingredients... calculating cooking times..."). Use this pattern when: (a) the operation takes >10s, (b) there are identifiable stages, and (c) the user benefits from knowing progress. Never show a blank screen or a static spinner for waits over 5s.
+
 - **Empty states:** Friendly illustration + helpful message + action button
 - **Error states:** Clear message + retry option. Never technical jargon.
 - **Transitions:** Subtle and fast. The app should feel snappy, not animated.

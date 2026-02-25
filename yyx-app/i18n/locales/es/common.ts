@@ -27,6 +27,7 @@ export const common = {
   changeImage: "Cambiar Imagen",
   you: "Tú",
   copied: "¡Copiado!",
+  items: "elementos",
   more: "más",
   loading: "Cargando...",
   today: "Hoy",

@@ -5,73 +5,77 @@ import { CookingGuideHeader } from "@/components/cooking-guide/CookingGuideHeade
 import { RecipeStepContent } from "@/components/cooking-guide/RecipeStepContent";
 import { Text } from "@/components/common/Text";
 import i18n from "@/i18n";
-import React from "react";
+import React, { useMemo } from "react";
 import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideStepNavigationButtons';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
 import { COLORS } from '@/constants/design-tokens';
+import { getCustomCookingGuidePath, isFromChat } from '@/utils/navigation/recipeRoutes';
+import { eventService } from '@/services/eventService';
 
 export default function CustomCookingStep() {
     const { id, step: stepParam, from } = useLocalSearchParams<{ id: string; step: string; from?: string }>();
     const { recipe } = useCustomRecipe(id as string);
+    const isChatFlow = isFromChat(from);
 
     const currentStepNumber = Number(stepParam);
     const steps = recipe?.steps;
     const currentStep = steps?.[currentStepNumber - 1];
     const totalSteps = steps?.length || 0;
+    const isLastStep = currentStepNumber === totalSteps;
 
-    if (!steps) return null;
-    if (!currentStep) return null;
-
-    const isLastStep = currentStepNumber === steps.length;
-
-    const handleNavigation = {
+    const handleNavigation = useMemo(() => ({
         back: () => {
             const previousStep = currentStepNumber - 1;
             if (previousStep >= 1) {
-                router.replace(`/(tabs)/recipes/custom/${id}/cooking-guide/${previousStep}`);
+                router.replace(getCustomCookingGuidePath(id as string, from, String(previousStep)));
             } else {
                 router.back();
             }
         },
         next: () => {
-            router.replace(`/(tabs)/recipes/custom/${id}/cooking-guide/${currentStepNumber + 1}`);
+            router.replace(getCustomCookingGuidePath(id as string, from, String(currentStepNumber + 1)));
         },
         finish: () => {
-            if (from === 'chat') {
+            if (recipe?.id && recipe?.name) {
+                eventService.logCookComplete(recipe.id, recipe.name, 'user_recipes');
+            }
+            if (isChatFlow) {
                 router.replace('/(tabs)/chat');
             } else {
                 router.replace('/(tabs)/recipes');
             }
         }
-    };
+    }), [id, currentStepNumber, from, recipe?.id, recipe?.name, isChatFlow]);
 
-    const Header = () => (
+    const recipeContext = useMemo(() => ({
+        type: 'custom' as const,
+        recipeId: id as string,
+        recipeTitle: recipe?.name ?? '',
+        currentStep: currentStepNumber,
+        totalSteps,
+        stepInstructions: currentStep?.instruction ?? '',
+        ingredients: currentStep?.ingredients?.map(ing => ({
+            name: ing.name,
+            amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
+        }))
+    }), [id, recipe?.name, currentStepNumber, totalSteps, currentStep]);
+
+    const header = useMemo(() => (
         <CookingGuideHeader
             title={i18n.t('recipes.cookingGuide.navigation.step', {
                 step: currentStepNumber,
                 total: totalSteps
             })}
             showSubtitle={false}
-            pictureUrl={recipe.pictureUrl}
+            pictureUrl={recipe?.pictureUrl}
             isCustomRecipe={true}
             onBackPress={handleNavigation.back}
-            recipeContext={{
-                type: 'custom',
-                recipeId: id as string,
-                recipeTitle: recipe.name,
-                currentStep: currentStepNumber,
-                totalSteps,
-                stepInstructions: currentStep.instruction,
-                ingredients: currentStep.ingredients?.map(ing => ({
-                    name: ing.name,
-                    amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
-                }))
-            }}
+            recipeContext={recipeContext}
         />
-    );
+    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation, recipeContext]);
 
-    const Footer = () => (
+    const footer = useMemo(() => (
         <StepNavigationButtons
             onBack={handleNavigation.back}
             onNext={isLastStep ? handleNavigation.finish : handleNavigation.next}
@@ -80,19 +84,20 @@ export default function CustomCookingStep() {
             isLastStep={isLastStep}
             finishText={i18n.t('recipes.cookingGuide.navigation.finish')}
         />
-    );
+    ), [handleNavigation, isLastStep]);
+
+    if (!steps || !currentStep) return null;
 
     return (
         <View className="flex-1">
             <PageLayout
-                footer={<Footer />}
+                footer={footer}
                 backgroundColor={COLORS.grey.light}
                 contentContainerStyle={{ paddingHorizontal: 0 }}
                 contentPaddingHorizontal={0}
                 scrollEnabled={true}
             >
-                <Header />
-                {/* Show section title if present */}
+                {header}
                 {currentStep.recipeSection && shouldDisplayRecipeSection(currentStep.recipeSection) && (
                     <View className="px-sm mb-sm">
                         <Text preset="h2" className="text-text-secondary">

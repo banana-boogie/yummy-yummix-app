@@ -2,7 +2,7 @@
  * Chat API Client
  *
  * Handles communication with the Irmixy chat orchestrator Edge Function.
- * Uses irmixy-chat-orchestrator for structured responses with recipes, suggestions, etc.
+ * Uses irmixy-chat-orchestrator for structured responses with recipes, etc.
  *
  * SSE = Server-Sent Events: A standard for servers to push data to clients
  * over HTTP. Used here for streaming AI responses token-by-token.
@@ -10,7 +10,7 @@
 
 import { supabase } from '@/lib/supabase';
 import EventSource from 'react-native-sse';
-import type { IrmixyResponse, IrmixyStatus, RecipeCard, SuggestionChip, GeneratedRecipe, SafetyFlags, QuickAction } from '@/types/irmixy';
+import type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, QuickAction } from '@/types/irmixy';
 import i18n from '@/i18n';
 
 export interface ChatMessage {
@@ -20,7 +20,6 @@ export interface ChatMessage {
     createdAt: Date;
     // Structured response data (only for assistant messages)
     recipes?: RecipeCard[];
-    suggestions?: SuggestionChip[];
     customRecipe?: GeneratedRecipe;
     safetyFlags?: SafetyFlags;
     actions?: QuickAction[];
@@ -36,7 +35,7 @@ export interface ChatSession {
 }
 
 // Re-export types for convenience
-export type { IrmixyResponse, IrmixyStatus, RecipeCard, SuggestionChip, GeneratedRecipe, SafetyFlags, QuickAction };
+export type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, QuickAction };
 
 // Constants
 const MAX_MESSAGE_LENGTH = 2000;
@@ -66,6 +65,10 @@ export interface StreamCallbacks {
 export interface StreamHandle {
     done: Promise<void>;
     cancel: () => void;
+}
+
+export interface SendMessageOptions {
+    // Reserved for future options
 }
 
 export type SSERouteAction = 'continue' | 'resolve' | 'reject';
@@ -207,6 +210,7 @@ export function sendMessage(
     onStreamComplete?: () => void,
     onPartialRecipe?: (recipe: GeneratedRecipe) => void,
     onComplete?: (response: IrmixyResponse) => void,
+    options?: SendMessageOptions,
 ): StreamHandle {
     let finished = false;
     let es: EventSource | null = null;
@@ -276,6 +280,11 @@ export function sendMessage(
 
                 // Wrap connection in Promise to handle retry logic
                 await new Promise<void>((resolveConnection, rejectConnection) => {
+                    const requestBody: Record<string, unknown> = {
+                        message,
+                        sessionId,
+                    };
+
                     // Create EventSource with POST method and body
                     es = new EventSource(IRMIXY_CHAT_ORCHESTRATOR_URL, {
                         method: 'POST',
@@ -283,10 +292,7 @@ export function sendMessage(
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${session.access_token}`,
                         },
-                        body: JSON.stringify({
-                            message,
-                            sessionId,
-                        }),
+                        body: JSON.stringify(requestBody),
                         // Disable automatic reconnection - we handle errors ourselves
                         pollingInterval: 0,
                     });
@@ -456,9 +462,6 @@ export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]>
             if (toolCalls.safetyFlags) {
                 message.safetyFlags = toolCalls.safetyFlags;
             }
-            if (toolCalls.suggestions) {
-                message.suggestions = toolCalls.suggestions;
-            }
             if (toolCalls.actions) {
                 message.actions = toolCalls.actions;
             }
@@ -500,6 +503,7 @@ export async function loadChatSessions(): Promise<{ id: string; title: string; c
  */
 export async function getLastSessionWithMessages(): Promise<{
     sessionId: string;
+    title: string;
     messageCount: number;
     lastMessageAt: Date;
 } | null> {
@@ -511,7 +515,7 @@ export async function getLastSessionWithMessages(): Promise<{
     // Get most recent session for this user
     const { data: sessions, error: sessionError } = await supabase
         .from('user_chat_sessions')
-        .select('id, created_at')
+        .select('id, title, created_at')
         .eq('user_id', userData.user.id)
         .order('created_at', { ascending: false })
         .limit(1);
@@ -546,7 +550,42 @@ export async function getLastSessionWithMessages(): Promise<{
 
     return {
         sessionId: session.id,
+        title: session.title || '',
         messageCount: count || 0,
         lastMessageAt: new Date(messages[0].created_at),
     };
+}
+
+/**
+ * Get recently cooked recipes from user_events.
+ * Note: eventService is batched/async with a 5-second flush interval,
+ * so very recent cook_complete events may not be immediately available.
+ */
+export async function getRecentlyCookedRecipes(limit = 5): Promise<{
+    recipeId: string;
+    recipeName: string;
+    cookedAt: Date;
+}[]> {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) {
+        return [];
+    }
+
+    const { data, error } = await supabase
+        .from('user_events')
+        .select('payload, created_at')
+        .eq('user_id', userData.user.id)
+        .eq('event_type', 'cook_complete')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (error || !data) {
+        return [];
+    }
+
+    return data.map((event: { payload: Record<string, unknown> | null; created_at: string }) => ({
+        recipeId: (event.payload?.recipe_id as string) || '',
+        recipeName: (event.payload?.recipe_name as string) || '',
+        cookedAt: new Date(event.created_at),
+    }));
 }
