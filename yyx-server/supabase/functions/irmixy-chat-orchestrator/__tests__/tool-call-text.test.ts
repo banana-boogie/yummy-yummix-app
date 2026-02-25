@@ -26,6 +26,17 @@ Deno.test("detectTextToolCall returns null for normal content", () => {
   );
 });
 
+Deno.test("detectTextToolCall detects bracket-style [Modified recipe:] marker", () => {
+  const content =
+    'Okay, let\'s try again! [Modified recipe: "Quick Savory Breakfast Burrito"]';
+  assertEquals(detectTextToolCall(content), "modify_recipe");
+});
+
+Deno.test("detectTextToolCall detects bracket-style [Generated recipe:] marker", () => {
+  const content = 'Here is your recipe! [Generated recipe: "Chocolate Cake"]';
+  assertEquals(detectTextToolCall(content), "generate_custom_recipe");
+});
+
 Deno.test("stripToolCallText strips call:<tool>{...} tail", () => {
   const text =
     'Great idea. Let me prepare that.\ncall:generate_custom_recipe{"ingredients":["tomato"]}';

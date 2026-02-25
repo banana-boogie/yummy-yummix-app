@@ -31,6 +31,13 @@ export function detectTextToolCall(content: string): string | null {
       return name;
     }
   }
+
+  // Detect bracket-style markers — AI mimicking history summary format
+  // instead of calling the tool (e.g. "[Modified recipe: ...]")
+  const lower = content.toLowerCase();
+  if (lower.includes("[modified recipe:")) return "modify_recipe";
+  if (lower.includes("[generated recipe:")) return "generate_custom_recipe";
+
   return null;
 }
 

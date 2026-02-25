@@ -3,7 +3,6 @@ import {
     View,
     TextInput,
     TouchableOpacity,
-    ActivityIndicator,
     Platform,
     Animated,
 } from 'react-native';
@@ -21,6 +20,7 @@ interface ChatInputBarProps {
     isListening: boolean;
     handleMicPress: () => void;
     handleSend: () => void;
+    handleStop?: () => void;
     pulseAnim: Animated.Value;
     bottomInset: number;
 }
@@ -32,6 +32,7 @@ export function ChatInputBar({
     isListening,
     handleMicPress,
     handleSend,
+    handleStop,
     pulseAnim,
     bottomInset,
 }: ChatInputBarProps) {
@@ -94,22 +95,30 @@ export function ChatInputBar({
                     maxLength={2000}
                     editable={!isLoading}
                 />
-                <TouchableOpacity
-                    testID="send-button"
-                    className={`rounded-full justify-center items-center ${
-                        isLoading ? 'bg-primary-medium' :
-                        !inputText.trim() ? 'bg-grey-medium' : 'bg-primary-darkest'
-                    }`}
-                    style={{ width: SPACING.xxl, height: SPACING.xxl, marginLeft: SPACING.xs }}
-                    onPress={handleSend}
-                    disabled={isLoading || !inputText.trim()}
-                >
-                    {isLoading ? (
-                        <ActivityIndicator size="small" color={COLORS.neutral.white} />
-                    ) : (
+                {isLoading && handleStop ? (
+                    <TouchableOpacity
+                        testID="stop-button"
+                        className="rounded-full justify-center items-center bg-status-error"
+                        style={{ width: SPACING.xxl, height: SPACING.xxl, marginLeft: SPACING.xs }}
+                        onPress={handleStop}
+                        accessibilityLabel={i18n.t('chat.stopGenerating')}
+                        accessibilityRole="button"
+                    >
+                        <MaterialCommunityIcons name="stop" size={ICON_SIZE} color={COLORS.neutral.white} />
+                    </TouchableOpacity>
+                ) : (
+                    <TouchableOpacity
+                        testID="send-button"
+                        className={`rounded-full justify-center items-center ${
+                            !inputText.trim() ? 'bg-grey-medium' : 'bg-primary-darkest'
+                        }`}
+                        style={{ width: SPACING.xxl, height: SPACING.xxl, marginLeft: SPACING.xs }}
+                        onPress={handleSend}
+                        disabled={!inputText.trim()}
+                    >
                         <MaterialCommunityIcons name="send" size={ICON_SIZE} color={COLORS.neutral.white} />
-                    )}
-                </TouchableOpacity>
+                    </TouchableOpacity>
+                )}
             </View>
         </View>
     );
