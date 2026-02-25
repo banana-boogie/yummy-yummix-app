@@ -167,18 +167,20 @@ Evidence: `yyx-app/services/chatService.ts:47`, `yyx-app/services/chatService.ts
 
 ### 3) Text UI State and Rendering (`ChatScreen`)
 - Optimizes streaming render with chunk batching (`CHUNK_BATCH_MS = 50`) and scroll throttling.
-- Shows status-driven skeleton and enables input as soon as `stream_complete` arrives.
+- Shows `RecipeProgressTracker` during recipe generation instead of a generic skeleton. Gated by `isRecipeGenerating` boolean, which is set `true` when the SSE status is `generating`. The tracker receives `currentStatus` for SSE-driven stage advancement (e.g., `generating` -> stage 2, `enriching` -> stage 5). The bottom status bar is hidden while the tracker is visible.
+- Enables input as soon as `stream_complete` arrives.
 - Performs atomic final assistant update in `onComplete` so recipe card + final text stay consistent.
 - Supports quick actions, including `resume_cooking` payload routing.
 
-Evidence: `yyx-app/components/chat/ChatScreen.tsx:49`, `yyx-app/components/chat/ChatScreen.tsx:596`, `yyx-app/components/chat/ChatScreen.tsx:616`, `yyx-app/components/chat/ChatScreen.tsx:688`, `yyx-app/components/chat/ChatScreen.tsx:1023`.
+Evidence: `yyx-app/components/chat/ChatScreen.tsx:49`, `yyx-app/components/chat/ChatScreen.tsx:596`, `yyx-app/components/chat/ChatScreen.tsx:616`, `yyx-app/components/chat/ChatScreen.tsx:688`, `yyx-app/components/chat/ChatScreen.tsx:1023`, `yyx-app/components/chat/RecipeProgressTracker.tsx:39`.
 
 ### 4) Voice Client Stack (`useVoiceChat` + Provider)
-- `useVoiceChat` translates provider events into chat-like transcript messages and handles backend tool execution.
+- `useVoiceChat` translates provider events into chat-like transcript messages and handles backend tool execution. Exposes `executingToolName` state so the UI can show context-specific feedback during tool execution.
 - `OpenAIRealtimeProvider` handles WebRTC setup, OpenAI Realtime session negotiation, function-call event parsing, and tool-result handoff.
 - Voice tool schemas are declared in app (`voiceTools`) and mirrored to server-side registry constraints.
+- During recipe generation, `VoiceChatScreen` shows `RecipeProgressTracker` in timer-only mode (no SSE status). Gated by `executingToolName === 'generate_custom_recipe'`.
 
-Evidence: `yyx-app/hooks/useVoiceChat.ts:39`, `yyx-app/hooks/useVoiceChat.ts:257`, `yyx-app/hooks/useVoiceChat.ts:368`, `yyx-app/services/voice/providers/OpenAIRealtimeProvider.ts:46`, `yyx-app/services/voice/providers/OpenAIRealtimeProvider.ts:143`, `yyx-app/services/voice/providers/OpenAIRealtimeProvider.ts:383`, `yyx-app/services/voice/shared/VoiceToolDefinitions.ts:8`.
+Evidence: `yyx-app/hooks/useVoiceChat.ts:39`, `yyx-app/hooks/useVoiceChat.ts:257`, `yyx-app/hooks/useVoiceChat.ts:368`, `yyx-app/services/voice/providers/OpenAIRealtimeProvider.ts:46`, `yyx-app/services/voice/providers/OpenAIRealtimeProvider.ts:143`, `yyx-app/services/voice/providers/OpenAIRealtimeProvider.ts:383`, `yyx-app/services/voice/shared/VoiceToolDefinitions.ts:8`, `yyx-app/components/chat/RecipeProgressTracker.tsx:39`.
 
 ### 5) Session/History and Save-to-Cook Integration
 - Session menu loads recent sessions + history from Supabase.
@@ -440,6 +442,9 @@ Evidence: `yyx-server/supabase/functions/irmixy-chat-orchestrator/index.ts:746`,
 ## Evidence Appendix
 | Claim | File Path | Function/Symbol | Line Ref (if available) | Confidence |
 |---|---|---|---|---|
+| RecipeProgressTracker replaces skeleton during recipe generation | `yyx-app/components/chat/RecipeProgressTracker.tsx` | `PROGRESS_CONFIG`, component | 39, 78 | High |
+| Text chat gates tracker via `isRecipeGenerating` on SSE `generating` status | `yyx-app/components/chat/ChatScreen.tsx` | `isRecipeGenerating` state | — | High |
+| Voice chat gates tracker via `executingToolName === 'generate_custom_recipe'` | `yyx-app/hooks/useVoiceChat.ts` | `executingToolName` state | — | High |
 | Chat defaults to voice mode | `yyx-app/app/(tabs)/chat/index.tsx` | `ChatPage` state init | 23 | High |
 | Text chat hits orchestrator URL | `yyx-app/services/chatService.ts` | `IRMIXY_CHAT_ORCHESTRATOR_URL`, `fetch` | 52, 196 | High |
 | SSE event routing contract | `yyx-app/services/chatService.ts` | `routeSSEMessage` | 99 | High |

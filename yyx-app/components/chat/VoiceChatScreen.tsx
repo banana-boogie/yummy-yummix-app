@@ -9,13 +9,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Alert, FlatList, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
-import { useRouter } from 'expo-router';
+import { useFocusEffect , useRouter } from 'expo-router';
 import { Text } from '@/components/common/Text';
 import { IrmixyAvatar, AvatarState } from './IrmixyAvatar';
 import { VoiceButton } from './VoiceButton';
 import { ChatRecipeCard } from './ChatRecipeCard';
 import { CustomRecipeCard } from './CustomRecipeCard';
+import { RecipeProgressTracker } from './RecipeProgressTracker';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { useAuth } from '@/contexts/AuthContext';
 import { customRecipeService } from '@/services/customRecipeService';
@@ -54,6 +54,7 @@ export function VoiceChatScreen({
         quotaInfo,
         transcriptMessages,
         isExecutingTool,
+        executingToolName,
         updateMessage,
         startConversation,
         stopConversation
@@ -201,7 +202,7 @@ export function VoiceChatScreen({
                             onStartCooking={handleStartCooking}
                             messageId={item.id}
                             savedRecipeId={item.savedRecipeId}
-                        />
+                            />
                     </View>
                 )}
             </View>
@@ -294,8 +295,18 @@ export function VoiceChatScreen({
                         }}
                     />
 
-                    {/* Tool execution indicator */}
-                    {isExecutingTool && (
+                    {/* Recipe progress tracker for recipe generation tool */}
+                    {isExecutingTool && executingToolName === 'generate_custom_recipe' && (
+                        <View className="px-md py-sm">
+                            <RecipeProgressTracker
+                                isActive={true}
+                                hasRecipe={false}
+                            />
+                        </View>
+                    )}
+
+                    {/* Generic tool execution indicator for non-recipe tools */}
+                    {isExecutingTool && executingToolName !== 'generate_custom_recipe' && (
                         <View className="flex-row items-center justify-center py-sm gap-sm">
                             <ActivityIndicator size="small" color={COLORS.primary.darkest} />
                             <Text preset="caption" className="text-primary-darkest">

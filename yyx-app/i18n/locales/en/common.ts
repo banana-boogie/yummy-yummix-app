@@ -29,6 +29,7 @@ export const common = {
   changeImage: "Change Image",
   you: "You",
   copied: "Copied!",
+  items: "items",
   more: "more",
   loading: "Loading...",
   today: "Today",

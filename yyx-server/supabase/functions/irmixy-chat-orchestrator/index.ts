@@ -37,6 +37,7 @@ import { detectMealContext } from "./meal-context.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { callAI, callAIStream } from "./ai-calls.ts";
 import { errorResponse, finalizeResponse } from "./response-builder.ts";
+import { detectTextToolCall, stripToolCallText } from "./tool-call-text.ts";
 
 // ============================================================
 // Config
@@ -369,6 +370,30 @@ function handleStreamingRequest(
         timings.llm_call_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
         const assistantMessage = firstResponse.choices[0].message;
+        const detectedTool = assistantMessage.content
+          ? detectTextToolCall(assistantMessage.content)
+          : null;
+
+        // Gemini sometimes outputs tool-call syntax as plain text instead of
+        // structured function calls. Detect this and retry with forced tool calling.
+        if (
+          !assistantMessage.tool_calls?.length &&
+          detectedTool
+        ) {
+          log.warn(
+            "Detected tool call in text, retrying with required tool choice",
+            {
+              detectedTool,
+            },
+          );
+          // Keep SSE alive before the retry call. `send(...)` resets stream timeout.
+          send({ type: "status", status: "thinking" });
+          const retryResponse = await callAI(messages, true, "required");
+          selectedModel = retryResponse.model;
+          Object.assign(assistantMessage, retryResponse.choices[0].message);
+          timings.llm_retry_ms = Math.round(performance.now() - phaseStart);
+          phaseStart = performance.now();
+        }
 
         log.info("AI response", {
           hasToolCalls: !!assistantMessage.tool_calls?.length,
@@ -456,6 +481,9 @@ function handleStreamingRequest(
         }
         timings.stream_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
+
+        // Strip any residual tool-call text that leaked into the streamed response
+        finalText = stripToolCallText(finalText);
 
         // Signal that streaming is complete - frontend can enable input now
         send({ type: "stream_complete" });

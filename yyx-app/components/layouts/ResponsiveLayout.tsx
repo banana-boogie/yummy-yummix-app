@@ -10,11 +10,6 @@ interface ResponsiveLayoutProps {
   contentContainerStyle?: StyleProp<ViewStyle>;
   disableMaxWidth?: boolean;
   /**
-   * Whether to account for tab bar spacing. Use false if the parent already handles tab bar spacing.
-   * Defaults to false because PageLayout typically handles this.
-   */
-  adjustForTabBar?: boolean;
-  /**
    * If true, the container will size to fit its content (flex: 0) instead of expanding to fill space.
    * Useful for headers or auto-height components.
    */
@@ -37,7 +32,6 @@ export function ResponsiveLayout({
   contentContainerStyle,
   maxWidth,
   disableMaxWidth = false,
-  adjustForTabBar = false,
   fitContent = false,
   className,
   contentClassName,
@@ -68,7 +62,6 @@ export function ResponsiveLayout({
         self-center w-full
         ${fitContent ? 'flex-none' : 'flex-1'}
         ${useDefaultMaxWidth ? 'max-w-[500px] md:max-w-[700px] lg:max-w-[800px]' : ''}
-        ${adjustForTabBar ? 'lg:pl-[80px]' : ''}
         ${className || ''}
       `}
       style={[

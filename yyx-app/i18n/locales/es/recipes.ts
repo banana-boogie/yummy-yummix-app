@@ -28,6 +28,7 @@ export const recipes = {
     emptyState: "No se encontraron recetas",
     noRecipesFound: "No se encontraron recetas",
     usefulItems: "Elementos Útiles",
+    servings: "porciones",
   },
   detail: {
     ingredients: {

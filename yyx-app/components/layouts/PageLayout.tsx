@@ -20,7 +20,6 @@ interface PageLayoutProps {
   contentContainerStyle?: StyleProp<ViewStyle>;
   backgroundColor?: string;
   contentPaddingHorizontal?: number;
-  adjustForTabBar?: boolean;
   disableMaxWidth?: boolean;
   scrollEnabled?: boolean;
 }
@@ -37,7 +36,6 @@ export function PageLayout({
   contentContainerStyle,
   contentPaddingHorizontal,
   backgroundColor = COLORS.background.default,
-  adjustForTabBar = true,
   disableMaxWidth = false,
   scrollEnabled = false,
 }: PageLayoutProps) {
@@ -46,7 +44,7 @@ export function PageLayout({
 
   return (
     <View
-      className={`flex-1 flex-col ${adjustForTabBar ? 'lg:pl-[80px]' : ''}`}
+      className="flex-1 flex-col"
       style={[{ backgroundColor }, style]}
     >
       {/* Header */}

@@ -691,15 +691,15 @@ The chat screen is built with a React Native `FlatList` (inverted for bottom-to-
 Each chat message can contain:
 1. **Recipe cards** (`ChatRecipeCard`) - Existing recipes from search results (thumbnail + name + time/difficulty)
 2. **Custom recipe card** (`CustomRecipeCard`) - AI-generated recipe with editable name, expandable ingredients/steps, "Start Cooking" button
-3. **Generating skeleton** (`RecipeGeneratingSkeleton`) - Shimmer animation while recipe generates
+3. **Recipe progress tracker** (`RecipeProgressTracker`) - Stage-based progress UI while a recipe is generated
 4. **Text bubble** - The AI's conversational text with Markdown support
 5. **Suggestion chips** (`SuggestionChips`) - Quick-tap follow-up actions
 
 ### Two-phase recipe display in the UI
 
-1. User sends message → empty assistant bubble appears with skeleton
-2. `status: "generating"` → skeleton shows "Generating recipe..."
-3. `recipe_partial` arrives → skeleton disappears, `CustomRecipeCard` renders with recipe data
+1. User sends message → empty assistant bubble appears
+2. `status: "generating"` → `RecipeProgressTracker` appears and advances through stages
+3. `recipe_partial` arrives → tracker disappears, `CustomRecipeCard` renders with recipe data
 4. `status: "enriching"` → card visible, enrichment happening in background
 5. `done` arrives → card updates silently with enriched data (safety flags, etc.)
 
@@ -727,15 +727,14 @@ The chat page uses a **lifted state pattern** - messages for both text and voice
 
 ```
 Chat Page (parent)
-├── messages (text chat state)
-├── voiceTranscriptMessages (voice chat state)
+├── messages (shared state for text + voice chat)
 ├── mode ('text' | 'voice')
 │
-├── ChatScreen (receives text messages)
-└── VoiceChatScreen (receives voice messages)
+├── ChatScreen (receives shared messages)
+└── VoiceChatScreen (receives shared messages)
 ```
 
-This means switching between text and voice mode preserves both conversation histories. The user can text-chat, switch to voice, switch back, and see all their messages.
+This means switching between text and voice mode preserves one shared conversation history. The user can text-chat, switch to voice, switch back, and keep all messages.
 
 ### Saving generated recipes
 
@@ -892,7 +891,7 @@ Two layers of protection:
 | `components/chat/VoiceChatScreen.tsx` | Voice chat UI (avatar, transcript) |
 | `components/chat/CustomRecipeCard.tsx` | AI-generated recipe display + "Start Cooking" |
 | `components/chat/ChatRecipeCard.tsx` | Database recipe cards from search |
-| `components/chat/RecipeGeneratingSkeleton.tsx` | Loading shimmer during generation |
+| `components/chat/RecipeProgressTracker.tsx` | Stage-based progress indicator during recipe generation |
 | `components/chat/SuggestionChips.tsx` | Quick-tap suggestion buttons |
 | `components/chat/IrmixyAvatar.tsx` | Animated avatar for voice mode |
 | `components/chat/VoiceButton.tsx` | Microphone button with state feedback |

@@ -2,8 +2,7 @@
  * Chat Page with Text/Voice Mode Toggle
  *
  * Users can switch between text chat and voice conversation.
- * Messages state is lifted here to preserve recipes when switching modes.
- * Voice transcript messages are also lifted for mode-switch persistence.
+ * Messages state is lifted here as a single source of truth for both modes.
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
@@ -23,19 +22,16 @@ const STORAGE_KEY_SESSION_ID = 'lastChatSessionId';
 type ChatMode = 'text' | 'voice';
 
 export default function ChatPage() {
-    const [mode, setMode] = useState<ChatMode>(Platform.OS === 'web' ? 'text' : 'voice'); // Default to text on web, voice on mobile
+    const [mode, setMode] = useState<ChatMode>(Platform.OS === 'web' ? 'text' : 'voice');
     const [sessionId, setSessionId] = useState<string | null>(null);
-    // Lift messages state to preserve recipes when switching modes
     const [messages, setMessages] = useState<ChatMessage[]>([]);
-    // Lift voice transcript messages for mode-switch persistence
     const [voiceTranscriptMessages, setVoiceTranscriptMessages] = useState<ChatMessage[]>([]);
+    const [sessionsMenuOpenSignal, setSessionsMenuOpenSignal] = useState(0);
+    const [newChatSignal, setNewChatSignal] = useState(0);
 
-    // Restore persisted sessionId on mount
-    useEffect(() => {
-        AsyncStorage.getItem(STORAGE_KEY_SESSION_ID).then((stored) => {
-            if (stored) setSessionId(stored);
-        }).catch(() => { /* ignore storage errors */ });
-    }, []);
+    // Session ID is persisted to AsyncStorage for the resume bar,
+    // but NOT restored on mount — users always start with a fresh chat.
+    // The ChatResumeBar prompts to continue the previous session.
 
     // Wrapper that persists sessionId alongside state
     const updateSessionId = useCallback((newSessionId: string) => {
@@ -43,22 +39,25 @@ export default function ChatPage() {
         AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, newSessionId).catch(() => {});
     }, []);
 
-    const toggleMode = () => {
-        setMode(m => m === 'text' ? 'voice' : 'text');
-    };
+    const toggleMode = useCallback(() => {
+        setMode((m) => (m === 'text' ? 'voice' : 'text'));
+    }, []);
 
-    // Handler for selecting a session from the hamburger menu
     const handleSelectSession = useCallback((newSessionId: string, sessionMessages: ChatMessage[]) => {
         updateSessionId(newSessionId);
         setMessages(sessionMessages);
     }, [updateSessionId]);
 
-    // Handler for starting a new chat from the hamburger menu
     const handleNewChat = useCallback(() => {
         setSessionId(null);
         setMessages([]);
         setVoiceTranscriptMessages([]);
         AsyncStorage.removeItem(STORAGE_KEY_SESSION_ID).catch(() => {});
+        setNewChatSignal((prev) => prev + 1);
+    }, []);
+
+    const openSessionsMenu = useCallback(() => {
+        setSessionsMenuOpenSignal((prev) => prev + 1);
     }, []);
 
     return (
@@ -72,6 +71,7 @@ export default function ChatPage() {
                             currentSessionId={sessionId}
                             onSelectSession={handleSelectSession}
                             onNewChat={handleNewChat}
+                            openSignal={sessionsMenuOpenSignal}
                         />
                     ),
                     headerRight: () =>
@@ -103,6 +103,8 @@ export default function ChatPage() {
                     onSessionCreated={updateSessionId}
                     messages={messages}
                     onMessagesChange={setMessages}
+                    onOpenSessionsMenu={openSessionsMenu}
+                    newChatSignal={newChatSignal}
                 />
             )}
         </View>

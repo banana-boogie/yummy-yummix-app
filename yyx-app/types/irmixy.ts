@@ -46,6 +46,7 @@ export interface GeneratedUsefulItem {
 export interface GeneratedRecipe {
   schemaVersion: '1.0';
   suggestedName: string;
+  description?: string;
   measurementSystem: 'imperial' | 'metric';
   language: 'en' | 'es';
   ingredients: GeneratedIngredient[];
