@@ -16,8 +16,7 @@ mkdir -p "$BACKUP_PATH"
 # Check prerequisites
 if ! command -v pg_dump &> /dev/null; then
   echo "❌ pg_dump not found"
-  echo "   Install: brew install libpq"
-  echo "   Add to PATH: echo 'export PATH=\"/opt/homebrew/opt/libpq/bin:\$PATH\"' >> ~/.zshrc"
+  echo "   Install: brew install libpq && brew link --force libpq"
   exit 1
 fi
 

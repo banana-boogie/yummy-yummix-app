@@ -17,7 +17,6 @@ export default function InvalidLinkScreen() {
 
   return (
     <PageLayout
-      adjustForTabBar={false}
       header={
         <AuthHeader
           title={i18n.t('auth.emailAuth.invalidLink.title')}

@@ -35,6 +35,8 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private pendingEvents: any[] = [];
   // Function call tracking (keyed by call_id to handle interleaved calls)
   private pendingToolCalls: Map<string, { name: string; args: string }> = new Map();
+  // Goodbye detection — wait for AI response before disconnecting
+  private goodbyeDetected = false;
   // Token tracking for cost calculation (separated by type for accurate pricing)
   private sessionInputTokens: number = 0;
   private sessionOutputTokens: number = 0;
@@ -198,7 +200,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     InCallManager.start({ media: "audio", ringback: "" });
     InCallManager.setForceSpeakerphoneOn(true);
 
-    // Start inactivity timer (will auto-end if no speech for 30 seconds)
+    // Start inactivity timer (auto-end if no speech for 30 seconds)
     this.inactivityTimer.reset(() => {
       this.stopConversation();
     });
@@ -236,6 +238,9 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     }
 
     this.inactivityTimer.clear();
+
+    // Reset goodbye state
+    this.goodbyeDetected = false;
 
     if (this.sessionStartTime) {
       const durationSeconds = (Date.now() - this.sessionStartTime) / 1000;
@@ -427,9 +432,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
             // Check for goodbye (fallback if input_audio_transcription.completed doesn't fire)
             if (detectGoodbye(transcript)) {
-              setTimeout(() => {
-                this.stopConversation();
-              }, 2000);
+              this.goodbyeDetected = true;
             }
           }
         }
@@ -440,12 +443,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         this.emit("transcript", message.transcript);
         this.emit("userTranscriptComplete", message.transcript);
 
-        // Check if user said goodbye
+        // Check if user said goodbye — set flag
+        // The actual disconnect happens in response.audio.done so the AI can finish speaking
         if (detectGoodbye(message.transcript)) {
-          // Give a brief moment for AI to respond, then end
-          setTimeout(() => {
-            this.stopConversation();
-          }, 2000); // 2 seconds for AI to say goodbye back
+          this.goodbyeDetected = true;
         }
         break;
 
@@ -517,6 +518,19 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
           this.emit("response", { text: message.transcript });
           this.emit("assistantTranscriptComplete", message.transcript);
         }
+        break;
+
+      case "response.audio.done":
+        // AI finished speaking audio playback
+        if (this.goodbyeDetected) {
+          this.inactivityTimer.clear();
+          this.stopConversation();
+          break;
+        }
+        // Give user a fresh inactivity window to respond
+        this.inactivityTimer.reset(() => {
+          this.stopConversation();
+        });
         break;
 
       case "response.output_item.done":

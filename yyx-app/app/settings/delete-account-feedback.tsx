@@ -291,7 +291,6 @@ export default function DeleteAccountFeedback() {
         <PageLayout
             header={<HeaderWithBack title={i18n.t('profile.deleteAccountFlow.feedback.title')} />}
             backgroundColor="#ffffff"
-            adjustForTabBar={false}
         >
             <Stack.Screen options={{ headerShown: false }} />
 

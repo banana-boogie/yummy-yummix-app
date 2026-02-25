@@ -14,7 +14,11 @@ import { createMockRecipeCardList } from '@/test/mocks/chat';
 
 // Mock all dependencies before importing ChatScreen
 jest.mock('@/i18n', () => ({
-  t: (key: string) => {
+  t: (key: string, params?: Record<string, unknown>) => {
+    if (key === 'chat.resume.chatAbout') {
+      return `You were chatting about '${params?.title}'`;
+    }
+
     const translations: Record<string, string> = {
       'chat.greeting': 'Hi! I\'m Irmixy, your AI sous chef. How can I help?',
       'chat.loginRequired': 'Please log in to use the chat.',
@@ -24,13 +28,8 @@ jest.mock('@/i18n', () => ({
       'chat.generating': 'Creating response',
       'chat.error.default': 'Something went wrong. Please try again.',
       'chat.title': 'Irmixy',
-      'chat.suggestions.suggestRecipe': 'Suggest a recipe',
-      'chat.suggestions.whatCanICook': 'What can I cook?',
-      'chat.suggestions.quickMeal': 'Quick meal ideas',
-      'chat.suggestions.ingredientsIHave': 'Ingredients I have',
-      'chat.suggestions.healthyOptions': 'Healthy options',
-      'chat.suggestions.createCustomRecipeLabel': 'Create a custom recipe',
-      'chat.suggestions.createCustomRecipeMessage': 'Create a custom recipe for me',
+      'chat.resume.previousConversations': 'Previous conversations',
+      'chat.resume.continue': 'Continue',
       'common.copied': 'Copied',
       'common.ok': 'OK',
       'common.cancel': 'Cancel',
@@ -79,10 +78,12 @@ const mockSendMessage = jest.fn().mockReturnValue({
   done: Promise.resolve(),
   cancel: jest.fn(),
 });
+const mockGetLastSessionWithMessages = jest.fn().mockResolvedValue(null);
 
 jest.mock('@/services/chatService', () => ({
   loadChatHistory: (...args: any[]) => mockLoadChatHistory(...args),
   sendMessage: (...args: any[]) => mockSendMessage(...args),
+  getLastSessionWithMessages: (...args: any[]) => mockGetLastSessionWithMessages(...args),
 }));
 
 const mockInvalidateQueries = jest.fn().mockResolvedValue(undefined);
@@ -119,28 +120,12 @@ jest.mock('@/components/chat/ChatRecipeCard', () => ({
   },
 }));
 
-// Mock SuggestionChips
-jest.mock('@/components/chat/SuggestionChips', () => ({
-  SuggestionChips: ({ suggestions, onSelect, disabled }: any) => {
-    const { View, Text, TouchableOpacity } = require('react-native');
-    if (!suggestions || suggestions.length === 0) return null;
-    return (
-      <View testID="suggestion-chips">
-        {suggestions.map((s: any, i: number) => (
-          <TouchableOpacity key={i} onPress={() => onSelect(s)} disabled={disabled}>
-            <Text>{s.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    );
-  },
-}));
-
 describe('ChatScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockAuthUser = mockUser;
     mockLoadChatHistory.mockResolvedValue([]);
+    mockGetLastSessionWithMessages.mockResolvedValue(null);
   });
 
   // ============================================================
@@ -170,13 +155,6 @@ describe('ChatScreen', () => {
   // ============================================================
 
   describe('empty state', () => {
-    it('renders suggestion chips when chat is empty', () => {
-      render(<ChatScreen />);
-
-      expect(screen.getByTestId('suggestion-chips')).toBeTruthy();
-      expect(screen.getByText('Suggest a recipe')).toBeTruthy();
-    });
-
     it('renders greeting in empty state', () => {
       render(<ChatScreen />);
 
@@ -227,7 +205,12 @@ describe('ChatScreen', () => {
 
       const { rerender } = render(<ChatScreen sessionId="session-1" />);
 
-      fireEvent.press(screen.getByText('Suggest a recipe'));
+      // Type a message and send
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      fireEvent.changeText(input, 'Hello');
+      // Find the send button by testID
+      const sendButton = screen.getByTestId('send-button');
+      fireEvent.press(sendButton);
 
       await waitFor(() => {
         expect(mockSendMessage).toHaveBeenCalled();
@@ -295,29 +278,13 @@ describe('ChatScreen', () => {
   });
 
   // ============================================================
-  // SUGGESTION HANDLING TESTS
+  // NO SUGGESTION CHIPS
   // ============================================================
 
-  describe('suggestion handling', () => {
-    it('hides initial suggestions when messages exist', () => {
-      const messages = [
-        {
-          id: 'msg-1',
-          role: 'user' as const,
-          content: 'Hello',
-          createdAt: new Date(),
-        },
-        {
-          id: 'msg-2',
-          role: 'assistant' as const,
-          content: 'Hi!',
-          createdAt: new Date(),
-        },
-      ];
+  describe('no suggestion chips', () => {
+    it('does not render suggestion chips anywhere', () => {
+      render(<ChatScreen />);
 
-      render(<ChatScreen messages={messages} />);
-
-      // Suggestions should not be shown with messages (unless dynamic)
       expect(screen.queryByTestId('suggestion-chips')).toBeNull();
     });
   });
@@ -344,6 +311,101 @@ describe('ChatScreen', () => {
   });
 
   // ============================================================
+  // RESUME BANNER TESTS
+  // ============================================================
+
+  describe('resume banner', () => {
+    it('shows resume banner when a recent titled session exists', async () => {
+      mockGetLastSessionWithMessages.mockResolvedValue({
+        sessionId: 'session-1',
+        title: 'Pasta Carbonara',
+        messageCount: 3,
+        lastMessageAt: new Date(),
+      });
+
+      render(<ChatScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("You were chatting about 'Pasta Carbonara'")).toBeTruthy();
+      });
+    });
+
+    it('continues a resumable session and loads history', async () => {
+      const onSessionCreated = jest.fn();
+      mockGetLastSessionWithMessages.mockResolvedValue({
+        sessionId: 'session-1',
+        title: 'Pasta Carbonara',
+        messageCount: 3,
+        lastMessageAt: new Date(),
+      });
+      mockLoadChatHistory.mockResolvedValueOnce([
+        {
+          id: 'restored-1',
+          role: 'assistant',
+          content: 'Restored message',
+          createdAt: new Date(),
+        },
+      ]);
+
+      render(<ChatScreen onSessionCreated={onSessionCreated} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("You were chatting about 'Pasta Carbonara'")).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Continue'));
+
+      await waitFor(() => {
+        expect(mockLoadChatHistory).toHaveBeenCalledWith('session-1');
+        expect(onSessionCreated).toHaveBeenCalledWith('session-1');
+        expect(screen.getByText('Restored message')).toBeTruthy();
+      });
+    });
+
+    it('dismisses resume banner when close is pressed', async () => {
+      mockGetLastSessionWithMessages.mockResolvedValue({
+        sessionId: 'session-1',
+        title: 'Pasta Carbonara',
+        messageCount: 3,
+        lastMessageAt: new Date(),
+      });
+
+      render(<ChatScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("You were chatting about 'Pasta Carbonara'")).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByLabelText('Cancel'));
+
+      await waitFor(() => {
+        expect(screen.queryByText("You were chatting about 'Pasta Carbonara'")).toBeNull();
+      });
+    });
+
+    it('hides resume banner when new chat signal changes', async () => {
+      mockGetLastSessionWithMessages.mockResolvedValue({
+        sessionId: 'session-1',
+        title: 'Pasta Carbonara',
+        messageCount: 3,
+        lastMessageAt: new Date(),
+      });
+
+      const { rerender } = render(<ChatScreen newChatSignal={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("You were chatting about 'Pasta Carbonara'")).toBeTruthy();
+      });
+
+      rerender(<ChatScreen newChatSignal={1} />);
+
+      await waitFor(() => {
+        expect(screen.queryByText("You were chatting about 'Pasta Carbonara'")).toBeNull();
+      });
+    });
+  });
+
+  // ============================================================
   // STOP BUTTON TESTS
   // ============================================================
 
@@ -351,19 +413,17 @@ describe('ChatScreen', () => {
     it('shows send button when not loading', () => {
       render(<ChatScreen />);
 
-      // Send button icon should be present (not stop)
-      // The send button is always rendered when not loading
+      // Input should be editable
       const input = screen.getByPlaceholderText('Ask Irmixy...');
       expect(input.props.editable).not.toBe(false);
 
       // Stop button should not exist
-      expect(screen.queryByAccessibilityHint?.('Stop generating')).toBeNull();
+      expect(screen.queryByTestId('stop-button')).toBeNull();
       expect(screen.queryByLabelText('Stop generating')).toBeNull();
     });
 
     it('shows stop button when loading', async () => {
       const mockCancel = jest.fn();
-      // Never resolve done to keep loading state active
       mockSendMessage.mockReturnValueOnce({
         done: new Promise(() => {}),
         cancel: mockCancel,
@@ -374,14 +434,16 @@ describe('ChatScreen', () => {
       // Type and send a message to trigger loading
       const input = screen.getByPlaceholderText('Ask Irmixy...');
       fireEvent.changeText(input, 'Make me a recipe');
-      fireEvent.press(screen.getByText('Suggest a recipe'));
+      const sendButton = screen.getByTestId('send-button');
+      fireEvent.press(sendButton);
 
       await waitFor(() => {
         expect(mockSendMessage).toHaveBeenCalled();
       });
 
-      // Stop button should be visible via accessibility label
+      // Stop button should be visible
       await waitFor(() => {
+        expect(screen.getByTestId('stop-button')).toBeTruthy();
         expect(screen.getByLabelText('Stop generating')).toBeTruthy();
       });
     });
@@ -395,8 +457,10 @@ describe('ChatScreen', () => {
 
       render(<ChatScreen />);
 
-      // Send a message via suggestion chip
-      fireEvent.press(screen.getByText('Suggest a recipe'));
+      // Send a message
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      fireEvent.changeText(input, 'Make me a recipe');
+      fireEvent.press(screen.getByTestId('send-button'));
 
       await waitFor(() => {
         expect(mockSendMessage).toHaveBeenCalled();
@@ -404,10 +468,10 @@ describe('ChatScreen', () => {
 
       // Wait for stop button to appear and press it
       await waitFor(() => {
-        expect(screen.getByLabelText('Stop generating')).toBeTruthy();
+        expect(screen.getByTestId('stop-button')).toBeTruthy();
       });
 
-      fireEvent.press(screen.getByLabelText('Stop generating'));
+      fireEvent.press(screen.getByTestId('stop-button'));
 
       // The cancel function from the stream handle should have been called
       expect(mockCancel).toHaveBeenCalled();
@@ -422,27 +486,28 @@ describe('ChatScreen', () => {
 
       render(<ChatScreen />);
 
-      fireEvent.press(screen.getByText('Suggest a recipe'));
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      fireEvent.changeText(input, 'Make me a recipe');
+      fireEvent.press(screen.getByTestId('send-button'));
 
       await waitFor(() => {
         expect(mockSendMessage).toHaveBeenCalled();
       });
 
       await waitFor(() => {
-        expect(screen.getByLabelText('Stop generating')).toBeTruthy();
+        expect(screen.getByTestId('stop-button')).toBeTruthy();
       });
 
-      fireEvent.press(screen.getByLabelText('Stop generating'));
+      fireEvent.press(screen.getByTestId('stop-button'));
 
       // Input should be re-enabled after stopping
       await waitFor(() => {
-        const input = screen.getByPlaceholderText('Ask Irmixy...');
-        expect(input.props.editable).not.toBe(false);
+        const refreshedInput = screen.getByPlaceholderText('Ask Irmixy...');
+        expect(refreshedInput.props.editable).not.toBe(false);
       });
 
-      // Stop button should be gone, replaced by send button
-      expect(screen.queryByLabelText('Stop generating')).toBeNull();
+      // Stop button should be gone, send button back
+      expect(screen.queryByTestId('stop-button')).toBeNull();
     });
   });
-
 });

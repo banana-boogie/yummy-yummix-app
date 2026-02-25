@@ -27,6 +27,10 @@ export function useSpeechRecognition({
     const speechStoppedByUserRef = useRef(false);
     const pulseAnim = useRef(new Animated.Value(1)).current;
 
+    // Ref-stabilize onTranscript to avoid stale closure in event handler
+    const onTranscriptRef = useRef(onTranscript);
+    useEffect(() => { onTranscriptRef.current = onTranscript; }, [onTranscript]);
+
     // Pulse animation while listening
     useEffect(() => {
         if (isListening) {
@@ -48,7 +52,7 @@ export function useSpeechRecognition({
         if (speechStoppedByUserRef.current) return;
         const transcript = event.results[0]?.transcript;
         if (transcript) {
-            onTranscript(transcript);
+            onTranscriptRef.current(transcript);
         }
     });
 

@@ -10,17 +10,22 @@ import { getRegisteredAiTools } from "../_shared/tools/tool-registry.ts";
 import { normalizeMessagesForAi } from "./message-normalizer.ts";
 import type { ChatMessage } from "./types.ts";
 
+type AIToolChoice = "auto" | "required" | {
+  type: "function";
+  function: { name: string };
+};
+
 /**
  * Call AI via the AI Gateway.
  * Supports tools and tool choice control.
- * @param toolChoice - "auto" (default) or "required" (force tool use)
+ * @param toolChoice - "auto" (default), "required", or specific function
  */
 export async function callAI(
   messages: ChatMessage[],
   includeTools: boolean = true,
-  toolChoice?: "auto" | "required",
+  toolChoice: AIToolChoice = "auto",
   signal?: AbortSignal,
-): Promise<{ choices: Array<{ message: ChatMessage }> }> {
+): Promise<{ choices: Array<{ message: ChatMessage }>; model: string }> {
   const aiMessages = normalizeMessagesForAi(messages);
 
   // Convert tools to AI Gateway format
@@ -31,7 +36,6 @@ export async function callAI(
   const response = await chat({
     usageType: "text",
     messages: aiMessages,
-    temperature: 0.7,
     tools,
     toolChoice: includeTools ? toolChoice : undefined,
     signal,
@@ -39,6 +43,7 @@ export async function callAI(
 
   // Convert back to OpenAI response format for compatibility
   return {
+    model: response.model,
     choices: [{
       message: {
         role: "assistant",
@@ -73,7 +78,6 @@ export async function callAIStream(
     const chunk of chatStream({
       usageType: "text",
       messages: aiMessages,
-      temperature: 0.7,
       signal,
     })
   ) {

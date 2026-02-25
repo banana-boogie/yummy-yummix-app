@@ -8,9 +8,9 @@
 /** Usage types for routing to appropriate models */
 export type AIUsageType =
   | "text"
-  | "voice"
+  | "recipe_generation"
+  | "recipe_modification"
   | "parsing"
-  | "reasoning"
   | "embedding";
 
 export type AIProvider = "openai" | "anthropic" | "google";
@@ -27,7 +27,9 @@ export interface AICompletionRequest {
   messages: AIMessage[];
   /** Optional: Override the default model for this usage type */
   model?: string;
-  /** Optional: Temperature (0-2, lower = more deterministic) */
+  /** Optional: Reasoning effort for GPT-5 family models */
+  reasoningEffort?: "minimal" | "low" | "medium" | "high";
+  /** Optional: Sampling temperature (0-2). Use 1 for deterministic tasks like parsing. Not used with reasoning models. */
   temperature?: number;
   /** Optional: Maximum tokens to generate */
   maxTokens?: number;

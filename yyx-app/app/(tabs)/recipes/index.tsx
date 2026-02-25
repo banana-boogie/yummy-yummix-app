@@ -69,6 +69,10 @@ const Recipes = () => {
     [scrollY]
   );
 
+  // Keep search bar visible whenever search is active.
+  const isSearching = searchQuery.trim().length > 0;
+  const headerTranslateY = isSearching ? 0 : translateY;
+
   // Build recipe sections for the sectioned feed
   const sections = useMemo((): RecipeSection[] => {
     if (!recipes.length) return [];
@@ -104,14 +108,11 @@ const Recipes = () => {
     return allSections.filter(section => section.recipes.length > 0);
   }, [recipes]);
 
-  // When searching, collapse to flat grid
-  const isSearching = searchQuery.trim().length > 0;
-
   return (
     <PageLayout contentPaddingHorizontal={0} disableMaxWidth={true}>
       <Animated.View
         style={{
-          transform: [{ translateY }],
+          transform: [{ translateY: headerTranslateY }],
           position: 'absolute',
           top: 0,
           left: 0,
@@ -130,8 +131,7 @@ const Recipes = () => {
             searchQuery={searchQuery}
             setSearchQuery={handleSearchChange}
             placeholder={i18n.t('recipes.header.subtitle')}
-            useDebounce={true}
-            debounceDelay={300}
+            useDebounce={false}
             variant="warm"
           />
         </View>

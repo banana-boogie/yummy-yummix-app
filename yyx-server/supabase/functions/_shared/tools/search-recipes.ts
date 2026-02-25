@@ -67,6 +67,7 @@ export const searchRecipesTool = {
     name: "search_recipes",
     description:
       "Search the recipe database for existing recipes based on user criteria. " +
+      "ALWAYS use this first when the user mentions a specific dish name or asks for known recipes. " +
       "Use this when the user wants to find recipes from the database (not create custom ones). " +
       "Returns recipe cards that match the filters. Recipes containing user allergens are " +
       "returned with warning labels rather than being excluded.",
@@ -208,20 +209,26 @@ export async function searchRecipes(
     .eq("is_published", true)
     .order("created_at", { ascending: false });
 
-  // Apply difficulty filter
-  if (params.difficulty) {
+  const hasQuery = !!params.query;
+
+  // Preserve strict filtering for filter-only searches (no query text).
+  if (!hasQuery && params.difficulty) {
     query = query.eq("difficulty", params.difficulty);
   }
 
-  // Apply time filter
-  if (params.maxTime) {
+  if (!hasQuery && params.maxTime) {
     query = query.lte("total_time", params.maxTime);
   }
 
   // Apply text search on recipe name at DB level
   if (params.query) {
-    const searchTerm = `%${params.query}%`;
-    query = query.or(`name_en.ilike.${searchTerm},name_es.ilike.${searchTerm}`);
+    const nameFilter = buildMultiWordIlikeFilter(
+      params.query,
+      ["name_en", "name_es"],
+    );
+    if (nameFilter) {
+      query = query.or(nameFilter);
+    }
   }
 
   // Fetch more than requested to allow for post-filtering (cuisine, allergens)
@@ -241,8 +248,6 @@ export async function searchRecipes(
     const tagResults = await searchByTags(
       supabase,
       params.query,
-      params.difficulty,
-      params.maxTime,
       fetchLimit,
     );
 
@@ -273,6 +278,7 @@ export async function searchRecipes(
   // Transform to RecipeCard format
   let recipeCards: RecipeCard[] = filtered.map((recipe) => ({
     recipeId: recipe.id,
+    recipeTable: "recipes",
     name: (userContext.language === "es" ? recipe.name_es : recipe.name_en) ||
       "Untitled",
     imageUrl: recipe.image_url || undefined,
@@ -312,6 +318,8 @@ export async function searchRecipes(
       recipeCards,
       params.query,
       userContext.language,
+      params.difficulty,
+      params.maxTime,
     );
   }
 
@@ -357,17 +365,21 @@ function getSemanticSearchClient(
 async function searchByTags(
   supabase: SupabaseClient,
   query: string,
-  difficulty?: "easy" | "medium" | "hard",
-  maxTime?: number,
   limit: number = 30,
 ): Promise<RecipeSearchResult[]> {
-  const searchTerm = `%${query}%`;
+  const tagFilter = buildMultiWordIlikeFilter(
+    query,
+    ["name_en", "name_es"],
+  );
+  if (!tagFilter) {
+    return [];
+  }
 
   // Find tag IDs matching the query
   const { data: matchingTags, error: tagError } = await supabase
     .from("recipe_tags")
     .select("id")
-    .or(`name_en.ilike.${searchTerm},name_es.ilike.${searchTerm}`);
+    .or(tagFilter);
 
   if (tagError || !matchingTags || matchingTags.length === 0) {
     return [];
@@ -390,7 +402,7 @@ async function searchByTags(
   ];
 
   // Fetch full recipe data for those IDs
-  let recipeQuery = supabase
+  const recipeQuery = supabase
     .from("recipes")
     .select(`
       id,
@@ -405,20 +417,40 @@ async function searchByTags(
     .in("id", recipeIds)
     .eq("is_published", true);
 
-  if (difficulty) {
-    recipeQuery = recipeQuery.eq("difficulty", difficulty);
-  }
-  if (maxTime) {
-    recipeQuery = recipeQuery.lte("total_time", maxTime);
-  }
-
   const { data, error } = await recipeQuery.limit(limit);
 
   if (error || !data) {
     return [];
   }
 
-  return data as unknown as RecipeSearchResult[];
+  const tagResults = data as unknown as RecipeSearchResult[];
+  return filterByAllKeywords(tagResults, query);
+}
+
+/**
+ * For multi-word queries, post-filter to require ALL keywords match across tags.
+ * Without this, "chicken pasta" returns any recipe tagged "chicken" OR "pasta".
+ * Single-word queries pass through unfiltered.
+ * Exported for testing.
+ */
+export function filterByAllKeywords(
+  recipes: RecipeSearchResult[],
+  query: string,
+): RecipeSearchResult[] {
+  const keywords = query.toLowerCase().split(/\s+/).filter((k) => k.length > 2);
+  if (keywords.length <= 1 || recipes.length === 0) return recipes;
+
+  return recipes.filter((recipe) => {
+    const recipeTags = (recipe.recipe_to_tag || [])
+      .map((join) => join.recipe_tags)
+      .filter(Boolean)
+      .flatMap((tag) => [tag!.name_en, tag!.name_es].filter(Boolean))
+      .map((t) => t!.toLowerCase());
+
+    return keywords.every((keyword) =>
+      recipeTags.some((tagName) => tagName.includes(keyword))
+    );
+  });
 }
 
 /**
@@ -461,6 +493,8 @@ function scoreByQuery(
   cards: RecipeCard[],
   query: string,
   language: "en" | "es",
+  difficulty?: "easy" | "medium" | "hard",
+  maxTime?: number,
 ): RecipeCard[] {
   const queryLower = query.toLowerCase();
   const keywords = queryLower.split(/\s+/).filter((k) => k.length > 2);
@@ -504,6 +538,27 @@ function scoreByQuery(
       }
     }
 
+    // Soft ranking for explicit constraints when query searches are broadened
+    if (difficulty) {
+      if (original.difficulty === difficulty) {
+        score += 30;
+      } else if (isAdjacentDifficulty(original.difficulty, difficulty)) {
+        score += 10;
+      }
+    }
+
+    if (maxTime) {
+      if (original.total_time <= maxTime) {
+        score += 25;
+      } else if (original.total_time <= maxTime * 1.2) {
+        score += 10;
+      } else if (original.total_time <= maxTime * 1.5) {
+        score += 3;
+      } else {
+        score -= 10;
+      }
+    }
+
     return { card, score };
   });
 
@@ -511,6 +566,46 @@ function scoreByQuery(
   scored.sort((a, b) => b.score - a.score);
 
   return scored.map((s) => s.card);
+}
+
+function buildMultiWordIlikeFilter(
+  query: string,
+  columns: string[],
+): string | null {
+  const terms = getSearchTerms(query);
+  if (terms.length === 0) {
+    return null;
+  }
+
+  const filters: string[] = [];
+  for (const term of terms) {
+    const pattern = `%${term}%`;
+    for (const column of columns) {
+      filters.push(`${column}.ilike.${pattern}`);
+    }
+  }
+  return filters.join(",");
+}
+
+function getSearchTerms(query: string): string[] {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return [];
+
+  const terms = new Set<string>([normalized]);
+  for (const part of normalized.split(/\s+/)) {
+    if (part.length > 2) {
+      terms.add(part);
+    }
+  }
+  return [...terms];
+}
+
+function isAdjacentDifficulty(
+  candidate: "easy" | "medium" | "hard",
+  target: "easy" | "medium" | "hard",
+): boolean {
+  const difficultyOrder = { easy: 0, medium: 1, hard: 2 };
+  return Math.abs(difficultyOrder[candidate] - difficultyOrder[target]) === 1;
 }
 
 /**
