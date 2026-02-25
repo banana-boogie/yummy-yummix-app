@@ -11,7 +11,7 @@ import {
     QuickAction,
 } from '@/services/chatService';
 import Markdown from 'react-native-markdown-display';
-import { COLORS, FONTS } from '@/constants/design-tokens';
+import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '@/constants/design-tokens';
 
 // ============================================================
 // Helpers
@@ -36,29 +36,29 @@ export const markdownStyles = {
         fontFamily: FONTS.HEADING,
         fontWeight: '700' as const,
         fontSize: 22,
-        marginBottom: 8,
-        marginTop: 12,
+        marginBottom: SPACING.xs,
+        marginTop: SPACING.sm,
         color: COLORS.text.default,
     },
     heading2: {
         fontFamily: FONTS.HEADING,
         fontWeight: '600' as const,
         fontSize: 19,
-        marginBottom: 6,
-        marginTop: 10,
+        marginBottom: SPACING.xxs + 2,
+        marginTop: SPACING.xs + 2,
         color: COLORS.text.default,
     },
     heading3: {
         fontFamily: FONTS.HEADING,
         fontWeight: '600' as const,
         fontSize: 17,
-        marginBottom: 4,
-        marginTop: 8,
+        marginBottom: SPACING.xxs,
+        marginTop: SPACING.xs,
         color: COLORS.text.default,
     },
     paragraph: {
         marginTop: 0,
-        marginBottom: 12,
+        marginBottom: SPACING.sm,
         lineHeight: 22,
     },
     strong: {
@@ -69,40 +69,40 @@ export const markdownStyles = {
         fontStyle: 'italic' as const,
     },
     list_item: {
-        marginBottom: 4,
+        marginBottom: SPACING.xxs,
     },
     bullet_list: {
-        marginBottom: 8,
-        paddingLeft: 16,
+        marginBottom: SPACING.xs,
+        paddingLeft: SPACING.md,
     },
     ordered_list: {
-        marginBottom: 8,
-        paddingLeft: 16,
+        marginBottom: SPACING.xs,
+        paddingLeft: SPACING.md,
     },
     blockquote: {
         borderLeftWidth: 3,
         borderLeftColor: COLORS.primary.medium,
-        paddingLeft: 12,
-        marginVertical: 8,
+        paddingLeft: SPACING.sm,
+        marginVertical: SPACING.xs,
         opacity: 0.9,
     },
     hr: {
-        marginVertical: 16,
+        marginVertical: SPACING.md,
         borderBottomWidth: 1,
         borderBottomColor: COLORS.grey.default,
     },
     code_inline: {
         backgroundColor: COLORS.background.secondary,
-        paddingHorizontal: 4,
-        paddingVertical: 2,
-        borderRadius: 4,
+        paddingHorizontal: SPACING.xxs,
+        paddingVertical: SPACING.xxxs,
+        borderRadius: BORDER_RADIUS.xs,
         fontFamily: 'monospace',
     },
     code_block: {
         backgroundColor: COLORS.background.secondary,
-        padding: 8,
-        borderRadius: 8,
-        marginBottom: 8,
+        padding: SPACING.xs,
+        borderRadius: BORDER_RADIUS.sm,
+        marginBottom: SPACING.xs,
         fontFamily: 'monospace',
     },
     link: {

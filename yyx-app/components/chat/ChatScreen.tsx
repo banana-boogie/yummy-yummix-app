@@ -50,6 +50,10 @@ const CHUNK_BATCH_MS = 50; // Batch streaming chunks to reduce re-renders
 const SCROLL_THRESHOLD = 100; // Distance from bottom to consider "at bottom" (px)
 const ICON_SIZE = 20; // Icon size for mic and send buttons
 
+/** Statuses that indicate recipe generation/modification is in progress */
+const isRecipeToolStatus = (status: IrmixyStatus): boolean =>
+    status === 'cooking_it_up' || status === 'generating';
+
 interface Props {
     sessionId?: string | null;
     onSessionCreated?: (sessionId: string) => void;
@@ -257,9 +261,9 @@ export function ChatScreen({
         }
     }, [messages, scrollToEndThrottled]);
 
-    // Scroll to bottom when recipe tracker appears (cooking_it_up/generating status)
+    // Scroll to bottom when recipe tracker appears
     useEffect(() => {
-        if (currentStatus === 'cooking_it_up' || currentStatus === 'generating') {
+        if (isRecipeToolStatus(currentStatus)) {
             setTimeout(() => {
                 scrollToEndThrottled(true);
             }, SCROLL_DELAY_MS);
@@ -386,9 +390,7 @@ export function ChatScreen({
                 (status) => {
                     if (!isActiveRequest()) return;
                     setCurrentStatus(status);
-                    // 'cooking_it_up' is sent when generate/modify recipe tools execute;
-                    // 'generating' is the fallback for unknown tools.
-                    if (status === 'cooking_it_up' || status === 'generating') {
+                    if (isRecipeToolStatus(status)) {
                         setIsRecipeGenerating(true);
                     }
                 },

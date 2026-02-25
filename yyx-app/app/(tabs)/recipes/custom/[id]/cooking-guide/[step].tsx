@@ -46,7 +46,7 @@ export default function CustomCookingStep() {
                 router.replace('/(tabs)/recipes');
             }
         }
-    }), [id, currentStepNumber, from]);
+    }), [id, currentStepNumber, from, recipe?.id, recipe?.name, isChatFlow]);
 
     const recipeContext = useMemo(() => ({
         type: 'custom' as const,
