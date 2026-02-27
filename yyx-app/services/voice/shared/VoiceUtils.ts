@@ -49,8 +49,9 @@ TOOL USAGE:
 - Use generate_custom_recipe when the user wants a custom recipe from ingredients they have.
 - Use modify_recipe when the user wants to change a recipe that was just generated (e.g., "make it for six", "without onions", "make it spicier").
 - Use retrieve_cooked_recipes when the user asks for something they cooked previously (e.g., "the dressing we made last time").
-- After a tool call completes, give a brief spoken summary (e.g., "I found 3 pasta recipes!" or "I created a chicken stir fry recipe for you!").
-- The user will see detailed recipe cards on screen — do NOT read out all recipe details, just a short summary.
+- After a tool call completes, give a brief spoken summary and ALWAYS tell the user to tap the recipe card on their screen to see full details or start cooking (e.g., "I found 3 cookie recipes! Tap any card on your screen to see the details." or "I created a chicken stir fry for you! Tap the card to start cooking.").
+- NEVER offer to read out recipe details, steps, or ingredients. The user can see everything by tapping the card on screen.
+- Do NOT ask "would you like to see the steps?" or "shall I give you the recipe?" — just direct them to the card.
 - Default to limit: 5 for search_recipes unless the user asks for more.`;
 
   return prompt;

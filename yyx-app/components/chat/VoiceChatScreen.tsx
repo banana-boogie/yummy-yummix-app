@@ -29,7 +29,7 @@ import type { GeneratedRecipe } from '@/types/irmixy';
 import i18n from '@/i18n';
 import { getChatCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
 
-const SCROLL_THRESHOLD = 200;
+const SCROLL_THRESHOLD = 600; // Large enough to accommodate recipe cards (~400px tall)
 
 interface Props {
     sessionId?: string | null;
@@ -155,6 +155,18 @@ export function VoiceChatScreen({
         }
         return () => clearInterval(interval);
     }, [isActive, isConnected]);
+
+    // Auto-scroll when new messages arrive during active voice session
+    const prevMessageCountRef = useRef(transcriptMessages.length);
+    useEffect(() => {
+        const prevCount = prevMessageCountRef.current;
+        prevMessageCountRef.current = transcriptMessages.length;
+        if (isActive && transcriptMessages.length > prevCount) {
+            setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+        }
+    }, [transcriptMessages.length, isActive]);
 
     useEffect(() => {
         if (error) {
@@ -377,8 +389,8 @@ export function VoiceChatScreen({
                 </TouchableOpacity>
             )}
 
-            {/* ── IDLE / CONNECTING: bottom voice button ── */}
-            {!isActive && (
+            {/* ── IDLE: bottom voice button ── */}
+            {!isActive && !hasMessages && (
                 <View className="items-center py-xl border-t border-grey-light bg-background-default">
                     <VoiceButton
                         state={isConnecting ? 'processing' : 'ready'}
@@ -392,6 +404,22 @@ export function VoiceChatScreen({
                             {i18n.t('chat.voice.minsRemaining', { mins: quotaInfo.remainingMinutes.toFixed(1) })}
                         </Text>
                     )}
+                </View>
+            )}
+
+            {/* ── Compact mic bar when viewing saved transcript ── */}
+            {!isActive && hasMessages && (
+                <View className="flex-row items-center justify-center py-sm px-md border-t border-grey-light bg-background-default gap-sm">
+                    <VoiceButton
+                        state={isConnecting ? 'processing' : 'ready'}
+                        onPress={handleVoicePress}
+                        size={44}
+                        disabled={isConnecting}
+                        accessibilityLabel={i18n.t('chat.voice.tapToSpeak')}
+                    />
+                    <Text preset="caption" className="text-text-secondary">
+                        {i18n.t('chat.voice.tapToSpeak')}
+                    </Text>
                 </View>
             )}
         </View>
