@@ -38,8 +38,10 @@ function baseMessages(): ChatMessage[] {
 Deno.test("callAI returns usage and model alongside choices", async () => {
   const previousFetch = globalThis.fetch;
   const previousKey = Deno.env.get("OPENAI_API_KEY");
+  const previousTextModel = Deno.env.get("AI_TEXT_MODEL");
 
   Deno.env.set("OPENAI_API_KEY", "test-key");
+  Deno.env.set("AI_TEXT_MODEL", "openai:gpt-4o-mini");
   globalThis.fetch = async () =>
     new Response(
       JSON.stringify({
@@ -69,14 +71,18 @@ Deno.test("callAI returns usage and model alongside choices", async () => {
     globalThis.fetch = previousFetch;
     if (previousKey) Deno.env.set("OPENAI_API_KEY", previousKey);
     else Deno.env.delete("OPENAI_API_KEY");
+    if (previousTextModel) Deno.env.set("AI_TEXT_MODEL", previousTextModel);
+    else Deno.env.delete("AI_TEXT_MODEL");
   }
 });
 
 Deno.test("callAIStream returns content, usage and model when usage chunk is present", async () => {
   const previousFetch = globalThis.fetch;
   const previousKey = Deno.env.get("OPENAI_API_KEY");
+  const previousTextModel = Deno.env.get("AI_TEXT_MODEL");
 
   Deno.env.set("OPENAI_API_KEY", "test-key");
+  Deno.env.set("AI_TEXT_MODEL", "openai:gpt-4o-mini");
 
   globalThis.fetch = async (_input, init) => {
     const requestBody = JSON.parse(
@@ -112,14 +118,18 @@ Deno.test("callAIStream returns content, usage and model when usage chunk is pre
     globalThis.fetch = previousFetch;
     if (previousKey) Deno.env.set("OPENAI_API_KEY", previousKey);
     else Deno.env.delete("OPENAI_API_KEY");
+    if (previousTextModel) Deno.env.set("AI_TEXT_MODEL", previousTextModel);
+    else Deno.env.delete("AI_TEXT_MODEL");
   }
 });
 
 Deno.test("callAIStream returns partial status when usage chunk is missing", async () => {
   const previousFetch = globalThis.fetch;
   const previousKey = Deno.env.get("OPENAI_API_KEY");
+  const previousTextModel = Deno.env.get("AI_TEXT_MODEL");
 
   Deno.env.set("OPENAI_API_KEY", "test-key");
+  Deno.env.set("AI_TEXT_MODEL", "openai:gpt-4o-mini");
 
   globalThis.fetch = async (_input, init) => {
     const requestBody = JSON.parse(
@@ -147,5 +157,7 @@ Deno.test("callAIStream returns partial status when usage chunk is missing", asy
     globalThis.fetch = previousFetch;
     if (previousKey) Deno.env.set("OPENAI_API_KEY", previousKey);
     else Deno.env.delete("OPENAI_API_KEY");
+    if (previousTextModel) Deno.env.set("AI_TEXT_MODEL", previousTextModel);
+    else Deno.env.delete("AI_TEXT_MODEL");
   }
 });
