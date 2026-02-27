@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
+    Alert,
     View,
     FlatList,
     KeyboardAvoidingView,
@@ -119,6 +120,24 @@ export function ChatScreen({
         }
     }, [resumeSession, setResumeSession]);
 
+    // --- Budget state ---
+    const [isBudgetExceeded, setIsBudgetExceeded] = useState(false);
+
+    const handleBudgetWarning = useCallback((message: string) => {
+        Alert.alert(
+            i18n.t('chat.budget.warningTitle'),
+            message,
+        );
+    }, []);
+
+    const handleBudgetExceeded = useCallback(() => {
+        setIsBudgetExceeded(true);
+        Alert.alert(
+            i18n.t('chat.budget.exceededTitle'),
+            i18n.t('chat.budget.exceededMessage'),
+        );
+    }, []);
+
     // --- Speech recognition (uses a ref-based callback to avoid stale closure) ---
     const setInputTextRef = useRef<(text: string) => void>(() => {});
     const { isListening, pulseAnim, handleMicPress, stopAndGuard } = useSpeechRecognition({
@@ -151,6 +170,8 @@ export function ChatScreen({
         hasRecipeInCurrentStreamRef,
         flatListRef,
         onResumeSessionClear,
+        onBudgetWarning: handleBudgetWarning,
+        onBudgetExceeded: handleBudgetExceeded,
     });
 
     // Wire speech recognition to streaming hook's setInputText
@@ -346,6 +367,8 @@ export function ChatScreen({
                 handleStop={handleStop}
                 pulseAnim={pulseAnim}
                 bottomInset={insets.bottom}
+                disabled={isBudgetExceeded}
+                disabledMessage={isBudgetExceeded ? i18n.t('chat.budget.upgradeHint') : undefined}
             />
           </View>
         </KeyboardAvoidingView>

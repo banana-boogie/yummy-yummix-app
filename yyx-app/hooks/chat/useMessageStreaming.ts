@@ -5,6 +5,7 @@ import {
     ChatMessage,
     IrmixyStatus,
     sendMessage,
+    BudgetExceededError,
 } from '@/services/chatService';
 import i18n from '@/i18n';
 
@@ -30,6 +31,8 @@ interface UseMessageStreamingParams {
     hasRecipeInCurrentStreamRef: React.MutableRefObject<boolean>;
     flatListRef: React.RefObject<FlatList>;
     onResumeSessionClear: () => void;
+    onBudgetWarning?: (message: string) => void;
+    onBudgetExceeded?: (error: BudgetExceededError) => void;
 }
 
 export function useMessageStreaming({
@@ -47,6 +50,8 @@ export function useMessageStreaming({
     hasRecipeInCurrentStreamRef,
     flatListRef,
     onResumeSessionClear,
+    onBudgetWarning,
+    onBudgetExceeded,
 }: UseMessageStreamingParams) {
     const isMountedRef = useRef(true);
     const streamCancelRef = useRef<(() => void) | null>(null);
@@ -182,7 +187,7 @@ export function useMessageStreaming({
             const handle = sendMessage(
                 userMessage.content,
                 currentSessionId,
-                // onChunk
+                // onChunk — positional arg 3
                 (chunk) => {
                     if (!isActiveRequest()) return;
                     setIsStreaming(true);
@@ -325,6 +330,8 @@ export function useMessageStreaming({
                     hasRecipeInCurrentStreamRef.current = false;
                     completedSuccessfully = true;
                 },
+                undefined, // options
+                onBudgetWarning,
             );
 
             streamCancelRef.current = () => {
@@ -352,6 +359,16 @@ export function useMessageStreaming({
                 chunkTimerRef.current = null;
             }
             flushChunkBuffer();
+
+            // Handle budget exceeded — notify parent, don't show as generic error
+            if (error instanceof BudgetExceededError) {
+                onBudgetExceeded?.(error);
+                // Remove the empty assistant placeholder
+                setMessages(prev => prev.filter(m => m.id !== assistantMessageId));
+                // Also remove the user message since the request was rejected
+                setMessages(prev => prev.filter(m => m.id !== userMessage.id));
+                return;
+            }
 
             const getErrorMessage = () => {
                 if (error instanceof TypeError && error.message.includes('fetch')) {
@@ -393,6 +410,8 @@ export function useMessageStreaming({
         isLoading,
         onSessionCreated,
         onResumeSessionClear,
+        onBudgetWarning,
+        onBudgetExceeded,
         scrollToEndThrottled,
         setMessages,
         setCurrentSessionId,

@@ -55,6 +55,13 @@ export const chat = {
       hint: "Usa el chat de texto abajo, o descarga nuestra app móvil para funciones de voz",
     },
   },
+  budget: {
+    warningTitle: "Aviso de uso",
+    warning: "Te estás acercando a tu límite mensual de IA.",
+    exceededTitle: "Límite mensual alcanzado",
+    exceededMessage: "Has usado tu presupuesto mensual de IA. Tu presupuesto se renueva al inicio del próximo mes.",
+    upgradeHint: "Límite mensual de IA alcanzado",
+  },
   suggestions: {},
   messageCopied: "Mensaje copiado al portapapeles",
   cancelledRequest: "Solicitud cancelada",

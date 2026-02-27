@@ -42,6 +42,21 @@ const MAX_MESSAGE_LENGTH = 2000;
 const STREAM_TIMEOUT_MS = 60000; // 60 seconds
 const MAX_RETRIES = 3;
 
+/** Error thrown when the user's AI budget is exceeded */
+export class BudgetExceededError extends Error {
+    tier: string;
+    usedUsd: number;
+    budgetUsd: number;
+
+    constructor(data: { tier?: string; usedUsd?: number; budgetUsd?: number }) {
+        super('budget_exceeded');
+        this.name = 'BudgetExceededError';
+        this.tier = data.tier || 'free';
+        this.usedUsd = data.usedUsd || 0;
+        this.budgetUsd = data.budgetUsd || 0;
+    }
+}
+
 // Use irmixy-chat-orchestrator for structured responses
 const FUNCTIONS_BASE_URL =
     process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL ||
@@ -60,6 +75,7 @@ export interface StreamCallbacks {
     onStreamComplete?: () => void;  // Called when text streaming finishes (before suggestions)
     onPartialRecipe?: (recipe: GeneratedRecipe) => void;  // Called with partial recipe before enrichment
     onComplete?: (response: IrmixyResponse) => void;
+    onBudgetWarning?: (message: string) => void;  // Called when budget is approaching limit
 }
 
 export interface StreamHandle {
@@ -127,6 +143,16 @@ export function routeSSEMessage(
                 }
             } catch (e) {
                 if (__DEV__) console.error('[SSE] onStatus callback error:', e);
+            }
+            return { action: 'continue' };
+
+        case 'budget_warning':
+            try {
+                if (typeof data.message === 'string') {
+                    callbacks.onBudgetWarning?.(data.message);
+                }
+            } catch (e) {
+                if (__DEV__) console.error('[SSE] onBudgetWarning callback error:', e);
             }
             return { action: 'continue' };
 
@@ -211,6 +237,7 @@ export function sendMessage(
     onPartialRecipe?: (recipe: GeneratedRecipe) => void,
     onComplete?: (response: IrmixyResponse) => void,
     options?: SendMessageOptions,
+    onBudgetWarning?: (message: string) => void,
 ): StreamHandle {
     let finished = false;
     let es: EventSource | null = null;
@@ -335,6 +362,7 @@ export function sendMessage(
                                 onStreamComplete,
                                 onPartialRecipe,
                                 onComplete,
+                                onBudgetWarning,
                             });
 
                             if (routeResult.action === 'resolve') {
@@ -360,6 +388,24 @@ export function sendMessage(
                     es.addEventListener('error', (event: any) => {
                         if (__DEV__) console.error('[SSE] Connection error:', event, 'hasReceivedData:', hasReceivedData);
                         es?.close();
+
+                        // Detect 429 budget_exceeded or rate_limited from server
+                        const statusCode = event.status || event.xhrStatus;
+                        if (statusCode === 429) {
+                            // Try to parse error body for budget_exceeded details
+                            try {
+                                const errorData = event.data ? JSON.parse(event.data) : {};
+                                if (errorData.error === 'budget_exceeded') {
+                                    const budgetError = new BudgetExceededError(errorData);
+                                    safeReject(budgetError);
+                                    rejectConnection(budgetError);
+                                    return;
+                                }
+                            } catch {
+                                // Not parseable, fall through
+                            }
+                        }
+
                         connectionError = new Error(event.message || 'SSE connection failed');
                         rejectConnection(connectionError);
                     });

@@ -55,6 +55,13 @@ export const chat = {
       hint: "Use text chat below, or download our mobile app for voice features",
     },
   },
+  budget: {
+    warningTitle: "Usage Warning",
+    warning: "You're approaching your monthly AI limit.",
+    exceededTitle: "Monthly Limit Reached",
+    exceededMessage: "You've used your monthly AI budget. Your budget resets at the start of next month.",
+    upgradeHint: "Monthly AI limit reached",
+  },
   suggestions: {},
   messageCopied: "Message copied to clipboard",
   cancelledRequest: "Request cancelled",

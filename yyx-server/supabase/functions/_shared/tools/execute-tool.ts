@@ -10,6 +10,7 @@ import { UserContext } from "../irmixy-schemas.ts";
 import { PartialRecipeCallback } from "./generate-custom-recipe.ts";
 import { getToolRegistration } from "./tool-registry.ts";
 import { ToolValidationError } from "./tool-validators.ts";
+import type { CostContext } from "../ai-gateway/types.ts";
 
 /**
  * Execute a single tool call with validation.
@@ -28,6 +29,7 @@ export async function executeTool(
   userContext: UserContext,
   executionOptions?: {
     onPartialRecipe?: PartialRecipeCallback;
+    costContext?: CostContext;
   },
 ): Promise<unknown> {
   let parsedArgs: unknown;
@@ -46,5 +48,6 @@ export async function executeTool(
     supabase,
     userContext,
     onPartialRecipe: executionOptions?.onPartialRecipe,
+    costContext: executionOptions?.costContext,
   });
 }

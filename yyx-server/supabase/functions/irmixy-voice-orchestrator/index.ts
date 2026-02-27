@@ -24,6 +24,7 @@ import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
 import { getAllowedVoiceToolNames } from "../_shared/tools/tool-registry.ts";
 import { buildVoiceInstructions } from "../_shared/system-prompt-builder.ts";
+import { checkVoiceBudget } from "../_shared/ai-budget/index.ts";
 
 const ALLOWED_VOICE_TOOLS = new Set(getAllowedVoiceToolNames());
 const ALLOWED_ACTIONS = new Set(
@@ -34,7 +35,6 @@ const ALLOWED_ACTIONS = new Set(
   ] as const,
 );
 const MAX_PAYLOAD_BYTES = 10_000; // 10KB
-const QUOTA_LIMIT_MINUTES = 30;
 
 interface RequestPayload {
   action?: unknown;
@@ -72,27 +72,16 @@ function jsonResponse(
  */
 async function handleCheckQuota(
   userId: string,
-  authHeader: string,
+  _authHeader: string,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
-  const supabase = createUserClient(authHeader);
-  const currentMonth = new Date().toISOString().slice(0, 7);
-
-  const { data: usage } = await supabase
-    .from("ai_voice_usage")
-    .select("minutes_used")
-    .eq("user_id", userId)
-    .eq("month", currentMonth)
-    .single();
-
-  const minutesUsed = Number(usage?.minutes_used || 0);
-  const remainingMinutes = Math.max(0, QUOTA_LIMIT_MINUTES - minutesUsed);
+  const voiceBudget = await checkVoiceBudget(userId);
 
   return jsonResponse(
     {
-      minutesUsed: minutesUsed.toFixed(1),
-      quotaLimit: QUOTA_LIMIT_MINUTES,
-      remainingMinutes: remainingMinutes.toFixed(1),
+      minutesUsed: voiceBudget.usedMinutes.toFixed(1),
+      quotaLimit: voiceBudget.limitMinutes,
+      remainingMinutes: voiceBudget.remainingMinutes.toFixed(1),
     },
     200,
     corsHeaders,
@@ -105,24 +94,16 @@ async function handleStartSession(
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
   const userClient = createUserClient(authHeader);
-  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
 
-  const { data: usage } = await userClient
-    .from("ai_voice_usage")
-    .select("minutes_used, conversations_count")
-    .eq("user_id", userId)
-    .eq("month", currentMonth)
-    .single();
+  // Tiered voice budget check
+  const voiceBudget = await checkVoiceBudget(userId);
 
-  const minutesUsed = Number(usage?.minutes_used || 0);
-  const remainingMinutes = QUOTA_LIMIT_MINUTES - minutesUsed;
-
-  if (minutesUsed >= QUOTA_LIMIT_MINUTES) {
+  if (!voiceBudget.allowed) {
     return jsonResponse(
       {
         error: "Monthly quota exceeded",
-        minutesUsed,
-        quotaLimit: QUOTA_LIMIT_MINUTES,
+        minutesUsed: voiceBudget.usedMinutes,
+        quotaLimit: voiceBudget.limitMinutes,
         remainingMinutes: 0,
       },
       429,
@@ -130,12 +111,8 @@ async function handleStartSession(
     );
   }
 
-  const warningThreshold = QUOTA_LIMIT_MINUTES * 0.8;
-  const warning = minutesUsed >= warningThreshold
-    ? `You've used ${
-      minutesUsed.toFixed(1)
-    } of ${QUOTA_LIMIT_MINUTES} minutes this month.`
-    : null;
+  const remainingMinutes = voiceBudget.remainingMinutes;
+  const warning = voiceBudget.warning || null;
 
   // Fetch user context for personalized voice instructions
   const contextBuilder = createContextBuilder(userClient);
@@ -224,8 +201,8 @@ async function handleStartSession(
       ephemeralToken,
       remainingMinutes: remainingMinutes.toFixed(1),
       warning,
-      quotaLimit: QUOTA_LIMIT_MINUTES,
-      minutesUsed: minutesUsed.toFixed(1),
+      quotaLimit: voiceBudget.limitMinutes,
+      minutesUsed: voiceBudget.usedMinutes.toFixed(1),
     },
     200,
     corsHeaders,
