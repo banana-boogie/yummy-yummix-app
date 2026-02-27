@@ -97,7 +97,9 @@ export function VoiceChatScreen({
     const isRecipeGeneratingRef = useRef(false);
     isRecipeGeneratingRef.current = isExecutingTool && executingToolName === 'generate_custom_recipe';
 
-    const extraData = useMemo(() => ({ lastMessageId, isExecutingTool, executingToolName }), [lastMessageId, isExecutingTool, executingToolName]);
+    // Only lastMessageId needs to trigger a list re-render — tool state is read
+    // from refs inside renderMessage to avoid re-rendering every cell.
+    const extraData = useMemo(() => lastMessageId, [lastMessageId]);
 
     const getAvatarState = (voiceStatus: VoiceStatus): AvatarState => {
         switch (voiceStatus) {
