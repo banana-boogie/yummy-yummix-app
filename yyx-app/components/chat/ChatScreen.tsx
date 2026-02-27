@@ -198,6 +198,7 @@ export function ChatScreen({
         if (nextSessionId !== currentSessionId) {
             resetStreamingState();
             setCurrentSessionId(nextSessionId);
+            setIsBudgetExceeded(false);
             if (nextSessionId) {
                 setResumeSession(null);
             }
@@ -213,6 +214,7 @@ export function ChatScreen({
         ) {
             setResumeSession(null);
             setResumeDismissed(true);
+            setIsBudgetExceeded(false);
         }
         prevNewChatSignalRef.current = newChatSignal;
     }, [newChatSignal, setResumeSession]);

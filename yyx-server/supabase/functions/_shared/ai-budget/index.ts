@@ -32,6 +32,10 @@ export interface VoiceBudgetStatus {
   limitMinutes: number;
   tier: string;
   warning?: string;
+  warningData?: {
+    usedMinutes: number;
+    limitMinutes: number;
+  };
 }
 
 export interface CostRecord {
@@ -166,29 +170,9 @@ export async function checkTextBudget(userId: string): Promise<BudgetStatus> {
   await ensureTierCache();
 
   const tier = tierResult.data?.membership_tier || "free";
-  const limits = getTierLimits(tier);
   const usedUsd = Number(usageResult.data?.total_cost_usd || 0);
-  const remainingUsd = Math.max(0, limits.monthlyTextBudgetUsd - usedUsd);
-  const allowed = usedUsd < limits.monthlyTextBudgetUsd;
 
-  const result: BudgetStatus = {
-    allowed,
-    remainingUsd,
-    usedUsd,
-    budgetUsd: limits.monthlyTextBudgetUsd,
-    tier,
-  };
-
-  // Warning at 80% usage
-  if (allowed && usedUsd >= limits.monthlyTextBudgetUsd * WARNING_THRESHOLD) {
-    result.warning = "budget_warning";
-    result.warningData = {
-      usedUsd,
-      budgetUsd: limits.monthlyTextBudgetUsd,
-    };
-  }
-
-  return result;
+  return _computeTextBudgetResult(tier, usedUsd);
 }
 
 /**
@@ -238,31 +222,9 @@ export async function checkVoiceBudget(
   await ensureTierCache();
 
   const tier = tierResult.data?.membership_tier || "free";
-  const limits = getTierLimits(tier);
   const usedMinutes = Number(usageResult.data?.minutes_used || 0);
-  const remainingMinutes = Math.max(
-    0,
-    limits.monthlyVoiceMinutes - usedMinutes,
-  );
-  const allowed = usedMinutes < limits.monthlyVoiceMinutes;
 
-  const result: VoiceBudgetStatus = {
-    allowed,
-    remainingMinutes,
-    usedMinutes,
-    limitMinutes: limits.monthlyVoiceMinutes,
-    tier,
-  };
-
-  if (
-    allowed && usedMinutes >= limits.monthlyVoiceMinutes * WARNING_THRESHOLD
-  ) {
-    result.warning = `You've used ${
-      usedMinutes.toFixed(1)
-    } of ${limits.monthlyVoiceMinutes} voice minutes this month.`;
-  }
-
-  return result;
+  return _computeVoiceBudgetResult(tier, usedMinutes);
 }
 
 // ============================================================
@@ -302,4 +264,87 @@ export async function recordCost(record: CostRecord): Promise<void> {
 export function _clearTierCache(): void {
   tierCache.clear();
   tierCacheLoadedAt = 0;
+}
+
+/** Exported for testing */
+export function _setTierCacheForTesting(
+  tiers: Array<
+    { tier: string; monthlyTextBudgetUsd: number; monthlyVoiceMinutes: number }
+  >,
+): void {
+  tierCache.clear();
+  for (const t of tiers) {
+    tierCache.set(t.tier, {
+      monthlyTextBudgetUsd: t.monthlyTextBudgetUsd,
+      monthlyVoiceMinutes: t.monthlyVoiceMinutes,
+    });
+  }
+  tierCacheLoadedAt = Date.now();
+}
+
+/**
+ * Pure computation of text budget status from resolved inputs.
+ * Exported for testing — avoids DB dependency while testing real production logic.
+ */
+export function _computeTextBudgetResult(
+  tier: string,
+  usedUsd: number,
+): BudgetStatus {
+  const limits = getTierLimits(tier);
+  const remainingUsd = Math.max(0, limits.monthlyTextBudgetUsd - usedUsd);
+  const allowed = usedUsd < limits.monthlyTextBudgetUsd;
+
+  const result: BudgetStatus = {
+    allowed,
+    remainingUsd,
+    usedUsd,
+    budgetUsd: limits.monthlyTextBudgetUsd,
+    tier,
+  };
+
+  if (allowed && usedUsd >= limits.monthlyTextBudgetUsd * WARNING_THRESHOLD) {
+    result.warning = "budget_warning";
+    result.warningData = {
+      usedUsd,
+      budgetUsd: limits.monthlyTextBudgetUsd,
+    };
+  }
+
+  return result;
+}
+
+/**
+ * Pure computation of voice budget status from resolved inputs.
+ * Exported for testing — avoids DB dependency while testing real production logic.
+ */
+export function _computeVoiceBudgetResult(
+  tier: string,
+  usedMinutes: number,
+): VoiceBudgetStatus {
+  const limits = getTierLimits(tier);
+  const remainingMinutes = Math.max(
+    0,
+    limits.monthlyVoiceMinutes - usedMinutes,
+  );
+  const allowed = usedMinutes < limits.monthlyVoiceMinutes;
+
+  const result: VoiceBudgetStatus = {
+    allowed,
+    remainingMinutes,
+    usedMinutes,
+    limitMinutes: limits.monthlyVoiceMinutes,
+    tier,
+  };
+
+  if (
+    allowed && usedMinutes >= limits.monthlyVoiceMinutes * WARNING_THRESHOLD
+  ) {
+    result.warning = "voice_budget_warning";
+    result.warningData = {
+      usedMinutes,
+      limitMinutes: limits.monthlyVoiceMinutes,
+    };
+  }
+
+  return result;
 }
