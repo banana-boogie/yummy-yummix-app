@@ -16,6 +16,12 @@ import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useVoiceChat } from '../useVoiceChat';
 import type { ChatMessage } from '@/services/chatService';
 
+// Mock saveVoiceTranscript (fire-and-forget, no assertions needed here)
+jest.mock('@/services/chatService', () => ({
+    ...jest.requireActual('@/services/chatService'),
+    saveVoiceTranscript: jest.fn().mockResolvedValue(null),
+}));
+
 // ============================================================
 // MOCK PROVIDER
 // ============================================================
@@ -424,6 +430,134 @@ describe('full conversation flow', () => {
 
         expect(mockProvider.stopConversation).toHaveBeenCalled();
         expect(mockUnregisterSession).toHaveBeenCalled();
+    });
+});
+
+// ============================================================
+// RESPONSE DONE SAFETY NET
+// ============================================================
+
+describe('responseDone safety net', () => {
+    it('finalizes un-finalized streaming message when assistantTranscriptComplete was skipped', async () => {
+        const { result } = renderHook(() => useVoiceChat());
+        await startAndSetup(result);
+
+        // Assistant starts speaking with deltas
+        act(() => {
+            mockProvider.emit('assistantTranscriptDelta', 'Here is ', 'resp-1');
+        });
+        act(() => {
+            mockProvider.emit('assistantTranscriptDelta', 'the answer.', 'resp-1');
+            jest.advanceTimersByTime(100); // flush delta batch
+        });
+
+        expect(result.current.transcriptMessages).toHaveLength(1);
+        expect(result.current.transcriptMessages[0].role).toBe('assistant');
+
+        // Simulate: assistantTranscriptComplete never fires (API skip)
+        // responseDone fires instead
+        act(() => {
+            mockProvider.emit('responseDone', 'resp-1');
+        });
+
+        // Message should be finalized with accumulated delta text
+        expect(result.current.transcriptMessages).toHaveLength(1);
+        expect(result.current.transcriptMessages[0].content).toBe('Here is the answer.');
+    });
+
+    it('is a no-op when assistantTranscriptComplete already finalized the message', async () => {
+        const { result } = renderHook(() => useVoiceChat());
+        await startAndSetup(result);
+
+        // Normal flow: delta -> complete -> done
+        act(() => {
+            mockProvider.emit('assistantTranscriptDelta', 'Full response', 'resp-1');
+        });
+        act(() => {
+            mockProvider.emit('assistantTranscriptComplete', 'Full response', 'resp-1');
+        });
+
+        expect(result.current.transcriptMessages).toHaveLength(1);
+        expect(result.current.transcriptMessages[0].content).toBe('Full response');
+
+        // responseDone fires after — should be a no-op
+        act(() => {
+            mockProvider.emit('responseDone', 'resp-1');
+        });
+
+        // Still exactly one message, unchanged
+        expect(result.current.transcriptMessages).toHaveLength(1);
+        expect(result.current.transcriptMessages[0].content).toBe('Full response');
+    });
+
+    it('ignores responseDone from a stale response ID', async () => {
+        const { result } = renderHook(() => useVoiceChat());
+        await startAndSetup(result);
+
+        // Start response resp-2
+        act(() => {
+            mockProvider.emit('assistantTranscriptDelta', 'Active response', 'resp-2');
+        });
+
+        // Stale responseDone from old response
+        act(() => {
+            mockProvider.emit('responseDone', 'resp-old');
+        });
+
+        // Streaming message should still be active, not finalized
+        expect(result.current.transcriptMessages).toHaveLength(1);
+        expect(result.current.transcriptMessages[0].content).toBe('Active response');
+    });
+
+    it('creates message from fallback transcript when no deltas fired', async () => {
+        const { result } = renderHook(() => useVoiceChat());
+        await startAndSetup(result);
+
+        // No assistantTranscriptDelta events fired at all
+        // responseDone fires with fallback transcript extracted from response.done payload
+        act(() => {
+            mockProvider.emit('responseDone', 'resp-1', 'Hello, how can I help you today?');
+        });
+
+        // A new message should be created from the fallback transcript
+        expect(result.current.transcriptMessages).toHaveLength(1);
+        expect(result.current.transcriptMessages[0].role).toBe('assistant');
+        expect(result.current.transcriptMessages[0].content).toBe('Hello, how can I help you today?');
+    });
+
+    it('prefers accumulated deltas over fallback transcript', async () => {
+        const { result } = renderHook(() => useVoiceChat());
+        await startAndSetup(result);
+
+        // Deltas fire normally
+        act(() => {
+            mockProvider.emit('assistantTranscriptDelta', 'Delta text here', 'resp-1');
+        });
+
+        expect(result.current.transcriptMessages).toHaveLength(1);
+        expect(result.current.transcriptMessages[0].content).toBe('Delta text here');
+
+        // responseDone fires with a different fallback transcript
+        act(() => {
+            mockProvider.emit('responseDone', 'resp-1', 'Different fallback text');
+        });
+
+        // Should finalize with the accumulated delta text, NOT the fallback
+        expect(result.current.transcriptMessages).toHaveLength(1);
+        expect(result.current.transcriptMessages[0].content).toBe('Delta text here');
+    });
+
+    it('ignores empty fallback transcript', async () => {
+        const { result } = renderHook(() => useVoiceChat());
+        await startAndSetup(result);
+
+        // responseDone with empty fallback
+        act(() => {
+            mockProvider.emit('responseDone', 'resp-1', '   ');
+        });
+
+        // No message should be created
+        expect(result.current.transcriptMessages).toHaveLength(0);
     });
 });
 

@@ -32,9 +32,11 @@ const ALLOWED_ACTIONS = new Set(
     "start_session",
     "execute_tool",
     "check_quota",
+    "save_transcript",
   ] as const,
 );
 const MAX_PAYLOAD_BYTES = 10_000; // 10KB
+const MAX_TRANSCRIPT_PAYLOAD_BYTES = 100_000; // 100KB for save_transcript
 const DEFAULT_QUOTA_MINUTES = getDefaultVoiceQuotaMinutes();
 
 interface RequestPayload {
@@ -42,6 +44,7 @@ interface RequestPayload {
   toolName?: unknown;
   toolArgs?: unknown;
   sessionId?: unknown;
+  messages?: unknown;
 }
 
 function getCorsHeaders() {
@@ -310,6 +313,128 @@ async function handleExecuteTool(
   return jsonResponse(response, 200, corsHeaders);
 }
 
+interface TranscriptMessage {
+  role: "user" | "assistant";
+  content: string;
+  recipes?: unknown;
+  customRecipe?: unknown;
+  safetyFlags?: unknown;
+}
+
+async function handleSaveTranscript(
+  payload: RequestPayload,
+  userId: string,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
+  const messages = payload.messages;
+
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return jsonResponse(
+      { error: "Missing or empty messages array" },
+      400,
+      corsHeaders,
+    );
+  }
+
+  // Validate each message
+  for (const msg of messages) {
+    if (
+      !msg || typeof msg !== "object" ||
+      !("role" in msg) || !("content" in msg) ||
+      typeof msg.content !== "string" ||
+      (msg.role !== "user" && msg.role !== "assistant")
+    ) {
+      return jsonResponse(
+        {
+          error: "Invalid message format: each message needs role and content",
+        },
+        400,
+        corsHeaders,
+      );
+    }
+  }
+
+  const validMessages = messages as TranscriptMessage[];
+
+  // Generate title from first user message (truncated to 100 chars)
+  const firstUserMsg = validMessages.find((m) => m.role === "user");
+  const title = firstUserMsg
+    ? firstUserMsg.content.slice(0, 100).trim()
+    : "Voice conversation";
+
+  const serviceClient = createServiceClient();
+
+  // Create chat session with source = 'voice'
+  const { data: session, error: sessionError } = await serviceClient
+    .from("user_chat_sessions")
+    .insert({
+      user_id: userId,
+      title,
+      source: "voice",
+    })
+    .select("id")
+    .single();
+
+  if (sessionError || !session) {
+    console.error(
+      "[irmixy-voice-orchestrator] Failed creating chat session:",
+      sessionError?.message,
+    );
+    return jsonResponse(
+      { error: "Failed to save transcript" },
+      500,
+      corsHeaders,
+    );
+  }
+
+  // Bulk insert messages
+  const messagesToInsert = validMessages.map((msg, idx) => ({
+    session_id: session.id,
+    role: msg.role,
+    content: msg.content,
+    // Store recipe data in tool_calls JSONB (same format as text chat)
+    tool_calls: (msg.recipes || msg.customRecipe || msg.safetyFlags)
+      ? {
+        ...(msg.recipes ? { recipes: msg.recipes } : {}),
+        ...(msg.customRecipe ? { customRecipe: msg.customRecipe } : {}),
+        ...(msg.safetyFlags ? { safetyFlags: msg.safetyFlags } : {}),
+      }
+      : null,
+    created_at: new Date(Date.now() + idx).toISOString(), // offset by idx to preserve order
+  }));
+
+  const { error: insertError, count } = await serviceClient
+    .from("user_chat_messages")
+    .insert(messagesToInsert);
+
+  if (insertError) {
+    console.error(
+      "[irmixy-voice-orchestrator] Failed inserting messages:",
+      insertError.message,
+    );
+    // Clean up orphaned session
+    await serviceClient
+      .from("user_chat_sessions")
+      .delete()
+      .eq("id", session.id);
+    return jsonResponse(
+      { error: "Failed to save transcript messages" },
+      500,
+      corsHeaders,
+    );
+  }
+
+  console.log(
+    `[irmixy-voice-orchestrator] Saved ${validMessages.length} voice messages to session ${session.id}`,
+  );
+
+  return jsonResponse(
+    { sessionId: session.id, saved: validMessages.length },
+    200,
+    corsHeaders,
+  );
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders();
 
@@ -347,7 +472,13 @@ serve(async (req) => {
       );
     }
 
-    if (new TextEncoder().encode(rawBody).byteLength > MAX_PAYLOAD_BYTES) {
+    // Determine payload limit based on action (save_transcript needs more room)
+    const peekAction = rawBody.includes('"save_transcript"');
+    const maxBytes = peekAction
+      ? MAX_TRANSCRIPT_PAYLOAD_BYTES
+      : MAX_PAYLOAD_BYTES;
+
+    if (new TextEncoder().encode(rawBody).byteLength > maxBytes) {
       return jsonResponse(
         { error: "Payload too large" },
         413,
@@ -386,7 +517,11 @@ serve(async (req) => {
 
     if (
       !ALLOWED_ACTIONS.has(
-        action as "start_session" | "execute_tool" | "check_quota",
+        action as
+          | "start_session"
+          | "execute_tool"
+          | "check_quota"
+          | "save_transcript",
       )
     ) {
       return jsonResponse(
@@ -402,6 +537,10 @@ serve(async (req) => {
 
     if (action === "start_session") {
       return await handleStartSession(user.id, authHeader!, corsHeaders);
+    }
+
+    if (action === "save_transcript") {
+      return await handleSaveTranscript(payload, user.id, corsHeaders);
     }
 
     return await handleExecuteTool(

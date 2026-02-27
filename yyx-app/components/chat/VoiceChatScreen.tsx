@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/common/Text';
@@ -55,8 +55,6 @@ export function VoiceChatScreen({
 
     const {
         status,
-        transcript,
-        response,
         error,
         quotaInfo,
         transcriptMessages,
@@ -96,7 +94,10 @@ export function VoiceChatScreen({
     const statusTextRef = useRef(statusText);
     statusTextRef.current = statusText;
 
-    const extraData = useMemo(() => ({ lastMessageId, isExecutingTool }), [lastMessageId, isExecutingTool]);
+    const isRecipeGeneratingRef = useRef(false);
+    isRecipeGeneratingRef.current = isExecutingTool && executingToolName === 'generate_custom_recipe';
+
+    const extraData = useMemo(() => ({ lastMessageId, isExecutingTool, executingToolName }), [lastMessageId, isExecutingTool, executingToolName]);
 
     const getAvatarState = (voiceStatus: VoiceStatus): AvatarState => {
         switch (voiceStatus) {
@@ -168,11 +169,6 @@ export function VoiceChatScreen({
     };
 
     const handleVoicePress = async () => {
-        if (isConnected) {
-            stopConversation();
-            return;
-        }
-
         if (quotaInfo && quotaInfo.remainingMinutes <= 0) {
             Alert.alert(i18n.t('common.errors.title'), i18n.t('chat.voice.quotaExceeded'));
             return;
@@ -235,8 +231,10 @@ export function VoiceChatScreen({
                 item={item}
                 isLastMessage={item.id === lastMessageIdRef.current}
                 isLoading={isExecutingToolRef.current}
+                isRecipeGenerating={item.id === lastMessageIdRef.current ? isRecipeGeneratingRef.current : false}
                 currentStatus={currentStatusRef.current}
                 statusText={statusTextRef.current}
+                showAvatar
                 onCopyMessage={handleCopyMessage}
                 onStartCooking={handleStartCooking}
                 onActionPress={handleActionPress}
@@ -269,28 +267,44 @@ export function VoiceChatScreen({
     }
 
     return (
-        <View className="flex-1 bg-background-default" style={{ paddingBottom: insets.bottom }}>
-            {isConnected && (
+        <View className="flex-1 bg-background-default" style={{ paddingBottom: isActive ? 0 : insets.bottom }}>
+            {/* ── ACTIVE: compact status bar ── */}
+            {isActive && (
                 <View className="border-b border-border-default px-md py-sm bg-background-default">
-                    <View className="flex-row items-center justify-center gap-sm">
-                        {isActive && (
+                    <View className="flex-row items-center justify-between">
+                        {/* Left: timer + avatar + status */}
+                        <View className="flex-row items-center gap-sm">
                             <View className="bg-background-secondary px-sm py-xs rounded-full">
                                 <Text preset="caption" className="text-primary-darkest font-bold">
                                     {formatDuration(duration)}
                                 </Text>
                             </View>
-                        )}
-                        <IrmixyAvatar state={getAvatarState(status)} size={40} />
-                        <View accessibilityLiveRegion="polite">
-                            <Text preset="caption" className="text-text-secondary">
-                                {getStatusText(status)}
-                            </Text>
+                            <IrmixyAvatar state={getAvatarState(status)} size={40} />
+                            <View accessibilityLiveRegion="polite">
+                                <Text preset="caption" className="text-text-secondary">
+                                    {getStatusText(status)}
+                                </Text>
+                            </View>
                         </View>
+                        {/* Right: stop button */}
+                        <TouchableOpacity
+                            onPress={stopConversation}
+                            activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityLabel={i18n.t('chat.voice.stopRecording')}
+                            className="flex-row items-center gap-xs bg-status-error px-md py-xs rounded-full"
+                        >
+                            <Ionicons name="stop" size={14} color="white" />
+                            <Text preset="caption" className="text-white font-semibold">
+                                {i18n.t('chat.voice.stop')}
+                            </Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
             )}
 
-            {hasMessages ? (
+            {/* ── ACTIVE: message list ── */}
+            {isActive ? (
                 <View className="flex-1">
                     <FlatList
                         ref={flatListRef}
@@ -337,39 +351,23 @@ export function VoiceChatScreen({
                     )}
                 </View>
             ) : (
+                /* ── IDLE / CONNECTING: big avatar centered ── */
                 <View className="flex-1 items-center justify-center px-lg">
                     <IrmixyAvatar state={getAvatarState(status)} size={120} />
                     <View className="mt-lg px-md">
                         <View accessibilityLiveRegion="polite">
                             <Text preset="body" className="text-text-secondary text-center">
-                                {isConnected
-                                    ? getStatusText(status)
+                                {isConnecting
+                                    ? i18n.t('chat.voice.connecting')
                                     : i18n.t('chat.voice.tapToSpeak')}
                             </Text>
                         </View>
-                        {isConnected && transcript ? (
-                            <Text
-                                preset="bodySmall"
-                                className="text-text-secondary text-center italic mt-sm"
-                                numberOfLines={2}
-                            >
-                                {`"${transcript}"`}
-                            </Text>
-                        ) : null}
-                        {isConnected && response ? (
-                            <Text
-                                preset="bodySmall"
-                                className="text-text-secondary text-center italic mt-xs"
-                                numberOfLines={2}
-                            >
-                                {`"${response}"`}
-                            </Text>
-                        ) : null}
                     </View>
                 </View>
             )}
 
-            {showScrollButton && hasMessages && (
+            {/* ── Scroll-to-bottom (only when active) ── */}
+            {isActive && showScrollButton && (
                 <TouchableOpacity
                     onPress={handleScrollToBottom}
                     className="absolute right-4 bottom-4 z-50 bg-primary-default rounded-full p-3 shadow-lg"
@@ -379,33 +377,23 @@ export function VoiceChatScreen({
                 </TouchableOpacity>
             )}
 
-            <View className="items-center py-xl border-t border-grey-light bg-background-default">
-                <VoiceButton
-                    state={isConnecting ? 'processing' : isActive ? 'recording' : 'ready'}
-                    onPress={handleVoicePress}
-                    size={72}
-                    disabled={isConnecting}
-                    accessibilityLabel={
-                        isConnected
-                            ? i18n.t('chat.voice.stopRecording')
-                            : i18n.t('chat.voice.tapToSpeak')
-                    }
-                />
-                <View accessibilityLiveRegion="polite">
-                    <Text preset="caption" className="text-text-secondary mt-sm">
-                        {isConnecting
-                            ? i18n.t('chat.voice.connecting')
-                            : isConnected
-                                ? i18n.t('chat.voice.tapToStop')
-                                : i18n.t('chat.voice.tapToSpeak')}
-                    </Text>
+            {/* ── IDLE / CONNECTING: bottom voice button ── */}
+            {!isActive && (
+                <View className="items-center py-xl border-t border-grey-light bg-background-default">
+                    <VoiceButton
+                        state={isConnecting ? 'processing' : 'ready'}
+                        onPress={handleVoicePress}
+                        size={72}
+                        disabled={isConnecting}
+                        accessibilityLabel={i18n.t('chat.voice.tapToSpeak')}
+                    />
+                    {quotaInfo && !isConnected && (
+                        <Text preset="caption" className="text-text-secondary mt-sm text-xs">
+                            {i18n.t('chat.voice.minsRemaining', { mins: quotaInfo.remainingMinutes.toFixed(1) })}
+                        </Text>
+                    )}
                 </View>
-                {quotaInfo && !isConnected && (
-                    <Text preset="caption" className="text-text-secondary mt-xs text-xs">
-                        {i18n.t('chat.voice.minsRemaining', { mins: quotaInfo.remainingMinutes.toFixed(1) })}
-                    </Text>
-                )}
-            </View>
+            )}
         </View>
     );
 }

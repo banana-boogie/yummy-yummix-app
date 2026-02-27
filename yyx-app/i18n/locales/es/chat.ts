@@ -51,6 +51,7 @@ export const chat = {
     micActive: "Micrófono activo",
     stopRecording: "Detener grabación de voz",
     micPermissionDenied: "Acceso al micrófono denegado",
+    stop: "Parar",
     mobileOnly: {
       title: "Chat de Voz",
       message: "El chat de voz está disponible en nuestra app móvil. Usa el chat de texto abajo, o descarga la app para chatear con Irmixy usando tu voz.",

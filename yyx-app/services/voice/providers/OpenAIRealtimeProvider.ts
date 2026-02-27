@@ -245,7 +245,8 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
     /**
      * server_vad config
-     * - threshold 0.6 reduces false positives while keeping normal speech detection
+     * - threshold 0.8 rejects background chatter, requires clear directed speech
+     * - prefix_padding_ms 200 reduces preceding ambient noise captured
      * - silence_duration_ms 1200 avoids premature turn cuts in slower speech
      */
     this.sendEvent({
@@ -259,8 +260,8 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         input_audio_transcription: { model: "whisper-1" },
         turn_detection: {
           type: "server_vad",
-          threshold: 0.6,
-          prefix_padding_ms: 300,
+          threshold: 0.8,
+          prefix_padding_ms: 200,
           silence_duration_ms: 1200,
         },
         tools: voiceTools,
@@ -602,6 +603,11 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       case "response.done":
         if (message.response?.status === "cancelled") {
           this.emit("responseInterrupted", message.response?.id ?? this.activeResponseId);
+        } else {
+          // Extract transcript from response output items as fallback for when
+          // response.output_audio_transcript.delta events never fire
+          const fallbackTranscript = this.extractTranscriptFromResponse(message.response);
+          this.emit("responseDone", message.response?.id ?? this.activeResponseId, fallbackTranscript);
         }
 
         // Extract token usage from response
@@ -650,6 +656,29 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         if (__DEV__) console.log("[OpenAI] Unhandled event:", message.type);
         break;
     }
+  }
+
+  /**
+   * Extract the full transcript from a response.done payload.
+   * The response includes `output[]` items; assistant message items have
+   * `content[]` parts where audio parts carry a `transcript` field.
+   * Returns the joined transcript text, or null if none found.
+   */
+  private extractTranscriptFromResponse(response: any): string | null {
+    if (!response?.output || !Array.isArray(response.output)) return null;
+
+    const parts: string[] = [];
+    for (const item of response.output) {
+      if (item.type !== "message" || item.role !== "assistant") continue;
+      if (!Array.isArray(item.content)) continue;
+      for (const part of item.content) {
+        if (part.transcript && typeof part.transcript === "string") {
+          parts.push(part.transcript);
+        }
+      }
+    }
+
+    return parts.length > 0 ? parts.join(" ") : null;
   }
 
   /**

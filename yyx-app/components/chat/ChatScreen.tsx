@@ -242,6 +242,7 @@ export function ChatScreen({
                 isRecipeGenerating={isLast ? isRecipeGenerating : false}
                 currentStatus={isLast ? currentStatus : null}
                 statusText={isLast ? statusText : ''}
+                showAvatar
                 onCopyMessage={handleCopyMessage}
                 onStartCooking={handleStartCooking}
                 onActionPress={handleActionPress}

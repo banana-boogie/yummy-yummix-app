@@ -21,6 +21,7 @@ import type {
     QuotaInfo,
 } from '@/services/voice/types';
 import type { ChatMessage } from '@/services/chatService';
+import { saveVoiceTranscript } from '@/services/chatService';
 
 interface UseVoiceChatOptions {
     recipeContext?: RecipeContext;
@@ -50,6 +51,11 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     const [transcriptMessages, setTranscriptMessages] = useState<ChatMessage[]>(
         options?.initialTranscriptMessages || []
     );
+
+    // Ref mirror of transcriptMessages for use in callbacks (avoids stale closures)
+    const transcriptMessagesRef = useRef<ChatMessage[]>(transcriptMessages);
+    // Guard against duplicate saves
+    const savingRef = useRef(false);
 
     // Ref to accumulate streaming assistant text
     const assistantTextRef = useRef('');
@@ -128,6 +134,11 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
 
         prevSyncRef.current = { sessionId, externalMessages };
     }, [externalMessages, sessionId]);
+
+    // Keep transcriptMessagesRef in sync for stopConversation closure
+    useEffect(() => {
+        transcriptMessagesRef.current = transcriptMessages;
+    }, [transcriptMessages]);
 
     // Notify parent of transcript changes (stabilised via ref to avoid render storms)
     const onTranscriptChangeRef = useRef(options?.onTranscriptChange);
@@ -351,6 +362,46 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                 activeResponseIdRef.current = null;
             });
 
+            // Safety net: responseDone fires on every non-cancelled response.done.
+            // Case A: deltas fired but assistantTranscriptComplete didn't → finalize from accumulated text
+            // Case B: NO deltas fired at all → create message from response.done transcript
+            // Case C: already finalized by assistantTranscriptComplete → no-op
+            addListener('responseDone', (responseId?: string, fallbackTranscript?: string) => {
+                if (responseId && activeResponseIdRef.current && responseId !== activeResponseIdRef.current) {
+                    return;
+                }
+
+                // Flush pending delta batch
+                if (deltaTimerRef.current) {
+                    clearTimeout(deltaTimerRef.current);
+                    deltaTimerRef.current = null;
+                }
+                deltaBufferRef.current = '';
+
+                if (streamingMsgIdRef.current && assistantTextRef.current.trim()) {
+                    // Case A: deltas fired but assistantTranscriptComplete didn't → finalize from accumulated text
+                    finalizeAssistantMessage(streamingMsgIdRef.current, assistantTextRef.current);
+                } else if (!streamingMsgIdRef.current && fallbackTranscript?.trim()) {
+                    // Case B: NO deltas fired at all → create message from response.done transcript
+                    const newMsgId = generateMsgId();
+                    lastAssistantMsgIdRef.current = newMsgId;
+                    appendMessage({
+                        id: newMsgId,
+                        role: 'assistant',
+                        content: fallbackTranscript,
+                        createdAt: new Date(),
+                        ...(pendingRecipeDataRef.current?.recipes ? { recipes: pendingRecipeDataRef.current.recipes } : {}),
+                        ...(pendingRecipeDataRef.current?.customRecipe ? { customRecipe: pendingRecipeDataRef.current.customRecipe } : {}),
+                        ...(pendingRecipeDataRef.current?.safetyFlags ? { safetyFlags: pendingRecipeDataRef.current.safetyFlags } : {}),
+                    });
+                    pendingRecipeDataRef.current = null;
+                    assistantTextRef.current = '';
+                }
+                // Case C: already finalized by assistantTranscriptComplete → no-op
+
+                activeResponseIdRef.current = null;
+            });
+
             // Tool call handler
             addListener('toolCall', async (toolCall: VoiceToolCall) => {
                 setIsExecutingTool(true);
@@ -449,10 +500,26 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     }, [language, measurementSystem, userProfile, options, appendMessage, updateStreamingMessage, finalizeAssistantMessage, resetStreamingRefs, registerSession, unregisterSession]);
 
     const stopConversation = useCallback(() => {
+        // Finalize any in-flight streaming message before resetting refs
+        if (streamingMsgIdRef.current && assistantTextRef.current.trim()) {
+            finalizeAssistantMessage(streamingMsgIdRef.current, assistantTextRef.current);
+        }
+
+        // Capture messages from ref before reset (snapshot current state)
+        const messagesToSave = transcriptMessagesRef.current;
+
         providerRef.current?.stopConversation();
         resetStreamingRefs();
         unregisterSession(hookIdRef.current);
-    }, [resetStreamingRefs, unregisterSession]);
+
+        // Fire-and-forget save of voice transcript
+        if (messagesToSave.length > 0 && !savingRef.current) {
+            savingRef.current = true;
+            saveVoiceTranscript(messagesToSave).finally(() => {
+                savingRef.current = false;
+            });
+        }
+    }, [resetStreamingRefs, unregisterSession, finalizeAssistantMessage]);
 
     const updateContext = useCallback((recipeContext: RecipeContext) => {
         if (!providerRef.current) return;

@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { View, TouchableOpacity, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from '@/components/common/Text';
 import { ChatRecipeCard } from '@/components/chat/ChatRecipeCard';
 import { CustomRecipeCard } from '@/components/chat/CustomRecipeCard';
@@ -119,9 +120,11 @@ export interface ChatMessageItemProps {
     item: ChatMessage;
     isLastMessage: boolean;
     isLoading: boolean;
-    isRecipeGenerating: boolean;
+    isRecipeGenerating?: boolean;
     currentStatus: IrmixyStatus;
     statusText: string;
+    /** Show Irmixy avatar next to assistant messages */
+    showAvatar?: boolean;
     onCopyMessage: (content: string) => void;
     onStartCooking: (recipe: GeneratedRecipe, finalName: string, messageId: string, savedRecipeId?: string) => Promise<void>;
     onActionPress: (action: QuickAction) => void;
@@ -131,9 +134,10 @@ export const ChatMessageItem = memo(function ChatMessageItem({
     item,
     isLastMessage,
     isLoading,
-    isRecipeGenerating,
+    isRecipeGenerating = false,
     currentStatus,
     statusText,
+    showAvatar = false,
     onCopyMessage,
     onStartCooking,
     onActionPress,
@@ -165,14 +169,23 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                         </Text>
                     </TouchableOpacity>
                 ) : (
-                    <Pressable
-                        onLongPress={() => onCopyMessage(item.content)}
-                        className="max-w-[80%] p-sm rounded-lg self-start bg-background-secondary"
-                    >
-                        <Markdown style={markdownStyles}>
-                            {displayContent}
-                        </Markdown>
-                    </Pressable>
+                    <View className="max-w-[85%] flex-row items-end gap-xs self-start">
+                        {showAvatar && (
+                            <Image
+                                source={require('@/assets/images/irmixy-avatar/irmixy-face.png')}
+                                style={{ width: 24, height: 24 }}
+                                contentFit="contain"
+                            />
+                        )}
+                        <Pressable
+                            onLongPress={() => onCopyMessage(item.content)}
+                            className="flex-1 flex-shrink p-sm rounded-lg bg-background-secondary"
+                        >
+                            <Markdown style={markdownStyles}>
+                                {displayContent}
+                            </Markdown>
+                        </Pressable>
+                    </View>
                 )
             )}
 
