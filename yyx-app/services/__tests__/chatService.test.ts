@@ -20,6 +20,7 @@ import {
   createSimpleStreamCallbacks,
   routeSSEMessage,
   BudgetExceededError,
+  parseBudgetExceededErrorFromSSEEvent,
 } from '../chatService';
 import { supabase } from '@/lib/supabase';
 import {
@@ -608,12 +609,15 @@ describe('chatService', () => {
       };
 
       const result = routeSSEMessage(
-        { type: 'budget_warning', message: 'You have used 80% of your budget' },
+        { type: 'budget_warning', usedUsd: 0.08, budgetUsd: 0.10 },
         callbacks,
       );
 
       expect(callbacks.onBudgetWarning).toHaveBeenCalledTimes(1);
-      expect(callbacks.onBudgetWarning).toHaveBeenCalledWith('You have used 80% of your budget');
+      expect(callbacks.onBudgetWarning).toHaveBeenCalledWith({
+        usedUsd: 0.08,
+        budgetUsd: 0.10,
+      });
       expect(result.action).toBe('continue');
     });
 
@@ -622,7 +626,7 @@ describe('chatService', () => {
 
       expect(() => {
         routeSSEMessage(
-          { type: 'budget_warning', message: 'Warning' },
+          { type: 'budget_warning', usedUsd: 0.08, budgetUsd: 0.10 },
           callbacks,
         );
       }).not.toThrow();
@@ -635,7 +639,7 @@ describe('chatService', () => {
       };
 
       const result = routeSSEMessage(
-        { type: 'budget_warning', message: 'test' },
+        { type: 'budget_warning', usedUsd: 0.08, budgetUsd: 0.10 },
         callbacks,
       );
 
@@ -661,6 +665,25 @@ describe('chatService', () => {
       expect(callbacks.onStatus).toBe(onStatus);
       expect(callbacks.onComplete).toBe(onComplete);
       expect(callbacks.onStreamComplete).toBeUndefined();
+    });
+  });
+
+  describe('parseBudgetExceededErrorFromSSEEvent', () => {
+    it('parses budget_exceeded from xhrStatus + message JSON body', () => {
+      const error = parseBudgetExceededErrorFromSSEEvent({
+        xhrStatus: 429,
+        message: JSON.stringify({
+          error: 'budget_exceeded',
+          tier: 'free',
+          usedUsd: 0.10,
+          budgetUsd: 0.10,
+        }),
+      });
+
+      expect(error).toBeInstanceOf(BudgetExceededError);
+      expect(error?.tier).toBe('free');
+      expect(error?.usedUsd).toBe(0.10);
+      expect(error?.budgetUsd).toBe(0.10);
     });
   });
 

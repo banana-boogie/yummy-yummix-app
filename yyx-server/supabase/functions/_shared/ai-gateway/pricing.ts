@@ -13,6 +13,22 @@ interface ModelPricing {
   outputPricePerMillion: number;
 }
 
+const STATIC_FALLBACK_PRICING: Record<
+  string,
+  { inputPricePerMillion: number; outputPricePerMillion: number }
+> = {
+  "gemini-2.5-flash": {
+    inputPricePerMillion: 0.15,
+    outputPricePerMillion: 0.60,
+  },
+  "gpt-4.1-nano": { inputPricePerMillion: 0.10, outputPricePerMillion: 0.40 },
+  "gpt-4.1-mini": { inputPricePerMillion: 0.40, outputPricePerMillion: 1.60 },
+  "text-embedding-3-large": {
+    inputPricePerMillion: 0.13,
+    outputPricePerMillion: 0,
+  },
+};
+
 // Module-level cache: model → pricing. Shared across requests in a warm instance.
 const pricingCache = new Map<string, ModelPricing>();
 let cacheLoadedAt = 0;
@@ -79,6 +95,18 @@ async function getModelPricing(model: string): Promise<ModelPricing> {
   const exact = pricingCache.get(model);
   if (exact) return exact;
 
+  const staticExact = STATIC_FALLBACK_PRICING[model];
+  if (staticExact) {
+    console.warn(
+      `[ai-gateway:pricing] Using static fallback pricing for '${model}'`,
+    );
+    return {
+      model,
+      inputPricePerMillion: staticExact.inputPricePerMillion,
+      outputPricePerMillion: staticExact.outputPricePerMillion,
+    };
+  }
+
   // Fallback: use the most expensive cached model
   if (pricingCache.size > 0) {
     let mostExpensive: ModelPricing | null = null;
@@ -99,9 +127,34 @@ async function getModelPricing(model: string): Promise<ModelPricing> {
     }
   }
 
-  // No cache at all — return zero (pricing will be loaded next time)
+  // No DB cache available: fallback to most expensive static model pricing
+  let staticFallback: ModelPricing | null = null;
+  let highestStaticCost = 0;
+  for (
+    const [fallbackModel, pricing] of Object.entries(STATIC_FALLBACK_PRICING)
+  ) {
+    const totalCost = pricing.inputPricePerMillion +
+      pricing.outputPricePerMillion;
+    if (totalCost > highestStaticCost) {
+      highestStaticCost = totalCost;
+      staticFallback = {
+        model: fallbackModel,
+        inputPricePerMillion: pricing.inputPricePerMillion,
+        outputPricePerMillion: pricing.outputPricePerMillion,
+      };
+    }
+  }
+
+  if (staticFallback) {
+    console.warn(
+      `[ai-gateway:pricing] No DB pricing available, using static fallback '${staticFallback.model}' for unknown model '${model}'`,
+    );
+    return staticFallback;
+  }
+
+  // Last resort should never happen with populated STATIC_FALLBACK_PRICING
   console.warn(
-    `[ai-gateway:pricing] No pricing data available, returning zero cost for '${model}'`,
+    `[ai-gateway:pricing] Static fallback pricing missing, returning zero cost for '${model}'`,
   );
   return { model, inputPricePerMillion: 0, outputPricePerMillion: 0 };
 }
@@ -124,4 +177,23 @@ export async function calculateCost(
 export function _clearCache(): void {
   pricingCache.clear();
   cacheLoadedAt = 0;
+}
+
+/** Exported for testing */
+export function _setCacheForTesting(
+  pricing: Array<{
+    model: string;
+    inputPricePerMillion: number;
+    outputPricePerMillion: number;
+  }>,
+): void {
+  pricingCache.clear();
+  for (const row of pricing) {
+    pricingCache.set(row.model, {
+      model: row.model,
+      inputPricePerMillion: row.inputPricePerMillion,
+      outputPricePerMillion: row.outputPricePerMillion,
+    });
+  }
+  cacheLoadedAt = Date.now();
 }

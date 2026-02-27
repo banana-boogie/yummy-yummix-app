@@ -19,6 +19,10 @@ export interface BudgetStatus {
   budgetUsd: number;
   tier: string;
   warning?: string;
+  warningData?: {
+    usedUsd: number;
+    budgetUsd: number;
+  };
 }
 
 export interface VoiceBudgetStatus {
@@ -44,6 +48,13 @@ export interface CostRecord {
 interface TierLimits {
   monthlyTextBudgetUsd: number;
   monthlyVoiceMinutes: number;
+}
+
+export class BudgetCheckUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BudgetCheckUnavailableError";
+  }
 }
 
 // ============================================================
@@ -123,14 +134,34 @@ export async function checkTextBudget(userId: string): Promise<BudgetStatus> {
       .from("user_profiles")
       .select("membership_tier")
       .eq("user_id", userId)
-      .single(),
+      .maybeSingle(),
     supabase
       .from("ai_budget_usage")
       .select("total_cost_usd")
       .eq("user_id", userId)
       .eq("month", currentMonth)
-      .single(),
+      .maybeSingle(),
   ]);
+
+  if (tierResult.error) {
+    console.error(
+      "[ai-budget] Failed to load user membership tier:",
+      tierResult.error.message,
+    );
+    throw new BudgetCheckUnavailableError(
+      "Failed to read membership tier for budget check",
+    );
+  }
+
+  if (usageResult.error) {
+    console.error(
+      "[ai-budget] Failed to load monthly text usage:",
+      usageResult.error.message,
+    );
+    throw new BudgetCheckUnavailableError(
+      "Failed to read monthly text usage for budget check",
+    );
+  }
 
   await ensureTierCache();
 
@@ -150,9 +181,11 @@ export async function checkTextBudget(userId: string): Promise<BudgetStatus> {
 
   // Warning at 80% usage
   if (allowed && usedUsd >= limits.monthlyTextBudgetUsd * WARNING_THRESHOLD) {
-    result.warning = `You've used $${usedUsd.toFixed(4)} of your $${
-      limits.monthlyTextBudgetUsd.toFixed(2)
-    } monthly AI budget.`;
+    result.warning = "budget_warning";
+    result.warningData = {
+      usedUsd,
+      budgetUsd: limits.monthlyTextBudgetUsd,
+    };
   }
 
   return result;
@@ -173,14 +206,34 @@ export async function checkVoiceBudget(
       .from("user_profiles")
       .select("membership_tier")
       .eq("user_id", userId)
-      .single(),
+      .maybeSingle(),
     supabase
       .from("ai_voice_usage")
       .select("minutes_used")
       .eq("user_id", userId)
       .eq("month", currentMonth)
-      .single(),
+      .maybeSingle(),
   ]);
+
+  if (tierResult.error) {
+    console.error(
+      "[ai-budget] Failed to load user membership tier for voice:",
+      tierResult.error.message,
+    );
+    throw new BudgetCheckUnavailableError(
+      "Failed to read membership tier for voice budget check",
+    );
+  }
+
+  if (usageResult.error) {
+    console.error(
+      "[ai-budget] Failed to load monthly voice usage:",
+      usageResult.error.message,
+    );
+    throw new BudgetCheckUnavailableError(
+      "Failed to read monthly voice usage for budget check",
+    );
+  }
 
   await ensureTierCache();
 

@@ -4,6 +4,7 @@ import type { User } from '@supabase/supabase-js';
 import {
     ChatMessage,
     IrmixyStatus,
+    BudgetWarningPayload,
     sendMessage,
     BudgetExceededError,
 } from '@/services/chatService';
@@ -31,7 +32,7 @@ interface UseMessageStreamingParams {
     hasRecipeInCurrentStreamRef: React.MutableRefObject<boolean>;
     flatListRef: React.RefObject<FlatList>;
     onResumeSessionClear: () => void;
-    onBudgetWarning?: (message: string) => void;
+    onBudgetWarning?: (warning: BudgetWarningPayload) => void;
     onBudgetExceeded?: (error: BudgetExceededError) => void;
 }
 
@@ -363,10 +364,10 @@ export function useMessageStreaming({
             // Handle budget exceeded — notify parent, don't show as generic error
             if (error instanceof BudgetExceededError) {
                 onBudgetExceeded?.(error);
-                // Remove the empty assistant placeholder
-                setMessages(prev => prev.filter(m => m.id !== assistantMessageId));
-                // Also remove the user message since the request was rejected
-                setMessages(prev => prev.filter(m => m.id !== userMessage.id));
+                // Remove both optimistic messages in one atomic update.
+                setMessages(prev =>
+                    prev.filter(m => m.id !== assistantMessageId && m.id !== userMessage.id),
+                );
                 return;
             }
 

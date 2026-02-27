@@ -20,7 +20,7 @@ import { useMessageStreaming } from '@/hooks/chat/useMessageStreaming';
 import { useSmartScroll } from '@/hooks/chat/useSmartScroll';
 import { useResumeSession } from '@/hooks/chat/useResumeSession';
 import { useChatMessageActions } from '@/hooks/chat/useChatMessageActions';
-import type { ChatMessage, IrmixyStatus } from '@/services/chatService';
+import type { BudgetWarningPayload, ChatMessage, IrmixyStatus } from '@/services/chatService';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -123,10 +123,13 @@ export function ChatScreen({
     // --- Budget state ---
     const [isBudgetExceeded, setIsBudgetExceeded] = useState(false);
 
-    const handleBudgetWarning = useCallback((message: string) => {
+    const handleBudgetWarning = useCallback((warning: BudgetWarningPayload) => {
         Alert.alert(
             i18n.t('chat.budget.warningTitle'),
-            message,
+            i18n.t('chat.budget.warningDetailed', {
+                usedUsd: warning.usedUsd.toFixed(4),
+                budgetUsd: warning.budgetUsd.toFixed(2),
+            }),
         );
     }, []);
 

@@ -38,7 +38,10 @@ import { buildSystemPrompt } from "./system-prompt.ts";
 import { callAI, callAIStream } from "./ai-calls.ts";
 import { errorResponse, finalizeResponse } from "./response-builder.ts";
 import { detectTextToolCall, stripToolCallText } from "./tool-call-text.ts";
-import { checkTextBudget } from "../_shared/ai-budget/index.ts";
+import {
+  BudgetCheckUnavailableError,
+  checkTextBudget,
+} from "../_shared/ai-budget/index.ts";
 import { checkRateLimit } from "../_shared/ai-budget/rate-limiter.ts";
 import type { CostContext } from "../_shared/ai-gateway/types.ts";
 
@@ -134,7 +137,25 @@ serve(async (req) => {
     }
 
     // Budget check
-    const budget = await checkTextBudget(user.id);
+    let budget: Awaited<ReturnType<typeof checkTextBudget>>;
+    try {
+      budget = await checkTextBudget(user.id);
+    } catch (error) {
+      if (error instanceof BudgetCheckUnavailableError) {
+        log.error("Budget check unavailable", { message: error.message });
+        return new Response(
+          JSON.stringify({
+            error: "budget_unavailable",
+          }),
+          {
+            status: 503,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      throw error;
+    }
+
     if (!budget.allowed) {
       log.info("Budget exceeded", {
         tier: budget.tier,
@@ -184,7 +205,7 @@ serve(async (req) => {
       log,
       req.signal,
       costContext,
-      budget.warning,
+      budget.warningData,
     );
   } catch (error) {
     log.error("Orchestrator error", error);
@@ -359,7 +380,7 @@ function handleStreamingRequest(
   log: Logger,
   reqSignal?: AbortSignal,
   costContext?: CostContext,
-  budgetWarning?: string,
+  budgetWarning?: { usedUsd: number; budgetUsd: number },
 ): Response {
   const encoder = new TextEncoder();
 
@@ -431,7 +452,11 @@ function handleStreamingRequest(
         }
         // Send budget warning early so frontend can display it
         if (budgetWarning) {
-          send({ type: "budget_warning", message: budgetWarning });
+          send({
+            type: "budget_warning",
+            usedUsd: budgetWarning.usedUsd,
+            budgetUsd: budgetWarning.budgetUsd,
+          });
         }
         send({ type: "status", status: "thinking" });
 

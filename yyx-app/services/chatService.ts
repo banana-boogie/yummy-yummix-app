@@ -34,6 +34,11 @@ export interface ChatSession {
     messages: ChatMessage[];
 }
 
+export interface BudgetWarningPayload {
+    usedUsd: number;
+    budgetUsd: number;
+}
+
 // Re-export types for convenience
 export type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, QuickAction };
 
@@ -75,7 +80,7 @@ export interface StreamCallbacks {
     onStreamComplete?: () => void;  // Called when text streaming finishes (before suggestions)
     onPartialRecipe?: (recipe: GeneratedRecipe) => void;  // Called with partial recipe before enrichment
     onComplete?: (response: IrmixyResponse) => void;
-    onBudgetWarning?: (message: string) => void;  // Called when budget is approaching limit
+    onBudgetWarning?: (warning: BudgetWarningPayload) => void;  // Called when budget is approaching limit
 }
 
 export interface StreamHandle {
@@ -92,6 +97,56 @@ export type SSERouteAction = 'continue' | 'resolve' | 'reject';
 export interface SSERouteResult {
     action: SSERouteAction;
     error?: Error;
+}
+
+const parseNumericStatus = (value: unknown): number | null => {
+    const parsed = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
+const parseObjectPayload = (value: unknown): Record<string, unknown> | null => {
+    if (value && typeof value === 'object') {
+        return value as Record<string, unknown>;
+    }
+
+    if (typeof value !== 'string' || !value.trim()) {
+        return null;
+    }
+
+    try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === 'object'
+            ? (parsed as Record<string, unknown>)
+            : null;
+    } catch {
+        return null;
+    }
+};
+
+export function parseBudgetExceededErrorFromSSEEvent(event: unknown): BudgetExceededError | null {
+    if (!event || typeof event !== 'object') {
+        return null;
+    }
+
+    const eventData = event as Record<string, unknown>;
+    const statusCode = parseNumericStatus(eventData.status) ?? parseNumericStatus(eventData.xhrStatus);
+    if (statusCode !== 429) {
+        return null;
+    }
+
+    const payloadCandidates = [eventData.data, eventData.message];
+    for (const candidate of payloadCandidates) {
+        const payload = parseObjectPayload(candidate);
+        if (payload?.error === 'budget_exceeded') {
+            return new BudgetExceededError({
+                tier: typeof payload.tier === 'string' ? payload.tier : undefined,
+                usedUsd: Number(payload.usedUsd),
+                budgetUsd: Number(payload.budgetUsd),
+            });
+        }
+    }
+
+    return null;
 }
 
 /**
@@ -148,8 +203,10 @@ export function routeSSEMessage(
 
         case 'budget_warning':
             try {
-                if (typeof data.message === 'string') {
-                    callbacks.onBudgetWarning?.(data.message);
+                const usedUsd = Number(data.usedUsd);
+                const budgetUsd = Number(data.budgetUsd);
+                if (Number.isFinite(usedUsd) && Number.isFinite(budgetUsd)) {
+                    callbacks.onBudgetWarning?.({ usedUsd, budgetUsd });
                 }
             } catch (e) {
                 if (__DEV__) console.error('[SSE] onBudgetWarning callback error:', e);
@@ -237,7 +294,7 @@ export function sendMessage(
     onPartialRecipe?: (recipe: GeneratedRecipe) => void,
     onComplete?: (response: IrmixyResponse) => void,
     options?: SendMessageOptions,
-    onBudgetWarning?: (message: string) => void,
+    onBudgetWarning?: (warning: BudgetWarningPayload) => void,
 ): StreamHandle {
     let finished = false;
     let es: EventSource | null = null;
@@ -389,21 +446,11 @@ export function sendMessage(
                         if (__DEV__) console.error('[SSE] Connection error:', event, 'hasReceivedData:', hasReceivedData);
                         es?.close();
 
-                        // Detect 429 budget_exceeded or rate_limited from server
-                        const statusCode = event.status || event.xhrStatus;
-                        if (statusCode === 429) {
-                            // Try to parse error body for budget_exceeded details
-                            try {
-                                const errorData = event.data ? JSON.parse(event.data) : {};
-                                if (errorData.error === 'budget_exceeded') {
-                                    const budgetError = new BudgetExceededError(errorData);
-                                    safeReject(budgetError);
-                                    rejectConnection(budgetError);
-                                    return;
-                                }
-                            } catch {
-                                // Not parseable, fall through
-                            }
+                        const budgetError = parseBudgetExceededErrorFromSSEEvent(event);
+                        if (budgetError) {
+                            safeReject(budgetError);
+                            rejectConnection(budgetError);
+                            return;
                         }
 
                         connectionError = new Error(event.message || 'SSE connection failed');

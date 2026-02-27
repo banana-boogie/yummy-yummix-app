@@ -117,8 +117,30 @@ CREATE TRIGGER trg_aggregate_ai_cost
 -- ============================================================
 
 ALTER TABLE public.user_profiles
-  ADD COLUMN IF NOT EXISTS membership_tier TEXT NOT NULL DEFAULT 'free'
-  CHECK (membership_tier IN ('free', 'premium'));
+  ADD COLUMN IF NOT EXISTS membership_tier TEXT NOT NULL DEFAULT 'free';
+
+CREATE OR REPLACE FUNCTION public.prevent_client_membership_tier_update()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.membership_tier IS DISTINCT FROM OLD.membership_tier
+     AND coalesce(auth.role(), '') <> 'service_role' THEN
+    RAISE EXCEPTION 'membership_tier can only be updated by service role'
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_prevent_client_membership_tier_update ON public.user_profiles;
+CREATE TRIGGER trg_prevent_client_membership_tier_update
+  BEFORE UPDATE ON public.user_profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION public.prevent_client_membership_tier_update();
 
 -- ============================================================
 -- 4. Seed data
@@ -141,6 +163,31 @@ ON CONFLICT (tier) DO UPDATE SET
   monthly_text_budget_usd = EXCLUDED.monthly_text_budget_usd,
   monthly_voice_minutes = EXCLUDED.monthly_voice_minutes,
   updated_at = now();
+
+UPDATE public.user_profiles up
+SET membership_tier = 'free'
+WHERE membership_tier IS NULL
+   OR NOT EXISTS (
+     SELECT 1
+     FROM public.ai_membership_tiers mt
+     WHERE mt.tier = up.membership_tier
+   );
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'user_profiles_membership_tier_fkey'
+      AND conrelid = 'public.user_profiles'::regclass
+  ) THEN
+    ALTER TABLE public.user_profiles
+      ADD CONSTRAINT user_profiles_membership_tier_fkey
+      FOREIGN KEY (membership_tier)
+      REFERENCES public.ai_membership_tiers(tier);
+  END IF;
+END
+$$;
 
 -- ============================================================
 -- 5. Drop old unused budget/rate-limit infrastructure

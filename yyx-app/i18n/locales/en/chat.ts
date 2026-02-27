@@ -58,6 +58,7 @@ export const chat = {
   budget: {
     warningTitle: "Usage Warning",
     warning: "You're approaching your monthly AI limit.",
+    warningDetailed: "You've used ${{usedUsd}} of your ${{budgetUsd}} monthly AI budget.",
     exceededTitle: "Monthly Limit Reached",
     exceededMessage: "You've used your monthly AI budget. Your budget resets at the start of next month.",
     upgradeHint: "Monthly AI limit reached",

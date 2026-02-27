@@ -40,6 +40,7 @@ jest.mock('@/i18n', () => ({
       'chat.voice.tapToSpeak': 'Tap to speak',
       'chat.budget.warningTitle': 'Usage Warning',
       'chat.budget.warning': "You're approaching your monthly AI limit.",
+      'chat.budget.warningDetailed': `You've used $${params?.usedUsd} of your $${params?.budgetUsd} monthly AI budget.`,
       'chat.budget.exceededTitle': 'Monthly Limit Reached',
       'chat.budget.exceededMessage': "You've used your monthly AI budget. Your budget resets at the start of next month.",
       'chat.budget.upgradeHint': 'Monthly AI limit reached',

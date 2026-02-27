@@ -24,7 +24,10 @@ import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
 import { getAllowedVoiceToolNames } from "../_shared/tools/tool-registry.ts";
 import { buildVoiceInstructions } from "../_shared/system-prompt-builder.ts";
-import { checkVoiceBudget } from "../_shared/ai-budget/index.ts";
+import {
+  BudgetCheckUnavailableError,
+  checkVoiceBudget,
+} from "../_shared/ai-budget/index.ts";
 
 const ALLOWED_VOICE_TOOLS = new Set(getAllowedVoiceToolNames());
 const ALLOWED_ACTIONS = new Set(
@@ -380,6 +383,18 @@ serve(async (req) => {
   } catch (error) {
     const elapsed = Math.round(performance.now() - startTime);
     const message = error instanceof Error ? error.message : String(error);
+
+    if (error instanceof BudgetCheckUnavailableError) {
+      console.error(
+        `[irmixy-voice-orchestrator] Budget check unavailable (${elapsed}ms):`,
+        message,
+      );
+      return jsonResponse(
+        { error: "budget_unavailable" },
+        503,
+        corsHeaders,
+      );
+    }
 
     if (error instanceof ToolValidationError) {
       console.warn(
