@@ -2,12 +2,12 @@
  * Chat Page with Text/Voice Mode Toggle
  *
  * Users can switch between text chat and voice conversation.
- * Messages state is lifted here to preserve recipes when switching modes.
- * Voice transcript messages are also lifted for mode-switch persistence.
+ * Messages state is lifted here as a single source of truth for both modes.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, TouchableOpacity, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack } from 'expo-router';
 import { ChatScreen } from '@/components/chat/ChatScreen';
 import { VoiceChatScreen } from '@/components/chat/VoiceChatScreen';
@@ -17,31 +17,47 @@ import { COLORS } from '@/constants/design-tokens';
 import { ChatMessage } from '@/services/chatService';
 import i18n from '@/i18n';
 
+const STORAGE_KEY_SESSION_ID = 'lastChatSessionId';
+
 type ChatMode = 'text' | 'voice';
 
 export default function ChatPage() {
-    const [mode, setMode] = useState<ChatMode>(Platform.OS === 'web' ? 'text' : 'voice'); // Default to text on web, voice on mobile
+    const [mode, setMode] = useState<ChatMode>(Platform.OS === 'web' ? 'text' : 'voice');
     const [sessionId, setSessionId] = useState<string | null>(null);
-    // Lift messages state to preserve recipes when switching modes
     const [messages, setMessages] = useState<ChatMessage[]>([]);
-    // Lift voice transcript messages for mode-switch persistence
     const [voiceTranscriptMessages, setVoiceTranscriptMessages] = useState<ChatMessage[]>([]);
+    const [sessionsMenuOpenSignal, setSessionsMenuOpenSignal] = useState(0);
+    const [newChatSignal, setNewChatSignal] = useState(0);
 
-    const toggleMode = () => {
-        setMode(m => m === 'text' ? 'voice' : 'text');
-    };
+    // Session ID is persisted to AsyncStorage for the resume bar,
+    // but NOT restored on mount — users always start with a fresh chat.
+    // The ChatResumeBar prompts to continue the previous session.
 
-    // Handler for selecting a session from the hamburger menu
-    const handleSelectSession = useCallback((newSessionId: string, sessionMessages: ChatMessage[]) => {
+    // Wrapper that persists sessionId alongside state
+    const updateSessionId = useCallback((newSessionId: string) => {
         setSessionId(newSessionId);
-        setMessages(sessionMessages);
+        AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, newSessionId).catch(() => {});
     }, []);
 
-    // Handler for starting a new chat from the hamburger menu
+    const toggleMode = useCallback(() => {
+        setMode((m) => (m === 'text' ? 'voice' : 'text'));
+    }, []);
+
+    const handleSelectSession = useCallback((newSessionId: string, sessionMessages: ChatMessage[]) => {
+        updateSessionId(newSessionId);
+        setMessages(sessionMessages);
+    }, [updateSessionId]);
+
     const handleNewChat = useCallback(() => {
         setSessionId(null);
         setMessages([]);
         setVoiceTranscriptMessages([]);
+        AsyncStorage.removeItem(STORAGE_KEY_SESSION_ID).catch(() => {});
+        setNewChatSignal((prev) => prev + 1);
+    }, []);
+
+    const openSessionsMenu = useCallback(() => {
+        setSessionsMenuOpenSignal((prev) => prev + 1);
     }, []);
 
     return (
@@ -55,6 +71,7 @@ export default function ChatPage() {
                             currentSessionId={sessionId}
                             onSelectSession={handleSelectSession}
                             onNewChat={handleNewChat}
+                            openSignal={sessionsMenuOpenSignal}
                         />
                     ),
                     headerRight: () =>
@@ -76,16 +93,18 @@ export default function ChatPage() {
             {mode === 'voice' ? (
                 <VoiceChatScreen
                     sessionId={sessionId}
-                    onSessionCreated={setSessionId}
+                    onSessionCreated={updateSessionId}
                     transcriptMessages={voiceTranscriptMessages}
                     onTranscriptChange={setVoiceTranscriptMessages}
                 />
             ) : (
                 <ChatScreen
                     sessionId={sessionId}
-                    onSessionCreated={setSessionId}
+                    onSessionCreated={updateSessionId}
                     messages={messages}
                     onMessagesChange={setMessages}
+                    onOpenSessionsMenu={openSessionsMenu}
+                    newChatSignal={newChatSignal}
                 />
             )}
         </View>

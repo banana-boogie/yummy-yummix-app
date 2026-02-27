@@ -21,7 +21,7 @@ import { ToolValidationError } from "./tool-validators.ts";
  * @param name - Tool name (e.g., "search_recipes", "generate_custom_recipe")
  * @param args - JSON string of tool arguments
  * @param userContext - User preferences and dietary info
- * @param onPartialRecipe - Optional callback for two-phase SSE (recipe generation only)
+ * @param executionOptions - Optional callback/flags for tool execution
  * @returns Tool result (RecipeCard[] or GenerateRecipeResult)
  */
 export async function executeTool(
@@ -29,8 +29,10 @@ export async function executeTool(
   name: string,
   args: string,
   userContext: UserContext,
-  onPartialRecipe?: PartialRecipeCallback,
-  usageContext?: AIUsageLogContext,
+  executionOptions?: {
+    onPartialRecipe?: PartialRecipeCallback;
+    usageContext?: AIUsageLogContext;
+  },
 ): Promise<unknown> {
   let parsedArgs: unknown;
   try {
@@ -47,7 +49,7 @@ export async function executeTool(
   return await tool.execute(parsedArgs, {
     supabase,
     userContext,
-    onPartialRecipe,
-    usageContext,
+    onPartialRecipe: executionOptions?.onPartialRecipe,
+    usageContext: executionOptions?.usageContext,
   });
 }

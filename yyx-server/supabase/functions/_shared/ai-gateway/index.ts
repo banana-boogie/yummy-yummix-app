@@ -7,7 +7,7 @@
  *
  * To switch providers:
  * 1. Modify router.ts default config, OR
- * 2. Set environment variables: AI_TEXT_MODEL, AI_PARSING_MODEL, AI_REASONING_MODEL
+ * 2. Set environment variables: AI_TEXT_MODEL, AI_RECIPE_GENERATION_MODEL, AI_PARSING_MODEL
  */
 
 import {
@@ -23,6 +23,7 @@ import {
   callOpenAIEmbedding,
   callOpenAIStream,
 } from "./providers/openai.ts";
+import { callGemini, callGeminiStream } from "./providers/google.ts";
 
 /**
  * Make an AI chat request.
@@ -47,7 +48,7 @@ export async function chat(
       throw new Error("Anthropic provider not yet implemented");
 
     case "google":
-      throw new Error("Google provider not yet implemented");
+      return callGemini(request, model, apiKey);
 
     default:
       throw new Error(`Unknown provider: ${config.provider}`);
@@ -77,7 +78,11 @@ export async function chatStream(
       throw new Error("Anthropic streaming not yet implemented");
 
     case "google":
-      throw new Error("Google streaming not yet implemented");
+      return {
+        stream: callGeminiStream(request, model, apiKey),
+        getUsage: async () => null,
+        model,
+      };
 
     default:
       throw new Error(`Unknown provider: ${config.provider}`);

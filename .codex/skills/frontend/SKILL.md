@@ -26,3 +26,4 @@ Frontend engineer for YummyYummix. Builds React Native (Expo) screens, component
 - All user-facing strings through i18n — add keys to BOTH en and es
 - Follow component creation checklist: subdirectory, component file, barrel export, test file
 - Write Jest tests for code you create
+- Visual polish matters — animate state changes, use soft shadows on cards, prefer warm gradient backgrounds over flat colors. If a screen looks generic, add brand personality.

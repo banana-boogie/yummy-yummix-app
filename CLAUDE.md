@@ -292,8 +292,8 @@ Check Supabase Dashboard logs: `Edge Functions -> irmixy-chat-orchestrator -> Lo
 
 #### Why Use the Gateway?
 - **Provider Independence** - Switch models/providers via env vars without code changes
-- **Usage-Based Routing** - Different models for different tasks (`text`, `parsing`, `reasoning`)
-- **Cost Optimization** - Use cheaper models for simple tasks
+- **Usage-Based Routing** - Different models for different tasks (`text`, `recipe_generation`, `parsing`)
+- **Cost Optimization** - Use cheaper models and lower reasoning effort for simple tasks
 - **Consistent Interface** - Same API for all providers
 - **Structured Output** - JSON schema validation built-in
 - **Streaming Support** - SSE streaming with `chatStream()`
@@ -305,12 +305,12 @@ import { chat, chatStream } from '../_shared/ai-gateway/index.ts';
 
 // For structured output (always use JSON schema):
 const response = await chat({
-  usageType: 'text',  // or 'parsing', 'reasoning', 'voice'
+  usageType: 'text',  // or 'recipe_generation', 'parsing'
   messages: [
     { role: 'system', content: 'You are a helpful assistant' },
     { role: 'user', content: 'Hello!' },
   ],
-  temperature: 0.7,
+  reasoningEffort: 'low',
   responseFormat: {
     type: 'json_schema',
     schema: {
@@ -338,7 +338,7 @@ const response = await chat({
 for await (const chunk of chatStream({
   usageType: 'text',
   messages: [...],
-  temperature: 0.7,
+  reasoningEffort: 'low',
 })) {
   console.log(chunk);
 }
@@ -346,23 +346,26 @@ for await (const chunk of chatStream({
 
 #### Usage Types:
 
-| Type | Default Model | Use Case | Cost |
-|------|--------------|----------|------|
-| `text` | gpt-4o-mini | Chat completions, general text generation | Low |
-| `parsing` | gpt-4o-mini | Intent classification, structured data extraction | Very low |
-| `reasoning` | o1-mini | Complex reasoning, multi-step problems | High |
-| `voice` | gpt-4o-mini | Voice-optimized short responses | Low |
+| Type | Default Model | Config | Use Case | Cost |
+|------|--------------|--------|----------|------|
+| `text` | google/gemini-2.5-flash | thinking: minimal | Chat orchestrator (tool calling + streaming) | Low |
+| `recipe_generation` | google/gemini-2.5-flash | thinking: minimal | Recipe generation (structured JSON output) — quality critical | Low |
+| `recipe_modification` | google/gemini-2.5-flash | thinking: minimal | Recipe modification (transform existing JSON) | Low |
+| `parsing` | openai/gpt-4.1-nano | temperature: `1` | Admin parsing, nutritional data extraction | Very low |
+| `embedding` | openai/text-embedding-3-large | N/A | Vector search (3072 dimensions) | Low |
 
 #### Configuration:
 
 ```bash
 # Required API Keys (in .env or Supabase secrets)
-OPENAI_API_KEY=sk-proj-xxx      # For text, voice, parsing, reasoning
+GEMINI_API_KEY=AIza...            # For text, recipe_generation, recipe_modification
+OPENAI_API_KEY=sk-proj-xxx        # For parsing, embedding
 
-# Optional: Override default models
-AI_TEXT_MODEL=gpt-4o              # Override chat model (default: gpt-4o-mini)
-AI_PARSING_MODEL=gpt-4o-mini      # Override parsing model
-AI_REASONING_MODEL=o1             # Override reasoning model
+# Optional: Override default models (supports provider:model format)
+AI_TEXT_MODEL=openai:gpt-4.1-mini             # Switch to OpenAI
+AI_RECIPE_GENERATION_MODEL=gemini-2.5-flash   # Same provider, different model
+AI_RECIPE_MODIFICATION_MODEL=openai:gpt-5-mini # Switch provider entirely
+AI_PARSING_MODEL=gpt-5-nano                   # Same provider, different model
 ```
 
 #### Design Pattern:
@@ -375,8 +378,8 @@ Developer Code -> Gateway (OpenAI format) -> Provider (translates to native form
 
 This design:
 - Uses OpenAI format because it's the industry standard
-- Each provider handles translation (already implemented for OpenAI)
-- Adding new providers (Anthropic, Google) just requires a new translator
+- Each provider handles translation (implemented for OpenAI and Google)
+- Adding new providers (Anthropic) just requires a new translator
 - NOT OpenAI-specific - it's using OpenAI format as the **lingua franca**
 
 **When adding new providers:** Implement translation logic in `ai-gateway/providers/<provider>.ts`. The gateway interface stays the same.
@@ -489,6 +492,7 @@ Domain agents write their own tests when building features. The test-engineer is
 | `/build-feature` | Guided 7-phase feature development — product thinking, exploration, design, implementation, review, docs |
 | `/review-pr` | PR review against project standards with structured report output |
 | `/review-changes` | Same as review-pr but for local commits before opening a PR |
+| `/review-plan` | Plan review for clarity, completeness, architecture fit, and feasibility before implementation |
 | `/update-docs` | Syncs documentation after feature changes |
 
 ### Guideline Docs

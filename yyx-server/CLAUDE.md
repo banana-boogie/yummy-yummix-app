@@ -139,13 +139,15 @@ SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...  # Get from dashboard
 
-OPENAI_API_KEY=sk-proj-...
+GEMINI_API_KEY=AIza...        # For text, recipe_generation, recipe_modification
+OPENAI_API_KEY=sk-proj-...   # For parsing, embedding
 USDA_API_KEY=...
 ```
 
 ### Cloud Secrets
 
 API keys should also be set as cloud secrets for deployed functions:
+- GEMINI_API_KEY
 - OPENAI_API_KEY
 - USDA_API_KEY
 
@@ -169,6 +171,8 @@ Custom PostgreSQL functions for RPC calls are documented in `docs/DATABASE_FUNCT
 - `find_closest_ingredient(name, lang)` — Fuzzy ingredient search with language preference
 - `admin_analytics(action, timeframe, limit)` — Admin dashboard metrics
 - `is_admin()` — Check current user's admin status
+- `check_and_increment_ai_generation_usage(user_id, limit)` — Atomic budget check + increment
+- `get_cooked_recipes(language, query, after, before, limit)` — Current user's cooked recipe history with optional search and date range
 
 To list all available functions:
 ```sql

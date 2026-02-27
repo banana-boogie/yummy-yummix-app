@@ -21,13 +21,9 @@ import type {
   GenerateRecipeResult,
   PartialRecipeCallback,
 } from "../_shared/tools/generate-custom-recipe.ts";
-import { generateCustomRecipe } from "../_shared/tools/generate-custom-recipe.ts";
-import type { RetrieveCustomRecipeResult } from "../_shared/tools/retrieve-custom-recipe.ts";
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { executeTool } from "../_shared/tools/execute-tool.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
-import { hasHighRecipeIntent } from "./recipe-intent.ts";
-
 // Module imports
 import type {
   ChatMessage,
@@ -39,21 +35,18 @@ import { SessionOwnershipError } from "./types.ts";
 import { createLogger, generateRequestId, type Logger } from "./logger.ts";
 import { ensureSessionId } from "./session.ts";
 import { detectMealContext } from "./meal-context.ts";
-import {
-  buildNoResultsFallback,
-  getTemplateSuggestions,
-} from "./suggestions.ts";
-import { detectModificationIntent } from "./modification.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { callAI, callAIStream } from "./ai-calls.ts";
 import { errorResponse, finalizeResponse } from "./response-builder.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
+import { detectTextToolCall, stripToolCallText } from "./tool-call-text.ts";
 
 // ============================================================
 // Config
 // ============================================================
 
 const STREAM_TIMEOUT_MS = 30_000;
+const HEARTBEAT_INTERVAL_MS = 15_000;
 
 // ============================================================
 // Main Handler
@@ -120,6 +113,9 @@ serve(async (req) => {
 
     // Sanitize the incoming message
     const sanitizedMessage = sanitizeContent(message);
+    log.info("Message sanitized", {
+      messagePreview: sanitizedMessage.slice(0, 180),
+    });
 
     const sessionResult = await ensureSessionId(
       supabase,
@@ -205,8 +201,8 @@ async function executeToolCalls(
 ): Promise<ToolExecutionResult> {
   const toolMessages: ChatMessage[] = [];
   let recipes: RecipeCard[] | undefined;
+  let recipesSourceTool: string | undefined;
   let customRecipeResult: GenerateRecipeResult | undefined;
-  let retrievalResult: RetrieveCustomRecipeResult | undefined;
 
   const results = await Promise.all(
     toolCalls.map(async (toolCall) => {
@@ -217,8 +213,10 @@ async function executeToolCalls(
           name,
           args,
           userContext,
-          onPartialRecipe,
-          usageContext,
+          {
+            onPartialRecipe,
+            usageContext,
+          },
         );
 
         return {
@@ -227,6 +225,7 @@ async function executeToolCalls(
             content: JSON.stringify(result),
             tool_call_id: toolCall.id,
           },
+          toolName: name,
           shaped: shapeToolResponse(name, result),
         };
       } catch (toolError) {
@@ -241,6 +240,7 @@ async function executeToolCalls(
             content: JSON.stringify({ error: errorMsg }),
             tool_call_id: toolCall.id,
           },
+          toolName: name,
           shaped: undefined,
         };
       }
@@ -253,23 +253,33 @@ async function executeToolCalls(
 
     if (execution.shaped.recipes) {
       recipes = execution.shaped.recipes;
+      recipesSourceTool = execution.toolName;
     } else if (execution.shaped.customRecipe) {
       customRecipeResult = {
         recipe: execution.shaped.customRecipe,
         safetyFlags: execution.shaped.safetyFlags,
       };
-    } else if (execution.shaped.retrievalResult) {
-      retrievalResult = execution.shaped
-        .retrievalResult as RetrieveCustomRecipeResult;
     }
   }
 
-  return { toolMessages, recipes, customRecipeResult, retrievalResult };
+  return { toolMessages, recipes, recipesSourceTool, customRecipeResult };
 }
 
 // ============================================================
 // Streaming
 // ============================================================
+
+/** Map tool name to a UI status for the frontend. */
+const TOOL_STATUS: Record<string, string> = {
+  search_recipes: "searching",
+  retrieve_cooked_recipes: "searching",
+  generate_custom_recipe: "cooking_it_up",
+  modify_recipe: "cooking_it_up",
+};
+
+function getToolStatus(toolName: string): string {
+  return TOOL_STATUS[toolName] ?? "generating";
+}
 
 /**
  * Handle streaming request with SSE.
@@ -287,13 +297,22 @@ function handleStreamingRequest(
   const stream = new ReadableStream({
     async start(controller) {
       let streamTimeoutId: ReturnType<typeof setTimeout> | null = null;
-      let streamTimedOut = false;
+      let streamClosed = false;
+
+      const safeEnqueue = (chunk: Uint8Array) => {
+        if (!streamClosed) controller.enqueue(chunk);
+      };
+      const safeClose = () => {
+        if (!streamClosed) {
+          streamClosed = true;
+          controller.close();
+        }
+      };
 
       const resetStreamTimeout = () => {
         if (streamTimeoutId) clearTimeout(streamTimeoutId);
         streamTimeoutId = setTimeout(() => {
-          streamTimedOut = true;
-          controller.enqueue(
+          safeEnqueue(
             encoder.encode(
               `data: ${
                 JSON.stringify({
@@ -303,7 +322,7 @@ function handleStreamingRequest(
               }\n\n`,
             ),
           );
-          controller.close();
+          safeClose();
         }, STREAM_TIMEOUT_MS);
       };
 
@@ -315,8 +334,8 @@ function handleStreamingRequest(
       };
 
       const send = (data: Record<string, unknown>) => {
-        if (streamTimedOut) return;
-        controller.enqueue(
+        if (streamClosed) return;
+        safeEnqueue(
           encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
         );
         resetStreamTimeout();
@@ -344,8 +363,8 @@ function handleStreamingRequest(
         phaseStart = performance.now();
 
         let recipes: RecipeCard[] | undefined;
+        let recipesSourceTool: string | undefined;
         let customRecipeResult: GenerateRecipeResult | undefined;
-        let retrievalResult: RetrieveCustomRecipeResult | undefined;
         let streamMessages = messages;
         const usageContext: AIUsageLogContext = {
           userId,
@@ -354,109 +373,14 @@ function handleStreamingRequest(
           functionName: "irmixy-chat-orchestrator",
         };
 
-        // Check for modification of existing custom recipe (same logic as non-streaming)
-        const lastCustomRecipeMessage = userContext.conversationHistory
-          .slice()
-          .reverse()
-          .find((m) => m.role === "assistant" && m.metadata?.customRecipe);
-
-        if (lastCustomRecipeMessage?.metadata?.customRecipe) {
-          const modIntent = detectModificationIntent(message, {
-            hasRecipe: true,
-            lastRecipeName:
-              lastCustomRecipeMessage.metadata.customRecipe.suggestedName ||
-              "previous recipe",
-          });
-
-          timings.mod_detection_ms = Math.round(performance.now() - phaseStart);
-          phaseStart = performance.now();
-
-          if (modIntent.isModification) {
-            log.info("Modification detected, forcing regeneration");
-            send({ type: "status", status: "generating" });
-
-            // Two-phase SSE for modification flow
-            const onPartialRecipe: PartialRecipeCallback = (partialRecipe) => {
-              send({ type: "recipe_partial", recipe: partialRecipe });
-              send({ type: "status", status: "enriching" });
-            };
-
-            const lastRecipe = lastCustomRecipeMessage.metadata.customRecipe;
-            try {
-              const { recipe: modifiedRecipe, safetyFlags } =
-                await generateCustomRecipe(
-                  supabase,
-                  {
-                    ingredients: lastRecipe.ingredients.map((i: any) => i.name),
-                    cuisinePreference: lastRecipe.cuisine,
-                    targetTime: lastRecipe.totalTime,
-                    additionalRequests: modIntent.modifications,
-                    useful_items: lastRecipe.useful_items || [],
-                  },
-                  userContext,
-                  undefined,
-                  onPartialRecipe,
-                  usageContext,
-                );
-
-              customRecipeResult = { recipe: modifiedRecipe, safetyFlags };
-              timings.recipe_gen_ms = Math.round(
-                performance.now() - phaseStart,
-              );
-              phaseStart = performance.now();
-
-              // Use fixed message for modification
-              const finalText = userContext.language === "es"
-                ? "¡Aquí está tu receta actualizada!"
-                : "Here's your updated recipe!";
-
-              // No suggestions for recipes - the prompt text invites modifications
-              timings.suggestions_ms = 0;
-
-              const response = await finalizeResponse(
-                supabase,
-                sessionId,
-                message,
-                finalText,
-                userContext,
-                undefined,
-                customRecipeResult,
-                undefined,
-              );
-              timings.finalize_ms = Math.round(performance.now() - phaseStart);
-              timings.total_ms = Math.round(performance.now() - startTime);
-
-              log.info("Modification flow complete", {
-                type: "modification",
-                ...timings,
-              });
-
-              // Send content right before completion
-              send({ type: "content", content: response.message });
-              send({ type: "done", response });
-              clearStreamTimeout();
-              controller.close();
-              return;
-            } catch (error) {
-              log.error("Modification failed", error);
-              // Fall through to normal AI flow
-            }
-          }
-        }
-
-        // Detect high recipe intent to force tool use (prevents AI from just chatting)
-        const forceToolUse = hasHighRecipeIntent(message);
-        if (forceToolUse) {
-          log.info("High recipe intent detected, forcing tool use");
-        }
-
+        let selectedModel = "unknown";
         const llmCallStart = performance.now();
         let firstResponse: Awaited<ReturnType<typeof callAI>>;
         try {
           firstResponse = await callAI(
             messages,
             true,
-            forceToolUse ? "required" : "auto",
+            "auto",
           );
         } catch (error) {
           void logAIUsage({
@@ -473,21 +397,43 @@ function handleStreamingRequest(
             durationMs: Math.round(performance.now() - llmCallStart),
             metadata: {
               streaming: false,
-              forced_tool_use: forceToolUse,
               request_type: "tool_decision",
             },
           });
           throw error;
         }
-
+        selectedModel = firstResponse.model;
         timings.llm_call_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
         const assistantMessage = firstResponse.choices[0].message;
+        const detectedTool = assistantMessage.content
+          ? detectTextToolCall(assistantMessage.content)
+          : null;
+
+        // Gemini sometimes outputs tool-call syntax as plain text instead of
+        // structured function calls. Detect this and retry with forced tool calling.
+        if (
+          !assistantMessage.tool_calls?.length &&
+          detectedTool
+        ) {
+          log.warn(
+            "Detected tool call in text, retrying with required tool choice",
+            {
+              detectedTool,
+            },
+          );
+          // Keep SSE alive before the retry call. `send(...)` resets stream timeout.
+          send({ type: "status", status: "thinking" });
+          const retryResponse = await callAI(messages, true, "required");
+          selectedModel = retryResponse.model;
+          Object.assign(assistantMessage, retryResponse.choices[0].message);
+          timings.llm_retry_ms = Math.round(performance.now() - phaseStart);
+          phaseStart = performance.now();
+        }
 
         log.info("AI response", {
           hasToolCalls: !!assistantMessage.tool_calls?.length,
           toolNames: assistantMessage.tool_calls?.map((tc) => tc.function.name),
-          forcedToolUse: forceToolUse,
         });
 
         void logAIUsage({
@@ -505,7 +451,6 @@ function handleStreamingRequest(
           metadata: {
             streaming: false,
             request_type: "tool_decision",
-            forced_tool_use: forceToolUse,
             tool_names: assistantMessage.tool_calls?.map((tc) =>
               tc.function.name
             ),
@@ -517,10 +462,8 @@ function handleStreamingRequest(
           assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0
         ) {
           const toolName = assistantMessage.tool_calls[0].function.name;
-          send({
-            type: "status",
-            status: toolName === "search_recipes" ? "searching" : "generating",
-          });
+
+          send({ type: "status", status: getToolStatus(toolName) });
 
           // Two-phase SSE: emit partial recipe before enrichment for perceived latency
           const onPartialRecipe: PartialRecipeCallback = (partialRecipe) => {
@@ -528,189 +471,124 @@ function handleStreamingRequest(
             send({ type: "status", status: "enriching" });
           };
 
-          const toolResult = await executeToolCalls(
-            supabase,
-            assistantMessage.tool_calls,
-            userContext,
-            log,
-            usageContext,
-            onPartialRecipe,
-          );
+          // Keep stream alive during long tool execution (recipe gen can take 45s+)
+          const heartbeatId = setInterval(() => {
+            send({ type: "heartbeat" });
+          }, HEARTBEAT_INTERVAL_MS);
+
+          let toolResult: ToolExecutionResult;
+          try {
+            toolResult = await executeToolCalls(
+              supabase,
+              assistantMessage.tool_calls,
+              userContext,
+              log,
+              usageContext,
+              onPartialRecipe,
+            );
+          } finally {
+            clearInterval(heartbeatId);
+            // Reset stream timeout for the streaming phase that follows
+            send({ type: "status", status: "thinking" });
+          }
           timings.tool_exec_ms = Math.round(performance.now() - phaseStart);
           phaseStart = performance.now();
           recipes = toolResult.recipes;
+          recipesSourceTool = toolResult.recipesSourceTool;
           customRecipeResult = toolResult.customRecipeResult;
-          retrievalResult = toolResult.retrievalResult;
 
           log.info("Tool execution result", {
             hasRecipes: !!recipes?.length,
             hasCustomRecipe: !!customRecipeResult?.recipe,
-            hasRetrieval: !!retrievalResult,
+            recipesSourceTool: recipesSourceTool ?? null,
           });
 
+          // Drop the assistant's narration text (e.g. "Calling search_recipes...")
+          // so the streaming call doesn't echo or continue that style.
           streamMessages = [...messages, {
             role: "assistant" as const,
-            content: assistantMessage.content,
+            content: null,
             tool_calls: assistantMessage.tool_calls,
           }, ...toolResult.toolMessages];
-
-          // No-results fallback for search
-          if (
-            recipes !== undefined && recipes.length === 0 &&
-            !customRecipeResult && !retrievalResult
-          ) {
-            const fallback = buildNoResultsFallback(userContext.language);
-            send({ type: "content", content: fallback.message });
-            const response = await finalizeResponse(
-              supabase,
-              sessionId,
-              message,
-              fallback.message,
-              userContext,
-              undefined,
-              undefined,
-              fallback.suggestions,
-              undefined,
-            );
-            timings.total_ms = Math.round(performance.now() - startTime);
-            log.info("No-results fallback", timings);
-            send({ type: "done", response });
-            clearStreamTimeout();
-            controller.close();
-            return;
-          }
         }
 
-        // If a custom recipe was generated, use a fixed short message instead of streaming AI text
-        // NOTE: Don't send content here when recipe exists - it will be included in the "done" response
-        // This ensures the recipe card renders before/with the text, not after
+        const hasSuccessfulCustomRecipe = !!customRecipeResult?.recipe &&
+          customRecipeResult?.safetyFlags?.error !== true;
+
+        // Keep stream alive while waiting for the AI provider to start responding
+        const streamHeartbeatId = setInterval(() => {
+          send({ type: "heartbeat" });
+        }, HEARTBEAT_INTERVAL_MS);
+        let heartbeatCleared = false;
+
+        // Stream AI response — text first, then tool results arrive in the done event.
         let finalText: string;
-        let suggestions:
-          | import("../_shared/irmixy-schemas.ts").SuggestionChip[]
-          | undefined;
-
-        if (customRecipeResult?.recipe) {
-          // Fixed message asking about changes - sent with completion, not streamed
-          finalText = userContext.language === "es"
-            ? "¡Listo! ¿Quieres cambiar algo?"
-            : "Ready! Want to change anything?";
-
-          // No suggestions for recipes - the prompt text invites modifications
-          suggestions = undefined;
-          timings.suggestions_ms = 0;
-        } else if (retrievalResult) {
-          // Retrieval result: stream AI response grounded in tool results, use retrieval suggestions
-          const streamStart = performance.now();
-          try {
-            const streamResult = await callAIStream(
-              streamMessages,
-              (token) => send({ type: "content", content: token }),
-            );
-            finalText = streamResult.content;
-            timings.stream_ms = Math.round(performance.now() - phaseStart);
-            phaseStart = performance.now();
-            send({ type: "stream_complete" });
-
-            void logAIUsage({
-              userId,
-              sessionId,
-              requestId,
-              callPhase: "response_stream",
-              status: streamResult.streamStatus,
-              functionName: "irmixy-chat-orchestrator",
-              usageType: "text",
-              model: streamResult.model,
-              inputTokens: streamResult.usage?.inputTokens ?? null,
-              outputTokens: streamResult.usage?.outputTokens ?? null,
-              durationMs: Math.round(performance.now() - streamStart),
-              metadata: {
-                streaming: true,
-                request_type: "retrieval_response",
-              },
-            });
-          } catch (error) {
-            void logAIUsage({
-              userId,
-              sessionId,
-              requestId,
-              callPhase: "response_stream",
-              status: "error",
-              functionName: "irmixy-chat-orchestrator",
-              usageType: "text",
-              model: null,
-              inputTokens: null,
-              outputTokens: null,
-              durationMs: Math.round(performance.now() - streamStart),
-              metadata: {
-                streaming: true,
-                request_type: "retrieval_response",
-              },
-            });
-            throw error;
-          }
-          suggestions = retrievalResult.suggestions;
-          timings.suggestions_ms = 0;
-        } else {
-          // Normal streaming for non-recipe responses
-          const streamStart = performance.now();
-          try {
-            const streamResult = await callAIStream(
-              streamMessages,
-              (token) => send({ type: "content", content: token }),
-            );
-            finalText = streamResult.content;
-            timings.stream_ms = Math.round(performance.now() - phaseStart);
-            phaseStart = performance.now();
-
-            // Signal that streaming is complete - frontend can enable input now
-            send({ type: "stream_complete" });
-
-            void logAIUsage({
-              userId,
-              sessionId,
-              requestId,
-              callPhase: "response_stream",
-              status: streamResult.streamStatus,
-              functionName: "irmixy-chat-orchestrator",
-              usageType: "text",
-              model: streamResult.model,
-              inputTokens: streamResult.usage?.inputTokens ?? null,
-              outputTokens: streamResult.usage?.outputTokens ?? null,
-              durationMs: Math.round(performance.now() - streamStart),
-              metadata: {
-                streaming: true,
-                request_type: "chat_response",
-              },
-            });
-          } catch (error) {
-            void logAIUsage({
-              userId,
-              sessionId,
-              requestId,
-              callPhase: "response_stream",
-              status: "error",
-              functionName: "irmixy-chat-orchestrator",
-              usageType: "text",
-              model: null,
-              inputTokens: null,
-              outputTokens: null,
-              durationMs: Math.round(performance.now() - streamStart),
-              metadata: {
-                streaming: true,
-                request_type: "chat_response",
-              },
-            });
-            throw error;
-          }
-
-          // Use template suggestions immediately to avoid blocking
-          // This eliminates the 2.9s AI call for suggestions
-          suggestions = getTemplateSuggestions(
-            userContext.language,
-            !!recipes?.length,
+        const streamStart = performance.now();
+        try {
+          const streamResult = await callAIStream(
+            streamMessages,
+            (token) => {
+              // First token arrived — stop heartbeat, real data is flowing
+              if (!heartbeatCleared) {
+                clearInterval(streamHeartbeatId);
+                heartbeatCleared = true;
+              }
+              send({ type: "content", content: token });
+            },
           );
-          timings.suggestions_ms = 0; // No AI call needed
+          finalText = streamResult.content;
+
+          void logAIUsage({
+            userId,
+            sessionId,
+            requestId,
+            callPhase: "response_stream",
+            status: streamResult.streamStatus,
+            functionName: "irmixy-chat-orchestrator",
+            usageType: "text",
+            model: streamResult.model,
+            inputTokens: streamResult.usage?.inputTokens ?? null,
+            outputTokens: streamResult.usage?.outputTokens ?? null,
+            durationMs: Math.round(performance.now() - streamStart),
+            metadata: {
+              streaming: true,
+              request_type: hasSuccessfulCustomRecipe
+                ? "recipe_response"
+                : recipes?.length
+                ? "retrieval_response"
+                : "chat_response",
+            },
+          });
+        } catch (error) {
+          void logAIUsage({
+            userId,
+            sessionId,
+            requestId,
+            callPhase: "response_stream",
+            status: "error",
+            functionName: "irmixy-chat-orchestrator",
+            usageType: "text",
+            model: null,
+            inputTokens: null,
+            outputTokens: null,
+            durationMs: Math.round(performance.now() - streamStart),
+            metadata: {
+              streaming: true,
+              request_type: "chat_response",
+            },
+          });
+          throw error;
+        } finally {
+          if (!heartbeatCleared) clearInterval(streamHeartbeatId);
         }
+        timings.stream_ms = Math.round(performance.now() - phaseStart);
+        phaseStart = performance.now();
+
+        // Strip any residual tool-call text that leaked into the streamed response
+        finalText = stripToolCallText(finalText);
+
+        // Signal that streaming is complete - frontend can enable input now
+        send({ type: "stream_complete" });
 
         const response = await finalizeResponse(
           supabase,
@@ -720,31 +598,30 @@ function handleStreamingRequest(
           userContext,
           recipes,
           customRecipeResult,
-          suggestions,
         );
         timings.finalize_ms = Math.round(performance.now() - phaseStart);
         timings.total_ms = Math.round(performance.now() - startTime);
 
-        // If we have a custom recipe, send the content right before completion
-        // so they arrive together and the recipe card renders with the text
-        if (customRecipeResult?.recipe) {
-          send({ type: "content", content: response.message });
-        }
-
         // Performance timing log
-        const requestType = customRecipeResult?.recipe
+        const requestType = hasSuccessfulCustomRecipe
           ? "recipe_gen"
           : recipes?.length
           ? "recipe_search"
           : "chat";
         log.info("Request complete", {
           type: requestType,
+          model: selectedModel,
+          ...timings,
+        });
+        log.info("PERF_SUMMARY", {
+          type: requestType,
+          model: selectedModel,
           ...timings,
         });
 
         send({ type: "done", response });
         clearStreamTimeout();
-        controller.close();
+        safeClose();
       } catch (error) {
         log.error("Streaming error", error);
         send({
@@ -752,7 +629,7 @@ function handleStreamingRequest(
           error: "An unexpected error occurred",
         });
         clearStreamTimeout();
-        controller.close();
+        safeClose();
       }
     },
   });

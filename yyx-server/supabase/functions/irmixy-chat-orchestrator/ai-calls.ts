@@ -26,15 +26,20 @@ export interface CallAIStreamResult {
   streamStatus: "success" | "partial";
 }
 
+type AIToolChoice = "auto" | "required" | {
+  type: "function";
+  function: { name: string };
+};
+
 /**
  * Call AI via the AI Gateway.
  * Supports tools and tool choice control.
- * @param toolChoice - "auto" (default) or "required" (force tool use)
+ * @param toolChoice - "auto" (default), "required", or specific function
  */
 export async function callAI(
   messages: ChatMessage[],
   includeTools: boolean = true,
-  toolChoice?: "auto" | "required",
+  toolChoice: AIToolChoice = "auto",
 ): Promise<CallAIResult> {
   const aiMessages = normalizeMessagesForAi(messages);
 
@@ -46,13 +51,13 @@ export async function callAI(
   const response = await chat({
     usageType: "text",
     messages: aiMessages,
-    temperature: 0.7,
     tools,
     toolChoice: includeTools ? toolChoice : undefined,
   });
 
   // Convert back to OpenAI response format for compatibility
   return {
+    model: response.model,
     choices: [{
       message: {
         role: "assistant",
@@ -68,7 +73,6 @@ export async function callAI(
       },
     }],
     usage: response.usage,
-    model: response.model,
   };
 }
 
