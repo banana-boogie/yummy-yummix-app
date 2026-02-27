@@ -303,8 +303,8 @@ export function VoiceChatScreen({
                 </View>
             )}
 
-            {/* ── ACTIVE: message list ── */}
-            {isActive ? (
+            {/* ── Message list (active session OR viewing saved transcript) ── */}
+            {(isActive || hasMessages) ? (
                 <View className="flex-1">
                     <FlatList
                         ref={flatListRef}
@@ -351,7 +351,7 @@ export function VoiceChatScreen({
                     )}
                 </View>
             ) : (
-                /* ── IDLE / CONNECTING: big avatar centered ── */
+                /* ── IDLE: big avatar centered (no messages, no active session) ── */
                 <View className="flex-1 items-center justify-center px-lg">
                     <IrmixyAvatar state={getAvatarState(status)} size={120} />
                     <View className="mt-lg px-md">
@@ -366,8 +366,8 @@ export function VoiceChatScreen({
                 </View>
             )}
 
-            {/* ── Scroll-to-bottom (only when active) ── */}
-            {isActive && showScrollButton && (
+            {/* ── Scroll-to-bottom ── */}
+            {(isActive || hasMessages) && showScrollButton && (
                 <TouchableOpacity
                     onPress={handleScrollToBottom}
                     className="absolute right-4 bottom-4 z-50 bg-primary-default rounded-full p-3 shadow-lg"

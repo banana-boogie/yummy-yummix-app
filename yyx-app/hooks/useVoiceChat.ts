@@ -54,8 +54,9 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
 
     // Ref mirror of transcriptMessages for use in callbacks (avoids stale closures)
     const transcriptMessagesRef = useRef<ChatMessage[]>(transcriptMessages);
-    // Guard against duplicate saves
+    // Guard against duplicate saves + track what was already saved
     const savingRef = useRef(false);
+    const savedMessageCountRef = useRef(0);
 
     // Ref to accumulate streaming assistant text
     const assistantTextRef = useRef('');
@@ -215,6 +216,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
         setTranscript('');
         setResponse('');
         resetStreamingRefs();
+        savedMessageCountRef.current = 0;
 
         try {
             // 1. Check if authenticated
@@ -512,10 +514,14 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
         resetStreamingRefs();
         unregisterSession(hookIdRef.current);
 
-        // Fire-and-forget save of voice transcript
-        if (messagesToSave.length > 0 && !savingRef.current) {
+        // Fire-and-forget save of voice transcript (only unsaved messages)
+        const unsavedMessages = messagesToSave.slice(savedMessageCountRef.current);
+        if (unsavedMessages.length > 0 && !savingRef.current) {
             savingRef.current = true;
-            saveVoiceTranscript(messagesToSave).finally(() => {
+            const countToSave = messagesToSave.length;
+            saveVoiceTranscript(unsavedMessages).then(() => {
+                savedMessageCountRef.current = countToSave;
+            }).finally(() => {
                 savingRef.current = false;
             });
         }

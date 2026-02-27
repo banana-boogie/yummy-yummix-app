@@ -53,6 +53,8 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private pendingToolCalls: Map<string, { name: string; args: string }> = new Map();
   /** Active assistant response id used to ignore late deltas after interruptions. */
   private activeResponseId: string | null = null;
+  /** Pending goodbye disconnect timeout — cleared if stopConversation() is called externally. */
+  private goodbyeTimeoutId: NodeJS.Timeout | null = null;
   // Goodbye detection — wait for AI response before disconnecting
   private goodbyeDetected = false;
   // Token tracking for cost calculation (separated by type for accurate pricing)
@@ -257,7 +259,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         voice: "marin", // Female voice that works for all languages
         input_audio_format: "pcm16",
         output_audio_format: "pcm16",
-        input_audio_transcription: { model: "whisper-1" },
+        input_audio_transcription: {
+          model: "whisper-1",
+          language: context.userContext.language === 'es' ? 'es' : 'en',
+        },
         turn_detection: {
           type: "server_vad",
           threshold: 0.8,
@@ -276,6 +281,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     if (this.sessionTimeoutId) {
       clearTimeout(this.sessionTimeoutId);
       this.sessionTimeoutId = null;
+    }
+    if (this.goodbyeTimeoutId) {
+      clearTimeout(this.goodbyeTimeoutId);
+      this.goodbyeTimeoutId = null;
     }
 
     this.inactivityTimer.clear();
@@ -348,6 +357,11 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   }
 
   sendToolResult(callId: string, output: string): void {
+    // Reset inactivity timer — tool execution completed, AI will now respond
+    this.inactivityTimer.reset(() => {
+      this.stopConversation();
+    });
+
     // Send the function call output back to OpenAI
     this.sendEvent({
       type: "conversation.item.create",
@@ -523,6 +537,11 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
             name: message.item.name,
             args: "",
           });
+          // Reset inactivity timer — tool execution takes seconds and no voice
+          // activity occurs during that time
+          this.inactivityTimer.reset(() => {
+            this.stopConversation();
+          });
         }
         break;
 
@@ -584,16 +603,14 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         break;
 
       case "response.audio.done":
-        // AI finished speaking audio playback
-        if (this.goodbyeDetected) {
-          this.inactivityTimer.clear();
-          this.stopConversation();
-          break;
+        // AI finished sending audio — don't disconnect on goodbye here;
+        // response.done handles it with a delay so the audio buffer can drain.
+        if (!this.goodbyeDetected) {
+          // Give user a fresh inactivity window to respond
+          this.inactivityTimer.reset(() => {
+            this.stopConversation();
+          });
         }
-        // Give user a fresh inactivity window to respond
-        this.inactivityTimer.reset(() => {
-          this.stopConversation();
-        });
         break;
 
       case "response.output_item.done":
@@ -638,7 +655,18 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         }
 
         this.activeResponseId = null;
-        this.setStatus("listening");
+
+        // If goodbye was detected, delay disconnect to let the WebRTC audio
+        // buffer finish playing the farewell response on the client.
+        if (this.goodbyeDetected) {
+          this.inactivityTimer.clear();
+          this.goodbyeTimeoutId = setTimeout(() => {
+            this.goodbyeTimeoutId = null;
+            this.stopConversation();
+          }, 1500);
+        } else {
+          this.setStatus("listening");
+        }
         break;
 
       // Rate limits
