@@ -5,6 +5,7 @@ export type VoiceStatus = 'idle' | 'connecting' | 'listening' | 'processing' | '
 export type VoiceEvent =
     | 'statusChange' | 'transcript' | 'response' | 'error' | 'quotaWarning'
     // Refined transcript events for live transcript UI
+    | 'speechStarted'                // User started speaking (VAD detected voice)
     | 'userTranscriptComplete'       // Full user speech text after transcription
     | 'assistantTranscriptDelta'     // Streaming assistant text chunk
     | 'assistantTranscriptComplete'  // Full assistant response text

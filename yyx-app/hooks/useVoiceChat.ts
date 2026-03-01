@@ -243,6 +243,13 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             addListener('error', (err: any) => setError(err.message));
 
             // Transcript events for live transcript
+
+            // When user starts speaking, reset lastAssistantMsgIdRef so it only
+            // tracks the AI response triggered by THIS speech turn.
+            addListener('speechStarted', () => {
+                lastAssistantMsgIdRef.current = null;
+            });
+
             addListener('userTranscriptComplete', (text: string) => {
                 if (!text.trim()) return;
                 const userMsg: ChatMessage = {
@@ -251,6 +258,10 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                     content: text,
                     createdAt: new Date(),
                 };
+                // Insert before the AI response triggered by this user speech.
+                // streamingMsgIdRef: AI is still streaming its response.
+                // lastAssistantMsgIdRef: AI already finished (Whisper was slower than the AI).
+                // Both are reset on speechStarted so they only refer to THIS turn's response.
                 const targetId = streamingMsgIdRef.current || lastAssistantMsgIdRef.current;
                 setTranscriptMessages(prev => {
                     if (targetId) {
@@ -406,6 +417,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
 
             // Tool call handler
             addListener('toolCall', async (toolCall: VoiceToolCall) => {
+                console.log(`[VoiceChat] Tool call: ${toolCall.name}`, JSON.stringify(toolCall.arguments));
                 setIsExecutingTool(true);
                 setExecutingToolName(toolCall.name);
                 try {

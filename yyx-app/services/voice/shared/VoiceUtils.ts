@@ -1,61 +1,10 @@
 /**
  * Shared utilities for voice providers
- * Used by both OpenAI Realtime and HearThinkSpeak providers
+ *
+ * Voice instructions (personality, rules, tool usage) are built server-side in
+ * system-prompt-builder.ts and returned in the start_session response.
+ * This file contains client-only utilities: goodbye detection and inactivity timer.
  */
-
-import type { ConversationContext } from '../types';
-
-/**
- * Build system prompt for voice assistant
- * Shared across all voice providers to ensure consistent behavior
- */
-export function buildSystemPrompt(context: ConversationContext): string {
-  const { userContext, recipeContext } = context;
-  const isSpanish = userContext.language === 'es';
-  const lang = isSpanish ? 'Español (México)' : 'English';
-  const restrictions = userContext.dietaryRestrictions?.join(', ') || 'none';
-  const diets = userContext.dietTypes?.join(', ') || 'none';
-
-  let prompt = `You are Irmixy, YummyYummix's friendly AI sous chef assistant.
-
-CRITICAL: You MUST respond in ${lang} for ALL responses. Never switch languages.
-
-User Profile:
-- Preferred Language: ${lang}
-- Dietary restrictions: ${restrictions}
-- Diet type: ${diets}
-- Measurements: ${userContext.measurementSystem}`;
-
-  if (recipeContext) {
-    prompt += `
-
-Current Cooking Context:
-- Recipe: ${recipeContext.recipeTitle}
-- Step ${recipeContext.currentStep} of ${recipeContext.totalSteps}
-- Current instruction: ${recipeContext.stepInstructions}`;
-  }
-
-  prompt += `
-
-IMPORTANT RULES:
-1. Keep ALL responses to 1-2 sentences maximum since they will be spoken aloud.
-2. Be warm, encouraging, and helpful.
-3. ALWAYS respond in ${lang}, regardless of what language the user speaks.
-4. Stay strictly within cooking scope: recipes, ingredients, kitchen tools, meal planning, and food safety.
-5. If the user asks an off-topic question, redirect warmly back to cooking help.
-
-TOOL USAGE:
-- Use search_recipes when the user asks to find, search for, or browse recipes.
-- Use generate_custom_recipe when the user wants a custom recipe from ingredients they have.
-- Use modify_recipe when the user wants to change a recipe that was just generated (e.g., "make it for six", "without onions", "make it spicier").
-- Use retrieve_cooked_recipes when the user asks for something they cooked previously (e.g., "the dressing we made last time").
-- After a tool call completes, give a brief spoken summary and ALWAYS tell the user to tap the recipe card on their screen to see full details or start cooking (e.g., "I found 3 cookie recipes! Tap any card on your screen to see the details." or "I created a chicken stir fry for you! Tap the card to start cooking.").
-- NEVER offer to read out recipe details, steps, or ingredients. The user can see everything by tapping the card on screen.
-- Do NOT ask "would you like to see the steps?" or "shall I give you the recipe?" — just direct them to the card.
-- Default to limit: 5 for search_recipes unless the user asks for more.`;
-
-  return prompt;
-}
 
 /**
  * Keywords that indicate user wants to end conversation

@@ -173,11 +173,16 @@ describe('message ordering', () => {
         expect(result.current.transcriptMessages[1].id).toBe(assistantMsgId);
     });
 
-    it('inserts user message before the last completed assistant message', async () => {
+    it('inserts user message before the AI response when Whisper is slower than the AI', async () => {
         const { result } = renderHook(() => useVoiceChat());
         await startAndSetup(result);
 
-        // Simulate a complete assistant turn
+        // User speaks → speechStarted resets lastAssistantMsgIdRef
+        act(() => {
+            mockProvider.emit('speechStarted');
+        });
+
+        // AI responds quickly and finishes before Whisper transcription arrives
         act(() => {
             mockProvider.emit('assistantTranscriptDelta', 'Here is the recipe.', 'resp-1');
         });
@@ -188,17 +193,44 @@ describe('message ordering', () => {
         expect(result.current.transcriptMessages).toHaveLength(1);
         expect(result.current.transcriptMessages[0].role).toBe('assistant');
 
-        // User responds after assistant finished
+        // Whisper transcription arrives late — should be inserted BEFORE the AI response
+        act(() => {
+            mockProvider.emit('userTranscriptComplete', 'Find me pasta');
+        });
+
+        expect(result.current.transcriptMessages).toHaveLength(2);
+        expect(result.current.transcriptMessages[0].role).toBe('user');
+        expect(result.current.transcriptMessages[0].content).toBe('Find me pasta');
+        expect(result.current.transcriptMessages[1].role).toBe('assistant');
+    });
+
+    it('appends user message after assistant when speechStarted fires for a NEW turn', async () => {
+        const { result } = renderHook(() => useVoiceChat());
+        await startAndSetup(result);
+
+        // Turn 1: complete assistant response
+        act(() => {
+            mockProvider.emit('assistantTranscriptDelta', 'Here is the recipe.', 'resp-1');
+        });
+        act(() => {
+            mockProvider.emit('assistantTranscriptComplete', 'Here is the recipe.', 'resp-1');
+        });
+
+        // Turn 2: user starts new speech → resets lastAssistantMsgIdRef
+        act(() => {
+            mockProvider.emit('speechStarted');
+        });
+
+        // Transcription arrives before AI responds → no targetId → append at end
         act(() => {
             mockProvider.emit('userTranscriptComplete', 'Thanks!');
         });
 
-        // User message should be inserted BEFORE the assistant's last message
-        // (because lastAssistantMsgIdRef is set to the completed message)
+        // Correct chronological order: assistant first (turn 1), then user (turn 2)
         expect(result.current.transcriptMessages).toHaveLength(2);
-        expect(result.current.transcriptMessages[0].role).toBe('user');
-        expect(result.current.transcriptMessages[0].content).toBe('Thanks!');
-        expect(result.current.transcriptMessages[1].role).toBe('assistant');
+        expect(result.current.transcriptMessages[0].role).toBe('assistant');
+        expect(result.current.transcriptMessages[1].role).toBe('user');
+        expect(result.current.transcriptMessages[1].content).toBe('Thanks!');
     });
 
     it('appends user message at the end when no assistant message exists yet', async () => {
@@ -378,6 +410,9 @@ describe('full conversation flow', () => {
 
         // Turn 1: User speaks
         act(() => {
+            mockProvider.emit('speechStarted');
+        });
+        act(() => {
             mockProvider.emit('userTranscriptComplete', 'Find me a pasta recipe');
         });
 
@@ -400,18 +435,21 @@ describe('full conversation flow', () => {
         expect(result.current.transcriptMessages[0].content).toBe('Find me a pasta recipe');
         expect(result.current.transcriptMessages[1].content).toBe('Sure! Here is a pasta recipe.');
 
-        // Turn 2: User speaks again — should be inserted before the last assistant message
+        // Turn 2: User speaks again — speechStarted resets lastAssistantMsgIdRef
+        act(() => {
+            mockProvider.emit('speechStarted');
+        });
         act(() => {
             mockProvider.emit('userTranscriptComplete', 'Make it spicy');
         });
 
         expect(result.current.transcriptMessages).toHaveLength(3);
-        // After user speaks, lastAssistantMsgIdRef is cleared, so the order should be:
-        // [user "Find me...", user "Make it spicy" (inserted before last assistant), assistant "Sure!..."]
+        // Correct chronological order: user, assistant, user
         expect(result.current.transcriptMessages[0].content).toBe('Find me a pasta recipe');
-        expect(result.current.transcriptMessages[1].role).toBe('user');
-        expect(result.current.transcriptMessages[1].content).toBe('Make it spicy');
-        expect(result.current.transcriptMessages[2].role).toBe('assistant');
+        expect(result.current.transcriptMessages[1].role).toBe('assistant');
+        expect(result.current.transcriptMessages[1].content).toBe('Sure! Here is a pasta recipe.');
+        expect(result.current.transcriptMessages[2].role).toBe('user');
+        expect(result.current.transcriptMessages[2].content).toBe('Make it spicy');
     });
 
     it('cleans up delta timer and resets refs on stop', async () => {

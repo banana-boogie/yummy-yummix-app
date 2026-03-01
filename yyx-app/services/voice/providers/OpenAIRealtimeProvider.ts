@@ -7,7 +7,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { Platform } from "react-native";
 import InCallManager from "react-native-incall-manager";
-import { buildSystemPrompt, detectGoodbye, InactivityTimer } from "../shared/VoiceUtils";
+import { detectGoodbye, InactivityTimer } from "../shared/VoiceUtils";
 import { voiceTools } from "../shared/VoiceToolDefinitions";
 import type {
   VoiceAssistantProvider,
@@ -55,6 +55,8 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private activeResponseId: string | null = null;
   /** Pending goodbye disconnect timeout — cleared if stopConversation() is called externally. */
   private goodbyeTimeoutId: NodeJS.Timeout | null = null;
+  /** Server-built voice instructions (personality + rules + tool usage). Single source of truth. */
+  private serverInstructions: string | null = null;
   // Goodbye detection — wait for AI response before disconnecting
   private goodbyeDetected = false;
   // Token tracking for cost calculation (separated by type for accurate pricing)
@@ -64,6 +66,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private sessionInputAudioTokens: number = 0;
   private sessionOutputTextTokens: number = 0;
   private sessionOutputAudioTokens: number = 0;
+  /** Last assistant transcript for echo detection */
+  private lastAssistantTranscript: string = '';
+  /** Timestamp when AI audio playback completed */
+  private lastAudioDoneTime: number = 0;
 
   /**
    * Initialize a Realtime voice session transport.
@@ -171,6 +177,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       const data = await backendResponse.json();
       this.sessionId = data.sessionId;
+      this.serverInstructions = data.voiceInstructions || null;
       const ephemeralToken = data.ephemeralToken;
 
       // 5. Create Offer
@@ -242,20 +249,21 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       this.stopConversation();
     });
 
-    // Send session configuration with context via data channel
-    const systemPrompt = buildSystemPrompt(context);
+    // Use server-built instructions (single source of truth for personality + rules + tool usage).
+    // Append recipe context only when in cooking guide mode.
+    const instructions = this.buildInstructions(context.recipeContext);
 
     /**
      * server_vad config
      * - threshold 0.8 rejects background chatter, requires clear directed speech
      * - prefix_padding_ms 200 reduces preceding ambient noise captured
-     * - silence_duration_ms 1200 avoids premature turn cuts in slower speech
+     * - silence_duration_ms 1500 accommodates slow speakers who pause between words/phrases
      */
     this.sendEvent({
       type: "session.update",
       session: {
         modalities: ["text", "audio"],
-        instructions: systemPrompt,
+        instructions,
         voice: "marin", // Female voice that works for all languages
         input_audio_format: "pcm16",
         output_audio_format: "pcm16",
@@ -267,7 +275,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
           type: "server_vad",
           threshold: 0.8,
           prefix_padding_ms: 200,
-          silence_duration_ms: 1200,
+          silence_duration_ms: 1500,
         },
         tools: voiceTools,
       },
@@ -324,6 +332,9 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     // Reset tool call tracking
     this.pendingToolCalls.clear();
     this.activeResponseId = null;
+    this.serverInstructions = null;
+    this.lastAssistantTranscript = '';
+    this.lastAudioDoneTime = 0;
 
     // Reset token counters for next session
     this.sessionInputTokens = 0;
@@ -346,12 +357,11 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       }
     }
 
-    // Update session instructions mid-conversation
+    // Update session instructions mid-conversation (only recipe context changes client-side)
     if (this.dc && this.dc.readyState === "open") {
-      const systemPrompt = buildSystemPrompt(this.currentContext);
       this.sendEvent({
         type: "session.update",
-        session: { instructions: systemPrompt },
+        session: { instructions: this.buildInstructions(recipeContext) },
       });
     }
   }
@@ -430,6 +440,26 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
   // Private methods
 
+  /**
+   * Build the final instructions string for session.update.
+   * Uses the server-provided prompt as base, appending recipe context when present.
+   */
+  private buildInstructions(recipeContext?: RecipeContext): string {
+    let instructions = this.serverInstructions || "";
+
+    if (recipeContext?.recipeTitle) {
+      instructions += `\n\nCurrent Cooking Context:\n- Recipe: ${recipeContext.recipeTitle}`;
+      if (recipeContext.currentStep && recipeContext.totalSteps) {
+        instructions += `\n- Step ${recipeContext.currentStep} of ${recipeContext.totalSteps}`;
+      }
+      if (recipeContext.stepInstructions) {
+        instructions += `\n- Current instruction: ${recipeContext.stepInstructions}`;
+      }
+    }
+
+    return instructions;
+  }
+
   private setStatus(status: VoiceStatus): void {
     this.status = status;
     this.emit("statusChange", status);
@@ -483,6 +513,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       // Input audio buffer events
       case "input_audio_buffer.speech_started":
         this.setStatus("listening");
+        this.emit("speechStarted");
         // Reset inactivity timer when user speaks
         this.inactivityTimer.reset(() => {
           this.stopConversation();
@@ -513,6 +544,11 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         break;
 
       case "conversation.item.input_audio_transcription.completed":
+        // Guard: suppress transcripts that match what the AI just said (speaker echo)
+        if (this.isLikelyEcho(message.transcript)) {
+          if (__DEV__) console.log('[OpenAI] Suppressed likely echo:', message.transcript);
+          break;
+        }
         // User's speech transcribed
         this.emit("transcript", message.transcript);
         this.emit("userTranscriptComplete", message.transcript);
@@ -596,6 +632,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       case "response.output_audio_transcript.done":
         // Complete transcript of what AI said
         if (message.transcript) {
+          this.lastAssistantTranscript = message.transcript;
           const responseId = message.response_id ?? this.activeResponseId;
           this.emit("response", { text: message.transcript });
           this.emit("assistantTranscriptComplete", message.transcript, responseId);
@@ -603,6 +640,8 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         break;
 
       case "response.audio.done":
+        // Track when audio playback ends for echo detection
+        this.lastAudioDoneTime = Date.now();
         // AI finished sending audio — don't disconnect on goodbye here;
         // response.done handles it with a delay so the audio buffer can drain.
         if (!this.goodbyeDetected) {
@@ -707,6 +746,21 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     }
 
     return parts.length > 0 ? parts.join(" ") : null;
+  }
+
+  /**
+   * Detect whether a user transcript is likely echo from the device speaker.
+   * Compares against the last AI transcript within a time window after audio done.
+   */
+  private isLikelyEcho(transcript: string): boolean {
+    if (!transcript || !this.lastAssistantTranscript) return false;
+    const timeSinceAudio = Date.now() - this.lastAudioDoneTime;
+    if (timeSinceAudio > 2000) return false;
+
+    const userLower = transcript.toLowerCase().trim();
+    const assistantLower = this.lastAssistantTranscript.toLowerCase().trim();
+
+    return assistantLower.includes(userLower) || userLower.includes(assistantLower);
   }
 
   /**

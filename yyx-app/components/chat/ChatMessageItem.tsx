@@ -23,6 +23,13 @@ function stripMarkdownImages(content: string): string {
     return content.replace(/!\[.*?\]\(.*?\)\s*/g, '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+/** Detect whether content contains markdown syntax worth parsing.
+ *  Plain text (e.g. voice transcripts) can skip the expensive Markdown renderer. */
+const MARKDOWN_PATTERN = /[#*_`~>|]|\[.+\]\(|^\s*[-+]\s/m;
+function hasMarkdownSyntax(content: string): boolean {
+    return MARKDOWN_PATTERN.test(content);
+}
+
 // ============================================================
 // Markdown Styles
 // ============================================================
@@ -179,11 +186,17 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                         )}
                         <Pressable
                             onLongPress={() => onCopyMessage(item.content)}
-                            className="flex-1 flex-shrink p-sm rounded-lg bg-background-secondary"
+                            className="flex-1 p-sm rounded-lg bg-background-secondary"
                         >
-                            <Markdown style={markdownStyles}>
-                                {displayContent}
-                            </Markdown>
+                            {hasMarkdownSyntax(displayContent) ? (
+                                <Markdown style={markdownStyles}>
+                                    {displayContent}
+                                </Markdown>
+                            ) : (
+                                <Text className="text-base leading-relaxed text-text-default">
+                                    {displayContent}
+                                </Text>
+                            )}
                         </Pressable>
                     </View>
                 )

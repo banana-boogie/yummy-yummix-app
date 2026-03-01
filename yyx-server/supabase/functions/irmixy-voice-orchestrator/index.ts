@@ -154,6 +154,7 @@ async function handleStartSession(
   // Fetch user context for personalized voice instructions
   const contextBuilder = createContextBuilder(userClient);
   const userContext = await contextBuilder.buildContext(userId);
+  const voiceInstructions = buildVoiceInstructions(userContext);
 
   const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openaiApiKey) {
@@ -176,7 +177,7 @@ async function handleStartSession(
       body: JSON.stringify({
         model: "gpt-realtime-mini",
         voice: "alloy",
-        instructions: buildVoiceInstructions(userContext),
+        instructions: voiceInstructions,
       }),
     },
   );
@@ -236,6 +237,7 @@ async function handleStartSession(
     {
       sessionId: session.id,
       ephemeralToken,
+      voiceInstructions,
       remainingMinutes: remainingMinutes.toFixed(1),
       warning,
       quotaLimit,
@@ -287,6 +289,7 @@ async function handleExecuteTool(
     `[irmixy-voice-orchestrator] User ${
       userId.slice(0, 8)
     } calling ${toolName}`,
+    JSON.stringify(toolArgs),
   );
 
   const supabase = createUserClient(authHeader);

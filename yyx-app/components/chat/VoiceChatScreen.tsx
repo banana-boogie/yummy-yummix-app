@@ -3,7 +3,6 @@ import {
     View,
     Alert,
     FlatList,
-    ActivityIndicator,
     Platform,
     TouchableOpacity,
     type NativeSyntheticEvent,
@@ -19,10 +18,10 @@ import { IrmixyAvatar, AvatarState } from './IrmixyAvatar';
 import { VoiceButton } from './VoiceButton';
 import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
 import { RecipeProgressTracker } from './RecipeProgressTracker';
+import { VoiceToolLoader } from './VoiceToolLoader';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { useAuth } from '@/contexts/AuthContext';
 import { customRecipeService } from '@/services/customRecipeService';
-import { COLORS } from '@/constants/design-tokens';
 import type { QuotaInfo, VoiceStatus } from '@/services/voice/types';
 import type { ChatMessage, IrmixyStatus, QuickAction } from '@/services/chatService';
 import type { GeneratedRecipe } from '@/types/irmixy';
@@ -158,17 +157,45 @@ export function VoiceChatScreen({
         return () => clearInterval(interval);
     }, [isActive, isConnected]);
 
+    // Scroll so the latest message's top is visible at the top of the viewport.
+    // Used both for new messages during active session and when loading saved sessions.
+    const scrollToLastMessage = useCallback((animated = true) => {
+        const count = transcriptMessages.length;
+        if (count === 0) return;
+        setTimeout(() => {
+            flatListRef.current?.scrollToIndex({
+                index: count - 1,
+                viewPosition: 0, // align item top to viewport top
+                animated,
+            });
+        }, 150);
+    }, [transcriptMessages.length]);
+
     // Auto-scroll when new messages arrive during active voice session
     const prevMessageCountRef = useRef(transcriptMessages.length);
     useEffect(() => {
         const prevCount = prevMessageCountRef.current;
         prevMessageCountRef.current = transcriptMessages.length;
         if (isActive && transcriptMessages.length > prevCount) {
-            setTimeout(() => {
-                flatListRef.current?.scrollToEnd({ animated: true });
-            }, 100);
+            scrollToLastMessage();
         }
-    }, [transcriptMessages.length, isActive]);
+    }, [transcriptMessages.length, isActive, scrollToLastMessage]);
+
+    // Scroll to bottom when loading a saved session.
+    // Uses scrollToEnd (not scrollToIndex) to avoid chunky rendering with windowed FlatList.
+    // The pendingSessionScrollRef flag keeps re-scrolling as items render within a 1s window.
+    const prevSessionIdRef = useRef(initialSessionId);
+    const pendingSessionScrollRef = useRef(false);
+    useEffect(() => {
+        if (initialSessionId !== prevSessionIdRef.current) {
+            prevSessionIdRef.current = initialSessionId;
+            if (hasMessages && !isActive) {
+                pendingSessionScrollRef.current = true;
+                flatListRef.current?.scrollToEnd({ animated: false });
+                setTimeout(() => { pendingSessionScrollRef.current = false; }, 1000);
+            }
+        }
+    }, [initialSessionId, hasMessages, isActive]);
 
     useEffect(() => {
         if (error) {
@@ -267,8 +294,8 @@ export function VoiceChatScreen({
     const handleScrollToBottom = useCallback(() => {
         isNearBottomRef.current = true;
         setShowScrollButton(false);
-        flatListRef.current?.scrollToEnd({ animated: true });
-    }, []);
+        scrollToLastMessage();
+    }, [scrollToLastMessage]);
 
     if (!user) {
         return (
@@ -282,34 +309,33 @@ export function VoiceChatScreen({
 
     return (
         <View className="flex-1 bg-background-default" style={{ paddingBottom: isActive ? 0 : insets.bottom }}>
-            {/* ── ACTIVE: compact status bar ── */}
+            {/* ── ACTIVE: status bar — Lupita-friendly with prominent stop button ── */}
             {isActive && (
-                <View className="border-b border-border-default px-md py-sm bg-background-default">
+                <View className="border-b border-border-default px-md py-md bg-background-default">
                     <View className="flex-row items-center justify-between">
-                        {/* Left: timer + avatar + status */}
-                        <View className="flex-row items-center gap-sm">
-                            <View className="bg-background-secondary px-sm py-xs rounded-full">
-                                <Text preset="caption" className="text-primary-darkest font-bold">
+                        {/* Left: avatar + status + timer */}
+                        <View className="flex-row items-center gap-sm flex-1 mr-sm">
+                            <IrmixyAvatar state={getAvatarState(status)} size={32} />
+                            <View accessibilityLiveRegion="polite" className="flex-row items-center gap-xs flex-1">
+                                <Text preset="bodySmall" className="text-text-default font-medium">
+                                    {getStatusText(status)}
+                                </Text>
+                                <Text preset="caption" className="text-text-secondary">
                                     {formatDuration(duration)}
                                 </Text>
                             </View>
-                            <IrmixyAvatar state={getAvatarState(status)} size={40} />
-                            <View accessibilityLiveRegion="polite">
-                                <Text preset="caption" className="text-text-secondary">
-                                    {getStatusText(status)}
-                                </Text>
-                            </View>
                         </View>
-                        {/* Right: stop button */}
+                        {/* Right: prominent stop button (min 44px touch target) */}
                         <TouchableOpacity
                             onPress={stopConversation}
                             activeOpacity={0.7}
                             accessibilityRole="button"
                             accessibilityLabel={i18n.t('chat.voice.stopRecording')}
-                            className="flex-row items-center gap-xs bg-status-error px-md py-xs rounded-full"
+                            className="flex-row items-center gap-sm bg-status-error rounded-full"
+                            style={{ paddingHorizontal: 20, paddingVertical: 10, minHeight: 44 }}
                         >
-                            <Ionicons name="stop" size={14} color="white" />
-                            <Text preset="caption" className="text-white font-semibold">
+                            <Ionicons name="stop-circle" size={20} color="white" />
+                            <Text preset="bodySmall" className="text-white font-bold">
                                 {i18n.t('chat.voice.stop')}
                             </Text>
                         </TouchableOpacity>
@@ -336,18 +362,20 @@ export function VoiceChatScreen({
                         windowSize={5}
                         initialNumToRender={8}
                         onContentSizeChange={() => {
-                            if (isNearBottomRef.current) {
-                                flatListRef.current?.scrollToEnd({ animated: true });
+                            if (pendingSessionScrollRef.current) {
+                                flatListRef.current?.scrollToEnd({ animated: false });
+                                return;
                             }
+                            if (isNearBottomRef.current && transcriptMessages.length > 0) {
+                                scrollToLastMessage();
+                            }
+                        }}
+                        onScrollToIndexFailed={() => {
+                            flatListRef.current?.scrollToEnd({ animated: false });
                         }}
                         ListFooterComponent={
                             isExecutingTool ? (
-                                <View className="flex-row items-center justify-center py-sm gap-sm">
-                                    <ActivityIndicator size="small" color={COLORS.primary.darkest} />
-                                    <Text preset="caption" className="text-primary-darkest">
-                                        {i18n.t('chat.voice.executingTool')}
-                                    </Text>
-                                </View>
+                                <VoiceToolLoader toolName={executingToolName} />
                             ) : (
                                 <View className="py-sm" />
                             )
@@ -411,15 +439,15 @@ export function VoiceChatScreen({
 
             {/* ── Compact mic bar when viewing saved transcript ── */}
             {!isActive && hasMessages && (
-                <View className="flex-row items-center justify-center py-sm px-md border-t border-grey-light bg-background-default gap-sm">
+                <View className="items-center pt-lg pb-md border-t border-grey-light bg-background-default">
                     <VoiceButton
                         state={isConnecting ? 'processing' : 'ready'}
                         onPress={handleVoicePress}
-                        size={44}
+                        size={64}
                         disabled={isConnecting}
                         accessibilityLabel={i18n.t('chat.voice.tapToSpeak')}
                     />
-                    <Text preset="caption" className="text-text-secondary">
+                    <Text preset="body" className="text-text-secondary mt-sm">
                         {i18n.t('chat.voice.tapToSpeak')}
                     </Text>
                 </View>
