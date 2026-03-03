@@ -29,6 +29,7 @@ import i18n from '@/i18n';
 import { getChatCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
 
 const SCROLL_THRESHOLD = 600; // Large enough to accommodate recipe cards (~400px tall)
+const LIST_CONTENT_STYLE = { paddingVertical: 8 };
 
 interface Props {
     sessionId?: string | null;
@@ -96,9 +97,9 @@ export function VoiceChatScreen({
     const isRecipeGeneratingRef = useRef(false);
     isRecipeGeneratingRef.current = isExecutingTool && executingToolName === 'generate_custom_recipe';
 
-    // Only lastMessageId needs to trigger a list re-render — tool state is read
-    // from refs inside renderMessage to avoid re-rendering every cell.
-    const extraData = useMemo(() => lastMessageId, [lastMessageId]);
+    // lastMessageId and isExecutingTool trigger list re-renders so the last
+    // message's isLoading prop stays current. Other tool state is read from refs.
+    const extraData = useMemo(() => ({ lastMessageId, isExecutingTool }), [lastMessageId, isExecutingTool]);
 
     const getAvatarState = (voiceStatus: VoiceStatus): AvatarState => {
         switch (voiceStatus) {
@@ -352,7 +353,7 @@ export function VoiceChatScreen({
                         keyExtractor={item => item.id}
                         renderItem={renderMessage}
                         extraData={extraData}
-                        contentContainerStyle={{ paddingVertical: 8 }}
+                        contentContainerStyle={LIST_CONTENT_STYLE}
                         onScroll={handleScroll}
                         scrollEventThrottle={200}
                         showsVerticalScrollIndicator={false}
@@ -362,12 +363,12 @@ export function VoiceChatScreen({
                         windowSize={5}
                         initialNumToRender={8}
                         onContentSizeChange={() => {
+                            // Only auto-scroll for session loading. New-message scrolling
+                            // is handled by the useEffect on transcriptMessages.length.
+                            // Scrolling here for all size changes causes jumps when recipe
+                            // cards expand/collapse (Show All / Show Less buttons).
                             if (pendingSessionScrollRef.current) {
                                 flatListRef.current?.scrollToEnd({ animated: false });
-                                return;
-                            }
-                            if (isNearBottomRef.current && transcriptMessages.length > 0) {
-                                scrollToLastMessage();
                             }
                         }}
                         onScrollToIndexFailed={() => {

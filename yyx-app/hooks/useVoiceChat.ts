@@ -144,6 +144,14 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     // Notify parent of transcript changes (stabilised via ref to avoid render storms)
     const onTranscriptChangeRef = useRef(options?.onTranscriptChange);
     useEffect(() => { onTranscriptChangeRef.current = options?.onTranscriptChange; });
+
+    // Stabilise hook options via refs so startConversation doesn't re-create on every render
+    const sessionIdRef = useRef(options?.sessionId);
+    useEffect(() => { sessionIdRef.current = options?.sessionId; });
+    const recipeContextRef = useRef(options?.recipeContext);
+    useEffect(() => { recipeContextRef.current = options?.recipeContext; });
+    const onQuotaWarningRef = useRef(options?.onQuotaWarning);
+    useEffect(() => { onQuotaWarningRef.current = options?.onQuotaWarning; });
     useEffect(() => {
         onTranscriptChangeRef.current?.(transcriptMessages);
     }, [transcriptMessages]);
@@ -203,9 +211,9 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                 ...(shouldApplyCustomRecipe ? { customRecipe: pending?.customRecipe } : {}),
                 ...(shouldApplySafetyFlags ? { safetyFlags: pending?.safetyFlags } : {}),
             };
-            pendingRecipeDataRef.current = null;
             return updated;
         });
+        pendingRecipeDataRef.current = null;
         streamingMsgIdRef.current = null;
         assistantTextRef.current = '';
         lastAssistantMsgIdRef.current = id;
@@ -425,7 +433,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                         session.access_token,
                         toolCall.name,
                         toolCall.arguments,
-                        options?.sessionId ?? undefined,
+                        sessionIdRef.current ?? undefined,
                     );
 
                     const recipeData = result.customRecipe
@@ -481,8 +489,8 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                 };
                 setQuotaInfo(quota);
 
-                if (quota.warning && options?.onQuotaWarning) {
-                    options.onQuotaWarning(quota);
+                if (quota.warning && onQuotaWarningRef.current) {
+                    onQuotaWarningRef.current(quota);
                 }
             }
 
@@ -497,7 +505,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             // 4. Start conversation
             await providerRef.current.startConversation({
                 userContext,
-                recipeContext: options?.recipeContext
+                recipeContext: recipeContextRef.current
             });
 
             registerSession(hookIdRef.current, () => {
@@ -511,7 +519,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             setError(err instanceof Error ? err.message : 'Unknown error');
             unregisterSession(hookIdRef.current);
         }
-    }, [language, measurementSystem, userProfile, options, appendMessage, updateStreamingMessage, finalizeAssistantMessage, resetStreamingRefs, registerSession, unregisterSession]);
+    }, [language, measurementSystem, userProfile, appendMessage, updateStreamingMessage, finalizeAssistantMessage, resetStreamingRefs, registerSession, unregisterSession]);
 
     const stopConversation = useCallback(() => {
         // Finalize any in-flight streaming message before resetting refs

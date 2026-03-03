@@ -255,9 +255,11 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
     /**
      * server_vad config
-     * - threshold 0.8 rejects background chatter, requires clear directed speech
-     * - prefix_padding_ms 200 reduces preceding ambient noise captured
-     * - silence_duration_ms 1500 accommodates slow speakers who pause between words/phrases
+     * - threshold 0.6 balances noise rejection with natural speech capture
+     * - prefix_padding_ms 300 captures word beginnings reliably
+     * - silence_duration_ms 1000 gives users a full second to pause between items
+     *   when listing ingredients without triggering end-of-turn. OpenAI default is
+     *   500ms but that's too aggressive for a cooking app where users enumerate.
      */
     this.sendEvent({
       type: "session.update",
@@ -273,9 +275,9 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         },
         turn_detection: {
           type: "server_vad",
-          threshold: 0.8,
-          prefix_padding_ms: 200,
-          silence_duration_ms: 1500,
+          threshold: 0.6,
+          prefix_padding_ms: 300,
+          silence_duration_ms: 1000,
         },
         tools: voiceTools,
       },
@@ -514,10 +516,11 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       case "input_audio_buffer.speech_started":
         this.setStatus("listening");
         this.emit("speechStarted");
-        // Reset inactivity timer when user speaks
-        this.inactivityTimer.reset(() => {
-          this.stopConversation();
-        });
+        // Clear inactivity timer while user is speaking — speech_started fires
+        // once per segment, so a reset(10s) would expire if the user talks for
+        // longer than 10s (e.g. listing ingredients). The timer restarts later
+        // in response.audio.done when it's actually the user's turn to speak.
+        this.inactivityTimer.clear();
         break;
 
       case "input_audio_buffer.speech_stopped":
@@ -573,11 +576,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
             name: message.item.name,
             args: "",
           });
-          // Reset inactivity timer — tool execution takes seconds and no voice
-          // activity occurs during that time
-          this.inactivityTimer.reset(() => {
-            this.stopConversation();
-          });
+          // Clear inactivity timer — tool execution (especially generate_custom_recipe)
+          // can take 10-15s+. sendToolResult() restarts the timer when the backend returns.
+          // Both success and error paths in the hook call sendToolResult, so no hang risk.
+          this.inactivityTimer.clear();
         }
         break;
 
@@ -599,8 +601,12 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         if (message.call_id) {
           const pending = this.pendingToolCalls.get(message.call_id);
           if (pending) {
+            // Prefer server-accumulated arguments (message.arguments) over our
+            // client-side delta assembly — more reliable if a delta was dropped
+            // over WebRTC.
+            const rawArgs = message.arguments || pending.args || "{}";
             try {
-              const args = JSON.parse(pending.args || "{}");
+              const args = JSON.parse(rawArgs);
               const toolCall: VoiceToolCall = {
                 callId: message.call_id,
                 name: pending.name,
@@ -609,6 +615,17 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
               this.emit("toolCall", toolCall);
             } catch (e) {
               console.error("[OpenAI] Failed to parse tool call args:", e);
+              // Send error back to OpenAI so it can ask the user to repeat
+              // rather than silently dropping the tool call
+              this.sendEvent({
+                type: "conversation.item.create",
+                item: {
+                  type: "function_call_output",
+                  call_id: message.call_id,
+                  output: JSON.stringify({ error: "Failed to parse arguments. Please try again." }),
+                },
+              });
+              this.sendEvent({ type: "response.create" });
             }
             this.pendingToolCalls.delete(message.call_id);
           }
@@ -658,6 +675,9 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       case "response.done":
         if (message.response?.status === "cancelled") {
+          // Clear any in-flight tool calls from the interrupted response —
+          // their arguments are incomplete and would fail to parse.
+          this.pendingToolCalls.clear();
           this.emit("responseInterrupted", message.response?.id ?? this.activeResponseId);
         } else {
           // Extract transcript from response output items as fallback for when
@@ -759,6 +779,11 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
     const userLower = transcript.toLowerCase().trim();
     const assistantLower = this.lastAssistantTranscript.toLowerCase().trim();
+
+    // Short utterances (< 8 chars) are almost certainly real speech, not echo.
+    // Without this guard, words like "you", "yes", "ok" would be suppressed
+    // if they happened to appear in the assistant's recent response.
+    if (userLower.length < 8) return false;
 
     return assistantLower.includes(userLower) || userLower.includes(assistantLower);
   }

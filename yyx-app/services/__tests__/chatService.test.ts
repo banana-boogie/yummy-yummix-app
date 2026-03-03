@@ -17,6 +17,7 @@ import {
   loadChatSessions,
   getLastSessionWithMessages,
   getRecentlyCookedRecipes,
+  saveVoiceTranscript,
   createSimpleStreamCallbacks,
   routeSSEMessage,
 } from '../chatService';
@@ -362,6 +363,83 @@ describe('chatService', () => {
 
       const result = await getRecentlyCookedRecipes();
       expect(result).toEqual([]);
+    });
+  });
+
+  // ============================================================
+  // saveVoiceTranscript
+  // ============================================================
+
+  describe('saveVoiceTranscript', () => {
+    const originalFetch = global.fetch;
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
+    it('saves transcript and returns sessionId on success', async () => {
+      (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+        data: { session: { access_token: 'test-token' } },
+      });
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ sessionId: 'saved-session-123' }),
+      });
+
+      const messages = [
+        { id: '1', role: 'user' as const, content: 'Hello', createdAt: new Date() },
+        { id: '2', role: 'assistant' as const, content: 'Hi there!', createdAt: new Date() },
+      ];
+
+      const result = await saveVoiceTranscript(messages);
+
+      expect(result).toEqual({ sessionId: 'saved-session-123' });
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      const [url, opts] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(url).toContain('irmixy-voice-orchestrator');
+      const body = JSON.parse(opts.body);
+      expect(body.action).toBe('save_transcript');
+      expect(body.messages).toHaveLength(2);
+    });
+
+    it('returns null on network error (silent fail)', async () => {
+      (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+        data: { session: { access_token: 'test-token' } },
+      });
+      global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+
+      const messages = [
+        { id: '1', role: 'user' as const, content: 'Hello', createdAt: new Date() },
+      ];
+
+      const result = await saveVoiceTranscript(messages);
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null for empty messages without calling fetch', async () => {
+      global.fetch = jest.fn();
+
+      const result = await saveVoiceTranscript([]);
+
+      expect(result).toBeNull();
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('returns null when no auth session', async () => {
+      (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+        data: { session: null },
+      });
+      global.fetch = jest.fn();
+
+      const messages = [
+        { id: '1', role: 'user' as const, content: 'Hello', createdAt: new Date() },
+      ];
+
+      const result = await saveVoiceTranscript(messages);
+
+      expect(result).toBeNull();
+      expect(global.fetch).not.toHaveBeenCalled();
     });
   });
 

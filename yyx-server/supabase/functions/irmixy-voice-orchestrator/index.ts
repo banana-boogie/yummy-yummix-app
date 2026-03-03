@@ -406,7 +406,7 @@ async function handleSaveTranscript(
     created_at: new Date(Date.now() + idx).toISOString(), // offset by idx to preserve order
   }));
 
-  const { error: insertError, count } = await serviceClient
+  const { error: insertError } = await serviceClient
     .from("user_chat_messages")
     .insert(messagesToInsert);
 
@@ -475,13 +475,9 @@ serve(async (req) => {
       );
     }
 
-    // Determine payload limit based on action (save_transcript needs more room)
-    const peekAction = rawBody.includes('"save_transcript"');
-    const maxBytes = peekAction
-      ? MAX_TRANSCRIPT_PAYLOAD_BYTES
-      : MAX_PAYLOAD_BYTES;
-
-    if (new TextEncoder().encode(rawBody).byteLength > maxBytes) {
+    // Hard universal limit (save_transcript may be up to 100KB)
+    const bodyByteLength = new TextEncoder().encode(rawBody).byteLength;
+    if (bodyByteLength > MAX_TRANSCRIPT_PAYLOAD_BYTES) {
       return jsonResponse(
         { error: "Payload too large" },
         413,
@@ -496,6 +492,17 @@ serve(async (req) => {
       return jsonResponse(
         { error: "Invalid JSON in request body" },
         400,
+        corsHeaders,
+      );
+    }
+
+    // Action-specific limit: non-save_transcript actions get the smaller 10KB limit
+    if (
+      payload.action !== "save_transcript" && bodyByteLength > MAX_PAYLOAD_BYTES
+    ) {
+      return jsonResponse(
+        { error: "Payload too large" },
+        413,
         corsHeaders,
       );
     }

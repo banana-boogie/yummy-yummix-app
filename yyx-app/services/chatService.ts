@@ -558,11 +558,6 @@ export async function getLastSessionWithMessages(): Promise<{
 }
 
 /**
- * Get recently cooked recipes from user_events.
- * Note: eventService is batched/async with a 5-second flush interval,
- * so very recent cook_complete events may not be immediately available.
- */
-/**
  * Save voice chat transcript to backend (same tables as text chat).
  * Fire-and-forget — errors are logged but don't surface to user.
  */
