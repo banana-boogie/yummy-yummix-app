@@ -119,6 +119,15 @@ export default function AdminDashboard() {
             <Ionicons name="cube" size={22} color={COLORS.text.default} />
             <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>Useful Items</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            className="bg-primary-default rounded-lg p-md flex-row items-center"
+            style={{ width: '48%', minWidth: 150 }}
+            onPress={() => router.push('/admin/analytics')}
+          >
+            <Ionicons name="analytics" size={22} color={COLORS.text.default} />
+            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>Analytics</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </AdminLayout>
