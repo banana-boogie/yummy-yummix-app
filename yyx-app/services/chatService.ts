@@ -475,7 +475,9 @@ export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]>
  * Load user's recent chat sessions.
  * Limited to 5 most recent sessions for performance.
  */
-export async function loadChatSessions(): Promise<{ id: string; title: string; createdAt: Date }[]> {
+export async function loadChatSessions(): Promise<
+    { id: string; title: string; createdAt: Date; source?: 'text' | 'voice' }[]
+> {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData?.user) {
         throw new Error('Not authenticated');

@@ -30,6 +30,7 @@ import { getChatCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
 
 const SCROLL_THRESHOLD = 600; // Large enough to accommodate recipe cards (~400px tall)
 const LIST_CONTENT_STYLE = { paddingVertical: 8 };
+const STOP_BUTTON_STYLE = { paddingHorizontal: 20, paddingVertical: 10, minHeight: 44 };
 
 interface Props {
     sessionId?: string | null;
@@ -333,7 +334,7 @@ export function VoiceChatScreen({
                             accessibilityRole="button"
                             accessibilityLabel={i18n.t('chat.voice.stopRecording')}
                             className="flex-row items-center gap-sm bg-status-error rounded-full"
-                            style={{ paddingHorizontal: 20, paddingVertical: 10, minHeight: 44 }}
+                            style={STOP_BUTTON_STYLE}
                         >
                             <Ionicons name="stop-circle" size={20} color="white" />
                             <Text preset="bodySmall" className="text-white font-bold">

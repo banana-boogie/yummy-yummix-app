@@ -12,10 +12,9 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet } from 'react-native';
+import { View, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from '@/components/common/Text';
-import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 
 interface VoiceToolLoaderProps {
@@ -79,59 +78,22 @@ export const VoiceToolLoader = React.memo(function VoiceToolLoader({
     const message = i18n.t(i18nKey);
 
     return (
-        <View style={styles.container}>
+        <View className="flex-row items-center bg-primary-lightest rounded-lg py-md px-lg mx-md my-xs gap-sm">
             <Animated.View style={{ opacity: pulseAnim }}>
                 <Image
                     source={require('@/assets/images/irmixy-avatar/irmixy-cooking.png')}
-                    style={styles.avatar}
+                    className="w-xxl h-xxl"
                     contentFit="contain"
                 />
             </Animated.View>
-            <View style={styles.textContainer}>
-                <Text style={styles.message}>{message}</Text>
-                <View style={styles.dotsRow}>
-                    <Animated.View style={[styles.dot, { opacity: dot1 }]} />
-                    <Animated.View style={[styles.dot, { opacity: dot2 }]} />
-                    <Animated.View style={[styles.dot, { opacity: dot3 }]} />
+            <View className="flex-1 gap-xxs">
+                <Text className="text-[15px] text-text-default font-medium">{message}</Text>
+                <View className="flex-row gap-xxs">
+                    <Animated.View className="w-xs h-xs rounded-xs bg-primary-darkest" style={{ opacity: dot1 }} />
+                    <Animated.View className="w-xs h-xs rounded-xs bg-primary-darkest" style={{ opacity: dot2 }} />
+                    <Animated.View className="w-xs h-xs rounded-xs bg-primary-darkest" style={{ opacity: dot3 }} />
                 </View>
             </View>
         </View>
     );
-});
-
-const styles = StyleSheet.create({
-    container: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: COLORS.primary.lightest,
-        borderRadius: 16,
-        paddingVertical: 16,
-        paddingHorizontal: 20,
-        marginHorizontal: 16,
-        marginVertical: 8,
-        gap: 14,
-    },
-    avatar: {
-        width: 48,
-        height: 48,
-    },
-    textContainer: {
-        flex: 1,
-        gap: 6,
-    },
-    message: {
-        fontSize: 15,
-        color: COLORS.text.default,
-        fontWeight: '500',
-    },
-    dotsRow: {
-        flexDirection: 'row',
-        gap: 6,
-    },
-    dot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: COLORS.primary.darkest,
-    },
 });

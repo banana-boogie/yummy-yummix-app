@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { Platform } from "react-native";
 import InCallManager from "react-native-incall-manager";
 import { detectGoodbye, InactivityTimer } from "../shared/VoiceUtils";
+import { isLikelyEcho, extractTranscriptFromResponse } from "../shared/VoiceAnalysis";
 import { voiceTools } from "../shared/VoiceToolDefinitions";
 import type {
   VoiceAssistantProvider,
@@ -548,7 +549,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       case "conversation.item.input_audio_transcription.completed":
         // Guard: suppress transcripts that match what the AI just said (speaker echo)
-        if (this.isLikelyEcho(message.transcript)) {
+        if (isLikelyEcho(message.transcript, this.lastAssistantTranscript, Date.now() - this.lastAudioDoneTime)) {
           if (__DEV__) console.log('[OpenAI] Suppressed likely echo:', message.transcript);
           break;
         }
@@ -682,7 +683,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         } else {
           // Extract transcript from response output items as fallback for when
           // response.output_audio_transcript.delta events never fire
-          const fallbackTranscript = this.extractTranscriptFromResponse(message.response);
+          const fallbackTranscript = extractTranscriptFromResponse(message.response);
           this.emit("responseDone", message.response?.id ?? this.activeResponseId, fallbackTranscript);
         }
 
@@ -743,49 +744,6 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         if (__DEV__) console.log("[OpenAI] Unhandled event:", message.type);
         break;
     }
-  }
-
-  /**
-   * Extract the full transcript from a response.done payload.
-   * The response includes `output[]` items; assistant message items have
-   * `content[]` parts where audio parts carry a `transcript` field.
-   * Returns the joined transcript text, or null if none found.
-   */
-  private extractTranscriptFromResponse(response: any): string | null {
-    if (!response?.output || !Array.isArray(response.output)) return null;
-
-    const parts: string[] = [];
-    for (const item of response.output) {
-      if (item.type !== "message" || item.role !== "assistant") continue;
-      if (!Array.isArray(item.content)) continue;
-      for (const part of item.content) {
-        if (part.transcript && typeof part.transcript === "string") {
-          parts.push(part.transcript);
-        }
-      }
-    }
-
-    return parts.length > 0 ? parts.join(" ") : null;
-  }
-
-  /**
-   * Detect whether a user transcript is likely echo from the device speaker.
-   * Compares against the last AI transcript within a time window after audio done.
-   */
-  private isLikelyEcho(transcript: string): boolean {
-    if (!transcript || !this.lastAssistantTranscript) return false;
-    const timeSinceAudio = Date.now() - this.lastAudioDoneTime;
-    if (timeSinceAudio > 2000) return false;
-
-    const userLower = transcript.toLowerCase().trim();
-    const assistantLower = this.lastAssistantTranscript.toLowerCase().trim();
-
-    // Short utterances (< 8 chars) are almost certainly real speech, not echo.
-    // Without this guard, words like "you", "yes", "ok" would be suppressed
-    // if they happened to appear in the assistant's recent response.
-    if (userLower.length < 8) return false;
-
-    return assistantLower.includes(userLower) || userLower.includes(assistantLower);
   }
 
   /**

@@ -176,7 +176,6 @@ async function handleStartSession(
       },
       body: JSON.stringify({
         model: "gpt-realtime-mini",
-        voice: "alloy",
         instructions: voiceInstructions,
       }),
     },
@@ -289,7 +288,6 @@ async function handleExecuteTool(
     `[irmixy-voice-orchestrator] User ${
       userId.slice(0, 8)
     } calling ${toolName}`,
-    JSON.stringify(toolArgs),
   );
 
   const supabase = createUserClient(authHeader);
@@ -362,7 +360,7 @@ async function handleSaveTranscript(
   // Generate title from first user message (truncated to 100 chars)
   const firstUserMsg = validMessages.find((m) => m.role === "user");
   const title = firstUserMsg
-    ? firstUserMsg.content.slice(0, 100).trim()
+    ? firstUserMsg.content.slice(0, 100).trim() || "Voice conversation"
     : "Voice conversation";
 
   const serviceClient = createServiceClient();

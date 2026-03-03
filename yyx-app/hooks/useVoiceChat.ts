@@ -1,9 +1,25 @@
 /**
  * useVoiceChat Hook
  *
- * Manages voice chat state and interactions with OpenAI Realtime provider.
- * Accumulates a live transcript and handles tool calls (recipe search/generation)
- * by bridging between the frontend WebRTC data channel and backend edge functions.
+ * Manages a real-time voice conversation with Irmixy via WebRTC.
+ *
+ * ## What this hook does
+ *
+ * 1. **Session lifecycle** — connects/disconnects the WebRTC voice provider
+ * 2. **Live transcript** — builds an ordered list of ChatMessages from streaming
+ *    events (user speech via Whisper + assistant audio transcript deltas)
+ * 3. **Message ordering** — inserts user messages *before* the assistant response
+ *    they triggered, since Whisper transcription often arrives after the AI
+ *    has already started speaking
+ * 4. **Tool execution** — bridges tool calls (recipe search, generation) from
+ *    the voice data channel to the backend edge function, then sends results back
+ * 5. **Transcript persistence** — saves the conversation on stop via chatService
+ *
+ * ## Why refs instead of state for streaming internals
+ *
+ * Streaming events fire at ~10-50 Hz. Using refs for intermediate accumulation
+ * (assistantTextRef, deltaBufferRef) avoids per-character re-renders. State is
+ * only updated in batches (every DELTA_BATCH_MS) or on finalization.
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -78,6 +94,24 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     const deltaBufferRef = useRef('');
     const deltaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    /** Check if a response event is from a stale (interrupted/replaced) response. */
+    const isStaleResponse = (responseId?: string) =>
+        !!(responseId && activeResponseIdRef.current && responseId !== activeResponseIdRef.current);
+
+    /** Build a new assistant ChatMessage, attaching any pending recipe data. */
+    const buildAssistantMessage = (content: string): ChatMessage => {
+        const pending = pendingRecipeDataRef.current;
+        return {
+            id: generateMsgId(),
+            role: 'assistant' as const,
+            content,
+            createdAt: new Date(),
+            ...(pending?.recipes ? { recipes: pending.recipes } : {}),
+            ...(pending?.customRecipe ? { customRecipe: pending.customRecipe } : {}),
+            ...(pending?.safetyFlags ? { safetyFlags: pending.safetyFlags } : {}),
+        };
+    };
+
     // Listener tracking for proper cleanup via .off()
     const listenersRef = useRef<{ event: string; callback: (...args: any[]) => void }[]>([]);
 
@@ -118,7 +152,10 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
         const curLen = externalMessages?.length ?? 0;
 
         if (sessionChanged) {
-            setTranscriptMessages(externalMessages ?? []);
+            const syncedMessages = externalMessages ?? [];
+            setTranscriptMessages(syncedMessages);
+            // Session switches load persisted history; mark it as already saved.
+            savedMessageCountRef.current = syncedMessages.length;
 
             // Reset in-flight streaming refs to avoid leaking partial content between sessions.
             assistantTextRef.current = '';
@@ -131,6 +168,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             }
         } else if (prevLen > 0 && curLen === 0) {
             setTranscriptMessages([]);
+            savedMessageCountRef.current = 0;
         }
 
         prevSyncRef.current = { sessionId, externalMessages };
@@ -224,7 +262,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
         setTranscript('');
         setResponse('');
         resetStreamingRefs();
-        savedMessageCountRef.current = 0;
+        savedMessageCountRef.current = transcriptMessagesRef.current.length;
 
         try {
             // 1. Check if authenticated
@@ -286,9 +324,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             });
 
             addListener('assistantTranscriptDelta', (delta: string, responseId?: string) => {
-                if (responseId && activeResponseIdRef.current && responseId !== activeResponseIdRef.current) {
-                    return;
-                }
+                if (isStaleResponse(responseId)) return;
                 if (responseId && !activeResponseIdRef.current) {
                     activeResponseIdRef.current = responseId;
                 }
@@ -324,9 +360,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             });
 
             addListener('assistantTranscriptComplete', (fullText: string, responseId?: string) => {
-                if (responseId && activeResponseIdRef.current && responseId !== activeResponseIdRef.current) {
-                    return;
-                }
+                if (isStaleResponse(responseId)) return;
 
                 // Flush any pending delta batch
                 if (deltaTimerRef.current) {
@@ -339,17 +373,9 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                     finalizeAssistantMessage(streamingMsgIdRef.current, fullText);
                 } else if (fullText.trim()) {
                     // No streaming messages were created (shouldn't happen, but be safe)
-                    const newMsgId = generateMsgId();
-                    lastAssistantMsgIdRef.current = newMsgId;
-                    appendMessage({
-                        id: newMsgId,
-                        role: 'assistant',
-                        content: fullText,
-                        createdAt: new Date(),
-                        ...(pendingRecipeDataRef.current?.recipes ? { recipes: pendingRecipeDataRef.current.recipes } : {}),
-                        ...(pendingRecipeDataRef.current?.customRecipe ? { customRecipe: pendingRecipeDataRef.current.customRecipe } : {}),
-                        ...(pendingRecipeDataRef.current?.safetyFlags ? { safetyFlags: pendingRecipeDataRef.current.safetyFlags } : {}),
-                    });
+                    const msg = buildAssistantMessage(fullText);
+                    lastAssistantMsgIdRef.current = msg.id;
+                    appendMessage(msg);
                     pendingRecipeDataRef.current = null;
                     assistantTextRef.current = '';
                 }
@@ -357,9 +383,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             });
 
             addListener('responseInterrupted', (responseId?: string) => {
-                if (responseId && activeResponseIdRef.current && responseId !== activeResponseIdRef.current) {
-                    return;
-                }
+                if (isStaleResponse(responseId)) return;
 
                 if (deltaTimerRef.current) {
                     clearTimeout(deltaTimerRef.current);
@@ -384,13 +408,11 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             });
 
             // Safety net: responseDone fires on every non-cancelled response.done.
-            // Case A: deltas fired but assistantTranscriptComplete didn't → finalize from accumulated text
+            // Case A: deltas fired but assistantTranscriptComplete didn't → finalize
             // Case B: NO deltas fired at all → create message from response.done transcript
-            // Case C: already finalized by assistantTranscriptComplete → no-op
+            // Case C: already finalized → no-op
             addListener('responseDone', (responseId?: string, fallbackTranscript?: string) => {
-                if (responseId && activeResponseIdRef.current && responseId !== activeResponseIdRef.current) {
-                    return;
-                }
+                if (isStaleResponse(responseId)) return;
 
                 // Flush pending delta batch
                 if (deltaTimerRef.current) {
@@ -400,32 +422,21 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                 deltaBufferRef.current = '';
 
                 if (streamingMsgIdRef.current && assistantTextRef.current.trim()) {
-                    // Case A: deltas fired but assistantTranscriptComplete didn't → finalize from accumulated text
                     finalizeAssistantMessage(streamingMsgIdRef.current, assistantTextRef.current);
                 } else if (!streamingMsgIdRef.current && fallbackTranscript?.trim()) {
-                    // Case B: NO deltas fired at all → create message from response.done transcript
-                    const newMsgId = generateMsgId();
-                    lastAssistantMsgIdRef.current = newMsgId;
-                    appendMessage({
-                        id: newMsgId,
-                        role: 'assistant',
-                        content: fallbackTranscript,
-                        createdAt: new Date(),
-                        ...(pendingRecipeDataRef.current?.recipes ? { recipes: pendingRecipeDataRef.current.recipes } : {}),
-                        ...(pendingRecipeDataRef.current?.customRecipe ? { customRecipe: pendingRecipeDataRef.current.customRecipe } : {}),
-                        ...(pendingRecipeDataRef.current?.safetyFlags ? { safetyFlags: pendingRecipeDataRef.current.safetyFlags } : {}),
-                    });
+                    const msg = buildAssistantMessage(fallbackTranscript);
+                    lastAssistantMsgIdRef.current = msg.id;
+                    appendMessage(msg);
                     pendingRecipeDataRef.current = null;
                     assistantTextRef.current = '';
                 }
-                // Case C: already finalized by assistantTranscriptComplete → no-op
 
                 activeResponseIdRef.current = null;
             });
 
             // Tool call handler
             addListener('toolCall', async (toolCall: VoiceToolCall) => {
-                console.log(`[VoiceChat] Tool call: ${toolCall.name}`, JSON.stringify(toolCall.arguments));
+                console.log('[VoiceChat] Tool call:', toolCall.name);
                 setIsExecutingTool(true);
                 setExecutingToolName(toolCall.name);
                 try {
@@ -522,13 +533,34 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     }, [language, measurementSystem, userProfile, appendMessage, updateStreamingMessage, finalizeAssistantMessage, resetStreamingRefs, registerSession, unregisterSession]);
 
     const stopConversation = useCallback(() => {
+        let messagesToSave = transcriptMessagesRef.current;
+
         // Finalize any in-flight streaming message before resetting refs
         if (streamingMsgIdRef.current && assistantTextRef.current.trim()) {
-            finalizeAssistantMessage(streamingMsgIdRef.current, assistantTextRef.current);
-        }
+            const streamingId = streamingMsgIdRef.current;
+            const finalText = assistantTextRef.current;
+            const pending = pendingRecipeDataRef.current;
+            messagesToSave = messagesToSave.map((message) => {
+                if (message.id !== streamingId) {
+                    return message;
+                }
 
-        // Capture messages from ref before reset (snapshot current state)
-        const messagesToSave = transcriptMessagesRef.current;
+                const shouldApplyRecipes = !!pending?.recipes && !message.recipes;
+                const shouldApplyCustomRecipe = !!pending?.customRecipe && !message.customRecipe;
+                const shouldApplySafetyFlags = !!pending?.safetyFlags && !message.safetyFlags;
+
+                return {
+                    ...message,
+                    content: finalText,
+                    ...(shouldApplyRecipes ? { recipes: pending?.recipes } : {}),
+                    ...(shouldApplyCustomRecipe ? { customRecipe: pending?.customRecipe } : {}),
+                    ...(shouldApplySafetyFlags ? { safetyFlags: pending?.safetyFlags } : {}),
+                };
+            });
+
+            // Keep React state in sync for UI updates.
+            finalizeAssistantMessage(streamingId, finalText);
+        }
 
         providerRef.current?.stopConversation();
         resetStreamingRefs();
@@ -539,26 +571,15 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
         if (unsavedMessages.length > 0 && !savingRef.current) {
             savingRef.current = true;
             const countToSave = messagesToSave.length;
-            saveVoiceTranscript(unsavedMessages).then(() => {
-                savedMessageCountRef.current = countToSave;
+            saveVoiceTranscript(unsavedMessages).then((result) => {
+                if (result?.sessionId) {
+                    savedMessageCountRef.current = countToSave;
+                }
             }).finally(() => {
                 savingRef.current = false;
             });
         }
     }, [resetStreamingRefs, unregisterSession, finalizeAssistantMessage]);
-
-    const updateContext = useCallback((recipeContext: RecipeContext) => {
-        if (!providerRef.current) return;
-
-        const userContext = {
-            language: (language?.startsWith('es') ? 'es' : 'en') as 'es' | 'en',
-            measurementSystem: measurementSystem || 'metric',
-            dietaryRestrictions: userProfile?.dietaryRestrictions || [],
-            dietTypes: userProfile?.dietTypes || []
-        };
-
-        providerRef.current.setContext(userContext, recipeContext);
-    }, [language, measurementSystem, userProfile]);
 
     return {
         status,
@@ -572,7 +593,6 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
         updateMessage,
         startConversation,
         stopConversation,
-        updateContext
     };
 }
 

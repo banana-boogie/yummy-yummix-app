@@ -36,6 +36,11 @@ jest.mock('../../shared/VoiceUtils', () => ({
   },
 }));
 
+jest.mock('../../shared/VoiceAnalysis', () => ({
+  isLikelyEcho: jest.fn(() => false),
+  extractTranscriptFromResponse: jest.fn(() => null),
+}));
+
 jest.mock('../../shared/VoiceToolDefinitions', () => ({
   voiceTools: [],
 }));

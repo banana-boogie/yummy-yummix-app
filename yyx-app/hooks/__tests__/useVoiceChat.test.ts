@@ -16,10 +16,10 @@ import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useVoiceChat } from '../useVoiceChat';
 import type { ChatMessage } from '@/services/chatService';
 
-// Mock saveVoiceTranscript (fire-and-forget, no assertions needed here)
+// Mock saveVoiceTranscript for persistence assertions
 jest.mock('@/services/chatService', () => ({
     ...jest.requireActual('@/services/chatService'),
-    saveVoiceTranscript: jest.fn().mockResolvedValue(null),
+    saveVoiceTranscript: jest.fn(),
 }));
 
 // ============================================================
@@ -106,6 +106,8 @@ jest.mock('@/contexts/MeasurementContext', () => ({
 
 // Override supabase auth mock for a valid session
 const { supabase } = require('@/lib/supabase');
+const { saveVoiceTranscript } = require('@/services/chatService');
+const mockSaveVoiceTranscript = saveVoiceTranscript as jest.Mock;
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -117,6 +119,8 @@ beforeEach(() => {
         data: { session: { access_token: 'test-token-abc' } },
         error: null,
     });
+
+    mockSaveVoiceTranscript.mockResolvedValue({ sessionId: 'saved-session' });
 });
 
 afterEach(() => {
@@ -468,6 +472,116 @@ describe('full conversation flow', () => {
 
         expect(mockProvider.stopConversation).toHaveBeenCalled();
         expect(mockUnregisterSession).toHaveBeenCalled();
+    });
+});
+
+// ============================================================
+// TRANSCRIPT PERSISTENCE
+// ============================================================
+
+describe('transcript persistence', () => {
+    it('saves only new messages on stop', async () => {
+        const existingMessage = createMessage('existing-msg', 'previous session message');
+        const { result } = renderHook(() =>
+            useVoiceChat({
+                sessionId: 'session-1',
+                initialTranscriptMessages: [existingMessage],
+            })
+        );
+
+        await startAndSetup(result);
+
+        act(() => {
+            mockProvider.emit('userTranscriptComplete', 'new user message');
+        });
+        act(() => {
+            mockProvider.emit('assistantTranscriptDelta', 'new assistant message', 'resp-1');
+        });
+        act(() => {
+            mockProvider.emit('assistantTranscriptComplete', 'new assistant message', 'resp-1');
+        });
+
+        await act(async () => {
+            result.current.stopConversation();
+        });
+
+        await waitFor(() => {
+            expect(mockSaveVoiceTranscript).toHaveBeenCalledTimes(1);
+        });
+
+        const savedMessages = mockSaveVoiceTranscript.mock.calls[0][0] as ChatMessage[];
+        expect(savedMessages).toHaveLength(2);
+        expect(savedMessages.map((m) => m.content)).toEqual([
+            'new user message',
+            'new assistant message',
+        ]);
+    });
+
+    it('keeps failed messages unsaved and includes them in the next save', async () => {
+        mockSaveVoiceTranscript
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce({ sessionId: 'saved-on-retry' });
+
+        const { result } = renderHook(() => useVoiceChat());
+        await startAndSetup(result);
+
+        act(() => {
+            mockProvider.emit('userTranscriptComplete', 'first message');
+        });
+
+        await act(async () => {
+            result.current.stopConversation();
+        });
+
+        await waitFor(() => {
+            expect(mockSaveVoiceTranscript).toHaveBeenCalledTimes(1);
+        });
+
+        act(() => {
+            mockProvider.emit('userTranscriptComplete', 'second message');
+        });
+
+        await act(async () => {
+            result.current.stopConversation();
+        });
+
+        await waitFor(() => {
+            expect(mockSaveVoiceTranscript).toHaveBeenCalledTimes(2);
+        });
+
+        const firstSave = mockSaveVoiceTranscript.mock.calls[0][0] as ChatMessage[];
+        const secondSave = mockSaveVoiceTranscript.mock.calls[1][0] as ChatMessage[];
+        expect(firstSave.map((m) => m.content)).toEqual(['first message']);
+        expect(secondSave.map((m) => m.content)).toEqual([
+            'first message',
+            'second message',
+        ]);
+    });
+
+    it('does not save already-loaded session messages when no new messages were added', async () => {
+        const loadedMessages = [
+            createMessage('loaded-assistant', 'loaded assistant message'),
+            {
+                id: 'loaded-user',
+                role: 'user' as const,
+                content: 'loaded user message',
+                createdAt: new Date(),
+            },
+        ];
+        const { result } = renderHook(() =>
+            useVoiceChat({
+                sessionId: 'session-1',
+                initialTranscriptMessages: loadedMessages,
+            })
+        );
+
+        await startAndSetup(result);
+
+        await act(async () => {
+            result.current.stopConversation();
+        });
+
+        expect(mockSaveVoiceTranscript).not.toHaveBeenCalled();
     });
 });
 
