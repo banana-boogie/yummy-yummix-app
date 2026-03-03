@@ -57,7 +57,6 @@ export const chat = {
   },
   budget: {
     warningTitle: "Aviso de uso",
-    warning: "Te estás acercando a tu límite mensual de IA.",
     warningDetailed: "Has usado ${{usedUsd}} de tu presupuesto mensual de IA de ${{budgetUsd}}.",
     exceededTitle: "Límite mensual alcanzado",
     exceededMessage: "Has usado tu presupuesto mensual de IA. Tu presupuesto se renueva al inicio del próximo mes.",

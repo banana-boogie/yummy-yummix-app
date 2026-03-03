@@ -65,7 +65,7 @@ export function VoiceChatScreen({
         onQuotaWarning: (info: QuotaInfo) => {
             Alert.alert(
                 i18n.t('common.errors.title'),
-                info.warning || i18n.t('chat.voice.quotaWarning', { minutes: info.remainingMinutes.toFixed(1) }),
+                i18n.t('chat.voice.quotaWarning', { minutes: info.remainingMinutes.toFixed(1) }),
                 [{ text: i18n.t('common.ok') }]
             );
         }
