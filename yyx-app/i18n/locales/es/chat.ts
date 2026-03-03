@@ -33,7 +33,7 @@ export const chat = {
     thinking: "Pensando...",
     speaking: "¡Hablando!",
     tapToSpeak: "Toca para hablar",
-    tapToStop: "Toca para detener",
+    tapToStop: "Toca para parar",
     handsFreeModeActive:
       "Modo manos libres - Pararé cuando termines de hablar",
     permissionRequired: "Se requiere permiso del micrófono",
@@ -48,7 +48,14 @@ export const chat = {
     errorPrefix: "Error: ",
     minsRemaining: "{{mins}} mins restantes",
     executingTool: "Trabajando en ello...",
+    searchingRecipes: "Buscando recetas para ti",
+    modifyingRecipe: "Ajustando tu receta",
+    retrievingRecipes: "Revisando tu historial de cocina",
+    generatingRecipe: "Creando algo especial",
+    micActive: "Micrófono activo",
+    stopRecording: "Detener grabación de voz",
     micPermissionDenied: "Acceso al micrófono denegado",
+    stop: "Parar",
     mobileOnly: {
       title: "Chat de Voz",
       message: "El chat de voz está disponible en nuestra app móvil. Usa el chat de texto abajo, o descarga la app para chatear con Irmixy usando tu voz.",

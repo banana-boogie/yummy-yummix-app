@@ -5,9 +5,12 @@ export type VoiceStatus = 'idle' | 'connecting' | 'listening' | 'processing' | '
 export type VoiceEvent =
     | 'statusChange' | 'transcript' | 'response' | 'error' | 'quotaWarning'
     // Refined transcript events for live transcript UI
+    | 'speechStarted'                // User started speaking (VAD detected voice)
     | 'userTranscriptComplete'       // Full user speech text after transcription
     | 'assistantTranscriptDelta'     // Streaming assistant text chunk
     | 'assistantTranscriptComplete'  // Full assistant response text
+    | 'responseInterrupted'          // Assistant response was interrupted/cancelled
+    | 'responseDone'                 // Non-cancelled response completed (safety net for missing transcript)
     // Tool call events
     | 'toolCall';                    // OpenAI wants to call a tool
 
@@ -34,7 +37,7 @@ export interface RecipeContext {
     currentStep?: number;
     totalSteps?: number;
     stepInstructions?: string;
-    ingredients?: Array<{ name: string; amount: string }>;
+    ingredients?: { name: string; amount: string }[];
     usefulItems?: string[];
 }
 

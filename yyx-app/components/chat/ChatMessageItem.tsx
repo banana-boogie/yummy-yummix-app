@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { View, TouchableOpacity, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from '@/components/common/Text';
 import { ChatRecipeCard } from '@/components/chat/ChatRecipeCard';
 import { CustomRecipeCard } from '@/components/chat/CustomRecipeCard';
@@ -20,6 +21,13 @@ import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '@/constants/design-tokens
 /** Strip markdown image syntax from text (used when recipe cards already show the images). */
 function stripMarkdownImages(content: string): string {
     return content.replace(/!\[.*?\]\(.*?\)\s*/g, '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/** Detect whether content contains markdown syntax worth parsing.
+ *  Plain text (e.g. voice transcripts) can skip the expensive Markdown renderer. */
+const MARKDOWN_PATTERN = /[#*_`~>|]|\[.+\]\(|^\s*[-+]\s/m;
+function hasMarkdownSyntax(content: string): boolean {
+    return MARKDOWN_PATTERN.test(content);
 }
 
 // ============================================================
@@ -119,9 +127,11 @@ export interface ChatMessageItemProps {
     item: ChatMessage;
     isLastMessage: boolean;
     isLoading: boolean;
-    isRecipeGenerating: boolean;
+    isRecipeGenerating?: boolean;
     currentStatus: IrmixyStatus;
     statusText: string;
+    /** Show Irmixy avatar next to assistant messages */
+    showAvatar?: boolean;
     onCopyMessage: (content: string) => void;
     onStartCooking: (recipe: GeneratedRecipe, finalName: string, messageId: string, savedRecipeId?: string) => Promise<void>;
     onActionPress: (action: QuickAction) => void;
@@ -131,9 +141,10 @@ export const ChatMessageItem = memo(function ChatMessageItem({
     item,
     isLastMessage,
     isLoading,
-    isRecipeGenerating,
+    isRecipeGenerating = false,
     currentStatus,
     statusText,
+    showAvatar = false,
     onCopyMessage,
     onStartCooking,
     onActionPress,
@@ -165,14 +176,29 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                         </Text>
                     </TouchableOpacity>
                 ) : (
-                    <Pressable
-                        onLongPress={() => onCopyMessage(item.content)}
-                        className="max-w-[80%] p-sm rounded-lg self-start bg-background-secondary"
-                    >
-                        <Markdown style={markdownStyles}>
-                            {displayContent}
-                        </Markdown>
-                    </Pressable>
+                    <View className="max-w-[85%] flex-row items-end gap-xs self-start">
+                        {showAvatar && (
+                            <Image
+                                source={require('@/assets/images/irmixy-avatar/irmixy-face.png')}
+                                style={{ width: 24, height: 24 }}
+                                contentFit="contain"
+                            />
+                        )}
+                        <Pressable
+                            onLongPress={() => onCopyMessage(item.content)}
+                            className="flex-1 p-sm rounded-lg bg-background-secondary"
+                        >
+                            {hasMarkdownSyntax(displayContent) ? (
+                                <Markdown style={markdownStyles}>
+                                    {displayContent}
+                                </Markdown>
+                            ) : (
+                                <Text className="text-base leading-relaxed text-text-default">
+                                    {displayContent}
+                                </Text>
+                            )}
+                        </Pressable>
+                    </View>
                 )
             )}
 
