@@ -46,6 +46,7 @@ export default function ChatPage() {
     const handleSelectSession = useCallback((newSessionId: string, sessionMessages: ChatMessage[]) => {
         updateSessionId(newSessionId);
         setMessages(sessionMessages);
+        setVoiceTranscriptMessages(sessionMessages);
     }, [updateSessionId]);
 
     const handleNewChat = useCallback(() => {

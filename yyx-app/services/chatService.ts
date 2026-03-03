@@ -568,7 +568,9 @@ export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]>
  * Load user's recent chat sessions.
  * Limited to 5 most recent sessions for performance.
  */
-export async function loadChatSessions(): Promise<{ id: string; title: string; createdAt: Date }[]> {
+export async function loadChatSessions(): Promise<
+    { id: string; title: string; createdAt: Date; source?: 'text' | 'voice' }[]
+> {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData?.user) {
         throw new Error('Not authenticated');
@@ -576,7 +578,7 @@ export async function loadChatSessions(): Promise<{ id: string; title: string; c
 
     const { data, error } = await supabase
         .from('user_chat_sessions')
-        .select('id, title, created_at')
+        .select('id, title, created_at, source')
         .eq('user_id', userData.user.id)
         .order('created_at', { ascending: false })
         .limit(5);
@@ -587,6 +589,7 @@ export async function loadChatSessions(): Promise<{ id: string; title: string; c
         id: session.id,
         title: session.title || i18n.t('chat.newChatTitle'),
         createdAt: new Date(session.created_at),
+        source: session.source as 'text' | 'voice' | undefined,
     }));
 }
 
@@ -650,10 +653,54 @@ export async function getLastSessionWithMessages(): Promise<{
 }
 
 /**
- * Get recently cooked recipes from user_events.
- * Note: eventService is batched/async with a 5-second flush interval,
- * so very recent cook_complete events may not be immediately available.
+ * Save voice chat transcript to backend (same tables as text chat).
+ * Fire-and-forget — errors are logged but don't surface to user.
  */
+export async function saveVoiceTranscript(
+    messages: ChatMessage[],
+): Promise<{ sessionId: string } | null> {
+    try {
+        if (messages.length === 0) return null;
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return null;
+
+        const serializedMessages = messages.map(msg => ({
+            role: msg.role,
+            content: msg.content,
+            ...(msg.recipes ? { recipes: msg.recipes } : {}),
+            ...(msg.customRecipe ? { customRecipe: msg.customRecipe } : {}),
+            ...(msg.safetyFlags ? { safetyFlags: msg.safetyFlags } : {}),
+        }));
+
+        const response = await fetch(
+            `${FUNCTIONS_BASE_URL}/irmixy-voice-orchestrator`,
+            {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'save_transcript',
+                    messages: serializedMessages,
+                }),
+            },
+        );
+
+        if (!response.ok) {
+            if (__DEV__) console.error('[saveVoiceTranscript] Failed:', response.status);
+            return null;
+        }
+
+        const data = await response.json();
+        return { sessionId: data.sessionId };
+    } catch (err) {
+        if (__DEV__) console.error('[saveVoiceTranscript] Error:', err);
+        return null;
+    }
+}
+
 export async function getRecentlyCookedRecipes(limit = 5): Promise<{
     recipeId: string;
     recipeName: string;
