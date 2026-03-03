@@ -3,6 +3,7 @@ import { View, TouchableOpacity, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Tabs, Redirect, usePathname, Link } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { VoiceSessionProvider } from '@/contexts/VoiceSessionContext';
 import { useDevice } from '@/hooks/useDevice';
 import { useTabBarVisibility } from '@/hooks/useTabBarVisibility';
 import { COLORS, LAYOUT, SPACING } from '@/constants/design-tokens';
@@ -32,26 +33,28 @@ export default function TabLayout() {
   if (!user) return <Redirect href="/auth/signup" />;
 
   return (
-    <View className="flex-1 flex-row">
-      {isLarge && <Sidebar />}
-      <Tabs
-        initialRouteName="chat"
-        screenOptions={{
-          headerShown: false,
-        }}
-        tabBar={(props) => isLarge ? null : <MobileTabBar {...props} />}
-      >
-        {TAB_CONFIG.map((tab) => (
-          <Tabs.Screen
-            key={tab.name}
-            name={tab.name}
-            options={{
-              href: tab.href,
-            }}
-          />
-        ))}
-      </Tabs>
-    </View>
+    <VoiceSessionProvider>
+      <View className="flex-1 flex-row">
+        {isLarge && <Sidebar />}
+        <Tabs
+          initialRouteName="chat"
+          screenOptions={{
+            headerShown: false,
+          }}
+          tabBar={(props) => isLarge ? null : <MobileTabBar {...props} />}
+        >
+          {TAB_CONFIG.map((tab) => (
+            <Tabs.Screen
+              key={tab.name}
+              name={tab.name}
+              options={{
+                href: tab.href,
+              }}
+            />
+          ))}
+        </Tabs>
+      </View>
+    </VoiceSessionProvider>
   );
 }
 

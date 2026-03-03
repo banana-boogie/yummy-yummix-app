@@ -1,23 +1,21 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { FlatList } from 'react-native';
 
 const SCROLL_THROTTLE_MS = 100;
-const SCROLL_DELAY_MS = 100;
 const SCROLL_THRESHOLD = 100;
 
 interface UseSmartScrollParams {
-    messagesLength: number;
     hasRecipeInCurrentStreamRef: React.MutableRefObject<boolean>;
 }
 
 export function useSmartScroll({
-    messagesLength,
     hasRecipeInCurrentStreamRef,
 }: UseSmartScrollParams) {
     const flatListRef = useRef<FlatList>(null);
     const lastScrollRef = useRef(0);
     const isNearBottomRef = useRef(true);
     const skipNextScrollToEndRef = useRef(false);
+    const prevContentHeightRef = useRef(0);
     const [showScrollButton, setShowScrollButton] = useState(false);
 
     const scrollToEndThrottled = useCallback((animated: boolean) => {
@@ -30,20 +28,34 @@ export function useSmartScroll({
         }
     }, []);
 
-    // Scroll to bottom when new messages arrive or content updates
-    // Skip when recipe card is showing (keeps recipe card pinned at top)
-    useEffect(() => {
-        if (messagesLength > 0) {
-            if (skipNextScrollToEndRef.current) {
-                skipNextScrollToEndRef.current = false;
-                return;
-            }
-            if (hasRecipeInCurrentStreamRef.current) return;
-            setTimeout(() => {
-                scrollToEndThrottled(true);
-            }, SCROLL_DELAY_MS);
+    /**
+     * Fires after FlatList content is laid out at its new size.
+     * This is the reliable moment to scroll — content is already rendered.
+     */
+    const handleContentSizeChange = useCallback((_width: number, height: number) => {
+        const grew = height > prevContentHeightRef.current;
+        prevContentHeightRef.current = height;
+
+        if (!grew) return;
+        if (skipNextScrollToEndRef.current) {
+            skipNextScrollToEndRef.current = false;
+            return;
         }
-    }, [messagesLength, scrollToEndThrottled, hasRecipeInCurrentStreamRef]);
+        if (hasRecipeInCurrentStreamRef.current) return;
+        if (!isNearBottomRef.current) return;
+
+        flatListRef.current?.scrollToEnd({ animated: false });
+    }, [hasRecipeInCurrentStreamRef]);
+
+    /**
+     * Fires when the FlatList layout changes (e.g. keyboard open/close).
+     * Scroll to end so the latest message stays visible.
+     */
+    const handleLayout = useCallback(() => {
+        if (isNearBottomRef.current && !hasRecipeInCurrentStreamRef.current) {
+            flatListRef.current?.scrollToEnd({ animated: false });
+        }
+    }, [hasRecipeInCurrentStreamRef]);
 
     const handleScroll = useCallback((event: any) => {
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
@@ -65,6 +77,8 @@ export function useSmartScroll({
         flatListRef,
         showScrollButton,
         scrollToEndThrottled,
+        handleContentSizeChange,
+        handleLayout,
         handleScroll,
         handleScrollToEnd,
         isNearBottomRef,

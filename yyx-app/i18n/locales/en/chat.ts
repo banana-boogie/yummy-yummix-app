@@ -4,6 +4,7 @@ export const chat = {
     "Hi! I'm Irmixy, your AI chef assistant. Ask me anything about cooking!",
   inputPlaceholder: "Ask Irmixy...",
   sendButton: "Send",
+  stopGenerating: "Stop generating",
   error: {
     default: "Sorry, something went wrong. Please try again.",
     messageTooLong:
@@ -47,7 +48,14 @@ export const chat = {
     errorPrefix: "Error: ",
     minsRemaining: "{{mins}} mins remaining",
     executingTool: "Working on it...",
+    searchingRecipes: "Looking for recipes for you",
+    modifyingRecipe: "Tweaking your recipe",
+    retrievingRecipes: "Checking your kitchen history",
+    generatingRecipe: "Creating something special",
+    micActive: "Mic active",
+    stopRecording: "Stop voice recording",
     micPermissionDenied: "Microphone access denied",
+    stop: "Stop",
     mobileOnly: {
       title: "Voice Chat",
       message: "Voice chat is available on our mobile app. Use text chat below, or download the app to chat with Irmixy using your voice.",

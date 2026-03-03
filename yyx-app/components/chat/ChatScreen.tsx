@@ -6,6 +6,7 @@ import {
     Platform,
     TouchableOpacity,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/common/Text';
@@ -84,12 +85,13 @@ export function ChatScreen({
         flatListRef,
         showScrollButton,
         scrollToEndThrottled,
+        handleContentSizeChange,
+        handleLayout,
         handleScroll,
         handleScrollToEnd,
         isNearBottomRef,
         skipNextScrollToEndRef,
     } = useSmartScroll({
-        messagesLength: messages.length,
         hasRecipeInCurrentStreamRef,
     });
 
@@ -219,7 +221,10 @@ export function ChatScreen({
         }
     }, [currentStatus]);
 
-    // Take main's hooks-based version — all send/copy/cooking logic moved to hooks
+    const handleStop = useCallback(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        resetStreamingState();
+    }, [resetStreamingState]);
 
     const lastMessageId = messages.length > 0 ? messages[messages.length - 1]?.id : null;
     const statusText = useMemo(() => getStatusText(), [getStatusText]);
@@ -228,14 +233,16 @@ export function ChatScreen({
     const showRecipeTracker = isRecipeGenerating && !latestMessage?.customRecipe;
 
     const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
+        const isLast = item.id === lastMessageId;
         return (
             <ChatMessageItem
                 item={item}
-                isLastMessage={item.id === lastMessageId}
-                isLoading={isLoading}
-                isRecipeGenerating={isRecipeGenerating}
-                currentStatus={currentStatus}
-                statusText={statusText}
+                isLastMessage={isLast}
+                isLoading={isLast ? isLoading : false}
+                isRecipeGenerating={isLast ? isRecipeGenerating : false}
+                currentStatus={isLast ? currentStatus : null}
+                statusText={isLast ? statusText : ''}
+                showAvatar
                 onCopyMessage={handleCopyMessage}
                 onStartCooking={handleStartCooking}
                 onActionPress={handleActionPress}
@@ -273,6 +280,8 @@ export function ChatScreen({
                         />
                     ) : null
                 }
+                onContentSizeChange={handleContentSizeChange}
+                onLayout={handleLayout}
                 onScroll={handleScroll}
                 scrollEventThrottle={200}
                 removeClippedSubviews={Platform.OS !== 'web'}
@@ -281,9 +290,6 @@ export function ChatScreen({
                 windowSize={5}
                 initialNumToRender={8}
                 getItemLayout={undefined}
-                maintainVisibleContentPosition={{
-                    minIndexForVisible: 0,
-                }}
                 onScrollToIndexFailed={(info) => {
                     setTimeout(() => {
                         flatListRef.current?.scrollToIndex({
@@ -338,6 +344,7 @@ export function ChatScreen({
                 isListening={isListening}
                 handleMicPress={handleMicPress}
                 handleSend={handleSend}
+                handleStop={handleStop}
                 pulseAnim={pulseAnim}
                 bottomInset={insets.bottom}
             />

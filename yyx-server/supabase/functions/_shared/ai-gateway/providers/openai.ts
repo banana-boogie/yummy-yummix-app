@@ -150,6 +150,7 @@ export async function callOpenAI(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(openaiRequest),
+    signal: request.signal,
   });
 
   if (!response.ok) {
@@ -227,6 +228,7 @@ export async function callOpenAIStream(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(openaiRequest),
+    signal: request.signal,
   });
 
   if (!response.ok) {
@@ -294,6 +296,8 @@ export async function callOpenAIStream(
   const stream = (async function* (): AsyncGenerator<string, void, unknown> {
     try {
       while (true) {
+        if (request.signal?.aborted) break;
+
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -318,6 +322,7 @@ export async function callOpenAIStream(
       }
     } finally {
       finalizeUsage(streamUsage);
+      reader.releaseLock();
     }
   })();
 

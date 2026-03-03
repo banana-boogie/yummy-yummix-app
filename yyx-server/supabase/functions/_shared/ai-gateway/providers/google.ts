@@ -384,6 +384,7 @@ export async function callGemini(
       "x-goog-api-key": apiKey,
     },
     body: JSON.stringify(geminiRequest),
+    signal: request.signal,
   });
 
   if (!response.ok) {
@@ -489,6 +490,7 @@ export async function* callGeminiStream(
       "x-goog-api-key": apiKey,
     },
     body: JSON.stringify(geminiRequest),
+    signal: request.signal,
   });
 
   if (!response.ok) {
@@ -512,34 +514,40 @@ export async function* callGeminiStream(
   const decoder = new TextDecoder();
   let buffer = "";
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  try {
+    while (true) {
+      if (request.signal?.aborted) break;
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || !trimmed.startsWith("data: ")) continue;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
 
-      try {
-        const json = JSON.parse(trimmed.slice(6));
-        const parts = json.candidates?.[0]?.content?.parts;
-        if (parts) {
-          for (const part of parts) {
-            if (part.text && !part.thought) {
-              yield part.text;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith("data: ")) continue;
+
+        try {
+          const json = JSON.parse(trimmed.slice(6));
+          const parts = json.candidates?.[0]?.content?.parts;
+          if (parts) {
+            for (const part of parts) {
+              if (part.text && !part.thought) {
+                yield part.text;
+              }
             }
           }
+        } catch {
+          console.warn("[ai-gateway:google] Skipped malformed SSE chunk", {
+            data: trimmed.slice(6, 200),
+          });
         }
-      } catch {
-        console.warn("[ai-gateway:google] Skipped malformed SSE chunk", {
-          data: trimmed.slice(6, 200),
-        });
       }
     }
+  } finally {
+    reader.releaseLock();
   }
 
   console.log("[ai-gateway:google] Stream completed", {

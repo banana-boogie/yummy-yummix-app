@@ -37,7 +37,7 @@ Deno.test("summarizeHistoryToolResults - search results with full attributes", (
   });
   assertEquals(
     result,
-    "[Showed 2 recipe(s): Banana Bread, 45 min, easy, 4 portions, allergens: gluten, eggs | Chocolate Cake, 60 min, medium, 8 portions]",
+    "(System: showed 2 recipe card(s) to user — Banana Bread, 45 min, easy, 4 portions, allergens: gluten, eggs | Chocolate Cake, 60 min, medium, 8 portions)",
   );
 });
 
@@ -50,7 +50,7 @@ Deno.test("summarizeHistoryToolResults - search results with partial attributes"
   });
   assertEquals(
     result,
-    "[Showed 2 recipe(s): Quick Salad | Pasta, 20 min]",
+    "(System: showed 2 recipe card(s) to user — Quick Salad | Pasta, 20 min)",
   );
 });
 
@@ -62,7 +62,7 @@ Deno.test("summarizeHistoryToolResults - single search result", () => {
   });
   assertEquals(
     result,
-    "[Showed 1 recipe(s): Soup, 30 min, easy, 4 portions]",
+    "(System: showed 1 recipe card(s) to user — Soup, 30 min, easy, 4 portions)",
   );
 });
 
@@ -82,7 +82,7 @@ Deno.test("summarizeHistoryToolResults - generated recipe with full attributes s
   });
   assertEquals(
     result,
-    '[Generated recipe: "Healthy Green Bowl"]',
+    '(System: recipe "Healthy Green Bowl" was generated via tool and shown to user in recipe card)',
   );
 });
 
@@ -99,7 +99,7 @@ Deno.test("summarizeHistoryToolResults - generated recipe shows only name regard
   });
   assertEquals(
     result,
-    '[Generated recipe: "Test Recipe"]',
+    '(System: recipe "Test Recipe" was generated via tool and shown to user in recipe card)',
   );
 });
 
@@ -109,7 +109,10 @@ Deno.test("summarizeHistoryToolResults - generated recipe with minimal attribute
       suggestedName: "Mystery Dish",
     },
   });
-  assertEquals(result, '[Generated recipe: "Mystery Dish"]');
+  assertEquals(
+    result,
+    '(System: recipe "Mystery Dish" was generated via tool and shown to user in recipe card)',
+  );
 });
 
 Deno.test("summarizeHistoryToolResults - both search results and generated recipe", () => {
@@ -125,7 +128,7 @@ Deno.test("summarizeHistoryToolResults - both search results and generated recip
   });
   assertEquals(
     result,
-    '[Showed 1 recipe(s): Pasta Salad, 15 min, easy, 4 portions] [Generated recipe: "Custom Pasta"]',
+    '(System: showed 1 recipe card(s) to user — Pasta Salad, 15 min, easy, 4 portions) (System: recipe "Custom Pasta" was generated via tool and shown to user in recipe card)',
   );
 });
 
@@ -166,7 +169,10 @@ Deno.test("summarizeHistoryToolResults - recipe with empty ingredients array", (
       totalTime: 10,
     },
   });
-  assertEquals(result, '[Generated recipe: "Empty Recipe"]');
+  assertEquals(
+    result,
+    '(System: recipe "Empty Recipe" was generated via tool and shown to user in recipe card)',
+  );
 });
 
 Deno.test("summarizeHistoryToolResults - recipe with ingredients missing name fields", () => {
@@ -176,13 +182,32 @@ Deno.test("summarizeHistoryToolResults - recipe with ingredients missing name fi
       ingredients: [{ amount: 1 }, { unit: "cup" }],
     },
   });
-  assertEquals(result, '[Generated recipe: "Weird Recipe"]');
+  assertEquals(
+    result,
+    '(System: recipe "Weird Recipe" was generated via tool and shown to user in recipe card)',
+  );
 });
 
 Deno.test("summarizeHistoryToolResults - unrelated keys are ignored", () => {
   assertEquals(
     summarizeHistoryToolResults({ someOtherKey: "value", count: 42 }),
     "",
+  );
+});
+
+Deno.test("summarizeHistoryToolResults - sanitizes interpolated summary fields", () => {
+  const result = summarizeHistoryToolResults({
+    recipes: [{
+      name: "Soup\x00",
+      allergenWarnings: ["nuts\x07", "\x01"],
+    }],
+    customRecipe: {
+      suggestedName: "Safe\x00Name",
+    },
+  });
+  assertEquals(
+    result,
+    '(System: showed 1 recipe card(s) to user — Soup, allergens: nuts) (System: recipe "SafeName" was generated via tool and shown to user in recipe card)',
   );
 });
 

@@ -133,6 +133,7 @@ serve(async (req) => {
       sanitizedMessage,
       log,
       requestId,
+      req.signal,
     );
   } catch (error) {
     log.error("Orchestrator error", error);
@@ -172,12 +173,27 @@ async function buildRequestContext(
 
   const systemPrompt = buildSystemPrompt(userContext, mealContext);
 
-  const messages: ChatMessage[] = [
-    { role: "system", content: systemPrompt },
-    ...userContext.conversationHistory.map((m) => ({
+  // Build message array from conversation history.
+  // Tool result summaries are injected as system-role messages (not appended to
+  // assistant content) so the LLM interprets them as context, not its own prior
+  // output — preventing it from mimicking the format instead of calling tools.
+  const historyMessages: ChatMessage[] = [];
+  for (const m of userContext.conversationHistory) {
+    historyMessages.push({
       role: m.role as "user" | "assistant",
       content: m.content,
-    })),
+    });
+    if (m.toolSummary) {
+      historyMessages.push({
+        role: "system",
+        content: m.toolSummary,
+      });
+    }
+  }
+
+  const messages: ChatMessage[] = [
+    { role: "system", content: systemPrompt },
+    ...historyMessages,
     { role: "user", content: message },
   ];
 
@@ -291,8 +307,18 @@ function handleStreamingRequest(
   message: string,
   log: Logger,
   requestId: string,
+  reqSignal?: AbortSignal,
 ): Response {
   const encoder = new TextEncoder();
+
+  // Unified abort controller: fires when client disconnects OR stream is cancelled
+  const abortController = new AbortController();
+  const signal = abortController.signal;
+  if (reqSignal) {
+    reqSignal.addEventListener("abort", () => abortController.abort(), {
+      once: true,
+    });
+  }
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -334,7 +360,7 @@ function handleStreamingRequest(
       };
 
       const send = (data: Record<string, unknown>) => {
-        if (streamClosed) return;
+        if (streamClosed || signal.aborted) return;
         safeEnqueue(
           encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
         );
@@ -381,6 +407,7 @@ function handleStreamingRequest(
             messages,
             true,
             "auto",
+            signal,
           );
         } catch (error) {
           void logAIUsage({
@@ -417,14 +444,19 @@ function handleStreamingRequest(
           detectedTool
         ) {
           log.warn(
-            "Detected tool call in text, retrying with required tool choice",
+            "Detected tool call in text, retrying with specific tool choice",
             {
               detectedTool,
             },
           );
           // Keep SSE alive before the retry call. `send(...)` resets stream timeout.
           send({ type: "status", status: "thinking" });
-          const retryResponse = await callAI(messages, true, "required");
+          const retryResponse = await callAI(
+            messages,
+            true,
+            { type: "function", function: { name: detectedTool } },
+            signal,
+          );
           selectedModel = retryResponse.model;
           Object.assign(assistantMessage, retryResponse.choices[0].message);
           timings.llm_retry_ms = Math.round(performance.now() - phaseStart);
@@ -457,6 +489,13 @@ function handleStreamingRequest(
             has_tool_calls: !!assistantMessage.tool_calls?.length,
           },
         });
+
+        if (signal.aborted) {
+          log.info("Request aborted by client (after first LLM call)");
+          clearStreamTimeout();
+          safeClose();
+          return;
+        }
 
         if (
           assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0
@@ -512,6 +551,13 @@ function handleStreamingRequest(
           }, ...toolResult.toolMessages];
         }
 
+        if (signal.aborted) {
+          log.info("Request aborted by client (after tool execution)");
+          clearStreamTimeout();
+          safeClose();
+          return;
+        }
+
         const hasSuccessfulCustomRecipe = !!customRecipeResult?.recipe &&
           customRecipeResult?.safetyFlags?.error !== true;
 
@@ -535,6 +581,7 @@ function handleStreamingRequest(
               }
               send({ type: "content", content: token });
             },
+            signal,
           );
           finalText = streamResult.content;
 
@@ -590,6 +637,13 @@ function handleStreamingRequest(
         // Signal that streaming is complete - frontend can enable input now
         send({ type: "stream_complete" });
 
+        if (signal.aborted) {
+          log.info("Request aborted by client (after streaming)");
+          clearStreamTimeout();
+          safeClose();
+          return;
+        }
+
         const response = await finalizeResponse(
           supabase,
           sessionId,
@@ -623,6 +677,12 @@ function handleStreamingRequest(
         clearStreamTimeout();
         safeClose();
       } catch (error) {
+        if (signal.aborted) {
+          log.info("Request aborted by client");
+          clearStreamTimeout();
+          safeClose();
+          return;
+        }
         log.error("Streaming error", error);
         send({
           type: "error",
@@ -631,6 +691,9 @@ function handleStreamingRequest(
         clearStreamTimeout();
         safeClose();
       }
+    },
+    cancel() {
+      abortController.abort();
     },
   });
 
