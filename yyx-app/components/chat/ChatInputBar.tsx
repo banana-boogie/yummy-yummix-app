@@ -23,6 +23,8 @@ interface ChatInputBarProps {
     handleStop?: () => void;
     pulseAnim: Animated.Value;
     bottomInset: number;
+    disabled?: boolean;
+    disabledMessage?: string;
 }
 
 export function ChatInputBar({
@@ -35,6 +37,8 @@ export function ChatInputBar({
     handleStop,
     pulseAnim,
     bottomInset,
+    disabled,
+    disabledMessage,
 }: ChatInputBarProps) {
     return (
         <View
@@ -48,8 +52,11 @@ export function ChatInputBar({
             {/* Mic pill — inside bordered section, above input row */}
             {Platform.OS !== 'web' && (!isLoading || isListening) && (
                 <TouchableOpacity
-                    onPress={handleMicPress}
+                    onPress={disabled ? undefined : handleMicPress}
+                    disabled={disabled}
                     activeOpacity={0.7}
+                    accessibilityLabel={isListening ? i18n.t('chat.voice.stopRecording') : i18n.t('chat.voice.tapToSpeak')}
+                    accessibilityRole="button"
                     style={{ paddingHorizontal: SPACING.md, marginBottom: SPACING.sm }}
                 >
                     <Animated.View
@@ -61,6 +68,7 @@ export function ChatInputBar({
                         style={[
                             { height: SPACING.xxl, paddingHorizontal: SPACING.md },
                             isListening ? { opacity: pulseAnim } : undefined,
+                            disabled ? { opacity: 0.5 } : undefined,
                         ]}
                     >
                         <MaterialCommunityIcons
@@ -86,14 +94,14 @@ export function ChatInputBar({
             >
                 <TextInput
                     className="flex-1 bg-background-secondary rounded-xl text-base text-text-primary"
-                    style={{ minHeight: SPACING.xxl, maxHeight: 120, paddingLeft: SPACING.md + 2, paddingRight: SPACING.sm, paddingTop: SPACING.sm, paddingBottom: SPACING.xs }}
+                    style={{ minHeight: SPACING.xxl, maxHeight: 120, paddingLeft: SPACING.md + 2, paddingRight: SPACING.sm, paddingTop: SPACING.sm, paddingBottom: SPACING.xs, opacity: disabled ? 0.5 : 1 }}
                     value={inputText}
                     onChangeText={setInputText}
-                    placeholder={isListening ? i18n.t('chat.voice.listening') : i18n.t('chat.inputPlaceholder')}
+                    placeholder={disabled && disabledMessage ? disabledMessage : isListening ? i18n.t('chat.voice.listening') : i18n.t('chat.inputPlaceholder')}
                     placeholderTextColor={COLORS.text.secondary}
                     multiline
                     maxLength={2000}
-                    editable={!isLoading}
+                    editable={!isLoading && !disabled}
                 />
                 {isLoading && handleStop ? (
                     <TouchableOpacity
@@ -114,7 +122,7 @@ export function ChatInputBar({
                         }`}
                         style={{ width: SPACING.xxl, height: SPACING.xxl, marginLeft: SPACING.xs }}
                         onPress={handleSend}
-                        disabled={!inputText.trim()}
+                        disabled={disabled || !inputText.trim()}
                     >
                         <MaterialCommunityIcons name="send" size={ICON_SIZE} color={COLORS.neutral.white} />
                     </TouchableOpacity>
