@@ -38,12 +38,11 @@ jest.mock('@/i18n', () => ({
       'chat.stopGenerating': 'Stop generating',
       'chat.voice.listening': 'Listening...',
       'chat.voice.tapToSpeak': 'Tap to speak',
-      'chat.budget.warningTitle': 'Usage Warning',
-      'chat.budget.warning': "You're approaching your monthly AI limit.",
-      'chat.budget.warningDetailed': `You've used $${params?.usedUsd} of your $${params?.budgetUsd} monthly AI budget.`,
-      'chat.budget.exceededTitle': 'Monthly Limit Reached',
-      'chat.budget.exceededMessage': "You've used your monthly AI budget. Your budget resets at the start of next month.",
-      'chat.budget.upgradeHint': 'Monthly AI limit reached',
+      'chat.budget.warningTitle': 'Heads up!',
+      'chat.budget.warningDetailed': "You've been cooking up a storm! You're close to your monthly Irmixy limit. It resets next month.",
+      'chat.budget.exceededTitle': 'Irmixy limit reached',
+      'chat.budget.exceededMessage': "You've reached your monthly Irmixy limit. Don't worry — it resets at the start of next month!",
+      'chat.budget.upgradeHint': 'Irmixy limit reached — resets next month',
     };
     return translations[key] || key;
   },
@@ -557,7 +556,7 @@ describe('ChatScreen', () => {
 
       // After budget exceeded, input should be disabled with hint text
       await waitFor(() => {
-        const refreshedInput = screen.getByPlaceholderText('Monthly AI limit reached');
+        const refreshedInput = screen.getByPlaceholderText('Irmixy limit reached — resets next month');
         expect(refreshedInput.props.editable).toBe(false);
       });
     });

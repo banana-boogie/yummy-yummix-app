@@ -137,7 +137,7 @@ export async function checkTextBudget(userId: string): Promise<BudgetStatus> {
     supabase
       .from("user_profiles")
       .select("membership_tier")
-      .eq("user_id", userId)
+      .eq("id", userId)
       .maybeSingle(),
     supabase
       .from("ai_budget_usage")
@@ -189,7 +189,7 @@ export async function checkVoiceBudget(
     supabase
       .from("user_profiles")
       .select("membership_tier")
-      .eq("user_id", userId)
+      .eq("id", userId)
       .maybeSingle(),
     supabase
       .from("ai_voice_usage")

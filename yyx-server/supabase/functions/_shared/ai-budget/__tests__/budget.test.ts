@@ -197,6 +197,75 @@ Deno.test("checkVoiceBudget - zero usage shows full remaining", () => {
 });
 
 // ============================================================
+// Exact boundary tests
+// ============================================================
+
+Deno.test("checkTextBudget - at 80% threshold triggers warning (premium, no float issues)", () => {
+  _clearTierCache();
+  _setTierCacheForTesting(TIERS);
+
+  // 80% of $2.00 = $1.60 exactly — no floating point ambiguity
+  const result = _computeTextBudgetResult("premium", 1.60);
+  assertEquals(result.allowed, true);
+  assertEquals(result.warning, "budget_warning");
+});
+
+Deno.test("checkTextBudget - just below 80% threshold has no warning", () => {
+  _clearTierCache();
+  _setTierCacheForTesting(TIERS);
+
+  // Just under 80% of $2.00 = $1.60
+  const result = _computeTextBudgetResult("premium", 1.59);
+  assertEquals(result.allowed, true);
+  assertEquals(result.warning, undefined);
+});
+
+Deno.test("checkVoiceBudget - exactly at 80% threshold triggers warning", () => {
+  _clearTierCache();
+  _setTierCacheForTesting(TIERS);
+
+  // 80% of 5 = 4.0 exactly
+  const result = _computeVoiceBudgetResult("free", 4.0);
+  assertEquals(result.allowed, true);
+  assertEquals(result.warning, "voice_budget_warning");
+});
+
+Deno.test("checkVoiceBudget - just below 80% threshold has no warning", () => {
+  _clearTierCache();
+  _setTierCacheForTesting(TIERS);
+
+  const result = _computeVoiceBudgetResult("free", 3.9);
+  assertEquals(result.allowed, true);
+  assertEquals(result.warning, undefined);
+});
+
+// ============================================================
+// Warning data shape tests
+// ============================================================
+
+Deno.test("checkTextBudget - warningData has correct fields when warning fires", () => {
+  _clearTierCache();
+  _setTierCacheForTesting(TIERS);
+
+  const result = _computeTextBudgetResult("premium", 1.70);
+  assertEquals(result.warning, "budget_warning");
+  assertEquals(typeof result.warningData, "object");
+  assertEquals(result.warningData!.usedUsd, 1.70);
+  assertEquals(result.warningData!.budgetUsd, 2.00);
+});
+
+Deno.test("checkVoiceBudget - warningData has correct fields when warning fires", () => {
+  _clearTierCache();
+  _setTierCacheForTesting(TIERS);
+
+  const result = _computeVoiceBudgetResult("premium", 25);
+  assertEquals(result.warning, "voice_budget_warning");
+  assertEquals(typeof result.warningData, "object");
+  assertEquals(result.warningData!.usedMinutes, 25);
+  assertEquals(result.warningData!.limitMinutes, 30);
+});
+
+// ============================================================
 // Tier fallback logic
 // ============================================================
 

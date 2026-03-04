@@ -80,3 +80,24 @@ Deno.test("calculateCost - large token counts", async () => {
   // 1 * 0.15 + 0.5 * 0.60 = 0.15 + 0.30 = 0.45
   assertEquals(Math.round(cost * 100) / 100, 0.45);
 });
+
+Deno.test("calculateCost - unknown model falls back to most expensive cached price", async () => {
+  _clearCache();
+  _setCacheForTesting([
+    {
+      model: "cheap-model",
+      inputPricePerMillion: 0.10,
+      outputPricePerMillion: 0.20,
+    },
+    {
+      model: "expensive-model",
+      inputPricePerMillion: 5.00,
+      outputPricePerMillion: 15.00,
+    },
+  ]);
+
+  // Unknown model should use expensive-model pricing (5.00 + 15.00 = 20.00 total)
+  const cost = await calculateCost("totally-unknown-model", 1000, 500);
+  // 1000/1M * 5.00 + 500/1M * 15.00 = 0.005 + 0.0075 = 0.0125
+  assertEquals(Math.round(cost * 10000) / 10000, 0.0125);
+});
