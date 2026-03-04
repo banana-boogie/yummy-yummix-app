@@ -148,5 +148,6 @@ export async function callAnthropic(
       inputTokens: data.usage.input_tokens,
       outputTokens: data.usage.output_tokens,
     },
+    costUsd: 0, // Calculated by gateway
   };
 }

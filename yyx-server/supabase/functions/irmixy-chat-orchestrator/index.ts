@@ -38,6 +38,12 @@ import { buildSystemPrompt } from "./system-prompt.ts";
 import { callAI, callAIStream } from "./ai-calls.ts";
 import { errorResponse, finalizeResponse } from "./response-builder.ts";
 import { detectTextToolCall, stripToolCallText } from "./tool-call-text.ts";
+import {
+  BudgetCheckUnavailableError,
+  checkTextBudget,
+} from "../_shared/ai-budget/index.ts";
+import { checkRateLimit } from "../_shared/ai-budget/rate-limiter.ts";
+import type { CostContext } from "../_shared/ai-gateway/types.ts";
 
 // ============================================================
 // Config
@@ -109,6 +115,67 @@ serve(async (req) => {
 
     log.info("User authenticated", { userId: user.id.substring(0, 8) + "..." });
 
+    // Rate limit check (in-memory, no DB)
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: "rate_limited",
+          retryAfterMs: rateCheck.retryAfterMs,
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": String(
+              Math.ceil((rateCheck.retryAfterMs || 1000) / 1000),
+            ),
+          },
+        },
+      );
+    }
+
+    // Budget check
+    let budget: Awaited<ReturnType<typeof checkTextBudget>>;
+    try {
+      budget = await checkTextBudget(user.id);
+    } catch (error) {
+      if (error instanceof BudgetCheckUnavailableError) {
+        log.error("Budget check unavailable", { message: error.message });
+        return new Response(
+          JSON.stringify({
+            error: "budget_unavailable",
+          }),
+          {
+            status: 503,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      throw error;
+    }
+
+    if (!budget.allowed) {
+      log.info("Budget exceeded", {
+        tier: budget.tier,
+        usedUsd: budget.usedUsd,
+        budgetUsd: budget.budgetUsd,
+      });
+      return new Response(
+        JSON.stringify({
+          error: "budget_exceeded",
+          tier: budget.tier,
+          usedUsd: budget.usedUsd,
+          budgetUsd: budget.budgetUsd,
+        }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     // Sanitize the incoming message
     const sanitizedMessage = sanitizeContent(message);
     log.info("Message sanitized", {
@@ -123,6 +190,12 @@ serve(async (req) => {
     );
     const effectiveSessionId = sessionResult.sessionId ?? sessionId;
 
+    // Build cost context for automatic recording
+    const costContext: CostContext = {
+      userId: user.id,
+      edgeFunction: "irmixy-chat-orchestrator",
+    };
+
     // Always use streaming — all clients use SSE
     return handleStreamingRequest(
       supabase,
@@ -131,6 +204,8 @@ serve(async (req) => {
       sanitizedMessage,
       log,
       req.signal,
+      costContext,
+      budget.warningData,
     );
   } catch (error) {
     log.error("Orchestrator error", error);
@@ -210,6 +285,7 @@ async function executeToolCalls(
   userContext: UserContext,
   log: Logger,
   onPartialRecipe?: PartialRecipeCallback,
+  costContext?: CostContext,
 ): Promise<ToolExecutionResult> {
   const toolMessages: ChatMessage[] = [];
   let recipes: RecipeCard[] | undefined;
@@ -227,6 +303,7 @@ async function executeToolCalls(
           userContext,
           {
             onPartialRecipe,
+            costContext,
           },
         );
 
@@ -302,6 +379,8 @@ function handleStreamingRequest(
   message: string,
   log: Logger,
   reqSignal?: AbortSignal,
+  costContext?: CostContext,
+  budgetWarning?: { usedUsd: number; budgetUsd: number },
 ): Response {
   const encoder = new TextEncoder();
 
@@ -371,6 +450,14 @@ function handleStreamingRequest(
         if (sessionId) {
           send({ type: "session", sessionId });
         }
+        // Send budget warning early so frontend can display it
+        if (budgetWarning) {
+          send({
+            type: "budget_warning",
+            usedUsd: budgetWarning.usedUsd,
+            budgetUsd: budgetWarning.budgetUsd,
+          });
+        }
         send({ type: "status", status: "thinking" });
 
         const { userContext, messages } = await buildRequestContext(
@@ -392,6 +479,7 @@ function handleStreamingRequest(
           true,
           "auto",
           signal,
+          costContext,
         );
         selectedModel = firstResponse.model;
         timings.llm_call_ms = Math.round(performance.now() - phaseStart);
@@ -420,6 +508,7 @@ function handleStreamingRequest(
             true,
             { type: "function", function: { name: detectedTool } },
             signal,
+            costContext,
           );
           selectedModel = retryResponse.model;
           Object.assign(assistantMessage, retryResponse.choices[0].message);
@@ -465,6 +554,7 @@ function handleStreamingRequest(
               userContext,
               log,
               onPartialRecipe,
+              costContext,
             );
           } finally {
             clearInterval(heartbeatId);
@@ -511,7 +601,7 @@ function handleStreamingRequest(
         // Stream AI response — text first, then tool results arrive in the done event.
         let finalText: string;
         try {
-          finalText = await callAIStream(
+          const streamResult = await callAIStream(
             streamMessages,
             (token) => {
               // First token arrived — stop heartbeat, real data is flowing
@@ -522,7 +612,9 @@ function handleStreamingRequest(
               send({ type: "content", content: token });
             },
             signal,
+            costContext,
           );
+          finalText = streamResult.content;
         } finally {
           if (!heartbeatCleared) clearInterval(streamHeartbeatId);
         }

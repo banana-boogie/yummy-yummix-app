@@ -32,7 +32,7 @@ export function VoiceAssistantButton({
         onQuotaWarning: (info: QuotaInfo) => {
             Alert.alert(
                 i18n.t('chat.voice.quotaWarningTitle'),
-                info.warning || i18n.t('chat.voice.quotaWarning', { minutes: info.remainingMinutes.toFixed(1) }),
+                i18n.t('chat.voice.quotaWarning', { minutes: info.remainingMinutes.toFixed(1) }),
                 [{ text: i18n.t('common.ok') }]
             );
         }

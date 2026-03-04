@@ -171,7 +171,6 @@ Custom PostgreSQL functions for RPC calls are documented in `docs/DATABASE_FUNCT
 - `find_closest_ingredient(name, lang)` — Fuzzy ingredient search with language preference
 - `admin_analytics(action, timeframe, limit)` — Admin dashboard metrics
 - `is_admin()` — Check current user's admin status
-- `check_and_increment_ai_generation_usage(user_id, limit)` — Atomic budget check + increment
 - `get_cooked_recipes(language, query, after, before, limit)` — Current user's cooked recipe history with optional search and date range
 
 To list all available functions:

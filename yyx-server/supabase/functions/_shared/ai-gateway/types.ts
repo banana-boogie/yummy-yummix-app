@@ -22,6 +22,13 @@ export interface AIMessage {
   content: string;
 }
 
+/** Context for automatic cost recording (fire-and-forget) */
+export interface CostContext {
+  userId: string;
+  edgeFunction: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface AICompletionRequest {
   /** The type of usage, used for routing to the appropriate model */
   usageType: AIUsageType;
@@ -49,6 +56,8 @@ export interface AICompletionRequest {
   };
   /** Optional: AbortSignal to cancel in-flight requests */
   signal?: AbortSignal;
+  /** Optional: Cost context for automatic recording */
+  costContext?: CostContext;
 }
 
 export interface AITool {
@@ -64,6 +73,7 @@ export interface AICompletionResponse {
     inputTokens: number;
     outputTokens: number;
   };
+  costUsd: number;
   toolCalls?: AIToolCall[];
 }
 
@@ -84,12 +94,29 @@ export interface AIEmbeddingRequest {
   text: string;
   /** Optional: Override the default embedding model */
   model?: string;
+  /** Optional: Cost context for automatic recording */
+  costContext?: CostContext;
 }
 
 export interface AIEmbeddingResponse {
   embedding: number[];
   model: string;
   usage: { inputTokens: number };
+  costUsd: number;
+}
+
+/** Usage data from a completed stream */
+export interface StreamUsageData {
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  model: string;
+}
+
+/** Result from chatStream — provides stream + deferred usage */
+export interface AIStreamResult {
+  stream: AsyncGenerator<string, void, unknown>;
+  usage: () => Promise<StreamUsageData>;
 }
 
 /** Configuration mapping usage types to provider/model */

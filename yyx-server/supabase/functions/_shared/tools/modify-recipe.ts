@@ -32,6 +32,7 @@ import {
 } from "./generate-custom-recipe.ts";
 import { checkRecipeSafety } from "../food-safety.ts";
 import { chat } from "../ai-gateway/index.ts";
+import type { CostContext } from "../ai-gateway/types.ts";
 import { hasThermomix } from "../equipment-utils.ts";
 
 // ============================================================
@@ -176,6 +177,7 @@ export async function modifyRecipe(
   rawParams: unknown,
   userContext: UserContext,
   onPartialRecipe?: PartialRecipeCallback,
+  costContext?: CostContext,
 ): Promise<GenerateRecipeResult> {
   const timings: Record<string, number> = {};
   const totalStart = performance.now();
@@ -229,6 +231,7 @@ export async function modifyRecipe(
         type: "json_schema",
         schema: recipeSchema,
       },
+      costContext,
     });
 
     try {

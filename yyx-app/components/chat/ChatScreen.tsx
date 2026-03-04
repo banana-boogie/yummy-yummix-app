@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
+    Alert,
     View,
     FlatList,
     KeyboardAvoidingView,
@@ -19,7 +20,7 @@ import { useMessageStreaming } from '@/hooks/chat/useMessageStreaming';
 import { useSmartScroll } from '@/hooks/chat/useSmartScroll';
 import { useResumeSession } from '@/hooks/chat/useResumeSession';
 import { useChatMessageActions } from '@/hooks/chat/useChatMessageActions';
-import type { ChatMessage, IrmixyStatus } from '@/services/chatService';
+import type { BudgetWarningPayload, ChatMessage, IrmixyStatus } from '@/services/chatService';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -119,6 +120,24 @@ export function ChatScreen({
         }
     }, [resumeSession, setResumeSession]);
 
+    // --- Budget state ---
+    const [isBudgetExceeded, setIsBudgetExceeded] = useState(false);
+
+    const handleBudgetWarning = useCallback((_warning: BudgetWarningPayload) => {
+        Alert.alert(
+            i18n.t('chat.budget.warningTitle'),
+            i18n.t('chat.budget.warningDetailed'),
+        );
+    }, []);
+
+    const handleBudgetExceeded = useCallback(() => {
+        setIsBudgetExceeded(true);
+        Alert.alert(
+            i18n.t('chat.budget.exceededTitle'),
+            i18n.t('chat.budget.exceededMessage'),
+        );
+    }, []);
+
     // --- Speech recognition (uses a ref-based callback to avoid stale closure) ---
     const setInputTextRef = useRef<(text: string) => void>(() => {});
     const { isListening, pulseAnim, handleMicPress, stopAndGuard } = useSpeechRecognition({
@@ -151,6 +170,8 @@ export function ChatScreen({
         hasRecipeInCurrentStreamRef,
         flatListRef,
         onResumeSessionClear,
+        onBudgetWarning: handleBudgetWarning,
+        onBudgetExceeded: handleBudgetExceeded,
     });
 
     // Wire speech recognition to streaming hook's setInputText
@@ -174,6 +195,7 @@ export function ChatScreen({
         if (nextSessionId !== currentSessionId) {
             resetStreamingState();
             setCurrentSessionId(nextSessionId);
+            setIsBudgetExceeded(false);
             if (nextSessionId) {
                 setResumeSession(null);
             }
@@ -189,6 +211,7 @@ export function ChatScreen({
         ) {
             setResumeSession(null);
             setResumeDismissed(true);
+            setIsBudgetExceeded(false);
         }
         prevNewChatSignalRef.current = newChatSignal;
     }, [newChatSignal, setResumeSession]);
@@ -347,6 +370,8 @@ export function ChatScreen({
                 handleStop={handleStop}
                 pulseAnim={pulseAnim}
                 bottomInset={insets.bottom}
+                disabled={isBudgetExceeded}
+                disabledMessage={isBudgetExceeded ? i18n.t('chat.budget.upgradeHint') : undefined}
             />
           </View>
         </KeyboardAvoidingView>
