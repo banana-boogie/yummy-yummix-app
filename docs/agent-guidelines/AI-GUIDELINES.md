@@ -124,17 +124,17 @@ const embedding = await embed({
 
 ### Usage Types
 
-| Type                  | Default Model                    | Config            | Use Case                                     | Cost     |
-| --------------------- | -------------------------------- | ----------------- | -------------------------------------------- | -------- |
-| `text`                | google/gemini-2.5-flash          | thinking: minimal | Chat orchestrator (tool calling + streaming) | Low      |
-| `recipe_generation`   | google/gemini-2.5-flash          | thinking: minimal | Recipe generation (structured JSON output)   | Low      |
-| `recipe_modification` | google/gemini-2.5-flash          | thinking: minimal | Recipe modification (transform existing JSON)| Low      |
-| `parsing`             | openai/gpt-4.1-nano              | temperature: `1`  | Admin parsing, nutritional data extraction   | Very low |
-| `embedding`           | openai/text-embedding-3-large    | N/A               | Vector search (3072 dimensions)              | Low      |
+| Type                  | Default Model                    | Config                        | Use Case                                                    | Cost     |
+| --------------------- | -------------------------------- | ----------------------------- | ----------------------------------------------------------- | -------- |
+| `text`                | google/gemini-2.5-flash          | thinking: minimal             | Chat orchestrator (tool calling + streaming)                | Low      |
+| `recipe_generation`   | google/gemini-2.5-flash          | thinking: minimal             | Recipe generation (legacy single-stage, used by `modify_recipe`) | Low      |
+| `recipe_creation`     | openai/gpt-5-mini                | maxTokens: `4096`             | Stage 1 recipe generation (natural language output)         | Low      |
+| `recipe_formatting`   | openai/gpt-5-nano                | maxTokens: `4096` + JSON schema | Stage 2 recipe formatting (structured JSON output)        | Very low |
+| `recipe_modification` | google/gemini-2.5-flash          | thinking: minimal             | Recipe modification (transform existing JSON)               | Low      |
+| `parsing`             | openai/gpt-4.1-nano              | temperature: `1`              | Admin parsing, nutritional data extraction                  | Very low |
+| `embedding`           | openai/text-embedding-3-large    | N/A                           | Vector search (3072 dimensions)                             | Low      |
 
-Override via env vars (supports `provider:model` format):
-`AI_TEXT_MODEL=openai:gpt-4.1-mini`, `AI_RECIPE_GENERATION_MODEL=gemini-2.5-flash`,
-`AI_RECIPE_MODIFICATION_MODEL`, `AI_PARSING_MODEL`.
+Routing is hardcoded in `ai-gateway/router.ts`. To swap models/providers, edit the config and redeploy.
 
 ### Design Pattern
 
