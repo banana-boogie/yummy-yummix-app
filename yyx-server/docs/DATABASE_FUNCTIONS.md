@@ -11,7 +11,7 @@ Custom PostgreSQL functions available via Supabase RPC.
 | `find_closest_ingredient(name, lang)` | Find ingredient by fuzzy name match | Custom recipe generation |
 | `update_ai_voice_usage()` | Track AI voice minutes | Voice endpoints |
 | `upsert_cooking_session_progress(recipe_id, recipe_type, recipe_name, current_step, total_steps)` | Upsert active cooking progress per user+recipe | Cooking guide progress + resume prompt |
-| `get_cooked_recipes(p_user_id, p_query_text, p_limit)` | Retrieve user's cooked recipe history with optional search | Cooked recipes tool |
+| `get_cooked_recipes(p_language, p_query, p_after, p_before, p_limit)` | Retrieve user's cooked recipe history with optional search and date range | Cooked recipes tool |
 | `match_recipe_embeddings(query_embedding, match_threshold, match_count)` | Vector similarity search for published recipes | Hybrid recipe search tool |
 
 ## Function Details
