@@ -28,6 +28,7 @@ import {
   BudgetCheckUnavailableError,
   checkVoiceBudget,
 } from "../_shared/ai-budget/index.ts";
+import type { CostContext } from "../_shared/ai-gateway/types.ts";
 
 const ALLOWED_VOICE_TOOLS = new Set(getAllowedVoiceToolNames());
 const ALLOWED_ACTIONS = new Set(
@@ -267,11 +268,22 @@ async function handleExecuteTool(
     ? toolArgs
     : JSON.stringify(toolArgs);
 
+  const costContext: CostContext = {
+    userId,
+    edgeFunction: "irmixy-voice-orchestrator",
+    metadata: {
+      action: "execute_tool",
+      toolName,
+      ...(sessionId ? { sessionId } : {}),
+    },
+  };
+
   const result = await executeTool(
     supabase,
     toolName,
     argsString,
     userContext,
+    { costContext },
   );
 
   const elapsed = Math.round(performance.now() - startTime);

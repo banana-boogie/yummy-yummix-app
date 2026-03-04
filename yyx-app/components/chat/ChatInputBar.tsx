@@ -40,6 +40,8 @@ export function ChatInputBar({
     disabled,
     disabledMessage,
 }: ChatInputBarProps) {
+    const isMicDisabled = Boolean(disabled);
+
     return (
         <View
             className="border-t border-border-default bg-background-default"
@@ -52,7 +54,8 @@ export function ChatInputBar({
             {/* Mic pill — inside bordered section, above input row */}
             {Platform.OS !== 'web' && (!isLoading || isListening) && (
                 <TouchableOpacity
-                    onPress={handleMicPress}
+                    onPress={isMicDisabled ? undefined : handleMicPress}
+                    disabled={isMicDisabled}
                     activeOpacity={0.7}
                     style={{ paddingHorizontal: SPACING.md, marginBottom: SPACING.sm }}
                 >
@@ -65,6 +68,7 @@ export function ChatInputBar({
                         style={[
                             { height: SPACING.xxl, paddingHorizontal: SPACING.md },
                             isListening ? { opacity: pulseAnim } : undefined,
+                            isMicDisabled ? { opacity: 0.5 } : undefined,
                         ]}
                     >
                         <MaterialCommunityIcons
