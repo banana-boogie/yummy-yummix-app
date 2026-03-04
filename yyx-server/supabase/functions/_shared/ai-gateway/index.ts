@@ -5,9 +5,7 @@
  * ALL operations are routed through this gateway, which uses
  * the router to determine the appropriate provider and model.
  *
- * To switch providers:
- * 1. Modify router.ts default config, OR
- * 2. Set environment variables: AI_TEXT_MODEL, AI_RECIPE_GENERATION_MODEL, AI_PARSING_MODEL
+ * To switch providers, modify router.ts default config and redeploy.
  */
 
 import {
@@ -23,6 +21,8 @@ import {
   callOpenAIStream,
 } from "./providers/openai.ts";
 import { callGemini, callGeminiStream } from "./providers/google.ts";
+import { callAnthropic } from "./providers/anthropic.ts";
+import { callXAI, callXAIStream } from "./providers/xai.ts";
 
 /**
  * Make an AI chat request.
@@ -44,10 +44,13 @@ export async function chat(
       return callOpenAI(request, model, apiKey);
 
     case "anthropic":
-      throw new Error("Anthropic provider not yet implemented");
+      return callAnthropic(request, model, apiKey);
 
     case "google":
       return callGemini(request, model, apiKey);
+
+    case "xai":
+      return callXAI(request, model, apiKey);
 
     default:
       throw new Error(`Unknown provider: ${config.provider}`);
@@ -75,10 +78,16 @@ export async function* chatStream(
       break;
 
     case "anthropic":
-      throw new Error("Anthropic streaming not yet implemented");
+      throw new Error(
+        "Anthropic streaming not implemented — use chat() instead",
+      );
 
     case "google":
       yield* callGeminiStream(request, model, apiKey);
+      break;
+
+    case "xai":
+      yield* callXAIStream(request, model, apiKey);
       break;
 
     default:
@@ -107,10 +116,13 @@ export async function embed(
         return await callOpenAIEmbedding(request.text, model, apiKey);
 
       case "anthropic":
-        throw new Error("Anthropic embeddings not yet implemented");
+        throw new Error("Anthropic embeddings not supported");
 
       case "google":
         throw new Error("Google embeddings not yet implemented");
+
+      case "xai":
+        throw new Error("xAI embeddings not supported");
 
       default:
         throw new Error(`Unknown provider: ${config.provider}`);

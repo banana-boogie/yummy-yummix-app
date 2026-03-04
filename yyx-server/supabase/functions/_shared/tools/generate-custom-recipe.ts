@@ -156,14 +156,14 @@ export async function generateCustomRecipe(
     );
   }
 
-  // Generate the recipe using AI
-  const recipe = await callRecipeGenerationAI(
+  // Generate the recipe using AI (two-stage pipeline)
+  const { recipe, timings: recipeTimings } = await callRecipeGenerationAI(
     params,
     userContext,
     safetyReminders,
     allergenWarning ? { allergenWarning } : undefined,
   );
-  timings.recipe_llm_ms = Math.round(performance.now() - phaseStart);
+  Object.assign(timings, recipeTimings);
   phaseStart = performance.now();
 
   // Validate Thermomix parameters if present
@@ -236,8 +236,72 @@ export async function generateCustomRecipe(
 // ============================================================
 
 /**
- * Build a JSON schema for structured output based on whether user has Thermomix.
- * Non-Thermomix users get a simpler schema (fewer output tokens).
+ * Build JSON schema for Stage 2 formatting — simplified, no constants/computable fields.
+ * Removed: schemaVersion, language, measurementSystem, tags, steps[].order, steps[].ingredientsUsed
+ * Renamed: suggestedName → recipeName
+ * Exported for testing.
+ */
+export function buildFormattingJsonSchema(
+  hasThermomix: boolean,
+): Record<string, unknown> {
+  const stepProperties: Record<string, unknown> = {
+    instruction: { type: "string" },
+  };
+  const stepRequired = ["instruction"];
+
+  if (hasThermomix) {
+    stepProperties.thermomixTime = { type: ["integer", "null"] };
+    stepProperties.thermomixTemp = { type: ["string", "null"] };
+    stepProperties.thermomixSpeed = { type: ["string", "null"] };
+    stepRequired.push("thermomixTime", "thermomixTemp", "thermomixSpeed");
+  }
+
+  return {
+    type: "object",
+    properties: {
+      recipeName: { type: "string" },
+      description: { type: "string" },
+      ingredients: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            quantity: { type: "number" },
+            unit: { type: "string" },
+          },
+          required: ["name", "quantity", "unit"],
+          additionalProperties: false,
+        },
+      },
+      steps: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: stepProperties,
+          required: stepRequired,
+          additionalProperties: false,
+        },
+      },
+      totalTime: { type: "integer" },
+      difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+      portions: { type: "integer" },
+    },
+    required: [
+      "recipeName",
+      "description",
+      "ingredients",
+      "steps",
+      "totalTime",
+      "difficulty",
+      "portions",
+    ],
+    additionalProperties: false,
+  };
+}
+
+/**
+ * Legacy full schema — still used by modify_recipe (single-stage).
  * Exported for testing.
  */
 export function buildRecipeJsonSchema(
@@ -309,109 +373,144 @@ export function buildRecipeJsonSchema(
   };
 }
 
+// ============================================================
+// Two-Stage Pipeline Helpers
+// ============================================================
+
 /**
- * Call AI Gateway to generate the recipe.
- * Uses the 'recipe_generation' usage type for structured recipe output.
- * Uses one local retry if parsing/validation fails.
+ * Infer which ingredients are used in a step by case-insensitive string matching.
+ * Exported for testing.
  */
-async function callRecipeGenerationAI(
-  params: GenerateRecipeParams,
-  userContext: UserContext,
-  safetyReminders: string,
-  options?: {
-    allergenWarning?: string;
-  },
-): Promise<GeneratedRecipe> {
-  const prompt = buildRecipePrompt(
-    params,
-    userContext,
-    safetyReminders,
-    options,
-  );
-  const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
-  const recipeSchema = buildRecipeJsonSchema(isThermomixUser);
-  const systemPrompt = getSystemPrompt(userContext);
-
-  const strictRetryPromptSuffix =
-    "\n\nCRITICAL: Return ONLY raw JSON. No markdown, no code fences, no explanation text.";
-
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const isRetry = attempt === 1;
-    const response = await chat({
-      usageType: "recipe_generation",
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: isRetry ? prompt + strictRetryPromptSuffix : prompt,
-        },
-      ],
-      temperature: 0.7,
-      maxTokens: 6144,
-      responseFormat: {
-        type: "json_schema",
-        schema: recipeSchema,
-      },
-    });
-
-    try {
-      return parseAndValidateGeneratedRecipe(response.content);
-    } catch (error) {
-      lastError = error instanceof Error
-        ? error
-        : new Error("Recipe parsing failed");
-      if (!isRetry) {
-        console.warn(
-          "[Recipe Generation] First parse/validation attempt failed, retrying once",
-          {
-            error: lastError.message,
-          },
-        );
-      }
-    }
-  }
-
-  throw lastError || new Error("Generated recipe does not match schema");
+export function inferIngredientsUsed(
+  steps: Array<{ instruction: string }>,
+  ingredients: Array<{ name: string }>,
+): Array<string[]> {
+  return steps.map((step) => {
+    const instructionLower = step.instruction.toLowerCase();
+    return ingredients
+      .filter((ing) => instructionLower.includes(ing.name.toLowerCase()))
+      .map((ing) => ing.name);
+  });
 }
 
-export function parseAndValidateGeneratedRecipe(
-  content: string,
-): GeneratedRecipe {
-  // Strip code fences if model wraps response in ```json ... ```
-  let jsonContent = content.trim();
-  if (jsonContent.startsWith("```")) {
-    jsonContent = jsonContent
-      .replace(/^```(?:json)?\s*\n?/, "")
-      .replace(/\n?```\s*$/, "");
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(jsonContent);
-  } catch {
-    console.error(
-      "Failed to parse recipe JSON:",
-      jsonContent.slice(0, 500),
-    );
-    throw new Error("Invalid recipe JSON from AI");
-  }
-
-  const result = GeneratedRecipeSchema.safeParse(parsed);
-  if (!result.success) {
-    console.error("Recipe validation failed:", result.error.issues);
-    throw new Error("Generated recipe does not match schema");
-  }
-
-  // Force empty tags — AI-generated tags are never displayed in UI
-  result.data.tags = [];
-
-  return result.data;
+/** Shape of Stage 2 formatted output (before post-processing) */
+interface FormattedRecipe {
+  recipeName: string;
+  description: string;
+  ingredients: Array<{ name: string; quantity: number; unit: string }>;
+  steps: Array<{
+    instruction: string;
+    thermomixTime?: number | null;
+    thermomixTemp?: string | null;
+    thermomixSpeed?: string | null;
+  }>;
+  totalTime: number;
+  difficulty: "easy" | "medium" | "hard";
+  portions: number;
 }
 
 /**
- * Build the system prompt for recipe generation.
+ * Post-process Stage 2 formatted output into GeneratedRecipe shape.
+ * Maps recipeName → suggestedName, injects constants, computes order + ingredientsUsed.
+ * Exported for testing.
+ */
+export function postProcessFormattedRecipe(
+  formatted: FormattedRecipe,
+  userContext: {
+    language: "en" | "es";
+    measurementSystem: "imperial" | "metric";
+  },
+): Record<string, unknown> {
+  const ingredientsUsedPerStep = inferIngredientsUsed(
+    formatted.steps,
+    formatted.ingredients,
+  );
+
+  return {
+    schemaVersion: "1.0",
+    suggestedName: formatted.recipeName,
+    description: formatted.description,
+    measurementSystem: userContext.measurementSystem,
+    language: userContext.language,
+    ingredients: formatted.ingredients,
+    steps: formatted.steps.map((step, i) => ({
+      ...step,
+      order: i + 1,
+      ingredientsUsed: ingredientsUsedPerStep[i],
+    })),
+    totalTime: formatted.totalTime,
+    difficulty: formatted.difficulty,
+    portions: formatted.portions,
+    tags: [],
+  };
+}
+
+// ============================================================
+// System Prompts
+// ============================================================
+
+/**
+ * Stage 1 system prompt — focuses on cooking knowledge and creativity.
+ * No JSON formatting instructions — model outputs natural language.
+ * Exported for testing.
+ */
+export function getCreationSystemPrompt(userContext: UserContext): string {
+  const lang = userContext.language === "es" ? "Mexican Spanish" : "English";
+  const units = userContext.measurementSystem === "imperial"
+    ? "cups, tablespoons, teaspoons, ounces, pounds, °F"
+    : "ml, liters, grams, kg, °C";
+
+  const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
+
+  console.log("[Recipe Creation] Equipment check:", {
+    kitchenEquipment: userContext.kitchenEquipment,
+    hasThermomix: isThermomixUser,
+  });
+
+  const thermomixSection = isThermomixUser
+    ? `
+
+## THERMOMIX USAGE (User owns Thermomix — maximize usage!)
+
+For each applicable step, specify Thermomix parameters:
+- Time in seconds (e.g., 180 for 3 minutes)
+- Temperature: "37°C"-"120°C" or "Varoma"
+- Speed: "1"-"10", "Spoon", "Reverse", or "Reverse 1"-"Reverse 10"
+
+Use Thermomix for: chopping (speed 5-7), sautéing (100°C, Reverse 1), cooking/boiling (temp+speed), blending (speed 8-10), steaming (Varoma)
+Skip Thermomix for: plating, garnishing, oven/grill tasks, manual shaping
+Temperature guidance: low (37-60°C for melting/gentle warming), medium (70-100°C for simmering/cooking), high (100-120°C for sautéing/reduction), Varoma (~120°C for steaming)`
+    : "";
+
+  return `You are an expert recipe creator. Write recipes in ${lang} using ${userContext.measurementSystem} units (${units}).
+
+RULES:
+- Use practical quantities (1/3 cup not 0.333)
+- Include meat cooking temperatures for safety
+- Name recipes naturally — no dietary labels (GOOD: "Chicken Ramen", BAD: "Sugar-Free Ramen")
+- Preferences guide creativity; ingredient dislikes are strict
+- Avoid allergen ingredients by default
+${thermomixSection}
+
+OUTPUT FORMAT:
+Write a complete recipe with: recipe name, brief description, ingredients list with quantities and units, numbered step-by-step instructions, total time, difficulty (easy/medium/hard), and portions. Write naturally — a downstream system will extract the structured data.`;
+}
+
+/**
+ * Stage 2 system prompt — mechanical JSON extraction.
+ * Exported for testing.
+ */
+export function getFormattingSystemPrompt(hasThermomix: boolean): string {
+  const thermomixNote = hasThermomix
+    ? " For each step, extract thermomixTime (integer seconds or null), thermomixTemp (string like '100°C' or 'Varoma' or null), thermomixSpeed (string like '5' or 'Reverse 1' or null)."
+    : "";
+
+  return `Extract the recipe into structured JSON. Be precise and mechanical — copy text exactly, do not add or remove information.${thermomixNote}`;
+}
+
+/**
+ * Legacy system prompt — used by modify_recipe (single-stage).
+ * Exported for testing.
  */
 export function getSystemPrompt(userContext: UserContext): string {
   const lang = userContext.language === "es" ? "Mexican Spanish" : "English";
@@ -454,6 +553,166 @@ ${thermomixSection}
 
 OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Use this structure:
 {"schemaVersion":"1.0","suggestedName":"...","description":"A brief 1-2 sentence description of the dish","measurementSystem":"${userContext.measurementSystem}","language":"${userContext.language}","ingredients":[{"name":"...","quantity":1,"unit":"..."}],"steps":[{"order":1,"instruction":"...","ingredientsUsed":["..."]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":[]}`;
+}
+
+// ============================================================
+// Two-Stage Recipe Generation Pipeline
+// ============================================================
+
+interface RecipeGenerationResult {
+  recipe: GeneratedRecipe;
+  timings: Record<string, number>;
+}
+
+/**
+ * Two-stage recipe generation pipeline:
+ * - Stage 1 (recipe_creation): Smart model generates recipe in natural language
+ * - Stage 2 (recipe_formatting): Fast model extracts into simplified JSON schema
+ * - Post-processing: Injects constants, computes order + ingredientsUsed
+ * - Zod validation: Validates against GeneratedRecipeSchema
+ *
+ * On Stage 2 failure: retries Stage 2 only (Stage 1 output is reused).
+ */
+async function callRecipeGenerationAI(
+  params: GenerateRecipeParams,
+  userContext: UserContext,
+  safetyReminders: string,
+  options?: {
+    allergenWarning?: string;
+  },
+): Promise<RecipeGenerationResult> {
+  const timings: Record<string, number> = {};
+  const prompt = buildRecipePrompt(
+    params,
+    userContext,
+    safetyReminders,
+    options,
+  );
+  const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
+
+  // --- Stage 1: Creative recipe generation (natural language) ---
+  const stage1Start = performance.now();
+  const creationSystemPrompt = getCreationSystemPrompt(userContext);
+  const stage1Response = await chat({
+    usageType: "recipe_creation",
+    messages: [
+      { role: "system", content: creationSystemPrompt },
+      { role: "user", content: prompt },
+    ],
+    maxTokens: 4096,
+  });
+  timings.recipe_creation_ms = Math.round(performance.now() - stage1Start);
+
+  console.log("[Recipe Generation] Stage 1 complete", {
+    model: stage1Response.model,
+    input_tokens: stage1Response.usage.inputTokens,
+    output_tokens: stage1Response.usage.outputTokens,
+    duration_ms: timings.recipe_creation_ms,
+  });
+
+  // --- Stage 2: JSON formatting (structured output) ---
+  const formattingSchema = buildFormattingJsonSchema(isThermomixUser);
+  const formattingSystemPrompt = getFormattingSystemPrompt(isThermomixUser);
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const stage2Start = performance.now();
+    const isRetry = attempt === 1;
+    const userContent = isRetry
+      ? stage1Response.content +
+        "\n\nCRITICAL: Return ONLY the JSON object. No markdown, no code fences."
+      : stage1Response.content;
+
+    const stage2Response = await chat({
+      usageType: "recipe_formatting",
+      messages: [
+        { role: "system", content: formattingSystemPrompt },
+        { role: "user", content: userContent },
+      ],
+      maxTokens: 4096,
+      responseFormat: {
+        type: "json_schema",
+        schema: formattingSchema,
+      },
+    });
+    timings.recipe_formatting_ms = Math.round(performance.now() - stage2Start);
+
+    console.log("[Recipe Generation] Stage 2 complete", {
+      model: stage2Response.model,
+      attempt: attempt + 1,
+      input_tokens: stage2Response.usage.inputTokens,
+      output_tokens: stage2Response.usage.outputTokens,
+      duration_ms: timings.recipe_formatting_ms,
+    });
+
+    try {
+      // Parse Stage 2 output, post-process, then validate with Zod
+      const formatted = parseJsonContent(stage2Response.content);
+      const postProcessed = postProcessFormattedRecipe(
+        formatted as FormattedRecipe,
+        userContext,
+      );
+      const recipe = validateWithZod(postProcessed);
+      return { recipe, timings };
+    } catch (error) {
+      lastError = error instanceof Error
+        ? error
+        : new Error("Recipe formatting failed");
+      if (!isRetry) {
+        console.warn(
+          "[Recipe Generation] Stage 2 parse/validation failed, retrying",
+          { error: lastError.message },
+        );
+      }
+    }
+  }
+
+  throw lastError || new Error("Generated recipe does not match schema");
+}
+
+/**
+ * Parse JSON content, stripping code fences if present.
+ */
+function parseJsonContent(content: string): unknown {
+  let jsonContent = content.trim();
+  if (jsonContent.startsWith("```")) {
+    jsonContent = jsonContent
+      .replace(/^```(?:json)?\s*\n?/, "")
+      .replace(/\n?```\s*$/, "");
+  }
+
+  try {
+    return JSON.parse(jsonContent);
+  } catch {
+    console.error("Failed to parse recipe JSON:", jsonContent.slice(0, 500));
+    throw new Error("Invalid recipe JSON from AI");
+  }
+}
+
+/**
+ * Validate parsed recipe data against GeneratedRecipeSchema.
+ */
+function validateWithZod(data: unknown): GeneratedRecipe {
+  const result = GeneratedRecipeSchema.safeParse(data);
+  if (!result.success) {
+    console.error("Recipe validation failed:", result.error.issues);
+    throw new Error("Generated recipe does not match schema");
+  }
+  // Force empty tags — AI-generated tags are never displayed in UI
+  result.data.tags = [];
+  return result.data;
+}
+
+/**
+ * Legacy: Parse and validate a complete recipe JSON string.
+ * Used by tests and modify_recipe.
+ */
+export function parseAndValidateGeneratedRecipe(
+  content: string,
+): GeneratedRecipe {
+  const parsed = parseJsonContent(content);
+  return validateWithZod(parsed);
 }
 
 /**

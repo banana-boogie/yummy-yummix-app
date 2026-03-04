@@ -2,7 +2,7 @@
  * AI Gateway - Router
  *
  * Routes AI requests to the appropriate provider/model based on usage type.
- * Supports environment variable overrides with provider:model format.
+ * To swap models, change the defaults below and redeploy.
  */
 
 import {
@@ -19,12 +19,18 @@ const providerApiKeyMap: Record<AIProvider, string> = {
   openai: "OPENAI_API_KEY",
   google: "GEMINI_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
+  xai: "XAI_API_KEY",
 };
 
 /**
- * Default routing configuration.
- * Maps usage types to specific providers and models.
- * Can be overridden via environment variables.
+ * Routing configuration — hardcoded defaults.
+ * To swap models, change the provider/model here and redeploy.
+ *
+ * Tested alternatives for recipe_creation:
+ * - openai / gpt-5          → highest quality, $1.25/$10.00 per 1M tokens
+ * - anthropic / claude-sonnet-4-6 → high quality, $3.00/$15.00 per 1M tokens
+ * - xai / grok-4.1-fast     → good quality, $0.20/$0.50 per 1M tokens
+ * - openai / gpt-5-mini     → good quality, $0.25/$2.00 per 1M tokens (default)
  */
 const defaultRoutingConfig: AIRoutingConfig = {
   // Chat completions (orchestrator tool calling + streaming)
@@ -33,11 +39,23 @@ const defaultRoutingConfig: AIRoutingConfig = {
     model: "gemini-2.5-flash",
     apiKeyEnvVar: "GEMINI_API_KEY",
   },
-  // Recipe generation (structured JSON output) — quality + speed critical
+  // Recipe generation — legacy single-stage (kept for modify_recipe compatibility)
   recipe_generation: {
     provider: "google",
     model: "gemini-2.5-flash",
     apiKeyEnvVar: "GEMINI_API_KEY",
+  },
+  // Stage 1: Creative recipe generation (natural language output, quality critical)
+  recipe_creation: {
+    provider: "openai",
+    model: "gpt-5-mini",
+    apiKeyEnvVar: "OPENAI_API_KEY",
+  },
+  // Stage 2: Mechanical JSON formatting (structured output, speed critical)
+  recipe_formatting: {
+    provider: "openai",
+    model: "gpt-5-nano",
+    apiKeyEnvVar: "OPENAI_API_KEY",
   },
   // Recipe modification (transform existing recipe JSON)
   recipe_modification: {
@@ -60,55 +78,11 @@ const defaultRoutingConfig: AIRoutingConfig = {
 };
 
 /**
- * Parse a provider:model override string.
- * Supports two formats:
- * - "provider:model"  → switch provider and model (e.g., "openai:gpt-4.1-mini")
- * - "model"           → keep same provider, override model only (e.g., "gemini-2.5-flash")
- *
- * Exported for testing.
- */
-export function parseModelOverride(
-  override: string,
-  currentConfig: AIProviderConfig,
-): AIProviderConfig {
-  if (override.includes(":")) {
-    const [providerStr, ...modelParts] = override.split(":");
-    const provider = providerStr as AIProvider;
-    const model = modelParts.join(":"); // Rejoin in case model has colons
-
-    const apiKeyEnvVar = providerApiKeyMap[provider];
-    if (!apiKeyEnvVar) {
-      console.warn(
-        `[ai-gateway:router] Unknown provider '${provider}' in override '${override}', using default`,
-      );
-      return currentConfig;
-    }
-
-    return { provider, model, apiKeyEnvVar };
-  }
-
-  // Model-only override: keep same provider
-  return { ...currentConfig, model: override };
-}
-
-/**
  * Get the provider configuration for a given usage type.
- * Checks for environment variable overrides first.
- *
- * Override examples:
- * - AI_TEXT_MODEL=openai:gpt-4.1-mini          → switch to OpenAI
- * - AI_RECIPE_GENERATION_MODEL=gemini-2.5-flash → same provider, different model
- * - AI_PARSING_MODEL=gpt-5-nano                → same provider, different model
+ * Direct lookup — no env var overrides.
  */
 export function getProviderConfig(usageType: AIUsageType): AIProviderConfig {
-  const envOverride = Deno.env.get(`AI_${usageType.toUpperCase()}_MODEL`);
-  const config = defaultRoutingConfig[usageType];
-
-  if (envOverride) {
-    return parseModelOverride(envOverride, config);
-  }
-
-  return config;
+  return defaultRoutingConfig[usageType];
 }
 
 /**

@@ -19,16 +19,22 @@ import {
   validateGenerateRecipeParams,
 } from "./tool-validators.ts";
 import {
+  buildFormattingJsonSchema,
   enrichIngredientsWithImages,
   generateCustomRecipe,
+  getCreationSystemPrompt,
+  getFormattingSystemPrompt,
   getSystemPrompt,
+  inferIngredientsUsed,
   parseThermomixSpeed,
+  postProcessFormattedRecipe,
   TEMP_REGEX,
   VALID_NUMERIC_SPEEDS,
   VALID_SPECIAL_SPEEDS,
   VALID_SPECIAL_TEMPS,
   validateThermomixSteps,
 } from "./generate-custom-recipe.ts";
+import { GeneratedRecipeSchema } from "../irmixy-schemas.ts";
 import { clearAllergenCache } from "../allergen-filter.ts";
 import { clearFoodSafetyCache } from "../food-safety.ts";
 import { clearAliasCache } from "../ingredient-normalization.ts";
@@ -450,54 +456,85 @@ Deno.test("getSystemPrompt Thermomix section uses 120°C guidance", () => {
 // generateCustomRecipe Allergen Safety Tests
 // ============================================================
 
+/**
+ * Helper: Create a mock fetch for the two-stage pipeline.
+ * Stage 1 returns natural language text, Stage 2 returns structured JSON.
+ * Both use OpenAI API format since recipe_creation/recipe_formatting route to OpenAI.
+ */
+function createTwoStageFetchMock(
+  recipeName: string,
+  ingredients: Array<{ name: string; quantity: number; unit: string }>,
+  steps: Array<{ instruction: string }>,
+  options?: { totalTime?: number; difficulty?: string; portions?: number },
+) {
+  let callCount = 0;
+  return async (_input: string | URL | Request, _init?: RequestInit) => {
+    callCount++;
+    if (callCount === 1) {
+      // Stage 1: natural language recipe
+      const ingredientText = ingredients.map((i) =>
+        `- ${i.quantity} ${i.unit} ${i.name}`
+      ).join("\n");
+      const stepsText = steps.map((s, i) => `${i + 1}. ${s.instruction}`).join(
+        "\n",
+      );
+      return new Response(
+        JSON.stringify({
+          id: "chatcmpl-stage1",
+          model: "gpt-5-mini",
+          choices: [{
+            message: {
+              content:
+                `# ${recipeName}\n\nIngredients:\n${ingredientText}\n\nSteps:\n${stepsText}\n\nTotal time: ${
+                  options?.totalTime ?? 20
+                } minutes\nDifficulty: ${
+                  options?.difficulty ?? "easy"
+                }\nPortions: ${options?.portions ?? 2}`,
+            },
+          }],
+          usage: { prompt_tokens: 100, completion_tokens: 200 },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    } else {
+      // Stage 2: structured JSON
+      return new Response(
+        JSON.stringify({
+          id: "chatcmpl-stage2",
+          model: "gpt-5-nano",
+          choices: [{
+            message: {
+              content: JSON.stringify({
+                recipeName,
+                description: `A delicious ${recipeName.toLowerCase()}.`,
+                ingredients,
+                steps: steps.map((s) => ({ instruction: s.instruction })),
+                totalTime: options?.totalTime ?? 20,
+                difficulty: options?.difficulty ?? "easy",
+                portions: options?.portions ?? 2,
+              }),
+            },
+          }],
+          usage: { prompt_tokens: 300, completion_tokens: 150 },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }
+  };
+}
+
 Deno.test("generateCustomRecipe proceeds with warning when allergen system is unavailable", async () => {
   resetSharedCaches();
 
-  // Mock: allergen DB outage, but AI still generates recipe
   const originalFetch = globalThis.fetch;
-  const previousGoogleKey = Deno.env.get("GEMINI_API_KEY");
-  Deno.env.set("GEMINI_API_KEY", "test-google-key");
+  const previousOpenAIKey = Deno.env.get("OPENAI_API_KEY");
+  Deno.env.set("OPENAI_API_KEY", "test-openai-key");
 
-  globalThis.fetch = async (
-    _input: string | URL | Request,
-    _init?: RequestInit,
-  ) => {
-    return new Response(
-      JSON.stringify({
-        candidates: [{
-          content: {
-            parts: [{
-              text: JSON.stringify({
-                schemaVersion: "1.0",
-                suggestedName: "Chicken Dish",
-                measurementSystem: "imperial",
-                language: "en",
-                ingredients: [{ name: "chicken", quantity: 1, unit: "lb" }],
-                steps: [{
-                  order: 1,
-                  instruction: "Cook chicken.",
-                  ingredientsUsed: ["chicken"],
-                }],
-                totalTime: 20,
-                difficulty: "easy",
-                portions: 2,
-                tags: [],
-              }),
-            }],
-            role: "model",
-          },
-          finishReason: "STOP",
-        }],
-        usageMetadata: {
-          promptTokenCount: 12,
-          candidatesTokenCount: 24,
-          totalTokenCount: 36,
-        },
-        modelVersion: "gemini-3-flash-preview",
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
-    );
-  };
+  globalThis.fetch = createTwoStageFetchMock(
+    "Chicken Dish",
+    [{ name: "chicken", quantity: 1, unit: "lb" }],
+    [{ instruction: "Cook chicken." }],
+  );
 
   const supabase = {
     ...createAllergenOutageSupabaseMock(),
@@ -543,14 +580,13 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
       result.safetyFlags?.allergenWarning ?? "",
       "couldn't verify allergens",
     );
-    // No error flag — just a warning
     assertEquals(result.safetyFlags?.error, undefined);
   } finally {
     globalThis.fetch = originalFetch;
-    if (previousGoogleKey === undefined) {
-      Deno.env.delete("GEMINI_API_KEY");
+    if (previousOpenAIKey === undefined) {
+      Deno.env.delete("OPENAI_API_KEY");
     } else {
-      Deno.env.set("GEMINI_API_KEY", previousGoogleKey);
+      Deno.env.set("OPENAI_API_KEY", previousOpenAIKey);
     }
     resetSharedCaches();
   }
@@ -559,65 +595,19 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
 Deno.test("generateCustomRecipe proceeds with allergen warning when allergen detected", async () => {
   resetSharedCaches();
 
-  let capturedUrl: string | undefined;
   const originalFetch = globalThis.fetch;
-  const previousGoogleKey = Deno.env.get("GEMINI_API_KEY");
+  const previousOpenAIKey = Deno.env.get("OPENAI_API_KEY");
 
-  Deno.env.set("GEMINI_API_KEY", "test-google-key");
-  globalThis.fetch = async (
-    input: string | URL | Request,
-    _init?: RequestInit,
-  ) => {
-    capturedUrl = typeof input === "string"
-      ? input
-      : input instanceof URL
-      ? input.toString()
-      : input.url;
-
-    return new Response(
-      JSON.stringify({
-        candidates: [{
-          content: {
-            parts: [{
-              text: JSON.stringify({
-                schemaVersion: "1.0",
-                suggestedName: "Peanut Rice Bowl",
-                measurementSystem: "imperial",
-                language: "en",
-                ingredients: [
-                  { name: "peanut", quantity: 1, unit: "cup" },
-                  { name: "rice", quantity: 2, unit: "cups" },
-                ],
-                steps: [
-                  {
-                    order: 1,
-                    instruction: "Toast peanuts and cook rice.",
-                    ingredientsUsed: ["peanut", "rice"],
-                  },
-                ],
-                totalTime: 25,
-                difficulty: "easy",
-                portions: 2,
-                tags: [],
-              }),
-            }],
-            role: "model",
-          },
-          finishReason: "STOP",
-        }],
-        usageMetadata: {
-          promptTokenCount: 12,
-          candidatesTokenCount: 24,
-          totalTokenCount: 36,
-        },
-        modelVersion: "gemini-3-flash-preview",
-      }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  };
+  Deno.env.set("OPENAI_API_KEY", "test-openai-key");
+  globalThis.fetch = createTwoStageFetchMock(
+    "Peanut Rice Bowl",
+    [
+      { name: "peanut", quantity: 1, unit: "cup" },
+      { name: "rice", quantity: 2, unit: "cups" },
+    ],
+    [{ instruction: "Toast peanuts and cook rice." }],
+    { totalTime: 25 },
+  );
 
   const supabase = {
     from: (table: string) => ({
@@ -681,17 +671,15 @@ Deno.test("generateCustomRecipe proceeds with allergen warning when allergen det
       }),
     );
 
-    // Verify the request went to Gemini
-    assertStringIncludes(capturedUrl ?? "", "gemini-2.5-flash");
     assertEquals(result.recipe.suggestedName, "Peanut Rice Bowl");
     assertStringIncludes(result.safetyFlags?.allergenWarning ?? "", "Contains");
     assertEquals(result.safetyFlags?.error, undefined);
   } finally {
     globalThis.fetch = originalFetch;
-    if (previousGoogleKey === undefined) {
-      Deno.env.delete("GEMINI_API_KEY");
+    if (previousOpenAIKey === undefined) {
+      Deno.env.delete("OPENAI_API_KEY");
     } else {
-      Deno.env.set("GEMINI_API_KEY", previousGoogleKey);
+      Deno.env.set("OPENAI_API_KEY", previousOpenAIKey);
     }
     resetSharedCaches();
   }
@@ -1106,4 +1094,346 @@ Deno.test("parseThermomixSpeed accepts reversed order 'spoon reverse'", () => {
 
 Deno.test("parseThermomixSpeed rejects invalid 'turbo'", () => {
   assertEquals(parseThermomixSpeed("turbo"), null);
+});
+
+// ============================================================
+// buildFormattingJsonSchema Tests (Stage 2 simplified schema)
+// ============================================================
+
+Deno.test("buildFormattingJsonSchema - uses recipeName instead of suggestedName", () => {
+  const schema = buildFormattingJsonSchema(false);
+  const props = schema.properties as Record<string, unknown>;
+
+  assertExists(props.recipeName);
+  assertEquals(props.suggestedName, undefined);
+  assertEquals(props.schemaVersion, undefined);
+  assertEquals(props.language, undefined);
+  assertEquals(props.measurementSystem, undefined);
+  assertEquals(props.tags, undefined);
+});
+
+Deno.test("buildFormattingJsonSchema - has core fields", () => {
+  const schema = buildFormattingJsonSchema(false);
+  const required = schema.required as string[];
+
+  assertEquals(required.includes("recipeName"), true);
+  assertEquals(required.includes("description"), true);
+  assertEquals(required.includes("ingredients"), true);
+  assertEquals(required.includes("steps"), true);
+  assertEquals(required.includes("totalTime"), true);
+  assertEquals(required.includes("difficulty"), true);
+  assertEquals(required.includes("portions"), true);
+});
+
+Deno.test("buildFormattingJsonSchema - steps have no order or ingredientsUsed", () => {
+  const schema = buildFormattingJsonSchema(false);
+  const props = schema.properties as Record<string, Record<string, unknown>>;
+  const stepItems = props.steps.items as Record<
+    string,
+    Record<string, unknown>
+  >;
+  const stepProps = stepItems.properties;
+
+  assertExists(stepProps.instruction);
+  assertEquals(stepProps.order, undefined);
+  assertEquals(stepProps.ingredientsUsed, undefined);
+});
+
+Deno.test("buildFormattingJsonSchema - adds Thermomix fields when hasThermomix=true", () => {
+  const schema = buildFormattingJsonSchema(true);
+  const props = schema.properties as Record<string, Record<string, unknown>>;
+  const stepItems = props.steps.items as Record<
+    string,
+    Record<string, unknown>
+  >;
+  const stepProps = stepItems.properties;
+  const stepRequired = stepItems.required as unknown as string[];
+
+  assertExists(stepProps.thermomixTime);
+  assertExists(stepProps.thermomixTemp);
+  assertExists(stepProps.thermomixSpeed);
+  assertEquals(stepRequired.includes("thermomixTime"), true);
+  assertEquals(stepRequired.includes("thermomixTemp"), true);
+  assertEquals(stepRequired.includes("thermomixSpeed"), true);
+});
+
+Deno.test("buildFormattingJsonSchema - no Thermomix fields when hasThermomix=false", () => {
+  const schema = buildFormattingJsonSchema(false);
+  const props = schema.properties as Record<string, Record<string, unknown>>;
+  const stepItems = props.steps.items as Record<
+    string,
+    Record<string, unknown>
+  >;
+  const stepProps = stepItems.properties;
+
+  assertEquals(stepProps.thermomixTime, undefined);
+  assertEquals(stepProps.thermomixTemp, undefined);
+  assertEquals(stepProps.thermomixSpeed, undefined);
+});
+
+// ============================================================
+// inferIngredientsUsed Tests
+// ============================================================
+
+Deno.test("inferIngredientsUsed - matches exact ingredient names", () => {
+  const steps = [
+    { instruction: "Dice the chicken and add rice to the pot." },
+    { instruction: "Season with salt and pepper." },
+  ];
+  const ingredients = [
+    { name: "chicken" },
+    { name: "rice" },
+    { name: "salt" },
+    { name: "pepper" },
+  ];
+
+  const result = inferIngredientsUsed(steps, ingredients);
+  assertEquals(result[0], ["chicken", "rice"]);
+  assertEquals(result[1], ["salt", "pepper"]);
+});
+
+Deno.test("inferIngredientsUsed - case insensitive matching", () => {
+  const steps = [{ instruction: "Add the CHICKEN to the pan." }];
+  const ingredients = [{ name: "chicken" }, { name: "rice" }];
+
+  const result = inferIngredientsUsed(steps, ingredients);
+  assertEquals(result[0], ["chicken"]);
+});
+
+Deno.test("inferIngredientsUsed - handles compound ingredient names", () => {
+  const steps = [{ instruction: "Slice the chicken breast thinly." }];
+  const ingredients = [
+    { name: "chicken breast" },
+    { name: "olive oil" },
+  ];
+
+  const result = inferIngredientsUsed(steps, ingredients);
+  assertEquals(result[0], ["chicken breast"]);
+});
+
+Deno.test("inferIngredientsUsed - returns empty array when no match", () => {
+  const steps = [{ instruction: "Preheat the oven to 350°F." }];
+  const ingredients = [{ name: "chicken" }, { name: "rice" }];
+
+  const result = inferIngredientsUsed(steps, ingredients);
+  assertEquals(result[0], []);
+});
+
+// ============================================================
+// postProcessFormattedRecipe Tests
+// ============================================================
+
+Deno.test("postProcessFormattedRecipe - maps recipeName to suggestedName", () => {
+  const formatted = {
+    recipeName: "Chicken Ramen",
+    description: "A warm bowl of ramen.",
+    ingredients: [{ name: "chicken", quantity: 1, unit: "lb" }],
+    steps: [{ instruction: "Cook the chicken." }],
+    totalTime: 30,
+    difficulty: "easy" as const,
+    portions: 4,
+  };
+
+  const result = postProcessFormattedRecipe(formatted, {
+    language: "en",
+    measurementSystem: "imperial",
+  });
+
+  assertEquals(result.suggestedName, "Chicken Ramen");
+  assertEquals(result.recipeName, undefined);
+});
+
+Deno.test("postProcessFormattedRecipe - injects constant fields", () => {
+  const formatted = {
+    recipeName: "Test",
+    description: "Test desc",
+    ingredients: [],
+    steps: [],
+    totalTime: 10,
+    difficulty: "easy" as const,
+    portions: 2,
+  };
+
+  const result = postProcessFormattedRecipe(formatted, {
+    language: "es",
+    measurementSystem: "metric",
+  });
+
+  assertEquals(result.schemaVersion, "1.0");
+  assertEquals(result.language, "es");
+  assertEquals(result.measurementSystem, "metric");
+  assertEquals(result.tags, []);
+});
+
+Deno.test("postProcessFormattedRecipe - computes step order from array index", () => {
+  const formatted = {
+    recipeName: "Test",
+    description: "Test desc",
+    ingredients: [{ name: "flour", quantity: 2, unit: "cups" }],
+    steps: [
+      { instruction: "Mix flour." },
+      { instruction: "Bake." },
+      { instruction: "Cool." },
+    ],
+    totalTime: 60,
+    difficulty: "medium" as const,
+    portions: 8,
+  };
+
+  const result = postProcessFormattedRecipe(formatted, {
+    language: "en",
+    measurementSystem: "imperial",
+  });
+
+  const steps = result.steps as Array<{ order: number }>;
+  assertEquals(steps[0].order, 1);
+  assertEquals(steps[1].order, 2);
+  assertEquals(steps[2].order, 3);
+});
+
+Deno.test("postProcessFormattedRecipe - computes ingredientsUsed via inference", () => {
+  const formatted = {
+    recipeName: "Pasta",
+    description: "Simple pasta",
+    ingredients: [
+      { name: "pasta", quantity: 200, unit: "g" },
+      { name: "garlic", quantity: 2, unit: "cloves" },
+      { name: "olive oil", quantity: 2, unit: "tbsp" },
+    ],
+    steps: [
+      { instruction: "Boil the pasta until al dente." },
+      { instruction: "Sauté garlic in olive oil." },
+      { instruction: "Toss pasta with garlic oil." },
+    ],
+    totalTime: 20,
+    difficulty: "easy" as const,
+    portions: 2,
+  };
+
+  const result = postProcessFormattedRecipe(formatted, {
+    language: "en",
+    measurementSystem: "metric",
+  });
+
+  const steps = result.steps as Array<{ ingredientsUsed: string[] }>;
+  assertEquals(steps[0].ingredientsUsed, ["pasta"]);
+  assertEquals(steps[1].ingredientsUsed, ["garlic", "olive oil"]);
+  assertEquals(steps[2].ingredientsUsed, ["pasta", "garlic"]);
+});
+
+Deno.test("postProcessFormattedRecipe - preserves Thermomix fields", () => {
+  const formatted = {
+    recipeName: "Thermomix Soup",
+    description: "Creamy soup",
+    ingredients: [{ name: "potato", quantity: 500, unit: "g" }],
+    steps: [{
+      instruction: "Cook potato in Thermomix.",
+      thermomixTime: 600,
+      thermomixTemp: "100°C",
+      thermomixSpeed: "1",
+    }],
+    totalTime: 15,
+    difficulty: "easy" as const,
+    portions: 4,
+  };
+
+  const result = postProcessFormattedRecipe(formatted, {
+    language: "es",
+    measurementSystem: "metric",
+  });
+
+  const steps = result.steps as Array<{
+    thermomixTime: number;
+    thermomixTemp: string;
+    thermomixSpeed: string;
+  }>;
+  assertEquals(steps[0].thermomixTime, 600);
+  assertEquals(steps[0].thermomixTemp, "100°C");
+  assertEquals(steps[0].thermomixSpeed, "1");
+});
+
+Deno.test("postProcessFormattedRecipe - output passes GeneratedRecipeSchema validation", () => {
+  const formatted = {
+    recipeName: "Simple Rice",
+    description: "Plain rice dish",
+    ingredients: [
+      { name: "rice", quantity: 1, unit: "cup" },
+      { name: "water", quantity: 2, unit: "cups" },
+    ],
+    steps: [
+      { instruction: "Rinse the rice." },
+      { instruction: "Boil water and add rice." },
+      { instruction: "Simmer for 15 minutes." },
+    ],
+    totalTime: 20,
+    difficulty: "easy" as const,
+    portions: 4,
+  };
+
+  const result = postProcessFormattedRecipe(formatted, {
+    language: "en",
+    measurementSystem: "imperial",
+  });
+
+  const parsed = GeneratedRecipeSchema.safeParse(result);
+  assertEquals(parsed.success, true);
+  if (parsed.success) {
+    assertEquals(parsed.data.suggestedName, "Simple Rice");
+    assertEquals(parsed.data.schemaVersion, "1.0");
+    assertEquals(parsed.data.steps.length, 3);
+    assertEquals(parsed.data.steps[0].order, 1);
+  }
+});
+
+// ============================================================
+// Stage Prompt Tests
+// ============================================================
+
+Deno.test("getCreationSystemPrompt - includes language and units", () => {
+  const prompt = getCreationSystemPrompt(
+    createMockUserContext({ language: "es", measurementSystem: "metric" }),
+  );
+
+  assertStringIncludes(prompt, "Mexican Spanish");
+  assertStringIncludes(prompt, "metric");
+  assertStringIncludes(prompt, "ml, liters, grams");
+});
+
+Deno.test("getCreationSystemPrompt - includes Thermomix section when user has Thermomix", () => {
+  const prompt = getCreationSystemPrompt(
+    createMockUserContext({ kitchenEquipment: ["thermomix"] }),
+  );
+
+  assertStringIncludes(prompt, "THERMOMIX USAGE");
+  assertStringIncludes(prompt, "Varoma");
+});
+
+Deno.test("getCreationSystemPrompt - no Thermomix section without equipment", () => {
+  const prompt = getCreationSystemPrompt(
+    createMockUserContext({ kitchenEquipment: [] }),
+  );
+
+  assertEquals(prompt.includes("THERMOMIX USAGE"), false);
+});
+
+Deno.test("getCreationSystemPrompt - does NOT include JSON formatting instructions", () => {
+  const prompt = getCreationSystemPrompt(createMockUserContext());
+
+  assertEquals(prompt.includes("schemaVersion"), false);
+  assertEquals(prompt.includes("suggestedName"), false);
+  assertEquals(prompt.includes("Return ONLY valid JSON"), false);
+});
+
+Deno.test("getFormattingSystemPrompt - includes Thermomix extraction note when true", () => {
+  const prompt = getFormattingSystemPrompt(true);
+
+  assertStringIncludes(prompt, "thermomixTime");
+  assertStringIncludes(prompt, "thermomixTemp");
+  assertStringIncludes(prompt, "thermomixSpeed");
+});
+
+Deno.test("getFormattingSystemPrompt - no Thermomix note when false", () => {
+  const prompt = getFormattingSystemPrompt(false);
+
+  assertEquals(prompt.includes("thermomixTime"), false);
 });

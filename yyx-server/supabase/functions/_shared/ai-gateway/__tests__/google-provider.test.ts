@@ -20,7 +20,6 @@ import {
   translateSchemaForGemini,
   translateToolChoice,
 } from "../providers/google.ts";
-import { parseModelOverride } from "../router.ts";
 
 // =============================================================================
 // translateMessages
@@ -508,55 +507,4 @@ Deno.test("translateSchemaForGemini - type array without null picks first type, 
   const props = result.properties as Record<string, Record<string, unknown>>;
   assertEquals(props.value.type, "integer");
   assertEquals(props.value.nullable, undefined);
-});
-
-// =============================================================================
-// parseModelOverride (router)
-// =============================================================================
-
-const defaultConfig = {
-  provider: "google" as const,
-  model: "gemini-3-flash-preview",
-  apiKeyEnvVar: "GEMINI_API_KEY",
-};
-
-Deno.test("parseModelOverride - provider:model switches provider and model", () => {
-  const result = parseModelOverride("openai:gpt-4.1-mini", defaultConfig);
-  assertEquals(result.provider, "openai");
-  assertEquals(result.model, "gpt-4.1-mini");
-  assertEquals(result.apiKeyEnvVar, "OPENAI_API_KEY");
-});
-
-Deno.test("parseModelOverride - model-only keeps same provider", () => {
-  const result = parseModelOverride("gemini-2.5-flash", defaultConfig);
-  assertEquals(result.provider, "google");
-  assertEquals(result.model, "gemini-2.5-flash");
-  assertEquals(result.apiKeyEnvVar, "GEMINI_API_KEY");
-});
-
-Deno.test("parseModelOverride - unknown provider falls back to default", () => {
-  const result = parseModelOverride("mistral:some-model", defaultConfig);
-  assertEquals(result, defaultConfig);
-});
-
-Deno.test("parseModelOverride - anthropic provider maps correctly", () => {
-  const result = parseModelOverride(
-    "anthropic:claude-haiku-4-5-20251001",
-    defaultConfig,
-  );
-  assertEquals(result.provider, "anthropic");
-  assertEquals(result.model, "claude-haiku-4-5-20251001");
-  assertEquals(result.apiKeyEnvVar, "ANTHROPIC_API_KEY");
-});
-
-Deno.test("parseModelOverride - backward compatible with OpenAI-only model name", () => {
-  const openaiConfig = {
-    provider: "openai" as const,
-    model: "gpt-4.1-nano",
-    apiKeyEnvVar: "OPENAI_API_KEY",
-  };
-  const result = parseModelOverride("gpt-5-nano", openaiConfig);
-  assertEquals(result.provider, "openai");
-  assertEquals(result.model, "gpt-5-nano");
-  assertEquals(result.apiKeyEnvVar, "OPENAI_API_KEY");
 });

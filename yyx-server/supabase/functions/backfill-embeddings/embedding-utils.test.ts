@@ -59,20 +59,9 @@ function createRecipe(
   };
 }
 
-Deno.test("getEmbeddingModel honors AI gateway embedding override", () => {
-  const envVar = "AI_EMBEDDING_MODEL";
-  const original = Deno.env.get(envVar);
-
-  try {
-    Deno.env.set(envVar, "test-embedding-model");
-    assertEquals(getEmbeddingModel(), "test-embedding-model");
-  } finally {
-    if (original === undefined) {
-      Deno.env.delete(envVar);
-    } else {
-      Deno.env.set(envVar, original);
-    }
-  }
+Deno.test("getEmbeddingModel returns hardcoded default from router", () => {
+  // Router no longer supports env var overrides — model is hardcoded
+  assertEquals(getEmbeddingModel(), "text-embedding-3-large");
 });
 
 Deno.test("computeContentHash changes when model changes", async () => {
