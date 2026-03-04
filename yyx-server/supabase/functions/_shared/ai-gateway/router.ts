@@ -5,22 +5,7 @@
  * To swap models, change the defaults below and redeploy.
  */
 
-import {
-  AIProvider,
-  AIProviderConfig,
-  AIRoutingConfig,
-  AIUsageType,
-} from "./types.ts";
-
-/**
- * Map provider names to their API key environment variable.
- */
-const providerApiKeyMap: Record<AIProvider, string> = {
-  openai: "OPENAI_API_KEY",
-  google: "GEMINI_API_KEY",
-  anthropic: "ANTHROPIC_API_KEY",
-  xai: "XAI_API_KEY",
-};
+import { AIProviderConfig, AIRoutingConfig, AIUsageType } from "./types.ts";
 
 /**
  * Routing configuration — hardcoded defaults.

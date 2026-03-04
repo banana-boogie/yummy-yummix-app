@@ -291,7 +291,7 @@ Check Supabase Dashboard logs: `Edge Functions -> irmixy-chat-orchestrator -> Lo
 **All AI interactions must go through the AI Gateway.** Never call OpenAI, Anthropic, or other providers directly.
 
 #### Why Use the Gateway?
-- **Provider Independence** - Switch models/providers via env vars without code changes
+- **Provider Independence** - Centralize provider/model routing in one place (`ai-gateway/router.ts`)
 - **Usage-Based Routing** - Different models for different tasks (`text`, `recipe_generation`, `parsing`)
 - **Cost Optimization** - Use cheaper models and lower reasoning effort for simple tasks
 - **Consistent Interface** - Same API for all providers
@@ -349,7 +349,9 @@ for await (const chunk of chatStream({
 | Type | Default Model | Config | Use Case | Cost |
 |------|--------------|--------|----------|------|
 | `text` | google/gemini-2.5-flash | thinking: minimal | Chat orchestrator (tool calling + streaming) | Low |
-| `recipe_generation` | google/gemini-2.5-flash | thinking: minimal | Recipe generation (structured JSON output) — quality critical | Low |
+| `recipe_generation` | google/gemini-2.5-flash | thinking: minimal | Recipe generation (legacy single-stage, used by `modify_recipe`) | Low |
+| `recipe_creation` | openai/gpt-5-mini | maxTokens: `4096` | Stage 1 recipe generation (natural language output) | Low |
+| `recipe_formatting` | openai/gpt-5-nano | maxTokens: `4096` + JSON schema | Stage 2 recipe formatting (structured JSON output) | Very low |
 | `recipe_modification` | google/gemini-2.5-flash | thinking: minimal | Recipe modification (transform existing JSON) | Low |
 | `parsing` | openai/gpt-4.1-nano | temperature: `1` | Admin parsing, nutritional data extraction | Very low |
 | `embedding` | openai/text-embedding-3-large | N/A | Vector search (3072 dimensions) | Low |
@@ -359,14 +361,13 @@ for await (const chunk of chatStream({
 ```bash
 # Required API Keys (in .env or Supabase secrets)
 GEMINI_API_KEY=AIza...            # For text, recipe_generation, recipe_modification
-OPENAI_API_KEY=sk-proj-xxx        # For parsing, embedding
-
-# Optional: Override default models (supports provider:model format)
-AI_TEXT_MODEL=openai:gpt-4.1-mini             # Switch to OpenAI
-AI_RECIPE_GENERATION_MODEL=gemini-2.5-flash   # Same provider, different model
-AI_RECIPE_MODIFICATION_MODEL=openai:gpt-5-mini # Switch provider entirely
-AI_PARSING_MODEL=gpt-5-nano                   # Same provider, different model
+OPENAI_API_KEY=sk-proj-xxx        # For recipe_creation, recipe_formatting, parsing, embedding
+ANTHROPIC_API_KEY=sk-ant-...      # Optional (for recipe_creation routing)
+XAI_API_KEY=xai-...               # Optional (for recipe_creation routing)
 ```
+
+Routing is hardcoded in `yyx-server/supabase/functions/_shared/ai-gateway/router.ts`.
+To swap models/providers, edit `router.ts` and redeploy the functions.
 
 #### Design Pattern:
 

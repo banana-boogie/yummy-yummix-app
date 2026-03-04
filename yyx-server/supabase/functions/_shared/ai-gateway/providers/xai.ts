@@ -18,7 +18,7 @@ interface XAIRequest {
   model: string;
   messages: Array<{ role: string; content: string }>;
   temperature?: number;
-  max_completion_tokens?: number;
+  max_tokens?: number;
   response_format?: {
     type: "json_schema";
     json_schema: {
@@ -90,7 +90,7 @@ export async function callXAI(
       role: m.role,
       content: m.content,
     })),
-    max_completion_tokens: request.maxTokens ?? 4096,
+    max_tokens: request.maxTokens ?? 4096,
   };
 
   if (request.temperature !== undefined) {
@@ -189,7 +189,7 @@ export async function* callXAIStream(
       role: m.role,
       content: m.content,
     })),
-    max_completion_tokens: request.maxTokens ?? 4096,
+    max_tokens: request.maxTokens ?? 4096,
     stream: true,
   };
 

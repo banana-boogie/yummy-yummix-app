@@ -165,7 +165,7 @@ Deno.test("callXAI - sends correct request structure", async () => {
     const body = JSON.parse(capturedBody!);
     assertEquals(body.model, "grok-4.1-fast");
     assertEquals(body.temperature, 0.5);
-    assertEquals(body.max_completion_tokens, 2048);
+    assertEquals(body.max_tokens, 2048);
     assertEquals(body.messages.length, 2);
     assertEquals(capturedHeaders?.get("Authorization"), "Bearer test-api-key");
   } finally {
