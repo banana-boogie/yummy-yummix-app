@@ -9,14 +9,16 @@
  *   deno task pipeline:import --local --dir ./path/to/markdown/files
  *
  * Flags:
- *   --local       Target local Supabase instance
- *   --production  Target production Supabase
- *   --reset       Reset progress tracker and start fresh
- *   --dir <path>  Directory containing markdown files (default: data/notion-exports)
+ *   --local          Target local Supabase instance
+ *   --production     Target production Supabase
+ *   --reset          Reset progress tracker and start fresh
+ *   --dir <path>     Directory containing markdown files (default: data/notion-exports)
+ *   --limit <n>      Max recipes to import this run (default: unlimited)
  *   --skip-existing  Skip recipes that already exist in DB (by name match)
  */
 
 import { createPipelineConfig, hasFlag, parseEnvironment, parseFlag } from '../lib/config.ts';
+import { sleep } from '../lib/utils.ts';
 import { Logger } from '../lib/logger.ts';
 import { ProgressTracker } from '../lib/progress-tracker.ts';
 import { type ParsedRecipeData, parseRecipeMarkdown } from '../lib/recipe-parser.ts';
@@ -41,6 +43,8 @@ const config = createPipelineConfig(env);
 const dataDir = parseFlag(Deno.args, '--dir') ||
   new URL('../data/notion-exports', import.meta.url).pathname;
 const skipExisting = hasFlag(Deno.args, '--skip-existing');
+const limitArg = parseFlag(Deno.args, '--limit');
+const limit = limitArg ? parseInt(limitArg, 10) : Infinity;
 
 const progressFile = new URL('../.import-progress.json', import.meta.url).pathname;
 const tracker = new ProgressTracker(progressFile);
@@ -62,6 +66,29 @@ function loadMarkdownFiles(dir: string): Array<{ filename: string; content: stri
   }
   files.sort((a, b) => a.filename.localeCompare(b.filename));
   return files;
+}
+
+// ─── Pre-filter: detect stub files ───────────────────────
+
+/**
+ * Returns true if the markdown file has actual recipe content
+ * (at least one ingredient line). Stubs have empty sections.
+ */
+function hasRecipeContent(content: string): boolean {
+  const lines = content.split('\n');
+  let inIngredientes = false;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed === '### Ingredientes') {
+      inIngredientes = true;
+      continue;
+    }
+    if (inIngredientes) {
+      if (trimmed.startsWith('#')) break; // Hit next section — nothing found
+      if (trimmed.startsWith('-') && trimmed.length > 2) return true;
+    }
+  }
+  return false;
 }
 
 // ─── Resolve Entities ────────────────────────────────────
@@ -305,16 +332,13 @@ async function importRecipe(
 
     if (unresolved.length > 0) {
       const preview = unresolved
-        .slice(0, 5)
+        .slice(0, 3)
         .map((item) =>
-          `[step ${item.stepOrder}] ${
-            item.ingredientNameEn || item.ingredientNameEs
-          } (${item.reason})`
+          `[step ${item.stepOrder}] ${item.ingredientNameEn || item.ingredientNameEs}`
         )
-        .join('; ');
-
-      throw new Error(
-        `Unresolved step-ingredient links (${unresolved.length}) for "${parsed.nameEn}": ${preview}`,
+        .join(', ');
+      logger.warn(
+        `${unresolved.length} unresolved step-ingredient link(s) for "${parsed.nameEs}" (${preview}) — importing without them`,
       );
     }
 
@@ -357,7 +381,9 @@ async function main() {
     markdownFiles = loadMarkdownFiles(dataDir);
   } catch (e) {
     logger.error(`Failed to load markdown files from ${dataDir}: ${e}`);
-    logger.info('Place your Notion markdown exports in: data-pipeline/data/notion-exports/');
+    logger.info(
+      'Place Notion markdown exports in data-pipeline/data/notion-exports/, or pass --dir path/to/RECIPES/',
+    );
     Deno.exit(1);
   }
 
@@ -381,19 +407,31 @@ async function main() {
     `Loaded: ${allIngredients.length} ingredients, ${allTags.length} tags, ${allItems.length} useful items, ${allUnits.length} measurement units`,
   );
 
-  // Filter already completed
-  const pending = markdownFiles.filter((f) => !tracker.isCompleted(f.filename));
-  logger.info(
-    `${pending.length} recipes pending (${
-      markdownFiles.length - pending.length
-    } already completed)`,
+  // Pre-filter: skip stubs (no ingredients) and already completed
+  const alreadyDone = markdownFiles.filter((f) => tracker.isCompleted(f.filename)).length;
+  const stubs = markdownFiles.filter(
+    (f) => !tracker.isCompleted(f.filename) && !hasRecipeContent(f.content),
   );
+  const pending = markdownFiles.filter(
+    (f) => !tracker.isCompleted(f.filename) && hasRecipeContent(f.content),
+  );
+
+  logger.info(`Already completed: ${alreadyDone}`);
+  logger.info(`Skipped (no content): ${stubs.length}`);
+  logger.info(`Ready to import: ${pending.length}${limit !== Infinity ? ` (limit: ${limit})` : ''}`);
+
+  // Mark stubs as completed so they don't re-appear on next run
+  for (const stub of stubs) {
+    tracker.markCompleted(stub.filename);
+  }
+
+  const toProcess = limit !== Infinity ? pending.slice(0, limit) : pending;
 
   // Process each recipe
   let successCount = 0;
   let failCount = 0;
 
-  for (const file of pending) {
+  for (const file of toProcess) {
     try {
       logger.section(`Processing: ${file.filename}`);
       const recipeId = await importRecipe(
@@ -413,14 +451,19 @@ async function main() {
       tracker.markFailed(file.filename, msg);
       failCount++;
     }
+
+    // Small delay between OpenAI calls
+    if (toProcess.indexOf(file) < toProcess.length - 1) await sleep(500);
   }
 
   // Summary
   logger.summary({
     'Total files': markdownFiles.length,
+    'Stubs skipped (no content)': stubs.length,
+    'Previously completed': alreadyDone,
     'Imported this run': successCount,
     'Failed this run': failCount,
-    'Previously completed': markdownFiles.length - pending.length,
+    'Remaining': pending.length - toProcess.length,
     'Ingredients in DB': allIngredients.length,
     'Tags in DB': allTags.length,
     'Useful items in DB': allItems.length,

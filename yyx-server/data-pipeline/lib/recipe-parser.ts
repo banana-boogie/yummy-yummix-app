@@ -383,21 +383,58 @@ const recipeJsonSchema = {
 };
 
 const systemPrompt = `
-You are a recipe parser specializing in converting Markdown recipes into structured JSON data.
+You are a recipe parser specializing in converting Notion-exported recipe Markdown files into structured JSON data.
 
-You will receive data about a recipe, the recipe comes in two languages English and Spanish.
-In the Spanish section of the recipe, it is structured into different parts: Ingredientes, Procedimiento, Tips, Utensilios y herramientas útiles, Tags.
-In the English section of the recipe, it is structured into different parts: Ingredients, Instructions (a.k.a. steps), Tips, Useful tools and utensils, Tags.
+## Recipe Format
 
-For Thermomix instructions, extract the Thermomix parameters from patterns like "(40 sec/reverse blades/speed 3)" or "(45 sec/speed 3)".
+The file starts with Notion metadata lines — IGNORE these for recipe content:
+  Recipe URL: ...
+  Tags: X, Y, Z   ← USE this line for the tags field
+  Status: ...      ← IGNORE
+  Chat '25: ...    ← IGNORE
 
-DO NOT make up any information.
-DO NOT include any information that is not found in the recipe.
-DO NOT include ingredients that are not found in the recipe.
-DO NOT include useful items that are not found in the recipe.
-DO NOT include tags that are not found in the recipe.
-DO NOT include tips that are not found in the recipe.
-DO NOT include steps that are not found in the recipe.
+The H1 heading (# Recipe Name) is ALWAYS the Spanish recipe name. Use it as nameEs and translate it to English for nameEn.
+
+Content is typically in a "## Receta en Español" section with:
+  ### Ingredientes, ### Procedimiento, ### Tips, ### Utensilios y herramientas útiles
+
+There may also be a "## English Recipe" section — if populated, use it; if empty, translate from Spanish.
+
+<aside> blocks are Notion formatting — extract timing/difficulty/portions if present inside them, otherwise ignore.
+
+## Tags
+
+Extract tags from the metadata line at the top: " Tags: X, Y, Z" or "Tags: X, Y, Z".
+Split on commas. Do NOT include tags from "- **Tags**" lines (those are empty placeholders).
+
+## Thermomix Patterns (Spanish)
+
+Thermomix parameters appear inline in step text. Extract them:
+- Time:        "X seg" → X seconds | "X min" → X×60 seconds
+- Speed:       "vel X" where X is a number | "vel cuchara" → speed "spoon"
+- Speed range: "vel 4-8" → range from 4 to 8
+- Temperature: "X°C" (e.g., "90°C") | "Varoma" → temperature "Varoma"
+- Reverse:     "giro a la izquierda" → thermomixIsBladeReversed: true
+
+Example: "cocinar 10 min/90°C/giro a la izquierda/vel cuchara"
+→ thermomixTime: 600, thermomixTemperature: 90, thermomixTemperatureUnit: "C",
+  thermomixIsBladeReversed: true, thermomixSpeed: { type: "single", value: "spoon", start: null, end: null }
+
+Example: "licúa 20 seg/vel 4-8, aumentando la velocidad progresivamente"
+→ thermomixTime: 20, thermomixSpeed: { type: "range", value: null, start: 4, end: 8 }
+
+## Missing Data
+
+- totalTime / prepTime: extract from aside blocks ("Tiempo total: 15 mins", etc.). If missing, use 0.
+- portions: extract from aside blocks ("Porciones: 4"). If a weight (e.g., "200g"), use 4. If missing, use 4.
+- difficulty: extract from aside blocks ("Nivel de dificultad: fácil" → "easy", "medio/media" → "medium", "difícil" → "hard"). If missing, use "medium".
+- If English content is empty or missing, translate the Spanish content to English.
+
+## Critical Rules
+
+DO NOT make up recipe content (ingredients, steps, tools, tips).
+DO NOT include anything not found in the markdown.
+DO translate names and content to English when only Spanish is provided.
 `;
 
 export interface ParsedRecipeData {
