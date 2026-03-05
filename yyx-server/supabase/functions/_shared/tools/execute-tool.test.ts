@@ -160,6 +160,32 @@ Deno.test("executeTool - search_recipes returns empty array when no matches", as
   assertEquals(result, []);
 });
 
+Deno.test("executeTool - accepts execution options object", async () => {
+  const supabase = createChainableMockSupabase([{
+    id: "recipe-1",
+    name_en: "Chicken Pasta",
+    name_es: "Pasta con Pollo",
+    image_url: null,
+    total_time: 30,
+    difficulty: "easy",
+    portions: 4,
+    recipe_to_tag: [],
+  }]);
+  const userContext = createMockUserContext();
+
+  const result = await executeTool(
+    supabase,
+    "search_recipes",
+    JSON.stringify({ query: "chicken" }),
+    userContext,
+    { onPartialRecipe: () => {} },
+  );
+
+  const cards = result as Array<{ recipeId: string }>;
+  assertEquals(cards.length, 1);
+  assertEquals(cards[0].recipeId, "recipe-1");
+});
+
 Deno.test("executeTool - search_recipes rejects when no query or filters", async () => {
   const supabase = createChainableMockSupabase();
   const userContext = createMockUserContext();

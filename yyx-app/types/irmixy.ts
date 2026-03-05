@@ -5,16 +5,14 @@
 
 export interface RecipeCard {
   recipeId: string;
+  recipeTable?: 'recipes' | 'user_recipes';
   name: string;
   imageUrl?: string;
   totalTime: number;
   difficulty: 'easy' | 'medium' | 'hard';
   portions: number;
-}
-
-export interface SuggestionChip {
-  label: string;
-  message: string;
+  allergenWarnings?: string[];
+  allergenVerificationWarning?: string;
 }
 
 export interface QuickAction {
@@ -48,6 +46,7 @@ export interface GeneratedUsefulItem {
 export interface GeneratedRecipe {
   schemaVersion: '1.0';
   suggestedName: string;
+  description?: string;
   measurementSystem: 'imperial' | 'metric';
   language: 'en' | 'es';
   ingredients: GeneratedIngredient[];
@@ -69,13 +68,19 @@ export interface IrmixyResponse {
   version: '1.0';
   message: string;
   language: 'en' | 'es';
-  status?: 'thinking' | 'searching' | 'generating' | null;
+  status?: 'thinking' | 'searching' | 'generating' | 'cooking_it_up' | null;
   recipes?: RecipeCard[];
   customRecipe?: GeneratedRecipe;
-  suggestions?: SuggestionChip[];
+  isAIGenerated?: boolean;
   actions?: QuickAction[];
   memoryUsed?: string[];
   safetyFlags?: SafetyFlags;
 }
 
-export type IrmixyStatus = 'thinking' | 'searching' | 'generating' | 'enriching' | null;
+export type IrmixyStatus =
+  | 'thinking'
+  | 'searching'
+  | 'generating'
+  | 'cooking_it_up'
+  | 'enriching'
+  | null;

@@ -10,8 +10,8 @@ import { render } from '@testing-library/react-native';
 import ChatPage from '../index';
 
 const mockStackScreen = jest.fn((_props: any) => null);
-const mockChatScreen = jest.fn(() => null);
-const mockVoiceChatScreen = jest.fn(() => null);
+const mockChatScreen = jest.fn((_props: any) => null);
+const mockVoiceChatScreen = jest.fn((_props: any) => null);
 
 jest.mock('expo-router', () => ({
   Stack: {

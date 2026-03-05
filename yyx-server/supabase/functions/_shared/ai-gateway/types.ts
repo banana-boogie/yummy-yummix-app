@@ -8,9 +8,9 @@
 /** Usage types for routing to appropriate models */
 export type AIUsageType =
   | "text"
-  | "voice"
+  | "recipe_generation"
+  | "recipe_modification"
   | "parsing"
-  | "reasoning"
   | "embedding";
 
 export type AIProvider = "openai" | "anthropic" | "google";
@@ -20,6 +20,13 @@ export interface AIMessage {
   content: string;
 }
 
+/** Context for automatic cost recording (fire-and-forget) */
+export interface CostContext {
+  userId: string;
+  edgeFunction: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface AICompletionRequest {
   /** The type of usage, used for routing to the appropriate model */
   usageType: AIUsageType;
@@ -27,7 +34,9 @@ export interface AICompletionRequest {
   messages: AIMessage[];
   /** Optional: Override the default model for this usage type */
   model?: string;
-  /** Optional: Temperature (0-2, lower = more deterministic) */
+  /** Optional: Reasoning effort for GPT-5 family models */
+  reasoningEffort?: "minimal" | "low" | "medium" | "high";
+  /** Optional: Sampling temperature (0-2). Use 1 for deterministic tasks like parsing. Not used with reasoning models. */
   temperature?: number;
   /** Optional: Maximum tokens to generate */
   maxTokens?: number;
@@ -43,6 +52,10 @@ export interface AICompletionRequest {
     type: "function";
     function: { name: string };
   };
+  /** Optional: AbortSignal to cancel in-flight requests */
+  signal?: AbortSignal;
+  /** Optional: Cost context for automatic recording */
+  costContext?: CostContext;
 }
 
 export interface AITool {
@@ -58,6 +71,7 @@ export interface AICompletionResponse {
     inputTokens: number;
     outputTokens: number;
   };
+  costUsd: number;
   toolCalls?: AIToolCall[];
 }
 
@@ -78,12 +92,29 @@ export interface AIEmbeddingRequest {
   text: string;
   /** Optional: Override the default embedding model */
   model?: string;
+  /** Optional: Cost context for automatic recording */
+  costContext?: CostContext;
 }
 
 export interface AIEmbeddingResponse {
   embedding: number[];
   model: string;
   usage: { inputTokens: number };
+  costUsd: number;
+}
+
+/** Usage data from a completed stream */
+export interface StreamUsageData {
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  model: string;
+}
+
+/** Result from chatStream — provides stream + deferred usage */
+export interface AIStreamResult {
+  stream: AsyncGenerator<string, void, unknown>;
+  usage: () => Promise<StreamUsageData>;
 }
 
 /** Configuration mapping usage types to provider/model */

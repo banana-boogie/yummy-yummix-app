@@ -89,7 +89,7 @@ class AIService {
           content:
             `Provide nutritional facts per 100g for ${ingredientName}. Return ONLY a JSON object in this exact format: {"calories": number, "protein": number, "fat": number, "carbohydrates": number}`,
         }],
-        temperature: 0.3,
+        temperature: 1,
         responseFormat: {
           type: "json_schema",
           schema: {

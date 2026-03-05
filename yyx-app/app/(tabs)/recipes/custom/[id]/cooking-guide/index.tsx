@@ -1,6 +1,7 @@
 import { View } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { useCustomRecipe } from '@/hooks/useCustomRecipe';
@@ -13,11 +14,23 @@ import i18n from '@/i18n';
 
 import { COLORS } from '@/constants/design-tokens';
 import * as Haptics from 'expo-haptics';
+import { getCustomCookingGuidePath, isFromChat } from '@/utils/navigation/recipeRoutes';
+import { eventService } from '@/services/eventService';
 
 export default function CustomCookingGuide() {
-  const { id, session } = useLocalSearchParams();
+  const { id, session, from } = useLocalSearchParams<{ id: string; session?: string; from?: string }>();
   const { recipe, loading, error } = useCustomRecipe(id as string);
   const { isPhone } = useDevice();
+  const navigation = useNavigation();
+  const isChatFlow = isFromChat(from);
+
+  const handleBackPress = () => {
+    if (isChatFlow && !navigation.canGoBack()) {
+      router.replace('/(tabs)/chat');
+    } else {
+      router.back();
+    }
+  };
 
   // Debug: log recipe ID and session to trace navigation issues
   if (__DEV__) {
@@ -31,7 +44,10 @@ export default function CustomCookingGuide() {
 
   const handleStart = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    router.push(`/(tabs)/recipes/custom/${id}/cooking-guide/mise-en-place-ingredients`);
+    if (recipe?.id && recipe?.name) {
+      eventService.logCookStart(recipe.id, recipe.name, 'user_recipes');
+    }
+    router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-ingredients'));
   };
 
   if (loading) {
@@ -51,7 +67,7 @@ export default function CustomCookingGuide() {
         <Button
           variant="secondary"
           label={i18n.t('common.back')}
-          onPress={() => router.back()}
+          onPress={handleBackPress}
           className="mt-lg"
         />
       </View>
@@ -81,6 +97,7 @@ export default function CustomCookingGuide() {
           showTitle={false}
           showSubtitle={false}
           showBackButton={true}
+          onBackPress={handleBackPress}
           pictureUrl={recipe?.pictureUrl}
           isCustomRecipe={true}
         />

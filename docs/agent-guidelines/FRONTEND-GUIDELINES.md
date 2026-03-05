@@ -20,7 +20,7 @@ yyx-app/
 ├── components/             # Reusable UI components
 │   ├── common/             # Core shared: Text, Button, SearchBar, Switch, AlertModal, ErrorMessage, CheckboxButton, Divider, GradientHeader, HeaderWithBack, LanguageBadge, ShareButton, StatusModal, SelectableCard, DangerButton, VoiceAssistantButton
 │   ├── layouts/            # PageLayout, ResponsiveLayout
-│   ├── chat/               # Chat-specific components
+│   ├── chat/               # Chat-specific components (RecipeProgressTracker, ChatScreen, VoiceChatScreen, etc.)
 │   ├── recipe/             # Recipe cards, lists
 │   ├── recipe-detail/      # Recipe detail views
 │   ├── cooking-guide/      # Cooking guide components
@@ -274,6 +274,42 @@ Platform prefixes in NativeWind:
 
 ---
 
+## Chat Components
+
+### RecipeProgressTracker
+
+`components/chat/RecipeProgressTracker.tsx` — a "Domino's tracker" style progress indicator shown during recipe generation. It replaces `RecipeGeneratingSkeleton` in both text and voice chat.
+
+**6 stages:** understanding -> ingredients -> cooking times -> steps -> final touches -> ready
+
+**Two operating modes:**
+
+| Mode | Trigger | How it works |
+|------|---------|-------------|
+| SSE-driven (text chat) | `currentStatus` prop from SSE events | Timer + SSE anchor snaps (e.g., `generating` -> stage 2, `enriching` -> stage 5) |
+| Timer-only (voice chat) | No `currentStatus` prop | Pure time-based advancement through stages |
+
+**Gating:**
+- **Text chat:** `isRecipeGenerating` boolean in `ChatScreen` — set `true` on `generating` SSE status. Bottom status bar is hidden while tracker is visible.
+- **Voice chat:** `executingToolName === 'generate_custom_recipe'` state from `useVoiceChat`.
+
+**PROGRESS_CONFIG** (exported constant for easy tuning):
+```typescript
+import { PROGRESS_CONFIG } from '@/components/chat/RecipeProgressTracker';
+```
+- `stages[].durationMs` — time budget per stage (total ~5.6s baseline as of Feb 2026)
+- `sseAnchors` — maps SSE status strings to minimum stage indices
+- `progressCap` (0.92) — prevents bar from reaching 100% before actual completion
+- `stallThresholdMs` (15s) — shows "Almost there..." message after this delay
+
+**Animation notes:**
+- Uses `scaleX` transform on progress bar for native driver compatibility
+- Logarithmic easing within each stage for natural feel
+- Label crossfade on stage transitions
+- Pulse animation on active stage icon via `MaterialCommunityIcons`
+
+---
+
 ## Responsive Design
 
 ```tsx
@@ -284,6 +320,27 @@ const { isPhone, isMedium, isLarge } = useDevice();
 {isLarge && <SidePanel />}
 {isPhone ? <MobileHeader /> : <DesktopHeader />}
 ```
+
+---
+
+## Visual Polish
+
+Implementation should feel crafted, not just technically correct. These principles complement the design system — they're about *how* you build, not *what* you build.
+
+### Principles
+- **Animate state changes** — Don't snap between loading/loaded/error. Use `Animated` or `LayoutAnimation` for smooth transitions. A skeleton shimmer feels faster than a spinner.
+- **Depth through shadows** — Cards and elevated elements should use soft shadows (`shadow-sm`). Flat UI with no elevation looks generic.
+- **Warm backgrounds** — Prefer subtle gradients (e.g., `primary-lightest` to white) over flat solid colors for page backgrounds and headers. This is the brand warmth.
+- **Generous spacing** — When in doubt, add more whitespace. Cramped layouts feel stressful; spacious layouts feel calm. Lupita needs calm.
+- **Intentional hierarchy** — Hero elements should be noticeably larger, not just a few pixels bigger. Make the visual priority obvious.
+- **Brand personality in details** — Use `font-handwritten` (ComingSoon) for personal touches like greeting messages or tips. Use the peach palette confidently. If a screen could belong to any app, it needs more YummyYummix.
+
+### Implementation Notes
+- Use `react-native-reanimated` for performant animations on native
+- Use `LayoutAnimation` for simple layout transitions (add/remove items)
+- Keep animations 150-300ms — snappy, not sluggish
+- Prefer CSS/NativeWind transitions where possible before reaching for animation libraries
+- Test animations on lower-end devices — they must stay smooth
 
 ---
 

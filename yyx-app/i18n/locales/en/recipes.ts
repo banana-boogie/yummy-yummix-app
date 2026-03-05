@@ -29,6 +29,7 @@ export const recipes = {
     emptyState: "No recipes found",
     noRecipesFound: "No recipes found",
     usefulItems: "Useful Items",
+    servings: "servings",
   },
   detail: {
     ingredients: {

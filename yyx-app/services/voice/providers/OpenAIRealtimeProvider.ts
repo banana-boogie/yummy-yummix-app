@@ -7,7 +7,8 @@ import {
 import { supabase } from "@/lib/supabase";
 import { Platform } from "react-native";
 import InCallManager from "react-native-incall-manager";
-import { buildSystemPrompt, detectGoodbye, InactivityTimer } from "../shared/VoiceUtils";
+import { detectGoodbye, InactivityTimer } from "../shared/VoiceUtils";
+import { isLikelyEcho, extractTranscriptFromResponse } from "../shared/VoiceAnalysis";
 import { voiceTools } from "../shared/VoiceToolDefinitions";
 import type {
   VoiceAssistantProvider,
@@ -21,6 +22,20 @@ import type {
   QuotaInfo,
 } from "../types";
 
+/**
+ * OpenAI Realtime WebRTC voice provider.
+ *
+ * Lifecycle:
+ * 1) `initialize()` creates the RTCPeerConnection and data channel, retrieves an
+ *    ephemeral token from the backend, and performs the SDP handshake.
+ * 2) `startConversation()` sends a `session.update` with prompt/tools/VAD settings.
+ * 3) `handleServerMessage()` translates Realtime server events into provider events
+ *    consumed by the voice hook.
+ * 4) `stopConversation()` closes media/data channels and persists usage metadata.
+ *
+ * The provider also tracks token breakdown (text/audio in/out) for approximate
+ * session cost reporting during `updateSessionDuration()`.
+ */
 export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private pc: RTCPeerConnection | null = null;
   private dc: RTCDataChannel | null = null;
@@ -31,10 +46,20 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private inactivityTimer = new InactivityTimer(10000); // 10 seconds
   private eventListeners: Map<VoiceEvent, Set<Function>> = new Map();
   private currentContext: ConversationContext | null = null;
+  /** True when the Realtime data channel is open and ready to send JSON events. */
   private dataChannelReady: boolean = false;
+  /** Outbound events buffered until the data channel transitions to open. */
   private pendingEvents: any[] = [];
-  // Function call tracking (keyed by call_id to handle interleaved calls)
+  /** Function-call argument assembly keyed by `call_id` for interleaved tool calls. */
   private pendingToolCalls: Map<string, { name: string; args: string }> = new Map();
+  /** Active assistant response id used to ignore late deltas after interruptions. */
+  private activeResponseId: string | null = null;
+  /** Pending goodbye disconnect timeout — cleared if stopConversation() is called externally. */
+  private goodbyeTimeoutId: NodeJS.Timeout | null = null;
+  /** Server-built voice instructions (personality + rules + tool usage). Single source of truth. */
+  private serverInstructions: string | null = null;
+  // Goodbye detection — wait for AI response before disconnecting
+  private goodbyeDetected = false;
   // Token tracking for cost calculation (separated by type for accurate pricing)
   private sessionInputTokens: number = 0;
   private sessionOutputTokens: number = 0;
@@ -42,7 +67,23 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private sessionInputAudioTokens: number = 0;
   private sessionOutputTextTokens: number = 0;
   private sessionOutputAudioTokens: number = 0;
+  /** Last assistant transcript for echo detection */
+  private lastAssistantTranscript: string = '';
+  /** Timestamp when AI audio playback completed */
+  private lastAudioDoneTime: number = 0;
 
+  /**
+   * Initialize a Realtime voice session transport.
+   *
+   * Setup sequence:
+   * 1) create RTCPeerConnection
+   * 2) acquire microphone track via getUserMedia and attach it to the connection
+   * 3) open the Realtime data channel used for JSON events
+   * 4) call backend `start_session` to enforce quota and obtain ephemeral token
+   * 5) create local SDP offer
+   * 6) exchange SDP with OpenAI Realtime endpoint
+   * 7) configure remote audio playback track handling
+   */
   async initialize(config: ProviderConfig): Promise<any> {
     this.setStatus("connecting");
 
@@ -137,6 +178,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       const data = await backendResponse.json();
       this.sessionId = data.sessionId;
+      this.serverInstructions = data.voiceInstructions || null;
       const ephemeralToken = data.ephemeralToken;
 
       // 5. Create Offer
@@ -189,6 +231,11 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     }
   }
 
+  /**
+   * Start an active conversation by pushing a `session.update` payload to Realtime.
+   * This configures model instructions, tools, transcription, VAD settings, and
+   * routes audio output to speaker mode with InCallManager.
+   */
   async startConversation(context: ConversationContext): Promise<void> {
     this.currentContext = context;
     // Don't start timer yet - wait until session.updated event confirms ready
@@ -198,28 +245,40 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     InCallManager.start({ media: "audio", ringback: "" });
     InCallManager.setForceSpeakerphoneOn(true);
 
-    // Start inactivity timer (will auto-end if no speech for 30 seconds)
+    // Start inactivity timer (auto-end if no speech for 30 seconds)
     this.inactivityTimer.reset(() => {
       this.stopConversation();
     });
 
-    // Send session configuration with context via data channel
-    const systemPrompt = buildSystemPrompt(context);
+    // Use server-built instructions (single source of truth for personality + rules + tool usage).
+    // Append recipe context only when in cooking guide mode.
+    const instructions = this.buildInstructions(context.recipeContext);
 
+    /**
+     * server_vad config
+     * - threshold 0.6 balances noise rejection with natural speech capture
+     * - prefix_padding_ms 300 captures word beginnings reliably
+     * - silence_duration_ms 1000 gives users a full second to pause between items
+     *   when listing ingredients without triggering end-of-turn. OpenAI default is
+     *   500ms but that's too aggressive for a cooking app where users enumerate.
+     */
     this.sendEvent({
       type: "session.update",
       session: {
         modalities: ["text", "audio"],
-        instructions: systemPrompt,
+        instructions,
         voice: "marin", // Female voice that works for all languages
         input_audio_format: "pcm16",
         output_audio_format: "pcm16",
-        input_audio_transcription: { model: "whisper-1" },
+        input_audio_transcription: {
+          model: "whisper-1",
+          language: context.userContext.language === 'es' ? 'es' : 'en',
+        },
         turn_detection: {
           type: "server_vad",
-          threshold: 0.5,
+          threshold: 0.6,
           prefix_padding_ms: 300,
-          silence_duration_ms: 800,
+          silence_duration_ms: 1000,
         },
         tools: voiceTools,
       },
@@ -234,8 +293,15 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       clearTimeout(this.sessionTimeoutId);
       this.sessionTimeoutId = null;
     }
+    if (this.goodbyeTimeoutId) {
+      clearTimeout(this.goodbyeTimeoutId);
+      this.goodbyeTimeoutId = null;
+    }
 
     this.inactivityTimer.clear();
+
+    // Reset goodbye state
+    this.goodbyeDetected = false;
 
     if (this.sessionStartTime) {
       const durationSeconds = (Date.now() - this.sessionStartTime) / 1000;
@@ -268,6 +334,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
     // Reset tool call tracking
     this.pendingToolCalls.clear();
+    this.activeResponseId = null;
+    this.serverInstructions = null;
+    this.lastAssistantTranscript = '';
+    this.lastAudioDoneTime = 0;
 
     // Reset token counters for next session
     this.sessionInputTokens = 0;
@@ -290,17 +360,21 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       }
     }
 
-    // Update session instructions mid-conversation
+    // Update session instructions mid-conversation (only recipe context changes client-side)
     if (this.dc && this.dc.readyState === "open") {
-      const systemPrompt = buildSystemPrompt(this.currentContext);
       this.sendEvent({
         type: "session.update",
-        session: { instructions: systemPrompt },
+        session: { instructions: this.buildInstructions(recipeContext) },
       });
     }
   }
 
   sendToolResult(callId: string, output: string): void {
+    // Reset inactivity timer — tool execution completed, AI will now respond
+    this.inactivityTimer.reset(() => {
+      this.stopConversation();
+    });
+
     // Send the function call output back to OpenAI
     this.sendEvent({
       type: "conversation.item.create",
@@ -369,6 +443,26 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
   // Private methods
 
+  /**
+   * Build the final instructions string for session.update.
+   * Uses the server-provided prompt as base, appending recipe context when present.
+   */
+  private buildInstructions(recipeContext?: RecipeContext): string {
+    let instructions = this.serverInstructions || "";
+
+    if (recipeContext?.recipeTitle) {
+      instructions += `\n\nCurrent Cooking Context:\n- Recipe: ${recipeContext.recipeTitle}`;
+      if (recipeContext.currentStep && recipeContext.totalSteps) {
+        instructions += `\n- Step ${recipeContext.currentStep} of ${recipeContext.totalSteps}`;
+      }
+      if (recipeContext.stepInstructions) {
+        instructions += `\n- Current instruction: ${recipeContext.stepInstructions}`;
+      }
+    }
+
+    return instructions;
+  }
+
   private setStatus(status: VoiceStatus): void {
     this.status = status;
     this.emit("statusChange", status);
@@ -387,6 +481,24 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     }
   }
 
+  /**
+   * Realtime server event state machine.
+   *
+   * Typical turn flow:
+   * `input_audio_buffer.speech_started`
+   *   -> `input_audio_buffer.speech_stopped`
+   *   -> `conversation.item.input_audio_transcription.completed`
+   *   -> `response.created`
+   *   -> `response.output_audio_transcript.delta` (streaming text)
+   *   -> `response.output_audio_transcript.done`
+   *   -> `response.done`
+   *
+   * Tool flow can interleave with transcript deltas:
+   * `response.output_item.added(function_call)`
+   *   -> `response.function_call_arguments.delta`
+   *   -> `response.function_call_arguments.done`
+   *   -> emit `toolCall` to hook
+   */
   private handleServerMessage(message: any): void {
     switch (message.type) {
       // Session events
@@ -404,10 +516,12 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       // Input audio buffer events
       case "input_audio_buffer.speech_started":
         this.setStatus("listening");
-        // Reset inactivity timer when user speaks
-        this.inactivityTimer.reset(() => {
-          this.stopConversation();
-        });
+        this.emit("speechStarted");
+        // Clear inactivity timer while user is speaking — speech_started fires
+        // once per segment, so a reset(10s) would expire if the user talks for
+        // longer than 10s (e.g. listing ingredients). The timer restarts later
+        // in response.audio.done when it's actually the user's turn to speak.
+        this.inactivityTimer.clear();
         break;
 
       case "input_audio_buffer.speech_stopped":
@@ -427,30 +541,32 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
             // Check for goodbye (fallback if input_audio_transcription.completed doesn't fire)
             if (detectGoodbye(transcript)) {
-              setTimeout(() => {
-                this.stopConversation();
-              }, 2000);
+              this.goodbyeDetected = true;
             }
           }
         }
         break;
 
       case "conversation.item.input_audio_transcription.completed":
+        // Guard: suppress transcripts that match what the AI just said (speaker echo)
+        if (isLikelyEcho(message.transcript, this.lastAssistantTranscript, Date.now() - this.lastAudioDoneTime)) {
+          if (__DEV__) console.log('[OpenAI] Suppressed likely echo:', message.transcript);
+          break;
+        }
         // User's speech transcribed
         this.emit("transcript", message.transcript);
         this.emit("userTranscriptComplete", message.transcript);
 
-        // Check if user said goodbye
+        // Check if user said goodbye — set flag
+        // The actual disconnect happens in response.audio.done so the AI can finish speaking
         if (detectGoodbye(message.transcript)) {
-          // Give a brief moment for AI to respond, then end
-          setTimeout(() => {
-            this.stopConversation();
-          }, 2000); // 2 seconds for AI to say goodbye back
+          this.goodbyeDetected = true;
         }
         break;
 
       // Response events
       case "response.created":
+        this.activeResponseId = message.response?.id ?? null;
         this.setStatus("processing");
         break;
 
@@ -461,6 +577,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
             name: message.item.name,
             args: "",
           });
+          // Clear inactivity timer — tool execution (especially generate_custom_recipe)
+          // can take 10-15s+. sendToolResult() restarts the timer when the backend returns.
+          // Both success and error paths in the hook call sendToolResult, so no hang risk.
+          this.inactivityTimer.clear();
         }
         break;
 
@@ -482,8 +602,12 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         if (message.call_id) {
           const pending = this.pendingToolCalls.get(message.call_id);
           if (pending) {
+            // Prefer server-accumulated arguments (message.arguments) over our
+            // client-side delta assembly — more reliable if a delta was dropped
+            // over WebRTC.
+            const rawArgs = message.arguments || pending.args || "{}";
             try {
-              const args = JSON.parse(pending.args || "{}");
+              const args = JSON.parse(rawArgs);
               const toolCall: VoiceToolCall = {
                 callId: message.call_id,
                 name: pending.name,
@@ -492,17 +616,29 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
               this.emit("toolCall", toolCall);
             } catch (e) {
               console.error("[OpenAI] Failed to parse tool call args:", e);
+              // Send error back to OpenAI so it can ask the user to repeat
+              // rather than silently dropping the tool call
+              this.sendEvent({
+                type: "conversation.item.create",
+                item: {
+                  type: "function_call_output",
+                  call_id: message.call_id,
+                  output: JSON.stringify({ error: "Failed to parse arguments. Please try again." }),
+                },
+              });
+              this.sendEvent({ type: "response.create" });
             }
             this.pendingToolCalls.delete(message.call_id);
           }
         }
         break;
 
-      case "response.audio_transcript.delta":
+      case "response.output_audio_transcript.delta":
         // Streaming transcript of assistant's response
         if (message.delta) {
+          const responseId = message.response_id ?? this.activeResponseId;
           this.emit("transcript", message.delta);
-          this.emit("assistantTranscriptDelta", message.delta);
+          this.emit("assistantTranscriptDelta", message.delta, responseId);
         }
         break;
 
@@ -511,11 +647,26 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         this.setStatus("speaking");
         break;
 
-      case "response.audio_transcript.done":
+      case "response.output_audio_transcript.done":
         // Complete transcript of what AI said
         if (message.transcript) {
+          this.lastAssistantTranscript = message.transcript;
+          const responseId = message.response_id ?? this.activeResponseId;
           this.emit("response", { text: message.transcript });
-          this.emit("assistantTranscriptComplete", message.transcript);
+          this.emit("assistantTranscriptComplete", message.transcript, responseId);
+        }
+        break;
+
+      case "response.audio.done":
+        // Track when audio playback ends for echo detection
+        this.lastAudioDoneTime = Date.now();
+        // AI finished sending audio — don't disconnect on goodbye here;
+        // response.done handles it with a delay so the audio buffer can drain.
+        if (!this.goodbyeDetected) {
+          // Give user a fresh inactivity window to respond
+          this.inactivityTimer.reset(() => {
+            this.stopConversation();
+          });
         }
         break;
 
@@ -524,6 +675,18 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         break;
 
       case "response.done":
+        if (message.response?.status === "cancelled") {
+          // Clear any in-flight tool calls from the interrupted response —
+          // their arguments are incomplete and would fail to parse.
+          this.pendingToolCalls.clear();
+          this.emit("responseInterrupted", message.response?.id ?? this.activeResponseId);
+        } else {
+          // Extract transcript from response output items as fallback for when
+          // response.output_audio_transcript.delta events never fire
+          const fallbackTranscript = extractTranscriptFromResponse(message.response);
+          this.emit("responseDone", message.response?.id ?? this.activeResponseId, fallbackTranscript);
+        }
+
         // Extract token usage from response
         if (message.response?.usage) {
           const usage = message.response.usage;
@@ -551,7 +714,19 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
           );
         }
 
-        this.setStatus("listening");
+        this.activeResponseId = null;
+
+        // If goodbye was detected, delay disconnect to let the WebRTC audio
+        // buffer finish playing the farewell response on the client.
+        if (this.goodbyeDetected) {
+          this.inactivityTimer.clear();
+          this.goodbyeTimeoutId = setTimeout(() => {
+            this.goodbyeTimeoutId = null;
+            this.stopConversation();
+          }, 1500);
+        } else {
+          this.setStatus("listening");
+        }
         break;
 
       // Rate limits
@@ -566,11 +741,20 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         break;
 
       default:
-        // Ignore unhandled events silently
+        if (__DEV__) console.log("[OpenAI] Unhandled event:", message.type);
         break;
     }
   }
 
+  /**
+   * Persist session duration and usage costs to `ai_voice_sessions`.
+   *
+   * Cost formula:
+   * - input text:  $0.60 / 1M tokens
+   * - output text: $2.40 / 1M tokens
+   * - input audio: $10.00 / 1M tokens
+   * - output audio:$20.00 / 1M tokens
+   */
   private async updateSessionDuration(durationSeconds: number): Promise<void> {
     if (!this.sessionId) {
       console.warn("[OpenAI] No session ID to update");

@@ -10,6 +10,8 @@
 
 import { supabase } from '@/lib/supabase';
 
+import { OpenAIRealtimeProvider } from '../OpenAIRealtimeProvider';
+
 jest.mock('react-native-webrtc', () => ({
   RTCPeerConnection: jest.fn(),
   RTCSessionDescription: jest.fn(),
@@ -27,7 +29,6 @@ jest.mock('react-native-incall-manager', () => ({
 }));
 
 jest.mock('../../shared/VoiceUtils', () => ({
-  buildSystemPrompt: jest.fn(() => 'system prompt'),
   detectGoodbye: jest.fn(() => false),
   InactivityTimer: class {
     reset = jest.fn();
@@ -35,11 +36,14 @@ jest.mock('../../shared/VoiceUtils', () => ({
   },
 }));
 
+jest.mock('../../shared/VoiceAnalysis', () => ({
+  isLikelyEcho: jest.fn(() => false),
+  extractTranscriptFromResponse: jest.fn(() => null),
+}));
+
 jest.mock('../../shared/VoiceToolDefinitions', () => ({
   voiceTools: [],
 }));
-
-import { OpenAIRealtimeProvider } from '../OpenAIRealtimeProvider';
 
 describe('OpenAIRealtimeProvider', () => {
   const mockFetch = jest.fn();

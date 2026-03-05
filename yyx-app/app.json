@@ -78,7 +78,8 @@
       "expo-web-browser",
       "expo-audio",
       "@config-plugins/react-native-webrtc",
-      "expo-navigation-bar"
+      "expo-navigation-bar",
+      "expo-speech-recognition"
     ],
     "experiments": {
       "typedRoutes": true

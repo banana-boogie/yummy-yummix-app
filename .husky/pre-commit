@@ -11,6 +11,34 @@ if [ -z "$STAGED_FILES" ]; then
   exit 0
 fi
 
+# Block committing local environment files
+SENSITIVE_ENV_FILES=$(echo "$STAGED_FILES" | grep -E '(^|/)\.env($|\.local$|\.development$|\.production$|\.test$)' | grep -v '\.example$' || true)
+if [ -n "$SENSITIVE_ENV_FILES" ]; then
+  echo "❌ Refusing to commit local environment files:"
+  echo "$SENSITIVE_ENV_FILES"
+  echo "Use .env.example templates instead."
+  exit 1
+fi
+
+# Block obvious secret leaks in added lines
+SENSITIVE_ADDITIONS=$(git diff --cached --unified=0 | grep -E '^\+.*(SUPABASE_SERVICE_ROLE_KEY=.*eyJ|sk-proj-[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)' | grep -v '^+SENSITIVE_ADDITIONS=' || true)
+if [ -n "$SENSITIVE_ADDITIONS" ]; then
+  echo "❌ Potential secret detected in staged changes. Remove secrets before commit."
+  exit 1
+fi
+
+# Syntax-check staged shell scripts
+YYX_SERVER_SHELL_FILES=$(echo "$STAGED_FILES" | grep '^yyx-server/scripts/.*\.sh$' || true)
+if [ -n "$YYX_SERVER_SHELL_FILES" ]; then
+  echo "🔍 Running shell syntax checks..."
+  while IFS= read -r file; do
+    bash -n "$file"
+  done <<EOF
+$YYX_SERVER_SHELL_FILES
+EOF
+  echo "✅ Shell syntax check passed"
+fi
+
 # ============================================================
 # YYX-APP: ESLint via lint-staged
 # ============================================================
@@ -49,7 +77,11 @@ if [ -n "$YYX_SERVER_FILES" ]; then
   fi
 
   echo "🔍 Running deno lint for yyx-server..."
-  deno lint supabase/functions/
+  # Only lint staged .ts files, using deno.json config for rule exclusions
+  LINT_FILES=$(echo "$YYX_SERVER_FILES" | grep '\.ts$' | sed 's|^yyx-server/||' || true)
+  if [ -n "$LINT_FILES" ]; then
+    echo "$LINT_FILES" | xargs deno lint --config deno.json
+  fi
   echo "✅ Lint check passed"
 
   cd ..

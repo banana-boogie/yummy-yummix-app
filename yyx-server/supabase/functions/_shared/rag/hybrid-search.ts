@@ -80,15 +80,13 @@ interface ScoredRecipe {
 // Hybrid Scoring Weights (per plan Section 6.5)
 // ============================================================
 
-const SEMANTIC_WEIGHT = 0.55;
-const LEXICAL_WEIGHT = 0.25;
+const SEMANTIC_WEIGHT = 0.40;
+const LEXICAL_WEIGHT = 0.35;
 const METADATA_WEIGHT = 0.10;
-const PERSONALIZATION_WEIGHT = 0.10;
+const PERSONALIZATION_WEIGHT = 0.15;
 
 // Thresholds
-const INCLUDE_THRESHOLD = 0.35;
-const FALLBACK_TOP_THRESHOLD = 0.42;
-const MIN_RESULTS_BEFORE_FALLBACK = 2;
+const INCLUDE_THRESHOLD = 0.42;
 
 // ============================================================
 // Embedding
@@ -197,6 +195,12 @@ function computeMetadataScore(
   recipe: { total_time: number; difficulty: string },
   filters: HybridSearchFilters,
 ): number {
+  const difficultyOrder: Record<"easy" | "medium" | "hard", number> = {
+    easy: 0,
+    medium: 1,
+    hard: 2,
+  };
+
   let score = 0;
   let factors = 0;
 
@@ -206,6 +210,8 @@ function computeMetadataScore(
       score += 1;
     } else if (recipe.total_time <= filters.maxTime * 1.2) {
       score += 0.5;
+    } else if (recipe.total_time <= filters.maxTime * 1.5) {
+      score += 0.2;
     }
   }
 
@@ -213,6 +219,14 @@ function computeMetadataScore(
     factors++;
     if (recipe.difficulty === filters.difficulty) {
       score += 1;
+    } else if (
+      recipe.difficulty in difficultyOrder &&
+      Math.abs(
+          difficultyOrder[recipe.difficulty as "easy" | "medium" | "hard"] -
+            difficultyOrder[filters.difficulty],
+        ) === 1
+    ) {
+      score += 0.4;
     }
   }
 
@@ -258,8 +272,15 @@ export async function searchRecipesHybrid(
 ): Promise<HybridSearchResult> {
   // Try to generate query embedding with graceful fallback
   let queryEmbedding: number[] | null = null;
+  const embedStart = performance.now();
   try {
     queryEmbedding = await embedQuery(query);
+    console.log("[hybrid-search] Embedding generated", {
+      queryLength: query.length,
+      hasQuery: query.length > 0,
+      dimensions: queryEmbedding.length,
+      ms: Math.round(performance.now() - embedStart),
+    });
   } catch (err) {
     console.warn(
       "[hybrid-search] Embedding failed, falling back to lexical:",
@@ -281,6 +302,11 @@ export async function searchRecipesHybrid(
     queryEmbedding,
     50,
   );
+
+  console.log("[hybrid-search] Semantic matches", {
+    total: semanticMatches.length,
+    bestSimilarity: semanticMatches[0]?.similarity?.toFixed(3) ?? null,
+  });
 
   if (semanticMatches.length === 0) {
     return {
@@ -363,30 +389,22 @@ export async function searchRecipesHybrid(
     };
   });
 
-  // Apply hard filters
-  let filtered = scored;
-  if (filters.difficulty) {
-    filtered = filtered.filter((r) => r.difficulty === filters.difficulty);
-  }
-  if (filters.maxTime) {
-    filtered = filtered.filter((r) => r.totalTime <= filters.maxTime!);
-  }
-
   // Apply threshold and sort
-  const aboveThreshold = filtered
+  const aboveThreshold = scored
     .filter((r) => r.finalScore >= INCLUDE_THRESHOLD)
     .sort((a, b) => b.finalScore - a.finalScore);
 
-  // Check fallback conditions
-  const topScore = aboveThreshold[0]?.finalScore || 0;
-  const needsFallback = aboveThreshold.length < MIN_RESULTS_BEFORE_FALLBACK ||
-    topScore < FALLBACK_TOP_THRESHOLD;
+  // Fall back to lexical only when zero recipes pass the include threshold
+  const needsFallback = aboveThreshold.length === 0;
+
+  console.log("[hybrid-search] Threshold filtering", {
+    totalScored: scored.length,
+    aboveThreshold: aboveThreshold.length,
+    topScore: (aboveThreshold[0]?.finalScore || 0).toFixed(3),
+    needsFallback,
+  });
 
   if (needsFallback) {
-    console.log("[hybrid-search] Below threshold, signaling fallback", {
-      resultCount: aboveThreshold.length,
-      topScore: topScore.toFixed(3),
-    });
     return {
       recipes: [],
       method: "hybrid",
@@ -400,6 +418,7 @@ export async function searchRecipesHybrid(
     .slice(0, limit)
     .map((r) => ({
       recipeId: r.recipeId,
+      recipeTable: "recipes",
       name: r.name,
       imageUrl: r.imageUrl,
       totalTime: r.totalTime,

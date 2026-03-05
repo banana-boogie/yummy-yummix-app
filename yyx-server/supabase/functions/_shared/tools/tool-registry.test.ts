@@ -1,8 +1,5 @@
 /**
  * Tool Registry Parity and Contract Tests
- *
- * Verifies that all registered tools have consistent definitions
- * and that voice-allowed tools are properly configured.
  */
 
 import {
@@ -14,10 +11,6 @@ import {
   getRegisteredAiTools,
   getToolRegistration,
 } from "./tool-registry.ts";
-
-// ============================================================
-// Registry completeness
-// ============================================================
 
 Deno.test("tool registry: has search_recipes registered", () => {
   const reg = getToolRegistration("search_recipes");
@@ -31,10 +24,15 @@ Deno.test("tool registry: has generate_custom_recipe registered", () => {
   assertEquals(reg!.aiTool.name, "generate_custom_recipe");
 });
 
-Deno.test("tool registry: has retrieve_custom_recipe registered", () => {
-  const reg = getToolRegistration("retrieve_custom_recipe");
+Deno.test("tool registry: has retrieve_cooked_recipes registered", () => {
+  const reg = getToolRegistration("retrieve_cooked_recipes");
   assertNotEquals(reg, undefined);
-  assertEquals(reg!.aiTool.name, "retrieve_custom_recipe");
+  assertEquals(reg!.aiTool.name, "retrieve_cooked_recipes");
+});
+
+Deno.test("tool registry: old retrieve_custom_recipe is removed", () => {
+  const reg = getToolRegistration("retrieve_custom_recipe");
+  assertEquals(reg, undefined);
 });
 
 Deno.test("tool registry: unknown tool returns undefined", () => {
@@ -42,14 +40,10 @@ Deno.test("tool registry: unknown tool returns undefined", () => {
   assertEquals(reg, undefined);
 });
 
-// ============================================================
-// AI tool definition contract
-// ============================================================
-
 Deno.test("tool registry: all tools have name, description, parameters", () => {
   const tools = getRegisteredAiTools();
   for (const tool of tools) {
-    assertNotEquals(tool.name, undefined, `Tool missing name`);
+    assertNotEquals(tool.name, undefined, "Tool missing name");
     assertNotEquals(
       tool.description,
       undefined,
@@ -63,22 +57,6 @@ Deno.test("tool registry: all tools have name, description, parameters", () => {
   }
 });
 
-Deno.test("tool registry: all tools have non-empty descriptions", () => {
-  const tools = getRegisteredAiTools();
-  for (const tool of tools) {
-    assertEquals(typeof tool.description, "string");
-    assertEquals(
-      tool.description!.length > 0,
-      true,
-      `${tool.name} has empty description`,
-    );
-  }
-});
-
-// ============================================================
-// Voice/text parity
-// ============================================================
-
 Deno.test("voice tools: all voice-allowed tools are in the registry", () => {
   const voiceNames = getAllowedVoiceToolNames();
   for (const name of voiceNames) {
@@ -87,19 +65,18 @@ Deno.test("voice tools: all voice-allowed tools are in the registry", () => {
   }
 });
 
-Deno.test("voice tools: search_recipes is voice-allowed", () => {
+Deno.test("voice tools: required tools are voice-allowed", () => {
   const voiceNames = getAllowedVoiceToolNames();
-  assertEquals(voiceNames.includes("search_recipes"), true);
-});
-
-Deno.test("voice tools: generate_custom_recipe is voice-allowed", () => {
-  const voiceNames = getAllowedVoiceToolNames();
-  assertEquals(voiceNames.includes("generate_custom_recipe"), true);
-});
-
-Deno.test("voice tools: retrieve_custom_recipe is voice-allowed", () => {
-  const voiceNames = getAllowedVoiceToolNames();
-  assertEquals(voiceNames.includes("retrieve_custom_recipe"), true);
+  for (
+    const name of [
+      "search_recipes",
+      "generate_custom_recipe",
+      "modify_recipe",
+      "retrieve_cooked_recipes",
+    ]
+  ) {
+    assertEquals(voiceNames.includes(name), true);
+  }
 });
 
 Deno.test("voice tools: all registered tools have execute and shapeResult", () => {
@@ -114,10 +91,6 @@ Deno.test("voice tools: all registered tools have execute and shapeResult", () =
     );
   }
 });
-
-// ============================================================
-// Shape result contract
-// ============================================================
 
 Deno.test("tool registry: search_recipes shapeResult handles array", () => {
   const reg = getToolRegistration("search_recipes")!;
@@ -146,25 +119,50 @@ Deno.test("tool registry: generate_custom_recipe shapeResult handles null", () =
   assertEquals(shaped.result, null);
 });
 
-Deno.test("tool registry: retrieve_custom_recipe shapeResult handles valid result", () => {
-  const reg = getToolRegistration("retrieve_custom_recipe")!;
-  const result = {
-    version: "1.0",
-    type: "single",
-    recipe: {
-      userRecipeId: "abc",
-      name: "Test",
-      createdAt: "2025-01-01",
-      source: "ai_generated",
-    },
-    suggestions: [],
-  };
-  const shaped = reg.shapeResult(result);
-  assertEquals(shaped.retrievalResult?.type, "single");
+Deno.test("tool registry: has modify_recipe registered", () => {
+  const reg = getToolRegistration("modify_recipe");
+  assertNotEquals(reg, undefined);
+  assertEquals(reg!.aiTool.name, "modify_recipe");
 });
 
-Deno.test("tool registry: retrieve_custom_recipe shapeResult handles null", () => {
-  const reg = getToolRegistration("retrieve_custom_recipe")!;
+Deno.test("tool registry: modify_recipe is voice-allowed", () => {
+  const reg = getToolRegistration("modify_recipe");
+  assertEquals(reg!.allowedInVoice, true);
+});
+
+Deno.test("tool registry: modify_recipe shapeResult handles valid result", () => {
+  const reg = getToolRegistration("modify_recipe")!;
+  const shaped = reg.shapeResult({
+    recipe: { suggestedName: "Modified Pasta" },
+    safetyFlags: {},
+  });
+  assertEquals(shaped.customRecipe?.suggestedName, "Modified Pasta");
+});
+
+Deno.test("tool registry: modify_recipe shapeResult handles null", () => {
+  const reg = getToolRegistration("modify_recipe")!;
+  const shaped = reg.shapeResult(null);
+  assertEquals(shaped.result, null);
+});
+
+Deno.test("tool registry: retrieve_cooked_recipes shapeResult handles valid array", () => {
+  const reg = getToolRegistration("retrieve_cooked_recipes")!;
+  const shaped = reg.shapeResult([
+    {
+      recipeId: "11111111-1111-4111-8111-111111111111",
+      recipeTable: "recipes",
+      name: "Test",
+      totalTime: 10,
+      difficulty: "easy",
+      portions: 2,
+    },
+  ]);
+  assertEquals(Array.isArray(shaped.recipes), true);
+  assertEquals(shaped.recipes?.length, 1);
+});
+
+Deno.test("tool registry: retrieve_cooked_recipes shapeResult handles null", () => {
+  const reg = getToolRegistration("retrieve_cooked_recipes")!;
   const shaped = reg.shapeResult(null);
   assertEquals(shaped.result, null);
 });

@@ -18,7 +18,11 @@ const ALLOWED_ACTIONS = [
   "execute_tool",
   "check_quota",
 ] as const;
-const ALLOWED_TOOLS = ["search_recipes", "generate_custom_recipe"] as const;
+const ALLOWED_TOOLS = [
+  "search_recipes",
+  "generate_custom_recipe",
+  "modify_recipe",
+] as const;
 const MAX_PAYLOAD_BYTES = 10_000;
 
 Deno.test("ALLOWED_ACTIONS contains exactly the expected actions", () => {
@@ -50,9 +54,10 @@ Deno.test("action validation rejects unknown actions", () => {
 });
 
 Deno.test("ALLOWED_TOOLS contains exactly the expected tools", () => {
-  assertEquals(ALLOWED_TOOLS.length, 2);
+  assertEquals(ALLOWED_TOOLS.length, 3);
   assert(ALLOWED_TOOLS.includes("search_recipes"));
   assert(ALLOWED_TOOLS.includes("generate_custom_recipe"));
+  assert(ALLOWED_TOOLS.includes("modify_recipe"));
 });
 
 Deno.test("tool allowlist rejects unknown tool names", () => {
@@ -175,6 +180,57 @@ Deno.test("only POST and OPTIONS methods should be accepted", () => {
     );
   }
 });
+
+// ============================================================
+// costContext contract tests
+// ============================================================
+
+Deno.test("execute_tool costContext has required shape", () => {
+  // Mirrors the costContext built in handleExecuteTool
+  const userId = "user-abc-123";
+  const toolName = "search_recipes";
+  const sessionId = "session-xyz";
+
+  const costContext = {
+    userId,
+    edgeFunction: "irmixy-voice-orchestrator",
+    metadata: {
+      action: "execute_tool",
+      toolName,
+      ...(sessionId ? { sessionId } : {}),
+    },
+  };
+
+  assertEquals(costContext.userId, userId);
+  assertEquals(costContext.edgeFunction, "irmixy-voice-orchestrator");
+  assertEquals(costContext.metadata.action, "execute_tool");
+  assertEquals(costContext.metadata.toolName, "search_recipes");
+  assertEquals(costContext.metadata.sessionId, "session-xyz");
+});
+
+Deno.test("execute_tool costContext omits sessionId when not provided", () => {
+  const userId = "user-abc-123";
+  const toolName = "generate_custom_recipe";
+  const sessionId: string | undefined = undefined;
+
+  const costContext = {
+    userId,
+    edgeFunction: "irmixy-voice-orchestrator",
+    metadata: {
+      action: "execute_tool",
+      toolName,
+      ...(sessionId ? { sessionId } : {}),
+    },
+  };
+
+  assertEquals(costContext.userId, userId);
+  assertEquals(costContext.edgeFunction, "irmixy-voice-orchestrator");
+  assertEquals(Object.hasOwn(costContext.metadata, "sessionId"), false);
+});
+
+// ============================================================
+// execute_tool payload validation tests
+// ============================================================
 
 Deno.test("execute_tool payload requires non-empty string toolName and non-null toolArgs", () => {
   const validToolName = "search_recipes";

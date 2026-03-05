@@ -13,16 +13,18 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 export const RecipeCardSchema = z.object({
   recipeId: z.string().uuid(),
+  // Deployment-safe default: existing cards without this field are treated as catalog.
+  recipeTable: z.enum(["recipes", "user_recipes"]).optional().default(
+    "recipes",
+  ),
   name: z.string(),
   imageUrl: z.string().optional(),
   totalTime: z.number().int().nonnegative(), // Allow 0 for recipes with unknown time
   difficulty: z.enum(["easy", "medium", "hard"]),
   portions: z.number().int().positive(),
-});
-
-export const SuggestionChipSchema = z.object({
-  label: z.string(),
-  message: z.string(),
+  allergenWarnings: z.array(z.string()).optional(),
+  // Present when allergen verification data is temporarily unavailable.
+  allergenVerificationWarning: z.string().optional(),
 });
 
 export const QuickActionSchema = z.object({
@@ -46,6 +48,7 @@ export const UsefulItemSchema = z.object({
 export const GeneratedRecipeSchema = z.object({
   schemaVersion: z.literal("1.0"),
   suggestedName: z.string(),
+  description: z.string().optional(),
   measurementSystem: z.enum(["imperial", "metric"]),
   language: z.enum(["en", "es"]),
   ingredients: z.array(z.object({
@@ -79,10 +82,12 @@ export const IrmixyResponseSchema = z.object({
   version: z.literal("1.0"),
   message: z.string(),
   language: z.enum(["en", "es"]),
-  status: z.enum(["thinking", "searching", "generating"]).nullable().optional(),
+  status: z.enum(["thinking", "searching", "generating", "cooking_it_up"])
+    .nullable()
+    .optional(),
   recipes: z.array(RecipeCardSchema).optional(),
   customRecipe: GeneratedRecipeSchema.optional(),
-  suggestions: z.array(SuggestionChipSchema).optional(),
+  isAIGenerated: z.boolean().optional(),
   actions: z.array(QuickActionSchema).optional(),
   memoryUsed: z.array(z.string()).optional(),
   safetyFlags: SafetyFlagsSchema.optional(),
@@ -93,7 +98,6 @@ export const IrmixyResponseSchema = z.object({
 // ============================================================
 
 export type RecipeCard = z.infer<typeof RecipeCardSchema>;
-export type SuggestionChip = z.infer<typeof SuggestionChipSchema>;
 export type QuickAction = z.infer<typeof QuickActionSchema>;
 export type UsefulItem = z.infer<typeof UsefulItemSchema>;
 export type GeneratedRecipe = z.infer<typeof GeneratedRecipeSchema>;
@@ -126,7 +130,9 @@ export interface UserContext {
   ingredientDislikes: string[];
   skillLevel: string | null;
   householdSize: number | null;
-  conversationHistory: Array<{ role: string; content: string; metadata?: any }>;
+  conversationHistory: Array<
+    { role: string; content: string; metadata?: any; toolSummary?: string }
+  >;
   // Additional context fields
   dietTypes: string[]; // MEDIUM constraint - affects ingredient selection (vegan, keto, etc.)
   cuisinePreferences: string[]; // SOFT constraint - inspirational only (italian, mexican, etc.)

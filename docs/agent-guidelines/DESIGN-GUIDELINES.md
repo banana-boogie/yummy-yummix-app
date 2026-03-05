@@ -203,7 +203,16 @@ When producing design specs for the frontend agent, include:
 ## Interaction Patterns
 
 - **Touch targets:** Minimum 44x44px (iOS HIG). Use `p-sm` or `p-md` padding on interactive elements.
-- **Loading states:** Show skeleton or spinner, never blank screens
+- **Loading states:** Choose the right pattern for the wait duration and user expectation:
+
+  | Pattern | When to Use | Example |
+  |---------|------------|---------|
+  | **Spinner** | Brief waits (<2s), no content to preview | Button submission, navigation |
+  | **Skeleton** | Medium waits (2-5s), content shape is predictable | Loading recipe cards, chat messages |
+  | **Progress tracker** | Long waits (10s+) with meaningful stages | Recipe generation (~45s) — `RecipeProgressTracker` |
+
+  The `RecipeProgressTracker` uses a "Domino's tracker" pattern: 6 named stages with icons, a progress bar, and stage labels. This transforms a long wait into an engaging narrative ("Irmixy is selecting ingredients... calculating cooking times..."). Use this pattern when: (a) the operation takes >10s, (b) there are identifiable stages, and (c) the user benefits from knowing progress. Never show a blank screen or a static spinner for waits over 5s.
+
 - **Empty states:** Friendly illustration + helpful message + action button
 - **Error states:** Clear message + retry option. Never technical jargon.
 - **Transitions:** Subtle and fast. The app should feel snappy, not animated.
@@ -219,6 +228,67 @@ When producing design specs for the frontend agent, include:
 
 ---
 
+## Motion & Micro-Interactions
+
+Subtle, purposeful animation builds confidence and makes the app feel alive — not flashy.
+
+### Principles
+- **Confidence-building feedback** — Animate success states (checkmarks, saved confirmations) so Lupita knows her action worked. Never leave her wondering.
+- **Guided transitions** — Screen transitions should feel like turning a page, not teleporting. Slide, fade, or cross-dissolve between views so Lupita understands where she is.
+- **High-impact moments over scattered effects** — One well-orchestrated page load with staggered reveals creates more delight than random micro-interactions everywhere.
+- **Loading = progress, not emptiness** — Skeleton screens with a gentle shimmer feel faster than spinners. Use animated placeholders that match the layout.
+- **Keep it snappy** — Animations should be 150-300ms. Anything longer feels sluggish; anything shorter feels jarring. Lupita should never wait for an animation to finish.
+
+### Where to Animate
+- **State transitions** — Loading to loaded, empty to populated, error to retry
+- **User actions** — Button press feedback, toggle switches, checkbox selections
+- **Navigation** — Screen slides, modal presentations, tab switches
+- **Success moments** — Recipe saved, cooking step completed, Irmixy responding
+
+### Where NOT to Animate
+- Don't animate for decoration. Every animation must answer: "Does this help the user understand what happened?"
+- No parallax, no bouncing logos, no attention-grabbing effects that compete with content
+- No animations that block interaction (the user should never wait for an animation)
+
+---
+
+## Visual Depth & Atmosphere
+
+Flat, solid-color screens feel generic. Subtle depth cues make the app feel warm and crafted.
+
+### Techniques (use sparingly and on-brand)
+- **Soft shadows** — `shadow-sm` on cards and elevated elements. The app should feel layered, not flat.
+- **Warm gradient backgrounds** — Gentle gradients from `primary-lightest` to white add warmth without distraction. Use for headers, hero areas, and empty states.
+- **Texture hints** — Subtle noise overlays or grain on hero images can add a hand-crafted, kitchen-table feel. Don't overdo it.
+- **Layered cards** — Slight elevation differences between card levels create visual hierarchy without borders.
+- **Rounded warmth** — Generous `rounded-lg` and `rounded-xl` on containers. Sharp corners feel corporate; rounded corners feel kitchen-friendly.
+
+### What to Avoid
+- Heavy drop shadows or 3D effects — they feel dated and corporate
+- Busy patterns or textures that compete with content
+- Transparent overlays that reduce text readability
+- Dark themes or moody atmospheres — YummyYummix is warm and bright
+
+---
+
+## Spatial Composition
+
+Layouts should feel intentional and alive, not like a stack of rectangles.
+
+### Techniques
+- **Visual rhythm** — Alternate between full-width and constrained content to create breathing room
+- **Hierarchy through scale** — Hero elements should be noticeably larger, not just slightly bigger
+- **Asymmetric balance** — A large image left + smaller text right feels more dynamic than centered-everything
+- **Generous negative space** — White space is not wasted space. It's what makes Lupita feel calm instead of overwhelmed.
+- **Grouped proximity** — Related items close together, unrelated items clearly separated. Lupita should never wonder "does this go with that?"
+
+### Grid-Breaking (with restraint)
+- Overlapping elements (e.g., an avatar slightly overlapping a card header) add personality
+- Full-bleed images breaking out of content containers feel intentional
+- But keep it subtle — Lupita needs predictability. One surprise per screen, maximum.
+
+---
+
 ## Design Principles (inspired by Anthropic's frontend-design plugin)
 
 1. **Intentional, not default** — Every design choice should be deliberate. No "it looks fine" — ask "does this serve our user?"
@@ -228,3 +298,4 @@ When producing design specs for the frontend agent, include:
 5. **Kitchen context** — Users may have flour on their hands, a timer beeping, kids asking questions. Design for distraction and imperfect attention.
 6. **Confidence, not confusion** — Every screen should build confidence. No jargon without explanation. Progressive disclosure. If the user is confused, we've failed.
 7. **Guided, not guessed** — The majority of our users (Lupita) won't explore on their own. Guide them explicitly through every flow. If it requires self-guided discovery, forget about it.
+8. **Polished, not generic** — Every screen should feel crafted, not assembled from defaults. If a screen looks like it could belong to any app, it needs more brand personality.

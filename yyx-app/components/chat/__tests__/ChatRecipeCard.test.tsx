@@ -87,6 +87,18 @@ describe('ChatRecipeCard', () => {
       // Image component should be rendered (expo-image is mocked)
       expect(screen.getByText(recipe.name)).toBeTruthy();
     });
+
+    it('renders allergen verification warning when provided', () => {
+      const recipe = createMockRecipeCard({
+        allergenVerificationWarning: 'Allergen verification temporarily unavailable.',
+      });
+
+      render(<ChatRecipeCard recipe={recipe} />);
+
+      expect(
+        screen.getByText('Allergen verification temporarily unavailable.')
+      ).toBeTruthy();
+    });
   });
 
   // ============================================================
@@ -131,7 +143,20 @@ describe('ChatRecipeCard', () => {
 
       fireEvent.press(screen.getByText(recipe.name));
 
-      expect(mockRouterPush).toHaveBeenCalledWith('/(tabs)/recipes/recipe-123?from=chat');
+      expect(mockRouterPush).toHaveBeenCalledWith('/recipe/recipe-123?from=chat');
+    });
+
+    it('navigates to custom cooking guide for user_recipes cards', () => {
+      const recipe = createMockRecipeCard({
+        recipeId: 'recipe-456',
+        recipeTable: 'user_recipes',
+      });
+
+      render(<ChatRecipeCard recipe={recipe} />);
+
+      fireEvent.press(screen.getByText(recipe.name));
+
+      expect(mockRouterPush).toHaveBeenCalledWith('/recipe/custom/recipe-456/cooking-guide?from=chat');
     });
 
     it('triggers haptic feedback on press', () => {

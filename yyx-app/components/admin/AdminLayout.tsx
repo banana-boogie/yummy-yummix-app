@@ -39,7 +39,6 @@ export function AdminLayout({
 
   return (
     <PageLayout
-      adjustForTabBar={false}
       contentPaddingHorizontal={contentPaddingHorizontal}
       disableMaxWidth={disableMaxWidth}
       maxWidth={maxWidth}

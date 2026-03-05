@@ -11,6 +11,7 @@ Custom PostgreSQL functions available via Supabase RPC.
 | `find_closest_ingredient(name, lang)` | Find ingredient by fuzzy name match | Custom recipe generation |
 | `update_ai_voice_usage()` | Track AI voice minutes | Voice endpoints |
 | `upsert_cooking_session_progress(recipe_id, recipe_type, recipe_name, current_step, total_steps)` | Upsert active cooking progress per user+recipe | Cooking guide progress + resume prompt |
+| `get_cooked_recipes(p_language, p_query, p_after, p_before, p_limit)` | Retrieve user's cooked recipe history with optional search and date range | Cooked recipes tool |
 | `match_recipe_embeddings(query_embedding, match_threshold, match_count)` | Vector similarity search for published recipes | Hybrid recipe search tool |
 
 ## Function Details
@@ -84,6 +85,26 @@ Search recipe vectors via cosine similarity for hybrid search ranking.
 - `SECURITY DEFINER` with explicit search path (`public, extensions`)
 - Execute is restricted to `service_role`
 - Intended to be called from server-side edge functions only
+
+### `get_cooked_recipes(p_language, p_query, p_after, p_before, p_limit)`
+
+Retrieve the current user's cooked recipe history, optionally filtered by search query and date range. Returns recipes from both published catalog and user-generated recipes, sorted by relevance when searching or by most recent otherwise.
+
+**Parameters:**
+- `p_language` (text): Display language (`'en'` or `'es'`) — determines which recipe name column to use
+- `p_query` (text, nullable): Optional search term for filtering by recipe name (uses `LIKE` + trigram similarity)
+- `p_after` (timestamptz, nullable): Only include recipes cooked on or after this date
+- `p_before` (timestamptz, nullable): Only include recipes cooked on or before this date
+- `p_limit` (integer, default 5): Maximum results to return (clamped to 1–10)
+
+**Returns:** `{recipe_id, recipe_table, name, image_url, total_time, difficulty, portions, last_cooked_at}`
+
+**Security/Behavior:**
+- `SECURITY INVOKER` — runs with caller's permissions (`auth.uid()`)
+- No `p_user_id` parameter — always scopes to the authenticated user via `auth.uid()`
+- Deduplicates by recipe: if cooked multiple times, returns only the most recent
+- When `p_query` is provided, results are sorted by `match_score DESC`, then `cooked_at DESC`
+- When `p_query` is null, results are sorted by `cooked_at DESC` only
 
 ---
 
