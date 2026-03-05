@@ -624,7 +624,7 @@ function AIChatSessionDepthSection({ data }: { data: AIChatSessionMetrics }) {
           <View key={user.userId} className="flex-row items-center py-sm px-md bg-white rounded-md mb-xs">
             <Text preset="body" className="text-text-secondary w-[30px]">{index + 1}.</Text>
             <Text preset="body" className="flex-1 text-text-default" numberOfLines={1}>
-              {user.userId.substring(0, 8)}… • {user.sessions} {i18n.t('admin.analytics.labels.sessions')}
+              {user.displayName} ({user.userId.slice(-4)}) • {user.sessions} {i18n.t('admin.analytics.labels.sessions')}
             </Text>
             <Text preset="body" className="text-text-secondary font-semibold">
               {user.totalMessages} {i18n.t('admin.analytics.labels.messages')}

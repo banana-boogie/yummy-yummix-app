@@ -76,7 +76,7 @@ describe('analyticsService', () => {
       ],
       toolUsage: { withSearch: 45, withGeneration: 60, withBoth: 20, chatOnly: 16 },
       sessionsExceedingWindow: 3,
-      topUsers: [{ userId: 'abc', sessions: 12, totalMessages: 84, avgMessages: 7.0 }],
+      topUsers: [{ userId: 'abc', displayName: 'María García', sessions: 12, totalMessages: 84, avgMessages: 7.0 }],
       dailySessions: [{ date: '2026-02-19', sessions: 5 }],
     };
 

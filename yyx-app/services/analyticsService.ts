@@ -139,6 +139,7 @@ export interface AIChatSessionMetrics {
   sessionsExceedingWindow: number;
   topUsers: {
     userId: string;
+    displayName: string;
     sessions: number;
     totalMessages: number;
     avgMessages: number;
