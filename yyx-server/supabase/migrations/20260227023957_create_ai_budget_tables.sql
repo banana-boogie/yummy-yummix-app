@@ -137,7 +137,6 @@ END;
 $$;
 
 DROP TRIGGER IF EXISTS trg_prevent_client_membership_tier_update ON public.user_profiles;
-
 CREATE TRIGGER trg_prevent_client_membership_tier_update
   BEFORE UPDATE ON public.user_profiles
   FOR EACH ROW
@@ -202,5 +201,4 @@ DROP FUNCTION IF EXISTS public.check_and_increment_ai_chat_rate_limit(UUID, INTE
 
 -- Drop old tables
 DROP TABLE IF EXISTS public.ai_monthly_generation_usage;
-
 DROP TABLE IF EXISTS public.ai_chat_rate_limits;

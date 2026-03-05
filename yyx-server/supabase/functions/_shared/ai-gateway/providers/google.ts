@@ -244,6 +244,7 @@ export function parseGeminiResponse(
       inputTokens: data.usageMetadata?.promptTokenCount ?? 0,
       outputTokens: data.usageMetadata?.candidatesTokenCount ?? 0,
     },
+    costUsd: 0, // Calculated by gateway
     toolCalls,
   };
 }
@@ -416,15 +417,27 @@ export async function callGemini(
 // Streaming Chat Completions
 // =============================================================================
 
+/** Usage data captured from Gemini streaming responses */
+export interface GeminiStreamUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/** Result from Gemini streaming: generator + deferred usage */
+export interface GeminiStreamResult {
+  stream: AsyncGenerator<string, void, unknown>;
+  usage: () => Promise<GeminiStreamUsage>;
+}
+
 /**
  * Call Google Gemini's streamGenerateContent API.
- * Returns an async generator that yields content chunks.
+ * Returns a stream generator and a deferred usage() promise.
  */
-export async function* callGeminiStream(
+export async function callGeminiStream(
   request: AICompletionRequest,
   model: string,
   apiKey: string,
-): AsyncGenerator<string, void, unknown> {
+): Promise<GeminiStreamResult> {
   const startedAt = performance.now();
 
   const { contents, systemInstruction } = translateMessages(request.messages);
@@ -511,47 +524,73 @@ export async function* callGeminiStream(
   const reader = response.body?.getReader();
   if (!reader) throw new Error("No response body");
 
-  const decoder = new TextDecoder();
-  let buffer = "";
+  // Deferred usage — resolved when stream completes
+  let resolveUsage: (usage: GeminiStreamUsage) => void;
+  const usagePromise = new Promise<GeminiStreamUsage>((resolve) => {
+    resolveUsage = resolve;
+  });
 
-  try {
-    while (true) {
-      if (request.signal?.aborted) break;
+  async function* generateStream(): AsyncGenerator<string, void, unknown> {
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let capturedUsage: GeminiStreamUsage = { inputTokens: 0, outputTokens: 0 };
 
-      const { done, value } = await reader.read();
-      if (done) break;
+    try {
+      while (true) {
+        if (request.signal?.aborted) break;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
+        const { done, value } = await reader!.read();
+        if (done) break;
 
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith("data: ")) continue;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
 
-        try {
-          const json = JSON.parse(trimmed.slice(6));
-          const parts = json.candidates?.[0]?.content?.parts;
-          if (parts) {
-            for (const part of parts) {
-              if (part.text && !part.thought) {
-                yield part.text;
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data: ")) continue;
+
+          try {
+            const json = JSON.parse(trimmed.slice(6));
+
+            // Capture usageMetadata from each chunk (last one has final totals)
+            if (json.usageMetadata) {
+              capturedUsage = {
+                inputTokens: json.usageMetadata.promptTokenCount ?? 0,
+                outputTokens: json.usageMetadata.candidatesTokenCount ?? 0,
+              };
+            }
+
+            const parts = json.candidates?.[0]?.content?.parts;
+            if (parts) {
+              for (const part of parts) {
+                if (part.text && !part.thought) {
+                  yield part.text;
+                }
               }
             }
+          } catch {
+            console.warn("[ai-gateway:google] Skipped malformed SSE chunk", {
+              data: trimmed.slice(6, 200),
+            });
           }
-        } catch {
-          console.warn("[ai-gateway:google] Skipped malformed SSE chunk", {
-            data: trimmed.slice(6, 200),
-          });
         }
       }
+    } finally {
+      reader!.releaseLock();
+      resolveUsage!(capturedUsage);
     }
-  } finally {
-    reader.releaseLock();
+
+    console.log("[ai-gateway:google] Stream completed", {
+      model,
+      total_ms: Math.round(performance.now() - startedAt),
+      input_tokens: capturedUsage.inputTokens,
+      output_tokens: capturedUsage.outputTokens,
+    });
   }
 
-  console.log("[ai-gateway:google] Stream completed", {
-    model,
-    total_ms: Math.round(performance.now() - startedAt),
-  });
+  return {
+    stream: generateStream(),
+    usage: () => usagePromise,
+  };
 }

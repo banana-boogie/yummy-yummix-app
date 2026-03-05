@@ -109,10 +109,9 @@ Deno.test("callAIStream returns content, usage and model when usage chunk is pre
 
     assertEquals(streamed, "Hi there");
     assertEquals(result.content, "Hi there");
-    assertEquals(result.streamStatus, "success");
     assertExists(result.usage);
-    assertEquals(result.usage?.inputTokens, 20);
-    assertEquals(result.usage?.outputTokens, 9);
+    assertEquals(result.usage.inputTokens, 20);
+    assertEquals(result.usage.outputTokens, 9);
     assertEquals(result.model, "gpt-4o-mini");
   } finally {
     globalThis.fetch = previousFetch;
@@ -123,7 +122,7 @@ Deno.test("callAIStream returns content, usage and model when usage chunk is pre
   }
 });
 
-Deno.test("callAIStream returns partial status when usage chunk is missing", async () => {
+Deno.test("callAIStream returns zero usage when usage chunk is missing", async () => {
   const previousFetch = globalThis.fetch;
   const previousKey = Deno.env.get("OPENAI_API_KEY");
   const previousTextModel = Deno.env.get("AI_TEXT_MODEL");
@@ -150,8 +149,8 @@ Deno.test("callAIStream returns partial status when usage chunk is missing", asy
     const result = await callAIStream(baseMessages(), () => undefined);
 
     assertEquals(result.content, "Hola");
-    assertEquals(result.usage, null);
-    assertEquals(result.streamStatus, "partial");
+    assertEquals(result.usage.inputTokens, 0);
+    assertEquals(result.usage.outputTokens, 0);
     assertEquals(result.model, "gpt-4o-mini");
   } finally {
     globalThis.fetch = previousFetch;

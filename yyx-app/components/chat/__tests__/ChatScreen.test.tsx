@@ -38,6 +38,11 @@ jest.mock('@/i18n', () => ({
       'chat.stopGenerating': 'Stop generating',
       'chat.voice.listening': 'Listening...',
       'chat.voice.tapToSpeak': 'Tap to speak',
+      'chat.budget.warningTitle': 'Heads up!',
+      'chat.budget.warningDetailed': "You've been cooking up a storm! You're close to your monthly Irmixy limit. It resets next month.",
+      'chat.budget.exceededTitle': 'Irmixy limit reached',
+      'chat.budget.exceededMessage': "You've reached your monthly Irmixy limit. Don't worry — it resets at the start of next month!",
+      'chat.budget.upgradeHint': 'Irmixy limit reached — resets next month',
     };
     return translations[key] || key;
   },
@@ -80,11 +85,27 @@ const mockSendMessage = jest.fn().mockReturnValue({
 });
 const mockGetLastSessionWithMessages = jest.fn().mockResolvedValue(null);
 
-jest.mock('@/services/chatService', () => ({
-  loadChatHistory: (...args: any[]) => mockLoadChatHistory(...args),
-  sendMessage: (...args: any[]) => mockSendMessage(...args),
-  getLastSessionWithMessages: (...args: any[]) => mockGetLastSessionWithMessages(...args),
-}));
+jest.mock('@/services/chatService', () => {
+  // Define inside factory so it's available when jest.mock is hoisted
+  class BudgetExceededError extends Error {
+    tier: string;
+    usedUsd: number;
+    budgetUsd: number;
+    constructor(data: { tier?: string; usedUsd?: number; budgetUsd?: number } = {}) {
+      super('budget_exceeded');
+      this.name = 'BudgetExceededError';
+      this.tier = data.tier || 'free';
+      this.usedUsd = data.usedUsd || 0;
+      this.budgetUsd = data.budgetUsd || 0;
+    }
+  }
+  return {
+    loadChatHistory: (...args: any[]) => mockLoadChatHistory(...args),
+    sendMessage: (...args: any[]) => mockSendMessage(...args),
+    getLastSessionWithMessages: (...args: any[]) => mockGetLastSessionWithMessages(...args),
+    BudgetExceededError,
+  };
+});
 
 const mockLogRecipeGenerate = jest.fn();
 const mockLogSuggestionClick = jest.fn();
@@ -517,6 +538,54 @@ describe('ChatScreen', () => {
 
       // Stop button should be gone, send button back
       expect(screen.queryByTestId('stop-button')).toBeNull();
+    });
+  });
+
+  // ============================================================
+  // BUDGET EXCEEDED TESTS
+  // ============================================================
+
+  describe('budget exceeded', () => {
+    // Get the BudgetExceededError from the mocked module (must match instanceof check)
+    const { BudgetExceededError } = jest.requireMock('@/services/chatService');
+
+    it('disables input when budget is exceeded', async () => {
+      // Simulate sendMessage rejecting with BudgetExceededError
+      mockSendMessage.mockReturnValueOnce({
+        done: Promise.reject(new BudgetExceededError({ tier: 'free', usedUsd: 0.10, budgetUsd: 0.10 })),
+        cancel: jest.fn(),
+      });
+
+      render(<ChatScreen />);
+
+      // Type and send a message to trigger budget exceeded
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      fireEvent.changeText(input, 'Hello');
+      fireEvent.press(screen.getByTestId('send-button'));
+
+      // After budget exceeded, input should be disabled with hint text
+      await waitFor(() => {
+        const refreshedInput = screen.getByPlaceholderText('Irmixy limit reached — resets next month');
+        expect(refreshedInput.props.editable).toBe(false);
+      });
+    });
+
+    it('removes user and assistant messages when budget is exceeded', async () => {
+      mockSendMessage.mockReturnValueOnce({
+        done: Promise.reject(new BudgetExceededError()),
+        cancel: jest.fn(),
+      });
+
+      render(<ChatScreen />);
+
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      fireEvent.changeText(input, 'Hello');
+      fireEvent.press(screen.getByTestId('send-button'));
+
+      // After budget exceeded, the user message "Hello" should be removed
+      await waitFor(() => {
+        expect(screen.queryByText('Hello')).toBeNull();
+      });
     });
   });
 });

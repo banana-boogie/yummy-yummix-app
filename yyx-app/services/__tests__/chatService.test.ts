@@ -20,6 +20,8 @@ import {
   saveVoiceTranscript,
   createSimpleStreamCallbacks,
   routeSSEMessage,
+  BudgetExceededError,
+  parseBudgetExceededErrorFromSSEEvent,
 } from '../chatService';
 import { supabase } from '@/lib/supabase';
 import {
@@ -678,6 +680,51 @@ describe('chatService', () => {
       expect(callbacks.onPartialRecipe).toHaveBeenCalled();
     });
 
+    it('routes budget_warning to onBudgetWarning callback', () => {
+      const callbacks = {
+        onChunk: jest.fn(),
+        onBudgetWarning: jest.fn(),
+      };
+
+      const result = routeSSEMessage(
+        { type: 'budget_warning', usedUsd: 0.08, budgetUsd: 0.10 },
+        callbacks,
+      );
+
+      expect(callbacks.onBudgetWarning).toHaveBeenCalledTimes(1);
+      expect(callbacks.onBudgetWarning).toHaveBeenCalledWith({
+        usedUsd: 0.08,
+        budgetUsd: 0.10,
+      });
+      expect(result.action).toBe('continue');
+    });
+
+    it('does not crash when onBudgetWarning is undefined', () => {
+      const callbacks = { onChunk: jest.fn() };
+
+      expect(() => {
+        routeSSEMessage(
+          { type: 'budget_warning', usedUsd: 0.08, budgetUsd: 0.10 },
+          callbacks,
+        );
+      }).not.toThrow();
+    });
+
+    it('returns continue even when onBudgetWarning throws', () => {
+      const callbacks = {
+        onChunk: jest.fn(),
+        onBudgetWarning: jest.fn(() => { throw new Error('warning error'); }),
+      };
+
+      const result = routeSSEMessage(
+        { type: 'budget_warning', usedUsd: 0.08, budgetUsd: 0.10 },
+        callbacks,
+      );
+
+      expect(result.action).toBe('continue');
+      expect(callbacks.onBudgetWarning).toHaveBeenCalled();
+    });
+
     it('simple wrapper callback mapping keeps onComplete in final slot', () => {
       const onChunk = jest.fn();
       const onSessionId = jest.fn();
@@ -696,6 +743,56 @@ describe('chatService', () => {
       expect(callbacks.onStatus).toBe(onStatus);
       expect(callbacks.onComplete).toBe(onComplete);
       expect(callbacks.onStreamComplete).toBeUndefined();
+    });
+  });
+
+  describe('parseBudgetExceededErrorFromSSEEvent', () => {
+    it('parses budget_exceeded from xhrStatus + message JSON body', () => {
+      const error = parseBudgetExceededErrorFromSSEEvent({
+        xhrStatus: 429,
+        message: JSON.stringify({
+          error: 'budget_exceeded',
+          tier: 'free',
+          usedUsd: 0.10,
+          budgetUsd: 0.10,
+        }),
+      });
+
+      expect(error).toBeInstanceOf(BudgetExceededError);
+      expect(error?.tier).toBe('free');
+      expect(error?.usedUsd).toBe(0.10);
+      expect(error?.budgetUsd).toBe(0.10);
+    });
+  });
+
+  // ============================================================
+  // BudgetExceededError
+  // ============================================================
+
+  describe('BudgetExceededError', () => {
+    it('has correct name and message', () => {
+      const error = new BudgetExceededError({ tier: 'free', usedUsd: 0.10, budgetUsd: 0.10 });
+      expect(error.name).toBe('BudgetExceededError');
+      expect(error.message).toBe('budget_exceeded');
+    });
+
+    it('stores tier and budget info', () => {
+      const error = new BudgetExceededError({ tier: 'premium', usedUsd: 2.0, budgetUsd: 2.0 });
+      expect(error.tier).toBe('premium');
+      expect(error.usedUsd).toBe(2.0);
+      expect(error.budgetUsd).toBe(2.0);
+    });
+
+    it('defaults to free tier when no data provided', () => {
+      const error = new BudgetExceededError({});
+      expect(error.tier).toBe('free');
+      expect(error.usedUsd).toBe(0);
+      expect(error.budgetUsd).toBe(0);
+    });
+
+    it('is instanceof Error', () => {
+      const error = new BudgetExceededError({});
+      expect(error).toBeInstanceOf(Error);
     });
   });
 });

@@ -13,6 +13,7 @@ import {
 } from "./generate-custom-recipe.ts";
 import { getToolRegistration } from "./tool-registry.ts";
 import { ToolValidationError } from "./tool-validators.ts";
+import type { CostContext } from "../ai-gateway/types.ts";
 
 /**
  * Execute a single tool call with validation.
@@ -32,6 +33,7 @@ export async function executeTool(
   executionOptions?: {
     onPartialRecipe?: PartialRecipeCallback;
     usageContext?: AIUsageLogContext;
+    costContext?: CostContext;
   },
 ): Promise<unknown> {
   let parsedArgs: unknown;
@@ -51,5 +53,6 @@ export async function executeTool(
     userContext,
     onPartialRecipe: executionOptions?.onPartialRecipe,
     usageContext: executionOptions?.usageContext,
+    costContext: executionOptions?.costContext,
   });
 }

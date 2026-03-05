@@ -4,7 +4,7 @@
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import type { AITool } from "../ai-gateway/types.ts";
+import type { AITool, CostContext } from "../ai-gateway/types.ts";
 import type { RecipeCard, UserContext } from "../irmixy-schemas.ts";
 import {
   AIUsageLogContext,
@@ -25,6 +25,7 @@ export interface ToolExecutionContext {
   userContext: UserContext;
   onPartialRecipe?: PartialRecipeCallback;
   usageContext?: AIUsageLogContext;
+  costContext?: CostContext;
 }
 
 export interface ToolShape {
@@ -78,6 +79,7 @@ const TOOL_REGISTRY: Record<string, ToolRegistration> = {
         context.userContext,
         context.onPartialRecipe,
         context.usageContext,
+        context.costContext,
       ),
     shapeResult: (result) => {
       if (!result || typeof result !== "object") {
@@ -106,6 +108,7 @@ const TOOL_REGISTRY: Record<string, ToolRegistration> = {
         args,
         context.userContext,
         context.onPartialRecipe,
+        context.costContext,
       ),
     shapeResult: (result) => {
       if (!result || typeof result !== "object") {

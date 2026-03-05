@@ -22,6 +22,7 @@ import {
 } from "../allergen-filter.ts";
 import { buildSafetyReminders, checkRecipeSafety } from "../food-safety.ts";
 import { chat } from "../ai-gateway/index.ts";
+import type { CostContext } from "../ai-gateway/types.ts";
 import { hasThermomix } from "../equipment-utils.ts";
 import { logAIUsage } from "../usage-logger.ts";
 
@@ -123,6 +124,7 @@ export async function generateCustomRecipe(
   userContext: UserContext,
   onPartialRecipe?: PartialRecipeCallback,
   usageContext?: AIUsageLogContext,
+  costContext?: CostContext,
 ): Promise<GenerateRecipeResult> {
   // Timing instrumentation for performance monitoring
   const timings: Record<string, number> = {};
@@ -174,6 +176,7 @@ export async function generateCustomRecipe(
       usageContext,
       allergenWarning: allergenWarning || undefined,
     },
+    costContext,
   );
   timings.recipe_llm_ms = Math.round(performance.now() - phaseStart);
   phaseStart = performance.now();
@@ -334,6 +337,7 @@ async function callRecipeGenerationAI(
     allergenWarning?: string;
     usageContext?: AIUsageLogContext;
   },
+  costContext?: CostContext,
 ): Promise<GeneratedRecipe> {
   const prompt = buildRecipePrompt(
     params,
@@ -376,6 +380,7 @@ async function callRecipeGenerationAI(
           type: "json_schema",
           schema: recipeSchema,
         },
+        costContext,
       });
     } catch (error) {
       if (usageContext) {

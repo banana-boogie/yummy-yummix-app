@@ -23,8 +23,12 @@ import { executeTool } from "../_shared/tools/execute-tool.ts";
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
 import { getAllowedVoiceToolNames } from "../_shared/tools/tool-registry.ts";
-import { getDefaultVoiceQuotaMinutes, getQuotaLimitForUser } from "./quota.ts";
 import { buildVoiceInstructions } from "../_shared/system-prompt-builder.ts";
+import {
+  BudgetCheckUnavailableError,
+  checkVoiceBudget,
+} from "../_shared/ai-budget/index.ts";
+import type { CostContext } from "../_shared/ai-gateway/types.ts";
 
 const ALLOWED_VOICE_TOOLS = new Set(getAllowedVoiceToolNames());
 const ALLOWED_ACTIONS = new Set(
@@ -37,7 +41,6 @@ const ALLOWED_ACTIONS = new Set(
 );
 const MAX_PAYLOAD_BYTES = 10_000; // 10KB
 const MAX_TRANSCRIPT_PAYLOAD_BYTES = 100_000; // 100KB for save_transcript
-const DEFAULT_QUOTA_MINUTES = getDefaultVoiceQuotaMinutes();
 
 interface RequestPayload {
   action?: unknown;
@@ -76,32 +79,16 @@ function jsonResponse(
  */
 async function handleCheckQuota(
   userId: string,
-  authHeader: string,
+  _authHeader: string,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
-  const userClient = createUserClient(authHeader);
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  const quotaLimit = await getQuotaLimitForUser(
-    userClient,
-    userId,
-    DEFAULT_QUOTA_MINUTES,
-  );
-
-  const { data: usage } = await userClient
-    .from("ai_voice_usage")
-    .select("minutes_used")
-    .eq("user_id", userId)
-    .eq("month", currentMonth)
-    .single();
-
-  const minutesUsed = Number(usage?.minutes_used || 0);
-  const remainingMinutes = Math.max(0, quotaLimit - minutesUsed);
+  const voiceBudget = await checkVoiceBudget(userId);
 
   return jsonResponse(
     {
-      minutesUsed: minutesUsed.toFixed(1),
-      quotaLimit,
-      remainingMinutes: remainingMinutes.toFixed(1),
+      minutesUsed: voiceBudget.usedMinutes.toFixed(1),
+      quotaLimit: voiceBudget.limitMinutes,
+      remainingMinutes: voiceBudget.remainingMinutes.toFixed(1),
     },
     200,
     corsHeaders,
@@ -114,29 +101,16 @@ async function handleStartSession(
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
   const userClient = createUserClient(authHeader);
-  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-  const quotaLimit = await getQuotaLimitForUser(
-    userClient,
-    userId,
-    DEFAULT_QUOTA_MINUTES,
-  );
 
-  const { data: usage } = await userClient
-    .from("ai_voice_usage")
-    .select("minutes_used, conversations_count")
-    .eq("user_id", userId)
-    .eq("month", currentMonth)
-    .single();
+  // Tiered voice budget check
+  const voiceBudget = await checkVoiceBudget(userId);
 
-  const minutesUsed = Number(usage?.minutes_used || 0);
-  const remainingMinutes = quotaLimit - minutesUsed;
-
-  if (minutesUsed >= quotaLimit) {
+  if (!voiceBudget.allowed) {
     return jsonResponse(
       {
         error: "Monthly quota exceeded",
-        minutesUsed,
-        quotaLimit,
+        minutesUsed: voiceBudget.usedMinutes,
+        quotaLimit: voiceBudget.limitMinutes,
         remainingMinutes: 0,
       },
       429,
@@ -144,12 +118,8 @@ async function handleStartSession(
     );
   }
 
-  const warningThreshold = quotaLimit * 0.8;
-  const warning = minutesUsed >= warningThreshold
-    ? `You've used ${
-      minutesUsed.toFixed(1)
-    } of ${quotaLimit} minutes this month.`
-    : null;
+  const remainingMinutes = voiceBudget.remainingMinutes;
+  const warning = voiceBudget.warning || null;
 
   // Fetch user context for personalized voice instructions
   const contextBuilder = createContextBuilder(userClient);
@@ -239,8 +209,8 @@ async function handleStartSession(
       voiceInstructions,
       remainingMinutes: remainingMinutes.toFixed(1),
       warning,
-      quotaLimit,
-      minutesUsed: minutesUsed.toFixed(1),
+      quotaLimit: voiceBudget.limitMinutes,
+      minutesUsed: voiceBudget.usedMinutes.toFixed(1),
     },
     200,
     corsHeaders,
@@ -299,18 +269,22 @@ async function handleExecuteTool(
     ? toolArgs
     : JSON.stringify(toolArgs);
 
+  const costContext: CostContext = {
+    userId,
+    edgeFunction: "irmixy-voice-orchestrator",
+    metadata: {
+      action: "execute_tool",
+      toolName,
+      ...(sessionId ? { sessionId } : {}),
+    },
+  };
+
   const result = await executeTool(
     supabase,
     toolName,
     argsString,
     userContext,
-    undefined,
-    {
-      userId,
-      sessionId,
-      requestId,
-      functionName: "irmixy-voice-orchestrator",
-    },
+    { costContext },
   );
 
   const elapsed = Math.round(performance.now() - startTime);
@@ -571,6 +545,18 @@ serve(async (req) => {
   } catch (error) {
     const elapsed = Math.round(performance.now() - startTime);
     const message = error instanceof Error ? error.message : String(error);
+
+    if (error instanceof BudgetCheckUnavailableError) {
+      console.error(
+        `[irmixy-voice-orchestrator] Budget check unavailable (${elapsed}ms):`,
+        message,
+      );
+      return jsonResponse(
+        { error: "budget_unavailable" },
+        503,
+        corsHeaders,
+      );
+    }
 
     if (error instanceof ToolValidationError) {
       console.warn(
