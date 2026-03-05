@@ -190,7 +190,6 @@ export interface RecipeStepInsert {
 }
 
 export interface RecipeStepIngredientInsert {
-  recipe_id: string;
   recipe_step_id: string;
   ingredient_id: string;
   measurement_unit_id: string | null;

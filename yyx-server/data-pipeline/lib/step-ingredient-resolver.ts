@@ -26,7 +26,7 @@ export interface StepIngredientResolutionResult {
 }
 
 export function resolveStepIngredients(
-  recipeId: string,
+  _recipeId: string,
   parsed: ParsedRecipeData,
   insertedSteps: Array<{ id: string; order: number }>,
   ingredientMap: Map<string, DbIngredient>,
@@ -78,7 +78,6 @@ export function resolveStepIngredients(
 
       const unit = matchMeasurementUnit(ing.measurementUnitID, allUnits);
       items.push({
-        recipe_id: recipeId,
         recipe_step_id: stepId,
         ingredient_id: dbIngredient.id,
         measurement_unit_id: unit?.id || null,

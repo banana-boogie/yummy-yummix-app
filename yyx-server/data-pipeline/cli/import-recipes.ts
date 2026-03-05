@@ -15,6 +15,7 @@
  *   --dir <path>     Directory containing markdown files (default: data/notion-exports)
  *   --limit <n>      Max recipes to import this run (default: unlimited)
  *   --skip-existing  Skip recipes that already exist in DB (by name match)
+ *   --dry-run        Parse and resolve entities but skip all DB writes (for previewing output)
  */
 
 import { createPipelineConfig, hasFlag, parseEnvironment, parseFlag } from '../lib/config.ts';
@@ -43,6 +44,7 @@ const config = createPipelineConfig(env);
 const dataDir = parseFlag(Deno.args, '--dir') ||
   new URL('../data/notion-exports', import.meta.url).pathname;
 const skipExisting = hasFlag(Deno.args, '--skip-existing');
+const dryRun = hasFlag(Deno.args, '--dry-run');
 const limitArg = parseFlag(Deno.args, '--limit');
 const limit = limitArg ? parseInt(limitArg, 10) : Infinity;
 
@@ -275,7 +277,7 @@ async function importRecipe(
   }
 
   // 2. Check for duplicate
-  if (skipExisting) {
+  if (skipExisting && !dryRun) {
     const existingId = await db.findRecipeByName(config.supabase, parsed.nameEn, parsed.nameEs);
     if (existingId) {
       logger.warn(`Skipping existing recipe: "${parsed.nameEn}" (${existingId})`);
@@ -283,14 +285,72 @@ async function importRecipe(
     }
   }
 
-  // 3. Resolve all entities
-  const { recipeIngredients, ingredientMap } = await resolveIngredients(
-    parsed,
-    allIngredients,
-    allUnits,
-  );
-  const tagIds = await resolveTags(parsed.tags, allTags);
-  const usefulItems = await resolveUsefulItems(parsed, allItems);
+  // 3. Resolve all entities (matching only — no DB writes in dry-run)
+  const { recipeIngredients, ingredientMap } = dryRun
+    ? await resolveIngredientsDry(parsed, allIngredients, allUnits)
+    : await resolveIngredients(parsed, allIngredients, allUnits);
+  const tagIds = dryRun
+    ? resolveTags_dry(parsed.tags, allTags)
+    : await resolveTags(parsed.tags, allTags);
+  const usefulItems = dryRun
+    ? resolveUsefulItemsDry(parsed, allItems)
+    : await resolveUsefulItems(parsed, allItems);
+
+  // In dry-run mode: log everything and return without DB writes
+  if (dryRun) {
+    logger.info('--- DRY RUN OUTPUT ---');
+    logger.info(`Name (EN): ${parsed.nameEn}`);
+    logger.info(`Name (ES): ${parsed.nameEs}`);
+    logger.info(`Difficulty: ${parsed.difficulty} | Prep: ${parsed.prepTime}min | Total: ${parsed.totalTime}min | Portions: ${parsed.portions}`);
+    logger.info(`Tags (${parsed.tags.length}): ${parsed.tags.join(', ')}`);
+    logger.info(`Ingredients (${parsed.ingredients.length}):`);
+    for (const ing of parsed.ingredients) {
+      logger.info(
+        `  - ${ing.quantity} ${ing.measurementUnitID || ''} ${ing.ingredient.nameEn} / ${ing.ingredient.nameEs}`,
+      );
+    }
+    logger.info(`Steps (${parsed.steps.length}):`);
+    for (const step of parsed.steps) {
+      const tmx = step.thermomixTime
+        ? ` [TM: ${step.thermomixTime}s ${step.thermomixTemperature ? step.thermomixTemperature + '°' : ''} vel${step.thermomixSpeed?.type === 'single' ? step.thermomixSpeed.value : '?'}]`
+        : '';
+      logger.info(`  ${step.order}. ${step.instructionEn}${tmx}`);
+    }
+    logger.info(`Useful items (${parsed.usefulItems.length}): ${parsed.usefulItems.map((i) => i.nameEn).join(', ')}`);
+    if (parsed.tipsAndTricksEn) logger.info(`Tips: ${parsed.tipsAndTricksEn}`);
+
+    // Show entity resolution status
+    const missingIngredients = parsed.ingredients.filter(
+      (i) => !allIngredients.some(
+        (db) =>
+          (db.name_en?.toLowerCase() ?? '') === i.ingredient.nameEn.toLowerCase() ||
+          (db.name_es?.toLowerCase() ?? '') === i.ingredient.nameEs.toLowerCase(),
+      ),
+    );
+    const missingTags = parsed.tags.filter(
+      (t) => !allTags.some(
+        (db) =>
+          (db.name_en?.toLowerCase() ?? '') === t.toLowerCase() ||
+          (db.name_es?.toLowerCase() ?? '') === t.toLowerCase(),
+      ),
+    );
+    const missingItems = parsed.usefulItems.filter(
+      (i) => !allItems.some((db) => (db.name_en?.toLowerCase() ?? '') === i.nameEn.toLowerCase()),
+    );
+
+    if (missingIngredients.length > 0) {
+      logger.warn(`Would create ${missingIngredients.length} new ingredient(s): ${missingIngredients.map((i) => i.ingredient.nameEn).join(', ')}`);
+    }
+    if (missingTags.length > 0) {
+      logger.warn(`Would create ${missingTags.length} new tag(s): ${missingTags.join(', ')}`);
+    }
+    if (missingItems.length > 0) {
+      logger.warn(`Would create ${missingItems.length} new useful item(s): ${missingItems.map((i) => i.nameEn).join(', ')}`);
+    }
+
+    logger.info('--- END DRY RUN ---');
+    return '[dry-run]';
+  }
 
   // 4. Create recipe
   const recipeId = await db.createRecipe(config.supabase, {
@@ -363,10 +423,71 @@ async function importRecipe(
   return recipeId;
 }
 
+// ─── Dry-run entity resolvers (match only, no DB writes) ─
+
+function resolveIngredientsDry(
+  parsed: ParsedRecipeData,
+  allIngredients: DbIngredient[],
+  allUnits: DbMeasurementUnit[],
+): Promise<{ recipeIngredients: db.RecipeIngredientInsert[]; ingredientMap: Map<string, DbIngredient> }> {
+  const recipeIngredients: db.RecipeIngredientInsert[] = [];
+  const ingredientMap = new Map<string, DbIngredient>();
+
+  for (const item of parsed.ingredients) {
+    const matched = matchIngredient(item.ingredient, allIngredients);
+    if (matched) {
+      ingredientMap.set(item.ingredient.nameEn.toLowerCase(), matched);
+      ingredientMap.set(item.ingredient.nameEs.toLowerCase(), matched);
+    }
+    const unit = matchMeasurementUnit(item.measurementUnitID, allUnits);
+    recipeIngredients.push({
+      recipe_id: '',
+      ingredient_id: matched?.id ?? '',
+      quantity: item.quantity,
+      measurement_unit_id: unit?.id || null,
+      notes_en: item.notesEn || '',
+      notes_es: item.notesEs || '',
+      tip_en: item.tipEn || '',
+      tip_es: item.tipEs || '',
+      optional: false,
+      display_order: item.displayOrder,
+      recipe_section_en: item.recipeSectionEn || 'Main',
+      recipe_section_es: item.recipeSectionEs || 'Principal',
+    });
+  }
+
+  return Promise.resolve({ recipeIngredients, ingredientMap });
+}
+
+function resolveTags_dry(tagNames: string[], allTags: DbRecipeTag[]): Promise<string[]> {
+  return Promise.resolve(
+    tagNames
+      .map((name) => matchTag(name, allTags)?.id)
+      .filter((id): id is string => id !== undefined),
+  );
+}
+
+function resolveUsefulItemsDry(
+  parsed: ParsedRecipeData,
+  allItems: DbUsefulItem[],
+): Promise<Array<{ useful_item_id: string; display_order: number; notes_en: string; notes_es: string }>> {
+  return Promise.resolve(
+    parsed.usefulItems
+      .map((item, i) => {
+        const matched = matchUsefulItem(item, allItems);
+        return matched
+          ? { useful_item_id: matched.id, display_order: i, notes_en: '', notes_es: '' }
+          : null;
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null),
+  );
+}
+
 // ─── Main ────────────────────────────────────────────────
 
 async function main() {
-  logger.section(`Recipe Import (${env})`);
+  logger.section(`Recipe Import (${env})${dryRun ? ' [DRY RUN]' : ''}`);
+  if (dryRun) logger.warn('Dry-run mode: no data will be written to the database');
 
   try {
     assertRequiredApiKey('OPENAI_API_KEY', config.openaiApiKey);
@@ -420,9 +541,11 @@ async function main() {
   logger.info(`Skipped (no content): ${stubs.length}`);
   logger.info(`Ready to import: ${pending.length}${limit !== Infinity ? ` (limit: ${limit})` : ''}`);
 
-  // Mark stubs as completed so they don't re-appear on next run
-  for (const stub of stubs) {
-    tracker.markCompleted(stub.filename);
+  // Mark stubs as completed so they don't re-appear on next run (skip in dry-run)
+  if (!dryRun) {
+    for (const stub of stubs) {
+      tracker.markCompleted(stub.filename);
+    }
   }
 
   const toProcess = limit !== Infinity ? pending.slice(0, limit) : pending;
@@ -442,13 +565,13 @@ async function main() {
         allItems,
         allUnits,
       );
-      tracker.markCompleted(file.filename);
+      if (!dryRun) tracker.markCompleted(file.filename);
       successCount++;
-      logger.success(`Imported "${file.filename}" -> ${recipeId}`);
+      logger.success(`${dryRun ? 'Parsed' : 'Imported'} "${file.filename}"${dryRun ? '' : ` -> ${recipeId}`}`);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      logger.error(`Failed to import "${file.filename}": ${msg}`);
-      tracker.markFailed(file.filename, msg);
+      logger.error(`Failed to ${dryRun ? 'parse' : 'import'} "${file.filename}": ${msg}`);
+      if (!dryRun) tracker.markFailed(file.filename, msg);
       failCount++;
     }
 
