@@ -101,8 +101,8 @@ const recipeJsonSchema = {
     properties: {
       nameEn: { type: 'string', description: 'English recipe name' },
       nameEs: { type: 'string', description: 'Spanish recipe name.' },
-      totalTime: { type: 'number', description: 'Total time required to make the recipe.' },
-      prepTime: { type: 'number', description: 'Preparation time needed before cooking.' },
+      totalTime: { type: 'number', description: 'Total time in MINUTES.' },
+      prepTime: { type: 'number', description: 'Preparation time in MINUTES.' },
       difficulty: {
         type: 'string',
         description: 'Difficulty level of the recipe in English',
@@ -425,8 +425,8 @@ Example: "licúa 20 seg/vel 4-8, aumentando la velocidad progresivamente"
 
 ## Missing Data
 
-- totalTime / prepTime: extract from aside blocks ("Tiempo total: 15 mins", etc.). If missing, use 0.
-- portions: extract from aside blocks ("Porciones: 4"). If a weight (e.g., "200g"), use 4. If missing, use 4.
+- totalTime / prepTime: extract from aside blocks ("Tiempo total: 15 mins", etc.). Values are ALWAYS in minutes (e.g., "15 mins" → 15, "1 hora" → 60). If missing, use 0.
+- portions: extract from aside blocks ("Porciones: 4"). Must be a whole number of servings. If a weight is given instead (e.g., "200g", "1 kg"), use 4 as default. If missing, use 4.
 - difficulty: extract from aside blocks ("Nivel de dificultad: fácil" → "easy", "medio/media" → "medium", "difícil" → "hard"). If missing, use "medium".
 - If English content is empty or missing, translate the Spanish content to English.
 
