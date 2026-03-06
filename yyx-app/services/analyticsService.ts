@@ -2,34 +2,6 @@ import { supabase } from '@/lib/supabase';
 
 export type TimeframeFilter = 'today' | '7_days' | '30_days' | 'all_time';
 
-export type AnalyticsAction =
-  | 'overview'
-  | 'retention'
-  | 'funnel'
-  | 'top_viewed_recipes'
-  | 'top_cooked_recipes'
-  | 'top_searches'
-  | 'ai'
-  | 'patterns'
-  | 'recipe_generation';
-
-async function fetchAdminAnalytics<T>(
-  action: AnalyticsAction,
-  options?: { timeframe?: TimeframeFilter; limit?: number }
-): Promise<T> {
-  const { data, error } = await supabase.rpc('admin_analytics', {
-    action,
-    timeframe: options?.timeframe,
-    limit_count: options?.limit,
-  });
-
-  if (error) {
-    throw error;
-  }
-
-  return data as T;
-}
-
 export interface OverviewMetrics {
   dau: number;
   wau: number;
@@ -148,67 +120,57 @@ export interface AIChatSessionMetrics {
 }
 
 export const analyticsService = {
-  /**
-   * Get overview metrics (DAU, WAU, MAU, signups, onboarding rate)
-   */
   async getOverviewMetrics(): Promise<OverviewMetrics> {
-    return fetchAdminAnalytics<OverviewMetrics>('overview');
+    const { data, error } = await supabase.rpc('admin_overview');
+    if (error) throw error;
+    return data as OverviewMetrics;
   },
 
-  /**
-   * Get cooking funnel metrics
-   */
   async getFunnelMetrics(timeframe: TimeframeFilter): Promise<FunnelMetrics> {
-    return fetchAdminAnalytics<FunnelMetrics>('funnel', { timeframe });
+    const { data, error } = await supabase.rpc('admin_funnel', { timeframe });
+    if (error) throw error;
+    return data as FunnelMetrics;
   },
 
-  /**
-   * Get top viewed recipes
-   */
   async getTopViewedRecipes(timeframe: TimeframeFilter, limit = 10): Promise<TopRecipe[]> {
-    const data = await fetchAdminAnalytics<TopRecipe[]>('top_viewed_recipes', { timeframe, limit });
-    return data ?? [];
+    const { data, error } = await supabase.rpc('admin_top_viewed_recipes', {
+      timeframe,
+      limit_count: limit,
+    });
+    if (error) throw error;
+    return (data as TopRecipe[]) ?? [];
   },
 
-  /**
-   * Get top cooked recipes
-   */
   async getTopCookedRecipes(timeframe: TimeframeFilter, limit = 10): Promise<TopRecipe[]> {
-    const data = await fetchAdminAnalytics<TopRecipe[]>('top_cooked_recipes', { timeframe, limit });
-    return data ?? [];
+    const { data, error } = await supabase.rpc('admin_top_cooked_recipes', {
+      timeframe,
+      limit_count: limit,
+    });
+    if (error) throw error;
+    return (data as TopRecipe[]) ?? [];
   },
 
-  /**
-   * Get top search queries
-   */
   async getTopSearches(timeframe: TimeframeFilter, limit = 10): Promise<TopSearch[]> {
-    const data = await fetchAdminAnalytics<TopSearch[]>('top_searches', { timeframe, limit });
-    return data ?? [];
+    const { data, error } = await supabase.rpc('admin_top_searches', {
+      timeframe,
+      limit_count: limit,
+    });
+    if (error) throw error;
+    return (data as TopSearch[]) ?? [];
   },
 
-  /**
-   * Get AI feature metrics
-   */
   async getAIMetrics(timeframe: TimeframeFilter = '7_days'): Promise<AIMetrics> {
-    return fetchAdminAnalytics<AIMetrics>('ai', { timeframe });
+    const { data, error } = await supabase.rpc('admin_ai_adoption', { timeframe });
+    if (error) throw error;
+    return data as AIMetrics;
   },
 
-  /**
-   * Get AI usage and cost metrics.
-   */
   async getAIUsageMetrics(timeframe: TimeframeFilter): Promise<AIUsageMetrics> {
     const { data, error } = await supabase.rpc('admin_ai_usage', { timeframe });
-
-    if (error) {
-      throw error;
-    }
-
+    if (error) throw error;
     return data as AIUsageMetrics;
   },
 
-  /**
-   * Get AI chat session depth metrics.
-   */
   async getAIChatSessionMetrics(
     timeframe: TimeframeFilter = '7_days'
   ): Promise<AIChatSessionMetrics> {
@@ -219,27 +181,24 @@ export const analyticsService = {
     return data as AIChatSessionMetrics;
   },
 
-  /**
-   * Get pattern metrics (cooking time of day, language split)
-   */
   async getPatternMetrics(): Promise<PatternMetrics> {
-    return fetchAdminAnalytics<PatternMetrics>('patterns');
+    const { data, error } = await supabase.rpc('admin_patterns');
+    if (error) throw error;
+    return data as PatternMetrics;
   },
 
-  /**
-   * Get retention metrics (Day 1, 7, 30 retention)
-   */
   async getRetentionMetrics(): Promise<RetentionMetrics> {
-    return fetchAdminAnalytics<RetentionMetrics>('retention');
+    const { data, error } = await supabase.rpc('admin_retention');
+    if (error) throw error;
+    return data as RetentionMetrics;
   },
 
-  /**
-   * Get recipe generation success/failure metrics.
-   */
   async getRecipeGenerationMetrics(
     timeframe: TimeframeFilter
   ): Promise<RecipeGenerationMetrics> {
-    return fetchAdminAnalytics<RecipeGenerationMetrics>('recipe_generation', { timeframe });
+    const { data, error } = await supabase.rpc('admin_recipe_generation', { timeframe });
+    if (error) throw error;
+    return data as RecipeGenerationMetrics;
   },
 };
 
