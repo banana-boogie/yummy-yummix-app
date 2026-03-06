@@ -30,12 +30,8 @@ export const admin = {
     retry: "Reintentar",
     tabs: {
       overview: "Resumen",
-      retention: "Retención",
-      funnel: "Embudo",
-      recipes: "Recetas",
-      searches: "Búsquedas",
+      content: "Contenido",
       ai: "IA",
-      patterns: "Patrones",
     },
     timeframes: {
       today: "Hoy",
@@ -67,6 +63,8 @@ export const admin = {
       toolUsage: "Uso de Herramientas",
       dailySessions: "Sesiones Diarias",
       topUsers: "Usuarios Principales",
+      details: "Detalles",
+      recipeGeneration: "Generación de Recetas",
     },
     labels: {
       dau: "DAU",
@@ -134,6 +132,10 @@ export const admin = {
       messages: "mensajes",
       sessions: "sesiones",
       totalMessages: "mensajes totales",
+      totalGenerated: "Total Generadas",
+      totalFailed: "Total Fallidas",
+      generationSuccessRate: "Tasa de Éxito",
+      avgGenerationTime: "Tiempo Promedio de Generación",
       am: "a. m.",
       pm: "p. m.",
     },

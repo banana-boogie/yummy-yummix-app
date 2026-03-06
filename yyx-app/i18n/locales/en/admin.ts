@@ -30,12 +30,8 @@ export const admin = {
     retry: "Retry",
     tabs: {
       overview: "Overview",
-      retention: "Retention",
-      funnel: "Funnel",
-      recipes: "Recipes",
-      searches: "Searches",
+      content: "Content",
       ai: "AI",
-      patterns: "Patterns",
     },
     timeframes: {
       today: "Today",
@@ -67,6 +63,8 @@ export const admin = {
       toolUsage: "Tool Usage",
       dailySessions: "Daily Sessions",
       topUsers: "Top Users",
+      details: "Details",
+      recipeGeneration: "Recipe Generation",
     },
     labels: {
       dau: "DAU",
@@ -134,6 +132,10 @@ export const admin = {
       messages: "messages",
       sessions: "sessions",
       totalMessages: "total messages",
+      totalGenerated: "Total Generated",
+      totalFailed: "Total Failed",
+      generationSuccessRate: "Success Rate",
+      avgGenerationTime: "Avg Generation Time",
       am: "AM",
       pm: "PM",
     },
