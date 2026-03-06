@@ -68,6 +68,13 @@ export const generateCustomRecipeTool = {
           enum: ["easy", "medium", "hard"],
           description: "Desired difficulty level",
         },
+        portions: {
+          type: "integer",
+          description:
+            "Number of portions/servings. Infer from conversation (e.g. 'for 2', 'family dinner'). Omit to use user's default.",
+          minimum: 1,
+          maximum: 50,
+        },
         additionalRequests: {
           type: "string",
           description:
@@ -435,13 +442,18 @@ export function getSystemPrompt(userContext: UserContext): string {
 
 ## THERMOMIX USAGE (User owns Thermomix - maximize usage!)
 
-For each applicable step, include: thermomixTime (seconds), thermomixTemp ("37°C"-"120°C" or "Varoma"), thermomixSpeed ("1"-"10", "Spoon", or "Reverse")
+For each applicable step, include Thermomix parameters:
+- **thermomixTime** (seconds) and **thermomixSpeed** ("1"-"10", "Spoon", or "Reverse") are a REQUIRED PAIR — if you set one, you MUST set both.
+- **thermomixTemp** ("37°C"-"120°C" or "Varoma") is OPTIONAL — set it only when the step needs heat. Null means no temperature control (cold tasks like chopping, mixing).
 
 Use Thermomix for: chopping (speed 5-7), sautéing (100°C, speed 1, reverse), cooking/boiling (temp+speed), blending (speed 8-10), steaming (Varoma)
-Skip Thermomix for: plating, garnishing, oven/grill tasks, manual shaping
+Skip Thermomix for: plating, garnishing, oven/grill tasks, manual shaping — leave all three params null.
 Temperature guidance: low (37-60°C for melting/gentle warming), medium (70-100°C for simmering/cooking), high (100-120°C for sautéing/reduction), Varoma (~120°C for steaming)
 
-Example step with Thermomix: {"order": 2, "instruction": "Sauté onions", "ingredientsUsed": ["onion"], "thermomixTime": 180, "thermomixTemp": "100°C", "thermomixSpeed": "1"}`
+Examples:
+- Full params: {"order": 2, "instruction": "Sauté onions", "ingredientsUsed": ["onion"], "thermomixTime": 180, "thermomixTemp": "100°C", "thermomixSpeed": "1"}
+- No heat (chopping): {"order": 1, "instruction": "Chop vegetables", "ingredientsUsed": ["carrot"], "thermomixTime": 10, "thermomixTemp": null, "thermomixSpeed": "5"}
+- Non-Thermomix step: {"order": 5, "instruction": "Plate and garnish", "ingredientsUsed": ["parsley"], "thermomixTime": null, "thermomixTemp": null, "thermomixSpeed": null}`
     : "";
 
   return `Professional recipe creator. Output in ${lang}, ${userContext.measurementSystem} units (${units}).
@@ -471,6 +483,10 @@ function buildRecipePrompt(
   },
 ): string {
   const parts: string[] = [];
+
+  // Portions — explicit param > user default > fallback
+  const portions = params.portions || userContext.householdSize || 4;
+  parts.push(`Portions: ${portions}.`);
 
   // Core request — dish concept first, then ingredients
   if (params.recipeDescription) {
@@ -542,10 +558,6 @@ function buildRecipePrompt(
 
   if (userContext.skillLevel) {
     preferences.push(`Skill level: ${userContext.skillLevel}`);
-  }
-
-  if (userContext.householdSize) {
-    preferences.push(`Default portions: ${userContext.householdSize}`);
   }
 
   // Cuisine preferences are SOFT/INSPIRATIONAL - they should NOT dominate every recipe
@@ -1024,6 +1036,21 @@ export function validateThermomixSteps(
         );
         validated.thermomixTemp = undefined;
       }
+    }
+
+    // Pair completion: time + speed must appear together
+    const hasTime = validated.thermomixTime != null;
+    const hasSpeed = validated.thermomixSpeed != null;
+    if (hasTime && !hasSpeed) {
+      console.warn(
+        `Step ${step.order}: thermomixTime set without thermomixSpeed. Filling speed with "1" (gentle default).`,
+      );
+      validated.thermomixSpeed = "1";
+    } else if (hasSpeed && !hasTime) {
+      console.warn(
+        `Step ${step.order}: thermomixSpeed set without thermomixTime. Filling time with 60 (safe default).`,
+      );
+      validated.thermomixTime = 60;
     }
 
     return validated;
