@@ -21,7 +21,7 @@
     "pipeline:import": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/import-recipes.ts",
     "pipeline:audit": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/audit-data.ts",
     "pipeline:nutrition": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/fetch-nutrition.ts",
-    "pipeline:images": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/generate-images.ts",
+    "pipeline:images": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/list-missing-images.ts",
     "pipeline:translate": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/translate-content.ts"
   },
   "lint": {

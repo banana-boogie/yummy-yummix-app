@@ -8,7 +8,7 @@ Where raw database entries get cooked into production-ready content.
 
 YummyYummix is a cooking app with recipes, ingredients, step-by-step cooking guides, and AI-powered features — all in English and Mexican Spanish. Before launch, the database needs to be fully populated: every ingredient needs nutritional facts, every entity needs translations in both languages, and every recipe/ingredient/item needs an image.
 
-Doing this manually for hundreds of entities would take days. The Data Kitchen is a set of **automated CLI tools** that handle the tedious parts — fetching nutrition data from the USDA, translating missing content with AI, and generating images with DALL-E. Raw rows go in, fully-baked recipes come out. This feature also includes **analytics** to understand user behavior post-launch, **backup scripts** for disaster recovery, and **database hardening** for security and performance.
+Doing this manually for hundreds of entities would take days. The Data Kitchen is a set of **automated CLI tools** that handle the tedious parts — fetching nutrition data from the USDA, translating missing content with AI, and producing missing-image manifests for manual image creation/upload. Raw rows go in, fully-baked recipes come out. This feature also includes **analytics** to understand user behavior post-launch, **backup scripts** for disaster recovery, and **database hardening** for security and performance.
 
 ---
 
@@ -21,7 +21,7 @@ Doing this manually for hundreds of entities would take days. The Data Kitchen i
 │   audit-data ──► Reports what's missing                 │
 │   fetch-nutrition ──► USDA API + OpenAI fallback        │
 │   translate-content ──► GPT-4o-mini translations        │
-│   generate-images ──► DALL-E 3 + Supabase Storage       │
+│   list-missing-images ──► Manual image worklist         │
 │                                                         │
 │   All tools: --local / --production / --dry-run         │
 ├─────────────────────────────────────────────────────────┤
@@ -120,31 +120,26 @@ deno task pipeline:translate --local
 deno task pipeline:translate --production --dry-run
 ```
 
-#### 4. Generate Images (`deno task pipeline:images`)
+#### 4. List Missing Images (`deno task pipeline:images`)
 
-**What it does:** Creates AI-generated product photos for any entity missing an image, then uploads them to Supabase Storage.
+**What it does:** Produces a manifest of entities missing images so you can generate/upload assets manually.
 
 **How it works:**
-1. Generates an image with **DALL-E 3** using entity-specific prompts
-2. Downloads the generated image
-3. Uploads to Supabase Storage (organized by bucket: `ingredients/`, `recipes/`, `useful-items/`)
-4. Saves the public URL back to the database
-
-**Prompt design matters:** Each entity type gets a tailored prompt:
-- **Recipes** → Overhead food photography, rustic table, warm lighting
-- **Ingredients** → Clean studio shot, white background, fresh and vibrant
-- **Useful items** → Product photo, white background, isolated object
-
-**Failure recovery:** If the upload to Supabase fails after generating an image (network issue, storage quota, etc.), the image is saved locally to `data-pipeline/data/failed-uploads/` so the DALL-E credit isn't wasted. You can manually upload these later.
-
-**Budget system:** The `--limit` flag caps the total number of images across ALL entity types. If you say `--limit 10`, it might generate 5 ingredient images and 5 recipe images, or any other combination up to 10 total.
+1. Scans ingredients, recipes, and useful items for missing `image_url`
+2. Applies a global `--limit` budget across all entity types
+3. Writes an output manifest (`json`, `csv`, or `md`) with:
+   - Entity type + ID
+   - English/Spanish names
+   - Suggested file name
+   - Target storage bucket/path
+   - Prompt hint for manual generation consistency
 
 ```bash
-# Generate up to 5 ingredient images locally
-deno task pipeline:images --local --type ingredient --limit 5
+# List up to 20 missing ingredient images
+deno task pipeline:images --local --type ingredient --limit 20
 
-# Generate all types in production, max 20 total
-deno task pipeline:images --production --type all --limit 20
+# Generate a CSV manifest for all missing images
+deno task pipeline:images --production --type all --limit 100 --format csv --output ./missing-images.csv
 ```
 
 ### Typical Workflow
@@ -159,7 +154,7 @@ deno task pipeline:nutrition --local --limit 50
 # 3. Translate missing names
 deno task pipeline:translate --local
 
-# 4. Generate images (most expensive — DALL-E costs add up)
+# 4. Generate a manual image manifest
 deno task pipeline:images --local --type all --limit 10
 
 # 5. Re-audit to verify progress
@@ -290,7 +285,7 @@ This branch includes 11 database migrations that address security, performance, 
 - **Extracted inline styles:** Moved `contentContainerStyle` objects to module-level constants to avoid re-creation on every render
 
 ### RecipeInfo Component
-- Removed the unused `difficulty` prop that was defined in the interface but never rendered. This was dead code flowing through 4 components and their tests — cleaning it up reduces confusion for future developers.
+- Displays `difficulty` alongside prep/total time to preserve at-a-glance metadata in recipe cards and recipe detail screens.
 
 ---
 
@@ -301,7 +296,7 @@ The final commit addresses findings from a code review (PR #11):
 ### DRY Violations Fixed
 - **`sleep()` + `parseJsonFromLLM()`** — Extracted to `utils.ts` from 7 inline copies across 3 files
 - **`auditEntities()`** — Extracted from 3 copy-pasted audit loops into one generic function
-- **`processEntities<T>()`** — Replaced 3 nearly-identical image processing functions (~135 duplicated lines) with one generic function + 3 config objects
+- **`collectForType<T>()`** — Reuses one generic collector for ingredients/recipes/useful items when building missing-image manifests
 - **`db.updateTag()`** — Added to match the existing pattern of `updateIngredient`/`updateUsefulItem`/`updateRecipe`, replacing a direct Supabase call in translate-content.ts
 - **Removed unused `byType` variable** in audit-data.ts
 
@@ -344,7 +339,7 @@ yyx-server/
 │   │   ├── audit-data.ts          # Data quality scanner
 │   │   ├── fetch-nutrition.ts     # USDA + OpenAI nutrition fetcher
 │   │   ├── translate-content.ts   # Bilingual translation tool
-│   │   ├── generate-images.ts     # DALL-E image generator
+│   │   ├── list-missing-images.ts # Missing image manifest generator
 │   │   └── import-recipes.ts      # Recipe markdown importer
 │   ├── lib/
 │   │   ├── db.ts                  # All database operations
@@ -367,7 +362,7 @@ yyx-server/
 │   │   ├── translation-limit.ts   # Translation rate/cost limiting
 │   │   └── translation-limit.test.ts # Translation limit tests
 │   └── data/
-│       └── failed-uploads/        # Fallback for failed image uploads
+│       └── notion-exports/        # Notion markdown imports
 ├── scripts/
 │   ├── backup-all.sh              # Combined DB + storage backup
 │   ├── backup-db.sh               # PostgreSQL dump
@@ -389,7 +384,7 @@ yyx-app/
 │   │   ├── MiseEnPlaceIngredient.tsx  # React.memo wrapped
 │   │   └── MiseEnPlaceUsefulItem.tsx  # React.memo wrapped
 │   └── recipe-detail/
-│       ├── RecipeInfo.tsx          # difficulty prop removed
+│       ├── RecipeInfo.tsx          # time + difficulty metadata display
 │       └── RecipeSteps.tsx         # StepItem memoized
 └── app/(tabs)/recipes/[id]/
     └── cooking-guide/
