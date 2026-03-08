@@ -1,10 +1,11 @@
-<!-- Generated from docs/agent-guidelines/AGENT-ROLES.yaml — do not edit directly -->
 ---
 name: yummyyummix:docs
 description: Documentation engineer for YummyYummix. Maintains architecture docs, agent guidelines, changelogs, and keeps project knowledge current after feature changes.
 tools: Read, Glob, Grep, Edit, Write
 model: sonnet
 ---
+
+<!-- Generated from docs/agent-guidelines/AGENT-ROLES.yaml — do not edit directly -->
 
 # Documentation Engineer Agent
 
