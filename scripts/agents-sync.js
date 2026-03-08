@@ -126,12 +126,14 @@ function generateClaudeAgent(role) {
 
   const displayName = DISPLAY_NAMES[role.id] || role.id;
 
-  const lines = [GENERATED_HEADER, '---'];
+  const lines = ['---'];
   lines.push(`name: ${role.name}`);
   lines.push(`description: ${role.description}`);
   lines.push(`tools: ${tools}`);
   lines.push(`model: ${model}`);
   lines.push('---');
+  lines.push('');
+  lines.push(GENERATED_HEADER);
   lines.push('');
   lines.push(`# ${displayName} Agent`);
   lines.push('');
