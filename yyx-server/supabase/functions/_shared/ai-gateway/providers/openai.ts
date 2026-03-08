@@ -149,6 +149,7 @@ export async function callOpenAI(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(openaiRequest),
+    signal: request.signal,
   });
 
   if (!response.ok) {
@@ -179,6 +180,7 @@ export async function callOpenAI(
       inputTokens: data.usage.prompt_tokens,
       outputTokens: data.usage.completion_tokens,
     },
+    costUsd: 0, // Calculated by gateway
     toolCalls: choice.message.tool_calls?.map((tc) => ({
       id: tc.id,
       name: tc.function.name,
@@ -187,15 +189,27 @@ export async function callOpenAI(
   };
 }
 
+/** Usage data captured from streaming responses */
+export interface OpenAIStreamUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/** Result from OpenAI streaming: generator + deferred usage */
+export interface OpenAIStreamResult {
+  stream: AsyncGenerator<string, void, unknown>;
+  usage: () => Promise<OpenAIStreamUsage>;
+}
+
 /**
  * Call OpenAI's chat completions API with streaming.
- * Returns an async generator that yields content chunks.
+ * Returns a stream generator and a deferred usage() promise.
  */
-export async function* callOpenAIStream(
+export async function callOpenAIStream(
   request: AICompletionRequest,
   model: string,
   apiKey: string,
-): AsyncGenerator<string, void, unknown> {
+): Promise<OpenAIStreamResult> {
   const startedAt = performance.now();
   const openaiRequest: Record<string, unknown> = {
     model,
@@ -205,6 +219,7 @@ export async function* callOpenAIStream(
     })),
     max_completion_tokens: request.maxTokens ?? 4096,
     stream: true,
+    stream_options: { include_usage: true },
   };
 
   // Add reasoning effort for models that support it
@@ -225,6 +240,7 @@ export async function* callOpenAIStream(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(openaiRequest),
+    signal: request.signal,
   });
 
   if (!response.ok) {
@@ -244,38 +260,70 @@ export async function* callOpenAIStream(
   const reader = response.body?.getReader();
   if (!reader) throw new Error("No response body");
 
-  const decoder = new TextDecoder();
-  let buffer = "";
+  // Deferred usage — resolved when stream completes
+  let resolveUsage: (usage: OpenAIStreamUsage) => void;
+  const usagePromise = new Promise<OpenAIStreamUsage>((resolve) => {
+    resolveUsage = resolve;
+  });
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  async function* generateStream(): AsyncGenerator<string, void, unknown> {
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let capturedUsage: OpenAIStreamUsage = { inputTokens: 0, outputTokens: 0 };
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
+    try {
+      while (true) {
+        if (request.signal?.aborted) break;
 
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed === "data: [DONE]") continue;
-      if (!trimmed.startsWith("data: ")) continue;
+        const { done, value } = await reader!.read();
+        if (done) break;
 
-      try {
-        const json = JSON.parse(trimmed.slice(6));
-        const content = json.choices?.[0]?.delta?.content;
-        if (content) {
-          yield content;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed === "data: [DONE]") continue;
+          if (!trimmed.startsWith("data: ")) continue;
+
+          try {
+            const json = JSON.parse(trimmed.slice(6));
+
+            // Capture usage from the final chunk (choices: [], usage: {...})
+            if (json.usage) {
+              capturedUsage = {
+                inputTokens: json.usage.prompt_tokens ?? 0,
+                outputTokens: json.usage.completion_tokens ?? 0,
+              };
+            }
+
+            const content = json.choices?.[0]?.delta?.content;
+            if (content) {
+              yield content;
+            }
+          } catch {
+            // Skip malformed JSON
+          }
         }
-      } catch {
-        // Skip malformed JSON
       }
+    } finally {
+      reader!.releaseLock();
+      resolveUsage!(capturedUsage);
     }
+
+    console.log("[ai-gateway:openai] Stream completed", {
+      model,
+      total_ms: Math.round(performance.now() - startedAt),
+      input_tokens: capturedUsage.inputTokens,
+      output_tokens: capturedUsage.outputTokens,
+    });
   }
 
-  console.log("[ai-gateway:openai] Stream completed", {
-    model,
-    total_ms: Math.round(performance.now() - startedAt),
-  });
+  return {
+    stream: generateStream(),
+    usage: () => usagePromise,
+  };
 }
 
 // =============================================================================
@@ -334,5 +382,6 @@ export async function callOpenAIEmbedding(
     embedding,
     model: data.model,
     usage: { inputTokens: data.usage?.prompt_tokens ?? 0 },
+    costUsd: 0, // Calculated by gateway
   };
 }

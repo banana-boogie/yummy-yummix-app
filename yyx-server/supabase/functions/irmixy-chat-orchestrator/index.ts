@@ -37,6 +37,13 @@ import { detectMealContext } from "./meal-context.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { callAI, callAIStream } from "./ai-calls.ts";
 import { errorResponse, finalizeResponse } from "./response-builder.ts";
+import { detectTextToolCall, stripToolCallText } from "./tool-call-text.ts";
+import {
+  BudgetCheckUnavailableError,
+  checkTextBudget,
+} from "../_shared/ai-budget/index.ts";
+import { checkRateLimit } from "../_shared/ai-budget/rate-limiter.ts";
+import type { CostContext } from "../_shared/ai-gateway/types.ts";
 
 // ============================================================
 // Config
@@ -108,6 +115,67 @@ serve(async (req) => {
 
     log.info("User authenticated", { userId: user.id.substring(0, 8) + "..." });
 
+    // Rate limit check (in-memory, no DB)
+    const rateCheck = checkRateLimit(user.id);
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: "rate_limited",
+          retryAfterMs: rateCheck.retryAfterMs,
+        }),
+        {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+            "Retry-After": String(
+              Math.ceil((rateCheck.retryAfterMs || 1000) / 1000),
+            ),
+          },
+        },
+      );
+    }
+
+    // Budget check
+    let budget: Awaited<ReturnType<typeof checkTextBudget>>;
+    try {
+      budget = await checkTextBudget(user.id);
+    } catch (error) {
+      if (error instanceof BudgetCheckUnavailableError) {
+        log.error("Budget check unavailable", { message: error.message });
+        return new Response(
+          JSON.stringify({
+            error: "budget_unavailable",
+          }),
+          {
+            status: 503,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      throw error;
+    }
+
+    if (!budget.allowed) {
+      log.info("Budget exceeded", {
+        tier: budget.tier,
+        usedUsd: budget.usedUsd,
+        budgetUsd: budget.budgetUsd,
+      });
+      return new Response(
+        JSON.stringify({
+          error: "budget_exceeded",
+          tier: budget.tier,
+          usedUsd: budget.usedUsd,
+          budgetUsd: budget.budgetUsd,
+        }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     // Sanitize the incoming message
     const sanitizedMessage = sanitizeContent(message);
     log.info("Message sanitized", {
@@ -122,6 +190,12 @@ serve(async (req) => {
     );
     const effectiveSessionId = sessionResult.sessionId ?? sessionId;
 
+    // Build cost context for automatic recording
+    const costContext: CostContext = {
+      userId: user.id,
+      edgeFunction: "irmixy-chat-orchestrator",
+    };
+
     // Always use streaming — all clients use SSE
     return handleStreamingRequest(
       supabase,
@@ -129,6 +203,9 @@ serve(async (req) => {
       effectiveSessionId,
       sanitizedMessage,
       log,
+      req.signal,
+      costContext,
+      budget.warningData,
     );
   } catch (error) {
     log.error("Orchestrator error", error);
@@ -168,12 +245,27 @@ async function buildRequestContext(
 
   const systemPrompt = buildSystemPrompt(userContext, mealContext);
 
-  const messages: ChatMessage[] = [
-    { role: "system", content: systemPrompt },
-    ...userContext.conversationHistory.map((m) => ({
+  // Build message array from conversation history.
+  // Tool result summaries are injected as system-role messages (not appended to
+  // assistant content) so the LLM interprets them as context, not its own prior
+  // output — preventing it from mimicking the format instead of calling tools.
+  const historyMessages: ChatMessage[] = [];
+  for (const m of userContext.conversationHistory) {
+    historyMessages.push({
       role: m.role as "user" | "assistant",
       content: m.content,
-    })),
+    });
+    if (m.toolSummary) {
+      historyMessages.push({
+        role: "system",
+        content: m.toolSummary,
+      });
+    }
+  }
+
+  const messages: ChatMessage[] = [
+    { role: "system", content: systemPrompt },
+    ...historyMessages,
     { role: "user", content: message },
   ];
 
@@ -193,6 +285,7 @@ async function executeToolCalls(
   userContext: UserContext,
   log: Logger,
   onPartialRecipe?: PartialRecipeCallback,
+  costContext?: CostContext,
 ): Promise<ToolExecutionResult> {
   const toolMessages: ChatMessage[] = [];
   let recipes: RecipeCard[] | undefined;
@@ -210,6 +303,7 @@ async function executeToolCalls(
           userContext,
           {
             onPartialRecipe,
+            costContext,
           },
         );
 
@@ -284,8 +378,20 @@ function handleStreamingRequest(
   sessionId: string | undefined,
   message: string,
   log: Logger,
+  reqSignal?: AbortSignal,
+  costContext?: CostContext,
+  budgetWarning?: { usedUsd: number; budgetUsd: number },
 ): Response {
   const encoder = new TextEncoder();
+
+  // Unified abort controller: fires when client disconnects OR stream is cancelled
+  const abortController = new AbortController();
+  const signal = abortController.signal;
+  if (reqSignal) {
+    reqSignal.addEventListener("abort", () => abortController.abort(), {
+      once: true,
+    });
+  }
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -327,7 +433,7 @@ function handleStreamingRequest(
       };
 
       const send = (data: Record<string, unknown>) => {
-        if (streamClosed) return;
+        if (streamClosed || signal.aborted) return;
         safeEnqueue(
           encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
         );
@@ -343,6 +449,14 @@ function handleStreamingRequest(
 
         if (sessionId) {
           send({ type: "session", sessionId });
+        }
+        // Send budget warning early so frontend can display it
+        if (budgetWarning) {
+          send({
+            type: "budget_warning",
+            usedUsd: budgetWarning.usedUsd,
+            budgetUsd: budgetWarning.budgetUsd,
+          });
         }
         send({ type: "status", status: "thinking" });
 
@@ -364,16 +478,55 @@ function handleStreamingRequest(
           messages,
           true,
           "auto",
+          signal,
+          costContext,
         );
         selectedModel = firstResponse.model;
         timings.llm_call_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
         const assistantMessage = firstResponse.choices[0].message;
+        const detectedTool = assistantMessage.content
+          ? detectTextToolCall(assistantMessage.content)
+          : null;
+
+        // Gemini sometimes outputs tool-call syntax as plain text instead of
+        // structured function calls. Detect this and retry with forced tool calling.
+        if (
+          !assistantMessage.tool_calls?.length &&
+          detectedTool
+        ) {
+          log.warn(
+            "Detected tool call in text, retrying with specific tool choice",
+            {
+              detectedTool,
+            },
+          );
+          // Keep SSE alive before the retry call. `send(...)` resets stream timeout.
+          send({ type: "status", status: "thinking" });
+          const retryResponse = await callAI(
+            messages,
+            true,
+            { type: "function", function: { name: detectedTool } },
+            signal,
+            costContext,
+          );
+          selectedModel = retryResponse.model;
+          Object.assign(assistantMessage, retryResponse.choices[0].message);
+          timings.llm_retry_ms = Math.round(performance.now() - phaseStart);
+          phaseStart = performance.now();
+        }
 
         log.info("AI response", {
           hasToolCalls: !!assistantMessage.tool_calls?.length,
           toolNames: assistantMessage.tool_calls?.map((tc) => tc.function.name),
         });
+
+        if (signal.aborted) {
+          log.info("Request aborted by client (after first LLM call)");
+          clearStreamTimeout();
+          safeClose();
+          return;
+        }
 
         if (
           assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0
@@ -401,6 +554,7 @@ function handleStreamingRequest(
               userContext,
               log,
               onPartialRecipe,
+              costContext,
             );
           } finally {
             clearInterval(heartbeatId);
@@ -428,19 +582,57 @@ function handleStreamingRequest(
           }, ...toolResult.toolMessages];
         }
 
+        if (signal.aborted) {
+          log.info("Request aborted by client (after tool execution)");
+          clearStreamTimeout();
+          safeClose();
+          return;
+        }
+
         const hasSuccessfulCustomRecipe = !!customRecipeResult?.recipe &&
           customRecipeResult?.safetyFlags?.error !== true;
 
+        // Keep stream alive while waiting for the AI provider to start responding
+        const streamHeartbeatId = setInterval(() => {
+          send({ type: "heartbeat" });
+        }, HEARTBEAT_INTERVAL_MS);
+        let heartbeatCleared = false;
+
         // Stream AI response — text first, then tool results arrive in the done event.
-        const finalText = await callAIStream(
-          streamMessages,
-          (token) => send({ type: "content", content: token }),
-        );
+        let finalText: string;
+        try {
+          const streamResult = await callAIStream(
+            streamMessages,
+            (token) => {
+              // First token arrived — stop heartbeat, real data is flowing
+              if (!heartbeatCleared) {
+                clearInterval(streamHeartbeatId);
+                heartbeatCleared = true;
+              }
+              send({ type: "content", content: token });
+            },
+            signal,
+            costContext,
+          );
+          finalText = streamResult.content;
+        } finally {
+          if (!heartbeatCleared) clearInterval(streamHeartbeatId);
+        }
         timings.stream_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
 
+        // Strip any residual tool-call text that leaked into the streamed response
+        finalText = stripToolCallText(finalText);
+
         // Signal that streaming is complete - frontend can enable input now
         send({ type: "stream_complete" });
+
+        if (signal.aborted) {
+          log.info("Request aborted by client (after streaming)");
+          clearStreamTimeout();
+          safeClose();
+          return;
+        }
 
         const response = await finalizeResponse(
           supabase,
@@ -475,6 +667,12 @@ function handleStreamingRequest(
         clearStreamTimeout();
         safeClose();
       } catch (error) {
+        if (signal.aborted) {
+          log.info("Request aborted by client");
+          clearStreamTimeout();
+          safeClose();
+          return;
+        }
         log.error("Streaming error", error);
         send({
           type: "error",
@@ -483,6 +681,9 @@ function handleStreamingRequest(
         clearStreamTimeout();
         safeClose();
       }
+    },
+    cancel() {
+      abortController.abort();
     },
   });
 

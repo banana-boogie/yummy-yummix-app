@@ -34,6 +34,11 @@ export interface ChatSession {
     messages: ChatMessage[];
 }
 
+export interface BudgetWarningPayload {
+    usedUsd: number;
+    budgetUsd: number;
+}
+
 // Re-export types for convenience
 export type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, QuickAction };
 
@@ -41,6 +46,21 @@ export type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyF
 const MAX_MESSAGE_LENGTH = 2000;
 const STREAM_TIMEOUT_MS = 60000; // 60 seconds
 const MAX_RETRIES = 3;
+
+/** Error thrown when the user's AI budget is exceeded */
+export class BudgetExceededError extends Error {
+    tier: string;
+    usedUsd: number;
+    budgetUsd: number;
+
+    constructor(data: { tier?: string; usedUsd?: number; budgetUsd?: number }) {
+        super('budget_exceeded');
+        this.name = 'BudgetExceededError';
+        this.tier = data.tier || 'free';
+        this.usedUsd = data.usedUsd || 0;
+        this.budgetUsd = data.budgetUsd || 0;
+    }
+}
 
 // Use irmixy-chat-orchestrator for structured responses
 const FUNCTIONS_BASE_URL =
@@ -60,6 +80,7 @@ export interface StreamCallbacks {
     onStreamComplete?: () => void;  // Called when text streaming finishes (before suggestions)
     onPartialRecipe?: (recipe: GeneratedRecipe) => void;  // Called with partial recipe before enrichment
     onComplete?: (response: IrmixyResponse) => void;
+    onBudgetWarning?: (warning: BudgetWarningPayload) => void;  // Called when budget is approaching limit
 }
 
 export interface StreamHandle {
@@ -76,6 +97,56 @@ export type SSERouteAction = 'continue' | 'resolve' | 'reject';
 export interface SSERouteResult {
     action: SSERouteAction;
     error?: Error;
+}
+
+const parseNumericStatus = (value: unknown): number | null => {
+    const parsed = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
+const parseObjectPayload = (value: unknown): Record<string, unknown> | null => {
+    if (value && typeof value === 'object') {
+        return value as Record<string, unknown>;
+    }
+
+    if (typeof value !== 'string' || !value.trim()) {
+        return null;
+    }
+
+    try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === 'object'
+            ? (parsed as Record<string, unknown>)
+            : null;
+    } catch {
+        return null;
+    }
+};
+
+export function parseBudgetExceededErrorFromSSEEvent(event: unknown): BudgetExceededError | null {
+    if (!event || typeof event !== 'object') {
+        return null;
+    }
+
+    const eventData = event as Record<string, unknown>;
+    const statusCode = parseNumericStatus(eventData.status) ?? parseNumericStatus(eventData.xhrStatus);
+    if (statusCode !== 429) {
+        return null;
+    }
+
+    const payloadCandidates = [eventData.data, eventData.message];
+    for (const candidate of payloadCandidates) {
+        const payload = parseObjectPayload(candidate);
+        if (payload?.error === 'budget_exceeded') {
+            return new BudgetExceededError({
+                tier: typeof payload.tier === 'string' ? payload.tier : undefined,
+                usedUsd: Number(payload.usedUsd),
+                budgetUsd: Number(payload.budgetUsd),
+            });
+        }
+    }
+
+    return null;
 }
 
 /**
@@ -127,6 +198,18 @@ export function routeSSEMessage(
                 }
             } catch (e) {
                 if (__DEV__) console.error('[SSE] onStatus callback error:', e);
+            }
+            return { action: 'continue' };
+
+        case 'budget_warning':
+            try {
+                const usedUsd = Number(data.usedUsd);
+                const budgetUsd = Number(data.budgetUsd);
+                if (Number.isFinite(usedUsd) && Number.isFinite(budgetUsd)) {
+                    callbacks.onBudgetWarning?.({ usedUsd, budgetUsd });
+                }
+            } catch (e) {
+                if (__DEV__) console.error('[SSE] onBudgetWarning callback error:', e);
             }
             return { action: 'continue' };
 
@@ -211,6 +294,7 @@ export function sendMessage(
     onPartialRecipe?: (recipe: GeneratedRecipe) => void,
     onComplete?: (response: IrmixyResponse) => void,
     options?: SendMessageOptions,
+    onBudgetWarning?: (warning: BudgetWarningPayload) => void,
 ): StreamHandle {
     let finished = false;
     let es: EventSource | null = null;
@@ -335,6 +419,7 @@ export function sendMessage(
                                 onStreamComplete,
                                 onPartialRecipe,
                                 onComplete,
+                                onBudgetWarning,
                             });
 
                             if (routeResult.action === 'resolve') {
@@ -360,6 +445,14 @@ export function sendMessage(
                     es.addEventListener('error', (event: any) => {
                         if (__DEV__) console.error('[SSE] Connection error:', event, 'hasReceivedData:', hasReceivedData);
                         es?.close();
+
+                        const budgetError = parseBudgetExceededErrorFromSSEEvent(event);
+                        if (budgetError) {
+                            safeReject(budgetError);
+                            rejectConnection(budgetError);
+                            return;
+                        }
+
                         connectionError = new Error(event.message || 'SSE connection failed');
                         rejectConnection(connectionError);
                     });
@@ -475,7 +568,9 @@ export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]>
  * Load user's recent chat sessions.
  * Limited to 5 most recent sessions for performance.
  */
-export async function loadChatSessions(): Promise<{ id: string; title: string; createdAt: Date }[]> {
+export async function loadChatSessions(): Promise<
+    { id: string; title: string; createdAt: Date; source?: 'text' | 'voice' }[]
+> {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData?.user) {
         throw new Error('Not authenticated');
@@ -483,7 +578,7 @@ export async function loadChatSessions(): Promise<{ id: string; title: string; c
 
     const { data, error } = await supabase
         .from('user_chat_sessions')
-        .select('id, title, created_at')
+        .select('id, title, created_at, source')
         .eq('user_id', userData.user.id)
         .order('created_at', { ascending: false })
         .limit(5);
@@ -494,6 +589,7 @@ export async function loadChatSessions(): Promise<{ id: string; title: string; c
         id: session.id,
         title: session.title || i18n.t('chat.newChatTitle'),
         createdAt: new Date(session.created_at),
+        source: session.source as 'text' | 'voice' | undefined,
     }));
 }
 
@@ -503,6 +599,7 @@ export async function loadChatSessions(): Promise<{ id: string; title: string; c
  */
 export async function getLastSessionWithMessages(): Promise<{
     sessionId: string;
+    title: string;
     messageCount: number;
     lastMessageAt: Date;
 } | null> {
@@ -514,7 +611,7 @@ export async function getLastSessionWithMessages(): Promise<{
     // Get most recent session for this user
     const { data: sessions, error: sessionError } = await supabase
         .from('user_chat_sessions')
-        .select('id, created_at')
+        .select('id, title, created_at')
         .eq('user_id', userData.user.id)
         .order('created_at', { ascending: false })
         .limit(1);
@@ -549,7 +646,86 @@ export async function getLastSessionWithMessages(): Promise<{
 
     return {
         sessionId: session.id,
+        title: session.title || '',
         messageCount: count || 0,
         lastMessageAt: new Date(messages[0].created_at),
     };
+}
+
+/**
+ * Save voice chat transcript to backend (same tables as text chat).
+ * Fire-and-forget — errors are logged but don't surface to user.
+ */
+export async function saveVoiceTranscript(
+    messages: ChatMessage[],
+): Promise<{ sessionId: string } | null> {
+    try {
+        if (messages.length === 0) return null;
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return null;
+
+        const serializedMessages = messages.map(msg => ({
+            role: msg.role,
+            content: msg.content,
+            ...(msg.recipes ? { recipes: msg.recipes } : {}),
+            ...(msg.customRecipe ? { customRecipe: msg.customRecipe } : {}),
+            ...(msg.safetyFlags ? { safetyFlags: msg.safetyFlags } : {}),
+        }));
+
+        const response = await fetch(
+            `${FUNCTIONS_BASE_URL}/irmixy-voice-orchestrator`,
+            {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'save_transcript',
+                    messages: serializedMessages,
+                }),
+            },
+        );
+
+        if (!response.ok) {
+            if (__DEV__) console.error('[saveVoiceTranscript] Failed:', response.status);
+            return null;
+        }
+
+        const data = await response.json();
+        return { sessionId: data.sessionId };
+    } catch (err) {
+        if (__DEV__) console.error('[saveVoiceTranscript] Error:', err);
+        return null;
+    }
+}
+
+export async function getRecentlyCookedRecipes(limit = 5): Promise<{
+    recipeId: string;
+    recipeName: string;
+    cookedAt: Date;
+}[]> {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) {
+        return [];
+    }
+
+    const { data, error } = await supabase
+        .from('user_events')
+        .select('payload, created_at')
+        .eq('user_id', userData.user.id)
+        .eq('event_type', 'cook_complete')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (error || !data) {
+        return [];
+    }
+
+    return data.map((event: { payload: Record<string, unknown> | null; created_at: string }) => ({
+        recipeId: (event.payload?.recipe_id as string) || '',
+        recipeName: (event.payload?.recipe_name as string) || '',
+        cookedAt: new Date(event.created_at),
+    }));
 }

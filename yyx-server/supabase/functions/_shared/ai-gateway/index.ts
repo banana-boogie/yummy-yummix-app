@@ -15,17 +15,51 @@ import {
   AICompletionResponse,
   AIEmbeddingRequest,
   AIEmbeddingResponse,
+  AIStreamResult,
+  CostContext,
 } from "./types.ts";
 import { getProviderConfig } from "./router.ts";
+import { calculateCost } from "./pricing.ts";
 import {
   callOpenAI,
   callOpenAIEmbedding,
   callOpenAIStream,
 } from "./providers/openai.ts";
+import { callGemini, callGeminiStream } from "./providers/google.ts";
+
+/**
+ * Fire-and-forget cost recording. Imported lazily to avoid circular deps.
+ */
+function autoRecordCost(
+  costContext: CostContext,
+  model: string,
+  usageType: string,
+  inputTokens: number,
+  outputTokens: number,
+  costUsd: number,
+): void {
+  import("../ai-budget/index.ts").then(({ recordCost }) => {
+    recordCost({
+      userId: costContext.userId,
+      model,
+      usageType,
+      inputTokens,
+      outputTokens,
+      costUsd,
+      edgeFunction: costContext.edgeFunction,
+      metadata: costContext.metadata,
+    }).catch((err) =>
+      console.error("[ai-gateway] Failed to record cost:", err)
+    );
+  }).catch((err) =>
+    console.error("[ai-gateway] Failed to import ai-budget:", err)
+  );
+}
 
 /**
  * Make an AI chat request.
  * Routes to the appropriate provider based on usageType.
+ * Calculates cost and auto-records if costContext is provided.
  */
 export async function chat(
   request: AICompletionRequest,
@@ -38,28 +72,53 @@ export async function chat(
     throw new Error(`Missing API key: ${config.apiKeyEnvVar}`);
   }
 
+  let response: AICompletionResponse;
+
   switch (config.provider) {
     case "openai":
-      return callOpenAI(request, model, apiKey);
+      response = await callOpenAI(request, model, apiKey);
+      break;
 
     case "anthropic":
       throw new Error("Anthropic provider not yet implemented");
 
     case "google":
-      throw new Error("Google provider not yet implemented");
+      response = await callGemini(request, model, apiKey);
+      break;
 
     default:
       throw new Error(`Unknown provider: ${config.provider}`);
   }
+
+  // Calculate cost
+  response.costUsd = await calculateCost(
+    response.model,
+    response.usage.inputTokens,
+    response.usage.outputTokens,
+  );
+
+  // Auto-record if cost context provided
+  if (request.costContext) {
+    autoRecordCost(
+      request.costContext,
+      response.model,
+      request.usageType,
+      response.usage.inputTokens,
+      response.usage.outputTokens,
+      response.costUsd,
+    );
+  }
+
+  return response;
 }
 
 /**
  * Make an AI chat request with streaming.
- * Returns an async generator that yields content chunks.
+ * Returns an AIStreamResult with a stream generator and deferred usage/cost.
  */
-export async function* chatStream(
+export async function chatStream(
   request: AICompletionRequest,
-): AsyncGenerator<string, void, unknown> {
+): Promise<AIStreamResult> {
   const config = getProviderConfig(request.usageType);
   const model = request.model ?? config.model;
   const apiKey = Deno.env.get(config.apiKeyEnvVar);
@@ -68,25 +127,63 @@ export async function* chatStream(
     throw new Error(`Missing API key: ${config.apiKeyEnvVar}`);
   }
 
+  let providerResult: {
+    stream: AsyncGenerator<string, void, unknown>;
+    usage: () => Promise<{ inputTokens: number; outputTokens: number }>;
+  };
+
   switch (config.provider) {
     case "openai":
-      yield* callOpenAIStream(request, model, apiKey);
+      providerResult = await callOpenAIStream(request, model, apiKey);
       break;
 
     case "anthropic":
       throw new Error("Anthropic streaming not yet implemented");
 
     case "google":
-      throw new Error("Google streaming not yet implemented");
+      providerResult = await callGeminiStream(request, model, apiKey);
+      break;
 
     default:
       throw new Error(`Unknown provider: ${config.provider}`);
   }
+
+  return {
+    stream: providerResult.stream,
+    usage: async () => {
+      const usage = await providerResult.usage();
+      const costUsd = await calculateCost(
+        model,
+        usage.inputTokens,
+        usage.outputTokens,
+      );
+
+      // Auto-record if cost context provided
+      if (request.costContext) {
+        autoRecordCost(
+          request.costContext,
+          model,
+          request.usageType,
+          usage.inputTokens,
+          usage.outputTokens,
+          costUsd,
+        );
+      }
+
+      return {
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        costUsd,
+        model,
+      };
+    },
+  };
 }
 
 /**
  * Generate a text embedding.
  * Routes to the appropriate provider based on the "embedding" usage type.
+ * Calculates cost and auto-records if costContext is provided.
  */
 export async function embed(
   request: AIEmbeddingRequest,
@@ -99,10 +196,13 @@ export async function embed(
     throw new Error(`Missing API key: ${config.apiKeyEnvVar}`);
   }
 
+  let response: AIEmbeddingResponse;
+
   try {
     switch (config.provider) {
       case "openai":
-        return await callOpenAIEmbedding(request.text, model, apiKey);
+        response = await callOpenAIEmbedding(request.text, model, apiKey);
+        break;
 
       case "anthropic":
         throw new Error("Anthropic embeddings not yet implemented");
@@ -120,6 +220,23 @@ export async function embed(
     );
     throw error;
   }
+
+  // Calculate cost (embeddings have no output tokens)
+  response.costUsd = await calculateCost(model, response.usage.inputTokens, 0);
+
+  // Auto-record if cost context provided
+  if (request.costContext) {
+    autoRecordCost(
+      request.costContext,
+      response.model,
+      "embedding",
+      response.usage.inputTokens,
+      0,
+      response.costUsd,
+    );
+  }
+
+  return response;
 }
 
 // Re-export types for convenience

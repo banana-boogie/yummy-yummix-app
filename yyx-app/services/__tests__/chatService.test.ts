@@ -16,8 +16,12 @@ import {
   loadChatHistory,
   loadChatSessions,
   getLastSessionWithMessages,
+  getRecentlyCookedRecipes,
+  saveVoiceTranscript,
   createSimpleStreamCallbacks,
   routeSSEMessage,
+  BudgetExceededError,
+  parseBudgetExceededErrorFromSSEEvent,
 } from '../chatService';
 import { supabase } from '@/lib/supabase';
 import {
@@ -271,6 +275,7 @@ describe('chatService', () => {
 
       expect(result).not.toBeNull();
       expect(result?.sessionId).toBe('session-abc');
+      expect(result?.title).toBe(mockSession.title);
     });
 
     it('returns null if no sessions exist', async () => {
@@ -310,6 +315,133 @@ describe('chatService', () => {
       const result = await getLastSessionWithMessages();
 
       expect(result).toBeNull();
+    });
+  });
+
+  // ============================================================
+  // getRecentlyCookedRecipes
+  // ============================================================
+
+  describe('getRecentlyCookedRecipes', () => {
+    it('returns mapped cook_complete events', async () => {
+      const mockEvents = [
+        {
+          payload: { recipe_id: 'recipe-1', recipe_name: 'Pasta' },
+          created_at: '2026-02-17T10:00:00Z',
+        },
+        {
+          payload: { recipe_id: 'recipe-2', recipe_name: 'Soup' },
+          created_at: '2026-02-16T10:00:00Z',
+        },
+      ];
+
+      (supabase.from as jest.Mock).mockReturnValue({
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({ data: mockEvents, error: null }),
+      });
+
+      const result = await getRecentlyCookedRecipes(2);
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        recipeId: 'recipe-1',
+        recipeName: 'Pasta',
+        cookedAt: new Date('2026-02-17T10:00:00Z'),
+      });
+      expect(result[1]).toEqual({
+        recipeId: 'recipe-2',
+        recipeName: 'Soup',
+        cookedAt: new Date('2026-02-16T10:00:00Z'),
+      });
+    });
+
+    it('returns empty array when user is not authenticated', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+        error: null,
+      });
+
+      const result = await getRecentlyCookedRecipes();
+      expect(result).toEqual([]);
+    });
+  });
+
+  // ============================================================
+  // saveVoiceTranscript
+  // ============================================================
+
+  describe('saveVoiceTranscript', () => {
+    const originalFetch = global.fetch;
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
+    it('saves transcript and returns sessionId on success', async () => {
+      (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+        data: { session: { access_token: 'test-token' } },
+      });
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ sessionId: 'saved-session-123' }),
+      });
+
+      const messages = [
+        { id: '1', role: 'user' as const, content: 'Hello', createdAt: new Date() },
+        { id: '2', role: 'assistant' as const, content: 'Hi there!', createdAt: new Date() },
+      ];
+
+      const result = await saveVoiceTranscript(messages);
+
+      expect(result).toEqual({ sessionId: 'saved-session-123' });
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      const [url, opts] = (global.fetch as jest.Mock).mock.calls[0];
+      expect(url).toContain('irmixy-voice-orchestrator');
+      const body = JSON.parse(opts.body);
+      expect(body.action).toBe('save_transcript');
+      expect(body.messages).toHaveLength(2);
+    });
+
+    it('returns null on network error (silent fail)', async () => {
+      (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+        data: { session: { access_token: 'test-token' } },
+      });
+      global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+
+      const messages = [
+        { id: '1', role: 'user' as const, content: 'Hello', createdAt: new Date() },
+      ];
+
+      const result = await saveVoiceTranscript(messages);
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null for empty messages without calling fetch', async () => {
+      global.fetch = jest.fn();
+
+      const result = await saveVoiceTranscript([]);
+
+      expect(result).toBeNull();
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('returns null when no auth session', async () => {
+      (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+        data: { session: null },
+      });
+      global.fetch = jest.fn();
+
+      const messages = [
+        { id: '1', role: 'user' as const, content: 'Hello', createdAt: new Date() },
+      ];
+
+      const result = await saveVoiceTranscript(messages);
+
+      expect(result).toBeNull();
+      expect(global.fetch).not.toHaveBeenCalled();
     });
   });
 
@@ -548,6 +680,51 @@ describe('chatService', () => {
       expect(callbacks.onPartialRecipe).toHaveBeenCalled();
     });
 
+    it('routes budget_warning to onBudgetWarning callback', () => {
+      const callbacks = {
+        onChunk: jest.fn(),
+        onBudgetWarning: jest.fn(),
+      };
+
+      const result = routeSSEMessage(
+        { type: 'budget_warning', usedUsd: 0.08, budgetUsd: 0.10 },
+        callbacks,
+      );
+
+      expect(callbacks.onBudgetWarning).toHaveBeenCalledTimes(1);
+      expect(callbacks.onBudgetWarning).toHaveBeenCalledWith({
+        usedUsd: 0.08,
+        budgetUsd: 0.10,
+      });
+      expect(result.action).toBe('continue');
+    });
+
+    it('does not crash when onBudgetWarning is undefined', () => {
+      const callbacks = { onChunk: jest.fn() };
+
+      expect(() => {
+        routeSSEMessage(
+          { type: 'budget_warning', usedUsd: 0.08, budgetUsd: 0.10 },
+          callbacks,
+        );
+      }).not.toThrow();
+    });
+
+    it('returns continue even when onBudgetWarning throws', () => {
+      const callbacks = {
+        onChunk: jest.fn(),
+        onBudgetWarning: jest.fn(() => { throw new Error('warning error'); }),
+      };
+
+      const result = routeSSEMessage(
+        { type: 'budget_warning', usedUsd: 0.08, budgetUsd: 0.10 },
+        callbacks,
+      );
+
+      expect(result.action).toBe('continue');
+      expect(callbacks.onBudgetWarning).toHaveBeenCalled();
+    });
+
     it('simple wrapper callback mapping keeps onComplete in final slot', () => {
       const onChunk = jest.fn();
       const onSessionId = jest.fn();
@@ -566,6 +743,56 @@ describe('chatService', () => {
       expect(callbacks.onStatus).toBe(onStatus);
       expect(callbacks.onComplete).toBe(onComplete);
       expect(callbacks.onStreamComplete).toBeUndefined();
+    });
+  });
+
+  describe('parseBudgetExceededErrorFromSSEEvent', () => {
+    it('parses budget_exceeded from xhrStatus + message JSON body', () => {
+      const error = parseBudgetExceededErrorFromSSEEvent({
+        xhrStatus: 429,
+        message: JSON.stringify({
+          error: 'budget_exceeded',
+          tier: 'free',
+          usedUsd: 0.10,
+          budgetUsd: 0.10,
+        }),
+      });
+
+      expect(error).toBeInstanceOf(BudgetExceededError);
+      expect(error?.tier).toBe('free');
+      expect(error?.usedUsd).toBe(0.10);
+      expect(error?.budgetUsd).toBe(0.10);
+    });
+  });
+
+  // ============================================================
+  // BudgetExceededError
+  // ============================================================
+
+  describe('BudgetExceededError', () => {
+    it('has correct name and message', () => {
+      const error = new BudgetExceededError({ tier: 'free', usedUsd: 0.10, budgetUsd: 0.10 });
+      expect(error.name).toBe('BudgetExceededError');
+      expect(error.message).toBe('budget_exceeded');
+    });
+
+    it('stores tier and budget info', () => {
+      const error = new BudgetExceededError({ tier: 'premium', usedUsd: 2.0, budgetUsd: 2.0 });
+      expect(error.tier).toBe('premium');
+      expect(error.usedUsd).toBe(2.0);
+      expect(error.budgetUsd).toBe(2.0);
+    });
+
+    it('defaults to free tier when no data provided', () => {
+      const error = new BudgetExceededError({});
+      expect(error.tier).toBe('free');
+      expect(error.usedUsd).toBe(0);
+      expect(error.budgetUsd).toBe(0);
+    });
+
+    it('is instanceof Error', () => {
+      const error = new BudgetExceededError({});
+      expect(error).toBeInstanceOf(Error);
     });
   });
 });

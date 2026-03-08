@@ -14,7 +14,11 @@ import { createMockRecipeCardList } from '@/test/mocks/chat';
 
 // Mock all dependencies before importing ChatScreen
 jest.mock('@/i18n', () => ({
-  t: (key: string) => {
+  t: (key: string, params?: Record<string, unknown>) => {
+    if (key === 'chat.resume.chatAbout') {
+      return `You were chatting about '${params?.title}'`;
+    }
+
     const translations: Record<string, string> = {
       'chat.greeting': 'Hi! I\'m Irmixy, your AI sous chef. How can I help?',
       'chat.loginRequired': 'Please log in to use the chat.',
@@ -24,11 +28,21 @@ jest.mock('@/i18n', () => ({
       'chat.generating': 'Creating response',
       'chat.error.default': 'Something went wrong. Please try again.',
       'chat.title': 'Irmixy',
+      'chat.resume.previousConversations': 'Previous conversations',
+      'chat.resume.continue': 'Continue',
       'common.copied': 'Copied',
       'common.ok': 'OK',
       'common.cancel': 'Cancel',
       'chat.messageCopied': 'Message copied to clipboard',
       'chat.error.title': 'Error',
+      'chat.stopGenerating': 'Stop generating',
+      'chat.voice.listening': 'Listening...',
+      'chat.voice.tapToSpeak': 'Tap to speak',
+      'chat.budget.warningTitle': 'Heads up!',
+      'chat.budget.warningDetailed': "You've been cooking up a storm! You're close to your monthly Irmixy limit. It resets next month.",
+      'chat.budget.exceededTitle': 'Irmixy limit reached',
+      'chat.budget.exceededMessage': "You've reached your monthly Irmixy limit. Don't worry — it resets at the start of next month!",
+      'chat.budget.upgradeHint': 'Irmixy limit reached — resets next month',
     };
     return translations[key] || key;
   },
@@ -69,11 +83,29 @@ const mockSendMessage = jest.fn().mockReturnValue({
   done: Promise.resolve(),
   cancel: jest.fn(),
 });
+const mockGetLastSessionWithMessages = jest.fn().mockResolvedValue(null);
 
-jest.mock('@/services/chatService', () => ({
-  loadChatHistory: (...args: any[]) => mockLoadChatHistory(...args),
-  sendMessage: (...args: any[]) => mockSendMessage(...args),
-}));
+jest.mock('@/services/chatService', () => {
+  // Define inside factory so it's available when jest.mock is hoisted
+  class BudgetExceededError extends Error {
+    tier: string;
+    usedUsd: number;
+    budgetUsd: number;
+    constructor(data: { tier?: string; usedUsd?: number; budgetUsd?: number } = {}) {
+      super('budget_exceeded');
+      this.name = 'BudgetExceededError';
+      this.tier = data.tier || 'free';
+      this.usedUsd = data.usedUsd || 0;
+      this.budgetUsd = data.budgetUsd || 0;
+    }
+  }
+  return {
+    loadChatHistory: (...args: any[]) => mockLoadChatHistory(...args),
+    sendMessage: (...args: any[]) => mockSendMessage(...args),
+    getLastSessionWithMessages: (...args: any[]) => mockGetLastSessionWithMessages(...args),
+    BudgetExceededError,
+  };
+});
 
 const mockInvalidateQueries = jest.fn().mockResolvedValue(undefined);
 jest.mock('@tanstack/react-query', () => ({
@@ -114,6 +146,7 @@ describe('ChatScreen', () => {
     jest.clearAllMocks();
     mockAuthUser = mockUser;
     mockLoadChatHistory.mockResolvedValue([]);
+    mockGetLastSessionWithMessages.mockResolvedValue(null);
   });
 
   // ============================================================
@@ -298,4 +331,252 @@ describe('ChatScreen', () => {
     });
   });
 
+  // ============================================================
+  // RESUME BANNER TESTS
+  // ============================================================
+
+  describe('resume banner', () => {
+    it('shows resume banner when a recent titled session exists', async () => {
+      mockGetLastSessionWithMessages.mockResolvedValue({
+        sessionId: 'session-1',
+        title: 'Pasta Carbonara',
+        messageCount: 3,
+        lastMessageAt: new Date(),
+      });
+
+      render(<ChatScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("You were chatting about 'Pasta Carbonara'")).toBeTruthy();
+      });
+    });
+
+    it('continues a resumable session and loads history', async () => {
+      const onSessionCreated = jest.fn();
+      mockGetLastSessionWithMessages.mockResolvedValue({
+        sessionId: 'session-1',
+        title: 'Pasta Carbonara',
+        messageCount: 3,
+        lastMessageAt: new Date(),
+      });
+      mockLoadChatHistory.mockResolvedValueOnce([
+        {
+          id: 'restored-1',
+          role: 'assistant',
+          content: 'Restored message',
+          createdAt: new Date(),
+        },
+      ]);
+
+      render(<ChatScreen onSessionCreated={onSessionCreated} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("You were chatting about 'Pasta Carbonara'")).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByText('Continue'));
+
+      await waitFor(() => {
+        expect(mockLoadChatHistory).toHaveBeenCalledWith('session-1');
+        expect(onSessionCreated).toHaveBeenCalledWith('session-1');
+        expect(screen.getByText('Restored message')).toBeTruthy();
+      });
+    });
+
+    it('dismisses resume banner when close is pressed', async () => {
+      mockGetLastSessionWithMessages.mockResolvedValue({
+        sessionId: 'session-1',
+        title: 'Pasta Carbonara',
+        messageCount: 3,
+        lastMessageAt: new Date(),
+      });
+
+      render(<ChatScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText("You were chatting about 'Pasta Carbonara'")).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByLabelText('Cancel'));
+
+      await waitFor(() => {
+        expect(screen.queryByText("You were chatting about 'Pasta Carbonara'")).toBeNull();
+      });
+    });
+
+    it('hides resume banner when new chat signal changes', async () => {
+      mockGetLastSessionWithMessages.mockResolvedValue({
+        sessionId: 'session-1',
+        title: 'Pasta Carbonara',
+        messageCount: 3,
+        lastMessageAt: new Date(),
+      });
+
+      const { rerender } = render(<ChatScreen newChatSignal={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("You were chatting about 'Pasta Carbonara'")).toBeTruthy();
+      });
+
+      rerender(<ChatScreen newChatSignal={1} />);
+
+      await waitFor(() => {
+        expect(screen.queryByText("You were chatting about 'Pasta Carbonara'")).toBeNull();
+      });
+    });
+  });
+
+  // ============================================================
+  // STOP BUTTON TESTS
+  // ============================================================
+
+  describe('stop button', () => {
+    it('shows send button when not loading', () => {
+      render(<ChatScreen />);
+
+      // Input should be editable
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      expect(input.props.editable).not.toBe(false);
+
+      // Stop button should not exist
+      expect(screen.queryByTestId('stop-button')).toBeNull();
+      expect(screen.queryByLabelText('Stop generating')).toBeNull();
+    });
+
+    it('shows stop button when loading', async () => {
+      const mockCancel = jest.fn();
+      mockSendMessage.mockReturnValueOnce({
+        done: new Promise(() => {}),
+        cancel: mockCancel,
+      });
+
+      render(<ChatScreen />);
+
+      // Type and send a message to trigger loading
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      fireEvent.changeText(input, 'Make me a recipe');
+      const sendButton = screen.getByTestId('send-button');
+      fireEvent.press(sendButton);
+
+      await waitFor(() => {
+        expect(mockSendMessage).toHaveBeenCalled();
+      });
+
+      // Stop button should be visible
+      await waitFor(() => {
+        expect(screen.getByTestId('stop-button')).toBeTruthy();
+        expect(screen.getByLabelText('Stop generating')).toBeTruthy();
+      });
+    });
+
+    it('cancels stream when stop button is pressed', async () => {
+      const mockCancel = jest.fn();
+      mockSendMessage.mockReturnValueOnce({
+        done: new Promise(() => {}),
+        cancel: mockCancel,
+      });
+
+      render(<ChatScreen />);
+
+      // Send a message
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      fireEvent.changeText(input, 'Make me a recipe');
+      fireEvent.press(screen.getByTestId('send-button'));
+
+      await waitFor(() => {
+        expect(mockSendMessage).toHaveBeenCalled();
+      });
+
+      // Wait for stop button to appear and press it
+      await waitFor(() => {
+        expect(screen.getByTestId('stop-button')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId('stop-button'));
+
+      // The cancel function from the stream handle should have been called
+      expect(mockCancel).toHaveBeenCalled();
+    });
+
+    it('re-enables input after stop button is pressed', async () => {
+      const mockCancel = jest.fn();
+      mockSendMessage.mockReturnValueOnce({
+        done: new Promise(() => {}),
+        cancel: mockCancel,
+      });
+
+      render(<ChatScreen />);
+
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      fireEvent.changeText(input, 'Make me a recipe');
+      fireEvent.press(screen.getByTestId('send-button'));
+
+      await waitFor(() => {
+        expect(mockSendMessage).toHaveBeenCalled();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('stop-button')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId('stop-button'));
+
+      // Input should be re-enabled after stopping
+      await waitFor(() => {
+        const refreshedInput = screen.getByPlaceholderText('Ask Irmixy...');
+        expect(refreshedInput.props.editable).not.toBe(false);
+      });
+
+      // Stop button should be gone, send button back
+      expect(screen.queryByTestId('stop-button')).toBeNull();
+    });
+  });
+
+  // ============================================================
+  // BUDGET EXCEEDED TESTS
+  // ============================================================
+
+  describe('budget exceeded', () => {
+    // Get the BudgetExceededError from the mocked module (must match instanceof check)
+    const { BudgetExceededError } = jest.requireMock('@/services/chatService');
+
+    it('disables input when budget is exceeded', async () => {
+      // Simulate sendMessage rejecting with BudgetExceededError
+      mockSendMessage.mockReturnValueOnce({
+        done: Promise.reject(new BudgetExceededError({ tier: 'free', usedUsd: 0.10, budgetUsd: 0.10 })),
+        cancel: jest.fn(),
+      });
+
+      render(<ChatScreen />);
+
+      // Type and send a message to trigger budget exceeded
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      fireEvent.changeText(input, 'Hello');
+      fireEvent.press(screen.getByTestId('send-button'));
+
+      // After budget exceeded, input should be disabled with hint text
+      await waitFor(() => {
+        const refreshedInput = screen.getByPlaceholderText('Irmixy limit reached — resets next month');
+        expect(refreshedInput.props.editable).toBe(false);
+      });
+    });
+
+    it('removes user and assistant messages when budget is exceeded', async () => {
+      mockSendMessage.mockReturnValueOnce({
+        done: Promise.reject(new BudgetExceededError()),
+        cancel: jest.fn(),
+      });
+
+      render(<ChatScreen />);
+
+      const input = screen.getByPlaceholderText('Ask Irmixy...');
+      fireEvent.changeText(input, 'Hello');
+      fireEvent.press(screen.getByTestId('send-button'));
+
+      // After budget exceeded, the user message "Hello" should be removed
+      await waitFor(() => {
+        expect(screen.queryByText('Hello')).toBeNull();
+      });
+    });
+  });
 });

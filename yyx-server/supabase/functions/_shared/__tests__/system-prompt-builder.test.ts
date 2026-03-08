@@ -170,11 +170,13 @@ Deno.test("buildVoiceInstructions includes security rules", () => {
   assertStringIncludes(instructions, "override these rules");
 });
 
-Deno.test("buildVoiceInstructions does NOT include chat-specific rules", () => {
+Deno.test("buildVoiceInstructions includes tool usage rules", () => {
   const instructions = buildVoiceInstructions(createUserContext());
 
-  assertEquals(instructions.includes("search_recipes"), false);
-  assertEquals(instructions.includes("generate_custom_recipe"), false);
+  // Voice instructions now include tool usage section (unified server-side)
+  assertStringIncludes(instructions, "search_recipes");
+  assertStringIncludes(instructions, "generate_custom_recipe");
+  // But should NOT include text-chat-specific SEARCH-FIRST rule
   assertEquals(instructions.includes("SEARCH-FIRST"), false);
 });
 

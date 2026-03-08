@@ -1,10 +1,11 @@
-<!-- Generated from docs/agent-guidelines/AGENT-ROLES.yaml — do not edit directly -->
 ---
 name: yummyyummix:backend
 description: Backend engineer for YummyYummix. Builds Supabase Edge Functions, shared utilities, and server-side application logic in Deno/TypeScript.
 tools: Read, Glob, Grep, Edit, Write, Bash
 model: opus
 ---
+
+<!-- Generated from docs/agent-guidelines/AGENT-ROLES.yaml — do not edit directly -->
 
 # Backend Engineer Agent
 

@@ -16,9 +16,18 @@ interface Props {
     onPress: () => void;
     size?: number;
     disabled?: boolean;
+    accessibilityLabel?: string;
+    accessibilityHint?: string;
 }
 
-export function VoiceButton({ state, onPress, size = 72, disabled = false }: Props) {
+export function VoiceButton({
+    state,
+    onPress,
+    size = 72,
+    disabled = false,
+    accessibilityLabel,
+    accessibilityHint,
+}: Props) {
     const iconSize = size * 0.5;
 
     const getBackgroundClass = () => {
@@ -48,6 +57,9 @@ export function VoiceButton({ state, onPress, size = 72, disabled = false }: Pro
             onPress={onPress}
             disabled={disabled || state === 'processing'}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={accessibilityLabel}
+            accessibilityHint={accessibilityHint}
             className={`items-center justify-center shadow-lg ${getBackgroundClass()}`}
             style={{
                 width: size,

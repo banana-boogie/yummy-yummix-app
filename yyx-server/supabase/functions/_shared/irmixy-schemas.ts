@@ -48,6 +48,7 @@ export const UsefulItemSchema = z.object({
 export const GeneratedRecipeSchema = z.object({
   schemaVersion: z.literal("1.0"),
   suggestedName: z.string(),
+  description: z.string().optional(),
   measurementSystem: z.enum(["imperial", "metric"]),
   language: z.enum(["en", "es"]),
   ingredients: z.array(z.object({
@@ -129,7 +130,9 @@ export interface UserContext {
   ingredientDislikes: string[];
   skillLevel: string | null;
   householdSize: number | null;
-  conversationHistory: Array<{ role: string; content: string; metadata?: any }>;
+  conversationHistory: Array<
+    { role: string; content: string; metadata?: any; toolSummary?: string }
+  >;
   // Additional context fields
   dietTypes: string[]; // MEDIUM constraint - affects ingredient selection (vegan, keto, etc.)
   cuisinePreferences: string[]; // SOFT constraint - inspirational only (italian, mexican, etc.)

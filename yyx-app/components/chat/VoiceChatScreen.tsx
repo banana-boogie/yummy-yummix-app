@@ -1,30 +1,36 @@
-/**
- * VoiceChatScreen Component - OpenAI Realtime Edition
- *
- * Hybrid layout: shrunk avatar + live scrollable transcript with recipe cards.
- * When idle (no messages), avatar displays centered at full size.
- * Once conversation starts, avatar shrinks to top and transcript grows.
- */
-
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Alert, FlatList, ActivityIndicator, Platform } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import {
+    View,
+    Alert,
+    FlatList,
+    Platform,
+    TouchableOpacity,
+    type NativeSyntheticEvent,
+    type NativeScrollEvent,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/common/Text';
 import { IrmixyAvatar, AvatarState } from './IrmixyAvatar';
 import { VoiceButton } from './VoiceButton';
-import { ChatRecipeCard } from './ChatRecipeCard';
-import { CustomRecipeCard } from './CustomRecipeCard';
+import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
+import { RecipeProgressTracker } from './RecipeProgressTracker';
+import { VoiceToolLoader } from './VoiceToolLoader';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { useAuth } from '@/contexts/AuthContext';
 import { customRecipeService } from '@/services/customRecipeService';
-import { COLORS } from '@/constants/design-tokens';
 import type { QuotaInfo, VoiceStatus } from '@/services/voice/types';
-import type { ChatMessage } from '@/services/chatService';
+import type { ChatMessage, IrmixyStatus, QuickAction } from '@/services/chatService';
 import type { GeneratedRecipe } from '@/types/irmixy';
 import i18n from '@/i18n';
 import { getChatCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
+
+const SCROLL_THRESHOLD = 600; // Large enough to accommodate recipe cards (~400px tall)
+const LIST_CONTENT_STYLE = { paddingVertical: 8 };
+const STOP_BUTTON_STYLE = { paddingHorizontal: 20, paddingVertical: 10, minHeight: 44 };
 
 interface Props {
     sessionId?: string | null;
@@ -44,48 +50,91 @@ export function VoiceChatScreen({
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const [duration, setDuration] = useState(0);
+    const [showScrollButton, setShowScrollButton] = useState(false);
     const flatListRef = useRef<FlatList>(null);
+    const isNearBottomRef = useRef(true);
 
     const {
         status,
-        transcript,
-        response,
         error,
         quotaInfo,
         transcriptMessages,
         isExecutingTool,
+        executingToolName,
         updateMessage,
         startConversation,
-        stopConversation
+        stopConversation,
     } = useVoiceChat({
         sessionId: initialSessionId,
         initialTranscriptMessages: externalMessages,
         onTranscriptChange,
         onQuotaWarning: (info: QuotaInfo) => {
             Alert.alert(
-                i18n.t('common.errors.title'),
-                info.warning || i18n.t('chat.voice.quotaWarning', { minutes: info.remainingMinutes.toFixed(1) }),
-                [{ text: i18n.t('common.ok') }]
+                i18n.t('chat.voice.quotaWarningTitle'),
+                i18n.t('chat.voice.quotaWarning', { minutes: info.remainingMinutes.toFixed(1) }),
+                [{ text: i18n.t('common.ok') }],
             );
-        }
+        },
     });
 
     const hasMessages = transcriptMessages.length > 0;
+    const isConnected = status !== 'idle' && status !== 'error';
+    const isConnecting = status === 'connecting';
+    const isActive = isConnected && !isConnecting;
+    const currentStatus: IrmixyStatus = isExecutingTool ? 'generating' : null;
+    const statusText = isExecutingTool ? i18n.t('chat.voice.executingTool') : '';
+    const lastMessageId = hasMessages ? transcriptMessages[transcriptMessages.length - 1]?.id : null;
 
-    // Map voice status to avatar state
+    // Refs for volatile values to keep renderMessage callback stable
+    const lastMessageIdRef = useRef(lastMessageId);
+    lastMessageIdRef.current = lastMessageId;
+    const currentStatusRef = useRef(currentStatus);
+    currentStatusRef.current = currentStatus;
+    const isExecutingToolRef = useRef(isExecutingTool);
+    isExecutingToolRef.current = isExecutingTool;
+    const statusTextRef = useRef(statusText);
+    statusTextRef.current = statusText;
+
+    const isRecipeGeneratingRef = useRef(false);
+    isRecipeGeneratingRef.current = isExecutingTool && executingToolName === 'generate_custom_recipe';
+
+    // lastMessageId and isExecutingTool trigger list re-renders so the last
+    // message's isLoading prop stays current. Other tool state is read from refs.
+    const extraData = useMemo(() => ({ lastMessageId, isExecutingTool }), [lastMessageId, isExecutingTool]);
+
     const getAvatarState = (voiceStatus: VoiceStatus): AvatarState => {
         switch (voiceStatus) {
-            case 'connecting': return 'thinking';
-            case 'listening': return 'listening';
-            case 'processing': return 'thinking';
-            case 'speaking': return 'speaking';
-            case 'error': return 'idle';
-            default: return 'idle';
+            case 'connecting':
+                return 'thinking';
+            case 'listening':
+                return 'listening';
+            case 'processing':
+                return 'thinking';
+            case 'speaking':
+                return 'speaking';
+            case 'error':
+                return 'idle';
+            default:
+                return 'idle';
         }
     };
 
-    const isConnected = status !== 'idle' && status !== 'error';
-    const isConnecting = status === 'connecting';
+    const getStatusText = useCallback((voiceStatus: VoiceStatus) => {
+        switch (voiceStatus) {
+            case 'listening':
+                return i18n.t('chat.voice.listening');
+            case 'connecting':
+                return i18n.t('chat.voice.connecting');
+            case 'processing':
+                return i18n.t('chat.voice.thinking');
+            case 'speaking':
+                return i18n.t('chat.voice.speaking');
+            case 'error':
+                return i18n.t('common.errors.title');
+            default:
+                return i18n.t('chat.voice.tapToSpeak');
+        }
+    }, []);
 
     // Ref-stabilize stopConversation to avoid stale closure in useFocusEffect
     const stopConversationRef = useRef(stopConversation);
@@ -100,8 +149,6 @@ export function VoiceChatScreen({
         }, [])
     );
 
-    // Timer for active session (only when truly active, not during connecting)
-    const isActive = isConnected && !isConnecting;
     useEffect(() => {
         let interval: NodeJS.Timeout;
         if (isActive) {
@@ -112,7 +159,46 @@ export function VoiceChatScreen({
         return () => clearInterval(interval);
     }, [isActive, isConnected]);
 
-    // Error handling
+    // Scroll so the latest message's top is visible at the top of the viewport.
+    // Used both for new messages during active session and when loading saved sessions.
+    const scrollToLastMessage = useCallback((animated = true) => {
+        const count = transcriptMessages.length;
+        if (count === 0) return;
+        setTimeout(() => {
+            flatListRef.current?.scrollToIndex({
+                index: count - 1,
+                viewPosition: 0, // align item top to viewport top
+                animated,
+            });
+        }, 150);
+    }, [transcriptMessages.length]);
+
+    // Auto-scroll when new messages arrive during active voice session
+    const prevMessageCountRef = useRef(transcriptMessages.length);
+    useEffect(() => {
+        const prevCount = prevMessageCountRef.current;
+        prevMessageCountRef.current = transcriptMessages.length;
+        if (isActive && transcriptMessages.length > prevCount) {
+            scrollToLastMessage();
+        }
+    }, [transcriptMessages.length, isActive, scrollToLastMessage]);
+
+    // Scroll to bottom when loading a saved session.
+    // Uses scrollToEnd (not scrollToIndex) to avoid chunky rendering with windowed FlatList.
+    // The pendingSessionScrollRef flag keeps re-scrolling as items render within a 1s window.
+    const prevSessionIdRef = useRef(initialSessionId);
+    const pendingSessionScrollRef = useRef(false);
+    useEffect(() => {
+        if (initialSessionId !== prevSessionIdRef.current) {
+            prevSessionIdRef.current = initialSessionId;
+            if (hasMessages && !isActive) {
+                pendingSessionScrollRef.current = true;
+                flatListRef.current?.scrollToEnd({ animated: false });
+                setTimeout(() => { pendingSessionScrollRef.current = false; }, 1000);
+            }
+        }
+    }, [initialSessionId, hasMessages, isActive]);
+
     useEffect(() => {
         if (error) {
             Alert.alert(i18n.t('common.errors.title'), error);
@@ -126,87 +212,92 @@ export function VoiceChatScreen({
     };
 
     const handleVoicePress = async () => {
-        if (isConnected) {
-            stopConversation();
-        } else {
-            if (quotaInfo && quotaInfo.remainingMinutes <= 0) {
-                Alert.alert(i18n.t('common.errors.title'), i18n.t('chat.voice.quotaExceeded'));
-                return;
-            }
-            await startConversation();
+        if (quotaInfo && quotaInfo.remainingMinutes <= 0) {
+            Alert.alert(i18n.t('chat.voice.quotaWarningTitle'), i18n.t('chat.voice.quotaExceeded'));
+            return;
         }
+
+        await startConversation();
     };
+
+    const handleCopyMessage = useCallback(async (content: string) => {
+        try {
+            await Clipboard.setStringAsync(content);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            if (Platform.OS === 'ios') {
+                Alert.alert(
+                    i18n.t('common.copied'),
+                    i18n.t('chat.messageCopied'),
+                    [{ text: i18n.t('common.ok') }],
+                    { userInterfaceStyle: 'automatic' },
+                );
+            } else {
+                Alert.alert(i18n.t('common.copied'), i18n.t('chat.messageCopied'));
+            }
+        } catch (copyError) {
+            if (__DEV__) console.error('[VoiceChatScreen] Failed to copy message:', copyError);
+        }
+    }, []);
 
     const handleStartCooking = useCallback(async (
         recipe: GeneratedRecipe,
         finalName: string,
         messageId: string,
-        savedRecipeId?: string
+        savedRecipeId?: string,
     ) => {
         try {
             let recipeId = savedRecipeId;
             if (!recipeId) {
                 const { userRecipeId } = await customRecipeService.save(recipe, finalName);
                 recipeId = userRecipeId;
-                // Write back savedRecipeId to prevent duplicate saves on repeated taps
                 if (recipeId) {
                     updateMessage(messageId, { savedRecipeId: recipeId });
                 }
             }
+
             if (recipeId) {
                 router.push(getChatCustomCookingGuidePath(recipeId));
             }
-        } catch (err) {
-            console.error('[VoiceChatScreen] Start cooking error:', err);
+        } catch (startCookingError) {
+            console.error('[VoiceChatScreen] Start cooking error:', startCookingError);
             Alert.alert(i18n.t('common.errors.title'), i18n.t('common.errors.generic'));
         }
     }, [router, updateMessage]);
 
-    const renderMessageItem = useCallback(({ item }: { item: ChatMessage }) => {
-        const isUser = item.role === 'user';
+    const handleActionPress = useCallback((_action: QuickAction) => {
+        // Voice mode is speech-driven; no quick actions for now.
+    }, []);
 
-        return (
-            <View className={`px-md mb-sm ${isUser ? 'items-end' : 'items-start'}`}>
-                {/* Message bubble */}
-                <View
-                    className={`max-w-[85%] px-md py-sm rounded-xl ${
-                        isUser
-                            ? 'bg-primary-medium rounded-br-sm'
-                            : 'bg-background-secondary rounded-bl-sm'
-                    }`}
-                >
-                    <Text
-                        preset="body"
-                        className={isUser ? 'text-white' : 'text-text-default'}
-                    >
-                        {item.content}
-                    </Text>
-                </View>
+    const renderMessage = useCallback(({ item }: { item: ChatMessage }) => (
+        <View className="px-md mb-sm">
+            <ChatMessageItem
+                item={item}
+                isLastMessage={item.id === lastMessageIdRef.current}
+                isLoading={isExecutingToolRef.current}
+                isRecipeGenerating={item.id === lastMessageIdRef.current ? isRecipeGeneratingRef.current : false}
+                currentStatus={currentStatusRef.current}
+                statusText={statusTextRef.current}
+                showAvatar
+                onCopyMessage={handleCopyMessage}
+                onStartCooking={handleStartCooking}
+                onActionPress={handleActionPress}
+            />
+        </View>
+    ), [handleActionPress, handleCopyMessage, handleStartCooking]);
 
-                {/* Recipe cards (assistant only) */}
-                {!isUser && item.recipes && item.recipes.length > 0 && (
-                    <View className="mt-sm w-full gap-sm">
-                        {item.recipes.map(recipe => (
-                            <ChatRecipeCard key={recipe.recipeId} recipe={recipe} />
-                        ))}
-                    </View>
-                )}
+    const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+        const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+        const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+        const isNearBottom = distanceFromBottom <= SCROLL_THRESHOLD;
+        isNearBottomRef.current = isNearBottom;
+        setShowScrollButton(!isNearBottom && contentSize.height > layoutMeasurement.height);
+    }, []);
 
-                {/* Custom recipe card (assistant only) */}
-                {!isUser && item.customRecipe && (
-                    <View className="mt-sm w-full">
-                        <CustomRecipeCard
-                            recipe={item.customRecipe}
-                            safetyFlags={item.safetyFlags}
-                            onStartCooking={handleStartCooking}
-                            messageId={item.id}
-                            savedRecipeId={item.savedRecipeId}
-                        />
-                    </View>
-                )}
-            </View>
-        );
-    }, [handleStartCooking]);
+    const handleScrollToBottom = useCallback(() => {
+        isNearBottomRef.current = true;
+        setShowScrollButton(false);
+        scrollToLastMessage();
+    }, [scrollToLastMessage]);
 
     if (!user) {
         return (
@@ -219,70 +310,53 @@ export function VoiceChatScreen({
     }
 
     return (
-        <View
-            className="flex-1 bg-background-default"
-            style={{ paddingBottom: insets.bottom }}
-        >
-            {/* Header / Timer */}
-            <View className="items-center pt-md">
-                {isActive && (
-                    <View className="bg-background-secondary px-sm py-xs rounded-full">
-                        <Text preset="caption" className="text-primary-darkest font-bold">
-                            {formatDuration(duration)}
-                        </Text>
+        <View className="flex-1 bg-background-default" style={{ paddingBottom: isActive ? 0 : insets.bottom }}>
+            {/* ── ACTIVE: status bar — Lupita-friendly with prominent stop button ── */}
+            {isActive && (
+                <View className="border-b border-border-default px-md py-md bg-background-default">
+                    <View className="flex-row items-center justify-between">
+                        {/* Left: avatar + status + timer */}
+                        <View className="flex-row items-center gap-sm flex-1 mr-sm">
+                            <IrmixyAvatar state={getAvatarState(status)} size={32} />
+                            <View accessibilityLiveRegion="polite" className="flex-row items-center gap-xs flex-1">
+                                <Text preset="bodySmall" className="text-text-default font-medium">
+                                    {getStatusText(status)}
+                                </Text>
+                                <Text preset="caption" className="text-text-secondary">
+                                    {formatDuration(duration)}
+                                </Text>
+                            </View>
+                        </View>
+                        {/* Right: prominent stop button (min 44px touch target) */}
+                        <TouchableOpacity
+                            onPress={stopConversation}
+                            activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityLabel={i18n.t('chat.voice.stopRecording')}
+                            className="flex-row items-center gap-sm bg-status-error rounded-full"
+                            style={STOP_BUTTON_STYLE}
+                        >
+                            <Ionicons name="stop-circle" size={20} color="white" />
+                            <Text preset="bodySmall" className="text-white font-bold">
+                                {i18n.t('chat.voice.stop')}
+                            </Text>
+                        </TouchableOpacity>
                     </View>
-                )}
-            </View>
+                </View>
+            )}
 
-            {/* Avatar area — shrinks when messages exist */}
-            <View className={`items-center ${hasMessages ? 'py-sm' : 'py-md'} bg-background-default`}>
-                <IrmixyAvatar state={getAvatarState(status)} size={hasMessages ? 100 : 160} />
-
-                {!hasMessages && (
-                    <View className="mt-lg h-24 px-md w-full">
-                        {status === 'connecting' && (
-                            <Text preset="body" className="text-text-secondary text-center">
-                                {i18n.t('chat.voice.connecting')}
-                            </Text>
-                        )}
-                        {status === 'listening' && (
-                            <Text preset="body" className="text-primary-darkest text-center font-bold">
-                                {i18n.t('chat.voice.listening')}
-                            </Text>
-                        )}
-                        {(status === 'processing' || status === 'speaking') && transcript ? (
-                            <Text preset="bodySmall" className="text-text-secondary text-center italic mb-xs" numberOfLines={2}>
-                                {`"${transcript}"`}
-                            </Text>
-                        ) : null}
-                        {status === 'idle' && (
-                            <Text preset="body" className="text-text-secondary text-center">
-                                {i18n.t('chat.voice.tapToSpeak')}
-                            </Text>
-                        )}
-                    </View>
-                )}
-
-                {hasMessages && (
-                    <Text preset="caption" className="text-text-secondary mt-xs">
-                        {status === 'listening' ? i18n.t('chat.voice.listening')
-                            : status === 'connecting' ? i18n.t('chat.voice.connecting')
-                            : status === 'processing' ? i18n.t('chat.voice.thinking')
-                            : status === 'speaking' ? i18n.t('chat.voice.speaking')
-                            : ''}
-                    </Text>
-                )}
-            </View>
-
-            {/* Scrollable Transcript */}
-            {hasMessages && (
+            {/* ── Message list (active session OR viewing saved transcript) ── */}
+            {(isActive || hasMessages) ? (
                 <View className="flex-1">
                     <FlatList
                         ref={flatListRef}
                         data={transcriptMessages}
                         keyExtractor={item => item.id}
-                        renderItem={renderMessageItem}
-                        contentContainerStyle={{ paddingVertical: 8 }}
+                        renderItem={renderMessage}
+                        extraData={extraData}
+                        contentContainerStyle={LIST_CONTENT_STYLE}
+                        onScroll={handleScroll}
+                        scrollEventThrottle={200}
                         showsVerticalScrollIndicator={false}
                         removeClippedSubviews={Platform.OS !== 'web'}
                         maxToRenderPerBatch={3}
@@ -290,44 +364,96 @@ export function VoiceChatScreen({
                         windowSize={5}
                         initialNumToRender={8}
                         onContentSizeChange={() => {
-                            flatListRef.current?.scrollToEnd({ animated: true });
+                            // Only auto-scroll for session loading. New-message scrolling
+                            // is handled by the useEffect on transcriptMessages.length.
+                            // Scrolling here for all size changes causes jumps when recipe
+                            // cards expand/collapse (Show All / Show Less buttons).
+                            if (pendingSessionScrollRef.current) {
+                                flatListRef.current?.scrollToEnd({ animated: false });
+                            }
                         }}
+                        onScrollToIndexFailed={() => {
+                            flatListRef.current?.scrollToEnd({ animated: false });
+                        }}
+                        ListFooterComponent={
+                            isExecutingTool ? (
+                                <VoiceToolLoader toolName={executingToolName} />
+                            ) : (
+                                <View className="py-sm" />
+                            )
+                        }
                     />
 
-                    {/* Tool execution indicator */}
-                    {isExecutingTool && (
-                        <View className="flex-row items-center justify-center py-sm gap-sm">
-                            <ActivityIndicator size="small" color={COLORS.primary.darkest} />
-                            <Text preset="caption" className="text-primary-darkest">
-                                {i18n.t('chat.voice.executingTool')}
+                    {/* Recipe progress tracker for recipe generation tool */}
+                    {isExecutingTool && executingToolName === 'generate_custom_recipe' && (
+                        <View className="px-md py-sm">
+                            <RecipeProgressTracker
+                                isActive={true}
+                                hasRecipe={false}
+                            />
+                        </View>
+                    )}
+                </View>
+            ) : (
+                /* ── IDLE: big avatar centered (no messages, no active session) ── */
+                <View className="flex-1 items-center justify-center px-lg">
+                    <IrmixyAvatar state={getAvatarState(status)} size={120} />
+                    <View className="mt-lg px-md">
+                        <View accessibilityLiveRegion="polite">
+                            <Text preset="body" className="text-text-secondary text-center">
+                                {isConnecting
+                                    ? i18n.t('chat.voice.connecting')
+                                    : i18n.t('chat.voice.tapToSpeak')}
                             </Text>
                         </View>
+                    </View>
+                </View>
+            )}
+
+            {/* ── Scroll-to-bottom ── */}
+            {(isActive || hasMessages) && showScrollButton && (
+                <TouchableOpacity
+                    onPress={handleScrollToBottom}
+                    className="absolute right-4 bottom-4 z-50 bg-primary-default rounded-full p-3 shadow-lg"
+                    style={{ elevation: 4 }}
+                >
+                    <MaterialCommunityIcons name="chevron-double-down" size={24} color="white" />
+                </TouchableOpacity>
+            )}
+
+            {/* ── IDLE: bottom voice button ── */}
+            {!isActive && !hasMessages && (
+                <View className="items-center py-xl border-t border-grey-light bg-background-default">
+                    <VoiceButton
+                        state={isConnecting ? 'processing' : 'ready'}
+                        onPress={handleVoicePress}
+                        size={72}
+                        disabled={isConnecting}
+                        accessibilityLabel={i18n.t('chat.voice.tapToSpeak')}
+                    />
+                    {quotaInfo && !isConnected && (
+                        <Text preset="caption" className="text-text-secondary mt-sm text-xs">
+                            {i18n.t('chat.voice.minsRemaining', { mins: quotaInfo.remainingMinutes.toFixed(1) })}
+                        </Text>
                     )}
                 </View>
             )}
 
-            {/* Controls */}
-            <View className="items-center py-xl border-t border-grey-light bg-background-default">
-                <VoiceButton
-                    state={isActive ? 'recording' : 'ready'}
-                    onPress={handleVoicePress}
-                    size={80}
-                    disabled={isConnecting}
-                />
-                <Text preset="caption" className="text-text-secondary mt-sm">
-                    {isConnecting
-                        ? i18n.t('chat.voice.connecting')
-                        : isConnected
-                            ? i18n.t('chat.voice.tapToStop')
-                            : i18n.t('chat.voice.tapToSpeak')
-                    }
-                </Text>
-                {quotaInfo && !isConnected && (
-                    <Text preset="caption" className="text-text-secondary mt-xs text-xs">
-                        {i18n.t('chat.voice.minsRemaining', { mins: quotaInfo.remainingMinutes.toFixed(1) })}
+            {/* ── Compact mic bar when viewing saved transcript ── */}
+            {!isActive && hasMessages && (
+                <View className="items-center pt-lg pb-md border-t border-grey-light bg-background-default">
+                    <VoiceButton
+                        state={isConnecting ? 'processing' : 'ready'}
+                        onPress={handleVoicePress}
+                        size={64}
+                        disabled={isConnecting}
+                        accessibilityLabel={i18n.t('chat.voice.tapToSpeak')}
+                    />
+                    <Text preset="body" className="text-text-secondary mt-sm">
+                        {i18n.t('chat.voice.tapToSpeak')}
                     </Text>
-                )}
-            </View>
+                </View>
+            )}
         </View>
     );
 }

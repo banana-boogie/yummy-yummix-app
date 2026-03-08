@@ -151,7 +151,7 @@ async function buildContext(
     skillLevel: profile?.skill_level || null,
     householdSize: profile?.household_size || null,
     conversationHistory: historyResult as Array<
-      { role: string; content: string; metadata?: any }
+      { role: string; content: string; metadata?: any; toolSummary?: string }
     >,
     dietTypes,
     cuisinePreferences,
@@ -181,35 +181,48 @@ const TOOL_SUMMARIZERS: Record<string, ToolResultSummarizer> = {
     if (!Array.isArray(data) || data.length === 0) return null;
     const summaries = data.map((r: Record<string, unknown>) => {
       const attrs: string[] = [];
-      if (r.name) attrs.push(r.name as string);
-      if (r.totalTime) attrs.push(`${r.totalTime} min`);
-      if (r.difficulty) attrs.push(r.difficulty as string);
-      if (r.portions) attrs.push(`${r.portions} portions`);
+      if (typeof r.name === "string") {
+        const safeName = sanitizeContent(r.name).trim();
+        if (safeName) attrs.push(safeName);
+      }
+      if (typeof r.totalTime === "number" && isFinite(r.totalTime)) {
+        attrs.push(`${r.totalTime} min`);
+      }
+      if (typeof r.difficulty === "string") {
+        const safeDifficulty = sanitizeContent(r.difficulty).trim();
+        if (safeDifficulty) attrs.push(safeDifficulty);
+      }
+      if (typeof r.portions === "number" && isFinite(r.portions)) {
+        attrs.push(`${r.portions} portions`);
+      }
       if (
         Array.isArray(r.allergenWarnings) && r.allergenWarnings.length > 0
       ) {
-        attrs.push(`allergens: ${r.allergenWarnings.join(", ")}`);
+        const safeAllergens = r.allergenWarnings
+          .filter((a): a is string => typeof a === "string")
+          .map((a) => sanitizeContent(a).trim())
+          .filter((a) => a.length > 0);
+        if (safeAllergens.length > 0) {
+          attrs.push(`allergens: ${safeAllergens.join(", ")}`);
+        }
       }
       return attrs.join(", ");
     });
-    return `[Showed ${summaries.length} recipe(s): ${summaries.join(" | ")}]`;
+    return `(System: showed ${summaries.length} recipe card(s) to user — ${
+      summaries.join(" | ")
+    })`;
   },
 
   customRecipe: (data) => {
     if (!data || typeof data !== "object") return null;
     const recipe = data as Record<string, unknown>;
-    const attrs: string[] = [];
-    if (recipe.suggestedName) attrs.push(`"${recipe.suggestedName}"`);
-    if (Array.isArray(recipe.ingredients)) {
-      const names = recipe.ingredients
-        .map((i: Record<string, unknown>) => i.name || i.ingredient)
-        .filter(Boolean);
-      if (names.length > 0) attrs.push(`ingredients: ${names.join(", ")}`);
+    if (typeof recipe.suggestedName === "string") {
+      const safeSuggestedName = sanitizeContent(recipe.suggestedName).trim();
+      if (safeSuggestedName) {
+        return `(System: recipe "${safeSuggestedName}" was generated via tool and shown to user in recipe card)`;
+      }
     }
-    if (recipe.totalTime) attrs.push(`${recipe.totalTime} min`);
-    if (recipe.portions) attrs.push(`${recipe.portions} portions`);
-    if (recipe.difficulty) attrs.push(recipe.difficulty as string);
-    return `[Generated recipe: ${attrs.join(", ")}]`;
+    return "(System: a recipe was generated via tool and shown to user in recipe card)";
   },
 };
 
@@ -251,13 +264,15 @@ async function loadConversationHistory(
   }
 
   // Reverse to get chronological order (oldest first),
-  // sanitize content, and enrich assistant messages with tool result summaries
+  // sanitize content, and compute tool result summaries (kept separate from content
+  // so the LLM doesn't see them as its own prior output and mimic the format)
   return data.reverse().map((msg) => {
-    let content = sanitizeContent(msg.content);
+    const content = sanitizeContent(msg.content);
+    let toolSummary: string | undefined;
     if (msg.role === "assistant" && msg.tool_calls) {
       const summary = summarizeHistoryToolResults(msg.tool_calls);
-      if (summary) content += `\n${summary}`;
+      if (summary) toolSummary = summary;
     }
-    return { role: msg.role, content, metadata: msg.tool_calls };
+    return { role: msg.role, content, metadata: msg.tool_calls, toolSummary };
   });
 }

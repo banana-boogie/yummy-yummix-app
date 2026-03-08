@@ -4,6 +4,7 @@ export const chat = {
     "¡Hola! Soy Irmixy, tu asistente de cocina con IA. ¡Pregúntame lo que quieras sobre cocina!",
   inputPlaceholder: "Pregunta a Irmixy...",
   sendButton: "Enviar",
+  stopGenerating: "Detener generación",
   error: {
     default: "Lo siento, algo salió mal. Por favor, inténtalo de nuevo.",
     messageTooLong:
@@ -32,7 +33,7 @@ export const chat = {
     thinking: "Pensando...",
     speaking: "¡Hablando!",
     tapToSpeak: "Toca para hablar",
-    tapToStop: "Toca para detener",
+    tapToStop: "Toca para parar",
     handsFreeModeActive:
       "Modo manos libres - Pararé cuando termines de hablar",
     permissionRequired: "Se requiere permiso del micrófono",
@@ -40,19 +41,33 @@ export const chat = {
     hearing: "Escuchándote...",
     silenceDetected: "Silencio detectado",
     waitingForSpeech: "Esperando que hables...",
-    quotaWarningTitle: "Aviso de uso de voz",
-    quotaWarning: "Te quedan {{minutes}} minutos este mes.",
-    quotaExceeded: "Has usado todos tus minutos de voz este mes.",
+    quotaWarningTitle: "Un momento",
+    quotaWarning: "Te quedan como {{minutes}} minutos de chat de voz este mes.",
+    quotaExceeded: "Llegaste a tu límite mensual de voz con Irmixy. Se renueva el próximo mes.",
     userPrefix: "Tú: ",
     errorPrefix: "Error: ",
     minsRemaining: "{{mins}} mins restantes",
     executingTool: "Trabajando en ello...",
+    searchingRecipes: "Buscando recetas para ti",
+    modifyingRecipe: "Ajustando tu receta",
+    retrievingRecipes: "Revisando tu historial de cocina",
+    generatingRecipe: "Creando algo especial",
+    micActive: "Micrófono activo",
+    stopRecording: "Detener grabación de voz",
     micPermissionDenied: "Acceso al micrófono denegado",
+    stop: "Parar",
     mobileOnly: {
       title: "Chat de Voz",
       message: "El chat de voz está disponible en nuestra app móvil. Usa el chat de texto abajo, o descarga la app para chatear con Irmixy usando tu voz.",
       hint: "Usa el chat de texto abajo, o descarga nuestra app móvil para funciones de voz",
     },
+  },
+  budget: {
+    warningTitle: "Un momento",
+    warningDetailed: "Has estado cocinando mucho este mes. Ya casi llegas a tu límite mensual de Irmixy. Se renueva el próximo mes.",
+    exceededTitle: "Límite de Irmixy alcanzado",
+    exceededMessage: "Llegaste a tu límite mensual de Irmixy. No te preocupes, se renueva al inicio del próximo mes.",
+    upgradeHint: "Límite de Irmixy alcanzado — se renueva el próximo mes",
   },
   suggestions: {},
   messageCopied: "Mensaje copiado al portapapeles",
@@ -77,12 +92,21 @@ export const chat = {
   andMore: "y {{count}} más",
   miseEnPlace: "Mise en place",
   prepareIngredients: "Prepara tus ingredientes.",
+  // Compact recipe card
+  seeFullRecipe: "Ver Receta Completa",
+  ingredientsSummary: "{{count}} ingredientes",
+  stepsSummary: "{{count}} pasos",
+  aiGeneratedRecipe: "Receta generada por IA",
+  aiGeneratedDisclaimer: "Esta receta fue creada por IA. Por favor verifica tiempos de cocción, temperaturas y alérgenos antes de preparar.",
   // Cooking progress & resume
   resume: {
     resumeCooking: "Continuar cocinando",
     resumePrompt: "Estabas cocinando {{recipeName}} — paso {{step}} de {{total}}. ¿Quieres retomar donde lo dejaste?",
     startOver: "Empezar de nuevo",
     startOverFailed: "No se pudo empezar de nuevo en este momento. Inténtalo otra vez.",
+    chatAbout: "Estabas hablando sobre '{{title}}'",
+    continue: "Continuar",
+    previousConversations: "Conversaciones anteriores",
   },
   // Fallback when no recipes found
   fallback: {
@@ -91,6 +115,16 @@ export const chat = {
     createFromIngredientsMessage: "Busca recetas similares",
     surpriseMe: "Crear versión personalizada",
     surpriseMeMessage: "Crea una versión personalizada",
+  },
+  // Recipe progress tracker
+  progressTracker: {
+    stage1: "Entendiendo tu antojo...",
+    stage2: "Seleccionando los mejores ingredientes...",
+    stage3: "Planificando tiempos de cocción...",
+    stage4: "Escribiendo los pasos...",
+    stage5: "Toques finales...",
+    stage6: "¡Listo!",
+    stall: "Ya casi...",
   },
   // Replay / retrieval
   replay: {

@@ -2,8 +2,10 @@ import type { AIMessage } from "../_shared/ai-gateway/index.ts";
 import type { ChatMessage } from "./types.ts";
 
 /**
- * Summarize a raw JSON tool result into a concise, human-readable string.
- * Prevents the AI from echoing raw JSON in its responses.
+ * Summarize a raw JSON tool result into a minimal string.
+ * Keeps summaries brief so the AI responds conversationally
+ * without echoing recipe details (cards are already shown to the user).
+ * Allergen warnings are always preserved for safety.
  */
 function summarizeToolContent(content: string): string {
   try {
@@ -17,49 +19,51 @@ function summarizeToolContent(content: string): string {
     // Search results (array of recipe cards)
     if (Array.isArray(parsed)) {
       if (parsed.length === 0) return "No recipes found.";
-      const items = parsed.map((r: Record<string, unknown>) => {
-        const parts = [r.name || r.title];
-        if (r.totalTime) parts.push(`${r.totalTime} min`);
-        if (r.cuisine) parts.push(r.cuisine as string);
+
+      // Collect allergen warnings (safety-critical — must reach the AI)
+      const allergenNotes: string[] = [];
+      for (const r of parsed as Record<string, unknown>[]) {
+        const name = (r.name || r.title || "A recipe") as string;
         if (
-          Array.isArray(r.allergenWarnings) &&
-          r.allergenWarnings.length > 0
+          Array.isArray(r.allergenWarnings) && r.allergenWarnings.length > 0
         ) {
           const warnings = r.allergenWarnings.filter((w): w is string =>
             typeof w === "string" && w.length > 0
           );
           if (warnings.length > 0) {
-            parts.push(`Allergen warnings: ${warnings.join("; ")}`);
+            allergenNotes.push(`${name}: ${warnings.join("; ")}`);
           }
         }
         if (
           typeof r.allergenVerificationWarning === "string" &&
           r.allergenVerificationWarning.length > 0
         ) {
-          parts.push(
-            `Verification warning: ${r.allergenVerificationWarning}`,
+          allergenNotes.push(
+            `Verification: ${r.allergenVerificationWarning}`,
           );
         }
-        return parts.filter(Boolean).join(" - ");
-      });
-      return `Found ${parsed.length} recipe(s):\n${
-        items.map((item: string, i: number) => `${i + 1}. ${item}`).join("\n")
-      }`;
+      }
+
+      const names = parsed
+        .slice(0, 5)
+        .map((r: Record<string, unknown>) => r.name || r.title || "Untitled")
+        .join(", ");
+      let summary =
+        `Found ${parsed.length} recipe(s): ${names}. Results are shown to the user.`;
+      if (allergenNotes.length > 0) {
+        summary += ` Allergen notes: ${allergenNotes.join(". ")}.`;
+      }
+      return summary;
     }
 
-    // Custom recipe generation result
+    // Custom recipe generation / modification result
     if (parsed?.recipe?.suggestedName) {
-      return `Custom recipe generated: "${parsed.recipe.suggestedName}"`;
+      return `Recipe "${parsed.recipe.suggestedName}" is ready and displayed to the user as an interactive card. Do not list ingredients, steps, or parameters — just confirm briefly.`;
     }
 
     // Retrieval result (saved recipes)
     if (parsed?.recipes && Array.isArray(parsed.recipes)) {
-      const names = parsed.recipes.map((r: Record<string, unknown>) =>
-        r.name || r.title
-      ).filter(Boolean);
-      return `Found ${parsed.recipes.length} saved recipe(s): ${
-        names.join(", ")
-      }`;
+      return `Found ${parsed.recipes.length} saved recipe(s). The user can see them.`;
     }
 
     // Fallback: for large JSON objects, summarize by listing top-level keys
@@ -99,7 +103,9 @@ export function normalizeMessagesForAi(
       let j = i + 1;
       while (j < messages.length && messages[j].role === "tool") {
         parts.push(
-          `[Tool result]: ${summarizeToolContent(messages[j].content || "")}`,
+          `The tool returned: ${
+            summarizeToolContent(messages[j].content || "")
+          }`,
         );
         j++;
       }
@@ -115,7 +121,7 @@ export function normalizeMessagesForAi(
     if (m.role === "tool") {
       aiMessages.push({
         role: "assistant",
-        content: `[Tool result]: ${summarizeToolContent(m.content || "")}`,
+        content: `The tool returned: ${summarizeToolContent(m.content || "")}`,
       });
       i++;
       continue;

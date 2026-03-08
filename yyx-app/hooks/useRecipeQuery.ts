@@ -91,7 +91,7 @@ export function useRecipesInfiniteQuery(filters: RecipeFilters = { isPublished: 
 /**
  * Utility to get all recipes from infinite query pages
  */
-export function flattenRecipePages(data: { pages: Array<{ data: Recipe[] }> } | undefined): Recipe[] {
+export function flattenRecipePages(data: { pages: { data: Recipe[] }[] } | undefined): Recipe[] {
     if (!data) return [];
     return data.pages.flatMap(page => page.data);
 }

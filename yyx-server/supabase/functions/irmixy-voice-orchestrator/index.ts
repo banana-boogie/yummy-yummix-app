@@ -24,6 +24,11 @@ import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
 import { getAllowedVoiceToolNames } from "../_shared/tools/tool-registry.ts";
 import { buildVoiceInstructions } from "../_shared/system-prompt-builder.ts";
+import {
+  BudgetCheckUnavailableError,
+  checkVoiceBudget,
+} from "../_shared/ai-budget/index.ts";
+import type { CostContext } from "../_shared/ai-gateway/types.ts";
 
 const ALLOWED_VOICE_TOOLS = new Set(getAllowedVoiceToolNames());
 const ALLOWED_ACTIONS = new Set(
@@ -31,16 +36,18 @@ const ALLOWED_ACTIONS = new Set(
     "start_session",
     "execute_tool",
     "check_quota",
+    "save_transcript",
   ] as const,
 );
 const MAX_PAYLOAD_BYTES = 10_000; // 10KB
-const QUOTA_LIMIT_MINUTES = 30;
+const MAX_TRANSCRIPT_PAYLOAD_BYTES = 100_000; // 100KB for save_transcript
 
 interface RequestPayload {
   action?: unknown;
   toolName?: unknown;
   toolArgs?: unknown;
   sessionId?: unknown;
+  messages?: unknown;
 }
 
 function getCorsHeaders() {
@@ -72,27 +79,16 @@ function jsonResponse(
  */
 async function handleCheckQuota(
   userId: string,
-  authHeader: string,
+  _authHeader: string,
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
-  const supabase = createUserClient(authHeader);
-  const currentMonth = new Date().toISOString().slice(0, 7);
-
-  const { data: usage } = await supabase
-    .from("ai_voice_usage")
-    .select("minutes_used")
-    .eq("user_id", userId)
-    .eq("month", currentMonth)
-    .single();
-
-  const minutesUsed = Number(usage?.minutes_used || 0);
-  const remainingMinutes = Math.max(0, QUOTA_LIMIT_MINUTES - minutesUsed);
+  const voiceBudget = await checkVoiceBudget(userId);
 
   return jsonResponse(
     {
-      minutesUsed: minutesUsed.toFixed(1),
-      quotaLimit: QUOTA_LIMIT_MINUTES,
-      remainingMinutes: remainingMinutes.toFixed(1),
+      minutesUsed: voiceBudget.usedMinutes.toFixed(1),
+      quotaLimit: voiceBudget.limitMinutes,
+      remainingMinutes: voiceBudget.remainingMinutes.toFixed(1),
     },
     200,
     corsHeaders,
@@ -105,24 +101,16 @@ async function handleStartSession(
   corsHeaders: Record<string, string>,
 ): Promise<Response> {
   const userClient = createUserClient(authHeader);
-  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
 
-  const { data: usage } = await userClient
-    .from("ai_voice_usage")
-    .select("minutes_used, conversations_count")
-    .eq("user_id", userId)
-    .eq("month", currentMonth)
-    .single();
+  // Tiered voice budget check
+  const voiceBudget = await checkVoiceBudget(userId);
 
-  const minutesUsed = Number(usage?.minutes_used || 0);
-  const remainingMinutes = QUOTA_LIMIT_MINUTES - minutesUsed;
-
-  if (minutesUsed >= QUOTA_LIMIT_MINUTES) {
+  if (!voiceBudget.allowed) {
     return jsonResponse(
       {
         error: "Monthly quota exceeded",
-        minutesUsed,
-        quotaLimit: QUOTA_LIMIT_MINUTES,
+        minutesUsed: voiceBudget.usedMinutes,
+        quotaLimit: voiceBudget.limitMinutes,
         remainingMinutes: 0,
       },
       429,
@@ -130,16 +118,13 @@ async function handleStartSession(
     );
   }
 
-  const warningThreshold = QUOTA_LIMIT_MINUTES * 0.8;
-  const warning = minutesUsed >= warningThreshold
-    ? `You've used ${
-      minutesUsed.toFixed(1)
-    } of ${QUOTA_LIMIT_MINUTES} minutes this month.`
-    : null;
+  const remainingMinutes = voiceBudget.remainingMinutes;
+  const warning = voiceBudget.warning || null;
 
   // Fetch user context for personalized voice instructions
   const contextBuilder = createContextBuilder(userClient);
   const userContext = await contextBuilder.buildContext(userId);
+  const voiceInstructions = buildVoiceInstructions(userContext);
 
   const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openaiApiKey) {
@@ -161,8 +146,7 @@ async function handleStartSession(
       },
       body: JSON.stringify({
         model: "gpt-realtime-mini",
-        voice: "alloy",
-        instructions: buildVoiceInstructions(userContext),
+        instructions: voiceInstructions,
       }),
     },
   );
@@ -222,10 +206,11 @@ async function handleStartSession(
     {
       sessionId: session.id,
       ephemeralToken,
+      voiceInstructions,
       remainingMinutes: remainingMinutes.toFixed(1),
       warning,
-      quotaLimit: QUOTA_LIMIT_MINUTES,
-      minutesUsed: minutesUsed.toFixed(1),
+      quotaLimit: voiceBudget.limitMinutes,
+      minutesUsed: voiceBudget.usedMinutes.toFixed(1),
     },
     200,
     corsHeaders,
@@ -283,11 +268,22 @@ async function handleExecuteTool(
     ? toolArgs
     : JSON.stringify(toolArgs);
 
+  const costContext: CostContext = {
+    userId,
+    edgeFunction: "irmixy-voice-orchestrator",
+    metadata: {
+      action: "execute_tool",
+      toolName,
+      ...(sessionId ? { sessionId } : {}),
+    },
+  };
+
   const result = await executeTool(
     supabase,
     toolName,
     argsString,
     userContext,
+    { costContext },
   );
 
   const elapsed = Math.round(performance.now() - startTime);
@@ -297,6 +293,128 @@ async function handleExecuteTool(
 
   const response = shapeToolResponse(toolName, result);
   return jsonResponse(response, 200, corsHeaders);
+}
+
+interface TranscriptMessage {
+  role: "user" | "assistant";
+  content: string;
+  recipes?: unknown;
+  customRecipe?: unknown;
+  safetyFlags?: unknown;
+}
+
+async function handleSaveTranscript(
+  payload: RequestPayload,
+  userId: string,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
+  const messages = payload.messages;
+
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return jsonResponse(
+      { error: "Missing or empty messages array" },
+      400,
+      corsHeaders,
+    );
+  }
+
+  // Validate each message
+  for (const msg of messages) {
+    if (
+      !msg || typeof msg !== "object" ||
+      !("role" in msg) || !("content" in msg) ||
+      typeof msg.content !== "string" ||
+      (msg.role !== "user" && msg.role !== "assistant")
+    ) {
+      return jsonResponse(
+        {
+          error: "Invalid message format: each message needs role and content",
+        },
+        400,
+        corsHeaders,
+      );
+    }
+  }
+
+  const validMessages = messages as TranscriptMessage[];
+
+  // Generate title from first user message (truncated to 100 chars)
+  const firstUserMsg = validMessages.find((m) => m.role === "user");
+  const title = firstUserMsg
+    ? firstUserMsg.content.slice(0, 100).trim() || "Voice conversation"
+    : "Voice conversation";
+
+  const serviceClient = createServiceClient();
+
+  // Create chat session with source = 'voice'
+  const { data: session, error: sessionError } = await serviceClient
+    .from("user_chat_sessions")
+    .insert({
+      user_id: userId,
+      title,
+      source: "voice",
+    })
+    .select("id")
+    .single();
+
+  if (sessionError || !session) {
+    console.error(
+      "[irmixy-voice-orchestrator] Failed creating chat session:",
+      sessionError?.message,
+    );
+    return jsonResponse(
+      { error: "Failed to save transcript" },
+      500,
+      corsHeaders,
+    );
+  }
+
+  // Bulk insert messages
+  const messagesToInsert = validMessages.map((msg, idx) => ({
+    session_id: session.id,
+    role: msg.role,
+    content: msg.content,
+    // Store recipe data in tool_calls JSONB (same format as text chat)
+    tool_calls: (msg.recipes || msg.customRecipe || msg.safetyFlags)
+      ? {
+        ...(msg.recipes ? { recipes: msg.recipes } : {}),
+        ...(msg.customRecipe ? { customRecipe: msg.customRecipe } : {}),
+        ...(msg.safetyFlags ? { safetyFlags: msg.safetyFlags } : {}),
+      }
+      : null,
+    created_at: new Date(Date.now() + idx).toISOString(), // offset by idx to preserve order
+  }));
+
+  const { error: insertError } = await serviceClient
+    .from("user_chat_messages")
+    .insert(messagesToInsert);
+
+  if (insertError) {
+    console.error(
+      "[irmixy-voice-orchestrator] Failed inserting messages:",
+      insertError.message,
+    );
+    // Clean up orphaned session
+    await serviceClient
+      .from("user_chat_sessions")
+      .delete()
+      .eq("id", session.id);
+    return jsonResponse(
+      { error: "Failed to save transcript messages" },
+      500,
+      corsHeaders,
+    );
+  }
+
+  console.log(
+    `[irmixy-voice-orchestrator] Saved ${validMessages.length} voice messages to session ${session.id}`,
+  );
+
+  return jsonResponse(
+    { sessionId: session.id, saved: validMessages.length },
+    200,
+    corsHeaders,
+  );
 }
 
 serve(async (req) => {
@@ -336,7 +454,9 @@ serve(async (req) => {
       );
     }
 
-    if (new TextEncoder().encode(rawBody).byteLength > MAX_PAYLOAD_BYTES) {
+    // Hard universal limit (save_transcript may be up to 100KB)
+    const bodyByteLength = new TextEncoder().encode(rawBody).byteLength;
+    if (bodyByteLength > MAX_TRANSCRIPT_PAYLOAD_BYTES) {
       return jsonResponse(
         { error: "Payload too large" },
         413,
@@ -351,6 +471,17 @@ serve(async (req) => {
       return jsonResponse(
         { error: "Invalid JSON in request body" },
         400,
+        corsHeaders,
+      );
+    }
+
+    // Action-specific limit: non-save_transcript actions get the smaller 10KB limit
+    if (
+      payload.action !== "save_transcript" && bodyByteLength > MAX_PAYLOAD_BYTES
+    ) {
+      return jsonResponse(
+        { error: "Payload too large" },
+        413,
         corsHeaders,
       );
     }
@@ -375,7 +506,11 @@ serve(async (req) => {
 
     if (
       !ALLOWED_ACTIONS.has(
-        action as "start_session" | "execute_tool" | "check_quota",
+        action as
+          | "start_session"
+          | "execute_tool"
+          | "check_quota"
+          | "save_transcript",
       )
     ) {
       return jsonResponse(
@@ -393,6 +528,10 @@ serve(async (req) => {
       return await handleStartSession(user.id, authHeader!, corsHeaders);
     }
 
+    if (action === "save_transcript") {
+      return await handleSaveTranscript(payload, user.id, corsHeaders);
+    }
+
     return await handleExecuteTool(
       payload,
       user.id,
@@ -403,6 +542,18 @@ serve(async (req) => {
   } catch (error) {
     const elapsed = Math.round(performance.now() - startTime);
     const message = error instanceof Error ? error.message : String(error);
+
+    if (error instanceof BudgetCheckUnavailableError) {
+      console.error(
+        `[irmixy-voice-orchestrator] Budget check unavailable (${elapsed}ms):`,
+        message,
+      );
+      return jsonResponse(
+        { error: "budget_unavailable" },
+        503,
+        corsHeaders,
+      );
+    }
 
     if (error instanceof ToolValidationError) {
       console.warn(

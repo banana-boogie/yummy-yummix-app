@@ -4,6 +4,7 @@ export const chat = {
     "Hi! I'm Irmixy, your AI chef assistant. Ask me anything about cooking!",
   inputPlaceholder: "Ask Irmixy...",
   sendButton: "Send",
+  stopGenerating: "Stop generating",
   error: {
     default: "Sorry, something went wrong. Please try again.",
     messageTooLong:
@@ -40,19 +41,33 @@ export const chat = {
     hearing: "Hearing you...",
     silenceDetected: "Silence detected",
     waitingForSpeech: "Waiting for speech...",
-    quotaWarningTitle: "Voice Usage Warning",
-    quotaWarning: "You have {{minutes}} minutes remaining this month.",
-    quotaExceeded: "You have used all your voice minutes for this month.",
+    quotaWarningTitle: "Heads up!",
+    quotaWarning: "You have about {{minutes}} minutes of voice chat left this month.",
+    quotaExceeded: "You've reached your monthly voice limit with Irmixy. Voice resets next month.",
     userPrefix: "You: ",
     errorPrefix: "Error: ",
     minsRemaining: "{{mins}} mins remaining",
     executingTool: "Working on it...",
+    searchingRecipes: "Looking for recipes for you",
+    modifyingRecipe: "Tweaking your recipe",
+    retrievingRecipes: "Checking your kitchen history",
+    generatingRecipe: "Creating something special",
+    micActive: "Mic active",
+    stopRecording: "Stop voice recording",
     micPermissionDenied: "Microphone access denied",
+    stop: "Stop",
     mobileOnly: {
       title: "Voice Chat",
       message: "Voice chat is available on our mobile app. Use text chat below, or download the app to chat with Irmixy using your voice.",
       hint: "Use text chat below, or download our mobile app for voice features",
     },
+  },
+  budget: {
+    warningTitle: "Heads up!",
+    warningDetailed: "You've been cooking up a storm! You're close to your monthly Irmixy limit. It resets next month.",
+    exceededTitle: "Irmixy limit reached",
+    exceededMessage: "You've reached your monthly Irmixy limit. Don't worry — it resets at the start of next month!",
+    upgradeHint: "Irmixy limit reached — resets next month",
   },
   suggestions: {},
   messageCopied: "Message copied to clipboard",
@@ -77,12 +92,21 @@ export const chat = {
   andMore: "and {{count}} more",
   miseEnPlace: "Mise en place",
   prepareIngredients: "Prepare your ingredients.",
+  // Compact recipe card
+  seeFullRecipe: "See Full Recipe",
+  ingredientsSummary: "{{count}} ingredients",
+  stepsSummary: "{{count}} steps",
+  aiGeneratedRecipe: "AI-generated recipe",
+  aiGeneratedDisclaimer: "This recipe was created by AI. Please verify cooking times, temperatures, and allergens before preparing.",
   // Cooking progress & resume
   resume: {
     resumeCooking: "Resume cooking",
     resumePrompt: "You were cooking {{recipeName}} — step {{step}} of {{total}}. Want to pick up where you left off?",
     startOver: "Start over",
     startOverFailed: "Couldn't start over right now. Please try again.",
+    chatAbout: "You were chatting about '{{title}}'",
+    continue: "Continue",
+    previousConversations: "Previous conversations",
   },
   // Fallback when no recipes found
   fallback: {
@@ -91,6 +115,16 @@ export const chat = {
     createFromIngredientsMessage: "Search for similar recipes",
     surpriseMe: "Create custom version",
     surpriseMeMessage: "Create a custom version",
+  },
+  // Recipe progress tracker
+  progressTracker: {
+    stage1: "Understanding your craving...",
+    stage2: "Selecting the best ingredients...",
+    stage3: "Planning cooking times...",
+    stage4: "Writing out the steps...",
+    stage5: "Final touches...",
+    stage6: "Ready!",
+    stall: "Almost there...",
   },
   // Replay / retrieval
   replay: {

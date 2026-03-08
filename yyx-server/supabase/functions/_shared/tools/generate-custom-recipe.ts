@@ -22,6 +22,7 @@ import {
 } from "../allergen-filter.ts";
 import { buildSafetyReminders, checkRecipeSafety } from "../food-safety.ts";
 import { chat } from "../ai-gateway/index.ts";
+import type { CostContext } from "../ai-gateway/types.ts";
 import { hasThermomix } from "../equipment-utils.ts";
 
 // ============================================================
@@ -35,7 +36,8 @@ export const generateCustomRecipeTool = {
     description:
       "Generate a custom recipe. ONLY call this when the user explicitly asks you to create/make a recipe " +
       "or agrees to you making one. Never call this for discovery or vague cravings — use search_recipes instead. " +
-      "The user must have given you a direction (ingredients, a dish type, or a clear request). " +
+      "The user must have provided SPECIFIC details: a dish name (e.g. 'banana bread') or ingredients (e.g. 'chicken and rice'). " +
+      "If the user is vague ('make me something', 'I don't know'), ask them what they want first — do NOT call this tool. " +
       "Use their ingredients as the foundation and add complementary ones creatively (seasonings, herbs, pantry staples). " +
       "Never contradict the user's intent (e.g. dessert must be a dessert).",
     parameters: {
@@ -120,6 +122,7 @@ export async function generateCustomRecipe(
   rawParams: unknown,
   userContext: UserContext,
   onPartialRecipe?: PartialRecipeCallback,
+  costContext?: CostContext,
 ): Promise<GenerateRecipeResult> {
   // Timing instrumentation for performance monitoring
   const timings: Record<string, number> = {};
@@ -168,6 +171,7 @@ export async function generateCustomRecipe(
     userContext,
     safetyReminders,
     allergenWarning ? { allergenWarning } : undefined,
+    costContext,
   );
   timings.recipe_llm_ms = Math.round(performance.now() - phaseStart);
   phaseStart = performance.now();
@@ -268,6 +272,7 @@ export function buildRecipeJsonSchema(
     properties: {
       schemaVersion: { type: "string", enum: ["1.0"] },
       suggestedName: { type: "string" },
+      description: { type: "string" },
       measurementSystem: { type: "string", enum: ["imperial", "metric"] },
       language: { type: "string", enum: ["en", "es"] },
       ingredients: {
@@ -300,6 +305,7 @@ export function buildRecipeJsonSchema(
     required: [
       "schemaVersion",
       "suggestedName",
+      "description",
       "measurementSystem",
       "language",
       "ingredients",
@@ -325,6 +331,7 @@ async function callRecipeGenerationAI(
   options?: {
     allergenWarning?: string;
   },
+  costContext?: CostContext,
 ): Promise<GeneratedRecipe> {
   const prompt = buildRecipeGenerationPrompt(
     params,
@@ -352,12 +359,13 @@ async function callRecipeGenerationAI(
           content: isRetry ? prompt + strictRetryPromptSuffix : prompt,
         },
       ],
-      reasoningEffort: "low",
+      temperature: 0.7,
       maxTokens: 6144,
       responseFormat: {
         type: "json_schema",
         schema: recipeSchema,
       },
+      costContext,
     });
 
     try {
@@ -462,7 +470,7 @@ RULES: Use practical quantities (1/3 cup not 0.333). Include meat cooking temps.
 ${thermomixSection}
 
 OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Use this structure:
-{"schemaVersion":"1.0","suggestedName":"...","measurementSystem":"${userContext.measurementSystem}","language":"${userContext.language}","ingredients":[{"name":"...","quantity":1,"unit":"..."}],"steps":[{"order":1,"instruction":"...","ingredientsUsed":["..."]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":[]}`;
+{"schemaVersion":"1.0","suggestedName":"...","description":"A brief 1-2 sentence description of the dish","measurementSystem":"${userContext.measurementSystem}","language":"${userContext.language}","ingredients":[{"name":"...","quantity":1,"unit":"..."}],"steps":[{"order":1,"instruction":"...","ingredientsUsed":["..."]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":[]}`;
 }
 
 /**
@@ -964,6 +972,46 @@ export function validateThermomixUsage(
 }
 
 /**
+ * Parse a Thermomix speed string into a normalized form.
+ * Accepts: "1"-"10", "Spoon", "Reverse", "Reverse 1"-"Reverse 10", "Reverse Spoon"
+ * Returns: normalized string or null if invalid.
+ * Exported for testing.
+ */
+export function parseThermomixSpeed(raw: string): string | null {
+  const lower = raw.toLowerCase().trim();
+
+  // Pure numeric: "1" through "10"
+  if (VALID_NUMERIC_SPEEDS.includes(lower as any)) return lower;
+
+  // Standalone special: "spoon", "reverse"
+  if (lower === "spoon") return "Spoon";
+  if (lower === "reverse") return "Reverse";
+
+  // Composite: "reverse spoon" — spoon attachment in reverse
+  if (lower === "reverse spoon" || lower === "spoon reverse") {
+    return "Reverse Spoon";
+  }
+
+  // Composite: "reverse 1", "Reverse 5", etc.
+  const reverseNumeric = lower.match(/^reverse\s+(\d+)$/);
+  if (reverseNumeric) {
+    const num = reverseNumeric[1];
+    if (VALID_NUMERIC_SPEEDS.includes(num as any)) return `Reverse ${num}`;
+    return null;
+  }
+
+  // Reversed order: "1 reverse", "5 reverse"
+  const numericReverse = lower.match(/^(\d+)\s+reverse$/);
+  if (numericReverse) {
+    const num = numericReverse[1];
+    if (VALID_NUMERIC_SPEEDS.includes(num as any)) return `Reverse ${num}`;
+    return null;
+  }
+
+  return null;
+}
+
+/**
  * Validate and sanitize Thermomix parameters in recipe steps.
  * Ensures speeds, temperatures, and times are within valid ranges.
  * Exported for testing.
@@ -1008,21 +1056,16 @@ export function validateThermomixSteps(
       }
     }
 
-    // Validate speed (case-insensitive for special speeds)
+    // Validate speed (supports composite like "Reverse 1", "Spoon", "5")
     if (step.thermomixSpeed != null) {
-      const normalizedSpeed = step.thermomixSpeed.toLowerCase();
-      const isValid =
-        VALID_NUMERIC_SPEEDS.includes(step.thermomixSpeed as any) ||
-        VALID_SPECIAL_SPEEDS.includes(normalizedSpeed as any);
-      if (!isValid) {
+      const parsed = parseThermomixSpeed(step.thermomixSpeed);
+      if (!parsed) {
         console.warn(
           `Invalid Thermomix speed for step ${step.order}: ${step.thermomixSpeed}. Removing.`,
         );
         validated.thermomixSpeed = undefined;
-      } else if (VALID_SPECIAL_SPEEDS.includes(normalizedSpeed as any)) {
-        // Normalize to title case for consistency
-        validated.thermomixSpeed = step.thermomixSpeed.charAt(0).toUpperCase() +
-          step.thermomixSpeed.slice(1).toLowerCase();
+      } else {
+        validated.thermomixSpeed = parsed;
       }
     }
 
