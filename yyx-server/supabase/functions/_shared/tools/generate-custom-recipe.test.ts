@@ -434,7 +434,7 @@ Deno.test("UserContext supports equipment preferences", () => {
   assertEquals(metricContext.measurementSystem, "metric");
 });
 
-Deno.test("getSystemPrompt Thermomix section uses 120°C guidance", () => {
+Deno.test("getSystemPrompt Thermomix section includes temperature and speed guidance", () => {
   const prompt = getSystemPrompt(
     createMockUserContext({
       measurementSystem: "metric",
@@ -443,7 +443,10 @@ Deno.test("getSystemPrompt Thermomix section uses 120°C guidance", () => {
   );
 
   assertStringIncludes(prompt, '"37°C"-"120°C"');
-  assertStringIncludes(prompt, "Temperature guidance: low (37-60°C");
+  assertStringIncludes(prompt, "TEMPERATURE GUIDE:");
+  assertStringIncludes(prompt, "SPEED GUIDE:");
+  assertStringIncludes(prompt, "REVERSE");
+  assertStringIncludes(prompt, "Above 60°C: max speed 6");
 });
 
 // ============================================================
