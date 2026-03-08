@@ -326,7 +326,7 @@ async function callRecipeGenerationAI(
     allergenWarning?: string;
   },
 ): Promise<GeneratedRecipe> {
-  const prompt = buildRecipePrompt(
+  const prompt = buildRecipeGenerationPrompt(
     params,
     userContext,
     safetyReminders,
@@ -474,7 +474,7 @@ OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "i
  * 3. MEDIUM CONSTRAINTS: Diet types affect ingredient selection (vegan, keto, etc.)
  * 4. SOFT PREFERENCES: Cuisine preferences are inspirational only (not every recipe needs to match)
  */
-function buildRecipePrompt(
+function buildRecipeGenerationPrompt(
   params: GenerateRecipeParams,
   userContext: UserContext,
   safetyReminders: string,
