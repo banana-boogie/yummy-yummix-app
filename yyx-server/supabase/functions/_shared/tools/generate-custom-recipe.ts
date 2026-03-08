@@ -433,11 +433,6 @@ export function getSystemPrompt(userContext: UserContext): string {
 
   const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
 
-  console.log("[Recipe Generation] Equipment check:", {
-    kitchenEquipment: userContext.kitchenEquipment,
-    hasThermomix: isThermomixUser,
-  });
-
   if (!isThermomixUser && userContext.kitchenEquipment.length > 0) {
     console.warn(
       "[Recipe Generation] User has equipment but no Thermomix:",
@@ -525,7 +520,7 @@ function buildRecipeGenerationPrompt(
   }
 
   // Portions — explicit param > user default > fallback
-  const portions = params.portions || userContext.householdSize || 4;
+  const portions = params.portions ?? userContext.householdSize ?? 4;
   parts.push(`Portions: ${portions}.`);
 
   // Time constraint
