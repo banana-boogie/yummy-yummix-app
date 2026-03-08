@@ -54,3 +54,6 @@ temp/
 .Trashes
 ehthumbs.db
 Thumbs.db backups/
+
+# Eval output
+supabase/functions/_eval/output/
