@@ -70,6 +70,13 @@ export const generateCustomRecipeTool = {
           enum: ["easy", "medium", "hard"],
           description: "Desired difficulty level",
         },
+        portions: {
+          type: "integer",
+          description:
+            "Number of portions/servings. Infer from conversation (e.g. 'for 2', 'family dinner'). Omit to use user's default.",
+          minimum: 1,
+          maximum: 50,
+        },
         additionalRequests: {
           type: "string",
           description:
@@ -326,7 +333,7 @@ async function callRecipeGenerationAI(
   },
   costContext?: CostContext,
 ): Promise<GeneratedRecipe> {
-  const prompt = buildRecipePrompt(
+  const prompt = buildRecipeGenerationPrompt(
     params,
     userContext,
     safetyReminders,
@@ -426,11 +433,6 @@ export function getSystemPrompt(userContext: UserContext): string {
 
   const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
 
-  console.log("[Recipe Generation] Equipment check:", {
-    kitchenEquipment: userContext.kitchenEquipment,
-    hasThermomix: isThermomixUser,
-  });
-
   if (!isThermomixUser && userContext.kitchenEquipment.length > 0) {
     console.warn(
       "[Recipe Generation] User has equipment but no Thermomix:",
@@ -441,20 +443,45 @@ export function getSystemPrompt(userContext: UserContext): string {
   const thermomixSection = isThermomixUser
     ? `
 
-## THERMOMIX USAGE (User owns Thermomix - maximize usage!)
+## THERMOMIX USAGE (User owns Thermomix — you are an expert Thermomix cook)
 
-For each applicable step, include: thermomixTime (seconds), thermomixTemp ("37°C"-"120°C" or "Varoma"), thermomixSpeed ("1"-"10", "Spoon", "Reverse", or "Reverse 1"-"Reverse 10")
+Choose optimal time, speed, and temperature for each step based on the technique.
 
-Use Thermomix for: chopping (speed 5-7), sautéing (100°C, "Reverse 1"), cooking/boiling (temp+speed), blending (speed 8-10), steaming (Varoma)
-Skip Thermomix for: plating, garnishing, oven/grill tasks, manual shaping
-Temperature guidance: low (37-60°C for melting/gentle warming), medium (70-100°C for simmering/cooking), high (100-120°C for sautéing/reduction), Varoma (~120°C for steaming)
+PARAMETERS:
+- **thermomixTime** (seconds) and **thermomixSpeed** ("1"-"10", "Spoon", or "Reverse") are a REQUIRED PAIR — if you set one, you MUST set both.
+- **thermomixTemp** ("37°C"-"120°C" or "Varoma") is OPTIONAL — only when the step needs heat. Null = no heat (chopping, blending, kneading).
 
-Example step with Thermomix: {"order": 2, "instruction": "Sauté onions", "ingredientsUsed": ["onion"], "thermomixTime": 180, "thermomixTemp": "100°C", "thermomixSpeed": "1"}`
+SPEED GUIDE:
+- Spoon/1-2: Gentle stirring, simmering, slow cooking (cooking speeds)
+- 3-5: Mixing, rough chopping
+- 5-7: Fine chopping, sauces
+- 7-10: Pureeing, grinding, blending, smoothies
+- REVERSE: Use when cooking ingredients that must stay intact (stews, sautéing, pasta). Blunt edge stirs without cutting. Combine with Spoon/1-2.
+
+TEMPERATURE GUIDE:
+- 37-50°C: Melting chocolate/butter, warming
+- 60-90°C: Simmering sauces, custards, béchamel
+- 90-100°C: Boiling, cooking rice/pasta, soups, stews
+- 100-120°C: Sautéing, caramelizing, browning
+- Varoma: Steam cooking (needs 500ml+ water in bowl, speed 2)
+
+CRITICAL RULES:
+- Above 60°C: max speed 6. Never use high speeds with hot food.
+- Chopping is SECONDS (3-10 sec), not minutes. Start short, check.
+- Sautéing always uses Reverse (e.g. 120°C / Reverse / Speed 1 / 5-10 min).
+
+Skip Thermomix for: plating, garnishing, oven/grill tasks, manual shaping — leave all three params null.
+
+Examples:
+- Sauté: {"order": 2, "instruction": "Sauté onions", "ingredientsUsed": ["onion"], "thermomixTime": 300, "thermomixTemp": "100°C", "thermomixSpeed": "Reverse"}
+- Chop: {"order": 1, "instruction": "Chop vegetables", "ingredientsUsed": ["carrot"], "thermomixTime": 5, "thermomixTemp": null, "thermomixSpeed": "5"}
+- Steam: {"order": 3, "instruction": "Steam vegetables in Varoma", "ingredientsUsed": ["broccoli", "zucchini"], "thermomixTime": 1200, "thermomixTemp": "Varoma", "thermomixSpeed": "2"}
+- Non-Thermomix: {"order": 5, "instruction": "Plate and garnish", "ingredientsUsed": ["parsley"], "thermomixTime": null, "thermomixTemp": null, "thermomixSpeed": null}`
     : "";
 
-  return `Professional recipe creator. Output in ${lang}, ${userContext.measurementSystem} units (${units}).
+  return `Expert cook and recipe writer. Output in ${lang}, ${userContext.measurementSystem} units (${units}).
 
-RULES: Use practical quantities (1/3 cup not 0.333). Include meat cooking temps. Name recipes naturally without dietary labels (GOOD: "Chicken Ramen", BAD: "Sugar-Free Ramen"). Preferences guide creativity; ingredient dislikes are strict. Avoid allergen ingredients by default.
+RULES: Use practical quantities (e.g. 1/3 not 0.333, round to common fractions). Name recipes naturally without dietary labels (GOOD: "Chicken Ramen", BAD: "Sugar-Free Ramen"). Preferences guide creativity; ingredient dislikes are strict. Avoid allergen ingredients by default.
 ${thermomixSection}
 
 OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Use this structure:
@@ -470,7 +497,7 @@ OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "i
  * 3. MEDIUM CONSTRAINTS: Diet types affect ingredient selection (vegan, keto, etc.)
  * 4. SOFT PREFERENCES: Cuisine preferences are inspirational only (not every recipe needs to match)
  */
-function buildRecipePrompt(
+function buildRecipeGenerationPrompt(
   params: GenerateRecipeParams,
   userContext: UserContext,
   safetyReminders: string,
@@ -491,6 +518,10 @@ function buildRecipePrompt(
       }`,
     );
   }
+
+  // Portions — explicit param > user default > fallback
+  const portions = params.portions ?? userContext.householdSize ?? 4;
+  parts.push(`Portions: ${portions}.`);
 
   // Time constraint
   if (params.targetTime) {
@@ -545,17 +576,22 @@ function buildRecipePrompt(
     }
   }
 
+  // === EQUIPMENT (use where appropriate in the recipe) ===
+  if (params.useful_items && params.useful_items.length > 0) {
+    parts.push("\n🍳 EQUIPMENT for this recipe:");
+    parts.push(
+      `Use these where they fit best: ${params.useful_items.join(", ")}`,
+    );
+  } else if (userContext.kitchenEquipment.length > 0) {
+    parts.push("\n🍳 AVAILABLE EQUIPMENT:");
+    parts.push(
+      `User has: ${
+        userContext.kitchenEquipment.join(", ")
+      }. Use where appropriate for the best result.`,
+    );
+  }
+
   // === SOFT PREFERENCES (consider but don't force) ===
-  const preferences: string[] = [];
-
-  if (userContext.skillLevel) {
-    preferences.push(`Skill level: ${userContext.skillLevel}`);
-  }
-
-  if (userContext.householdSize) {
-    preferences.push(`Default portions: ${userContext.householdSize}`);
-  }
-
   // Cuisine preferences are SOFT/INSPIRATIONAL - they should NOT dominate every recipe
   // Only mention them if no explicit cuisine was requested, and frame them as hints
   if (
@@ -566,30 +602,14 @@ function buildRecipePrompt(
       c && c.trim()
     );
     if (validCuisines.length > 0) {
-      // Frame as very soft inspiration - the AI should feel free to ignore
-      preferences.push(
+      parts.push("\n📝 Soft preferences (consider but be creative):");
+      parts.push(
         `Cuisine inspiration (OPTIONAL, vary styles): User enjoys ${
           validCuisines.join(", ")
         } cooking. ` +
           `Feel free to explore other cuisines that suit the ingredients - variety is welcome!`,
       );
     }
-  }
-
-  // Equipment: prioritize useful_items over general equipment
-  if (params.useful_items && params.useful_items.length > 0) {
-    preferences.push(
-      `PRIORITY EQUIPMENT for this recipe: ${params.useful_items.join(", ")}`,
-    );
-  } else if (userContext.kitchenEquipment.length > 0) {
-    preferences.push(
-      `Available equipment: ${userContext.kitchenEquipment.join(", ")}`,
-    );
-  }
-
-  if (preferences.length > 0) {
-    parts.push("\n📝 Soft preferences (consider but be creative):");
-    parts.push(preferences.join("\n"));
   }
 
   // Safety reminders
@@ -1067,6 +1087,21 @@ export function validateThermomixSteps(
         );
         validated.thermomixTemp = undefined;
       }
+    }
+
+    // Pair completion: time + speed must appear together
+    const hasTime = validated.thermomixTime != null;
+    const hasSpeed = validated.thermomixSpeed != null;
+    if (hasTime && !hasSpeed) {
+      console.warn(
+        `Step ${step.order}: thermomixTime set without thermomixSpeed. Filling speed with "1" (gentle default).`,
+      );
+      validated.thermomixSpeed = "1";
+    } else if (hasSpeed && !hasTime) {
+      console.warn(
+        `Step ${step.order}: thermomixSpeed set without thermomixTime. Filling time with 60 (safe default).`,
+      );
+      validated.thermomixTime = 60;
     }
 
     return validated;

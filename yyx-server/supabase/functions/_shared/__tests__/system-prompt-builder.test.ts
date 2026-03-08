@@ -36,17 +36,14 @@ function createUserContext(overrides: Partial<UserContext> = {}): UserContext {
 // buildUserContextBlock
 // ============================================================
 
-Deno.test("buildUserContextBlock includes all user context fields", () => {
+Deno.test("buildUserContextBlock includes populated fields", () => {
   const block = buildUserContextBlock(
     createUserContext({
       language: "es",
       measurementSystem: "metric",
-      skillLevel: "beginner",
-      householdSize: 4,
       dietaryRestrictions: ["gluten"],
       dietTypes: ["vegetarian"],
       customAllergies: ["peanuts"],
-      ingredientDislikes: ["cilantro"],
       kitchenEquipment: ["Thermomix"],
     }),
   );
@@ -56,20 +53,23 @@ Deno.test("buildUserContextBlock includes all user context fields", () => {
     block,
     "<measurement_system>metric</measurement_system>",
   );
-  assertStringIncludes(block, "<skill_level>beginner</skill_level>");
-  assertStringIncludes(block, "<household_size>4</household_size>");
   assertStringIncludes(block, "- gluten");
   assertStringIncludes(block, "- vegetarian");
   assertStringIncludes(block, "- peanuts");
-  assertStringIncludes(block, "- cilantro");
   assertStringIncludes(block, "- Thermomix");
 });
 
-Deno.test("buildUserContextBlock shows defaults for empty/null fields", () => {
+Deno.test("buildUserContextBlock excludes unused fields", () => {
   const block = buildUserContextBlock(createUserContext());
 
-  assertStringIncludes(block, "<skill_level>not specified</skill_level>");
-  assertStringIncludes(block, "<household_size>not specified</household_size>");
+  assertEquals(block.includes("skill_level"), false);
+  assertEquals(block.includes("household_size"), false);
+  assertEquals(block.includes("ingredient_dislikes"), false);
+});
+
+Deno.test("buildUserContextBlock shows defaults for empty fields", () => {
+  const block = buildUserContextBlock(createUserContext());
+
   assertStringIncludes(
     block,
     "<dietary_restrictions>\nnone\n</dietary_restrictions>",
@@ -87,30 +87,32 @@ Deno.test("buildUserContextBlock shows defaults for empty/null fields", () => {
 Deno.test("buildPersonalityBlock returns English for 'en'", () => {
   const personality = buildPersonalityBlock("en");
 
-  assertStringIncludes(personality, "IDENTITY & VOICE");
-  assertStringIncludes(personality, "warm, fun friend");
-  assertStringIncludes(personality, "One thought per message");
-  assertStringIncludes(personality, "single best answer");
+  assertStringIncludes(personality, "IDENTITY:");
+  assertStringIncludes(personality, "cooking companion from YummyYummix");
+  assertStringIncludes(personality, "patient, warm, deeply experienced");
   assertStringIncludes(
     personality,
-    "Never use bullet points or numbered lists",
+    "make cooking feel easy, achievable, and fun",
   );
-  assertStringIncludes(personality, "Never use markdown formatting");
+  assertStringIncludes(
+    personality,
+    "walks alongside, not someone who lectures",
+  );
+  assertStringIncludes(personality, "Use emojis sparingly");
   assertEquals(personality.includes("IDENTIDAD"), false);
 });
 
 Deno.test("buildPersonalityBlock returns Mexican Spanish for 'es'", () => {
   const personality = buildPersonalityBlock("es");
 
-  assertStringIncludes(personality, "IDENTIDAD Y VOZ");
-  assertStringIncludes(personality, "amiga cálida y divertida");
-  assertStringIncludes(personality, "vocabulario mexicano");
+  assertStringIncludes(personality, "IDENTIDAD:");
+  assertStringIncludes(personality, "compañera de cocina de YummyYummix");
+  assertStringIncludes(personality, "vocabulario mexicano por defecto");
   assertStringIncludes(personality, "jitomate");
-  assertStringIncludes(personality, "Una idea por mensaje");
-  assertStringIncludes(personality, "mejor respuesta, no una lista");
-  assertStringIncludes(personality, "Nunca uses viñetas ni listas numeradas");
-  assertStringIncludes(personality, "Nunca uses formato markdown");
-  assertEquals(personality.includes("IDENTITY & VOICE"), false);
+  assertStringIncludes(personality, "cualquier receta es fácil");
+  assertStringIncludes(personality, "acompaña, no como alguien que instruye");
+  assertStringIncludes(personality, "emojis con moderación");
+  assertEquals(personality.includes("IDENTITY:"), false);
 });
 
 // ============================================================
@@ -120,8 +122,8 @@ Deno.test("buildPersonalityBlock returns Mexican Spanish for 'es'", () => {
 Deno.test("buildVoiceInstructions includes personality for EN", () => {
   const instructions = buildVoiceInstructions(createUserContext());
 
-  assertStringIncludes(instructions, "IDENTITY & VOICE");
-  assertStringIncludes(instructions, "warm, fun friend");
+  assertStringIncludes(instructions, "IDENTITY:");
+  assertStringIncludes(instructions, "cooking companion from YummyYummix");
 });
 
 Deno.test("buildVoiceInstructions includes personality for ES", () => {
@@ -129,7 +131,7 @@ Deno.test("buildVoiceInstructions includes personality for ES", () => {
     createUserContext({ language: "es" }),
   );
 
-  assertStringIncludes(instructions, "IDENTIDAD Y VOZ");
+  assertStringIncludes(instructions, "IDENTIDAD:");
   assertStringIncludes(instructions, "Mexican Spanish");
 });
 
@@ -157,7 +159,7 @@ Deno.test("buildVoiceInstructions includes voice-specific rules", () => {
 Deno.test("buildVoiceInstructions includes scope guardrails", () => {
   const instructions = buildVoiceInstructions(createUserContext());
 
-  assertStringIncludes(instructions, "cooking, recipes, ingredients");
+  assertStringIncludes(instructions, "food and cooking related");
 });
 
 Deno.test("buildVoiceInstructions includes security rules", () => {

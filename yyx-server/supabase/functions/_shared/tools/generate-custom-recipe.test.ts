@@ -434,7 +434,7 @@ Deno.test("UserContext supports equipment preferences", () => {
   assertEquals(metricContext.measurementSystem, "metric");
 });
 
-Deno.test("getSystemPrompt Thermomix section uses 120°C guidance", () => {
+Deno.test("getSystemPrompt Thermomix section includes temperature and speed guidance", () => {
   const prompt = getSystemPrompt(
     createMockUserContext({
       measurementSystem: "metric",
@@ -443,7 +443,10 @@ Deno.test("getSystemPrompt Thermomix section uses 120°C guidance", () => {
   );
 
   assertStringIncludes(prompt, '"37°C"-"120°C"');
-  assertStringIncludes(prompt, "Temperature guidance: low (37-60°C");
+  assertStringIncludes(prompt, "TEMPERATURE GUIDE:");
+  assertStringIncludes(prompt, "SPEED GUIDE:");
+  assertStringIncludes(prompt, "REVERSE");
+  assertStringIncludes(prompt, "Above 60°C: max speed 6");
 });
 
 // ============================================================
@@ -914,7 +917,7 @@ Deno.test("validateThermomixSteps normalizes special speeds to title case", () =
   assertEquals(result[3].thermomixSpeed, "Reverse");
 });
 
-Deno.test("validateThermomixSteps removes invalid speeds", () => {
+Deno.test("validateThermomixSteps removes invalid speeds and fills via pair completion", () => {
   const steps = [
     {
       order: 1,
@@ -940,9 +943,10 @@ Deno.test("validateThermomixSteps removes invalid speeds", () => {
   ];
 
   const result = validateThermomixSteps(steps);
-  assertEquals(result[0].thermomixSpeed, undefined);
-  assertEquals(result[1].thermomixSpeed, undefined);
-  assertEquals(result[2].thermomixSpeed, undefined);
+  // Invalid speeds are removed, then pair completion fills "1" because time is still set
+  assertEquals(result[0].thermomixSpeed, "1");
+  assertEquals(result[1].thermomixSpeed, "1");
+  assertEquals(result[2].thermomixSpeed, "1");
 });
 
 Deno.test("validateThermomixSteps accepts valid temperatures", () => {
@@ -977,9 +981,27 @@ Deno.test("validateThermomixSteps accepts valid temperatures", () => {
 
 Deno.test("validateThermomixSteps removes invalid temperatures", () => {
   const steps = [
-    { order: 1, instruction: "Heat", thermomixTemp: "hot", thermomixTime: 30 },
-    { order: 2, instruction: "Cook", thermomixTemp: "100", thermomixTime: 30 }, // Missing unit
-    { order: 3, instruction: "Warm", thermomixTemp: "50F", thermomixTime: 30 }, // Wrong format (no °)
+    {
+      order: 1,
+      instruction: "Heat",
+      thermomixTemp: "hot",
+      thermomixTime: 30,
+      thermomixSpeed: "1",
+    },
+    {
+      order: 2,
+      instruction: "Cook",
+      thermomixTemp: "100",
+      thermomixTime: 30,
+      thermomixSpeed: "1",
+    }, // Missing unit
+    {
+      order: 3,
+      instruction: "Warm",
+      thermomixTemp: "50F",
+      thermomixTime: 30,
+      thermomixSpeed: "1",
+    }, // Wrong format (no °)
   ];
 
   const result = validateThermomixSteps(steps);
@@ -988,7 +1010,7 @@ Deno.test("validateThermomixSteps removes invalid temperatures", () => {
   assertEquals(result[2].thermomixTemp, undefined);
 });
 
-Deno.test("validateThermomixSteps removes invalid times", () => {
+Deno.test("validateThermomixSteps removes invalid times and fills via pair completion", () => {
   const steps = [
     { order: 1, instruction: "Mix", thermomixTime: 0, thermomixSpeed: "5" },
     { order: 2, instruction: "Blend", thermomixTime: -10, thermomixSpeed: "5" },
@@ -996,9 +1018,10 @@ Deno.test("validateThermomixSteps removes invalid times", () => {
   ];
 
   const result = validateThermomixSteps(steps);
-  assertEquals(result[0].thermomixTime, undefined);
-  assertEquals(result[1].thermomixTime, undefined);
-  assertEquals(result[2].thermomixTime, undefined);
+  // Invalid times are removed, then pair completion fills 60 because speed is still set
+  assertEquals(result[0].thermomixTime, 60);
+  assertEquals(result[1].thermomixTime, 60);
+  assertEquals(result[2].thermomixTime, 60);
 });
 
 Deno.test("validateThermomixSteps preserves valid times", () => {
@@ -1040,7 +1063,66 @@ Deno.test("validateThermomixSteps handles mixed valid and invalid params", () =>
   const result = validateThermomixSteps(steps);
   assertEquals(result[0].thermomixTime, 30);
   assertEquals(result[0].thermomixTemp, "100°C");
+  // Invalid speed removed, then pair completion fills "1" because time is set
+  assertEquals(result[0].thermomixSpeed, "1");
+});
+
+// ============================================================
+// Pair Completion Tests
+// ============================================================
+
+Deno.test("validateThermomixSteps pair completion: time only fills speed to 1", () => {
+  const steps = [
+    {
+      order: 1,
+      instruction: "Warm milk",
+      thermomixTime: 120,
+      thermomixTemp: "50°C",
+    },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixTime, 120);
+  assertEquals(result[0].thermomixSpeed, "1");
+  assertEquals(result[0].thermomixTemp, "50°C");
+});
+
+Deno.test("validateThermomixSteps pair completion: speed only fills time to 60", () => {
+  const steps = [
+    { order: 1, instruction: "Chop carrots", thermomixSpeed: "5" },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixSpeed, "5");
+  assertEquals(result[0].thermomixTime, 60);
+});
+
+Deno.test("validateThermomixSteps pair completion: time + speed set, temp null stays null", () => {
+  const steps = [
+    {
+      order: 1,
+      instruction: "Chop",
+      thermomixTime: 10,
+      thermomixSpeed: "5",
+      thermomixTemp: null,
+    },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixTime, 10);
+  assertEquals(result[0].thermomixSpeed, "5");
+  assertEquals(result[0].thermomixTemp, null);
+});
+
+Deno.test("validateThermomixSteps pair completion: no params means no fill", () => {
+  const steps = [
+    { order: 1, instruction: "Plate and serve" },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixTime, undefined);
   assertEquals(result[0].thermomixSpeed, undefined);
+  assertEquals(result[0].thermomixTemp, undefined);
 });
 
 Deno.test("validateThermomixSteps preserves composite 'Reverse 1' speed", () => {
