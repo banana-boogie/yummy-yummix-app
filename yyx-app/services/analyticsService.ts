@@ -122,6 +122,27 @@ export interface AIChatSessionMetrics {
   dailySessions: { date: string; sessions: number }[];
 }
 
+export interface DailySignups {
+  date: string;
+  signups: number;
+  onboarded: number;
+}
+
+export interface DailyActiveUsers {
+  date: string;
+  users: number;
+}
+
+export interface DailyAIUsers {
+  date: string;
+  users: number;
+}
+
+export interface ContentSourceSplit {
+  catalog: number;
+  userGenerated: number;
+}
+
 export const analyticsService = {
   async getOverviewMetrics(): Promise<OverviewMetrics> {
     const { data, error } = await supabase.rpc('admin_overview');
@@ -202,6 +223,30 @@ export const analyticsService = {
     const { data, error } = await supabase.rpc('admin_recipe_generation', { timeframe });
     if (error) throw error;
     return data as RecipeGenerationMetrics;
+  },
+
+  async getDailySignups(timeframe: TimeframeFilter): Promise<DailySignups[]> {
+    const { data, error } = await supabase.rpc('admin_daily_signups', { timeframe });
+    if (error) throw error;
+    return (data as DailySignups[]) ?? [];
+  },
+
+  async getDailyActiveUsers(timeframe: TimeframeFilter): Promise<DailyActiveUsers[]> {
+    const { data, error } = await supabase.rpc('admin_daily_active_users', { timeframe });
+    if (error) throw error;
+    return (data as DailyActiveUsers[]) ?? [];
+  },
+
+  async getDailyAIUsers(timeframe: TimeframeFilter): Promise<DailyAIUsers[]> {
+    const { data, error } = await supabase.rpc('admin_daily_ai_users', { timeframe });
+    if (error) throw error;
+    return (data as DailyAIUsers[]) ?? [];
+  },
+
+  async getContentSourceSplit(timeframe: TimeframeFilter): Promise<ContentSourceSplit> {
+    const { data, error } = await supabase.rpc('admin_content_source_split', { timeframe });
+    if (error) throw error;
+    return data as ContentSourceSplit;
   },
 };
 

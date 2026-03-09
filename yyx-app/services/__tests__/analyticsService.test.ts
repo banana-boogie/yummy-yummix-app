@@ -201,6 +201,63 @@ describe('analyticsService', () => {
     expect(result).toEqual(mockData);
   });
 
+  it('getDailySignups calls admin_daily_signups with timeframe', async () => {
+    const mockData = [
+      { date: '2026-03-08', signups: 5, onboarded: 3 },
+      { date: '2026-03-09', signups: 8, onboarded: 6 },
+    ];
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: mockData, error: null });
+
+    const result = await analyticsService.getDailySignups('7_days');
+
+    expect(supabase.rpc).toHaveBeenCalledWith('admin_daily_signups', { timeframe: '7_days' });
+    expect(result).toEqual(mockData);
+  });
+
+  it('getDailyActiveUsers calls admin_daily_active_users with timeframe', async () => {
+    const mockData = [
+      { date: '2026-03-08', users: 12 },
+      { date: '2026-03-09', users: 15 },
+    ];
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: mockData, error: null });
+
+    const result = await analyticsService.getDailyActiveUsers('30_days');
+
+    expect(supabase.rpc).toHaveBeenCalledWith('admin_daily_active_users', { timeframe: '30_days' });
+    expect(result).toEqual(mockData);
+  });
+
+  it('getDailyAIUsers calls admin_daily_ai_users with timeframe', async () => {
+    const mockData = [
+      { date: '2026-03-08', users: 4 },
+      { date: '2026-03-09', users: 7 },
+    ];
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: mockData, error: null });
+
+    const result = await analyticsService.getDailyAIUsers('7_days');
+
+    expect(supabase.rpc).toHaveBeenCalledWith('admin_daily_ai_users', { timeframe: '7_days' });
+    expect(result).toEqual(mockData);
+  });
+
+  it('getContentSourceSplit calls admin_content_source_split with timeframe', async () => {
+    const mockData = { catalog: 45, userGenerated: 12 };
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: mockData, error: null });
+
+    const result = await analyticsService.getContentSourceSplit('all_time');
+
+    expect(supabase.rpc).toHaveBeenCalledWith('admin_content_source_split', { timeframe: 'all_time' });
+    expect(result).toEqual(mockData);
+  });
+
+  it('getDailySignups returns empty array when data is null', async () => {
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: null, error: null });
+
+    const result = await analyticsService.getDailySignups('7_days');
+
+    expect(result).toEqual([]);
+  });
+
   it('throws when RPC returns error', async () => {
     (supabase.rpc as jest.Mock).mockResolvedValue({
       data: null,

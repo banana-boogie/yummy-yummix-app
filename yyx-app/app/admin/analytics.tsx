@@ -5,6 +5,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Text } from '@/components/common/Text';
 import { COLORS } from '@/constants/design-tokens';
 import { Ionicons } from '@expo/vector-icons';
+import { BarChart, LineChart, DonutChart } from '@/components/admin/charts';
 import {
   analyticsService,
   TimeframeFilter,
@@ -16,10 +17,14 @@ import {
   AIUsageMetrics,
   AIChatSessionMetrics,
   RetentionMetrics,
+  DailySignups,
+  DailyActiveUsers,
+  DailyAIUsers,
+  ContentSourceSplit,
 } from '@/services/analyticsService';
 import i18n from '@/i18n';
 
-type TabType = 'overview' | 'content' | 'ai';
+type TabType = 'overview' | 'content' | 'ai' | 'operations';
 
 const TIMEFRAME_OPTIONS: { value: TimeframeFilter; labelKey: string }[] = [
   { value: 'today', labelKey: 'admin.analytics.timeframes.today' },
@@ -32,6 +37,7 @@ const TABS: { value: TabType; labelKey: string; icon: keyof typeof Ionicons.glyp
   { value: 'overview', labelKey: 'admin.analytics.tabs.overview', icon: 'stats-chart' },
   { value: 'content', labelKey: 'admin.analytics.tabs.content', icon: 'restaurant' },
   { value: 'ai', labelKey: 'admin.analytics.tabs.ai', icon: 'sparkles' },
+  { value: 'operations', labelKey: 'admin.analytics.tabs.operations', icon: 'construct' },
 ];
 
 function MetricCard({ title, value, subtitle, icon }: {
@@ -207,14 +213,78 @@ function ErrorState({ error, onRetry }: { error: Error | null; onRetry: () => vo
   );
 }
 
-function OverviewSection({ overviewData, retentionData }: {
+function OverviewSection({
+  overviewData,
+  retentionData,
+  dailySignups,
+  dailyActiveUsers,
+}: {
   overviewData: OverviewMetrics | null;
   retentionData: RetentionMetrics | null;
+  dailySignups: DailySignups[] | null;
+  dailyActiveUsers: DailyActiveUsers[] | null;
 }) {
   if (!overviewData || !retentionData) return <LoadingState />;
 
   return (
     <View>
+      {dailySignups && dailySignups.length > 0 && (
+        <>
+          <SectionTitle>{i18n.t('admin.analytics.sections.dailySignups')}</SectionTitle>
+          <BarChart
+            data={dailySignups.map((d) => ({
+              label: d.date.slice(5),
+              values: [
+                { value: d.signups, color: COLORS.primary.medium },
+                { value: d.onboarded, color: COLORS.status.success },
+              ],
+            }))}
+          />
+          <View className="flex-row gap-md mt-xs px-md">
+            <View className="flex-row items-center gap-xs">
+              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.primary.medium }} />
+              <Text preset="caption" className="text-text-secondary">{i18n.t('admin.analytics.labels.signups')}</Text>
+            </View>
+            <View className="flex-row items-center gap-xs">
+              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.status.success }} />
+              <Text preset="caption" className="text-text-secondary">{i18n.t('admin.analytics.labels.onboarded')}</Text>
+            </View>
+          </View>
+        </>
+      )}
+
+      {dailyActiveUsers && dailyActiveUsers.length > 0 && (
+        <>
+          <SectionTitle>{i18n.t('admin.analytics.sections.dailyActiveUsers')}</SectionTitle>
+          <LineChart
+            data={dailyActiveUsers.map((d) => ({
+              label: d.date.slice(5),
+              value: d.users,
+            }))}
+          />
+        </>
+      )}
+
+      <View className="flex-row flex-wrap">
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.dau')}
+          value={overviewData.dau}
+          icon="today"
+          subtitle={i18n.t('admin.analytics.labels.dailyActive')}
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.wau')}
+          value={overviewData.wau}
+          icon="calendar"
+          subtitle={i18n.t('admin.analytics.labels.weeklyActive')}
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.mau')}
+          value={overviewData.mau}
+          icon="calendar-outline"
+          subtitle={i18n.t('admin.analytics.labels.monthlyActive')}
+        />
+      </View>
       <View className="flex-row flex-wrap">
         <MetricCard
           title={i18n.t('admin.analytics.labels.totalSignups')}
@@ -230,17 +300,25 @@ function OverviewSection({ overviewData, retentionData }: {
       </View>
       <View className="flex-row flex-wrap">
         <MetricCard
-          title={i18n.t('admin.analytics.labels.dau')}
-          value={overviewData.dau}
-          icon="today"
-          subtitle={i18n.t('admin.analytics.labels.dailyActive')}
-        />
-        <MetricCard
           title={i18n.t('admin.analytics.labels.day1')}
           value={`${retentionData.day1Retention.toFixed(1)}%`}
           icon="time"
           subtitle={i18n.t('admin.analytics.labels.activeNextDay')}
         />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.day7')}
+          value={`${retentionData.day7Retention.toFixed(1)}%`}
+          icon="calendar"
+          subtitle={i18n.t('admin.analytics.labels.activeWithinWeek')}
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.day30')}
+          value={`${retentionData.day30Retention.toFixed(1)}%`}
+          icon="calendar-outline"
+          subtitle={i18n.t('admin.analytics.labels.activeWithinMonth')}
+        />
+      </View>
+      <View className="flex-row flex-wrap">
         <MetricCard
           title={i18n.t('admin.analytics.labels.timeToFirstCook')}
           value={retentionData.avgTimeToFirstCook !== null
@@ -250,40 +328,6 @@ function OverviewSection({ overviewData, retentionData }: {
           subtitle={i18n.t('admin.analytics.labels.average')}
         />
       </View>
-
-      <CollapsibleSection title={i18n.t('admin.analytics.sections.details')}>
-        <SectionTitle>{i18n.t('admin.analytics.sections.activeUsers')}</SectionTitle>
-        <View className="flex-row flex-wrap">
-          <MetricCard
-            title={i18n.t('admin.analytics.labels.wau')}
-            value={overviewData.wau}
-            icon="calendar"
-            subtitle={i18n.t('admin.analytics.labels.weeklyActive')}
-          />
-          <MetricCard
-            title={i18n.t('admin.analytics.labels.mau')}
-            value={overviewData.mau}
-            icon="calendar-outline"
-            subtitle={i18n.t('admin.analytics.labels.monthlyActive')}
-          />
-        </View>
-
-        <SectionTitle>{i18n.t('admin.analytics.sections.retentionRates')}</SectionTitle>
-        <View className="flex-row flex-wrap">
-          <MetricCard
-            title={i18n.t('admin.analytics.labels.day7')}
-            value={`${retentionData.day7Retention.toFixed(1)}%`}
-            icon="calendar"
-            subtitle={i18n.t('admin.analytics.labels.activeWithinWeek')}
-          />
-          <MetricCard
-            title={i18n.t('admin.analytics.labels.day30')}
-            value={`${retentionData.day30Retention.toFixed(1)}%`}
-            icon="calendar-outline"
-            subtitle={i18n.t('admin.analytics.labels.activeWithinMonth')}
-          />
-        </View>
-      </CollapsibleSection>
     </View>
   );
 }
@@ -293,34 +337,36 @@ function ContentSection({
   cookedRecipes,
   searches,
   viewedRecipes,
+  contentSourceSplit,
 }: {
   funnelData: FunnelMetrics | null;
   cookedRecipes: TopRecipe[] | null;
   searches: TopSearch[] | null;
   viewedRecipes: TopRecipe[] | null;
+  contentSourceSplit: ContentSourceSplit | null;
 }) {
   if (!funnelData || !cookedRecipes || !searches || !viewedRecipes) return <LoadingState />;
 
   return (
     <View>
       <SectionTitle>{i18n.t('admin.analytics.sections.cookingFunnel')}</SectionTitle>
-      <View className="flex-row flex-wrap">
-        <MetricCard
-          title={i18n.t('admin.analytics.labels.recipeViews')}
-          value={funnelData.totalViews}
-          icon="eye"
-        />
-        <MetricCard
-          title={i18n.t('admin.analytics.labels.cookStarts')}
-          value={funnelData.totalStarts}
-          icon="play"
-        />
-        <MetricCard
-          title={i18n.t('admin.analytics.labels.cookCompletes')}
-          value={funnelData.totalCompletes}
-          icon="checkmark"
-        />
-      </View>
+      <BarChart
+        horizontal
+        data={[
+          {
+            label: i18n.t('admin.analytics.labels.recipeViews'),
+            values: [{ value: funnelData.totalViews, color: COLORS.primary.medium }],
+          },
+          {
+            label: i18n.t('admin.analytics.labels.cookStarts'),
+            values: [{ value: funnelData.totalStarts, color: COLORS.primary.dark }],
+          },
+          {
+            label: i18n.t('admin.analytics.labels.cookCompletes'),
+            values: [{ value: funnelData.totalCompletes, color: COLORS.status.success }],
+          },
+        ]}
+      />
 
       <SectionTitle>{i18n.t('admin.analytics.sections.conversionRates')}</SectionTitle>
       <View className="flex-row flex-wrap">
@@ -342,6 +388,18 @@ function ContentSection({
           subtitle={i18n.t('admin.analytics.labels.viewToComplete')}
         />
       </View>
+
+      {contentSourceSplit && (contentSourceSplit.catalog > 0 || contentSourceSplit.userGenerated > 0) && (
+        <>
+          <SectionTitle>{i18n.t('admin.analytics.sections.catalogVsAi')}</SectionTitle>
+          <DonutChart
+            data={[
+              { label: i18n.t('admin.analytics.labels.catalog'), value: contentSourceSplit.catalog, color: COLORS.primary.medium },
+              { label: i18n.t('admin.analytics.labels.userGeneratedRecipes'), value: contentSourceSplit.userGenerated, color: COLORS.status.success },
+            ]}
+          />
+        </>
+      )}
 
       <SectionTitle>{i18n.t('admin.analytics.sections.mostCooked')}</SectionTitle>
       {cookedRecipes.length === 0 ? (
@@ -381,11 +439,11 @@ function ContentSection({
 function AISection({
   adoptionData,
   usageData,
-  chatSessionData,
+  dailyAIUsers,
 }: {
   adoptionData: AIMetrics | null;
   usageData: AIUsageMetrics | null;
-  chatSessionData: AIChatSessionMetrics | null;
+  dailyAIUsers: DailyAIUsers[] | null;
 }) {
   if (!adoptionData || !usageData) return <LoadingState />;
 
@@ -394,6 +452,36 @@ function AISection({
 
   return (
     <View>
+      {dailyAIUsers && dailyAIUsers.length > 0 && (
+        <>
+          <SectionTitle>{i18n.t('admin.analytics.sections.dailyAiUsers')}</SectionTitle>
+          <LineChart
+            data={dailyAIUsers.map((d) => ({
+              label: d.date.slice(5),
+              value: d.users,
+            }))}
+            lineColor={COLORS.primary.darkest}
+            fillColor={COLORS.primary.default}
+          />
+        </>
+      )}
+
+      <SectionTitle>{i18n.t('admin.analytics.sections.chatVsVoice')}</SectionTitle>
+      <DonutChart
+        data={[
+          { label: i18n.t('admin.analytics.labels.chatSessions'), value: adoptionData.totalChatSessions, color: COLORS.primary.medium },
+          { label: i18n.t('admin.analytics.labels.voiceSessions'), value: adoptionData.totalVoiceSessions, color: COLORS.primary.dark },
+        ]}
+      />
+
+      <SectionTitle>{i18n.t('admin.analytics.sections.textVsVoiceCost')}</SectionTitle>
+      <DonutChart
+        data={[
+          { label: i18n.t('admin.analytics.labels.textCost'), value: summary.textCostUsd, color: COLORS.primary.medium },
+          { label: i18n.t('admin.analytics.labels.voiceCost'), value: summary.voiceCostUsd, color: COLORS.primary.dark },
+        ]}
+      />
+
       <SectionTitle>{i18n.t('admin.analytics.sections.aiAdoption')}</SectionTitle>
       <View className="flex-row flex-wrap">
         <MetricCard
@@ -415,104 +503,33 @@ function AISection({
         />
       </View>
 
-      <SectionTitle>{i18n.t('admin.analytics.labels.totalCost')}</SectionTitle>
       <View className="flex-row flex-wrap">
         <MetricCard
           title={i18n.t('admin.analytics.labels.totalCost')}
           value={formatUsd(summary.totalCostUsd)}
           icon="cash"
         />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.avgCostPerUser')}
+          value={formatUsd(summary.avgCostPerUser)}
+          icon="person"
+        />
       </View>
 
-      <SectionTitle>{i18n.t('admin.analytics.sections.sessionCounts')}</SectionTitle>
       <View className="flex-row flex-wrap">
         <MetricCard
-          title={i18n.t('admin.analytics.labels.chatSessions')}
-          value={adoptionData.totalChatSessions}
-          icon="chatbubbles"
+          title={i18n.t('admin.analytics.labels.voiceSessions')}
+          value={summary.voiceSessions}
+          icon="mic"
         />
         <MetricCard
-          title={i18n.t('admin.analytics.labels.voiceSessions')}
-          value={adoptionData.totalVoiceSessions}
-          icon="mic"
+          title={i18n.t('admin.analytics.labels.voiceMinutes')}
+          value={summary.voiceMinutes.toFixed(1)}
+          icon="time"
         />
       </View>
 
       <CollapsibleSection title={i18n.t('admin.analytics.sections.details')}>
-        <SectionTitle>{i18n.t('admin.analytics.sections.aiCostsUsage')}</SectionTitle>
-        <View className="flex-row flex-wrap">
-          <MetricCard
-            title={i18n.t('admin.analytics.labels.textCost')}
-            value={formatUsd(summary.textCostUsd)}
-            icon="chatbox"
-          />
-          <MetricCard
-            title={i18n.t('admin.analytics.labels.voiceCost')}
-            value={formatUsd(summary.voiceCostUsd)}
-            icon="mic-circle"
-          />
-          <MetricCard
-            title={i18n.t('admin.analytics.labels.voiceMinutes')}
-            value={summary.voiceMinutes.toFixed(1)}
-            icon="time"
-          />
-        </View>
-        <View className="flex-row flex-wrap">
-          <MetricCard
-            title={i18n.t('admin.analytics.labels.totalTokens')}
-            value={summary.textTokens.toLocaleString()}
-            icon="stats-chart"
-          />
-          <MetricCard
-            title={i18n.t('admin.analytics.labels.avgTokensPerRequest')}
-            value={summary.avgTokensPerRequest.toFixed(0)}
-            icon="analytics"
-          />
-          <MetricCard
-            title={i18n.t('admin.analytics.labels.avgCostPerUser')}
-            value={formatUsd(summary.avgCostPerUser)}
-            icon="person"
-          />
-          <MetricCard
-            title={i18n.t('admin.analytics.labels.avgLatency')}
-            value={`${summary.avgLatencyMs.toFixed(0)} ms`}
-            icon="timer"
-          />
-          <MetricCard
-            title={i18n.t('admin.analytics.labels.errorRate')}
-            value={`${summary.errorRate.toFixed(1)}%`}
-            icon="alert-circle"
-          />
-        </View>
-
-        <SectionTitle>{i18n.t('admin.analytics.sections.modelBreakdown')}</SectionTitle>
-        {usageData.modelBreakdown.length === 0 ? (
-          <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noDataYet')}</Text>
-        ) : (
-          usageData.modelBreakdown.map((row, index) => (
-            <ListItem
-              key={`${row.model}:${index}`}
-              rank={index + 1}
-              label={`${row.model} • ${formatUsd(row.totalCostUsd)}`}
-              value={row.requests}
-            />
-          ))
-        )}
-
-        <SectionTitle>{i18n.t('admin.analytics.sections.phaseBreakdown')}</SectionTitle>
-        {usageData.phaseBreakdown.length === 0 ? (
-          <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noDataYet')}</Text>
-        ) : (
-          usageData.phaseBreakdown.map((row, index) => (
-            <ListItem
-              key={`${row.phase}:${index}`}
-              rank={index + 1}
-              label={`${row.phase} • ${row.errorRate.toFixed(1)}% ${i18n.t('admin.analytics.labels.errorRate').toLowerCase()}`}
-              value={Math.round(row.avgTokens)}
-            />
-          ))
-        )}
-
         <SectionTitle>{i18n.t('admin.analytics.sections.dailyCostTrend')}</SectionTitle>
         {usageData.dailyCost.length === 0 ? (
           <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noDataYet')}</Text>
@@ -543,17 +560,80 @@ function AISection({
             })()}
           </View>
         )}
-
-        {chatSessionData && (
-          <AIChatSessionDepthSection data={chatSessionData} />
-        )}
-
-        {/* Recipe generation section hidden until app-side event instrumentation is wired */}
       </CollapsibleSection>
     </View>
   );
 }
 
+function OperationsSection({
+  usageData,
+  chatSessionData,
+}: {
+  usageData: AIUsageMetrics | null;
+  chatSessionData: AIChatSessionMetrics | null;
+}) {
+  if (!usageData) return <LoadingState />;
+
+  const summary = usageData.summary;
+  const formatUsd = (value: number) => `$${value.toFixed(2)}`;
+
+  return (
+    <View>
+      <SectionTitle>{i18n.t('admin.analytics.sections.operationsHealth')}</SectionTitle>
+      <View className="flex-row flex-wrap">
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.avgLatency')}
+          value={`${summary.avgLatencyMs.toFixed(0)} ms`}
+          icon="timer"
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.errorRate')}
+          value={`${summary.errorRate.toFixed(1)}%`}
+          icon="alert-circle"
+        />
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.avgTokensPerRequest')}
+          value={summary.avgTokensPerRequest.toFixed(0)}
+          icon="analytics"
+        />
+      </View>
+
+      <SectionTitle>{i18n.t('admin.analytics.sections.modelBreakdown')}</SectionTitle>
+      {usageData.modelBreakdown.length === 0 ? (
+        <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noDataYet')}</Text>
+      ) : (
+        usageData.modelBreakdown.map((row, index) => (
+          <ListItem
+            key={`${row.model}:${index}`}
+            rank={index + 1}
+            label={`${row.model} • ${formatUsd(row.totalCostUsd)}`}
+            value={row.requests}
+          />
+        ))
+      )}
+
+      <SectionTitle>{i18n.t('admin.analytics.sections.phaseBreakdown')}</SectionTitle>
+      {usageData.phaseBreakdown.length === 0 ? (
+        <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noDataYet')}</Text>
+      ) : (
+        usageData.phaseBreakdown.map((row, index) => (
+          <ListItem
+            key={`${row.phase}:${index}`}
+            rank={index + 1}
+            label={`${row.phase} • ${row.errorRate.toFixed(1)}% ${i18n.t('admin.analytics.labels.errorRate').toLowerCase()}`}
+            value={Math.round(row.avgTokens)}
+          />
+        ))
+      )}
+
+      {chatSessionData && (
+        <CollapsibleSection title={i18n.t('admin.analytics.sections.details')}>
+          <AIChatSessionDepthSection data={chatSessionData} />
+        </CollapsibleSection>
+      )}
+    </View>
+  );
+}
 
 function AIChatSessionDepthSection({ data }: { data: AIChatSessionMetrics }) {
   const maxDailySessions = Math.max(
@@ -673,17 +753,25 @@ export default function AnalyticsDashboard() {
   // Overview tab data
   const [overviewData, setOverviewData] = useState<OverviewMetrics | null>(null);
   const [retentionData, setRetentionData] = useState<RetentionMetrics | null>(null);
+  const [dailySignups, setDailySignups] = useState<DailySignups[] | null>(null);
+  const [dailyActiveUsers, setDailyActiveUsers] = useState<DailyActiveUsers[] | null>(null);
 
   // Content tab data
   const [funnelData, setFunnelData] = useState<FunnelMetrics | null>(null);
   const [viewedRecipes, setViewedRecipes] = useState<TopRecipe[] | null>(null);
   const [cookedRecipes, setCookedRecipes] = useState<TopRecipe[] | null>(null);
   const [searches, setSearches] = useState<TopSearch[] | null>(null);
+  const [contentSourceSplit, setContentSourceSplit] = useState<ContentSourceSplit | null>(null);
 
   // AI tab data
   const [aiData, setAIData] = useState<AIMetrics | null>(null);
   const [aiUsageData, setAIUsageData] = useState<AIUsageMetrics | null>(null);
-  const [aiChatSessionData, setAIChatSessionData] = useState<AIChatSessionMetrics | null>(null);
+  const [dailyAIUsers, setDailyAIUsers] = useState<DailyAIUsers[] | null>(null);
+
+  // Operations tab data
+  const [opsUsageData, setOpsUsageData] = useState<AIUsageMetrics | null>(null);
+  const [opsChatSessionData, setOpsChatSessionData] = useState<AIChatSessionMetrics | null>(null);
+
   const [retryKey, setRetryKey] = useState(0);
 
   const handleRetry = () => setRetryKey(k => k + 1);
@@ -697,41 +785,58 @@ export default function AnalyticsDashboard() {
       try {
         switch (activeTab) {
           case 'overview': {
-            const [overview, retention] = await Promise.all([
+            const [overview, retention, signups, dau] = await Promise.all([
               analyticsService.getOverviewMetrics(),
               analyticsService.getRetentionMetrics(),
+              analyticsService.getDailySignups(timeframe),
+              analyticsService.getDailyActiveUsers(timeframe),
             ]);
             if (!cancelled) {
               setOverviewData(overview);
               setRetentionData(retention);
+              setDailySignups(signups);
+              setDailyActiveUsers(dau);
             }
             break;
           }
           case 'content': {
-            const [funnel, cooked, viewed, searchResults] = await Promise.all([
+            const [funnel, cooked, viewed, searchResults, sourceSplit] = await Promise.all([
               analyticsService.getFunnelMetrics(timeframe),
               analyticsService.getTopCookedRecipes(timeframe),
               analyticsService.getTopViewedRecipes(timeframe),
               analyticsService.getTopSearches(timeframe),
+              analyticsService.getContentSourceSplit(timeframe),
             ]);
             if (!cancelled) {
               setFunnelData(funnel);
               setCookedRecipes(cooked);
               setViewedRecipes(viewed);
               setSearches(searchResults);
+              setContentSourceSplit(sourceSplit);
             }
             break;
           }
           case 'ai': {
-            const [adoption, usage, chatSessions] = await Promise.all([
+            const [adoption, usage, aiUsers] = await Promise.all([
               analyticsService.getAIMetrics(timeframe),
               analyticsService.getAIUsageMetrics(timeframe),
-              analyticsService.getAIChatSessionMetrics(timeframe),
+              analyticsService.getDailyAIUsers(timeframe),
             ]);
             if (!cancelled) {
               setAIData(adoption);
               setAIUsageData(usage);
-              setAIChatSessionData(chatSessions);
+              setDailyAIUsers(aiUsers);
+            }
+            break;
+          }
+          case 'operations': {
+            const [usage, chatSessions] = await Promise.all([
+              analyticsService.getAIUsageMetrics(timeframe),
+              analyticsService.getAIChatSessionMetrics(timeframe),
+            ]);
+            if (!cancelled) {
+              setOpsUsageData(usage);
+              setOpsChatSessionData(chatSessions);
             }
             break;
           }
@@ -753,15 +858,20 @@ export default function AnalyticsDashboard() {
     return () => { cancelled = true; };
   }, [activeTab, timeframe, retryKey]);
 
-  const showTimeframeFilter = activeTab === 'content' || activeTab === 'ai';
-
   const renderContent = () => {
     if (loading) return <LoadingState />;
     if (error) return <ErrorState error={error} onRetry={handleRetry} />;
 
     switch (activeTab) {
       case 'overview':
-        return <OverviewSection overviewData={overviewData} retentionData={retentionData} />;
+        return (
+          <OverviewSection
+            overviewData={overviewData}
+            retentionData={retentionData}
+            dailySignups={dailySignups}
+            dailyActiveUsers={dailyActiveUsers}
+          />
+        );
       case 'content':
         return (
           <ContentSection
@@ -769,6 +879,7 @@ export default function AnalyticsDashboard() {
             cookedRecipes={cookedRecipes}
             searches={searches}
             viewedRecipes={viewedRecipes}
+            contentSourceSplit={contentSourceSplit}
           />
         );
       case 'ai':
@@ -776,7 +887,14 @@ export default function AnalyticsDashboard() {
           <AISection
             adoptionData={aiData}
             usageData={aiUsageData}
-            chatSessionData={aiChatSessionData}
+            dailyAIUsers={dailyAIUsers}
+          />
+        );
+      case 'operations':
+        return (
+          <OperationsSection
+            usageData={opsUsageData}
+            chatSessionData={opsChatSessionData}
           />
         );
       default:
@@ -791,11 +909,7 @@ export default function AnalyticsDashboard() {
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
       >
         <TabSelector value={activeTab} onChange={setActiveTab} />
-
-        {showTimeframeFilter && (
-          <TimeframeSelector value={timeframe} onChange={setTimeframe} />
-        )}
-
+        <TimeframeSelector value={timeframe} onChange={setTimeframe} />
         {renderContent()}
       </ScrollView>
     </AdminLayout>
