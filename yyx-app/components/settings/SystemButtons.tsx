@@ -104,11 +104,15 @@ export function SystemButtons({
               const isActive = language === option.code ||
                 (language.startsWith('es') && option.code.startsWith('es')) ||
                 (language.startsWith('en') && option.code.startsWith('en'));
-              return renderButton(
-                option.displayName,
-                isActive,
-                () => onLanguageChange(option.code),
-                undefined
+              return (
+                <React.Fragment key={option.code}>
+                  {renderButton(
+                    option.displayName,
+                    isActive,
+                    () => onLanguageChange(option.code),
+                    undefined
+                  )}
+                </React.Fragment>
               );
             })}
           </View>
