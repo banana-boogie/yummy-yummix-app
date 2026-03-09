@@ -66,17 +66,24 @@ function fireUsageLog(
   },
   metadata?: Record<string, unknown>,
 ) {
+  // Detect missing/zero stream usage — treat as partial rather than fake success
+  const hasUsage = result != null &&
+    (result.usage.inputTokens > 0 || result.usage.outputTokens > 0);
+  const effectiveStatus = status === "success" && result != null && !hasUsage
+    ? "partial"
+    : status;
+
   void logAIUsage({
     userId: ctx.userId,
     sessionId: ctx.sessionId,
     requestId: ctx.requestId,
     callPhase: phase,
-    status,
+    status: effectiveStatus,
     functionName: ctx.functionName,
     usageType: "text",
     model: result?.model ?? null,
-    inputTokens: result?.usage.inputTokens ?? null,
-    outputTokens: result?.usage.outputTokens ?? null,
+    inputTokens: hasUsage ? result!.usage.inputTokens : null,
+    outputTokens: hasUsage ? result!.usage.outputTokens : null,
     durationMs: Math.round(performance.now() - startTime),
     metadata: { streaming: phase === "response_stream", ...metadata },
   });
@@ -548,6 +555,7 @@ function handleStreamingRequest(
 
         // Gemini sometimes outputs tool-call syntax as plain text instead of
         // structured function calls. Detect this and retry with forced tool calling.
+        let effectiveResponse = firstResponse;
         if (
           !assistantMessage.tool_calls?.length &&
           detectedTool
@@ -568,6 +576,7 @@ function handleStreamingRequest(
             costContext,
           );
           selectedModel = retryResponse.model;
+          effectiveResponse = retryResponse;
           Object.assign(assistantMessage, retryResponse.choices[0].message);
           timings.llm_retry_ms = Math.round(performance.now() - phaseStart);
           phaseStart = performance.now();
@@ -583,13 +592,14 @@ function handleStreamingRequest(
           "tool_decision",
           "success",
           llmCallStart,
-          firstResponse,
+          effectiveResponse,
           {
             request_type: "tool_decision",
             tool_names: assistantMessage.tool_calls?.map((tc) =>
               tc.function.name
             ),
             has_tool_calls: !!assistantMessage.tool_calls?.length,
+            forced_tool_use: !!detectedTool,
           },
         );
 
