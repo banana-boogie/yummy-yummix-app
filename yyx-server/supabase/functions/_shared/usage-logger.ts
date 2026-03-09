@@ -15,8 +15,14 @@ const MODEL_PRICING_PER_MILLION: Record<
 > = {
   "gpt-4o-mini": { input: 0.15, output: 0.60 },
   "gpt-4o": { input: 2.50, output: 10.00 },
+  "gpt-4.1-nano": { input: 0.10, output: 0.40 },
+  "gpt-4.1-mini": { input: 0.40, output: 1.60 },
   "o1-mini": { input: 3.00, output: 12.00 },
   "o1": { input: 15.00, output: 60.00 },
+  "gemini-2.5-flash": { input: 0.15, output: 0.60 },
+  "gemini-2.0-flash": { input: 0.10, output: 0.40 },
+  "gemini-1.5-flash": { input: 0.075, output: 0.30 },
+  "gemini-1.5-pro": { input: 1.25, output: 5.00 },
 };
 
 const ALLOWED_METADATA_KEYS = new Set([

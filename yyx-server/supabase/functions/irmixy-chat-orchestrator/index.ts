@@ -54,6 +54,34 @@ import type { CostContext } from "../_shared/ai-gateway/types.ts";
 const STREAM_TIMEOUT_MS = 30_000;
 const HEARTBEAT_INTERVAL_MS = 15_000;
 
+/** Build and fire a usage log entry. Keeps orchestrator DRY. */
+function fireUsageLog(
+  ctx: AIUsageLogContext,
+  phase: "tool_decision" | "response_stream",
+  status: "success" | "error",
+  startTime: number,
+  result?: {
+    model: string;
+    usage: { inputTokens: number; outputTokens: number };
+  },
+  metadata?: Record<string, unknown>,
+) {
+  void logAIUsage({
+    userId: ctx.userId,
+    sessionId: ctx.sessionId,
+    requestId: ctx.requestId,
+    callPhase: phase,
+    status,
+    functionName: ctx.functionName,
+    usageType: "text",
+    model: result?.model ?? null,
+    inputTokens: result?.usage.inputTokens ?? null,
+    outputTokens: result?.usage.outputTokens ?? null,
+    durationMs: Math.round(performance.now() - startTime),
+    metadata: { streaming: phase === "response_stream", ...metadata },
+  });
+}
+
 // ============================================================
 // Main Handler
 // ============================================================
@@ -498,23 +526,16 @@ function handleStreamingRequest(
             costContext,
           );
         } catch (error) {
-          void logAIUsage({
-            userId,
-            sessionId,
-            requestId,
-            callPhase: "tool_decision",
-            status: "error",
-            functionName: "irmixy-chat-orchestrator",
-            usageType: "text",
-            model: null,
-            inputTokens: null,
-            outputTokens: null,
-            durationMs: Math.round(performance.now() - llmCallStart),
-            metadata: {
-              streaming: false,
+          fireUsageLog(
+            usageContext,
+            "tool_decision",
+            "error",
+            llmCallStart,
+            undefined,
+            {
               request_type: "tool_decision",
             },
-          });
+          );
           throw error;
         }
         selectedModel = firstResponse.model;
@@ -557,27 +578,20 @@ function handleStreamingRequest(
           toolNames: assistantMessage.tool_calls?.map((tc) => tc.function.name),
         });
 
-        void logAIUsage({
-          userId,
-          sessionId,
-          requestId,
-          callPhase: "tool_decision",
-          status: "success",
-          functionName: "irmixy-chat-orchestrator",
-          usageType: "text",
-          model: firstResponse.model,
-          inputTokens: firstResponse.usage.inputTokens,
-          outputTokens: firstResponse.usage.outputTokens,
-          durationMs: Math.round(performance.now() - llmCallStart),
-          metadata: {
-            streaming: false,
+        fireUsageLog(
+          usageContext,
+          "tool_decision",
+          "success",
+          llmCallStart,
+          firstResponse,
+          {
             request_type: "tool_decision",
             tool_names: assistantMessage.tool_calls?.map((tc) =>
               tc.function.name
             ),
             has_tool_calls: !!assistantMessage.tool_calls?.length,
           },
-        });
+        );
 
         if (signal.aborted) {
           log.info("Request aborted by client (after first LLM call)");
@@ -676,45 +690,31 @@ function handleStreamingRequest(
           );
           finalText = streamResult.content;
 
-          void logAIUsage({
-            userId,
-            sessionId,
-            requestId,
-            callPhase: "response_stream",
-            status: "success",
-            functionName: "irmixy-chat-orchestrator",
-            usageType: "text",
-            model: streamResult.model,
-            inputTokens: streamResult.usage.inputTokens,
-            outputTokens: streamResult.usage.outputTokens,
-            durationMs: Math.round(performance.now() - streamStart),
-            metadata: {
-              streaming: true,
+          fireUsageLog(
+            usageContext,
+            "response_stream",
+            "success",
+            streamStart,
+            streamResult,
+            {
               request_type: hasSuccessfulCustomRecipe
                 ? "recipe_response"
                 : recipes?.length
                 ? "retrieval_response"
                 : "chat_response",
             },
-          });
+          );
         } catch (error) {
-          void logAIUsage({
-            userId,
-            sessionId,
-            requestId,
-            callPhase: "response_stream",
-            status: "error",
-            functionName: "irmixy-chat-orchestrator",
-            usageType: "text",
-            model: null,
-            inputTokens: null,
-            outputTokens: null,
-            durationMs: Math.round(performance.now() - streamStart),
-            metadata: {
-              streaming: true,
+          fireUsageLog(
+            usageContext,
+            "response_stream",
+            "error",
+            streamStart,
+            undefined,
+            {
               request_type: "chat_response",
             },
-          });
+          );
           throw error;
         } finally {
           if (!heartbeatCleared) clearInterval(streamHeartbeatId);

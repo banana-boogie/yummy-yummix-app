@@ -521,11 +521,12 @@ function AISection({
           <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noDataYet')}</Text>
         ) : (
           <View className="bg-white rounded-lg p-md">
-            {usageData.dailyCost.map((day) => {
+            {(() => {
               const maxDailyCost = Math.max(
                 ...usageData.dailyCost.map((item) => item.cost),
                 0.01
               );
+              return usageData.dailyCost.map((day) => {
               const widthPercent = Math.max((day.cost / maxDailyCost) * 100, 2);
               return (
                 <View key={day.date} className="mb-sm">
@@ -541,7 +542,8 @@ function AISection({
                   </View>
                 </View>
               );
-            })}
+            });
+            })()}
           </View>
         )}
 

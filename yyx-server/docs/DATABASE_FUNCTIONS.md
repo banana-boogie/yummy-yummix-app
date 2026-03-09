@@ -7,8 +7,16 @@ Custom PostgreSQL functions available via Supabase RPC.
 | Function | Purpose | Used By |
 |----------|---------|---------|
 | `is_admin()` | Check if current user has admin role | RLS policies |
-| `admin_analytics(action, timeframe, limit)` | Get admin dashboard metrics | Admin dashboard |
-| `admin_ai_usage(timeframe)` | Get AI usage and cost metrics (text + voice) | Admin AI tab |
+| `admin_analytics(action, timeframe, limit)` | Get admin dashboard metrics (legacy dispatcher) | Admin dashboard |
+| `admin_overview()` | Active users (DAU/WAU/MAU), signups, onboarding rate | Admin Overview tab |
+| `admin_retention()` | D1/D7/D30 retention, time to first cook, weekly cook rate | Admin Overview tab |
+| `admin_funnel(timeframe)` | Cooking funnel metrics (views/starts/completes + rates) | Admin Content tab |
+| `admin_top_viewed_recipes(timeframe, limit_count)` | Top viewed recipes with source (catalog/user) | Admin Content tab |
+| `admin_top_cooked_recipes(timeframe, limit_count)` | Top cooked recipes with source (catalog/user) | Admin Content tab |
+| `admin_top_searches(timeframe, limit_count)` | Top search queries | Admin Content tab |
+| `admin_ai_adoption(timeframe)` | AI adoption rate, session counts, return users | Admin AI tab |
+| `admin_ai_usage(timeframe)` | AI cost/usage breakdown (text + voice) | Admin AI tab |
+| `admin_recipe_generation(timeframe)` | Recipe generation success/failure rates | Admin AI tab |
 | `find_closest_ingredient(name, lang)` | Find ingredient by fuzzy name match | Custom recipe generation |
 | `update_ai_voice_usage()` | Track AI voice minutes | Voice endpoints |
 | `upsert_cooking_session_progress(recipe_id, recipe_type, recipe_name, current_step, total_steps)` | Upsert active cooking progress per user+recipe | Cooking guide progress + resume prompt |

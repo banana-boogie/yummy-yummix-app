@@ -55,10 +55,10 @@ export default function UserRecipeDetailPage() {
       if (data.user_id) {
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('name, username')
+          .select('name, email')
           .eq('id', data.user_id)
           .single();
-        userName = profile?.name || profile?.username || null;
+        userName = profile?.name || profile?.email || null;
       }
 
       setRecipe({
@@ -139,13 +139,13 @@ export default function UserRecipeDetailPage() {
               <InfoChip icon="speedometer" label={recipe.difficulty} />
             )}
             {recipe.prepTime != null && (
-              <InfoChip icon="timer" label={`${recipe.prepTime} min prep`} />
+              <InfoChip icon="timer" label={i18n.t('admin.userRecipes.prepTime', { minutes: recipe.prepTime })} />
             )}
             {recipe.totalTime != null && (
-              <InfoChip icon="time" label={`${recipe.totalTime} min total`} />
+              <InfoChip icon="time" label={i18n.t('admin.userRecipes.totalTime', { minutes: recipe.totalTime })} />
             )}
             {recipe.portions != null && (
-              <InfoChip icon="people" label={`${recipe.portions} portions`} />
+              <InfoChip icon="people" label={i18n.t('admin.userRecipes.portions', { count: recipe.portions })} />
             )}
             {recipe.language && (
               <InfoChip icon="globe" label={recipe.language.toUpperCase()} />
@@ -187,7 +187,7 @@ export default function UserRecipeDetailPage() {
                   {i18n.t('admin.recipes.form.stepsInfo.instruction')} {i + 1}
                 </Text>
                 <Text preset="body" className="text-text-default">{step.instruction}</Text>
-                {(step.thermomixTime || step.thermomixTemp || step.thermomixSpeed) && (
+                {(step.thermomixTime != null || step.thermomixTemp != null || step.thermomixSpeed != null) && (
                   <View className="flex-row gap-sm mt-xs">
                     {step.thermomixTime != null && (
                       <Text preset="caption" className="text-primary-darkest">
@@ -201,7 +201,7 @@ export default function UserRecipeDetailPage() {
                     )}
                     {step.thermomixSpeed != null && (
                       <Text preset="caption" className="text-primary-darkest">
-                        Speed {step.thermomixSpeed}
+                        {i18n.t('admin.userRecipes.speed', { value: step.thermomixSpeed })}
                       </Text>
                     )}
                   </View>

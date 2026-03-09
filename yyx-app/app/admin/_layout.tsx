@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Stack , useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import Head from 'expo-router/head';
 import { AdminRoute } from '@/components/admin/AdminRoute';
 import { View, TouchableOpacity, ScrollView, Modal } from 'react-native';
@@ -59,7 +59,7 @@ export default function AdminLayout() {
         <Stack.Screen
           name="user-recipes"
           options={{
-            title: 'User Recipe'
+            title: i18n.t('admin.userRecipes.title')
           }}
         />
       </Stack>

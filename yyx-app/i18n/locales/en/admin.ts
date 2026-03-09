@@ -142,7 +142,12 @@ export const admin = {
     },
   },
   userRecipes: {
+    title: "User Recipe",
     createdBy: "by {{name}}",
+    prepTime: "{{minutes}} min prep",
+    totalTime: "{{minutes}} min total",
+    portions: "{{count}} portions",
+    speed: "Speed {{value}}",
   },
   recipes: {
     status: "Status",
