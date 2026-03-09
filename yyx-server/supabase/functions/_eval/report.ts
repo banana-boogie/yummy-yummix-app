@@ -95,10 +95,10 @@ function generateSummaryTable(
   // Header
   if (isOrchestrator) {
     lines.push(
-      "| Model | Reasoning | Eval Method | Avg Latency | Avg Cost | Success Rate | Tool Accuracy | Retries |",
+      "| Model | Reasoning | Avg Latency | Avg Cost | Success Rate | Tool Accuracy | Retries |",
     );
     lines.push(
-      "|-------|-----------|-------------|-------------|----------|-------------|--------------|---------|",
+      "|-------|-----------|-------------|----------|-------------|--------------|---------|",
     );
   } else {
     lines.push(
@@ -131,7 +131,6 @@ function generateSummaryTable(
     const reasoning = modelResults[0].reasoningEffort ?? "—";
 
     if (isOrchestrator) {
-      const evalMethod = modelResults[0].evaluationMethod ?? "tool_call";
       const toolCorrectCount = modelResults.filter(
         (r) => r.toolCorrect,
       ).length;
@@ -140,14 +139,10 @@ function generateSummaryTable(
         100
       ).toFixed(0);
 
-      const evalLabel = evalMethod === "intent_analysis" ? "intent" : "tool";
-
       lines.push(
-        `| ${modelId} | ${reasoning} | ${evalLabel} | ${
-          formatDuration(avgLatency)
-        } | ${formatCost(avgCost)} | ${
-          successRate.toFixed(0)
-        }% | ${toolAccuracy}% | ${totalRetries} |`,
+        `| ${modelId} | ${reasoning} | ${formatDuration(avgLatency)} | ${
+          formatCost(avgCost)
+        } | ${successRate.toFixed(0)}% | ${toolAccuracy}% | ${totalRetries} |`,
       );
     } else {
       const schemaValidCount = modelResults.filter(
@@ -223,11 +218,8 @@ function generateDetailedResults(
 
       // Role-specific details
       if (role === "orchestrator") {
-        const method = result.evaluationMethod === "intent_analysis"
-          ? " (intent)"
-          : "";
         lines.push(
-          `- Tool called: ${result.toolCalled ?? "none"}${method}`,
+          `- Tool called: ${result.toolCalled ?? "none"}`,
         );
         if (result.turns && result.turns > 1) {
           lines.push(`- Turns: ${result.turns}`);
