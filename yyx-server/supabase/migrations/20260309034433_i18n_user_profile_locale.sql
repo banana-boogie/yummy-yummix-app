@@ -91,8 +91,8 @@ BEGIN
   ELSIF action = 'engagement' THEN
     WITH top_recipes AS (
       SELECT jsonb_agg(jsonb_build_object(
-        'name', r.name_es,
-        'nameEn', r.name_en,
+        'name', COALESCE(rt_es.name, rt_en.name, 'Untitled'),
+        'nameEn', COALESCE(rt_en.name, 'Untitled'),
         'cookCount', cs.cook_count
       ) ORDER BY cs.cook_count DESC) AS data
       FROM (
@@ -104,6 +104,8 @@ BEGIN
         LIMIT "limit"
       ) cs
       JOIN recipes r ON r.id = cs.recipe_id
+      LEFT JOIN recipe_translations rt_es ON rt_es.recipe_id = r.id AND rt_es.locale = 'es'
+      LEFT JOIN recipe_translations rt_en ON rt_en.recipe_id = r.id AND rt_en.locale = 'en'
     ),
     active_users AS (
       SELECT jsonb_agg(jsonb_build_object(

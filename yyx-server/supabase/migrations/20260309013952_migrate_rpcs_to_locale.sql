@@ -8,13 +8,13 @@
 ALTER TABLE public.ingredient_aliases
   RENAME COLUMN language TO locale;
 
--- Update CHECK constraint (drop old, add new)
+-- Replace CHECK constraint with FK to locales table
 ALTER TABLE public.ingredient_aliases
   DROP CONSTRAINT IF EXISTS ingredient_aliases_language_check;
 
 ALTER TABLE public.ingredient_aliases
-  ADD CONSTRAINT ingredient_aliases_locale_check
-  CHECK (locale IN ('en', 'es'));
+  ADD CONSTRAINT ingredient_aliases_locale_fk
+  FOREIGN KEY (locale) REFERENCES public.locales(code);
 
 -- Recreate index with new column name
 DROP INDEX IF EXISTS idx_ingredient_aliases_alias_lang;
@@ -41,7 +41,7 @@ LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  similarity_threshold CONSTANT real := 0.7;
+  similarity_threshold CONSTANT real := 0.5;
   base_lang text;
 BEGIN
   -- Guard: return empty if no input
