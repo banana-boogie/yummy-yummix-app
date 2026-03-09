@@ -24,6 +24,34 @@ import { buildSafetyReminders, checkRecipeSafety } from "../food-safety.ts";
 import { chat } from "../ai-gateway/index.ts";
 import type { CostContext } from "../ai-gateway/types.ts";
 import { hasThermomix } from "../equipment-utils.ts";
+import {
+  buildLocaleChain,
+  getBaseLanguage,
+  getLanguageName,
+} from "../locale-utils.ts";
+
+/**
+ * Build a locale chain for useful item name resolution.
+ */
+function buildLocaleChainForItems(locale: string): string[] {
+  return buildLocaleChain(locale);
+}
+
+/**
+ * Pick the best name from useful item translations using a locale chain.
+ */
+function pickTranslationFromItemTranslations(
+  translations: Array<{ locale: string; name: string | null }>,
+  localeChain: string[],
+): string | null {
+  for (const loc of localeChain) {
+    const match = translations.find((t) => t.locale === loc);
+    if (match?.name) return match.name;
+  }
+  // Fallback to first available
+  const first = translations.find((t) => !!t.name);
+  return first?.name || null;
+}
 
 // ============================================================
 // Tool Definition (OpenAI Function Calling format)
@@ -140,13 +168,13 @@ export async function generateCustomRecipe(
       params.ingredients,
       userContext.dietaryRestrictions,
       userContext.customAllergies,
-      userContext.language,
+      userContext.locale,
     ),
     buildSafetyReminders(
       supabase,
       params.ingredients,
       userContext.measurementSystem,
-      userContext.language,
+      userContext.locale,
     ),
   ]);
   timings.allergen_and_safety_ms = Math.round(performance.now() - phaseStart);
@@ -154,8 +182,9 @@ export async function generateCustomRecipe(
 
   // Allergens are non-blocking: always proceed, but set warning for display
   if (!allergenCheck.safe) {
+    const baseLang = getBaseLanguage(userContext.locale);
     allergenWarning = allergenCheck.warning || (
-      userContext.language === "es"
+      baseLang === "es"
         ? "Advertencia de alérgenos: revisa cuidadosamente los ingredientes."
         : "Allergen warning: please review ingredients carefully."
     );
@@ -197,12 +226,12 @@ export async function generateCustomRecipe(
     enrichIngredientsWithImages(
       recipe.ingredients,
       supabase,
-      userContext.language,
+      userContext.locale,
     ),
     getRelevantUsefulItems(
       supabase,
       recipe,
-      userContext.language,
+      userContext.locale,
       isThermomixUser,
     ),
     checkRecipeSafety(
@@ -210,7 +239,7 @@ export async function generateCustomRecipe(
       recipe.ingredients,
       recipe.totalTime,
       userContext.measurementSystem,
-      userContext.language,
+      userContext.locale,
     ),
   ]);
   timings.enrichment_ms = Math.round(performance.now() - phaseStart);
@@ -274,7 +303,7 @@ export function buildRecipeJsonSchema(
       suggestedName: { type: "string" },
       description: { type: "string" },
       measurementSystem: { type: "string", enum: ["imperial", "metric"] },
-      language: { type: "string", enum: ["en", "es"] },
+      locale: { type: "string" },
       ingredients: {
         type: "array",
         items: {
@@ -307,7 +336,7 @@ export function buildRecipeJsonSchema(
       "suggestedName",
       "description",
       "measurementSystem",
-      "language",
+      "locale",
       "ingredients",
       "steps",
       "totalTime",
@@ -426,7 +455,7 @@ export function parseAndValidateGeneratedRecipe(
  * Build the system prompt for recipe generation.
  */
 export function getSystemPrompt(userContext: UserContext): string {
-  const lang = userContext.language === "es" ? "Mexican Spanish" : "English";
+  const lang = getLanguageName(userContext.locale);
   const units = userContext.measurementSystem === "imperial"
     ? "cups, tablespoons, teaspoons, ounces, pounds, °F"
     : "ml, liters, grams, kg, °C";
@@ -485,7 +514,7 @@ RULES: Use practical quantities (e.g. 1/3 not 0.333, round to common fractions).
 ${thermomixSection}
 
 OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Use this structure:
-{"schemaVersion":"1.0","suggestedName":"...","description":"A brief 1-2 sentence description of the dish","measurementSystem":"${userContext.measurementSystem}","language":"${userContext.language}","ingredients":[{"name":"...","quantity":1,"unit":"..."}],"steps":[{"order":1,"instruction":"...","ingredientsUsed":["..."]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":[]}`;
+{"schemaVersion":"1.0","suggestedName":"...","description":"A brief 1-2 sentence description of the dish","measurementSystem":"${userContext.measurementSystem}","locale":"${userContext.locale}","ingredients":[{"name":"...","quantity":1,"unit":"..."}],"steps":[{"order":1,"instruction":"...","ingredientsUsed":["..."]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":[]}`;
 }
 
 /**
@@ -648,7 +677,7 @@ export async function checkIngredientsForAllergens(
   ingredients: string[],
   dietaryRestrictions: string[],
   customAllergies: string[],
-  language: "en" | "es",
+  locale: string,
 ): Promise<AllergenCheckResult> {
   const allRestrictions = [...dietaryRestrictions, ...customAllergies];
 
@@ -663,7 +692,7 @@ export async function checkIngredientsForAllergens(
         supabase,
         ingredient,
         allRestrictions,
-        language,
+        locale,
       )
     ),
   );
@@ -672,11 +701,12 @@ export async function checkIngredientsForAllergens(
   const unsafeResult = results.find((result) => !result.safe);
 
   if (unsafeResult) {
+    const baseLang = getBaseLanguage(locale);
     if (unsafeResult.systemUnavailable) {
       return {
         safe: false,
         systemUnavailable: true,
-        warning: language === "es"
+        warning: baseLang === "es"
           ? "No pude verificar alergias en este momento. Para tu seguridad, no puedo generar esta receta ahora."
           : "I couldn't verify allergens right now. For your safety, I can't generate this recipe at the moment.",
       };
@@ -686,7 +716,7 @@ export async function checkIngredientsForAllergens(
       supabase,
       unsafeResult.allergen!,
       unsafeResult.category!,
-      language,
+      locale,
     );
     return { safe: false, warning };
   }
@@ -731,7 +761,6 @@ export const TEMP_REGEX = /^\d+(\.\d+)?°[CF]$/;
 type BatchIngredientMatch = {
   input_name: string;
   matched_name: string | null;
-  matched_name_es: string | null;
   image_url: string | null;
   match_score: number | null;
 };
@@ -749,7 +778,7 @@ export async function enrichIngredientsWithImages(
     imageUrl?: string;
   }>,
   supabase: SupabaseClient,
-  language: "en" | "es" = "en",
+  locale: string = "en",
 ): Promise<
   Array<{
     name: string;
@@ -768,7 +797,7 @@ export async function enrichIngredientsWithImages(
     "batch_find_ingredients",
     {
       ingredient_names: ingredientNames,
-      preferred_lang: language,
+      preferred_locale: locale,
     },
   );
 
@@ -810,10 +839,14 @@ export async function enrichIngredientsWithImages(
  * Get relevant useful items for a recipe based on recipe context.
  * Matches items based on cooking techniques and equipment used.
  */
+interface UsefulItemTranslationRow {
+  locale: string;
+  name: string | null;
+}
+
 type UsefulItemRow = {
   id: string;
-  name_en: string;
-  name_es: string;
+  useful_item_translations: UsefulItemTranslationRow[];
   image_url: string | null;
 };
 
@@ -824,19 +857,18 @@ let usefulItemsCacheTimestamp = 0;
 export async function getRelevantUsefulItems(
   supabase: SupabaseClient,
   recipe: GeneratedRecipe,
-  language: "en" | "es",
+  locale: string,
   hasThermomix: boolean,
 ): Promise<Array<{ name: string; imageUrl?: string; notes?: string }>> {
   try {
     // Query useful items from database (cached)
-    const nameField = language === "es" ? "name_es" : "name_en";
     let allItems = usefulItemsCache;
     const cacheAge = Date.now() - usefulItemsCacheTimestamp;
 
     if (!allItems || cacheAge > USEFUL_ITEMS_CACHE_TTL_MS) {
       const { data, error } = await supabase
         .from("useful_items")
-        .select(`id, name_en, name_es, image_url`)
+        .select(`id, useful_item_translations ( locale, name ), image_url`)
         .limit(50);
 
       if (error || !data || data.length === 0) {
@@ -847,7 +879,7 @@ export async function getRelevantUsefulItems(
         return [];
       }
 
-      allItems = data as UsefulItemRow[];
+      allItems = data as unknown as UsefulItemRow[];
       usefulItemsCache = allItems;
       usefulItemsCacheTimestamp = Date.now();
     }
@@ -888,7 +920,12 @@ export async function getRelevantUsefulItems(
 
     // Score each item based on keyword matches
     const scoredItems = allItems.map((item) => {
-      const itemName = (item.name_en + " " + item.name_es).toLowerCase();
+      // Combine all translation names for matching
+      const allTransNames = (item.useful_item_translations || [])
+        .map((t) => t.name)
+        .filter(Boolean)
+        .join(" ");
+      const itemName = allTransNames.toLowerCase();
       let score = 0;
 
       // Check if item name keywords appear in recipe
@@ -925,10 +962,17 @@ export async function getRelevantUsefulItems(
       .filter((si) => si.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 4)
-      .map((si) => ({
-        name: si.item[nameField as keyof typeof si.item] as string,
-        imageUrl: si.item.image_url || undefined,
-      }));
+      .map((si) => {
+        const localeChain = buildLocaleChainForItems(locale);
+        const match = pickTranslationFromItemTranslations(
+          si.item.useful_item_translations || [],
+          localeChain,
+        );
+        return {
+          name: match || "Unknown",
+          imageUrl: si.item.image_url || undefined,
+        };
+      });
 
     console.log(
       "[Useful Items] Found relevant items:",
@@ -1112,13 +1156,14 @@ export function validateThermomixSteps(
  * Create an empty recipe for error cases.
  */
 function createEmptyRecipe(userContext: UserContext): GeneratedRecipe {
+  const baseLang = getBaseLanguage(userContext.locale);
   return {
     schemaVersion: "1.0",
-    suggestedName: userContext.language === "es"
+    suggestedName: baseLang === "es"
       ? "Receta no disponible"
       : "Recipe unavailable",
     measurementSystem: userContext.measurementSystem,
-    language: userContext.language,
+    locale: userContext.locale,
     ingredients: [],
     steps: [],
     totalTime: 0,

@@ -17,29 +17,34 @@ import {
 } from "../irmixy-schemas.ts";
 import {
   getAllergenMap,
+  getLocalizedAllergenName,
   loadAllergenGroups,
   matchesAllergen,
 } from "../allergen-filter.ts";
 import { normalizeIngredient } from "../ingredient-normalization.ts";
 import { searchRecipesHybrid } from "../rag/hybrid-search.ts";
 import { validateSearchRecipesParams } from "./tool-validators.ts";
+import { getBaseLanguage, pickTranslation } from "../locale-utils.ts";
 
 // ============================================================
 // Types for Supabase query results
 // ============================================================
 
+interface TranslationRow {
+  locale: string;
+  name: string | null;
+}
+
 interface RecipeTagJoin {
   recipe_tags: {
-    name_en: string | null;
-    name_es: string | null;
+    recipe_tag_translations: TranslationRow[];
     categories: string[];
   } | null;
 }
 
 interface RecipeSearchResult {
   id: string;
-  name_en: string | null;
-  name_es: string | null;
+  recipe_translations: TranslationRow[];
   image_url: string | null;
   total_time: number;
   difficulty: "easy" | "medium" | "hard";
@@ -47,14 +52,40 @@ interface RecipeSearchResult {
   recipe_to_tag: RecipeTagJoin[];
 }
 
+interface IngredientTranslationRow {
+  locale: string;
+  name: string | null;
+}
+
 interface RecipeWithIngredients {
   id: string;
   recipe_ingredients: Array<{
     ingredients: {
-      name_en: string | null;
-      name_es: string | null;
+      ingredient_translations: IngredientTranslationRow[];
     } | null;
   }>;
+}
+
+/**
+ * Resolve a recipe name from translation rows using a locale chain.
+ */
+function resolveRecipeName(
+  translations: TranslationRow[],
+  localeChain: string[],
+): string {
+  const match = pickTranslation(translations, localeChain);
+  return match?.name || "Untitled";
+}
+
+/**
+ * Resolve a tag name from translation rows using a locale chain.
+ */
+function resolveTagName(
+  translations: TranslationRow[],
+  localeChain: string[],
+): string {
+  const match = pickTranslation(translations, localeChain);
+  return match?.name || "";
 }
 
 // ============================================================
@@ -167,7 +198,7 @@ export async function searchRecipes(
           hybridResult.recipes,
           ingredientLookupResult.recipes,
           userContext.dietaryRestrictions,
-          userContext.language,
+          userContext.locale,
           ingredientLookupResult.failed,
         );
         console.log("[search] Hybrid allergen annotation", {
@@ -193,18 +224,17 @@ export async function searchRecipes(
   }
 
   // Lexical search path (existing implementation)
-  // Build base query with correct column names and joins
+  // Build base query with translation table joins
   let query = supabase
     .from("recipes")
     .select(`
       id,
-      name_en,
-      name_es,
+      recipe_translations ( locale, name ),
       image_url,
       total_time,
       difficulty,
       portions,
-      recipe_to_tag ( recipe_tags ( name_en, name_es, categories ) )
+      recipe_to_tag ( recipe_tags ( recipe_tag_translations ( locale, name ), categories ) )
     `)
     .eq("is_published", true)
     .order("created_at", { ascending: false });
@@ -220,19 +250,13 @@ export async function searchRecipes(
     query = query.lte("total_time", params.maxTime);
   }
 
-  // Apply text search on recipe name at DB level
-  if (params.query) {
-    const nameFilter = buildMultiWordIlikeFilter(
-      params.query,
-      ["name_en", "name_es"],
-    );
-    if (nameFilter) {
-      query = query.or(nameFilter);
-    }
-  }
+  // Note: text search on recipe name at DB level now requires filtering
+  // through the translation table. We use post-filtering since the translation
+  // join makes DB-level ilike impractical with PostgREST.
+  // For large datasets, this should be migrated to a full-text search RPC.
 
-  // Fetch more than requested to allow for post-filtering (cuisine, allergens)
-  const fetchLimit = Math.max((params.limit || 10) * 3, 30);
+  // Fetch more than requested to allow for post-filtering (cuisine, allergens, text match)
+  const fetchLimit = Math.max((params.limit || 10) * 5, 50);
   const { data, error } = await query.limit(fetchLimit);
 
   if (error) {
@@ -241,6 +265,23 @@ export async function searchRecipes(
   }
 
   let results = (data || []) as unknown as RecipeSearchResult[];
+
+  // Post-filter by query text across all translation names
+  if (params.query) {
+    const queryTerms = getSearchTerms(params.query);
+    if (queryTerms.length > 0) {
+      results = results.filter((recipe) => {
+        const allNames = (recipe.recipe_translations || [])
+          .map((t) => t.name)
+          .filter(Boolean)
+          .map((n) => n!.toLowerCase());
+        return queryTerms.some((term) =>
+          allNames.some((name) => name.includes(term))
+        );
+      });
+    }
+  }
+
   console.log("[search] Lexical name search", { count: results.length });
 
   // Pass 2: Tag-based search when name-only results are insufficient
@@ -272,15 +313,21 @@ export async function searchRecipes(
   // Filter by cuisine if specified (in-memory using tags)
   let filtered: RecipeSearchResult[] = results;
   if (params.cuisine) {
-    filtered = filterByCuisine(results, params.cuisine, userContext.language);
+    filtered = filterByCuisine(
+      results,
+      params.cuisine,
+      userContext.localeChain,
+    );
   }
 
   // Transform to RecipeCard format
   let recipeCards: RecipeCard[] = filtered.map((recipe) => ({
     recipeId: recipe.id,
     recipeTable: "recipes",
-    name: (userContext.language === "es" ? recipe.name_es : recipe.name_en) ||
-      "Untitled",
+    name: resolveRecipeName(
+      recipe.recipe_translations || [],
+      userContext.localeChain,
+    ),
     imageUrl: recipe.image_url || undefined,
     totalTime: recipe.total_time,
     difficulty: recipe.difficulty,
@@ -300,7 +347,7 @@ export async function searchRecipes(
       recipeCards,
       ingredientLookupResult.recipes,
       userContext.dietaryRestrictions,
-      userContext.language,
+      userContext.locale,
       ingredientLookupResult.failed,
     );
     recipeCards = annotation.cards;
@@ -317,7 +364,7 @@ export async function searchRecipes(
       results,
       recipeCards,
       params.query,
-      userContext.language,
+      userContext.localeChain,
       params.difficulty,
       params.maxTime,
     );
@@ -367,25 +414,30 @@ async function searchByTags(
   query: string,
   limit: number = 30,
 ): Promise<RecipeSearchResult[]> {
-  const tagFilter = buildMultiWordIlikeFilter(
-    query,
-    ["name_en", "name_es"],
-  );
-  if (!tagFilter) {
+  // Search tag translations for matching names
+  const terms = getSearchTerms(query);
+  if (terms.length === 0) {
     return [];
   }
 
-  // Find tag IDs matching the query
-  const { data: matchingTags, error: tagError } = await supabase
-    .from("recipe_tags")
-    .select("id")
-    .or(tagFilter);
+  // Find tag IDs by searching translations
+  const tagTransFilter = terms.map((term) => `name.ilike.%${term}%`).join(",");
+  const { data: matchingTranslations, error: tagError } = await supabase
+    .from("recipe_tag_translations")
+    .select("recipe_tag_id")
+    .or(tagTransFilter);
 
-  if (tagError || !matchingTags || matchingTags.length === 0) {
+  if (tagError || !matchingTranslations || matchingTranslations.length === 0) {
     return [];
   }
 
-  const tagIds = matchingTags.map((t: { id: string }) => t.id);
+  const tagIds = [
+    ...new Set(
+      matchingTranslations.map(
+        (t: { recipe_tag_id: string }) => t.recipe_tag_id,
+      ),
+    ),
+  ];
 
   // Find recipe IDs linked to those tags
   const { data: joins, error: joinError } = await supabase
@@ -406,13 +458,12 @@ async function searchByTags(
     .from("recipes")
     .select(`
       id,
-      name_en,
-      name_es,
+      recipe_translations ( locale, name ),
       image_url,
       total_time,
       difficulty,
       portions,
-      recipe_to_tag ( recipe_tags ( name_en, name_es, categories ) )
+      recipe_to_tag ( recipe_tags ( recipe_tag_translations ( locale, name ), categories ) )
     `)
     .in("id", recipeIds)
     .eq("is_published", true);
@@ -444,7 +495,11 @@ export function filterByAllKeywords(
     const recipeTags = (recipe.recipe_to_tag || [])
       .map((join) => join.recipe_tags)
       .filter(Boolean)
-      .flatMap((tag) => [tag!.name_en, tag!.name_es].filter(Boolean))
+      .flatMap((tag) =>
+        (tag!.recipe_tag_translations || [])
+          .map((t) => t.name)
+          .filter(Boolean)
+      )
       .map((t) => t!.toLowerCase());
 
     return keywords.every((keyword) =>
@@ -459,7 +514,7 @@ export function filterByAllKeywords(
 function filterByCuisine(
   data: RecipeSearchResult[],
   cuisine: string,
-  language: "en" | "es",
+  localeChain: string[],
 ): RecipeSearchResult[] {
   const cuisineLower = cuisine.toLowerCase();
 
@@ -477,8 +532,11 @@ function filterByCuisine(
         return false;
       }
 
-      // Check if the cuisine matches
-      const tagName = (language === "es" ? tag.name_es : tag.name_en) || "";
+      // Check if the cuisine matches using any available translation
+      const tagName = resolveTagName(
+        tag.recipe_tag_translations || [],
+        localeChain,
+      );
       return tagName.toLowerCase().includes(cuisineLower);
     });
   });
@@ -492,7 +550,7 @@ function scoreByQuery(
   data: RecipeSearchResult[],
   cards: RecipeCard[],
   query: string,
-  language: "en" | "es",
+  localeChain: string[],
   difficulty?: "easy" | "medium" | "hard",
   maxTime?: number,
 ): RecipeCard[] {
@@ -505,10 +563,11 @@ function scoreByQuery(
 
     let score = 0;
 
-    // Check recipe name
-    const name =
-      ((language === "es" ? original.name_es : original.name_en) || "")
-        .toLowerCase();
+    // Check recipe name (resolved from translations)
+    const name = resolveRecipeName(
+      original.recipe_translations || [],
+      localeChain,
+    ).toLowerCase();
 
     // Exact name match
     if (name === queryLower) {
@@ -528,8 +587,10 @@ function scoreByQuery(
         const tag = join.recipe_tags;
         if (!tag) continue;
 
-        const tagName = ((language === "es" ? tag.name_es : tag.name_en) || "")
-          .toLowerCase();
+        const tagName = resolveTagName(
+          tag.recipe_tag_translations || [],
+          localeChain,
+        ).toLowerCase();
 
         if (tagName.includes(queryLower)) score += 20;
         for (const keyword of keywords) {
@@ -618,12 +679,8 @@ interface AllergenAnnotationResult {
   verificationUnavailable: boolean;
 }
 
-interface RestrictionLabel {
-  en: string;
-  es: string;
-}
-
-const RESTRICTION_LABELS: Record<string, RestrictionLabel> = {
+/** Locale-keyed restriction labels. Extensible to new locales. */
+const RESTRICTION_LABELS: Record<string, Record<string, string>> = {
   dairy: { en: "dairy", es: "lácteos" },
   eggs: { en: "eggs", es: "huevo" },
   egg: { en: "egg", es: "huevo" },
@@ -636,29 +693,36 @@ const RESTRICTION_LABELS: Record<string, RestrictionLabel> = {
   soy: { en: "soy", es: "soya" },
 };
 
-function getVerificationWarning(language: "en" | "es"): string {
-  return language === "es"
-    ? "La verificación de alérgenos no está disponible temporalmente. Revisa los ingredientes antes de cocinar."
-    : "Allergen verification is temporarily unavailable. Please check ingredients before cooking.";
+const VERIFICATION_WARNINGS: Record<string, string> = {
+  es:
+    "La verificación de alérgenos no está disponible temporalmente. Revisa los ingredientes antes de cocinar.",
+  en:
+    "Allergen verification is temporarily unavailable. Please check ingredients before cooking.",
+};
+
+function getVerificationWarning(locale: string): string {
+  const baseLang = getBaseLanguage(locale);
+  return VERIFICATION_WARNINGS[baseLang] || VERIFICATION_WARNINGS["en"];
 }
 
 function formatRestrictionLabel(
   restriction: string,
-  language: "en" | "es",
+  locale: string,
 ): string {
   const normalized = restriction.toLowerCase().replace(/[_-]+/g, " ").trim();
   const known = RESTRICTION_LABELS[normalized];
   if (known) {
-    return language === "es" ? known.es : known.en;
+    const baseLang = getBaseLanguage(locale);
+    return known[baseLang] || known["en"] || normalized;
   }
   return normalized;
 }
 
 function applyVerificationWarning(
   cards: RecipeCard[],
-  language: "en" | "es",
+  locale: string,
 ): RecipeCard[] {
-  const warning = getVerificationWarning(language);
+  const warning = getVerificationWarning(locale);
   return cards.map((card) => ({
     ...card,
     allergenVerificationWarning: warning,
@@ -670,10 +734,10 @@ async function annotateAllergenWarnings(
   cards: RecipeCard[],
   recipesWithIngredients: Array<{
     id: string;
-    ingredients: Array<{ name_en: string; name_es: string }>;
+    ingredientNames: string[];
   }>,
   userRestrictions: string[],
-  language: "en" | "es",
+  locale: string,
   ingredientsFetchFailed = false,
 ): Promise<AllergenAnnotationResult> {
   if (userRestrictions.length === 0) {
@@ -685,56 +749,47 @@ async function annotateAllergenWarnings(
       "[search] Ingredient lookup unavailable; tagging results with verification warning",
     );
     return {
-      cards: applyVerificationWarning(cards, language),
+      cards: applyVerificationWarning(cards, locale),
       verificationUnavailable: true,
     };
   }
 
   const allergenMap = await getAllergenMap(supabase);
   if (allergenMap.size === 0) {
-    // Cannot verify allergens — return results with explicit warning
     console.warn(
       "[search] Allergen map empty; tagging results with verification warning",
     );
     return {
-      cards: applyVerificationWarning(cards, language),
+      cards: applyVerificationWarning(cards, locale),
       verificationUnavailable: true,
     };
   }
 
   const allergenEntries = await loadAllergenGroups(supabase);
+  const baseLang = getBaseLanguage(locale);
 
   // Build ingredient lookup by recipe ID
   const ingredientsByRecipe = new Map(
-    recipesWithIngredients.map((r) => [r.id, r.ingredients]),
+    recipesWithIngredients.map((r) => [r.id, r.ingredientNames]),
   );
 
   // Pre-normalize all unique ingredient names
   const allNames = [
-    ...new Set(
-      recipesWithIngredients.flatMap((r) =>
-        r.ingredients
-          .map((i) => (language === "es" ? i.name_es : i.name_en))
-          .filter(Boolean)
-      ),
-    ),
+    ...new Set(recipesWithIngredients.flatMap((r) => r.ingredientNames)),
   ];
   const normalizedEntries = await Promise.all(
     allNames.map(async (name) =>
-      [name, await normalizeIngredient(supabase, name, language)] as const
+      [name, await normalizeIngredient(supabase, name, locale)] as const
     ),
   );
   const normalizedMap = new Map(normalizedEntries);
 
   const annotatedCards = cards.map((card) => {
-    const ingredients = ingredientsByRecipe.get(card.recipeId) || [];
+    const ingredientNames = ingredientsByRecipe.get(card.recipeId) || [];
     const warnings: string[] = [];
     const matchedCategories = new Set<string>();
 
-    for (const ingredient of ingredients) {
-      const ingredientName = language === "es"
-        ? ingredient.name_es
-        : ingredient.name_en;
+    for (const ingredientName of ingredientNames) {
       if (!ingredientName) continue;
 
       const normalized = normalizedMap.get(ingredientName) ?? ingredientName;
@@ -747,20 +802,18 @@ async function annotateAllergenWarnings(
           if (
             normalized === allergen || matchesAllergen(normalized, allergen)
           ) {
-            // Find user-facing name for the allergen
-            const entry = allergenEntries.find(
-              (a) => a.ingredient_canonical === allergen,
+            const allergenName = getLocalizedAllergenName(
+              allergenEntries,
+              allergen,
+              locale,
             );
-            const allergenName = entry
-              ? (language === "es" ? entry.name_es : entry.name_en)
-              : allergen.replace(/_/g, " ");
             const restrictionLabel = formatRestrictionLabel(
               restriction,
-              language,
+              locale,
             );
 
             warnings.push(
-              language === "es"
+              baseLang === "es"
                 ? `Contiene ${allergenName} (${restrictionLabel})`
                 : `Contains ${allergenName} (${restrictionLabel})`,
             );
@@ -781,16 +834,14 @@ async function annotateAllergenWarnings(
 }
 
 /**
- * Fetch recipes with full ingredient data for allergen filtering.
- * Returns bilingual ingredient names for proper normalization.
+ * Fetch recipes with ingredient names for allergen filtering.
+ * Uses translation tables to get ingredient names in all locales.
  */
 async function fetchRecipesWithIngredients(
   supabase: SupabaseClient,
   recipeIds: string[],
 ): Promise<{
-  recipes: Array<
-    { id: string; ingredients: Array<{ name_en: string; name_es: string }> }
-  >;
+  recipes: Array<{ id: string; ingredientNames: string[] }>;
   failed: boolean;
 }> {
   if (recipeIds.length === 0) {
@@ -801,7 +852,7 @@ async function fetchRecipesWithIngredients(
     .from("recipes")
     .select(`
       id,
-      recipe_ingredients ( ingredients ( name_en, name_es ) )
+      recipe_ingredients ( ingredients ( ingredient_translations ( locale, name ) ) )
     `)
     .in("id", recipeIds);
 
@@ -813,12 +864,13 @@ async function fetchRecipesWithIngredients(
   return {
     recipes: (data as unknown as RecipeWithIngredients[]).map((recipe) => ({
       id: recipe.id,
-      ingredients: (recipe.recipe_ingredients || [])
+      ingredientNames: (recipe.recipe_ingredients || [])
         .filter((ri) => ri.ingredients !== null)
-        .map((ri) => ({
-          name_en: ri.ingredients!.name_en || "",
-          name_es: ri.ingredients!.name_es || "",
-        })),
+        .flatMap((ri) =>
+          (ri.ingredients!.ingredient_translations || [])
+            .map((t) => t.name)
+            .filter((n): n is string => !!n)
+        ),
     })),
     failed: false,
   };

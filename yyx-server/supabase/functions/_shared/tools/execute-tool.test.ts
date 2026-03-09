@@ -22,7 +22,8 @@ import { executeTool } from "./execute-tool.ts";
 
 function createMockUserContext() {
   return {
-    language: "en" as const,
+    locale: "en",
+    localeChain: ["en"],
     measurementSystem: "imperial" as const,
     dietaryRestrictions: [],
     ingredientDislikes: [],
@@ -106,8 +107,10 @@ Deno.test("executeTool - dispatches search_recipes and returns RecipeCard[]", as
   const mockRecipes = [
     {
       id: "recipe-1",
-      name_en: "Chicken Pasta",
-      name_es: "Pasta con Pollo",
+      recipe_translations: [
+        { locale: "en", name: "Chicken Pasta" },
+        { locale: "es", name: "Pasta con Pollo" },
+      ],
       image_url: "https://example.com/pasta.jpg",
       total_time: 30,
       difficulty: "easy",
@@ -116,8 +119,10 @@ Deno.test("executeTool - dispatches search_recipes and returns RecipeCard[]", as
     },
     {
       id: "recipe-2",
-      name_en: "Rice Bowl",
-      name_es: "Tazón de Arroz",
+      recipe_translations: [
+        { locale: "en", name: "Rice Bowl" },
+        { locale: "es", name: "Tazón de Arroz" },
+      ],
       image_url: null,
       total_time: 20,
       difficulty: "easy",
@@ -163,8 +168,10 @@ Deno.test("executeTool - search_recipes returns empty array when no matches", as
 Deno.test("executeTool - accepts execution options object", async () => {
   const supabase = createChainableMockSupabase([{
     id: "recipe-1",
-    name_en: "Chicken Pasta",
-    name_es: "Pasta con Pollo",
+    recipe_translations: [
+      { locale: "en", name: "Chicken Pasta" },
+      { locale: "es", name: "Pasta con Pollo" },
+    ],
     image_url: null,
     total_time: 30,
     difficulty: "easy",

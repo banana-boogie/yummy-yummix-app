@@ -7,6 +7,7 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { normalizeIngredient } from "./ingredient-normalization.ts";
+import { getBaseLanguage } from "./locale-utils.ts";
 
 // ============================================================
 // Types
@@ -149,7 +150,7 @@ export async function checkRecipeSafety(
   ingredients: GeneratedRecipeIngredient[],
   totalTime: number,
   measurementSystem: "imperial" | "metric",
-  language: "en" | "es",
+  locale: string,
 ): Promise<SafetyCheckResult> {
   const rules = await loadFoodSafetyRules(supabase);
   if (rules.length === 0) {
@@ -160,10 +161,12 @@ export async function checkRecipeSafety(
   const warnings: string[] = [];
   const matchedRules: Map<string, FoodSafetyRule> = new Map();
 
+  const baseLang = getBaseLanguage(locale);
+
   // Normalize all ingredients in parallel (performance optimization)
   const normalizedNames = await Promise.all(
     ingredients.map((ingredient) =>
-      normalizeIngredient(supabase, ingredient.name, language)
+      normalizeIngredient(supabase, ingredient.name, locale)
     ),
   );
 
@@ -193,7 +196,7 @@ export async function checkRecipeSafety(
         ? `${rule.min_temp_f}°F`
         : `${rule.min_temp_c}°C`;
 
-      const warning = language === "es"
+      const warning = baseLang === "es"
         ? `${
           formatIngredientName(ingredientName)
         } requiere al menos ${rule.min_cook_min} minutos de cocción y una temperatura interna de ${tempStr}.`
@@ -218,7 +221,7 @@ export async function buildSafetyReminders(
   supabase: SupabaseClient,
   ingredients: string[],
   measurementSystem: "imperial" | "metric",
-  language: "en" | "es" = "en",
+  locale: string = "en",
 ): Promise<string> {
   const rules = await loadFoodSafetyRules(supabase);
   if (rules.length === 0) return "";
@@ -226,7 +229,7 @@ export async function buildSafetyReminders(
   const reminders: string[] = [];
   const normalizedIngredients = await Promise.all(
     ingredients.map((ingredient) =>
-      normalizeIngredient(supabase, ingredient, language)
+      normalizeIngredient(supabase, ingredient, locale)
     ),
   );
 

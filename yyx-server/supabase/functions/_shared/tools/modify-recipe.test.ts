@@ -30,7 +30,7 @@ function createMinimalRecipe(
     schemaVersion: "1.0",
     suggestedName: "Chicken Pasta",
     measurementSystem: "metric",
-    language: "en",
+    locale: "en",
     ingredients: [
       { name: "chicken", quantity: 500, unit: "g" },
       { name: "pasta", quantity: 250, unit: "g" },
@@ -49,7 +49,8 @@ function createMinimalRecipe(
 
 function createUserContext(overrides: Partial<UserContext> = {}): UserContext {
   return {
-    language: "en",
+    locale: "en",
+    localeChain: ["en"],
     measurementSystem: "metric",
     dietaryRestrictions: [],
     ingredientDislikes: [],
@@ -239,7 +240,7 @@ Deno.test("getModificationSystemPrompt: EN includes modification rules", () => {
 
 Deno.test("getModificationSystemPrompt: ES includes base recipe prompt", () => {
   const prompt = getModificationSystemPrompt(
-    createUserContext({ language: "es" }),
+    createUserContext({ locale: "es", localeChain: ["es", "en"] }),
   );
 
   assertStringIncludes(prompt, "Mexican Spanish");

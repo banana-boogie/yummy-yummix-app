@@ -14,7 +14,8 @@ import { buildSystemPrompt } from "../system-prompt.ts";
 
 function createUserContext(overrides: Partial<UserContext> = {}): UserContext {
   return {
-    language: "en",
+    locale: "en",
+    localeChain: ["en"],
     measurementSystem: "imperial",
     dietaryRestrictions: [],
     ingredientDislikes: [],
@@ -65,13 +66,17 @@ Deno.test("buildSystemPrompt uses warm allergen language (non-blocking)", () => 
 });
 
 Deno.test("buildSystemPrompt includes scope guardrails", () => {
-  const prompt = buildSystemPrompt(createUserContext({ language: "es" }));
+  const prompt = buildSystemPrompt(
+    createUserContext({ locale: "es", localeChain: ["es", "en"] }),
+  );
 
   assertStringIncludes(prompt, "food and cooking related");
 });
 
 Deno.test("buildSystemPrompt places personality BEFORE rules", () => {
-  const prompt = buildSystemPrompt(createUserContext({ language: "en" }));
+  const prompt = buildSystemPrompt(
+    createUserContext({ locale: "en", localeChain: ["en"] }),
+  );
 
   const personalityIndex = prompt.indexOf("IDENTITY:");
   const toolsIndex = prompt.indexOf("TOOLS:");
@@ -83,7 +88,9 @@ Deno.test("buildSystemPrompt places personality BEFORE rules", () => {
 });
 
 Deno.test("buildSystemPrompt includes shared personality block for EN", () => {
-  const prompt = buildSystemPrompt(createUserContext({ language: "en" }));
+  const prompt = buildSystemPrompt(
+    createUserContext({ locale: "en", localeChain: ["en"] }),
+  );
 
   assertStringIncludes(prompt, "IDENTITY:");
   assertStringIncludes(prompt, "cooking companion from YummyYummix");
@@ -92,7 +99,9 @@ Deno.test("buildSystemPrompt includes shared personality block for EN", () => {
 });
 
 Deno.test("buildSystemPrompt includes shared personality block for ES", () => {
-  const prompt = buildSystemPrompt(createUserContext({ language: "es" }));
+  const prompt = buildSystemPrompt(
+    createUserContext({ locale: "es", localeChain: ["es", "en"] }),
+  );
 
   assertStringIncludes(prompt, "IDENTIDAD:");
   assertStringIncludes(prompt, "compañera de cocina de YummyYummix");

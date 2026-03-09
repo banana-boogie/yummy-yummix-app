@@ -39,7 +39,8 @@ import { clearAliasCache } from "../ingredient-normalization.ts";
 
 function createMockUserContext(
   overrides?: Partial<{
-    language: "en" | "es";
+    locale: string;
+    localeChain: string[];
     measurementSystem: "imperial" | "metric";
     dietaryRestrictions: string[];
     ingredientDislikes: string[];
@@ -52,8 +53,12 @@ function createMockUserContext(
     kitchenEquipment: string[];
   }>,
 ) {
+  const locale = overrides?.locale ?? "en";
+  const localeChain = overrides?.localeChain ??
+    (locale === "es" ? ["es", "en"] : ["en"]);
   return {
-    language: "en" as const,
+    locale,
+    localeChain,
     measurementSystem: "imperial" as const,
     dietaryRestrictions: [],
     ingredientDislikes: [],
@@ -83,7 +88,7 @@ function createMockGeneratedRecipeResponse(
     schemaVersion: "1.0",
     suggestedName: "Test Recipe",
     measurementSystem: "imperial",
-    language: "en",
+    locale: "en",
     ingredients: [
       { name: "chicken", quantity: 1, unit: "lb" },
       { name: "rice", quantity: 2, unit: "cups" },
@@ -314,7 +319,7 @@ Deno.test("validateGenerateRecipeParams rejects all-empty ingredients", () => {
 Deno.test("UserContext includes all required fields", () => {
   const context = createMockUserContext();
 
-  assertExists(context.language);
+  assertExists(context.locale);
   assertExists(context.measurementSystem);
   assertExists(context.dietaryRestrictions);
   assertExists(context.ingredientDislikes);
@@ -354,7 +359,7 @@ Deno.test("generated recipe matches expected schema", () => {
   assertExists(mockRecipe.schemaVersion);
   assertExists(mockRecipe.suggestedName);
   assertExists(mockRecipe.measurementSystem);
-  assertExists(mockRecipe.language);
+  assertExists(mockRecipe.locale);
   assertExists(mockRecipe.ingredients);
   assertExists(mockRecipe.steps);
   assertExists(mockRecipe.totalTime);
@@ -417,11 +422,11 @@ Deno.test("UserContext includes all required fields", () => {
 });
 
 Deno.test("UserContext supports dietary restrictions", () => {
-  const enContext = createMockUserContext({ language: "en" });
-  const esContext = createMockUserContext({ language: "es" });
+  const enContext = createMockUserContext({ locale: "en" });
+  const esContext = createMockUserContext({ locale: "es" });
 
-  assertEquals(enContext.language, "en");
-  assertEquals(esContext.language, "es");
+  assertEquals(enContext.locale, "en");
+  assertEquals(esContext.locale, "es");
 });
 
 Deno.test("UserContext supports equipment preferences", () => {
@@ -474,7 +479,7 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
                 schemaVersion: "1.0",
                 suggestedName: "Chicken Dish",
                 measurementSystem: "imperial",
-                language: "en",
+                locale: "en",
                 ingredients: [{ name: "chicken", quantity: 1, unit: "lb" }],
                 steps: [{
                   order: 1,
@@ -511,7 +516,6 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
           data: names.map((name) => ({
             input_name: name,
             matched_name: null,
-            matched_name_es: null,
             image_url: null,
             match_score: null,
           })),
@@ -537,7 +541,7 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
     const result = await generateCustomRecipe(
       supabase,
       { ingredients: ["chicken"] },
-      createMockUserContext({ language: "en", dietaryRestrictions: ["nuts"] }),
+      createMockUserContext({ locale: "en", dietaryRestrictions: ["nuts"] }),
     );
 
     // Allergens are non-blocking: recipe should be generated with a warning
@@ -586,7 +590,7 @@ Deno.test("generateCustomRecipe proceeds with allergen warning when allergen det
                 schemaVersion: "1.0",
                 suggestedName: "Peanut Rice Bowl",
                 measurementSystem: "imperial",
-                language: "en",
+                locale: "en",
                 ingredients: [
                   { name: "peanut", quantity: 1, unit: "cup" },
                   { name: "rice", quantity: 2, unit: "cups" },
@@ -660,7 +664,6 @@ Deno.test("generateCustomRecipe proceeds with allergen warning when allergen det
           data: names.map((name) => ({
             input_name: name,
             matched_name: null,
-            matched_name_es: null,
             image_url: null,
             match_score: null,
           })),
@@ -679,7 +682,7 @@ Deno.test("generateCustomRecipe proceeds with allergen warning when allergen det
       supabase,
       { ingredients: ["peanut", "rice"] },
       createMockUserContext({
-        language: "en",
+        locale: "en",
         dietaryRestrictions: ["nuts"],
       }),
     );
@@ -714,7 +717,7 @@ function createMockSupabaseClient(mockData: Record<string, any> = {}) {
     // rpc is used for batch_find_ingredients call
     rpc: (
       funcName: string,
-      args: { ingredient_names: string[]; preferred_lang: string },
+      args: { ingredient_names: string[]; preferred_locale: string },
     ) => {
       if (funcName !== "batch_find_ingredients") {
         return { data: null, error: { message: "Unknown function" } };

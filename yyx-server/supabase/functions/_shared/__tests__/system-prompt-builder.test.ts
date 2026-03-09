@@ -17,7 +17,8 @@ import {
 
 function createUserContext(overrides: Partial<UserContext> = {}): UserContext {
   return {
-    language: "en",
+    locale: "en",
+    localeChain: ["en"],
     measurementSystem: "imperial",
     dietaryRestrictions: [],
     ingredientDislikes: [],
@@ -39,7 +40,8 @@ function createUserContext(overrides: Partial<UserContext> = {}): UserContext {
 Deno.test("buildUserContextBlock includes populated fields", () => {
   const block = buildUserContextBlock(
     createUserContext({
-      language: "es",
+      locale: "es",
+      localeChain: ["es", "en"],
       measurementSystem: "metric",
       dietaryRestrictions: ["gluten"],
       dietTypes: ["vegetarian"],
@@ -48,7 +50,7 @@ Deno.test("buildUserContextBlock includes populated fields", () => {
     }),
   );
 
-  assertStringIncludes(block, "<language>es</language>");
+  assertStringIncludes(block, "<locale>es</locale>");
   assertStringIncludes(
     block,
     "<measurement_system>metric</measurement_system>",
@@ -128,7 +130,7 @@ Deno.test("buildVoiceInstructions includes personality for EN", () => {
 
 Deno.test("buildVoiceInstructions includes personality for ES", () => {
   const instructions = buildVoiceInstructions(
-    createUserContext({ language: "es" }),
+    createUserContext({ locale: "es", localeChain: ["es", "en"] }),
   );
 
   assertStringIncludes(instructions, "IDENTIDAD:");

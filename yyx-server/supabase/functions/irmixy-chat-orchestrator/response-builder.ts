@@ -35,7 +35,7 @@ export async function finalizeResponse(
   const irmixyResponse: IrmixyResponse = {
     version: "1.0",
     message: finalText,
-    language: userContext.language,
+    locale: userContext.locale,
     status: null,
     recipes,
     customRecipe: customRecipeResult?.recipe,

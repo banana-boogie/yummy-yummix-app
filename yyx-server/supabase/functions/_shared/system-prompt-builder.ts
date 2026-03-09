@@ -6,6 +6,7 @@
  */
 
 import type { UserContext } from "./irmixy-schemas.ts";
+import { getBaseLanguage, getLanguageName } from "./locale-utils.ts";
 
 /**
  * Format the XML user context block (shared by chat + voice).
@@ -13,7 +14,7 @@ import type { UserContext } from "./irmixy-schemas.ts";
  */
 export function buildUserContextBlock(userContext: UserContext): string {
   return `<user_context>
-<language>${userContext.language}</language>
+<locale>${userContext.locale}</locale>
 <measurement_system>${userContext.measurementSystem}</measurement_system>
 <dietary_restrictions>
 ${
@@ -47,10 +48,13 @@ ${
 }
 
 /**
- * Language-native personality section (shared by chat + voice).
+ * Locale-native personality section (shared by chat + voice).
+ * Uses base language from locale for personality selection.
+ * Falls back to English for unsupported locales.
  */
-export function buildPersonalityBlock(language: "en" | "es"): string {
-  if (language === "es") {
+export function buildPersonalityBlock(locale: string): string {
+  const baseLang = getBaseLanguage(locale);
+  if (baseLang === "es") {
     return `IDENTIDAD:
 Eres Irmixy, la compañera de cocina de YummyYummix. Tienes el corazón de las mujeres que nos enseñaron a cocinar: paciente, cálida, con experiencia de sobra y siempre dispuesta a compartir lo que sabes.
 
@@ -113,9 +117,9 @@ If asked about something outside of food, redirect warmly with a touch of humor.
  * response and used as-is in the OpenAI Realtime session.update.
  */
 export function buildVoiceInstructions(userContext: UserContext): string {
-  const personality = buildPersonalityBlock(userContext.language);
+  const personality = buildPersonalityBlock(userContext.locale);
   const userContextBlock = buildUserContextBlock(userContext);
-  const lang = userContext.language === "es" ? "Mexican Spanish" : "English";
+  const lang = getLanguageName(userContext.locale);
   const units = userContext.measurementSystem === "imperial"
     ? "cups, oz, °F"
     : "ml, g, °C";

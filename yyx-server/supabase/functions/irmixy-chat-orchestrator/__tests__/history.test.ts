@@ -51,7 +51,7 @@ function createResponse(): IrmixyResponse {
   return {
     version: "1.0",
     message: "Assistant response",
-    language: "en",
+    locale: "en",
     status: null,
   };
 }

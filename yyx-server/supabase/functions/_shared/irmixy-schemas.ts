@@ -50,7 +50,7 @@ export const GeneratedRecipeSchema = z.object({
   suggestedName: z.string(),
   description: z.string().optional(),
   measurementSystem: z.enum(["imperial", "metric"]),
-  language: z.enum(["en", "es"]),
+  locale: z.string(),
   ingredients: z.array(z.object({
     name: z.string(),
     quantity: z.number(),
@@ -81,7 +81,7 @@ export const SafetyFlagsSchema = z.object({
 export const IrmixyResponseSchema = z.object({
   version: z.literal("1.0"),
   message: z.string(),
-  language: z.enum(["en", "es"]),
+  locale: z.string(),
   status: z.enum(["thinking", "searching", "generating", "cooking_it_up"])
     .nullable()
     .optional(),
@@ -111,8 +111,8 @@ export type IrmixyResponse = z.infer<typeof IrmixyResponseSchema>;
 export interface AllergenEntry {
   category: string;
   ingredient_canonical: string;
-  name_en: string;
-  name_es: string;
+  /** Locale-keyed display names. Keyed by locale code (e.g., "en", "es"). */
+  names: Record<string, string>;
 }
 
 export interface SearchRecipesParams {
@@ -124,7 +124,8 @@ export interface SearchRecipesParams {
 }
 
 export interface UserContext {
-  language: "en" | "es";
+  locale: string;
+  localeChain: string[];
   measurementSystem: "imperial" | "metric";
   dietaryRestrictions: string[];
   ingredientDislikes: string[];

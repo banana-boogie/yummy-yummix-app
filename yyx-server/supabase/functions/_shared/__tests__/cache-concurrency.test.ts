@@ -22,7 +22,7 @@ Deno.test("normalizeIngredient performs one alias fetch for concurrent calls", a
               {
                 canonical: "ground_beef",
                 alias: "ground beef",
-                language: "en",
+                locale: "en",
               },
             ],
             error: null,

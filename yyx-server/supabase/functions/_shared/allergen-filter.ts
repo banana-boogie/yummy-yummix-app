@@ -9,6 +9,7 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { AllergenEntry } from "./irmixy-schemas.ts";
 import { normalizeIngredient } from "./ingredient-normalization.ts";
+import { getBaseLanguage } from "./locale-utils.ts";
 
 /**
  * In-memory cache of allergen data
@@ -48,7 +49,22 @@ export async function loadAllergenGroups(
       return [];
     }
 
-    allergenCache = data as AllergenEntry[];
+    // Map the old name_en/name_es columns to locale-keyed names
+    allergenCache = (data || []).map(
+      (row: {
+        category: string;
+        ingredient_canonical: string;
+        name_en: string;
+        name_es: string;
+      }) => ({
+        category: row.category,
+        ingredient_canonical: row.ingredient_canonical,
+        names: {
+          en: row.name_en,
+          es: row.name_es,
+        },
+      }),
+    );
     loadingPromise = null;
     console.log(`Loaded ${allergenCache.length} allergen entries`);
     return allergenCache;
@@ -105,13 +121,13 @@ export function matchesAllergen(
 export async function filterByAllergens<
   T extends {
     id: string;
-    ingredients: Array<{ name_en: string; name_es: string }>;
+    ingredientNames: string[];
   },
 >(
   supabase: SupabaseClient,
   recipes: T[],
   userRestrictions: string[],
-  language: "en" | "es" = "en",
+  locale: string = "en",
 ): Promise<T[]> {
   if (userRestrictions.length === 0) {
     return recipes;
@@ -119,28 +135,21 @@ export async function filterByAllergens<
 
   const allergenMap = await getAllergenMap(supabase);
   if (allergenMap.size === 0) {
-    // Fail-safe: if we cannot verify allergens, do not return potentially unsafe recipes.
     console.error(
       "Allergen map is empty; failing safe (returning no recipes for restricted user).",
     );
     return [];
   }
 
-  // Pre-normalize all unique ingredient names in parallel to avoid
-  // sequential awaits inside the nested filtering loop.
+  // Pre-normalize all unique ingredient names in parallel
   const allNames = [
-    ...new Set(
-      recipes.flatMap((r) =>
-        r.ingredients.map((i) => language === "es" ? i.name_es : i.name_en)
-          .filter(Boolean)
-      ),
-    ),
+    ...new Set(recipes.flatMap((r) => r.ingredientNames).filter(Boolean)),
   ];
   const normalizedEntries = await Promise.all(
     allNames.map(async (name) =>
       [
         name,
-        await normalizeIngredient(supabase, name, language),
+        await normalizeIngredient(supabase, name, locale),
       ] as const
     ),
   );
@@ -150,10 +159,7 @@ export async function filterByAllergens<
   for (const recipe of recipes) {
     let safe = true;
 
-    for (const ingredient of recipe.ingredients) {
-      const ingredientName = language === "es"
-        ? ingredient.name_es
-        : ingredient.name_en;
+    for (const ingredientName of recipe.ingredientNames) {
       if (!ingredientName) continue;
 
       const normalized = normalizedMap.get(ingredientName) ?? ingredientName;
@@ -191,7 +197,7 @@ export async function checkIngredientForAllergens(
   supabase: SupabaseClient,
   ingredientName: string,
   userRestrictions: string[],
-  language: "en" | "es" = "en",
+  locale: string = "en",
 ): Promise<{
   safe: boolean;
   allergen?: string;
@@ -217,7 +223,7 @@ export async function checkIngredientForAllergens(
   const normalized = await normalizeIngredient(
     supabase,
     ingredientName,
-    language,
+    locale,
   );
 
   for (const restriction of userRestrictions) {
@@ -244,25 +250,44 @@ export async function getAllergenWarning(
   supabase: SupabaseClient,
   allergen: string,
   category: string,
-  language: "en" | "es",
+  locale: string,
 ): Promise<string> {
   const allergens = await loadAllergenGroups(supabase);
+  const baseLang = getBaseLanguage(locale);
 
   const entry = allergens.find(
     (a) => a.ingredient_canonical === allergen,
   );
 
   if (!entry) {
-    return language === "es"
+    return baseLang === "es"
       ? `Contiene ${allergen.replace(/_/g, " ")}`
       : `Contains ${allergen.replace(/_/g, " ")}`;
   }
 
-  const allergenName = language === "es" ? entry.name_es : entry.name_en;
+  const allergenName = entry.names[baseLang] || entry.names["en"] ||
+    allergen.replace(/_/g, " ");
 
-  return language === "es"
+  return baseLang === "es"
     ? `Advertencia: Contiene ${allergenName} (${category})`
     : `Warning: Contains ${allergenName} (${category})`;
+}
+
+/**
+ * Get the localized name for an allergen entry.
+ */
+export function getLocalizedAllergenName(
+  allergenEntries: AllergenEntry[],
+  allergen: string,
+  locale: string,
+): string {
+  const baseLang = getBaseLanguage(locale);
+  const entry = allergenEntries.find(
+    (a) => a.ingredient_canonical === allergen,
+  );
+  if (!entry) return allergen.replace(/_/g, " ");
+  return entry.names[baseLang] || entry.names["en"] ||
+    allergen.replace(/_/g, " ");
 }
 
 /**

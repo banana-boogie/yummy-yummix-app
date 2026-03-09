@@ -14,13 +14,29 @@ const jsonSchema = {
   "schema": {
     "type": "object",
     "properties": {
-      "nameEn": {
-        "type": "string",
-        "description": "English recipe name",
-      },
-      "nameEs": {
-        "type": "string",
-        "description": "Spanish recipe name.",
+      "translations": {
+        "type": "array",
+        "description":
+          "Locale-keyed translations for the recipe name and tips.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "locale": {
+              "type": "string",
+              "description": "Locale code, e.g. 'en' or 'es'.",
+            },
+            "name": {
+              "type": "string",
+              "description": "Recipe name in this locale.",
+            },
+            "tipsAndTricks": {
+              "type": "string",
+              "description": "Tips section in this locale.",
+            },
+          },
+          "required": ["locale", "name", "tipsAndTricks"],
+          "additionalProperties": false,
+        },
       },
       "totalTime": {
         "type": "number",
@@ -39,14 +55,6 @@ const jsonSchema = {
         "type": "number",
         "description": "Number of portions the recipe makes.",
       },
-      "tipsAndTricksEn": {
-        "type": "string",
-        "description": "English tips section.",
-      },
-      "tipsAndTricksEs": {
-        "type": "string",
-        "description": "Spanish tips section.",
-      },
       "usefulItems": {
         "type": "array",
         "description":
@@ -54,36 +62,39 @@ const jsonSchema = {
         "items": {
           "type": "object",
           "properties": {
-            "nameEn": {
-              "type": "string",
-              "description": "English useful tool name.",
-            },
-            "nameEs": {
-              "type": "string",
-              "description": "Spanish useful tool name.",
+            "translations": {
+              "type": "array",
+              "description": "Locale-keyed translations for this useful item.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "locale": {
+                    "type": "string",
+                    "description": "Locale code, e.g. 'en' or 'es'.",
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Useful tool name in this locale.",
+                  },
+                  "notes": {
+                    "type": "string",
+                    "description":
+                      "Additional notes or tips about the useful item in this locale.",
+                  },
+                },
+                "required": ["locale", "name", "notes"],
+                "additionalProperties": false,
+              },
             },
             "displayOrder": {
               "type": "number",
               "description":
                 "1-based index indicating the order of the useful item.",
             },
-            "notesEn": {
-              "type": "string",
-              "description":
-                "Additional notes or tips about the useful item in English.",
-            },
-            "notesEs": {
-              "type": "string",
-              "description":
-                "Additional notes or tips about the useful item in Spanish.",
-            },
           },
           "required": [
-            "nameEn",
-            "nameEs",
+            "translations",
             "displayOrder",
-            "notesEn",
-            "notesEs",
           ],
           "additionalProperties": false,
         },
@@ -98,28 +109,34 @@ const jsonSchema = {
               "type": "object",
               "description": "Ingredient details",
               "properties": {
-                "nameEn": {
-                  "type": "string",
+                "translations": {
+                  "type": "array",
                   "description":
-                    "Only the ingredient name (in English.), no quantities, no adjectives, no descriptions, or notes.",
-                },
-                "pluralNameEn": {
-                  "type": "string",
-                  "description":
-                    "Only the plural ingredient name (in English.), no quantities, no adjectives, no descriptions, or notes.",
-                },
-                "nameEs": {
-                  "type": "string",
-                  "description":
-                    "Only the ingredient name (in Spanish), no quantities, no adjectives, no descriptions, or notes.",
-                },
-                "pluralNameEs": {
-                  "type": "string",
-                  "description":
-                    "Only the plural ingredient name (in Spanish), no quantities, no adjectives, no descriptions, or notes.",
+                    "Locale-keyed translations for this ingredient.",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "locale": {
+                        "type": "string",
+                        "description": "Locale code, e.g. 'en' or 'es'.",
+                      },
+                      "name": {
+                        "type": "string",
+                        "description":
+                          "Only the ingredient name in this locale, no quantities, no adjectives, no descriptions, or notes.",
+                      },
+                      "pluralName": {
+                        "type": "string",
+                        "description":
+                          "Only the plural ingredient name in this locale, no quantities, no adjectives, no descriptions, or notes.",
+                      },
+                    },
+                    "required": ["locale", "name", "pluralName"],
+                    "additionalProperties": false,
+                  },
                 },
               },
-              "required": ["nameEn", "nameEs", "pluralNameEn", "pluralNameEs"],
+              "required": ["translations"],
               "additionalProperties": false,
             },
             "quantity": {
@@ -150,31 +167,36 @@ const jsonSchema = {
               ],
               "default": "unit",
             },
-            "notesEn": {
-              "type": "string",
-              "description": "Any additional preparation notes in English.",
-            },
-            "notesEs": {
-              "type": "string",
-              "description": "Any additional preparation notes in Spanish.",
-            },
-            "tipEn": {
-              "type": "string",
-              "description": "Any tip included in the ingredient in English.",
-            },
-            "tipEs": {
-              "type": "string",
-              "description": "Any tip included in the ingredient in Spanish.",
-            },
-            "recipeSectionEn": {
-              "type": "string",
+            "translations": {
+              "type": "array",
               "description":
-                "If the recipe has multiple components or meals made, the title of section if one is found, otherwise use the default value: Main",
-            },
-            "recipeSectionEs": {
-              "type": "string",
-              "description":
-                "If the recipe has multiple components or meals made, the title of section if one is found, otherwise use the default value: Principal",
+                "Locale-keyed translations for ingredient notes, tips, and section.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "locale": {
+                    "type": "string",
+                    "description": "Locale code, e.g. 'en' or 'es'.",
+                  },
+                  "notes": {
+                    "type": "string",
+                    "description":
+                      "Any additional preparation notes in this locale.",
+                  },
+                  "tip": {
+                    "type": "string",
+                    "description":
+                      "Any tip included in the ingredient in this locale.",
+                  },
+                  "recipeSection": {
+                    "type": "string",
+                    "description":
+                      "If the recipe has multiple components or meals made, the title of section if one is found, otherwise use 'Main' for English or 'Principal' for Spanish.",
+                  },
+                },
+                "required": ["locale", "notes", "tip", "recipeSection"],
+                "additionalProperties": false,
+              },
             },
             "displayOrder": {
               "type": "number",
@@ -186,12 +208,7 @@ const jsonSchema = {
             "quantity",
             "measurementUnitID",
             "ingredient",
-            "notesEn",
-            "notesEs",
-            "tipEn",
-            "tipEs",
-            "recipeSectionEn",
-            "recipeSectionEs",
+            "translations",
             "displayOrder",
           ],
           "additionalProperties": false,
@@ -208,13 +225,40 @@ const jsonSchema = {
               "description":
                 "1-based index indicating the order of the instruction.",
             },
-            "instructionEn": {
-              "type": "string",
-              "description": "Full instruction text in English.",
-            },
-            "instructionEs": {
-              "type": "string",
-              "description": "Full instruction text in Spanish.",
+            "translations": {
+              "type": "array",
+              "description":
+                "Locale-keyed translations for instruction, tip, and section.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "locale": {
+                    "type": "string",
+                    "description": "Locale code, e.g. 'en' or 'es'.",
+                  },
+                  "instruction": {
+                    "type": "string",
+                    "description": "Full instruction text in this locale.",
+                  },
+                  "tip": {
+                    "type": "string",
+                    "description":
+                      "Tip for this recipe step if one exists in this locale.",
+                  },
+                  "recipeSection": {
+                    "type": "string",
+                    "description":
+                      "If the recipe has multiple components or meals made, the title of section if one is found, otherwise use 'Main' for English or 'Principal' for Spanish.",
+                  },
+                },
+                "required": [
+                  "locale",
+                  "instruction",
+                  "tip",
+                  "recipeSection",
+                ],
+                "additionalProperties": false,
+              },
             },
             "thermomixTime": {
               "type": ["number", "null"],
@@ -387,32 +431,35 @@ const jsonSchema = {
                     "type": "object",
                     "description": "Ingredient details",
                     "properties": {
-                      "nameEn": {
-                        "type": "string",
+                      "translations": {
+                        "type": "array",
                         "description":
-                          "Only the ingredient name (in English.), no quantities, no adjectives, no descriptions, or notes.",
-                      },
-                      "pluralNameEn": {
-                        "type": "string",
-                        "description":
-                          "Only the plural ingredient name (in English.), no quantities, no adjectives, no descriptions, or notes.",
-                      },
-                      "nameEs": {
-                        "type": "string",
-                        "description":
-                          "Only the ingredient name (in Spanish), no quantities, no adjectives, no descriptions, or notes.",
-                      },
-                      "pluralNameEs": {
-                        "type": "string",
-                        "description":
-                          "Only the plural ingredient name (in Spanish), no quantities, no adjectives, no descriptions, or notes.",
+                          "Locale-keyed translations for this ingredient.",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "locale": {
+                              "type": "string",
+                              "description": "Locale code, e.g. 'en' or 'es'.",
+                            },
+                            "name": {
+                              "type": "string",
+                              "description":
+                                "Only the ingredient name in this locale, no quantities, no adjectives, no descriptions, or notes.",
+                            },
+                            "pluralName": {
+                              "type": "string",
+                              "description":
+                                "Only the plural ingredient name in this locale, no quantities, no adjectives, no descriptions, or notes.",
+                            },
+                          },
+                          "required": ["locale", "name", "pluralName"],
+                          "additionalProperties": false,
+                        },
                       },
                     },
                     "required": [
-                      "nameEn",
-                      "nameEs",
-                      "pluralNameEn",
-                      "pluralNameEs",
+                      "translations",
                     ],
                     "additionalProperties": false,
                   },
@@ -460,41 +507,16 @@ const jsonSchema = {
                 "additionalProperties": false,
               },
             },
-            "tipEn": {
-              "type": "string",
-              "description":
-                "Tip for this recipe step if one exists in the English section.",
-            },
-            "tipEs": {
-              "type": "string",
-              "description":
-                "Tip for this recipe step if one exists in the Spanish section.",
-            },
-            "recipeSectionEn": {
-              "type": "string",
-              "description":
-                "If the recipe has multiple components or meals made, the title of section if one is found, otherwise use the default value: Main",
-            },
-            "recipeSectionEs": {
-              "type": "string",
-              "description":
-                "If the recipe has multiple components or meals made, the title of section if one is found, otherwise use the default value: Principal",
-            },
           },
           "required": [
             "order",
+            "translations",
             "thermomixTime",
             "thermomixTemperature",
             "thermomixTemperatureUnit",
             "thermomixSpeed",
             "thermomixIsBladeReversed",
             "ingredients",
-            "instructionEn",
-            "instructionEs",
-            "tipEn",
-            "tipEs",
-            "recipeSectionEn",
-            "recipeSectionEs",
           ],
           "additionalProperties": false,
         },
@@ -511,14 +533,11 @@ const jsonSchema = {
       },
     },
     "required": [
-      "nameEn",
-      "nameEs",
+      "translations",
       "totalTime",
       "prepTime",
       "difficulty",
       "portions",
-      "tipsAndTricksEn",
-      "tipsAndTricksEs",
       "usefulItems",
       "ingredients",
       "steps",
