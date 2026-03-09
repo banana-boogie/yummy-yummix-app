@@ -20,6 +20,7 @@ const mockSingle = jest.fn();
 const mockDelete = jest.fn();
 const mockInsert = jest.fn();
 const mockUpdate = jest.fn();
+const mockUpsert = jest.fn();
 
 const mockSupabase = {
   from: mockFrom,
@@ -104,10 +105,12 @@ describe('AdminIngredientsService', () => {
       delete: mockDelete,
       insert: mockInsert,
       update: mockUpdate,
+      upsert: mockUpsert,
     });
     mockSelect.mockReturnValue({
       order: mockOrder,
       eq: mockEq,
+      single: mockSingle,
     });
     mockOrder.mockResolvedValue({ data: [mockIngredient], error: null });
     mockEq.mockReturnValue({
@@ -118,6 +121,7 @@ describe('AdminIngredientsService', () => {
     mockDelete.mockReturnValue({ eq: mockEq });
     mockInsert.mockReturnValue({ select: mockSelect });
     mockUpdate.mockReturnValue({ eq: mockEq });
+    mockUpsert.mockResolvedValue({ error: null });
   });
 
   // ============================================================
@@ -187,24 +191,37 @@ describe('AdminIngredientsService', () => {
         nutritionalFacts: { calories: 40 },
       };
 
-      mockSelect.mockReturnValue({ single: mockSingle });
       mockSingle.mockResolvedValue({
-        data: { ...mockIngredient, name_en: 'Onion' },
+        data: { id: 'new-ing-1' },
         error: null,
       });
+      // Second insert call (translations) resolves successfully
+      mockInsert.mockReturnValueOnce({ select: mockSelect })
+        .mockResolvedValueOnce({ error: null });
 
-      await service.createIngredient(newIngredient);
+      const result = await service.createIngredient(newIngredient);
 
+      // First call: insert into ingredients (non-translatable fields only)
       expect(mockFrom).toHaveBeenCalledWith('ingredients');
       expect(mockInsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          name_en: 'Onion',
-          name_es: 'Cebolla',
-          plural_name_en: 'Onions',
-          plural_name_es: 'Cebollas',
           image_url: '',
         })
       );
+      // Should NOT contain name_en/name_es
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          name_en: expect.anything(),
+          name_es: expect.anything(),
+        })
+      );
+
+      // Second call: insert translations
+      expect(mockFrom).toHaveBeenCalledWith('ingredient_translations');
+      expect(mockInsert).toHaveBeenCalledWith([
+        { ingredient_id: 'new-ing-1', locale: 'en', name: 'Onion', plural_name: 'Onions' },
+        { ingredient_id: 'new-ing-1', locale: 'es', name: 'Cebolla', plural_name: 'Cebollas' },
+      ]);
     });
 
     it('creates ingredient with image upload', async () => {
@@ -216,11 +233,12 @@ describe('AdminIngredientsService', () => {
       };
 
       mockUploadImage.mockResolvedValue('https://example.com/carrot.png');
-      mockSelect.mockReturnValue({ single: mockSingle });
       mockSingle.mockResolvedValue({
-        data: { ...mockIngredient, name_en: 'Carrot' },
+        data: { id: 'new-ing-2' },
         error: null,
       });
+      mockInsert.mockReturnValueOnce({ select: mockSelect })
+        .mockResolvedValueOnce({ error: null });
 
       await service.createIngredient(newIngredient);
 
@@ -239,30 +257,26 @@ describe('AdminIngredientsService', () => {
   // ============================================================
 
   describe('updateIngredient', () => {
-    it('updates ingredient name fields', async () => {
+    it('updates ingredient name fields via translation upsert', async () => {
       const updates = {
         id: 'ing-1',
         nameEn: 'Updated Tomato',
         nameEs: 'Tomate Actualizado',
       };
 
-      // Mock for fetching current ingredient (no image change)
-      mockEq.mockReturnValue({
-        single: mockSingle,
-        select: jest.fn().mockReturnValue({ single: mockSingle }),
-      });
-      mockSingle.mockResolvedValue({
-        data: { image_url: 'https://example.com/tomato.png' },
-        error: null,
-      });
-
       await service.updateIngredient('ing-1', updates);
 
-      expect(mockUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name_en: 'Updated Tomato',
-          name_es: 'Tomate Actualizado',
-        })
+      // Name fields should NOT go to the ingredients table update
+      expect(mockUpdate).not.toHaveBeenCalled();
+
+      // Should upsert translations
+      expect(mockFrom).toHaveBeenCalledWith('ingredient_translations');
+      expect(mockUpsert).toHaveBeenCalledWith(
+        [
+          { ingredient_id: 'ing-1', locale: 'en', name: 'Updated Tomato' },
+          { ingredient_id: 'ing-1', locale: 'es', name: 'Tomate Actualizado' },
+        ],
+        { onConflict: 'ingredient_id,locale' }
       );
     });
 
@@ -298,6 +312,7 @@ describe('AdminIngredientsService', () => {
 
       expect(result).toEqual(ingredient);
       expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockUpsert).not.toHaveBeenCalled();
     });
 
     it('continues update even if old image deletion fails', async () => {
@@ -373,8 +388,9 @@ describe('AdminIngredientsService', () => {
       };
 
       mockUploadImage.mockResolvedValue('https://example.com/pimiento.png');
-      mockSelect.mockReturnValue({ single: mockSingle });
-      mockSingle.mockResolvedValue({ data: mockIngredient, error: null });
+      mockSingle.mockResolvedValue({ data: { id: 'new-ing' }, error: null });
+      mockInsert.mockReturnValueOnce({ select: mockSelect })
+        .mockResolvedValueOnce({ error: null });
 
       await service.createIngredient(newIngredient);
 
@@ -393,8 +409,9 @@ describe('AdminIngredientsService', () => {
       };
 
       mockUploadImage.mockResolvedValue('https://example.com/pepper.png');
-      mockSelect.mockReturnValue({ single: mockSingle });
-      mockSingle.mockResolvedValue({ data: mockIngredient, error: null });
+      mockSingle.mockResolvedValue({ data: { id: 'new-ing' }, error: null });
+      mockInsert.mockReturnValueOnce({ select: mockSelect })
+        .mockResolvedValueOnce({ error: null });
 
       await service.createIngredient(newIngredient);
 

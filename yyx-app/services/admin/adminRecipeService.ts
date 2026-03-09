@@ -181,25 +181,22 @@ class AdminRecipeService extends BaseService {
     return data ? this.transformRecipeDetailData(data) : null;
   }
 
-  // Writes continue using old _en/_es columns (sync triggers handle translation tables)
   async createRecipe(recipe: Partial<AdminRecipe>): Promise<string> {
     try {
+      let imageUrl = recipe.pictureUrl;
+      if (recipe.pictureUrl && typeof recipe.pictureUrl === 'object') {
+        imageUrl = await this.handleImageUpload({file: recipe.pictureUrl, nameEs: recipe.nameEs, nameEn: recipe.nameEn});
+      }
+
+      // Insert only non-translatable fields into recipes
       const recipeData = this.transformRequest({
-        nameEn: recipe.nameEn,
-        nameEs: recipe.nameEs,
-        pictureUrl: recipe.pictureUrl,
+        pictureUrl: imageUrl,
         difficulty: recipe.difficulty,
         prepTime: recipe.prepTime,
         totalTime: recipe.totalTime,
         portions: recipe.portions,
         isPublished: recipe.isPublished,
-        tipsAndTricksEn: recipe.tipsAndTricksEn,
-        tipsAndTricksEs: recipe.tipsAndTricksEs,
       });
-
-      if (recipe.pictureUrl && typeof recipe.pictureUrl === 'object') {
-        recipeData.pictureUrl = await this.handleImageUpload({file: recipe.pictureUrl, nameEs: recipe.nameEs, nameEn: recipe.nameEn});
-      }
 
       const { data: recipeId, error: recipeError } = await this.supabase
         .from('recipes')
@@ -209,6 +206,20 @@ class AdminRecipeService extends BaseService {
 
       if (recipeError) {
         throw new Error(`Failed to create recipe: ${recipeError.message}`);
+      }
+
+      // Insert translations for both locales
+      const translations = [
+        { recipe_id: recipeId.id, locale: 'en', name: recipe.nameEn, tips_and_tricks: recipe.tipsAndTricksEn || null },
+        { recipe_id: recipeId.id, locale: 'es', name: recipe.nameEs, tips_and_tricks: recipe.tipsAndTricksEs || null },
+      ];
+
+      const { error: translationError } = await this.supabase
+        .from('recipe_translations')
+        .insert(translations);
+
+      if (translationError) {
+        throw new Error(`Failed to insert recipe translations: ${translationError.message}`);
       }
 
       if (recipe.ingredients?.length) {
@@ -235,18 +246,13 @@ class AdminRecipeService extends BaseService {
   }
 
   async updateRecipe(id: string, recipe: Partial<AdminRecipe>): Promise<void> {
-    const recipeData = this.transformRequest({
-      nameEn: recipe.nameEn,
-      nameEs: recipe.nameEs,
-      pictureUrl: recipe.pictureUrl,
-      difficulty: recipe.difficulty,
-      prepTime: recipe.prepTime,
-      totalTime: recipe.totalTime,
-      portions: recipe.portions,
-      isPublished: recipe.isPublished,
-      tipsAndTricksEn: recipe.tipsAndTricksEn,
-      tipsAndTricksEs: recipe.tipsAndTricksEs,
-    });
+    // Build non-translatable fields only
+    const nonTranslatableFields: Record<string, any> = {};
+    if (recipe.difficulty !== undefined) nonTranslatableFields.difficulty = recipe.difficulty;
+    if (recipe.prepTime !== undefined) nonTranslatableFields.prepTime = recipe.prepTime;
+    if (recipe.totalTime !== undefined) nonTranslatableFields.totalTime = recipe.totalTime;
+    if (recipe.portions !== undefined) nonTranslatableFields.portions = recipe.portions;
+    if (recipe.isPublished !== undefined) nonTranslatableFields.isPublished = recipe.isPublished;
 
     if (recipe.pictureUrl && typeof recipe.pictureUrl === 'object') {
       const oldRecipe = await this.supabase
@@ -263,10 +269,41 @@ class AdminRecipeService extends BaseService {
         }
       }
 
-      recipeData.pictureUrl = await this.handleImageUpload({file: recipe.pictureUrl, nameEs: recipe.nameEs, nameEn: recipe.nameEn});
+      nonTranslatableFields.pictureUrl = await this.handleImageUpload({file: recipe.pictureUrl, nameEs: recipe.nameEs, nameEn: recipe.nameEn});
+    } else if (recipe.pictureUrl !== undefined) {
+      nonTranslatableFields.pictureUrl = recipe.pictureUrl;
     }
 
-    await this.transformedUpdate('recipes', id, recipeData);
+    if (Object.keys(nonTranslatableFields).length > 0) {
+      await this.transformedUpdate('recipes', id, nonTranslatableFields);
+    }
+
+    // Upsert translations for both locales
+    const translations: { recipe_id: string; locale: string; name?: string; tips_and_tricks?: string | null }[] = [];
+
+    if (recipe.nameEn !== undefined || recipe.tipsAndTricksEn !== undefined) {
+      const enTranslation: any = { recipe_id: id, locale: 'en' };
+      if (recipe.nameEn !== undefined) enTranslation.name = recipe.nameEn;
+      if (recipe.tipsAndTricksEn !== undefined) enTranslation.tips_and_tricks = recipe.tipsAndTricksEn;
+      translations.push(enTranslation);
+    }
+
+    if (recipe.nameEs !== undefined || recipe.tipsAndTricksEs !== undefined) {
+      const esTranslation: any = { recipe_id: id, locale: 'es' };
+      if (recipe.nameEs !== undefined) esTranslation.name = recipe.nameEs;
+      if (recipe.tipsAndTricksEs !== undefined) esTranslation.tips_and_tricks = recipe.tipsAndTricksEs;
+      translations.push(esTranslation);
+    }
+
+    if (translations.length > 0) {
+      const { error: translationError } = await this.supabase
+        .from('recipe_translations')
+        .upsert(translations, { onConflict: 'recipe_id,locale' });
+
+      if (translationError) {
+        throw new Error(`Failed to upsert recipe translations: ${translationError.message}`);
+      }
+    }
 
     if (recipe.ingredients) {
       await this.updateRecipeIngredients(id, recipe.ingredients);
@@ -297,29 +334,64 @@ class AdminRecipeService extends BaseService {
 
     if (recipeIngredients.length === 0) return;
 
+    // Insert only non-translatable fields
     const recipeIngredientsToInsert = recipeIngredients.map((recipeIngredient, index) =>
       this.transformRequest({
         recipeId,
         ingredientId: recipeIngredient.ingredientId,
         quantity: parseFloat(String(recipeIngredient.quantity || '0')),
         measurementUnitId: recipeIngredient.measurementUnit?.id || null,
-        notesEn: recipeIngredient.notesEn || null,
-        notesEs: recipeIngredient.notesEs || null,
-        tipEn: recipeIngredient.tipEn || null,
-        tipEs: recipeIngredient.tipEs || null,
         optional: recipeIngredient.optional || false,
         displayOrder: recipeIngredient.displayOrder || index,
-        recipeSectionEn: recipeIngredient.recipeSectionEn || 'Main',
-        recipeSectionEs: recipeIngredient.recipeSectionEs || 'Principal'
       })
     );
 
-    const { error: insertError } = await this.supabase
+    const { data: insertedRows, error: insertError } = await this.supabase
       .from('recipe_ingredients')
-      .insert(recipeIngredientsToInsert);
+      .insert(recipeIngredientsToInsert)
+      .select('id, display_order');
 
     if (insertError) {
       throw new Error(`Failed to insert ingredients: ${insertError.message}`);
+    }
+
+    // Build translations using display_order to map back to original items
+    if (insertedRows?.length) {
+      const orderToIdMap = new Map(
+        insertedRows.map((row: any) => [row.display_order, row.id])
+      );
+
+      const translations: any[] = [];
+      recipeIngredients.forEach((recipeIngredient, index) => {
+        const displayOrder = recipeIngredient.displayOrder || index;
+        const rowId = orderToIdMap.get(displayOrder);
+        if (!rowId) return;
+
+        translations.push({
+          recipe_ingredient_id: rowId,
+          locale: 'en',
+          notes: recipeIngredient.notesEn || null,
+          recipe_section: recipeIngredient.recipeSectionEn || 'Main',
+          tip: recipeIngredient.tipEn || null,
+        });
+        translations.push({
+          recipe_ingredient_id: rowId,
+          locale: 'es',
+          notes: recipeIngredient.notesEs || null,
+          recipe_section: recipeIngredient.recipeSectionEs || 'Principal',
+          tip: recipeIngredient.tipEs || null,
+        });
+      });
+
+      if (translations.length > 0) {
+        const { error: translationError } = await this.supabase
+          .from('recipe_ingredient_translations')
+          .insert(translations);
+
+        if (translationError) {
+          throw new Error(`Failed to insert ingredient translations: ${translationError.message}`);
+        }
+      }
     }
   }
 
@@ -362,6 +434,7 @@ class AdminRecipeService extends BaseService {
 
     if (recipeSteps.length === 0) return;
 
+    // Insert only non-translatable fields
     const stepsToInsert = recipeSteps.map(recipeStep => {
       let speedValue = null;
       let speedStart = null;
@@ -379,8 +452,6 @@ class AdminRecipeService extends BaseService {
       return this.transformRequest({
         recipeId,
         order: recipeStep.order,
-        instructionEn: recipeStep.instructionEn || '',
-        instructionEs: recipeStep.instructionEs || '',
         thermomixTime: recipeStep.thermomixTime || null,
         thermomixIsBladeReversed: recipeStep.thermomixIsBladeReversed || null,
         thermomixSpeed: speedValue,
@@ -388,23 +459,55 @@ class AdminRecipeService extends BaseService {
         thermomixSpeedEnd: speedEnd,
         thermomixTemperature: recipeStep.thermomixTemperature || null,
         thermomixTemperatureUnit: recipeStep.thermomixTemperatureUnit || null,
-        recipeSectionEn: recipeStep.recipeSectionEn || 'Main',
-        recipeSectionEs: recipeStep.recipeSectionEs || 'Principal',
-        tipEn: recipeStep.tipEn || null,
-        tipEs: recipeStep.tipEs || null
       });
     });
 
     const { data: insertedSteps, error: insertError } = await this.supabase
       .from('recipe_steps')
       .insert(stepsToInsert)
-      .select('*');
+      .select('id, order');
 
     if (insertError) {
       throw new Error(`Failed to insert recipeSteps: ${insertError.message}`);
     }
 
+    // Insert step translations
     if (insertedSteps?.length) {
+      const orderToIdMap = new Map(
+        insertedSteps.map((step: any) => [step.order, step.id])
+      );
+
+      const translations: any[] = [];
+      recipeSteps.forEach(recipeStep => {
+        const stepId = orderToIdMap.get(recipeStep.order);
+        if (!stepId) return;
+
+        translations.push({
+          recipe_step_id: stepId,
+          locale: 'en',
+          instruction: recipeStep.instructionEn || '',
+          recipe_section: recipeStep.recipeSectionEn || 'Main',
+          tip: recipeStep.tipEn || null,
+        });
+        translations.push({
+          recipe_step_id: stepId,
+          locale: 'es',
+          instruction: recipeStep.instructionEs || '',
+          recipe_section: recipeStep.recipeSectionEs || 'Principal',
+          tip: recipeStep.tipEs || null,
+        });
+      });
+
+      if (translations.length > 0) {
+        const { error: translationError } = await this.supabase
+          .from('recipe_step_translations')
+          .insert(translations);
+
+        if (translationError) {
+          throw new Error(`Failed to insert step translations: ${translationError.message}`);
+        }
+      }
+
       await this.updateRecipeStepIngredients(recipeId, recipeSteps, insertedSteps);
     }
   }
@@ -477,22 +580,56 @@ class AdminRecipeService extends BaseService {
 
     if (usefulItems.length === 0) return;
 
+    // Insert only non-translatable fields
     const usefulItemsToInsert = usefulItems.map(usefulItem =>
       this.transformRequest({
         recipeId,
         usefulItemId: usefulItem.usefulItemId,
         displayOrder: usefulItem.displayOrder,
-        notesEn: usefulItem.notesEn || null,
-        notesEs: usefulItem.notesEs || null
       })
     );
 
-    const { error: insertError } = await this.supabase
+    const { data: insertedRows, error: insertError } = await this.supabase
       .from('recipe_useful_items')
-      .insert(usefulItemsToInsert);
+      .insert(usefulItemsToInsert)
+      .select('id, display_order');
 
     if (insertError) {
       throw new Error(`Failed to insert useful items: ${insertError.message}`);
+    }
+
+    // Insert translations
+    if (insertedRows?.length) {
+      const orderToIdMap = new Map(
+        insertedRows.map((row: any) => [row.display_order, row.id])
+      );
+
+      const translations: any[] = [];
+      usefulItems.forEach(usefulItem => {
+        const rowId = orderToIdMap.get(usefulItem.displayOrder);
+        if (!rowId) return;
+
+        translations.push({
+          recipe_useful_item_id: rowId,
+          locale: 'en',
+          notes: usefulItem.notesEn || null,
+        });
+        translations.push({
+          recipe_useful_item_id: rowId,
+          locale: 'es',
+          notes: usefulItem.notesEs || null,
+        });
+      });
+
+      if (translations.length > 0) {
+        const { error: translationError } = await this.supabase
+          .from('recipe_useful_item_translations')
+          .insert(translations);
+
+        if (translationError) {
+          throw new Error(`Failed to insert useful item translations: ${translationError.message}`);
+        }
+      }
     }
   }
 

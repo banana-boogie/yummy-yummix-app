@@ -83,7 +83,6 @@ class AdminRecipeTagService extends BaseService {
     }
   }
 
-  // Writes continue using old _en/_es columns (sync triggers handle translation tables)
   async createTag(tag: Omit<AdminRecipeTag, 'id'>): Promise<AdminRecipeTag> {
     if (!tag) {
       throw new Error('No tag data provided');
@@ -97,19 +96,45 @@ class AdminRecipeTagService extends BaseService {
       throw new Error('No name provided');
     }
 
-    if (tag.categories.length) {
-      tag.categories = tag.categories.map(formatToScreamingSnakeCase);
+    const categories = tag.categories.length
+      ? tag.categories.map(formatToScreamingSnakeCase)
+      : [];
+
+    // Insert only non-translatable fields into recipe_tags
+    const { data: inserted, error: insertError } = await this.supabase
+      .from('recipe_tags')
+      .insert({ categories })
+      .select('id')
+      .single();
+
+    if (insertError) {
+      throw new Error(`Failed to create tag: ${insertError.message}`);
     }
 
-    const result = await this.transformedInsert<AdminRecipeTag>('recipe_tags', tag);
-    if (result) {
-      return {
-        ...result,
-        categories: transformCategories.toDisplay(result.categories || [])
-      };
+    if (!inserted) {
+      throw new Error('Failed to create tag: No data returned');
     }
 
-    throw new Error('Failed to create tag: No data returned');
+    // Insert translations for both locales
+    const translations = [
+      { recipe_tag_id: inserted.id, locale: 'en', name: tag.nameEn },
+      { recipe_tag_id: inserted.id, locale: 'es', name: tag.nameEs },
+    ];
+
+    const { error: translationError } = await this.supabase
+      .from('recipe_tag_translations')
+      .insert(translations);
+
+    if (translationError) {
+      throw new Error(`Failed to insert tag translations: ${translationError.message}`);
+    }
+
+    return {
+      id: inserted.id,
+      nameEn: tag.nameEn,
+      nameEs: tag.nameEs,
+      categories: transformCategories.toDisplay(categories),
+    };
   }
 
   async updateTag(id: string, tag: Partial<Omit<AdminRecipeTag, 'id'>>): Promise<AdminRecipeTag> {
@@ -125,20 +150,38 @@ class AdminRecipeTagService extends BaseService {
       throw new Error('No name provided');
     }
 
-    const dbTag = {
-      ...tag,
-      categories: tag.categories ? transformCategories.toDatabase(tag.categories) : undefined
-    };
+    // Update only non-translatable fields on recipe_tags
+    const categories = tag.categories ? transformCategories.toDatabase(tag.categories) : [];
 
-    const result = await this.transformedUpdate<AdminRecipeTag>('recipe_tags', id, dbTag);
+    const { error: updateError } = await this.supabase
+      .from('recipe_tags')
+      .update({ categories })
+      .eq('id', id);
 
-    if (result) {
-      return {
-        ...result,
-        categories: transformCategories.toDisplay(result.categories || [])
-      };
+    if (updateError) {
+      throw new Error(`Failed to update tag: ${updateError.message}`);
     }
-    throw new Error('Failed to update tag: No data returned');
+
+    // Upsert translations for both locales
+    const translations = [
+      { recipe_tag_id: id, locale: 'en', name: tag.nameEn },
+      { recipe_tag_id: id, locale: 'es', name: tag.nameEs },
+    ];
+
+    const { error: translationError } = await this.supabase
+      .from('recipe_tag_translations')
+      .upsert(translations, { onConflict: 'recipe_tag_id,locale' });
+
+    if (translationError) {
+      throw new Error(`Failed to upsert tag translations: ${translationError.message}`);
+    }
+
+    return {
+      id,
+      nameEn: tag.nameEn!,
+      nameEs: tag.nameEs!,
+      categories: transformCategories.toDisplay(categories),
+    };
   }
 
   async deleteTag(id: string): Promise<void> {

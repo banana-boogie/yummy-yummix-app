@@ -20,6 +20,7 @@ const mockSingle = jest.fn();
 const mockDelete = jest.fn();
 const mockInsert = jest.fn();
 const mockUpdate = jest.fn();
+const mockUpsert = jest.fn();
 
 const mockSupabase = {
   from: mockFrom,
@@ -93,6 +94,7 @@ describe('AdminUsefulItemsService', () => {
       delete: mockDelete,
       insert: mockInsert,
       update: mockUpdate,
+      upsert: mockUpsert,
     });
     mockSelect.mockReturnValue({
       order: mockOrder,
@@ -108,6 +110,7 @@ describe('AdminUsefulItemsService', () => {
     mockDelete.mockReturnValue({ eq: mockEq });
     mockInsert.mockReturnValue({ select: mockSelect });
     mockUpdate.mockReturnValue({ eq: mockEq });
+    mockUpsert.mockResolvedValue({ error: null });
   });
 
   // ============================================================
@@ -140,22 +143,36 @@ describe('AdminUsefulItemsService', () => {
         nameEs: 'Batidor',
       };
 
-      mockSelect.mockReturnValue({ single: mockSingle });
       mockSingle.mockResolvedValue({
-        data: { ...mockUsefulItem, name_en: 'Whisk' },
+        data: { id: 'new-item-1' },
         error: null,
       });
+      mockInsert.mockReturnValueOnce({ select: mockSelect })
+        .mockResolvedValueOnce({ error: null });
 
       await service.createUsefulItem(newItem as any);
 
+      // First call: insert into useful_items (non-translatable only)
       expect(mockFrom).toHaveBeenCalledWith('useful_items');
       expect(mockInsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          name_en: 'Whisk',
-          name_es: 'Batidor',
           image_url: '',
         })
       );
+      // Should NOT contain name_en/name_es
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          name_en: expect.anything(),
+          name_es: expect.anything(),
+        })
+      );
+
+      // Second call: insert translations
+      expect(mockFrom).toHaveBeenCalledWith('useful_item_translations');
+      expect(mockInsert).toHaveBeenCalledWith([
+        { useful_item_id: 'new-item-1', locale: 'en', name: 'Whisk' },
+        { useful_item_id: 'new-item-1', locale: 'es', name: 'Batidor' },
+      ]);
     });
 
     it('creates item with image upload', async () => {
@@ -167,11 +184,12 @@ describe('AdminUsefulItemsService', () => {
       };
 
       mockUploadImage.mockResolvedValue('https://example.com/spatula.png');
-      mockSelect.mockReturnValue({ single: mockSingle });
       mockSingle.mockResolvedValue({
-        data: { ...mockUsefulItem, name_en: 'Spatula' },
+        data: { id: 'new-item-2' },
         error: null,
       });
+      mockInsert.mockReturnValueOnce({ select: mockSelect })
+        .mockResolvedValueOnce({ error: null });
 
       await service.createUsefulItem(newItem as any);
 
@@ -190,29 +208,26 @@ describe('AdminUsefulItemsService', () => {
   // ============================================================
 
   describe('updateUsefulItem', () => {
-    it('updates item name fields', async () => {
+    it('updates item name fields via translation upsert', async () => {
       const updates = {
         id: 'item-1',
         nameEn: 'Updated Bowl',
         nameEs: 'Tazón Actualizado',
       };
 
-      mockEq.mockReturnValue({
-        single: mockSingle,
-        select: jest.fn().mockReturnValue({ single: mockSingle }),
-      });
-      mockSingle.mockResolvedValue({
-        data: { image_url: 'https://example.com/bowl.png' },
-        error: null,
-      });
-
       await service.updateUsefulItem('item-1', updates as any);
 
-      expect(mockUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name_en: 'Updated Bowl',
-          name_es: 'Tazón Actualizado',
-        })
+      // Name fields should NOT go to the useful_items table update
+      expect(mockUpdate).not.toHaveBeenCalled();
+
+      // Should upsert translations
+      expect(mockFrom).toHaveBeenCalledWith('useful_item_translations');
+      expect(mockUpsert).toHaveBeenCalledWith(
+        [
+          { useful_item_id: 'item-1', locale: 'en', name: 'Updated Bowl' },
+          { useful_item_id: 'item-1', locale: 'es', name: 'Tazón Actualizado' },
+        ],
+        { onConflict: 'useful_item_id,locale' }
       );
     });
 
@@ -248,6 +263,7 @@ describe('AdminUsefulItemsService', () => {
 
       expect(result).toEqual(item);
       expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockUpsert).not.toHaveBeenCalled();
     });
 
     it('throws error when fetch current item fails', async () => {
@@ -356,8 +372,9 @@ describe('AdminUsefulItemsService', () => {
       };
 
       mockUploadImage.mockResolvedValue('https://example.com/cutting-board.png');
-      mockSelect.mockReturnValue({ single: mockSingle });
-      mockSingle.mockResolvedValue({ data: mockUsefulItem, error: null });
+      mockSingle.mockResolvedValue({ data: { id: 'new-item' }, error: null });
+      mockInsert.mockReturnValueOnce({ select: mockSelect })
+        .mockResolvedValueOnce({ error: null });
 
       await service.createUsefulItem(newItem as any);
 
@@ -376,8 +393,9 @@ describe('AdminUsefulItemsService', () => {
       };
 
       mockUploadImage.mockResolvedValue('https://example.com/tabla.png');
-      mockSelect.mockReturnValue({ single: mockSingle });
-      mockSingle.mockResolvedValue({ data: mockUsefulItem, error: null });
+      mockSingle.mockResolvedValue({ data: { id: 'new-item' }, error: null });
+      mockInsert.mockReturnValueOnce({ select: mockSelect })
+        .mockResolvedValueOnce({ error: null });
 
       await service.createUsefulItem(newItem as any);
 
@@ -395,8 +413,9 @@ describe('AdminUsefulItemsService', () => {
       };
 
       mockUploadImage.mockResolvedValue('https://example.com/useful-item.png');
-      mockSelect.mockReturnValue({ single: mockSingle });
-      mockSingle.mockResolvedValue({ data: mockUsefulItem, error: null });
+      mockSingle.mockResolvedValue({ data: { id: 'new-item' }, error: null });
+      mockInsert.mockReturnValueOnce({ select: mockSelect })
+        .mockResolvedValueOnce({ error: null });
 
       await service.createUsefulItem(newItem as any);
 

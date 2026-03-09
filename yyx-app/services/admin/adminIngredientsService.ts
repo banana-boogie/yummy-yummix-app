@@ -84,12 +84,6 @@ export class AdminIngredientsService extends BaseService {
   async updateIngredient(id: string, ingredient: AdminIngredient): Promise<AdminIngredient> {
     const ingredientData: Record<string, any> = {};
 
-    // Write to old _en/_es columns (sync triggers update translation tables)
-    if (ingredient.nameEn !== undefined) ingredientData.name_en = ingredient.nameEn;
-    if (ingredient.pluralNameEn !== undefined) ingredientData.plural_name_en = ingredient.pluralNameEn;
-    if (ingredient.nameEs !== undefined) ingredientData.name_es = ingredient.nameEs;
-    if (ingredient.pluralNameEs !== undefined) ingredientData.plural_name_es = ingredient.pluralNameEs;
-
     // Handle image update only if pictureUrl is explicitly provided and is different
     if (ingredient.pictureUrl !== undefined) {
       const { data: currentIngredient, error: fetchError } = await this.supabase
@@ -133,7 +127,33 @@ export class AdminIngredientsService extends BaseService {
       if (!updatedIngredient) {
         throw new Error('Failed to update ingredient');
       }
-      return updatedIngredient;
+    }
+
+    // Upsert translations for both locales
+    const translations: { ingredient_id: string; locale: string; name?: string; plural_name?: string }[] = [];
+
+    if (ingredient.nameEn !== undefined || ingredient.pluralNameEn !== undefined) {
+      const enTranslation: any = { ingredient_id: id, locale: 'en' };
+      if (ingredient.nameEn !== undefined) enTranslation.name = ingredient.nameEn;
+      if (ingredient.pluralNameEn !== undefined) enTranslation.plural_name = ingredient.pluralNameEn;
+      translations.push(enTranslation);
+    }
+
+    if (ingredient.nameEs !== undefined || ingredient.pluralNameEs !== undefined) {
+      const esTranslation: any = { ingredient_id: id, locale: 'es' };
+      if (ingredient.nameEs !== undefined) esTranslation.name = ingredient.nameEs;
+      if (ingredient.pluralNameEs !== undefined) esTranslation.plural_name = ingredient.pluralNameEs;
+      translations.push(esTranslation);
+    }
+
+    if (translations.length > 0) {
+      const { error: translationError } = await this.supabase
+        .from('ingredient_translations')
+        .upsert(translations, { onConflict: 'ingredient_id,locale' });
+
+      if (translationError) {
+        throw new Error(`Failed to upsert ingredient translations: ${translationError.message}`);
+      }
     }
 
     return ingredient;
@@ -156,12 +176,7 @@ export class AdminIngredientsService extends BaseService {
   }
 
   async createIngredient(ingredient: any): Promise<AdminIngredient> {
-    // Write to old _en/_es columns (sync triggers update translation tables)
-    const ingredientData = {
-      name_en: ingredient.nameEn,
-      name_es: ingredient.nameEs,
-      plural_name_en: ingredient.pluralNameEn,
-      plural_name_es: ingredient.pluralNameEs,
+    const ingredientData: Record<string, any> = {
       image_url: '',
       nutritional_facts: ingredient.nutritionalFacts,
     };
@@ -174,8 +189,40 @@ export class AdminIngredientsService extends BaseService {
       );
     }
 
-    const result = await this.transformedInsert<AdminIngredient>('ingredients', ingredientData);
-    return result;
+    // Insert the ingredient and get the ID back
+    const { data: inserted, error: insertError } = await this.supabase
+      .from('ingredients')
+      .insert(ingredientData)
+      .select('id')
+      .single();
+
+    if (insertError) {
+      throw new Error(`Failed to create ingredient: ${insertError.message}`);
+    }
+
+    // Insert translations for both locales
+    const translations = [
+      { ingredient_id: inserted.id, locale: 'en', name: ingredient.nameEn, plural_name: ingredient.pluralNameEn },
+      { ingredient_id: inserted.id, locale: 'es', name: ingredient.nameEs, plural_name: ingredient.pluralNameEs },
+    ];
+
+    const { error: translationError } = await this.supabase
+      .from('ingredient_translations')
+      .insert(translations);
+
+    if (translationError) {
+      throw new Error(`Failed to insert ingredient translations: ${translationError.message}`);
+    }
+
+    return {
+      id: inserted.id,
+      nameEn: ingredient.nameEn,
+      nameEs: ingredient.nameEs,
+      pluralNameEn: ingredient.pluralNameEn,
+      pluralNameEs: ingredient.pluralNameEs,
+      pictureUrl: ingredientData.image_url,
+      nutritionalFacts: ingredient.nutritionalFacts,
+    };
   }
 
   // Image methods

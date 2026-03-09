@@ -75,12 +75,8 @@ export class AdminUsefulItemsService extends BaseService {
     }
   }
 
-  // Writes continue using old _en/_es columns (sync triggers handle translation tables)
   async updateUsefulItem(id: string, item: AdminUsefulItem): Promise<AdminUsefulItem> {
     const itemData: Record<string, any> = {};
-
-    if (item.nameEn !== undefined) itemData.name_en = item.nameEn;
-    if (item.nameEs !== undefined) itemData.name_es = item.nameEs;
 
     if (item.pictureUrl !== undefined) {
       const { data: currentItem, error: fetchError } = await this.supabase
@@ -122,7 +118,27 @@ export class AdminUsefulItemsService extends BaseService {
       if (!updatedItem) {
         throw new Error('Failed to update useful item');
       }
-      return updatedItem;
+    }
+
+    // Upsert translations for both locales
+    const translations: { useful_item_id: string; locale: string; name: string }[] = [];
+
+    if (item.nameEn !== undefined) {
+      translations.push({ useful_item_id: id, locale: 'en', name: item.nameEn });
+    }
+
+    if (item.nameEs !== undefined) {
+      translations.push({ useful_item_id: id, locale: 'es', name: item.nameEs });
+    }
+
+    if (translations.length > 0) {
+      const { error: translationError } = await this.supabase
+        .from('useful_item_translations')
+        .upsert(translations, { onConflict: 'useful_item_id,locale' });
+
+      if (translationError) {
+        throw new Error(`Failed to upsert useful item translations: ${translationError.message}`);
+      }
     }
 
     return item;
@@ -162,9 +178,7 @@ export class AdminUsefulItemsService extends BaseService {
   }
 
   async createUsefulItem(item: AdminUsefulItem): Promise<AdminUsefulItem> {
-    const itemData = {
-      name_en: item.nameEn,
-      name_es: item.nameEs,
+    const itemData: Record<string, any> = {
       image_url: '',
     };
 
@@ -176,8 +190,37 @@ export class AdminUsefulItemsService extends BaseService {
       );
     }
 
-    const result = await this.transformedInsert<AdminUsefulItem>('useful_items', itemData);
-    return result;
+    // Insert the useful item and get the ID back
+    const { data: inserted, error: insertError } = await this.supabase
+      .from('useful_items')
+      .insert(itemData)
+      .select('id')
+      .single();
+
+    if (insertError) {
+      throw new Error(`Failed to create useful item: ${insertError.message}`);
+    }
+
+    // Insert translations for both locales
+    const translations = [
+      { useful_item_id: inserted.id, locale: 'en', name: item.nameEn },
+      { useful_item_id: inserted.id, locale: 'es', name: item.nameEs },
+    ];
+
+    const { error: translationError } = await this.supabase
+      .from('useful_item_translations')
+      .insert(translations);
+
+    if (translationError) {
+      throw new Error(`Failed to insert useful item translations: ${translationError.message}`);
+    }
+
+    return {
+      id: inserted.id,
+      nameEn: item.nameEn,
+      nameEs: item.nameEs,
+      pictureUrl: itemData.image_url,
+    };
   }
 
   // Image methods
