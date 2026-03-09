@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Text } from '@/components/common/Text';
 import { COLORS } from '@/constants/design-tokens';
@@ -69,6 +70,35 @@ function ListItem({ rank, label, value }: { rank: number; label: string; value: 
       <Text preset="body" className="flex-1 text-text-default" numberOfLines={1}>{label}</Text>
       <Text preset="body" className="text-text-secondary font-semibold">{value}</Text>
     </View>
+  );
+}
+
+function RecipeListItem({ rank, recipe }: { rank: number; recipe: TopRecipe }) {
+  const router = useRouter();
+  const isUserRecipe = recipe.source === 'user';
+  const route = isUserRecipe
+    ? `/admin/user-recipes/${recipe.recipeId}`
+    : `/admin/recipes/${recipe.recipeId}`;
+
+  return (
+    <TouchableOpacity
+      className="flex-row items-center py-sm px-md bg-white rounded-md mb-xs"
+      onPress={() => router.push(route as never)}
+    >
+      <Text preset="body" className="text-text-secondary w-[30px]">{rank}.</Text>
+      <View className="flex-1">
+        <Text preset="body" className="text-text-default" numberOfLines={1}>{recipe.recipeName}</Text>
+        {isUserRecipe && recipe.userName && (
+          <Text preset="caption" className="text-text-secondary">
+            {i18n.t('admin.analytics.labels.aiGenerated')} • {recipe.userName}
+          </Text>
+        )}
+      </View>
+      <View className="flex-row items-center">
+        <Text preset="body" className="text-text-secondary font-semibold mr-xs">{recipe.count}</Text>
+        <Ionicons name="chevron-forward" size={16} color={COLORS.text.secondary} />
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -160,11 +190,14 @@ function LoadingState() {
   );
 }
 
-function ErrorState({ onRetry }: { onRetry: () => void }) {
+function ErrorState({ error, onRetry }: { error: Error | null; onRetry: () => void }) {
   return (
     <View className="items-center justify-center py-xxl">
       <Ionicons name="alert-circle" size={48} color={COLORS.status.error} />
       <Text preset="body" className="text-text-default mt-md">{i18n.t('admin.analytics.error')}</Text>
+      {error?.message && (
+        <Text preset="caption" className="text-text-secondary mt-xs px-lg text-center">{error.message}</Text>
+      )}
       <TouchableOpacity
         className="mt-md px-lg py-sm bg-primary-medium rounded-lg"
         onPress={onRetry}
@@ -183,29 +216,6 @@ function OverviewSection({ overviewData, retentionData }: {
 
   return (
     <View>
-      <SectionTitle>{i18n.t('admin.analytics.sections.activeUsers')}</SectionTitle>
-      <View className="flex-row flex-wrap">
-        <MetricCard
-          title={i18n.t('admin.analytics.labels.dau')}
-          value={overviewData.dau}
-          icon="today"
-          subtitle={i18n.t('admin.analytics.labels.dailyActive')}
-        />
-        <MetricCard
-          title={i18n.t('admin.analytics.labels.wau')}
-          value={overviewData.wau}
-          icon="calendar"
-          subtitle={i18n.t('admin.analytics.labels.weeklyActive')}
-        />
-        <MetricCard
-          title={i18n.t('admin.analytics.labels.mau')}
-          value={overviewData.mau}
-          icon="calendar-outline"
-          subtitle={i18n.t('admin.analytics.labels.monthlyActive')}
-        />
-      </View>
-
-      <SectionTitle>{i18n.t('admin.analytics.sections.users')}</SectionTitle>
       <View className="flex-row flex-wrap">
         <MetricCard
           title={i18n.t('admin.analytics.labels.totalSignups')}
@@ -219,30 +229,19 @@ function OverviewSection({ overviewData, retentionData }: {
           subtitle={i18n.t('admin.analytics.labels.onboardingSubtitle')}
         />
       </View>
-
-      <SectionTitle>{i18n.t('admin.analytics.sections.retentionRates')}</SectionTitle>
       <View className="flex-row flex-wrap">
+        <MetricCard
+          title={i18n.t('admin.analytics.labels.dau')}
+          value={overviewData.dau}
+          icon="today"
+          subtitle={i18n.t('admin.analytics.labels.dailyActive')}
+        />
         <MetricCard
           title={i18n.t('admin.analytics.labels.day1')}
           value={`${retentionData.day1Retention.toFixed(1)}%`}
           icon="time"
           subtitle={i18n.t('admin.analytics.labels.activeNextDay')}
         />
-        <MetricCard
-          title={i18n.t('admin.analytics.labels.day7')}
-          value={`${retentionData.day7Retention.toFixed(1)}%`}
-          icon="calendar"
-          subtitle={i18n.t('admin.analytics.labels.activeWithinWeek')}
-        />
-        <MetricCard
-          title={i18n.t('admin.analytics.labels.day30')}
-          value={`${retentionData.day30Retention.toFixed(1)}%`}
-          icon="calendar-outline"
-          subtitle={i18n.t('admin.analytics.labels.activeWithinMonth')}
-        />
-      </View>
-
-      <View className="flex-row flex-wrap mt-sm">
         <MetricCard
           title={i18n.t('admin.analytics.labels.timeToFirstCook')}
           value={retentionData.avgTimeToFirstCook !== null
@@ -252,6 +251,40 @@ function OverviewSection({ overviewData, retentionData }: {
           subtitle={i18n.t('admin.analytics.labels.average')}
         />
       </View>
+
+      <CollapsibleSection title={i18n.t('admin.analytics.sections.details')}>
+        <SectionTitle>{i18n.t('admin.analytics.sections.activeUsers')}</SectionTitle>
+        <View className="flex-row flex-wrap">
+          <MetricCard
+            title={i18n.t('admin.analytics.labels.wau')}
+            value={overviewData.wau}
+            icon="calendar"
+            subtitle={i18n.t('admin.analytics.labels.weeklyActive')}
+          />
+          <MetricCard
+            title={i18n.t('admin.analytics.labels.mau')}
+            value={overviewData.mau}
+            icon="calendar-outline"
+            subtitle={i18n.t('admin.analytics.labels.monthlyActive')}
+          />
+        </View>
+
+        <SectionTitle>{i18n.t('admin.analytics.sections.retentionRates')}</SectionTitle>
+        <View className="flex-row flex-wrap">
+          <MetricCard
+            title={i18n.t('admin.analytics.labels.day7')}
+            value={`${retentionData.day7Retention.toFixed(1)}%`}
+            icon="calendar"
+            subtitle={i18n.t('admin.analytics.labels.activeWithinWeek')}
+          />
+          <MetricCard
+            title={i18n.t('admin.analytics.labels.day30')}
+            value={`${retentionData.day30Retention.toFixed(1)}%`}
+            icon="calendar-outline"
+            subtitle={i18n.t('admin.analytics.labels.activeWithinMonth')}
+          />
+        </View>
+      </CollapsibleSection>
     </View>
   );
 }
@@ -316,12 +349,16 @@ function ContentSection({
         <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noDataYet')}</Text>
       ) : (
         cookedRecipes.map((recipe, index) => (
-          <ListItem
-            key={recipe.recipeId}
-            rank={index + 1}
-            label={recipe.recipeName}
-            value={recipe.count}
-          />
+          <RecipeListItem key={recipe.recipeId} rank={index + 1} recipe={recipe} />
+        ))
+      )}
+
+      <SectionTitle>{i18n.t('admin.analytics.sections.mostViewed')}</SectionTitle>
+      {viewedRecipes.length === 0 ? (
+        <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noDataYet')}</Text>
+      ) : (
+        viewedRecipes.map((recipe, index) => (
+          <RecipeListItem key={recipe.recipeId} rank={index + 1} recipe={recipe} />
         ))
       )}
 
@@ -338,22 +375,6 @@ function ContentSection({
           />
         ))
       )}
-
-      <CollapsibleSection title={i18n.t('admin.analytics.sections.details')}>
-        <SectionTitle>{i18n.t('admin.analytics.sections.mostViewed')}</SectionTitle>
-        {viewedRecipes.length === 0 ? (
-          <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noDataYet')}</Text>
-        ) : (
-          viewedRecipes.map((recipe, index) => (
-            <ListItem
-              key={recipe.recipeId}
-              rank={index + 1}
-              label={recipe.recipeName}
-              value={recipe.count}
-            />
-          ))
-        )}
-      </CollapsibleSection>
     </View>
   );
 }
@@ -738,12 +759,18 @@ export default function AnalyticsDashboard() {
             break;
           }
           case 'ai': {
-            const [adoption, usage, chatSessions, recipeGen] = await Promise.all([
+            const [adoption, usage, chatSessions] = await Promise.all([
               analyticsService.getAIMetrics(timeframe),
               analyticsService.getAIUsageMetrics(timeframe),
               analyticsService.getAIChatSessionMetrics(timeframe),
-              analyticsService.getRecipeGenerationMetrics(timeframe),
             ]);
+            // Recipe generation is non-critical — don't let it break the tab
+            let recipeGen: RecipeGenerationMetrics | null = null;
+            try {
+              recipeGen = await analyticsService.getRecipeGenerationMetrics(timeframe);
+            } catch (e) {
+              console.warn('Failed to load recipe generation metrics:', e);
+            }
             if (!cancelled) {
               setAIData(adoption);
               setAIUsageData(usage);
@@ -756,7 +783,8 @@ export default function AnalyticsDashboard() {
       } catch (err) {
         if (!cancelled) {
           console.error('Error loading analytics:', err);
-          setError(err instanceof Error ? err : new Error('Failed to load analytics'));
+          const message = err instanceof Error ? err.message : (err as { message?: string })?.message || JSON.stringify(err);
+          setError(new Error(message));
         }
       } finally {
         if (!cancelled) {
@@ -773,7 +801,7 @@ export default function AnalyticsDashboard() {
 
   const renderContent = () => {
     if (loading) return <LoadingState />;
-    if (error) return <ErrorState onRetry={handleRetry} />;
+    if (error) return <ErrorState error={error} onRetry={handleRetry} />;
 
     switch (activeTab) {
       case 'overview':

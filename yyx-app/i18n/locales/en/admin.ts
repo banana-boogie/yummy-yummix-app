@@ -136,9 +136,13 @@ export const admin = {
       totalFailed: "Total Failed",
       generationSuccessRate: "Success Rate",
       avgGenerationTime: "Avg Generation Time",
+      aiGenerated: "AI Generated",
       am: "AM",
       pm: "PM",
     },
+  },
+  userRecipes: {
+    createdBy: "by {{name}}",
   },
   recipes: {
     status: "Status",

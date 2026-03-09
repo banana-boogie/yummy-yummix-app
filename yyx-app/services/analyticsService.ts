@@ -31,6 +31,9 @@ export interface TopRecipe {
   recipeId: string;
   recipeName: string;
   count: number;
+  source: 'catalog' | 'user';
+  userId: string | null;
+  userName: string | null;
 }
 
 export interface TopSearch {

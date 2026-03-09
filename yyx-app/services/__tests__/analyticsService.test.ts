@@ -46,7 +46,7 @@ describe('analyticsService', () => {
   });
 
   it('getTopViewedRecipes calls admin_top_viewed_recipes with timeframe and limit', async () => {
-    const mockData = [{ recipeId: 'r1', recipeName: 'Tacos', count: 10 }];
+    const mockData = [{ recipeId: 'r1', recipeName: 'Tacos', count: 10, source: 'catalog', userId: null, userName: null }];
     (supabase.rpc as jest.Mock).mockResolvedValue({ data: mockData, error: null });
 
     const result = await analyticsService.getTopViewedRecipes('7_days', 5);
@@ -59,7 +59,7 @@ describe('analyticsService', () => {
   });
 
   it('getTopCookedRecipes calls admin_top_cooked_recipes with timeframe and limit', async () => {
-    const mockData = [{ recipeId: 'r2', recipeName: 'Enchiladas', count: 8 }];
+    const mockData = [{ recipeId: 'r2', recipeName: 'Enchiladas', count: 8, source: 'user', userId: 'u1', userName: 'Maria' }];
     (supabase.rpc as jest.Mock).mockResolvedValue({ data: mockData, error: null });
 
     const result = await analyticsService.getTopCookedRecipes('today', 3);
