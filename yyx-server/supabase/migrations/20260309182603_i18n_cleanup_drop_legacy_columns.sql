@@ -30,6 +30,16 @@ DROP TRIGGER IF EXISTS ensure_base_translation ON recipe_tags;
 DROP TRIGGER IF EXISTS ensure_base_translation ON useful_items;
 DROP TRIGGER IF EXISTS ensure_base_translation ON recipe_useful_items;
 
+-- Cloud may have different trigger names (check_*_base_translation)
+DROP TRIGGER IF EXISTS check_recipe_base_translation ON recipes;
+DROP TRIGGER IF EXISTS check_recipe_step_base_translation ON recipe_steps;
+DROP TRIGGER IF EXISTS check_ingredient_base_translation ON ingredients;
+DROP TRIGGER IF EXISTS check_recipe_ingredient_base_translation ON recipe_ingredients;
+DROP TRIGGER IF EXISTS check_measurement_unit_base_translation ON measurement_units;
+DROP TRIGGER IF EXISTS check_recipe_tag_base_translation ON recipe_tags;
+DROP TRIGGER IF EXISTS check_useful_item_base_translation ON useful_items;
+DROP TRIGGER IF EXISTS check_recipe_useful_item_base_translation ON recipe_useful_items;
+
 DROP FUNCTION IF EXISTS check_base_translation();
 
 -- ============================================================
@@ -57,7 +67,14 @@ DROP INDEX IF EXISTS idx_useful_items_name_en_unique;
 DROP INDEX IF EXISTS idx_useful_items_name_es_unique;
 
 -- ============================================================
--- 4. Drop legacy _en/_es columns
+-- 4. Drop convenience views (depend on columns being dropped via r.*)
+-- ============================================================
+
+DROP VIEW IF EXISTS public.recipes_summary;
+DROP VIEW IF EXISTS public.ingredients_summary;
+
+-- ============================================================
+-- 5. Drop legacy _en/_es columns
 -- ============================================================
 
 ALTER TABLE recipes
@@ -111,7 +128,7 @@ ALTER TABLE recipe_useful_items
   DROP COLUMN IF EXISTS notes_es;
 
 -- ============================================================
--- 5. Recreate convenience views (old definitions used r.* which included dropped columns)
+-- 6. Recreate convenience views (now without old columns)
 -- ============================================================
 
 CREATE OR REPLACE VIEW public.recipes_summary AS
@@ -125,7 +142,7 @@ FROM public.ingredients i
 LEFT JOIN public.ingredient_translations t ON t.ingredient_id = i.id AND t.locale = 'en';
 
 -- ============================================================
--- 6. Add unique indexes on translation tables
+-- 7. Add unique indexes on translation tables
 -- ============================================================
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_ingredient_translations_name_locale
