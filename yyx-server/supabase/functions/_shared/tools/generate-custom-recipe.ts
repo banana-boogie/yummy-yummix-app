@@ -354,10 +354,43 @@ async function callRecipeGenerationAI(
 
   let lastError: Error | null = null;
 
+  const usageContext = options?.usageContext;
+
+  /** Fire-and-forget usage log for recipe generation attempts. */
+  function fireRecipeUsageLog(
+    attemptIndex: number,
+    status: "success" | "error",
+    startTime: number,
+    response?: {
+      model: string;
+      usage: { inputTokens: number; outputTokens: number };
+    },
+  ) {
+    if (!usageContext) return;
+    void logAIUsage({
+      userId: usageContext.userId,
+      sessionId: usageContext.sessionId,
+      requestId: usageContext.requestId,
+      callPhase: "recipe_generation",
+      attempt: attemptIndex,
+      status,
+      functionName: usageContext.functionName,
+      usageType: "recipe_generation",
+      model: response?.model ?? null,
+      inputTokens: response?.usage.inputTokens ?? null,
+      outputTokens: response?.usage.outputTokens ?? null,
+      durationMs: Math.round(performance.now() - startTime),
+      metadata: {
+        streaming: false,
+        request_type: "recipe_generation",
+        source: "generate_custom_recipe",
+      },
+    });
+  }
+
   for (let attempt = 0; attempt < 2; attempt++) {
     const isRetry = attempt === 1;
     const llmStart = performance.now();
-    const usageContext = options?.usageContext;
     let response: {
       content: string;
       model: string;
@@ -383,81 +416,19 @@ async function callRecipeGenerationAI(
         costContext,
       });
     } catch (error) {
-      if (usageContext) {
-        void logAIUsage({
-          userId: usageContext.userId,
-          sessionId: usageContext.sessionId,
-          requestId: usageContext.requestId,
-          callPhase: "recipe_generation",
-          attempt,
-          status: "error",
-          functionName: usageContext.functionName,
-          usageType: "recipe_generation",
-          model: null,
-          inputTokens: null,
-          outputTokens: null,
-          durationMs: Math.round(performance.now() - llmStart),
-          metadata: {
-            streaming: false,
-            request_type: "recipe_generation",
-            source: "generate_custom_recipe",
-          },
-        });
-      }
-
+      fireRecipeUsageLog(attempt, "error", llmStart);
       throw error;
     }
 
     try {
       const parsedRecipe = parseAndValidateGeneratedRecipe(response.content);
-      if (usageContext) {
-        void logAIUsage({
-          userId: usageContext.userId,
-          sessionId: usageContext.sessionId,
-          requestId: usageContext.requestId,
-          callPhase: "recipe_generation",
-          attempt,
-          status: "success",
-          functionName: usageContext.functionName,
-          usageType: "recipe_generation",
-          model: response.model,
-          inputTokens: response.usage.inputTokens,
-          outputTokens: response.usage.outputTokens,
-          durationMs: Math.round(performance.now() - llmStart),
-          metadata: {
-            streaming: false,
-            request_type: "recipe_generation",
-            source: "generate_custom_recipe",
-          },
-        });
-      }
+      fireRecipeUsageLog(attempt, "success", llmStart, response);
       return parsedRecipe;
     } catch (error) {
       lastError = error instanceof Error
         ? error
         : new Error("Recipe parsing failed");
-
-      if (usageContext) {
-        void logAIUsage({
-          userId: usageContext.userId,
-          sessionId: usageContext.sessionId,
-          requestId: usageContext.requestId,
-          callPhase: "recipe_generation",
-          attempt,
-          status: "error",
-          functionName: usageContext.functionName,
-          usageType: "recipe_generation",
-          model: response.model,
-          inputTokens: response.usage.inputTokens,
-          outputTokens: response.usage.outputTokens,
-          durationMs: Math.round(performance.now() - llmStart),
-          metadata: {
-            streaming: false,
-            request_type: "recipe_generation",
-            source: "generate_custom_recipe",
-          },
-        });
-      }
+      fireRecipeUsageLog(attempt, "error", llmStart, response);
 
       if (!isRetry) {
         console.warn(
