@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import i18n from '@/i18n';
-import { Language, useLanguage } from '@/contexts/LanguageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useMeasurement } from '@/contexts/MeasurementContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile } from '@/contexts/UserProfileContext';
@@ -13,7 +13,7 @@ import { HeaderWithBack } from '@/components/common/HeaderWithBack';
 import { PageLayout } from '@/components/layouts/PageLayout';
 
 export default function Settings() {
-  const { language, setLanguage } = useLanguage();
+  const { language, setLocale } = useLanguage();
   const { measurementSystem, setMeasurementSystem } = useMeasurement();
   const { signOut } = useAuth();
   const { updateUserProfile } = useUserProfile();
@@ -23,18 +23,21 @@ export default function Settings() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
-  const handleLanguageChange = async (newLanguage: string) => {
+  const handleLanguageChange = async (newLocaleCode: string) => {
     try {
       setIsLoading(true);
       setError(null);
 
+      // Derive language for profile (still uses 'en'|'es')
+      const lang = newLocaleCode.startsWith('es') ? 'es' : 'en';
+
       // Update user profile first
       await updateUserProfile({
-        language: newLanguage
+        language: lang
       });
 
-      // Then update language in context - this will trigger the app restart dialog
-      await setLanguage(newLanguage as Language);
+      // Update locale in context (also updates language)
+      await setLocale(newLocaleCode);
 
       setIsLoading(false);
     } catch (error) {

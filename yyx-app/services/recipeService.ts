@@ -5,17 +5,12 @@ import { PostgrestResponse, PostgrestSingleResponse } from '@supabase/supabase-j
 import { recipeCache } from '@/services/cache/recipeCache';
 import { isValidUUID } from '@/utils/validation';
 
-// Helper function to get current language suffix
-const getLangSuffix = () => `_${i18n.locale}`;
-
 // Helper to generate language-aware cache key
-const getLanguageAwareKey = (baseKey: string) => `${baseKey}${getLangSuffix()}`;
+const getLanguageAwareKey = (baseKey: string) => `${baseKey}_${i18n.locale}`;
 
 const getRecipeListQuery = () => {
-  const lang = getLangSuffix();
   return `
     id,
-    name${lang},
     image_url,
     difficulty,
     prep_time,
@@ -24,40 +19,57 @@ const getRecipeListQuery = () => {
     is_published,
     created_at,
     updated_at,
+    translations:recipe_translations (
+      locale,
+      name,
+      tips_and_tricks
+    ),
     ingredients:recipe_ingredients (
       quantity,
       ingredient:ingredients (
         id,
-        name${lang},
-        plural_name${lang}
+        translations:ingredient_translations (
+          locale,
+          name,
+          plural_name
+        )
       )
     ),
     tags:recipe_to_tag (
       recipe_tags (
         id,
-        name${lang}
+        translations:recipe_tag_translations (
+          locale,
+          name
+        )
       )
     )
   `;
 };
 
 const getRecipeDetailQuery = () => {
-  const lang = getLangSuffix();
   return `
     id,
-    name${lang},
     image_url,
     difficulty,
     prep_time,
     total_time,
     portions,
-    tips_and_tricks${lang},
     is_published,
+    translations:recipe_translations (
+      locale,
+      name,
+      tips_and_tricks
+    ),
     steps:recipe_steps!inner (
       id,
       order,
-      instruction${lang},
-      recipe_section${lang},
+      translations:recipe_step_translations (
+        locale,
+        instruction,
+        recipe_section,
+        tip
+      ),
       thermomix_time,
       thermomix_speed,
       thermomix_speed_start,
@@ -71,57 +83,81 @@ const getRecipeDetailQuery = () => {
         display_order,
         ingredient:ingredients!inner (
           id,
-          name${lang},
-          plural_name${lang},
-          image_url
+          image_url,
+          translations:ingredient_translations (
+            locale,
+            name,
+            plural_name
+          )
         ),
         measurement_unit:measurement_units!inner (
           id,
           type,
           system,
-          symbol${lang},
-          symbol${lang}_plural,
-          name${lang},
-          name${lang}_plural
+          translations:measurement_unit_translations (
+            locale,
+            name,
+            name_plural,
+            symbol,
+            symbol_plural
+          )
         )
       )
     ),
     ingredients:recipe_ingredients (
       quantity,
-      notes${lang},
-      recipe_section${lang},
       display_order,
       optional,
+      translations:recipe_ingredient_translations (
+        locale,
+        notes,
+        recipe_section
+      ),
       ingredient:ingredients (
         id,
-        name${lang},
-        plural_name${lang},
-        image_url
+        image_url,
+        translations:ingredient_translations (
+          locale,
+          name,
+          plural_name
+        )
       ),
       measurement_unit:measurement_units !inner(
         id,
         type,
         system,
-        symbol${lang},
-        symbol${lang}_plural,
-        name${lang},
-        name${lang}_plural
+        translations:measurement_unit_translations (
+          locale,
+          name,
+          name_plural,
+          symbol,
+          symbol_plural
+        )
       )
     ),
     tags:recipe_to_tag (
       recipe_tags!inner (
         id,
-        name${lang}
+        translations:recipe_tag_translations (
+          locale,
+          name
+        )
       )
     ),
     useful_items:recipe_useful_items (
       id,
-      notes${lang},
       display_order,
+      translations:recipe_useful_item_translations (
+        locale,
+        notes
+      ),
       useful_item:useful_items (
         id,
-        name${lang},
-        image_url
+        image_url,
+        translations:useful_item_translations (
+          locale,
+          name
+        )
       )
     )
   `;
@@ -134,7 +170,7 @@ const normalizeSearchTerm = (searchTerm: string) => searchTerm.trim().toLowerCas
 
 /**
  * Resolve recipe IDs for search across recipe names, ingredients, and tags.
- * Keeps the active locale column for name matching.
+ * Uses translation tables for locale-aware searching.
  */
 const findRecipeIdsForSearch = async (
   rawSearchTerm: string,
@@ -143,38 +179,44 @@ const findRecipeIdsForSearch = async (
   const searchTerm = normalizeSearchTerm(rawSearchTerm);
   if (!searchTerm) return [];
 
-  const langSuffix = getLangSuffix();
-  const nameColumn = `name${langSuffix}`;
   const pattern = `%${searchTerm}%`;
-
   const recipeIds = new Set<string>();
 
-  // 1) Direct recipe name matches
-  let nameQuery = supabase
-    .from('recipes')
-    .select('id')
-    .ilike(nameColumn, pattern)
-    .limit(200);
+  // 1) Direct recipe name matches via translation table
+  const { data: nameMatches, error: nameError } = await supabase
+    .from('recipe_translations')
+    .select('recipe_id')
+    .ilike('name', pattern)
+    .limit(200) as unknown as PostgrestResponse<RecipeIdRow[]>;
 
-  if (isPublished !== undefined) {
-    nameQuery = nameQuery.eq('is_published', isPublished);
-  }
-
-  const { data: nameMatches, error: nameError } = await nameQuery as unknown as PostgrestResponse<IdRow[]>;
   if (nameError) console.warn('[recipeService] Name search error:', nameError.message);
-  for (const row of nameMatches ?? []) {
-    recipeIds.add(row.id);
+
+  // If isPublished filter is needed, we need to cross-reference
+  if (isPublished !== undefined && nameMatches?.length) {
+    const candidateIds = (nameMatches ?? []).map(r => r.recipe_id);
+    const { data: publishedRecipes } = await supabase
+      .from('recipes')
+      .select('id')
+      .in('id', candidateIds)
+      .eq('is_published', isPublished) as unknown as PostgrestResponse<IdRow[]>;
+    for (const row of publishedRecipes ?? []) {
+      recipeIds.add(row.id);
+    }
+  } else {
+    for (const row of nameMatches ?? []) {
+      recipeIds.add(row.recipe_id);
+    }
   }
 
-  // 2) Ingredient name matches -> recipe IDs
+  // 2) Ingredient name matches via translation table -> recipe IDs
   const { data: ingredientMatches, error: ingredientError } = await supabase
-    .from('ingredients')
-    .select('id')
-    .ilike(nameColumn, pattern)
-    .limit(200) as unknown as PostgrestResponse<IdRow[]>;
+    .from('ingredient_translations')
+    .select('ingredient_id')
+    .ilike('name', pattern)
+    .limit(200);
   if (ingredientError) console.warn('[recipeService] Ingredient search error:', ingredientError.message);
 
-  const ingredientIds = (ingredientMatches ?? []).map((row) => row.id);
+  const ingredientIds = (ingredientMatches ?? []).map((row: any) => row.ingredient_id);
   if (ingredientIds.length > 0) {
     const { data: recipeIngredientRows, error: riError } = await supabase
       .from('recipe_ingredients')
@@ -188,15 +230,15 @@ const findRecipeIdsForSearch = async (
     }
   }
 
-  // 3) Tag matches -> recipe IDs
+  // 3) Tag matches via translation table -> recipe IDs
   const { data: tagMatches, error: tagError } = await supabase
-    .from('recipe_tags')
-    .select('id')
-    .ilike(nameColumn, pattern)
-    .limit(200) as unknown as PostgrestResponse<IdRow[]>;
+    .from('recipe_tag_translations')
+    .select('recipe_tag_id')
+    .ilike('name', pattern)
+    .limit(200);
   if (tagError) console.warn('[recipeService] Tag search error:', tagError.message);
 
-  const tagIds = (tagMatches ?? []).map((row) => row.id);
+  const tagIds = (tagMatches ?? []).map((row: any) => row.recipe_tag_id);
   if (tagIds.length > 0) {
     const { data: recipeTagRows, error: rtError } = await supabase
       .from('recipe_to_tag')

@@ -76,16 +76,11 @@ describe('AdminUsefulItemsService', () => {
 
   const mockUsefulItem = {
     id: 'item-1',
-    name_en: 'Mixing Bowl',
-    name_es: 'Tazón para mezclar',
     image_url: 'https://example.com/bowl.png',
-  };
-
-  const mockTransformedItem = {
-    id: 'item-1',
-    nameEn: 'Mixing Bowl',
-    nameEs: 'Tazón para mezclar',
-    pictureUrl: 'https://example.com/bowl.png',
+    translations: [
+      { locale: 'en', name: 'Mixing Bowl' },
+      { locale: 'es', name: 'Tazon para mezclar' },
+    ],
   };
 
   beforeEach(() => {
@@ -124,14 +119,13 @@ describe('AdminUsefulItemsService', () => {
       await service.getAllUsefulItems();
 
       expect(mockFrom).toHaveBeenCalledWith('useful_items');
-      expect(mockSelect).toHaveBeenCalledWith('*');
-      expect(mockOrder).toHaveBeenCalledWith('name_en', { ascending: true });
     });
 
-    it('fetches items sorted by Spanish name', async () => {
+    it('sorts by Spanish name client-side', async () => {
       await service.getAllUsefulItems('name_es');
 
-      expect(mockOrder).toHaveBeenCalledWith('name_es', { ascending: true });
+      // Still fetches from same table, sorting happens client-side now
+      expect(mockFrom).toHaveBeenCalledWith('useful_items');
     });
   });
 

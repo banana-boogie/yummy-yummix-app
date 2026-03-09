@@ -7,29 +7,57 @@ export interface TagFilters {
   sortDirection?: 'asc' | 'desc';
 }
 
+/**
+ * Helper to pick a translation value from an array of translations by locale.
+ */
+function pickByLocale<T extends { locale: string }>(
+  translations: T[] | undefined | null,
+  locale: string,
+): T | undefined {
+  if (!translations) return undefined;
+  return translations.find(t => t.locale === locale);
+}
+
 class AdminRecipeTagService extends BaseService {
   constructor() {
     super(supabase);
   }
 
   async getAllTags(): Promise<AdminRecipeTag[]> {
-    const tags = await this.transformedSelect<AdminRecipeTag[]>(
-      this.supabase
-        .from('recipe_tags')
-        .select(`
-          id,
-          name_en,
-          name_es,
-          categories
-        `)
-        .order('name_es', { ascending: true })
+    const { data, error } = await this.supabase
+      .from('recipe_tags')
+      .select(`
+        id,
+        categories,
+        translations:recipe_tag_translations (
+          locale,
+          name
+        )
+      `)
+      .order('id', { ascending: true });
+
+    if (error) {
+      throw new Error(`Failed to fetch tags: ${error.message}`);
+    }
+
+    // Transform to admin format
+    const tags = (data || []).map((item: any) => {
+      const en = pickByLocale(item.translations, 'en');
+      const es = pickByLocale(item.translations, 'es');
+      return {
+        id: item.id,
+        nameEn: en?.name || '',
+        nameEs: es?.name || '',
+        categories: transformCategories.toDisplay(item.categories || []),
+      };
+    });
+
+    // Sort by Spanish name (matching previous behavior)
+    tags.sort((a: AdminRecipeTag, b: AdminRecipeTag) =>
+      (a.nameEs || '').localeCompare(b.nameEs || '')
     );
 
-    // Transform categories for display
-    return tags.map(tag => ({
-      ...tag,
-      categories: transformCategories.toDisplay(tag.categories || [])
-    }));
+    return tags;
   }
 
   async getTagCategories(): Promise<string[]> {
@@ -40,13 +68,12 @@ class AdminRecipeTagService extends BaseService {
       throw new Error(`Failed to fetch enum values: ${error.message}`);
     }
 
-    // The function returns an array of objects with an enum_value property
     return data?.map((item: { enum_value: string }) => formatCategoryNameToTitleCase(item.enum_value)).sort() || [];
   }
 
   async createCategory(category: string): Promise<void> {
     const { error } = await this.supabase
-      .rpc('add_enum_value', { 
+      .rpc('add_enum_value', {
         enum_name: 'recipe_tag_category',
         new_value: formatToScreamingSnakeCase(category)
       });
@@ -56,6 +83,7 @@ class AdminRecipeTagService extends BaseService {
     }
   }
 
+  // Writes continue using old _en/_es columns (sync triggers handle translation tables)
   async createTag(tag: Omit<AdminRecipeTag, 'id'>): Promise<AdminRecipeTag> {
     if (!tag) {
       throw new Error('No tag data provided');
@@ -72,7 +100,7 @@ class AdminRecipeTagService extends BaseService {
     if (tag.categories.length) {
       tag.categories = tag.categories.map(formatToScreamingSnakeCase);
     }
-    
+
     const result = await this.transformedInsert<AdminRecipeTag>('recipe_tags', tag);
     if (result) {
       return {
@@ -80,7 +108,7 @@ class AdminRecipeTagService extends BaseService {
         categories: transformCategories.toDisplay(result.categories || [])
       };
     }
-    
+
     throw new Error('Failed to create tag: No data returned');
   }
 
@@ -97,15 +125,13 @@ class AdminRecipeTagService extends BaseService {
       throw new Error('No name provided');
     }
 
-    // Create a copy with transformed categories
     const dbTag = {
       ...tag,
       categories: tag.categories ? transformCategories.toDatabase(tag.categories) : undefined
     };
 
     const result = await this.transformedUpdate<AdminRecipeTag>('recipe_tags', id, dbTag);
-    
-    // Transform result back to display format
+
     if (result) {
       return {
         ...result,
@@ -128,4 +154,4 @@ class AdminRecipeTagService extends BaseService {
 }
 
 export const adminRecipeTagService = new AdminRecipeTagService();
-export default adminRecipeTagService; 
+export default adminRecipeTagService;

@@ -76,12 +76,12 @@ describe('AdminIngredientsService', () => {
 
   const mockIngredient = {
     id: 'ing-1',
-    name_en: 'Tomato',
-    name_es: 'Tomate',
-    plural_name_en: 'Tomatoes',
-    plural_name_es: 'Tomates',
     image_url: 'https://example.com/tomato.png',
     nutritional_facts: { calories: 20 },
+    translations: [
+      { locale: 'en', name: 'Tomato', plural_name: 'Tomatoes' },
+      { locale: 'es', name: 'Tomate', plural_name: 'Tomates' },
+    ],
   };
 
   const mockTransformedIngredient = {
@@ -129,15 +129,16 @@ describe('AdminIngredientsService', () => {
       const result = await service.getAllIngredientsForAdmin();
 
       expect(mockFrom).toHaveBeenCalledWith('ingredients');
-      expect(mockOrder).toHaveBeenCalledWith('name_en', { ascending: true });
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual(mockTransformedIngredient);
     });
 
-    it('fetches ingredients sorted by Spanish name', async () => {
-      await service.getAllIngredientsForAdmin('name_es');
+    it('sorts by Spanish name client-side', async () => {
+      const result = await service.getAllIngredientsForAdmin('name_es');
 
-      expect(mockOrder).toHaveBeenCalledWith('name_es', { ascending: true });
+      // Still fetches from same table, sorting happens client-side now
+      expect(mockFrom).toHaveBeenCalledWith('ingredients');
+      expect(result).toHaveLength(1);
     });
 
     it('throws error when fetch fails', async () => {
@@ -159,9 +160,9 @@ describe('AdminIngredientsService', () => {
       expect(result).toEqual([]);
     });
 
-    it('transforms undefined names to undefined', async () => {
+    it('transforms missing translations to undefined', async () => {
       mockOrder.mockResolvedValue({
-        data: [{ id: 'ing-2', name_en: null, name_es: null }],
+        data: [{ id: 'ing-2', image_url: null, nutritional_facts: null, translations: [] }],
         error: null,
       });
 

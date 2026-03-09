@@ -54,7 +54,7 @@ export function ChatScreen({
     newChatSignal,
 }: Props) {
     const { user } = useAuth();
-    const { language } = useLanguage();
+    const { locale } = useLanguage();
     const queryClient = useQueryClient();
     const insets = useSafeAreaInsets();
 
@@ -141,7 +141,7 @@ export function ChatScreen({
     // --- Speech recognition (uses a ref-based callback to avoid stale closure) ---
     const setInputTextRef = useRef<(text: string) => void>(() => {});
     const { isListening, pulseAnim, handleMicPress, stopAndGuard } = useSpeechRecognition({
-        language,
+        locale,
         onTranscript: useCallback((text: string) => setInputTextRef.current(text), []),
     });
 
@@ -150,7 +150,6 @@ export function ChatScreen({
         inputText,
         setInputText,
         isLoading,
-        isStreaming,
         isRecipeGenerating,
         currentStatus,
         handleSend,

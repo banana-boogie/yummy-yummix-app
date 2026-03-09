@@ -3,21 +3,63 @@ import { BaseService } from '../base/BaseService';
 import { imageService } from '../storage/imageService';
 import { AdminUsefulItem } from '@/types/recipe.admin.types';
 
+/**
+ * Helper to pick a translation value from an array of translations by locale.
+ */
+function pickByLocale<T extends { locale: string }>(
+  translations: T[] | undefined | null,
+  locale: string,
+): T | undefined {
+  if (!translations) return undefined;
+  return translations.find(t => t.locale === locale);
+}
+
 export class AdminUsefulItemsService extends BaseService {
   constructor() {
     super(supabase);
   }
 
   async getAllUsefulItems(sortBy: 'name_en' | 'name_es' = 'name_en'): Promise<AdminUsefulItem[]> {
-      return this.transformedSelect<AdminUsefulItem[]>(this.supabase
-        .from('useful_items')
-        .select('*')
-        .order(sortBy, { ascending: true }));
+    const { data, error } = await this.supabase
+      .from('useful_items')
+      .select(`
+        id,
+        image_url,
+        translations:useful_item_translations (
+          locale,
+          name
+        )
+      `)
+      .order('id', { ascending: true });
+
+    if (error) {
+      throw new Error(`Error fetching useful items: ${error.message}`);
+    }
+
+    const result = (data || []).map((item: any) => {
+      const en = pickByLocale(item.translations, 'en');
+      const es = pickByLocale(item.translations, 'es');
+      return {
+        id: item.id,
+        nameEn: en?.name || '',
+        nameEs: es?.name || '',
+        pictureUrl: item.image_url || item.imageUrl || '',
+      };
+    });
+
+    // Sort client-side since translation table columns can't be sorted via PostgREST
+    result.sort((a: AdminUsefulItem, b: AdminUsefulItem) => {
+      const aVal = sortBy === 'name_es' ? (a.nameEs || '') : (a.nameEn || '');
+      const bVal = sortBy === 'name_es' ? (b.nameEs || '') : (b.nameEn || '');
+      return aVal.localeCompare(bVal);
+    });
+
+    return result;
   }
 
   private async handleImageUpload(file: any, nameEn?: string, nameEs?: string): Promise<string> {
     if (!file) return '';
-    
+
     try {
       const fileName = `${nameEn || nameEs || 'useful-item'}.png`;
       return await this.uploadImage({
@@ -33,15 +75,14 @@ export class AdminUsefulItemsService extends BaseService {
     }
   }
 
+  // Writes continue using old _en/_es columns (sync triggers handle translation tables)
   async updateUsefulItem(id: string, item: AdminUsefulItem): Promise<AdminUsefulItem> {
     const itemData: Record<string, any> = {};
-    
+
     if (item.nameEn !== undefined) itemData.name_en = item.nameEn;
     if (item.nameEs !== undefined) itemData.name_es = item.nameEs;
-    
-    // Handle image update only if pictureUrl is explicitly provided and is different
+
     if (item.pictureUrl !== undefined) {
-      // First, get the current item to get its image URL
       const { data: currentItem, error: fetchError } = await this.supabase
         .from('useful_items')
         .select('image_url')
@@ -52,22 +93,18 @@ export class AdminUsefulItemsService extends BaseService {
         throw new Error(`Error fetching current useful item: ${fetchError.message}`);
       }
 
-      // Only process image if it's actually different
       const isNewImage = typeof item.pictureUrl === 'object';
       const isDifferentUrl = item.pictureUrl !== currentItem?.image_url;
 
       if (isNewImage || isDifferentUrl) {
-        // If there's an existing image and we're updating to a new one, delete the old one
         if (currentItem?.image_url) {
           try {
             await this.deleteImage(currentItem.image_url);
           } catch (error) {
             console.error('Error deleting old image:', error);
-            // Continue with update even if image deletion fails
           }
         }
 
-        // If the new pictureUrl is a file object, upload it
         if (isNewImage) {
           itemData.image_url = await this.handleImageUpload(
             item.pictureUrl,
@@ -75,13 +112,11 @@ export class AdminUsefulItemsService extends BaseService {
             item.nameEs
           );
         } else {
-          // If it's a different URL string, use it directly
           itemData.image_url = item.pictureUrl;
         }
       }
     }
 
-    // Only perform update if there are changes
     if (Object.keys(itemData).length > 0) {
       const updatedItem = await this.transformedUpdate<AdminUsefulItem>('useful_items', id, itemData);
       if (!updatedItem) {
@@ -113,7 +148,6 @@ export class AdminUsefulItemsService extends BaseService {
         }
       } catch (error) {
         console.error('Error deleting old image:', error);
-        // Continue with update even if image deletion fails
       }
 
     const { error } = await this.supabase
@@ -152,4 +186,4 @@ export class AdminUsefulItemsService extends BaseService {
 }
 
 export const adminUsefulItemsService = new AdminUsefulItemsService();
-export default adminUsefulItemsService; 
+export default adminUsefulItemsService;

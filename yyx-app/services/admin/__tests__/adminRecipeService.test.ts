@@ -7,6 +7,9 @@
  */
 
 // Helper to create a deeply chainable mock
+// Import after mocks
+import { adminRecipeService } from '../adminRecipeService';
+
 const createChainableMock = (resolvedValue: any = { data: null, error: null }) => {
   const chainable: any = {};
   const methods = ['select', 'insert', 'update', 'delete', 'eq', 'single', 'order', 'from'];
@@ -44,14 +47,9 @@ jest.mock('@/services/storage/imageService', () => ({
   },
 }));
 
-// Import after mocks
-import { adminRecipeService } from '../adminRecipeService';
-
 describe('AdminRecipeService', () => {
   const mockRecipe = {
     id: 'recipe-1',
-    name_en: 'Chocolate Cake',
-    name_es: 'Pastel de Chocolate',
     image_url: 'https://example.com/cake.png',
     difficulty: 'medium',
     prep_time: 30,
@@ -60,6 +58,10 @@ describe('AdminRecipeService', () => {
     is_published: true,
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
+    translations: [
+      { locale: 'en', name: 'Chocolate Cake', tips_and_tricks: null },
+      { locale: 'es', name: 'Pastel de Chocolate', tips_and_tricks: null },
+    ],
   };
 
   beforeEach(() => {
@@ -182,7 +184,15 @@ describe('AdminRecipeService', () => {
   describe('getAllMeasurementUnits', () => {
     it('fetches from measurement_units table', async () => {
       const mockUnits = [
-        { id: 'unit-1', name_en: 'gram', symbol_en: 'g' },
+        {
+          id: 'unit-1',
+          type: 'weight',
+          system: 'metric',
+          translations: [
+            { locale: 'en', name: 'gram', name_plural: 'grams', symbol: 'g', symbol_plural: 'g' },
+            { locale: 'es', name: 'gramo', name_plural: 'gramos', symbol: 'g', symbol_plural: 'g' },
+          ],
+        },
       ];
       mockChain = createChainableMock({ data: mockUnits, error: null });
       mockFrom.mockImplementation(() => mockChain);
@@ -194,7 +204,14 @@ describe('AdminRecipeService', () => {
 
     it('returns transformed measurement units', async () => {
       const mockUnits = [
-        { id: 'unit-1', name_en: 'gram', symbol_en: 'g', system: 'metric' },
+        {
+          id: 'unit-1',
+          type: 'weight',
+          system: 'metric',
+          translations: [
+            { locale: 'en', name: 'gram', name_plural: 'grams', symbol: 'g', symbol_plural: 'g' },
+          ],
+        },
       ];
       mockChain = createChainableMock({ data: mockUnits, error: null });
       mockFrom.mockImplementation(() => mockChain);
@@ -213,7 +230,14 @@ describe('AdminRecipeService', () => {
   describe('getAllTags', () => {
     it('fetches from recipe_tags table', async () => {
       const mockTags = [
-        { id: 'tag-1', name_en: 'Vegetarian' },
+        {
+          id: 'tag-1',
+          categories: ['diet'],
+          translations: [
+            { locale: 'en', name: 'Vegetarian' },
+            { locale: 'es', name: 'Vegetariano' },
+          ],
+        },
       ];
       mockChain = createChainableMock({ data: mockTags, error: null });
       mockFrom.mockImplementation(() => mockChain);
@@ -225,8 +249,22 @@ describe('AdminRecipeService', () => {
 
     it('returns array of tags', async () => {
       const mockTags = [
-        { id: 'tag-1', name_en: 'Vegetarian', name_es: 'Vegetariano' },
-        { id: 'tag-2', name_en: 'Quick', name_es: 'Rápido' },
+        {
+          id: 'tag-1',
+          categories: ['diet'],
+          translations: [
+            { locale: 'en', name: 'Vegetarian' },
+            { locale: 'es', name: 'Vegetariano' },
+          ],
+        },
+        {
+          id: 'tag-2',
+          categories: ['time'],
+          translations: [
+            { locale: 'en', name: 'Quick' },
+            { locale: 'es', name: 'Rápido' },
+          ],
+        },
       ];
       mockChain = createChainableMock({ data: mockTags, error: null });
       mockFrom.mockImplementation(() => mockChain);

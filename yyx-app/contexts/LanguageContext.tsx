@@ -7,95 +7,123 @@ import { Storage } from '@/utils/storage';
 export type Language = 'es' | 'en';
 
 interface LanguageContextType {
+  /** Language code for i18n UI strings ('en' | 'es') */
   language: Language;
+  /** Full locale string for data/API calls (e.g. 'es-MX', 'en-US') */
+  locale: string;
   setLanguage: (lang: Language) => void;
+  /** Set the full locale (updates language too) */
+  setLocale: (loc: string) => void;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 /**
- * Detects the device or browser language based on platform
- * This is the single source of truth for initial language detection
+ * Maps a full locale to the i18n Language code.
+ * The i18n system only has 'en' and 'es' bundles.
  */
-function getDeviceLanguage(): Language {
+function localeToLanguage(locale: string): Language {
+  return locale.toLowerCase().startsWith('es') ? 'es' : 'en';
+}
+
+/**
+ * Detects the full device locale string based on platform.
+ */
+function getDeviceLocale(): string {
   try {
-    // For mobile devices
     if (Platform.OS !== 'web') {
-      const locale = getLocales()[0].languageCode;
-      return locale?.toLowerCase().startsWith('es') ? 'es' : 'en';
+      const deviceLocale = getLocales()[0];
+      // Build full locale like 'es-MX' from languageTag or components
+      return deviceLocale.languageTag || deviceLocale.languageCode || 'en';
     }
-    
-    // For web: use browser's language
+
     if (typeof window !== 'undefined' && window.navigator) {
-      // Get browser language
-      const browserLang = window.navigator.language || 
-                         (window.navigator as any).userLanguage || 
+      const browserLang = window.navigator.language ||
+                         (window.navigator as any).userLanguage ||
                          (window.navigator as any).browserLanguage;
-      
-      if (browserLang && browserLang.toLowerCase().startsWith('es')) {
-        return 'es';
-      }
+      if (browserLang) return browserLang;
     }
-    
-    // Default fallback
+
     return 'en';
   } catch (error) {
-    console.error('Error getting device language:', error);
+    console.error('Error getting device locale:', error);
     return 'en';
   }
 }
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  // Initialize with a default, but don't set i18n.locale yet
-  const [language, setLanguage] = useState<Language>('en');
+  const [locale, setLocaleState] = useState<string>('en');
+  const [language, setLanguageState] = useState<Language>('en');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load saved language preference or detect from device
+  // Load saved locale preference or detect from device
   useEffect(() => {
-    async function loadLanguage() {
+    async function loadLocale() {
       try {
-        const stored = await Storage.getItem('preferred-language');
-        
-        let selectedLanguage: Language;
-        
-        if (stored) {
-          // Use stored preference if available
-          selectedLanguage = stored as Language;
+        const storedLocale = await Storage.getItem('preferred-locale');
+        // Also check legacy key for backward compat
+        const storedLanguage = await Storage.getItem('preferred-language');
+
+        let selectedLocale: string;
+
+        if (storedLocale) {
+          selectedLocale = storedLocale;
+        } else if (storedLanguage) {
+          // Migrate from legacy 'en'/'es' to full locale
+          selectedLocale = storedLanguage;
+          await Storage.setItem('preferred-locale', selectedLocale);
         } else {
-          // Or detect from device/browser
-          selectedLanguage = getDeviceLanguage();
-          // Save the detected language
-          await Storage.setItem('preferred-language', selectedLanguage);
+          selectedLocale = getDeviceLocale();
+          await Storage.setItem('preferred-locale', selectedLocale);
         }
-        
-        // Update state and i18n
-        setLanguage(selectedLanguage);
-        i18n.locale = selectedLanguage;
-        
+
+        const lang = localeToLanguage(selectedLocale);
+        setLocaleState(selectedLocale);
+        setLanguageState(lang);
+        i18n.locale = lang;
+
         setIsLoading(false);
       } catch (error) {
-        console.error('Error loading language preference:', error);
-        // Fallback to English on error
-        setLanguage('en');
+        console.error('Error loading locale preference:', error);
+        setLocaleState('en');
+        setLanguageState('en');
         i18n.locale = 'en';
         setIsLoading(false);
       }
     }
-    
-    loadLanguage();
+
+    loadLocale();
   }, []);
 
-  // Save language preference when it changes
+  // setLanguage - backward compatible: sets language and derives locale
   const handleSetLanguage = async (newLanguage: Language) => {
     try {
       if (newLanguage === language) return;
-      
-      // Update language immediately
-      setLanguage(newLanguage);
+
+      setLanguageState(newLanguage);
+      setLocaleState(newLanguage);
       i18n.locale = newLanguage;
+      await Storage.setItem('preferred-locale', newLanguage);
+      // Also update legacy key for backward compat
       await Storage.setItem('preferred-language', newLanguage);
     } catch (error) {
       console.error('Error saving language preference:', error);
+    }
+  };
+
+  // setLocale - sets the full locale and derives language
+  const handleSetLocale = async (newLocale: string) => {
+    try {
+      if (newLocale === locale) return;
+
+      const lang = localeToLanguage(newLocale);
+      setLocaleState(newLocale);
+      setLanguageState(lang);
+      i18n.locale = lang;
+      await Storage.setItem('preferred-locale', newLocale);
+      await Storage.setItem('preferred-language', lang);
+    } catch (error) {
+      console.error('Error saving locale preference:', error);
     }
   };
 
@@ -104,9 +132,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <LanguageContext.Provider value={{ 
-      language, 
-      setLanguage: handleSetLanguage
+    <LanguageContext.Provider value={{
+      language,
+      locale,
+      setLanguage: handleSetLanguage,
+      setLocale: handleSetLocale,
     }}>
       {children}
     </LanguageContext.Provider>
@@ -119,4 +149,4 @@ export function useLanguage() {
     throw new Error('useLanguage must be used within a LanguageProvider');
   }
   return context;
-} 
+}

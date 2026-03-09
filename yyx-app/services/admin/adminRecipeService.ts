@@ -2,21 +2,26 @@ import { supabase } from '@/lib/supabase';
 import { AdminRecipe, AdminRecipeIngredient, AdminRecipeSteps, AdminRecipeTag, AdminRecipeUsefulItem } from '@/types/recipe.admin.types';
 import { imageService } from '@/services/storage/imageService';
 import { BaseService } from '@/services/base/BaseService';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { RawRecipe, RawStepIngredient } from '@/types/recipe.api.types';
-import { ThermomixSpeed, ThermomixSpeedSingle, ThermomixSpeedRange } from '@/types/thermomix.types';
-class AdminRecipeService extends BaseService {
-  constructor(supabase: SupabaseClient) {
-    super(supabase);
-  }
+import { RawStepIngredient } from '@/types/recipe.api.types';
+import { ThermomixSpeedSingle, ThermomixSpeedRange } from '@/types/thermomix.types';
 
+/**
+ * Helper to pick a translation value from an array of translations by locale.
+ */
+function pickByLocale<T extends { locale: string }>(
+  translations: T[] | undefined | null,
+  locale: string,
+): T | undefined {
+  if (!translations) return undefined;
+  return translations.find(t => t.locale === locale);
+}
+
+class AdminRecipeService extends BaseService {
   async getAllRecipesForAdmin(): Promise<AdminRecipe[]> {
     const query = this.supabase
       .from('recipes')
       .select(`
         id,
-        name_en,
-        name_es,
         image_url,
         difficulty,
         prep_time,
@@ -24,12 +29,17 @@ class AdminRecipeService extends BaseService {
         portions,
         is_published,
         created_at,
-        updated_at
+        updated_at,
+        translations:recipe_translations (
+          locale,
+          name,
+          tips_and_tricks
+        )
       `)
       .order('created_at', { ascending: false });
 
     const data = await this.transformedSelect<any[]>(query);
-    return this.transformRecipeData(data);
+    return this.transformRecipeListData(data);
   }
 
   async toggleRecipePublished(id: string, isPublished: boolean): Promise<void> {
@@ -48,8 +58,6 @@ class AdminRecipeService extends BaseService {
       .from('recipes')
       .select(`
         id,
-        name_en,
-        name_es,
         image_url,
         difficulty,
         prep_time,
@@ -58,15 +66,24 @@ class AdminRecipeService extends BaseService {
         is_published,
         created_at,
         updated_at,
-        tips_and_tricks_en,
-        tips_and_tricks_es,
+        translations:recipe_translations (
+          locale,
+          name,
+          tips_and_tricks
+        ),
         useful_items:recipe_useful_items(
           *,
+          translations:recipe_useful_item_translations (
+            locale,
+            notes
+          ),
           useful_item:useful_items(
             id,
-            name_en,
-            name_es,
-            image_url
+            image_url,
+            translations:useful_item_translations (
+              locale,
+              name
+            )
           )
         ),
         ingredients:recipe_ingredients(
@@ -76,45 +93,46 @@ class AdminRecipeService extends BaseService {
           quantity,
           optional,
           display_order,
-          recipe_section_en,
-          recipe_section_es,
-          notes_en,
-          notes_es,
-          tip_en,
-          tip_es,
+          translations:recipe_ingredient_translations (
+            locale,
+            notes,
+            recipe_section
+          ),
           ingredient:ingredients(
             id,
-            name_en,
-            name_es,
-            plural_name_en,
-            plural_name_es,
-            image_url
+            image_url,
+            translations:ingredient_translations (
+              locale,
+              name,
+              plural_name
+            )
           ),
           measurement_unit:measurement_units(
             id,
             type,
             system,
-            name_en,
-            name_es,
-            name_en_plural,
-            name_es_plural,
-            symbol_en,
-            symbol_es
+            translations:measurement_unit_translations (
+              locale,
+              name,
+              name_plural,
+              symbol,
+              symbol_plural
+            )
           )
         ),
         tags:recipe_to_tag(
           tag:recipe_tags(
             id,
-            name_en,
-            name_es,
-            categories
+            categories,
+            translations:recipe_tag_translations (
+              locale,
+              name
+            )
           )
         ),
         steps:recipe_steps(
           id,
           "order",
-          instruction_en, 
-          instruction_es,
           thermomix_time,
           thermomix_speed,
           thermomix_speed_start,
@@ -122,29 +140,33 @@ class AdminRecipeService extends BaseService {
           thermomix_temperature,
           thermomix_temperature_unit,
           thermomix_is_blade_reversed,
-          recipe_section_en,
-          recipe_section_es,
-          tip_en,
-          tip_es,
           created_at,
           updated_at,
+          translations:recipe_step_translations (
+            locale,
+            instruction,
+            recipe_section,
+            tip
+          ),
           ingredients:recipe_step_ingredients(
             id,
             ingredient_id,
             ingredient:ingredients(
               id,
-              name_en,
-              name_es,
-              plural_name_en,
-              plural_name_es,
-              image_url
+              image_url,
+              translations:ingredient_translations (
+                locale,
+                name,
+                plural_name
+              )
             ),
             measurement_unit:measurement_units(
               id,
-              name_en,
-              name_es,
-              symbol_en,
-              symbol_es
+              translations:measurement_unit_translations (
+                locale,
+                name,
+                symbol
+              )
             ),
             quantity,
             optional,
@@ -155,10 +177,11 @@ class AdminRecipeService extends BaseService {
       .eq('id', id)
       .single();
 
-    const data = await this.transformedSelect<RawRecipe>(query);
-    return data ? this.transformRecipeData([data])[0] : null;
+    const data = await this.transformedSelect<any>(query);
+    return data ? this.transformRecipeDetailData(data) : null;
   }
 
+  // Writes continue using old _en/_es columns (sync triggers handle translation tables)
   async createRecipe(recipe: Partial<AdminRecipe>): Promise<string> {
     try {
       const recipeData = this.transformRequest({
@@ -174,8 +197,6 @@ class AdminRecipeService extends BaseService {
         tipsAndTricksEs: recipe.tipsAndTricksEs,
       });
 
-      // Handle image upload if it's a file object
-      // A file object indicates that a new image is being uploaded
       if (recipe.pictureUrl && typeof recipe.pictureUrl === 'object') {
         recipeData.pictureUrl = await this.handleImageUpload({file: recipe.pictureUrl, nameEs: recipe.nameEs, nameEn: recipe.nameEn});
       }
@@ -228,7 +249,6 @@ class AdminRecipeService extends BaseService {
     });
 
     if (recipe.pictureUrl && typeof recipe.pictureUrl === 'object') {
-      // Get old recipe to get the old image url
       const oldRecipe = await this.supabase
         .from('recipes')
         .select('image_url')
@@ -270,14 +290,14 @@ class AdminRecipeService extends BaseService {
       .from('recipe_ingredients')
       .delete()
       .eq('recipe_id', recipeId);
-      
+
     if (deleteError) {
       throw new Error(`Failed to delete existing recipeIngredients: ${deleteError.message}`);
     }
-    
+
     if (recipeIngredients.length === 0) return;
-    
-    const recipeIngredientsToInsert = recipeIngredients.map((recipeIngredient, index) => 
+
+    const recipeIngredientsToInsert = recipeIngredients.map((recipeIngredient, index) =>
       this.transformRequest({
         recipeId,
         ingredientId: recipeIngredient.ingredientId,
@@ -297,7 +317,7 @@ class AdminRecipeService extends BaseService {
     const { error: insertError } = await this.supabase
       .from('recipe_ingredients')
       .insert(recipeIngredientsToInsert);
-      
+
     if (insertError) {
       throw new Error(`Failed to insert ingredients: ${insertError.message}`);
     }
@@ -308,26 +328,24 @@ class AdminRecipeService extends BaseService {
       .from('recipe_to_tag')
       .delete()
       .eq('recipe_id', recipeId);
-      
+
     if (deleteError) {
       throw new Error(`Failed to delete existing tag mappings: ${deleteError.message}`);
     }
-    
+
     if (tags.length === 0) return;
-    
-    const tagMappingsToInsert = tags.map(tag => 
+
+    const tagMappingsToInsert = tags.map(tag =>
       this.transformRequest({
         recipeId,
         tagId: tag.id
       })
     );
-    
+
     try {
       await this.supabase
         .from('recipe_to_tag')
         .insert(tagMappingsToInsert);
-        
-
     } catch (error) {
       throw error;
     }
@@ -341,11 +359,10 @@ class AdminRecipeService extends BaseService {
     if (deleteError) {
       throw new Error(`Failed to delete existing recipeSteps: ${deleteError.message}`);
     }
-    
+
     if (recipeSteps.length === 0) return;
-    
+
     const stepsToInsert = recipeSteps.map(recipeStep => {
-      // Extract speed values from the ThermomixSpeed object
       let speedValue = null;
       let speedStart = null;
       let speedEnd = null;
@@ -377,64 +394,62 @@ class AdminRecipeService extends BaseService {
         tipEs: recipeStep.tipEs || null
       });
     });
-    
+
     const { data: insertedSteps, error: insertError } = await this.supabase
       .from('recipe_steps')
       .insert(stepsToInsert)
       .select('*');
-    
+
     if (insertError) {
       throw new Error(`Failed to insert recipeSteps: ${insertError.message}`);
     }
-  
+
     if (insertedSteps?.length) {
       await this.updateRecipeStepIngredients(recipeId, recipeSteps, insertedSteps);
     }
   }
 
   async updateRecipeStepIngredients(
-    recipeId: string, 
-    recipeSteps: AdminRecipeSteps[], 
-    insertedSteps: Array<{ id: string, order: number }>
+    recipeId: string,
+    recipeSteps: AdminRecipeSteps[],
+    insertedSteps: { id: string, order: number }[]
   ): Promise<void> {
     const { error: deleteError } = await this.supabase
       .from('recipe_step_ingredients')
       .delete()
       .eq('recipe_id', recipeId);
-      
+
     if (deleteError) {
       throw new Error(`Failed to delete existing step ingredients: ${deleteError.message}`);
     }
 
-
-    // Used to associate the newly created recipe_step id's with the one passed from user
     const stepOrderToIdMap = new Map(
       insertedSteps.map(step => [step.order, step.id])
     );
-    const stepIngredientsToInsert: Array<RawStepIngredient> = [];
-    
+    const stepIngredientsToInsert: RawStepIngredient[] = [];
+
     recipeSteps.forEach(recipeStep => {
       if (!recipeStep.ingredients?.length) return;
-      
+
       const stepId = stepOrderToIdMap.get(recipeStep.order);
       if (!stepId) {
         console.warn(`Could not find step ID for recipeStep order ${recipeStep.order}`);
         return;
       }
-      recipeStep.ingredients.forEach((recipeStepIngredient, index) => {   
+      recipeStep.ingredients.forEach((recipeStepIngredient, index) => {
         if (!recipeStepIngredient.ingredient?.id) {
-          console.warn(`Missing ingredient id for recipe step ${stepId}`)  
+          console.warn(`Missing ingredient id for recipe step ${stepId}`)
         }
         const transformedData = this.transformRequest({
           recipeId,
-          recipeStepId: stepId, 
+          recipeStepId: stepId,
           ingredientId: recipeStepIngredient.ingredient?.id,
           measurementUnitId: recipeStepIngredient.measurementUnit?.id || null,
           quantity: parseFloat(String(recipeStepIngredient.quantity)),
           displayOrder: recipeStepIngredient.displayOrder || index,
           optional: recipeStepIngredient.optional || false
         }) as RawStepIngredient;
-        
+
         stepIngredientsToInsert.push(transformedData);
       });
     });
@@ -443,7 +458,7 @@ class AdminRecipeService extends BaseService {
       const { error: insertError } = await this.supabase
         .from('recipe_step_ingredients')
         .insert(stepIngredientsToInsert);
-        
+
       if (insertError) {
         throw new Error(`Failed to insert step ingredients: ${insertError.message}`);
       }
@@ -455,14 +470,14 @@ class AdminRecipeService extends BaseService {
       .from('recipe_useful_items')
       .delete()
       .eq('recipe_id', recipeId);
-      
+
     if (deleteError) {
       throw new Error(`Failed to delete existing useful items: ${deleteError.message}`);
     }
 
     if (usefulItems.length === 0) return;
-    
-    const usefulItemsToInsert = usefulItems.map(usefulItem => 
+
+    const usefulItemsToInsert = usefulItems.map(usefulItem =>
       this.transformRequest({
         recipeId,
         usefulItemId: usefulItem.usefulItemId,
@@ -475,10 +490,10 @@ class AdminRecipeService extends BaseService {
     const { error: insertError } = await this.supabase
       .from('recipe_useful_items')
       .insert(usefulItemsToInsert);
-      
+
     if (insertError) {
       throw new Error(`Failed to insert useful items: ${insertError.message}`);
-    }  
+    }
   }
 
   async getAllMeasurementUnits(): Promise<any[]> {
@@ -488,16 +503,33 @@ class AdminRecipeService extends BaseService {
         id,
         type,
         system,
-        name_en,
-        name_es,
-        name_en_plural,
-        name_es_plural,
-        symbol_en,
-        symbol_es
+        translations:measurement_unit_translations (
+          locale,
+          name,
+          name_plural,
+          symbol,
+          symbol_plural
+        )
       `)
-      .order('name_en', { ascending: true });
+      .order('id', { ascending: true });
 
-    return this.transformedSelect<any[]>(query);
+    const data = await this.transformedSelect<any[]>(query);
+    // Transform to admin-expected format
+    return (data || []).map((item: any) => {
+      const en = pickByLocale(item.translations, 'en');
+      const es = pickByLocale(item.translations, 'es');
+      return {
+        id: item.id,
+        type: item.type,
+        system: item.system,
+        nameEn: en?.name || '',
+        nameEs: es?.name || '',
+        nameEnPlural: en?.name_plural || en?.namePlural || '',
+        nameEsPlural: es?.name_plural || es?.namePlural || '',
+        symbolEn: en?.symbol || '',
+        symbolEs: es?.symbol || '',
+      };
+    });
   }
 
   async getAllTags(): Promise<any[]> {
@@ -505,35 +537,43 @@ class AdminRecipeService extends BaseService {
       .from('recipe_tags')
       .select(`
         id,
-        name_en,
-        name_es,
-        categories
+        categories,
+        translations:recipe_tag_translations (
+          locale,
+          name
+        )
       `)
-      .order('name_en', { ascending: true });
+      .order('id', { ascending: true });
 
-    return this.transformedSelect<any[]>(query);
+    const data = await this.transformedSelect<any[]>(query);
+    return (data || []).map((item: any) => {
+      const en = pickByLocale(item.translations, 'en');
+      const es = pickByLocale(item.translations, 'es');
+      return {
+        id: item.id,
+        nameEn: en?.name || '',
+        nameEs: es?.name || '',
+        categories: item.categories,
+      };
+    });
   }
 
   async deleteRecipe(id: string): Promise<void> {
     try {
-      // Get the recipe to check if it has an image to delete
       const { data: recipe } = await this.supabase
         .from('recipes')
         .select('image_url')
         .eq('id', id)
         .single();
-        
-      // If recipe had an image, delete it from storage
+
       if (recipe?.image_url) {
         try {
           await this.deleteImage(recipe.image_url);
         } catch (imageError) {
           console.error('Error deleting recipe image:', imageError);
-          // Continue execution even if image deletion fails
         }
       }
-      
-      // Delete the recipe (cascade is handled by Supabase RLS policies)
+
       const { error } = await this.supabase
         .from('recipes')
         .delete()
@@ -542,58 +582,239 @@ class AdminRecipeService extends BaseService {
       if (error) {
         throw new Error(`Failed to delete recipe: ${error.message}`);
       }
-
     } catch (error) {
       console.error('Error in deleteRecipe:', error);
       throw error;
     }
   }
 
-  private transformRecipeData(data: RawRecipe[]): AdminRecipe[] {
-    // Use the recursive transformation to handle most of the work
-    const transformedRecipes = this.transformResponse<AdminRecipe[]>(data);
-    // Handle special cases and field customizations that can't be handled by simple case conversion
-    return transformedRecipes?.map(recipe => {
-      if (recipe.ingredients?.length) {
-        recipe.ingredients = recipe.ingredients
-          .sort((a, b) => a.displayOrder - b.displayOrder);
-      }
+  /**
+   * Transform recipe list data from translation tables to admin format.
+   */
+  private transformRecipeListData(data: any[]): AdminRecipe[] {
+    if (!data) return [];
+    return data.map(recipe => {
+      const en = pickByLocale(recipe.translations, 'en');
+      const es = pickByLocale(recipe.translations, 'es');
+      return {
+        id: recipe.id,
+        pictureUrl: recipe.imageUrl || recipe.image_url,
+        difficulty: recipe.difficulty,
+        prepTime: recipe.prepTime ?? recipe.prep_time,
+        totalTime: recipe.totalTime ?? recipe.total_time,
+        portions: recipe.portions,
+        isPublished: recipe.isPublished ?? recipe.is_published,
+        createdAt: recipe.createdAt ?? recipe.created_at,
+        updatedAt: recipe.updatedAt ?? recipe.updated_at,
+        nameEn: en?.name || '',
+        nameEs: es?.name || '',
+        tipsAndTricksEn: en?.tips_and_tricks || en?.tipsAndTricks || undefined,
+        tipsAndTricksEs: es?.tips_and_tricks || es?.tipsAndTricks || undefined,
+        ingredients: [],
+        tags: [],
+        steps: [],
+      } as AdminRecipe;
+    });
+  }
 
-      if (recipe.steps?.length) {
-        recipe.steps = recipe.steps.sort((a, b) => a.order - b.order)
+  /**
+   * Transform a single recipe detail from translation tables to admin format.
+   */
+  private transformRecipeDetailData(recipe: any): AdminRecipe {
+    const en = pickByLocale(recipe.translations, 'en');
+    const es = pickByLocale(recipe.translations, 'es');
 
-        recipe.steps.forEach(step => {
-          // Using 'as any' to access the raw properties that exist on the data but not in the final type
-          const rawStep = step as any;
-          if (rawStep.thermomixSpeed !== null && rawStep.thermomixSpeed !== undefined) {
-            step.thermomixSpeed = {
-              type: 'single',
-              value: rawStep.thermomixSpeed
-            } as ThermomixSpeedSingle;
-          } else if (rawStep.thermomixSpeedStart !== null && rawStep.thermomixSpeedStart !== undefined && 
-                     rawStep.thermomixSpeedEnd !== null && rawStep.thermomixSpeedEnd !== undefined) {
-            step.thermomixSpeed = {
-              type: 'range',
-              start: rawStep.thermomixSpeedStart,
-              end: rawStep.thermomixSpeedEnd
-            } as ThermomixSpeedRange;
-          }
+    const result: any = {
+      id: recipe.id,
+      pictureUrl: recipe.imageUrl || recipe.image_url,
+      difficulty: recipe.difficulty,
+      prepTime: recipe.prepTime ?? recipe.prep_time,
+      totalTime: recipe.totalTime ?? recipe.total_time,
+      portions: recipe.portions,
+      isPublished: recipe.isPublished ?? recipe.is_published,
+      createdAt: recipe.createdAt ?? recipe.created_at,
+      updatedAt: recipe.updatedAt ?? recipe.updated_at,
+      nameEn: en?.name || '',
+      nameEs: es?.name || '',
+      tipsAndTricksEn: en?.tips_and_tricks || en?.tipsAndTricks || undefined,
+      tipsAndTricksEs: es?.tips_and_tricks || es?.tipsAndTricks || undefined,
+    };
+
+    // Transform ingredients
+    if (recipe.ingredients?.length) {
+      result.ingredients = recipe.ingredients
+        .map((ri: any) => {
+          const riEn = pickByLocale(ri.translations, 'en');
+          const riEs = pickByLocale(ri.translations, 'es');
+          const ingEn = pickByLocale(ri.ingredient?.translations, 'en');
+          const ingEs = pickByLocale(ri.ingredient?.translations, 'es');
+          const muEn = pickByLocale(ri.measurementUnit?.translations || ri.measurement_unit?.translations, 'en');
+          const muEs = pickByLocale(ri.measurementUnit?.translations || ri.measurement_unit?.translations, 'es');
+
+          const mu = ri.measurementUnit || ri.measurement_unit;
+          return {
+            id: ri.id,
+            ingredientId: ri.ingredientId || ri.ingredient_id,
+            ingredient: {
+              id: ri.ingredient?.id,
+              nameEn: ingEn?.name || '',
+              nameEs: ingEs?.name || '',
+              pluralNameEn: ingEn?.plural_name || ingEn?.pluralName || '',
+              pluralNameEs: ingEs?.plural_name || ingEs?.pluralName || '',
+              pictureUrl: ri.ingredient?.imageUrl || ri.ingredient?.image_url || '',
+              nutritionalFacts: ri.ingredient?.nutritionalFacts || ri.ingredient?.nutritional_facts,
+            },
+            quantity: ri.quantity,
+            recipeSectionEn: riEn?.recipe_section || riEn?.recipeSection || '',
+            recipeSectionEs: riEs?.recipe_section || riEs?.recipeSection || '',
+            notesEn: riEn?.notes || '',
+            notesEs: riEs?.notes || '',
+            optional: ri.optional,
+            displayOrder: ri.displayOrder || ri.display_order,
+            measurementUnit: mu ? {
+              id: mu.id,
+              type: mu.type,
+              system: mu.system,
+              nameEn: muEn?.name || '',
+              nameEs: muEs?.name || '',
+              symbolEn: muEn?.symbol || '',
+              symbolEs: muEs?.symbol || '',
+            } : undefined,
+          };
         })
-      }
+        .sort((a: any, b: any) => a.displayOrder - b.displayOrder);
+    } else {
+      result.ingredients = [];
+    }
 
-      if (recipe.tags?.length) {
-        // @ts-ignore - we know the structure from the DB query
-        recipe.tags = recipe.tags.map(t => t.tag);
-      }
-      
-      return recipe;
-    }) || [];
+    // Transform tags
+    if (recipe.tags?.length) {
+      result.tags = recipe.tags.map((t: any) => {
+        const tag = t.tag;
+        if (!tag) return null;
+        const tagEn = pickByLocale(tag.translations, 'en');
+        const tagEs = pickByLocale(tag.translations, 'es');
+        return {
+          id: tag.id,
+          nameEn: tagEn?.name || '',
+          nameEs: tagEs?.name || '',
+          categories: tag.categories,
+        };
+      }).filter(Boolean);
+    } else {
+      result.tags = [];
+    }
+
+    // Transform steps
+    if (recipe.steps?.length) {
+      result.steps = recipe.steps
+        .map((step: any) => {
+          const stepEn = pickByLocale(step.translations, 'en');
+          const stepEs = pickByLocale(step.translations, 'es');
+
+          const rawStep = step;
+          const transformed: any = {
+            id: step.id,
+            order: step.order,
+            instructionEn: stepEn?.instruction || '',
+            instructionEs: stepEs?.instruction || '',
+            thermomixTime: rawStep.thermomixTime ?? rawStep.thermomix_time,
+            thermomixTemperature: rawStep.thermomixTemperature ?? rawStep.thermomix_temperature,
+            thermomixTemperatureUnit: rawStep.thermomixTemperatureUnit ?? rawStep.thermomix_temperature_unit,
+            thermomixIsBladeReversed: rawStep.thermomixIsBladeReversed ?? rawStep.thermomix_is_blade_reversed,
+            recipeSectionEn: stepEn?.recipe_section || stepEn?.recipeSection || '',
+            recipeSectionEs: stepEs?.recipe_section || stepEs?.recipeSection || '',
+            tipEn: stepEn?.tip || '',
+            tipEs: stepEs?.tip || '',
+          };
+
+          // Handle speed
+          const speed = rawStep.thermomixSpeed ?? rawStep.thermomix_speed;
+          const speedStart = rawStep.thermomixSpeedStart ?? rawStep.thermomix_speed_start;
+          const speedEnd = rawStep.thermomixSpeedEnd ?? rawStep.thermomix_speed_end;
+          if (speed !== null && speed !== undefined) {
+            transformed.thermomixSpeed = { type: 'single', value: speed } as ThermomixSpeedSingle;
+          } else if (speedStart !== null && speedStart !== undefined &&
+                     speedEnd !== null && speedEnd !== undefined) {
+            transformed.thermomixSpeed = { type: 'range', start: speedStart, end: speedEnd } as ThermomixSpeedRange;
+          }
+
+          // Transform step ingredients
+          if (step.ingredients?.length) {
+            transformed.ingredients = step.ingredients.map((si: any) => {
+              const siIngEn = pickByLocale(si.ingredient?.translations, 'en');
+              const siIngEs = pickByLocale(si.ingredient?.translations, 'es');
+              const siMuEn = pickByLocale(si.measurementUnit?.translations || si.measurement_unit?.translations, 'en');
+              const siMuEs = pickByLocale(si.measurementUnit?.translations || si.measurement_unit?.translations, 'es');
+              const siMu = si.measurementUnit || si.measurement_unit;
+
+              return {
+                id: si.id,
+                ingredientId: si.ingredientId || si.ingredient_id,
+                ingredient: {
+                  id: si.ingredient?.id,
+                  nameEn: siIngEn?.name || '',
+                  nameEs: siIngEs?.name || '',
+                  pluralNameEn: siIngEn?.plural_name || siIngEn?.pluralName || '',
+                  pluralNameEs: siIngEs?.plural_name || siIngEs?.pluralName || '',
+                  pictureUrl: si.ingredient?.imageUrl || si.ingredient?.image_url || '',
+                },
+                measurementUnit: siMu ? {
+                  id: siMu.id,
+                  nameEn: siMuEn?.name || '',
+                  nameEs: siMuEs?.name || '',
+                  symbolEn: siMuEn?.symbol || '',
+                  symbolEs: siMuEs?.symbol || '',
+                } : undefined,
+                quantity: si.quantity,
+                optional: si.optional,
+                displayOrder: si.displayOrder || si.display_order,
+              };
+            });
+          }
+
+          return transformed;
+        })
+        .sort((a: any, b: any) => a.order - b.order);
+    } else {
+      result.steps = [];
+    }
+
+    // Transform useful items
+    if (recipe.usefulItems?.length || recipe.useful_items?.length) {
+      const items = recipe.usefulItems || recipe.useful_items;
+      result.usefulItems = items.map((ui: any) => {
+        const uiItem = ui.usefulItem || ui.useful_item;
+        const uiEn = pickByLocale(uiItem?.translations, 'en');
+        const uiEs = pickByLocale(uiItem?.translations, 'es');
+        const notesEn = pickByLocale(ui.translations, 'en');
+        const notesEs = pickByLocale(ui.translations, 'es');
+        return {
+          id: ui.id,
+          recipeId: ui.recipeId || ui.recipe_id,
+          usefulItemId: ui.usefulItemId || ui.useful_item_id,
+          displayOrder: ui.displayOrder || ui.display_order,
+          notesEn: notesEn?.notes || '',
+          notesEs: notesEs?.notes || '',
+          usefulItem: {
+            id: uiItem?.id,
+            nameEn: uiEn?.name || '',
+            nameEs: uiEs?.name || '',
+            pictureUrl: uiItem?.imageUrl || uiItem?.image_url || '',
+          },
+        };
+      });
+    } else {
+      result.usefulItems = [];
+    }
+
+    return result as AdminRecipe;
   }
 
   // Image methods
   private async handleImageUpload({file, nameEs, nameEn}: {file: any, nameEs?: string, nameEn?: string}): Promise<string> {
     if (!file) return '';
-    
+
     try {
       const fileName = `${nameEs || nameEn || 'recipe'}.png`;
       return await this.uploadImage({
@@ -608,11 +829,9 @@ class AdminRecipeService extends BaseService {
     }
   }
 
-
-  // Image upload functionality
   uploadImage = imageService.uploadImage.bind(imageService);
   deleteImage = imageService.deleteImage.bind(imageService);
 }
 
 export const adminRecipeService = new AdminRecipeService(supabase);
-export default adminRecipeService; 
+export default adminRecipeService;

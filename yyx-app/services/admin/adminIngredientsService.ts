@@ -3,6 +3,17 @@ import { AdminIngredient } from '@/types/recipe.admin.types';
 import { BaseService } from '../base/BaseService';
 import { imageService } from '../storage/imageService';
 
+/**
+ * Helper to pick a translation value from an array of translations by locale.
+ */
+function pickByLocale<T extends { locale: string }>(
+  translations: T[] | undefined | null,
+  locale: string,
+): T | undefined {
+  if (!translations) return undefined;
+  return translations.find(t => t.locale === locale);
+}
+
 export class AdminIngredientsService extends BaseService {
   constructor() {
     super(supabase);
@@ -13,34 +24,48 @@ export class AdminIngredientsService extends BaseService {
       .from('ingredients')
       .select(`
         id,
-        name_en,
-        name_es,
-        plural_name_en,
-        plural_name_es,
         image_url,
-        nutritional_facts
+        nutritional_facts,
+        translations:ingredient_translations (
+          locale,
+          name,
+          plural_name
+        )
       `)
-      .order(sortBy, { ascending: true });
+      .order('id', { ascending: true });
 
     if (error) {
       console.error('Error fetching ingredients:', error);
       throw new Error(`Error fetching ingredients: ${error.message}`);
     }
 
-    return (data || []).map((item: any) => ({
-      id: item.id,
-      nameEn: item.name_en || undefined,
-      nameEs: item.name_es || undefined,
-      pluralNameEn: item.plural_name_en || undefined,
-      pluralNameEs: item.plural_name_es || undefined,
-      pictureUrl: item.image_url,
-      nutritionalFacts: item.nutritional_facts
-    }));
+    const result = (data || []).map((item: any) => {
+      const en = pickByLocale(item.translations, 'en');
+      const es = pickByLocale(item.translations, 'es');
+      return {
+        id: item.id,
+        nameEn: en?.name || undefined,
+        nameEs: es?.name || undefined,
+        pluralNameEn: en?.plural_name || undefined,
+        pluralNameEs: es?.plural_name || undefined,
+        pictureUrl: item.image_url,
+        nutritionalFacts: item.nutritional_facts
+      };
+    });
+
+    // Sort client-side since we can't sort by translation table column via PostgREST
+    result.sort((a: AdminIngredient, b: AdminIngredient) => {
+      const aVal = sortBy === 'name_es' ? (a.nameEs || '') : (a.nameEn || '');
+      const bVal = sortBy === 'name_es' ? (b.nameEs || '') : (b.nameEn || '');
+      return aVal.localeCompare(bVal);
+    });
+
+    return result;
   }
 
   private async handleImageUpload(file: any, nameEs?: string, nameEn?: string): Promise<string> {
     if (!file) return '';
-    
+
     try {
       const fileName = `${nameEs || nameEn || 'ingredient'}.png`;
       return await this.uploadImage({
@@ -58,18 +83,15 @@ export class AdminIngredientsService extends BaseService {
 
   async updateIngredient(id: string, ingredient: AdminIngredient): Promise<AdminIngredient> {
     const ingredientData: Record<string, any> = {};
-    
-    // Handle English name fields
+
+    // Write to old _en/_es columns (sync triggers update translation tables)
     if (ingredient.nameEn !== undefined) ingredientData.name_en = ingredient.nameEn;
     if (ingredient.pluralNameEn !== undefined) ingredientData.plural_name_en = ingredient.pluralNameEn;
-    
-    // Handle Spanish name fields
     if (ingredient.nameEs !== undefined) ingredientData.name_es = ingredient.nameEs;
     if (ingredient.pluralNameEs !== undefined) ingredientData.plural_name_es = ingredient.pluralNameEs;
-    
+
     // Handle image update only if pictureUrl is explicitly provided and is different
     if (ingredient.pictureUrl !== undefined) {
-      // First, get the current ingredient to get its image URL
       const { data: currentIngredient, error: fetchError } = await this.supabase
         .from('ingredients')
         .select('image_url')
@@ -80,22 +102,18 @@ export class AdminIngredientsService extends BaseService {
         throw new Error(`Error fetching current ingredient: ${fetchError.message}`);
       }
 
-      // Only process image if it's actually different
       const isNewImage = typeof ingredient.pictureUrl === 'object';
       const isDifferentUrl = ingredient.pictureUrl !== currentIngredient?.image_url;
 
       if (isNewImage || isDifferentUrl) {
-        // If there's an existing image and we're updating to a new one, delete the old one
         if (currentIngredient?.image_url) {
           try {
             await this.deleteImage(currentIngredient.image_url);
           } catch (error) {
             console.error('Error deleting old image:', error);
-            // Continue with update even if image deletion fails
           }
         }
 
-        // If the new pictureUrl is a file object, upload it
         if (isNewImage) {
           ingredientData.image_url = await this.handleImageUpload(
             ingredient.pictureUrl,
@@ -103,15 +121,13 @@ export class AdminIngredientsService extends BaseService {
             ingredient.nameEn
           );
         } else {
-          // If it's a different URL string, use it directly
           ingredientData.image_url = ingredient.pictureUrl;
         }
       }
     }
-    
+
     if (ingredient.nutritionalFacts !== undefined) ingredientData.nutritional_facts = ingredient.nutritionalFacts;
 
-    // Only perform update if there are changes
     if (Object.keys(ingredientData).length > 0) {
       const updatedIngredient = await this.transformedUpdate<AdminIngredient>('ingredients', id, ingredientData);
       if (!updatedIngredient) {
@@ -140,6 +156,7 @@ export class AdminIngredientsService extends BaseService {
   }
 
   async createIngredient(ingredient: any): Promise<AdminIngredient> {
+    // Write to old _en/_es columns (sync triggers update translation tables)
     const ingredientData = {
       name_en: ingredient.nameEn,
       name_es: ingredient.nameEs,
@@ -167,4 +184,4 @@ export class AdminIngredientsService extends BaseService {
 }
 
 export const adminIngredientsService = new AdminIngredientsService();
-export default adminIngredientsService; 
+export default adminIngredientsService;

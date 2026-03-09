@@ -36,14 +36,14 @@ export default async function handler(req, res) {
   // Extract recipe ID from the URL
   const id = req.query.id;
   const lang = normalizeLang(req.query.lang);
-  
+
   // Basic request logging
   console.info(`[recipe-preview] Processing request for ID: ${id}, lang: ${lang}`);
 
   // Check if it's a bot/crawler requesting the preview (social media crawlers, search engines, etc.)
   const userAgent = req.headers['user-agent'] || '';
   const isBot = /bot|crawler|spider|pinterest|facebook|twitter|linkedin|slack|discord|whatsapp/i.test(userAgent);
-  
+
   if (!id || !isValidUuid(id)) {
     console.warn('[recipe-preview] Invalid recipe ID:', id);
     return res.status(400).send('Recipe ID is invalid');
@@ -72,10 +72,17 @@ export default async function handler(req, res) {
     // Initialize Supabase client
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-    // Fetch recipe data
+    // Fetch recipe data with translations
     const { data: recipe, error } = await supabase
       .from('recipes')
-      .select('id, name_en, name_es, image_url')
+      .select(`
+        id,
+        image_url,
+        translations:recipe_translations (
+          locale,
+          name
+        )
+      `)
       .eq('id', id)
       .single();
 
@@ -89,13 +96,18 @@ export default async function handler(req, res) {
       return res.status(404).send('Recipe not found');
     }
 
-    // Select language version
-    const recipeName = lang === 'es' && recipe.name_es ? recipe.name_es : recipe.name_en;
+    // Pick the right translation by locale
+    const translations = recipe.translations || [];
+    const langTranslation = translations.find(t => t.locale === lang);
+    const enTranslation = translations.find(t => t.locale === 'en');
+    const bestTranslation = langTranslation || enTranslation || translations[0];
+
+    const recipeName = bestTranslation?.name;
     const safeRecipeName = recipeName || (lang === 'es' ? 'esta receta' : 'this recipe');
-    
+
     // Generate description based on language
     const description = lang === 'es'
-      ? `¡Mira esta deliciosa receta de ${safeRecipeName} en YummyYummix!`
+      ? `Mira esta deliciosa receta de ${safeRecipeName} en YummyYummix!`
       : `Check out this delicious ${safeRecipeName} recipe on YummyYummix!`;
 
     // Generate title
@@ -128,7 +140,7 @@ export default async function handler(req, res) {
     const hasSupabaseKey = !!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
     console.error('[recipe-preview] Error generating preview:', error.message);
-    console.error('[recipe-preview] Environment check:', { 
+    console.error('[recipe-preview] Environment check:', {
       hasSupabaseUrl,
       hasSupabaseKey,
       nodeEnv: process.env.NODE_ENV
@@ -149,11 +161,11 @@ function generateHtml({ id, title, description, imageUrl, language, appUrl }) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${safeTitle}</title>
-  
+
   <!-- Primary Meta Tags -->
   <meta name="title" content="${safeTitle}">
   <meta name="description" content="${safeDescription}">
-  
+
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="${safeAppUrl}">
@@ -163,24 +175,24 @@ function generateHtml({ id, title, description, imageUrl, language, appUrl }) {
   ${safeImageUrl ? '<meta property="og:image:width" content="1200">' : ''}
   ${safeImageUrl ? '<meta property="og:image:height" content="630">' : ''}
   <meta property="og:site_name" content="YummyYummix">
-  
+
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
   <meta property="twitter:url" content="${safeAppUrl}">
   <meta property="twitter:title" content="${safeTitle}">
   <meta property="twitter:description" content="${safeDescription}">
   ${safeImageUrl ? `<meta property="twitter:image" content="${safeImageUrl}">` : ''}
-  
+
   <!-- Additional Meta Tags -->
   ${safeImageUrl ? `<link rel="image_src" href="${safeImageUrl}">` : ''}
   ${safeImageUrl ? `<meta name="thumbnail" content="${safeImageUrl}">` : ''}
-  
+
   <!-- Canonical URL -->
   <link rel="canonical" href="${safeAppUrl}">
-  
+
   <!-- Auto redirect (fallback) -->
   <meta http-equiv="refresh" content="0;url=${safeAppUrl}">
-  
+
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -219,4 +231,4 @@ function generateHtml({ id, title, description, imageUrl, language, appUrl }) {
   <p class="redirect">If you are not redirected automatically, <a href="${safeAppUrl}">click here</a>.</p>
 </body>
 </html>`;
-} 
+}
