@@ -30,6 +30,7 @@ yyx-server/supabase/functions/
 │   ├── logger.ts                     # Structured logging with request IDs
 │   ├── context-builder.ts            # User profile + conversation history aggregation
 │   ├── irmixy-schemas.ts             # Zod schemas: RecipeCard, GeneratedRecipe, IrmixyResponse
+│   ├── locale-utils.ts               # Locale helpers: buildLocaleChain(), pickTranslation(), getBaseLanguage()
 │   ├── allergen-filter.ts            # Allergen detection
 │   ├── food-safety.ts                # USDA safety validation
 │   ├── ingredient-normalization.ts   # Fuzzy matching
@@ -115,6 +116,26 @@ Deno.serve(async (req: Request) => {
   }
 });
 ```
+
+---
+
+## Locale & Translations
+
+Edge Functions use `locale` (not `language`) throughout. The user's locale comes from `context-builder.ts`.
+
+```typescript
+import { buildLocaleChain, pickTranslation, getBaseLanguage } from '../_shared/locale-utils.ts';
+
+// buildLocaleChain('es-MX') → ['es-MX', 'es', 'en']
+// getBaseLanguage('es-MX') → 'es'
+// pickTranslation(translations, localeChain) → best matching translation row
+```
+
+**Key patterns:**
+- `UserContext` has `locale: string` (full locale like `es-MX`), `language: string` (base like `es`), and `localeChain: string[]`
+- Wire contract uses `locale: string` in `IrmixyResponseSchema` and `GeneratedRecipeSchema`
+- Recipe/ingredient queries join translation tables and use `pickTranslation()` for locale-aware selection
+- System prompts use `getBaseLanguage()` to determine response language and vocabulary
 
 ---
 

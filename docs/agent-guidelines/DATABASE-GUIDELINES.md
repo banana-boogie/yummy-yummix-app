@@ -193,10 +193,11 @@ ALTER TABLE public.my_table ENABLE ROW LEVEL SECURITY;
 ## PostgreSQL Functions (RPC)
 
 ### Existing Functions
-- `find_closest_ingredient(name text, lang text)` — Fuzzy ingredient search with language preference
-- `batch_find_ingredients(names text[], lang text)` — Bulk ingredient lookup
+- `resolve_locale(requested text)` — Walk the locale fallback chain (e.g., `es-MX` → `['es-MX', 'es', 'en']`)
+- `batch_find_ingredients(names text[], preferred_locale text)` — Bulk ingredient lookup via translation tables
+- `get_cooked_recipes(p_locale text, ...)` — User's cooked recipes with locale-based name resolution
 - `match_recipe_embeddings(query_embedding vector, match_threshold float, match_count int)` — Vector similarity search
-- `admin_analytics(action text, timeframe text, limit_count int)` — Admin dashboard metrics
+- `admin_analytics(action text, timeframe text, "limit" int)` — Admin dashboard metrics
 - `is_admin()` — Check current user's admin status
 
 ### Function Template
@@ -229,6 +230,74 @@ $$;
 - Use `SECURITY DEFINER` when the function needs to bypass RLS (e.g., admin functions)
 - Use `SECURITY INVOKER` when RLS should apply to the caller
 - Always set `search_path = public` for security
+
+---
+
+## Translation Tables (i18n)
+
+All translatable content uses **per-entity translation tables**. No translatable text on entity tables.
+
+### Architecture
+
+```
+locales (code PK, parent_code FK, display_name, is_active)
+  ├── en (parent: NULL)         ← base English (US English content)
+  ├── es (parent: en)           ← base Spanish (Mexican Spanish content)
+  ├── es-MX (parent: es)        ← regional override (only if needed)
+  └── es-ES (parent: es)        ← regional override (only if needed)
+
+recipes ←→ recipe_translations (recipe_id, locale) PK
+           └── name, tips_and_tricks
+```
+
+### 8 Translation Tables
+
+| Translation Table | Parent | Translated Fields |
+|---|---|---|
+| `recipe_translations` | `recipes` | `name`, `tips_and_tricks` |
+| `recipe_step_translations` | `recipe_steps` | `instruction`, `recipe_section`, `tip` |
+| `ingredient_translations` | `ingredients` | `name`, `plural_name` |
+| `recipe_ingredient_translations` | `recipe_ingredients` | `notes`, `recipe_section`, `tip` |
+| `measurement_unit_translations` | `measurement_units` | `name`, `name_plural`, `symbol`, `symbol_plural` |
+| `recipe_tag_translations` | `recipe_tags` | `name` |
+| `useful_item_translations` | `useful_items` | `name` |
+| `recipe_useful_item_translations` | `recipe_useful_items` | `notes` |
+
+All use composite PK `(entity_id, locale)` with `ON DELETE CASCADE` from parent.
+
+### Locale Design Rules
+
+- **Base codes (`en`, `es`) store all content.** These serve all speakers of that language.
+- **Regional codes (`es-MX`, `es-ES`) are override-only.** Only create regional translation rows when content genuinely differs from the base.
+- **Never store base content under a regional code** — it breaks fallback for other regions.
+- **Fallback chain** via `resolve_locale()`: `es-MX` → `es` → `en`. Unknown locales normalize to language subtag first (`en-CA` → `en`).
+
+### Adding a New Translatable Entity
+
+```sql
+-- 1. Create translation table
+CREATE TABLE <entity>_translations (
+  <entity>_id uuid REFERENCES <entity>(id) ON DELETE CASCADE,
+  locale text REFERENCES locales(code),
+  <field1> text NOT NULL,
+  <field2> text,
+  PRIMARY KEY (<entity>_id, locale)
+);
+
+-- 2. Enable RLS and add policies (match parent table's access pattern)
+ALTER TABLE <entity>_translations ENABLE ROW LEVEL SECURITY;
+
+-- 3. Add RLS policies
+CREATE POLICY "Anyone can read" ON <entity>_translations FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Admin write" ON <entity>_translations FOR ALL TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+```
+
+### Adding a New Language
+
+1. Insert into `locales`: `INSERT INTO locales (code, parent_code, display_name, is_active) VALUES ('pt', 'en', 'Português', true);`
+2. Add translation rows for the new locale in each translation table
+3. Add UI string translations in `i18n/locales/`
 
 ---
 

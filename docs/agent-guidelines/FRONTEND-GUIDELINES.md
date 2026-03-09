@@ -160,11 +160,19 @@ import { Image } from 'expo-image';
 // NOT: import { Image } from 'react-native';
 ```
 
-### i18n — all user-facing strings
+### i18n — two systems
+
+**UI strings** (`i18n/`) — Static app text. Add keys to BOTH `en` and `es`:
 ```tsx
 import i18n from '@/i18n';
 <Text>{i18n.t('recipes.common.search')}</Text>
-// Add keys to BOTH en and es in i18n/index.ts
+```
+
+**Recipe content** (translation tables) — Dynamic DB content. See `shared/conventions.md` for read/write patterns.
+```tsx
+import { useLanguage } from '@/contexts/LanguageContext';
+const { language, locale } = useLanguage();
+// language = 'en' | 'es' (i18n strings), locale = device locale (profile)
 ```
 
 ---
