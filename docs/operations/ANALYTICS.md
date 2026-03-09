@@ -89,15 +89,24 @@ Current behavior note:
 
 Dashboard route: `/admin/analytics`
 
-Primary RPCs:
-- `admin_analytics(action, timeframe, limit_count)`
-- `admin_ai_usage(timeframe)`
-- `admin_ai_chat_session_depth(timeframe, filter_user_id)`
+Primary RPCs (dedicated, extracted from legacy dispatcher):
+- `admin_overview()` — DAU/WAU/MAU, signups, onboarding rate
+- `admin_retention()` — D1/D7/D30 retention, time to first cook
+- `admin_funnel(timeframe)` — cooking funnel metrics
+- `admin_top_viewed_recipes(timeframe, limit_count)` — top viewed recipes with source
+- `admin_top_cooked_recipes(timeframe, limit_count)` — top cooked recipes with source
+- `admin_top_searches(timeframe, limit_count)` — top search queries
+- `admin_ai_adoption(timeframe)` — AI adoption rate, session counts
+- `admin_ai_usage(timeframe)` — AI cost/usage breakdown
+- `admin_ai_chat_session_depth(timeframe, filter_user_id)` — session depth metrics
+- `admin_recipe_generation(timeframe)` — recipe generation stats (hidden in UI pending event instrumentation)
 
-AI tab shows three groups:
-1. **AI adoption** (chat/voice sessions, adoption rate, returning AI users)
-2. **AI costs & usage** (text cost, voice cost, total cost, token usage, latency, error rate, model and phase breakdowns, daily cost trend)
-3. **AI chat session depth** (avg messages, message distribution, tool usage breakdown, daily session trend, top users, context window health)
+Legacy compatibility: `admin_analytics(action, timeframe, limit_count)` — dispatcher that delegates to dedicated RPCs above.
+
+Three tabs:
+1. **Overview** — active users, signups, onboarding, retention
+2. **Content** — cooking funnel, top cooked recipes, top searches, top viewed (in details)
+3. **AI** — adoption, costs & usage, chat session depth
 
 Timeframes:
 - `today`
