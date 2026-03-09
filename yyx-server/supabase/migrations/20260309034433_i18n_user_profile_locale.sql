@@ -24,6 +24,7 @@ ALTER TABLE user_profiles
   DROP COLUMN IF EXISTS language;
 
 -- 5. Update admin_analytics function to use locale instead of language
+DROP FUNCTION IF EXISTS admin_analytics(text, text, int);
 CREATE OR REPLACE FUNCTION admin_analytics(action text, timeframe text DEFAULT '7d', "limit" int DEFAULT 10)
 RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER

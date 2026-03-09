@@ -27,6 +27,9 @@ CREATE INDEX idx_ingredient_aliases_alias_locale
 --    Join ingredient_translations for name resolution
 -- ============================================================
 
+-- Must drop first because return type changes (removed matched_name_es column)
+DROP FUNCTION IF EXISTS public.batch_find_ingredients(text[], text);
+
 CREATE OR REPLACE FUNCTION public.batch_find_ingredients(
   ingredient_names text[],
   preferred_locale text DEFAULT 'en'
@@ -139,6 +142,9 @@ COMMENT ON FUNCTION public.batch_find_ingredients IS
 -- 3. get_cooked_recipes: p_language -> p_locale
 --    Join recipe_translations for localized name resolution
 -- ============================================================
+
+-- Drop old signature (parameter renamed from p_language to p_locale)
+DROP FUNCTION IF EXISTS public.get_cooked_recipes(text, text, timestamptz, timestamptz, integer);
 
 CREATE OR REPLACE FUNCTION public.get_cooked_recipes(
   p_locale text,
