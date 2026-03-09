@@ -41,7 +41,7 @@ export function SystemButtons({
           .from('locales')
           .select('code, display_name')
           .eq('is_active', true)
-          .is('parent_code', null) // Only top-level locales
+          .not('code', 'like', '%-%') // Base languages only (en, es), not regional variants (es-MX)
           .order('display_name', { ascending: true });
 
         if (!error && data && data.length > 0) {

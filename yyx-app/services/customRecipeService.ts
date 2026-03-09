@@ -93,7 +93,7 @@ export const customRecipeService = {
                 difficulty: recipe.difficulty,
                 portions: recipe.portions,
                 measurement_system: recipe.measurementSystem,
-                language: recipe.language,
+                language: recipe.locale.split('-')[0] || 'en',
                 source: 'ai_generated',
                 schema_version: '1.0',
                 // Keep recipe_data as backup for now
@@ -163,11 +163,11 @@ export const customRecipeService = {
             }
 
             // 4. Insert step-ingredient relationships
-            const stepIngredientRows: Array<{
+            const stepIngredientRows: {
                 user_recipe_step_id: string;
                 user_recipe_ingredient_id: string;
                 display_order: number;
-            }> = [];
+            }[] = [];
 
             for (const step of recipe.steps) {
                 if (!step.ingredientsUsed?.length) continue;
@@ -371,7 +371,7 @@ export const customRecipeService = {
             schemaVersion: '1.0',
             suggestedName: recipeData.name,
             measurementSystem: recipeData.measurement_system as 'imperial' | 'metric' || 'metric',
-            language: recipeData.language as 'en' | 'es' || 'en',
+            locale: recipeData.language || 'en',
             ingredients,
             steps,
             totalTime: recipeData.total_time || 0,

@@ -48,7 +48,7 @@ export interface GeneratedRecipe {
   suggestedName: string;
   description?: string;
   measurementSystem: 'imperial' | 'metric';
-  language: 'en' | 'es';
+  locale: string;
   ingredients: GeneratedIngredient[];
   steps: GeneratedStep[];
   totalTime: number;
@@ -67,7 +67,7 @@ export interface SafetyFlags {
 export interface IrmixyResponse {
   version: '1.0';
   message: string;
-  language: 'en' | 'es';
+  locale: string;
   status?: 'thinking' | 'searching' | 'generating' | 'cooking_it_up' | null;
   recipes?: RecipeCard[];
   customRecipe?: GeneratedRecipe;
