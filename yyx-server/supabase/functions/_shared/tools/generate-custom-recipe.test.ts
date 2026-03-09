@@ -56,9 +56,11 @@ function createMockUserContext(
   const locale = overrides?.locale ?? "en";
   const localeChain = overrides?.localeChain ??
     (locale === "es" ? ["es", "en"] : ["en"]);
+  const language: "en" | "es" = locale.startsWith("es") ? "es" : "en";
   return {
     locale,
     localeChain,
+    language,
     measurementSystem: "imperial" as const,
     dietaryRestrictions: [],
     ingredientDislikes: [],

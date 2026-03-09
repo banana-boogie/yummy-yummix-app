@@ -24,6 +24,7 @@ function createMockUserContext() {
   return {
     locale: "en",
     localeChain: ["en"],
+    language: "en" as const,
     measurementSystem: "imperial" as const,
     dietaryRestrictions: [],
     ingredientDislikes: [],

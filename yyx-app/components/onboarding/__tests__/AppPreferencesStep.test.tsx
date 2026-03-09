@@ -59,11 +59,9 @@ jest.mock('@/contexts/OnboardingContext', () => ({
 
 // Mock LanguageContext
 const mockSetLanguage = jest.fn();
-const mockSetLocale = jest.fn().mockResolvedValue(undefined);
 jest.mock('@/contexts/LanguageContext', () => ({
   useLanguage: () => ({
     setLanguage: mockSetLanguage,
-    setLocale: mockSetLocale,
   }),
 }));
 
@@ -72,39 +70,17 @@ jest.mock('expo-localization', () => ({
   getLocales: jest.fn(() => [{ languageCode: 'en' }]),
 }));
 
-// Mock Supabase - the component fetches locales from the DB
-const mockSupabaseOrder = jest.fn().mockResolvedValue({
-  data: [
-    { code: 'en', display_name: 'English' },
-    { code: 'es', display_name: 'Espanol' },
-  ],
-  error: null,
-});
-jest.mock('@/lib/supabase', () => ({
-  supabase: {
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          is: () => ({
-            order: mockSupabaseOrder,
-          }),
-        }),
-      }),
-    }),
-  },
-}));
-
 // Mock Button
 jest.mock('@/components/common/Button', () => ({
   Button: ({ label, variant, onPress, children }: any) => {
-    const { Pressable, Text: RNText } = require('react-native');
+    const { Pressable, Text } = require('react-native');
     return (
       <Pressable
         testID={`button-${(label || 'custom').toLowerCase().replace(/\s/g, '-')}`}
         onPress={onPress}
         accessibilityState={{ selected: variant === 'primary' }}
       >
-        {label ? <RNText>{label}</RNText> : children}
+        {label ? <Text>{label}</Text> : children}
       </Pressable>
     );
   },
@@ -113,16 +89,16 @@ jest.mock('@/components/common/Button', () => ({
 // Mock StepNavigationButtons
 jest.mock('../StepNavigationButtons', () => ({
   StepNavigationButtons: ({ onNext, onBack }: any) => {
-    const { View: RNView, Pressable, Text: RNText } = require('react-native');
+    const { View, Pressable, Text } = require('react-native');
     return (
-      <RNView>
+      <View>
         <Pressable testID="back-button" onPress={onBack}>
-          <RNText>Back</RNText>
+          <Text>Back</Text>
         </Pressable>
         <Pressable testID="next-button" onPress={onNext}>
-          <RNText>Next</RNText>
+          <Text>Next</Text>
         </Pressable>
-      </RNView>
+      </View>
     );
   },
 }));
@@ -162,14 +138,11 @@ describe('AppPreferencesStep', () => {
       expect(screen.getByText('Measurement System')).toBeTruthy();
     });
 
-    it('displays language options', async () => {
+    it('displays language options', () => {
       render(<AppPreferencesStep />);
 
-      // Wait for locale options to load from the mock DB fetch
-      await waitFor(() => {
-        expect(screen.getByText('English')).toBeTruthy();
-        expect(screen.getByText('Espanol')).toBeTruthy();
-      });
+      expect(screen.getByText('English')).toBeTruthy();
+      expect(screen.getByText('Español')).toBeTruthy();
     });
   });
 
@@ -179,39 +152,29 @@ describe('AppPreferencesStep', () => {
 
   describe('language selection', () => {
     it('selects English language', async () => {
-      mockState.formData = { language: 'es' };
+      mockState.formData = { locale: 'es-MX' };
       render(<AppPreferencesStep />);
-
-      // Wait for locale options to load from the mock DB fetch
-      await waitFor(() => {
-        expect(screen.getByTestId('button-english')).toBeTruthy();
-      });
 
       const englishButton = screen.getByTestId('button-english');
       fireEvent.press(englishButton);
 
       await waitFor(() => {
-        expect(mockSetLocale).toHaveBeenCalledWith('en');
+        expect(mockSetLanguage).toHaveBeenCalledWith('en');
       });
-      expect(mockUpdateFormData).toHaveBeenCalledWith({ language: 'en' });
+      expect(mockUpdateFormData).toHaveBeenCalledWith({ locale: 'en' });
     });
 
     it('selects Spanish language', async () => {
-      mockState.formData = { language: 'en' };
+      mockState.formData = { locale: 'en' };
       render(<AppPreferencesStep />);
 
-      // Wait for locale options to load from the mock DB fetch
-      await waitFor(() => {
-        expect(screen.getByTestId('button-espanol')).toBeTruthy();
-      });
-
-      const spanishButton = screen.getByTestId('button-espanol');
+      const spanishButton = screen.getByTestId('button-español');
       fireEvent.press(spanishButton);
 
       await waitFor(() => {
-        expect(mockSetLocale).toHaveBeenCalledWith('es');
+        expect(mockSetLanguage).toHaveBeenCalledWith('es');
       });
-      expect(mockUpdateFormData).toHaveBeenCalledWith({ language: 'es' });
+      expect(mockUpdateFormData).toHaveBeenCalledWith({ locale: 'es-MX' });
     });
   });
 

@@ -17,6 +17,7 @@ function createUserContext(
   return {
     locale: "en",
     localeChain: ["en"],
+    language: "en",
     measurementSystem: "imperial",
     dietaryRestrictions: [],
     ingredientDislikes: [],

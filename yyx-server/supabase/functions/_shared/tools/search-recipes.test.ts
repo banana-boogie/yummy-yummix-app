@@ -122,9 +122,11 @@ function createUserContext(
   dietaryRestrictions: string[] = [],
 ) {
   const localeChain = locale === "es" ? ["es", "en"] : ["en"];
+  const language: "en" | "es" = locale === "es" ? "es" : "en";
   return {
     locale,
     localeChain,
+    language,
     measurementSystem: "imperial" as const,
     dietaryRestrictions,
     ingredientDislikes: [],

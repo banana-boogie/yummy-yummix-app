@@ -42,8 +42,10 @@ export function OnboardingModal({ visible }: OnboardingModalProps) {
       setIsSubmitting(true);
 
       // Update language and measurement system
-      if (formData.language) {
-        await setLanguage(formData.language as Language);
+      // Derive UI language from locale (e.g., 'es-MX' -> 'es', 'en' -> 'en')
+      if (formData.locale) {
+        const uiLanguage = formData.locale.startsWith('es') ? 'es' : 'en';
+        await setLanguage(uiLanguage as Language);
       }
       if (formData.measurementSystem) {
         await setMeasurementSystem(formData.measurementSystem as MeasurementSystem);

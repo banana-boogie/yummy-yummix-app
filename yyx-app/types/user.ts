@@ -24,7 +24,7 @@ export interface UserProfile {
   dietTypes: DietType[];
   cuisinePreferences: CuisinePreference[];
   measurementSystem: MeasurementSystem;
-  language: string;
+  locale: string;
   profileImageUrl: string | null;
   onboardingComplete: boolean;
   isAdmin?: boolean;

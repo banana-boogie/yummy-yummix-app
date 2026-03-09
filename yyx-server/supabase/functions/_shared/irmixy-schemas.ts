@@ -124,8 +124,9 @@ export interface SearchRecipesParams {
 }
 
 export interface UserContext {
-  locale: string;
+  locale: string; // Regional locale code (e.g., 'es-MX', 'en', 'es-ES')
   localeChain: string[];
+  language: "en" | "es"; // Derived UI language for i18n
   measurementSystem: "imperial" | "metric";
   dietaryRestrictions: string[];
   ingredientDislikes: string[];

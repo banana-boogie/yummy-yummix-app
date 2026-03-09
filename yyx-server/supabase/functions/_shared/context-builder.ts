@@ -7,7 +7,7 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { UserContext } from "./irmixy-schemas.ts";
-import { buildLocaleChain, languageToLocale } from "./locale-utils.ts";
+import { buildLocaleChain } from "./locale-utils.ts";
 
 const MAX_HISTORY_MESSAGES = 50;
 const MAX_CONTENT_LENGTH = 2000;
@@ -88,7 +88,7 @@ async function buildContext(
     supabase
       .from("user_profiles")
       .select(`
-        language,
+        locale,
         dietary_restrictions,
         measurement_system,
         diet_types,
@@ -113,19 +113,19 @@ async function buildContext(
 
   const profile = profileResult.data;
 
-  // Determine locale from the user's language column (until PR4 adds locale column)
-  // Map: 'es' -> 'es', 'en' -> 'en', default -> 'en'
-  const rawLanguage = profile?.language || "en";
-  const locale = languageToLocale(rawLanguage === "es" ? "es" : "en");
+  // Determine language from locale (default: 'en')
+  // locale is a regional code like 'es-MX', 'es-ES', 'en' — derive UI language from it
+  const locale = profile?.locale || "en";
+  const language: "en" | "es" = locale.startsWith("es") ? "es" : "en";
   const localeChain = buildLocaleChain(locale);
 
-  // Determine measurement system — decoupled from locale
+  // Determine measurement system
   // Fallback: imperial for 'en', metric for 'es'
   let measurementSystem: "imperial" | "metric";
   if (profile?.measurement_system) {
     measurementSystem = profile.measurement_system as "imperial" | "metric";
   } else {
-    measurementSystem = locale.startsWith("es") ? "metric" : "imperial";
+    measurementSystem = language === "es" ? "metric" : "imperial";
   }
 
   // Kitchen equipment (set during onboarding)
@@ -150,6 +150,7 @@ async function buildContext(
   return {
     locale,
     localeChain,
+    language,
     measurementSystem,
     dietaryRestrictions: sanitizeList(profile?.dietary_restrictions),
     ingredientDislikes: sanitizeList(profile?.ingredient_dislikes),

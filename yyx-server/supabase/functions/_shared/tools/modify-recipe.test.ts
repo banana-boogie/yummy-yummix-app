@@ -51,6 +51,7 @@ function createUserContext(overrides: Partial<UserContext> = {}): UserContext {
   return {
     locale: "en",
     localeChain: ["en"],
+    language: "en",
     measurementSystem: "metric",
     dietaryRestrictions: [],
     ingredientDislikes: [],

@@ -16,6 +16,7 @@ import { executeTool } from "./execute-tool.ts";
 const BASE_USER_CONTEXT = {
   locale: "en",
   localeChain: ["en"],
+  language: "en" as const,
   measurementSystem: "imperial" as const,
   dietaryRestrictions: [],
   ingredientDislikes: [],

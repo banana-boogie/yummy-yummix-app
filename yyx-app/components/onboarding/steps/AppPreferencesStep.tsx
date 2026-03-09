@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleProp, ViewStyle, ActivityIndicator } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, StyleProp, ViewStyle } from 'react-native';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { Text } from '@/components/common/Text';
 import * as Localization from 'expo-localization';
@@ -9,12 +9,11 @@ import { MeasurementSystem } from '@/types/user';
 import i18n from '@/i18n';
 import { Button } from '@/components/common/Button';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { supabase } from '@/lib/supabase';
 
-interface LocaleOption {
-  code: string;
-  displayName: string;
-}
+const LANGUAGE_OPTIONS = [
+  { value: 'es' as Language, label: 'Español' },
+  { value: 'en' as Language, label: 'English' },
+] as const;
 
 const MEASUREMENT_OPTIONS = [
   {
@@ -29,69 +28,38 @@ const MEASUREMENT_OPTIONS = [
   },
 ] as const;
 
-// Fallback locale options if the locales table fetch fails
-const FALLBACK_LOCALE_OPTIONS: LocaleOption[] = [
-  { code: 'es', displayName: 'Espanol' },
-  { code: 'en', displayName: 'English' },
-];
-
 interface AppPreferencesStepProps {
-  className?: string;
+  className?: string; // Add className
   style?: StyleProp<ViewStyle>;
 }
 
 export function AppPreferencesStep({ className = '', style }: AppPreferencesStepProps) {
   const { formData, updateFormData, goToNextStep, goToPreviousStep } = useOnboarding();
-  const { setLocale } = useLanguage();
-  const systemLocale = Localization.getLocales()[0].languageCode;
-
-  const [localeOptions, setLocaleOptions] = useState<LocaleOption[]>(FALLBACK_LOCALE_OPTIONS);
-  const [loadingLocales, setLoadingLocales] = useState(true);
-
-  // Fetch available locales from the database
-  useEffect(() => {
-    async function fetchLocales() {
-      try {
-        const { data, error } = await supabase
-          .from('locales')
-          .select('code, display_name')
-          .eq('is_active', true)
-          .is('parent_code', null) // Only top-level locales for the picker
-          .order('display_name', { ascending: true });
-
-        if (!error && data && data.length > 0) {
-          setLocaleOptions(data.map((l: any) => ({
-            code: l.code,
-            displayName: l.display_name,
-          })));
-        }
-      } catch {
-        // Use fallback options silently
-      } finally {
-        setLoadingLocales(false);
-      }
-    }
-    fetchLocales();
-  }, []);
+  const { setLanguage } = useLanguage();
+  const deviceLocale = Localization.getLocales()[0];
 
   // Set defaults when component mounts
   useEffect(() => {
-    const defaultLanguage = systemLocale === 'es' ? 'es' : 'en';
-    const defaultMeasurement = defaultLanguage === 'en' ? 'imperial' : 'metric';
+    const langCode = deviceLocale?.languageCode;
+    const isSpanish = langCode === 'es';
+    // Capture full device locale tag (e.g., 'es-MX', 'en-US') and map to our supported codes
+    const defaultLocale = isSpanish ? 'es-MX' : 'en';
+    const defaultMeasurement = isSpanish ? 'metric' : 'imperial';
 
-    if (!formData.language) {
+    if (!formData.locale) {
       updateFormData({
-        language: defaultLanguage,
+        locale: defaultLocale,
         measurementSystem: defaultMeasurement
       });
     }
-  }, [systemLocale, formData.language, updateFormData]);
+  }, []);
 
-  const handleLocaleSelect = async (localeCode: string) => {
-    const lang = localeCode.startsWith('es') ? 'es' : 'en' as Language;
-    await setLocale(localeCode);
-    i18n.locale = lang;
-    updateFormData({ language: lang });
+  const handleLanguageSelect = async (language: Language) => {
+    await setLanguage(language);
+    i18n.locale = language;
+    // Map UI language selection to locale code
+    const locale = language === 'es' ? 'es-MX' : 'en';
+    updateFormData({ locale });
   };
 
   const handleMeasurementSelect = (measurementSystem: MeasurementSystem) => {
@@ -113,22 +81,18 @@ export function AppPreferencesStep({ className = '', style }: AppPreferencesStep
           <Text preset="body" align='center' marginBottom={16} fontWeight="semibold">
             {i18n.t('onboarding.steps.appPreferences.language')}
           </Text>
-          {loadingLocales ? (
-            <ActivityIndicator size="small" />
-          ) : (
-            <View className="flex-row gap-lg justify-center w-full flex-wrap">
-              {localeOptions.map(option => (
-                <Button
-                  key={option.code}
-                  variant={formData.language === (option.code.startsWith('es') ? 'es' : 'en') ? 'primary' : 'secondary'}
-                  size="medium"
-                  label={option.displayName}
-                  onPress={() => handleLocaleSelect(option.code)}
-                  className="flex-1 rounded-lg max-w-[200px]"
-                />
-              ))}
-            </View>
-          )}
+          <View className="flex-row gap-lg justify-center w-full">
+            {LANGUAGE_OPTIONS.map(option => (
+              <Button
+                key={option.value}
+                variant={(formData.locale?.startsWith(option.value) || (option.value === 'en' && !formData.locale?.startsWith('es'))) ? 'primary' : 'secondary'}
+                size="medium"
+                label={option.label}
+                onPress={() => handleLanguageSelect(option.value)}
+                className="flex-1 rounded-lg max-w-[200px]"
+              />
+            ))}
+          </View>
         </View>
 
         <View className="mb-xxxl items-center w-full">
