@@ -2,8 +2,9 @@
  * AI Model Tournament — Recipe Generation Runner
  *
  * Tests models on recipe generation quality with Zod validation.
- * For reasoning-capable models, runs each test case at both "low" and "medium"
- * effort to measure the quality/speed tradeoff.
+ * Variants tested:
+ *   - Reasoning: minimal vs low (for reasoning-capable models)
+ *   - Schema: with vs without JSON schema enforcement
  */
 
 import type { AICompletionRequest } from "../../_shared/ai-gateway/types.ts";
@@ -14,25 +15,16 @@ import {
 } from "../../_shared/tools/generate-custom-recipe.ts";
 import { TEST_USER_CONTEXT } from "../config.ts";
 import {
-  type ApiKeys,
   callModelWithRetry,
   formatDuration,
+  ROLE_TIMEOUTS,
 } from "../helpers.ts";
-import type {
-  EvalRole,
-  ModelConfig,
-  RecipeTestCase,
-  TestCaseResult,
-} from "../types.ts";
+import type { ModelConfig, RecipeTestCase, TestCaseResult } from "../types.ts";
 
 // ============================================================
 // Prompt Builder
 // ============================================================
 
-/**
- * Build user prompt for recipe generation (mirrors production buildRecipeGenerationPrompt
- * but simplified since we don't have allergen/safety DB lookups).
- */
 function buildRecipePrompt(testCase: RecipeTestCase): string {
   const parts: string[] = [];
 
@@ -67,7 +59,6 @@ function buildRecipePrompt(testCase: RecipeTestCase): string {
     parts.push(`Additional requirements: ${testCase.additionalRequests}`);
   }
 
-  // Hard requirements from test persona
   if (TEST_USER_CONTEXT.ingredientDislikes.length > 0) {
     parts.push("\n⚠️ HARD REQUIREMENTS (must follow):");
     parts.push(
@@ -77,7 +68,6 @@ function buildRecipePrompt(testCase: RecipeTestCase): string {
     );
   }
 
-  // Equipment
   if (TEST_USER_CONTEXT.kitchenEquipment.length > 0) {
     parts.push("\n🍳 AVAILABLE EQUIPMENT:");
     parts.push(
@@ -87,7 +77,6 @@ function buildRecipePrompt(testCase: RecipeTestCase): string {
     );
   }
 
-  // Soft preferences
   if (
     TEST_USER_CONTEXT.cuisinePreferences.length > 0 &&
     !testCase.cuisinePreference
@@ -104,6 +93,16 @@ function buildRecipePrompt(testCase: RecipeTestCase): string {
 }
 
 // ============================================================
+// Types for test variants
+// ============================================================
+
+interface RecipeVariant {
+  effort: string | null;
+  useSchema: boolean;
+  label: string;
+}
+
+// ============================================================
 // Runner
 // ============================================================
 
@@ -112,140 +111,180 @@ export async function runRecipeTests(
   testCases: RecipeTestCase[],
   apiKey: string,
 ): Promise<TestCaseResult[]> {
-  const results: TestCaseResult[] = [];
   const systemPrompt = getSystemPrompt(TEST_USER_CONTEXT);
-  const hasThermomix = true; // Test persona has Thermomix TM6
+  const hasThermomix = true;
   const recipeSchema = buildRecipeJsonSchema(hasThermomix);
-  const useJsonSchema = model.capabilities.jsonSchema;
+  const canUseJsonSchema = model.capabilities.jsonSchema;
 
-  // Determine reasoning effort variants to test
-  const effortVariants: Array<string | null> = [];
+  // Build all variants to test
+  const variants: RecipeVariant[] = [];
 
   if (model.capabilities.reasoning) {
-    // Run at both low and medium for quality/speed comparison
-    effortVariants.push("low");
-    effortVariants.push("medium");
+    // Reasoning models: test minimal with schema, minimal without schema, low with schema
+    variants.push({ effort: "minimal", useSchema: true, label: "minimal" });
+    if (canUseJsonSchema) {
+      variants.push({
+        effort: "minimal",
+        useSchema: false,
+        label: "minimal, no-schema",
+      });
+    }
+    variants.push({ effort: "low", useSchema: true, label: "low" });
   } else {
-    effortVariants.push(null);
-  }
-
-  for (const effort of effortVariants) {
-    const effortLabel = effort ? ` (${effort})` : "";
-
-    for (const testCase of testCases) {
-      const userPrompt = buildRecipePrompt(testCase);
-
-      const request: AICompletionRequest = {
-        usageType: "recipe_generation",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        maxTokens: 6144,
-        ...(effort
-          ? {
-            reasoningEffort: effort as AICompletionRequest["reasoningEffort"],
-          }
-          : { temperature: 0.7 }),
-        ...(useJsonSchema
-          ? {
-            responseFormat: {
-              type: "json_schema" as const,
-              schema: recipeSchema,
-            },
-          }
-          : {}),
-      };
-
-      try {
-        const result = await callModelWithRetry(model, request, apiKey);
-        const response = result.response;
-        const content = response.content;
-
-        // Evaluate: JSON parseable? Schema valid? Thermomix present?
-        let jsonValid = false;
-        let schemaValid = false;
-        let thermomixPresent = false;
-
-        try {
-          const recipe = parseAndValidateGeneratedRecipe(content);
-          jsonValid = true;
-          schemaValid = true;
-          thermomixPresent = recipe.steps.some(
-            (s) =>
-              s.thermomixTime != null ||
-              s.thermomixTemp != null ||
-              s.thermomixSpeed != null,
-          );
-        } catch {
-          // Try just JSON.parse to distinguish JSON failure from schema failure
-          try {
-            let jsonContent = content.trim();
-            if (jsonContent.startsWith("```")) {
-              jsonContent = jsonContent
-                .replace(/^```(?:json)?\s*\n?/, "")
-                .replace(/\n?```\s*$/, "");
-            }
-            JSON.parse(jsonContent);
-            jsonValid = true;
-            // JSON parsed but schema validation failed
-          } catch {
-            // Complete JSON parse failure
-          }
-        }
-
-        const status = schemaValid ? "pass" : "fail";
-        const tag = status === "pass" ? "✓" : "✗";
-        console.log(
-          `  ${tag} ${testCase.id}${effortLabel} ${
-            formatDuration(result.totalLatencyMs)
-          } json=${jsonValid} schema=${schemaValid} tmx=${thermomixPresent}`,
-        );
-
-        results.push({
-          modelId: effort ? `${model.id} (${effort})` : model.id,
-          role: "recipe_generation",
-          testCaseId: testCase.id,
-          testCaseDescription: testCase.description,
-          status,
-          latencyMs: result.totalLatencyMs,
-          inputTokens: response.usage.inputTokens,
-          outputTokens: response.usage.outputTokens,
-          costUsd: result.totalCostUsd,
-          reasoningEffort: effort,
-          attempts: result.attempts,
-          failureType: status === "fail" ? "quality" : null,
-          responseContent: content,
-          jsonValid,
-          schemaValid,
-          thermomixPresent,
-        });
-      } catch (error) {
-        const err = error instanceof Error ? error : new Error(String(error));
-        console.log(`  ✗ ${testCase.id}${effortLabel} ERROR: ${err.message}`);
-
-        results.push({
-          modelId: effort ? `${model.id} (${effort})` : model.id,
-          role: "recipe_generation",
-          testCaseId: testCase.id,
-          testCaseDescription: testCase.description,
-          status: "fail",
-          latencyMs: 0,
-          inputTokens: 0,
-          outputTokens: 0,
-          costUsd: 0,
-          reasoningEffort: effort,
-          attempts: [],
-          failureType: "transient",
-          responseContent: `ERROR: ${err.message}`,
-          error: err.message,
-          jsonValid: false,
-          schemaValid: false,
-          thermomixPresent: false,
-        });
-      }
+    // Non-reasoning models: test with schema and without schema
+    variants.push({ effort: null, useSchema: true, label: "" });
+    if (canUseJsonSchema) {
+      variants.push({ effort: null, useSchema: false, label: "no-schema" });
     }
   }
 
-  return results;
+  // Run all variant × test case combinations in parallel
+  const promises: Promise<TestCaseResult>[] = [];
+
+  for (const variant of variants) {
+    const variantLabel = variant.label ? ` (${variant.label})` : "";
+
+    for (const testCase of testCases) {
+      promises.push((async () => {
+        const userPrompt = buildRecipePrompt(testCase);
+
+        const request: AICompletionRequest = {
+          usageType: "recipe_generation",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          maxTokens: 6144,
+          ...(variant.effort
+            ? {
+              reasoningEffort: variant
+                .effort as AICompletionRequest["reasoningEffort"],
+            }
+            : { temperature: model.temperatureFixed ?? 0.7 }),
+          ...(variant.useSchema && canUseJsonSchema
+            ? {
+              responseFormat: {
+                type: "json_schema" as const,
+                schema: recipeSchema,
+              },
+            }
+            : {}),
+        };
+
+        const testStart = performance.now();
+        try {
+          const result = await callModelWithRetry(
+            model,
+            request,
+            apiKey,
+            ROLE_TIMEOUTS.recipe_generation,
+          );
+          const response = result.response;
+          const content = response.content;
+
+          let jsonValid = false;
+          let schemaValid = false;
+          let thermomixPresent = false;
+
+          try {
+            const recipe = parseAndValidateGeneratedRecipe(content);
+            jsonValid = true;
+            schemaValid = true;
+            thermomixPresent = recipe.steps.some(
+              (s) =>
+                s.thermomixTime != null ||
+                s.thermomixTemp != null ||
+                s.thermomixSpeed != null,
+            );
+          } catch {
+            try {
+              let jsonContent = content.trim();
+              if (jsonContent.startsWith("```")) {
+                jsonContent = jsonContent
+                  .replace(/^```(?:json)?\s*\n?/, "")
+                  .replace(/\n?```\s*$/, "");
+              }
+              JSON.parse(jsonContent);
+              jsonValid = true;
+            } catch {
+              // Complete JSON parse failure
+            }
+          }
+
+          const outputTokensPerSec = response.usage.outputTokens > 0
+            ? Math.round(
+              (response.usage.outputTokens / result.totalLatencyMs) * 1000,
+            )
+            : 0;
+
+          const status = schemaValid ? "pass" : "fail";
+          const tag = status === "pass" ? "✓" : "✗";
+          const schemaTag = variant.useSchema ? "schema" : "no-schema";
+          console.log(
+            `  ${tag} ${testCase.id}${variantLabel} ${
+              formatDuration(result.totalLatencyMs)
+            } ${outputTokensPerSec} tok/s [${schemaTag}] json=${jsonValid} schema=${schemaValid} tmx=${thermomixPresent}`,
+          );
+
+          return {
+            modelId: variant.label
+              ? `${model.id} (${variant.label})`
+              : model.id,
+            role: "recipe_generation" as const,
+            testCaseId: testCase.id,
+            testCaseDescription: testCase.description,
+            status,
+            latencyMs: result.totalLatencyMs,
+            inputTokens: response.usage.inputTokens,
+            outputTokens: response.usage.outputTokens,
+            costUsd: result.totalCostUsd,
+            reasoningEffort: variant.effort,
+            attempts: result.attempts,
+            failureType:
+              (status === "fail" ? "quality" : null) as TestCaseResult[
+                "failureType"
+              ],
+            responseContent: content,
+            outputTokensPerSec,
+            jsonValid,
+            schemaValid,
+            thermomixPresent,
+            schemaEnforced: variant.useSchema,
+          };
+        } catch (error) {
+          const testLatency = Math.round(performance.now() - testStart);
+          const err = error instanceof Error ? error : new Error(String(error));
+          console.log(
+            `  ✗ ${testCase.id}${variantLabel} ERROR: ${err.message}`,
+          );
+
+          return {
+            modelId: variant.label
+              ? `${model.id} (${variant.label})`
+              : model.id,
+            role: "recipe_generation" as const,
+            testCaseId: testCase.id,
+            testCaseDescription: testCase.description,
+            status: "fail" as const,
+            latencyMs: testLatency,
+            inputTokens: 0,
+            outputTokens: 0,
+            costUsd: 0,
+            reasoningEffort: variant.effort,
+            attempts: [],
+            failureType: "transient" as const,
+            responseContent: `ERROR: ${err.message}`,
+            error: err.message,
+            outputTokensPerSec: 0,
+            jsonValid: false,
+            schemaValid: false,
+            thermomixPresent: false,
+            schemaEnforced: variant.useSchema,
+          };
+        }
+      })());
+    }
+  }
+
+  return await Promise.all(promises);
 }

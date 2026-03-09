@@ -66,7 +66,14 @@ export async function callModel(
 
 const MAX_RETRIES = 2;
 const BASE_BACKOFF_MS = 2000;
-const TIMEOUT_MS = 60_000;
+
+/** Role-based timeouts — if a model can't respond in time, it's not viable */
+export const ROLE_TIMEOUTS: Record<string, number> = {
+  orchestrator: 5_000,
+  recipe_generation: 30_000,
+  recipe_modification: 30_000,
+};
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 export function isTransientError(error: Error): boolean {
   // Provider errors use format: "Provider API error (503): ..."
@@ -75,8 +82,9 @@ export function isTransientError(error: Error): boolean {
     const status = parseInt(statusMatch[1]);
     if (status === 429 || status >= 500) return true;
   }
-  // Network/timeout errors
-  return /network|timeout|ECONNREFUSED|ENOTFOUND|fetch failed|aborted/i.test(
+  // Network errors (NOT timeouts — if a model is too slow, retrying won't help)
+  if (/aborted|timeout/i.test(error.message)) return false;
+  return /network|ECONNREFUSED|ENOTFOUND|fetch failed/i.test(
     error.message,
   );
 }
@@ -92,7 +100,9 @@ export async function callModelWithRetry(
   config: ModelConfig,
   request: AICompletionRequest,
   apiKey: string,
+  timeoutMs?: number,
 ): Promise<CallModelWithRetryResult> {
+  const timeout = timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const attempts: AttemptDetail[] = [];
   let totalCostUsd = 0;
   const overallStart = performance.now();
@@ -103,7 +113,7 @@ export async function callModelWithRetry(
     try {
       // Add timeout via AbortSignal
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
       const requestWithSignal = { ...request, signal: controller.signal };
 
       const response = await callModel(config, requestWithSignal, apiKey);
@@ -179,7 +189,7 @@ export function calculateCost(
 // ============================================================
 
 export function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
+  if (ms < 1000) return `${Math.round(ms)}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
 }
 

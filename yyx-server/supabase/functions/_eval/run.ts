@@ -148,14 +148,21 @@ function printDryRun(
         calls = singleTurnCount + multiTurnCount * 2;
       }
 
-      // Reasoning variants for recipe generation
+      // Reasoning + schema variants
       let reasoningNote = "";
-      if (
-        role === "recipe_generation" &&
-        model.capabilities.reasoning
+      if (model.capabilities.reasoning) {
+        if (role === "orchestrator") {
+          calls *= 2; // none + minimal
+          reasoningNote = " (none + minimal reasoning)";
+        } else if (role === "recipe_generation") {
+          calls *= 3; // minimal + minimal-no-schema + low
+          reasoningNote = " (minimal + minimal-no-schema + low)";
+        }
+      } else if (
+        role === "recipe_generation" && model.capabilities.jsonSchema
       ) {
-        calls *= 2; // low + medium
-        reasoningNote = " (low + medium reasoning)";
+        calls *= 2; // schema + no-schema
+        reasoningNote = " (schema + no-schema)";
       }
 
       if (apiKeyAvailable) totalCalls += calls;
@@ -216,46 +223,38 @@ async function main() {
   console.log(`Git SHA: ${metadata.gitSha}`);
   console.log("");
 
-  const allResults: TestCaseResult[] = [];
   const overallStart = performance.now();
 
-  // Run each role × model combination sequentially
-  for (const role of roles) {
-    console.log(`\n--- ${role.toUpperCase()} ---`);
+  // Run everything in parallel: all models × all roles at once
+  const allPromises: Promise<TestCaseResult[]>[] = [];
 
+  for (const role of roles) {
     for (const model of availableModels) {
       const apiKey = apiKeys[model.apiKeyEnvVar]!;
-      console.log(`\n[${role}] ${model.id} (${model.provider})`);
-
-      let results: TestCaseResult[];
+      console.log(`[${role}] ${model.id} (${model.provider}) — starting`);
 
       switch (role) {
         case "orchestrator":
-          results = await runConversationTests(
-            model,
-            CONVERSATION_TEST_CASES,
-            apiKey,
+          allPromises.push(
+            runConversationTests(model, CONVERSATION_TEST_CASES, apiKey),
           );
           break;
         case "recipe_generation":
-          results = await runRecipeTests(
-            model,
-            RECIPE_GENERATION_TEST_CASES,
-            apiKey,
+          allPromises.push(
+            runRecipeTests(model, RECIPE_GENERATION_TEST_CASES, apiKey),
           );
           break;
         case "recipe_modification":
-          results = await runModificationTests(
-            model,
-            RECIPE_MODIFICATION_TEST_CASES,
-            apiKey,
+          allPromises.push(
+            runModificationTests(model, RECIPE_MODIFICATION_TEST_CASES, apiKey),
           );
           break;
       }
-
-      allResults.push(...results);
     }
   }
+
+  const batchResults = await Promise.all(allPromises);
+  const allResults = batchResults.flat();
 
   const totalTime = Math.round(performance.now() - overallStart);
   console.log(`\n=== Done in ${formatDuration(totalTime)} ===`);

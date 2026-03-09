@@ -29,6 +29,8 @@ export interface ModelConfig {
     inputPerMillion: number;
     outputPerMillion: number;
   };
+  /** If set, this model only supports this specific temperature value */
+  temperatureFixed?: number;
 }
 
 export type EvalStatus = "pass" | "fail" | "skipped";
@@ -63,10 +65,15 @@ export interface TestCaseResult {
   evaluationMethod?: "tool_call" | "intent_analysis";
   turns?: number;
 
+  // Performance
+  outputTokensPerSec?: number;
+
   // Recipe-specific
   jsonValid?: boolean;
   schemaValid?: boolean;
   thermomixPresent?: boolean;
+  /** Whether JSON schema was enforced via responseFormat */
+  schemaEnforced?: boolean;
 }
 
 export interface RunMetadata {

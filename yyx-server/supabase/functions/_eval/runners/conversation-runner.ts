@@ -12,7 +12,11 @@ import type {
 import { buildSystemPrompt } from "../../irmixy-chat-orchestrator/system-prompt.ts";
 import { getRegisteredAiTools } from "../../_shared/tools/tool-registry.ts";
 import { TEST_USER_CONTEXT } from "../config.ts";
-import { callModelWithRetry, formatDuration } from "../helpers.ts";
+import {
+  callModelWithRetry,
+  formatDuration,
+  ROLE_TIMEOUTS,
+} from "../helpers.ts";
 import type {
   ConversationTestCase,
   ModelConfig,
@@ -29,134 +33,162 @@ export async function runConversationTests(
   testCases: ConversationTestCase[],
   apiKey: string,
 ): Promise<TestCaseResult[]> {
-  const results: TestCaseResult[] = [];
   const systemPrompt = buildSystemPrompt(TEST_USER_CONTEXT);
   const tools = getRegisteredAiTools();
-  const reasoningEffort = model.reasoningEffort.orchestrator ?? null;
 
-  for (const testCase of testCases) {
-    const testCaseId = testCase.id;
-    const isMultiTurn = testCase.turns.length > 1;
-    const messages: AIMessage[] = [{ role: "system", content: systemPrompt }];
+  // For reasoning-capable models, test both no-reasoning and minimal
+  const effortVariants: Array<string | null> = model.capabilities.reasoning
+    ? [null, "minimal"]
+    : [null];
 
-    // For conv-5-modify, add conversation history context
-    if (testCaseId === "conv-5-modify") {
-      messages.push(...RECIPE_CONVERSATION_HISTORY);
-    }
+  // Run all effort × test case combinations in parallel
+  // (multi-turn tests still run turns sequentially within each promise)
+  const promises: Promise<TestCaseResult>[] = [];
 
-    let finalStatus: TestCaseResult["status"] = "pass";
-    let totalLatencyMs = 0;
-    let totalInputTokens = 0;
-    let totalOutputTokens = 0;
-    let totalCostUsd = 0;
-    let allAttempts: TestCaseResult["attempts"] = [];
-    let finalResponseContent = "";
-    let finalToolCalled: string | null = null;
-    let finalError: string | undefined;
-    let failureType: TestCaseResult["failureType"] = null;
+  for (const reasoningEffort of effortVariants) {
+    const effortLabel = reasoningEffort ? ` (${reasoningEffort})` : "";
 
-    // Process each turn
-    const lastTurnIndex = testCase.turns.length - 1;
+    for (const testCase of testCases) {
+      promises.push((async (): Promise<TestCaseResult> => {
+        const testCaseId = testCase.id;
+        const isMultiTurn = testCase.turns.length > 1;
+        const messages: AIMessage[] = [{
+          role: "system",
+          content: systemPrompt,
+        }];
 
-    for (let turnIdx = 0; turnIdx < testCase.turns.length; turnIdx++) {
-      const turn = testCase.turns[turnIdx];
-      const isLastTurn = turnIdx === lastTurnIndex;
+        if (testCaseId === "conv-5-modify") {
+          messages.push(...RECIPE_CONVERSATION_HISTORY);
+        }
 
-      messages.push({ role: "user", content: turn.userMessage });
+        const testCaseStart = performance.now();
+        let finalStatus: TestCaseResult["status"] = "pass";
+        let totalLatencyMs = 0;
+        let totalInputTokens = 0;
+        let totalOutputTokens = 0;
+        let totalCostUsd = 0;
+        let allAttempts: TestCaseResult["attempts"] = [];
+        let finalResponseContent = "";
+        let finalToolCalled: string | null = null;
+        let finalError: string | undefined;
+        let failureType: TestCaseResult["failureType"] = null;
 
-      const request: AICompletionRequest = {
-        usageType: "text",
-        messages: [...messages],
-        maxTokens: 2048,
-        ...(reasoningEffort ? { reasoningEffort } : {}),
-        tools,
-        toolChoice: "auto" as const,
-      };
+        const lastTurnIndex = testCase.turns.length - 1;
 
-      try {
-        const result = await callModelWithRetry(model, request, apiKey);
-        const response = result.response;
+        for (let turnIdx = 0; turnIdx < testCase.turns.length; turnIdx++) {
+          const turn = testCase.turns[turnIdx];
+          const isLastTurn = turnIdx === lastTurnIndex;
 
-        totalLatencyMs += result.totalLatencyMs;
-        totalInputTokens += response.usage.inputTokens;
-        totalOutputTokens += response.usage.outputTokens;
-        totalCostUsd += result.totalCostUsd;
-        allAttempts = allAttempts.concat(result.attempts);
-        finalResponseContent = response.content;
+          messages.push({ role: "user", content: turn.userMessage });
 
-        // Append assistant response for multi-turn
-        messages.push({ role: "assistant", content: response.content });
+          const request: AICompletionRequest = {
+            usageType: "text",
+            messages: [...messages],
+            maxTokens: 2048,
+            ...(reasoningEffort ? { reasoningEffort } : {}),
+            tools,
+            toolChoice: "auto" as const,
+          };
 
-        // Extract tool call from response
-        const toolCalled = response.toolCalls && response.toolCalls.length > 0
-          ? response.toolCalls[0].name
-          : null;
+          try {
+            const result = await callModelWithRetry(
+              model,
+              request,
+              apiKey,
+              ROLE_TIMEOUTS.orchestrator,
+            );
+            const response = result.response;
 
-        if (isLastTurn) {
-          finalToolCalled = toolCalled;
+            totalLatencyMs += result.totalLatencyMs;
+            totalInputTokens += response.usage.inputTokens;
+            totalOutputTokens += response.usage.outputTokens;
+            totalCostUsd += result.totalCostUsd;
+            allAttempts = allAttempts.concat(result.attempts);
+            finalResponseContent = response.content;
 
-          // Evaluate correctness
-          const expected = turn.expectedTool;
-          if (expected === null) {
-            if (finalToolCalled !== null) {
-              finalStatus = "fail";
-              failureType = "quality";
+            messages.push({ role: "assistant", content: response.content });
+
+            const toolCalled =
+              response.toolCalls && response.toolCalls.length > 0
+                ? response.toolCalls[0].name
+                : null;
+
+            if (isLastTurn) {
+              finalToolCalled = toolCalled;
+              const expected = turn.expectedTool;
+              if (expected === null) {
+                if (finalToolCalled !== null) {
+                  finalStatus = "fail";
+                  failureType = "quality";
+                }
+              } else {
+                if (finalToolCalled !== expected) {
+                  finalStatus = "fail";
+                  failureType = "quality";
+                }
+              }
+            } else {
+              if (turn.expectedTool === null && toolCalled !== null) {
+                finalStatus = "fail";
+                failureType = "quality";
+                finalToolCalled = toolCalled;
+                finalResponseContent = `[Turn ${
+                  turnIdx + 1
+                }] ${response.content}`;
+                break;
+              }
             }
-          } else {
-            if (finalToolCalled !== expected) {
-              finalStatus = "fail";
-              failureType = "quality";
-            }
-          }
-        } else {
-          // For non-last turns: check that no tool was called (should be clarifying)
-          if (turn.expectedTool === null && toolCalled !== null) {
+          } catch (error) {
+            const err = error instanceof Error
+              ? error
+              : new Error(String(error));
             finalStatus = "fail";
-            failureType = "quality";
-            finalToolCalled = toolCalled;
-            finalResponseContent = `[Turn ${turnIdx + 1}] ${response.content}`;
+            failureType = "transient";
+            finalError = err.message;
+            finalResponseContent = `ERROR: ${err.message}`;
+            totalLatencyMs = Math.round(performance.now() - testCaseStart);
             break;
           }
         }
-      } catch (error) {
-        const err = error instanceof Error ? error : new Error(String(error));
-        finalStatus = "fail";
-        failureType = "transient";
-        finalError = err.message;
-        finalResponseContent = `ERROR: ${err.message}`;
-        break;
-      }
+
+        const tag = finalStatus === "pass" ? "✓" : "✗";
+        console.log(
+          `  ${tag} ${testCaseId}${effortLabel} ${
+            formatDuration(totalLatencyMs)
+          } [${allAttempts.length} attempt(s)]`,
+        );
+
+        const outputTokensPerSec = totalOutputTokens > 0 && totalLatencyMs > 0
+          ? Math.round((totalOutputTokens / totalLatencyMs) * 1000)
+          : 0;
+
+        return {
+          modelId: reasoningEffort
+            ? `${model.id} (${reasoningEffort})`
+            : model.id,
+          role: "orchestrator" as const,
+          testCaseId,
+          testCaseDescription: testCase.description,
+          status: finalStatus,
+          latencyMs: totalLatencyMs,
+          inputTokens: totalInputTokens,
+          outputTokens: totalOutputTokens,
+          outputTokensPerSec,
+          costUsd: totalCostUsd,
+          reasoningEffort: reasoningEffort,
+          attempts: allAttempts,
+          failureType,
+          responseContent: finalResponseContent,
+          error: finalError,
+          toolCalled: finalToolCalled,
+          expectedTool: testCase.turns[lastTurnIndex].expectedTool,
+          toolCorrect: finalStatus === "pass",
+          evaluationMethod: "tool_call" as const,
+          turns: isMultiTurn ? testCase.turns.length : 1,
+        };
+      })());
     }
-
-    const tag = finalStatus === "pass" ? "✓" : "✗";
-    console.log(
-      `  ${tag} ${testCaseId} ${
-        formatDuration(totalLatencyMs)
-      } [${allAttempts.length} attempt(s)]`,
-    );
-
-    results.push({
-      modelId: model.id,
-      role: "orchestrator",
-      testCaseId,
-      testCaseDescription: testCase.description,
-      status: finalStatus,
-      latencyMs: totalLatencyMs,
-      inputTokens: totalInputTokens,
-      outputTokens: totalOutputTokens,
-      costUsd: totalCostUsd,
-      reasoningEffort: reasoningEffort,
-      attempts: allAttempts,
-      failureType,
-      responseContent: finalResponseContent,
-      error: finalError,
-      toolCalled: finalToolCalled,
-      expectedTool: testCase.turns[lastTurnIndex].expectedTool,
-      toolCorrect: finalStatus === "pass",
-      evaluationMethod: "tool_call",
-      turns: isMultiTurn ? testCase.turns.length : 1,
-    });
   }
 
-  return results;
+  return await Promise.all(promises);
 }
