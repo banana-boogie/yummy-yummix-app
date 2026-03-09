@@ -16,7 +16,6 @@ import {
   AIUsageMetrics,
   AIChatSessionMetrics,
   RetentionMetrics,
-  RecipeGenerationMetrics,
 } from '@/services/analyticsService';
 import i18n from '@/i18n';
 
@@ -383,12 +382,10 @@ function AISection({
   adoptionData,
   usageData,
   chatSessionData,
-  recipeGenData,
 }: {
   adoptionData: AIMetrics | null;
   usageData: AIUsageMetrics | null;
   chatSessionData: AIChatSessionMetrics | null;
-  recipeGenData: RecipeGenerationMetrics | null;
 }) {
   if (!adoptionData || !usageData) return <LoadingState />;
 
@@ -551,45 +548,12 @@ function AISection({
           <AIChatSessionDepthSection data={chatSessionData} />
         )}
 
-        {recipeGenData && (
-          <RecipeGenerationSection data={recipeGenData} />
-        )}
+        {/* Recipe generation section hidden until app-side event instrumentation is wired */}
       </CollapsibleSection>
     </View>
   );
 }
 
-function RecipeGenerationSection({ data }: { data: RecipeGenerationMetrics }) {
-  return (
-    <View>
-      <SectionTitle>{i18n.t('admin.analytics.sections.recipeGeneration')}</SectionTitle>
-      <View className="flex-row flex-wrap">
-        <MetricCard
-          title={i18n.t('admin.analytics.labels.totalGenerated')}
-          value={data.totalGenerated}
-          icon="create"
-        />
-        <MetricCard
-          title={i18n.t('admin.analytics.labels.totalFailed')}
-          value={data.totalFailed}
-          icon="alert-circle"
-        />
-        <MetricCard
-          title={i18n.t('admin.analytics.labels.generationSuccessRate')}
-          value={`${data.successRate.toFixed(1)}%`}
-          icon="checkmark-circle"
-        />
-        <MetricCard
-          title={i18n.t('admin.analytics.labels.avgGenerationTime')}
-          value={data.avgDurationMs !== null
-            ? `${(data.avgDurationMs / 1000).toFixed(1)}s`
-            : i18n.t('admin.analytics.labels.notAvailable')}
-          icon="timer"
-        />
-      </View>
-    </View>
-  );
-}
 
 function AIChatSessionDepthSection({ data }: { data: AIChatSessionMetrics }) {
   const maxDailySessions = Math.max(
@@ -720,8 +684,6 @@ export default function AnalyticsDashboard() {
   const [aiData, setAIData] = useState<AIMetrics | null>(null);
   const [aiUsageData, setAIUsageData] = useState<AIUsageMetrics | null>(null);
   const [aiChatSessionData, setAIChatSessionData] = useState<AIChatSessionMetrics | null>(null);
-  const [recipeGenData, setRecipeGenData] = useState<RecipeGenerationMetrics | null>(null);
-
   const [retryKey, setRetryKey] = useState(0);
 
   const handleRetry = () => setRetryKey(k => k + 1);
@@ -766,18 +728,10 @@ export default function AnalyticsDashboard() {
               analyticsService.getAIUsageMetrics(timeframe),
               analyticsService.getAIChatSessionMetrics(timeframe),
             ]);
-            // Recipe generation is non-critical — don't let it break the tab
-            let recipeGen: RecipeGenerationMetrics | null = null;
-            try {
-              recipeGen = await analyticsService.getRecipeGenerationMetrics(timeframe);
-            } catch (e) {
-              console.warn('Failed to load recipe generation metrics:', e);
-            }
             if (!cancelled) {
               setAIData(adoption);
               setAIUsageData(usage);
               setAIChatSessionData(chatSessions);
-              setRecipeGenData(recipeGen);
             }
             break;
           }
@@ -823,7 +777,6 @@ export default function AnalyticsDashboard() {
             adoptionData={aiData}
             usageData={aiUsageData}
             chatSessionData={aiChatSessionData}
-            recipeGenData={recipeGenData}
           />
         );
       default:

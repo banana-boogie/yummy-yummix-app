@@ -6,6 +6,7 @@ import { COLORS } from '@/constants/design-tokens';
 import { adminRecipeService } from '@/services/admin/adminRecipeService';
 import { useRouter } from 'expo-router';
 import { Text } from '@/components/common/Text';
+import i18n from '@/i18n';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -126,7 +127,7 @@ export default function AdminDashboard() {
             onPress={() => router.push('/admin/analytics')}
           >
             <Ionicons name="analytics" size={22} color={COLORS.text.default} />
-            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>Analytics</Text>
+            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>{i18n.t('admin.common.analytics')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
