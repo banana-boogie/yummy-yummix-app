@@ -111,7 +111,7 @@ CREATE TABLE public.ingredient_translations (
 CREATE TABLE public.recipe_ingredient_translations (
   recipe_ingredient_id uuid REFERENCES public.recipe_ingredients(id) ON DELETE CASCADE,
   locale text REFERENCES public.locales(code),
-  recipe_section text NOT NULL DEFAULT 'Main',
+  recipe_section text NOT NULL DEFAULT '',
   notes text,
   tip text,
   PRIMARY KEY (recipe_ingredient_id, locale)
@@ -181,49 +181,49 @@ $$;
 
 -- Attach to all 8 parent tables
 CREATE CONSTRAINT TRIGGER check_recipe_base_translation
-  AFTER INSERT OR UPDATE ON public.recipes
+  AFTER INSERT ON public.recipes
   DEFERRABLE INITIALLY DEFERRED
   FOR EACH ROW
   EXECUTE FUNCTION public.check_base_translation('recipe_translations', 'recipe_id');
 
 CREATE CONSTRAINT TRIGGER check_recipe_step_base_translation
-  AFTER INSERT OR UPDATE ON public.recipe_steps
+  AFTER INSERT ON public.recipe_steps
   DEFERRABLE INITIALLY DEFERRED
   FOR EACH ROW
   EXECUTE FUNCTION public.check_base_translation('recipe_step_translations', 'recipe_step_id');
 
 CREATE CONSTRAINT TRIGGER check_ingredient_base_translation
-  AFTER INSERT OR UPDATE ON public.ingredients
+  AFTER INSERT ON public.ingredients
   DEFERRABLE INITIALLY DEFERRED
   FOR EACH ROW
   EXECUTE FUNCTION public.check_base_translation('ingredient_translations', 'ingredient_id');
 
 CREATE CONSTRAINT TRIGGER check_recipe_ingredient_base_translation
-  AFTER INSERT OR UPDATE ON public.recipe_ingredients
+  AFTER INSERT ON public.recipe_ingredients
   DEFERRABLE INITIALLY DEFERRED
   FOR EACH ROW
   EXECUTE FUNCTION public.check_base_translation('recipe_ingredient_translations', 'recipe_ingredient_id');
 
 CREATE CONSTRAINT TRIGGER check_measurement_unit_base_translation
-  AFTER INSERT OR UPDATE ON public.measurement_units
+  AFTER INSERT ON public.measurement_units
   DEFERRABLE INITIALLY DEFERRED
   FOR EACH ROW
   EXECUTE FUNCTION public.check_base_translation('measurement_unit_translations', 'measurement_unit_id');
 
 CREATE CONSTRAINT TRIGGER check_recipe_tag_base_translation
-  AFTER INSERT OR UPDATE ON public.recipe_tags
+  AFTER INSERT ON public.recipe_tags
   DEFERRABLE INITIALLY DEFERRED
   FOR EACH ROW
   EXECUTE FUNCTION public.check_base_translation('recipe_tag_translations', 'recipe_tag_id');
 
 CREATE CONSTRAINT TRIGGER check_useful_item_base_translation
-  AFTER INSERT OR UPDATE ON public.useful_items
+  AFTER INSERT ON public.useful_items
   DEFERRABLE INITIALLY DEFERRED
   FOR EACH ROW
   EXECUTE FUNCTION public.check_base_translation('useful_item_translations', 'useful_item_id');
 
 CREATE CONSTRAINT TRIGGER check_recipe_useful_item_base_translation
-  AFTER INSERT OR UPDATE ON public.recipe_useful_items
+  AFTER INSERT ON public.recipe_useful_items
   DEFERRABLE INITIALLY DEFERRED
   FOR EACH ROW
   EXECUTE FUNCTION public.check_base_translation('recipe_useful_item_translations', 'recipe_useful_item_id');
