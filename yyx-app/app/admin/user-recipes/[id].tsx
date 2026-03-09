@@ -77,7 +77,6 @@ export default function UserRecipeDetailPage() {
         recipeData: data.recipe_data,
       });
     } catch (err) {
-      console.error('Error loading user recipe:', err);
       setError(i18n.t('admin.recipes.form.errors.loadFailed'));
     } finally {
       setLoading(false);
