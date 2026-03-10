@@ -11,7 +11,7 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 import { Text } from '@/components/common';
-import { COLORS } from '@/constants/design-tokens';
+import { COLORS, SPACING } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 
 export interface LineChartProps {
@@ -26,7 +26,7 @@ export interface LineChartProps {
 const PAD = { top: 24, bottom: 24, left: 40, right: 10 };
 const MAX_GRIDLINES = 4;
 const MAX_X_LABELS = 6;
-const TOOLTIP_W = 64;
+const TOOLTIP_W = 96;
 const TOOLTIP_H = 22;
 
 export function LineChart({
@@ -178,8 +178,8 @@ export function LineChart({
             onPress={() => setSelectedIndex(selectedIndex === i ? null : i)}
             style={{
               position: 'absolute',
-              left: p.x - HIT_SIZE / 2 + 16, // +16 for p-md padding
-              top: p.y - HIT_SIZE / 2 + 16,
+              left: p.x - HIT_SIZE / 2 + SPACING.md,
+              top: p.y - HIT_SIZE / 2 + SPACING.md,
               width: HIT_SIZE,
               height: HIT_SIZE,
             }}
@@ -195,8 +195,8 @@ export function LineChart({
             <View
               style={{
                 position: 'absolute',
-                left: tooltipLeft + 16,
-                top: p.y - TOOLTIP_H - 10 + 16,
+                left: tooltipLeft + SPACING.md,
+                top: p.y - TOOLTIP_H - 10 + SPACING.md,
                 width: TOOLTIP_W,
                 height: TOOLTIP_H,
                 backgroundColor: COLORS.text.default,

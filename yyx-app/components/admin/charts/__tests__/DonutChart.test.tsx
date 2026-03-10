@@ -61,10 +61,34 @@ describe('DonutChart', () => {
     expect(screen.getByText('15 (15%)')).toBeTruthy();
   });
 
+  it('uses valueFormatter for center and legend values', () => {
+    renderWithProviders(
+      <DonutChart
+        data={sampleData}
+        valueFormatter={(v) => `$${v}`}
+      />,
+    );
+    // Center should show formatted total
+    expect(screen.getByText('$100')).toBeTruthy();
+    // Legend should show formatted values with percentages
+    expect(screen.getByText('$60 (60%)')).toBeTruthy();
+    expect(screen.getByText('$25 (25%)')).toBeTruthy();
+  });
+
   it('accepts custom size and strokeWidth', () => {
     const { toJSON } = renderWithProviders(
       <DonutChart data={sampleData} size={200} strokeWidth={30} />,
     );
     expect(toJSON()).toBeTruthy();
+  });
+
+  it('handles single segment with no gaps', () => {
+    const singleSegment = [
+      { label: 'Only', value: 100, color: '#78A97A' },
+      { label: 'None', value: 0, color: '#FF0000' },
+    ];
+    renderWithProviders(<DonutChart data={singleSegment} />);
+    expect(screen.getByText('100')).toBeTruthy();
+    expect(screen.getByText('Only')).toBeTruthy();
   });
 });

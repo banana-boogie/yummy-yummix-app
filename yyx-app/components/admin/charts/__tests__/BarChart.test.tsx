@@ -1,5 +1,5 @@
 import React from 'react';
-import { renderWithProviders, screen } from '@/test/utils/render';
+import { renderWithProviders, screen, fireEvent } from '@/test/utils/render';
 import { BarChart } from '../BarChart';
 
 jest.mock('react-native-svg', () => {
@@ -39,6 +39,12 @@ const groupedData = [
   },
 ];
 
+function fireOnLayout(element: ReturnType<typeof screen.root>, width = 400) {
+  fireEvent(element, 'layout', {
+    nativeEvent: { layout: { width, height: 200, x: 0, y: 0 } },
+  });
+}
+
 describe('BarChart', () => {
   it('renders "No data" message when data is empty', () => {
     renderWithProviders(<BarChart data={[]} />);
@@ -50,14 +56,54 @@ describe('BarChart', () => {
     expect(toJSON()).toBeTruthy();
   });
 
-  it('accepts grouped data without crashing', () => {
-    const { toJSON } = renderWithProviders(<BarChart data={groupedData} />);
-    expect(toJSON()).toBeTruthy();
+  it('renders bar value labels after layout', () => {
+    renderWithProviders(<BarChart data={sampleData} />);
+    const containers = screen.root.findAll(
+      (node) => node.props?.onLayout !== undefined,
+    );
+    fireOnLayout(containers[0]);
+
+    // Should render value labels above bars
+    expect(screen.getByText('10')).toBeTruthy();
+    expect(screen.getByText('25')).toBeTruthy();
+    expect(screen.getByText('15')).toBeTruthy();
   });
 
-  it('accepts horizontal mode without crashing', () => {
-    const { toJSON } = renderWithProviders(<BarChart data={sampleData} horizontal />);
-    expect(toJSON()).toBeTruthy();
+  it('renders x-axis labels after layout', () => {
+    renderWithProviders(<BarChart data={sampleData} />);
+    const containers = screen.root.findAll(
+      (node) => node.props?.onLayout !== undefined,
+    );
+    fireOnLayout(containers[0]);
+
+    expect(screen.getByText('Jan')).toBeTruthy();
+    expect(screen.getByText('Feb')).toBeTruthy();
+    expect(screen.getByText('Mar')).toBeTruthy();
+  });
+
+  it('accepts grouped data and renders all values', () => {
+    renderWithProviders(<BarChart data={groupedData} />);
+    const containers = screen.root.findAll(
+      (node) => node.props?.onLayout !== undefined,
+    );
+    fireOnLayout(containers[0]);
+
+    expect(screen.getByText('20')).toBeTruthy();
+    expect(screen.getByText('12')).toBeTruthy();
+    expect(screen.getByText('30')).toBeTruthy();
+    expect(screen.getByText('18')).toBeTruthy();
+  });
+
+  it('renders horizontal mode with labels after layout', () => {
+    renderWithProviders(<BarChart data={sampleData} horizontal />);
+    const containers = screen.root.findAll(
+      (node) => node.props?.onLayout !== undefined,
+    );
+    fireOnLayout(containers[0]);
+
+    // Horizontal mode should show labels to the left
+    expect(screen.getByText('Jan')).toBeTruthy();
+    expect(screen.getByText('Feb')).toBeTruthy();
   });
 
   it('respects custom height', () => {

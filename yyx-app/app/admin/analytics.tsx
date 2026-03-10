@@ -7,6 +7,15 @@ import { COLORS } from '@/constants/design-tokens';
 import { Ionicons } from '@expo/vector-icons';
 import { BarChart, LineChart, DonutChart } from '@/components/admin/charts';
 import {
+  MetricCard,
+  ListItem,
+  CollapsibleSection,
+  SectionTitle,
+  TimeframeSelector,
+  TabSelector,
+} from '@/components/admin/analytics';
+import type { TabType } from '@/components/admin/analytics';
+import {
   analyticsService,
   TimeframeFilter,
   OverviewMetrics,
@@ -23,64 +32,6 @@ import {
   ContentSourceSplit,
 } from '@/services/analyticsService';
 import i18n from '@/i18n';
-
-type TabType = 'overview' | 'content' | 'ai' | 'operations';
-
-const TIMEFRAME_OPTIONS: { value: TimeframeFilter; labelKey: string }[] = [
-  { value: 'today', labelKey: 'admin.analytics.timeframes.today' },
-  { value: '7_days', labelKey: 'admin.analytics.timeframes.sevenDays' },
-  { value: '30_days', labelKey: 'admin.analytics.timeframes.thirtyDays' },
-  { value: 'all_time', labelKey: 'admin.analytics.timeframes.allTime' },
-];
-
-const TABS: { value: TabType; labelKey: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { value: 'overview', labelKey: 'admin.analytics.tabs.overview', icon: 'stats-chart' },
-  { value: 'content', labelKey: 'admin.analytics.tabs.content', icon: 'restaurant' },
-  { value: 'ai', labelKey: 'admin.analytics.tabs.ai', icon: 'sparkles' },
-  { value: 'operations', labelKey: 'admin.analytics.tabs.operations', icon: 'construct' },
-];
-
-function MetricCard({ title, value, subtitle, icon, tooltip }: {
-  title: string;
-  value: string | number;
-  subtitle?: string;
-  icon?: keyof typeof Ionicons.glyphMap;
-  tooltip?: string;
-}) {
-  return (
-    <View className="bg-white rounded-lg p-md shadow-sm flex-1 min-w-[140px] m-xs">
-      <View className="flex-row items-center mb-xs">
-        {icon && (
-          <Ionicons name={icon} size={18} color={COLORS.text.secondary} style={{ marginRight: 8 }} />
-        )}
-        <Text preset="caption" className="text-text-secondary">{title}</Text>
-      </View>
-      <Text preset="h1" className="text-text-default">{value}</Text>
-      {subtitle && (
-        <Text preset="caption" className="text-text-secondary mt-xxs">{subtitle}</Text>
-      )}
-      {tooltip && (
-        <Text preset="caption" className="text-text-secondary mt-xs">{tooltip}</Text>
-      )}
-    </View>
-  );
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <Text preset="h2" className="text-text-default mb-md mt-lg">{children}</Text>
-  );
-}
-
-function ListItem({ rank, label, value }: { rank: number; label: string; value: number }) {
-  return (
-    <View className="flex-row items-center py-sm px-md bg-white rounded-md mb-xs">
-      <Text preset="body" className="text-text-secondary w-[30px]">{rank}.</Text>
-      <Text preset="body" className="flex-1 text-text-default" numberOfLines={1}>{label}</Text>
-      <Text preset="body" className="text-text-secondary font-semibold">{value}</Text>
-    </View>
-  );
-}
 
 function RecipeListItem({ rank, recipe }: { rank: number; recipe: TopRecipe }) {
   const router = useRouter();
@@ -111,84 +62,6 @@ function RecipeListItem({ rank, recipe }: { rank: number; recipe: TopRecipe }) {
   );
 }
 
-function CollapsibleSection({ title, children }: { title: string; children: React.ReactNode }) {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <View>
-      <TouchableOpacity onPress={() => setExpanded(!expanded)} className="flex-row items-center mt-lg mb-md">
-        <Ionicons
-          name={expanded ? 'chevron-down' : 'chevron-forward'}
-          size={20}
-          color={COLORS.text.default}
-          style={{ marginRight: 8 }}
-        />
-        <Text preset="h2">{title}</Text>
-      </TouchableOpacity>
-      {expanded && children}
-    </View>
-  );
-}
-
-function TimeframeSelector({ value, onChange }: {
-  value: TimeframeFilter;
-  onChange: (value: TimeframeFilter) => void;
-}) {
-  return (
-    <View className="flex-row flex-wrap gap-xs mb-md">
-      {TIMEFRAME_OPTIONS.map((option) => (
-        <TouchableOpacity
-          key={option.value}
-          className={`px-md py-sm rounded-full ${value === option.value ? 'bg-primary-medium' : 'bg-white border border-border-default'
-            }`}
-          onPress={() => onChange(option.value)}
-        >
-          <Text
-            preset="bodySmall"
-            className={value === option.value ? 'text-text-default font-semibold' : 'text-text-secondary'}
-          >
-            {i18n.t(option.labelKey)}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-}
-
-function TabSelector({ value, onChange }: {
-  value: TabType;
-  onChange: (value: TabType) => void;
-}) {
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      className="mb-md"
-      contentContainerStyle={{ paddingHorizontal: 4 }}
-    >
-      {TABS.map((tab) => (
-        <TouchableOpacity
-          key={tab.value}
-          className={`flex-row items-center px-md py-sm mr-xs rounded-lg ${value === tab.value ? 'bg-primary-default' : 'bg-white border border-border-default'
-            }`}
-          onPress={() => onChange(tab.value)}
-        >
-          <Ionicons
-            name={tab.icon}
-            size={16}
-            color={value === tab.value ? COLORS.text.default : COLORS.text.secondary}
-            style={{ marginRight: 4 }}
-          />
-          <Text
-            preset="bodySmall"
-            className={value === tab.value ? 'text-text-default font-semibold' : 'text-text-secondary'}
-          >
-            {i18n.t(tab.labelKey)}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  );
-}
 
 function LoadingState() {
   return (
@@ -297,7 +170,7 @@ function OverviewSection({
         />
         <MetricCard
           title={i18n.t('admin.analytics.labels.onboardingRate')}
-          value={`${overviewData.onboardingRate.toFixed(1)}%`}
+          value={`${(overviewData.onboardingRate ?? 0).toFixed(1)}%`}
           icon="checkmark-circle"
           subtitle={i18n.t('admin.analytics.labels.onboardingSubtitle')}
         />
@@ -305,19 +178,19 @@ function OverviewSection({
       <View className="flex-row flex-wrap">
         <MetricCard
           title={i18n.t('admin.analytics.labels.day1')}
-          value={`${retentionData.day1Retention.toFixed(1)}%`}
+          value={`${(retentionData.day1Retention ?? 0).toFixed(1)}%`}
           icon="time"
           subtitle={i18n.t('admin.analytics.labels.activeNextDay')}
         />
         <MetricCard
           title={i18n.t('admin.analytics.labels.day7')}
-          value={`${retentionData.day7Retention.toFixed(1)}%`}
+          value={`${(retentionData.day7Retention ?? 0).toFixed(1)}%`}
           icon="calendar"
           subtitle={i18n.t('admin.analytics.labels.activeWithinWeek')}
         />
         <MetricCard
           title={i18n.t('admin.analytics.labels.day30')}
-          value={`${retentionData.day30Retention.toFixed(1)}%`}
+          value={`${(retentionData.day30Retention ?? 0).toFixed(1)}%`}
           icon="calendar-outline"
           subtitle={i18n.t('admin.analytics.labels.activeWithinMonth')}
         />
@@ -370,7 +243,7 @@ function ContentSection({
       <View className="flex-row flex-wrap">
         <MetricCard
           title={i18n.t('admin.analytics.labels.completionRate')}
-          value={`${funnelData.completionRate.toFixed(1)}%`}
+          value={`${(funnelData.completionRate ?? 0).toFixed(1)}%`}
           icon="checkmark-circle"
           tooltip={i18n.t('admin.analytics.labels.completionRateTooltip')}
         />
@@ -392,7 +265,7 @@ function ContentSection({
             />
             <MetricCard
               title={i18n.t('admin.analytics.labels.catalogConversionRate')}
-              value={`${funnelData.catalogConversionRate.toFixed(1)}%`}
+              value={`${(funnelData.catalogConversionRate ?? 0).toFixed(1)}%`}
               icon="arrow-forward"
               tooltip={i18n.t('admin.analytics.labels.catalogConversionTooltip')}
             />
@@ -532,7 +405,7 @@ function AISection({
       <View className="flex-row flex-wrap">
         <MetricCard
           title={i18n.t('admin.analytics.labels.adoptionRate')}
-          value={`${adoptionData.aiAdoptionRate.toFixed(1)}%`}
+          value={`${(adoptionData.aiAdoptionRate ?? 0).toFixed(1)}%`}
           icon="sparkles"
           subtitle={i18n.t('admin.analytics.labels.usersWhoTriedAi')}
         />
@@ -570,7 +443,7 @@ function AISection({
         />
         <MetricCard
           title={i18n.t('admin.analytics.labels.voiceMinutes')}
-          value={summary.voiceMinutes.toFixed(1)}
+          value={(summary.voiceMinutes ?? 0).toFixed(1)}
           icon="time"
         />
       </View>
@@ -613,17 +486,17 @@ function OperationsSection({
       <View className="flex-row flex-wrap">
         <MetricCard
           title={i18n.t('admin.analytics.labels.avgLatency')}
-          value={`${summary.avgLatencyMs.toFixed(0)} ms`}
+          value={`${(summary.avgLatencyMs ?? 0).toFixed(0)} ms`}
           icon="timer"
         />
         <MetricCard
           title={i18n.t('admin.analytics.labels.errorRate')}
-          value={`${summary.errorRate.toFixed(1)}%`}
+          value={`${(summary.errorRate ?? 0).toFixed(1)}%`}
           icon="alert-circle"
         />
         <MetricCard
           title={i18n.t('admin.analytics.labels.avgTokensPerRequest')}
-          value={summary.avgTokensPerRequest.toFixed(0)}
+          value={(summary.avgTokensPerRequest ?? 0).toFixed(0)}
           icon="analytics"
         />
       </View>
