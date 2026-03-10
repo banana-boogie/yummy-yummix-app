@@ -324,10 +324,12 @@ function AISection({
   adoptionData,
   usageData,
   dailyAIUsers,
+  chatSessionData,
 }: {
   adoptionData: AIMetrics | null;
   usageData: AIUsageMetrics | null;
   dailyAIUsers: DailyAIUsers[] | null;
+  chatSessionData: AIChatSessionMetrics | null;
 }) {
   if (!adoptionData || !usageData) return <LoadingState />;
 
@@ -463,6 +465,7 @@ function AISection({
             valueFormatter={(v) => `$${v.toFixed(2)}`}
           />
         )}
+        {chatSessionData && <AIChatSessionDepthSection data={chatSessionData} />}
       </CollapsibleSection>
     </View>
   );
@@ -470,10 +473,8 @@ function AISection({
 
 function OperationsSection({
   usageData,
-  chatSessionData,
 }: {
   usageData: AIUsageMetrics | null;
-  chatSessionData: AIChatSessionMetrics | null;
 }) {
   if (!usageData) return <LoadingState />;
 
@@ -529,11 +530,6 @@ function OperationsSection({
         ))
       )}
 
-      {chatSessionData && (
-        <CollapsibleSection title={i18n.t('admin.analytics.sections.details')}>
-          <AIChatSessionDepthSection data={chatSessionData} />
-        </CollapsibleSection>
-      )}
     </View>
   );
 }
@@ -671,9 +667,11 @@ export default function AnalyticsDashboard() {
   const [aiUsageData, setAIUsageData] = useState<AIUsageMetrics | null>(null);
   const [dailyAIUsers, setDailyAIUsers] = useState<DailyAIUsers[] | null>(null);
 
+  // AI tab — chat session depth
+  const [aiChatSessionData, setAIChatSessionData] = useState<AIChatSessionMetrics | null>(null);
+
   // Operations tab data
   const [opsUsageData, setOpsUsageData] = useState<AIUsageMetrics | null>(null);
-  const [opsChatSessionData, setOpsChatSessionData] = useState<AIChatSessionMetrics | null>(null);
 
   const [retryKey, setRetryKey] = useState(0);
 
@@ -720,26 +718,24 @@ export default function AnalyticsDashboard() {
             break;
           }
           case 'ai': {
-            const [adoption, usage, aiUsers] = await Promise.all([
+            const [adoption, usage, aiUsers, chatSessions] = await Promise.all([
               analyticsService.getAIMetrics(timeframe),
               analyticsService.getAIUsageMetrics(timeframe),
               analyticsService.getDailyAIUsers(timeframe),
+              analyticsService.getAIChatSessionMetrics(timeframe),
             ]);
             if (!cancelled) {
               setAIData(adoption);
               setAIUsageData(usage);
               setDailyAIUsers(aiUsers);
+              setAIChatSessionData(chatSessions);
             }
             break;
           }
           case 'operations': {
-            const [usage, chatSessions] = await Promise.all([
-              analyticsService.getAIUsageMetrics(timeframe),
-              analyticsService.getAIChatSessionMetrics(timeframe),
-            ]);
+            const usage = await analyticsService.getAIUsageMetrics(timeframe);
             if (!cancelled) {
               setOpsUsageData(usage);
-              setOpsChatSessionData(chatSessions);
             }
             break;
           }
@@ -791,13 +787,13 @@ export default function AnalyticsDashboard() {
             adoptionData={aiData}
             usageData={aiUsageData}
             dailyAIUsers={dailyAIUsers}
+            chatSessionData={aiChatSessionData}
           />
         );
       case 'operations':
         return (
           <OperationsSection
             usageData={opsUsageData}
-            chatSessionData={opsChatSessionData}
           />
         );
       default:

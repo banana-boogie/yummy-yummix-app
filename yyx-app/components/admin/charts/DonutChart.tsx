@@ -52,15 +52,17 @@ export function DonutChart({ data, size = 160, strokeWidth = 24, valueFormatter 
       {/* Donut ring */}
       <View style={{ width: size, height: size, position: 'relative' }}>
         <Svg width={size} height={size}>
-          {/* Background track */}
-          <Circle
-            cx={center}
-            cy={center}
-            r={radius}
-            stroke={COLORS.grey.default}
-            strokeWidth={strokeWidth}
-            fill="none"
-          />
+          {/* Background track — only visible when total is 0 */}
+          {total === 0 && (
+            <Circle
+              cx={center}
+              cy={center}
+              r={radius}
+              stroke={COLORS.grey.default}
+              strokeWidth={strokeWidth}
+              fill="none"
+            />
+          )}
 
           {/* Data segments */}
           {segments.map((seg, i) => (
