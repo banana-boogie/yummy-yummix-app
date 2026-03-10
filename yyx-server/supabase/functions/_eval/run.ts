@@ -134,6 +134,10 @@ function printDryRun(
     );
 
     for (const model of models) {
+      if (model.excludeRoles?.includes(role)) {
+        console.log(`  ⊘ ${model.id} (${model.provider}) — excluded`);
+        continue;
+      }
       const apiKeyAvailable = !!apiKeys[model.apiKeyEnvVar];
       const status = apiKeyAvailable ? "✓" : "✗ (skip)";
 
@@ -148,21 +152,16 @@ function printDryRun(
         calls = singleTurnCount + multiTurnCount * 2;
       }
 
-      // Reasoning + schema variants
+      // Reasoning variants (schema is always on)
       let reasoningNote = "";
       if (model.capabilities.reasoning) {
         if (role === "orchestrator") {
           calls *= 2; // none + minimal
           reasoningNote = " (none + minimal reasoning)";
         } else if (role === "recipe_generation") {
-          calls *= 3; // minimal + minimal-no-schema + low
-          reasoningNote = " (minimal + minimal-no-schema + low)";
+          calls *= 3; // none + minimal + low
+          reasoningNote = " (none + minimal + low reasoning)";
         }
-      } else if (
-        role === "recipe_generation" && model.capabilities.jsonSchema
-      ) {
-        calls *= 2; // schema + no-schema
-        reasoningNote = " (schema + no-schema)";
       }
 
       if (apiKeyAvailable) totalCalls += calls;
@@ -230,6 +229,12 @@ async function main() {
 
   for (const role of roles) {
     for (const model of availableModels) {
+      if (model.excludeRoles?.includes(role)) {
+        console.log(
+          `[${role}] ${model.id} (${model.provider}) — skipped (excluded)`,
+        );
+        continue;
+      }
       const apiKey = apiKeys[model.apiKeyEnvVar]!;
       console.log(`[${role}] ${model.id} (${model.provider}) — starting`);
 

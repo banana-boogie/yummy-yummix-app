@@ -7,6 +7,7 @@
 
 import { formatCost, formatDuration } from "./helpers.ts";
 import type { EvalRole, TestCaseResult, TournamentResults } from "./types.ts";
+import { CONVERSATION_TEST_CASES } from "./test-cases/conversation.ts";
 
 // ============================================================
 // Report Generator
@@ -104,17 +105,17 @@ function generateSummaryTable(
 
   if (isOrchestrator) {
     lines.push(
-      "| Model | Reasoning | Avg Latency | tok/s | Avg Cost | Success Rate | Tool Accuracy | Retries |",
+      "| Model | Reasoning | Avg Latency | tok/s | Avg Cost | Total Cost | Success Rate | Tool Accuracy | Retries |",
     );
     lines.push(
-      "|-------|-----------|-------------|-------|----------|-------------|--------------|---------|",
+      "|-------|-----------|-------------|-------|----------|------------|-------------|--------------|---------|",
     );
   } else {
     lines.push(
-      "| Model | Reasoning | Schema | Avg Latency | tok/s | Avg Cost | Pass Rate | Schema Valid% | TMX% | Retries |",
+      "| Model | Reasoning | Schema | Avg Latency | tok/s | Avg Cost | Total Cost | Pass Rate | Schema Valid% | TMX% | Items | Retries |",
     );
     lines.push(
-      "|-------|-----------|--------|-------------|-------|----------|-----------|--------------|------|---------|",
+      "|-------|-----------|--------|-------------|-------|----------|------------|-----------|--------------|------|-------|---------|",
     );
   }
 
@@ -151,6 +152,8 @@ function generateSummaryTable(
       : 0;
     const tokSecStr = avgTokSec > 0 ? `${avgTokSec}` : "—";
 
+    const totalCost = modelResults.reduce((sum, r) => sum + r.costUsd, 0);
+
     if (isOrchestrator) {
       const toolCorrectCount = modelResults.filter(
         (r) => r.toolCorrect,
@@ -164,8 +167,8 @@ function generateSummaryTable(
         `| ${modelId} | ${reasoning} | ${
           formatDuration(avgLatency)
         } | ${tokSecStr} | ${formatCost(avgCost)} | ${
-          successRate.toFixed(0)
-        }% | ${toolAccuracy}% | ${totalRetries} |`,
+          formatCost(totalCost)
+        } | ${successRate.toFixed(0)}% | ${toolAccuracy}% | ${totalRetries} |`,
       );
     } else {
       const schemaValidCount = modelResults.filter(
@@ -191,12 +194,27 @@ function generateSummaryTable(
         ? "no"
         : "—";
 
+      // Useful items metrics
+      const itemsResults = modelResults.filter(
+        (r) => r.usefulItemsCount != null && r.usefulItemsCount > 0,
+      );
+      const avgItems = itemsResults.length > 0
+        ? (
+          itemsResults.reduce(
+            (sum, r) => sum + (r.usefulItemsCount ?? 0),
+            0,
+          ) / itemsResults.length
+        ).toFixed(1)
+        : "0";
+
       lines.push(
         `| ${modelId} | ${reasoning} | ${schemaCol} | ${
           formatDuration(avgLatency)
         } | ${tokSecStr} | ${formatCost(avgCost)} | ${
+          formatCost(totalCost)
+        } | ${
           successRate.toFixed(0)
-        }% | ${schemaValid}% | ${thermomix}% | ${totalRetries} |`,
+        }% | ${schemaValid}% | ${thermomix}% | ${avgItems} | ${totalRetries} |`,
       );
     }
   }
@@ -296,6 +314,127 @@ function generateDetailedResults(
   role: EvalRole,
   results: TestCaseResult[],
 ): string {
+  if (role === "orchestrator") {
+    return generateOrchestratorChatResults(results);
+  }
+  return generateRecipeDetailedResults(role, results);
+}
+
+/**
+ * Format orchestrator results as chat conversations.
+ * Shows "You:" with the user message and "Irmixy (model):" with the response.
+ */
+function generateOrchestratorChatResults(results: TestCaseResult[]): string {
+  const lines: string[] = [];
+  const testCaseIds = [...new Set(results.map((r) => r.testCaseId))];
+
+  // Build lookup from test case IDs to user messages
+  const testCaseLookup = new Map<
+    string,
+    {
+      turns: Array<
+        {
+          userMessage: string;
+          expectedTool: string | null;
+          expectedBehavior: string;
+        }
+      >;
+    }
+  >();
+  for (const tc of CONVERSATION_TEST_CASES) {
+    testCaseLookup.set(tc.id, { turns: tc.turns });
+  }
+
+  for (const testCaseId of testCaseIds) {
+    const caseResults = results.filter((r) => r.testCaseId === testCaseId);
+    const firstResult = caseResults[0];
+    const testCase = testCaseLookup.get(testCaseId);
+    const isMultiTurn = testCase && testCase.turns.length > 1;
+
+    // Test case header
+    lines.push(`### ${testCaseId}: ${firstResult.testCaseDescription}`);
+    lines.push("");
+
+    if (testCase) {
+      if (isMultiTurn) {
+        // Multi-turn: show all turns with expected behavior
+        for (let i = 0; i < testCase.turns.length; i++) {
+          const turn = testCase.turns[i];
+          const turnLabel = i === 0 ? "You" : "You (follow-up)";
+          lines.push(`> **${turnLabel}:** ${turn.userMessage}`);
+          lines.push(">");
+          lines.push(
+            `> *Expected: ${
+              turn.expectedTool
+                ? `Call \`${turn.expectedTool}\``
+                : "Chat — do NOT call a tool"
+            }. ${turn.expectedBehavior}*`,
+          );
+          if (i < testCase.turns.length - 1) lines.push("");
+        }
+      } else {
+        // Single turn: show user message and expected behavior
+        const turn = testCase.turns[0];
+        lines.push(`> **You:** ${turn.userMessage}`);
+        lines.push(">");
+        lines.push(
+          `> *Expected: ${
+            turn.expectedTool
+              ? `Call \`${turn.expectedTool}\``
+              : "Chat — do NOT call a tool"
+          }*`,
+        );
+      }
+    }
+    lines.push("");
+
+    // Each model's response
+    for (const result of caseResults) {
+      const statusIcon = result.status === "pass" ? "✅" : "❌";
+      const retryNote = result.attempts.length > 1
+        ? ` (${result.attempts.length} attempts)`
+        : "";
+
+      const toolInfo = result.toolCalled
+        ? `called \`${result.toolCalled}\``
+        : "no tool";
+
+      lines.push(
+        `**Irmixy (${result.modelId})** ${statusIcon} ${
+          formatDuration(result.latencyMs)
+        } | ${toolInfo}${retryNote}`,
+      );
+
+      if (result.error) {
+        lines.push(`> ERROR: ${result.error}`);
+      } else {
+        const content = result.responseContent.trim();
+        if (content) {
+          // Indent response as a blockquote for chat feel
+          const quotedContent = content
+            .split("\n")
+            .map((line) => `> ${line}`)
+            .join("\n");
+          lines.push(quotedContent);
+        }
+      }
+      lines.push("");
+    }
+
+    lines.push("---");
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Format recipe generation/modification results with recipe cards.
+ */
+function generateRecipeDetailedResults(
+  role: EvalRole,
+  results: TestCaseResult[],
+): string {
   const lines: string[] = [];
   const testCaseIds = [...new Set(results.map((r) => r.testCaseId))];
 
@@ -303,11 +442,8 @@ function generateDetailedResults(
     const caseResults = results.filter((r) => r.testCaseId === testCaseId);
     const firstResult = caseResults[0];
 
-    const expectedInfo = firstResult.expectedTool !== undefined
-      ? ` | Expected: \`${firstResult.expectedTool ?? "none (chat)"}\``
-      : "";
     lines.push(
-      `### ${testCaseId}: ${firstResult.testCaseDescription}${expectedInfo}`,
+      `### ${testCaseId}: ${firstResult.testCaseDescription}`,
     );
     lines.push("");
 
@@ -324,26 +460,22 @@ function generateDetailedResults(
       const metricsParts = [
         formatDuration(result.latencyMs),
         formatCost(result.costUsd),
+        `${result.inputTokens}→${result.outputTokens} tok`,
       ];
 
       if (result.outputTokensPerSec && result.outputTokensPerSec > 0) {
         metricsParts.push(`${result.outputTokensPerSec} tok/s`);
       }
 
-      if (role === "orchestrator") {
-        metricsParts.push(
-          `tool: \`${result.toolCalled ?? "none"}\``,
-        );
-      } else {
-        const checks = [
-          result.jsonValid ? "json:✅" : "json:❌",
-          result.schemaValid ? "schema:✅" : "schema:❌",
-          result.thermomixPresent ? "tmx:✅" : "tmx:❌",
-        ].join(" ");
-        metricsParts.push(checks);
-        if (result.schemaEnforced === false) {
-          metricsParts.push("(no-schema)");
-        }
+      const checks = [
+        result.jsonValid ? "json:✅" : "json:❌",
+        result.schemaValid ? "schema:✅" : "schema:❌",
+        result.thermomixPresent ? "tmx:✅" : "tmx:❌",
+        `items:${result.usefulItemsCount ?? 0}`,
+      ].join(" ");
+      metricsParts.push(checks);
+      if (result.schemaEnforced === false) {
+        metricsParts.push("(no-schema)");
       }
 
       lines.push(
@@ -357,24 +489,9 @@ function generateDetailedResults(
       }
 
       if (!result.error) {
-        const content = truncate(result.responseContent, 3000);
-        const isJson = content.trimStart().startsWith("{") ||
-          content.trimStart().startsWith("[");
-        const lang = isJson ? "json" : "";
-
-        let displayContent = content;
-        if (isJson) {
-          try {
-            displayContent = JSON.stringify(JSON.parse(content), null, 2);
-          } catch {
-            // Keep original
-          }
-        }
-
+        const formatted = formatRecipeForReport(result.responseContent);
         lines.push(
-          `<details><summary>Full output</summary>\n\n\`\`\`${lang}\n${
-            truncate(displayContent, 4000)
-          }\n\`\`\`\n</details>`,
+          `<details><summary>Recipe output</summary>\n\n${formatted}\n</details>`,
         );
       }
       lines.push("");
@@ -423,25 +540,35 @@ function generateJudgeSection(results: TestCaseResult[]): string {
       );
       lines.push("");
 
-      for (const result of caseResults) {
-        const content = truncate(result.responseContent, 2000);
-        const isJson = content.trimStart().startsWith("{") ||
-          content.trimStart().startsWith("[");
-        const lang = isJson ? "json" : "";
-
-        let displayContent = content;
-        if (isJson) {
-          try {
-            displayContent = JSON.stringify(JSON.parse(content), null, 2);
-          } catch {
-            // Keep original
+      // For orchestrator, show user message first
+      if (role === "orchestrator") {
+        const testCase = CONVERSATION_TEST_CASES.find(
+          (tc) => tc.id === testCaseId,
+        );
+        if (testCase) {
+          for (let i = 0; i < testCase.turns.length; i++) {
+            const turn = testCase.turns[i];
+            const label = i === 0 ? "You" : "You (follow-up)";
+            lines.push(`> **${label}:** ${turn.userMessage}`);
           }
+          lines.push("");
         }
+      }
 
-        lines.push(`**${result.modelId}:**`);
-        lines.push(`\`\`\`${lang}`);
-        lines.push(truncate(displayContent, 2000));
-        lines.push("```");
+      for (const result of caseResults) {
+        const isRecipeRole = role === "recipe_generation" ||
+          role === "recipe_modification";
+
+        if (role === "orchestrator") {
+          const toolInfo = result.toolCalled
+            ? ` | called \`${result.toolCalled}\``
+            : "";
+          lines.push(`**Irmixy (${result.modelId}):**${toolInfo}`);
+          lines.push(truncate(result.responseContent, 2000));
+        } else {
+          lines.push(`**${result.modelId}:**`);
+          lines.push(formatRecipeForReport(result.responseContent));
+        }
         lines.push("");
       }
     }
@@ -461,4 +588,99 @@ function formatRoleTitle(role: EvalRole): string {
 function truncate(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
   return text.slice(0, maxLen) + "\n... [truncated]";
+}
+
+/**
+ * Format a recipe JSON response as a human-readable recipe card.
+ * Falls back to pretty-printed JSON if parsing fails.
+ */
+function formatRecipeForReport(content: string): string {
+  try {
+    let jsonContent = content.trim();
+    if (jsonContent.startsWith("```")) {
+      jsonContent = jsonContent
+        .replace(/^```(?:json)?\s*\n?/, "")
+        .replace(/\n?```\s*$/, "");
+    }
+
+    const recipe = JSON.parse(jsonContent);
+    const lines: string[] = [];
+
+    // Header
+    lines.push(`#### ${recipe.suggestedName || "Untitled Recipe"}`);
+    if (recipe.description) {
+      lines.push(`*${recipe.description}*`);
+    }
+    lines.push("");
+    lines.push(
+      `**${recipe.portions || "?"} portions** | **${
+        recipe.totalTime || "?"
+      } min** | **${recipe.difficulty || "?"}** | **${
+        recipe.language || "?"
+      }** | **${recipe.measurementSystem || "?"}**`,
+    );
+    lines.push("");
+
+    // Ingredients
+    if (recipe.ingredients && recipe.ingredients.length > 0) {
+      lines.push("**Ingredients:**");
+      for (const ing of recipe.ingredients) {
+        lines.push(`- ${ing.quantity} ${ing.unit} ${ing.name}`);
+      }
+      lines.push("");
+    }
+
+    // Steps
+    if (recipe.steps && recipe.steps.length > 0) {
+      lines.push("**Steps:**");
+      for (const step of recipe.steps) {
+        let stepLine = `${step.order}. ${step.instruction}`;
+
+        // Thermomix params
+        const hasTmx = step.thermomixTime != null ||
+          step.thermomixTemp != null || step.thermomixSpeed != null;
+        if (hasTmx) {
+          const tmxParts: string[] = [];
+          if (step.thermomixTime != null) {
+            const mins = Math.floor(step.thermomixTime / 60);
+            const secs = step.thermomixTime % 60;
+            tmxParts.push(
+              mins > 0 ? `${mins}m${secs > 0 ? `${secs}s` : ""}` : `${secs}s`,
+            );
+          }
+          if (step.thermomixTemp != null) tmxParts.push(step.thermomixTemp);
+          if (step.thermomixSpeed != null) {
+            tmxParts.push(`Speed ${step.thermomixSpeed}`);
+          }
+          stepLine += ` **[TMX: ${tmxParts.join(" / ")}]**`;
+        }
+
+        if (step.ingredientsUsed && step.ingredientsUsed.length > 0) {
+          stepLine += ` *(${step.ingredientsUsed.join(", ")})*`;
+        }
+        lines.push(stepLine);
+      }
+      lines.push("");
+    }
+
+    // Useful Items
+    if (recipe.usefulItems && recipe.usefulItems.length > 0) {
+      lines.push("**Useful Items:**");
+      for (const item of recipe.usefulItems) {
+        const note = item.notes ? ` — ${item.notes}` : "";
+        lines.push(`- ${item.name}${note}`);
+      }
+      lines.push("");
+    }
+
+    return lines.join("\n");
+  } catch {
+    // Fallback to pretty JSON
+    try {
+      return "```json\n" + JSON.stringify(JSON.parse(content), null, 2) +
+        "\n```";
+    } catch {
+      return "```\n" + truncate(content, 3000) + "\n```";
+    }
+  }
 }

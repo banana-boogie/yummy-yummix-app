@@ -36,4 +36,38 @@ export const RECIPE_MODIFICATION_TEST_CASES: ModificationTestCase[] = [
     expectedBehavior:
       "Reduces step count, may combine steps. Keeps essential cooking steps.",
   },
+
+  // === English test cases ===
+  {
+    id: "mod-1-scale-portions-en",
+    description: "Scale portions 4→8 (EN)",
+    language: "en",
+    modificationRequest: "Make it for 8 people",
+    expectedBehavior:
+      "Doubles all ingredient quantities, sets portions to 8. May adjust cooking time.",
+  },
+  {
+    id: "mod-2-remove-allergen-en",
+    description: "Remove allergen — almonds (EN)",
+    language: "en",
+    modificationRequest: "No almonds, my son is allergic",
+    expectedBehavior:
+      "Removes almonds from ingredients and steps. May suggest substitute.",
+  },
+  {
+    id: "mod-3-dietary-adaptation-en",
+    description: "Dietary adaptation — make vegan (EN)",
+    language: "en",
+    modificationRequest: "Make it vegan",
+    expectedBehavior:
+      "Replaces chicken and chicken broth with plant-based alternatives. Removes all animal products.",
+  },
+  {
+    id: "mod-4-simplify-en",
+    description: "Simplify — fewer steps (EN)",
+    language: "en",
+    modificationRequest: "Fewer steps, simpler please",
+    expectedBehavior:
+      "Reduces step count, may combine steps. Keeps essential cooking steps.",
+  },
 ];

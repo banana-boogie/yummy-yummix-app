@@ -102,6 +102,21 @@ export async function callModelWithRetry(
   apiKey: string,
   timeoutMs?: number,
 ): Promise<CallModelWithRetryResult> {
+  const limiter = getProviderLimiter(config.provider);
+  if (limiter) {
+    return limiter.run(() =>
+      _callModelWithRetryInner(config, request, apiKey, timeoutMs)
+    );
+  }
+  return _callModelWithRetryInner(config, request, apiKey, timeoutMs);
+}
+
+async function _callModelWithRetryInner(
+  config: ModelConfig,
+  request: AICompletionRequest,
+  apiKey: string,
+  timeoutMs?: number,
+): Promise<CallModelWithRetryResult> {
   const timeout = timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const attempts: AttemptDetail[] = [];
   let totalCostUsd = 0;
@@ -167,6 +182,46 @@ export async function callModelWithRetry(
 
   // Should not reach here
   throw new Error("Exhausted retries");
+}
+
+// ============================================================
+// Concurrency Limiter (for rate-limited providers like Anthropic)
+// ============================================================
+
+/**
+ * Simple semaphore to limit concurrent API calls per provider.
+ * Prevents blasting rate-limited APIs with all calls at once.
+ */
+export class ConcurrencyLimiter {
+  private running = 0;
+  private queue: Array<() => void> = [];
+
+  constructor(private maxConcurrent: number) {}
+
+  async run<T>(fn: () => Promise<T>): Promise<T> {
+    while (this.running >= this.maxConcurrent) {
+      await new Promise<void>((resolve) => this.queue.push(resolve));
+    }
+    this.running++;
+    try {
+      return await fn();
+    } finally {
+      this.running--;
+      const next = this.queue.shift();
+      if (next) next();
+    }
+  }
+}
+
+/** Provider-specific concurrency limits */
+const PROVIDER_LIMITERS: Record<string, ConcurrencyLimiter> = {
+  anthropic: new ConcurrencyLimiter(2), // 50K TPM limit — run max 2 at a time
+};
+
+export function getProviderLimiter(
+  provider: string,
+): ConcurrencyLimiter | undefined {
+  return PROVIDER_LIMITERS[provider];
 }
 
 // ============================================================

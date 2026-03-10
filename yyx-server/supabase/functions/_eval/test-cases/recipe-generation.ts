@@ -67,4 +67,72 @@ export const RECIPE_GENERATION_TEST_CASES: RecipeTestCase[] = [
     targetTime: 20,
     difficulty: "easy",
   },
+
+  // === English test cases ===
+  {
+    id: "recipe-1-carbonara-en",
+    description:
+      "Pasta carbonara (EN) — classic dish with specific ingredients",
+    language: "en",
+    ingredients: ["pasta", "eggs", "bacon", "parmesan cheese"],
+  },
+  {
+    id: "recipe-2-quick-dinner-en",
+    description: "Quick dinner (EN) — 30 min time constraint",
+    language: "en",
+    ingredients: ["chicken", "rice", "broccoli"],
+    targetTime: 30,
+  },
+  {
+    id: "recipe-3-mole-en",
+    description: "Traditional mole poblano (EN) — complex Mexican dish",
+    language: "en",
+    ingredients: [
+      "dried chiles",
+      "chocolate",
+      "almonds",
+      "sesame seeds",
+      "tortillas",
+      "chicken",
+      "onion",
+      "garlic",
+    ],
+    cuisinePreference: "Mexican",
+  },
+  {
+    id: "recipe-4-vegan-cake-en",
+    description: "Vegan chocolate cake (EN) — dietary constraint: vegan",
+    language: "en",
+    ingredients: [
+      "flour",
+      "cocoa powder",
+      "almond milk",
+      "banana",
+      "coconut oil",
+      "sugar",
+    ],
+    additionalRequests: "vegan, no eggs or dairy",
+  },
+  {
+    id: "recipe-5-thermomix-soup-en",
+    description: "Cream of vegetable soup (EN) — explicit Thermomix usage",
+    language: "en",
+    ingredients: [
+      "carrot",
+      "potato",
+      "zucchini",
+      "onion",
+      "garlic",
+      "chicken broth",
+    ],
+    additionalRequests: "use Thermomix for everything",
+  },
+  {
+    id: "recipe-6-fast-easy-en",
+    description: "Quick 20-minute meal (EN) — time + difficulty constraints",
+    language: "en",
+    ingredients: ["eggs", "tortillas", "beans", "cheese", "salsa"],
+    targetTime: 20,
+    difficulty: "easy",
+  },
 ];

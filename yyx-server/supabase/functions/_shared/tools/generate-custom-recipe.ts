@@ -23,7 +23,7 @@ import {
 import { buildSafetyReminders, checkRecipeSafety } from "../food-safety.ts";
 import { chat } from "../ai-gateway/index.ts";
 import type { CostContext } from "../ai-gateway/types.ts";
-import { hasThermomix } from "../equipment-utils.ts";
+import { hasAirFryer, hasThermomix } from "../equipment-utils.ts";
 
 // ============================================================
 // Tool Definition (OpenAI Function Calling format)
@@ -301,6 +301,18 @@ export function buildRecipeJsonSchema(
       difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
       portions: { type: "integer" },
       tags: { type: "array", items: { type: "string" } },
+      usefulItems: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            notes: { type: ["string", "null"] },
+          },
+          required: ["name", "notes"],
+          additionalProperties: false,
+        },
+      },
     },
     required: [
       "schemaVersion",
@@ -314,6 +326,7 @@ export function buildRecipeJsonSchema(
       "difficulty",
       "portions",
       "tags",
+      "usefulItems",
     ],
     additionalProperties: false,
   };
@@ -432,10 +445,14 @@ export function getSystemPrompt(userContext: UserContext): string {
     : "ml, liters, grams, kg, °C";
 
   const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
+  const isAirFryerUser = hasAirFryer(userContext.kitchenEquipment);
 
-  if (!isThermomixUser && userContext.kitchenEquipment.length > 0) {
+  if (
+    !isThermomixUser && !isAirFryerUser &&
+    userContext.kitchenEquipment.length > 0
+  ) {
     console.warn(
-      "[Recipe Generation] User has equipment but no Thermomix:",
+      "[Recipe Generation] User has equipment but no Thermomix or Air Fryer:",
       userContext.kitchenEquipment,
     );
   }
@@ -479,13 +496,65 @@ Examples:
 - Non-Thermomix: {"order": 5, "instruction": "Plate and garnish", "ingredientsUsed": ["parsley"], "thermomixTime": null, "thermomixTemp": null, "thermomixSpeed": null}`
     : "";
 
+  const airFryerSection = isAirFryerUser
+    ? `
+
+## AIR FRYER USAGE (User owns Air Fryer — suggest it when it's the best tool for the job)
+
+Use the Air Fryer for steps where it produces better results than conventional methods: crisping, roasting, reheating, and quick baking. Include Air Fryer temperature and time in the step instruction text.
+
+BEST USES:
+- Crisping/browning: proteins (chicken wings, fish fillets, chicken thighs), vegetables (broccoli, Brussels sprouts, cauliflower), breaded items
+- Quick roasting: root vegetables, peppers, garlic
+- Frozen foods: cook directly from frozen — nuggets, fries, breaded items (no thawing needed)
+- Reheating: leftovers come out crispy, not soggy
+- Baking small items: individual portions, small cakes
+- Tofu: crispy exterior without pan-sticking
+
+MEXICAN KITCHEN FAVORITES:
+- Tostadas: lightly oil corn tortillas, air fry at 190°C for 4-5 minutes until crisp
+- Tortilla chips: cut tortillas into triangles, light oil, 180°C for 5-7 minutes
+- Empanadas: 190°C for 10-12 minutes until golden — crispy without deep frying
+- Chimichangas: 200°C for 8-10 minutes, flipping halfway
+- Churros: pipe and chill dough, air fry at 190°C for 8-10 minutes, coat in cinnamon sugar after
+- Chiles rellenos (breaded): 180°C for 10-12 minutes — use dry breadcrumb coating, not wet batter
+- Quesadillas: 190°C for 5-6 minutes for extra-crispy tortilla
+
+TEMPERATURE GUIDE:
+- 150-160°C (300-320°F): Delicate items, reheating, dehydrating
+- 170-180°C (340-360°F): Chicken pieces, fish, roasted vegetables
+- 190-200°C (375-400°F): Crispy items, fries, wings, empanadas, tostadas
+- 200-220°C (400-430°F): Quick searing, very crispy finishes (short time only)
+
+KEY RULES:
+- Preheat 3-5 minutes for crispy results on proteins, vegetables, and reheating. Skip preheating for thick raw meats and baked goods — they cook better starting cold.
+- Don't overcrowd the basket — air needs to circulate. For large batches, cook in rounds.
+- Shake or flip halfway through for even cooking.
+- Pat proteins and vegetables dry before cooking — moisture prevents crispiness.
+- A light brush or mist of high smoke point oil (avocado, sunflower) improves crispiness. Avoid aerosol cooking sprays which damage nonstick coatings.
+- Loose dry seasonings blow off in the airflow — use oil to help them stick, or season after cooking.
+- Always verify meat reaches safe internal temperature (poultry: 74°C/165°F, beef/pork/fish: 63°C/145°F).
+- Include temperature and time in the step instruction (e.g., "Air fry at 200°C for 12-15 minutes, shaking halfway").
+
+WHEN NOT TO USE:
+- Soups, stews, sauces, or anything liquid-based
+- Large roasts or whole chickens that don't fit properly
+- Wet batters (beer batter, tempura) — they drip through the basket. Use dry breadcrumb coatings instead.
+- Loose leafy greens (they blow around and burn)
+- Raw rice, pasta, or grains (need water immersion)
+- When Thermomix or stovetop gives better results for that specific step
+
+Example: {"order": 3, "instruction": "Place the chicken thighs in the air fryer basket in a single layer. Air fry at 190°C for 18-20 minutes, flipping halfway, until golden and cooked through.", "ingredientsUsed": ["chicken thighs"]}`
+    : "";
+
   return `Expert cook and recipe writer. Output in ${lang}, ${userContext.measurementSystem} units (${units}).
 
 RULES: Use practical quantities (e.g. 1/3 not 0.333, round to common fractions). Name recipes naturally without dietary labels (GOOD: "Chicken Ramen", BAD: "Sugar-Free Ramen"). Preferences guide creativity; ingredient dislikes are strict. Avoid allergen ingredients by default.
 ${thermomixSection}
+${airFryerSection}
 
-OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Use this structure:
-{"schemaVersion":"1.0","suggestedName":"...","description":"A brief 1-2 sentence description of the dish","measurementSystem":"${userContext.measurementSystem}","language":"${userContext.language}","ingredients":[{"name":"...","quantity":1,"unit":"..."}],"steps":[{"order":1,"instruction":"...","ingredientsUsed":["..."]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":[]}`;
+OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Include "usefulItems" — kitchen tools and accessories that would be helpful for this recipe. Not just required tools, but things that make the cooking experience easier — like a waste bowl for peels and trimmings. Think like a seasoned home cook setting up their station. Use this structure:
+{"schemaVersion":"1.0","suggestedName":"...","description":"A brief 1-2 sentence description of the dish","measurementSystem":"${userContext.measurementSystem}","language":"${userContext.language}","ingredients":[{"name":"...","quantity":1,"unit":"..."}],"steps":[{"order":1,"instruction":"...","ingredientsUsed":["..."]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":[],"usefulItems":[{"name":"...","notes":"..."}]}`;
 }
 
 /**

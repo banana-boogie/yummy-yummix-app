@@ -14,7 +14,7 @@ import {
 } from "../types.ts";
 
 const ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages";
-const ANTHROPIC_API_VERSION = "2025-04-15";
+const ANTHROPIC_API_VERSION = "2023-06-01";
 
 // =============================================================================
 // Types
@@ -248,7 +248,11 @@ export async function callAnthropic(
       ? translateToolsForAnthropic(request.tools)
       : [];
     anthropicRequest.tools = [...existingTools, jsonTool];
-    anthropicRequest.tool_choice = { type: "tool", name: "json_response" };
+    // Anthropic doesn't allow forced tool_choice with extended thinking,
+    // so fall back to "auto" when reasoning is enabled.
+    anthropicRequest.tool_choice = anthropicRequest.thinking
+      ? { type: "auto" }
+      : { type: "tool", name: "json_response" };
   } else if (request.tools && request.tools.length > 0) {
     // Regular tool calling (no JSON schema)
     anthropicRequest.tools = translateToolsForAnthropic(request.tools);

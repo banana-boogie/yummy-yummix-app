@@ -11,7 +11,7 @@ import type {
 } from "../../_shared/ai-gateway/types.ts";
 import { buildSystemPrompt } from "../../irmixy-chat-orchestrator/system-prompt.ts";
 import { getRegisteredAiTools } from "../../_shared/tools/tool-registry.ts";
-import { TEST_USER_CONTEXT } from "../config.ts";
+import { TEST_USER_CONTEXT, TEST_USER_CONTEXT_EN } from "../config.ts";
 import {
   callModelWithRetry,
   formatDuration,
@@ -33,8 +33,17 @@ export async function runConversationTests(
   testCases: ConversationTestCase[],
   apiKey: string,
 ): Promise<TestCaseResult[]> {
-  const systemPrompt = buildSystemPrompt(TEST_USER_CONTEXT);
   const tools = getRegisteredAiTools();
+
+  // Cache system prompts per language
+  const promptCache = new Map<string, string>();
+  function getSystemPromptForLang(lang: "en" | "es"): string {
+    if (!promptCache.has(lang)) {
+      const ctx = lang === "en" ? TEST_USER_CONTEXT_EN : TEST_USER_CONTEXT;
+      promptCache.set(lang, buildSystemPrompt(ctx));
+    }
+    return promptCache.get(lang)!;
+  }
 
   // For reasoning-capable models, test both no-reasoning and minimal
   const effortVariants: Array<string | null> = model.capabilities.reasoning
@@ -52,6 +61,8 @@ export async function runConversationTests(
       promises.push((async (): Promise<TestCaseResult> => {
         const testCaseId = testCase.id;
         const isMultiTurn = testCase.turns.length > 1;
+        const lang = testCase.language ?? "es";
+        const systemPrompt = getSystemPromptForLang(lang);
         const messages: AIMessage[] = [{
           role: "system",
           content: systemPrompt,

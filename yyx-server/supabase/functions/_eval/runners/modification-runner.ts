@@ -14,7 +14,7 @@ import {
   buildModificationPrompt,
   getModificationSystemPrompt,
 } from "../../_shared/tools/modify-recipe.ts";
-import { TEST_USER_CONTEXT } from "../config.ts";
+import { TEST_USER_CONTEXT, TEST_USER_CONTEXT_EN } from "../config.ts";
 import {
   callModelWithRetry,
   formatDuration,
@@ -25,7 +25,12 @@ import type {
   ModificationTestCase,
   TestCaseResult,
 } from "../types.ts";
+import type { UserContext } from "../../_shared/irmixy-schemas.ts";
 import { BASE_RECIPE } from "../test-cases/fixtures.ts";
+
+function getUserContext(testCase: { language?: "en" | "es" }): UserContext {
+  return testCase.language === "en" ? TEST_USER_CONTEXT_EN : TEST_USER_CONTEXT;
+}
 
 // ============================================================
 // Runner
@@ -36,20 +41,36 @@ export async function runModificationTests(
   testCases: ModificationTestCase[],
   apiKey: string,
 ): Promise<TestCaseResult[]> {
-  const systemPrompt = getModificationSystemPrompt(TEST_USER_CONTEXT);
-  const hasThermomix = true;
-  const recipeSchema = buildRecipeJsonSchema(hasThermomix);
   const useJsonSchema = model.capabilities.jsonSchema;
   const reasoningEffort = model.reasoningEffort.recipe_modification ?? null;
+
+  // Cache system prompts per language
+  const promptCache = new Map<
+    string,
+    { systemPrompt: string; recipeSchema: Record<string, unknown> }
+  >();
+  function getPromptAndSchema(lang: "en" | "es") {
+    if (!promptCache.has(lang)) {
+      const ctx = lang === "en" ? TEST_USER_CONTEXT_EN : TEST_USER_CONTEXT;
+      promptCache.set(lang, {
+        systemPrompt: getModificationSystemPrompt(ctx),
+        recipeSchema: buildRecipeJsonSchema(true),
+      });
+    }
+    return promptCache.get(lang)!;
+  }
 
   // Run all test cases in parallel
   const promises = testCases.map((testCase) =>
     (async (): Promise<TestCaseResult> => {
+      const lang = testCase.language ?? "es";
+      const userContext = getUserContext(testCase);
+      const { systemPrompt, recipeSchema } = getPromptAndSchema(lang);
       const modParams = { modificationRequest: testCase.modificationRequest };
       const userPrompt = buildModificationPrompt(
         BASE_RECIPE,
         modParams,
-        TEST_USER_CONTEXT,
+        userContext,
       );
 
       const request: AICompletionRequest = {
@@ -89,6 +110,8 @@ export async function runModificationTests(
         let jsonValid = false;
         let schemaValid = false;
         let thermomixPresent = false;
+        let usefulItemsPresent = false;
+        let usefulItemsCount = 0;
 
         try {
           const recipe = parseAndValidateGeneratedRecipe(content);
@@ -100,6 +123,9 @@ export async function runModificationTests(
               s.thermomixTemp != null ||
               s.thermomixSpeed != null,
           );
+          usefulItemsPresent = Array.isArray(recipe.usefulItems) &&
+            recipe.usefulItems.length > 0;
+          usefulItemsCount = recipe.usefulItems?.length ?? 0;
         } catch {
           try {
             let jsonContent = content.trim();
@@ -120,7 +146,7 @@ export async function runModificationTests(
         console.log(
           `  ${tag} ${testCase.id} ${
             formatDuration(result.totalLatencyMs)
-          } json=${jsonValid} schema=${schemaValid} tmx=${thermomixPresent}`,
+          } json=${jsonValid} schema=${schemaValid} tmx=${thermomixPresent} items=${usefulItemsCount}`,
         );
 
         const outputTokensPerSec = response.usage.outputTokens > 0
@@ -149,6 +175,8 @@ export async function runModificationTests(
           jsonValid,
           schemaValid,
           thermomixPresent,
+          usefulItemsPresent,
+          usefulItemsCount,
         };
       } catch (error) {
         const testLatency = Math.round(performance.now() - testStart);

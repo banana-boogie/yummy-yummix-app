@@ -14,6 +14,18 @@ import type { UserContext } from "../_shared/irmixy-schemas.ts";
 
 export const MODELS: ModelConfig[] = [
   {
+    id: "gemini-2.5-flash-lite",
+    provider: "google",
+    apiKeyEnvVar: "GEMINI_API_KEY",
+    capabilities: { toolCalling: true, jsonSchema: true, reasoning: true },
+    reasoningEffort: {
+      orchestrator: "minimal",
+      recipe_generation: "low",
+      recipe_modification: "minimal",
+    },
+    pricing: { inputPerMillion: 0.10, outputPerMillion: 0.40 },
+  },
+  {
     id: "gemini-2.5-flash",
     provider: "google",
     apiKeyEnvVar: "GEMINI_API_KEY",
@@ -23,40 +35,27 @@ export const MODELS: ModelConfig[] = [
       recipe_generation: "low",
       recipe_modification: "minimal",
     },
-    pricing: { inputPerMillion: 0.15, outputPerMillion: 0.60 },
+    pricing: { inputPerMillion: 0.30, outputPerMillion: 2.50 },
   },
   {
-    id: "gpt-5-mini",
-    provider: "openai",
-    apiKeyEnvVar: "OPENAI_API_KEY",
+    id: "gemini-3-flash-preview",
+    provider: "google",
+    apiKeyEnvVar: "GEMINI_API_KEY",
     capabilities: { toolCalling: true, jsonSchema: true, reasoning: true },
     reasoningEffort: {
       orchestrator: "minimal",
       recipe_generation: "low",
       recipe_modification: "minimal",
     },
-    pricing: { inputPerMillion: 1.10, outputPerMillion: 4.40 },
+    pricing: { inputPerMillion: 0.50, outputPerMillion: 3.00 },
   },
   {
-    id: "gpt-5",
-    provider: "openai",
-    apiKeyEnvVar: "OPENAI_API_KEY",
-    capabilities: { toolCalling: true, jsonSchema: true, reasoning: true },
-    reasoningEffort: {
-      orchestrator: "minimal",
-      recipe_generation: "low",
-      recipe_modification: "minimal",
-    },
-    pricing: { inputPerMillion: 2.00, outputPerMillion: 8.00 },
-  },
-  {
-    id: "gpt-5-nano",
+    id: "gpt-4.1-mini",
     provider: "openai",
     apiKeyEnvVar: "OPENAI_API_KEY",
     capabilities: { toolCalling: true, jsonSchema: true, reasoning: false },
     reasoningEffort: {},
-    pricing: { inputPerMillion: 0.30, outputPerMillion: 1.20 },
-    temperatureFixed: 1, // gpt-5-nano only supports temperature: 1
+    pricing: { inputPerMillion: 0.40, outputPerMillion: 1.60 },
   },
   {
     id: "gpt-4.1-nano",
@@ -67,32 +66,12 @@ export const MODELS: ModelConfig[] = [
     pricing: { inputPerMillion: 0.10, outputPerMillion: 0.40 },
   },
   {
-    id: "claude-sonnet-4-6",
-    provider: "anthropic",
-    apiKeyEnvVar: "ANTHROPIC_API_KEY",
-    capabilities: { toolCalling: true, jsonSchema: true, reasoning: true },
-    reasoningEffort: {
-      orchestrator: "minimal",
-      recipe_generation: "low",
-      recipe_modification: "minimal",
-    },
-    pricing: { inputPerMillion: 3.00, outputPerMillion: 15.00 },
-  },
-  {
-    id: "claude-haiku-4.5",
-    provider: "anthropic",
-    apiKeyEnvVar: "ANTHROPIC_API_KEY",
-    capabilities: { toolCalling: true, jsonSchema: true, reasoning: false },
-    reasoningEffort: {},
-    pricing: { inputPerMillion: 0.80, outputPerMillion: 4.00 },
-  },
-  {
-    id: "grok-4.1-fast",
+    id: "grok-4-1-fast-non-reasoning",
     provider: "xai",
     apiKeyEnvVar: "XAI_API_KEY",
     capabilities: { toolCalling: true, jsonSchema: true, reasoning: false },
     reasoningEffort: {},
-    pricing: { inputPerMillion: 0.60, outputPerMillion: 4.00 },
+    pricing: { inputPerMillion: 0.20, outputPerMillion: 0.50 },
   },
 ];
 
@@ -115,7 +94,25 @@ export const TEST_USER_CONTEXT: UserContext = {
   dietTypes: [],
   cuisinePreferences: ["mexicana", "italiana"],
   customAllergies: ["gluten"],
-  kitchenEquipment: ["Thermomix TM6"],
+  kitchenEquipment: ["Thermomix TM6", "Air Fryer"],
+};
+
+/**
+ * English test user — same constraints, English language + imperial units.
+ * Tests whether models produce quality English output.
+ */
+export const TEST_USER_CONTEXT_EN: UserContext = {
+  language: "en",
+  measurementSystem: "imperial",
+  dietaryRestrictions: ["gluten"],
+  ingredientDislikes: ["cilantro"],
+  skillLevel: "intermediate",
+  householdSize: 4,
+  conversationHistory: [],
+  dietTypes: [],
+  cuisinePreferences: ["Mexican", "Italian"],
+  customAllergies: ["gluten"],
+  kitchenEquipment: ["Thermomix TM6", "Air Fryer"],
 };
 
 // ============================================================

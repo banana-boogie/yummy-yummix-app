@@ -42,7 +42,7 @@ export const QuickActionSchema = z.object({
 export const UsefulItemSchema = z.object({
   name: z.string(),
   imageUrl: z.string().optional(),
-  notes: z.string().optional(),
+  notes: z.string().nullish(),
 });
 
 export const GeneratedRecipeSchema = z.object({

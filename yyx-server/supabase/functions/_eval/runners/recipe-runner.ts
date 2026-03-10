@@ -13,7 +13,7 @@ import {
   getSystemPrompt,
   parseAndValidateGeneratedRecipe,
 } from "../../_shared/tools/generate-custom-recipe.ts";
-import { TEST_USER_CONTEXT } from "../config.ts";
+import { TEST_USER_CONTEXT, TEST_USER_CONTEXT_EN } from "../config.ts";
 import {
   callModelWithRetry,
   formatDuration,
@@ -25,7 +25,14 @@ import type { ModelConfig, RecipeTestCase, TestCaseResult } from "../types.ts";
 // Prompt Builder
 // ============================================================
 
+import type { UserContext } from "../../_shared/irmixy-schemas.ts";
+
+function getUserContext(testCase: { language?: "en" | "es" }): UserContext {
+  return testCase.language === "en" ? TEST_USER_CONTEXT_EN : TEST_USER_CONTEXT;
+}
+
 function buildRecipePrompt(testCase: RecipeTestCase): string {
+  const userContext = getUserContext(testCase);
   const parts: string[] = [];
 
   if (testCase.recipeDescription) {
@@ -39,7 +46,7 @@ function buildRecipePrompt(testCase: RecipeTestCase): string {
     );
   }
 
-  parts.push(`Portions: ${TEST_USER_CONTEXT.householdSize ?? 4}.`);
+  parts.push(`Portions: ${userContext.householdSize ?? 4}.`);
 
   if (testCase.targetTime) {
     parts.push(
@@ -59,32 +66,32 @@ function buildRecipePrompt(testCase: RecipeTestCase): string {
     parts.push(`Additional requirements: ${testCase.additionalRequests}`);
   }
 
-  if (TEST_USER_CONTEXT.ingredientDislikes.length > 0) {
+  if (userContext.ingredientDislikes.length > 0) {
     parts.push("\n⚠️ HARD REQUIREMENTS (must follow):");
     parts.push(
       `MUST AVOID these ingredients: ${
-        TEST_USER_CONTEXT.ingredientDislikes.join(", ")
+        userContext.ingredientDislikes.join(", ")
       }`,
     );
   }
 
-  if (TEST_USER_CONTEXT.kitchenEquipment.length > 0) {
+  if (userContext.kitchenEquipment.length > 0) {
     parts.push("\n🍳 AVAILABLE EQUIPMENT:");
     parts.push(
       `User has: ${
-        TEST_USER_CONTEXT.kitchenEquipment.join(", ")
+        userContext.kitchenEquipment.join(", ")
       }. Use where appropriate for the best result.`,
     );
   }
 
   if (
-    TEST_USER_CONTEXT.cuisinePreferences.length > 0 &&
+    userContext.cuisinePreferences.length > 0 &&
     !testCase.cuisinePreference
   ) {
     parts.push("\n📝 Soft preferences (consider but be creative):");
     parts.push(
       `Cuisine inspiration (OPTIONAL): User enjoys ${
-        TEST_USER_CONTEXT.cuisinePreferences.join(", ")
+        userContext.cuisinePreferences.join(", ")
       } cooking.`,
     );
   }
@@ -111,31 +118,36 @@ export async function runRecipeTests(
   testCases: RecipeTestCase[],
   apiKey: string,
 ): Promise<TestCaseResult[]> {
-  const systemPrompt = getSystemPrompt(TEST_USER_CONTEXT);
-  const hasThermomix = true;
-  const recipeSchema = buildRecipeJsonSchema(hasThermomix);
+  // Cache system prompts and schemas per language
+  const promptCache = new Map<
+    string,
+    { systemPrompt: string; recipeSchema: Record<string, unknown> }
+  >();
+  function getPromptAndSchema(lang: "en" | "es") {
+    if (!promptCache.has(lang)) {
+      const ctx = lang === "en" ? TEST_USER_CONTEXT_EN : TEST_USER_CONTEXT;
+      promptCache.set(lang, {
+        systemPrompt: getSystemPrompt(ctx),
+        recipeSchema: buildRecipeJsonSchema(true),
+      });
+    }
+    return promptCache.get(lang)!;
+  }
   const canUseJsonSchema = model.capabilities.jsonSchema;
 
   // Build all variants to test
+  // Schema enforcement is always on — previous runs proved it's essential
+  // (without it: 0-33% pass rate) and adds no meaningful latency.
   const variants: RecipeVariant[] = [];
 
   if (model.capabilities.reasoning) {
-    // Reasoning models: test minimal with schema, minimal without schema, low with schema
+    // Reasoning models: test none, minimal, and low effort levels
+    variants.push({ effort: null, useSchema: true, label: "no-reasoning" });
     variants.push({ effort: "minimal", useSchema: true, label: "minimal" });
-    if (canUseJsonSchema) {
-      variants.push({
-        effort: "minimal",
-        useSchema: false,
-        label: "minimal, no-schema",
-      });
-    }
     variants.push({ effort: "low", useSchema: true, label: "low" });
   } else {
-    // Non-reasoning models: test with schema and without schema
+    // Non-reasoning models: single variant with schema
     variants.push({ effort: null, useSchema: true, label: "" });
-    if (canUseJsonSchema) {
-      variants.push({ effort: null, useSchema: false, label: "no-schema" });
-    }
   }
 
   // Run all variant × test case combinations in parallel
@@ -146,6 +158,8 @@ export async function runRecipeTests(
 
     for (const testCase of testCases) {
       promises.push((async () => {
+        const lang = testCase.language ?? "es";
+        const { systemPrompt, recipeSchema } = getPromptAndSchema(lang);
         const userPrompt = buildRecipePrompt(testCase);
 
         const request: AICompletionRequest = {
@@ -160,6 +174,8 @@ export async function runRecipeTests(
               reasoningEffort: variant
                 .effort as AICompletionRequest["reasoningEffort"],
             }
+            : model.capabilities.reasoning
+            ? {} // Reasoning-capable models reject explicit temperature
             : { temperature: model.temperatureFixed ?? 0.7 }),
           ...(variant.useSchema && canUseJsonSchema
             ? {
@@ -185,6 +201,8 @@ export async function runRecipeTests(
           let jsonValid = false;
           let schemaValid = false;
           let thermomixPresent = false;
+          let usefulItemsPresent = false;
+          let usefulItemsCount = 0;
 
           try {
             const recipe = parseAndValidateGeneratedRecipe(content);
@@ -196,6 +214,9 @@ export async function runRecipeTests(
                 s.thermomixTemp != null ||
                 s.thermomixSpeed != null,
             );
+            usefulItemsPresent = Array.isArray(recipe.usefulItems) &&
+              recipe.usefulItems.length > 0;
+            usefulItemsCount = recipe.usefulItems?.length ?? 0;
           } catch {
             try {
               let jsonContent = content.trim();
@@ -223,7 +244,7 @@ export async function runRecipeTests(
           console.log(
             `  ${tag} ${testCase.id}${variantLabel} ${
               formatDuration(result.totalLatencyMs)
-            } ${outputTokensPerSec} tok/s [${schemaTag}] json=${jsonValid} schema=${schemaValid} tmx=${thermomixPresent}`,
+            } ${outputTokensPerSec} tok/s [${schemaTag}] json=${jsonValid} schema=${schemaValid} tmx=${thermomixPresent} items=${usefulItemsCount}`,
           );
 
           return {
@@ -249,6 +270,8 @@ export async function runRecipeTests(
             jsonValid,
             schemaValid,
             thermomixPresent,
+            usefulItemsPresent,
+            usefulItemsCount,
             schemaEnforced: variant.useSchema,
           };
         } catch (error) {

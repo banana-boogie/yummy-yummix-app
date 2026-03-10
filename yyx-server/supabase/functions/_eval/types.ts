@@ -31,6 +31,8 @@ export interface ModelConfig {
   };
   /** If set, this model only supports this specific temperature value */
   temperatureFixed?: number;
+  /** Roles to skip for this model (e.g., too slow for orchestrator) */
+  excludeRoles?: EvalRole[];
 }
 
 export type EvalStatus = "pass" | "fail" | "skipped";
@@ -72,6 +74,8 @@ export interface TestCaseResult {
   jsonValid?: boolean;
   schemaValid?: boolean;
   thermomixPresent?: boolean;
+  usefulItemsPresent?: boolean;
+  usefulItemsCount?: number;
   /** Whether JSON schema was enforced via responseFormat */
   schemaEnforced?: boolean;
 }
@@ -94,6 +98,8 @@ export interface TournamentResults {
 export interface ConversationTestCase {
   id: string;
   description: string;
+  /** Language override — defaults to "es" if not set */
+  language?: "en" | "es";
   turns: Array<{
     userMessage: string;
     expectedTool: string | null;
@@ -105,6 +111,8 @@ export interface ConversationTestCase {
 export interface RecipeTestCase {
   id: string;
   description: string;
+  /** Language override — defaults to "es" if not set */
+  language?: "en" | "es";
   ingredients: string[];
   recipeDescription?: string;
   cuisinePreference?: string;
@@ -117,6 +125,8 @@ export interface RecipeTestCase {
 export interface ModificationTestCase {
   id: string;
   description: string;
+  /** Language override — defaults to "es" if not set */
+  language?: "en" | "es";
   modificationRequest: string;
   expectedBehavior: string;
 }
