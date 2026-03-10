@@ -9,12 +9,14 @@ export interface DonutChartProps {
   data: { label: string; value: number; color: string }[];
   size?: number;
   strokeWidth?: number;
+  /** Format values in legend and center (e.g. for $ amounts) */
+  valueFormatter?: (value: number) => string;
 }
 
-export function DonutChart({ data, size = 160, strokeWidth = 24 }: DonutChartProps) {
+export function DonutChart({ data, size = 160, strokeWidth = 24, valueFormatter }: DonutChartProps) {
   const total = data.reduce((sum, d) => sum + d.value, 0);
 
-  if (!data || data.length === 0 || total === 0) {
+  if (!data || data.length === 0) {
     return (
       <View className="bg-white rounded-lg p-md items-center justify-center" style={{ minHeight: size }}>
         <Text preset="caption">{i18n.t('admin.analytics.noDataYet')}</Text>
@@ -28,13 +30,13 @@ export function DonutChart({ data, size = 160, strokeWidth = 24 }: DonutChartPro
 
   // Build segments: each gets a dasharray (segment length, rest) and a dashoffset (rotation)
   let cumulativeOffset = 0;
-  const segments = data
-    .filter((d) => d.value > 0)
+  const positiveSegments = data.filter((d) => d.value > 0);
+  const segments = positiveSegments
     .map((d) => {
       const fraction = d.value / total;
       const segmentLength = fraction * circumference;
-      // Small gap between segments for visual separation
-      const gap = data.length > 1 ? 2 : 0;
+      // Only add gaps when 3+ segments so the ring is fully covered with 2
+      const gap = positiveSegments.length > 2 ? 2 : 0;
       const segment = {
         color: d.color,
         dashArray: `${Math.max(segmentLength - gap, 0)} ${circumference}`,
@@ -90,7 +92,7 @@ export function DonutChart({ data, size = 160, strokeWidth = 24 }: DonutChartPro
           }}
         >
           <Text preset="h3" className="text-text-default">
-            {total.toLocaleString()}
+            {valueFormatter ? valueFormatter(total) : total.toLocaleString()}
           </Text>
           <Text preset="caption">{i18n.t('admin.analytics.total')}</Text>
         </View>
@@ -98,19 +100,22 @@ export function DonutChart({ data, size = 160, strokeWidth = 24 }: DonutChartPro
 
       {/* Legend */}
       <View className="mt-md gap-xs w-full">
-        {data.map((d, i) => (
-          <View key={i} className="flex-row items-center gap-xs">
-            <View
-              style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: d.color }}
-            />
-            <Text preset="bodySmall" className="flex-1 text-text-default">
-              {d.label}
-            </Text>
-            <Text preset="bodySmall" className="text-text-secondary">
-              {d.value.toLocaleString()}
-            </Text>
-          </View>
-        ))}
+        {data.map((d, i) => {
+          const pct = total > 0 ? Math.round((d.value / total) * 100) : 0;
+          return (
+            <View key={i} className="flex-row items-center gap-xs">
+              <View
+                style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: d.color }}
+              />
+              <Text preset="bodySmall" className="flex-1 text-text-default">
+                {d.label}
+              </Text>
+              <Text preset="bodySmall" className="text-text-secondary">
+                {valueFormatter ? valueFormatter(d.value) : d.value.toLocaleString()} ({pct}%)
+              </Text>
+            </View>
+          );
+        })}
       </View>
     </View>
   );

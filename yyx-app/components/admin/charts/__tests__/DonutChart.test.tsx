@@ -28,7 +28,7 @@ describe('DonutChart', () => {
     expect(screen.getByText('No data yet')).toBeTruthy();
   });
 
-  it('renders "No data" message when all values are zero', () => {
+  it('renders chart with zero total showing "0" center text', () => {
     renderWithProviders(
       <DonutChart
         data={[
@@ -37,7 +37,8 @@ describe('DonutChart', () => {
         ]}
       />,
     );
-    expect(screen.getByText('No data yet')).toBeTruthy();
+    expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Total')).toBeTruthy();
   });
 
   it('renders total in center', () => {
@@ -50,14 +51,14 @@ describe('DonutChart', () => {
     expect(screen.getByText('Total')).toBeTruthy();
   });
 
-  it('renders legend items with labels and values', () => {
+  it('renders legend items with labels, values, and percentages', () => {
     renderWithProviders(<DonutChart data={sampleData} />);
     expect(screen.getByText('Active')).toBeTruthy();
-    expect(screen.getByText('60')).toBeTruthy();
+    expect(screen.getByText('60 (60%)')).toBeTruthy();
     expect(screen.getByText('Inactive')).toBeTruthy();
-    expect(screen.getByText('25')).toBeTruthy();
+    expect(screen.getByText('25 (25%)')).toBeTruthy();
     expect(screen.getByText('New')).toBeTruthy();
-    expect(screen.getByText('15')).toBeTruthy();
+    expect(screen.getByText('15 (15%)')).toBeTruthy();
   });
 
   it('accepts custom size and strokeWidth', () => {

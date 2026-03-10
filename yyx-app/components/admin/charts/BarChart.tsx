@@ -13,7 +13,7 @@ export interface BarChartProps {
 }
 
 const VERTICAL_PADDING = { top: 20, bottom: 28, left: 10, right: 10 };
-const HORIZONTAL_PADDING = { top: 10, bottom: 10, left: 80, right: 40 };
+const HORIZONTAL_PADDING = { top: 10, bottom: 10, left: 130, right: 40 };
 
 export function BarChart({
   data,
@@ -189,7 +189,7 @@ function renderHorizontal(
                   textAnchor="end"
                   fontFamily="Montserrat"
                 >
-                  {truncateLabel(group.label, 10)}
+                  {truncateLabel(group.label, 18)}
                 </SvgText>
               )}
 

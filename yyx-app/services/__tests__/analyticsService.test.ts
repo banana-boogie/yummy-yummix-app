@@ -30,12 +30,12 @@ describe('analyticsService', () => {
 
   it('getFunnelMetrics calls admin_funnel with timeframe', async () => {
     const mockData = {
-      totalViews: 100,
       totalStarts: 50,
       totalCompletes: 25,
-      viewToStartRate: 50,
-      startToCompleteRate: 50,
-      overallConversionRate: 25,
+      completionRate: 50,
+      catalogViews: 100,
+      catalogStarts: 40,
+      catalogConversionRate: 40,
     };
     (supabase.rpc as jest.Mock).mockResolvedValue({ data: mockData, error: null });
 

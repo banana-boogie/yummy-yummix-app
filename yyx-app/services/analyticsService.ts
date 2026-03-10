@@ -19,12 +19,12 @@ export interface RetentionMetrics {
 }
 
 export interface FunnelMetrics {
-  totalViews: number;
   totalStarts: number;
   totalCompletes: number;
-  viewToStartRate: number;
-  startToCompleteRate: number;
-  overallConversionRate: number;
+  completionRate: number;
+  catalogViews: number;
+  catalogStarts: number;
+  catalogConversionRate: number;
 }
 
 export interface TopRecipe {

@@ -40,11 +40,12 @@ const TABS: { value: TabType; labelKey: string; icon: keyof typeof Ionicons.glyp
   { value: 'operations', labelKey: 'admin.analytics.tabs.operations', icon: 'construct' },
 ];
 
-function MetricCard({ title, value, subtitle, icon }: {
+function MetricCard({ title, value, subtitle, icon, tooltip }: {
   title: string;
   value: string | number;
   subtitle?: string;
   icon?: keyof typeof Ionicons.glyphMap;
+  tooltip?: string;
 }) {
   return (
     <View className="bg-white rounded-lg p-md shadow-sm flex-1 min-w-[140px] m-xs">
@@ -57,6 +58,9 @@ function MetricCard({ title, value, subtitle, icon }: {
       <Text preset="h1" className="text-text-default">{value}</Text>
       {subtitle && (
         <Text preset="caption" className="text-text-secondary mt-xxs">{subtitle}</Text>
+      )}
+      {tooltip && (
+        <Text preset="caption" className="text-text-secondary mt-xs">{tooltip}</Text>
       )}
     </View>
   );
@@ -349,17 +353,13 @@ function ContentSection({
 
   return (
     <View>
-      <SectionTitle>{i18n.t('admin.analytics.sections.cookingFunnel')}</SectionTitle>
+      <SectionTitle>{i18n.t('admin.analytics.sections.cookingCompletion')}</SectionTitle>
       <BarChart
         horizontal
         data={[
           {
-            label: i18n.t('admin.analytics.labels.recipeViews'),
-            values: [{ value: funnelData.totalViews, color: COLORS.primary.medium }],
-          },
-          {
             label: i18n.t('admin.analytics.labels.cookStarts'),
-            values: [{ value: funnelData.totalStarts, color: COLORS.primary.dark }],
+            values: [{ value: funnelData.totalStarts, color: COLORS.primary.medium }],
           },
           {
             label: i18n.t('admin.analytics.labels.cookCompletes'),
@@ -367,27 +367,38 @@ function ContentSection({
           },
         ]}
       />
-
-      <SectionTitle>{i18n.t('admin.analytics.sections.conversionRates')}</SectionTitle>
       <View className="flex-row flex-wrap">
         <MetricCard
-          title={i18n.t('admin.analytics.labels.viewToStart')}
-          value={`${funnelData.viewToStartRate.toFixed(1)}%`}
-          icon="arrow-forward"
-        />
-        <MetricCard
-          title={i18n.t('admin.analytics.labels.startToComplete')}
-          value={`${funnelData.startToCompleteRate.toFixed(1)}%`}
-          icon="arrow-forward"
-          subtitle={i18n.t('admin.analytics.labels.successRate')}
-        />
-        <MetricCard
-          title={i18n.t('admin.analytics.labels.overall')}
-          value={`${funnelData.overallConversionRate.toFixed(1)}%`}
-          icon="trending-up"
-          subtitle={i18n.t('admin.analytics.labels.viewToComplete')}
+          title={i18n.t('admin.analytics.labels.completionRate')}
+          value={`${funnelData.completionRate.toFixed(1)}%`}
+          icon="checkmark-circle"
+          tooltip={i18n.t('admin.analytics.labels.completionRateTooltip')}
         />
       </View>
+
+      {funnelData.catalogViews > 0 && (
+        <>
+          <SectionTitle>{i18n.t('admin.analytics.sections.catalogConversion')}</SectionTitle>
+          <View className="flex-row flex-wrap">
+            <MetricCard
+              title={i18n.t('admin.analytics.labels.catalogViews')}
+              value={funnelData.catalogViews}
+              icon="eye"
+            />
+            <MetricCard
+              title={i18n.t('admin.analytics.labels.catalogStarts')}
+              value={funnelData.catalogStarts}
+              icon="play"
+            />
+            <MetricCard
+              title={i18n.t('admin.analytics.labels.catalogConversionRate')}
+              value={`${funnelData.catalogConversionRate.toFixed(1)}%`}
+              icon="arrow-forward"
+              tooltip={i18n.t('admin.analytics.labels.catalogConversionTooltip')}
+            />
+          </View>
+        </>
+      )}
 
       {contentSourceSplit && (contentSourceSplit.catalog > 0 || contentSourceSplit.userGenerated > 0) && (
         <>
@@ -466,21 +477,56 @@ function AISection({
         </>
       )}
 
-      <SectionTitle>{i18n.t('admin.analytics.sections.chatVsVoice')}</SectionTitle>
-      <DonutChart
-        data={[
-          { label: i18n.t('admin.analytics.labels.chatSessions'), value: adoptionData.totalChatSessions, color: COLORS.primary.medium },
-          { label: i18n.t('admin.analytics.labels.voiceSessions'), value: adoptionData.totalVoiceSessions, color: COLORS.primary.dark },
-        ]}
-      />
+      {(adoptionData.totalChatSessions + adoptionData.totalVoiceSessions) >= 5 ? (
+        <>
+          <SectionTitle>{i18n.t('admin.analytics.sections.chatVsVoice')}</SectionTitle>
+          <DonutChart
+            data={[
+              { label: i18n.t('admin.analytics.labels.chatSessions'), value: adoptionData.totalChatSessions, color: COLORS.primary.medium },
+              { label: i18n.t('admin.analytics.labels.voiceSessions'), value: adoptionData.totalVoiceSessions, color: COLORS.status.success },
+            ]}
+          />
+        </>
+      ) : (
+        <View className="flex-row flex-wrap">
+          <MetricCard
+            title={i18n.t('admin.analytics.labels.chatSessions')}
+            value={adoptionData.totalChatSessions}
+            icon="chatbubbles"
+          />
+          <MetricCard
+            title={i18n.t('admin.analytics.labels.voiceSessions')}
+            value={adoptionData.totalVoiceSessions}
+            icon="mic"
+          />
+        </View>
+      )}
 
-      <SectionTitle>{i18n.t('admin.analytics.sections.textVsVoiceCost')}</SectionTitle>
-      <DonutChart
-        data={[
-          { label: i18n.t('admin.analytics.labels.textCost'), value: summary.textCostUsd, color: COLORS.primary.medium },
-          { label: i18n.t('admin.analytics.labels.voiceCost'), value: summary.voiceCostUsd, color: COLORS.primary.dark },
-        ]}
-      />
+      {(summary.textCostUsd + summary.voiceCostUsd) >= 0.01 ? (
+        <>
+          <SectionTitle>{i18n.t('admin.analytics.sections.textVsVoiceCost')}</SectionTitle>
+          <DonutChart
+            data={[
+              { label: i18n.t('admin.analytics.labels.textCost'), value: summary.textCostUsd, color: COLORS.primary.medium },
+              { label: i18n.t('admin.analytics.labels.voiceCost'), value: summary.voiceCostUsd, color: COLORS.status.success },
+            ]}
+            valueFormatter={(v) => `$${v.toFixed(2)}`}
+          />
+        </>
+      ) : (
+        <View className="flex-row flex-wrap">
+          <MetricCard
+            title={i18n.t('admin.analytics.labels.textCost')}
+            value={`$${summary.textCostUsd.toFixed(2)}`}
+            icon="document-text"
+          />
+          <MetricCard
+            title={i18n.t('admin.analytics.labels.voiceCost')}
+            value={`$${summary.voiceCostUsd.toFixed(2)}`}
+            icon="mic"
+          />
+        </View>
+      )}
 
       <SectionTitle>{i18n.t('admin.analytics.sections.aiAdoption')}</SectionTitle>
       <View className="flex-row flex-wrap">
@@ -534,31 +580,15 @@ function AISection({
         {usageData.dailyCost.length === 0 ? (
           <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noDataYet')}</Text>
         ) : (
-          <View className="bg-white rounded-lg p-md">
-            {(() => {
-              const maxDailyCost = Math.max(
-                ...usageData.dailyCost.map((item) => item.cost),
-                0.01
-              );
-              return usageData.dailyCost.map((day) => {
-              const widthPercent = Math.max((day.cost / maxDailyCost) * 100, 2);
-              return (
-                <View key={day.date} className="mb-sm">
-                  <View className="flex-row items-center justify-between mb-xxs">
-                    <Text preset="caption" className="text-text-secondary">{day.date}</Text>
-                    <Text preset="caption" className="text-text-default">{formatUsd(day.cost)}</Text>
-                  </View>
-                  <View className="h-[8px] bg-grey-light rounded-full overflow-hidden">
-                    <View
-                      className="h-full bg-primary-medium"
-                      style={{ width: `${widthPercent}%` }}
-                    />
-                  </View>
-                </View>
-              );
-            });
-            })()}
-          </View>
+          <LineChart
+            data={usageData.dailyCost.map((day) => ({
+              label: day.date.slice(5),
+              value: day.cost,
+            }))}
+            lineColor={COLORS.status.error}
+            fillColor={COLORS.primary.medium}
+            valueFormatter={(v) => `$${v.toFixed(2)}`}
+          />
         )}
       </CollapsibleSection>
     </View>
