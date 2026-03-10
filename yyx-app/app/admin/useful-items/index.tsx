@@ -7,7 +7,7 @@ import { UsefulItemCard } from '@/components/admin/useful-items/UsefulItemCard';
 import { useUsefulItems } from '@/hooks/admin/useUsefulItems';
 import { AlertModal } from '@/components/common/AlertModal';
 import { SearchBar } from '@/components/common/SearchBar';
-import { AdminUsefulItem } from '@/types/recipe.admin.types';
+import { AdminUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { CreateEditUsefulItemModal } from '@/components/admin/useful-items/CreateEditUsefulItemModal';
 import { Button } from '@/components/common/Button';
@@ -134,8 +134,8 @@ export default function UsefulItemsAdminPage() {
         visible={showDeleteAlert}
         title={i18n.t('admin.usefulItems.confirmDeletion.title')}
         message={i18n.t('admin.usefulItems.confirmDeletion.message', {
-          nameEn: selectedUsefulItem?.nameEn,
-          nameEs: selectedUsefulItem?.nameEs
+          nameEn: getTranslatedField(selectedUsefulItem?.translations as any, 'en', 'name' as any),
+          nameEs: getTranslatedField(selectedUsefulItem?.translations as any, 'es', 'name' as any)
         })}
         onConfirm={handleConfirmDelete}
         onCancel={() => {

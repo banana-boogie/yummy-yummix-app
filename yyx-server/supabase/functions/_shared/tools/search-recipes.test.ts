@@ -4,7 +4,12 @@ import {
   assertExists,
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { clearAllergenCache } from "../allergen-filter.ts";
-import { filterByAllKeywords, searchRecipes } from "./search-recipes.ts";
+import {
+  filterByAllKeywords,
+  formatRestrictionLabel,
+  RESTRICTION_LABELS,
+  searchRecipes,
+} from "./search-recipes.ts";
 
 type MockResult = { data: unknown; error: unknown };
 
@@ -361,6 +366,38 @@ function makeRecipeWithTags(
     })),
   };
 }
+
+// ============================================================
+// formatRestrictionLabel — locale-aware allergen labels
+// ============================================================
+
+Deno.test("formatRestrictionLabel returns Mexican Spanish for 'es'", () => {
+  assertEquals(formatRestrictionLabel("peanuts", "es"), "cacahuates");
+  assertEquals(formatRestrictionLabel("nuts", "es"), "nueces");
+});
+
+Deno.test("formatRestrictionLabel returns Spain Spanish for 'es-ES'", () => {
+  assertEquals(formatRestrictionLabel("peanuts", "es-ES"), "cacahuetes");
+  assertEquals(formatRestrictionLabel("nuts", "es-ES"), "frutos secos");
+});
+
+Deno.test("formatRestrictionLabel falls back from es-ES to es for labels without es-ES variant", () => {
+  // dairy has no es-ES entry, should fall back to es
+  assertEquals(formatRestrictionLabel("dairy", "es-ES"), "lácteos");
+});
+
+Deno.test("formatRestrictionLabel falls back to en for unknown locale", () => {
+  assertEquals(formatRestrictionLabel("peanuts", "fr"), "peanuts");
+});
+
+Deno.test("RESTRICTION_LABELS has es-ES variants for peanuts and nuts", () => {
+  assertEquals(RESTRICTION_LABELS["peanuts"]["es-ES"], "cacahuetes");
+  assertEquals(RESTRICTION_LABELS["nuts"]["es-ES"], "frutos secos");
+});
+
+// ============================================================
+// filterByAllKeywords (pure function, no DB dependency)
+// ============================================================
 
 Deno.test("filterByAllKeywords - single word query passes all recipes through", () => {
   const recipes = [

@@ -10,6 +10,49 @@ export interface NutritionalFacts {
   };
 }
 
+/**
+ * Base interface for all entity translations.
+ * Each concrete translation extends this with its specific fields.
+ */
+export interface EntityTranslation {
+  locale: string;
+  [key: string]: string | undefined;
+}
+
+export interface AdminRecipeTranslation extends EntityTranslation {
+  name: string;
+  tipsAndTricks?: string;
+}
+
+export interface AdminIngredientTranslation extends EntityTranslation {
+  name: string;
+  pluralName?: string;
+}
+
+export interface AdminRecipeTagTranslation extends EntityTranslation {
+  name: string;
+}
+
+export interface AdminUsefulItemTranslation extends EntityTranslation {
+  name: string;
+}
+
+export interface AdminRecipeIngredientTranslation extends EntityTranslation {
+  notes?: string;
+  tip?: string;
+  recipeSection?: string;
+}
+
+export interface AdminRecipeStepTranslation extends EntityTranslation {
+  instruction: string;
+  recipeSection?: string;
+  tip?: string;
+}
+
+export interface AdminRecipeUsefulItemTranslation extends EntityTranslation {
+  notes?: string;
+}
+
 export interface AdminMeasurementUnit {
   id: string;
   type: 'volume' | 'weight' | 'unit';
@@ -22,18 +65,14 @@ export interface AdminMeasurementUnit {
 
 export interface AdminIngredient {
   id: string;
-  nameEn: string;
-  nameEs: string;
-  pluralNameEn: string;
-  pluralNameEs: string;
+  translations: AdminIngredientTranslation[];
   pictureUrl: string;
   nutritionalFacts: NutritionalFacts;
 }
 
 export interface AdminUsefulItem {
   id: string;
-  nameEn: string;
-  nameEs: string;
+  translations: AdminUsefulItemTranslation[];
   pictureUrl: string | any;
 }
 
@@ -42,12 +81,7 @@ export interface AdminRecipeIngredient {
   ingredientId: string;
   ingredient: AdminIngredient;
   quantity: string;
-  recipeSectionEn: string;
-  recipeSectionEs: string;
-  notesEn?: string;
-  notesEs?: string;
-  tipEn?: string;
-  tipEs?: string;
+  translations: AdminRecipeIngredientTranslation[];
   optional: boolean;
   displayOrder: number;
   measurementUnit: AdminMeasurementUnit;
@@ -55,25 +89,19 @@ export interface AdminRecipeIngredient {
 
 export interface AdminRecipeTag {
   id: string;
-  nameEn: string;
-  nameEs: string;
+  translations: AdminRecipeTagTranslation[];
   categories: string[];
 }
 
 export interface AdminRecipeSteps {
   id: string;
   order: number;
-  instructionEn: string;
-  instructionEs: string;
+  translations: AdminRecipeStepTranslation[];
   thermomixTime?: number | null;
   thermomixSpeed?: ThermomixSpeed;
   thermomixTemperature?: ThermomixTemperature | null;
   thermomixTemperatureUnit?: ThermomixTemperatureUnit | null;
   thermomixIsBladeReversed? : boolean | null;
-  recipeSectionEn?: string;
-  recipeSectionEs?: string;
-  tipEn?: string;
-  tipEs?: string;
   ingredients?: AdminRecipeStepIngredient[];
 }
 
@@ -95,18 +123,42 @@ export interface AdminRecipeUsefulItem {
   recipeId: string;
   usefulItemId: string;
   displayOrder: number;
-  notesEn?: string;
-  notesEs?: string;
+  translations: AdminRecipeUsefulItemTranslation[];
   usefulItem: AdminUsefulItem;
 }
 
 export interface AdminRecipe extends Omit<Recipe, 'name' | 'ingredients' | 'tags' | 'steps' | 'usefulItems'> {
-  nameEn: string;
-  nameEs: string;
-  tipsAndTricksEn?: string;
-  tipsAndTricksEs?: string;
+  translations: AdminRecipeTranslation[];
   ingredients: AdminRecipeIngredient[];
   tags: AdminRecipeTag[];
   steps: AdminRecipeSteps[];
   usefulItems?: AdminRecipeUsefulItem[];
-} 
+}
+
+// ============================================================
+// Locale helpers — used by services and UI to extract
+// a single locale's value from translations arrays.
+// ============================================================
+
+/**
+ * Pick a translation object for a given locale from a translations array.
+ */
+export function pickTranslation<T extends { locale: string }>(
+  translations: T[] | undefined | null,
+  locale: string,
+): T | undefined {
+  if (!translations) return undefined;
+  return translations.find(t => t.locale === locale);
+}
+
+/**
+ * Get a specific field value for a locale from translations.
+ */
+export function getTranslatedField<T extends { locale: string }>(
+  translations: T[] | undefined | null,
+  locale: string,
+  field: keyof T,
+): string {
+  const t = pickTranslation(translations, locale);
+  return (t?.[field] as string) || '';
+}

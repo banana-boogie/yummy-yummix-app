@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, FlatList, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { Text } from '@/components/common/Text';
-import { AdminRecipe, AdminRecipeIngredient, AdminIngredient } from '@/types/recipe.admin.types';
+import { AdminRecipe, AdminRecipeIngredient, AdminIngredient, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/i18n';
 import { AdminRecipeIngredientCard } from '@/components/admin/recipes/forms/ingredientsForm/AdminRecipeIngredientCard';
@@ -43,7 +43,9 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
 
   // Group ingredients by recipeSection
   const groupedIngredients = recipe.ingredients.reduce<Record<string, AdminRecipeIngredient[]>>((acc, ingredient) => {
-    const recipeSection = ingredient.recipeSectionEn || ingredient.recipeSectionEs || '';
+    const recipeSection = getTranslatedField(ingredient.translations, 'en', 'recipeSection' as any)
+      || getTranslatedField(ingredient.translations, 'es', 'recipeSection' as any)
+      || '';
     if (!acc[recipeSection]) {
       acc[recipeSection] = [];
     }
@@ -92,9 +94,12 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
 
     const query = searchQuery.toLowerCase();
     const filtered = ingredients.filter(
-      ingredient =>
-        (ingredient.nameEn && ingredient.nameEn.toLowerCase().includes(query)) ||
-        (ingredient.nameEs && ingredient.nameEs.toLowerCase().includes(query))
+      ingredient => {
+        const nameEn = getTranslatedField(ingredient.translations, 'en', 'name' as any);
+        const nameEs = getTranslatedField(ingredient.translations, 'es', 'name' as any);
+        return (nameEn && nameEn.toLowerCase().includes(query)) ||
+          (nameEs && nameEs.toLowerCase().includes(query));
+      }
     );
     setFilteredIngredients(filtered);
   }, [searchQuery, ingredients]);
@@ -116,11 +121,11 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
         symbolEs: '',
       },
       optional: false,
-      notesEn: '',
-      notesEs: '',
+      translations: [
+        { locale: 'es', recipeSection: 'Principal' },
+        { locale: 'en', recipeSection: 'Main' },
+      ],
       displayOrder: recipe.ingredients ? recipe.ingredients.length : 1,
-      recipeSectionEn: 'Main',
-      recipeSectionEs: 'Principal'
     };
 
     setSelectedRecipeIngredient(newRecipeIngredient);
@@ -306,11 +311,11 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
       <View className="flex-1">
         <View className="flex-row items-center mb-1">
           <LanguageBadge language="EN" size="small" />
-          <Text className="text-sm ml-1 mb-0 self-center">{item.nameEn}</Text>
+          <Text className="text-sm ml-1 mb-0 self-center">{getTranslatedField(item.translations, 'en', 'name' as any)}</Text>
         </View>
         <View className="flex-row items-center mb-1">
           <LanguageBadge language="ES" size="small" />
-          <Text className="text-sm ml-1 mb-0 self-center">{item.nameEs}</Text>
+          <Text className="text-sm ml-1 mb-0 self-center">{getTranslatedField(item.translations, 'es', 'name' as any)}</Text>
         </View>
       </View>
       <Ionicons name="add-circle-outline" size={24} className="text-primary-DEFAULT" />

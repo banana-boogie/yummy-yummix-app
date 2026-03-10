@@ -11,6 +11,9 @@
  */
 
 // Mock dependencies before importing
+// Import after mocks
+import { parseRecipeMarkdown } from '../markdownRecipeParserService';
+
 const mockGetAllIngredientsForAdmin = jest.fn();
 const mockGetAllTags = jest.fn();
 const mockGetAllMeasurementUnits = jest.fn();
@@ -56,38 +59,63 @@ jest.mock('uuid', () => ({
   v4: () => 'mock-uuid-1234',
 }));
 
-// Import after mocks
-import { parseRecipeMarkdown } from '../markdownRecipeParserService';
-
 describe('MarkdownRecipeParserService', () => {
+  // Reference data now uses translations[] format (returned by admin services)
   const mockIngredients = [
     {
       id: 'ing-1',
-      nameEn: 'Flour',
-      nameEs: 'Harina',
-      pluralNameEn: 'Flour',
-      pluralNameEs: 'Harina',
+      translations: [
+        { locale: 'en', name: 'Flour', pluralName: 'Flour' },
+        { locale: 'es', name: 'Harina', pluralName: 'Harina' },
+      ],
+      pictureUrl: '',
+      nutritionalFacts: {},
     },
     {
       id: 'ing-2',
-      nameEn: 'Sugar',
-      nameEs: 'Azúcar',
-      pluralNameEn: 'Sugar',
-      pluralNameEs: 'Azúcar',
+      translations: [
+        { locale: 'en', name: 'Sugar', pluralName: 'Sugar' },
+        { locale: 'es', name: 'Azúcar', pluralName: 'Azúcar' },
+      ],
+      pictureUrl: '',
+      nutritionalFacts: {},
     },
     {
       id: 'ing-3',
-      nameEn: 'Salt',
-      nameEs: 'Sal',
-      pluralNameEn: 'Salt',
-      pluralNameEs: 'Sal',
+      translations: [
+        { locale: 'en', name: 'Salt', pluralName: 'Salt' },
+        { locale: 'es', name: 'Sal', pluralName: 'Sal' },
+      ],
+      pictureUrl: '',
+      nutritionalFacts: {},
     },
   ];
 
   const mockTags = [
-    { id: 'tag-1', nameEn: 'Vegetarian', nameEs: 'Vegetariano' },
-    { id: 'tag-2', nameEn: 'Quick', nameEs: 'Rápido' },
-    { id: 'tag-3', nameEn: 'Easy', nameEs: 'Fácil' },
+    {
+      id: 'tag-1',
+      translations: [
+        { locale: 'en', name: 'Vegetarian' },
+        { locale: 'es', name: 'Vegetariano' },
+      ],
+      categories: [],
+    },
+    {
+      id: 'tag-2',
+      translations: [
+        { locale: 'en', name: 'Quick' },
+        { locale: 'es', name: 'Rápido' },
+      ],
+      categories: [],
+    },
+    {
+      id: 'tag-3',
+      translations: [
+        { locale: 'en', name: 'Easy' },
+        { locale: 'es', name: 'Fácil' },
+      ],
+      categories: [],
+    },
   ];
 
   const mockMeasurementUnits = [
@@ -97,10 +125,26 @@ describe('MarkdownRecipeParserService', () => {
   ];
 
   const mockUsefulItems = [
-    { id: 'item-1', nameEn: 'Mixing Bowl', nameEs: 'Tazón para mezclar' },
-    { id: 'item-2', nameEn: 'Whisk', nameEs: 'Batidor' },
+    {
+      id: 'item-1',
+      translations: [
+        { locale: 'en', name: 'Mixing Bowl' },
+        { locale: 'es', name: 'Tazón para mezclar' },
+      ],
+      pictureUrl: '',
+    },
+    {
+      id: 'item-2',
+      translations: [
+        { locale: 'en', name: 'Whisk' },
+        { locale: 'es', name: 'Batidor' },
+      ],
+      pictureUrl: '',
+    },
   ];
 
+  // The edge function still returns the old nameEn/nameEs format
+  // (the parser service converts it to translations[])
   const mockParsedRecipe = {
     nameEn: 'Chocolate Cake',
     nameEs: 'Pastel de Chocolate',
@@ -171,22 +215,27 @@ describe('MarkdownRecipeParserService', () => {
       });
     });
 
-    it('returns parsed recipe with basic fields', async () => {
+    it('returns parsed recipe with translations', async () => {
       const result = await parseRecipeMarkdown('# Test Recipe');
 
-      expect(result.recipe.nameEn).toBe('Chocolate Cake');
-      expect(result.recipe.nameEs).toBe('Pastel de Chocolate');
+      // Now uses translations[] instead of nameEn/nameEs
+      const enTranslation = result.recipe.translations?.find(t => t.locale === 'en');
+      const esTranslation = result.recipe.translations?.find(t => t.locale === 'es');
+      expect(enTranslation?.name).toBe('Chocolate Cake');
+      expect(esTranslation?.name).toBe('Pastel de Chocolate');
       expect(result.recipe.totalTime).toBe(60);
       expect(result.recipe.prepTime).toBe(20);
       expect(result.recipe.difficulty).toBe('medium');
       expect(result.recipe.portions).toBe(8);
     });
 
-    it('returns tips and tricks', async () => {
+    it('returns tips and tricks in translations', async () => {
       const result = await parseRecipeMarkdown('# Test');
 
-      expect(result.recipe.tipsAndTricksEn).toBe('Let cool before serving');
-      expect(result.recipe.tipsAndTricksEs).toBe('Dejar enfriar antes de servir');
+      const enTranslation = result.recipe.translations?.find(t => t.locale === 'en');
+      const esTranslation = result.recipe.translations?.find(t => t.locale === 'es');
+      expect(enTranslation?.tipsAndTricks).toBe('Let cool before serving');
+      expect(esTranslation?.tipsAndTricks).toBe('Dejar enfriar antes de servir');
     });
 
     it('fetches all reference data in parallel', async () => {
@@ -218,14 +267,15 @@ describe('MarkdownRecipeParserService', () => {
       expect(firstIngredient?.measurementUnit).toBeDefined();
     });
 
-    it('preserves notes from parsed data', async () => {
+    it('preserves notes in translations', async () => {
       const result = await parseRecipeMarkdown('# Test');
 
-      const flourIngredient = result.recipe.ingredients?.find(
-        (ing) => ing.ingredient?.nameEn === 'Flour'
-      );
-      expect(flourIngredient?.notesEn).toBe('Sifted');
-      expect(flourIngredient?.notesEs).toBe('Tamizada');
+      const flourIngredient = result.recipe.ingredients?.[0];
+      // Notes are now in translations array
+      const enTranslation = flourIngredient?.translations?.find(t => t.locale === 'en');
+      const esTranslation = flourIngredient?.translations?.find(t => t.locale === 'es');
+      expect(enTranslation?.notes).toBe('Sifted');
+      expect(esTranslation?.notes).toBe('Tamizada');
     });
 
     it('tracks missing ingredients', async () => {
@@ -580,7 +630,9 @@ describe('MarkdownRecipeParserService', () => {
 
       const result = await parseRecipeMarkdown('# Test');
 
-      expect(result.recipe.nameEn).toBe('Simple Recipe');
+      // Name is now in translations
+      const enTranslation = result.recipe.translations?.find(t => t.locale === 'en');
+      expect(enTranslation?.name).toBe('Simple Recipe');
       expect(result.recipe.difficulty).toBe('easy');
     });
   });

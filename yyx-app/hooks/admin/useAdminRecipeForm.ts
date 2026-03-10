@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AdminRecipe } from '@/types/recipe.admin.types';
+import { AdminRecipe, getTranslatedField } from '@/types/recipe.admin.types';
 import { CreateRecipeStep } from '@/components/admin/recipes/RecipeProgressIndicator';
 import { adminRecipeService } from '@/services/admin/adminRecipeService';
 import { imageService } from '@/services/storage/imageService';
@@ -23,14 +23,14 @@ export interface ExtendedRecipe extends Partial<AdminRecipe> {
 
 // Initial recipe state
 const initialRecipeState: ExtendedRecipe = {
-  nameEn: '',
-  nameEs: '',
+  translations: [
+    { locale: 'es', name: '' },
+    { locale: 'en', name: '' },
+  ],
   difficulty: undefined,
   prepTime: undefined,
   totalTime: undefined,
   portions: undefined,
-  tipsAndTricksEn: '',
-  tipsAndTricksEs: '',
   pictureUrl: '',
   ingredients: [],
   tags: [],
@@ -106,7 +106,9 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
       }
       
       // If there's a saved recipe, show the resume dialog
-      if (savedRecipeData && (savedRecipeData.nameEn || savedRecipeData.nameEs)) {
+      const savedNameEn = getTranslatedField(savedRecipeData?.translations as any, 'en', 'name' as any);
+      const savedNameEs = getTranslatedField(savedRecipeData?.translations as any, 'es', 'name' as any);
+      if (savedRecipeData && (savedNameEn || savedNameEs)) {
         setSavedRecipe(savedRecipeData);
         setShowResumeDialog(true);
       } else {
@@ -135,7 +137,9 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
         if (savedStep) {
           // Special case: recipe was saved at initial setup after populated with AI help.
           // We should start at step 1 in this case, otherwise the user would get stuck at step 0.
-          if (savedRecipe && (savedRecipe?.nameEn || savedRecipe?.nameEs)) {
+          const loadedNameEn = getTranslatedField(savedRecipe?.translations as any, 'en', 'name' as any);
+          const loadedNameEs = getTranslatedField(savedRecipe?.translations as any, 'es', 'name' as any);
+          if (savedRecipe && (loadedNameEn || loadedNameEs)) {
             setCurrentStep(Math.max(savedStep, 1) as CreateRecipeStep);
           } else {
             setCurrentStep(savedStep as CreateRecipeStep);
@@ -280,7 +284,9 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
       // Upload image if new image file is provided
       let finalPictureUrl = recipe.pictureUrl || '';
       if (recipe._imageFile && recipe.pictureUrl && typeof recipe.pictureUrl === 'string' && !recipe.pictureUrl.startsWith('http')) {
-        const fileName = normalizeFileName(recipe.nameEs || recipe.nameEn || 'recipe');
+        const recipeNameEs = getTranslatedField(recipe.translations as any, 'es', 'name' as any);
+        const recipeNameEn = getTranslatedField(recipe.translations as any, 'en', 'name' as any);
+        const fileName = normalizeFileName(recipeNameEs || recipeNameEn || 'recipe');
         finalPictureUrl = await imageService.uploadImage({
           bucket: 'recipes',
           folderPath: 'images',
@@ -291,15 +297,12 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
       
       // Prepare recipe data for saving
       const recipeData: Partial<AdminRecipe> = {
-        nameEn: recipe.nameEn,
-        nameEs: recipe.nameEs,
+        translations: recipe.translations,
         pictureUrl: finalPictureUrl,
         difficulty: recipe.difficulty,
         prepTime: recipe.prepTime,
         totalTime: recipe.totalTime,
         portions: recipe.portions,
-        tipsAndTricksEn: recipe.tipsAndTricksEn,
-        tipsAndTricksEs: recipe.tipsAndTricksEs,
         isPublished: recipe.isPublished ?? true,
         ingredients: recipe.ingredients,
         tags: recipe.tags,

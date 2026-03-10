@@ -2,7 +2,7 @@ import React from 'react';
 import { View, ScrollView } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { AdminRecipeIngredientCard } from '@/components/admin/recipes/forms/ingredientsForm/AdminRecipeIngredientCard';
-import { AdminRecipeIngredient } from '@/types/recipe.admin.types';
+import { AdminRecipeIngredient, getTranslatedField } from '@/types/recipe.admin.types';
 
 interface RecipeIngredientsListProps {
   ingredients: AdminRecipeIngredient[];
@@ -19,7 +19,9 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
 }) => {
   // Group ingredients by recipeSection
   const groupedIngredients = ingredients.reduce<Record<string, AdminRecipeIngredient[]>>((acc, ingredient) => {
-    const recipeSection = ingredient.recipeSectionEn || ingredient.recipeSectionEs || '';
+    const recipeSection = getTranslatedField(ingredient.translations, 'en', 'recipeSection' as any)
+      || getTranslatedField(ingredient.translations, 'es', 'recipeSection' as any)
+      || '';
     if (!acc[recipeSection]) {
       acc[recipeSection] = [];
     }

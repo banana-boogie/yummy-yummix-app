@@ -26,20 +26,26 @@ describe('useUsefulItems', () => {
   const mockUsefulItems = [
     {
       id: 'item-1',
-      nameEn: 'Mixing Bowl',
-      nameEs: 'Tazón para mezclar',
+      translations: [
+        { locale: 'en', name: 'Mixing Bowl' },
+        { locale: 'es', name: 'Tazón para mezclar' },
+      ],
       pictureUrl: 'https://example.com/bowl.png',
     },
     {
       id: 'item-2',
-      nameEn: 'Whisk',
-      nameEs: 'Batidor',
+      translations: [
+        { locale: 'en', name: 'Whisk' },
+        { locale: 'es', name: 'Batidor' },
+      ],
       pictureUrl: 'https://example.com/whisk.png',
     },
     {
       id: 'item-3',
-      nameEn: 'Cutting Board',
-      nameEs: 'Tabla de cortar',
+      translations: [
+        { locale: 'en', name: 'Cutting Board' },
+        { locale: 'es', name: 'Tabla de cortar' },
+      ],
       pictureUrl: null,
     },
   ];
@@ -125,7 +131,7 @@ describe('useUsefulItems', () => {
 
       await waitFor(() => {
         expect(result.current.filteredUsefulItems).toHaveLength(1);
-        expect(result.current.filteredUsefulItems[0].nameEn).toBe('Mixing Bowl');
+        expect(result.current.filteredUsefulItems[0].id).toBe('item-1');
       });
     });
 
@@ -142,7 +148,7 @@ describe('useUsefulItems', () => {
 
       await waitFor(() => {
         expect(result.current.filteredUsefulItems).toHaveLength(1);
-        expect(result.current.filteredUsefulItems[0].nameEs).toBe('Batidor');
+        expect(result.current.filteredUsefulItems[0].id).toBe('item-2');
       });
     });
 
@@ -333,7 +339,11 @@ describe('useUsefulItems', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const newItems = [{ id: 'new-1', nameEn: 'New Item', nameEs: 'Nuevo' }];
+      const newItems = [{
+        id: 'new-1',
+        translations: [{ locale: 'en', name: 'New Item' }, { locale: 'es', name: 'Nuevo' }],
+        pictureUrl: '',
+      }];
 
       act(() => {
         result.current.setUsefulItems(newItems as any);

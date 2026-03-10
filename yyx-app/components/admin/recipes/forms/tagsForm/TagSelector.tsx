@@ -8,7 +8,7 @@ import { TextInput } from '@/components/form/TextInput';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/i18n';
 import { adminRecipeTagService } from '@/services/admin/adminRecipeTagService';
-import { AdminRecipeTag } from '@/types/recipe.admin.types';
+import { AdminRecipeTag, getTranslatedField } from '@/types/recipe.admin.types';
 import { MultiSelect } from '@/components/form/MultiSelect';
 import { AlertModal } from '@/components/common/AlertModal';
 import { Text } from '@/components/common/Text';
@@ -25,8 +25,9 @@ interface LocalFilters {
 export interface RecipeTagOption {
   id: string;
   name: string;
-  nameEn: string;
-  nameEs: string;
+  nameEn?: string;
+  nameEs?: string;
+  translations?: { locale: string; name: string }[];
   categories: string[];
 }
 
@@ -101,20 +102,21 @@ export function TagSelector({ selectedTags, onTagsChange }: TagSelectorProps) {
       );
     }
 
-    // Apply search filtering 
+    // Apply search filtering
     if (filters.searchQuery) {
       const searchTerm = filters.searchQuery.toLowerCase();
-      result = result.filter(tag =>
-        tag.nameEn.toLowerCase().includes(searchTerm) ||
-        tag.nameEs.toLowerCase().includes(searchTerm)
-      );
+      result = result.filter(tag => {
+        const nameEn = getTranslatedField(tag.translations, 'en', 'name' as any);
+        const nameEs = getTranslatedField(tag.translations, 'es', 'name' as any);
+        return nameEn.toLowerCase().includes(searchTerm) ||
+          nameEs.toLowerCase().includes(searchTerm);
+      });
     }
 
-    // Apply client-side sorting 
+    // Apply client-side sorting
     result.sort((a, b) => {
-      const sortField = 'nameEs'; // Sort by Spanish name
-      const valueA = a[sortField].toLowerCase();
-      const valueB = b[sortField].toLowerCase();
+      const valueA = getTranslatedField(a.translations, 'es', 'name' as any).toLowerCase();
+      const valueB = getTranslatedField(b.translations, 'es', 'name' as any).toLowerCase();
 
       if (filters.sortDirection === 'asc') {
         return valueA.localeCompare(valueB);
@@ -132,11 +134,11 @@ export function TagSelector({ selectedTags, onTagsChange }: TagSelectorProps) {
     if (isSelected) {
       onTagsChange(selectedTags.filter(t => t.id !== tag.id));
     } else {
+      const nameEn = getTranslatedField(tag.translations, 'en', 'name' as any);
       onTagsChange([...selectedTags, {
         id: tag.id,
-        name: tag.nameEn,
-        nameEn: tag.nameEn,
-        nameEs: tag.nameEs,
+        name: nameEn,
+        translations: tag.translations,
         categories: tag.categories
       }]);
     }
@@ -185,7 +187,7 @@ export function TagSelector({ selectedTags, onTagsChange }: TagSelectorProps) {
               >
                 <View className="flex-row items-center justify-between mb-xs">
                   <Text preset="body" fontWeight="700" className="text-text-default">
-                    {tag.nameEn || 'Unnamed Tag'}
+                    {(tag.translations ? getTranslatedField(tag.translations as any, 'en', 'name' as any) : tag.nameEn) || 'Unnamed Tag'}
                   </Text>
                   <TouchableOpacity
                     onPress={() => toggleTagSelection(tag as unknown as AdminRecipeTag)}
@@ -195,7 +197,7 @@ export function TagSelector({ selectedTags, onTagsChange }: TagSelectorProps) {
                   </TouchableOpacity>
                 </View>
                 <Text preset="caption" className="text-text-secondary">
-                  {tag.nameEs || 'Sin nombre'}
+                  {(tag.translations ? getTranslatedField(tag.translations as any, 'es', 'name' as any) : tag.nameEs) || 'Sin nombre'}
                 </Text>
               </View>
             ))}
@@ -302,10 +304,10 @@ export function TagSelector({ selectedTags, onTagsChange }: TagSelectorProps) {
                       )}
                       <View className="flex-1">
                         <Text className={`text-base font-bold ${isSelected ? 'text-text-default' : ''}`}>
-                          {tag.nameEn}
+                          {getTranslatedField(tag.translations, 'en', 'name' as any)}
                         </Text>
                         <Text className={`text-sm ${isSelected ? 'text-text-secondary' : 'text-text-secondary'}`}>
-                          {tag.nameEs}
+                          {getTranslatedField(tag.translations, 'es', 'name' as any)}
                         </Text>
                       </View>
                     </View>
@@ -336,8 +338,8 @@ export function TagSelector({ selectedTags, onTagsChange }: TagSelectorProps) {
                         <View className="w-6 h-6 rounded-full border border-border-DEFAULT" />
                       )}
                     </View>
-                    <Text className="flex-[2] px-xs text-base">{tag.nameEs}</Text>
-                    <Text className="flex-[2] px-xs text-base">{tag.nameEn}</Text>
+                    <Text className="flex-[2] px-xs text-base">{getTranslatedField(tag.translations, 'es', 'name' as any)}</Text>
+                    <Text className="flex-[2] px-xs text-base">{getTranslatedField(tag.translations, 'en', 'name' as any)}</Text>
                     <Text className="flex-[3] px-xs text-base">
                       {tag.categories.join(', ')}
                     </Text>

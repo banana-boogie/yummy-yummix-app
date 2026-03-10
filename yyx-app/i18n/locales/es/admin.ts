@@ -518,4 +518,10 @@ export const admin = {
       },
     },
   },
+  translate: {
+    autoTranslate: "Auto-traducir",
+    translating: "Traduciendo...",
+    translateError: "La traducción falló. Intente de nuevo.",
+    translateSuccess: "Traducciones generadas exitosamente.",
+  },
 };

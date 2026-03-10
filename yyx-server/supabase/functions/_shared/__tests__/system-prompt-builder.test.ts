@@ -12,7 +12,10 @@ import type { UserContext } from "../irmixy-schemas.ts";
 import {
   buildPersonalityBlock,
   buildUserContextBlock,
+  buildVocabularyDirective,
   buildVoiceInstructions,
+  REGIONAL_VOCABULARY,
+  resolveVocabulary,
 } from "../system-prompt-builder.ts";
 
 function createUserContext(overrides: Partial<UserContext> = {}): UserContext {
@@ -110,12 +113,68 @@ Deno.test("buildPersonalityBlock returns Mexican Spanish for 'es'", () => {
 
   assertStringIncludes(personality, "IDENTIDAD:");
   assertStringIncludes(personality, "compañera de cocina de YummyYummix");
-  assertStringIncludes(personality, "vocabulario mexicano por defecto");
+  assertStringIncludes(personality, "vocabulario de Mexican Spanish");
   assertStringIncludes(personality, "jitomate");
   assertStringIncludes(personality, "cualquier receta es fácil");
   assertStringIncludes(personality, "acompaña, no como alguien que instruye");
   assertStringIncludes(personality, "emojis con moderación");
   assertEquals(personality.includes("IDENTITY:"), false);
+});
+
+// ============================================================
+// Locale-aware vocabulary
+// ============================================================
+
+Deno.test("resolveVocabulary returns Mexican vocab for 'es'", () => {
+  const vocab = resolveVocabulary("es");
+  assertEquals(vocab, REGIONAL_VOCABULARY["es"]);
+  assertEquals(vocab?.tomato, "jitomate");
+});
+
+Deno.test("resolveVocabulary returns Spain vocab for 'es-ES'", () => {
+  const vocab = resolveVocabulary("es-ES");
+  assertEquals(vocab, REGIONAL_VOCABULARY["es-ES"]);
+  assertEquals(vocab?.tomato, "tomate");
+  assertEquals(vocab?.potato, "patata");
+});
+
+Deno.test("resolveVocabulary falls back from es-MX to es", () => {
+  const vocab = resolveVocabulary("es-MX");
+  assertEquals(vocab, REGIONAL_VOCABULARY["es"]);
+});
+
+Deno.test("resolveVocabulary returns undefined for 'en'", () => {
+  const vocab = resolveVocabulary("en");
+  assertEquals(vocab, undefined);
+});
+
+Deno.test("buildVocabularyDirective returns empty for 'en'", () => {
+  assertEquals(buildVocabularyDirective("en"), "");
+});
+
+Deno.test("buildVocabularyDirective uses Mexican Spanish for 'es'", () => {
+  const directive = buildVocabularyDirective("es");
+  assertStringIncludes(directive, "vocabulario de Mexican Spanish");
+  assertStringIncludes(directive, "jitomate");
+  assertStringIncludes(directive, "elote");
+});
+
+Deno.test("buildVocabularyDirective uses Spain Spanish for 'es-ES'", () => {
+  const directive = buildVocabularyDirective("es-ES");
+  assertStringIncludes(directive, "vocabulario de Spain Spanish");
+  assertStringIncludes(directive, "tomate");
+  assertStringIncludes(directive, "patata");
+  assertStringIncludes(directive, "zumo");
+});
+
+Deno.test("buildPersonalityBlock uses Spain vocabulary for 'es-ES'", () => {
+  const personality = buildPersonalityBlock("es-ES");
+  assertStringIncludes(personality, "IDENTIDAD:");
+  assertStringIncludes(personality, "vocabulario de Spain Spanish");
+  assertStringIncludes(personality, "tomate");
+  assertStringIncludes(personality, "patata");
+  // Should NOT contain Mexican-specific terms
+  assertEquals(personality.includes("jitomate"), false);
 });
 
 // ============================================================

@@ -3,7 +3,7 @@ import { View, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
-import { AdminIngredient } from '@/types/recipe.admin.types';
+import { AdminIngredient, getTranslatedField } from '@/types/recipe.admin.types';
 import { Text } from '@/components/common/Text';
 
 interface IngredientCardProps {
@@ -46,13 +46,13 @@ export function IngredientCard({ ingredient, onEdit, onDelete }: IngredientCardP
               preset="subheading"
               className="font-semibold mb-xxs"
             >
-              {ingredient.nameEn || '—'}
+              {getTranslatedField(ingredient.translations, 'en', 'name' as any) || '—'}
             </Text>
             <Text
               preset="body"
               className="text-text-SECONDARY"
             >
-              Plural: {ingredient.pluralNameEn || '—'}
+              Plural: {getTranslatedField(ingredient.translations, 'en', 'pluralName' as any) || '—'}
             </Text>
           </View>
         </View>
@@ -71,13 +71,13 @@ export function IngredientCard({ ingredient, onEdit, onDelete }: IngredientCardP
               preset="subheading"
               className="font-semibold mb-xxs"
             >
-              {ingredient.nameEs || '—'}
+              {getTranslatedField(ingredient.translations, 'es', 'name' as any) || '—'}
             </Text>
             <Text
               preset="body"
               className="text-text-SECONDARY"
             >
-              Plural: {ingredient.pluralNameEs || '—'}
+              Plural: {getTranslatedField(ingredient.translations, 'es', 'pluralName' as any) || '—'}
             </Text>
           </View>
         </View>

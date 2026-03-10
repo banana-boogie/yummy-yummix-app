@@ -106,7 +106,7 @@ Deno.test("buildSystemPrompt includes shared personality block for ES", () => {
 
   assertStringIncludes(prompt, "IDENTIDAD:");
   assertStringIncludes(prompt, "compañera de cocina de YummyYummix");
-  assertStringIncludes(prompt, "vocabulario mexicano por defecto");
+  assertStringIncludes(prompt, "vocabulario de Mexican Spanish");
   assertEquals(prompt.includes("IDENTITY:"), false);
 });
 

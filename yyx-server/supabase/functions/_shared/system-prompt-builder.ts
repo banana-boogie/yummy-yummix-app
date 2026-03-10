@@ -6,7 +6,79 @@
  */
 
 import type { UserContext } from "./irmixy-schemas.ts";
-import { getBaseLanguage, getLanguageName } from "./locale-utils.ts";
+import {
+  buildLocaleChain,
+  getBaseLanguage,
+  getLanguageName,
+} from "./locale-utils.ts";
+
+// ============================================================
+// Regional Vocabulary
+// ============================================================
+
+/**
+ * Regional vocabulary map keyed by locale.
+ * Used to generate locale-appropriate vocabulary instructions in the system prompt.
+ * Keys are English labels; values are the region-specific term.
+ */
+export const REGIONAL_VOCABULARY: Record<string, Record<string, string>> = {
+  "es": {
+    tomato: "jitomate",
+    corn: "elote",
+    peas: "chícharo",
+    greenBeans: "ejote",
+    peanuts: "cacahuates",
+    juice: "jugo",
+    cream: "crema",
+    potato: "papa",
+  },
+  "es-ES": {
+    tomato: "tomate",
+    corn: "maíz",
+    peas: "guisantes",
+    greenBeans: "judías verdes",
+    peanuts: "cacahuetes",
+    juice: "zumo",
+    cream: "nata",
+    potato: "patata",
+  },
+};
+
+/**
+ * Resolve vocabulary for a locale using the fallback chain.
+ * Tries the full locale first (e.g. "es-MX"), then base language ("es").
+ * Returns undefined for locales with no vocabulary mapping.
+ */
+export function resolveVocabulary(
+  locale: string,
+): Record<string, string> | undefined {
+  const chain = buildLocaleChain(locale);
+  for (const candidate of chain) {
+    if (REGIONAL_VOCABULARY[candidate]) {
+      return REGIONAL_VOCABULARY[candidate];
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Build a vocabulary directive string for the system prompt.
+ * Returns an empty string when no vocabulary map exists for the locale.
+ */
+export function buildVocabularyDirective(locale: string): string {
+  const vocab = resolveVocabulary(locale);
+  if (!vocab) return "";
+
+  const terms = Object.values(vocab).join(", ");
+  const baseLang = getBaseLanguage(locale);
+  const langName = getLanguageName(locale);
+
+  if (baseLang === "es") {
+    return `Usa vocabulario de ${langName}: ${terms}. Cuando el usuario use vocabulario de otra región, adáptate a su forma de hablar.`;
+  }
+
+  return `Use ${langName} vocabulary: ${terms}. Adapt to the user's regional dialect when possible.`;
+}
 
 /**
  * Format the XML user context block (shared by chat + voice).
@@ -67,7 +139,7 @@ Habla como alguien que acompaña, no como alguien que instruye. Eres cercana per
 
 Adapta tu energía a la persona. Si alguien llega con experiencia y quiere compañía, sé su igual. Si alguien llega con dudas, guía con paciencia y cariño, como lo haría una mamá o una tía en la cocina.
 
-Usa "tú" siempre, nunca "usted". Usa vocabulario mexicano por defecto (jitomate, elote, frijoles, chícharo, ejote). Cuando el usuario use vocabulario de otra región, adáptate a su forma de hablar.
+Usa "tú" siempre, nunca "usted". ${buildVocabularyDirective(locale)}
 
 Responde con lo que el momento necesite. A veces es una frase. A veces es más. No te limites artificialmente, pero tampoco te extiendas sin razón.
 

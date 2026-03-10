@@ -1,4 +1,4 @@
-import { AdminIngredient, AdminRecipeIngredient, AdminRecipeStepIngredient } from '@/types/recipe.admin.types';
+import { AdminIngredient, AdminRecipeIngredient, AdminRecipeStepIngredient, getTranslatedField } from '@/types/recipe.admin.types';
 
 // Types
 type IngredientMatchOptions = {
@@ -120,21 +120,31 @@ export class IngredientMatcher {
   }
 
   private extractNameFields(ingredient: AdminIngredient | AdminRecipeIngredient | AdminRecipeStepIngredient): IngredientNameFields {
-    if ('ingredient' in ingredient) {
+    // Extracts name fields from an ingredient, supporting both translations[] format
+    // and legacy nameEn/nameEs format (used by edge function parsed output).
+    const getNames = (ing: any): IngredientNameFields => {
+      if (ing.translations && ing.translations.length > 0) {
+        return {
+          nameEn: getTranslatedField(ing.translations, 'en', 'name' as any),
+          nameEs: getTranslatedField(ing.translations, 'es', 'name' as any),
+          pluralNameEn: getTranslatedField(ing.translations, 'en', 'pluralName' as any),
+          pluralNameEs: getTranslatedField(ing.translations, 'es', 'pluralName' as any),
+        };
+      }
+      // Fallback for legacy format (e.g. parsed edge function data)
       return {
-        nameEn: ingredient.ingredient.nameEn,
-        nameEs: ingredient.ingredient.nameEs,
-        pluralNameEn: ingredient.ingredient.pluralNameEn,
-        pluralNameEs: ingredient.ingredient.pluralNameEs
+        nameEn: ing.nameEn || '',
+        nameEs: ing.nameEs || '',
+        pluralNameEn: ing.pluralNameEn || '',
+        pluralNameEs: ing.pluralNameEs || '',
       };
-    }
-    
-    return {
-      nameEn: ingredient.nameEn,
-      nameEs: ingredient.nameEs,
-      pluralNameEn: ingredient.pluralNameEn,
-      pluralNameEs: ingredient.pluralNameEs
     };
+
+    if ('ingredient' in ingredient) {
+      return getNames(ingredient.ingredient);
+    }
+
+    return getNames(ingredient);
   }
 
   private hasNameMatch(search: IngredientNameFields, ingredient: IngredientNameFields): boolean {

@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/common/Text';
 import i18n from '@/i18n';
-import { AdminRecipeTag } from '@/types/recipe.admin.types';
+import { AdminRecipeTag, getTranslatedField } from '@/types/recipe.admin.types';
 
 interface RecipeTagsListProps {
   tags: AdminRecipeTag[];
@@ -25,7 +25,7 @@ export function RecipeTagsList({ tags }: RecipeTagsListProps) {
             <View key={tag.id} className="flex-row items-center bg-background-SECONDARY py-sm px-md rounded-md border border-primary-LIGHT gap-xs">
               <Ionicons name="pricetag-outline" size={16} className="text-primary-MEDIUM mb-xxs mr-xxs" />
               <Text preset="caption" className="text-text-DEFAULT" numberOfLines={1}>
-                {tag.nameEn || ''} | {tag.nameEs || ''}
+                {getTranslatedField(tag.translations, 'en', 'name' as any) || ''} | {getTranslatedField(tag.translations, 'es', 'name' as any) || ''}
               </Text>
             </View>
           ))}

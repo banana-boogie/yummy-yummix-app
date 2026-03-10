@@ -87,10 +87,10 @@ describe('AdminIngredientsService', () => {
 
   const mockTransformedIngredient = {
     id: 'ing-1',
-    nameEn: 'Tomato',
-    nameEs: 'Tomate',
-    pluralNameEn: 'Tomatoes',
-    pluralNameEs: 'Tomates',
+    translations: [
+      { locale: 'en', name: 'Tomato', pluralName: 'Tomatoes' },
+      { locale: 'es', name: 'Tomate', pluralName: 'Tomates' },
+    ],
     pictureUrl: 'https://example.com/tomato.png',
     nutritionalFacts: { calories: 20 },
   };
@@ -164,7 +164,7 @@ describe('AdminIngredientsService', () => {
       expect(result).toEqual([]);
     });
 
-    it('transforms missing translations to undefined', async () => {
+    it('transforms missing translations to empty array', async () => {
       mockOrder.mockResolvedValue({
         data: [{ id: 'ing-2', image_url: null, nutritional_facts: null, translations: [] }],
         error: null,
@@ -172,8 +172,7 @@ describe('AdminIngredientsService', () => {
 
       const result = await service.getAllIngredientsForAdmin();
 
-      expect(result[0].nameEn).toBeUndefined();
-      expect(result[0].nameEs).toBeUndefined();
+      expect(result[0].translations).toEqual([]);
     });
   });
 
@@ -184,10 +183,10 @@ describe('AdminIngredientsService', () => {
   describe('createIngredient', () => {
     it('creates ingredient without image', async () => {
       const newIngredient = {
-        nameEn: 'Onion',
-        nameEs: 'Cebolla',
-        pluralNameEn: 'Onions',
-        pluralNameEs: 'Cebollas',
+        translations: [
+          { locale: 'en', name: 'Onion', pluralName: 'Onions' },
+          { locale: 'es', name: 'Cebolla', pluralName: 'Cebollas' },
+        ],
         nutritionalFacts: { calories: 40 },
       };
 
@@ -227,8 +226,10 @@ describe('AdminIngredientsService', () => {
     it('creates ingredient with image upload', async () => {
       const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
       const newIngredient = {
-        nameEn: 'Carrot',
-        nameEs: 'Zanahoria',
+        translations: [
+          { locale: 'en', name: 'Carrot' },
+          { locale: 'es', name: 'Zanahoria' },
+        ],
         pictureUrl: mockFile,
       };
 
@@ -260,11 +261,13 @@ describe('AdminIngredientsService', () => {
     it('updates ingredient name fields via translation upsert', async () => {
       const updates = {
         id: 'ing-1',
-        nameEn: 'Updated Tomato',
-        nameEs: 'Tomate Actualizado',
+        translations: [
+          { locale: 'en', name: 'Updated Tomato' },
+          { locale: 'es', name: 'Tomate Actualizado' },
+        ],
       };
 
-      await service.updateIngredient('ing-1', updates);
+      await service.updateIngredient('ing-1', updates as any);
 
       // Name fields should NOT go to the ingredients table update
       expect(mockUpdate).not.toHaveBeenCalled();
@@ -273,8 +276,8 @@ describe('AdminIngredientsService', () => {
       expect(mockFrom).toHaveBeenCalledWith('ingredient_translations');
       expect(mockUpsert).toHaveBeenCalledWith(
         [
-          { ingredient_id: 'ing-1', locale: 'en', name: 'Updated Tomato' },
-          { ingredient_id: 'ing-1', locale: 'es', name: 'Tomate Actualizado' },
+          { ingredient_id: 'ing-1', locale: 'en', name: 'Updated Tomato', plural_name: null },
+          { ingredient_id: 'ing-1', locale: 'es', name: 'Tomate Actualizado', plural_name: null },
         ],
         { onConflict: 'ingredient_id,locale' }
       );
@@ -284,7 +287,9 @@ describe('AdminIngredientsService', () => {
       const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
       const updates = {
         id: 'ing-1',
-        nameEn: 'Tomato',
+        translations: [
+          { locale: 'en', name: 'Tomato' },
+        ],
         pictureUrl: mockFile as any,
       };
 
@@ -382,8 +387,10 @@ describe('AdminIngredientsService', () => {
     it('uses Spanish name for image filename when available', async () => {
       const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
       const newIngredient = {
-        nameEn: 'Pepper',
-        nameEs: 'Pimiento',
+        translations: [
+          { locale: 'en', name: 'Pepper' },
+          { locale: 'es', name: 'Pimiento' },
+        ],
         pictureUrl: mockFile,
       };
 
@@ -404,7 +411,9 @@ describe('AdminIngredientsService', () => {
     it('falls back to English name for filename', async () => {
       const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
       const newIngredient = {
-        nameEn: 'Pepper',
+        translations: [
+          { locale: 'en', name: 'Pepper' },
+        ],
         pictureUrl: mockFile,
       };
 

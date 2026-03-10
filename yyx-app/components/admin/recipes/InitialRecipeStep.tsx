@@ -5,7 +5,7 @@ import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { TextInput } from '@/components/form/TextInput';
 import { FORM_MAX_WIDTH } from '@/components/form/FormSection';
-import { AdminRecipe, AdminIngredient, AdminRecipeTag, AdminRecipeIngredient, AdminUsefulItem, AdminRecipeUsefulItem } from '@/types/recipe.admin.types';
+import { AdminRecipe, AdminIngredient, AdminRecipeTag, AdminRecipeIngredient, AdminUsefulItem, AdminRecipeUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
 import { parseRecipeMarkdown } from '@/services/admin/markdownRecipeParserService';
 import { CreateEditIngredientModal } from '@/components/admin/ingredients/CreateEditIngredientModal';
 import { TagEditModal } from '@/components/admin/tags/TagEditModal';
@@ -28,7 +28,7 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
     const [parsingStatus, setParsingStatus] = useState<{
         loading: boolean;
         error?: string;
-        missingIngredients?: Array<AdminRecipeIngredient>;
+        missingIngredients?: AdminRecipeIngredient[];
         missingTags?: string[];
         missingUsefulItems?: string[];
     }>({ loading: false });
@@ -106,11 +106,19 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
         setShowIngredientModal(false);
 
         const isIngredientMatch = (recipeIngredient: AdminRecipeIngredient, newIngredient: AdminIngredient) => {
+            const existingNameEn = getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name' as any);
+            const existingNameEs = getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name' as any);
+            const existingPluralEn = getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'pluralName' as any);
+            const existingPluralEs = getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'pluralName' as any);
+            const newNameEn = getTranslatedField(newIngredient.translations, 'en', 'name' as any);
+            const newNameEs = getTranslatedField(newIngredient.translations, 'es', 'name' as any);
+            const newPluralEn = getTranslatedField(newIngredient.translations, 'en', 'pluralName' as any);
+            const newPluralEs = getTranslatedField(newIngredient.translations, 'es', 'pluralName' as any);
             return (
-                recipeIngredient.ingredient?.nameEn?.toLowerCase() === newIngredient.nameEn.toLowerCase() ||
-                recipeIngredient.ingredient?.pluralNameEn?.toLowerCase() === newIngredient.pluralNameEn.toLowerCase() ||
-                recipeIngredient.ingredient?.nameEs?.toLowerCase() === newIngredient.nameEs.toLowerCase() ||
-                recipeIngredient.ingredient?.pluralNameEs?.toLowerCase() === newIngredient.pluralNameEs.toLowerCase()
+                (existingNameEn && newNameEn && existingNameEn.toLowerCase() === newNameEn.toLowerCase()) ||
+                (existingPluralEn && newPluralEn && existingPluralEn.toLowerCase() === newPluralEn.toLowerCase()) ||
+                (existingNameEs && newNameEs && existingNameEs.toLowerCase() === newNameEs.toLowerCase()) ||
+                (existingPluralEs && newPluralEs && existingPluralEs.toLowerCase() === newPluralEs.toLowerCase())
             );
         };
 
@@ -160,9 +168,11 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
         setShowTagModal(false);
 
         // Find matching missing tag
+        const newTagNameEn = getTranslatedField(newTag.translations, 'en', 'name' as any);
+        const newTagNameEs = getTranslatedField(newTag.translations, 'es', 'name' as any);
         const matchingIndex = parsingStatus.missingTags?.findIndex(
-            tag => tag.toLowerCase() === newTag.nameEn.toLowerCase() ||
-                tag.toLowerCase() === newTag.nameEs.toLowerCase()
+            tag => (newTagNameEn && tag.toLowerCase() === newTagNameEn.toLowerCase()) ||
+                (newTagNameEs && tag.toLowerCase() === newTagNameEs.toLowerCase())
         );
 
         // If there's a match, mark it as checked in the UI
@@ -200,9 +210,11 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
         setShowUsefulItemModal(false);
 
         // Find matching missing useful item
+        const newUsefulItemNameEn = getTranslatedField(newUsefulItem.translations, 'en', 'name' as any);
+        const newUsefulItemNameEs = getTranslatedField(newUsefulItem.translations, 'es', 'name' as any);
         const matchingIndex = parsingStatus.missingUsefulItems?.findIndex(
-            usefulItem => usefulItem.toLowerCase() === newUsefulItem.nameEn.toLowerCase() ||
-                usefulItem.toLowerCase() === newUsefulItem.nameEs.toLowerCase()
+            usefulItem => (newUsefulItemNameEn && usefulItem.toLowerCase() === newUsefulItemNameEn.toLowerCase()) ||
+                (newUsefulItemNameEs && usefulItem.toLowerCase() === newUsefulItemNameEs.toLowerCase())
         );
 
         // If there's a match, mark it as checked in the UI
@@ -335,8 +347,7 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                                                         key={index}
                                                         checked={isChecked}
                                                         onPress={() => toggleIngredientChecked(ingredientId)}
-                                                        // @ts-ignore - recipeIngredient from 
-                                                        label={`${recipeIngredient.ingredient?.nameEn || ''} / ${recipeIngredient.ingredient?.nameEs || ''}`}
+                                                        label={`${getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name' as any) || ''} / ${getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name' as any) || ''}`}
                                                         className="flex-row items-center mb-xs py-xxs"
                                                     />
                                                 );

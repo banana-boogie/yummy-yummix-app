@@ -10,7 +10,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import { TagEditModal } from '@/components/admin/tags/TagEditModal';
 import i18n from '@/i18n';
-import { AdminRecipeTag } from '@/types/recipe.admin.types';
+import { AdminRecipeTag, getTranslatedField } from '@/types/recipe.admin.types';
 import { formatCategoryNameToTitleCase } from '@/utils/formatters';
 import { useDevice } from '@/hooks/useDevice';
 
@@ -37,12 +37,13 @@ export default function AdminTags() {
     } else {
       const query = searchQuery.toLowerCase();
       setFilteredTags(
-        tags.filter(
-          tag =>
-            tag.nameEn.toLowerCase().includes(query) ||
-            tag.nameEs.toLowerCase().includes(query) ||
-            (tag.categories && tag.categories.some(category => category.toLowerCase().includes(query)))
-        )
+        tags.filter(tag => {
+          const nameEn = getTranslatedField(tag.translations, 'en', 'name' as any);
+          const nameEs = getTranslatedField(tag.translations, 'es', 'name' as any);
+          return nameEn.toLowerCase().includes(query) ||
+            nameEs.toLowerCase().includes(query) ||
+            (tag.categories && tag.categories.some(category => category.toLowerCase().includes(query)));
+        })
       );
     }
   }, [searchQuery, tags]);
@@ -146,8 +147,8 @@ export default function AdminTags() {
     >
       {/* Names */}
       <View className="mb-sm">
-        <Text preset="body" className="font-semibold">{item.nameEn}</Text>
-        <Text preset="caption" color={COLORS.text.secondary}>{item.nameEs}</Text>
+        <Text preset="body" className="font-semibold">{getTranslatedField(item.translations, 'en', 'name' as any)}</Text>
+        <Text preset="caption" color={COLORS.text.secondary}>{getTranslatedField(item.translations, 'es', 'name' as any)}</Text>
       </View>
 
       {/* Categories */}
@@ -202,10 +203,10 @@ export default function AdminTags() {
       }}
     >
       <View className="w-[200px] pr-md">
-        <Text preset="body">{item.nameEs}</Text>
+        <Text preset="body">{getTranslatedField(item.translations, 'es', 'name' as any)}</Text>
       </View>
       <View className="w-[200px] pr-md">
-        <Text preset="body">{item.nameEn}</Text>
+        <Text preset="body">{getTranslatedField(item.translations, 'en', 'name' as any)}</Text>
       </View>
       <View className="flex-1 flex-row flex-wrap gap-xs">
         {item.categories && item.categories.map((category, index) => (

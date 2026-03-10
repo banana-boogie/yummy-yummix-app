@@ -2,7 +2,7 @@ import React from 'react';
 import { View, ScrollView } from 'react-native';
 import i18n from '@/i18n';
 import { Text } from '@/components/common/Text';
-import { AdminRecipe } from '@/types/recipe.admin.types';
+import { AdminRecipe, getTranslatedField } from '@/types/recipe.admin.types';
 import { RecipeInfo } from '@/components/recipe-detail/RecipeInfo';
 import { RecipeDifficulty } from '@/types/recipe.types';
 import { RecipeIngredientsList } from '@/components/admin/recipes/forms/reviewForm/AdminRecipeIngredientsList';
@@ -33,7 +33,7 @@ export function ReviewForm({ recipe, onUpdateRecipe }: ReviewFormProps) {
     >
       {/* Preview of recipe */}
       <View className="flex-col gap-lg rounded-lg">
-        <Text preset="h1" className="mb-md">{`${recipe.nameEn}  |  ${recipe.nameEs}`}</Text>
+        <Text preset="h1" className="mb-md">{`${getTranslatedField(recipe.translations as any, 'en', 'name' as any)}  |  ${getTranslatedField(recipe.translations as any, 'es', 'name' as any)}`}</Text>
 
         {recipe.pictureUrl ? (
           <View className="w-full h-[200px] rounded-lg mb-md overflow-hidden bg-background-SECONDARY">

@@ -1,3 +1,4 @@
 export { adminRecipeService } from './adminRecipeService';
 export { adminIngredientsService } from './adminIngredientsService';
-export { adminUsefulItemsService } from './adminUsefulItemsService'; 
+export { adminUsefulItemsService } from './adminUsefulItemsService';
+export { translateContent } from './adminTranslateService';

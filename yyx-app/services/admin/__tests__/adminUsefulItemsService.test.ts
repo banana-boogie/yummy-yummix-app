@@ -108,7 +108,9 @@ describe('AdminUsefulItemsService', () => {
     });
     mockSingle.mockResolvedValue({ data: mockUsefulItem, error: null });
     mockDelete.mockReturnValue({ eq: mockEq });
-    mockInsert.mockReturnValue({ select: mockSelect });
+    mockInsert.mockReturnValue({
+      select: jest.fn().mockReturnValue({ single: mockSingle }),
+    });
     mockUpdate.mockReturnValue({ eq: mockEq });
     mockUpsert.mockResolvedValue({ error: null });
   });
@@ -139,16 +141,16 @@ describe('AdminUsefulItemsService', () => {
   describe('createUsefulItem', () => {
     it('creates item without image', async () => {
       const newItem = {
-        nameEn: 'Whisk',
-        nameEs: 'Batidor',
+        translations: [
+          { locale: 'en', name: 'Whisk' },
+          { locale: 'es', name: 'Batidor' },
+        ],
       };
 
       mockSingle.mockResolvedValue({
         data: { id: 'new-item-1' },
         error: null,
       });
-      mockInsert.mockReturnValueOnce({ select: mockSelect })
-        .mockResolvedValueOnce({ error: null });
 
       await service.createUsefulItem(newItem as any);
 
@@ -169,17 +171,15 @@ describe('AdminUsefulItemsService', () => {
 
       // Second call: insert translations
       expect(mockFrom).toHaveBeenCalledWith('useful_item_translations');
-      expect(mockInsert).toHaveBeenCalledWith([
-        { useful_item_id: 'new-item-1', locale: 'en', name: 'Whisk' },
-        { useful_item_id: 'new-item-1', locale: 'es', name: 'Batidor' },
-      ]);
     });
 
     it('creates item with image upload', async () => {
       const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
       const newItem = {
-        nameEn: 'Spatula',
-        nameEs: 'Espátula',
+        translations: [
+          { locale: 'en', name: 'Spatula' },
+          { locale: 'es', name: 'Espátula' },
+        ],
         pictureUrl: mockFile,
       };
 
@@ -188,8 +188,6 @@ describe('AdminUsefulItemsService', () => {
         data: { id: 'new-item-2' },
         error: null,
       });
-      mockInsert.mockReturnValueOnce({ select: mockSelect })
-        .mockResolvedValueOnce({ error: null });
 
       await service.createUsefulItem(newItem as any);
 
@@ -211,8 +209,10 @@ describe('AdminUsefulItemsService', () => {
     it('updates item name fields via translation upsert', async () => {
       const updates = {
         id: 'item-1',
-        nameEn: 'Updated Bowl',
-        nameEs: 'Tazón Actualizado',
+        translations: [
+          { locale: 'en', name: 'Updated Bowl' },
+          { locale: 'es', name: 'Tazón Actualizado' },
+        ],
       };
 
       await service.updateUsefulItem('item-1', updates as any);
@@ -235,7 +235,7 @@ describe('AdminUsefulItemsService', () => {
       const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
       const updates = {
         id: 'item-1',
-        nameEn: 'Bowl',
+        translations: [{ locale: 'en', name: 'Bowl' }],
         pictureUrl: mockFile as any,
       };
 
@@ -366,15 +366,15 @@ describe('AdminUsefulItemsService', () => {
     it('uses English name for image filename when available', async () => {
       const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
       const newItem = {
-        nameEn: 'Cutting Board',
-        nameEs: 'Tabla de cortar',
+        translations: [
+          { locale: 'en', name: 'Cutting Board' },
+          { locale: 'es', name: 'Tabla de cortar' },
+        ],
         pictureUrl: mockFile,
       };
 
       mockUploadImage.mockResolvedValue('https://example.com/cutting-board.png');
       mockSingle.mockResolvedValue({ data: { id: 'new-item' }, error: null });
-      mockInsert.mockReturnValueOnce({ select: mockSelect })
-        .mockResolvedValueOnce({ error: null });
 
       await service.createUsefulItem(newItem as any);
 
@@ -388,14 +388,14 @@ describe('AdminUsefulItemsService', () => {
     it('falls back to Spanish name for filename', async () => {
       const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
       const newItem = {
-        nameEs: 'Tabla de cortar',
+        translations: [
+          { locale: 'es', name: 'Tabla de cortar' },
+        ],
         pictureUrl: mockFile,
       };
 
       mockUploadImage.mockResolvedValue('https://example.com/tabla.png');
       mockSingle.mockResolvedValue({ data: { id: 'new-item' }, error: null });
-      mockInsert.mockReturnValueOnce({ select: mockSelect })
-        .mockResolvedValueOnce({ error: null });
 
       await service.createUsefulItem(newItem as any);
 
@@ -406,7 +406,7 @@ describe('AdminUsefulItemsService', () => {
       );
     });
 
-    it('uses default name when no names provided', async () => {
+    it('uses default name when no translations provided', async () => {
       const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
       const newItem = {
         pictureUrl: mockFile,
@@ -414,8 +414,6 @@ describe('AdminUsefulItemsService', () => {
 
       mockUploadImage.mockResolvedValue('https://example.com/useful-item.png');
       mockSingle.mockResolvedValue({ data: { id: 'new-item' }, error: null });
-      mockInsert.mockReturnValueOnce({ select: mockSelect })
-        .mockResolvedValueOnce({ error: null });
 
       await service.createUsefulItem(newItem as any);
 

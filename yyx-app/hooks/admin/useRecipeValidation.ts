@@ -1,11 +1,13 @@
-import { AdminRecipe } from '@/types/recipe.admin.types';
+import { AdminRecipe, getTranslatedField } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 
 export const useRecipeValidation = () => {
   const validateBasicInfo = (recipe: Partial<AdminRecipe>): Record<string, string> => {
     const errors: Record<string, string> = {};
     
-    if (!recipe.nameEn && !recipe.nameEs) {
+    const nameEn = getTranslatedField(recipe.translations as any, 'en', 'name' as any);
+    const nameEs = getTranslatedField(recipe.translations as any, 'es', 'name' as any);
+    if (!nameEn && !nameEs) {
       errors.name = i18n.t('admin.recipes.form.errors.nameRequired');
     }
     if (!recipe.difficulty) {

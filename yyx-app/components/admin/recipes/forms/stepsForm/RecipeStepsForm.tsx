@@ -33,14 +33,14 @@ export function StepsForm({ recipe, onUpdateRecipe, errors }: StepsFormProps) {
     const newStep: AdminRecipeSteps = {
       id: generateUUID(), // Temporary ID, will be replaced on save
       order: sortedSteps.length + 1,
-      instructionEn: '',
-      instructionEs: '',
+      translations: [
+        { locale: 'es', instruction: '', recipeSection: 'Principal' },
+        { locale: 'en', instruction: '', recipeSection: 'Main' },
+      ],
       thermomixTime: null,
       thermomixSpeed: null,
       thermomixTemperature: null,
       thermomixTemperatureUnit: 'C',
-      recipeSectionEn: 'Main',
-      recipeSectionEs: 'Principal',
       ingredients: []
     };
     setSelectedStep(newStep);

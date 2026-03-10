@@ -95,15 +95,15 @@ describe('AdminRecipeService', () => {
       expect(result).toEqual([]);
     });
 
-    it('transforms recipe data to camelCase', async () => {
+    it('transforms recipe data to include translations array', async () => {
       mockChain = createChainableMock({ data: [mockRecipe], error: null });
       mockFrom.mockImplementation(() => mockChain);
 
       const result = await adminRecipeService.getAllRecipesForAdmin();
 
       if (result.length > 0) {
-        expect(result[0]).toHaveProperty('nameEn');
-        expect(result[0]).toHaveProperty('nameEs');
+        expect(result[0]).toHaveProperty('translations');
+        expect(Array.isArray(result[0].translations)).toBe(true);
       }
     });
   });
@@ -286,8 +286,10 @@ describe('AdminRecipeService', () => {
       mockFrom.mockImplementation(() => mockChain);
 
       const result = await adminRecipeService.createRecipe({
-        nameEn: 'Test Recipe',
-        nameEs: 'Receta de Prueba',
+        translations: [
+          { locale: 'en', name: 'Test Recipe' },
+          { locale: 'es', name: 'Receta de Prueba' },
+        ],
       });
 
       expect(result).toBe('new-recipe-id');
@@ -299,7 +301,7 @@ describe('AdminRecipeService', () => {
       mockFrom.mockImplementation(() => mockChain);
 
       await expect(
-        adminRecipeService.createRecipe({ nameEn: 'Test' })
+        adminRecipeService.createRecipe({ translations: [{ locale: 'en', name: 'Test' }] })
       ).rejects.toThrow('Failed to create recipe: Insert failed');
     });
 

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/common/Text';
 import { renderRecipeText } from '@/components/recipe-detail/RenderRecipeText';
 import { formatTime, formatTemperature, formatInstruction } from '@/utils/thermomix/formatters';
-import { AdminRecipeSteps } from '@/types/recipe.admin.types';
+import { AdminRecipeSteps, getTranslatedField } from '@/types/recipe.admin.types';
 import { ThermomixSettings, ThermomixSpeedRange } from '@/types/thermomix.types';
 import i18n from '@/i18n';
 import { Image } from 'expo-image';
@@ -38,6 +38,11 @@ export function RecipeStepContent({
     return null;
   };
 
+  const instructionEn = getTranslatedField(recipeStep.translations, 'en', 'instruction' as any);
+  const instructionEs = getTranslatedField(recipeStep.translations, 'es', 'instruction' as any);
+  const tipEn = getTranslatedField(recipeStep.translations, 'en', 'tip' as any);
+  const tipEs = getTranslatedField(recipeStep.translations, 'es', 'tip' as any);
+
   // Preview thermomix parameters formatting
   const formatStep = (language: string = 'en') => {
     // Check if thermomixSpeed is a SpeedRange
@@ -50,26 +55,29 @@ export function RecipeStepContent({
       speed_end = Number(speedRange.end);
     }
 
+    const recipeSectionEn = getTranslatedField(recipeStep.translations, 'en', 'recipeSection' as any);
+    const recipeSectionEs = getTranslatedField(recipeStep.translations, 'es', 'recipeSection' as any);
+
     // Create raw recipe instruction for formatter
     const rawRecipeStep = {
       id: recipeStep.id,
       recipe_id: '',
       order: recipeStep.order,
-      instruction_en: recipeStep.instructionEn,
-      instruction_es: recipeStep.instructionEs,
+      instruction_en: instructionEn,
+      instruction_es: instructionEs,
       thermomix_time: recipeStep.thermomixTime || null,
       thermomix_temperature: recipeStep.thermomixTemperature || null,
       thermomix_speed: typeof recipeStep.thermomixSpeed === 'number' ? recipeStep.thermomixSpeed : null,
       thermomix_speed_start: speed_start,
       thermomix_speed_end: speed_end,
-      recipe_section_en: recipeStep.recipeSectionEn || '',
-      recipe_section_es: recipeStep.recipeSectionEs || '',
+      recipe_section_en: recipeSectionEn,
+      recipe_section_es: recipeSectionEs,
       thermomix_temperature_unit: recipeStep.thermomixTemperatureUnit || 'C'
     } as RawRecipeStep;
 
     const measurementSystem = rawRecipeStep.thermomix_temperature_unit === 'C' ? 'metric' : 'imperial';
 
-    const instruction = rawRecipeStep[`instruction_${language}` as 'instruction_en' | 'instruction_es'];
+    const instruction = language === 'en' ? instructionEn : instructionEs;
     const thermomix = {
       time: recipeStep.thermomixTime || null,
       temperature: recipeStep.thermomixTemperature || null,
@@ -155,8 +163,8 @@ export function RecipeStepContent({
                       cachePolicy="memory-disk"
                     />
                     <View className="flex-1 ml-sm">
-                      <Text fontWeight="700" className="text-base">{recipeIngredient.ingredient?.nameEn}</Text>
-                      <Text className="text-sm text-text-SECONDARY">{recipeIngredient.ingredient?.nameEs}</Text>
+                      <Text fontWeight="700" className="text-base">{getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name' as any)}</Text>
+                      <Text className="text-sm text-text-SECONDARY">{getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name' as any)}</Text>
                     </View>
                   </View>
                   <View className="flex-row justify-between items-center pt-xs border-t border-border-DEFAULT">
@@ -189,7 +197,7 @@ export function RecipeStepContent({
                       <View className="mb-xs flex-row items-center">
                         <View className="flex-row items-center flex-wrap mr-sm">
                           <LanguageBadge language="EN" size="small" />
-                          <Text fontWeight="700" className="ml-1">{recipeIngredient.ingredient?.nameEn}</Text>
+                          <Text fontWeight="700" className="ml-1">{getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name' as any)}</Text>
                         </View>
                         <Text className="bg-background-SECONDARY px-[2px] rounded-xs text-xs text-text-SECONDARY ml-auto">
                           {recipeIngredient.quantity} {recipeIngredient.measurementUnit?.symbolEn || ''}
@@ -198,7 +206,7 @@ export function RecipeStepContent({
                       <View className="mb-xs flex-row items-center">
                         <View className="flex-row items-center flex-wrap mr-sm">
                           <LanguageBadge language="ES" size="small" />
-                          <Text fontWeight="700" className="ml-1">{recipeIngredient.ingredient?.nameEs}</Text>
+                          <Text fontWeight="700" className="ml-1">{getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name' as any)}</Text>
                         </View>
                         <Text className="bg-background-SECONDARY px-[2px] rounded-xs text-xs text-text-SECONDARY ml-auto">
                           {recipeIngredient.quantity} {recipeIngredient.measurementUnit?.symbolEs || ''}
@@ -264,25 +272,25 @@ export function RecipeStepContent({
       ) : null}
 
       {/* Display tips if present */}
-      {recipeStep.tipEn || recipeStep.tipEs ? (
+      {tipEn || tipEs ? (
         <View className="my-md bg-background-SECONDARY rounded-md p-sm">
           <Text preset="caption" fontWeight="700" className="mb-xs text-text-SECONDARY">
             {i18n.t('admin.recipes.form.stepsInfo.tipTitle')}
           </Text>
           <View className="flex-col p-md gap-sm rounded-md bg-background-DEFAULT">
-            {recipeStep.tipEn ? (
+            {tipEn ? (
               <View className="flex-row items-center gap-sm">
                 <LanguageBadge language="EN" size="small" />
                 <Text preset="caption">
-                  {recipeStep.tipEn}
+                  {tipEn}
                 </Text>
               </View>
             ) : null}
-            {recipeStep.tipEs ? (
+            {tipEs ? (
               <View className="flex-row items-center gap-sm">
                 <LanguageBadge language="ES" size="small" />
                 <Text preset="caption">
-                  {recipeStep.tipEs}
+                  {tipEs}
                 </Text>
               </View>
             ) : null}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/common/Text';
-import { AdminRecipeUsefulItem } from '@/types/recipe.admin.types';
+import { AdminRecipeUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LanguageBadge } from '@/components/common/LanguageBadge';
@@ -32,7 +32,11 @@ export function AdminRecipeUsefulItemCard({
   variant = 'editable'
 }: AdminRecipeUsefulItemCardProps) {
   const { isMobile } = useDevice();
-  const hasNotes = !!(recipeUsefulItem.notesEn || recipeUsefulItem.notesEs);
+  const usefulItemNameEn = getTranslatedField(recipeUsefulItem.usefulItem?.translations, 'en', 'name' as any);
+  const usefulItemNameEs = getTranslatedField(recipeUsefulItem.usefulItem?.translations, 'es', 'name' as any);
+  const notesEn = getTranslatedField(recipeUsefulItem.translations, 'en', 'notes' as any);
+  const notesEs = getTranslatedField(recipeUsefulItem.translations, 'es', 'notes' as any);
+  const hasNotes = !!(notesEn || notesEs);
   const isReadonly = variant === 'readonly' || hideActions;
 
   return (
@@ -56,10 +60,10 @@ export function AdminRecipeUsefulItemCard({
 
         <View className="flex-1">
           <Text className={`font-semibold ${isMobile ? 'text-sm' : ''}`}>
-            {recipeUsefulItem.usefulItem?.nameEn}
+            {usefulItemNameEn}
           </Text>
           <Text className="text-xs text-text-SECONDARY">
-            {recipeUsefulItem.usefulItem?.nameEs}
+            {usefulItemNameEs}
           </Text>
         </View>
 
@@ -116,18 +120,18 @@ export function AdminRecipeUsefulItemCard({
               <Divider thickness={0.3} opacity={0.2} />
             </>
           )}
-          {recipeUsefulItem.notesEn && (
+          {notesEn ? (
             <View className="flex-row mt-xs items-start">
               <LanguageBadge language="EN" />
-              <Text className="text-xs text-text-SECONDARY flex-1 ml-xs">{recipeUsefulItem.notesEn}</Text>
+              <Text className="text-xs text-text-SECONDARY flex-1 ml-xs">{notesEn}</Text>
             </View>
-          )}
-          {recipeUsefulItem.notesEs && (
+          ) : null}
+          {notesEs ? (
             <View className="flex-row mt-xs items-start">
               <LanguageBadge language="ES" />
-              <Text className="text-xs text-text-SECONDARY flex-1 ml-xs">{recipeUsefulItem.notesEs}</Text>
+              <Text className="text-xs text-text-SECONDARY flex-1 ml-xs">{notesEs}</Text>
             </View>
-          )}
+          ) : null}
         </View>
       )}
     </View>

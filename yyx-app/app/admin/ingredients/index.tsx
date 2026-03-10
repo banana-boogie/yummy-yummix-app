@@ -7,7 +7,7 @@ import { IngredientCard } from '@/components/admin/ingredients/IngredientCard';
 import { useIngredients } from '@/hooks/admin/useIngredients';
 import { AlertModal } from '@/components/common/AlertModal';
 import { SearchBar } from '@/components/common/SearchBar';
-import { AdminIngredient } from '@/types/recipe.admin.types';
+import { AdminIngredient, getTranslatedField } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { CreateEditIngredientModal } from '@/components/admin/ingredients/CreateEditIngredientModal';
 import { Text } from '@/components/common/Text';
@@ -129,7 +129,7 @@ export default function IngredientsAdminPage() {
       <AlertModal
         visible={showDeleteAlert}
         title={i18n.t('admin.ingredients.confirmDeletion.title')}
-        message={`${i18n.t('admin.ingredients.confirmDeletion.message')} ${selectedIngredient?.nameEn} | ${selectedIngredient?.nameEs}`}
+        message={`${i18n.t('admin.ingredients.confirmDeletion.message')} ${getTranslatedField(selectedIngredient?.translations as any, 'en', 'name' as any)} | ${getTranslatedField(selectedIngredient?.translations as any, 'es', 'name' as any)}`}
         onConfirm={handleConfirmDelete}
         onCancel={() => {
           setShowDeleteAlert(false);

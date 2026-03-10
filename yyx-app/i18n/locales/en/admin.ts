@@ -510,4 +510,10 @@ export const admin = {
       },
     },
   },
+  translate: {
+    autoTranslate: "Auto-translate",
+    translating: "Translating...",
+    translateError: "Translation failed. Please try again.",
+    translateSuccess: "Translations generated successfully.",
+  },
 };

@@ -679,15 +679,17 @@ interface AllergenAnnotationResult {
   verificationUnavailable: boolean;
 }
 
-/** Locale-keyed restriction labels. Extensible to new locales. */
-const RESTRICTION_LABELS: Record<string, Record<string, string>> = {
+/** Locale-keyed restriction labels. Extensible to new locales.
+ *  Lookup order: full locale (e.g. "es-ES") -> base language ("es") -> "en".
+ */
+export const RESTRICTION_LABELS: Record<string, Record<string, string>> = {
   dairy: { en: "dairy", es: "lácteos" },
   eggs: { en: "eggs", es: "huevo" },
   egg: { en: "egg", es: "huevo" },
   fish: { en: "fish", es: "pescado" },
   gluten: { en: "gluten", es: "gluten" },
-  nuts: { en: "tree nuts", es: "nueces" },
-  peanuts: { en: "peanuts", es: "cacahuates" },
+  nuts: { en: "tree nuts", es: "nueces", "es-ES": "frutos secos" },
+  peanuts: { en: "peanuts", es: "cacahuates", "es-ES": "cacahuetes" },
   sesame: { en: "sesame", es: "sésamo" },
   shellfish: { en: "shellfish", es: "mariscos" },
   soy: { en: "soy", es: "soya" },
@@ -705,15 +707,16 @@ function getVerificationWarning(locale: string): string {
   return VERIFICATION_WARNINGS[baseLang] || VERIFICATION_WARNINGS["en"];
 }
 
-function formatRestrictionLabel(
+export function formatRestrictionLabel(
   restriction: string,
   locale: string,
 ): string {
   const normalized = restriction.toLowerCase().replace(/[_-]+/g, " ").trim();
   const known = RESTRICTION_LABELS[normalized];
   if (known) {
-    const baseLang = getBaseLanguage(locale);
-    return known[baseLang] || known["en"] || normalized;
+    // Try full locale first (e.g. "es-ES"), then base language ("es"), then "en"
+    return known[locale] || known[getBaseLanguage(locale)] || known["en"] ||
+      normalized;
   }
   return normalized;
 }

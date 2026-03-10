@@ -3,7 +3,7 @@ import { View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { AdminUsefulItem } from '@/types/recipe.admin.types';
+import { AdminUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
 import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 
@@ -58,8 +58,8 @@ export function AvailableItemsSection({
                 </View>
 
                 <View className="flex-1">
-                    <Text className="font-medium">{item.nameEn}</Text>
-                    <Text className="text-xs text-text-SECONDARY">{item.nameEs}</Text>
+                    <Text className="font-medium">{getTranslatedField(item.translations, 'en', 'name' as any)}</Text>
+                    <Text className="text-xs text-text-SECONDARY">{getTranslatedField(item.translations, 'es', 'name' as any)}</Text>
                 </View>
 
                 {isAdded ? (

@@ -9,6 +9,7 @@ import {
   AdminRecipeTag,
   AdminRecipeUsefulItem,
   AdminUsefulItem,
+  getTranslatedField,
 } from '@/types/recipe.admin.types';
 import { supabase } from 'lib/supabase'
 import { RecipeDifficulty } from '@/types/recipe.types';
@@ -39,11 +40,12 @@ const matchTag = (tagName: string, allTags: AdminRecipeTag[]): AdminRecipeTag | 
   // Remove the # prefix if present
   const normalizedTagName = tagName.startsWith('#') ? tagName.substring(1) : tagName;
 
-  const match = allTags.find(
-    tag =>
-      tag.nameEn.toLowerCase() === normalizedTagName.toLowerCase() ||
-      tag.nameEs.toLowerCase() === normalizedTagName.toLowerCase()
-  );
+  const match = allTags.find(tag => {
+    const tagNameEn = getTranslatedField(tag.translations, 'en', 'name' as any);
+    const tagNameEs = getTranslatedField(tag.translations, 'es', 'name' as any);
+    return tagNameEn.toLowerCase() === normalizedTagName.toLowerCase() ||
+      tagNameEs.toLowerCase() === normalizedTagName.toLowerCase();
+  });
 
   if (!match) return null;
 
@@ -67,18 +69,16 @@ const processIngredients = (
       const measurementUnitMatch = matchMeasurementUnit(item.measurementUnitID, allMeasurementUnits) as AdminMeasurementUnit;
       ingredients.push({
         id: `temp-${generateUUID()}`, // temp id
-        ingredientId: ingredientMatch.id, 
+        ingredientId: ingredientMatch.id,
         ingredient: ingredientMatch,
         measurementUnit: measurementUnitMatch,
-        recipeSectionEn: item.recipeSectionEn || 'Main',
-        recipeSectionEs: item.recipeSectionEs || 'Principal',
+        translations: [
+          { locale: 'es', recipeSection: item.recipeSectionEs || 'Principal', notes: item.notesEs || '', tip: item.tipEs || '' },
+          { locale: 'en', recipeSection: item.recipeSectionEn || 'Main', notes: item.notesEn || '', tip: item.tipEn || '' },
+        ],
         displayOrder: item.displayOrder || order,
         quantity: item.quantity,
         optional: item.optional || false,
-        notesEn: item.notesEn || '',
-        notesEs: item.notesEs || '',
-        tipEn: item.tipEn || '',
-        tipEs: item.tipEs || ''
       });
 
       order++;
@@ -149,9 +149,15 @@ const processSteps = (steps: AdminRecipeSteps[], allIngredients: AdminRecipeIngr
  */
 const processUsefulItems = (usefulItemsNames: AdminUsefulItem[], allUsefulItems: AdminUsefulItem[]): { usefulItems: AdminRecipeUsefulItem[], missingUsefulItems: string[] } => {
   const matchUsefulItem = (usefulItem: AdminUsefulItem, allUsefulItems: AdminUsefulItem[]): AdminUsefulItem | null => {
-    const match = allUsefulItems.find(
-      item => item.nameEn.toLowerCase().trim() === usefulItem.nameEn.toLowerCase().trim() || item.nameEs.toLowerCase().trim() === usefulItem.nameEs.toLowerCase().trim()
-    );
+    // The parsed usefulItem may use old nameEn/nameEs or translations
+    const searchNameEn = getTranslatedField(usefulItem.translations, 'en', 'name' as any) || (usefulItem as any).nameEn || '';
+    const searchNameEs = getTranslatedField(usefulItem.translations, 'es', 'name' as any) || (usefulItem as any).nameEs || '';
+    const match = allUsefulItems.find(item => {
+      const itemNameEn = getTranslatedField(item.translations, 'en', 'name' as any);
+      const itemNameEs = getTranslatedField(item.translations, 'es', 'name' as any);
+      return itemNameEn.toLowerCase().trim() === searchNameEn.toLowerCase().trim() ||
+        itemNameEs.toLowerCase().trim() === searchNameEs.toLowerCase().trim();
+    });
     return match || null;
   }
 
@@ -161,20 +167,25 @@ const processUsefulItems = (usefulItemsNames: AdminUsefulItem[], allUsefulItems:
   for (const [index, usefulItem] of usefulItemsNames.entries()) {
     const matchedUsefulItem = matchUsefulItem(usefulItem, allUsefulItems);
     if (matchedUsefulItem) {
+      // @ts-ignore - parsed data may have notesEn/notesEs
+      const notesEn = usefulItem.notesEn || '';
+      // @ts-ignore
+      const notesEs = usefulItem.notesEs || '';
       usefulItemsMap.set(matchedUsefulItem.id, {
-        id: `temp-${generateUUID()}`, // Ensure recipeUsefulItem has an id
-        recipeId: `temp-recipe-id`, // Ensure recipeUsefulItem has a recipeId
+        id: `temp-${generateUUID()}`,
+        recipeId: `temp-recipe-id`,
         usefulItemId: matchedUsefulItem.id,
         // @ts-ignore - displayOrder should exist in markdown data
         displayOrder: usefulItem.displayOrder || index,
-        // @ts-ignore - Include notes if they exist in the parsed data
-        notesEn: usefulItem.notesEn || '',
-        // @ts-ignore - Include notes if they exist in the parsed data
-        notesEs: usefulItem.notesEs || '',
+        translations: [
+          { locale: 'es', notes: notesEs },
+          { locale: 'en', notes: notesEn },
+        ],
         usefulItem: matchedUsefulItem
       });
     } else {
-      missingUsefulItems.push(usefulItem.nameEn);
+      const nameEn = getTranslatedField(usefulItem.translations, 'en', 'name' as any) || (usefulItem as any).nameEn || '';
+      missingUsefulItems.push(nameEn);
     }
   }
 
@@ -202,14 +213,14 @@ export const parseRecipeMarkdown = async (markdown: string): Promise<ParseRecipe
 
     // Process the parsed data into AdminRecipe format
     const recipe: Partial<AdminRecipe> = {
-      nameEn: data.nameEn,
-      nameEs: data.nameEs,
+      translations: [
+        { locale: 'es', name: data.nameEs || '', tipsAndTricks: data.tipsAndTricksEs || '' },
+        { locale: 'en', name: data.nameEn || '', tipsAndTricks: data.tipsAndTricksEn || '' },
+      ],
       totalTime: data.totalTime,
       prepTime: data.prepTime,
       difficulty: data.difficulty as RecipeDifficulty,
       portions: data.portions,
-      tipsAndTricksEn: data.tipsAndTricksEn,
-      tipsAndTricksEs: data.tipsAndTricksEs,
     };
     
     // Process ingredients

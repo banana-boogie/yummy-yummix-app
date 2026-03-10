@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/common/Text';
-import { AdminRecipe, AdminRecipeUsefulItem, AdminUsefulItem } from '@/types/recipe.admin.types';
+import { AdminRecipe, AdminRecipeUsefulItem, AdminUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { FormSection } from '@/components/form/FormSection';
 import { adminUsefulItemsService } from '@/services/admin/adminUsefulItemsService';
@@ -65,10 +65,12 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors }: Useful
     useEffect(() => {
         if (searchQuery) {
             const lowercaseQuery = searchQuery.toLowerCase();
-            const filtered = usefulItems.filter(item =>
-                item.nameEn?.toLowerCase().includes(lowercaseQuery) ||
-                item.nameEs?.toLowerCase().includes(lowercaseQuery)
-            );
+            const filtered = usefulItems.filter(item => {
+                const nameEn = getTranslatedField(item.translations, 'en', 'name' as any);
+                const nameEs = getTranslatedField(item.translations, 'es', 'name' as any);
+                return nameEn?.toLowerCase().includes(lowercaseQuery) ||
+                    nameEs?.toLowerCase().includes(lowercaseQuery);
+            });
             setFilteredUsefulItems(filtered);
         } else {
             setFilteredUsefulItems(usefulItems);

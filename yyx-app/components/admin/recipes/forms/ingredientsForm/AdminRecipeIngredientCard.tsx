@@ -2,7 +2,7 @@ import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from '@/components/common/Text';
-import { AdminRecipeIngredient } from '@/types/recipe.admin.types';
+import { AdminRecipeIngredient, getTranslatedField, pickTranslation } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/i18n';
 import { LanguageBadge } from '@/components/common/LanguageBadge';
@@ -31,6 +31,13 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
   hideActions = false
 }) => {
   const { isMobile } = useDevice();
+  const ingredientNameEn = getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name' as any);
+  const ingredientNameEs = getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name' as any);
+  const notesEn = getTranslatedField(recipeIngredient.translations, 'en', 'notes' as any);
+  const notesEs = getTranslatedField(recipeIngredient.translations, 'es', 'notes' as any);
+  const tipEn = getTranslatedField(recipeIngredient.translations, 'en', 'tip' as any);
+  const tipEs = getTranslatedField(recipeIngredient.translations, 'es', 'tip' as any);
+
   return (
     <View className={`border border-border-DEFAULT rounded-md overflow-hidden mb-md bg-background-DEFAULT ${isMobile ? 'p-xs' : 'p-sm'}`}>
       <View className="flex-1">
@@ -44,8 +51,8 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
               contentFit="contain"
             />
             <View className="flex-1">
-              <Text className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'} mb-[2px]`}>{recipeIngredient.ingredient.nameEn}</Text>
-              <Text className="text-text-SECONDARY text-sm">{recipeIngredient.ingredient.nameEs}</Text>
+              <Text className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'} mb-[2px]`}>{ingredientNameEn}</Text>
+              <Text className="text-text-SECONDARY text-sm">{ingredientNameEs}</Text>
             </View>
           </View>
 
@@ -119,56 +126,56 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
 
         <View className="p-sm">
           {/* Notes */}
-          {(recipeIngredient.notesEn || recipeIngredient.notesEs) && (
+          {(notesEn || notesEs) && (
             <View className="mb-sm">
               <Text preset="subheading" className="mb-sm">
                 {i18n.t('admin.recipes.form.ingredientsInfo.notesTitle')}
               </Text>
 
-              {recipeIngredient.notesEn && (
+              {notesEn ? (
                 <View className="flex-row items-center mb-xs">
                   <LanguageBadge language="EN" size="small" />
                   <Text className="flex-1 text-xs text-text-SECONDARY ml-xs">
-                    {recipeIngredient.notesEn}
+                    {notesEn}
                   </Text>
                 </View>
-              )}
+              ) : null}
 
-              {recipeIngredient.notesEs && (
+              {notesEs ? (
                 <View className="flex-row items-center mb-xs">
                   <LanguageBadge language="ES" size="small" />
                   <Text className="flex-1 text-xs text-text-SECONDARY ml-xs">
-                    {recipeIngredient.notesEs}
+                    {notesEs}
                   </Text>
                 </View>
-              )}
+              ) : null}
             </View>
           )}
 
           {/* Tips */}
-          {(recipeIngredient.tipEn || recipeIngredient.tipEs) && (
+          {(tipEn || tipEs) && (
             <View className="mt-xs">
               <Text preset="subheading" className="mb-sm">
                 {i18n.t('admin.recipes.form.ingredientsInfo.tipTitle')}
               </Text>
 
-              {recipeIngredient.tipEn && (
+              {tipEn ? (
                 <View className="flex-row items-center mb-xs">
                   <LanguageBadge language="EN" size="small" />
                   <Text className="flex-1 text-xs text-text-SECONDARY ml-xs">
-                    {recipeIngredient.tipEn}
+                    {tipEn}
                   </Text>
                 </View>
-              )}
+              ) : null}
 
-              {recipeIngredient.tipEs && (
+              {tipEs ? (
                 <View className="flex-row items-center mb-xs">
                   <LanguageBadge language="ES" size="small" />
                   <Text className="flex-1 text-xs text-text-SECONDARY ml-xs">
-                    {recipeIngredient.tipEs}
+                    {tipEs}
                   </Text>
                 </View>
-              )}
+              ) : null}
             </View>
           )}
         </View>

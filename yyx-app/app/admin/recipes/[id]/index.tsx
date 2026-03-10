@@ -9,7 +9,7 @@ import { StepsForm } from '@/components/admin/recipes/forms/stepsForm/RecipeStep
 import { TagsForm } from '@/components/admin/recipes/forms/tagsForm/TagsForm';
 import { ReviewForm } from '@/components/admin/recipes/forms/reviewForm/ReviewForm';
 import { RecipeUsefulItemsForm } from '@/components/admin/recipes/forms/usefulItemsForm/RecipeUsefulItemsForm';
-import { AdminRecipe } from '@/types/recipe.admin.types';
+import { AdminRecipe, getTranslatedField } from '@/types/recipe.admin.types';
 import { adminRecipeService } from '@/services/admin/adminRecipeService';
 import { AlertModal } from '@/components/common/AlertModal';
 import { FormErrors } from '@/components/form/FormErrors';
@@ -160,7 +160,9 @@ export default function EditRecipePage() {
   };
 
   // Show loading state until recipe name is loaded to prevent title flash
-  if (loading || !recipe.nameEn) {
+  const recipeNameEn = getTranslatedField(recipe.translations, 'en', 'name' as any);
+  const recipeNameEs = getTranslatedField(recipe.translations, 'es', 'name' as any);
+  if (loading || !recipeNameEn) {
     return (
       <AdminLayout title={i18n.t('admin.common.loading')} showBackButton={true}>
         <View className="flex-1 justify-center items-center">
@@ -172,7 +174,7 @@ export default function EditRecipePage() {
 
   return (
     <AdminLayout
-      title={recipe.nameEn ? `${recipe.nameEn} | ${recipe.nameEs}` : i18n.t('admin.recipes.form.newRecipe')}
+      title={recipeNameEn ? `${recipeNameEn} | ${recipeNameEs}` : i18n.t('admin.recipes.form.newRecipe')}
       showBackButton={true}
     >
       <View className="flex-1">

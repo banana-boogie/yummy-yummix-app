@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { View, Modal, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
-import { AdminRecipeUsefulItem } from '@/types/recipe.admin.types';
+import { AdminRecipeUsefulItem, AdminRecipeUsefulItemTranslation, pickTranslation, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/i18n';
 import { Image } from 'expo-image';
 import { TextInput } from '@/components/form/TextInput';
+import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
+import { translateContent } from '@/services/admin/adminTranslateService';
 
 interface RecipeUsefulItemFormModalProps {
   visible: boolean;
@@ -25,18 +27,18 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
   recipeUsefulItem,
   existingUsefulItems = [],
 }) => {
+  const { locales } = useActiveLocales();
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [translating, setTranslating] = useState(false);
   const [formData, setFormData] = useState<AdminRecipeUsefulItem>({
     id: '',
     recipeId: '',
     usefulItemId: '',
     displayOrder: 0,
-    notesEn: '',
-    notesEs: '',
+    translations: [],
     usefulItem: {
       id: '',
-      nameEn: '',
-      nameEs: '',
+      translations: [],
       pictureUrl: '',
     },
   });
@@ -44,20 +46,79 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
   useEffect(() => {
     if (visible) {
       if (recipeUsefulItem) {
-        setFormData(recipeUsefulItem);
+        setFormData({
+          ...recipeUsefulItem,
+          translations: recipeUsefulItem.translations || [],
+        });
       }
       setErrors({});
     }
   }, [recipeUsefulItem, visible]);
 
+  const getNotesForLocale = (locale: string): string => {
+    return pickTranslation(formData.translations, locale)?.notes || '';
+  };
+
+  const setNotesForLocale = (locale: string, notes: string) => {
+    const existing = formData.translations.find(t => t.locale === locale);
+    let updated: AdminRecipeUsefulItemTranslation[];
+    if (existing) {
+      updated = formData.translations.map(t =>
+        t.locale === locale ? { ...t, notes } : t
+      );
+    } else {
+      updated = [...formData.translations, { locale, notes }];
+    }
+    setFormData(prev => ({ ...prev, translations: updated }));
+  };
+
+  const handleAutoTranslate = async () => {
+    const sourceTranslation = formData.translations.find(t => t.notes?.trim());
+    if (!sourceTranslation) return;
+
+    const sourceLocale = sourceTranslation.locale;
+    const targetLocales = locales
+      .map(l => l.code)
+      .filter(code => code !== sourceLocale);
+
+    if (targetLocales.length === 0) return;
+
+    setTranslating(true);
+    try {
+      const results = await translateContent(
+        { notes: sourceTranslation.notes! },
+        sourceLocale,
+        targetLocales,
+      );
+
+      let updated = [...formData.translations];
+      for (const result of results) {
+        const existing = updated.find(t => t.locale === result.targetLocale);
+        if (existing) {
+          updated = updated.map(t =>
+            t.locale === result.targetLocale
+              ? { ...t, notes: result.fields.notes || t.notes }
+              : t
+          );
+        } else {
+          updated.push({ locale: result.targetLocale, notes: result.fields.notes || '' });
+        }
+      }
+      setFormData(prev => ({ ...prev, translations: updated }));
+    } catch (error) {
+      console.error('Auto-translate failed:', error);
+    } finally {
+      setTranslating(false);
+    }
+  };
+
   const validateForm = (): boolean => {
     const newErrors: ValidationErrors = {};
 
-    // Check for duplicates - prevent the user from proceeding if a duplicate is found
     const isDuplicate = existingUsefulItems.some(
       item =>
         item.usefulItemId === formData.usefulItemId &&
-        item.id !== formData.id // Not the same item we're editing
+        item.id !== formData.id
     );
 
     if (isDuplicate) {
@@ -77,12 +138,9 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
     }
   };
 
-  const handleChangeText = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  // Get useful item display names
+  const usefulItemNameEn = getTranslatedField(formData.usefulItem?.translations, 'en', 'name' as any);
+  const usefulItemNameEs = getTranslatedField(formData.usefulItem?.translations, 'es', 'name' as any);
 
   return (
     <Modal
@@ -128,10 +186,10 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
 
                 <View className="flex-1">
                   <Text preset="subheading" className="mb-1">
-                    {formData.usefulItem?.nameEn}
+                    {usefulItemNameEn}
                   </Text>
                   <Text className="text-text-SECONDARY">
-                    {formData.usefulItem?.nameEs}
+                    {usefulItemNameEs}
                   </Text>
                 </View>
               </View>
@@ -142,21 +200,30 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
                 </Text>
               )}
 
-              {/* Notes in English */}
-              <TextInput
-                value={formData.notesEn || ''}
-                onChangeText={(value) => handleChangeText('notesEn', value)}
-                containerStyle={{ marginBottom: 16 }}
-                label={i18n.t('admin.recipes.form.usefulItemsInfo.notesEnLabel', { defaultValue: 'Notes (English)' })}
-              />
+              {/* Notes - dynamic per locale */}
+              {locales.map(locale => (
+                <TextInput
+                  key={`notes-${locale.code}`}
+                  value={getNotesForLocale(locale.code)}
+                  onChangeText={(value) => setNotesForLocale(locale.code, value)}
+                  containerStyle={{ marginBottom: 16 }}
+                  label={`${i18n.t('admin.recipes.form.usefulItemsInfo.notesEnLabel', { defaultValue: 'Notes' })} (${locale.displayName})`}
+                />
+              ))}
 
-              {/* Notes in Spanish */}
-              <TextInput
-                value={formData.notesEs || ''}
-                onChangeText={(value) => handleChangeText('notesEs', value)}
-                containerStyle={{ marginBottom: 16 }}
-                label={i18n.t('admin.recipes.form.usefulItemsInfo.notesEsLabel', { defaultValue: 'Notes (Spanish)' })}
-              />
+              <Button
+                onPress={handleAutoTranslate}
+                loading={translating}
+                disabled={translating}
+                variant="outline"
+                size="small"
+                className="mb-md"
+              >
+                {translating
+                  ? i18n.t('admin.translate.translating')
+                  : i18n.t('admin.translate.autoTranslate')
+                }
+              </Button>
             </ScrollView>
 
             <View className="flex-row justify-end p-md border-t border-border-default">

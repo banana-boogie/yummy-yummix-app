@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { AdminIngredient } from '@/types/recipe.admin.types';
+import { AdminIngredient, AdminIngredientTranslation } from '@/types/recipe.admin.types';
 import { BaseService } from '../base/BaseService';
 import { imageService } from '../storage/imageService';
 
@@ -12,6 +12,18 @@ function pickByLocale<T extends { locale: string }>(
 ): T | undefined {
   if (!translations) return undefined;
   return translations.find(t => t.locale === locale);
+}
+
+/**
+ * Helper: extract a name from translations, trying the given locale first, then any.
+ */
+function getNameFromTranslations(translations: AdminIngredientTranslation[] | undefined): string {
+  if (!translations || translations.length === 0) return 'ingredient';
+  const es = pickByLocale(translations, 'es');
+  if (es?.name) return es.name;
+  const en = pickByLocale(translations, 'en');
+  if (en?.name) return en.name;
+  return translations[0]?.name || 'ingredient';
 }
 
 export class AdminIngredientsService extends BaseService {
@@ -39,35 +51,33 @@ export class AdminIngredientsService extends BaseService {
       throw new Error(`Error fetching ingredients: ${error.message}`);
     }
 
-    const result = (data || []).map((item: any) => {
-      const en = pickByLocale(item.translations, 'en');
-      const es = pickByLocale(item.translations, 'es');
-      return {
-        id: item.id,
-        nameEn: en?.name || undefined,
-        nameEs: es?.name || undefined,
-        pluralNameEn: en?.plural_name || undefined,
-        pluralNameEs: es?.plural_name || undefined,
-        pictureUrl: item.image_url,
-        nutritionalFacts: item.nutritional_facts
-      };
-    });
+    const result: AdminIngredient[] = (data || []).map((item: any) => ({
+      id: item.id,
+      translations: (item.translations || []).map((t: any) => ({
+        locale: t.locale,
+        name: t.name || '',
+        pluralName: t.plural_name || undefined,
+      })),
+      pictureUrl: item.image_url,
+      nutritionalFacts: item.nutritional_facts,
+    }));
 
     // Sort client-side since we can't sort by translation table column via PostgREST
+    const sortLocale = sortBy === 'name_es' ? 'es' : 'en';
     result.sort((a: AdminIngredient, b: AdminIngredient) => {
-      const aVal = sortBy === 'name_es' ? (a.nameEs || '') : (a.nameEn || '');
-      const bVal = sortBy === 'name_es' ? (b.nameEs || '') : (b.nameEn || '');
-      return aVal.localeCompare(bVal);
+      const aName = pickByLocale(a.translations, sortLocale)?.name || '';
+      const bName = pickByLocale(b.translations, sortLocale)?.name || '';
+      return aName.localeCompare(bName);
     });
 
     return result;
   }
 
-  private async handleImageUpload(file: any, nameEs?: string, nameEn?: string): Promise<string> {
+  private async handleImageUpload(file: any, translations?: AdminIngredientTranslation[]): Promise<string> {
     if (!file) return '';
 
     try {
-      const fileName = `${nameEs || nameEn || 'ingredient'}.png`;
+      const fileName = `${getNameFromTranslations(translations)}.png`;
       return await this.uploadImage({
         bucket: 'ingredients',
         folderPath: 'images',
@@ -111,8 +121,7 @@ export class AdminIngredientsService extends BaseService {
         if (isNewImage) {
           ingredientData.image_url = await this.handleImageUpload(
             ingredient.pictureUrl,
-            ingredient.nameEs,
-            ingredient.nameEn
+            ingredient.translations
           );
         } else {
           ingredientData.image_url = ingredient.pictureUrl;
@@ -129,27 +138,18 @@ export class AdminIngredientsService extends BaseService {
       }
     }
 
-    // Upsert translations for both locales
-    const translations: { ingredient_id: string; locale: string; name?: string; plural_name?: string }[] = [];
+    // Upsert translations from the translations array
+    if (ingredient.translations && ingredient.translations.length > 0) {
+      const dbTranslations = ingredient.translations.map(t => ({
+        ingredient_id: id,
+        locale: t.locale,
+        name: t.name,
+        plural_name: t.pluralName || null,
+      }));
 
-    if (ingredient.nameEn !== undefined || ingredient.pluralNameEn !== undefined) {
-      const enTranslation: any = { ingredient_id: id, locale: 'en' };
-      if (ingredient.nameEn !== undefined) enTranslation.name = ingredient.nameEn;
-      if (ingredient.pluralNameEn !== undefined) enTranslation.plural_name = ingredient.pluralNameEn;
-      translations.push(enTranslation);
-    }
-
-    if (ingredient.nameEs !== undefined || ingredient.pluralNameEs !== undefined) {
-      const esTranslation: any = { ingredient_id: id, locale: 'es' };
-      if (ingredient.nameEs !== undefined) esTranslation.name = ingredient.nameEs;
-      if (ingredient.pluralNameEs !== undefined) esTranslation.plural_name = ingredient.pluralNameEs;
-      translations.push(esTranslation);
-    }
-
-    if (translations.length > 0) {
       const { error: translationError } = await this.supabase
         .from('ingredient_translations')
-        .upsert(translations, { onConflict: 'ingredient_id,locale' });
+        .upsert(dbTranslations, { onConflict: 'ingredient_id,locale' });
 
       if (translationError) {
         throw new Error(`Failed to upsert ingredient translations: ${translationError.message}`);
@@ -176,6 +176,9 @@ export class AdminIngredientsService extends BaseService {
   }
 
   async createIngredient(ingredient: any): Promise<AdminIngredient> {
+    // Support both old (nameEn/nameEs) and new (translations) formats
+    const translations: AdminIngredientTranslation[] = ingredient.translations || [];
+
     const ingredientData: Record<string, any> = {
       image_url: '',
       nutritional_facts: ingredient.nutritionalFacts,
@@ -184,8 +187,7 @@ export class AdminIngredientsService extends BaseService {
     if (ingredient.pictureUrl) {
       ingredientData.image_url = await this.handleImageUpload(
         ingredient.pictureUrl,
-        ingredient.nameEs,
-        ingredient.nameEn
+        translations
       );
     }
 
@@ -200,26 +202,27 @@ export class AdminIngredientsService extends BaseService {
       throw new Error(`Failed to create ingredient: ${insertError.message}`);
     }
 
-    // Insert translations for both locales
-    const translations = [
-      { ingredient_id: inserted.id, locale: 'en', name: ingredient.nameEn, plural_name: ingredient.pluralNameEn },
-      { ingredient_id: inserted.id, locale: 'es', name: ingredient.nameEs, plural_name: ingredient.pluralNameEs },
-    ];
+    // Insert translations from the translations array
+    const dbTranslations = translations.map(t => ({
+      ingredient_id: inserted.id,
+      locale: t.locale,
+      name: t.name,
+      plural_name: t.pluralName || null,
+    }));
 
-    const { error: translationError } = await this.supabase
-      .from('ingredient_translations')
-      .insert(translations);
+    if (dbTranslations.length > 0) {
+      const { error: translationError } = await this.supabase
+        .from('ingredient_translations')
+        .insert(dbTranslations);
 
-    if (translationError) {
-      throw new Error(`Failed to insert ingredient translations: ${translationError.message}`);
+      if (translationError) {
+        throw new Error(`Failed to insert ingredient translations: ${translationError.message}`);
+      }
     }
 
     return {
       id: inserted.id,
-      nameEn: ingredient.nameEn,
-      nameEs: ingredient.nameEs,
-      pluralNameEn: ingredient.pluralNameEn,
-      pluralNameEs: ingredient.pluralNameEs,
+      translations,
       pictureUrl: ingredientData.image_url,
       nutritionalFacts: ingredient.nutritionalFacts,
     };

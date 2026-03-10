@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { BaseService } from '@/services/base/BaseService';
-import { AdminRecipeTag } from '@/types/recipe.admin.types';
+import { AdminRecipeTag, AdminRecipeTagTranslation } from '@/types/recipe.admin.types';
 import { formatCategoryNameToTitleCase, formatToScreamingSnakeCase, transformCategories } from '@/utils/formatters';
 export interface TagFilters {
   searchQuery?: string;
@@ -40,22 +40,22 @@ class AdminRecipeTagService extends BaseService {
       throw new Error(`Failed to fetch tags: ${error.message}`);
     }
 
-    // Transform to admin format
-    const tags = (data || []).map((item: any) => {
-      const en = pickByLocale(item.translations, 'en');
-      const es = pickByLocale(item.translations, 'es');
-      return {
-        id: item.id,
-        nameEn: en?.name || '',
-        nameEs: es?.name || '',
-        categories: transformCategories.toDisplay(item.categories || []),
-      };
-    });
+    // Transform to admin format with translations arrays
+    const tags: AdminRecipeTag[] = (data || []).map((item: any) => ({
+      id: item.id,
+      translations: (item.translations || []).map((t: any) => ({
+        locale: t.locale,
+        name: t.name || '',
+      })),
+      categories: transformCategories.toDisplay(item.categories || []),
+    }));
 
     // Sort by Spanish name (matching previous behavior)
-    tags.sort((a: AdminRecipeTag, b: AdminRecipeTag) =>
-      (a.nameEs || '').localeCompare(b.nameEs || '')
-    );
+    tags.sort((a: AdminRecipeTag, b: AdminRecipeTag) => {
+      const aName = pickByLocale(a.translations, 'es')?.name || '';
+      const bName = pickByLocale(b.translations, 'es')?.name || '';
+      return aName.localeCompare(bName);
+    });
 
     return tags;
   }
@@ -92,8 +92,8 @@ class AdminRecipeTagService extends BaseService {
       throw new Error('No categories provided');
     }
 
-    if (!tag.nameEn || !tag.nameEs) {
-      throw new Error('No name provided');
+    if (!tag.translations || tag.translations.length === 0) {
+      throw new Error('No translations provided');
     }
 
     const categories = tag.categories.length
@@ -115,15 +115,16 @@ class AdminRecipeTagService extends BaseService {
       throw new Error('Failed to create tag: No data returned');
     }
 
-    // Insert translations for both locales
-    const translations = [
-      { recipe_tag_id: inserted.id, locale: 'en', name: tag.nameEn },
-      { recipe_tag_id: inserted.id, locale: 'es', name: tag.nameEs },
-    ];
+    // Insert translations from the translations array
+    const dbTranslations = tag.translations.map(t => ({
+      recipe_tag_id: inserted.id,
+      locale: t.locale,
+      name: t.name,
+    }));
 
     const { error: translationError } = await this.supabase
       .from('recipe_tag_translations')
-      .insert(translations);
+      .insert(dbTranslations);
 
     if (translationError) {
       throw new Error(`Failed to insert tag translations: ${translationError.message}`);
@@ -131,8 +132,7 @@ class AdminRecipeTagService extends BaseService {
 
     return {
       id: inserted.id,
-      nameEn: tag.nameEn,
-      nameEs: tag.nameEs,
+      translations: tag.translations,
       categories: transformCategories.toDisplay(categories),
     };
   }
@@ -146,8 +146,8 @@ class AdminRecipeTagService extends BaseService {
       throw new Error('No categories provided');
     }
 
-    if (!tag.nameEn || !tag.nameEs) {
-      throw new Error('No name provided');
+    if (!tag.translations || tag.translations.length === 0) {
+      throw new Error('No translations provided');
     }
 
     // Update only non-translatable fields on recipe_tags
@@ -162,15 +162,16 @@ class AdminRecipeTagService extends BaseService {
       throw new Error(`Failed to update tag: ${updateError.message}`);
     }
 
-    // Upsert translations for both locales
-    const translations = [
-      { recipe_tag_id: id, locale: 'en', name: tag.nameEn },
-      { recipe_tag_id: id, locale: 'es', name: tag.nameEs },
-    ];
+    // Upsert translations from the translations array
+    const dbTranslations = tag.translations.map(t => ({
+      recipe_tag_id: id,
+      locale: t.locale,
+      name: t.name,
+    }));
 
     const { error: translationError } = await this.supabase
       .from('recipe_tag_translations')
-      .upsert(translations, { onConflict: 'recipe_tag_id,locale' });
+      .upsert(dbTranslations, { onConflict: 'recipe_tag_id,locale' });
 
     if (translationError) {
       throw new Error(`Failed to upsert tag translations: ${translationError.message}`);
@@ -178,8 +179,7 @@ class AdminRecipeTagService extends BaseService {
 
     return {
       id,
-      nameEn: tag.nameEn!,
-      nameEs: tag.nameEs!,
+      translations: tag.translations,
       categories: transformCategories.toDisplay(categories),
     };
   }

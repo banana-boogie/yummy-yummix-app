@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Image, TouchableOpacity } from 'react-native';
-import { AdminUsefulItem } from '@/types/recipe.admin.types';
+import { AdminUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import { Text } from '@/components/common/Text';
@@ -34,8 +34,8 @@ export function UsefulItemCard({ usefulItem, onEdit, onDelete }: UsefulItemCardP
 
       {/* Names - takes up remaining space */}
       <View className="flex-1 justify-center mr-sm">
-        <Text preset="body" numberOfLines={1}>{usefulItem.nameEn}</Text>
-        <Text preset="caption" color={COLORS.text.secondary} numberOfLines={1}>{usefulItem.nameEs}</Text>
+        <Text preset="body" numberOfLines={1}>{getTranslatedField(usefulItem.translations, 'en', 'name' as any)}</Text>
+        <Text preset="caption" color={COLORS.text.secondary} numberOfLines={1}>{getTranslatedField(usefulItem.translations, 'es', 'name' as any)}</Text>
       </View>
 
       {/* Actions - compact on mobile */}

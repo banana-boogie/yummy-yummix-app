@@ -29,27 +29,30 @@ describe('useIngredients', () => {
   const mockIngredients = [
     {
       id: 'ing-1',
-      nameEn: 'Tomato',
-      nameEs: 'Tomate',
-      pluralNameEn: 'Tomatoes',
-      pluralNameEs: 'Tomates',
+      translations: [
+        { locale: 'en', name: 'Tomato', pluralName: 'Tomatoes' },
+        { locale: 'es', name: 'Tomate', pluralName: 'Tomates' },
+      ],
       pictureUrl: 'https://example.com/tomato.png',
+      nutritionalFacts: {},
     },
     {
       id: 'ing-2',
-      nameEn: 'Onion',
-      nameEs: 'Cebolla',
-      pluralNameEn: 'Onions',
-      pluralNameEs: 'Cebollas',
+      translations: [
+        { locale: 'en', name: 'Onion', pluralName: 'Onions' },
+        { locale: 'es', name: 'Cebolla', pluralName: 'Cebollas' },
+      ],
       pictureUrl: null,
+      nutritionalFacts: {},
     },
     {
       id: 'ing-3',
-      nameEn: 'Garlic',
-      nameEs: 'Ajo',
-      pluralNameEn: 'Garlic cloves',
-      pluralNameEs: 'Dientes de ajo',
+      translations: [
+        { locale: 'en', name: 'Garlic', pluralName: 'Garlic cloves' },
+        { locale: 'es', name: 'Ajo', pluralName: 'Dientes de ajo' },
+      ],
       pictureUrl: 'https://example.com/garlic.png',
+      nutritionalFacts: {},
     },
   ];
 
@@ -102,8 +105,6 @@ describe('useIngredients', () => {
     });
 
     it('starts with empty ingredients on error', async () => {
-      // The hook re-throws errors, but should still set loading to false
-      // and leave ingredients empty
       const { result } = renderHook(() => useIngredients());
 
       // Before fetch completes
@@ -129,7 +130,7 @@ describe('useIngredients', () => {
 
       await waitFor(() => {
         expect(result.current.filteredIngredients).toHaveLength(1);
-        expect(result.current.filteredIngredients[0].nameEn).toBe('Tomato');
+        expect(result.current.filteredIngredients[0].id).toBe('ing-1');
       });
     });
 
@@ -146,7 +147,7 @@ describe('useIngredients', () => {
 
       await waitFor(() => {
         expect(result.current.filteredIngredients).toHaveLength(1);
-        expect(result.current.filteredIngredients[0].nameEs).toBe('Cebolla');
+        expect(result.current.filteredIngredients[0].id).toBe('ing-2');
       });
     });
 

@@ -77,16 +77,19 @@ export function languageToLocale(language: string): string {
 
 /**
  * Get a human-readable language name for a locale.
+ * Tries the full locale first (e.g., "es-ES" -> "Spain Spanish"),
+ * then falls back to the base language (e.g., "es" -> "Mexican Spanish").
  */
 export function getLanguageName(locale: string): string {
-  const base = getBaseLanguage(locale);
   const LANGUAGE_NAMES: Record<string, string> = {
     en: "English",
     es: "Mexican Spanish",
+    "es-ES": "Spain Spanish",
     fr: "French",
     pt: "Portuguese",
     de: "German",
     it: "Italian",
   };
-  return LANGUAGE_NAMES[base] || base;
+  return LANGUAGE_NAMES[locale] ?? LANGUAGE_NAMES[getBaseLanguage(locale)] ??
+    locale;
 }

@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { BaseService } from '../base/BaseService';
 import { imageService } from '../storage/imageService';
-import { AdminUsefulItem } from '@/types/recipe.admin.types';
+import { AdminUsefulItem, AdminUsefulItemTranslation } from '@/types/recipe.admin.types';
 
 /**
  * Helper to pick a translation value from an array of translations by locale.
@@ -12,6 +12,18 @@ function pickByLocale<T extends { locale: string }>(
 ): T | undefined {
   if (!translations) return undefined;
   return translations.find(t => t.locale === locale);
+}
+
+/**
+ * Helper: extract a name from translations for image filenames.
+ */
+function getNameFromTranslations(translations: AdminUsefulItemTranslation[] | undefined): string {
+  if (!translations || translations.length === 0) return 'useful-item';
+  const en = pickByLocale(translations, 'en');
+  if (en?.name) return en.name;
+  const es = pickByLocale(translations, 'es');
+  if (es?.name) return es.name;
+  return translations[0]?.name || 'useful-item';
 }
 
 export class AdminUsefulItemsService extends BaseService {
@@ -36,32 +48,31 @@ export class AdminUsefulItemsService extends BaseService {
       throw new Error(`Error fetching useful items: ${error.message}`);
     }
 
-    const result = (data || []).map((item: any) => {
-      const en = pickByLocale(item.translations, 'en');
-      const es = pickByLocale(item.translations, 'es');
-      return {
-        id: item.id,
-        nameEn: en?.name || '',
-        nameEs: es?.name || '',
-        pictureUrl: item.image_url || item.imageUrl || '',
-      };
-    });
+    const result: AdminUsefulItem[] = (data || []).map((item: any) => ({
+      id: item.id,
+      translations: (item.translations || []).map((t: any) => ({
+        locale: t.locale,
+        name: t.name || '',
+      })),
+      pictureUrl: item.image_url || item.imageUrl || '',
+    }));
 
     // Sort client-side since translation table columns can't be sorted via PostgREST
+    const sortLocale = sortBy === 'name_es' ? 'es' : 'en';
     result.sort((a: AdminUsefulItem, b: AdminUsefulItem) => {
-      const aVal = sortBy === 'name_es' ? (a.nameEs || '') : (a.nameEn || '');
-      const bVal = sortBy === 'name_es' ? (b.nameEs || '') : (b.nameEn || '');
-      return aVal.localeCompare(bVal);
+      const aName = pickByLocale(a.translations, sortLocale)?.name || '';
+      const bName = pickByLocale(b.translations, sortLocale)?.name || '';
+      return aName.localeCompare(bName);
     });
 
     return result;
   }
 
-  private async handleImageUpload(file: any, nameEn?: string, nameEs?: string): Promise<string> {
+  private async handleImageUpload(file: any, translations?: AdminUsefulItemTranslation[]): Promise<string> {
     if (!file) return '';
 
     try {
-      const fileName = `${nameEn || nameEs || 'useful-item'}.png`;
+      const fileName = `${getNameFromTranslations(translations)}.png`;
       return await this.uploadImage({
         bucket: 'useful-items',
         folderPath: 'images',
@@ -104,8 +115,7 @@ export class AdminUsefulItemsService extends BaseService {
         if (isNewImage) {
           itemData.image_url = await this.handleImageUpload(
             item.pictureUrl,
-            item.nameEn,
-            item.nameEs
+            item.translations
           );
         } else {
           itemData.image_url = item.pictureUrl;
@@ -120,21 +130,17 @@ export class AdminUsefulItemsService extends BaseService {
       }
     }
 
-    // Upsert translations for both locales
-    const translations: { useful_item_id: string; locale: string; name: string }[] = [];
+    // Upsert translations from the translations array
+    if (item.translations && item.translations.length > 0) {
+      const dbTranslations = item.translations.map(t => ({
+        useful_item_id: id,
+        locale: t.locale,
+        name: t.name,
+      }));
 
-    if (item.nameEn !== undefined) {
-      translations.push({ useful_item_id: id, locale: 'en', name: item.nameEn });
-    }
-
-    if (item.nameEs !== undefined) {
-      translations.push({ useful_item_id: id, locale: 'es', name: item.nameEs });
-    }
-
-    if (translations.length > 0) {
       const { error: translationError } = await this.supabase
         .from('useful_item_translations')
-        .upsert(translations, { onConflict: 'useful_item_id,locale' });
+        .upsert(dbTranslations, { onConflict: 'useful_item_id,locale' });
 
       if (translationError) {
         throw new Error(`Failed to upsert useful item translations: ${translationError.message}`);
@@ -178,6 +184,8 @@ export class AdminUsefulItemsService extends BaseService {
   }
 
   async createUsefulItem(item: AdminUsefulItem): Promise<AdminUsefulItem> {
+    const translations: AdminUsefulItemTranslation[] = item.translations || [];
+
     const itemData: Record<string, any> = {
       image_url: '',
     };
@@ -185,8 +193,7 @@ export class AdminUsefulItemsService extends BaseService {
     if (item.pictureUrl) {
       itemData.image_url = await this.handleImageUpload(
         item.pictureUrl,
-        item.nameEn,
-        item.nameEs
+        translations
       );
     }
 
@@ -201,24 +208,26 @@ export class AdminUsefulItemsService extends BaseService {
       throw new Error(`Failed to create useful item: ${insertError.message}`);
     }
 
-    // Insert translations for both locales
-    const translations = [
-      { useful_item_id: inserted.id, locale: 'en', name: item.nameEn },
-      { useful_item_id: inserted.id, locale: 'es', name: item.nameEs },
-    ];
+    // Insert translations from the translations array
+    const dbTranslations = translations.map(t => ({
+      useful_item_id: inserted.id,
+      locale: t.locale,
+      name: t.name,
+    }));
 
-    const { error: translationError } = await this.supabase
-      .from('useful_item_translations')
-      .insert(translations);
+    if (dbTranslations.length > 0) {
+      const { error: translationError } = await this.supabase
+        .from('useful_item_translations')
+        .insert(dbTranslations);
 
-    if (translationError) {
-      throw new Error(`Failed to insert useful item translations: ${translationError.message}`);
+      if (translationError) {
+        throw new Error(`Failed to insert useful item translations: ${translationError.message}`);
+      }
     }
 
     return {
       id: inserted.id,
-      nameEn: item.nameEn,
-      nameEs: item.nameEs,
+      translations,
       pictureUrl: itemData.image_url,
     };
   }
