@@ -2,6 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Text } from '@/components/common';
+import { LegendDot } from '@/components/admin/analytics';
 import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 
@@ -106,9 +107,7 @@ export function DonutChart({ data, size = 160, strokeWidth = 24, valueFormatter 
           const pct = total > 0 ? Math.round((d.value / total) * 100) : 0;
           return (
             <View key={i} className="flex-row items-center gap-xs">
-              <View
-                style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: d.color }}
-              />
+              <LegendDot color={d.color} />
               <Text preset="bodySmall" className="flex-1 text-text-default">
                 {d.label}
               </Text>

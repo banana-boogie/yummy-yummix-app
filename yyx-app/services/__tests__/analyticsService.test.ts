@@ -157,19 +157,6 @@ describe('analyticsService', () => {
     expect(result).toEqual(mockResponse);
   });
 
-  it('getPatternMetrics calls admin_patterns with no params', async () => {
-    const mockData = {
-      cookingByHour: [{ hour: 12, count: 5 }],
-      languageSplit: [{ language: 'es', count: 80 }],
-    };
-    (supabase.rpc as jest.Mock).mockResolvedValue({ data: mockData, error: null });
-
-    const result = await analyticsService.getPatternMetrics();
-
-    expect(supabase.rpc).toHaveBeenCalledWith('admin_patterns');
-    expect(result).toEqual(mockData);
-  });
-
   it('getRetentionMetrics calls admin_retention with no params', async () => {
     const mockData = {
       day1Retention: 60,
@@ -183,21 +170,6 @@ describe('analyticsService', () => {
     const result = await analyticsService.getRetentionMetrics();
 
     expect(supabase.rpc).toHaveBeenCalledWith('admin_retention');
-    expect(result).toEqual(mockData);
-  });
-
-  it('getRecipeGenerationMetrics calls admin_recipe_generation with timeframe', async () => {
-    const mockData = {
-      totalGenerated: 12,
-      totalFailed: 3,
-      successRate: 75,
-      avgDurationMs: 2100,
-    };
-    (supabase.rpc as jest.Mock).mockResolvedValue({ data: mockData, error: null });
-
-    const result = await analyticsService.getRecipeGenerationMetrics('today');
-
-    expect(supabase.rpc).toHaveBeenCalledWith('admin_recipe_generation', { timeframe: 'today' });
     expect(result).toEqual(mockData);
   });
 

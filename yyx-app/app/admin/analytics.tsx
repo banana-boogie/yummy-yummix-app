@@ -13,6 +13,7 @@ import {
   SectionTitle,
   TimeframeSelector,
   TabSelector,
+  LegendDot,
 } from '@/components/admin/analytics';
 import type { TabType } from '@/components/admin/analytics';
 import {
@@ -32,6 +33,10 @@ import {
   ContentSourceSplit,
 } from '@/services/analyticsService';
 import i18n from '@/i18n';
+
+function formatUsd(value: number): string {
+  return `$${value.toFixed(2)}`;
+}
 
 function RecipeListItem({ rank, recipe }: { rank: number; recipe: TopRecipe }) {
   const router = useRouter();
@@ -119,11 +124,11 @@ function OverviewSection({
           />
           <View className="flex-row gap-md mt-xs px-md">
             <View className="flex-row items-center gap-xs">
-              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.primary.medium }} />
+              <LegendDot color={COLORS.primary.medium} />
               <Text preset="caption" className="text-text-secondary">{i18n.t('admin.analytics.labels.signups')}</Text>
             </View>
             <View className="flex-row items-center gap-xs">
-              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.status.success }} />
+              <LegendDot color={COLORS.status.success} />
               <Text preset="caption" className="text-text-secondary">{i18n.t('admin.analytics.labels.onboarded')}</Text>
             </View>
           </View>
@@ -334,7 +339,6 @@ function AISection({
   if (!adoptionData || !usageData) return <LoadingState />;
 
   const summary = usageData.summary;
-  const formatUsd = (value: number) => `$${value.toFixed(2)}`;
 
   return (
     <View>
@@ -479,7 +483,6 @@ function OperationsSection({
   if (!usageData) return <LoadingState />;
 
   const summary = usageData.summary;
-  const formatUsd = (value: number) => `$${value.toFixed(2)}`;
 
   return (
     <View>
@@ -742,7 +745,6 @@ export default function AnalyticsDashboard() {
         }
       } catch (err) {
         if (!cancelled) {
-          console.error('Error loading analytics:', err);
           const message = err instanceof Error ? err.message : (err as { message?: string })?.message || JSON.stringify(err);
           setError(new Error(message));
         }

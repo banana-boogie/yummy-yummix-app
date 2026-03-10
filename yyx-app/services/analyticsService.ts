@@ -49,18 +49,6 @@ export interface AIMetrics {
   returnAIUsers: number;
 }
 
-export interface PatternMetrics {
-  cookingByHour: { hour: number; count: number }[];
-  languageSplit: { language: string; count: number }[];
-}
-
-export interface RecipeGenerationMetrics {
-  totalGenerated: number;
-  totalFailed: number;
-  successRate: number;
-  avgDurationMs: number | null;
-}
-
 export interface AIUsageSummary {
   textRequests: number;
   textTokens: number;
@@ -205,24 +193,10 @@ export const analyticsService = {
     return data as AIChatSessionMetrics;
   },
 
-  async getPatternMetrics(): Promise<PatternMetrics> {
-    const { data, error } = await supabase.rpc('admin_patterns');
-    if (error) throw error;
-    return data as PatternMetrics;
-  },
-
   async getRetentionMetrics(): Promise<RetentionMetrics> {
     const { data, error } = await supabase.rpc('admin_retention');
     if (error) throw error;
     return data as RetentionMetrics;
-  },
-
-  async getRecipeGenerationMetrics(
-    timeframe: TimeframeFilter
-  ): Promise<RecipeGenerationMetrics> {
-    const { data, error } = await supabase.rpc('admin_recipe_generation', { timeframe });
-    if (error) throw error;
-    return data as RecipeGenerationMetrics;
   },
 
   async getDailySignups(timeframe: TimeframeFilter): Promise<DailySignups[]> {
