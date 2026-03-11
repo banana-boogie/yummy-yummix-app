@@ -143,40 +143,45 @@ describe('MarkdownRecipeParserService', () => {
     },
   ];
 
-  // The edge function still returns the old nameEn/nameEs format
-  // (the parser service converts it to translations[])
+  // Edge function returns locale-keyed translations format
   const mockParsedRecipe = {
-    nameEn: 'Chocolate Cake',
-    nameEs: 'Pastel de Chocolate',
+    translations: [
+      { locale: 'en', name: 'Chocolate Cake', tipsAndTricks: 'Let cool before serving' },
+      { locale: 'es', name: 'Pastel de Chocolate', tipsAndTricks: 'Dejar enfriar antes de servir' },
+    ],
     totalTime: 60,
     prepTime: 20,
     difficulty: 'medium',
     portions: 8,
-    tipsAndTricksEn: 'Let cool before serving',
-    tipsAndTricksEs: 'Dejar enfriar antes de servir',
     ingredients: [
       {
-        ingredient: { nameEn: 'Flour', nameEs: 'Harina', pluralNameEn: 'Flour', pluralNameEs: 'Harina' },
+        ingredient: { translations: [{ locale: 'en', name: 'Flour', pluralName: 'Flour' }, { locale: 'es', name: 'Harina', pluralName: 'Harina' }] },
         quantity: 200,
         measurementUnitID: 'g',
-        notesEn: 'Sifted',
-        notesEs: 'Tamizada',
+        translations: [
+          { locale: 'en', notes: 'Sifted', tip: '', recipeSection: 'Main' },
+          { locale: 'es', notes: 'Tamizada', tip: '', recipeSection: 'Principal' },
+        ],
         displayOrder: 1,
       },
       {
-        ingredient: { nameEn: 'Sugar', nameEs: 'Azúcar', pluralNameEn: 'Sugar', pluralNameEs: 'Azúcar' },
+        ingredient: { translations: [{ locale: 'en', name: 'Sugar', pluralName: 'Sugar' }, { locale: 'es', name: 'Azúcar', pluralName: 'Azúcar' }] },
         quantity: 100,
         measurementUnitID: 'g',
-        notesEn: '',
-        notesEs: '',
+        translations: [
+          { locale: 'en', notes: '', tip: '', recipeSection: 'Main' },
+          { locale: 'es', notes: '', tip: '', recipeSection: 'Principal' },
+        ],
         displayOrder: 2,
       },
     ],
     steps: [
       {
         order: 1,
-        instructionEn: 'Mix dry ingredients',
-        instructionEs: 'Mezclar ingredientes secos',
+        translations: [
+          { locale: 'en', instruction: 'Mix dry ingredients', tip: '', recipeSection: 'Main' },
+          { locale: 'es', instruction: 'Mezclar ingredientes secos', tip: '', recipeSection: 'Principal' },
+        ],
         thermomixTime: 30,
         thermomixSpeed: { type: 'single', value: 4, start: null, end: null },
         ingredients: [],
@@ -184,7 +189,7 @@ describe('MarkdownRecipeParserService', () => {
     ],
     tags: ['Vegetarian', 'Easy'],
     usefulItems: [
-      { nameEn: 'Mixing Bowl', nameEs: 'Tazón para mezclar', displayOrder: 1 },
+      { translations: [{ locale: 'en', name: 'Mixing Bowl', notes: '' }, { locale: 'es', name: 'Tazón para mezclar', notes: '' }], displayOrder: 1 },
     ],
   };
 
@@ -285,9 +290,10 @@ describe('MarkdownRecipeParserService', () => {
         ingredients: [
           ...mockParsedRecipe.ingredients,
           {
-            ingredient: { nameEn: 'Unknown Spice', nameEs: 'Especia Desconocida' },
+            ingredient: { translations: [{ locale: 'en', name: 'Unknown Spice', pluralName: 'Unknown Spices' }, { locale: 'es', name: 'Especia Desconocida', pluralName: 'Especias Desconocidas' }] },
             quantity: 1,
             measurementUnitID: 'tsp',
+            translations: [{ locale: 'en', notes: '', tip: '', recipeSection: 'Main' }, { locale: 'es', notes: '', tip: '', recipeSection: 'Principal' }],
           },
         ],
       };
@@ -461,8 +467,8 @@ describe('MarkdownRecipeParserService', () => {
       const parsedWithMissingItem = {
         ...mockParsedRecipe,
         usefulItems: [
-          { nameEn: 'Mixing Bowl', nameEs: 'Tazón' },
-          { nameEn: 'Rare Kitchen Tool', nameEs: 'Herramienta Rara' },
+          { translations: [{ locale: 'en', name: 'Mixing Bowl', notes: '' }, { locale: 'es', name: 'Tazón', notes: '' }], displayOrder: 1 },
+          { translations: [{ locale: 'en', name: 'Rare Kitchen Tool', notes: '' }, { locale: 'es', name: 'Herramienta Rara', notes: '' }], displayOrder: 2 },
         ],
       };
       mockInvoke.mockResolvedValue({
@@ -497,8 +503,8 @@ describe('MarkdownRecipeParserService', () => {
       const parsedWithDuplicates = {
         ...mockParsedRecipe,
         usefulItems: [
-          { nameEn: 'Mixing Bowl', nameEs: 'Tazón para mezclar' },
-          { nameEn: 'Mixing Bowl', nameEs: 'Tazón para mezclar' }, // Duplicate
+          { translations: [{ locale: 'en', name: 'Mixing Bowl', notes: '' }, { locale: 'es', name: 'Tazón para mezclar', notes: '' }], displayOrder: 1 },
+          { translations: [{ locale: 'en', name: 'Mixing Bowl', notes: '' }, { locale: 'es', name: 'Tazón para mezclar', notes: '' }], displayOrder: 2 }, // Duplicate
         ],
       };
       mockInvoke.mockResolvedValue({
@@ -612,8 +618,10 @@ describe('MarkdownRecipeParserService', () => {
 
     it('handles recipe with only required fields', async () => {
       const minimalParsed = {
-        nameEn: 'Simple Recipe',
-        nameEs: 'Receta Simple',
+        translations: [
+          { locale: 'en', name: 'Simple Recipe', tipsAndTricks: '' },
+          { locale: 'es', name: 'Receta Simple', tipsAndTricks: '' },
+        ],
         difficulty: 'easy',
         totalTime: 30,
         prepTime: 10,

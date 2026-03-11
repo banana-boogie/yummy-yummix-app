@@ -72,10 +72,7 @@ const processIngredients = (
         ingredientId: ingredientMatch.id,
         ingredient: ingredientMatch,
         measurementUnit: measurementUnitMatch,
-        translations: [
-          { locale: 'es', recipeSection: item.recipeSectionEs || 'Principal', notes: item.notesEs || '', tip: item.tipEs || '' },
-          { locale: 'en', recipeSection: item.recipeSectionEn || 'Main', notes: item.notesEn || '', tip: item.tipEn || '' },
-        ],
+        translations: item.translations || [],
         displayOrder: item.displayOrder || order,
         quantity: item.quantity,
         optional: item.optional || false,
@@ -167,20 +164,18 @@ const processUsefulItems = (usefulItemsNames: AdminUsefulItem[], allUsefulItems:
   for (const [index, usefulItem] of usefulItemsNames.entries()) {
     const matchedUsefulItem = matchUsefulItem(usefulItem, allUsefulItems);
     if (matchedUsefulItem) {
-      // @ts-ignore - parsed data may have notesEn/notesEs
-      const notesEn = usefulItem.notesEn || '';
-      // @ts-ignore
-      const notesEs = usefulItem.notesEs || '';
+      // Extract notes translations from the parsed useful item
+      const noteTranslations = (usefulItem as any).translations?.map((t: any) => ({
+        locale: t.locale,
+        notes: t.notes || '',
+      })) || [];
       usefulItemsMap.set(matchedUsefulItem.id, {
         id: `temp-${generateUUID()}`,
         recipeId: `temp-recipe-id`,
         usefulItemId: matchedUsefulItem.id,
         // @ts-ignore - displayOrder should exist in markdown data
         displayOrder: usefulItem.displayOrder || index,
-        translations: [
-          { locale: 'es', notes: notesEs },
-          { locale: 'en', notes: notesEn },
-        ],
+        translations: noteTranslations,
         usefulItem: matchedUsefulItem
       });
     } else {
@@ -213,10 +208,7 @@ export const parseRecipeMarkdown = async (markdown: string): Promise<ParseRecipe
 
     // Process the parsed data into AdminRecipe format
     const recipe: Partial<AdminRecipe> = {
-      translations: [
-        { locale: 'es', name: data.nameEs || '', tipsAndTricks: data.tipsAndTricksEs || '' },
-        { locale: 'en', name: data.nameEn || '', tipsAndTricks: data.tipsAndTricksEn || '' },
-      ],
+      translations: data.translations || [],
       totalTime: data.totalTime,
       prepTime: data.prepTime,
       difficulty: data.difficulty as RecipeDifficulty,
