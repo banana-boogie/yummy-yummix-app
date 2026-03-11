@@ -367,6 +367,12 @@ export async function callAnthropicStream(
   model: string,
   apiKey: string,
 ): Promise<AnthropicStreamResult> {
+  if (request.tools?.length) {
+    throw new Error(
+      "Anthropic streaming does not support tool calls. Use non-streaming chat() instead.",
+    );
+  }
+
   const startedAt = performance.now();
 
   const { system, messages } = translateMessagesForAnthropic(request.messages);

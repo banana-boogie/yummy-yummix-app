@@ -46,9 +46,9 @@ export async function runConversationTests(
   }
 
   // For reasoning-capable models, test both no-reasoning and minimal
-  const effortVariants: Array<string | null> = model.capabilities.reasoning
-    ? [null, "minimal"]
-    : [null];
+  const effortVariants: Array<
+    AICompletionRequest["reasoningEffort"] | null
+  > = model.capabilities.reasoning ? [null, "minimal"] : [null];
 
   // Run all effort × test case combinations in parallel
   // (multi-turn tests still run turns sequentially within each promise)
@@ -186,7 +186,7 @@ export async function runConversationTests(
           outputTokens: totalOutputTokens,
           outputTokensPerSec,
           costUsd: totalCostUsd,
-          reasoningEffort: reasoningEffort,
+          reasoningEffort: reasoningEffort ?? null,
           attempts: allAttempts,
           failureType,
           responseContent: finalResponseContent,

@@ -172,7 +172,7 @@ Deno.test("callAnthropic - sends correct headers", async () => {
     );
 
     assertEquals(capturedHeaders?.get("x-api-key"), "my-api-key");
-    assertEquals(capturedHeaders?.get("anthropic-version"), "2025-04-15");
+    assertEquals(capturedHeaders?.get("anthropic-version"), "2023-06-01");
     assertEquals(capturedHeaders?.get("Content-Type"), "application/json");
   } finally {
     globalThis.fetch = original;
