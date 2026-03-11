@@ -103,10 +103,11 @@ Primary RPCs (dedicated, extracted from legacy dispatcher):
 
 Legacy compatibility: `admin_analytics(action, timeframe, limit_count)` — dispatcher that delegates to dedicated RPCs above.
 
-Three tabs:
+Four tabs:
 1. **Overview** — active users, signups, onboarding, retention
 2. **Content** — cooking funnel, top cooked recipes, top searches, top viewed (in details)
 3. **AI** — adoption, costs & usage, chat session depth
+4. **Operations** — feature health, reliability, and workflow diagnostics
 
 Timeframes:
 - `today`

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, G } from 'react-native-svg';
 import { Text } from '@/components/common';
 import { LegendDot } from '@/components/admin/analytics';
 import { COLORS } from '@/constants/design-tokens';
@@ -29,24 +29,23 @@ export function DonutChart({ data, size = 160, strokeWidth = 24, valueFormatter 
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
 
-  // Build segments: each gets a dasharray (segment length, rest) and a dashoffset (rotation)
-  let cumulativeOffset = 0;
+  // Build segments with rotation angles instead of dashoffset
+  let cumulativeAngle = -90; // Start at 12 o'clock
   const positiveSegments = data.filter((d) => d.value > 0);
-  const segments = positiveSegments
-    .map((d) => {
-      const fraction = d.value / total;
-      const segmentLength = fraction * circumference;
-      // Only add gaps when 3+ segments so the ring is fully covered with 2
-      const gap = positiveSegments.length > 2 ? 2 : 0;
-      const segment = {
-        color: d.color,
-        dashArray: `${Math.max(segmentLength - gap, 0)} ${circumference}`,
-        // Rotate: offset starts at 12 o'clock (-90deg = -circumference/4), then shift by cumulative
-        dashOffset: circumference * 0.25 - cumulativeOffset,
-      };
-      cumulativeOffset += segmentLength;
-      return segment;
-    });
+  const segments = positiveSegments.map((d) => {
+    const fraction = d.value / total;
+    const segmentLength = fraction * circumference;
+    // Only add gaps when 3+ segments so the ring is fully covered with 2
+    const gap = positiveSegments.length > 2 ? 2 : 0;
+    const visibleLength = Math.max(segmentLength - gap, 0);
+    const rotation = cumulativeAngle;
+    cumulativeAngle += fraction * 360;
+    return {
+      color: d.color,
+      visibleLength,
+      rotation,
+    };
+  });
 
   return (
     <View className="bg-white rounded-lg p-md items-center">
@@ -65,20 +64,20 @@ export function DonutChart({ data, size = 160, strokeWidth = 24, valueFormatter 
             />
           )}
 
-          {/* Data segments */}
+          {/* Data segments — use rotation transform for reliable positioning */}
           {segments.map((seg, i) => (
-            <Circle
-              key={i}
-              cx={center}
-              cy={center}
-              r={radius}
-              stroke={seg.color}
-              strokeWidth={strokeWidth}
-              strokeDasharray={seg.dashArray}
-              strokeDashoffset={seg.dashOffset}
-              strokeLinecap="butt"
-              fill="none"
-            />
+            <G key={i} rotation={seg.rotation} origin={`${center}, ${center}`}>
+              <Circle
+                cx={center}
+                cy={center}
+                r={radius}
+                stroke={seg.color}
+                strokeWidth={strokeWidth}
+                strokeDasharray={`${seg.visibleLength} ${circumference - seg.visibleLength}`}
+                strokeLinecap="butt"
+                fill="none"
+              />
+            </G>
           ))}
         </Svg>
 

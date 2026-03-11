@@ -10,6 +10,7 @@ jest.mock('react-native-svg', () => {
     default: 'Svg',
     Svg: 'Svg',
     Circle: 'Circle',
+    G: 'G',
     Rect: 'Rect',
     Text: RN.Text,
     Line: 'Line',

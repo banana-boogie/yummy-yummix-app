@@ -24,6 +24,7 @@ import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
 import { getAllowedVoiceToolNames } from "../_shared/tools/tool-registry.ts";
 import { buildVoiceInstructions } from "../_shared/system-prompt-builder.ts";
+import type { AIUsageLogContext } from "../_shared/tools/generate-custom-recipe.ts";
 import {
   BudgetCheckUnavailableError,
   checkVoiceBudget,
@@ -279,12 +280,22 @@ async function handleExecuteTool(
     },
   };
 
+  const usageContext: AIUsageLogContext = {
+    userId,
+    sessionId,
+    requestId,
+    functionName: "irmixy-voice-orchestrator",
+  };
+
   const result = await executeTool(
     supabase,
     toolName,
     argsString,
     userContext,
-    { costContext },
+    {
+      costContext,
+      usageContext,
+    },
   );
 
   const elapsed = Math.round(performance.now() - startTime);
