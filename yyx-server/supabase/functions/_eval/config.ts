@@ -14,18 +14,6 @@ import type { UserContext } from "../_shared/irmixy-schemas.ts";
 
 export const MODELS: ModelConfig[] = [
   {
-    id: "gemini-2.5-flash-lite",
-    provider: "google",
-    apiKeyEnvVar: "GEMINI_API_KEY",
-    capabilities: { toolCalling: true, jsonSchema: true, reasoning: true },
-    reasoningEffort: {
-      orchestrator: "minimal",
-      recipe_generation: "low",
-      recipe_modification: "minimal",
-    },
-    pricing: { inputPerMillion: 0.10, outputPerMillion: 0.40 },
-  },
-  {
     id: "gemini-2.5-flash",
     provider: "google",
     apiKeyEnvVar: "GEMINI_API_KEY",
@@ -56,14 +44,6 @@ export const MODELS: ModelConfig[] = [
     capabilities: { toolCalling: true, jsonSchema: true, reasoning: false },
     reasoningEffort: {},
     pricing: { inputPerMillion: 0.40, outputPerMillion: 1.60 },
-  },
-  {
-    id: "gpt-4.1-nano",
-    provider: "openai",
-    apiKeyEnvVar: "OPENAI_API_KEY",
-    capabilities: { toolCalling: true, jsonSchema: true, reasoning: false },
-    reasoningEffort: {},
-    pricing: { inputPerMillion: 0.10, outputPerMillion: 0.40 },
   },
   {
     id: "grok-4-1-fast-non-reasoning",
