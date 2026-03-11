@@ -70,8 +70,8 @@ const BASE_BACKOFF_MS = 2000;
 /** Role-based timeouts — if a model can't respond in time, it's not viable */
 export const ROLE_TIMEOUTS: Record<string, number> = {
   orchestrator: 5_000,
-  recipe_generation: 30_000,
-  recipe_modification: 30_000,
+  recipe_generation: 60_000,
+  recipe_modification: 60_000,
 };
 const DEFAULT_TIMEOUT_MS = 30_000;
 

@@ -53,6 +53,69 @@ export const MODELS: ModelConfig[] = [
     reasoningEffort: {},
     pricing: { inputPerMillion: 0.20, outputPerMillion: 0.50 },
   },
+
+  // --- Premium / new models (recipe gen/mod focus) ---
+
+  {
+    id: "gemini-3.1-flash-lite",
+    provider: "google",
+    apiKeyEnvVar: "GEMINI_API_KEY",
+    capabilities: { toolCalling: true, jsonSchema: true, reasoning: true },
+    reasoningEffort: {
+      orchestrator: "minimal",
+      recipe_generation: "low",
+      recipe_modification: "minimal",
+    },
+    pricing: { inputPerMillion: 0.10, outputPerMillion: 0.40 },
+  },
+  {
+    id: "gpt-4.1",
+    provider: "openai",
+    apiKeyEnvVar: "OPENAI_API_KEY",
+    capabilities: { toolCalling: true, jsonSchema: true, reasoning: false },
+    reasoningEffort: {},
+    pricing: { inputPerMillion: 2.00, outputPerMillion: 8.00 },
+    excludeRoles: ["orchestrator"],
+  },
+  {
+    id: "grok-4-1-fast-reasoning",
+    provider: "xai",
+    apiKeyEnvVar: "XAI_API_KEY",
+    capabilities: { toolCalling: true, jsonSchema: true, reasoning: true },
+    reasoningEffort: {},
+    pricing: { inputPerMillion: 0.20, outputPerMillion: 0.50 },
+    excludeRoles: ["orchestrator"],
+  },
+  {
+    id: "gemini-2.5-pro",
+    provider: "google",
+    apiKeyEnvVar: "GEMINI_API_KEY",
+    capabilities: { toolCalling: true, jsonSchema: true, reasoning: true },
+    reasoningEffort: {
+      recipe_generation: "low",
+      recipe_modification: "minimal",
+    },
+    pricing: { inputPerMillion: 1.25, outputPerMillion: 10.00 },
+    excludeRoles: ["orchestrator"],
+  },
+  {
+    id: "gpt-5-mini",
+    provider: "openai",
+    apiKeyEnvVar: "OPENAI_API_KEY",
+    capabilities: { toolCalling: true, jsonSchema: true, reasoning: true },
+    reasoningEffort: {},
+    pricing: { inputPerMillion: 0.25, outputPerMillion: 2.00 },
+    excludeRoles: ["orchestrator"],
+  },
+  {
+    id: "claude-haiku-4-5",
+    provider: "anthropic",
+    apiKeyEnvVar: "ANTHROPIC_API_KEY",
+    capabilities: { toolCalling: true, jsonSchema: true, reasoning: true },
+    reasoningEffort: {},
+    pricing: { inputPerMillion: 1.00, outputPerMillion: 5.00 },
+    excludeRoles: ["orchestrator", "recipe_modification"],
+  },
 ];
 
 // ============================================================
