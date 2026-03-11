@@ -348,9 +348,9 @@ for await (const chunk of chatStream({
 
 | Type | Default Model | Config | Use Case | Cost |
 |------|--------------|--------|----------|------|
-| `text` | google/gemini-3-flash-preview | thinking: minimal | Chat orchestrator (tool calling + streaming) | Low |
+| `text` | xai/grok-4-1-fast-non-reasoning | — | Chat orchestrator (tool calling + streaming) | Low |
 | `recipe_generation` | openai/gpt-4.1 | — | Recipe generation (structured JSON output) — quality critical | Medium |
-| `recipe_modification` | google/gemini-3-flash-preview | thinking: minimal | Recipe modification (transform existing JSON) | Low |
+| `recipe_modification` | openai/gpt-4.1-mini | — | Recipe modification (transform existing JSON) | Low |
 | `parsing` | openai/gpt-4.1-nano | temperature: `1` | Admin parsing, nutritional data extraction | Very low |
 | `embedding` | openai/text-embedding-3-large | N/A | Vector search (3072 dimensions) | Low |
 
@@ -358,13 +358,13 @@ for await (const chunk of chatStream({
 
 ```bash
 # Required API Keys (in .env or Supabase secrets)
-GEMINI_API_KEY=AIza...            # For text, recipe_generation, recipe_modification
-OPENAI_API_KEY=sk-proj-xxx        # For parsing, embedding
+OPENAI_API_KEY=sk-proj-xxx        # For recipe_generation, recipe_modification, parsing, embedding
+XAI_API_KEY=xai-...               # For text (orchestrator)
 
 # Optional: Override default models (supports provider:model format)
-AI_TEXT_MODEL=xai:grok-4-1-fast-non-reasoning  # Fallback orchestrator (different provider)
+AI_TEXT_MODEL=openai:gpt-4.1-mini           # Fallback orchestrator (different provider)
 AI_RECIPE_GENERATION_MODEL=google:gemini-2.5-flash # Fallback recipe gen (cheaper)
-AI_RECIPE_MODIFICATION_MODEL=openai:gpt-4.1-mini  # Fallback recipe mod (different provider)
+AI_RECIPE_MODIFICATION_MODEL=xai:grok-4-1-fast-non-reasoning  # Fallback recipe mod
 AI_PARSING_MODEL=gpt-5-nano                   # Same provider, different model
 ```
 

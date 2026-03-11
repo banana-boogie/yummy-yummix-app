@@ -3,6 +3,7 @@
 
 INSERT INTO public.ai_model_pricing (model, input_price_per_million, output_price_per_million) VALUES
   ('gpt-4.1',                       2.00,  8.00),
+  ('gpt-4.1-mini',                  0.40,  1.60),
   ('gemini-3-flash-preview',        0.50,  3.00),
   ('grok-4-1-fast-non-reasoning',   0.20,  0.50)
 ON CONFLICT (model) DO UPDATE SET
