@@ -22,6 +22,7 @@ import {
   ReviewForm,
   RecipeUsefulItemsForm
 } from '@/components/admin/recipes/forms';
+import { TranslationStep } from '@/components/admin/recipes/forms/translationForm/TranslationStep';
 
 // Recipe creation form with multiple steps
 export default function NewRecipePage() {
@@ -37,6 +38,8 @@ export default function NewRecipePage() {
     saving,
     showResumeDialog,
     savedRecipe,
+    authoringLocale,
+    setAuthoringLocale,
     updateRecipe,
     handleNextStep,
     handlePrevStep,
@@ -68,15 +71,17 @@ export default function NewRecipePage() {
           recipe={recipe}
         />;
       case CreateRecipeStep.BASIC_INFO:
-        return <RecipeInfoForm recipe={recipe} onUpdateRecipe={updateRecipe} errors={errors} />;
+        return <RecipeInfoForm recipe={recipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} onAuthoringLocaleChange={setAuthoringLocale} />;
       case CreateRecipeStep.USEFUL_ITEMS:
-        return <RecipeUsefulItemsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} />;
+        return <RecipeUsefulItemsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} />;
       case CreateRecipeStep.INGREDIENTS:
-        return <RecipeIngredientsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} />;
+        return <RecipeIngredientsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} />;
       case CreateRecipeStep.STEPS:
-        return <StepsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} />;
+        return <StepsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} />;
       case CreateRecipeStep.TAGS:
         return <TagsForm recipe={recipe} onUpdateRecipe={updateRecipe} errors={errors} />;
+      case CreateRecipeStep.TRANSLATIONS:
+        return <TranslationStep recipe={recipe} authoringLocale={authoringLocale} onUpdateRecipe={updateRecipe} />;
       case CreateRecipeStep.REVIEW:
         return <ReviewForm recipe={recipe} onUpdateRecipe={updateRecipe} />;
       default:

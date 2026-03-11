@@ -24,9 +24,10 @@ type IngredientsFormProps = {
   recipe: AdminRecipe;
   onUpdateRecipe: (updates: Partial<AdminRecipe>) => void;
   errors: Record<string, string>;
+  authoringLocale?: string;
 };
 
-export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: IngredientsFormProps) {
+export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es' }: IngredientsFormProps) {
   const { isMobile } = useDevice();
   const [ingredients, setIngredients] = useState<AdminIngredient[]>([]);
   const [filteredIngredients, setFilteredIngredients] = useState<AdminIngredient[]>([]);
@@ -582,6 +583,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
         recipeIngredient={selectedRecipeIngredient}
         measurementUnits={measurementUnits}
         existingIngredients={recipe.ingredients}
+        authoringLocale={authoringLocale}
       />
 
       <CreateEditIngredientModal

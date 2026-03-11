@@ -20,9 +20,10 @@ type UsefulItemsFormProps = {
     recipe: AdminRecipe;
     onUpdateRecipe: (updates: Partial<AdminRecipe>) => void;
     errors: Record<string, string>;
+    authoringLocale?: string;
 };
 
-export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors }: UsefulItemsFormProps) {
+export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es' }: UsefulItemsFormProps) {
     const { isMobile } = useDevice();
     const [usefulItems, setUsefulItems] = useState<AdminUsefulItem[]>([]);
     const [filteredUsefulItems, setFilteredUsefulItems] = useState<AdminUsefulItem[]>([]);
@@ -290,6 +291,7 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors }: Useful
                 onSave={handleSaveRecipeUsefulItem}
                 recipeUsefulItem={selectedRecipeUsefulItem}
                 existingUsefulItems={recipe.usefulItems || []}
+                authoringLocale={authoringLocale}
             />
 
             <CreateEditUsefulItemModal

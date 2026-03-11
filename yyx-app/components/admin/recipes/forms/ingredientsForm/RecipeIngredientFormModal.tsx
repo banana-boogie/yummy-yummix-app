@@ -31,6 +31,7 @@ interface RecipeIngredientFormModalProps {
   recipeIngredient: AdminRecipeIngredient | undefined;
   measurementUnits: AdminMeasurementUnit[];
   existingIngredients?: AdminRecipeIngredient[];
+  authoringLocale?: string;
 }
 
 interface ValidationErrors {
@@ -47,11 +48,10 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
   recipeIngredient,
   measurementUnits,
   existingIngredients = [],
+  authoringLocale = 'es',
 }) => {
   const { isLarge: isLargeScreen } = useDevice();
-  const { locales } = useActiveLocales();
   const [errors, setErrors] = useState<ValidationErrors>({});
-  const [translating, setTranslating] = useState(false);
 
   // Default empty state
   const DEFAULT_FORM_DATA: AdminRecipeIngredient = {
@@ -133,52 +133,6 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
     const selectedUnit = measurementUnits.find((u) => u.id === unitId);
     if (selectedUnit) {
       handleChange('measurementUnit', selectedUnit);
-    }
-  };
-
-  const handleAutoTranslate = async () => {
-    const sourceTranslation = formData.translations.find(t =>
-      t.notes?.trim() || t.tip?.trim() || t.recipeSection?.trim()
-    );
-    if (!sourceTranslation) return;
-
-    const sourceLocale = sourceTranslation.locale;
-    const targetLocales = locales
-      .map(l => l.code)
-      .filter(code => code !== sourceLocale);
-
-    if (targetLocales.length === 0) return;
-
-    const fields: Record<string, string> = {};
-    if (sourceTranslation.notes) fields.notes = sourceTranslation.notes;
-    if (sourceTranslation.tip) fields.tip = sourceTranslation.tip;
-    if (sourceTranslation.recipeSection) fields.recipeSection = sourceTranslation.recipeSection;
-
-    setTranslating(true);
-    try {
-      const results = await translateContent(fields, sourceLocale, targetLocales);
-      let updated = [...formData.translations];
-
-      for (const result of results) {
-        const existing = updated.find(t => t.locale === result.targetLocale);
-        const newFields: Partial<AdminRecipeIngredientTranslation> = {};
-        if (result.fields.notes) newFields.notes = result.fields.notes;
-        if (result.fields.tip) newFields.tip = result.fields.tip;
-        if (result.fields.recipeSection) newFields.recipeSection = result.fields.recipeSection;
-
-        if (existing) {
-          updated = updated.map(t =>
-            t.locale === result.targetLocale ? { ...t, ...newFields } : t
-          );
-        } else {
-          updated.push({ locale: result.targetLocale, ...newFields } as AdminRecipeIngredientTranslation);
-        }
-      }
-      setFormData(prev => ({ ...prev, translations: updated }));
-    } catch (error) {
-      console.error('Auto-translate failed:', error);
-    } finally {
-      setTranslating(false);
     }
   };
 
@@ -330,7 +284,7 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
 
               <FormDivider />
 
-              {/* Notes - dynamic per locale */}
+              {/* Notes - single language */}
               <FormRow column>
                 <View className="flex-row items-baseline gap-sm">
                   <Text preset="subheading">
@@ -340,70 +294,48 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
                     {i18n.t('admin.recipes.form.ingredientsInfo.notesHelperText')}
                   </Text>
                 </View>
-                {locales.map(locale => (
-                  <FormGroup key={`notes-${locale.code}`}>
-                    <TextInput
-                      label={`${i18n.t('admin.recipes.form.ingredientsInfo.notesTitle')} (${locale.displayName})`}
-                      value={getTransField(locale.code, 'notes')}
-                      onChangeText={(value) => setTransField(locale.code, 'notes', value)}
-                    />
-                  </FormGroup>
-                ))}
+                <FormGroup>
+                  <TextInput
+                    label={i18n.t('admin.recipes.form.ingredientsInfo.notesTitle')}
+                    value={getTransField(authoringLocale, 'notes')}
+                    onChangeText={(value) => setTransField(authoringLocale, 'notes', value)}
+                  />
+                </FormGroup>
               </FormRow>
 
               <FormDivider />
 
-              {/* Tips - dynamic per locale */}
+              {/* Tip - single language */}
               <FormRow column>
                 <View className="flex-row items-baseline gap-sm">
                   <Text preset="subheading">
                     {i18n.t('admin.recipes.form.ingredientsInfo.tipTitle')}
                   </Text>
                 </View>
-                {locales.map(locale => (
-                  <FormGroup key={`tip-${locale.code}`}>
-                    <TextInput
-                      label={`${i18n.t('admin.recipes.form.ingredientsInfo.tipTitle')} (${locale.displayName})`}
-                      value={getTransField(locale.code, 'tip')}
-                      onChangeText={(value) => setTransField(locale.code, 'tip', value)}
-                      multiline={true}
-                      numberOfLines={4}
-                      className="min-h-[100px] p-md"
-                      style={{ textAlignVertical: 'top' }}
-                    />
-                  </FormGroup>
-                ))}
+                <FormGroup>
+                  <TextInput
+                    label={i18n.t('admin.recipes.form.ingredientsInfo.tipTitle')}
+                    value={getTransField(authoringLocale, 'tip')}
+                    onChangeText={(value) => setTransField(authoringLocale, 'tip', value)}
+                    multiline={true}
+                    numberOfLines={4}
+                    className="min-h-[100px] p-md"
+                    style={{ textAlignVertical: 'top' }}
+                  />
+                </FormGroup>
               </FormRow>
 
               <FormDivider />
 
-              {/* Recipe Section - dynamic per locale */}
-              {locales.map(locale => (
-                <FormGroup key={`section-${locale.code}`} required>
-                  <TextInput
-                    label={`${i18n.t('admin.recipes.form.ingredientsInfo.recipeSectionEn', { defaultValue: 'Recipe Section' })} (${locale.displayName})`}
-                    value={getTransField(locale.code, 'recipeSection')}
-                    onChangeText={(value) => setTransField(locale.code, 'recipeSection', value)}
-                    error={errors.recipeSection}
-                  />
-                </FormGroup>
-              ))}
-
-              <FormDivider />
-
-              <Button
-                onPress={handleAutoTranslate}
-                loading={translating}
-                disabled={translating}
-                variant="outline"
-                size="small"
-                className="mb-md"
-              >
-                {translating
-                  ? i18n.t('admin.translate.translating')
-                  : i18n.t('admin.translate.autoTranslate')
-                }
-              </Button>
+              {/* Recipe Section - single language */}
+              <FormGroup required>
+                <TextInput
+                  label={i18n.t('admin.recipes.form.ingredientsInfo.recipeSectionEn', { defaultValue: 'Recipe Section' })}
+                  value={getTransField(authoringLocale, 'recipeSection')}
+                  onChangeText={(value) => setTransField(authoringLocale, 'recipeSection', value)}
+                  error={errors.recipeSection}
+                />
+              </FormGroup>
 
               <FormDivider />
 

@@ -19,6 +19,8 @@ import { CreateRecipeStep, RecipeProgressIndicator } from '@/components/admin/re
 import { NavButtons } from '@/components/form/NavButtons';
 import { useRecipeNavigation } from '@/hooks/admin/useRecipeNavigation';
 import { useDevice } from '@/hooks/useDevice';
+import { TranslationStep } from '@/components/admin/recipes/forms/translationForm/TranslationStep';
+import { loadAuthoringLocale, saveAuthoringLocale } from '@/components/admin/recipes/forms/shared/AuthoringLanguagePicker';
 
 export default function EditRecipePage() {
   const { id } = useLocalSearchParams();
@@ -33,6 +35,7 @@ export default function EditRecipePage() {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [currentStep, setCurrentStep] = useState<CreateRecipeStep>(CreateRecipeStep.BASIC_INFO);
+  const [authoringLocale, setAuthoringLocale] = useState('es');
 
   const { validateRecipe } = useRecipeValidation();
   const { getNextButtonLabel } = useRecipeNavigation(recipe, currentStep);
@@ -41,6 +44,15 @@ export default function EditRecipePage() {
   useEffect(() => {
     loadRecipe();
   }, [id]);
+
+  useEffect(() => {
+    loadAuthoringLocale().then(setAuthoringLocale);
+  }, []);
+
+  const handleAuthoringLocaleChange = (locale: string) => {
+    setAuthoringLocale(locale);
+    saveAuthoringLocale(locale);
+  };
 
   const loadRecipe = async () => {
     if (!id) return;
@@ -113,6 +125,8 @@ export default function EditRecipePage() {
             recipe={recipe}
             onUpdateRecipe={handleUpdateRecipe}
             errors={errors}
+            authoringLocale={authoringLocale}
+            onAuthoringLocaleChange={handleAuthoringLocaleChange}
           />
         );
       case CreateRecipeStep.INGREDIENTS:
@@ -121,6 +135,7 @@ export default function EditRecipePage() {
             recipe={recipe as AdminRecipe}
             onUpdateRecipe={handleUpdateRecipe}
             errors={errors}
+            authoringLocale={authoringLocale}
           />
         );
       case CreateRecipeStep.STEPS:
@@ -129,6 +144,7 @@ export default function EditRecipePage() {
             recipe={recipe as AdminRecipe}
             onUpdateRecipe={handleUpdateRecipe}
             errors={errors}
+            authoringLocale={authoringLocale}
           />
         );
       case CreateRecipeStep.USEFUL_ITEMS:
@@ -137,6 +153,7 @@ export default function EditRecipePage() {
             recipe={recipe as AdminRecipe}
             onUpdateRecipe={handleUpdateRecipe}
             errors={errors}
+            authoringLocale={authoringLocale}
           />
         );
       case CreateRecipeStep.TAGS:
@@ -145,6 +162,14 @@ export default function EditRecipePage() {
             recipe={recipe}
             onUpdateRecipe={handleUpdateRecipe}
             errors={errors}
+          />
+        );
+      case CreateRecipeStep.TRANSLATIONS:
+        return (
+          <TranslationStep
+            recipe={recipe}
+            authoringLocale={authoringLocale}
+            onUpdateRecipe={handleUpdateRecipe}
           />
         );
       case CreateRecipeStep.REVIEW:

@@ -32,6 +32,7 @@ interface StepFormModalProps {
   recipeIngredients: AdminRecipeIngredient[];
   recipeSteps: AdminRecipeSteps[];
   measurementUnits?: AdminMeasurementUnit[];
+  authoringLocale?: string;
 }
 
 type ValidationErrors = Record<string, string>;
@@ -43,14 +44,13 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
   recipeStep,
   recipeIngredients,
   recipeSteps,
-  measurementUnits = []
+  measurementUnits = [],
+  authoringLocale = 'es'
 }) => {
   const { isLarge: isLargeScreen, isSmall: isSmallScreen } = useDevice();
-  const { locales } = useActiveLocales();
   const [formData, setFormData] = useState<AdminRecipeSteps>(recipeStep);
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [showFormatHelp, setShowFormatHelp] = useState(false);
-  const [translating, setTranslating] = useState(false);
 
   // Group ingredients by section
   const groupedRecipeIngredients = React.useMemo(() => {
@@ -134,51 +134,6 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
       updated = [...formData.translations, { locale, instruction: '', [field]: value } as AdminRecipeStepTranslation];
     }
     setFormData(prev => ({ ...prev, translations: updated }));
-  };
-
-  const handleAutoTranslate = async () => {
-    const sourceTranslation = formData.translations.find(t => t.instruction?.trim());
-    if (!sourceTranslation) return;
-
-    const sourceLocale = sourceTranslation.locale;
-    const targetLocales = locales
-      .map(l => l.code)
-      .filter(code => code !== sourceLocale);
-
-    if (targetLocales.length === 0) return;
-
-    const fields: Record<string, string> = {};
-    if (sourceTranslation.instruction) fields.instruction = sourceTranslation.instruction;
-    if (sourceTranslation.recipeSection) fields.recipeSection = sourceTranslation.recipeSection;
-    if (sourceTranslation.tip) fields.tip = sourceTranslation.tip;
-
-    setTranslating(true);
-    try {
-      const results = await translateContent(fields, sourceLocale, targetLocales);
-      let updated = [...formData.translations];
-
-      for (const result of results) {
-        const existing = updated.find(t => t.locale === result.targetLocale);
-        const newFields: Partial<AdminRecipeStepTranslation> = {
-          instruction: result.fields.instruction || '',
-        };
-        if (result.fields.recipeSection) newFields.recipeSection = result.fields.recipeSection;
-        if (result.fields.tip) newFields.tip = result.fields.tip;
-
-        if (existing) {
-          updated = updated.map(t =>
-            t.locale === result.targetLocale ? { ...t, ...newFields } : t
-          );
-        } else {
-          updated.push({ locale: result.targetLocale, ...newFields } as AdminRecipeStepTranslation);
-        }
-      }
-      setFormData(prev => ({ ...prev, translations: updated }));
-    } catch (error) {
-      console.error('Auto-translate failed:', error);
-    } finally {
-      setTranslating(false);
-    }
   };
 
   const calculateRemainingIngredientQuantity = (ingredientId: string): number | undefined => {
@@ -385,23 +340,20 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
               ) : null}
             </View>
 
-            {/* Instructions - dynamic per locale */}
+            {/* Instruction - single language */}
             <FormRow column>
-              {locales.map(locale => (
-                <FormGroup
-                  key={`instruction-${locale.code}`}
-                  label={`${i18n.t('admin.recipes.form.stepsInfo.instruction')} (${locale.displayName})`}
-                  required
-                  error={errors.recipeStep}
-                >
-                  <TextInput
-                    value={getStepTransField(locale.code, 'instruction')}
-                    onChangeText={(text) => setStepTransField(locale.code, 'instruction', text)}
-                    multiline
-                    numberOfLines={5}
-                  />
-                </FormGroup>
-              ))}
+              <FormGroup
+                label={i18n.t('admin.recipes.form.stepsInfo.instruction')}
+                required
+                error={errors.recipeStep}
+              >
+                <TextInput
+                  value={getStepTransField(authoringLocale, 'instruction')}
+                  onChangeText={(text) => setStepTransField(authoringLocale, 'instruction', text)}
+                  multiline
+                  numberOfLines={5}
+                />
+              </FormGroup>
             </FormRow>
 
             {/* Ingredients Selection */}
@@ -559,7 +511,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
               />
             </FormRow>
 
-            {/* Tips - dynamic per locale */}
+            {/* Tip - single language */}
             <View className="mt-lg mb-sm">
               <Text preset="subheading" fontWeight="600">
                 {i18n.t('admin.recipes.form.stepsInfo.tipTitle')}
@@ -567,19 +519,17 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
             </View>
 
             <FormRow column>
-              {locales.map(locale => (
-                <FormGroup key={`tip-${locale.code}`} label={`${i18n.t('admin.recipes.form.stepsInfo.tipTitle')} (${locale.displayName})`}>
-                  <TextInput
-                    value={getStepTransField(locale.code, 'tip')}
-                    onChangeText={(text) => setStepTransField(locale.code, 'tip', text)}
-                    multiline
-                    numberOfLines={3}
-                  />
-                </FormGroup>
-              ))}
+              <FormGroup label={i18n.t('admin.recipes.form.stepsInfo.tipTitle')}>
+                <TextInput
+                  value={getStepTransField(authoringLocale, 'tip')}
+                  onChangeText={(text) => setStepTransField(authoringLocale, 'tip', text)}
+                  multiline
+                  numberOfLines={3}
+                />
+              </FormGroup>
             </FormRow>
 
-            {/* Recipe Section - dynamic per locale */}
+            {/* Recipe Section - single language */}
             <View className="mt-lg mb-sm">
               <Text preset="subheading" fontWeight="600">
                 {i18n.t('admin.recipes.form.stepsInfo.recipeSection')}
@@ -587,30 +537,13 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
             </View>
 
             <FormRow column>
-              {locales.map(locale => (
-                <FormGroup key={`section-${locale.code}`} label={`${i18n.t('admin.recipes.form.stepsInfo.recipeSection')} (${locale.displayName})`}>
-                  <TextInput
-                    value={getStepTransField(locale.code, 'recipeSection')}
-                    onChangeText={(text) => setStepTransField(locale.code, 'recipeSection', text)}
-                  />
-                </FormGroup>
-              ))}
+              <FormGroup label={i18n.t('admin.recipes.form.stepsInfo.recipeSection')}>
+                <TextInput
+                  value={getStepTransField(authoringLocale, 'recipeSection')}
+                  onChangeText={(text) => setStepTransField(authoringLocale, 'recipeSection', text)}
+                />
+              </FormGroup>
             </FormRow>
-
-            {/* Auto-translate button */}
-            <Button
-              onPress={handleAutoTranslate}
-              loading={translating}
-              disabled={translating}
-              variant="outline"
-              size="small"
-              className="mt-md mb-md"
-            >
-              {translating
-                ? i18n.t('admin.translate.translating')
-                : i18n.t('admin.translate.autoTranslate')
-              }
-            </Button>
 
             {/* Actions */}
             <View className="flex-row justify-end gap-md mt-lg">

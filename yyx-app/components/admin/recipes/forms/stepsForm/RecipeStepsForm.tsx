@@ -16,9 +16,10 @@ interface StepsFormProps {
   recipe: AdminRecipe;
   onUpdateRecipe: (updates: Partial<AdminRecipe>) => void;
   errors: Record<string, string>;
+  authoringLocale?: string;
 }
 
-export function StepsForm({ recipe, onUpdateRecipe, errors }: StepsFormProps) {
+export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es' }: StepsFormProps) {
   const { isMobile } = useDevice();
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedStep, setSelectedStep] = useState<AdminRecipeSteps | undefined>(undefined);
@@ -247,6 +248,7 @@ export function StepsForm({ recipe, onUpdateRecipe, errors }: StepsFormProps) {
           recipeStep={selectedStep}
           recipeIngredients={recipe.ingredients || []}
           recipeSteps={recipe.steps || []}
+          authoringLocale={authoringLocale}
         />
       ) : null}
     </FormSection>

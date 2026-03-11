@@ -7,6 +7,7 @@ import { adminRecipeService } from '@/services/admin/adminRecipeService';
 import { imageService } from '@/services/storage/imageService';
 import { normalizeFileName } from '@/utils/formatters';
 import { useRecipeValidation } from './useRecipeValidation';
+import { loadAuthoringLocale, saveAuthoringLocale } from '@/components/admin/recipes/forms/shared/AuthoringLanguagePicker';
 import i18n from '@/i18n';
 
 // Storage keys
@@ -21,11 +22,11 @@ export interface ExtendedRecipe extends Partial<AdminRecipe> {
   _imageFileUri?: string;
 }
 
-// Initial recipe state
-const initialRecipeState: ExtendedRecipe = {
+// Initial recipe state - only the authoring locale's translation
+function createInitialRecipeState(authoringLocale: string): ExtendedRecipe {
+  return {
   translations: [
-    { locale: 'es', name: '' },
-    { locale: 'en', name: '' },
+    { locale: authoringLocale, name: '' },
   ],
   difficulty: undefined,
   prepTime: undefined,
@@ -37,7 +38,8 @@ const initialRecipeState: ExtendedRecipe = {
   steps: [],
   usefulItems: [],
   isPublished: false,
-};
+  };
+}
 
 interface UseAdminRecipeFormProps {
   onPublishSuccess: () => void;
@@ -52,6 +54,8 @@ interface UseAdminRecipeFormReturn {
   isLoaded: boolean;
   showResumeDialog: boolean;
   savedRecipe: ExtendedRecipe | null;
+  authoringLocale: string;
+  setAuthoringLocale: (locale: string) => void;
   updateRecipe: (updates: Partial<ExtendedRecipe>) => void;
   handleNextStep: () => void;
   handlePrevStep: () => void;
@@ -61,8 +65,9 @@ interface UseAdminRecipeFormReturn {
 }
 
 export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdminRecipeFormProps): UseAdminRecipeFormReturn {
+  const [authoringLocale, setAuthoringLocaleState] = useState('es');
   const [currentStep, setCurrentStep] = useState<CreateRecipeStep>(CreateRecipeStep.INITIAL_SETUP);
-  const [recipe, setRecipe] = useState<ExtendedRecipe>(initialRecipeState);
+  const [recipe, setRecipe] = useState<ExtendedRecipe>(createInitialRecipeState('es'));
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoaded, setIsLoaded] = useState(false);
@@ -70,6 +75,19 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
   const [savedRecipe, setSavedRecipe] = useState<ExtendedRecipe | null>(null);
 
   const { validateBasicInfo, validateIngredients, validateSteps, validateTags } = useRecipeValidation();
+
+  // Load authoring locale on mount
+  useEffect(() => {
+    loadAuthoringLocale().then(locale => {
+      setAuthoringLocaleState(locale);
+      setRecipe(createInitialRecipeState(locale));
+    });
+  }, []);
+
+  const setAuthoringLocale = useCallback((locale: string) => {
+    setAuthoringLocaleState(locale);
+    saveAuthoringLocale(locale);
+  }, []);
 
   // Load saved data on component mount
   useEffect(() => {
@@ -337,7 +355,7 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
   const handleStartNewRecipe = async () => {
     setShowResumeDialog(false);
     await clearSavedData();
-    setRecipe(initialRecipeState);
+    setRecipe(createInitialRecipeState(authoringLocale));
     setCurrentStep(CreateRecipeStep.INITIAL_SETUP);
     setIsLoaded(true);
   };
@@ -350,6 +368,8 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
     isLoaded,
     showResumeDialog,
     savedRecipe,
+    authoringLocale,
+    setAuthoringLocale,
     updateRecipe,
     handleNextStep,
     handlePrevStep,

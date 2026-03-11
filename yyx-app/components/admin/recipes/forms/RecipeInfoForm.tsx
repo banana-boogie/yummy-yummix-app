@@ -15,8 +15,7 @@ import { Button } from '@/components/common/Button';
 import { AlertModal } from '@/components/common/AlertModal';
 import { Text } from '@/components/common/Text';
 import { Image } from 'expo-image';
-import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
-import { translateContent } from '@/services/admin/adminTranslateService';
+import { AuthoringLanguagePicker } from './shared/AuthoringLanguagePicker';
 
 // Interface for recipe with image file
 interface ExtendedRecipe extends Partial<AdminRecipe> {
@@ -27,13 +26,13 @@ interface RecipeInfoFormProps {
   recipe: ExtendedRecipe;
   onUpdateRecipe: (updates: Partial<ExtendedRecipe>) => void;
   errors: Record<string, string>;
+  authoringLocale: string;
+  onAuthoringLocaleChange: (locale: string) => void;
 }
 
-export function RecipeInfoForm({ recipe, onUpdateRecipe, errors }: RecipeInfoFormProps) {
-  const { locales } = useActiveLocales();
+export function RecipeInfoForm({ recipe, onUpdateRecipe, errors, authoringLocale, onAuthoringLocaleChange }: RecipeInfoFormProps) {
   const [uploading, setUploading] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
-  const [translating, setTranslating] = useState(false);
 
   const translations = recipe.translations || [];
 
@@ -53,48 +52,6 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors }: RecipeInfoFor
       updated = [...translations, { locale, name: '', [field]: value } as AdminRecipeTranslation];
     }
     onUpdateRecipe({ translations: updated });
-  };
-
-  const handleAutoTranslate = async () => {
-    const sourceTranslation = translations.find(t => t.name?.trim());
-    if (!sourceTranslation) return;
-
-    const sourceLocale = sourceTranslation.locale;
-    const targetLocales = locales
-      .map(l => l.code)
-      .filter(code => code !== sourceLocale);
-
-    if (targetLocales.length === 0) return;
-
-    const fields: Record<string, string> = {};
-    if (sourceTranslation.name) fields.name = sourceTranslation.name;
-    if (sourceTranslation.tipsAndTricks) fields.tipsAndTricks = sourceTranslation.tipsAndTricks;
-
-    setTranslating(true);
-    try {
-      const results = await translateContent(fields, sourceLocale, targetLocales);
-      let updated = [...translations];
-
-      for (const result of results) {
-        const existing = updated.find(t => t.locale === result.targetLocale);
-        const newFields: Partial<AdminRecipeTranslation> = {
-          name: result.fields.name || '',
-          tipsAndTricks: result.fields.tipsAndTricks,
-        };
-        if (existing) {
-          updated = updated.map(t =>
-            t.locale === result.targetLocale ? { ...t, ...newFields } : t
-          );
-        } else {
-          updated.push({ locale: result.targetLocale, ...newFields } as AdminRecipeTranslation);
-        }
-      }
-      onUpdateRecipe({ translations: updated });
-    } catch (error) {
-      console.error('Auto-translate failed:', error);
-    } finally {
-      setTranslating(false);
-    }
   };
 
   const handlePickImage = async () => {
@@ -127,21 +84,21 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors }: RecipeInfoFor
 
   return (
     <FormSection title={i18n.t('admin.recipes.form.basicInfo.title')}>
-      {/* Name fields - dynamic per locale */}
-      {locales.map(locale => (
-        <FormRow key={`name-${locale.code}`}>
-          <FormGroup
-            label={`${i18n.t('admin.recipes.form.basicInfo.nameEnglish', { defaultValue: 'Name' })} (${locale.displayName})`}
-            required
-            error={errors.name}
-          >
-            <TextInput
-              value={getTranslationField(locale.code, 'name')}
-              onChangeText={(text) => setTranslationField(locale.code, 'name', text)}
-            />
-          </FormGroup>
-        </FormRow>
-      ))}
+      <AuthoringLanguagePicker value={authoringLocale} onChange={onAuthoringLocaleChange} />
+
+      {/* Name - single language */}
+      <FormRow>
+        <FormGroup
+          label={i18n.t('admin.recipes.form.basicInfo.nameEnglish', { defaultValue: 'Name' })}
+          required
+          error={errors.name}
+        >
+          <TextInput
+            value={getTranslationField(authoringLocale, 'name')}
+            onChangeText={(text) => setTranslationField(authoringLocale, 'name', text)}
+          />
+        </FormGroup>
+      </FormRow>
 
       {/* Image container gets its own full-width row to prevent layout issues */}
       <View className="mb-md w-full">
@@ -234,36 +191,21 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors }: RecipeInfoFor
         </FormGroup>
       </FormRow>
 
-      {/* Tips & Tricks - dynamic per locale */}
-      {locales.map(locale => (
-        <FormRow key={`tips-${locale.code}`}>
-          <FormGroup
-            label={`${i18n.t('admin.recipes.form.basicInfo.tipsAndTricksEnglish', { defaultValue: 'Tips & Tricks' })} (${locale.displayName})`}
-          >
-            <TextInput
-              value={getTranslationField(locale.code, 'tipsAndTricks')}
-              onChangeText={(text) => setTranslationField(locale.code, 'tipsAndTricks', text)}
-              multiline
-              numberOfLines={4}
-              className="min-h-[100px] p-md"
-              style={{ textAlignVertical: 'top' }}
-            />
-          </FormGroup>
-        </FormRow>
-      ))}
-
-      <Button
-        onPress={handleAutoTranslate}
-        loading={translating}
-        disabled={translating}
-        variant="outline"
-        size="small"
-      >
-        {translating
-          ? i18n.t('admin.translate.translating')
-          : i18n.t('admin.translate.autoTranslate')
-        }
-      </Button>
+      {/* Tips & Tricks - single language */}
+      <FormRow>
+        <FormGroup
+          label={i18n.t('admin.recipes.form.basicInfo.tipsAndTricksEnglish', { defaultValue: 'Tips & Tricks' })}
+        >
+          <TextInput
+            value={getTranslationField(authoringLocale, 'tipsAndTricks')}
+            onChangeText={(text) => setTranslationField(authoringLocale, 'tipsAndTricks', text)}
+            multiline
+            numberOfLines={4}
+            className="min-h-[100px] p-md"
+            style={{ textAlignVertical: 'top' }}
+          />
+        </FormGroup>
+      </FormRow>
 
       <AlertModal
         visible={showAlert}
