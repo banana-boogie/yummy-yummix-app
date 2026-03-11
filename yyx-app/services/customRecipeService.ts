@@ -50,6 +50,7 @@ interface DbStepRow {
     thermomix_time: number | null;
     thermomix_speed: string | null;
     thermomix_temperature: string | null;
+    tip: string | null;
     ingredients: DbStepIngredientRow[];
 }
 
@@ -144,6 +145,7 @@ export const customRecipeService = {
                 thermomix_time: step.thermomixTime || null,
                 thermomix_speed: step.thermomixSpeed || null,
                 thermomix_temperature: step.thermomixTemp || null,
+                tip: step.tip || null,
             }));
 
             const { data: insertedSteps, error: stepError } = await supabase
@@ -163,11 +165,11 @@ export const customRecipeService = {
             }
 
             // 4. Insert step-ingredient relationships
-            const stepIngredientRows: Array<{
+            const stepIngredientRows: {
                 user_recipe_step_id: string;
                 user_recipe_ingredient_id: string;
                 display_order: number;
-            }> = [];
+            }[] = [];
 
             for (const step of recipe.steps) {
                 if (!step.ingredientsUsed?.length) continue;
@@ -299,6 +301,7 @@ export const customRecipeService = {
             .select(`
                 id, step_order, instruction_en, instruction_es,
                 thermomix_time, thermomix_speed, thermomix_temperature,
+                tip,
                 ingredients:user_recipe_step_ingredients (
                     display_order,
                     ingredient:user_recipe_ingredients (
@@ -358,6 +361,7 @@ export const customRecipeService = {
                 thermomixTime: step.thermomix_time || undefined,
                 thermomixSpeed: step.thermomix_speed || undefined,
                 thermomixTemp: step.thermomix_temperature || undefined,
+                tip: step.tip || undefined,
             };
         });
 

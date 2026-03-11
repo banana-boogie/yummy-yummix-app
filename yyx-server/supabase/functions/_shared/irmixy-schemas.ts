@@ -42,7 +42,7 @@ export const QuickActionSchema = z.object({
 export const UsefulItemSchema = z.object({
   name: z.string(),
   imageUrl: z.string().optional(),
-  notes: z.string().optional(),
+  notes: z.string().nullish(),
 });
 
 export const GeneratedRecipeSchema = z.object({
@@ -64,6 +64,7 @@ export const GeneratedRecipeSchema = z.object({
     thermomixTime: z.number().nullish(), // Allow null, undefined, or number
     thermomixTemp: z.string().nullish(), // Allow null, undefined, or string
     thermomixSpeed: z.string().nullish(), // Allow null, undefined, or string
+    tip: z.string().nullish(), // Optional practical cooking tip for this step
   })),
   totalTime: z.number().int().nonnegative(), // Allow 0 for recipes with unknown time
   difficulty: z.enum(["easy", "medium", "hard"]),

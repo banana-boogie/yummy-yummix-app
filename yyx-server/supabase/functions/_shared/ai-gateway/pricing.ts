@@ -17,9 +17,18 @@ const STATIC_FALLBACK_PRICING: Record<
   string,
   { inputPricePerMillion: number; outputPricePerMillion: number }
 > = {
+  "gpt-4.1": { inputPricePerMillion: 2.00, outputPricePerMillion: 8.00 },
+  "gemini-3-flash-preview": {
+    inputPricePerMillion: 0.50,
+    outputPricePerMillion: 3.00,
+  },
   "gemini-2.5-flash": {
     inputPricePerMillion: 0.15,
     outputPricePerMillion: 0.60,
+  },
+  "grok-4-1-fast-non-reasoning": {
+    inputPricePerMillion: 0.20,
+    outputPricePerMillion: 0.50,
   },
   "gpt-4.1-nano": { inputPricePerMillion: 0.10, outputPricePerMillion: 0.40 },
   "gpt-4.1-mini": { inputPricePerMillion: 0.40, outputPricePerMillion: 1.60 },

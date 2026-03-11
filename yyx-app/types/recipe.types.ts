@@ -57,6 +57,7 @@ export interface RecipeStep {
   instruction: string;
   recipeSection: string | null;
   thermomix?: ThermomixSettings;
+  tip?: string | null;
   ingredients: RecipeStepIngredient[];
 }
 

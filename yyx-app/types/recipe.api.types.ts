@@ -73,6 +73,8 @@ export interface RawRecipeStep {
   recipe_section_es: string | null;
   instruction_en: string;
   instruction_es: string;
+  tip_en: string | null;
+  tip_es: string | null;
   thermomix_time: number | null;
   thermomix_speed: ThermomixSpeedValue;
   thermomix_speed_start: ThermomixSpeedValue;

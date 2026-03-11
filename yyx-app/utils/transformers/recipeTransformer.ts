@@ -97,11 +97,13 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
         }
 
         const instruction = recipeStep[`instruction_${lang}` as 'instruction_en' | 'instruction_es'];
+        const tip = recipeStep[`tip_${lang}` as 'tip_en' | 'tip_es'] || null;
         return {
           id: recipeStep.id,
           order: recipeStep.order,
           instruction: formatInstruction(instruction, thermomix, measurementSystem),
           recipeSection: recipeStep[`recipe_section_${lang}` as 'recipe_section_en' | 'recipe_section_es'],
+          tip,
           ingredients,
           thermomix
         };
