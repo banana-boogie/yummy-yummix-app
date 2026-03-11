@@ -65,7 +65,7 @@ export function useActiveLocales(includeRegional = false) {
 
     fetchLocales();
     return () => { cancelled = true; };
-  }, []);
+  }, [includeRegional]);
 
   return { locales, loading };
 }

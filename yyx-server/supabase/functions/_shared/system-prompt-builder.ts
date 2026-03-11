@@ -52,8 +52,13 @@ export const REGIONAL_VOCABULARY: Record<string, Record<string, string>> = {
 export function resolveVocabulary(
   locale: string,
 ): Record<string, string> | undefined {
+  // Only walk the chain up to the base language — don't cross language boundaries.
+  // e.g., "es-ES" -> check "es-ES", then "es" (same language family).
+  // "en" should NOT resolve to "es" vocabulary via the terminal fallback.
   const chain = buildLocaleChain(locale);
+  const baseLang = getBaseLanguage(locale);
   for (const candidate of chain) {
+    if (getBaseLanguage(candidate) !== baseLang) continue;
     if (REGIONAL_VOCABULARY[candidate]) {
       return REGIONAL_VOCABULARY[candidate];
     }

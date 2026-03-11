@@ -534,5 +534,9 @@ export const admin = {
     enWarning: "English translation is recommended for all recipes. Are you sure you want to skip it?",
     skipEnglish: "Skip English",
     keepEnglish: "Keep English",
+    fieldName: "Name",
+    fieldTipsAndTricks: "Tips & Tricks",
+    fieldSection: "Section",
+    fieldNotes: "Notes",
   },
 };

@@ -9,12 +9,12 @@
  * Compute a locale fallback chain for the given locale.
  *
  * Examples:
- *   "es-MX" -> ["es-MX", "es", "en"]
- *   "es"    -> ["es", "en"]
- *   "en"    -> ["en"]
- *   "fr"    -> ["fr", "en"]
+ *   "es-MX" -> ["es-MX", "es"]
+ *   "es"    -> ["es"]
+ *   "en"    -> ["en", "es"]
+ *   "fr"    -> ["fr", "es"]
  *
- * English is always the terminal fallback.
+ * Spanish is always the terminal fallback (Mexico-first audience).
  */
 export function buildLocaleChain(locale: string): string[] {
   const chain: string[] = [locale];
@@ -27,9 +27,9 @@ export function buildLocaleChain(locale: string): string[] {
     }
   }
 
-  // English is always the terminal fallback
-  if (!chain.includes("en")) {
-    chain.push("en");
+  // Spanish is the terminal fallback (Mexico-first audience, matches DB resolve_locale())
+  if (!chain.includes("es")) {
+    chain.push("es");
   }
 
   return chain;

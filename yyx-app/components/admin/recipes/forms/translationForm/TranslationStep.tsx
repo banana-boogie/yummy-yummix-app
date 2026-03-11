@@ -10,7 +10,14 @@ import { FormSection } from '@/components/form/FormSection';
 import { useActiveLocales, ActiveLocale } from '@/hooks/admin/useActiveLocales';
 import { useRecipeTranslation } from '@/hooks/admin/useRecipeTranslation';
 import { ExtendedRecipe } from '@/hooks/admin/useAdminRecipeForm';
-import { pickTranslation, getTranslatedField } from '@/types/recipe.admin.types';
+import {
+  AdminRecipeTranslation,
+  AdminRecipeStepTranslation,
+  AdminRecipeIngredientTranslation,
+  AdminRecipeUsefulItemTranslation,
+  pickTranslation,
+  getTranslatedField,
+} from '@/types/recipe.admin.types';
 import { useDevice } from '@/hooks/useDevice';
 import i18n from '@/i18n';
 
@@ -48,30 +55,30 @@ export function TranslationStep({ recipe, authoringLocale, onUpdateRecipe }: Tra
     const usefulItems = recipe.usefulItems || [];
 
     let recipeInfoFields = 0;
-    const src = pickTranslation(recipe.translations, authoringLocale);
-    if ((src as any)?.name) recipeInfoFields++;
-    if ((src as any)?.tipsAndTricks) recipeInfoFields++;
+    const src = pickTranslation(recipe.translations, authoringLocale) as AdminRecipeTranslation | undefined;
+    if (src?.name) recipeInfoFields++;
+    if (src?.tipsAndTricks) recipeInfoFields++;
 
     let stepFields = 0;
     for (const step of steps) {
-      const s = pickTranslation(step.translations, authoringLocale);
-      if ((s as any)?.instruction) stepFields++;
-      if ((s as any)?.recipeSection) stepFields++;
-      if ((s as any)?.tip) stepFields++;
+      const s = pickTranslation(step.translations, authoringLocale) as AdminRecipeStepTranslation | undefined;
+      if (s?.instruction) stepFields++;
+      if (s?.recipeSection) stepFields++;
+      if (s?.tip) stepFields++;
     }
 
     let ingredientFields = 0;
     for (const ing of ingredients) {
-      const s = pickTranslation(ing.translations, authoringLocale);
-      if ((s as any)?.notes) ingredientFields++;
-      if ((s as any)?.tip) ingredientFields++;
-      if ((s as any)?.recipeSection) ingredientFields++;
+      const s = pickTranslation(ing.translations, authoringLocale) as AdminRecipeIngredientTranslation | undefined;
+      if (s?.notes) ingredientFields++;
+      if (s?.tip) ingredientFields++;
+      if (s?.recipeSection) ingredientFields++;
     }
 
     let usefulItemFields = 0;
     for (const item of usefulItems) {
-      const s = pickTranslation(item.translations, authoringLocale);
-      if ((s as any)?.notes) usefulItemFields++;
+      const s = pickTranslation(item.translations, authoringLocale) as AdminRecipeUsefulItemTranslation | undefined;
+      if (s?.notes) usefulItemFields++;
     }
 
     return {
@@ -314,7 +321,7 @@ function TranslationReview({
         onToggle={() => toggle('recipeInfo')}
       >
         <FieldPair
-          label={i18n.t('admin.recipes.form.basicInfo.nameEnglish', { defaultValue: 'Name' })}
+          label={i18n.t('admin.translate.fieldName', { defaultValue: 'Name' })}
           sourceValue={getTranslatedField(recipe.translations, sourceLocale, 'name')}
           targetValue={getTranslatedField(recipe.translations, targetLocale, 'name')}
           onTargetChange={(text) => {
@@ -326,7 +333,7 @@ function TranslationReview({
           isMobile={isMobile}
         />
         <FieldPair
-          label={i18n.t('admin.recipes.form.basicInfo.tipsAndTricksEnglish', { defaultValue: 'Tips & Tricks' })}
+          label={i18n.t('admin.translate.fieldTipsAndTricks', { defaultValue: 'Tips & Tricks' })}
           sourceValue={getTranslatedField(recipe.translations, sourceLocale, 'tipsAndTricks')}
           targetValue={getTranslatedField(recipe.translations, targetLocale, 'tipsAndTricks')}
           onTargetChange={(text) => {
@@ -391,7 +398,7 @@ function TranslationReview({
                 <Text preset="bodySmall" fontWeight="600" className="mb-xs">{ingName}</Text>
                 {getTranslatedField(ing.translations, sourceLocale, 'recipeSection') ? (
                   <FieldPair
-                    label={i18n.t('admin.recipes.form.ingredientsInfo.recipeSectionEn', { defaultValue: 'Section' })}
+                    label={i18n.t('admin.translate.fieldSection', { defaultValue: 'Section' })}
                     sourceValue={getTranslatedField(ing.translations, sourceLocale, 'recipeSection')}
                     targetValue={getTranslatedField(ing.translations, targetLocale, 'recipeSection')}
                     onTargetChange={(text) => {
@@ -445,7 +452,7 @@ function TranslationReview({
               <View key={item.id || idx} className="mb-md">
                 <Text preset="bodySmall" fontWeight="600" className="mb-xs">{itemName}</Text>
                 <FieldPair
-                  label={i18n.t('admin.recipes.form.usefulItemsInfo.notesEnLabel', { defaultValue: 'Notes' })}
+                  label={i18n.t('admin.translate.fieldNotes', { defaultValue: 'Notes' })}
                   sourceValue={getTranslatedField(item.translations, sourceLocale, 'notes')}
                   targetValue={getTranslatedField(item.translations, targetLocale, 'notes')}
                   onTargetChange={(text) => {

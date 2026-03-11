@@ -542,5 +542,9 @@ export const admin = {
     enWarning: "Se recomienda la traducción al inglés para todas las recetas. ¿Estás seguro de que quieres omitirlo?",
     skipEnglish: "Omitir inglés",
     keepEnglish: "Mantener inglés",
+    fieldName: "Nombre",
+    fieldTipsAndTricks: "Consejos y Trucos",
+    fieldSection: "Sección",
+    fieldNotes: "Notas",
   },
 };

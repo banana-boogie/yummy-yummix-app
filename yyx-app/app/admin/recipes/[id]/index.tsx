@@ -185,9 +185,10 @@ export default function EditRecipePage() {
   };
 
   // Show loading state until recipe name is loaded to prevent title flash
-  const recipeNameEn = getTranslatedField(recipe.translations, 'en', 'name');
   const recipeNameEs = getTranslatedField(recipe.translations, 'es', 'name');
-  if (loading || !recipeNameEn) {
+  const recipeNameEn = getTranslatedField(recipe.translations, 'en', 'name');
+  const recipeName = recipeNameEs || recipeNameEn;
+  if (loading || !recipeName) {
     return (
       <AdminLayout title={i18n.t('admin.common.loading')} showBackButton={true}>
         <View className="flex-1 justify-center items-center">
@@ -197,9 +198,10 @@ export default function EditRecipePage() {
     );
   }
 
+  const titleParts = [recipeNameEs, recipeNameEn].filter(Boolean);
   return (
     <AdminLayout
-      title={recipeNameEn ? `${recipeNameEn} | ${recipeNameEs}` : i18n.t('admin.recipes.form.newRecipe')}
+      title={titleParts.length > 0 ? titleParts.join(' | ') : i18n.t('admin.recipes.form.newRecipe')}
       showBackButton={true}
     >
       <View className="flex-1">
