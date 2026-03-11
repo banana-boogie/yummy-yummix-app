@@ -49,9 +49,9 @@ describe('RecipeProgressTracker', () => {
   it('advances stages on timer', () => {
     render(<RecipeProgressTracker isActive={true} hasRecipe={false} />);
 
-    // Advance past stage 1 duration (500ms)
+    // Advance past stage 1 duration (1000ms)
     act(() => {
-      jest.advanceTimersByTime(600);
+      jest.advanceTimersByTime(1100);
     });
 
     expect(screen.getByText('Selecting the best ingredients...')).toBeTruthy();
@@ -60,9 +60,9 @@ describe('RecipeProgressTracker', () => {
   it('advances to stage 3 after sufficient time', () => {
     render(<RecipeProgressTracker isActive={true} hasRecipe={false} />);
 
-    // Advance past stage 1 (500ms) + stage 2 (1200ms)
+    // Advance past stage 1 (1000ms) + stage 2 (3000ms)
     act(() => {
-      jest.advanceTimersByTime(1800);
+      jest.advanceTimersByTime(4100);
     });
 
     expect(screen.getByText('Planning cooking times...')).toBeTruthy();

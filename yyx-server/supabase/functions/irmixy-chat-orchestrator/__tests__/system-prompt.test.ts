@@ -50,7 +50,7 @@ Deno.test("buildSystemPrompt includes meal context section when detected", () =>
 Deno.test("buildSystemPrompt includes tool rules with search-first strategy", () => {
   const prompt = buildSystemPrompt(createUserContext());
 
-  assertStringIncludes(prompt, "TOOLS:");
+  assertStringIncludes(prompt, "TOOLS");
   assertStringIncludes(prompt, "Search first");
   assertStringIncludes(prompt, "search_recipes");
   assertStringIncludes(prompt, "generate_custom_recipe");
@@ -74,7 +74,7 @@ Deno.test("buildSystemPrompt places personality BEFORE rules", () => {
   const prompt = buildSystemPrompt(createUserContext({ language: "en" }));
 
   const personalityIndex = prompt.indexOf("IDENTITY:");
-  const toolsIndex = prompt.indexOf("TOOLS:");
+  const toolsIndex = prompt.indexOf("TOOLS");
   assertEquals(
     personalityIndex < toolsIndex,
     true,
@@ -104,9 +104,9 @@ Deno.test("buildSystemPrompt separates communication and tool sections", () => {
   const prompt = buildSystemPrompt(createUserContext());
 
   assertStringIncludes(prompt, "COMMUNICATION:");
-  assertStringIncludes(prompt, "TOOLS:");
-  // No old monolithic RULES section
-  assertEquals(prompt.includes("RULES:"), false);
+  assertStringIncludes(prompt, "TOOLS");
+  // No old monolithic RULES section (standalone header, not part of "TOOLS — CRITICAL RULES:")
+  assertEquals(prompt.includes("\nRULES:\n"), false);
 });
 
 Deno.test("buildSystemPrompt includes user context XML block", () => {
