@@ -13,12 +13,25 @@ import { renderHook, waitFor } from '@testing-library/react-native';
 import { useActiveLocales } from '../useActiveLocales';
 
 // ---------- Supabase mock ----------
+// Build a chainable + thenable mock that mimics Supabase's PostgREST builder.
+// Every method returns the same object. When awaited, it resolves via `.then()`.
 
-const mockOrder = jest.fn();
-const mockEq = jest.fn(() => ({ order: mockOrder }));
-const mockNot = jest.fn(() => ({ eq: mockEq }));
-const mockSelect = jest.fn(() => ({ not: mockNot }));
-const mockFrom = jest.fn(() => ({ select: mockSelect }));
+let mockResolvedValue = { data: null as any, error: null as any };
+
+const mockQuery: any = {
+  select: jest.fn(),
+  not: jest.fn(),
+  eq: jest.fn(),
+  order: jest.fn(),
+  then: (resolve: any) => resolve(mockResolvedValue),
+};
+// Each method returns the query object for chaining
+mockQuery.select.mockReturnValue(mockQuery);
+mockQuery.not.mockReturnValue(mockQuery);
+mockQuery.eq.mockReturnValue(mockQuery);
+mockQuery.order.mockReturnValue(mockQuery);
+
+const mockFrom = jest.fn(() => mockQuery);
 
 jest.mock('@/lib/supabase', () => ({
   supabase: {
@@ -51,7 +64,7 @@ describe('useActiveLocales', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Default: successful fetch returning alphabetically-ordered locales
-    mockOrder.mockResolvedValue({ data: dbLocalesAlphabetical, error: null });
+    mockResolvedValue =({ data: dbLocalesAlphabetical, error: null });
   });
 
   // ============================================================
@@ -67,10 +80,10 @@ describe('useActiveLocales', () => {
       });
 
       expect(mockFrom).toHaveBeenCalledWith('locales');
-      expect(mockSelect).toHaveBeenCalledWith('code, display_name');
-      expect(mockNot).toHaveBeenCalledWith('code', 'like', '%-%');
-      expect(mockEq).toHaveBeenCalledWith('is_active', true);
-      expect(mockOrder).toHaveBeenCalledWith('code', { ascending: true });
+      expect(mockQuery.select).toHaveBeenCalledWith('code, display_name');
+      expect(mockQuery.not).toHaveBeenCalledWith('code', 'like', '%-%');
+      expect(mockQuery.eq).toHaveBeenCalledWith('is_active', true);
+      expect(mockQuery.order).toHaveBeenCalledWith('code', { ascending: true });
       expect(result.current.locales).toHaveLength(3);
     });
 
@@ -95,7 +108,7 @@ describe('useActiveLocales', () => {
 
   describe('sorting', () => {
     it('sorts es before other locales', async () => {
-      mockOrder.mockResolvedValue({ data: dbLocalesAlphabetical, error: null });
+      mockResolvedValue =({ data: dbLocalesAlphabetical, error: null });
 
       const { result } = renderHook(() => useActiveLocales());
 
@@ -109,7 +122,7 @@ describe('useActiveLocales', () => {
     });
 
     it('sorts es first even when it comes last from DB', async () => {
-      mockOrder.mockResolvedValue({ data: dbLocalesUnordered, error: null });
+      mockResolvedValue =({ data: dbLocalesUnordered, error: null });
 
       const { result } = renderHook(() => useActiveLocales());
 
@@ -121,7 +134,7 @@ describe('useActiveLocales', () => {
     });
 
     it('sorts remaining locales alphabetically after es', async () => {
-      mockOrder.mockResolvedValue({
+      mockResolvedValue =({
         data: [
           { code: 'pt', display_name: 'Português' },
           { code: 'es', display_name: 'Español' },
@@ -162,7 +175,7 @@ describe('useActiveLocales', () => {
     });
 
     it('sets loading to false even on error', async () => {
-      mockOrder.mockResolvedValue({
+      mockResolvedValue =({
         data: null,
         error: { message: 'DB error', code: '500' },
       });
@@ -182,7 +195,7 @@ describe('useActiveLocales', () => {
   describe('error fallback', () => {
     it('falls back to hardcoded locales on fetch error', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      mockOrder.mockResolvedValue({
+      mockResolvedValue =({
         data: null,
         error: { message: 'Table not found', code: '42P01' },
       });
@@ -204,7 +217,7 @@ describe('useActiveLocales', () => {
 
     it('hardcoded fallback has es first', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      mockOrder.mockResolvedValue({
+      mockResolvedValue =({
         data: null,
         error: { message: 'Network error' },
       });
@@ -228,7 +241,7 @@ describe('useActiveLocales', () => {
 
   describe('edge cases', () => {
     it('handles empty response from DB', async () => {
-      mockOrder.mockResolvedValue({ data: [], error: null });
+      mockResolvedValue =({ data: [], error: null });
 
       const { result } = renderHook(() => useActiveLocales());
 
@@ -240,7 +253,7 @@ describe('useActiveLocales', () => {
     });
 
     it('handles null data with no error', async () => {
-      mockOrder.mockResolvedValue({ data: null, error: null });
+      mockResolvedValue =({ data: null, error: null });
 
       const { result } = renderHook(() => useActiveLocales());
 
@@ -253,7 +266,7 @@ describe('useActiveLocales', () => {
     });
 
     it('handles single locale response', async () => {
-      mockOrder.mockResolvedValue({
+      mockResolvedValue =({
         data: [{ code: 'es', display_name: 'Español' }],
         error: null,
       });

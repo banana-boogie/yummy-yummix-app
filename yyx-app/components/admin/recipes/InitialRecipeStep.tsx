@@ -14,6 +14,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { CreateEditUsefulItemModal } from '../useful-items/CreateEditUsefulItemModal';
 import { CheckboxButton } from '@/components/common/CheckboxButton';
 import { COLORS } from '@/constants/design-tokens';
+import { useRecipeTranslation } from '@/hooks/admin/useRecipeTranslation';
+import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
+import { ExtendedRecipe } from '@/hooks/admin/useAdminRecipeForm';
 
 interface InitialRecipeStepProps {
     onUpdateRecipe: (updates: Partial<AdminRecipe>) => void;
@@ -35,6 +38,23 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
     const [showIngredientModal, setShowIngredientModal] = useState(false);
     const [showTagModal, setShowTagModal] = useState(false);
     const [showUsefulItemModal, setShowUsefulItemModal] = useState(false);
+
+    // Locale selection for AI generation
+    const { locales: allLocales } = useActiveLocales(true);
+    const { translating, progress, translateAll } = useRecipeTranslation();
+    // The parse-recipe-markdown edge function generates 'en' + 'es' by default.
+    // Additional locales (e.g. es-ES) are translated via translate-content after parsing.
+    const PARSE_GENERATED_LOCALES = ['en', 'es'];
+    const [selectedLocales, setSelectedLocales] = useState<Record<string, boolean>>({
+        en: true,
+        es: true,
+        'es-MX': true,
+        'es-ES': true,
+    });
+
+    const toggleLocale = (code: string) => {
+        setSelectedLocales(prev => ({ ...prev, [code]: !prev[code] }));
+    };
 
     // State to track checked ingredients and tags
     const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
@@ -77,8 +97,35 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
         try {
             const { recipe: parsedRecipe, missingIngredients, missingTags, missingUsefulItems } = await parseRecipeMarkdown(markdownText);
 
-            // Update the recipe state with parsed data
-            onUpdateRecipe(parsedRecipe);
+            // Determine which additional locales need translation
+            // parse-recipe-markdown generates 'en' + 'es'. Any other selected locale needs translate-content.
+            const additionalLocales = Object.entries(selectedLocales)
+                .filter(([code, checked]) => checked && !PARSE_GENERATED_LOCALES.includes(code))
+                .map(([code]) => code);
+
+            let finalRecipe = parsedRecipe;
+
+            // Strip locales the admin unchecked
+            if (finalRecipe.translations) {
+                finalRecipe = {
+                    ...finalRecipe,
+                    translations: finalRecipe.translations.filter(
+                        t => selectedLocales[t.locale]
+                    ),
+                };
+            }
+
+            // Auto-translate to additional locales (e.g. es-ES) using translate-content
+            if (additionalLocales.length > 0) {
+                finalRecipe = await translateAll(
+                    finalRecipe as ExtendedRecipe,
+                    'es', // source is Spanish (Mexican)
+                    additionalLocales,
+                );
+            }
+
+            // Update the recipe state with parsed + translated data
+            onUpdateRecipe(finalRecipe);
 
             setParsingStatus({
                 loading: false,
@@ -295,6 +342,41 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                     </Text>
 
                     <ScrollView className="max-h-[500px] mb-md">
+                        {/* Locale checkboxes */}
+                        {!importSuccessful && (
+                            <View className="mb-md p-sm bg-background-SECONDARY rounded-md">
+                                <Text preset="bodySmall" className="mb-xs font-semibold">
+                                    {i18n.t('admin.translate.targetLanguages')}
+                                </Text>
+                                <View className="flex-row flex-wrap gap-xs">
+                                    {allLocales.map(locale => (
+                                        <CheckboxButton
+                                            key={locale.code}
+                                            checked={selectedLocales[locale.code] ?? false}
+                                            onPress={() => toggleLocale(locale.code)}
+                                            label={locale.displayName}
+                                            className="flex-row items-center mr-md"
+                                        />
+                                    ))}
+                                </View>
+                            </View>
+                        )}
+
+                        {/* Translation progress */}
+                        {translating && progress && (
+                            <View className="mb-md p-sm bg-primary-LIGHT rounded-md border border-primary-MEDIUM">
+                                <Text preset="bodySmall" className="mb-xs">
+                                    {i18n.t('admin.translate.translating', { defaultValue: 'Translating...' })} {progress.current}/{progress.total}
+                                </Text>
+                                <View className="h-2 bg-background-DEFAULT rounded-full overflow-hidden">
+                                    <View
+                                        className="h-full bg-primary-DEFAULT rounded-full"
+                                        style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                                    />
+                                </View>
+                            </View>
+                        )}
+
                         {!importSuccessful && (
                             <View className="relative">
                                 <TextInput
@@ -446,9 +528,9 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                             <Button
                                 label={i18n.t('common.import')}
                                 onPress={handleImportMarkdown}
-                                loading={parsingStatus.loading}
+                                loading={parsingStatus.loading || translating}
                                 className="flex-1"
-                                disabled={!markdownText}
+                                disabled={!markdownText || translating}
                             />
                         )}
                     </View>

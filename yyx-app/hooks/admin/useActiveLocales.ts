@@ -7,10 +7,10 @@ export interface ActiveLocale {
 }
 
 /**
- * Fetches active base locales (e.g. 'es', 'en' — not regional variants like 'es-MX')
- * from the locales table, ordered with 'es' first (Mexico-first audience).
+ * Fetches active locales from the locales table, ordered with 'es' first (Mexico-first audience).
+ * @param includeRegional - If true, includes regional variants (es-MX, es-ES). Default: false (base locales only).
  */
-export function useActiveLocales() {
+export function useActiveLocales(includeRegional = false) {
   const [locales, setLocales] = useState<ActiveLocale[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -19,12 +19,17 @@ export function useActiveLocales() {
 
     async function fetchLocales() {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('locales')
           .select('code, display_name')
-          .not('code', 'like', '%-%')
           .eq('is_active', true)
           .order('code', { ascending: true });
+
+        if (!includeRegional) {
+          query = query.not('code', 'like', '%-%');
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           console.error('Failed to fetch locales:', error);
