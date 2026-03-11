@@ -17,6 +17,11 @@ Custom PostgreSQL functions available via Supabase RPC.
 | `admin_ai_adoption(timeframe)` | AI adoption rate, session counts, return users | Admin AI tab |
 | `admin_ai_usage(timeframe)` | AI cost/usage breakdown (text + voice) | Admin AI tab |
 | `admin_recipe_generation(timeframe)` | Recipe generation success/failure rates | Admin AI tab |
+| `admin_daily_signups(timeframe)` | Daily signup and onboarding counts | Admin Overview charts |
+| `admin_daily_active_users(timeframe)` | Daily unique active users | Admin Overview charts |
+| `admin_daily_ai_users(timeframe)` | Daily unique AI users (chat + voice) | Admin AI charts |
+| `admin_content_source_split(timeframe)` | Catalog vs user-generated cook counts | Admin Content tab |
+| `admin_patterns()` | Cooking time of day, language distribution | Legacy (not in current UI) |
 | `find_closest_ingredient(name, lang)` | Find ingredient by fuzzy name match | Custom recipe generation |
 | `update_ai_voice_usage()` | Track AI voice minutes | Voice endpoints |
 | `upsert_cooking_session_progress(recipe_id, recipe_type, recipe_name, current_step, total_steps)` | Upsert active cooking progress per user+recipe | Cooking guide progress + resume prompt |

@@ -100,6 +100,10 @@ Primary RPCs (dedicated, extracted from legacy dispatcher):
 - `admin_ai_usage(timeframe)` — AI cost/usage breakdown
 - `admin_ai_chat_session_depth(timeframe, filter_user_id)` — session depth metrics
 - `admin_recipe_generation(timeframe)` — recipe generation stats (hidden in UI pending event instrumentation)
+- `admin_daily_signups(timeframe)` — daily signup and onboarding counts (Overview charts)
+- `admin_daily_active_users(timeframe)` — daily unique active users (Overview charts)
+- `admin_daily_ai_users(timeframe)` — daily unique AI users, chat + voice (AI charts)
+- `admin_content_source_split(timeframe)` — catalog vs user-generated cook counts (Content tab)
 
 Legacy compatibility: `admin_analytics(action, timeframe, limit_count)` — dispatcher that delegates to dedicated RPCs above.
 
