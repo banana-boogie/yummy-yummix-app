@@ -194,7 +194,7 @@ describe('AdminUsefulItemsService', () => {
       expect(mockUploadImage).toHaveBeenCalledWith({
         bucket: 'useful-items',
         folderPath: 'images',
-        fileName: 'Spatula.png',
+        fileName: 'Espátula.png',
         file: mockFile,
         forcePNG: true,
       });
@@ -363,7 +363,7 @@ describe('AdminUsefulItemsService', () => {
   // ============================================================
 
   describe('image handling', () => {
-    it('uses English name for image filename when available', async () => {
+    it('prefers Spanish name for image filename (Mexico-first)', async () => {
       const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
       const newItem = {
         translations: [
@@ -380,7 +380,7 @@ describe('AdminUsefulItemsService', () => {
 
       expect(mockUploadImage).toHaveBeenCalledWith(
         expect.objectContaining({
-          fileName: 'Cutting Board.png',
+          fileName: 'Tabla de cortar.png',
         })
       );
     });

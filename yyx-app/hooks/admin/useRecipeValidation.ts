@@ -5,8 +5,8 @@ export const useRecipeValidation = () => {
   const validateBasicInfo = (recipe: Partial<AdminRecipe>): Record<string, string> => {
     const errors: Record<string, string> = {};
     
-    const nameEn = getTranslatedField(recipe.translations as any, 'en', 'name' as any);
-    const nameEs = getTranslatedField(recipe.translations as any, 'es', 'name' as any);
+    const nameEn = getTranslatedField(recipe.translations, 'en', 'name');
+    const nameEs = getTranslatedField(recipe.translations, 'es', 'name');
     if (!nameEn && !nameEs) {
       errors.name = i18n.t('admin.recipes.form.errors.nameRequired');
     }

@@ -34,8 +34,8 @@ export function UsefulItemCard({ usefulItem, onEdit, onDelete }: UsefulItemCardP
 
       {/* Names - takes up remaining space */}
       <View className="flex-1 justify-center mr-sm">
-        <Text preset="body" numberOfLines={1}>{getTranslatedField(usefulItem.translations, 'en', 'name' as any)}</Text>
-        <Text preset="caption" color={COLORS.text.secondary} numberOfLines={1}>{getTranslatedField(usefulItem.translations, 'es', 'name' as any)}</Text>
+        <Text preset="body" numberOfLines={1}>{getTranslatedField(usefulItem.translations, 'en', 'name')}</Text>
+        <Text preset="caption" color={COLORS.text.secondary} numberOfLines={1}>{getTranslatedField(usefulItem.translations, 'es', 'name')}</Text>
       </View>
 
       {/* Actions - compact on mobile */}

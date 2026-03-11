@@ -19,8 +19,8 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
 }) => {
   // Group ingredients by recipeSection
   const groupedIngredients = ingredients.reduce<Record<string, AdminRecipeIngredient[]>>((acc, ingredient) => {
-    const recipeSection = getTranslatedField(ingredient.translations, 'en', 'recipeSection' as any)
-      || getTranslatedField(ingredient.translations, 'es', 'recipeSection' as any)
+    const recipeSection = getTranslatedField(ingredient.translations, 'en', 'recipeSection')
+      || getTranslatedField(ingredient.translations, 'es', 'recipeSection')
       || '';
     if (!acc[recipeSection]) {
       acc[recipeSection] = [];

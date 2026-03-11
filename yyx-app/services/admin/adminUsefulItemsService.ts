@@ -1,30 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { BaseService } from '../base/BaseService';
 import { imageService } from '../storage/imageService';
-import { AdminUsefulItem, AdminUsefulItemTranslation } from '@/types/recipe.admin.types';
-
-/**
- * Helper to pick a translation value from an array of translations by locale.
- */
-function pickByLocale<T extends { locale: string }>(
-  translations: T[] | undefined | null,
-  locale: string,
-): T | undefined {
-  if (!translations) return undefined;
-  return translations.find(t => t.locale === locale);
-}
-
-/**
- * Helper: extract a name from translations for image filenames.
- */
-function getNameFromTranslations(translations: AdminUsefulItemTranslation[] | undefined): string {
-  if (!translations || translations.length === 0) return 'useful-item';
-  const en = pickByLocale(translations, 'en');
-  if (en?.name) return en.name;
-  const es = pickByLocale(translations, 'es');
-  if (es?.name) return es.name;
-  return translations[0]?.name || 'useful-item';
-}
+import { AdminUsefulItem, AdminUsefulItemTranslation, pickTranslation, getNameFromTranslations } from '@/types/recipe.admin.types';
 
 export class AdminUsefulItemsService extends BaseService {
   constructor() {
@@ -60,8 +37,8 @@ export class AdminUsefulItemsService extends BaseService {
     // Sort client-side since translation table columns can't be sorted via PostgREST
     const sortLocale = sortBy === 'name_es' ? 'es' : 'en';
     result.sort((a: AdminUsefulItem, b: AdminUsefulItem) => {
-      const aName = pickByLocale(a.translations, sortLocale)?.name || '';
-      const bName = pickByLocale(b.translations, sortLocale)?.name || '';
+      const aName = pickTranslation(a.translations, sortLocale)?.name || '';
+      const bName = pickTranslation(b.translations, sortLocale)?.name || '';
       return aName.localeCompare(bName);
     });
 
@@ -72,7 +49,7 @@ export class AdminUsefulItemsService extends BaseService {
     if (!file) return '';
 
     try {
-      const fileName = `${getNameFromTranslations(translations)}.png`;
+      const fileName = `${getNameFromTranslations(translations, 'useful-item')}.png`;
       return await this.uploadImage({
         bucket: 'useful-items',
         folderPath: 'images',

@@ -60,10 +60,10 @@ export function useIngredients(): UseIngredientsReturn {
   useEffect(() => {
     if (searchQuery) {
       const filtered = ingredients.filter(ingredient => {
-        const nameEn = getTranslatedField(ingredient.translations, 'en', 'name' as any);
-        const nameEs = getTranslatedField(ingredient.translations, 'es', 'name' as any);
-        const pluralNameEn = getTranslatedField(ingredient.translations, 'en', 'pluralName' as any);
-        const pluralNameEs = getTranslatedField(ingredient.translations, 'es', 'pluralName' as any);
+        const nameEn = getTranslatedField(ingredient.translations, 'en', 'name');
+        const nameEs = getTranslatedField(ingredient.translations, 'es', 'name');
+        const pluralNameEn = getTranslatedField(ingredient.translations, 'en', 'pluralName');
+        const pluralNameEs = getTranslatedField(ingredient.translations, 'es', 'pluralName');
         return nameEn?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           nameEs?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           pluralNameEn?.toLowerCase().includes(searchQuery.toLowerCase()) ||

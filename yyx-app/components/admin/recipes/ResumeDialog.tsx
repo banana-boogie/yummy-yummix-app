@@ -19,8 +19,8 @@ export function ResumeDialog({
 }: ResumeDialogProps) {
   if (!savedRecipe) return null;
 
-  const nameEn = getTranslatedField(savedRecipe.translations as any, 'en', 'name' as any);
-  const nameEs = getTranslatedField(savedRecipe.translations as any, 'es', 'name' as any);
+  const nameEn = getTranslatedField(savedRecipe.translations, 'en', 'name');
+  const nameEs = getTranslatedField(savedRecipe.translations, 'es', 'name');
   const recipeName = nameEn || nameEs || i18n.t('admin.recipes.resume.untitledRecipe');
   const recipeNameAlt = nameEn && nameEs ? ` (${nameEs})` : '';
 

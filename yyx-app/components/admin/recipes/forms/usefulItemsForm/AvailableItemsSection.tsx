@@ -58,8 +58,8 @@ export function AvailableItemsSection({
                 </View>
 
                 <View className="flex-1">
-                    <Text className="font-medium">{getTranslatedField(item.translations, 'en', 'name' as any)}</Text>
-                    <Text className="text-xs text-text-SECONDARY">{getTranslatedField(item.translations, 'es', 'name' as any)}</Text>
+                    <Text className="font-medium">{getTranslatedField(item.translations, 'en', 'name')}</Text>
+                    <Text className="text-xs text-text-SECONDARY">{getTranslatedField(item.translations, 'es', 'name')}</Text>
                 </View>
 
                 {isAdded ? (

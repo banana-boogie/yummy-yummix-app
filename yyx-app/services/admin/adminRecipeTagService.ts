@@ -1,21 +1,10 @@
 import { supabase } from '@/lib/supabase';
 import { BaseService } from '@/services/base/BaseService';
-import { AdminRecipeTag, AdminRecipeTagTranslation } from '@/types/recipe.admin.types';
+import { AdminRecipeTag } from '@/types/recipe.admin.types';
 import { formatCategoryNameToTitleCase, formatToScreamingSnakeCase, transformCategories } from '@/utils/formatters';
 export interface TagFilters {
   searchQuery?: string;
   sortDirection?: 'asc' | 'desc';
-}
-
-/**
- * Helper to pick a translation value from an array of translations by locale.
- */
-function pickByLocale<T extends { locale: string }>(
-  translations: T[] | undefined | null,
-  locale: string,
-): T | undefined {
-  if (!translations) return undefined;
-  return translations.find(t => t.locale === locale);
 }
 
 class AdminRecipeTagService extends BaseService {
@@ -52,8 +41,8 @@ class AdminRecipeTagService extends BaseService {
 
     // Sort by Spanish name (matching previous behavior)
     tags.sort((a: AdminRecipeTag, b: AdminRecipeTag) => {
-      const aName = pickByLocale(a.translations, 'es')?.name || '';
-      const bName = pickByLocale(b.translations, 'es')?.name || '';
+      const aName = pickTranslation(a.translations, 'es')?.name || '';
+      const bName = pickTranslation(b.translations, 'es')?.name || '';
       return aName.localeCompare(bName);
     });
 

@@ -134,8 +134,8 @@ export default function UsefulItemsAdminPage() {
         visible={showDeleteAlert}
         title={i18n.t('admin.usefulItems.confirmDeletion.title')}
         message={i18n.t('admin.usefulItems.confirmDeletion.message', {
-          nameEn: getTranslatedField(selectedUsefulItem?.translations as any, 'en', 'name' as any),
-          nameEs: getTranslatedField(selectedUsefulItem?.translations as any, 'es', 'name' as any)
+          nameEn: getTranslatedField(selectedUsefulItem?.translations, 'en', 'name'),
+          nameEs: getTranslatedField(selectedUsefulItem?.translations, 'es', 'name')
         })}
         onConfirm={handleConfirmDelete}
         onCancel={() => {

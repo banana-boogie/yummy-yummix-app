@@ -46,13 +46,13 @@ export function IngredientCard({ ingredient, onEdit, onDelete }: IngredientCardP
               preset="subheading"
               className="font-semibold mb-xxs"
             >
-              {getTranslatedField(ingredient.translations, 'en', 'name' as any) || '—'}
+              {getTranslatedField(ingredient.translations, 'en', 'name') || '—'}
             </Text>
             <Text
               preset="body"
               className="text-text-SECONDARY"
             >
-              Plural: {getTranslatedField(ingredient.translations, 'en', 'pluralName' as any) || '—'}
+              Plural: {getTranslatedField(ingredient.translations, 'en', 'pluralName') || '—'}
             </Text>
           </View>
         </View>
@@ -71,13 +71,13 @@ export function IngredientCard({ ingredient, onEdit, onDelete }: IngredientCardP
               preset="subheading"
               className="font-semibold mb-xxs"
             >
-              {getTranslatedField(ingredient.translations, 'es', 'name' as any) || '—'}
+              {getTranslatedField(ingredient.translations, 'es', 'name') || '—'}
             </Text>
             <Text
               preset="body"
               className="text-text-SECONDARY"
             >
-              Plural: {getTranslatedField(ingredient.translations, 'es', 'pluralName' as any) || '—'}
+              Plural: {getTranslatedField(ingredient.translations, 'es', 'pluralName') || '—'}
             </Text>
           </View>
         </View>

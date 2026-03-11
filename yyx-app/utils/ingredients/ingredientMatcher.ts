@@ -125,10 +125,10 @@ export class IngredientMatcher {
     const getNames = (ing: any): IngredientNameFields => {
       if (ing.translations && ing.translations.length > 0) {
         return {
-          nameEn: getTranslatedField(ing.translations, 'en', 'name' as any),
-          nameEs: getTranslatedField(ing.translations, 'es', 'name' as any),
-          pluralNameEn: getTranslatedField(ing.translations, 'en', 'pluralName' as any),
-          pluralNameEs: getTranslatedField(ing.translations, 'es', 'pluralName' as any),
+          nameEn: getTranslatedField(ing.translations, 'en', 'name'),
+          nameEs: getTranslatedField(ing.translations, 'es', 'name'),
+          pluralNameEn: getTranslatedField(ing.translations, 'en', 'pluralName'),
+          pluralNameEs: getTranslatedField(ing.translations, 'es', 'pluralName'),
         };
       }
       // Fallback for legacy format (e.g. parsed edge function data)

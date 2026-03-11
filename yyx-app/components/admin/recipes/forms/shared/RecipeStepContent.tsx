@@ -38,10 +38,10 @@ export function RecipeStepContent({
     return null;
   };
 
-  const instructionEn = getTranslatedField(recipeStep.translations, 'en', 'instruction' as any);
-  const instructionEs = getTranslatedField(recipeStep.translations, 'es', 'instruction' as any);
-  const tipEn = getTranslatedField(recipeStep.translations, 'en', 'tip' as any);
-  const tipEs = getTranslatedField(recipeStep.translations, 'es', 'tip' as any);
+  const instructionEn = getTranslatedField(recipeStep.translations, 'en', 'instruction');
+  const instructionEs = getTranslatedField(recipeStep.translations, 'es', 'instruction');
+  const tipEn = getTranslatedField(recipeStep.translations, 'en', 'tip');
+  const tipEs = getTranslatedField(recipeStep.translations, 'es', 'tip');
 
   // Preview thermomix parameters formatting
   const formatStep = (language: string = 'en') => {
@@ -55,8 +55,8 @@ export function RecipeStepContent({
       speed_end = Number(speedRange.end);
     }
 
-    const recipeSectionEn = getTranslatedField(recipeStep.translations, 'en', 'recipeSection' as any);
-    const recipeSectionEs = getTranslatedField(recipeStep.translations, 'es', 'recipeSection' as any);
+    const recipeSectionEn = getTranslatedField(recipeStep.translations, 'en', 'recipeSection');
+    const recipeSectionEs = getTranslatedField(recipeStep.translations, 'es', 'recipeSection');
 
     // Create raw recipe instruction for formatter
     const rawRecipeStep = {
@@ -163,18 +163,18 @@ export function RecipeStepContent({
                       cachePolicy="memory-disk"
                     />
                     <View className="flex-1 ml-sm">
-                      <Text fontWeight="700" className="text-base">{getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name' as any)}</Text>
-                      <Text className="text-sm text-text-SECONDARY">{getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name' as any)}</Text>
+                      <Text fontWeight="700" className="text-base">{getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name')}</Text>
+                      <Text className="text-sm text-text-SECONDARY">{getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name')}</Text>
                     </View>
                   </View>
                   <View className="flex-row justify-between items-center pt-xs border-t border-border-DEFAULT">
                     <View className="flex-row items-center">
                       <LanguageBadge language="EN" size="small" />
-                      <Text className="text-sm ml-xs">{recipeIngredient.quantity} {recipeIngredient.measurementUnit?.symbolEn || ''}</Text>
+                      <Text className="text-sm ml-xs">{recipeIngredient.quantity} {getTranslatedField(recipeIngredient.measurementUnit?.translations, 'en', 'symbol')}</Text>
                     </View>
                     <View className="flex-row items-center">
                       <LanguageBadge language="ES" size="small" />
-                      <Text className="text-sm ml-xs">{recipeIngredient.quantity} {recipeIngredient.measurementUnit?.symbolEs || ''}</Text>
+                      <Text className="text-sm ml-xs">{recipeIngredient.quantity} {getTranslatedField(recipeIngredient.measurementUnit?.translations, 'es', 'symbol')}</Text>
                     </View>
                   </View>
                 </View>
@@ -197,19 +197,19 @@ export function RecipeStepContent({
                       <View className="mb-xs flex-row items-center">
                         <View className="flex-row items-center flex-wrap mr-sm">
                           <LanguageBadge language="EN" size="small" />
-                          <Text fontWeight="700" className="ml-1">{getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name' as any)}</Text>
+                          <Text fontWeight="700" className="ml-1">{getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name')}</Text>
                         </View>
                         <Text className="bg-background-SECONDARY px-[2px] rounded-xs text-xs text-text-SECONDARY ml-auto">
-                          {recipeIngredient.quantity} {recipeIngredient.measurementUnit?.symbolEn || ''}
+                          {recipeIngredient.quantity} {getTranslatedField(recipeIngredient.measurementUnit?.translations, 'en', 'symbol')}
                         </Text>
                       </View>
                       <View className="mb-xs flex-row items-center">
                         <View className="flex-row items-center flex-wrap mr-sm">
                           <LanguageBadge language="ES" size="small" />
-                          <Text fontWeight="700" className="ml-1">{getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name' as any)}</Text>
+                          <Text fontWeight="700" className="ml-1">{getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name')}</Text>
                         </View>
                         <Text className="bg-background-SECONDARY px-[2px] rounded-xs text-xs text-text-SECONDARY ml-auto">
-                          {recipeIngredient.quantity} {recipeIngredient.measurementUnit?.symbolEs || ''}
+                          {recipeIngredient.quantity} {getTranslatedField(recipeIngredient.measurementUnit?.translations, 'es', 'symbol')}
                         </Text>
                       </View>
                     </View>

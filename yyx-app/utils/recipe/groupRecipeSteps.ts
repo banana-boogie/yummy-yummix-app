@@ -12,8 +12,8 @@ export const groupRecipeSteps = (steps: AdminRecipeSteps[]): GroupedRecipeSteps 
   const groups: GroupedRecipeSteps = {};
 
   steps.forEach(step => {
-    const sectionEn = getTranslatedField(step.translations, 'en', 'recipeSection' as any) || 'Main';
-    const sectionEs = getTranslatedField(step.translations, 'es', 'recipeSection' as any) || 'Principal';
+    const sectionEn = getTranslatedField(step.translations, 'en', 'recipeSection') || 'Main';
+    const sectionEs = getTranslatedField(step.translations, 'es', 'recipeSection') || 'Principal';
     const sectionKey = `${sectionEn}|${sectionEs}`;
     if (!groups[sectionKey]) {
       groups[sectionKey] = {

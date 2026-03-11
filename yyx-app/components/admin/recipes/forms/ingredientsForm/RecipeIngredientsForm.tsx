@@ -43,8 +43,8 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
 
   // Group ingredients by recipeSection
   const groupedIngredients = recipe.ingredients.reduce<Record<string, AdminRecipeIngredient[]>>((acc, ingredient) => {
-    const recipeSection = getTranslatedField(ingredient.translations, 'en', 'recipeSection' as any)
-      || getTranslatedField(ingredient.translations, 'es', 'recipeSection' as any)
+    const recipeSection = getTranslatedField(ingredient.translations, 'en', 'recipeSection')
+      || getTranslatedField(ingredient.translations, 'es', 'recipeSection')
       || '';
     if (!acc[recipeSection]) {
       acc[recipeSection] = [];
@@ -95,8 +95,8 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
     const query = searchQuery.toLowerCase();
     const filtered = ingredients.filter(
       ingredient => {
-        const nameEn = getTranslatedField(ingredient.translations, 'en', 'name' as any);
-        const nameEs = getTranslatedField(ingredient.translations, 'es', 'name' as any);
+        const nameEn = getTranslatedField(ingredient.translations, 'en', 'name');
+        const nameEs = getTranslatedField(ingredient.translations, 'es', 'name');
         return (nameEn && nameEn.toLowerCase().includes(query)) ||
           (nameEs && nameEs.toLowerCase().includes(query));
       }
@@ -311,11 +311,11 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
       <View className="flex-1">
         <View className="flex-row items-center mb-1">
           <LanguageBadge language="EN" size="small" />
-          <Text className="text-sm ml-1 mb-0 self-center">{getTranslatedField(item.translations, 'en', 'name' as any)}</Text>
+          <Text className="text-sm ml-1 mb-0 self-center">{getTranslatedField(item.translations, 'en', 'name')}</Text>
         </View>
         <View className="flex-row items-center mb-1">
           <LanguageBadge language="ES" size="small" />
-          <Text className="text-sm ml-1 mb-0 self-center">{getTranslatedField(item.translations, 'es', 'name' as any)}</Text>
+          <Text className="text-sm ml-1 mb-0 self-center">{getTranslatedField(item.translations, 'es', 'name')}</Text>
         </View>
       </View>
       <Ionicons name="add-circle-outline" size={24} className="text-primary-DEFAULT" />

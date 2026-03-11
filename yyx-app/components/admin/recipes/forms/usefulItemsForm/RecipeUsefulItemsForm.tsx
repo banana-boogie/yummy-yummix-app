@@ -66,8 +66,8 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors }: Useful
         if (searchQuery) {
             const lowercaseQuery = searchQuery.toLowerCase();
             const filtered = usefulItems.filter(item => {
-                const nameEn = getTranslatedField(item.translations, 'en', 'name' as any);
-                const nameEs = getTranslatedField(item.translations, 'es', 'name' as any);
+                const nameEn = getTranslatedField(item.translations, 'en', 'name');
+                const nameEs = getTranslatedField(item.translations, 'es', 'name');
                 return nameEn?.toLowerCase().includes(lowercaseQuery) ||
                     nameEs?.toLowerCase().includes(lowercaseQuery);
             });

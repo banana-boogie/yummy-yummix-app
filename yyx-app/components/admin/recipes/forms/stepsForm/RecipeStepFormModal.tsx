@@ -57,7 +57,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
     const grouped: Record<string, AdminRecipeIngredient[]> = {};
 
     recipeIngredients.forEach(ingredient => {
-      const section = getTranslatedField(ingredient.translations, 'en', 'recipeSection' as any) || 'Main';
+      const section = getTranslatedField(ingredient.translations, 'en', 'recipeSection') || 'Main';
       if (!grouped[section]) {
         grouped[section] = [];
       }
@@ -322,7 +322,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
 
   // Get ingredient display names from translations
   const getIngredientName = (ingredient: any, locale: string): string => {
-    return getTranslatedField(ingredient?.translations, locale, 'name' as any) || '';
+    return getTranslatedField(ingredient?.translations, locale, 'name') || '';
   };
 
   return (
@@ -488,7 +488,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
                                       label={i18n.t('admin.recipes.form.ingredientsInfo.measurementUnit')}
                                       value={selectedIngredient?.measurementUnit?.id || ''}
                                       options={availableMeasurementUnits.map((unit) => ({
-                                        label: unit.symbolEn,
+                                        label: getTranslatedField(unit.translations, 'en', 'symbol'),
                                         value: unit.id,
                                       }))}
                                       onValueChange={(value) => handleMeasurementUnitChange(selectedIngredient?.ingredientId || '', value)}

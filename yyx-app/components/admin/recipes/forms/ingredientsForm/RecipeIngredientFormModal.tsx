@@ -201,7 +201,7 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
 
     const isDuplicate = existingIngredients.some(
       ing => {
-        const existingSection = getTranslatedField(ing.translations, 'en', 'recipeSection' as any);
+        const existingSection = getTranslatedField(ing.translations, 'en', 'recipeSection');
         const currentSection = getTransField('en', 'recipeSection');
         return ing.ingredientId === formData.ingredientId &&
           existingSection === currentSection &&
@@ -228,19 +228,20 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
 
   const sortedMeasurementUnits = React.useMemo(() => {
     const priorityUnits = ['gram', 'teaspoon', 'tablespoon'];
+    const getName = (unit: AdminMeasurementUnit) => getTranslatedField(unit.translations, 'en', 'name') || getTranslatedField(unit.translations, 'es', 'name');
     const topUnits = measurementUnits.filter(unit =>
-      priorityUnits.includes(unit.nameEn?.toLowerCase() || unit.nameEs?.toLowerCase())
+      priorityUnits.includes(getName(unit).toLowerCase())
     );
     const otherUnits = measurementUnits
-      .filter(unit => !priorityUnits.includes(unit.nameEn?.toLowerCase() || unit.nameEs?.toLowerCase()))
-      .sort((a, b) => a.nameEn?.localeCompare(b.nameEn) || 0);
+      .filter(unit => !priorityUnits.includes(getName(unit).toLowerCase()))
+      .sort((a, b) => getName(a).localeCompare(getName(b)));
 
     return [...topUnits, ...otherUnits];
   }, [measurementUnits]);
 
   // Get ingredient display names from translations
-  const ingredientNameEn = getTranslatedField(formData.ingredient?.translations, 'en', 'name' as any);
-  const ingredientNameEs = getTranslatedField(formData.ingredient?.translations, 'es', 'name' as any);
+  const ingredientNameEn = getTranslatedField(formData.ingredient?.translations, 'en', 'name');
+  const ingredientNameEs = getTranslatedField(formData.ingredient?.translations, 'es', 'name');
 
   return (
     <Modal
@@ -312,10 +313,14 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
                   <SelectInput
                     label={i18n.t('admin.recipes.form.ingredientsInfo.measurementUnit')}
                     value={formData.measurementUnit?.id || ''}
-                    options={sortedMeasurementUnits.map((unit) => ({
-                      label: unit.nameEn ? `${unit.nameEn} (${unit.symbolEn})` : '',
-                      value: unit.id,
-                    }))}
+                    options={sortedMeasurementUnits.map((unit) => {
+                      const unitName = getTranslatedField(unit.translations, 'en', 'name');
+                      const unitSymbol = getTranslatedField(unit.translations, 'en', 'symbol');
+                      return {
+                        label: unitName ? `${unitName} (${unitSymbol})` : '',
+                        value: unit.id,
+                      };
+                    })}
                     onValueChange={handleMeasurementUnitChange}
                     error={errors.measurementUnit}
                     required

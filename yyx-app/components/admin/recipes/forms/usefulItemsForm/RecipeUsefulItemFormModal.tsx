@@ -139,8 +139,8 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
   };
 
   // Get useful item display names
-  const usefulItemNameEn = getTranslatedField(formData.usefulItem?.translations, 'en', 'name' as any);
-  const usefulItemNameEs = getTranslatedField(formData.usefulItem?.translations, 'es', 'name' as any);
+  const usefulItemNameEn = getTranslatedField(formData.usefulItem?.translations, 'en', 'name');
+  const usefulItemNameEs = getTranslatedField(formData.usefulItem?.translations, 'es', 'name');
 
   return (
     <Modal

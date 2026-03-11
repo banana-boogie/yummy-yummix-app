@@ -38,8 +38,8 @@ export default function AdminTags() {
       const query = searchQuery.toLowerCase();
       setFilteredTags(
         tags.filter(tag => {
-          const nameEn = getTranslatedField(tag.translations, 'en', 'name' as any);
-          const nameEs = getTranslatedField(tag.translations, 'es', 'name' as any);
+          const nameEn = getTranslatedField(tag.translations, 'en', 'name');
+          const nameEs = getTranslatedField(tag.translations, 'es', 'name');
           return nameEn.toLowerCase().includes(query) ||
             nameEs.toLowerCase().includes(query) ||
             (tag.categories && tag.categories.some(category => category.toLowerCase().includes(query)));
@@ -147,8 +147,8 @@ export default function AdminTags() {
     >
       {/* Names */}
       <View className="mb-sm">
-        <Text preset="body" className="font-semibold">{getTranslatedField(item.translations, 'en', 'name' as any)}</Text>
-        <Text preset="caption" color={COLORS.text.secondary}>{getTranslatedField(item.translations, 'es', 'name' as any)}</Text>
+        <Text preset="body" className="font-semibold">{getTranslatedField(item.translations, 'en', 'name')}</Text>
+        <Text preset="caption" color={COLORS.text.secondary}>{getTranslatedField(item.translations, 'es', 'name')}</Text>
       </View>
 
       {/* Categories */}
@@ -203,10 +203,10 @@ export default function AdminTags() {
       }}
     >
       <View className="w-[200px] pr-md">
-        <Text preset="body">{getTranslatedField(item.translations, 'es', 'name' as any)}</Text>
+        <Text preset="body">{getTranslatedField(item.translations, 'es', 'name')}</Text>
       </View>
       <View className="w-[200px] pr-md">
-        <Text preset="body">{getTranslatedField(item.translations, 'en', 'name' as any)}</Text>
+        <Text preset="body">{getTranslatedField(item.translations, 'en', 'name')}</Text>
       </View>
       <View className="flex-1 flex-row flex-wrap gap-xs">
         {item.categories && item.categories.map((category, index) => (

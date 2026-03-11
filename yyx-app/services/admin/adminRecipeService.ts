@@ -2,38 +2,13 @@ import { supabase } from '@/lib/supabase';
 import {
   AdminRecipe, AdminRecipeIngredient, AdminRecipeSteps,
   AdminRecipeTag, AdminRecipeUsefulItem,
-  AdminRecipeTranslation, AdminIngredientTranslation,
-  AdminRecipeIngredientTranslation, AdminRecipeStepTranslation,
-  AdminRecipeUsefulItemTranslation, AdminRecipeTagTranslation,
-  AdminUsefulItemTranslation,
+  AdminRecipeTranslation,
+  getNameFromTranslations,
 } from '@/types/recipe.admin.types';
 import { imageService } from '@/services/storage/imageService';
 import { BaseService } from '@/services/base/BaseService';
 import { RawStepIngredient } from '@/types/recipe.api.types';
 import { ThermomixSpeedSingle, ThermomixSpeedRange } from '@/types/thermomix.types';
-
-/**
- * Helper to pick a translation value from an array of translations by locale.
- */
-function pickByLocale<T extends { locale: string }>(
-  translations: T[] | undefined | null,
-  locale: string,
-): T | undefined {
-  if (!translations) return undefined;
-  return translations.find(t => t.locale === locale);
-}
-
-/**
- * Helper: extract a name from recipe translations for image filenames.
- */
-function getNameFromTranslations(translations: AdminRecipeTranslation[] | undefined): string {
-  if (!translations || translations.length === 0) return 'recipe';
-  const es = pickByLocale(translations, 'es');
-  if (es?.name) return es.name;
-  const en = pickByLocale(translations, 'en');
-  if (en?.name) return en.name;
-  return translations[0]?.name || 'recipe';
-}
 
 class AdminRecipeService extends BaseService {
   async getAllRecipesForAdmin(): Promise<AdminRecipe[]> {
@@ -662,22 +637,18 @@ class AdminRecipeService extends BaseService {
       .order('id', { ascending: true });
 
     const data = await this.transformedSelect<any[]>(query);
-    // Transform to admin-expected format
-    return (data || []).map((item: any) => {
-      const en = pickByLocale(item.translations, 'en');
-      const es = pickByLocale(item.translations, 'es');
-      return {
-        id: item.id,
-        type: item.type,
-        system: item.system,
-        nameEn: en?.name || '',
-        nameEs: es?.name || '',
-        nameEnPlural: en?.name_plural || en?.namePlural || '',
-        nameEsPlural: es?.name_plural || es?.namePlural || '',
-        symbolEn: en?.symbol || '',
-        symbolEs: es?.symbol || '',
-      };
-    });
+    return (data || []).map((item: any) => ({
+      id: item.id,
+      type: item.type,
+      system: item.system,
+      translations: (item.translations || []).map((t: any) => ({
+        locale: t.locale,
+        name: t.name || '',
+        namePlural: t.name_plural || t.namePlural || '',
+        symbol: t.symbol || '',
+        symbolPlural: t.symbol_plural || t.symbolPlural || '',
+      })),
+    }));
   }
 
   async getAllTags(): Promise<any[]> {
@@ -790,8 +761,6 @@ class AdminRecipeService extends BaseService {
       result.ingredients = recipe.ingredients
         .map((ri: any) => {
           const mu = ri.measurementUnit || ri.measurement_unit;
-          const muEn = pickByLocale(mu?.translations, 'en');
-          const muEs = pickByLocale(mu?.translations, 'es');
 
           return {
             id: ri.id,
@@ -819,10 +788,13 @@ class AdminRecipeService extends BaseService {
               id: mu.id,
               type: mu.type,
               system: mu.system,
-              nameEn: muEn?.name || '',
-              nameEs: muEs?.name || '',
-              symbolEn: muEn?.symbol || '',
-              symbolEs: muEs?.symbol || '',
+              translations: (mu.translations || []).map((t: any) => ({
+                locale: t.locale,
+                name: t.name || '',
+                namePlural: t.name_plural || t.namePlural || '',
+                symbol: t.symbol || '',
+                symbolPlural: t.symbol_plural || t.symbolPlural || '',
+              })),
             } : undefined,
           };
         })
@@ -883,8 +855,6 @@ class AdminRecipeService extends BaseService {
           // Transform step ingredients
           if (step.ingredients?.length) {
             transformed.ingredients = step.ingredients.map((si: any) => {
-              const siMuEn = pickByLocale(si.measurementUnit?.translations || si.measurement_unit?.translations, 'en');
-              const siMuEs = pickByLocale(si.measurementUnit?.translations || si.measurement_unit?.translations, 'es');
               const siMu = si.measurementUnit || si.measurement_unit;
 
               return {
@@ -901,10 +871,11 @@ class AdminRecipeService extends BaseService {
                 },
                 measurementUnit: siMu ? {
                   id: siMu.id,
-                  nameEn: siMuEn?.name || '',
-                  nameEs: siMuEs?.name || '',
-                  symbolEn: siMuEn?.symbol || '',
-                  symbolEs: siMuEs?.symbol || '',
+                  translations: (siMu.translations || []).map((t: any) => ({
+                    locale: t.locale,
+                    name: t.name || '',
+                    symbol: t.symbol || '',
+                  })),
                 } : undefined,
                 quantity: si.quantity,
                 optional: si.optional,
@@ -956,7 +927,7 @@ class AdminRecipeService extends BaseService {
     if (!file) return '';
 
     try {
-      const fileName = `${getNameFromTranslations(translations)}.png`;
+      const fileName = `${getNameFromTranslations(translations, 'recipe')}.png`;
       return await this.uploadImage({
         bucket: 'recipes',
         folderPath: 'images',

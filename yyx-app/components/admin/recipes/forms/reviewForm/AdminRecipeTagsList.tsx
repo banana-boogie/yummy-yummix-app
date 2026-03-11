@@ -25,7 +25,7 @@ export function RecipeTagsList({ tags }: RecipeTagsListProps) {
             <View key={tag.id} className="flex-row items-center bg-background-SECONDARY py-sm px-md rounded-md border border-primary-LIGHT gap-xs">
               <Ionicons name="pricetag-outline" size={16} className="text-primary-MEDIUM mb-xxs mr-xxs" />
               <Text preset="caption" className="text-text-DEFAULT" numberOfLines={1}>
-                {getTranslatedField(tag.translations, 'en', 'name' as any) || ''} | {getTranslatedField(tag.translations, 'es', 'name' as any) || ''}
+                {getTranslatedField(tag.translations, 'en', 'name') || ''} | {getTranslatedField(tag.translations, 'es', 'name') || ''}
               </Text>
             </View>
           ))}

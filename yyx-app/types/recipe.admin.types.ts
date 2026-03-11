@@ -53,14 +53,18 @@ export interface AdminRecipeUsefulItemTranslation extends EntityTranslation {
   notes?: string;
 }
 
+export interface AdminMeasurementUnitTranslation extends EntityTranslation {
+  name: string;
+  namePlural?: string;
+  symbol: string;
+  symbolPlural?: string;
+}
+
 export interface AdminMeasurementUnit {
   id: string;
   type: 'volume' | 'weight' | 'unit';
   system: 'metric' | 'imperial' | 'universal';
-  nameEn: string;
-  nameEs: string;
-  symbolEn: string;
-  symbolEs: string;
+  translations: AdminMeasurementUnitTranslation[];
 }
 
 export interface AdminIngredient {
@@ -161,4 +165,19 @@ export function getTranslatedField<T extends { locale: string }>(
 ): string {
   const t = pickTranslation(translations, locale);
   return (t?.[field] as string) || '';
+}
+
+/**
+ * Get a display name from translations, preferring es (Mexico-first) then en.
+ */
+export function getNameFromTranslations(
+  translations: EntityTranslation[] | undefined | null,
+  fallbackName = 'item',
+): string {
+  if (!translations || translations.length === 0) return fallbackName;
+  const es = pickTranslation(translations, 'es');
+  if (es?.['name']) return es['name'] as string;
+  const en = pickTranslation(translations, 'en');
+  if (en?.['name']) return en['name'] as string;
+  return (translations[0]?.['name'] as string) || fallbackName;
 }

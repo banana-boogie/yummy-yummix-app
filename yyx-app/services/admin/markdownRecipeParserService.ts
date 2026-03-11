@@ -41,8 +41,8 @@ const matchTag = (tagName: string, allTags: AdminRecipeTag[]): AdminRecipeTag | 
   const normalizedTagName = tagName.startsWith('#') ? tagName.substring(1) : tagName;
 
   const match = allTags.find(tag => {
-    const tagNameEn = getTranslatedField(tag.translations, 'en', 'name' as any);
-    const tagNameEs = getTranslatedField(tag.translations, 'es', 'name' as any);
+    const tagNameEn = getTranslatedField(tag.translations, 'en', 'name');
+    const tagNameEs = getTranslatedField(tag.translations, 'es', 'name');
     return tagNameEn.toLowerCase() === normalizedTagName.toLowerCase() ||
       tagNameEs.toLowerCase() === normalizedTagName.toLowerCase();
   });
@@ -150,11 +150,11 @@ const processSteps = (steps: AdminRecipeSteps[], allIngredients: AdminRecipeIngr
 const processUsefulItems = (usefulItemsNames: AdminUsefulItem[], allUsefulItems: AdminUsefulItem[]): { usefulItems: AdminRecipeUsefulItem[], missingUsefulItems: string[] } => {
   const matchUsefulItem = (usefulItem: AdminUsefulItem, allUsefulItems: AdminUsefulItem[]): AdminUsefulItem | null => {
     // The parsed usefulItem may use old nameEn/nameEs or translations
-    const searchNameEn = getTranslatedField(usefulItem.translations, 'en', 'name' as any) || (usefulItem as any).nameEn || '';
-    const searchNameEs = getTranslatedField(usefulItem.translations, 'es', 'name' as any) || (usefulItem as any).nameEs || '';
+    const searchNameEn = getTranslatedField(usefulItem.translations, 'en', 'name') || (usefulItem as any).nameEn || '';
+    const searchNameEs = getTranslatedField(usefulItem.translations, 'es', 'name') || (usefulItem as any).nameEs || '';
     const match = allUsefulItems.find(item => {
-      const itemNameEn = getTranslatedField(item.translations, 'en', 'name' as any);
-      const itemNameEs = getTranslatedField(item.translations, 'es', 'name' as any);
+      const itemNameEn = getTranslatedField(item.translations, 'en', 'name');
+      const itemNameEs = getTranslatedField(item.translations, 'es', 'name');
       return itemNameEn.toLowerCase().trim() === searchNameEn.toLowerCase().trim() ||
         itemNameEs.toLowerCase().trim() === searchNameEs.toLowerCase().trim();
     });
@@ -184,7 +184,7 @@ const processUsefulItems = (usefulItemsNames: AdminUsefulItem[], allUsefulItems:
         usefulItem: matchedUsefulItem
       });
     } else {
-      const nameEn = getTranslatedField(usefulItem.translations, 'en', 'name' as any) || (usefulItem as any).nameEn || '';
+      const nameEn = getTranslatedField(usefulItem.translations, 'en', 'name') || (usefulItem as any).nameEn || '';
       missingUsefulItems.push(nameEn);
     }
   }

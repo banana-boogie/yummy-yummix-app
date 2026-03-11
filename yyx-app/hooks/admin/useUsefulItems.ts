@@ -33,8 +33,8 @@ export function useUsefulItems() {
 
     const lowerQuery = searchQuery.toLowerCase().trim();
     const filtered = usefulItems.filter(item => {
-      const nameEn = getTranslatedField(item.translations, 'en', 'name' as any);
-      const nameEs = getTranslatedField(item.translations, 'es', 'name' as any);
+      const nameEn = getTranslatedField(item.translations, 'en', 'name');
+      const nameEs = getTranslatedField(item.translations, 'es', 'name');
       return nameEn.toLowerCase().includes(lowerQuery) ||
         nameEs.toLowerCase().includes(lowerQuery);
     });

@@ -106,8 +106,8 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
       }
       
       // If there's a saved recipe, show the resume dialog
-      const savedNameEn = getTranslatedField(savedRecipeData?.translations as any, 'en', 'name' as any);
-      const savedNameEs = getTranslatedField(savedRecipeData?.translations as any, 'es', 'name' as any);
+      const savedNameEn = getTranslatedField(savedRecipeData?.translations, 'en', 'name');
+      const savedNameEs = getTranslatedField(savedRecipeData?.translations, 'es', 'name');
       if (savedRecipeData && (savedNameEn || savedNameEs)) {
         setSavedRecipe(savedRecipeData);
         setShowResumeDialog(true);
@@ -137,8 +137,8 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
         if (savedStep) {
           // Special case: recipe was saved at initial setup after populated with AI help.
           // We should start at step 1 in this case, otherwise the user would get stuck at step 0.
-          const loadedNameEn = getTranslatedField(savedRecipe?.translations as any, 'en', 'name' as any);
-          const loadedNameEs = getTranslatedField(savedRecipe?.translations as any, 'es', 'name' as any);
+          const loadedNameEn = getTranslatedField(savedRecipe?.translations, 'en', 'name');
+          const loadedNameEs = getTranslatedField(savedRecipe?.translations, 'es', 'name');
           if (savedRecipe && (loadedNameEn || loadedNameEs)) {
             setCurrentStep(Math.max(savedStep, 1) as CreateRecipeStep);
           } else {
@@ -284,8 +284,8 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
       // Upload image if new image file is provided
       let finalPictureUrl = recipe.pictureUrl || '';
       if (recipe._imageFile && recipe.pictureUrl && typeof recipe.pictureUrl === 'string' && !recipe.pictureUrl.startsWith('http')) {
-        const recipeNameEs = getTranslatedField(recipe.translations as any, 'es', 'name' as any);
-        const recipeNameEn = getTranslatedField(recipe.translations as any, 'en', 'name' as any);
+        const recipeNameEs = getTranslatedField(recipe.translations, 'es', 'name');
+        const recipeNameEn = getTranslatedField(recipe.translations, 'en', 'name');
         const fileName = normalizeFileName(recipeNameEs || recipeNameEn || 'recipe');
         finalPictureUrl = await imageService.uploadImage({
           bucket: 'recipes',

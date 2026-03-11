@@ -160,8 +160,8 @@ export default function EditRecipePage() {
   };
 
   // Show loading state until recipe name is loaded to prevent title flash
-  const recipeNameEn = getTranslatedField(recipe.translations, 'en', 'name' as any);
-  const recipeNameEs = getTranslatedField(recipe.translations, 'es', 'name' as any);
+  const recipeNameEn = getTranslatedField(recipe.translations, 'en', 'name');
+  const recipeNameEs = getTranslatedField(recipe.translations, 'es', 'name');
   if (loading || !recipeNameEn) {
     return (
       <AdminLayout title={i18n.t('admin.common.loading')} showBackButton={true}>

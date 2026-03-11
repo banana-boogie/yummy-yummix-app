@@ -106,14 +106,14 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
         setShowIngredientModal(false);
 
         const isIngredientMatch = (recipeIngredient: AdminRecipeIngredient, newIngredient: AdminIngredient) => {
-            const existingNameEn = getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name' as any);
-            const existingNameEs = getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name' as any);
-            const existingPluralEn = getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'pluralName' as any);
-            const existingPluralEs = getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'pluralName' as any);
-            const newNameEn = getTranslatedField(newIngredient.translations, 'en', 'name' as any);
-            const newNameEs = getTranslatedField(newIngredient.translations, 'es', 'name' as any);
-            const newPluralEn = getTranslatedField(newIngredient.translations, 'en', 'pluralName' as any);
-            const newPluralEs = getTranslatedField(newIngredient.translations, 'es', 'pluralName' as any);
+            const existingNameEn = getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name');
+            const existingNameEs = getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name');
+            const existingPluralEn = getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'pluralName');
+            const existingPluralEs = getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'pluralName');
+            const newNameEn = getTranslatedField(newIngredient.translations, 'en', 'name');
+            const newNameEs = getTranslatedField(newIngredient.translations, 'es', 'name');
+            const newPluralEn = getTranslatedField(newIngredient.translations, 'en', 'pluralName');
+            const newPluralEs = getTranslatedField(newIngredient.translations, 'es', 'pluralName');
             return (
                 (existingNameEn && newNameEn && existingNameEn.toLowerCase() === newNameEn.toLowerCase()) ||
                 (existingPluralEn && newPluralEn && existingPluralEn.toLowerCase() === newPluralEn.toLowerCase()) ||
@@ -168,8 +168,8 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
         setShowTagModal(false);
 
         // Find matching missing tag
-        const newTagNameEn = getTranslatedField(newTag.translations, 'en', 'name' as any);
-        const newTagNameEs = getTranslatedField(newTag.translations, 'es', 'name' as any);
+        const newTagNameEn = getTranslatedField(newTag.translations, 'en', 'name');
+        const newTagNameEs = getTranslatedField(newTag.translations, 'es', 'name');
         const matchingIndex = parsingStatus.missingTags?.findIndex(
             tag => (newTagNameEn && tag.toLowerCase() === newTagNameEn.toLowerCase()) ||
                 (newTagNameEs && tag.toLowerCase() === newTagNameEs.toLowerCase())
@@ -210,8 +210,8 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
         setShowUsefulItemModal(false);
 
         // Find matching missing useful item
-        const newUsefulItemNameEn = getTranslatedField(newUsefulItem.translations, 'en', 'name' as any);
-        const newUsefulItemNameEs = getTranslatedField(newUsefulItem.translations, 'es', 'name' as any);
+        const newUsefulItemNameEn = getTranslatedField(newUsefulItem.translations, 'en', 'name');
+        const newUsefulItemNameEs = getTranslatedField(newUsefulItem.translations, 'es', 'name');
         const matchingIndex = parsingStatus.missingUsefulItems?.findIndex(
             usefulItem => (newUsefulItemNameEn && usefulItem.toLowerCase() === newUsefulItemNameEn.toLowerCase()) ||
                 (newUsefulItemNameEs && usefulItem.toLowerCase() === newUsefulItemNameEs.toLowerCase())
@@ -347,7 +347,7 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                                                         key={index}
                                                         checked={isChecked}
                                                         onPress={() => toggleIngredientChecked(ingredientId)}
-                                                        label={`${getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name' as any) || ''} / ${getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name' as any) || ''}`}
+                                                        label={`${getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name') || ''} / ${getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name') || ''}`}
                                                         className="flex-row items-center mb-xs py-xxs"
                                                     />
                                                 );

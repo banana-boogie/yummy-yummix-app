@@ -129,7 +129,7 @@ export default function IngredientsAdminPage() {
       <AlertModal
         visible={showDeleteAlert}
         title={i18n.t('admin.ingredients.confirmDeletion.title')}
-        message={`${i18n.t('admin.ingredients.confirmDeletion.message')} ${getTranslatedField(selectedIngredient?.translations as any, 'en', 'name' as any)} | ${getTranslatedField(selectedIngredient?.translations as any, 'es', 'name' as any)}`}
+        message={`${i18n.t('admin.ingredients.confirmDeletion.message')} ${getTranslatedField(selectedIngredient?.translations, 'en', 'name')} | ${getTranslatedField(selectedIngredient?.translations, 'es', 'name')}`}
         onConfirm={handleConfirmDelete}
         onCancel={() => {
           setShowDeleteAlert(false);

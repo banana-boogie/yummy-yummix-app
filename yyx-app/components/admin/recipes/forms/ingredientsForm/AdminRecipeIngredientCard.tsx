@@ -2,7 +2,7 @@ import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from '@/components/common/Text';
-import { AdminRecipeIngredient, getTranslatedField, pickTranslation } from '@/types/recipe.admin.types';
+import { AdminRecipeIngredient, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/i18n';
 import { LanguageBadge } from '@/components/common/LanguageBadge';
@@ -31,12 +31,12 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
   hideActions = false
 }) => {
   const { isMobile } = useDevice();
-  const ingredientNameEn = getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name' as any);
-  const ingredientNameEs = getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name' as any);
-  const notesEn = getTranslatedField(recipeIngredient.translations, 'en', 'notes' as any);
-  const notesEs = getTranslatedField(recipeIngredient.translations, 'es', 'notes' as any);
-  const tipEn = getTranslatedField(recipeIngredient.translations, 'en', 'tip' as any);
-  const tipEs = getTranslatedField(recipeIngredient.translations, 'es', 'tip' as any);
+  const ingredientNameEn = getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name');
+  const ingredientNameEs = getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name');
+  const notesEn = getTranslatedField(recipeIngredient.translations, 'en', 'notes');
+  const notesEs = getTranslatedField(recipeIngredient.translations, 'es', 'notes');
+  const tipEn = getTranslatedField(recipeIngredient.translations, 'en', 'tip');
+  const tipEs = getTranslatedField(recipeIngredient.translations, 'es', 'tip');
 
   return (
     <View className={`border border-border-DEFAULT rounded-md overflow-hidden mb-md bg-background-DEFAULT ${isMobile ? 'p-xs' : 'p-sm'}`}>
@@ -102,7 +102,7 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
           <View className="flex-row items-center">
             <LanguageBadge language="EN" size="small" />
             <Text className="font-medium ml-xs">
-              {formatIngredientQuantity(recipeIngredient.quantity, recipeIngredient.measurementUnit?.id)} {recipeIngredient.measurementUnit?.symbolEn || ''}
+              {formatIngredientQuantity(recipeIngredient.quantity, recipeIngredient.measurementUnit?.id)} {getTranslatedField(recipeIngredient.measurementUnit?.translations, 'en', 'symbol')}
               {recipeIngredient.optional ? (
                 <Text className="text-xs text-text-SECONDARY italic">
                   {' '}({i18n.t('recipes.detail.ingredients.optional')})
@@ -114,7 +114,7 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
           <View className="flex-row items-center mt-1">
             <LanguageBadge language="ES" size="small" />
             <Text className="font-medium ml-xs">
-              {formatIngredientQuantity(recipeIngredient.quantity, recipeIngredient.measurementUnit?.id)} {recipeIngredient.measurementUnit?.symbolEs || ''}
+              {formatIngredientQuantity(recipeIngredient.quantity, recipeIngredient.measurementUnit?.id)} {getTranslatedField(recipeIngredient.measurementUnit?.translations, 'es', 'symbol')}
               {recipeIngredient.optional ? (
                 <Text className="text-xs text-text-SECONDARY italic">
                   {' '}({i18n.t('recipes.detail.ingredients.optional', { locale: 'es' })})

@@ -32,10 +32,10 @@ export function AdminRecipeUsefulItemCard({
   variant = 'editable'
 }: AdminRecipeUsefulItemCardProps) {
   const { isMobile } = useDevice();
-  const usefulItemNameEn = getTranslatedField(recipeUsefulItem.usefulItem?.translations, 'en', 'name' as any);
-  const usefulItemNameEs = getTranslatedField(recipeUsefulItem.usefulItem?.translations, 'es', 'name' as any);
-  const notesEn = getTranslatedField(recipeUsefulItem.translations, 'en', 'notes' as any);
-  const notesEs = getTranslatedField(recipeUsefulItem.translations, 'es', 'notes' as any);
+  const usefulItemNameEn = getTranslatedField(recipeUsefulItem.usefulItem?.translations, 'en', 'name');
+  const usefulItemNameEs = getTranslatedField(recipeUsefulItem.usefulItem?.translations, 'es', 'name');
+  const notesEn = getTranslatedField(recipeUsefulItem.translations, 'en', 'notes');
+  const notesEs = getTranslatedField(recipeUsefulItem.translations, 'es', 'notes');
   const hasNotes = !!(notesEn || notesEs);
   const isReadonly = variant === 'readonly' || hideActions;
 

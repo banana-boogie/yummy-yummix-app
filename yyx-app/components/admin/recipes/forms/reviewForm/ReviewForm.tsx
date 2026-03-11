@@ -33,7 +33,7 @@ export function ReviewForm({ recipe, onUpdateRecipe }: ReviewFormProps) {
     >
       {/* Preview of recipe */}
       <View className="flex-col gap-lg rounded-lg">
-        <Text preset="h1" className="mb-md">{`${getTranslatedField(recipe.translations as any, 'en', 'name' as any)}  |  ${getTranslatedField(recipe.translations as any, 'es', 'name' as any)}`}</Text>
+        <Text preset="h1" className="mb-md">{`${getTranslatedField(recipe.translations, 'en', 'name')}  |  ${getTranslatedField(recipe.translations, 'es', 'name')}`}</Text>
 
         {recipe.pictureUrl ? (
           <View className="w-full h-[200px] rounded-lg mb-md overflow-hidden bg-background-SECONDARY">
