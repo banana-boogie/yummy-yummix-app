@@ -348,9 +348,9 @@ for await (const chunk of chatStream({
 
 | Type | Default Model | Config | Use Case | Cost |
 |------|--------------|--------|----------|------|
-| `text` | google/gemini-2.5-flash | thinking: minimal | Chat orchestrator (tool calling + streaming) | Low |
-| `recipe_generation` | google/gemini-2.5-flash | thinking: minimal | Recipe generation (structured JSON output) — quality critical | Low |
-| `recipe_modification` | google/gemini-2.5-flash | thinking: minimal | Recipe modification (transform existing JSON) | Low |
+| `text` | google/gemini-3-flash-preview | thinking: minimal | Chat orchestrator (tool calling + streaming) | Low |
+| `recipe_generation` | openai/gpt-4.1 | — | Recipe generation (structured JSON output) — quality critical | Medium |
+| `recipe_modification` | google/gemini-3-flash-preview | thinking: minimal | Recipe modification (transform existing JSON) | Low |
 | `parsing` | openai/gpt-4.1-nano | temperature: `1` | Admin parsing, nutritional data extraction | Very low |
 | `embedding` | openai/text-embedding-3-large | N/A | Vector search (3072 dimensions) | Low |
 
@@ -362,9 +362,9 @@ GEMINI_API_KEY=AIza...            # For text, recipe_generation, recipe_modifica
 OPENAI_API_KEY=sk-proj-xxx        # For parsing, embedding
 
 # Optional: Override default models (supports provider:model format)
-AI_TEXT_MODEL=openai:gpt-4.1-mini             # Switch to OpenAI
-AI_RECIPE_GENERATION_MODEL=gemini-2.5-flash   # Same provider, different model
-AI_RECIPE_MODIFICATION_MODEL=openai:gpt-5-mini # Switch provider entirely
+AI_TEXT_MODEL=xai:grok-4-1-fast-non-reasoning  # Fallback orchestrator (different provider)
+AI_RECIPE_GENERATION_MODEL=google:gemini-2.5-flash # Fallback recipe gen (cheaper)
+AI_RECIPE_MODIFICATION_MODEL=openai:gpt-4.1-mini  # Fallback recipe mod (different provider)
 AI_PARSING_MODEL=gpt-5-nano                   # Same provider, different model
 ```
 

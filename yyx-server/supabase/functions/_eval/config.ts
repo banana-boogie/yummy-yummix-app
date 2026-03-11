@@ -54,20 +54,8 @@ export const MODELS: ModelConfig[] = [
     pricing: { inputPerMillion: 0.20, outputPerMillion: 0.50 },
   },
 
-  // --- Premium / new models (recipe gen/mod focus) ---
+  // --- Premium tier (recipe gen/mod only) ---
 
-  {
-    id: "gemini-3.1-flash-lite",
-    provider: "google",
-    apiKeyEnvVar: "GEMINI_API_KEY",
-    capabilities: { toolCalling: true, jsonSchema: true, reasoning: true },
-    reasoningEffort: {
-      orchestrator: "minimal",
-      recipe_generation: "low",
-      recipe_modification: "minimal",
-    },
-    pricing: { inputPerMillion: 0.10, outputPerMillion: 0.40 },
-  },
   {
     id: "gpt-4.1",
     provider: "openai",
@@ -77,45 +65,12 @@ export const MODELS: ModelConfig[] = [
     pricing: { inputPerMillion: 2.00, outputPerMillion: 8.00 },
     excludeRoles: ["orchestrator"],
   },
-  {
-    id: "grok-4-1-fast-reasoning",
-    provider: "xai",
-    apiKeyEnvVar: "XAI_API_KEY",
-    capabilities: { toolCalling: true, jsonSchema: true, reasoning: true },
-    reasoningEffort: {},
-    pricing: { inputPerMillion: 0.20, outputPerMillion: 0.50 },
-    excludeRoles: ["orchestrator"],
-  },
-  {
-    id: "gemini-2.5-pro",
-    provider: "google",
-    apiKeyEnvVar: "GEMINI_API_KEY",
-    capabilities: { toolCalling: true, jsonSchema: true, reasoning: true },
-    reasoningEffort: {
-      recipe_generation: "low",
-      recipe_modification: "minimal",
-    },
-    pricing: { inputPerMillion: 1.25, outputPerMillion: 10.00 },
-    excludeRoles: ["orchestrator"],
-  },
-  {
-    id: "gpt-5-mini",
-    provider: "openai",
-    apiKeyEnvVar: "OPENAI_API_KEY",
-    capabilities: { toolCalling: true, jsonSchema: true, reasoning: true },
-    reasoningEffort: {},
-    pricing: { inputPerMillion: 0.25, outputPerMillion: 2.00 },
-    excludeRoles: ["orchestrator"],
-  },
-  {
-    id: "claude-haiku-4-5",
-    provider: "anthropic",
-    apiKeyEnvVar: "ANTHROPIC_API_KEY",
-    capabilities: { toolCalling: true, jsonSchema: true, reasoning: true },
-    reasoningEffort: {},
-    pricing: { inputPerMillion: 1.00, outputPerMillion: 5.00 },
-    excludeRoles: ["orchestrator", "recipe_modification"],
-  },
+  // --- Removed after Round 2 tournament (March 11, 2026) ---
+  // gemini-3.1-flash-lite  — model doesn't exist (404 on all calls)
+  // gemini-2.5-pro         — only works at "low" reasoning, 0% mod, $0.021/call
+  // gpt-5-mini             — too slow (26-40s), mod 38% pass rate
+  // grok-4-1-fast-reasoning — ~50s latency, 58-75% pass rate
+  // claude-haiku-4-5       — rate limited (10K TPM), 42% pass rate
 ];
 
 // ============================================================

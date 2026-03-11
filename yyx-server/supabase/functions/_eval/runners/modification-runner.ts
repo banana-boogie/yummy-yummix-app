@@ -26,7 +26,15 @@ import type {
   TestCaseResult,
 } from "../types.ts";
 import type { UserContext } from "../../_shared/irmixy-schemas.ts";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { BASE_RECIPE } from "../test-cases/fixtures.ts";
+
+/** Mock supabase that returns empty allergen_groups — eval tests AI models, not allergen data */
+const mockSupabase = {
+  from: () => ({
+    select: () => Promise.resolve({ data: [], error: null }),
+  }),
+} as unknown as SupabaseClient;
 
 function getUserContext(testCase: { language?: "en" | "es" }): UserContext {
   return testCase.language === "en" ? TEST_USER_CONTEXT_EN : TEST_USER_CONTEXT;
@@ -44,16 +52,16 @@ export async function runModificationTests(
   const useJsonSchema = model.capabilities.jsonSchema;
   const reasoningEffort = model.reasoningEffort.recipe_modification ?? null;
 
-  // Cache system prompts per language
+  // Cache system prompts per language (async — allergen section needs DB lookup)
   const promptCache = new Map<
     string,
     { systemPrompt: string; recipeSchema: Record<string, unknown> }
   >();
-  function getPromptAndSchema(lang: "en" | "es") {
+  async function getPromptAndSchema(lang: "en" | "es") {
     if (!promptCache.has(lang)) {
       const ctx = lang === "en" ? TEST_USER_CONTEXT_EN : TEST_USER_CONTEXT;
       promptCache.set(lang, {
-        systemPrompt: getModificationSystemPrompt(ctx),
+        systemPrompt: await getModificationSystemPrompt(mockSupabase, ctx),
         recipeSchema: buildRecipeJsonSchema(true),
       });
     }
@@ -65,7 +73,7 @@ export async function runModificationTests(
     (async (): Promise<TestCaseResult> => {
       const lang = testCase.language ?? "es";
       const userContext = getUserContext(testCase);
-      const { systemPrompt, recipeSchema } = getPromptAndSchema(lang);
+      const { systemPrompt, recipeSchema } = await getPromptAndSchema(lang);
       const modParams = { modificationRequest: testCase.modificationRequest };
       const userPrompt = buildModificationPrompt(
         BASE_RECIPE,
