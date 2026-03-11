@@ -491,6 +491,7 @@ Domain agents write their own tests when building features. The test-engineer is
 | `/review-changes` | Same as review-pr but for local commits before opening a PR |
 | `/review-plan` | Plan review for clarity, completeness, architecture fit, and feasibility before implementation |
 | `/update-docs` | Syncs documentation after feature changes |
+| `/triage-review` | Triage code review findings — agree/disagree, classify as must-fix/skip/optional, produce handoff prompt |
 
 ### Guideline Docs
 
