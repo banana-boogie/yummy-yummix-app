@@ -71,7 +71,7 @@ function RecipeListItem({ rank, recipe }: { rank: number; recipe: TopRecipe }) {
 function LoadingState() {
   return (
     <View className="items-center justify-center py-xxl">
-      <ActivityIndicator size="large" color={COLORS.primary.DEFAULT} />
+      <ActivityIndicator size="large" color={COLORS.primary.default} />
       <Text preset="body" className="text-text-secondary mt-md">{i18n.t('admin.analytics.loading')}</Text>
     </View>
   );
