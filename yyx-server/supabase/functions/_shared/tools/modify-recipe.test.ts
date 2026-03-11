@@ -18,6 +18,18 @@ import {
 } from "./modify-recipe.ts";
 import { validateModifyRecipeParams } from "./tool-validators.ts";
 import { ToolValidationError } from "./tool-validators.ts";
+import { clearAllergenCache } from "../allergen-filter.ts";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+
+// Mock supabase client for getModificationSystemPrompt tests
+// Returns empty allergen_groups — tests don't need allergen data
+function createMockSupabase(): SupabaseClient {
+  return {
+    from: () => ({
+      select: () => Promise.resolve({ data: [], error: null }),
+    }),
+  } as unknown as SupabaseClient;
+}
 
 // ============================================================
 // Test Fixtures
@@ -231,25 +243,37 @@ Deno.test("validateModifyRecipeParams: rejects non-object", () => {
 // getModificationSystemPrompt
 // ============================================================
 
-Deno.test("getModificationSystemPrompt: EN includes modification rules", () => {
-  const prompt = getModificationSystemPrompt(createUserContext());
+Deno.test("getModificationSystemPrompt: EN includes modification rules", async () => {
+  clearAllergenCache();
+  const prompt = await getModificationSystemPrompt(
+    createMockSupabase(),
+    createUserContext(),
+  );
 
   assertStringIncludes(prompt, "MODIFICATION MODE");
   assertStringIncludes(prompt, "NOT creating one from scratch");
   assertStringIncludes(prompt, "scaling portions");
 });
 
-Deno.test("getModificationSystemPrompt: ES includes base recipe prompt", () => {
-  const prompt = getModificationSystemPrompt(
-    createUserContext({ locale: "es", localeChain: ["es", "en"] }),
+Deno.test("getModificationSystemPrompt: ES includes base recipe prompt", async () => {
+  clearAllergenCache();
+  const prompt = await getModificationSystemPrompt(
+    createMockSupabase(),
+    createUserContext({
+      locale: "es",
+      localeChain: ["es", "en"],
+      language: "es",
+    }),
   );
 
   assertStringIncludes(prompt, "Mexican Spanish");
   assertStringIncludes(prompt, "MODIFICATION MODE");
 });
 
-Deno.test("getModificationSystemPrompt: includes Thermomix section for Thermomix user", () => {
-  const prompt = getModificationSystemPrompt(
+Deno.test("getModificationSystemPrompt: includes Thermomix section for Thermomix user", async () => {
+  clearAllergenCache();
+  const prompt = await getModificationSystemPrompt(
+    createMockSupabase(),
     createUserContext({ kitchenEquipment: ["Thermomix"] }),
   );
 
@@ -257,8 +281,10 @@ Deno.test("getModificationSystemPrompt: includes Thermomix section for Thermomix
   assertStringIncludes(prompt, "MODIFICATION MODE");
 });
 
-Deno.test("getModificationSystemPrompt: no Thermomix section without Thermomix", () => {
-  const prompt = getModificationSystemPrompt(
+Deno.test("getModificationSystemPrompt: no Thermomix section without Thermomix", async () => {
+  clearAllergenCache();
+  const prompt = await getModificationSystemPrompt(
+    createMockSupabase(),
     createUserContext({ kitchenEquipment: [] }),
   );
 

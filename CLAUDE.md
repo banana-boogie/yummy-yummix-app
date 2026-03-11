@@ -346,23 +346,26 @@ for await (const chunk of chatStream({
 
 #### Usage Types:
 
-| Type | Default Model | Reasoning Effort | Use Case | Cost |
-|------|--------------|------------------|----------|------|
-| `text` | gpt-4.1-mini | N/A | Chat orchestrator (tool calling + streaming) | Low |
-| `recipe_generation` | gpt-5-mini | `medium` | Recipe generation (structured JSON output) — quality critical | Low |
-| `parsing` | gpt-4.1-nano | N/A | Admin parsing, nutritional data extraction | Very low |
-| `embedding` | text-embedding-3-large | N/A | Vector search (3072 dimensions) | Low |
+| Type | Default Model | Config | Use Case | Cost |
+|------|--------------|--------|----------|------|
+| `text` | xai/grok-4-1-fast-non-reasoning | — | Chat orchestrator (tool calling + streaming) | Low |
+| `recipe_generation` | openai/gpt-4.1 | — | Recipe generation (structured JSON output) — quality critical | Medium |
+| `recipe_modification` | openai/gpt-4.1-mini | — | Recipe modification (transform existing JSON) | Low |
+| `parsing` | openai/gpt-4.1-nano | temperature: `1` | Admin parsing, nutritional data extraction | Very low |
+| `embedding` | openai/text-embedding-3-large | N/A | Vector search (3072 dimensions) | Low |
 
 #### Configuration:
 
 ```bash
 # Required API Keys (in .env or Supabase secrets)
-OPENAI_API_KEY=sk-proj-xxx      # For text, recipe_generation, parsing
+OPENAI_API_KEY=sk-proj-xxx        # For recipe_generation, recipe_modification, parsing, embedding
+XAI_API_KEY=xai-...               # For text (orchestrator)
 
-# Optional: Override default models
-AI_TEXT_MODEL=gpt-5-mini          # Override chat model (default: gpt-4.1-mini)
-AI_RECIPE_GENERATION_MODEL=gpt-5  # Override recipe model (default: gpt-5-mini)
-AI_PARSING_MODEL=gpt-5-nano       # Override parsing model (default: gpt-4.1-nano)
+# Optional: Override default models (supports provider:model format)
+AI_TEXT_MODEL=openai:gpt-4.1-mini           # Fallback orchestrator (different provider)
+AI_RECIPE_GENERATION_MODEL=google:gemini-2.5-flash # Fallback recipe gen (cheaper)
+AI_RECIPE_MODIFICATION_MODEL=xai:grok-4-1-fast-non-reasoning  # Fallback recipe mod
+AI_PARSING_MODEL=gpt-5-nano                   # Same provider, different model
 ```
 
 #### Design Pattern:

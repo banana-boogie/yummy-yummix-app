@@ -76,6 +76,7 @@ const getRecipeDetailQuery = () => {
       thermomix_speed_end,
       thermomix_temperature,
       thermomix_is_blade_reversed,
+      tip${lang},
       step_ingredients:recipe_step_ingredients (
         id,
         quantity,

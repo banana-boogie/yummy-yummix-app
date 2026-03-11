@@ -157,6 +157,8 @@ export interface RawRecipeStep {
   recipe_section_es: string | null;
   instruction_en: string;
   instruction_es: string;
+  tip_en: string | null;
+  tip_es: string | null;
 }
 
 export interface RawStepIngredient {

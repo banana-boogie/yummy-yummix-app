@@ -139,11 +139,13 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
 
         const stepTranslation = pickTranslation(recipeStep.translations);
         const instruction = stepTranslation?.instruction ?? '';
+        const tip = stepTranslation?.tip ?? null;
         return {
           id: recipeStep.id,
           order: recipeStep.order,
           instruction: formatInstruction(instruction, thermomix, measurementSystem),
           recipeSection: stepTranslation?.recipe_section ?? null,
+          tip,
           ingredients,
           thermomix
         };
