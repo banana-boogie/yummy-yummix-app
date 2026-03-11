@@ -34,16 +34,16 @@ import i18n from '@/i18n';
  * spends on that stage before advancing to the next.
  * Total expected time ~ sum of all durationMs values.
  *
- * Current baseline: ~5s total (Gemini 2.5 Flash, measured Feb 2026)
- * Tracker is visible for ~4-5s (tool_exec + stream + finalize).
+ * Current baseline: ~12s total (GPT-4.1, measured Mar 2026)
+ * Tracker is visible for ~12-15s (tool_exec + stream + finalize).
  */
 export const PROGRESS_CONFIG = {
     stages: [
-        { key: 'understanding', icon: 'lightbulb-outline' as const, i18nKey: 'chat.progressTracker.stage1', durationMs: 500 },
-        { key: 'ingredients', icon: 'basket-outline' as const, i18nKey: 'chat.progressTracker.stage2', durationMs: 1200 },
-        { key: 'cookingTimes', icon: 'timer-outline' as const, i18nKey: 'chat.progressTracker.stage3', durationMs: 1200 },
-        { key: 'steps', icon: 'clipboard-text-outline' as const, i18nKey: 'chat.progressTracker.stage4', durationMs: 1500 },
-        { key: 'finalTouches', icon: 'star-four-points-outline' as const, i18nKey: 'chat.progressTracker.stage5', durationMs: 1200 },
+        { key: 'understanding', icon: 'lightbulb-outline' as const, i18nKey: 'chat.progressTracker.stage1', durationMs: 1000 },
+        { key: 'ingredients', icon: 'basket-outline' as const, i18nKey: 'chat.progressTracker.stage2', durationMs: 3000 },
+        { key: 'cookingTimes', icon: 'timer-outline' as const, i18nKey: 'chat.progressTracker.stage3', durationMs: 3000 },
+        { key: 'steps', icon: 'clipboard-text-outline' as const, i18nKey: 'chat.progressTracker.stage4', durationMs: 4000 },
+        { key: 'finalTouches', icon: 'star-four-points-outline' as const, i18nKey: 'chat.progressTracker.stage5', durationMs: 3000 },
         { key: 'ready', icon: 'check-circle-outline' as const, i18nKey: 'chat.progressTracker.stage6', durationMs: 0 },
     ],
     /** SSE status -> minimum stage index mappings */
@@ -55,7 +55,7 @@ export const PROGRESS_CONFIG = {
     /** Progress cap within each stage (prevents stall-at-100% before anchor) */
     progressCap: 0.92,
     /** Show "Almost there..." after this many ms without completion */
-    stallThresholdMs: 15000,
+    stallThresholdMs: 25000,
     /** Timer tick interval in ms */
     tickMs: 100,
 } as const;

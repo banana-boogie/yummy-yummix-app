@@ -13,7 +13,7 @@ export type AIUsageType =
   | "parsing"
   | "embedding";
 
-export type AIProvider = "openai" | "anthropic" | "google";
+export type AIProvider = "openai" | "anthropic" | "google" | "xai";
 
 export interface AIMessage {
   role: "system" | "user" | "assistant";

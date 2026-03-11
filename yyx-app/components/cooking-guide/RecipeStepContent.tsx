@@ -125,6 +125,13 @@ export function RecipeStepContent({ step, className = '', style }: RecipeStepCon
                     className="mt-[-4px]"
                 />
             ) : null}
+            {step.tip ? (
+                <View className="bg-[#FAF3E8] rounded-sm p-sm mt-sm mx-md">
+                    <Text preset="bodySmall" className="text-text-secondary">
+                        {step.tip}
+                    </Text>
+                </View>
+            ) : null}
         </MessageBubble>
     );
 }
