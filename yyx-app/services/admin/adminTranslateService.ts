@@ -1,21 +1,16 @@
 import { supabase } from '@/lib/supabase';
 
-interface TranslateRequest {
-  fields: Record<string, string>;
-  sourceLocale: string;
-  targetLocales: string[];
-}
-
-interface TranslateResult {
+export interface TranslationResult {
   targetLocale: string;
   fields: Record<string, string>;
+  error?: string;
 }
 
 export async function translateContent(
   fields: Record<string, string>,
   sourceLocale: string,
   targetLocales: string[],
-): Promise<TranslateResult[]> {
+): Promise<TranslationResult[]> {
   const { data, error } = await supabase.functions.invoke('translate-content', {
     body: { fields, sourceLocale, targetLocales },
   });

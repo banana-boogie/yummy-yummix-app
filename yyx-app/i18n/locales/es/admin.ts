@@ -537,6 +537,7 @@ export const admin = {
     targetLanguages: "Traducir a",
     translateAll: "Traducir Todo",
     translationComplete: "¡Traducción completada!",
+    partialFailure: "La traducción falló para: %{locales}. El contenido existente se conservó.",
     retranslate: "Re-traducir",
     warningTitle: "¿Omitir inglés?",
     enWarning: "Se recomienda la traducción al inglés para todas las recetas. ¿Estás seguro de que quieres omitirlo?",

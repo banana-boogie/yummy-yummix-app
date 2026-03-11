@@ -22,6 +22,7 @@ jest.mock('@/hooks/admin/useRecipeTranslation', () => ({
     translating: false,
     progress: null,
     error: null,
+    failedLocales: [],
     translateAll: mockTranslateAll,
   }),
 }));
@@ -425,6 +426,7 @@ describe('TranslationStep', () => {
         translating: false,
         progress: null,
         error: 'Translation service unavailable',
+        failedLocales: [],
         translateAll: mockTranslateAll,
       });
 

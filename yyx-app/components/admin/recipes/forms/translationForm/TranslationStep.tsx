@@ -31,7 +31,7 @@ type TranslationState = 'ready' | 'translating' | 'done';
 
 export function TranslationStep({ recipe, authoringLocale, onUpdateRecipe }: TranslationStepProps) {
   const { locales } = useActiveLocales();
-  const { translating, progress, error, translateAll } = useRecipeTranslation();
+  const { translating, progress, error, failedLocales, translateAll } = useRecipeTranslation();
   const { isMobile } = useDevice();
 
   const [state, setState] = useState<TranslationState>('ready');
@@ -233,6 +233,16 @@ export function TranslationStep({ recipe, authoringLocale, onUpdateRecipe }: Tra
           {i18n.t('admin.translate.retranslate')}
         </Button>
       </View>
+
+      {/* Partial failure warning */}
+      {failedLocales.length > 0 ? (
+        <View className="flex-row items-center gap-sm bg-status-error/10 p-md rounded-lg mb-lg">
+          <Ionicons name="warning" size={20} color={COLORS.status.error} />
+          <Text preset="bodySmall" className="text-status-error flex-1">
+            {i18n.t('admin.translate.partialFailure', { locales: failedLocales.join(', ') })}
+          </Text>
+        </View>
+      ) : null}
 
       {/* Language tabs */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-lg">

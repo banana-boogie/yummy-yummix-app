@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { translateContent } from '@/services/admin/adminTranslateService';
+import { translateContent , TranslationResult } from '@/services/admin/adminTranslateService';
 import { ExtendedRecipe } from './useAdminRecipeForm';
 import {
   AdminRecipeTranslation,
@@ -11,6 +11,11 @@ import {
 
 export type TranslationFieldStatus = 'auto' | 'edited' | 'missing';
 
+/** Skip results that failed or returned empty fields */
+function isSuccessfulResult(result: TranslationResult): boolean {
+  return !result.error && Object.keys(result.fields).length > 0;
+}
+
 interface TranslationProgress {
   current: number;
   total: number;
@@ -21,6 +26,7 @@ interface UseRecipeTranslationReturn {
   translating: boolean;
   progress: TranslationProgress | null;
   error: string | null;
+  failedLocales: string[];
   translateAll: (
     recipe: ExtendedRecipe,
     sourceLocale: string,
@@ -32,6 +38,7 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
   const [translating, setTranslating] = useState(false);
   const [progress, setProgress] = useState<TranslationProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [failedLocales, setFailedLocales] = useState<string[]>([]);
 
   const translateAll = useCallback(
     async (
@@ -41,6 +48,7 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
     ): Promise<ExtendedRecipe> => {
       setTranslating(true);
       setError(null);
+      setFailedLocales([]);
 
       // Count total batches: recipe info + each step + each ingredient + each useful item
       const steps = recipe.steps || [];
@@ -53,6 +61,16 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
       const tick = (label: string) => {
         completed++;
         setProgress({ current: completed, total: totalBatches, label });
+      };
+
+      const failed = new Set<string>();
+
+      /** Filter successful results and track failures */
+      const filterResults = (results: TranslationResult[]) => {
+        for (const r of results) {
+          if (!isSuccessfulResult(r)) failed.add(r.targetLocale);
+        }
+        return results.filter(isSuccessfulResult);
       };
 
       try {
@@ -77,7 +95,7 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
               targetLocales,
             );
             let updated = [...(updatedRecipe.translations || [])];
-            for (const result of results) {
+            for (const result of filterResults(results)) {
               const existing = updated.find(
                 (t) => t.locale === result.targetLocale,
               );
@@ -128,7 +146,7 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
                 targetLocales,
               );
               let updated = [...step.translations];
-              for (const result of results) {
+              for (const result of filterResults(results)) {
                 const existing = updated.find(
                   (t) => t.locale === result.targetLocale,
                 );
@@ -187,7 +205,7 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
                 targetLocales,
               );
               let updated = [...ing.translations];
-              for (const result of results) {
+              for (const result of filterResults(results)) {
                 const existing = updated.find(
                   (t) => t.locale === result.targetLocale,
                 );
@@ -235,7 +253,7 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
                 targetLocales,
               );
               let updated = [...item.translations];
-              for (const result of results) {
+              for (const result of filterResults(results)) {
                 const existing = updated.find(
                   (t) => t.locale === result.targetLocale,
                 );
@@ -261,6 +279,10 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
         }
         updatedRecipe = { ...updatedRecipe, usefulItems: updatedUsefulItems };
 
+        if (failed.size > 0) {
+          setFailedLocales([...failed]);
+        }
+
         return updatedRecipe;
       } catch (e: any) {
         setError(e.message || 'Translation failed');
@@ -273,5 +295,5 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
     [],
   );
 
-  return { translating, progress, error, translateAll };
+  return { translating, progress, error, failedLocales, translateAll };
 }

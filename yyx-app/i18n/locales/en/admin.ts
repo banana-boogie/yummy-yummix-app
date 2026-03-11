@@ -529,6 +529,7 @@ export const admin = {
     targetLanguages: "Translate to",
     translateAll: "Translate All",
     translationComplete: "Translation complete!",
+    partialFailure: "Translation failed for: %{locales}. Existing content was preserved.",
     retranslate: "Re-translate",
     warningTitle: "Skip English?",
     enWarning: "English translation is recommended for all recipes. Are you sure you want to skip it?",
