@@ -19,6 +19,7 @@ import {
 } from "./tool-validators.ts";
 import { ToolValidationError } from "./tool-validators.ts";
 import {
+  buildAllergenPromptSection,
   buildRecipeJsonSchema,
   checkIngredientsForAllergens,
   enrichIngredientsWithImages,
@@ -106,8 +107,22 @@ export function extractLastRecipeFromHistory(
  * Build the system prompt for recipe modification.
  * Focused on transformation, not creation from scratch.
  */
-export function getModificationSystemPrompt(userContext: UserContext): string {
+export async function getModificationSystemPrompt(
+  supabase: SupabaseClient,
+  userContext: UserContext,
+): Promise<string> {
   const basePrompt = getSystemPrompt(userContext);
+
+  // Build allergen prompt section for modification
+  const allRestrictions = [
+    ...userContext.dietaryRestrictions,
+    ...userContext.customAllergies,
+  ];
+  const allergenSection = await buildAllergenPromptSection(
+    supabase,
+    allRestrictions,
+    userContext.language,
+  );
 
   const modificationRules = `
 
@@ -121,7 +136,7 @@ You are modifying an existing recipe, NOT creating one from scratch.
 - Preserve Thermomix parameters; adjust only if the modification requires it.
 - Return the COMPLETE modified recipe as JSON, same schema as the original.`;
 
-  return basePrompt + modificationRules;
+  return basePrompt + allergenSection + modificationRules;
 }
 
 // ============================================================
@@ -202,7 +217,7 @@ export async function modifyRecipe(
   // Call LLM for modification
   const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
   const recipeSchema = buildRecipeJsonSchema(isThermomixUser);
-  const systemPrompt = getModificationSystemPrompt(userContext);
+  const systemPrompt = await getModificationSystemPrompt(supabase, userContext);
   const userPrompt = buildModificationPrompt(
     originalRecipe,
     params,
