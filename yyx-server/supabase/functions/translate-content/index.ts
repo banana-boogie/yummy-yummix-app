@@ -18,6 +18,7 @@ import {
   REGIONAL_ADAPTATION_HINTS,
   type TranslationResult,
   validateRequest,
+  ValidationError,
 } from "./utils.ts";
 
 // ============================================================
@@ -89,6 +90,10 @@ Deno.serve(async (req: Request) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  if (req.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
+  }
+
   try {
     // Auth
     const authHeader = req.headers.get("Authorization");
@@ -111,7 +116,12 @@ Deno.serve(async (req: Request) => {
     }
 
     // Parse and validate request
-    const body = await req.json();
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "Invalid JSON body" }, 400);
+    }
     const request = validateRequest(body);
 
     // Translate to all target locales in parallel
@@ -144,8 +154,7 @@ Deno.serve(async (req: Request) => {
 
     return jsonResponse({ translations }, 200);
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith("'")) {
-      // Validation error — return 400
+    if (error instanceof ValidationError) {
       return jsonResponse({ error: error.message }, 400);
     }
     console.error("[translate-content] Error:", error);

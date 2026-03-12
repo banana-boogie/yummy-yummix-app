@@ -9,7 +9,6 @@ import { ThermomixSettings, ThermomixSpeedRange } from '@/types/thermomix.types'
 import i18n from '@/i18n';
 import { Image } from 'expo-image';
 import { LanguageBadge } from '@/components/common/LanguageBadge';
-import { RawRecipeStep } from '@/types/recipe.api.types';
 import { COLORS } from '@/constants/design-tokens';
 import { useDevice } from '@/hooks/useDevice';
 
@@ -55,27 +54,7 @@ export function RecipeStepContent({
       speed_end = Number(speedRange.end);
     }
 
-    const recipeSectionEn = getTranslatedField(recipeStep.translations, 'en', 'recipeSection');
-    const recipeSectionEs = getTranslatedField(recipeStep.translations, 'es', 'recipeSection');
-
-    // Create raw recipe instruction for formatter
-    const rawRecipeStep = {
-      id: recipeStep.id,
-      recipe_id: '',
-      order: recipeStep.order,
-      instruction_en: instructionEn,
-      instruction_es: instructionEs,
-      thermomix_time: recipeStep.thermomixTime || null,
-      thermomix_temperature: recipeStep.thermomixTemperature || null,
-      thermomix_speed: typeof recipeStep.thermomixSpeed === 'number' ? recipeStep.thermomixSpeed : null,
-      thermomix_speed_start: speed_start,
-      thermomix_speed_end: speed_end,
-      recipe_section_en: recipeSectionEn,
-      recipe_section_es: recipeSectionEs,
-      thermomix_temperature_unit: recipeStep.thermomixTemperatureUnit || 'C'
-    } as RawRecipeStep;
-
-    const measurementSystem = rawRecipeStep.thermomix_temperature_unit === 'C' ? 'metric' : 'imperial';
+    const measurementSystem = (recipeStep.thermomixTemperatureUnit || 'C') === 'C' ? 'metric' : 'imperial';
 
     const instruction = language === 'en' ? instructionEn : instructionEs;
     const thermomix = {

@@ -204,7 +204,7 @@ ALTER TABLE public.my_table ENABLE ROW LEVEL SECURITY;
 ## PostgreSQL Functions (RPC)
 
 ### Existing Functions
-- `resolve_locale(requested text)` — Walk the locale fallback chain; returns `text[]` ordered most-specific to least (e.g., `es-MX` → `['es-MX', 'es', 'en']`). Strips unknown region suffixes and falls back to `['en']` as the final default. See Translation Tables section for full behaviour.
+- `resolve_locale(requested text)` — Walk the locale fallback chain; returns `text[]` ordered most-specific to least (e.g., `es-MX` → `['es-MX', 'es', 'en']`). Strips unknown region suffixes and uses `['es']` as the ultimate fallback for unknown locales (Mexico-first audience). See Translation Tables section for full behaviour.
 - `batch_find_ingredients(names text[], preferred_locale text)` — Bulk ingredient lookup via translation tables
 - `get_cooked_recipes(p_locale text, ...)` — User's cooked recipes with locale-based name resolution
 - `match_recipe_embeddings(query_embedding vector, match_threshold float, match_count int)` — Vector similarity search
@@ -289,14 +289,18 @@ RLS: public read (`USING (true)`), admin write.
 ```sql
 SELECT public.resolve_locale('es-MX');
 -- Returns: ARRAY['es-MX', 'es', 'en']
+
+SELECT public.resolve_locale('en');
+-- Returns: ARRAY['en']
 ```
 
-The function walks the `parent_code` chain recursively (up to depth 5) and returns an ordered array from most-specific to least-specific. Callers then `COALESCE` or use `ANY()` to pick the best available translation.
+The function walks the `parent_code` chain recursively (up to depth 5) and returns an ordered array from most-specific to least-specific. Callers then `COALESCE` or use `ANY()` to pick the best available translation. Ultimate fallback is `['es']` for completely unknown locales (Mexico-first audience).
 
 Fallback behaviour:
-- `es-MX` → `['es-MX', 'es', 'en']`
+- `es-MX` → `['es-MX', 'es', 'en']` (walks parent_code chain)
+- `en` → `['en']` (en has no parent_code)
 - Unknown region (`en-CA`) → strips region suffix, recurses on `en` → `['en']`
-- Completely unknown code → `['en']`
+- Completely unknown code → `['es']` (ultimate fallback)
 
 ### 8 Translation Tables
 
@@ -318,7 +322,7 @@ All use composite PK `(entity_id, locale)` with `ON DELETE CASCADE` from parent.
 - **Base codes (`en`, `es`) store all content.** These serve all speakers of that language.
 - **Regional codes (`es-MX`, `es-ES`) are override-only.** Only create regional translation rows when content genuinely differs from the base.
 - **Never store base content under a regional code** — it breaks fallback for other regions.
-- **Fallback chain** via `resolve_locale()`: `es-MX` → `es` → `en`. Unknown locales normalize to language subtag first (`en-CA` → `en`).
+- **Fallback chain** via `resolve_locale()`: `es-MX` → `es` → `en` (walks parent_code). Ultimate fallback for unknown locales is `['es']` (Mexico-first audience).
 
 ### RLS Patterns for Translation Tables
 

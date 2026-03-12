@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { BaseService } from '@/services/base/BaseService';
-import { AdminRecipeTag } from '@/types/recipe.admin.types';
+import { AdminRecipeTag, pickTranslation } from '@/types/recipe.admin.types';
 import { formatCategoryNameToTitleCase, formatToScreamingSnakeCase, transformCategories } from '@/utils/formatters';
 export interface TagFilters {
   searchQuery?: string;

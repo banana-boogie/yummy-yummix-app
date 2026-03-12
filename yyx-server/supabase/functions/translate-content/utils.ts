@@ -3,6 +3,17 @@
  */
 
 // ============================================================
+// Errors
+// ============================================================
+
+export class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ValidationError";
+  }
+}
+
+// ============================================================
 // Types
 // ============================================================
 
@@ -35,7 +46,7 @@ export const REGIONAL_ADAPTATION_HINTS: Record<string, string> = {
 
 export function validateRequest(body: unknown): TranslateRequest {
   if (!body || typeof body !== "object") {
-    throw new Error("Request body must be a JSON object");
+    throw new ValidationError("Request body must be a JSON object");
   }
 
   const { fields, sourceLocale, targetLocales } = body as Record<
@@ -44,28 +55,30 @@ export function validateRequest(body: unknown): TranslateRequest {
   >;
 
   if (!fields || typeof fields !== "object" || Array.isArray(fields)) {
-    throw new Error("'fields' must be a non-empty object of string values");
+    throw new ValidationError(
+      "'fields' must be a non-empty object of string values",
+    );
   }
 
   const fieldEntries = Object.entries(fields as Record<string, unknown>);
   if (fieldEntries.length === 0) {
-    throw new Error("'fields' must contain at least one field");
+    throw new ValidationError("'fields' must contain at least one field");
   }
   for (const [key, value] of fieldEntries) {
     if (typeof value !== "string") {
-      throw new Error(`Field '${key}' must be a string`);
+      throw new ValidationError(`Field '${key}' must be a string`);
     }
   }
 
   if (typeof sourceLocale !== "string" || sourceLocale.length === 0) {
-    throw new Error("'sourceLocale' must be a non-empty string");
+    throw new ValidationError("'sourceLocale' must be a non-empty string");
   }
 
   if (
     !Array.isArray(targetLocales) || targetLocales.length === 0 ||
     !targetLocales.every((l) => typeof l === "string" && l.length > 0)
   ) {
-    throw new Error(
+    throw new ValidationError(
       "'targetLocales' must be a non-empty array of locale strings",
     );
   }

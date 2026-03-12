@@ -104,7 +104,7 @@ Deno.test("buildPersonalityBlock returns English for 'en'", () => {
     personality,
     "walks alongside, not someone who lectures",
   );
-  assertStringIncludes(personality, "Use emojis sparingly");
+  assertStringIncludes(personality, "Do not use emojis");
   assertEquals(personality.includes("IDENTIDAD"), false);
 });
 
@@ -117,7 +117,7 @@ Deno.test("buildPersonalityBlock returns Mexican Spanish for 'es'", () => {
   assertStringIncludes(personality, "jitomate");
   assertStringIncludes(personality, "cualquier receta es fácil");
   assertStringIncludes(personality, "acompaña, no como alguien que instruye");
-  assertStringIncludes(personality, "emojis con moderación");
+  assertStringIncludes(personality, "No uses emojis");
   assertEquals(personality.includes("IDENTITY:"), false);
 });
 

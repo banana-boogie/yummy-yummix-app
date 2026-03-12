@@ -629,25 +629,6 @@ function scoreByQuery(
   return scored.map((s) => s.card);
 }
 
-function buildMultiWordIlikeFilter(
-  query: string,
-  columns: string[],
-): string | null {
-  const terms = getSearchTerms(query);
-  if (terms.length === 0) {
-    return null;
-  }
-
-  const filters: string[] = [];
-  for (const term of terms) {
-    const pattern = `%${term}%`;
-    for (const column of columns) {
-      filters.push(`${column}.ilike.${pattern}`);
-    }
-  }
-  return filters.join(",");
-}
-
 function getSearchTerms(query: string): string[] {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return [];

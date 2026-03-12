@@ -1,7 +1,7 @@
 import i18n from '@/i18n';
 import { supabase } from '@/lib/supabase';
 import { RawRecipe } from '@/types/recipe.api.types';
-import { PostgrestResponse, PostgrestSingleResponse } from '@supabase/supabase-js';
+import { PostgrestSingleResponse } from '@supabase/supabase-js';
 import { recipeCache } from '@/services/cache/recipeCache';
 import { isValidUUID } from '@/utils/validation';
 
@@ -76,7 +76,6 @@ const getRecipeDetailQuery = () => {
       thermomix_speed_end,
       thermomix_temperature,
       thermomix_is_blade_reversed,
-      tip${lang},
       step_ingredients:recipe_step_ingredients (
         id,
         quantity,
@@ -188,7 +187,7 @@ const findRecipeIdsForSearch = async (
     .from('recipe_translations')
     .select('recipe_id')
     .ilike('name', pattern)
-    .limit(200) as unknown as PostgrestResponse<RecipeIdRow[]>;
+    .limit(200);
 
   if (nameError) console.warn('[recipeService] Name search error:', nameError.message);
 
@@ -199,7 +198,7 @@ const findRecipeIdsForSearch = async (
       .from('recipes')
       .select('id')
       .in('id', candidateIds)
-      .eq('is_published', isPublished) as unknown as PostgrestResponse<IdRow[]>;
+      .eq('is_published', isPublished);
     for (const row of publishedRecipes ?? []) {
       recipeIds.add(row.id);
     }
@@ -223,7 +222,7 @@ const findRecipeIdsForSearch = async (
       .from('recipe_ingredients')
       .select('recipe_id')
       .in('ingredient_id', ingredientIds)
-      .limit(500) as unknown as PostgrestResponse<RecipeIdRow[]>;
+      .limit(500);
     if (riError) console.warn('[recipeService] Recipe-ingredient join error:', riError.message);
 
     for (const row of recipeIngredientRows ?? []) {
@@ -245,7 +244,7 @@ const findRecipeIdsForSearch = async (
       .from('recipe_to_tag')
       .select('recipe_id')
       .in('tag_id', tagIds)
-      .limit(500) as unknown as PostgrestResponse<RecipeIdRow[]>;
+      .limit(500);
     if (rtError) console.warn('[recipeService] Recipe-tag join error:', rtError.message);
 
     for (const row of recipeTagRows ?? []) {
@@ -345,7 +344,7 @@ export const recipeService = {
         // Apply limit
         query = query.limit(limit);
 
-        const response = await query as unknown as PostgrestResponse<RawRecipe[]>;
+        const response = await query;
 
         if (response.error) {
           throw new Error("Error fetching recipes: " + response.error.message);

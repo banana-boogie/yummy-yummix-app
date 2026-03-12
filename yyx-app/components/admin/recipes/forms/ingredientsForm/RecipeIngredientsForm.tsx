@@ -116,10 +116,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
         id: '',
         type: 'unit',
         system: 'metric',
-        nameEn: '',
-        nameEs: '',
-        symbolEn: '',
-        symbolEs: '',
+        translations: [],
       },
       optional: false,
       translations: [

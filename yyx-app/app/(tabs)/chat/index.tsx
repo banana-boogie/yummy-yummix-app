@@ -18,16 +18,27 @@ import { ChatMessage } from '@/services/chatService';
 import i18n from '@/i18n';
 
 const STORAGE_KEY_SESSION_ID = 'lastChatSessionId';
+const STORAGE_KEY_CHAT_MODE = 'lastChatMode';
 
 type ChatMode = 'text' | 'voice';
 
+const DEFAULT_MODE: ChatMode = Platform.OS === 'web' ? 'text' : 'text';
+
 export default function ChatPage() {
-    const [mode, setMode] = useState<ChatMode>(Platform.OS === 'web' ? 'text' : 'voice');
+    const [mode, setMode] = useState<ChatMode>(DEFAULT_MODE);
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [voiceTranscriptMessages, setVoiceTranscriptMessages] = useState<ChatMessage[]>([]);
     const [sessionsMenuOpenSignal, setSessionsMenuOpenSignal] = useState(0);
     const [newChatSignal, setNewChatSignal] = useState(0);
+
+    // Restore last-used chat mode on mount
+    useEffect(() => {
+        if (Platform.OS === 'web') return;
+        AsyncStorage.getItem(STORAGE_KEY_CHAT_MODE).then((stored) => {
+            if (stored === 'text' || stored === 'voice') setMode(stored);
+        }).catch(() => {});
+    }, []);
 
     // Session ID is persisted to AsyncStorage for the resume bar,
     // but NOT restored on mount — users always start with a fresh chat.
@@ -40,7 +51,11 @@ export default function ChatPage() {
     }, []);
 
     const toggleMode = useCallback(() => {
-        setMode((m) => (m === 'text' ? 'voice' : 'text'));
+        setMode((m) => {
+            const next = m === 'text' ? 'voice' : 'text';
+            AsyncStorage.setItem(STORAGE_KEY_CHAT_MODE, next).catch(() => {});
+            return next;
+        });
     }, []);
 
     const handleSelectSession = useCallback((newSessionId: string, sessionMessages: ChatMessage[]) => {

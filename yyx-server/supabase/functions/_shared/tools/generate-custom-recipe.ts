@@ -29,30 +29,8 @@ import {
   buildLocaleChain,
   getBaseLanguage,
   getLanguageName,
+  pickTranslation,
 } from "../locale-utils.ts";
-
-/**
- * Build a locale chain for useful item name resolution.
- */
-function buildLocaleChainForItems(locale: string): string[] {
-  return buildLocaleChain(locale);
-}
-
-/**
- * Pick the best name from useful item translations using a locale chain.
- */
-function pickTranslationFromItemTranslations(
-  translations: Array<{ locale: string; name: string | null }>,
-  localeChain: string[],
-): string | null {
-  for (const loc of localeChain) {
-    const match = translations.find((t) => t.locale === loc);
-    if (match?.name) return match.name;
-  }
-  // Fallback to first available
-  const first = translations.find((t) => !!t.name);
-  return first?.name || null;
-}
 
 // ============================================================
 // Tool Definition (OpenAI Function Calling format)
@@ -1138,13 +1116,13 @@ export async function getRelevantUsefulItems(
       .sort((a, b) => b.score - a.score)
       .slice(0, 4)
       .map((si) => {
-        const localeChain = buildLocaleChainForItems(locale);
-        const match = pickTranslationFromItemTranslations(
+        const localeChain = buildLocaleChain(locale);
+        const match = pickTranslation(
           si.item.useful_item_translations || [],
           localeChain,
         );
         return {
-          name: match || "Unknown",
+          name: match?.name || "Unknown",
           imageUrl: si.item.image_url || undefined,
         };
       });

@@ -122,8 +122,11 @@ export function ChatScreen({
 
     // --- Budget state ---
     const [isBudgetExceeded, setIsBudgetExceeded] = useState(false);
+    const budgetWarningShownRef = useRef(false);
 
     const handleBudgetWarning = useCallback((_warning: BudgetWarningPayload) => {
+        if (budgetWarningShownRef.current) return;
+        budgetWarningShownRef.current = true;
         Alert.alert(
             i18n.t('chat.budget.warningTitle'),
             i18n.t('chat.budget.warningDetailed'),
