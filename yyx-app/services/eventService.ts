@@ -6,8 +6,7 @@ type EventType =
   | 'cook_start'
   | 'cook_complete'
   | 'search'
-  | 'recipe_generate'
-  | 'suggestion_click';
+  | 'recipe_generate';
 type RecipeTable = 'recipes' | 'user_recipes';
 
 interface QueuedEvent {
@@ -221,20 +220,6 @@ class EventService {
       recipe_name: recipeName,
       success,
       duration_ms: Math.round(durationMs),
-    });
-  }
-
-  /**
-   * Log user interaction with suggestion chips.
-   */
-  logSuggestionClick(label: string, location: string = 'chat'): void {
-    if (!label || label.trim().length === 0) {
-      return;
-    }
-
-    this.queueEvent('suggestion_click', {
-      label: label.trim(),
-      location,
     });
   }
 

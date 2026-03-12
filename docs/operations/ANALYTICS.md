@@ -38,7 +38,6 @@ Allowed event types:
 - `save_recipe` (reserved)
 - `chat_message` (reserved)
 - `recipe_generate`
-- `suggestion_click`
 - `ai_chat_start` (reserved, not instrumented yet)
 - `ai_voice_start` (reserved, not instrumented yet)
 
@@ -78,7 +77,6 @@ Tracked methods:
 - `logCookComplete(recipeId, recipeName)`
 - `logSearch(query)`
 - `logRecipeGenerate(recipeName, success, durationMs)`
-- `logSuggestionClick(label, location)`
 
 Current behavior note:
 - If auth user cache is not ready yet, events are dropped. This is intentional and matches existing event behavior.
@@ -104,8 +102,6 @@ Primary RPCs (dedicated, extracted from legacy dispatcher):
 - `admin_daily_active_users(timeframe)` — daily unique active users (Overview charts)
 - `admin_daily_ai_users(timeframe)` — daily unique AI users, chat + voice (AI charts)
 - `admin_content_source_split(timeframe)` — catalog vs user-generated cook counts (Content tab)
-
-Legacy compatibility: `admin_analytics(action, timeframe, limit_count)` — dispatcher that delegates to dedicated RPCs above.
 
 Four tabs:
 1. **Overview** — active users, signups, onboarding, retention

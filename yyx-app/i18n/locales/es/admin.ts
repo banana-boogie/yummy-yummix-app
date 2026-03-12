@@ -264,6 +264,7 @@ export const admin = {
         totalTime: "Tiempo Total (minutos)",
         usefulItemsEnglish: "Elementos Útiles (Inglés)",
         usefulItemsSpanish: "Elementos Útiles (Español)",
+        tipsAndTricks: "Consejos y Trucos",
         tipsAndTricksEnglish: "Consejos & Trucos (Inglés)",
         tipsAndTricksSpanish: "Consejos & Trucos (Español)",
         recipeImage: "Imagen de la Receta",

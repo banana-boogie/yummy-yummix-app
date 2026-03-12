@@ -160,47 +160,6 @@ describe('eventService', () => {
     );
   });
 
-  it('queues suggestion_click events and trims label', async () => {
-    const insertMock = jest.fn().mockResolvedValue({ error: null });
-
-    jest.doMock('@/lib/supabase', () => ({
-      supabase: {
-        auth: {
-          getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
-          onAuthStateChange: jest.fn(() => ({
-            data: { subscription: { unsubscribe: jest.fn() } },
-          })),
-        },
-        from: jest.fn(() => ({
-          insert: insertMock,
-        })),
-      },
-    }));
-
-    jest.doMock('react-native', () => ({
-      AppState: {
-        addEventListener: jest.fn(() => ({ remove: jest.fn() })),
-      },
-      Platform: { OS: 'ios' },
-    }));
-
-    const { eventService } = require('../eventService');
-    await flushPromises();
-
-    eventService.logSuggestionClick('  Quick dinner  ', 'chat_screen');
-    await eventService.flush();
-
-    expect(insertMock).toHaveBeenCalledTimes(1);
-    const [row] = insertMock.mock.calls[0][0];
-    expect(row.event_type).toBe('suggestion_click');
-    expect(row.payload).toEqual(
-      expect.objectContaining({
-        label: 'Quick dinner',
-        location: 'chat_screen',
-      })
-    );
-  });
-
   it('auto-flushes when batch size is reached', async () => {
     const insertMock = jest.fn().mockResolvedValue({ error: null });
 

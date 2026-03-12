@@ -108,11 +108,9 @@ jest.mock('@/services/chatService', () => {
 });
 
 const mockLogRecipeGenerate = jest.fn();
-const mockLogSuggestionClick = jest.fn();
 jest.mock('@/services/eventService', () => ({
   eventService: {
     logRecipeGenerate: (...args: any[]) => mockLogRecipeGenerate(...args),
-    logSuggestionClick: (...args: any[]) => mockLogSuggestionClick(...args),
   },
 }));
 

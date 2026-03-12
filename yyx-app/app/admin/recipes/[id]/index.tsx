@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ScrollView, View, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { COLORS } from '@/constants/design-tokens';
@@ -40,11 +40,7 @@ export default function EditRecipePage() {
   const { getNextButtonLabel } = useRecipeNavigation(recipe, currentStep);
   const { isSmall } = useDevice();
 
-  useEffect(() => {
-    loadRecipe();
-  }, [id]);
-
-  const loadRecipe = async () => {
+  const loadRecipe = useCallback(async () => {
     if (!id) return;
 
     try {
@@ -61,7 +57,11 @@ export default function EditRecipePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    loadRecipe();
+  }, [loadRecipe]);
 
   const handleUpdateRecipe = (updates: Partial<AdminRecipe>) => {
     setRecipe(prev => ({ ...prev, ...updates }));

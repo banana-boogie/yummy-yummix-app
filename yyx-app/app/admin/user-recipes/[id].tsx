@@ -76,7 +76,7 @@ export default function UserRecipeDetailPage() {
         createdAt: data.created_at,
         recipeData: data.recipe_data,
       });
-    } catch (err) {
+    } catch {
       setError(i18n.t('admin.recipes.form.errors.loadFailed'));
     } finally {
       setLoading(false);
@@ -214,7 +214,7 @@ export default function UserRecipeDetailPage() {
         {recipe.recipeData?.tipsAndTricks && (
           <View className="bg-white rounded-lg p-md mb-md shadow-sm">
             <Text preset="h2" className="text-text-default mb-sm">
-              {i18n.t('admin.recipes.form.basicInfo.tipsAndTricksEnglish')}
+              {i18n.t('admin.recipes.form.basicInfo.tipsAndTricks')}
             </Text>
             <Text preset="body" className="text-text-default">{recipe.recipeData.tipsAndTricks}</Text>
           </View>

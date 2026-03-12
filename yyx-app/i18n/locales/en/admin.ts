@@ -262,6 +262,7 @@ export const admin = {
         totalTime: "Total Time (minutes)",
         usefulItemsEnglish: "Useful Items (English)",
         usefulItemsSpanish: "Useful Items (Spanish)",
+        tipsAndTricks: "Tips & Tricks",
         tipsAndTricksEnglish: "Tips & Tricks (English)",
         tipsAndTricksSpanish: "Tips & Tricks (Spanish)",
         recipeImage: "Recipe Image",

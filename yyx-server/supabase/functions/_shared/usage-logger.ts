@@ -6,24 +6,9 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { createServiceClient } from "./supabase-client.ts";
+import { calculateCost } from "./ai-gateway/pricing.ts";
 
 export const PRICING_VERSION = 1;
-
-const MODEL_PRICING_PER_MILLION: Record<
-  string,
-  { input: number; output: number }
-> = {
-  "gpt-4o-mini": { input: 0.15, output: 0.60 },
-  "gpt-4o": { input: 2.50, output: 10.00 },
-  "gpt-4.1-nano": { input: 0.10, output: 0.40 },
-  "gpt-4.1-mini": { input: 0.40, output: 1.60 },
-  "o1-mini": { input: 3.00, output: 12.00 },
-  "o1": { input: 15.00, output: 60.00 },
-  "gemini-2.5-flash": { input: 0.15, output: 0.60 },
-  "gemini-2.0-flash": { input: 0.10, output: 0.40 },
-  "gemini-1.5-flash": { input: 0.075, output: 0.30 },
-  "gemini-1.5-pro": { input: 1.25, output: 5.00 },
-};
 
 const ALLOWED_METADATA_KEYS = new Set([
   "streaming",
@@ -57,33 +42,15 @@ export interface UsageLogParams {
   metadata?: Record<string, unknown>;
 }
 
-export function estimateCostUsd(
+/**
+ * Estimate cost using the centralized AI Gateway pricing (DB-backed with fallback).
+ */
+export async function estimateCostUsd(
   model: string,
   inputTokens: number,
   outputTokens: number,
-): number | null {
-  const pricing = resolvePricing(model);
-  if (!pricing) return null;
-
-  const inputCost = (inputTokens * pricing.input) / 1_000_000;
-  const outputCost = (outputTokens * pricing.output) / 1_000_000;
-  return inputCost + outputCost;
-}
-
-function resolvePricing(
-  model: string,
-): { input: number; output: number } | null {
-  const normalized = model.trim().toLowerCase();
-  const candidates = Object.keys(MODEL_PRICING_PER_MILLION)
-    .sort((a, b) => b.length - a.length);
-
-  for (const baseModel of candidates) {
-    if (normalized === baseModel || normalized.startsWith(`${baseModel}-`)) {
-      return MODEL_PRICING_PER_MILLION[baseModel];
-    }
-  }
-
-  return null;
+): Promise<number> {
+  return calculateCost(model, inputTokens, outputTokens);
 }
 
 export function sanitizeMetadata(
@@ -117,7 +84,11 @@ export async function logAIUsageWithClient(
     typeof params.outputTokens === "number";
 
   const estimatedCostUsd = params.model && hasTokenUsage
-    ? estimateCostUsd(params.model, params.inputTokens!, params.outputTokens!)
+    ? await estimateCostUsd(
+      params.model,
+      params.inputTokens!,
+      params.outputTokens!,
+    )
     : null;
 
   const row = {

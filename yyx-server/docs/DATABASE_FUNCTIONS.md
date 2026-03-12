@@ -7,7 +7,6 @@ Custom PostgreSQL functions available via Supabase RPC.
 | Function | Purpose | Used By |
 |----------|---------|---------|
 | `is_admin()` | Check if current user has admin role | RLS policies |
-| `admin_analytics(action, timeframe, limit)` | Get admin dashboard metrics (legacy dispatcher) | Admin dashboard |
 | `admin_overview()` | Active users (DAU/WAU/MAU), signups, onboarding rate | Admin Overview tab |
 | `admin_retention()` | D1/D7/D30 retention, time to first cook, weekly cook rate | Admin Overview tab |
 | `admin_funnel(timeframe)` | Cooking funnel metrics (views/starts/completes + rates) | Admin Content tab |
@@ -21,7 +20,6 @@ Custom PostgreSQL functions available via Supabase RPC.
 | `admin_daily_active_users(timeframe)` | Daily unique active users | Admin Overview charts |
 | `admin_daily_ai_users(timeframe)` | Daily unique AI users (chat + voice) | Admin AI charts |
 | `admin_content_source_split(timeframe)` | Catalog vs user-generated cook counts | Admin Content tab |
-| `admin_patterns()` | Cooking time of day, language distribution | Legacy (not in current UI) |
 | `find_closest_ingredient(name, lang)` | Find ingredient by fuzzy name match | Custom recipe generation |
 | `update_ai_voice_usage()` | Track AI voice minutes | Voice endpoints |
 | `upsert_cooking_session_progress(recipe_id, recipe_type, recipe_name, current_step, total_steps)` | Upsert active cooking progress per user+recipe | Cooking guide progress + resume prompt |
@@ -48,21 +46,6 @@ SELECT * FROM find_closest_ingredient('mixed vegetables', 'en');
 SELECT * FROM find_closest_ingredient('mezcla de verduras', 'es');
 -- Returns: frozen mixed veggies (score: 1.0, exact match)
 ```
-
-### `admin_analytics(action, timeframe, limit_count)`
-
-Get aggregated analytics for the admin dashboard. Requires admin role.
-
-**Parameters:**
-- `action` (text): 'overview', 'funnel', 'top_viewed_recipes', 'top_cooked_recipes', 'top_searches', 'ai', 'patterns', 'retention', 'recipe_generation'
-- `timeframe` (text): 'today', '7_days', '30_days', 'all_time'
-- `limit_count` (int): Max items to return
-
-**Returns:** JSONB with metrics
-
-Notes:
-- `ai` action is timeframe-aware and returns adoption/session metrics.
-- `recipe_generation` action returns `totalGenerated`, `totalFailed`, `successRate`, `avgDurationMs`.
 
 ### `admin_ai_usage(timeframe)`
 

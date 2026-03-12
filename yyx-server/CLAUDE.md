@@ -169,8 +169,7 @@ Custom PostgreSQL functions for RPC calls are documented in `docs/DATABASE_FUNCT
 
 **Quick reference:**
 - `find_closest_ingredient(name, lang)` — Fuzzy ingredient search with language preference
-- `admin_analytics(action, timeframe, limit)` — Legacy dispatcher (delegates to dedicated RPCs below)
-- Dedicated admin RPCs: `admin_overview`, `admin_retention`, `admin_funnel`, `admin_top_viewed_recipes`, `admin_top_cooked_recipes`, `admin_top_searches`, `admin_ai_adoption`, `admin_ai_usage`, `admin_ai_chat_session_depth`, `admin_recipe_generation`, `admin_daily_signups`, `admin_daily_active_users`, `admin_daily_ai_users`, `admin_content_source_split`, `admin_patterns`
+- Admin RPCs: `admin_overview`, `admin_retention`, `admin_funnel`, `admin_top_viewed_recipes`, `admin_top_cooked_recipes`, `admin_top_searches`, `admin_ai_adoption`, `admin_ai_usage`, `admin_ai_chat_session_depth`, `admin_recipe_generation`, `admin_daily_signups`, `admin_daily_active_users`, `admin_daily_ai_users`, `admin_content_source_split`
 - `is_admin()` — Check current user's admin status
 - `get_cooked_recipes(language, query, after, before, limit)` — Current user's cooked recipe history with optional search and date range
 - `upsert_cooking_session_progress(...)` — Upsert active cooking progress
