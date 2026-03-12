@@ -149,8 +149,8 @@ END;
 $$;
 
 -- 3. Fix misleading threshold comment (actual value is 0.5, not 0.7)
-COMMENT ON FUNCTION public.batch_find_ingredients(jsonb, text) IS
-  'Batch fuzzy ingredient search. Accepts JSON array of {name, quantity?, unit?}. Returns matches with similarity >= 0.5. Uses preferred_locale with fallback chain for name resolution.';
+COMMENT ON FUNCTION public.batch_find_ingredients(text[], text) IS
+  'Batch fuzzy ingredient search. Accepts array of ingredient names. Returns matches with similarity >= 0.5. Uses preferred_locale with fallback chain for name resolution.';
 
 -- 4. check_base_translation() is orphaned — all constraint triggers were
 --    dropped in migration 7 but the function was recreated in migration 9.
