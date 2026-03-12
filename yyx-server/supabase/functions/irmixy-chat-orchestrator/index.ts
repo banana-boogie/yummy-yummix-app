@@ -17,6 +17,7 @@ import {
 import type { RecipeCard, UserContext } from "../_shared/irmixy-schemas.ts";
 import { ValidationError } from "../_shared/irmixy-schemas.ts";
 import type {
+  AIUsageLogContext,
   GenerateRecipeResult,
   PartialRecipeCallback,
 } from "../_shared/tools/generate-custom-recipe.ts";
@@ -37,6 +38,7 @@ import { detectMealContext } from "./meal-context.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { callAI, callAIStream } from "./ai-calls.ts";
 import { errorResponse, finalizeResponse } from "./response-builder.ts";
+import { logAIUsage } from "../_shared/usage-logger.ts";
 import { detectTextToolCall, stripToolCallText } from "./tool-call-text.ts";
 import {
   BudgetCheckUnavailableError,
@@ -51,6 +53,41 @@ import type { CostContext } from "../_shared/ai-gateway/types.ts";
 
 const STREAM_TIMEOUT_MS = 30_000;
 const HEARTBEAT_INTERVAL_MS = 15_000;
+
+/** Build and fire a usage log entry. Keeps orchestrator DRY. */
+function fireUsageLog(
+  ctx: AIUsageLogContext,
+  phase: "tool_decision" | "response_stream",
+  status: "success" | "error",
+  startTime: number,
+  result?: {
+    model: string;
+    usage: { inputTokens: number; outputTokens: number };
+  },
+  metadata?: Record<string, unknown>,
+) {
+  // Detect missing/zero stream usage — treat as partial rather than fake success
+  const hasUsage = result != null &&
+    (result.usage.inputTokens > 0 || result.usage.outputTokens > 0);
+  const effectiveStatus = status === "success" && result != null && !hasUsage
+    ? "partial"
+    : status;
+
+  void logAIUsage({
+    userId: ctx.userId,
+    sessionId: ctx.sessionId,
+    requestId: ctx.requestId,
+    callPhase: phase,
+    status: effectiveStatus,
+    functionName: ctx.functionName,
+    usageType: "text",
+    model: result?.model ?? null,
+    inputTokens: hasUsage ? result!.usage.inputTokens : null,
+    outputTokens: hasUsage ? result!.usage.outputTokens : null,
+    durationMs: Math.round(performance.now() - startTime),
+    metadata: { streaming: phase === "response_stream", ...metadata },
+  });
+}
 
 // ============================================================
 // Main Handler
@@ -203,6 +240,7 @@ serve(async (req) => {
       effectiveSessionId,
       sanitizedMessage,
       log,
+      requestId,
       req.signal,
       costContext,
       budget.warningData,
@@ -284,6 +322,7 @@ async function executeToolCalls(
   toolCalls: ToolCall[],
   userContext: UserContext,
   log: Logger,
+  usageContext: AIUsageLogContext,
   onPartialRecipe?: PartialRecipeCallback,
   costContext?: CostContext,
 ): Promise<ToolExecutionResult> {
@@ -303,6 +342,7 @@ async function executeToolCalls(
           userContext,
           {
             onPartialRecipe,
+            usageContext,
             costContext,
           },
         );
@@ -378,6 +418,7 @@ function handleStreamingRequest(
   sessionId: string | undefined,
   message: string,
   log: Logger,
+  requestId: string,
   reqSignal?: AbortSignal,
   costContext?: CostContext,
   budgetWarning?: { usedUsd: number; budgetUsd: number },
@@ -473,14 +514,37 @@ function handleStreamingRequest(
         let recipesSourceTool: string | undefined;
         let customRecipeResult: GenerateRecipeResult | undefined;
         let streamMessages = messages;
+        const usageContext: AIUsageLogContext = {
+          userId,
+          sessionId,
+          requestId,
+          functionName: "irmixy-chat-orchestrator",
+        };
+
         let selectedModel = "unknown";
-        const firstResponse = await callAI(
-          messages,
-          true,
-          "auto",
-          signal,
-          costContext,
-        );
+        const llmCallStart = performance.now();
+        let firstResponse: Awaited<ReturnType<typeof callAI>>;
+        try {
+          firstResponse = await callAI(
+            messages,
+            true,
+            "auto",
+            signal,
+            costContext,
+          );
+        } catch (error) {
+          fireUsageLog(
+            usageContext,
+            "tool_decision",
+            "error",
+            llmCallStart,
+            undefined,
+            {
+              request_type: "tool_decision",
+            },
+          );
+          throw error;
+        }
         selectedModel = firstResponse.model;
         timings.llm_call_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
@@ -491,6 +555,7 @@ function handleStreamingRequest(
 
         // Gemini sometimes outputs tool-call syntax as plain text instead of
         // structured function calls. Detect this and retry with forced tool calling.
+        let effectiveResponse = firstResponse;
         if (
           !assistantMessage.tool_calls?.length &&
           detectedTool
@@ -511,6 +576,7 @@ function handleStreamingRequest(
             costContext,
           );
           selectedModel = retryResponse.model;
+          effectiveResponse = retryResponse;
           Object.assign(assistantMessage, retryResponse.choices[0].message);
           timings.llm_retry_ms = Math.round(performance.now() - phaseStart);
           phaseStart = performance.now();
@@ -520,6 +586,22 @@ function handleStreamingRequest(
           hasToolCalls: !!assistantMessage.tool_calls?.length,
           toolNames: assistantMessage.tool_calls?.map((tc) => tc.function.name),
         });
+
+        fireUsageLog(
+          usageContext,
+          "tool_decision",
+          "success",
+          llmCallStart,
+          effectiveResponse,
+          {
+            request_type: "tool_decision",
+            tool_names: assistantMessage.tool_calls?.map((tc) =>
+              tc.function.name
+            ),
+            has_tool_calls: !!assistantMessage.tool_calls?.length,
+            forced_tool_use: !!detectedTool,
+          },
+        );
 
         if (signal.aborted) {
           log.info("Request aborted by client (after first LLM call)");
@@ -553,6 +635,7 @@ function handleStreamingRequest(
               assistantMessage.tool_calls,
               userContext,
               log,
+              usageContext,
               onPartialRecipe,
               costContext,
             );
@@ -600,6 +683,7 @@ function handleStreamingRequest(
 
         // Stream AI response — text first, then tool results arrive in the done event.
         let finalText: string;
+        const streamStart = performance.now();
         try {
           const streamResult = await callAIStream(
             streamMessages,
@@ -615,6 +699,33 @@ function handleStreamingRequest(
             costContext,
           );
           finalText = streamResult.content;
+
+          fireUsageLog(
+            usageContext,
+            "response_stream",
+            "success",
+            streamStart,
+            streamResult,
+            {
+              request_type: hasSuccessfulCustomRecipe
+                ? "recipe_response"
+                : recipes?.length
+                ? "retrieval_response"
+                : "chat_response",
+            },
+          );
+        } catch (error) {
+          fireUsageLog(
+            usageContext,
+            "response_stream",
+            "error",
+            streamStart,
+            undefined,
+            {
+              request_type: "chat_response",
+            },
+          );
+          throw error;
         } finally {
           if (!heartbeatCleared) clearInterval(streamHeartbeatId);
         }

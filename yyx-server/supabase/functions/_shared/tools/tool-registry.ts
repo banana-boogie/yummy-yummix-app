@@ -7,6 +7,7 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import type { AITool, CostContext } from "../ai-gateway/types.ts";
 import type { RecipeCard, UserContext } from "../irmixy-schemas.ts";
 import {
+  AIUsageLogContext,
   generateCustomRecipe,
   generateCustomRecipeTool,
   GenerateRecipeResult,
@@ -23,6 +24,7 @@ export interface ToolExecutionContext {
   supabase: SupabaseClient;
   userContext: UserContext;
   onPartialRecipe?: PartialRecipeCallback;
+  usageContext?: AIUsageLogContext;
   costContext?: CostContext;
 }
 
@@ -76,6 +78,7 @@ const TOOL_REGISTRY: Record<string, ToolRegistration> = {
         args,
         context.userContext,
         context.onPartialRecipe,
+        context.usageContext,
         context.costContext,
       ),
     shapeResult: (result) => {
