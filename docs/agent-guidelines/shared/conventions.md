@@ -57,6 +57,23 @@ const { data } = await supabase
   .eq('translations.locale', 'en');
 ```
 
+**Reading translations (Edge Functions / server-side):**
+
+Use `pickTranslation()` from `_shared/locale-utils.ts` to resolve the best match from an array of translation rows using a locale fallback chain. Build the chain first with `buildLocaleChain()`.
+
+```typescript
+import { buildLocaleChain, pickTranslation } from '../_shared/locale-utils.ts';
+
+// Build fallback chain: "es-MX" → ["es-MX", "es"]
+const chain = buildLocaleChain(userLocale);
+
+// Pick the best available translation
+const translation = pickTranslation(recipe.translations, chain);
+// Falls back through chain; returns first available if no chain match
+```
+
+The database-side equivalent is the `resolve_locale()` RPC, which walks the `locales.parent_code` tree to find the nearest ancestor with content for a given entity.
+
 **Writing translations (admin services):**
 ```tsx
 // 1. Insert/update entity (non-translatable fields only)

@@ -30,7 +30,8 @@ yyx-server/supabase/functions/
 │   ├── logger.ts                     # Structured logging with request IDs
 │   ├── context-builder.ts            # User profile + conversation history aggregation
 │   ├── irmixy-schemas.ts             # Zod schemas: RecipeCard, GeneratedRecipe, IrmixyResponse
-│   ├── locale-utils.ts               # Locale helpers: buildLocaleChain(), pickTranslation(), getBaseLanguage()
+│   ├── locale-utils.ts               # Locale helpers: buildLocaleChain(), pickTranslation(), getBaseLanguage(), getLanguageName(), languageToLocale()
+│   ├── system-prompt-builder.ts      # Irmixy personality + user context blocks (buildPersonalityBlock, buildUserContextBlock, buildVoiceInstructions, resolveVocabulary, buildVocabularyDirective)
 │   ├── allergen-filter.ts            # Allergen detection
 │   ├── food-safety.ts                # USDA safety validation
 │   ├── ingredient-normalization.ts   # Fuzzy matching
@@ -54,6 +55,7 @@ yyx-server/supabase/functions/
 ├── irmixy-voice-orchestrator/        # Voice sessions (WebRTC, quota)
 ├── get-nutritional-facts/            # USDA API integration
 ├── parse-recipe-markdown/            # Recipe parsing
+├── translate-content/                # Admin auto-translate: translates entity fields between locales via AI Gateway
 ├── backfill-embeddings/              # Vector embedding generation
 └── send-delete-account-feedback/     # Account deletion handler
 ```
@@ -123,19 +125,108 @@ Deno.serve(async (req: Request) => {
 
 Edge Functions use `locale` (not `language`) throughout. The user's locale comes from `context-builder.ts`.
 
-```typescript
-import { buildLocaleChain, pickTranslation, getBaseLanguage } from '../_shared/locale-utils.ts';
+### locale-utils.ts — All Exported Functions
 
-// buildLocaleChain('es-MX') → ['es-MX', 'es', 'en']
-// getBaseLanguage('es-MX') → 'es'
-// pickTranslation(translations, localeChain) → best matching translation row
+```typescript
+import {
+  buildLocaleChain,
+  pickTranslation,
+  getBaseLanguage,
+  getLanguageName,
+  languageToLocale,
+} from '../_shared/locale-utils.ts';
+```
+
+| Function | Signature | Purpose |
+|----------|-----------|---------|
+| `buildLocaleChain` | `(locale: string) => string[]` | Computes the fallback chain for a locale. Spanish is always the terminal fallback (Mexico-first). `"es-MX"` → `["es-MX", "es"]`, `"en"` → `["en", "es"]`, `"fr"` → `["fr", "es"]` |
+| `pickTranslation` | `<T extends { locale: string }>(translations: T[] \| null \| undefined, localeChain: string[]) => T \| undefined` | Picks the best translation from an array by walking the locale chain. Falls back to the first available if no chain match. |
+| `getBaseLanguage` | `(locale: string) => string` | Strips the region code: `"es-MX"` → `"es"`, `"en"` → `"en"` |
+| `getLanguageName` | `(locale: string) => string` | Returns a human-readable name: `"es"` → `"Mexican Spanish"`, `"es-ES"` → `"Spain Spanish"`, `"en"` → `"English"`. Tries the full locale first, then falls back to base language. |
+| `languageToLocale` | `(language: string) => string` | Maps old `language` column values (`"en"`, `"es"`) to locale format. Currently a pass-through — use for migration bridges. |
+
+### UserContext Interface
+
+Defined in `_shared/irmixy-schemas.ts`. The locale fields populated by `context-builder.ts`:
+
+```typescript
+export interface UserContext {
+  locale: string;          // Full locale code, e.g. 'es-MX', 'es-ES', 'en'
+  localeChain: string[];   // Computed fallback chain, e.g. ['es-MX', 'es']
+  language: 'en' | 'es';  // Derived UI language for i18n (base language only)
+  measurementSystem: 'imperial' | 'metric';
+  dietaryRestrictions: string[];
+  ingredientDislikes: string[];
+  skillLevel: string | null;
+  householdSize: number | null;
+  conversationHistory: Array<{ role: string; content: string; metadata?: any; toolSummary?: string }>;
+  dietTypes: string[];          // MEDIUM constraint (vegan, keto, etc.)
+  cuisinePreferences: string[]; // SOFT constraint (inspirational only)
+  customAllergies: string[];
+  kitchenEquipment: string[];
+}
 ```
 
 **Key patterns:**
-- `UserContext` has `locale: string` (full locale like `es-MX`), `language: string` (base like `es`), and `localeChain: string[]`
 - Wire contract uses `locale: string` in `IrmixyResponseSchema` and `GeneratedRecipeSchema`
 - Recipe/ingredient queries join translation tables and use `pickTranslation()` for locale-aware selection
 - System prompts use `getBaseLanguage()` to determine response language and vocabulary
+
+### system-prompt-builder.ts — Shared Prompt Building Blocks
+
+Both the chat and voice orchestrators import from `_shared/system-prompt-builder.ts` to share the same Irmixy personality and user-context formatting. Do not duplicate these blocks inline.
+
+```typescript
+import {
+  buildPersonalityBlock,
+  buildUserContextBlock,
+  buildVoiceInstructions,
+  resolveVocabulary,
+  buildVocabularyDirective,
+  REGIONAL_VOCABULARY,
+} from '../_shared/system-prompt-builder.ts';
+```
+
+| Export | Purpose |
+|--------|---------|
+| `REGIONAL_VOCABULARY` | Vocabulary map keyed by locale (`"es"`, `"es-ES"`). English labels → region-specific culinary terms (tomato, corn, cream, etc.) |
+| `resolveVocabulary(locale)` | Walks the locale chain within the same language family to find a vocabulary map. Returns `undefined` for locales with no mapping (e.g. `"en"`). Never crosses language boundaries. |
+| `buildVocabularyDirective(locale)` | Formats a vocabulary instruction string for inclusion in a system prompt. Returns `""` when no vocabulary map exists for the locale. |
+| `buildUserContextBlock(userContext)` | Formats the `<user_context>` XML block (locale, measurement system, dietary restrictions, diet types, allergies, equipment). |
+| `buildPersonalityBlock(locale)` | Returns the full Irmixy identity and voice section in the correct language (Spanish for `es*`, English otherwise). Includes the vocabulary directive. |
+| `buildVoiceInstructions(userContext)` | Assembles the complete voice system prompt: personality + user context + rules + tool usage instructions. Single source of truth for voice sessions. |
+
+### translate-content Edge Function
+
+Admin-only endpoint that translates recipe (or other entity) content fields between locales using the AI Gateway. Called by the admin panel's auto-translate feature.
+
+```
+POST /translate-content
+Authorization: Bearer <admin-jwt>
+Body: { fields, sourceLocale, targetLocales }
+```
+
+- Requires `is_admin()` RPC to return true — returns 403 otherwise
+- `fields`: a flat `Record<string, string>` of field names to translated text
+- `sourceLocale` / `targetLocales`: locale codes (e.g. `"es"`, `"es-ES"`)
+- Translates to all `targetLocales` in parallel via `Promise.allSettled`; per-locale failures return `{ targetLocale, fields: {}, error: "Translation failed" }` instead of failing the whole request
+- Uses `usageType: "parsing"` in the AI Gateway (cheap model, structured JSON output)
+- Applies regional adaptation hints (e.g. Mexican → Spain Spanish vocabulary swaps) via `REGIONAL_ADAPTATION_HINTS` in `translate-content/utils.ts`
+
+**Response shape:**
+```typescript
+{ translations: Array<{ targetLocale: string; fields: Record<string, string>; error?: string }> }
+```
+
+**Key utilities in `translate-content/utils.ts`:**
+
+| Export | Purpose |
+|--------|---------|
+| `TranslateRequest` | Interface: `{ fields, sourceLocale, targetLocales }` |
+| `TranslationResult` | Interface: `{ targetLocale, fields, error? }` |
+| `REGIONAL_ADAPTATION_HINTS` | Vocabulary swap instructions keyed by `"sourceLocale>targetLocale"` (e.g. `"es>es-ES"`) |
+| `validateRequest(body)` | Validates and types the raw request body; throws a message-only `Error` on invalid input (caught as 400) |
+| `buildResponseSchema(fieldKeys)` | Builds a strict JSON schema for the AI response matching the input field names |
 
 ---
 

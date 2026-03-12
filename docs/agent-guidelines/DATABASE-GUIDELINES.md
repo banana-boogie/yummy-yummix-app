@@ -132,6 +132,17 @@ CREATE INDEX idx_<table>_user_id ON public.<table_name>(user_id);
 - `food_safety_rules` — USDA cooking temperatures (read-only)
 - `ingredient_aliases` — Ingredient synonym mapping
 
+### i18n Tables
+- `locales` — Supported locales with `parent_code` for fallback chain
+- `recipe_translations` — Translatable recipe fields (`name`, `tips_and_tricks`)
+- `recipe_step_translations` — Translatable step fields (`instruction`, `recipe_section`, `tip`)
+- `ingredient_translations` — Translatable ingredient names (`name`, `plural_name`)
+- `recipe_ingredient_translations` — Translatable ingredient-in-recipe fields (`notes`, `recipe_section`, `tip`)
+- `measurement_unit_translations` — Translatable unit labels (`name`, `name_plural`, `symbol`, `symbol_plural`)
+- `recipe_tag_translations` — Translatable tag names
+- `useful_item_translations` — Translatable useful item names
+- `recipe_useful_item_translations` — Translatable useful-item-in-recipe notes
+
 ### Analytics
 - `user_events` — User event tracking
 
@@ -193,7 +204,7 @@ ALTER TABLE public.my_table ENABLE ROW LEVEL SECURITY;
 ## PostgreSQL Functions (RPC)
 
 ### Existing Functions
-- `resolve_locale(requested text)` — Walk the locale fallback chain (e.g., `es-MX` → `['es-MX', 'es', 'en']`)
+- `resolve_locale(requested text)` — Walk the locale fallback chain; returns `text[]` ordered most-specific to least (e.g., `es-MX` → `['es-MX', 'es', 'en']`). Strips unknown region suffixes and falls back to `['en']` as the final default. See Translation Tables section for full behaviour.
 - `batch_find_ingredients(names text[], preferred_locale text)` — Bulk ingredient lookup via translation tables
 - `get_cooked_recipes(p_locale text, ...)` — User's cooked recipes with locale-based name resolution
 - `match_recipe_embeddings(query_embedding vector, match_threshold float, match_count int)` — Vector similarity search
@@ -250,20 +261,57 @@ recipes ←→ recipe_translations (recipe_id, locale) PK
            └── name, tips_and_tricks
 ```
 
+### `locales` Table
+
+```sql
+CREATE TABLE public.locales (
+  code        text PRIMARY KEY,          -- e.g. 'en', 'es', 'es-MX'
+  parent_code text REFERENCES locales(code),  -- fallback parent; NULL for root
+  display_name text NOT NULL,
+  is_active   boolean DEFAULT true,
+  CHECK (code != parent_code)
+);
+```
+
+Seed data:
+
+| code | parent_code | display_name |
+|------|-------------|--------------|
+| `en` | NULL | English |
+| `es` | `en` | Español |
+| `es-MX` | `es` | Español (México) |
+| `es-ES` | `es` | Español (España) |
+
+RLS: public read (`USING (true)`), admin write.
+
+### `resolve_locale()` RPC
+
+```sql
+SELECT public.resolve_locale('es-MX');
+-- Returns: ARRAY['es-MX', 'es', 'en']
+```
+
+The function walks the `parent_code` chain recursively (up to depth 5) and returns an ordered array from most-specific to least-specific. Callers then `COALESCE` or use `ANY()` to pick the best available translation.
+
+Fallback behaviour:
+- `es-MX` → `['es-MX', 'es', 'en']`
+- Unknown region (`en-CA`) → strips region suffix, recurses on `en` → `['en']`
+- Completely unknown code → `['en']`
+
 ### 8 Translation Tables
 
-| Translation Table | Parent | Translated Fields |
-|---|---|---|
-| `recipe_translations` | `recipes` | `name`, `tips_and_tricks` |
-| `recipe_step_translations` | `recipe_steps` | `instruction`, `recipe_section`, `tip` |
-| `ingredient_translations` | `ingredients` | `name`, `plural_name` |
-| `recipe_ingredient_translations` | `recipe_ingredients` | `notes`, `recipe_section`, `tip` |
-| `measurement_unit_translations` | `measurement_units` | `name`, `name_plural`, `symbol`, `symbol_plural` |
-| `recipe_tag_translations` | `recipe_tags` | `name` |
-| `useful_item_translations` | `useful_items` | `name` |
-| `recipe_useful_item_translations` | `recipe_useful_items` | `notes` |
+| Translation Table | Parent Table | Translated Fields | RLS Read Pattern |
+|---|---|---|---|
+| `recipe_translations` | `recipes` | `name`, `tips_and_tricks` | parent `is_published` |
+| `recipe_step_translations` | `recipe_steps` | `instruction`, `recipe_section`, `tip` | grandparent `is_published` (via `recipe_steps`) |
+| `ingredient_translations` | `ingredients` | `name`, `plural_name` | `USING (true)` — reference data |
+| `recipe_ingredient_translations` | `recipe_ingredients` | `notes`, `recipe_section`, `tip` | grandparent `is_published` (via `recipe_ingredients`) |
+| `measurement_unit_translations` | `measurement_units` | `name`, `name_plural`, `symbol`, `symbol_plural` | `USING (true)` — reference data |
+| `recipe_tag_translations` | `recipe_tags` | `name` | `USING (true)` — reference data |
+| `useful_item_translations` | `useful_items` | `name` | `USING (true)` — reference data |
+| `recipe_useful_item_translations` | `recipe_useful_items` | `notes` | grandparent `is_published` (via `recipe_useful_items`) |
 
-All use composite PK `(entity_id, locale)` with `ON DELETE CASCADE` from parent.
+All use composite PK `(entity_id, locale)` with `ON DELETE CASCADE` from parent. Note: `measurement_unit_translations.measurement_unit_id` is `text` (not `uuid`) because `measurement_units.id` is `text`.
 
 ### Locale Design Rules
 
@@ -272,25 +320,167 @@ All use composite PK `(entity_id, locale)` with `ON DELETE CASCADE` from parent.
 - **Never store base content under a regional code** — it breaks fallback for other regions.
 - **Fallback chain** via `resolve_locale()`: `es-MX` → `es` → `en`. Unknown locales normalize to language subtag first (`en-CA` → `en`).
 
+### RLS Patterns for Translation Tables
+
+There are two distinct patterns depending on whether the translation table is for **reference data** or **recipe-scoped content**.
+
+#### Pattern 1 — Reference data (`USING (true)`)
+
+Use this for standalone reference tables (ingredients, measurement units, tags, useful items). Their translations are always public regardless of any recipe's publish status.
+
+```sql
+ALTER TABLE public.ingredient_translations ENABLE ROW LEVEL SECURITY;
+
+-- Public read: reference data is always visible
+CREATE POLICY "Anyone can read ingredient translations"
+  ON public.ingredient_translations FOR SELECT TO anon, authenticated
+  USING (true);
+
+CREATE POLICY "Admin write ingredient translations"
+  ON public.ingredient_translations FOR ALL TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+```
+
+Same pattern applies to: `measurement_unit_translations`, `recipe_tag_translations`, `useful_item_translations`.
+
+#### Pattern 2 — Recipe-scoped content (gate on parent `is_published`)
+
+Use this for translation tables whose rows belong to a specific recipe. Unpublished draft content must not leak to public users. These tables join through one intermediate table to reach `recipes.is_published`.
+
+**`recipe_translations`** (direct FK to `recipes`):
+
+```sql
+ALTER TABLE public.recipe_translations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can read published recipe translations"
+  ON public.recipe_translations FOR SELECT TO anon, authenticated
+  USING (recipe_id IN (SELECT id FROM public.recipes WHERE is_published = true));
+
+CREATE POLICY "Admins can read all recipe translations"
+  ON public.recipe_translations FOR SELECT TO authenticated
+  USING (public.is_admin());
+
+CREATE POLICY "Admin write recipe translations"
+  ON public.recipe_translations FOR ALL TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+```
+
+**`recipe_step_translations`** (FK chain: `recipe_step_id` → `recipe_steps.recipe_id` → `recipes.is_published`):
+
+```sql
+ALTER TABLE public.recipe_step_translations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can read published recipe step translations"
+  ON public.recipe_step_translations FOR SELECT TO anon, authenticated
+  USING (
+    recipe_step_id IN (
+      SELECT rs.id FROM public.recipe_steps rs
+      JOIN public.recipes r ON r.id = rs.recipe_id
+      WHERE r.is_published = true
+    )
+  );
+
+CREATE POLICY "Admins can read all recipe step translations"
+  ON public.recipe_step_translations FOR SELECT TO authenticated
+  USING (public.is_admin());
+
+CREATE POLICY "Admin write recipe step translations"
+  ON public.recipe_step_translations FOR ALL TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+```
+
+**`recipe_ingredient_translations`** (FK chain: `recipe_ingredient_id` → `recipe_ingredients.recipe_id` → `recipes.is_published`):
+
+```sql
+CREATE POLICY "Anyone can read published recipe ingredient translations"
+  ON public.recipe_ingredient_translations FOR SELECT TO anon, authenticated
+  USING (
+    recipe_ingredient_id IN (
+      SELECT ri.id FROM public.recipe_ingredients ri
+      JOIN public.recipes r ON r.id = ri.recipe_id
+      WHERE r.is_published = true
+    )
+  );
+
+CREATE POLICY "Admins can read all recipe ingredient translations"
+  ON public.recipe_ingredient_translations FOR SELECT TO authenticated
+  USING (public.is_admin());
+```
+
+**`recipe_useful_item_translations`** (FK chain: `recipe_useful_item_id` → `recipe_useful_items.recipe_id` → `recipes.is_published`):
+
+```sql
+CREATE POLICY "Anyone can read published recipe useful item translations"
+  ON public.recipe_useful_item_translations FOR SELECT TO anon, authenticated
+  USING (
+    recipe_useful_item_id IN (
+      SELECT rui.id FROM public.recipe_useful_items rui
+      JOIN public.recipes r ON r.id = rui.recipe_id
+      WHERE r.is_published = true
+    )
+  );
+
+CREATE POLICY "Admins can read all recipe useful item translations"
+  ON public.recipe_useful_item_translations FOR SELECT TO authenticated
+  USING (public.is_admin());
+```
+
+**Why the two-policy admin pattern matters:** Supabase evaluates `SELECT` policies with `OR` logic — if any policy matches the request is allowed. Admins need a separate `SELECT` policy (not just the write policy) to read unpublished rows, because the public-read policy would otherwise block them on drafts.
+
+### Base Translation Constraint
+
+Every parent entity row must have an `en` translation. This is enforced by a `DEFERRABLE INITIALLY DEFERRED` constraint trigger (`check_base_translation`) attached to all 8 parent tables. Because it is deferred, you can insert the parent row and its translations in the same transaction without ordering constraints.
+
 ### Adding a New Translatable Entity
+
+Determine which pattern applies first:
+- **Reference data** (standalone lookup table, no publish gate) → use Pattern 1
+- **Recipe-scoped content** (belongs to a recipe, should respect `is_published`) → use Pattern 2
 
 ```sql
 -- 1. Create translation table
-CREATE TABLE <entity>_translations (
-  <entity>_id uuid REFERENCES <entity>(id) ON DELETE CASCADE,
-  locale text REFERENCES locales(code),
+CREATE TABLE public.<entity>_translations (
+  <entity>_id uuid REFERENCES public.<entity>(id) ON DELETE CASCADE,
+  locale text REFERENCES public.locales(code),
   <field1> text NOT NULL,
   <field2> text,
   PRIMARY KEY (<entity>_id, locale)
 );
 
--- 2. Enable RLS and add policies (match parent table's access pattern)
-ALTER TABLE <entity>_translations ENABLE ROW LEVEL SECURITY;
+-- 2. Enable RLS
+ALTER TABLE public.<entity>_translations ENABLE ROW LEVEL SECURITY;
 
--- 3. Add RLS policies
-CREATE POLICY "Anyone can read" ON <entity>_translations FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "Admin write" ON <entity>_translations FOR ALL TO authenticated
+-- 3a. Pattern 1 (reference data)
+CREATE POLICY "Anyone can read <entity> translations"
+  ON public.<entity>_translations FOR SELECT TO anon, authenticated
+  USING (true);
+
+-- 3b. Pattern 2 (recipe-scoped) — adjust the JOIN path to reach recipes.is_published
+CREATE POLICY "Anyone can read published <entity> translations"
+  ON public.<entity>_translations FOR SELECT TO anon, authenticated
+  USING (
+    <entity>_id IN (
+      SELECT e.id FROM public.<entity> e
+      JOIN public.recipes r ON r.id = e.recipe_id
+      WHERE r.is_published = true
+    )
+  );
+
+CREATE POLICY "Admins can read all <entity> translations"
+  ON public.<entity>_translations FOR SELECT TO authenticated
+  USING (public.is_admin());
+
+-- 4. Admin write (both patterns)
+CREATE POLICY "Admin write <entity> translations"
+  ON public.<entity>_translations FOR ALL TO authenticated
   USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+-- 5. Attach base-translation constraint trigger to the parent table
+CREATE CONSTRAINT TRIGGER check_<entity>_base_translation
+  AFTER INSERT ON public.<entity>
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW
+  EXECUTE FUNCTION public.check_base_translation('<entity>_translations', '<entity>_id');
 ```
 
 ### Adding a New Language

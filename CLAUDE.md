@@ -223,7 +223,9 @@ EXPO_PUBLIC_DEV_LOGIN_PASSWORD=devpassword123
 SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_ANON_KEY=eyJhbGc...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...  # Get from dashboard (NEVER via MCP)
-OPENAI_API_KEY=sk-proj-xxx
+XAI_API_KEY=xai-...                   # For text/orchestrator (default provider)
+OPENAI_API_KEY=sk-proj-xxx            # For recipe_generation, recipe_modification, parsing, embedding
+GEMINI_API_KEY=AIza...                # Only needed if overriding defaults to Google
 USDA_API_KEY=xxx
 ```
 
@@ -334,38 +336,43 @@ const response = await chat({
   },
 });
 
-// For streaming:
-for await (const chunk of chatStream({
+// For streaming (chatStream returns AIStreamResult — access .stream):
+const result = await chatStream({
   usageType: 'text',
   messages: [...],
   reasoningEffort: 'low',
-})) {
+});
+for await (const chunk of result.stream) {
   console.log(chunk);
 }
+// Optionally await usage/cost after the stream completes:
+const { inputTokens, outputTokens, costUsd } = await result.usage();
 ```
 
 #### Usage Types:
 
-| Type | Default Model | Config | Use Case | Cost |
-|------|--------------|--------|----------|------|
-| `text` | xai/grok-4-1-fast-non-reasoning | — | Chat orchestrator (tool calling + streaming) | Low |
-| `recipe_generation` | openai/gpt-4.1 | — | Recipe generation (structured JSON output) — quality critical | Medium |
-| `recipe_modification` | openai/gpt-4.1-mini | — | Recipe modification (transform existing JSON) | Low |
-| `parsing` | openai/gpt-4.1-nano | temperature: `1` | Admin parsing, nutritional data extraction | Very low |
-| `embedding` | openai/text-embedding-3-large | N/A | Vector search (3072 dimensions) | Low |
+| Type | Default Model | Provider | Use Case | Cost |
+|------|--------------|----------|----------|------|
+| `text` | grok-4-1-fast-non-reasoning | xai | Chat orchestrator (tool calling + streaming) | Low |
+| `recipe_generation` | gpt-4.1 | openai | Recipe generation (structured JSON output) — quality critical | Medium |
+| `recipe_modification` | gpt-4.1-mini | openai | Recipe modification (transform existing recipe JSON) | Low |
+| `parsing` | gpt-4.1-nano | openai | Admin parsing, nutritional data extraction | Very low |
+| `embedding` | text-embedding-3-large | openai | Vector search (3072 dimensions) | Low |
 
 #### Configuration:
 
 ```bash
 # Required API Keys (in .env or Supabase secrets)
-OPENAI_API_KEY=sk-proj-xxx        # For recipe_generation, recipe_modification, parsing, embedding
 XAI_API_KEY=xai-...               # For text (orchestrator)
+OPENAI_API_KEY=sk-proj-xxx        # For recipe_generation, recipe_modification, parsing, embedding
+# GEMINI_API_KEY and ANTHROPIC_API_KEY needed only if overriding defaults to those providers
 
-# Optional: Override default models (supports provider:model format)
-AI_TEXT_MODEL=openai:gpt-4.1-mini           # Fallback orchestrator (different provider)
-AI_RECIPE_GENERATION_MODEL=google:gemini-2.5-flash # Fallback recipe gen (cheaper)
-AI_RECIPE_MODIFICATION_MODEL=xai:grok-4-1-fast-non-reasoning  # Fallback recipe mod
-AI_PARSING_MODEL=gpt-5-nano                   # Same provider, different model
+# Optional: Override default models (supports provider:model or model-only format)
+AI_TEXT_MODEL=openai:gpt-4.1-mini             # Switch provider + model
+AI_RECIPE_GENERATION_MODEL=google:gemini-2.5-flash  # Switch to Google
+AI_RECIPE_MODIFICATION_MODEL=xai:grok-4-1-fast-non-reasoning  # Switch provider
+AI_PARSING_MODEL=gpt-4.1-mini                 # Same provider, different model
+AI_EMBEDDING_MODEL=text-embedding-3-small     # Same provider, different model
 ```
 
 #### Design Pattern:
@@ -567,6 +574,23 @@ const { data } = await supabase
   .select(`*, translations:recipe_translations(locale, name, tips_and_tricks)`)
   .eq('translations.locale', 'en');
 ```
+
+**Reading translations (Edge Functions / server-side):**
+
+Use `pickTranslation()` from `_shared/locale-utils.ts` to resolve the best match from an array of translation rows using a locale fallback chain. Build the chain first with `buildLocaleChain()`.
+
+```typescript
+import { buildLocaleChain, pickTranslation } from '../_shared/locale-utils.ts';
+
+// Build fallback chain: "es-MX" → ["es-MX", "es"]
+const chain = buildLocaleChain(userLocale);
+
+// Pick the best available translation
+const translation = pickTranslation(recipe.translations, chain);
+// Falls back through chain; returns first available if no chain match
+```
+
+The database-side equivalent is the `resolve_locale()` RPC, which walks the `locales.parent_code` tree to find the nearest ancestor with content for a given entity.
 
 **Writing translations (admin services):**
 ```tsx
