@@ -482,29 +482,8 @@ function OperationsSection({
 }) {
   if (!usageData) return <LoadingState />;
 
-  const summary = usageData.summary;
-
   return (
     <View>
-      <SectionTitle>{i18n.t('admin.analytics.sections.operationsHealth')}</SectionTitle>
-      <View className="flex-row flex-wrap">
-        <MetricCard
-          title={i18n.t('admin.analytics.labels.avgLatency')}
-          value={`${(summary.avgLatencyMs ?? 0).toFixed(0)} ms`}
-          icon="timer"
-        />
-        <MetricCard
-          title={i18n.t('admin.analytics.labels.errorRate')}
-          value={`${(summary.errorRate ?? 0).toFixed(1)}%`}
-          icon="alert-circle"
-        />
-        <MetricCard
-          title={i18n.t('admin.analytics.labels.avgTokensPerRequest')}
-          value={(summary.avgTokensPerRequest ?? 0).toFixed(0)}
-          icon="analytics"
-        />
-      </View>
-
       <SectionTitle>{i18n.t('admin.analytics.sections.modelBreakdown')}</SectionTitle>
       {usageData.modelBreakdown.length === 0 ? (
         <Text preset="body" className="text-text-secondary">{i18n.t('admin.analytics.labels.noDataYet')}</Text>
