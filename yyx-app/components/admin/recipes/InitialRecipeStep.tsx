@@ -40,7 +40,9 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
     const [showUsefulItemModal, setShowUsefulItemModal] = useState(false);
 
     // Locale selection for AI generation
+    // includeRegional=true to get es-ES, but filter out es-MX (redundant — 'es' IS Mexican Spanish)
     const { locales: allLocales } = useActiveLocales(true);
+    const filteredLocales = allLocales.filter(l => l.code !== 'es-MX');
     const { translating, progress, translateAll } = useRecipeTranslation();
     // The parse-recipe-markdown edge function generates 'en' + 'es' by default.
     // Additional locales (e.g. es-ES) are translated via translate-content after parsing.
@@ -48,7 +50,6 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
     const [selectedLocales, setSelectedLocales] = useState<Record<string, boolean>>({
         en: true,
         es: true,
-        'es-MX': true,
         'es-ES': true,
     });
 
@@ -349,12 +350,13 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                                     {i18n.t('admin.translate.targetLanguages')}
                                 </Text>
                                 <View className="flex-row flex-wrap gap-xs">
-                                    {allLocales.map(locale => (
+                                    {filteredLocales.map(locale => (
                                         <CheckboxButton
                                             key={locale.code}
                                             checked={selectedLocales[locale.code] ?? false}
                                             onPress={() => toggleLocale(locale.code)}
                                             label={locale.displayName}
+                                            strikethrough={false}
                                             className="flex-row items-center mr-md"
                                         />
                                     ))}
@@ -385,7 +387,8 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                                     value={markdownText}
                                     onChangeText={setMarkdownText}
                                     placeholder={i18n.t('admin.recipes.form.initialSetup.pasteHere')}
-                                    className="w-full max-h-[250px] p-sm border border-border-DEFAULT rounded mb-md"
+                                    className="w-full max-h-[250px]"
+                                    containerClassName="mb-md"
                                     style={{ textAlignVertical: 'top' }}
                                     editable={!parsingStatus.loading}
                                 />

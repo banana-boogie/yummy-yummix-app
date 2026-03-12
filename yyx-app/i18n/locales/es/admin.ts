@@ -309,6 +309,7 @@ export const admin = {
       },
       stepsInfo: {
         title: "Instrucciones",
+        step: "Paso",
         addStep: "Agregar Paso",
         editStep: "Editar Paso",
         updateStep: "Actualizar Paso",

@@ -30,23 +30,40 @@ interface TranslationStepProps {
 type TranslationState = 'ready' | 'translating' | 'done';
 
 export function TranslationStep({ recipe, authoringLocale, onUpdateRecipe }: TranslationStepProps) {
-  const { locales } = useActiveLocales();
+  // includeRegional=true to show es-ES as a target; filter out es-MX (redundant — 'es' IS Mexican Spanish)
+  const { locales: rawLocales } = useActiveLocales(true);
+  const locales = rawLocales.filter(l => l.code !== 'es-MX');
   const { translating, progress, error, failedLocales, translateAll } = useRecipeTranslation();
   const { isMobile } = useDevice();
 
   const [state, setState] = useState<TranslationState>('ready');
   const [selectedLocale, setSelectedLocale] = useState<string | null>(null);
   const [showEnWarning, setShowEnWarning] = useState(false);
+  // Locales that already have translation content in the recipe
+  const existingTranslationLocales = useMemo(() => {
+    const existing = new Set<string>();
+    for (const t of recipe.translations || []) {
+      if (t.locale && t.name) existing.add(t.locale);
+    }
+    return existing;
+  }, [recipe.translations]);
+
   const [targetLocales, setTargetLocales] = useState<string[]>(() =>
-    locales.filter(l => l.code !== authoringLocale).map(l => l.code)
+    locales
+      .filter(l => l.code !== authoringLocale && !existingTranslationLocales.has(l.code))
+      .map(l => l.code)
   );
 
   // Ensure targetLocales updates when locales load
   React.useEffect(() => {
     if (locales.length > 0 && targetLocales.length === 0) {
-      setTargetLocales(locales.filter(l => l.code !== authoringLocale).map(l => l.code));
+      setTargetLocales(
+        locales
+          .filter(l => l.code !== authoringLocale && !existingTranslationLocales.has(l.code))
+          .map(l => l.code)
+      );
     }
-  }, [locales, authoringLocale]);
+  }, [locales, authoringLocale, existingTranslationLocales]);
 
   // Count translatable fields
   const fieldCounts = useMemo(() => {

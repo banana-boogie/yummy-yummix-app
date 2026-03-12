@@ -304,6 +304,7 @@ export const admin = {
       },
       stepsInfo: {
         title: "Steps",
+        step: "Step",
         addStep: "Add Step",
         editStep: "Edit Step",
         updateStep: "Update Step",
