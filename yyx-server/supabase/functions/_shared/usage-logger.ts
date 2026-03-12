@@ -43,13 +43,13 @@ export interface UsageLogParams {
 }
 
 /**
- * Estimate cost using the centralized AI Gateway pricing (DB-backed with fallback).
+ * Estimate cost using the centralized static pricing map.
  */
-export async function estimateCostUsd(
+export function estimateCostUsd(
   model: string,
   inputTokens: number,
   outputTokens: number,
-): Promise<number> {
+): number {
   return calculateCost(model, inputTokens, outputTokens);
 }
 
@@ -84,11 +84,7 @@ export async function logAIUsageWithClient(
     typeof params.outputTokens === "number";
 
   const estimatedCostUsd = params.model && hasTokenUsage
-    ? await estimateCostUsd(
-      params.model,
-      params.inputTokens!,
-      params.outputTokens!,
-    )
+    ? estimateCostUsd(params.model, params.inputTokens!, params.outputTokens!)
     : null;
 
   const row = {

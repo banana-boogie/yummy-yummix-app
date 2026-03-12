@@ -11,42 +11,19 @@ import {
   PRICING_VERSION,
   sanitizeMetadata,
 } from "../usage-logger.ts";
-import { _setCacheForTesting } from "../ai-gateway/pricing.ts";
 
-// Seed the gateway pricing cache so tests don't need a DB connection.
-function seedPricingCache() {
-  _setCacheForTesting([
-    {
-      model: "gpt-4o-mini",
-      inputPricePerMillion: 0.15,
-      outputPricePerMillion: 0.60,
-    },
-    {
-      model: "gpt-4.1-nano",
-      inputPricePerMillion: 0.10,
-      outputPricePerMillion: 0.40,
-    },
-    {
-      model: "gemini-2.5-flash",
-      inputPricePerMillion: 0.15,
-      outputPricePerMillion: 0.60,
-    },
-  ]);
-}
-
-Deno.test("estimateCostUsd returns expected cost for known model", async () => {
-  seedPricingCache();
-  const cost = await estimateCostUsd("gpt-4o-mini", 1000, 2000);
+Deno.test("estimateCostUsd returns expected cost for known model", () => {
+  const cost = estimateCostUsd("gemini-2.5-flash", 1000, 2000);
   // 1000 * 0.15/1M + 2000 * 0.60/1M = 0.00135
   assertAlmostEquals(cost, 0.00135, 1e-12);
 });
 
-Deno.test("estimateCostUsd delegates to gateway pricing for unknown models", async () => {
-  seedPricingCache();
-  // Gateway falls back to most expensive cached model (gemini-2.5-flash at 0.75/M total)
-  const cost = await estimateCostUsd("unknown-model", 1000, 1000);
-  // Should still return a number (gateway never returns null — it falls back)
+Deno.test("estimateCostUsd returns fallback cost for unknown model", () => {
+  // Unknown model falls back to most expensive (gpt-4.1: 2.00 + 8.00)
+  const cost = estimateCostUsd("unknown-model", 1000, 1000);
   assertExists(cost);
+  // 1000/1M * 2.00 + 1000/1M * 8.00 = 0.01
+  assertAlmostEquals(cost, 0.01, 1e-8);
 });
 
 Deno.test("sanitizeMetadata keeps only allowlisted keys", () => {
@@ -60,13 +37,15 @@ Deno.test("sanitizeMetadata keeps only allowlisted keys", () => {
 
   assertEquals(result.streaming, true);
   assertEquals(result.request_type, "chat");
-  assertEquals(result.tool_names, ["search_recipes", "generate_custom_recipe"]);
+  assertEquals(
+    result.tool_names,
+    ["search_recipes", "generate_custom_recipe"],
+  );
   assertEquals((result as Record<string, unknown>).prompt, undefined);
   assertEquals((result as Record<string, unknown>).content, undefined);
 });
 
 Deno.test("logAIUsageWithClient builds row and uses conflict-safe upsert", async () => {
-  seedPricingCache();
   let tableName = "";
   let upsertPayload: Record<string, unknown> | undefined;
   let upsertOptions: Record<string, unknown> | undefined;
@@ -94,7 +73,7 @@ Deno.test("logAIUsageWithClient builds row and uses conflict-safe upsert", async
     callPhase: "tool_decision",
     functionName: "irmixy-chat-orchestrator",
     usageType: "text",
-    model: "gpt-4o-mini",
+    model: "gemini-2.5-flash",
     inputTokens: 100,
     outputTokens: 200,
     durationMs: 123,
@@ -115,7 +94,8 @@ Deno.test("logAIUsageWithClient builds row and uses conflict-safe upsert", async
   assertEquals(payload["request_id"], "req_test");
   assertEquals(payload["call_phase"], "tool_decision");
   assertEquals(payload["pricing_version"], PRICING_VERSION);
-  assertEquals(payload["model"], "gpt-4o-mini");
+  assertEquals(payload["model"], "gemini-2.5-flash");
+  // 100/1M * 0.15 + 200/1M * 0.60 = 0.000135
   assertAlmostEquals(payload["estimated_cost_usd"] as number, 0.000135, 1e-8);
   assertEquals(
     payload["metadata"],
