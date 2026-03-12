@@ -1,5 +1,9 @@
 -- Add dedicated AI usage/cost RPC and update admin_analytics for timeframe-aware AI adoption.
 
+-- Drop existing function first because parameter was renamed (limit -> limit_count).
+-- CREATE OR REPLACE cannot rename parameters.
+DROP FUNCTION IF EXISTS public.admin_analytics(text, text, integer);
+
 CREATE OR REPLACE FUNCTION public.admin_analytics(
   action text,
   timeframe text DEFAULT '7_days',
