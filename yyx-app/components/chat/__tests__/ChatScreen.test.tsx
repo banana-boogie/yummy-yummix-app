@@ -107,6 +107,13 @@ jest.mock('@/services/chatService', () => {
   };
 });
 
+const mockLogRecipeGenerate = jest.fn();
+jest.mock('@/services/eventService', () => ({
+  eventService: {
+    logRecipeGenerate: (...args: any[]) => mockLogRecipeGenerate(...args),
+  },
+}));
+
 const mockInvalidateQueries = jest.fn().mockResolvedValue(undefined);
 jest.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),

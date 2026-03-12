@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ScrollView, View, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { COLORS } from '@/constants/design-tokens';
@@ -11,6 +11,7 @@ import { ReviewForm } from '@/components/admin/recipes/forms/reviewForm/ReviewFo
 import { RecipeUsefulItemsForm } from '@/components/admin/recipes/forms/usefulItemsForm/RecipeUsefulItemsForm';
 import { AdminRecipe } from '@/types/recipe.admin.types';
 import { adminRecipeService } from '@/services/admin/adminRecipeService';
+import { Text } from '@/components/common/Text';
 import { AlertModal } from '@/components/common/AlertModal';
 import { FormErrors } from '@/components/form/FormErrors';
 import { useRecipeValidation } from '@/hooks/admin/useRecipeValidation';
@@ -29,6 +30,7 @@ export default function EditRecipePage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
@@ -38,11 +40,7 @@ export default function EditRecipePage() {
   const { getNextButtonLabel } = useRecipeNavigation(recipe, currentStep);
   const { isSmall } = useDevice();
 
-  useEffect(() => {
-    loadRecipe();
-  }, [id]);
-
-  const loadRecipe = async () => {
+  const loadRecipe = useCallback(async () => {
     if (!id) return;
 
     try {
@@ -50,6 +48,8 @@ export default function EditRecipePage() {
       const recipeData = await adminRecipeService.getRecipeById(id as string);
       if (recipeData) {
         setRecipe(recipeData);
+      } else {
+        setNotFound(true);
       }
     } catch (error) {
       console.error('Error loading recipe:', error);
@@ -57,7 +57,11 @@ export default function EditRecipePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    loadRecipe();
+  }, [loadRecipe]);
 
   const handleUpdateRecipe = (updates: Partial<AdminRecipe>) => {
     setRecipe(prev => ({ ...prev, ...updates }));
@@ -158,6 +162,19 @@ export default function EditRecipePage() {
         return null;
     }
   };
+
+  if (notFound) {
+    return (
+      <AdminLayout title={i18n.t('admin.recipes.form.errors.loadFailed')} showBackButton={true}>
+        <View className="flex-1 justify-center items-center p-lg">
+          <Text preset="h2" className="text-text-default mb-sm">{i18n.t('admin.recipes.form.errors.loadFailed')}</Text>
+          <Text preset="body" className="text-text-secondary text-center">
+            {i18n.t('admin.recipes.list.noRecipes')}
+          </Text>
+        </View>
+      </AdminLayout>
+    );
+  }
 
   // Show loading state until recipe name is loaded to prevent title flash
   if (loading || !recipe.nameEn) {

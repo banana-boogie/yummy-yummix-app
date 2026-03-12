@@ -1,7 +1,12 @@
 import { supabase } from '@/lib/supabase';
 import { AppState, Platform } from 'react-native';
 
-type EventType = 'view_recipe' | 'cook_start' | 'cook_complete' | 'search';
+type EventType =
+  | 'view_recipe'
+  | 'cook_start'
+  | 'cook_complete'
+  | 'search'
+  | 'recipe_generate';
 type RecipeTable = 'recipes' | 'user_recipes';
 
 interface QueuedEvent {
@@ -200,6 +205,21 @@ class EventService {
     }
     this.queueEvent('search', {
       query: query.trim(),
+    });
+  }
+
+  /**
+   * Log when AI custom recipe generation succeeds or fails.
+   */
+  logRecipeGenerate(
+    recipeName: string,
+    success: boolean,
+    durationMs: number
+  ): void {
+    this.queueEvent('recipe_generate', {
+      recipe_name: recipeName,
+      success,
+      duration_ms: Math.round(durationMs),
     });
   }
 

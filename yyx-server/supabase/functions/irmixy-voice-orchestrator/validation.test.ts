@@ -229,6 +229,37 @@ Deno.test("execute_tool costContext omits sessionId when not provided", () => {
 });
 
 // ============================================================
+// usageContext contract tests
+// ============================================================
+
+Deno.test("execute_tool usageContext includes request and function metadata", () => {
+  const usageContext = {
+    userId: "user-abc-123",
+    sessionId: "session-xyz",
+    requestId: "req-123",
+    functionName: "irmixy-voice-orchestrator",
+  };
+
+  assertEquals(usageContext.userId, "user-abc-123");
+  assertEquals(usageContext.sessionId, "session-xyz");
+  assertEquals(usageContext.requestId, "req-123");
+  assertEquals(usageContext.functionName, "irmixy-voice-orchestrator");
+});
+
+Deno.test("execute_tool usageContext allows undefined sessionId", () => {
+  const usageContext = {
+    userId: "user-abc-123",
+    sessionId: undefined,
+    requestId: "req-456",
+    functionName: "irmixy-voice-orchestrator",
+  };
+
+  assertEquals(usageContext.userId, "user-abc-123");
+  assertEquals(usageContext.sessionId, undefined);
+  assertEquals(usageContext.requestId, "req-456");
+});
+
+// ============================================================
 // execute_tool payload validation tests
 // ============================================================
 

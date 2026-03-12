@@ -10,17 +10,24 @@ import { getRegisteredAiTools } from "../_shared/tools/tool-registry.ts";
 import { normalizeMessagesForAi } from "./message-normalizer.ts";
 import type { ChatMessage } from "./types.ts";
 
-type AIToolChoice = "auto" | "required" | {
-  type: "function";
-  function: { name: string };
-};
-
-interface CallAIResult {
+export interface CallAIResult {
   choices: Array<{ message: ChatMessage }>;
   model: string;
   costUsd: number;
   usage: { inputTokens: number; outputTokens: number };
 }
+
+export interface CallAIStreamResult {
+  content: string;
+  costUsd: number;
+  usage: { inputTokens: number; outputTokens: number };
+  model: string;
+}
+
+type AIToolChoice = "auto" | "required" | {
+  type: "function";
+  function: { name: string };
+};
 
 /**
  * Call AI via the AI Gateway.
@@ -72,13 +79,6 @@ export async function callAI(
   };
 }
 
-interface CallAIStreamResult {
-  content: string;
-  costUsd: number;
-  usage: { inputTokens: number; outputTokens: number };
-  model: string;
-}
-
 /**
  * Call AI Gateway with streaming.
  * Streams tokens via callback and returns full content + cost/usage.
@@ -90,15 +90,14 @@ export async function callAIStream(
   costContext?: CostContext,
 ): Promise<CallAIStreamResult> {
   const aiMessages = normalizeMessagesForAi(messages);
-
-  let fullContent = "";
-
   const result = await chatStream({
     usageType: "text",
     messages: aiMessages,
     signal,
     costContext,
   });
+
+  let fullContent = "";
 
   for await (const chunk of result.stream) {
     if (signal?.aborted) break;

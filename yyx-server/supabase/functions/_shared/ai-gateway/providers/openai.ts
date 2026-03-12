@@ -11,6 +11,8 @@ import {
   AICompletionRequest,
   AICompletionResponse,
   AIEmbeddingResponse,
+  AIStreamResult,
+  AITool,
 } from "../types.ts";
 import {
   callOpenAICompatible,

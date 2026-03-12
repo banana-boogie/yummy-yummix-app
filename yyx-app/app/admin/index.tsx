@@ -6,6 +6,7 @@ import { COLORS } from '@/constants/design-tokens';
 import { adminRecipeService } from '@/services/admin/adminRecipeService';
 import { useRouter } from 'expo-router';
 import { Text } from '@/components/common/Text';
+import i18n from '@/i18n';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -33,9 +34,9 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <AdminLayout title="Admin Dashboard">
+    <AdminLayout title={i18n.t('admin.common.adminDashboard')}>
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 24 }}>
-        <Text preset="h2" className="mb-md" color={COLORS.text.default}>Overview</Text>
+        <Text preset="h2" className="mb-md" color={COLORS.text.default}>{i18n.t('admin.common.overview')}</Text>
 
         <View className="flex-col md:flex-row flex-wrap gap-md mb-xl">
           {/* Total Recipes Card */}
@@ -45,7 +46,7 @@ export default function AdminDashboard() {
             </View>
             <View>
               <Text preset="h1" color={COLORS.text.default}>{loading ? '...' : recipeCount}</Text>
-              <Text preset="body" color={COLORS.text.secondary}>Total Recipes</Text>
+              <Text preset="body" color={COLORS.text.secondary}>{i18n.t('admin.common.totalRecipes')}</Text>
             </View>
           </View>
 
@@ -56,7 +57,7 @@ export default function AdminDashboard() {
             </View>
             <View>
               <Text preset="h1" color={COLORS.text.default}>{loading ? '...' : publishedCount}</Text>
-              <Text preset="body" color={COLORS.text.secondary}>Published Recipes</Text>
+              <Text preset="body" color={COLORS.text.secondary}>{i18n.t('admin.common.publishedRecipes')}</Text>
             </View>
           </View>
 
@@ -67,12 +68,12 @@ export default function AdminDashboard() {
             </View>
             <View>
               <Text preset="h1" color={COLORS.text.default}>{loading ? '...' : draftCount}</Text>
-              <Text preset="body" color={COLORS.text.secondary}>Draft Recipes</Text>
+              <Text preset="body" color={COLORS.text.secondary}>{i18n.t('admin.common.draftRecipes')}</Text>
             </View>
           </View>
         </View>
 
-        <Text preset="h2" className="mb-md" color={COLORS.text.default}>Quick Actions</Text>
+        <Text preset="h2" className="mb-md" color={COLORS.text.default}>{i18n.t('admin.common.quickActions')}</Text>
 
         <View className="flex-row flex-wrap gap-sm">
           <TouchableOpacity
@@ -81,7 +82,7 @@ export default function AdminDashboard() {
             onPress={() => router.push('/admin/recipes')}
           >
             <Ionicons name="list" size={22} color={COLORS.text.default} />
-            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>Recipes</Text>
+            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>{i18n.t('admin.common.recipes')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -90,7 +91,7 @@ export default function AdminDashboard() {
             onPress={() => router.push('/admin/recipes/new')}
           >
             <Ionicons name="add-circle" size={22} color={COLORS.text.default} />
-            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>New Recipe</Text>
+            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>{i18n.t('admin.common.newRecipe')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -99,7 +100,7 @@ export default function AdminDashboard() {
             onPress={() => router.push('/admin/ingredients')}
           >
             <Ionicons name="leaf" size={22} color={COLORS.text.default} />
-            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>Ingredients</Text>
+            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>{i18n.t('admin.common.ingredients')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -108,7 +109,7 @@ export default function AdminDashboard() {
             onPress={() => router.push('/admin/tags')}
           >
             <Ionicons name="pricetags" size={22} color={COLORS.text.default} />
-            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>Tags</Text>
+            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>{i18n.t('admin.common.tags')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -117,7 +118,16 @@ export default function AdminDashboard() {
             onPress={() => router.push('/admin/useful-items')}
           >
             <Ionicons name="cube" size={22} color={COLORS.text.default} />
-            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>Useful Items</Text>
+            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>{i18n.t('admin.common.usefulItems')}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            className="bg-primary-default rounded-lg p-md flex-row items-center"
+            style={{ width: '48%', minWidth: 150 }}
+            onPress={() => router.push('/admin/analytics')}
+          >
+            <Ionicons name="analytics" size={22} color={COLORS.text.default} />
+            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>{i18n.t('admin.common.analytics')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

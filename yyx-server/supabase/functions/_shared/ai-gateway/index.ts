@@ -98,7 +98,7 @@ export async function chat(
   }
 
   // Calculate cost
-  response.costUsd = await calculateCost(
+  response.costUsd = calculateCost(
     response.model,
     response.usage.inputTokens,
     response.usage.outputTokens,
@@ -164,7 +164,7 @@ export async function chatStream(
     stream: providerResult.stream,
     usage: async () => {
       const usage = await providerResult.usage();
-      const costUsd = await calculateCost(
+      const costUsd = calculateCost(
         model,
         usage.inputTokens,
         usage.outputTokens,
@@ -234,7 +234,7 @@ export async function embed(
   }
 
   // Calculate cost (embeddings have no output tokens)
-  response.costUsd = await calculateCost(model, response.usage.inputTokens, 0);
+  response.costUsd = calculateCost(model, response.usage.inputTokens, 0);
 
   // Auto-record if cost context provided
   if (request.costContext) {
