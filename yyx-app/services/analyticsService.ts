@@ -15,7 +15,6 @@ export interface RetentionMetrics {
   day7Retention: number;
   day30Retention: number;
   avgTimeToFirstCook: number | null;
-  weeklyCookRate: number;
 }
 
 export interface FunnelMetrics {

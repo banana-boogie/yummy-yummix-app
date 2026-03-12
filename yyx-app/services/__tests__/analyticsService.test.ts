@@ -163,7 +163,6 @@ describe('analyticsService', () => {
       day7Retention: 40,
       day30Retention: 20,
       avgTimeToFirstCook: 2.5,
-      weeklyCookRate: 3.2,
     };
     (supabase.rpc as jest.Mock).mockResolvedValue({ data: mockData, error: null });
 
