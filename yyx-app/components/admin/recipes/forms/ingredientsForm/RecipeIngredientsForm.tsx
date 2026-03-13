@@ -305,7 +305,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
         cachePolicy="memory-disk"
       />
       <View className="flex-1">
-        <Text className="text-sm mb-0 self-center">{getTranslatedField(item.translations, authoringLocale, 'name')}</Text>
+        <Text className="text-sm mb-0 self-center">{getTranslatedField(item.translations, displayLocale || authoringLocale, 'name')}</Text>
       </View>
       <Ionicons name="add-circle-outline" size={24} className="text-primary-DEFAULT" />
     </TouchableOpacity>
