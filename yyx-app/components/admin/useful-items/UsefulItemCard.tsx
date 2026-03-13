@@ -43,6 +43,7 @@ export function UsefulItemCard({ usefulItem, displayLocale, onEdit, onDelete }: 
       <View className="flex-row items-center gap-xs">
         <TouchableOpacity
           className="p-sm"
+          accessibilityRole="button"
           onPress={() => onEdit(usefulItem)}
         >
           <Ionicons name="create-outline" size={isPhone ? 20 : 22} color={COLORS.text.default} />
@@ -50,6 +51,7 @@ export function UsefulItemCard({ usefulItem, displayLocale, onEdit, onDelete }: 
 
         <TouchableOpacity
           className="p-sm"
+          accessibilityRole="button"
           onPress={() => onDelete(usefulItem)}
         >
           <Ionicons name="trash-outline" size={isPhone ? 20 : 22} color={COLORS.status.error} />

@@ -209,7 +209,7 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
       ) : (
         <View>
           {Object.entries(groupedSteps).map(([sectionKey, { sectionEn, sectionEs, steps }]) => {
-            const sectionName = authoringLocale === 'es' ? sectionEs : sectionEn;
+            const sectionName = authoringLocale.startsWith('es') ? sectionEs : sectionEn;
             return (
             <View key={sectionKey} className="mb-lg">
               <View className="mb-md pb-xs border-b border-border-DEFAULT">

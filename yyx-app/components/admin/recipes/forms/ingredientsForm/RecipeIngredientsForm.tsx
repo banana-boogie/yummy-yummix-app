@@ -95,12 +95,10 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
 
     const query = searchQuery.toLowerCase();
     const filtered = ingredients.filter(
-      ingredient => {
-        const nameEn = getTranslatedField(ingredient.translations, 'en', 'name');
-        const nameEs = getTranslatedField(ingredient.translations, 'es', 'name');
-        return (nameEn && nameEn.toLowerCase().includes(query)) ||
-          (nameEs && nameEs.toLowerCase().includes(query));
-      }
+      ingredient => ingredient.translations.some(t =>
+        t.name?.toLowerCase().includes(query) ||
+        t.pluralName?.toLowerCase().includes(query)
+      )
     );
     setFilteredIngredients(filtered);
   }, [searchQuery, ingredients]);

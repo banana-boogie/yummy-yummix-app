@@ -103,6 +103,9 @@ export default async function handler(req, res) {
     }
 
     // Pick the best translation: try exact match, then base language, then first available.
+    // NOTE: The final `translations[0]` fallback is intentional cross-language fallback
+    // for this bot/SEO preview route. Unlike user-facing surfaces, preview links must
+    // always render *something* for Open Graph crawlers — a blank page hurts SEO.
     const translations = recipe.translations || [];
     const baseLang = lang.split('-')[0]; // e.g. 'es-MX' -> 'es'
     const exactTranslation = translations.find(t => t.locale === lang);

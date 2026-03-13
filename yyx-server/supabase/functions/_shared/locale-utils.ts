@@ -64,15 +64,6 @@ export function getBaseLanguage(locale: string): string {
 }
 
 /**
- * Map a simple language code ("en", "es") to the canonical locale format.
- * This bridges the old `language` column to the new locale system.
- */
-export function languageToLocale(language: string): string {
-  // The old system only had "en" and "es". Map directly.
-  return language;
-}
-
-/**
  * Get a human-readable language name for a locale.
  * Tries the full locale first (e.g., "es-ES" -> "Spain Spanish"),
  * then falls back to the base language (e.g., "es" -> "Mexican Spanish").

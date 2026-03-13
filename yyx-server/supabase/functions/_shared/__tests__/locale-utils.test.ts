@@ -13,7 +13,7 @@ import {
   buildLocaleChain,
   getBaseLanguage,
   getLanguageName,
-  languageToLocale,
+
   pickTranslation,
 } from "../locale-utils.ts";
 
@@ -166,18 +166,3 @@ Deno.test("getLanguageName - returns locale code for unknown regional locale", (
   assertEquals(getLanguageName("zh-TW"), "zh-TW");
 });
 
-// ============================================================
-// languageToLocale
-// ============================================================
-
-Deno.test("languageToLocale - passes through 'en'", () => {
-  assertEquals(languageToLocale("en"), "en");
-});
-
-Deno.test("languageToLocale - passes through 'es'", () => {
-  assertEquals(languageToLocale("es"), "es");
-});
-
-Deno.test("languageToLocale - passes through any string unchanged", () => {
-  assertEquals(languageToLocale("fr"), "fr");
-});

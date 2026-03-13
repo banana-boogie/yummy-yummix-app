@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import { AdminIngredient, getTranslatedField } from '@/types/recipe.admin.types';
 import { Text } from '@/components/common/Text';
+import i18n from '@/i18n';
 
 interface IngredientCardProps {
   ingredient: AdminIngredient;
@@ -49,7 +50,7 @@ export function IngredientCard({ ingredient, displayLocale, onEdit, onDelete }: 
             preset="body"
             className="text-text-SECONDARY"
           >
-            Plural: {pluralName}
+            {i18n.t('admin.ingredients.pluralName', { defaultValue: 'Plural' })}: {pluralName}
           </Text>
         ) : null}
       </View>
@@ -58,6 +59,7 @@ export function IngredientCard({ ingredient, displayLocale, onEdit, onDelete }: 
       <View className="gap-sm">
         <TouchableOpacity
           className="bg-primary-DARK p-sm rounded-md"
+          accessibilityRole="button"
           onPress={() => onEdit(ingredient)}
         >
           <Ionicons name="create-outline" size={20} color={COLORS.neutral.WHITE} />
@@ -65,6 +67,7 @@ export function IngredientCard({ ingredient, displayLocale, onEdit, onDelete }: 
 
         <TouchableOpacity
           className="bg-status-ERROR p-sm rounded-md"
+          accessibilityRole="button"
           onPress={() => onDelete(ingredient)}
         >
           <Ionicons name="trash-outline" size={20} color={COLORS.neutral.WHITE} />
