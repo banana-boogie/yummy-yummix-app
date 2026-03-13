@@ -6,7 +6,13 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 const isValidUuid = (value) => typeof value === 'string' && UUID_REGEX.test(value);
 
-const normalizeLang = (lang) => (lang === 'es' ? 'es' : 'en');
+// Accept any lang param; strip to safe characters. Used for within-family fallback
+// (e.g. 'es-MX' tries 'es-MX' first, then 'es').
+const normalizeLang = (lang) => {
+  if (typeof lang !== 'string') return 'en';
+  const cleaned = lang.trim().replace(/[^a-zA-Z0-9-]/g, '');
+  return cleaned || 'en';
+};
 
 const escapeHtml = (value = '') => value
   .replace(/&/g, '&amp;')
@@ -96,19 +102,31 @@ export default async function handler(req, res) {
       return res.status(404).send('Recipe not found');
     }
 
-    // Pick the right translation by locale
+    // Pick the best translation: try exact match, then base language, then first available.
     const translations = recipe.translations || [];
-    const langTranslation = translations.find(t => t.locale === lang);
-    const enTranslation = translations.find(t => t.locale === 'en');
-    const bestTranslation = langTranslation || enTranslation || translations[0];
+    const baseLang = lang.split('-')[0]; // e.g. 'es-MX' -> 'es'
+    const exactTranslation = translations.find(t => t.locale === lang);
+    const baseTranslation = lang !== baseLang
+      ? translations.find(t => t.locale === baseLang)
+      : null;
+    const bestTranslation = exactTranslation || baseTranslation || translations[0];
+
+    // Locale-keyed UI strings for the bot preview page
+    const PREVIEW_STRINGS = {
+      es: {
+        fallbackName: 'esta receta',
+        description: (name) => `Mira esta deliciosa receta de ${name} en YummyYummix!`,
+      },
+      en: {
+        fallbackName: 'this recipe',
+        description: (name) => `Check out this delicious ${name} recipe on YummyYummix!`,
+      },
+    };
+    const strings = PREVIEW_STRINGS[baseLang] || PREVIEW_STRINGS.en;
 
     const recipeName = bestTranslation?.name;
-    const safeRecipeName = recipeName || (lang === 'es' ? 'esta receta' : 'this recipe');
-
-    // Generate description based on language
-    const description = lang === 'es'
-      ? `Mira esta deliciosa receta de ${safeRecipeName} en YummyYummix!`
-      : `Check out this delicious ${safeRecipeName} recipe on YummyYummix!`;
+    const safeRecipeName = recipeName || strings.fallbackName;
+    const description = strings.description(safeRecipeName);
 
     // Generate title
     const title = `YummyYummix - ${safeRecipeName}`;

@@ -58,10 +58,10 @@ jest.mock('@/contexts/OnboardingContext', () => ({
 }));
 
 // Mock LanguageContext
-const mockSetLanguage = jest.fn();
+const mockSetLocale = jest.fn();
 jest.mock('@/contexts/LanguageContext', () => ({
   useLanguage: () => ({
-    setLanguage: mockSetLanguage,
+    setLocale: mockSetLocale,
   }),
 }));
 
@@ -151,7 +151,7 @@ describe('AppPreferencesStep', () => {
   // ============================================================
 
   describe('language selection', () => {
-    it('selects English language', async () => {
+    it('selects English language using device locale', async () => {
       mockState.formData = { locale: 'es-MX' };
       render(<AppPreferencesStep />);
 
@@ -159,12 +159,14 @@ describe('AppPreferencesStep', () => {
       fireEvent.press(englishButton);
 
       await waitFor(() => {
-        expect(mockSetLanguage).toHaveBeenCalledWith('en');
+        // Uses setLocale (not setLanguage) — falls back to base 'en'
+        // since mock device locale has languageCode 'en' but no languageTag
+        expect(mockSetLocale).toHaveBeenCalledWith('en');
       });
       expect(mockUpdateFormData).toHaveBeenCalledWith({ locale: 'en' });
     });
 
-    it('selects Spanish language', async () => {
+    it('selects Spanish language using device locale', async () => {
       mockState.formData = { locale: 'en' };
       render(<AppPreferencesStep />);
 
@@ -172,9 +174,10 @@ describe('AppPreferencesStep', () => {
       fireEvent.press(spanishButton);
 
       await waitFor(() => {
-        expect(mockSetLanguage).toHaveBeenCalledWith('es');
+        // No device locale with languageCode 'es' in mock, falls back to base 'es'
+        expect(mockSetLocale).toHaveBeenCalledWith('es');
       });
-      expect(mockUpdateFormData).toHaveBeenCalledWith({ locale: 'es-MX' });
+      expect(mockUpdateFormData).toHaveBeenCalledWith({ locale: 'es' });
     });
   });
 

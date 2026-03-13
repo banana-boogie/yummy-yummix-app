@@ -88,12 +88,15 @@ export function useSpeechRecognition({
 
             speechStoppedByUserRef.current = false;
             setIsListening(true);
-            // Map locale to BCP 47 speech recognition locale
-            // If already a full locale tag (e.g. 'es-MX'), use as-is
-            // If just a language code, expand to common variant
+            // Map locale to BCP 47 speech recognition locale.
+            // If already a full locale tag (e.g. 'es-MX', 'es-ES'), use as-is.
+            // If just a base language code, expand to a default regional variant
+            // so the speech engine picks the right dialect.
+            // Mexico-first for Spanish (primary audience).
+            const DEFAULT_SPEECH_LOCALES: Record<string, string> = { es: 'es-MX', en: 'en-US' };
             const speechLang = locale.includes('-')
                 ? locale
-                : locale.startsWith('es') ? 'es-MX' : 'en-US';
+                : DEFAULT_SPEECH_LOCALES[locale] ?? `${locale}-${locale.toUpperCase()}`;
             ExpoSpeechRecognitionModule.start({
                 lang: speechLang,
                 interimResults: true,

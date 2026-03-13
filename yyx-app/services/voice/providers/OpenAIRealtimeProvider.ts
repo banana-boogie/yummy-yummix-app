@@ -270,7 +270,9 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         output_audio_format: "pcm16",
         input_audio_transcription: {
           model: "whisper-1",
-          language: context.userContext.locale?.startsWith('es') ? 'es' : 'en',
+          // Whisper accepts ISO 639-1 language codes only (e.g. 'es', 'en'),
+          // not regional variants like 'es-MX'. Extract the base language code.
+          language: context.userContext.locale?.split('-')[0] ?? 'en',
         },
         turn_detection: {
           type: "server_vad",

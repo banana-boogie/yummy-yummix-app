@@ -2,13 +2,14 @@ import React, { useEffect } from 'react';
 import { View, StyleProp, ViewStyle } from 'react-native';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { Text } from '@/components/common/Text';
-import * as Localization from 'expo-localization';
+import { getLocales } from 'expo-localization';
 import { StepNavigationButtons } from '../StepNavigationButtons';
 import { Language } from '@/types/Language';
 import { MeasurementSystem } from '@/types/user';
 import i18n from '@/i18n';
 import { Button } from '@/components/common/Button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
 
 const LANGUAGE_OPTIONS = [
   { value: 'es' as Language, label: 'Español' },
@@ -35,15 +36,18 @@ interface AppPreferencesStepProps {
 
 export function AppPreferencesStep({ className = '', style }: AppPreferencesStepProps) {
   const { formData, updateFormData, goToNextStep, goToPreviousStep } = useOnboarding();
-  const { setLanguage } = useLanguage();
-  const deviceLocale = Localization.getLocales()[0];
+  const { setLocale, language } = useLanguage();
+  const { locales: activeLocales } = useActiveLocales(true);
+  const deviceLocales = getLocales();
 
   // Set defaults when component mounts
   useEffect(() => {
-    const langCode = deviceLocale?.languageCode;
-    const isSpanish = langCode === 'es';
-    // Capture full device locale tag (e.g., 'es-MX', 'en-US') and map to our supported codes
-    const defaultLocale = isSpanish ? 'es-MX' : 'en';
+    const isSpanish = language === 'es';
+    const knownCodes = activeLocales.map((l) => l.code);
+    const deviceTag = deviceLocales[0]?.languageTag;
+    // Use device locale if it exists in the locales table, otherwise base code
+    const defaultLocale =
+      deviceTag && knownCodes.includes(deviceTag) ? deviceTag : (isSpanish ? 'es' : 'en');
     const defaultMeasurement = isSpanish ? 'metric' : 'imperial';
 
     if (!formData.locale) {
@@ -52,13 +56,21 @@ export function AppPreferencesStep({ className = '', style }: AppPreferencesStep
         measurementSystem: defaultMeasurement
       });
     }
-  }, []);
+  }, [activeLocales]);
 
   const handleLanguageSelect = async (language: Language) => {
-    await setLanguage(language);
+    // Use device locale if it matches the selected language and exists
+    // in the locales table; otherwise fall back to the base code.
+    const matchingDevice = deviceLocales.find(
+      (dl) => dl.languageCode === language
+    );
+    const deviceTag = matchingDevice?.languageTag;
+    const knownCodes = activeLocales.map((l) => l.code);
+    const locale =
+      deviceTag && knownCodes.includes(deviceTag) ? deviceTag : language;
+
+    await setLocale(locale);
     i18n.locale = language;
-    // Map UI language selection to locale code
-    const locale = language === 'es' ? 'es-MX' : 'en';
     updateFormData({ locale });
   };
 

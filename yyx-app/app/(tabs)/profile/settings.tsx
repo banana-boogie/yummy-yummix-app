@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
+import { getLocales } from 'expo-localization';
 import i18n from '@/i18n';
-import { Language, useLanguage } from '@/contexts/LanguageContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useMeasurement } from '@/contexts/MeasurementContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { MeasurementSystem } from '@/types/user';
+import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
 import { SystemButtons } from '@/components/settings/SystemButtons';
 import { DangerButton } from '@/components/common/DangerButton';
 import { StatusModal } from '@/components/common/StatusModal';
@@ -13,10 +15,11 @@ import { HeaderWithBack } from '@/components/common/HeaderWithBack';
 import { PageLayout } from '@/components/layouts/PageLayout';
 
 export default function Settings() {
-  const { language, setLanguage } = useLanguage();
+  const { language, setLocale } = useLanguage();
   const { measurementSystem, setMeasurementSystem } = useMeasurement();
   const { signOut } = useAuth();
   const { updateUserProfile } = useUserProfile();
+  const { locales: activeLocales } = useActiveLocales(true);
 
   const [error, setError] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -28,14 +31,21 @@ export default function Settings() {
       setIsLoading(true);
       setError(null);
 
-      // Map UI language to locale code and update profile
-      const newLocale = newLanguage === 'es' ? 'es-MX' : 'en';
-      await updateUserProfile({
-        locale: newLocale
-      });
+      // Try to use the device's full locale (e.g. es-MX) if it exists
+      // in the locales table; otherwise fall back to the base code (es).
+      const deviceLocales = getLocales();
+      const matchingDevice = deviceLocales.find(
+        (dl) => dl.languageCode === newLanguage
+      );
+      const deviceTag = matchingDevice?.languageTag;
+      const knownCodes = activeLocales.map((l) => l.code);
+      const newLocale =
+        deviceTag && knownCodes.includes(deviceTag) ? deviceTag : newLanguage;
 
-      // Then update language in context - this will trigger the app restart dialog
-      await setLanguage(newLanguage as Language);
+      await updateUserProfile({ locale: newLocale });
+
+      // Update locale in context — this derives language and triggers the app restart dialog
+      await setLocale(newLocale);
 
       setIsLoading(false);
     } catch (error) {
