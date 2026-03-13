@@ -421,7 +421,7 @@ Result sent back to orchestrator for inclusion in the response
 
 ### Voice tool whitelist
 
-For security, only certain tools are allowed in voice mode. The `allowedInVoice` flag in each registration controls this. The voice orchestrator checks `getAllowedVoiceToolNames()` before executing any tool call from the WebRTC data channel. Currently `search_recipes`, `generate_custom_recipe`, `modify_recipe`, and `retrieve_cooked_recipes` are allowed in voice. `app_action` is text-only since frontend actions like sharing don't fit the voice interaction model.
+For security, only certain tools are allowed in voice mode. The `allowedInVoice` flag in each registration controls this. The voice orchestrator checks `getAllowedVoiceToolNames()` before executing any tool call from the WebRTC data channel. All five registered tools are voice-enabled: `search_recipes`, `generate_custom_recipe`, `modify_recipe`, `retrieve_cooked_recipes`, and `app_action`. Voice transcripts display messages and action buttons just like text chat, so `app_action` (e.g., sharing a recipe) works in both paths.
 
 ---
 

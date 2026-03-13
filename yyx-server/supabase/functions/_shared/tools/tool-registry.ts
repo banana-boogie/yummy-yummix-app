@@ -136,7 +136,7 @@ const TOOL_REGISTRY: Record<string, ToolRegistration> = {
         unknown
       >,
     },
-    allowedInVoice: false,
+    allowedInVoice: true,
     execute: async (args) => executeAppAction(args),
     shapeResult: (result) => {
       if (result && typeof result === "object" && "action" in result) {

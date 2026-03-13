@@ -38,6 +38,12 @@ import type {
 } from '@/services/voice/types';
 import type { ChatMessage } from '@/services/chatService';
 import { saveVoiceTranscript } from '@/services/chatService';
+import type { Action } from '@/types/irmixy';
+import {
+    executeAction,
+    resolveActionContext,
+    type ActionContextSource,
+} from '@/services/actions/actionRegistry';
 
 interface UseVoiceChatOptions {
     recipeContext?: RecipeContext;
@@ -466,6 +472,36 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                         } else {
                             pendingRecipeDataRef.current = recipeData;
                         }
+                    }
+
+                    // Handle app_action results (e.g., share_recipe)
+                    if (result.appActionResult && typeof result.appActionResult === 'object') {
+                        const actionResult = result.appActionResult as { action: string; params: Record<string, unknown> };
+                        const action: Action = {
+                            id: `${actionResult.action}_${Date.now()}`,
+                            type: actionResult.action as Action['type'],
+                            label: actionResult.action, // Placeholder — replaced by i18n in actionRegistry
+                            payload: actionResult.params ?? {},
+                            autoExecute: true,
+                        };
+
+                        // Attach action to the current or last assistant message
+                        const targetMsgId = streamingMsgIdRef.current ?? lastAssistantMsgIdRef.current;
+                        if (targetMsgId) {
+                            setTranscriptMessages(prev => prev.map(msg =>
+                                msg.id === targetMsgId
+                                    ? { ...msg, actions: [...(msg.actions ?? []), action] }
+                                    : msg
+                            ));
+                        }
+
+                        // Auto-execute: resolve context from current transcript
+                        const messages = transcriptMessagesRef.current;
+                        const context = resolveActionContext(
+                            messages as ActionContextSource[],
+                            targetMsgId ?? undefined,
+                        );
+                        executeAction(action, context, { source: 'auto', path: 'voice' });
                     }
 
                     // Send result back to OpenAI so it can speak about it
