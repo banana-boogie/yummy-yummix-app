@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, StyleProp, ViewStyle } from 'react-native';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { Text } from '@/components/common/Text';
@@ -39,14 +39,14 @@ export function AppPreferencesStep({ className = '', style }: AppPreferencesStep
   const { setLocale, language } = useLanguage();
   const { locales: activeLocales } = useActiveLocales(true);
   const deviceLocales = getLocales();
+  const hasUserSelected = useRef(false);
 
   // Set defaults once active locales are loaded.
   // We wait for activeLocales to be non-empty so the device-locale lookup
-  // actually has data to match against. Without this guard the first render
-  // seeds a base code (es/en) and the `if (!formData.locale)` check prevents
-  // upgrading to the correct regional locale when the fetch completes.
+  // actually has data to match against. The hasUserSelected ref prevents
+  // overwriting an explicit user choice if activeLocales re-renders later.
   useEffect(() => {
-    if (activeLocales.length === 0) return;
+    if (activeLocales.length === 0 || hasUserSelected.current) return;
 
     const isSpanish = language === 'es';
     const knownCodes = activeLocales.map((l) => l.code);
@@ -55,8 +55,6 @@ export function AppPreferencesStep({ className = '', style }: AppPreferencesStep
       deviceTag && knownCodes.includes(deviceTag) ? deviceTag : (isSpanish ? 'es' : 'en');
     const defaultMeasurement = isSpanish ? 'metric' : 'imperial';
 
-    // Always re-derive locale from device when activeLocales load —
-    // a stale base-code seed from a previous render should be upgraded.
     if (!formData.locale || formData.locale === 'es' || formData.locale === 'en') {
       updateFormData({
         locale: bestLocale,
@@ -66,6 +64,8 @@ export function AppPreferencesStep({ className = '', style }: AppPreferencesStep
   }, [activeLocales]);
 
   const handleLanguageSelect = async (language: Language) => {
+    hasUserSelected.current = true;
+
     // Use device locale if it matches the selected language and exists
     // in the locales table; otherwise fall back to the base code.
     const matchingDevice = deviceLocales.find(
