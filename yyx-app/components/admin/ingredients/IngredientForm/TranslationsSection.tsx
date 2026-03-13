@@ -24,7 +24,9 @@ export function TranslationsSection({
   onChange,
   required = false
 }: TranslationsSectionProps) {
-  const { locales, loading: localesLoading } = useActiveLocales(true);
+  const { locales: rawLocales, loading: localesLoading } = useActiveLocales(true);
+  // Filter es-MX: base 'es' is already Mexican Spanish, so es-MX is redundant in admin forms.
+  const locales = rawLocales.filter(l => l.code !== 'es-MX');
   const [translating, setTranslating] = useState(false);
   const [translateError, setTranslateError] = useState<string | null>(null);
 

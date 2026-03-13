@@ -26,7 +26,9 @@ export function UsefulItemForm({
     onCancel,
     saving,
 }: UsefulItemFormProps) {
-    const { locales } = useActiveLocales(true);
+    const { locales: rawLocales } = useActiveLocales(true);
+    // Filter es-MX: base 'es' is already Mexican Spanish, so es-MX is redundant in admin forms.
+    const locales = rawLocales.filter(l => l.code !== 'es-MX');
     const [translating, setTranslating] = useState(false);
     const [translateError, setTranslateError] = useState<string | null>(null);
 

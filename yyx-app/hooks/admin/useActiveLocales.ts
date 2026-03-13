@@ -27,13 +27,6 @@ export function useActiveLocales(includeRegional = false) {
 
         if (!includeRegional) {
           query = query.not('code', 'like', '%-%');
-        } else {
-          // Exclude es-MX: base 'es' is already Mexican Spanish (Mexico-first audience),
-          // so es-MX would be a duplicate entry in admin forms. es-MX stays active in the
-          // locales table for user profiles and locale resolution — it's only hidden from
-          // admin content forms. Other regional variants (es-ES) remain since they
-          // represent genuine vocabulary differences.
-          query = query.neq('code', 'es-MX');
         }
 
         const { data, error } = await query;

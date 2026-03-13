@@ -236,6 +236,58 @@ describe('useActiveLocales', () => {
   });
 
   // ============================================================
+  // INCLUDE REGIONAL TESTS
+  // ============================================================
+
+  describe('includeRegional=true', () => {
+    const dbLocalesWithRegional = [
+      { code: 'en', display_name: 'English' },
+      { code: 'es', display_name: 'Español (México)' },
+      { code: 'es-ES', display_name: 'Español (España)' },
+      { code: 'es-MX', display_name: 'Español (México)' },
+    ];
+
+    it('does not filter out regional codes with %-%', async () => {
+      mockResolvedValue = { data: dbLocalesWithRegional, error: null };
+
+      const { result } = renderHook(() => useActiveLocales(true));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Should NOT call .not('code', 'like', '%-%') when includeRegional=true
+      expect(mockQuery.not).not.toHaveBeenCalledWith('code', 'like', '%-%');
+    });
+
+    it('includes es-MX and es-ES in results', async () => {
+      mockResolvedValue = { data: dbLocalesWithRegional, error: null };
+
+      const { result } = renderHook(() => useActiveLocales(true));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      const codes = result.current.locales.map(l => l.code);
+      expect(codes).toContain('es-MX');
+      expect(codes).toContain('es-ES');
+    });
+
+    it('still sorts es first among regional results', async () => {
+      mockResolvedValue = { data: dbLocalesWithRegional, error: null };
+
+      const { result } = renderHook(() => useActiveLocales(true));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(result.current.locales[0].code).toBe('es');
+    });
+  });
+
+  // ============================================================
   // EDGE CASE TESTS
   // ============================================================
 

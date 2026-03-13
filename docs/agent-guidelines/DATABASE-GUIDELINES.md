@@ -204,7 +204,7 @@ ALTER TABLE public.my_table ENABLE ROW LEVEL SECURITY;
 ## PostgreSQL Functions (RPC)
 
 ### Existing Functions
-- `resolve_locale(requested text)` — Walk the locale fallback chain; returns `text[]` ordered most-specific to least (e.g., `es-MX` → `['es-MX', 'es', 'en']`). Strips unknown region suffixes and uses `['es']` as the ultimate fallback for unknown locales (Mexico-first audience). See Translation Tables section for full behaviour.
+- `resolve_locale(requested text)` — Walk the locale fallback chain; returns `text[]` ordered most-specific to least (e.g., `es-MX` → `['es-MX', 'es', 'en']`). Strips unknown region suffixes. Returns `NULL` for completely unknown locales — callers must handle missing translations explicitly. See Translation Tables section for full behaviour.
 - `batch_find_ingredients(names text[], preferred_locale text)` — Bulk ingredient lookup via translation tables
 - `get_cooked_recipes(p_locale text, ...)` — User's cooked recipes with locale-based name resolution
 - `match_recipe_embeddings(query_embedding vector, match_threshold float, match_count int)` — Vector similarity search
@@ -294,13 +294,13 @@ SELECT public.resolve_locale('en');
 -- Returns: ARRAY['en']
 ```
 
-The function walks the `parent_code` chain recursively (up to depth 5) and returns an ordered array from most-specific to least-specific. Callers then `COALESCE` or use `ANY()` to pick the best available translation. Ultimate fallback is `['es']` for completely unknown locales (Mexico-first audience).
+The function walks the `parent_code` chain recursively (up to depth 5) and returns an ordered array from most-specific to least-specific. Callers then `COALESCE` or use `ANY()` to pick the best available translation. Returns `NULL` for completely unknown locales — callers must handle missing translations explicitly.
 
 Fallback behaviour:
 - `es-MX` → `['es-MX', 'es', 'en']` (walks parent_code chain — `es.parent_code = 'en'` in seed data)
 - `en` → `['en']` (en has no parent_code)
 - Unknown region (`en-CA`) → strips region suffix, recurses on `en` → `['en']`
-- Completely unknown code → `['es']` (ultimate fallback)
+- Completely unknown code → `NULL` (no cross-language fallback)
 
 **Important — no cross-language fallback at the application layer:** The RPC returns `en` in the chain for Spanish locales because of the seed data structure, but application code (Edge Functions) uses `buildLocaleChain()` from `_shared/locale-utils.ts` which stops at the language boundary. `es` and `en` are separate user groups; a Spanish-language user must never receive English content as a fallback. Only use `resolve_locale()` directly in SQL where you are already filtering to a single language, or slice the result to exclude cross-language entries.
 
@@ -326,7 +326,7 @@ All use composite PK `(entity_id, locale)` with `ON DELETE CASCADE` from parent.
 - **Never store base content under a regional code** — it breaks fallback for other regions.
 - **No cross-language fallback.** `en` and `es` are separate user groups. A Spanish speaker should never see English content as a fallback, and vice versa.
 - **Within-family fallback only:** `es-MX` → `es` (via `buildLocaleChain()` in server-side TypeScript). The DB `resolve_locale()` RPC walks `parent_code` and returns `['es-MX', 'es', 'en']` because `es.parent_code = 'en'` in the locales seed; application code stops at the language boundary using `buildLocaleChain()`.
-- **Ultimate fallback for unknown locales** in `resolve_locale()` is `['es']` (Mexico-first audience).
+- **No ultimate fallback for unknown locales** — `resolve_locale()` returns `NULL` for completely unknown locale codes. Callers must handle missing translations explicitly.
 
 ### RLS Patterns for Translation Tables
 

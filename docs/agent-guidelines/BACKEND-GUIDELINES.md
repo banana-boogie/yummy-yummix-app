@@ -32,7 +32,7 @@ yyx-server/supabase/functions/
 │   ├── logger.ts                     # Structured logging with request IDs
 │   ├── context-builder.ts            # User profile + conversation history aggregation
 │   ├── irmixy-schemas.ts             # Zod schemas: RecipeCard, GeneratedRecipe, IrmixyResponse
-│   ├── locale-utils.ts               # Locale helpers: buildLocaleChain(), pickTranslation(), getBaseLanguage(), getLanguageName(), languageToLocale()
+│   ├── locale-utils.ts               # Locale helpers: buildLocaleChain(), pickTranslation(), getBaseLanguage(), getLanguageName()
 │   ├── system-prompt-builder.ts      # Irmixy personality + user context blocks (buildPersonalityBlock, buildUserContextBlock, buildVoiceInstructions, resolveVocabulary, buildVocabularyDirective)
 │   ├── allergen-filter.ts            # Allergen detection
 │   ├── food-safety.ts                # USDA safety validation
@@ -135,17 +135,15 @@ import {
   pickTranslation,
   getBaseLanguage,
   getLanguageName,
-  languageToLocale,
 } from '../_shared/locale-utils.ts';
 ```
 
 | Function | Signature | Purpose |
 |----------|-----------|---------|
-| `buildLocaleChain` | `(locale: string) => string[]` | Computes the fallback chain for a locale. Spanish is always the terminal fallback (Mexico-first). `"es-MX"` → `["es-MX", "es"]`, `"en"` → `["en", "es"]`, `"fr"` → `["fr", "es"]` |
-| `pickTranslation` | `<T extends { locale: string }>(translations: T[] \| null \| undefined, localeChain: string[]) => T \| undefined` | Picks the best translation from an array by walking the locale chain. Falls back to the first available if no chain match. |
+| `buildLocaleChain` | `(locale: string) => string[]` | Computes a within-family-only fallback chain. `"es-MX"` → `["es-MX", "es"]`, `"es"` → `["es"]`, `"en"` → `["en"]`, `"fr"` → `["fr"]`. No cross-language fallback — `es` and `en` are separate user groups. |
+| `pickTranslation` | `<T extends { locale: string }>(translations: T[] \| null \| undefined, localeChain: string[]) => T \| undefined` | Picks the best translation from an array by walking the locale chain. Returns `undefined` if no chain match — callers must handle missing translations explicitly. |
 | `getBaseLanguage` | `(locale: string) => string` | Strips the region code: `"es-MX"` → `"es"`, `"en"` → `"en"` |
 | `getLanguageName` | `(locale: string) => string` | Returns a human-readable name: `"es"` → `"Mexican Spanish"`, `"es-ES"` → `"Spain Spanish"`, `"en"` → `"English"`. Tries the full locale first, then falls back to base language. |
-| `languageToLocale` | `(language: string) => string` | Maps old `language` column values (`"en"`, `"es"`) to locale format. Currently a pass-through — use for migration bridges. |
 
 ### UserContext Interface
 
