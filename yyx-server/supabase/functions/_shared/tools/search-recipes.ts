@@ -805,8 +805,7 @@ async function annotateAllergenWarnings(
               locale,
             );
 
-            const template =
-              ALLERGEN_CONTAINS_TEMPLATE[baseLang] ||
+            const template = ALLERGEN_CONTAINS_TEMPLATE[baseLang] ||
               ALLERGEN_CONTAINS_TEMPLATE["en"];
             warnings.push(
               template

@@ -38,8 +38,20 @@ const SECTION_HEADERS: Record<string, {
   tips: string;
   step: string;
 }> = {
-  en: { recipe: "Recipe", ingredients: "Ingredients", tags: "Tags", tips: "Tips", step: "Step" },
-  es: { recipe: "Receta", ingredients: "Ingredientes", tags: "Etiquetas", tips: "Consejos", step: "Paso" },
+  en: {
+    recipe: "Recipe",
+    ingredients: "Ingredients",
+    tags: "Tags",
+    tips: "Tips",
+    step: "Step",
+  },
+  es: {
+    recipe: "Receta",
+    ingredients: "Ingredientes",
+    tags: "Etiquetas",
+    tips: "Consejos",
+    step: "Paso",
+  },
 };
 
 function getSectionHeaders(locale: string) {
@@ -103,7 +115,9 @@ export function buildEmbeddingText(recipe: RecipeEmbeddingRow): string {
       const localeStep = pickTranslation(stepTrans, [locale]);
       if (localeStep?.instruction) {
         sections.push(
-          `${headers.step} ${step.order}: ${localeStep.instruction.slice(0, 150)}`,
+          `${headers.step} ${step.order}: ${
+            localeStep.instruction.slice(0, 150)
+          }`,
         );
         break; // one locale per step is enough for embedding context
       }

@@ -918,8 +918,10 @@ export async function checkIngredientsForAllergens(
     const baseLang = getBaseLanguage(locale);
     if (unsafeResult.systemUnavailable) {
       const SYSTEM_UNAVAILABLE_WARNINGS: Record<string, string> = {
-        es: "No pude verificar alergias en este momento. Para tu seguridad, no puedo generar esta receta ahora.",
-        en: "I couldn't verify allergens right now. For your safety, I can't generate this recipe at the moment.",
+        es:
+          "No pude verificar alergias en este momento. Para tu seguridad, no puedo generar esta receta ahora.",
+        en:
+          "I couldn't verify allergens right now. For your safety, I can't generate this recipe at the moment.",
       };
       return {
         safe: false,

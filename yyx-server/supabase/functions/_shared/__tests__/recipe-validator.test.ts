@@ -372,8 +372,16 @@ Deno.test("validateRecipeData - accepts ingredient with full details", () => {
         quantity: 250,
         ingredient: {
           translations: [
-            { locale: "en", name: "All-purpose flour", plural_name: "All-purpose flour" },
-            { locale: "es", name: "Harina de trigo", plural_name: "Harina de trigo" },
+            {
+              locale: "en",
+              name: "All-purpose flour",
+              plural_name: "All-purpose flour",
+            },
+            {
+              locale: "es",
+              name: "Harina de trigo",
+              plural_name: "Harina de trigo",
+            },
           ],
         },
         measurement_unit: {
@@ -448,7 +456,10 @@ Deno.test("validateRecipeData - accepts multiple steps in order", () => {
   const result = validateRecipeData(validRecipe({
     steps: [
       { order: 1, translations: [{ locale: "en", instruction: "First step" }] },
-      { order: 2, translations: [{ locale: "en", instruction: "Second step" }] },
+      {
+        order: 2,
+        translations: [{ locale: "en", instruction: "Second step" }],
+      },
       { order: 3, translations: [{ locale: "en", instruction: "Third step" }] },
     ],
   }));
@@ -572,8 +583,16 @@ Deno.test("validateRecipeData - accepts recipe with all optional fields", () => 
     total_time: 90,
     portions: 4,
     translations: [
-      { locale: "en", name: "Complete Recipe", tips_and_tricks: "Use fresh ingredients" },
-      { locale: "es", name: "Receta Completa", tips_and_tricks: "Usa ingredientes frescos" },
+      {
+        locale: "en",
+        name: "Complete Recipe",
+        tips_and_tricks: "Use fresh ingredients",
+      },
+      {
+        locale: "es",
+        name: "Receta Completa",
+        tips_and_tricks: "Usa ingredientes frescos",
+      },
     ],
     ingredients: [
       {
@@ -600,8 +619,16 @@ Deno.test("validateRecipeData - accepts recipe with all optional fields", () => 
       {
         order: 1,
         translations: [
-          { locale: "en", instruction: "Mix flour", recipe_section: "Preparation" },
-          { locale: "es", instruction: "Mezcla la harina", recipe_section: "Preparación" },
+          {
+            locale: "en",
+            instruction: "Mix flour",
+            recipe_section: "Preparation",
+          },
+          {
+            locale: "es",
+            instruction: "Mezcla la harina",
+            recipe_section: "Preparación",
+          },
         ],
         thermomix_time: 30,
         thermomix_speed: 4,
