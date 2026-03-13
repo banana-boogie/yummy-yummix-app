@@ -134,8 +134,11 @@ export function IngredientForm({
         onCancel(); // Close the modal
     };
 
-    // Get a display name for the nutritional facts section
-    const ingredientDisplayName = pickTranslation(formData.translations, 'en')?.name || '';
+    // Get a display name for the nutritional facts lookup — prefer English (best training data)
+    const ingredientDisplayName =
+        pickTranslation(formData.translations, 'en')?.name?.trim() ||
+        pickTranslation(formData.translations, 'es')?.name?.trim() ||
+        '';
 
     return (
         <View className="flex-1">

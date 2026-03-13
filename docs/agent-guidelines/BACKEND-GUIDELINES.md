@@ -70,8 +70,8 @@ Every new edge function follows this structure:
 
 ```typescript
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { corsHeaders, handleCorsOptions } from '../_shared/cors.ts';
-import { createUserClient } from '../_shared/supabase-client.ts';
+import { corsHeaders } from '../_shared/cors.ts';
+import { validateAuth, hasRole, unauthorizedResponse, forbiddenResponse } from '../_shared/auth.ts';
 
 Deno.serve(async (req: Request) => {
   // 1. CORS preflight
@@ -80,31 +80,28 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // 2. Auth
+    // 2. Auth — use shared validateAuth (extracts token and passes to getUser explicitly)
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Missing authorization' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const supabase = createUserClient(authHeader);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user, error: authError } = await validateAuth(authHeader);
     if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return unauthorizedResponse(authError ?? 'Authentication required', corsHeaders);
     }
 
-    // 3. Parse request
+    // 3. Admin check (if needed) — admin flag is in user_profiles.is_admin,
+    //    NOT in app_metadata.role, so use hasRole() which reads app_metadata.
+    //    For admin-only functions that need the DB-level is_admin() RPC instead,
+    //    use createUserClient + supabase.rpc('is_admin') pattern.
+    if (!hasRole(user, 'admin')) {
+      return forbiddenResponse('Admin access required', corsHeaders);
+    }
+
+    // 4. Parse request
     const body = await req.json();
 
-    // 4. Business logic
+    // 5. Business logic
     // ...
 
-    // 5. Response
+    // 6. Response
     return new Response(
       JSON.stringify({ data: result }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -120,6 +117,10 @@ Deno.serve(async (req: Request) => {
   }
 });
 ```
+
+> **Auth gotcha:** In Deno edge functions there is no stored session, so `supabase.auth.getUser()` without a token argument always fails. The shared `_shared/auth.ts` module handles this correctly by extracting the JWT from the Bearer header and passing it explicitly: `getUser(token)`. Always use `validateAuth()` instead of hand-rolling auth.
+>
+> **Admin check:** `hasRole(user, 'admin')` checks `app_metadata.role`. If your admin flag is in `user_profiles.is_admin` (checked via the `is_admin()` RPC), use `createUserClient(authHeader)` + `supabase.rpc('is_admin')` instead — but still validate the JWT with `validateAuth()` first.
 
 ---
 

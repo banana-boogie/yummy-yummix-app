@@ -95,19 +95,22 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Auth
+    // Auth — extract token and pass explicitly to getUser()
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return jsonResponse({ error: "Missing authorization" }, 401);
     }
 
+    const token = authHeader.substring(7);
     const supabase = createUserClient(authHeader);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      token,
+    );
     if (authError || !user) {
       return jsonResponse({ error: "Unauthorized" }, 401);
     }
 
-    // Admin check via RPC
+    // Admin check via RPC (admin flag is in user_profiles, not app_metadata)
     const { data: isAdmin, error: adminError } = await supabase.rpc(
       "is_admin",
     );
