@@ -8,12 +8,14 @@ import { useDevice } from '@/hooks/useDevice';
 
 interface UsefulItemCardProps {
   usefulItem: AdminUsefulItem;
+  displayLocale: string;
   onEdit: (usefulItem: AdminUsefulItem) => void;
   onDelete: (usefulItem: AdminUsefulItem) => void;
 }
 
-export function UsefulItemCard({ usefulItem, onEdit, onDelete }: UsefulItemCardProps) {
+export function UsefulItemCard({ usefulItem, displayLocale, onEdit, onDelete }: UsefulItemCardProps) {
   const { isPhone } = useDevice();
+  const name = getTranslatedField(usefulItem.translations, displayLocale, 'name') || '—';
 
   return (
     <View className="flex-row bg-white rounded-sm mb-md p-md shadow-md items-center">
@@ -32,13 +34,12 @@ export function UsefulItemCard({ usefulItem, onEdit, onDelete }: UsefulItemCardP
         )}
       </View>
 
-      {/* Names - takes up remaining space */}
+      {/* Name */}
       <View className="flex-1 justify-center mr-sm">
-        <Text preset="body" numberOfLines={1}>{getTranslatedField(usefulItem.translations, 'en', 'name')}</Text>
-        <Text preset="caption" color={COLORS.text.secondary} numberOfLines={1}>{getTranslatedField(usefulItem.translations, 'es', 'name')}</Text>
+        <Text preset="body" numberOfLines={1}>{name}</Text>
       </View>
 
-      {/* Actions - compact on mobile */}
+      {/* Actions */}
       <View className="flex-row items-center gap-xs">
         <TouchableOpacity
           className="p-sm"

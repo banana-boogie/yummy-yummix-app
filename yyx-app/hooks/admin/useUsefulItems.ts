@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { adminUsefulItemsService } from '@/services/admin/adminUsefulItemsService';
-import { AdminUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
+import { AdminUsefulItem } from '@/types/recipe.admin.types';
 
 export function useUsefulItems() {
   const [loading, setLoading] = useState(true);
@@ -32,12 +32,11 @@ export function useUsefulItems() {
     }
 
     const lowerQuery = searchQuery.toLowerCase().trim();
-    const filtered = usefulItems.filter(item => {
-      const nameEn = getTranslatedField(item.translations, 'en', 'name');
-      const nameEs = getTranslatedField(item.translations, 'es', 'name');
-      return nameEn.toLowerCase().includes(lowerQuery) ||
-        nameEs.toLowerCase().includes(lowerQuery);
-    });
+    const filtered = usefulItems.filter(item =>
+      item.translations.some(t =>
+        t.name?.toLowerCase().includes(lowerQuery)
+      )
+    );
     setFilteredUsefulItems(filtered);
   }, [searchQuery, usefulItems]);
 

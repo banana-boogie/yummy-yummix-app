@@ -26,8 +26,9 @@ export function UsefulItemForm({
     onCancel,
     saving,
 }: UsefulItemFormProps) {
-    const { locales } = useActiveLocales();
+    const { locales } = useActiveLocales(true);
     const [translating, setTranslating] = useState(false);
+    const [translateError, setTranslateError] = useState<string | null>(null);
 
     const [formData, setFormData] = useState<AdminUsefulItem>({
         id: usefulItem?.id || '',
@@ -73,6 +74,7 @@ export function UsefulItemForm({
         if (targetLocales.length === 0) return;
 
         setTranslating(true);
+        setTranslateError(null);
         try {
             const results = await translateContent(
                 { name: sourceTranslation.name },
@@ -82,6 +84,7 @@ export function UsefulItemForm({
 
             let updated = [...formData.translations];
             for (const result of results) {
+                if (result.error) continue;
                 const existing = updated.find(t => t.locale === result.targetLocale);
                 if (existing) {
                     updated = updated.map(t =>
@@ -96,6 +99,7 @@ export function UsefulItemForm({
             setFormData({ ...formData, translations: updated });
         } catch (error) {
             console.error('Auto-translate failed:', error);
+            setTranslateError(i18n.t('admin.translate.autoTranslateFailed', { defaultValue: 'Auto-translate failed. Please try again.' }));
         } finally {
             setTranslating(false);
         }
@@ -154,7 +158,7 @@ export function UsefulItemForm({
                         <TextInput
                             value={getTranslationName(locale.code)}
                             onChangeText={(text) => setTranslationName(locale.code, text)}
-                            placeholder={locale.code === 'es'
+                            placeholder={locale.code.startsWith('es')
                                 ? i18n.t('admin.usefulItems.form.nameEsPlaceholder')
                                 : i18n.t('admin.usefulItems.form.nameEnPlaceholder')}
                             label={locale.displayName}
@@ -173,6 +177,9 @@ export function UsefulItemForm({
                         : i18n.t('admin.translate.autoTranslate')
                     }
                 </Button>
+                {translateError ? (
+                    <Text preset="bodySmall" className="text-status-error mt-sm">{translateError}</Text>
+                ) : null}
             </FormSection>
 
             <FormRow className="justify-end">

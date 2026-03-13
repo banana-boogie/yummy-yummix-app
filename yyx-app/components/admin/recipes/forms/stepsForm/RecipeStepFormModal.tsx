@@ -48,6 +48,8 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
   authoringLocale = 'es'
 }) => {
   const { isLarge: isLargeScreen, isSmall: isSmallScreen } = useDevice();
+  // Form labels follow the authoring locale so the admin sees labels in the language they're editing
+  const tForm = (key: string, opts?: any) => i18n.t(key, { ...opts, locale: authoringLocale });
   const [formData, setFormData] = useState<AdminRecipeSteps>(recipeStep);
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [showFormatHelp, setShowFormatHelp] = useState(false);
@@ -258,10 +260,10 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
   };
 
   const formatHelpItems = [
-    { title: i18n.t('admin.recipes.form.stepsInfo.boldText'), example: '**text**', description: i18n.t('admin.recipes.form.stepsInfo.boldTextDescription') },
-    { title: i18n.t('admin.recipes.form.stepsInfo.newLine'), example: '|', description: i18n.t('admin.recipes.form.stepsInfo.newLineDescription') },
-    { title: i18n.t('admin.recipes.form.stepsInfo.thermomixParams'), example: '%thermomix%', description: i18n.t('admin.recipes.form.stepsInfo.thermomixParamsDescription') },
-    { title: i18n.t('admin.recipes.form.stepsInfo.bulletPoint'), example: '{•}text{/•}', description: i18n.t('admin.recipes.form.stepsInfo.bulletPointDescription') }
+    { title: tForm('admin.recipes.form.stepsInfo.boldText'), example: '**text**', description: tForm('admin.recipes.form.stepsInfo.boldTextDescription') },
+    { title: tForm('admin.recipes.form.stepsInfo.newLine'), example: '|', description: tForm('admin.recipes.form.stepsInfo.newLineDescription') },
+    { title: tForm('admin.recipes.form.stepsInfo.thermomixParams'), example: '%thermomix%', description: tForm('admin.recipes.form.stepsInfo.thermomixParamsDescription') },
+    { title: tForm('admin.recipes.form.stepsInfo.bulletPoint'), example: '{•}text{/•}', description: tForm('admin.recipes.form.stepsInfo.bulletPointDescription') }
   ];
 
   const getThermomixSpeedObject = (formData: AdminRecipeSteps): ThermomixSpeed => {
@@ -292,8 +294,8 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
           <View className="flex-row justify-between items-center p-md border-b border-border-default">
             <Text preset="subheading" fontWeight="600">
               {formData.id === recipeStep.id
-                ? i18n.t('admin.recipes.form.stepsInfo.editStep')
-                : i18n.t('admin.recipes.form.stepsInfo.addStep')}
+                ? tForm('admin.recipes.form.stepsInfo.editStep')
+                : tForm('admin.recipes.form.stepsInfo.addStep')}
             </Text>
             <TouchableOpacity onPress={onClose} className="p-xs">
               <Ionicons name="close" size={24} className="text-text-DEFAULT" />
@@ -304,7 +306,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
             <View className="flex-row justify-between flex-wrap items-baseline">
               <View className="mt-lg mb-sm">
                 <Text preset="h1">
-                  {i18n.t('admin.recipes.form.stepsInfo.instruction')}
+                  {tForm('admin.recipes.form.stepsInfo.instruction')}
                 </Text>
               </View>
               <TouchableOpacity
@@ -313,8 +315,8 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
               >
                 <Text preset="subheading">
                   {showFormatHelp ?
-                    i18n.t('admin.recipes.form.stepsInfo.hideFormattingHelp', { defaultValue: 'Hide Formatting Help' }) :
-                    i18n.t('admin.recipes.form.stepsInfo.showFormattingHelp', { defaultValue: 'Show Formatting Help' })
+                    tForm('admin.recipes.form.stepsInfo.hideFormattingHelp', { defaultValue: 'Hide Formatting Help' }) :
+                    tForm('admin.recipes.form.stepsInfo.showFormattingHelp', { defaultValue: 'Show Formatting Help' })
                   }
                 </Text>
                 <Ionicons
@@ -343,7 +345,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
             {/* Instruction - single language */}
             <FormRow column>
               <FormGroup
-                label={i18n.t('admin.recipes.form.stepsInfo.instruction')}
+                label={tForm('admin.recipes.form.stepsInfo.instruction')}
                 required
                 error={errors.recipeStep}
               >
@@ -361,10 +363,10 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
               <FormRow column style={{ gap: 0 }}>
                 <View className="mt-lg mb-sm">
                   <Text preset="subheading" fontWeight="600">
-                    {i18n.t('admin.recipes.form.stepsInfo.stepIngredients')}
+                    {tForm('admin.recipes.form.stepsInfo.stepIngredients')}
                   </Text>
                   <Text preset="caption" className="mt-[2px] text-text-SECONDARY">
-                    {i18n.t('admin.recipes.form.stepsInfo.stepIngredientsHelperText')}
+                    {tForm('admin.recipes.form.stepsInfo.stepIngredientsHelperText')}
                   </Text>
                 </View>
 
@@ -428,12 +430,12 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
                                       keyboardType="decimal-pad"
                                       numericOnly={true}
                                       allowDecimal={true}
-                                      label={i18n.t('admin.recipes.form.ingredientsInfo.quantity')}
+                                      label={tForm('admin.recipes.form.ingredientsInfo.quantity')}
                                     />
                                   </View>
                                   <View className="flex-[2] mb-xs">
                                     <SelectInput
-                                      label={i18n.t('admin.recipes.form.ingredientsInfo.measurementUnit')}
+                                      label={tForm('admin.recipes.form.ingredientsInfo.measurementUnit')}
                                       value={selectedIngredient?.measurementUnit?.id || ''}
                                       options={availableMeasurementUnits.map((unit) => ({
                                         label: getTranslatedField(unit.translations, authoringLocale, 'symbol'),
@@ -475,10 +477,10 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
             {/* Thermomix Parameters */}
             <View className="mt-lg mb-sm">
               <Text preset="subheading" fontWeight="600">
-                {i18n.t('admin.recipes.form.stepsInfo.thermomixParameters')}
+                {tForm('admin.recipes.form.stepsInfo.thermomixParameters')}
               </Text>
               <Text preset="caption" className="mt-[2px] text-text-SECONDARY">
-                {i18n.t('admin.recipes.form.stepsInfo.thermomixHelperText')}
+                {tForm('admin.recipes.form.stepsInfo.thermomixHelperText')}
               </Text>
             </View>
 
@@ -510,12 +512,12 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
             {/* Tip - single language */}
             <View className="mt-lg mb-sm">
               <Text preset="subheading" fontWeight="600">
-                {i18n.t('admin.recipes.form.stepsInfo.tipTitle')}
+                {tForm('admin.recipes.form.stepsInfo.tipTitle')}
               </Text>
             </View>
 
             <FormRow column>
-              <FormGroup label={i18n.t('admin.recipes.form.stepsInfo.tipTitle')}>
+              <FormGroup label={tForm('admin.recipes.form.stepsInfo.tipTitle')}>
                 <TextInput
                   value={getStepTransField(authoringLocale, 'tip')}
                   onChangeText={(text) => setStepTransField(authoringLocale, 'tip', text)}
@@ -528,12 +530,12 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
             {/* Recipe Section - single language */}
             <View className="mt-lg mb-sm">
               <Text preset="subheading" fontWeight="600">
-                {i18n.t('admin.recipes.form.stepsInfo.recipeSection')}
+                {tForm('admin.recipes.form.stepsInfo.recipeSection')}
               </Text>
             </View>
 
             <FormRow column>
-              <FormGroup label={i18n.t('admin.recipes.form.stepsInfo.recipeSection')}>
+              <FormGroup label={tForm('admin.recipes.form.stepsInfo.recipeSection')}>
                 <TextInput
                   value={getStepTransField(authoringLocale, 'recipeSection')}
                   onChangeText={(text) => setStepTransField(authoringLocale, 'recipeSection', text)}

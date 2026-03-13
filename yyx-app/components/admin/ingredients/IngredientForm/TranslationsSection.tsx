@@ -24,8 +24,9 @@ export function TranslationsSection({
   onChange,
   required = false
 }: TranslationsSectionProps) {
-  const { locales, loading: localesLoading } = useActiveLocales();
+  const { locales, loading: localesLoading } = useActiveLocales(true);
   const [translating, setTranslating] = useState(false);
+  const [translateError, setTranslateError] = useState<string | null>(null);
 
   const getTranslation = (locale: string, field: string): string => {
     const t = translations.find(tr => tr.locale === locale);
@@ -60,11 +61,13 @@ export function TranslationsSection({
     if (sourceTranslation.pluralName) fields.pluralName = sourceTranslation.pluralName;
 
     setTranslating(true);
+    setTranslateError(null);
     try {
       const results = await translateContent(fields, sourceLocale, targetLocales);
       let updated = [...translations];
 
       for (const result of results) {
+        if (result.error) continue;
         const existing = updated.find(t => t.locale === result.targetLocale);
         if (existing) {
           updated = updated.map(t =>
@@ -83,6 +86,7 @@ export function TranslationsSection({
       onChange(updated);
     } catch (error) {
       console.error('Auto-translate failed:', error);
+      setTranslateError(i18n.t('admin.translate.autoTranslateFailed', { defaultValue: 'Auto-translate failed. Please try again.' }));
     } finally {
       setTranslating(false);
     }
@@ -111,7 +115,7 @@ export function TranslationsSection({
               <TextInput
                 value={getTranslation(locale.code, 'name')}
                 onChangeText={(text) => setTranslation(locale.code, 'name', text)}
-                placeholder={locale.code === 'es' ? 'ej., plátano' : 'e.g., banana'}
+                placeholder={locale.code.startsWith('es') ? 'ej., plátano' : 'e.g., banana'}
               />
             </FormGroup>
 
@@ -124,7 +128,7 @@ export function TranslationsSection({
               <TextInput
                 value={getTranslation(locale.code, 'pluralName')}
                 onChangeText={(text) => setTranslation(locale.code, 'pluralName', text)}
-                placeholder={locale.code === 'es' ? 'ej., plátanos' : 'e.g., bananas'}
+                placeholder={locale.code.startsWith('es') ? 'ej., plátanos' : 'e.g., bananas'}
               />
             </FormGroup>
           </FormRow>
@@ -142,6 +146,9 @@ export function TranslationsSection({
           : i18n.t('admin.translate.autoTranslate')
         }
       </Button>
+      {translateError ? (
+        <Text preset="bodySmall" className="text-status-error mt-sm">{translateError}</Text>
+      ) : null}
     </FormSection>
   );
 }

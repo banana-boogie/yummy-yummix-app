@@ -11,6 +11,7 @@ import { AdminIngredient, getTranslatedField } from '@/types/recipe.admin.types'
 import i18n from '@/i18n';
 import { CreateEditIngredientModal } from '@/components/admin/ingredients/CreateEditIngredientModal';
 import { Text } from '@/components/common/Text';
+import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
 
 export default function IngredientsAdminPage() {
   const {
@@ -22,6 +23,7 @@ export default function IngredientsAdminPage() {
     handleDeleteIngredient,
   } = useIngredients();
 
+  const [displayLocale, setDisplayLocale] = useState('es');
   const [modalVisible, setModalVisible] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<AdminIngredient | null>(null);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
@@ -74,21 +76,25 @@ export default function IngredientsAdminPage() {
   return (
     <AdminLayout title="Manage Ingredients" showBackButton={true}>
       <View className="p-md" style={{ backgroundColor: '#ffffff' }}>
-        <View className="flex-col sm:flex-row sm:items-center">
+        <View className="flex-col sm:flex-row sm:items-center gap-md">
           <SearchBar
-            className="flex-none sm:flex-1 mb-md sm:mb-0 sm:mr-md"
+            className="flex-none sm:flex-1"
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             placeholder="Search ingredients..."
           />
 
-          <TouchableOpacity
-            className="flex-row items-center bg-primary-dark px-md py-sm rounded-lg self-start sm:self-auto"
-            onPress={handleOpenCreateModal}
-          >
-            <Ionicons name="add" size={24} color={COLORS.neutral.WHITE} />
-            <Text color={COLORS.neutral.WHITE} className="ml-sm font-bold">New Ingredient</Text>
-          </TouchableOpacity>
+          <View className="flex-row items-center gap-md">
+            <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+
+            <TouchableOpacity
+              className="flex-row items-center bg-primary-dark px-md py-sm rounded-lg self-start sm:self-auto"
+              onPress={handleOpenCreateModal}
+            >
+              <Ionicons name="add" size={24} color={COLORS.neutral.WHITE} />
+              <Text color={COLORS.neutral.WHITE} className="ml-sm font-bold">New Ingredient</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -102,6 +108,7 @@ export default function IngredientsAdminPage() {
           renderItem={({ item }) => (
             <IngredientCard
               ingredient={item}
+              displayLocale={displayLocale}
               onEdit={handleOpenEditModal}
               onDelete={handleDeleteConfirmation}
             />
@@ -129,7 +136,7 @@ export default function IngredientsAdminPage() {
       <AlertModal
         visible={showDeleteAlert}
         title={i18n.t('admin.ingredients.confirmDeletion.title')}
-        message={`${i18n.t('admin.ingredients.confirmDeletion.message')} ${getTranslatedField(selectedIngredient?.translations, 'en', 'name')} | ${getTranslatedField(selectedIngredient?.translations, 'es', 'name')}`}
+        message={`${i18n.t('admin.ingredients.confirmDeletion.message')} ${getTranslatedField(selectedIngredient?.translations, displayLocale, 'name')}`}
         onConfirm={handleConfirmDelete}
         onCancel={() => {
           setShowDeleteAlert(false);

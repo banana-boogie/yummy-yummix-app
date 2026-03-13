@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import { AdminIngredient, getTranslatedField } from '@/types/recipe.admin.types';
+import { AdminIngredient } from '@/types/recipe.admin.types';
 import adminIngredientsService from '@/services/admin/adminIngredientsService';
 
 interface UseIngredientsReturn {
@@ -56,20 +56,16 @@ export function useIngredients(): UseIngredientsReturn {
   };
 
 
-  // Filter ingredients when search query changes
+  // Filter ingredients when search query changes — searches all translations
   useEffect(() => {
     if (searchQuery) {
-      const filtered = ingredients.filter(ingredient => {
-        const nameEn = getTranslatedField(ingredient.translations, 'en', 'name');
-        const nameEs = getTranslatedField(ingredient.translations, 'es', 'name');
-        const pluralNameEn = getTranslatedField(ingredient.translations, 'en', 'pluralName');
-        const pluralNameEs = getTranslatedField(ingredient.translations, 'es', 'pluralName');
-        return nameEn?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          nameEs?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          pluralNameEn?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          pluralNameEs?.toLowerCase().includes(searchQuery.toLowerCase());
-      });
-      
+      const lowerQuery = searchQuery.toLowerCase();
+      const filtered = ingredients.filter(ingredient =>
+        ingredient.translations.some(t =>
+          t.name?.toLowerCase().includes(lowerQuery) ||
+          t.pluralName?.toLowerCase().includes(lowerQuery)
+        )
+      );
       setFilteredIngredients(filtered);
     } else {
       setFilteredIngredients(ingredients);

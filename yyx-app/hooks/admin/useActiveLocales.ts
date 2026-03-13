@@ -27,6 +27,10 @@ export function useActiveLocales(includeRegional = false) {
 
         if (!includeRegional) {
           query = query.not('code', 'like', '%-%');
+        } else {
+          // Exclude es-MX: base 'es' is already Mexican Spanish, so es-MX is redundant.
+          // Other regional variants (es-ES) remain since they represent genuine differences.
+          query = query.neq('code', 'es-MX');
         }
 
         const { data, error } = await query;

@@ -20,6 +20,7 @@ interface StepsFormProps {
 }
 
 export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es' }: StepsFormProps) {
+  const tForm = (key: string, opts?: any) => i18n.t(key, { ...opts, locale: authoringLocale });
   const { isMobile } = useDevice();
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedStep, setSelectedStep] = useState<AdminRecipeSteps | undefined>(undefined);
@@ -176,7 +177,7 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
   }, [sortedSteps]);
 
   return (
-    <FormSection title={i18n.t('admin.recipes.form.stepsInfo.title')} maxWidth={1000} className="mb-md">
+    <FormSection title={tForm('admin.recipes.form.stepsInfo.title')} maxWidth={1000} className="mb-md">
       {errors.steps ? (
         <Text preset="caption" className="text-status-ERROR mb-sm">
           {errors.steps}
@@ -190,7 +191,7 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
           onPress={handleAddStep}
           className="self-start mb-sm"
         >
-          {i18n.t('admin.recipes.form.stepsInfo.addStep')}
+          {tForm('admin.recipes.form.stepsInfo.addStep')}
         </Button>
       </View>
 
@@ -199,10 +200,10 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
         <View className="flex-1 justify-center items-center p-lg bg-background-SECONDARY rounded-md min-h-[200px]">
           <Ionicons name="list-outline" size={32} className="text-text-SECONDARY" />
           <Text preset="body" className="mt-sm text-center">
-            {i18n.t('admin.recipes.form.stepsInfo.noSteps')}
+            {tForm('admin.recipes.form.stepsInfo.noSteps')}
           </Text>
           <Text preset="caption" className="text-text-SECONDARY mt-xs text-center">
-            {i18n.t('admin.recipes.form.stepsInfo.addStepPrompt')}
+            {tForm('admin.recipes.form.stepsInfo.addStepPrompt')}
           </Text>
         </View>
       ) : (
@@ -231,7 +232,7 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
           onPress={handleAddStep}
           className="mb-sm"
         >
-          {i18n.t('admin.recipes.form.stepsInfo.addStep')}
+          {tForm('admin.recipes.form.stepsInfo.addStep')}
         </Button>
       </View>
 

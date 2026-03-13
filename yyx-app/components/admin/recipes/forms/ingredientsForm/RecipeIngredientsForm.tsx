@@ -28,6 +28,7 @@ type IngredientsFormProps = {
 };
 
 export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es' }: IngredientsFormProps) {
+  const tForm = (key: string, opts?: any) => i18n.t(key, { ...opts, locale: authoringLocale });
   const { isMobile } = useDevice();
   const [ingredients, setIngredients] = useState<AdminIngredient[]>([]);
   const [filteredIngredients, setFilteredIngredients] = useState<AdminIngredient[]>([]);
@@ -389,7 +390,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
   };
 
   return (
-    <FormSection title={i18n.t('admin.recipes.form.ingredientsInfo.title')} maxWidth={1000} className="mb-md">
+    <FormSection title={tForm('admin.recipes.form.ingredientsInfo.title')} maxWidth={1000} className="mb-md">
       {errors.ingredients ? (
         <Text preset="caption" className="text-status-ERROR mb-sm">
           {errors.ingredients}
@@ -412,7 +413,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
             {/* Search */}
             <View className="mb-md">
               <SearchBar
-                placeholder={i18n.t('admin.recipes.form.ingredientsInfo.searchPlaceholder')}
+                placeholder={tForm('admin.recipes.form.ingredientsInfo.searchPlaceholder')}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
                 className="w-full"
@@ -423,10 +424,10 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
             <View className="mb-lg">
               <View className="flex-row justify-between items-center pb-xs border-b border-border-DEFAULT mb-sm">
                 <Text preset="subheading" className="font-semibold">
-                  {i18n.t('admin.recipes.form.ingredientsInfo.selectedIngredients')}
+                  {tForm('admin.recipes.form.ingredientsInfo.selectedIngredients')}
                 </Text>
                 <Text preset="caption" color={COLORS.text.secondary}>
-                  {recipe.ingredients.length} {i18n.t('admin.recipes.form.ingredientsInfo.itemsSelected')}
+                  {recipe.ingredients.length} {tForm('admin.recipes.form.ingredientsInfo.itemsSelected')}
                 </Text>
               </View>
               <View className="rounded-md bg-background-SECONDARY overflow-hidden">
@@ -434,10 +435,10 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                   <View className="justify-center items-center p-lg min-h-[120px]">
                     <Ionicons name="basket-outline" size={32} color={COLORS.text.secondary} />
                     <Text className="mt-sm text-center" color={COLORS.text.secondary}>
-                      {i18n.t('admin.recipes.form.ingredientsInfo.noIngredientsSelected')}
+                      {tForm('admin.recipes.form.ingredientsInfo.noIngredientsSelected')}
                     </Text>
                     <Text preset="caption" color={COLORS.text.secondary} className="mt-xs text-center">
-                      {i18n.t('admin.recipes.form.ingredientsInfo.selectFromBelow', { defaultValue: 'Tap an ingredient below to add it' })}
+                      {tForm('admin.recipes.form.ingredientsInfo.selectFromBelow', { defaultValue: 'Tap an ingredient below to add it' })}
                     </Text>
                   </View>
                 ) : (
@@ -455,7 +456,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
             {/* Available Ingredients (SECOND on mobile) */}
             <View>
               <Text preset="subheading" className="mb-sm">
-                {i18n.t('admin.recipes.form.ingredientsInfo.availableIngredients', { defaultValue: 'Available Ingredients' })}
+                {tForm('admin.recipes.form.ingredientsInfo.availableIngredients', { defaultValue: 'Available Ingredients' })}
               </Text>
               <View className="rounded-md bg-background-SECONDARY overflow-hidden">
                 {loading ? (
@@ -478,8 +479,8 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                         <Ionicons name="information-circle-outline" size={32} color={COLORS.text.secondary} />
                         <Text className="mt-sm text-center" color={COLORS.text.secondary}>
                           {searchQuery
-                            ? i18n.t('admin.recipes.form.ingredientsInfo.noSearchResults')
-                            : i18n.t('admin.recipes.form.ingredientsInfo.noIngredients')}
+                            ? tForm('admin.recipes.form.ingredientsInfo.noSearchResults')
+                            : tForm('admin.recipes.form.ingredientsInfo.noIngredients')}
                         </Text>
                       </View>
                     )}
@@ -494,7 +495,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
             <View className="flex-row gap-xl mb-md">
               <View className="flex-[1.2]">
                 <SearchBar
-                  placeholder={i18n.t('admin.recipes.form.ingredientsInfo.searchPlaceholder')}
+                  placeholder={tForm('admin.recipes.form.ingredientsInfo.searchPlaceholder')}
                   searchQuery={searchQuery}
                   setSearchQuery={setSearchQuery}
                   className="w-full"
@@ -502,11 +503,11 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
               </View>
               <View className="flex-[2.5] flex-row justify-between items-center pb-xs border-b border-border-DEFAULT">
                 <Text preset="subheading" className="font-semibold">
-                  {i18n.t('admin.recipes.form.ingredientsInfo.selectedIngredients')}
+                  {tForm('admin.recipes.form.ingredientsInfo.selectedIngredients')}
                 </Text>
                 <View className="flex-row items-center">
                   <Text preset="caption" color={COLORS.text.secondary}>
-                    {recipe.ingredients.length} {i18n.t('admin.recipes.form.ingredientsInfo.itemsSelected')}
+                    {recipe.ingredients.length} {tForm('admin.recipes.form.ingredientsInfo.itemsSelected')}
                   </Text>
                 </View>
               </View>
@@ -534,8 +535,8 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                         <Ionicons name="information-circle-outline" size={32} color={COLORS.text.secondary} />
                         <Text className="mt-sm text-center" color={COLORS.text.secondary}>
                           {searchQuery
-                            ? i18n.t('admin.recipes.form.ingredientsInfo.noSearchResults')
-                            : i18n.t('admin.recipes.form.ingredientsInfo.noIngredients')}
+                            ? tForm('admin.recipes.form.ingredientsInfo.noSearchResults')
+                            : tForm('admin.recipes.form.ingredientsInfo.noIngredients')}
                         </Text>
                       </View>
                     )}
@@ -548,10 +549,10 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                   <View className="flex-1 justify-center items-center p-lg min-h-[200px]">
                     <Ionicons name="basket-outline" size={32} color={COLORS.text.secondary} />
                     <Text className="mt-sm text-center" color={COLORS.text.secondary}>
-                      {i18n.t('admin.recipes.form.ingredientsInfo.noIngredientsSelected')}
+                      {tForm('admin.recipes.form.ingredientsInfo.noIngredientsSelected')}
                     </Text>
                     <Text preset="caption" color={COLORS.text.secondary} className="mt-xs text-center">
-                      {i18n.t('admin.recipes.form.ingredientsInfo.selectFromLeft')}
+                      {tForm('admin.recipes.form.ingredientsInfo.selectFromLeft')}
                     </Text>
                   </View>
                 ) : (
