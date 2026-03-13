@@ -13,7 +13,6 @@ import {
   buildLocaleChain,
   getBaseLanguage,
   getLanguageName,
-
   pickTranslation,
 } from "../locale-utils.ts";
 
@@ -165,4 +164,3 @@ Deno.test("getLanguageName - returns locale code for unknown locale", () => {
 Deno.test("getLanguageName - returns locale code for unknown regional locale", () => {
   assertEquals(getLanguageName("zh-TW"), "zh-TW");
 });
-
