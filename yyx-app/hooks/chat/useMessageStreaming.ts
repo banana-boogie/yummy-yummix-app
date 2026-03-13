@@ -34,7 +34,7 @@ interface UseMessageStreamingParams {
     onResumeSessionClear: () => void;
     onBudgetWarning?: (warning: BudgetWarningPayload) => void;
     onBudgetExceeded?: (error: BudgetExceededError) => void;
-    onActionsReceived?: (actions: import('@/types/irmixy').Action[]) => void;
+    onActionsReceived?: (actions: import('@/types/irmixy').Action[], response: import('@/types/irmixy').IrmixyResponse) => void;
 }
 
 export function useMessageStreaming({
@@ -316,7 +316,7 @@ export function useMessageStreaming({
 
                     // Auto-execute actions (e.g., share_recipe triggered by AI)
                     if (response.actions?.length && onActionsReceived) {
-                        onActionsReceived(response.actions);
+                        onActionsReceived(response.actions, response);
                     }
 
                     if (hasRecipeData && assistantIndexRef.current !== null) {

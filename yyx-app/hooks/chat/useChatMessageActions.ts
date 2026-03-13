@@ -81,10 +81,11 @@ export function useChatMessageActions({
         }
     }, [queryClient, setMessages]);
 
-    const handleActionPress = useCallback((action: Action) => {
+    const handleActionPress = useCallback((action: Action, messageId: string) => {
         const messages = getMessages();
         const context = resolveActionContext(
             messages as ActionContextSource[],
+            messageId,
         );
         executeAction(action, context, { source: 'manual', path: 'text' });
     }, [getMessages]);

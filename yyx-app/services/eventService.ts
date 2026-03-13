@@ -6,7 +6,8 @@ type EventType =
   | 'cook_start'
   | 'cook_complete'
   | 'search'
-  | 'recipe_generate';
+  | 'recipe_generate'
+  | 'action_execute';
 type RecipeTable = 'recipes' | 'user_recipes';
 
 interface QueuedEvent {

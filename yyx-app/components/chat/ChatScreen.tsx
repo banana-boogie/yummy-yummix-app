@@ -22,10 +22,9 @@ import { useResumeSession } from '@/hooks/chat/useResumeSession';
 import { useChatMessageActions } from '@/hooks/chat/useChatMessageActions';
 import {
     executeAction,
-    resolveActionContext,
-    type ActionContextSource,
+    type ActionContext,
 } from '@/services/actions/actionRegistry';
-import type { Action } from '@/types/irmixy';
+import type { Action, IrmixyResponse } from '@/types/irmixy';
 import type { BudgetWarningPayload, ChatMessage, IrmixyStatus } from '@/services/chatService';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
@@ -178,14 +177,17 @@ export function ChatScreen({
         onResumeSessionClear,
         onBudgetWarning: handleBudgetWarning,
         onBudgetExceeded: handleBudgetExceeded,
-        onActionsReceived: useCallback((actions: Action[]) => {
+        onActionsReceived: useCallback((actions: Action[], response: IrmixyResponse) => {
             const autoActions = actions.filter((a) => a.autoExecute);
             if (autoActions.length === 0) return;
-            const context = resolveActionContext(
-                messagesRef.current as ActionContextSource[],
-            );
+            // Build context from the response itself, not from stale messagesRef
+            const context: ActionContext = {
+                currentRecipe: response.customRecipe,
+                recipes: response.recipes,
+            };
+            const hasContext = !!context.currentRecipe || !!context.recipes?.length;
             for (const action of autoActions) {
-                executeAction(action, context, { source: 'auto', path: 'text' });
+                executeAction(action, hasContext ? context : undefined, { source: 'auto', path: 'text' });
             }
         }, []),
     });
