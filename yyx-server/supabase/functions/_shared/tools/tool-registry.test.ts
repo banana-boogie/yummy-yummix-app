@@ -85,9 +85,9 @@ Deno.test("voice tools: required tools are voice-allowed", () => {
   }
 });
 
-Deno.test("voice tools: app_action is not voice-allowed", () => {
+Deno.test("voice tools: app_action is voice-allowed", () => {
   const voiceNames = getAllowedVoiceToolNames();
-  assertEquals(voiceNames.includes("app_action"), false);
+  assertEquals(voiceNames.includes("app_action"), true);
 });
 
 Deno.test("voice tools: all registered tools have execute and shapeResult", () => {

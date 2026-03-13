@@ -233,7 +233,7 @@ Current tools:
 - `generate_custom_recipe` — AI-generated personalized recipes (voice-enabled)
 - `modify_recipe` — Modify a previously generated recipe (voice-enabled)
 - `retrieve_cooked_recipes` — Fetch user cooked-history recipes (voice-enabled)
-- `app_action` — Trigger frontend-only actions via validated pass-through (text-only)
+- `app_action` — Trigger frontend-only actions via validated pass-through (voice-enabled)
 
 ### Adding New Tools (4-step process)
 

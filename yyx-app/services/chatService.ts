@@ -675,6 +675,7 @@ export async function saveVoiceTranscript(
             ...(msg.recipes ? { recipes: msg.recipes } : {}),
             ...(msg.customRecipe ? { customRecipe: msg.customRecipe } : {}),
             ...(msg.safetyFlags ? { safetyFlags: msg.safetyFlags } : {}),
+            ...(msg.actions ? { actions: msg.actions } : {}),
         }));
 
         const response = await fetch(
