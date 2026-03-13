@@ -434,7 +434,7 @@ Deno.test("UserContext supports equipment preferences", () => {
   assertEquals(metricContext.measurementSystem, "metric");
 });
 
-Deno.test("getSystemPrompt Thermomix section uses 120°C guidance", () => {
+Deno.test("getSystemPrompt Thermomix section includes temperature and speed guidance", () => {
   const prompt = getSystemPrompt(
     createMockUserContext({
       measurementSystem: "metric",
@@ -443,7 +443,10 @@ Deno.test("getSystemPrompt Thermomix section uses 120°C guidance", () => {
   );
 
   assertStringIncludes(prompt, '"37°C"-"120°C"');
-  assertStringIncludes(prompt, "Temperature guidance: low (37-60°C");
+  assertStringIncludes(prompt, "TEMPERATURE GUIDE:");
+  assertStringIncludes(prompt, "SPEED GUIDE:");
+  assertStringIncludes(prompt, "REVERSE");
+  assertStringIncludes(prompt, "Above 60°C: max speed 6");
 });
 
 // ============================================================
@@ -455,45 +458,47 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
 
   // Mock: allergen DB outage, but AI still generates recipe
   const originalFetch = globalThis.fetch;
-  const previousGoogleKey = Deno.env.get("GEMINI_API_KEY");
-  Deno.env.set("GEMINI_API_KEY", "test-google-key");
+  const previousOpenAIKey = Deno.env.get("OPENAI_API_KEY");
+  Deno.env.set("OPENAI_API_KEY", "test-openai-key");
 
   globalThis.fetch = async (
     _input: string | URL | Request,
     _init?: RequestInit,
   ) => {
+    // Return OpenAI-format response (recipe_generation now defaults to gpt-4.1)
     return new Response(
       JSON.stringify({
-        candidates: [{
-          content: {
-            parts: [{
-              text: JSON.stringify({
-                schemaVersion: "1.0",
-                suggestedName: "Chicken Dish",
-                measurementSystem: "imperial",
-                language: "en",
-                ingredients: [{ name: "chicken", quantity: 1, unit: "lb" }],
-                steps: [{
-                  order: 1,
-                  instruction: "Cook chicken.",
-                  ingredientsUsed: ["chicken"],
-                }],
-                totalTime: 20,
-                difficulty: "easy",
-                portions: 2,
-                tags: [],
-              }),
-            }],
-            role: "model",
+        id: "chatcmpl-test",
+        object: "chat.completion",
+        model: "gpt-4.1",
+        choices: [{
+          index: 0,
+          message: {
+            role: "assistant",
+            content: JSON.stringify({
+              schemaVersion: "1.0",
+              suggestedName: "Chicken Dish",
+              measurementSystem: "imperial",
+              language: "en",
+              ingredients: [{ name: "chicken", quantity: 1, unit: "lb" }],
+              steps: [{
+                order: 1,
+                instruction: "Cook chicken.",
+                ingredientsUsed: ["chicken"],
+              }],
+              totalTime: 20,
+              difficulty: "easy",
+              portions: 2,
+              tags: [],
+            }),
           },
-          finishReason: "STOP",
+          finish_reason: "stop",
         }],
-        usageMetadata: {
-          promptTokenCount: 12,
-          candidatesTokenCount: 24,
-          totalTokenCount: 36,
+        usage: {
+          prompt_tokens: 12,
+          completion_tokens: 24,
+          total_tokens: 36,
         },
-        modelVersion: "gemini-3-flash-preview",
       }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
@@ -547,10 +552,10 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
     assertEquals(result.safetyFlags?.error, undefined);
   } finally {
     globalThis.fetch = originalFetch;
-    if (previousGoogleKey === undefined) {
-      Deno.env.delete("GEMINI_API_KEY");
+    if (previousOpenAIKey === undefined) {
+      Deno.env.delete("OPENAI_API_KEY");
     } else {
-      Deno.env.set("GEMINI_API_KEY", previousGoogleKey);
+      Deno.env.set("OPENAI_API_KEY", previousOpenAIKey);
     }
     resetSharedCaches();
   }
@@ -561,9 +566,9 @@ Deno.test("generateCustomRecipe proceeds with allergen warning when allergen det
 
   let capturedUrl: string | undefined;
   const originalFetch = globalThis.fetch;
-  const previousGoogleKey = Deno.env.get("GEMINI_API_KEY");
+  const previousOpenAIKey = Deno.env.get("OPENAI_API_KEY");
 
-  Deno.env.set("GEMINI_API_KEY", "test-google-key");
+  Deno.env.set("OPENAI_API_KEY", "test-openai-key");
   globalThis.fetch = async (
     input: string | URL | Request,
     _init?: RequestInit,
@@ -574,43 +579,45 @@ Deno.test("generateCustomRecipe proceeds with allergen warning when allergen det
       ? input.toString()
       : input.url;
 
+    // Return OpenAI-format response (recipe_generation now defaults to gpt-4.1)
     return new Response(
       JSON.stringify({
-        candidates: [{
-          content: {
-            parts: [{
-              text: JSON.stringify({
-                schemaVersion: "1.0",
-                suggestedName: "Peanut Rice Bowl",
-                measurementSystem: "imperial",
-                language: "en",
-                ingredients: [
-                  { name: "peanut", quantity: 1, unit: "cup" },
-                  { name: "rice", quantity: 2, unit: "cups" },
-                ],
-                steps: [
-                  {
-                    order: 1,
-                    instruction: "Toast peanuts and cook rice.",
-                    ingredientsUsed: ["peanut", "rice"],
-                  },
-                ],
-                totalTime: 25,
-                difficulty: "easy",
-                portions: 2,
-                tags: [],
-              }),
-            }],
-            role: "model",
+        id: "chatcmpl-test",
+        object: "chat.completion",
+        model: "gpt-4.1",
+        choices: [{
+          index: 0,
+          message: {
+            role: "assistant",
+            content: JSON.stringify({
+              schemaVersion: "1.0",
+              suggestedName: "Peanut Rice Bowl",
+              measurementSystem: "imperial",
+              language: "en",
+              ingredients: [
+                { name: "peanut", quantity: 1, unit: "cup" },
+                { name: "rice", quantity: 2, unit: "cups" },
+              ],
+              steps: [
+                {
+                  order: 1,
+                  instruction: "Toast peanuts and cook rice.",
+                  ingredientsUsed: ["peanut", "rice"],
+                },
+              ],
+              totalTime: 25,
+              difficulty: "easy",
+              portions: 2,
+              tags: [],
+            }),
           },
-          finishReason: "STOP",
+          finish_reason: "stop",
         }],
-        usageMetadata: {
-          promptTokenCount: 12,
-          candidatesTokenCount: 24,
-          totalTokenCount: 36,
+        usage: {
+          prompt_tokens: 12,
+          completion_tokens: 24,
+          total_tokens: 36,
         },
-        modelVersion: "gemini-3-flash-preview",
       }),
       {
         status: 200,
@@ -681,17 +688,17 @@ Deno.test("generateCustomRecipe proceeds with allergen warning when allergen det
       }),
     );
 
-    // Verify the request went to Gemini
-    assertStringIncludes(capturedUrl ?? "", "gemini-2.5-flash");
+    // Verify the request went to OpenAI (recipe_generation defaults to gpt-4.1)
+    assertStringIncludes(capturedUrl ?? "", "api.openai.com");
     assertEquals(result.recipe.suggestedName, "Peanut Rice Bowl");
     assertStringIncludes(result.safetyFlags?.allergenWarning ?? "", "Contains");
     assertEquals(result.safetyFlags?.error, undefined);
   } finally {
     globalThis.fetch = originalFetch;
-    if (previousGoogleKey === undefined) {
-      Deno.env.delete("GEMINI_API_KEY");
+    if (previousOpenAIKey === undefined) {
+      Deno.env.delete("OPENAI_API_KEY");
     } else {
-      Deno.env.set("GEMINI_API_KEY", previousGoogleKey);
+      Deno.env.set("OPENAI_API_KEY", previousOpenAIKey);
     }
     resetSharedCaches();
   }
@@ -914,7 +921,7 @@ Deno.test("validateThermomixSteps normalizes special speeds to title case", () =
   assertEquals(result[3].thermomixSpeed, "Reverse");
 });
 
-Deno.test("validateThermomixSteps removes invalid speeds", () => {
+Deno.test("validateThermomixSteps removes invalid speeds and fills via pair completion", () => {
   const steps = [
     {
       order: 1,
@@ -940,9 +947,10 @@ Deno.test("validateThermomixSteps removes invalid speeds", () => {
   ];
 
   const result = validateThermomixSteps(steps);
-  assertEquals(result[0].thermomixSpeed, undefined);
-  assertEquals(result[1].thermomixSpeed, undefined);
-  assertEquals(result[2].thermomixSpeed, undefined);
+  // Invalid speeds are removed, then pair completion fills "1" because time is still set
+  assertEquals(result[0].thermomixSpeed, "1");
+  assertEquals(result[1].thermomixSpeed, "1");
+  assertEquals(result[2].thermomixSpeed, "1");
 });
 
 Deno.test("validateThermomixSteps accepts valid temperatures", () => {
@@ -977,9 +985,27 @@ Deno.test("validateThermomixSteps accepts valid temperatures", () => {
 
 Deno.test("validateThermomixSteps removes invalid temperatures", () => {
   const steps = [
-    { order: 1, instruction: "Heat", thermomixTemp: "hot", thermomixTime: 30 },
-    { order: 2, instruction: "Cook", thermomixTemp: "100", thermomixTime: 30 }, // Missing unit
-    { order: 3, instruction: "Warm", thermomixTemp: "50F", thermomixTime: 30 }, // Wrong format (no °)
+    {
+      order: 1,
+      instruction: "Heat",
+      thermomixTemp: "hot",
+      thermomixTime: 30,
+      thermomixSpeed: "1",
+    },
+    {
+      order: 2,
+      instruction: "Cook",
+      thermomixTemp: "100",
+      thermomixTime: 30,
+      thermomixSpeed: "1",
+    }, // Missing unit
+    {
+      order: 3,
+      instruction: "Warm",
+      thermomixTemp: "50F",
+      thermomixTime: 30,
+      thermomixSpeed: "1",
+    }, // Wrong format (no °)
   ];
 
   const result = validateThermomixSteps(steps);
@@ -988,7 +1014,7 @@ Deno.test("validateThermomixSteps removes invalid temperatures", () => {
   assertEquals(result[2].thermomixTemp, undefined);
 });
 
-Deno.test("validateThermomixSteps removes invalid times", () => {
+Deno.test("validateThermomixSteps removes invalid times and fills via pair completion", () => {
   const steps = [
     { order: 1, instruction: "Mix", thermomixTime: 0, thermomixSpeed: "5" },
     { order: 2, instruction: "Blend", thermomixTime: -10, thermomixSpeed: "5" },
@@ -996,9 +1022,10 @@ Deno.test("validateThermomixSteps removes invalid times", () => {
   ];
 
   const result = validateThermomixSteps(steps);
-  assertEquals(result[0].thermomixTime, undefined);
-  assertEquals(result[1].thermomixTime, undefined);
-  assertEquals(result[2].thermomixTime, undefined);
+  // Invalid times are removed, then pair completion fills 60 because speed is still set
+  assertEquals(result[0].thermomixTime, 60);
+  assertEquals(result[1].thermomixTime, 60);
+  assertEquals(result[2].thermomixTime, 60);
 });
 
 Deno.test("validateThermomixSteps preserves valid times", () => {
@@ -1040,7 +1067,66 @@ Deno.test("validateThermomixSteps handles mixed valid and invalid params", () =>
   const result = validateThermomixSteps(steps);
   assertEquals(result[0].thermomixTime, 30);
   assertEquals(result[0].thermomixTemp, "100°C");
+  // Invalid speed removed, then pair completion fills "1" because time is set
+  assertEquals(result[0].thermomixSpeed, "1");
+});
+
+// ============================================================
+// Pair Completion Tests
+// ============================================================
+
+Deno.test("validateThermomixSteps pair completion: time only fills speed to 1", () => {
+  const steps = [
+    {
+      order: 1,
+      instruction: "Warm milk",
+      thermomixTime: 120,
+      thermomixTemp: "50°C",
+    },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixTime, 120);
+  assertEquals(result[0].thermomixSpeed, "1");
+  assertEquals(result[0].thermomixTemp, "50°C");
+});
+
+Deno.test("validateThermomixSteps pair completion: speed only fills time to 60", () => {
+  const steps = [
+    { order: 1, instruction: "Chop carrots", thermomixSpeed: "5" },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixSpeed, "5");
+  assertEquals(result[0].thermomixTime, 60);
+});
+
+Deno.test("validateThermomixSteps pair completion: time + speed set, temp null stays null", () => {
+  const steps = [
+    {
+      order: 1,
+      instruction: "Chop",
+      thermomixTime: 10,
+      thermomixSpeed: "5",
+      thermomixTemp: null,
+    },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixTime, 10);
+  assertEquals(result[0].thermomixSpeed, "5");
+  assertEquals(result[0].thermomixTemp, null);
+});
+
+Deno.test("validateThermomixSteps pair completion: no params means no fill", () => {
+  const steps = [
+    { order: 1, instruction: "Plate and serve" },
+  ];
+
+  const result = validateThermomixSteps(steps);
+  assertEquals(result[0].thermomixTime, undefined);
   assertEquals(result[0].thermomixSpeed, undefined);
+  assertEquals(result[0].thermomixTemp, undefined);
 });
 
 Deno.test("validateThermomixSteps preserves composite 'Reverse 1' speed", () => {

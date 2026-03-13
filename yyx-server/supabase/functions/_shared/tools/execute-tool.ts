@@ -7,7 +7,10 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { UserContext } from "../irmixy-schemas.ts";
-import { PartialRecipeCallback } from "./generate-custom-recipe.ts";
+import {
+  AIUsageLogContext,
+  PartialRecipeCallback,
+} from "./generate-custom-recipe.ts";
 import { getToolRegistration } from "./tool-registry.ts";
 import { ToolValidationError } from "./tool-validators.ts";
 import type { CostContext } from "../ai-gateway/types.ts";
@@ -29,6 +32,7 @@ export async function executeTool(
   userContext: UserContext,
   executionOptions?: {
     onPartialRecipe?: PartialRecipeCallback;
+    usageContext?: AIUsageLogContext;
     costContext?: CostContext;
   },
 ): Promise<unknown> {
@@ -48,6 +52,7 @@ export async function executeTool(
     supabase,
     userContext,
     onPartialRecipe: executionOptions?.onPartialRecipe,
+    usageContext: executionOptions?.usageContext,
     costContext: executionOptions?.costContext,
   });
 }

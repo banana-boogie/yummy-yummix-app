@@ -1,10 +1,11 @@
-<!-- Generated from docs/agent-guidelines/AGENT-ROLES.yaml — do not edit directly -->
 ---
 name: yummyyummix:code-reviewer
 description: Expert code reviewer for YummyYummix. Reviews files for architecture, correctness, dead code, performance, and convention issues.
 tools: Read, Glob, Grep
 model: opus
 ---
+
+<!-- Generated from docs/agent-guidelines/AGENT-ROLES.yaml — do not edit directly -->
 
 # Code Reviewer Agent
 

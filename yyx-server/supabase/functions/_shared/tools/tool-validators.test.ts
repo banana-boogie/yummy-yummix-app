@@ -7,6 +7,7 @@ import {
   sanitizeString,
   ToolValidationError,
   validateEnum,
+  validateGenerateRecipeParams,
   validateRetrieveCookedRecipesParams,
   validateSearchRecipesParams,
   validateUUID,
@@ -298,4 +299,37 @@ Deno.test("validateRetrieveCookedRecipesParams rejects invalid JSON", () => {
     ToolValidationError,
     "Invalid JSON",
   );
+});
+
+// ============================================================
+// validateGenerateRecipeParams — portions Tests
+// ============================================================
+
+Deno.test("validateGenerateRecipeParams accepts valid portions", () => {
+  const result = validateGenerateRecipeParams({
+    ingredients: ["chicken"],
+    portions: 6,
+  });
+  assertEquals(result.portions, 6);
+});
+
+Deno.test("validateGenerateRecipeParams clamps portions to valid range", () => {
+  const tooLow = validateGenerateRecipeParams({
+    ingredients: ["chicken"],
+    portions: -2,
+  });
+  assertEquals(tooLow.portions, 1);
+
+  const tooHigh = validateGenerateRecipeParams({
+    ingredients: ["chicken"],
+    portions: 100,
+  });
+  assertEquals(tooHigh.portions, 50);
+});
+
+Deno.test("validateGenerateRecipeParams passes through undefined portions", () => {
+  const result = validateGenerateRecipeParams({
+    ingredients: ["chicken"],
+  });
+  assertEquals(result.portions, undefined);
 });

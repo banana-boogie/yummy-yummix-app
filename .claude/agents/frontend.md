@@ -1,10 +1,11 @@
-<!-- Generated from docs/agent-guidelines/AGENT-ROLES.yaml — do not edit directly -->
 ---
 name: yummyyummix:frontend
 description: Frontend engineer for YummyYummix. Builds React Native (Expo) screens, components, services, hooks, and UI features with NativeWind styling.
 tools: Read, Glob, Grep, Edit, Write, Bash
 model: opus
 ---
+
+<!-- Generated from docs/agent-guidelines/AGENT-ROLES.yaml — do not edit directly -->
 
 # Frontend Engineer Agent
 

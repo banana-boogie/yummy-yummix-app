@@ -19,11 +19,13 @@ import {
 import {
   checkIngredientForAllergens,
   getAllergenWarning,
+  loadAllergenGroups,
 } from "../allergen-filter.ts";
 import { buildSafetyReminders, checkRecipeSafety } from "../food-safety.ts";
 import { chat } from "../ai-gateway/index.ts";
 import type { CostContext } from "../ai-gateway/types.ts";
-import { hasThermomix } from "../equipment-utils.ts";
+import { hasAirFryer, hasThermomix } from "../equipment-utils.ts";
+import { logAIUsage } from "../usage-logger.ts";
 
 // ============================================================
 // Tool Definition (OpenAI Function Calling format)
@@ -70,6 +72,13 @@ export const generateCustomRecipeTool = {
           enum: ["easy", "medium", "hard"],
           description: "Desired difficulty level",
         },
+        portions: {
+          type: "integer",
+          description:
+            "Number of portions/servings. Infer from conversation (e.g. 'for 2', 'family dinner'). Omit to use user's default.",
+          minimum: 1,
+          maximum: 50,
+        },
         additionalRequests: {
           type: "string",
           description:
@@ -96,6 +105,13 @@ export interface GenerateRecipeResult {
   safetyFlags?: SafetyFlags;
 }
 
+export interface AIUsageLogContext {
+  userId: string;
+  requestId: string;
+  sessionId?: string;
+  functionName: string;
+}
+
 /**
  * Callback for two-phase SSE: called with partial recipe before enrichment.
  * This allows the UI to display the recipe immediately while enrichment happens.
@@ -115,6 +131,7 @@ export async function generateCustomRecipe(
   rawParams: unknown,
   userContext: UserContext,
   onPartialRecipe?: PartialRecipeCallback,
+  usageContext?: AIUsageLogContext,
   costContext?: CostContext,
 ): Promise<GenerateRecipeResult> {
   // Timing instrumentation for performance monitoring
@@ -126,22 +143,32 @@ export async function generateCustomRecipe(
   const params = validateGenerateRecipeParams(rawParams);
   let allergenWarning: string | undefined;
 
-  // Run allergen check and safety reminders in parallel
-  const [allergenCheck, safetyReminders] = await Promise.all([
-    checkIngredientsForAllergens(
-      supabase,
-      params.ingredients,
-      userContext.dietaryRestrictions,
-      userContext.customAllergies,
-      userContext.language,
-    ),
-    buildSafetyReminders(
-      supabase,
-      params.ingredients,
-      userContext.measurementSystem,
-      userContext.language,
-    ),
-  ]);
+  // Run allergen check, allergen prompt section, and safety reminders in parallel
+  const allRestrictions = [
+    ...userContext.dietaryRestrictions,
+    ...userContext.customAllergies,
+  ];
+  const [allergenCheck, allergenPromptSection, safetyReminders] = await Promise
+    .all([
+      checkIngredientsForAllergens(
+        supabase,
+        params.ingredients,
+        userContext.dietaryRestrictions,
+        userContext.customAllergies,
+        userContext.language,
+      ),
+      buildAllergenPromptSection(
+        supabase,
+        allRestrictions,
+        userContext.language,
+      ),
+      buildSafetyReminders(
+        supabase,
+        params.ingredients,
+        userContext.measurementSystem,
+        userContext.language,
+      ),
+    ]);
   timings.allergen_and_safety_ms = Math.round(performance.now() - phaseStart);
   phaseStart = performance.now();
 
@@ -163,7 +190,11 @@ export async function generateCustomRecipe(
     params,
     userContext,
     safetyReminders,
-    allergenWarning ? { allergenWarning } : undefined,
+    {
+      usageContext,
+      allergenWarning: allergenWarning || undefined,
+      allergenPromptSection: allergenPromptSection || undefined,
+    },
     costContext,
   );
   timings.recipe_llm_ms = Math.round(performance.now() - phaseStart);
@@ -177,6 +208,29 @@ export async function generateCustomRecipe(
   validateThermomixUsage(recipe, isThermomixUser);
   timings.thermomix_validation_ms = Math.round(performance.now() - phaseStart);
   phaseStart = performance.now();
+
+  // Post-generation allergen scan on AI-generated ingredients (safety net)
+  if (allRestrictions.length > 0) {
+    const generatedIngredientNames = recipe.ingredients.map((i) => i.name);
+    const postGenAllergenCheck = await checkIngredientsForAllergens(
+      supabase,
+      generatedIngredientNames,
+      userContext.dietaryRestrictions,
+      userContext.customAllergies,
+      userContext.language,
+    );
+    if (!postGenAllergenCheck.safe && postGenAllergenCheck.warning) {
+      console.warn(
+        "[GenerateRecipe] Post-gen allergen scan caught unsafe ingredient",
+        { warning: postGenAllergenCheck.warning },
+      );
+      allergenWarning = allergenWarning
+        ? `${allergenWarning} ${postGenAllergenCheck.warning}`
+        : postGenAllergenCheck.warning;
+    }
+    timings.postgen_allergen_ms = Math.round(performance.now() - phaseStart);
+    phaseStart = performance.now();
+  }
 
   // Two-phase SSE: emit partial recipe before enrichment for perceived latency reduction
   // The frontend can start rendering the recipe card immediately
@@ -260,6 +314,14 @@ export function buildRecipeJsonSchema(
     stepRequired.push("thermomixTime", "thermomixTemp", "thermomixSpeed");
   }
 
+  // Tips field — always included regardless of equipment
+  stepProperties.tip = {
+    type: ["string", "null"],
+    description:
+      "Optional practical cooking tip for this step. Short, actionable advice: technique, timing, doneness cues, substitutions, or equipment tips. 1-2 sentences max. Null for straightforward steps.",
+  };
+  stepRequired.push("tip");
+
   return {
     type: "object",
     properties: {
@@ -294,6 +356,18 @@ export function buildRecipeJsonSchema(
       difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
       portions: { type: "integer" },
       tags: { type: "array", items: { type: "string" } },
+      usefulItems: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            notes: { type: ["string", "null"] },
+          },
+          required: ["name", "notes"],
+          additionalProperties: false,
+        },
+      },
     },
     required: [
       "schemaVersion",
@@ -307,6 +381,7 @@ export function buildRecipeJsonSchema(
       "difficulty",
       "portions",
       "tags",
+      "usefulItems",
     ],
     additionalProperties: false,
   };
@@ -323,10 +398,12 @@ async function callRecipeGenerationAI(
   safetyReminders: string,
   options?: {
     allergenWarning?: string;
+    usageContext?: AIUsageLogContext;
+    allergenPromptSection?: string;
   },
   costContext?: CostContext,
 ): Promise<GeneratedRecipe> {
-  const prompt = buildRecipePrompt(
+  const prompt = buildRecipeGenerationPrompt(
     params,
     userContext,
     safetyReminders,
@@ -334,39 +411,94 @@ async function callRecipeGenerationAI(
   );
   const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
   const recipeSchema = buildRecipeJsonSchema(isThermomixUser);
-  const systemPrompt = getSystemPrompt(userContext);
+  let systemPrompt = getSystemPrompt(userContext);
+
+  // Append allergen ingredient list if available
+  if (options?.allergenPromptSection) {
+    systemPrompt += options.allergenPromptSection;
+  }
 
   const strictRetryPromptSuffix =
     "\n\nCRITICAL: Return ONLY raw JSON. No markdown, no code fences, no explanation text.";
 
   let lastError: Error | null = null;
 
+  const usageContext = options?.usageContext;
+
+  /** Fire-and-forget usage log for recipe generation attempts. */
+  function fireRecipeUsageLog(
+    attemptIndex: number,
+    status: "success" | "error",
+    startTime: number,
+    response?: {
+      model: string;
+      usage: { inputTokens: number; outputTokens: number };
+    },
+  ) {
+    if (!usageContext) return;
+    void logAIUsage({
+      userId: usageContext.userId,
+      sessionId: usageContext.sessionId,
+      requestId: usageContext.requestId,
+      callPhase: "recipe_generation",
+      attempt: attemptIndex,
+      status,
+      functionName: usageContext.functionName,
+      usageType: "recipe_generation",
+      model: response?.model ?? null,
+      inputTokens: response?.usage.inputTokens ?? null,
+      outputTokens: response?.usage.outputTokens ?? null,
+      durationMs: Math.round(performance.now() - startTime),
+      metadata: {
+        streaming: false,
+        request_type: "recipe_generation",
+        source: "generate_custom_recipe",
+      },
+    });
+  }
+
   for (let attempt = 0; attempt < 2; attempt++) {
     const isRetry = attempt === 1;
-    const response = await chat({
-      usageType: "recipe_generation",
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: isRetry ? prompt + strictRetryPromptSuffix : prompt,
-        },
-      ],
-      temperature: 0.7,
-      maxTokens: 6144,
-      responseFormat: {
-        type: "json_schema",
-        schema: recipeSchema,
-      },
-      costContext,
-    });
+    const llmStart = performance.now();
+    let response: {
+      content: string;
+      model: string;
+      usage: { inputTokens: number; outputTokens: number };
+    };
 
     try {
-      return parseAndValidateGeneratedRecipe(response.content);
+      response = await chat({
+        usageType: "recipe_generation",
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: isRetry ? prompt + strictRetryPromptSuffix : prompt,
+          },
+        ],
+        temperature: 0.7,
+        maxTokens: 6144,
+        responseFormat: {
+          type: "json_schema",
+          schema: recipeSchema,
+        },
+        costContext,
+      });
+    } catch (error) {
+      fireRecipeUsageLog(attempt, "error", llmStart);
+      throw error;
+    }
+
+    try {
+      const parsedRecipe = parseAndValidateGeneratedRecipe(response.content);
+      fireRecipeUsageLog(attempt, "success", llmStart, response);
+      return parsedRecipe;
     } catch (error) {
       lastError = error instanceof Error
         ? error
         : new Error("Recipe parsing failed");
+      fireRecipeUsageLog(attempt, "error", llmStart, response);
+
       if (!isRetry) {
         console.warn(
           "[Recipe Generation] First parse/validation attempt failed, retrying once",
@@ -416,6 +548,40 @@ export function parseAndValidateGeneratedRecipe(
 }
 
 /**
+ * Build a prompt section listing specific allergen ingredients the AI must avoid.
+ * Uses the same allergen_groups DB table as the runtime checker — single source of truth.
+ */
+export async function buildAllergenPromptSection(
+  supabase: SupabaseClient,
+  restrictions: string[],
+  language: "en" | "es",
+): Promise<string> {
+  if (restrictions.length === 0) return "";
+
+  const allergens = await loadAllergenGroups(supabase); // cached, zero-cost after first call
+  const sections: string[] = [];
+
+  for (const restriction of restrictions) {
+    const entries = allergens.filter((a) => a.category === restriction);
+    if (entries.length === 0) continue;
+
+    const names = entries.map((e) => language === "es" ? e.name_es : e.name_en);
+    const header = language === "es"
+      ? `**${restriction}**: NUNCA uses estos ingredientes:`
+      : `**${restriction}**: NEVER use these ingredients:`;
+    sections.push(`${header}\n${names.join(", ")}`);
+  }
+
+  if (sections.length === 0) return "";
+
+  const title = language === "es"
+    ? "## RESTRICCIONES DE ALERGENOS — PROHIBIDO usar estos ingredientes"
+    : "## ALLERGEN RESTRICTIONS — NEVER use these ingredients";
+
+  return `\n\n${title}\n\n${sections.join("\n\n")}`;
+}
+
+/**
  * Build the system prompt for recipe generation.
  */
 export function getSystemPrompt(userContext: UserContext): string {
@@ -425,15 +591,14 @@ export function getSystemPrompt(userContext: UserContext): string {
     : "ml, liters, grams, kg, °C";
 
   const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
+  const isAirFryerUser = hasAirFryer(userContext.kitchenEquipment);
 
-  console.log("[Recipe Generation] Equipment check:", {
-    kitchenEquipment: userContext.kitchenEquipment,
-    hasThermomix: isThermomixUser,
-  });
-
-  if (!isThermomixUser && userContext.kitchenEquipment.length > 0) {
+  if (
+    !isThermomixUser && !isAirFryerUser &&
+    userContext.kitchenEquipment.length > 0
+  ) {
     console.warn(
-      "[Recipe Generation] User has equipment but no Thermomix:",
+      "[Recipe Generation] User has equipment but no Thermomix or Air Fryer:",
       userContext.kitchenEquipment,
     );
   }
@@ -441,24 +606,120 @@ export function getSystemPrompt(userContext: UserContext): string {
   const thermomixSection = isThermomixUser
     ? `
 
-## THERMOMIX USAGE (User owns Thermomix - maximize usage!)
+## THERMOMIX USAGE (User owns Thermomix — you are an expert Thermomix cook)
 
-For each applicable step, include: thermomixTime (seconds), thermomixTemp ("37°C"-"120°C" or "Varoma"), thermomixSpeed ("1"-"10", "Spoon", "Reverse", or "Reverse 1"-"Reverse 10")
+Choose optimal time, speed, and temperature for each step based on the technique.
 
-Use Thermomix for: chopping (speed 5-7), sautéing (100°C, "Reverse 1"), cooking/boiling (temp+speed), blending (speed 8-10), steaming (Varoma)
-Skip Thermomix for: plating, garnishing, oven/grill tasks, manual shaping
-Temperature guidance: low (37-60°C for melting/gentle warming), medium (70-100°C for simmering/cooking), high (100-120°C for sautéing/reduction), Varoma (~120°C for steaming)
+PARAMETERS:
+- **thermomixTime** (seconds) and **thermomixSpeed** ("1"-"10", "Spoon", or "Reverse") are a REQUIRED PAIR — if you set one, you MUST set both.
+- **thermomixTemp** ("37°C"-"120°C" or "Varoma") is OPTIONAL — only when the step needs heat. Null = no heat (chopping, blending, kneading).
 
-Example step with Thermomix: {"order": 2, "instruction": "Sauté onions", "ingredientsUsed": ["onion"], "thermomixTime": 180, "thermomixTemp": "100°C", "thermomixSpeed": "1"}`
+SPEED GUIDE:
+- Spoon/1-2: Gentle stirring, simmering, slow cooking (cooking speeds)
+- 3-5: Mixing, rough chopping
+- 5-7: Fine chopping, sauces
+- 7-10: Pureeing, grinding, blending, smoothies
+- REVERSE: Use when cooking ingredients that must stay intact (stews, sautéing, pasta). Blunt edge stirs without cutting. Combine with Spoon/1-2.
+
+TEMPERATURE GUIDE:
+- 37-50°C: Melting chocolate/butter, warming
+- 60-90°C: Simmering sauces, custards, béchamel
+- 90-100°C: Boiling, cooking rice/pasta, soups, stews
+- 100-120°C: Sautéing, caramelizing, browning
+- Varoma: Steam cooking (needs 500ml+ water in bowl, speed 2)
+
+CRITICAL RULES:
+- Above 60°C: max speed 6. Never use high speeds with hot food.
+- Chopping is SECONDS (3-10 sec), not minutes. Start short, check.
+- Sautéing always uses Reverse (e.g. 120°C / Reverse / Speed 1 / 5-10 min).
+
+Skip Thermomix for: plating, garnishing, oven/grill tasks, manual shaping — leave all three params null.
+
+PHYSICAL CONSTRAINTS (TM6 bowl = 2.2 liters):
+- Total volume of ingredients + liquid must not exceed 2.2L. For hot foods (soups, stews), keep under 1.8L.
+- Dough: max 500g flour per batch.
+- Browning/searing: 100-250g per batch. Multiple batches for larger quantities.
+- Slow cooking meat: max 800g per batch.
+- Above 95°C: replace measuring cup with simmering basket.
+- Speed 7+: measuring cup MUST be in place.
+- Butterfly whisk: max speed 4.
+- If the recipe exceeds bowl capacity, instruct to cook in batches and note it in a tip.
+
+Examples:
+- Sauté: {"order": 2, "instruction": "Sauté onions", "ingredientsUsed": ["onion"], "thermomixTime": 300, "thermomixTemp": "100°C", "thermomixSpeed": "Reverse", "tip": "The onion is ready when translucent, about 3-4 minutes."}
+- Chop: {"order": 1, "instruction": "Chop vegetables", "ingredientsUsed": ["carrot"], "thermomixTime": 5, "thermomixTemp": null, "thermomixSpeed": "5", "tip": "Start with 3-second pulses and check — you can always chop more."}
+- Steam: {"order": 3, "instruction": "Steam vegetables in Varoma", "ingredientsUsed": ["broccoli", "zucchini"], "thermomixTime": 1200, "thermomixTemp": "Varoma", "thermomixSpeed": "2", "tip": null}
+- Non-Thermomix: {"order": 5, "instruction": "Plate and garnish", "ingredientsUsed": ["parsley"], "thermomixTime": null, "thermomixTemp": null, "thermomixSpeed": null, "tip": null}`
     : "";
 
-  return `Professional recipe creator. Output in ${lang}, ${userContext.measurementSystem} units (${units}).
+  const airFryerSection = isAirFryerUser
+    ? `
 
-RULES: Use practical quantities (1/3 cup not 0.333). Include meat cooking temps. Name recipes naturally without dietary labels (GOOD: "Chicken Ramen", BAD: "Sugar-Free Ramen"). Preferences guide creativity; ingredient dislikes are strict. Avoid allergen ingredients by default.
+## AIR FRYER USAGE (User owns Air Fryer — suggest it when it's the best tool for the job)
+
+Use the Air Fryer for steps where it produces better results than conventional methods: crisping, roasting, reheating, and quick baking. Include Air Fryer temperature and time in the step instruction text.
+
+BEST USES:
+- Crisping/browning: proteins (chicken wings, fish fillets, chicken thighs), vegetables (broccoli, Brussels sprouts, cauliflower), breaded items
+- Quick roasting: root vegetables, peppers, garlic
+- Frozen foods: cook directly from frozen — nuggets, fries, breaded items (no thawing needed)
+- Reheating: leftovers come out crispy, not soggy
+- Baking small items: individual portions, small cakes
+- Tofu: crispy exterior without pan-sticking
+
+MEXICAN KITCHEN FAVORITES:
+- Tostadas: lightly oil corn tortillas, air fry at 190°C for 4-5 minutes until crisp
+- Tortilla chips: cut tortillas into triangles, light oil, 180°C for 5-7 minutes
+- Empanadas: 190°C for 10-12 minutes until golden — crispy without deep frying
+- Chimichangas: 200°C for 8-10 minutes, flipping halfway
+- Churros: pipe and chill dough, air fry at 190°C for 8-10 minutes, coat in cinnamon sugar after
+- Chiles rellenos (breaded): 180°C for 10-12 minutes — use dry breadcrumb coating, not wet batter
+- Quesadillas: 190°C for 5-6 minutes for extra-crispy tortilla
+
+TEMPERATURE GUIDE:
+- 150-160°C (300-320°F): Delicate items, reheating, dehydrating
+- 170-180°C (340-360°F): Chicken pieces, fish, roasted vegetables
+- 190-200°C (375-400°F): Crispy items, fries, wings, empanadas, tostadas
+- 200-220°C (400-430°F): Quick searing, very crispy finishes (short time only)
+
+KEY RULES:
+- Preheat 3-5 minutes for crispy results on proteins, vegetables, and reheating. Skip preheating for thick raw meats and baked goods — they cook better starting cold.
+- Don't overcrowd the basket — air needs to circulate. For large batches, cook in rounds.
+- Shake or flip halfway through for even cooking.
+- Pat proteins and vegetables dry before cooking — moisture prevents crispiness.
+- A light brush or mist of high smoke point oil (avocado, sunflower) improves crispiness. Avoid aerosol cooking sprays which damage nonstick coatings.
+- Loose dry seasonings blow off in the airflow — use oil to help them stick, or season after cooking.
+- Always verify meat reaches safe internal temperature (poultry: 74°C/165°F, beef/pork/fish: 63°C/145°F).
+- Include temperature and time in the step instruction (e.g., "Air fry at 200°C for 12-15 minutes, shaking halfway").
+
+WHEN NOT TO USE:
+- Soups, stews, sauces, or anything liquid-based
+- Large roasts or whole chickens that don't fit properly
+- Wet batters (beer batter, tempura) — they drip through the basket. Use dry breadcrumb coatings instead.
+- Loose leafy greens (they blow around and burn)
+- Raw rice, pasta, or grains (need water immersion)
+- When Thermomix or stovetop gives better results for that specific step
+
+Example: {"order": 3, "instruction": "Place the chicken thighs in the air fryer basket in a single layer. Air fry at 190°C for 18-20 minutes, flipping halfway, until golden and cooked through.", "ingredientsUsed": ["chicken thighs"]}`
+    : "";
+
+  return `Expert cook and recipe writer. Output in ${lang}, ${userContext.measurementSystem} units (${units}).
+
+RULES: Use practical quantities (e.g. 1/3 not 0.333, round to common fractions). Name recipes naturally without dietary labels (GOOD: "Chicken Ramen", BAD: "Sugar-Free Ramen"). Preferences guide creativity; ingredient dislikes are strict. Avoid allergen ingredients by default.
 ${thermomixSection}
+${airFryerSection}
 
-OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Use this structure:
-{"schemaVersion":"1.0","suggestedName":"...","description":"A brief 1-2 sentence description of the dish","measurementSystem":"${userContext.measurementSystem}","language":"${userContext.language}","ingredients":[{"name":"...","quantity":1,"unit":"..."}],"steps":[{"order":1,"instruction":"...","ingredientsUsed":["..."]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":[]}`;
+## TIPS
+Add a practical tip to steps where it genuinely helps. Good tips:
+- Technique advice ("Chop while the Thermomix sautés to save time")
+- Doneness cues ("The onion is ready when translucent, ~3-4 minutes")
+- Make-ahead suggestions ("This sauce freezes well for up to 3 months")
+- Equipment tips ("Use butterfly whisk for lighter textures")
+- Substitution ideas ("No crema? Use Greek yogurt")
+Keep tips short (1-2 sentences). Not every step needs a tip — only where it adds value. Set to null for simple steps.
+
+OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Include "usefulItems" — kitchen tools and accessories that would be helpful for this recipe. Not just required tools, but things that make the cooking experience easier — like a waste bowl for peels and trimmings. Think like a seasoned home cook setting up their station. Use this structure:
+{"schemaVersion":"1.0","suggestedName":"...","description":"A brief 1-2 sentence description of the dish","measurementSystem":"${userContext.measurementSystem}","language":"${userContext.language}","ingredients":[{"name":"...","quantity":1,"unit":"..."}],"steps":[{"order":1,"instruction":"...","ingredientsUsed":["..."]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":[],"usefulItems":[{"name":"...","notes":"..."}]}`;
 }
 
 /**
@@ -470,7 +731,7 @@ OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "i
  * 3. MEDIUM CONSTRAINTS: Diet types affect ingredient selection (vegan, keto, etc.)
  * 4. SOFT PREFERENCES: Cuisine preferences are inspirational only (not every recipe needs to match)
  */
-function buildRecipePrompt(
+function buildRecipeGenerationPrompt(
   params: GenerateRecipeParams,
   userContext: UserContext,
   safetyReminders: string,
@@ -491,6 +752,10 @@ function buildRecipePrompt(
       }`,
     );
   }
+
+  // Portions — explicit param > user default > fallback
+  const portions = params.portions ?? userContext.householdSize ?? 4;
+  parts.push(`Portions: ${portions}.`);
 
   // Time constraint
   if (params.targetTime) {
@@ -545,17 +810,22 @@ function buildRecipePrompt(
     }
   }
 
+  // === EQUIPMENT (use where appropriate in the recipe) ===
+  if (params.useful_items && params.useful_items.length > 0) {
+    parts.push("\n🍳 EQUIPMENT for this recipe:");
+    parts.push(
+      `Use these where they fit best: ${params.useful_items.join(", ")}`,
+    );
+  } else if (userContext.kitchenEquipment.length > 0) {
+    parts.push("\n🍳 AVAILABLE EQUIPMENT:");
+    parts.push(
+      `User has: ${
+        userContext.kitchenEquipment.join(", ")
+      }. Use where appropriate for the best result.`,
+    );
+  }
+
   // === SOFT PREFERENCES (consider but don't force) ===
-  const preferences: string[] = [];
-
-  if (userContext.skillLevel) {
-    preferences.push(`Skill level: ${userContext.skillLevel}`);
-  }
-
-  if (userContext.householdSize) {
-    preferences.push(`Default portions: ${userContext.householdSize}`);
-  }
-
   // Cuisine preferences are SOFT/INSPIRATIONAL - they should NOT dominate every recipe
   // Only mention them if no explicit cuisine was requested, and frame them as hints
   if (
@@ -566,30 +836,14 @@ function buildRecipePrompt(
       c && c.trim()
     );
     if (validCuisines.length > 0) {
-      // Frame as very soft inspiration - the AI should feel free to ignore
-      preferences.push(
+      parts.push("\n📝 Soft preferences (consider but be creative):");
+      parts.push(
         `Cuisine inspiration (OPTIONAL, vary styles): User enjoys ${
           validCuisines.join(", ")
         } cooking. ` +
           `Feel free to explore other cuisines that suit the ingredients - variety is welcome!`,
       );
     }
-  }
-
-  // Equipment: prioritize useful_items over general equipment
-  if (params.useful_items && params.useful_items.length > 0) {
-    preferences.push(
-      `PRIORITY EQUIPMENT for this recipe: ${params.useful_items.join(", ")}`,
-    );
-  } else if (userContext.kitchenEquipment.length > 0) {
-    preferences.push(
-      `Available equipment: ${userContext.kitchenEquipment.join(", ")}`,
-    );
-  }
-
-  if (preferences.length > 0) {
-    parts.push("\n📝 Soft preferences (consider but be creative):");
-    parts.push(preferences.join("\n"));
   }
 
   // Safety reminders
@@ -1011,6 +1265,7 @@ export function validateThermomixSteps(
     thermomixTime?: number | null;
     thermomixTemp?: string | null;
     thermomixSpeed?: string | null;
+    tip?: string | null;
   }>,
 ): Array<{
   order: number;
@@ -1018,6 +1273,7 @@ export function validateThermomixSteps(
   thermomixTime?: number | null;
   thermomixTemp?: string | null;
   thermomixSpeed?: string | null;
+  tip?: string | null;
 }> {
   return steps.map((step) => {
     // Skip if no Thermomix params (check for both null and undefined)
@@ -1069,26 +1325,21 @@ export function validateThermomixSteps(
       }
     }
 
+    // Pair completion: time + speed must appear together
+    const hasTime = validated.thermomixTime != null;
+    const hasSpeed = validated.thermomixSpeed != null;
+    if (hasTime && !hasSpeed) {
+      console.warn(
+        `Step ${step.order}: thermomixTime set without thermomixSpeed. Filling speed with "1" (gentle default).`,
+      );
+      validated.thermomixSpeed = "1";
+    } else if (hasSpeed && !hasTime) {
+      console.warn(
+        `Step ${step.order}: thermomixSpeed set without thermomixTime. Filling time with 60 (safe default).`,
+      );
+      validated.thermomixTime = 60;
+    }
+
     return validated;
   });
-}
-
-/**
- * Create an empty recipe for error cases.
- */
-function createEmptyRecipe(userContext: UserContext): GeneratedRecipe {
-  return {
-    schemaVersion: "1.0",
-    suggestedName: userContext.language === "es"
-      ? "Receta no disponible"
-      : "Recipe unavailable",
-    measurementSystem: userContext.measurementSystem,
-    language: userContext.language,
-    ingredients: [],
-    steps: [],
-    totalTime: 0,
-    difficulty: "easy",
-    portions: 4,
-    tags: [],
-  };
 }

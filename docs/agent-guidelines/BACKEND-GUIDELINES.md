@@ -13,7 +13,9 @@ yyx-server/supabase/functions/
 │   │   ├── index.ts                  # Public API: chat(), chatStream(), embed()
 │   │   ├── router.ts                 # Usage-type → provider/model routing
 │   │   ├── types.ts                  # Request/response types
-│   │   └── providers/openai.ts       # OpenAI implementation
+│   │   └── providers/
+│   │       ├── openai.ts             # OpenAI implementation
+│   │       └── google.ts             # Google (Gemini) implementation
 │   ├── tools/                        # AI tool system (owned by ai-engineer)
 │   │   ├── tool-registry.ts          # Tool definitions + execute functions
 │   │   ├── execute-tool.ts           # Tool dispatch
@@ -21,7 +23,7 @@ yyx-server/supabase/functions/
 │   │   ├── shape-tool-response.ts    # Normalize results for frontend
 │   │   ├── generate-custom-recipe.ts # Recipe generation pipeline
 │   │   ├── search-recipes.ts         # Hybrid search tool
-│   │   └── retrieve-custom-recipe.ts # Past recipe retrieval
+│   │   └── retrieve-cooked-recipes.ts # Past recipe retrieval
 │   ├── rag/
 │   │   └── hybrid-search.ts          # Semantic + lexical search engine
 │   ├── auth.ts                       # Auth helpers

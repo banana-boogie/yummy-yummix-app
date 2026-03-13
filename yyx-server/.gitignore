@@ -60,3 +60,6 @@ data-pipeline/data/failed-uploads/
 .Trashes
 ehthumbs.db
 Thumbs.db backups/
+
+# Eval output
+supabase/functions/_eval/output/

@@ -26,6 +26,8 @@ import {
   callOpenAIStream,
 } from "./providers/openai.ts";
 import { callGemini, callGeminiStream } from "./providers/google.ts";
+import { callAnthropic, callAnthropicStream } from "./providers/anthropic.ts";
+import { callXAI, callXAIStream } from "./providers/xai.ts";
 
 /**
  * Fire-and-forget cost recording. Imported lazily to avoid circular deps.
@@ -80,10 +82,15 @@ export async function chat(
       break;
 
     case "anthropic":
-      throw new Error("Anthropic provider not yet implemented");
+      response = await callAnthropic(request, model, apiKey);
+      break;
 
     case "google":
       response = await callGemini(request, model, apiKey);
+      break;
+
+    case "xai":
+      response = await callXAI(request, model, apiKey);
       break;
 
     default:
@@ -91,7 +98,7 @@ export async function chat(
   }
 
   // Calculate cost
-  response.costUsd = await calculateCost(
+  response.costUsd = calculateCost(
     response.model,
     response.usage.inputTokens,
     response.usage.outputTokens,
@@ -138,10 +145,15 @@ export async function chatStream(
       break;
 
     case "anthropic":
-      throw new Error("Anthropic streaming not yet implemented");
+      providerResult = await callAnthropicStream(request, model, apiKey);
+      break;
 
     case "google":
       providerResult = await callGeminiStream(request, model, apiKey);
+      break;
+
+    case "xai":
+      providerResult = await callXAIStream(request, model, apiKey);
       break;
 
     default:
@@ -152,7 +164,7 @@ export async function chatStream(
     stream: providerResult.stream,
     usage: async () => {
       const usage = await providerResult.usage();
-      const costUsd = await calculateCost(
+      const costUsd = calculateCost(
         model,
         usage.inputTokens,
         usage.outputTokens,
@@ -222,7 +234,7 @@ export async function embed(
   }
 
   // Calculate cost (embeddings have no output tokens)
-  response.costUsd = await calculateCost(model, response.usage.inputTokens, 0);
+  response.costUsd = calculateCost(model, response.usage.inputTokens, 0);
 
   // Auto-record if cost context provided
   if (request.costContext) {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import Head from 'expo-router/head';
 import { AdminRoute } from '@/components/admin/AdminRoute';
 import { View, TouchableOpacity, ScrollView, Modal } from 'react-native';
@@ -7,7 +7,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
-import { useRouter } from 'expo-router';
 import { MaxWidthConfig } from '@/components/layouts/PageLayout';
 import i18n from '@/i18n';
 
@@ -55,6 +54,12 @@ export default function AdminLayout() {
           name="analytics"
           options={{
             title: i18n.t('admin.common.analytics')
+          }}
+        />
+        <Stack.Screen
+          name="user-recipes"
+          options={{
+            title: i18n.t('admin.userRecipes.title')
           }}
         />
       </Stack>

@@ -125,6 +125,7 @@ export interface GenerateRecipeParams {
   cuisinePreference?: string;
   targetTime?: number;
   difficulty?: "easy" | "medium" | "hard";
+  portions?: number;
   additionalRequests?: string;
   useful_items?: string[];
 }
@@ -202,6 +203,9 @@ export function validateGenerateRecipeParams(
       : undefined,
     difficulty: p.difficulty !== undefined
       ? validateEnum(p.difficulty, ["easy", "medium", "hard"] as const)
+      : undefined,
+    portions: p.portions !== undefined
+      ? clampNumber(p.portions, 1, 50)
       : undefined,
     additionalRequests: p.additionalRequests
       ? sanitizeString(p.additionalRequests, 2000)

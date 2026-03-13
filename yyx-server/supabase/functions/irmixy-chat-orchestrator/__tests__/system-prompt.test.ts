@@ -47,9 +47,11 @@ Deno.test("buildSystemPrompt includes meal context section when detected", () =>
   assertStringIncludes(prompt, "Time constraint: quick");
 });
 
-Deno.test("buildSystemPrompt includes search-first strategy in consolidated rules", () => {
+Deno.test("buildSystemPrompt includes tool rules with search-first strategy", () => {
   const prompt = buildSystemPrompt(createUserContext());
 
+  assertStringIncludes(prompt, "TOOLS");
+  assertStringIncludes(prompt, "Search first");
   assertStringIncludes(prompt, "search_recipes");
   assertStringIncludes(prompt, "generate_custom_recipe");
   assertStringIncludes(prompt, "modify_recipe");
@@ -59,62 +61,52 @@ Deno.test("buildSystemPrompt uses warm allergen language (non-blocking)", () => 
   const prompt = buildSystemPrompt(createUserContext());
 
   assertStringIncludes(prompt, "allergens briefly and warmly");
-  assertStringIncludes(prompt, "Don't block recipes or require confirmation");
+  assertStringIncludes(prompt, "Don't block recipes or ask for confirmation");
 });
 
 Deno.test("buildSystemPrompt includes scope guardrails", () => {
   const prompt = buildSystemPrompt(createUserContext({ language: "es" }));
 
-  assertStringIncludes(prompt, "cooking, recipes, ingredients");
+  assertStringIncludes(prompt, "food and cooking related");
 });
 
 Deno.test("buildSystemPrompt places personality BEFORE rules", () => {
   const prompt = buildSystemPrompt(createUserContext({ language: "en" }));
 
-  const personalityIndex = prompt.indexOf("IDENTITY & VOICE");
-  const rulesIndex = prompt.indexOf("RULES:");
+  const personalityIndex = prompt.indexOf("IDENTITY:");
+  const toolsIndex = prompt.indexOf("TOOLS");
   assertEquals(
-    personalityIndex < rulesIndex,
+    personalityIndex < toolsIndex,
     true,
-    "Personality should appear before RULES",
+    "Personality should appear before TOOLS",
   );
 });
 
 Deno.test("buildSystemPrompt includes shared personality block for EN", () => {
   const prompt = buildSystemPrompt(createUserContext({ language: "en" }));
 
-  assertStringIncludes(prompt, "IDENTITY & VOICE");
-  assertStringIncludes(prompt, "warm, fun friend");
-  assertStringIncludes(prompt, "One thought per message");
-  assertStringIncludes(prompt, "single best answer");
-  assertEquals(prompt.includes("IDENTIDAD Y VOZ"), false);
+  assertStringIncludes(prompt, "IDENTITY:");
+  assertStringIncludes(prompt, "cooking companion from YummyYummix");
+  assertStringIncludes(prompt, "make cooking feel easy, achievable, and fun");
+  assertEquals(prompt.includes("IDENTIDAD:"), false);
 });
 
 Deno.test("buildSystemPrompt includes shared personality block for ES", () => {
   const prompt = buildSystemPrompt(createUserContext({ language: "es" }));
 
-  assertStringIncludes(prompt, "IDENTIDAD Y VOZ");
-  assertStringIncludes(prompt, "amiga cálida y divertida");
-  assertStringIncludes(prompt, "vocabulario mexicano");
-  assertEquals(prompt.includes("IDENTITY & VOICE"), false);
+  assertStringIncludes(prompt, "IDENTIDAD:");
+  assertStringIncludes(prompt, "compañera de cocina de YummyYummix");
+  assertStringIncludes(prompt, "vocabulario mexicano por defecto");
+  assertEquals(prompt.includes("IDENTITY:"), false);
 });
 
-Deno.test("buildSystemPrompt includes anti-narration guardrail", () => {
-  const prompt = buildSystemPrompt(createUserContext());
-  assertStringIncludes(prompt, "never narrate tool actions");
-});
-
-Deno.test("buildSystemPrompt has consolidated brevity rule", () => {
+Deno.test("buildSystemPrompt separates communication and tool sections", () => {
   const prompt = buildSystemPrompt(createUserContext());
 
-  // No standalone sections from old prompt
-  assertEquals(prompt.includes("BREVITY GUIDELINES"), false);
-  assertEquals(prompt.includes("CRITICAL - TOOL USAGE"), false);
-  assertEquals(prompt.includes("SEARCH-FIRST STRATEGY"), false);
-  assertEquals(prompt.includes("RECIPE GENERATION FLOW"), false);
-  // Brevity is rule 2
-  assertStringIncludes(prompt, "1-3 short sentences");
-  assertStringIncludes(prompt, "No lists");
+  assertStringIncludes(prompt, "COMMUNICATION:");
+  assertStringIncludes(prompt, "TOOLS");
+  // No old monolithic RULES section (standalone header, not part of "TOOLS — CRITICAL RULES:")
+  assertEquals(prompt.includes("\nRULES:\n"), false);
 });
 
 Deno.test("buildSystemPrompt includes user context XML block", () => {
@@ -145,5 +137,5 @@ Deno.test("buildSystemPrompt routes modifications to modify_recipe", () => {
   const prompt = buildSystemPrompt(createUserContext());
 
   assertStringIncludes(prompt, "modify_recipe");
-  assertStringIncludes(prompt, "modify a recipe");
+  assertStringIncludes(prompt, "change a recipe that Irmixy created");
 });
