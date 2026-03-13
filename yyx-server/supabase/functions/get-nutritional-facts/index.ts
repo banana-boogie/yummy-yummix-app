@@ -1,6 +1,10 @@
 //@ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import {
+  unauthorizedResponse,
+  validateAuth,
+} from "../_shared/auth.ts";
 import { chat } from "../_shared/ai-gateway/index.ts";
 import {
   applyRoundingRulesToData,
@@ -8,7 +12,7 @@ import {
   validateNutritionalData,
 } from "../_shared/nutritional-utils.ts";
 
-async function getNutritionalFacts(
+export async function getNutritionalFacts(
   ingredientName: string,
 ): Promise<NutritionalData | null> {
   console.info(`Looking up nutrition for '${ingredientName}' via AI gateway`);
@@ -42,7 +46,13 @@ async function getNutritionalFacts(
       return null;
     }
 
-    const nutritionalData = JSON.parse(response.content);
+    let nutritionalData;
+    try {
+      nutritionalData = JSON.parse(response.content);
+    } catch (_parseError) {
+      console.warn(`JSON parse error for '${ingredientName}'`);
+      return null;
+    }
 
     if (validateNutritionalData(nutritionalData)) {
       console.info(
@@ -74,8 +84,18 @@ serve(async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
+  // Auth — require authenticated user (AI calls have cost implications)
+  const authHeader = req.headers.get("Authorization");
+  const { user, error: authError } = await validateAuth(authHeader);
+  if (authError || !user) {
+    return unauthorizedResponse(
+      authError ?? "Authentication required",
+      corsHeaders,
+    );
+  }
+
   const requestId = crypto.randomUUID();
-  console.info(`Request ${requestId} started`);
+  console.info(`Request ${requestId} started (user: ${user.id})`);
 
   try {
     const body = await req.json();

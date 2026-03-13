@@ -2,7 +2,7 @@ import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
-import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
+import { useAdminLocales } from '@/hooks/admin/useAdminLocales';
 import i18n from '@/i18n';
 
 interface AdminDisplayLocaleToggleProps {
@@ -11,17 +11,13 @@ interface AdminDisplayLocaleToggleProps {
 }
 
 export function AdminDisplayLocaleToggle({ value, onChange }: AdminDisplayLocaleToggleProps) {
-  // Include regional locales so admins can verify all translations (e.g., es-ES).
-  // Filter es-MX since base 'es' is already Mexican Spanish.
-  const { locales: allLocales } = useActiveLocales(true);
-  const locales = allLocales
-    .filter(l => l.code !== 'es-MX')
-    .sort((a, b) => {
-      // English first for admin display toggle
-      if (a.code === 'en') return -1;
-      if (b.code === 'en') return 1;
-      return a.code.localeCompare(b.code);
-    });
+  const { locales: adminLocales } = useAdminLocales();
+  // English first for admin display toggle
+  const locales = [...adminLocales].sort((a, b) => {
+    if (a.code === 'en') return -1;
+    if (b.code === 'en') return 1;
+    return a.code.localeCompare(b.code);
+  });
 
   return (
     <View className="flex-row items-center gap-sm p-sm bg-primary-lightest rounded-lg border border-primary-light">

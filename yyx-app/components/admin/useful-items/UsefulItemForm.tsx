@@ -10,7 +10,7 @@ import { FormSection } from '@/components/form/FormSection';
 import { FormGroup } from '@/components/form/FormGroup';
 import { FormRow } from '@/components/form/FormRow';
 import { ImageUploadSection } from '@/components/admin/recipes/forms/common/ImageUploadSection';
-import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
+import { useAdminLocales } from '@/hooks/admin/useAdminLocales';
 import { translateContent } from '@/services/admin/adminTranslateService';
 
 interface UsefulItemFormProps {
@@ -26,9 +26,7 @@ export function UsefulItemForm({
     onCancel,
     saving,
 }: UsefulItemFormProps) {
-    const { locales: rawLocales } = useActiveLocales(true);
-    // Filter es-MX: base 'es' is already Mexican Spanish, so es-MX is redundant in admin forms.
-    const locales = rawLocales.filter(l => l.code !== 'es-MX');
+    const { locales } = useAdminLocales();
     const [translating, setTranslating] = useState(false);
     const [translateError, setTranslateError] = useState<string | null>(null);
 
