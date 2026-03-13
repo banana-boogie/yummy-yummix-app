@@ -40,20 +40,27 @@ export function AppPreferencesStep({ className = '', style }: AppPreferencesStep
   const { locales: activeLocales } = useActiveLocales(true);
   const deviceLocales = getLocales();
 
-  // Set defaults when component mounts
+  // Set defaults once active locales are loaded.
+  // We wait for activeLocales to be non-empty so the device-locale lookup
+  // actually has data to match against. Without this guard the first render
+  // seeds a base code (es/en) and the `if (!formData.locale)` check prevents
+  // upgrading to the correct regional locale when the fetch completes.
   useEffect(() => {
+    if (activeLocales.length === 0) return;
+
     const isSpanish = language === 'es';
     const knownCodes = activeLocales.map((l) => l.code);
     const deviceTag = deviceLocales[0]?.languageTag;
-    // Use device locale if it exists in the locales table, otherwise base code
-    const defaultLocale =
+    const bestLocale =
       deviceTag && knownCodes.includes(deviceTag) ? deviceTag : (isSpanish ? 'es' : 'en');
     const defaultMeasurement = isSpanish ? 'metric' : 'imperial';
 
-    if (!formData.locale) {
+    // Always re-derive locale from device when activeLocales load —
+    // a stale base-code seed from a previous render should be upgraded.
+    if (!formData.locale || formData.locale === 'es' || formData.locale === 'en') {
       updateFormData({
-        locale: defaultLocale,
-        measurementSystem: defaultMeasurement
+        locale: bestLocale,
+        measurementSystem: formData.measurementSystem || defaultMeasurement,
       });
     }
   }, [activeLocales]);

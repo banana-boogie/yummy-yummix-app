@@ -65,9 +65,13 @@ export function TranslationsSection({
     try {
       const results = await translateContent(fields, sourceLocale, targetLocales);
       let updated = [...translations];
+      const failedLocales: string[] = [];
 
       for (const result of results) {
-        if (result.error) continue;
+        if (result.error) {
+          failedLocales.push(result.targetLocale);
+          continue;
+        }
         const existing = updated.find(t => t.locale === result.targetLocale);
         if (existing) {
           updated = updated.map(t =>
@@ -84,6 +88,14 @@ export function TranslationsSection({
         }
       }
       onChange(updated);
+      if (failedLocales.length > 0) {
+        setTranslateError(
+          i18n.t('admin.translate.partialFailure', {
+            locales: failedLocales.join(', '),
+            defaultValue: `Translation failed for: ${failedLocales.join(', ')}`,
+          })
+        );
+      }
     } catch (error) {
       console.error('Auto-translate failed:', error);
       setTranslateError(i18n.t('admin.translate.autoTranslateFailed', { defaultValue: 'Auto-translate failed. Please try again.' }));

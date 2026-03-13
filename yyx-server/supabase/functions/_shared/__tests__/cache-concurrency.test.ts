@@ -64,8 +64,10 @@ Deno.test("loadAllergenGroups performs one fetch for concurrent calls", async ()
               {
                 category: "nuts",
                 ingredient_canonical: "peanut",
-                name_en: "peanut",
-                name_es: "cacahuate",
+                translations: [
+                  { locale: "en", name: "peanut" },
+                  { locale: "es", name: "cacahuate" },
+                ],
               },
             ],
             error: null,

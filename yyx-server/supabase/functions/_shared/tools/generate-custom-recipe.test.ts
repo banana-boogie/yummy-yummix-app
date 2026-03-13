@@ -640,8 +640,10 @@ Deno.test("generateCustomRecipe proceeds with allergen warning when allergen det
             data: [{
               category: "nuts",
               ingredient_canonical: "peanut",
-              name_en: "peanut",
-              name_es: "cacahuate",
+              translations: [
+                { locale: "en", name: "peanut" },
+                { locale: "es", name: "cacahuate" },
+              ],
             }],
             error: null,
           });
