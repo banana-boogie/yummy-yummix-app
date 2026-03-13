@@ -25,6 +25,7 @@ import {
     type ActionContext,
 } from '@/services/actions/actionRegistry';
 import type { Action, IrmixyResponse } from '@/types/irmixy';
+import { isRecipeToolStatus } from '@/services/chatService';
 import type { BudgetWarningPayload, ChatMessage, IrmixyStatus } from '@/services/chatService';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,10 +35,6 @@ import { Image } from 'expo-image';
 import i18n from '@/i18n';
 
 const SCROLL_DELAY_MS = 100;
-
-/** Statuses that indicate recipe generation/modification is in progress */
-const isRecipeToolStatus = (status: IrmixyStatus): boolean =>
-    status === 'cooking_it_up' || status === 'generating';
 
 interface Props {
     sessionId?: string | null;
