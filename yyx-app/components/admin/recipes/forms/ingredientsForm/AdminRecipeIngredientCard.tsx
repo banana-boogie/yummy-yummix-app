@@ -5,7 +5,6 @@ import { Text } from '@/components/common/Text';
 import { AdminRecipeIngredient, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/i18n';
-import { LanguageBadge } from '@/components/common/LanguageBadge';
 import { formatIngredientQuantity } from '@/utils/recipes/measurements';
 import { useDevice } from '@/hooks/useDevice';
 
@@ -50,10 +49,7 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
               contentFit="contain"
             />
             <View className="flex-1">
-              <View className="flex-row items-center gap-xs">
-                <LanguageBadge language={displayLocale.toUpperCase()} size="small" />
-                <Text className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`}>{ingredientName}</Text>
-              </View>
+              <Text className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`}>{ingredientName}</Text>
             </View>
           </View>
 

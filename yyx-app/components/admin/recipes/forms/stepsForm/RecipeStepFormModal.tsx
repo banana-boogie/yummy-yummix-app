@@ -17,7 +17,6 @@ import { ThermomixSpeed, ThermomixSettings } from '@/types/thermomix.types';
 import i18n from '@/i18n';
 import { Image } from 'expo-image';
 import { adminRecipeService } from '@/services/admin/adminRecipeService';
-import { LanguageBadge } from '@/components/common/LanguageBadge';
 import { ThermomixInput } from '@/components/form/ThermomixInput';
 import { useDevice } from '@/hooks/useDevice';
 import { COLORS } from '@/constants/design-tokens';
@@ -414,10 +413,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
                                   )}
                                 </View>
                                 <View className="flex-1">
-                                  <View className="flex-row items-center gap-xs mb-xs">
-                                    <LanguageBadge language={authoringLocale.toUpperCase()} />
-                                    <Text preset="body" className="leading-6">{getIngredientName(ri.ingredient, authoringLocale)}</Text>
-                                  </View>
+                                  <Text preset="body" className="leading-6 mb-xs">{getIngredientName(ri.ingredient, authoringLocale)}</Text>
                                 </View>
                               </TouchableOpacity>
 

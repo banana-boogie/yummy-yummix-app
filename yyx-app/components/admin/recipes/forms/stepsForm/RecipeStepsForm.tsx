@@ -17,9 +17,10 @@ interface StepsFormProps {
   onUpdateRecipe: (updates: Partial<AdminRecipe>) => void;
   errors: Record<string, string>;
   authoringLocale?: string;
+  displayLocale?: string;
 }
 
-export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es' }: StepsFormProps) {
+export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es', displayLocale }: StepsFormProps) {
   const tForm = (key: string, opts?: any) => i18n.t(key, { ...opts, locale: authoringLocale });
   const { isMobile } = useDevice();
   const [modalVisible, setModalVisible] = useState(false);
@@ -165,7 +166,7 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
 
         <RecipeStepContent
           recipeStep={item}
-          displayLocale={authoringLocale}
+          displayLocale={displayLocale || authoringLocale}
         />
       </View>
     );

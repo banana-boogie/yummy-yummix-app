@@ -21,9 +21,10 @@ type UsefulItemsFormProps = {
     onUpdateRecipe: (updates: Partial<AdminRecipe>) => void;
     errors: Record<string, string>;
     authoringLocale?: string;
+    displayLocale?: string;
 };
 
-export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es' }: UsefulItemsFormProps) {
+export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es', displayLocale }: UsefulItemsFormProps) {
     const { isMobile } = useDevice();
     const [usefulItems, setUsefulItems] = useState<AdminUsefulItem[]>([]);
     const [filteredUsefulItems, setFilteredUsefulItems] = useState<AdminUsefulItem[]>([]);
@@ -209,7 +210,7 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
                     <View className="mb-lg">
                         <SelectedItemsSection
                             items={sortedRecipeUsefulItems}
-                            displayLocale={authoringLocale}
+                            displayLocale={displayLocale || authoringLocale}
                             onEdit={handleEditRecipeUsefulItem}
                             onDelete={handleDeleteRecipeUsefulItem}
                             onMoveUp={handleMoveUsefulItemUp}
@@ -275,7 +276,7 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
                         <View className="flex-[1.8]">
                             <SelectedItemsSection
                                 items={sortedRecipeUsefulItems}
-                                displayLocale={authoringLocale}
+                                displayLocale={displayLocale || authoringLocale}
                                 onEdit={handleEditRecipeUsefulItem}
                                 onDelete={handleDeleteRecipeUsefulItem}
                                 onMoveUp={handleMoveUsefulItemUp}

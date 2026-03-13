@@ -4,7 +4,6 @@ import { Text } from '@/components/common/Text';
 import { AdminRecipeUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { LanguageBadge } from '@/components/common/LanguageBadge';
 import { Divider } from '@/components/common/Divider';
 import { useDevice } from '@/hooks/useDevice';
 
@@ -59,12 +58,9 @@ export function AdminRecipeUsefulItemCard({
         </View>
 
         <View className="flex-1">
-          <View className="flex-row items-center gap-xs">
-            <LanguageBadge language={displayLocale.toUpperCase()} size="small" />
-            <Text className={`font-semibold ${isMobile ? 'text-sm' : ''}`}>
-              {usefulItemName}
-            </Text>
-          </View>
+          <Text className={`font-semibold ${isMobile ? 'text-sm' : ''}`}>
+            {usefulItemName}
+          </Text>
         </View>
 
         {!isReadonly && (

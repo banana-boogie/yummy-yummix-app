@@ -75,13 +75,13 @@ export default function NewRecipePage() {
       case CreateRecipeStep.BASIC_INFO:
         return <RecipeInfoForm recipe={recipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} onAuthoringLocaleChange={setAuthoringLocale} />;
       case CreateRecipeStep.USEFUL_ITEMS:
-        return <RecipeUsefulItemsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} />;
+        return <RecipeUsefulItemsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} />;
       case CreateRecipeStep.INGREDIENTS:
-        return <RecipeIngredientsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} />;
+        return <RecipeIngredientsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} />;
       case CreateRecipeStep.STEPS:
-        return <StepsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} />;
+        return <StepsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} />;
       case CreateRecipeStep.TAGS:
-        return <TagsForm recipe={recipe} onUpdateRecipe={updateRecipe} errors={errors} />;
+        return <TagsForm recipe={recipe} onUpdateRecipe={updateRecipe} errors={errors} displayLocale={displayLocale} />;
       case CreateRecipeStep.TRANSLATIONS:
         return <TranslationStep recipe={recipe} authoringLocale={authoringLocale} onUpdateRecipe={updateRecipe} />;
       case CreateRecipeStep.REVIEW:
@@ -115,7 +115,7 @@ export default function NewRecipePage() {
             {showNavElements && (
               <View className="w-full px-md pb-md">
                 <RecipeProgressIndicator currentStep={currentStep} />
-                {currentStep === CreateRecipeStep.REVIEW && (
+                {currentStep !== CreateRecipeStep.INITIAL_SETUP && currentStep !== CreateRecipeStep.BASIC_INFO && currentStep !== CreateRecipeStep.TRANSLATIONS && (
                   <View className="mt-md">
                     <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
                   </View>

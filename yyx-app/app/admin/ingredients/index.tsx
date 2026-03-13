@@ -76,6 +76,9 @@ export default function IngredientsAdminPage() {
   return (
     <AdminLayout title="Manage Ingredients" showBackButton={true}>
       <View className="p-md" style={{ backgroundColor: '#ffffff' }}>
+        <View className="mb-md">
+          <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+        </View>
         <View className="flex-col sm:flex-row sm:items-center gap-md">
           <SearchBar
             className="flex-none sm:flex-1"
@@ -83,18 +86,13 @@ export default function IngredientsAdminPage() {
             setSearchQuery={setSearchQuery}
             placeholder="Search ingredients..."
           />
-
-          <View className="flex-row items-center gap-md">
-            <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
-
-            <TouchableOpacity
-              className="flex-row items-center bg-primary-dark px-md py-sm rounded-lg self-start sm:self-auto"
-              onPress={handleOpenCreateModal}
-            >
-              <Ionicons name="add" size={24} color={COLORS.neutral.WHITE} />
-              <Text color={COLORS.neutral.WHITE} className="ml-sm font-bold">New Ingredient</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            className="flex-row items-center bg-primary-dark px-md py-sm rounded-lg self-start sm:self-auto"
+            onPress={handleOpenCreateModal}
+          >
+            <Ionicons name="add" size={24} color={COLORS.neutral.WHITE} />
+            <Text color={COLORS.neutral.WHITE} className="ml-sm font-bold">New Ingredient</Text>
+          </TouchableOpacity>
         </View>
       </View>
 

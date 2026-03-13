@@ -11,7 +11,17 @@ interface AdminDisplayLocaleToggleProps {
 }
 
 export function AdminDisplayLocaleToggle({ value, onChange }: AdminDisplayLocaleToggleProps) {
-  const { locales } = useActiveLocales();
+  // Include regional locales so admins can verify all translations (e.g., es-ES).
+  // Filter es-MX since base 'es' is already Mexican Spanish.
+  const { locales: allLocales } = useActiveLocales(true);
+  const locales = allLocales
+    .filter(l => l.code !== 'es-MX')
+    .sort((a, b) => {
+      // English first for admin display toggle
+      if (a.code === 'en') return -1;
+      if (b.code === 'en') return 1;
+      return a.code.localeCompare(b.code);
+    });
 
   return (
     <View className="flex-row items-center gap-sm p-sm bg-primary-lightest rounded-lg border border-primary-light">

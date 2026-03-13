@@ -8,7 +8,6 @@ import { AdminRecipeSteps, getTranslatedField } from '@/types/recipe.admin.types
 import { ThermomixSettings, ThermomixSpeedRange } from '@/types/thermomix.types';
 import i18n from '@/i18n';
 import { Image } from 'expo-image';
-import { LanguageBadge } from '@/components/common/LanguageBadge';
 import { COLORS } from '@/constants/design-tokens';
 import { useDevice } from '@/hooks/useDevice';
 
@@ -76,7 +75,6 @@ export function RecipeStepContent({
       <View className="flex-col gap-sm mb-sm">
         {formattedStep !== undefined ? (
           <View className="mb-xs border border-border-DEFAULT rounded-sm p-xs bg-background-DEFAULT">
-            <LanguageBadge language={displayLocale.toUpperCase()} size="small" />
             {formattedStep ? (
               <View className="mt-xs">
                 {renderRecipeText(formattedStep, {

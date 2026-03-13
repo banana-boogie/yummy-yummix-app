@@ -364,7 +364,7 @@ class AdminRecipeService extends BaseService {
               recipe_ingredient_id: rowId,
               locale: t.locale,
               notes: t.notes || null,
-              recipe_section: t.recipeSection || null,
+              recipe_section: t.recipeSection || '',
               tip: t.tip || null,
             });
           });
@@ -477,7 +477,7 @@ class AdminRecipeService extends BaseService {
               recipe_step_id: stepId,
               locale: t.locale,
               instruction: t.instruction || '',
-              recipe_section: t.recipeSection || null,
+              recipe_section: t.recipeSection || '',
               tip: t.tip || null,
             });
           });

@@ -80,7 +80,7 @@ export function ReviewForm({ recipe, displayLocale = 'es', onUpdateRecipe }: Rev
             {i18n.t('admin.recipes.form.reviewInfo.tags')} ({recipe.tags?.length || 0})
           </Text>
 
-          <RecipeTagsList tags={recipe.tags || []} />
+          <RecipeTagsList tags={recipe.tags || []} displayLocale={displayLocale} />
         </View>
 
         <View className="flex-col justify-start items-center my-md py-xs px-sm rounded-sm">

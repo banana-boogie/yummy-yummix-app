@@ -7,9 +7,10 @@ import { AdminRecipeTag, getTranslatedField } from '@/types/recipe.admin.types';
 
 interface RecipeTagsListProps {
   tags: AdminRecipeTag[];
+  displayLocale?: string;
 }
 
-export function RecipeTagsList({ tags }: RecipeTagsListProps) {
+export function RecipeTagsList({ tags, displayLocale = 'es' }: RecipeTagsListProps) {
   return (
     <View className="mb-lg w-full">
       {!tags || tags.length === 0 ? (
@@ -25,7 +26,7 @@ export function RecipeTagsList({ tags }: RecipeTagsListProps) {
             <View key={tag.id} className="flex-row items-center bg-background-SECONDARY py-sm px-md rounded-md border border-primary-LIGHT gap-xs">
               <Ionicons name="pricetag-outline" size={16} className="text-primary-MEDIUM mb-xxs mr-xxs" />
               <Text preset="caption" className="text-text-DEFAULT" numberOfLines={1}>
-                {getTranslatedField(tag.translations, 'en', 'name') || ''} | {getTranslatedField(tag.translations, 'es', 'name') || ''}
+                {getTranslatedField(tag.translations, displayLocale, 'name') || ''}
               </Text>
             </View>
           ))}

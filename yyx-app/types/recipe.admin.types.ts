@@ -146,13 +146,22 @@ export interface AdminRecipe extends Omit<Recipe, 'name' | 'ingredients' | 'tags
 
 /**
  * Pick a translation object for a given locale from a translations array.
+ * Falls back within language family: es-ES → es (base language).
  */
 export function pickTranslation<T extends { locale: string }>(
   translations: T[] | undefined | null,
   locale: string,
 ): T | undefined {
   if (!translations) return undefined;
-  return translations.find(t => t.locale === locale);
+  // Exact match first
+  const exact = translations.find(t => t.locale === locale);
+  if (exact) return exact;
+  // Fall back to base language (e.g., es-ES → es)
+  if (locale.includes('-')) {
+    const base = locale.split('-')[0];
+    return translations.find(t => t.locale === base);
+  }
+  return undefined;
 }
 
 /**

@@ -142,6 +142,7 @@ export default function EditRecipePage() {
             onUpdateRecipe={handleUpdateRecipe}
             errors={errors}
             authoringLocale={authoringLocale}
+            displayLocale={displayLocale}
           />
         );
       case CreateRecipeStep.STEPS:
@@ -151,6 +152,7 @@ export default function EditRecipePage() {
             onUpdateRecipe={handleUpdateRecipe}
             errors={errors}
             authoringLocale={authoringLocale}
+            displayLocale={displayLocale}
           />
         );
       case CreateRecipeStep.USEFUL_ITEMS:
@@ -160,6 +162,7 @@ export default function EditRecipePage() {
             onUpdateRecipe={handleUpdateRecipe}
             errors={errors}
             authoringLocale={authoringLocale}
+            displayLocale={displayLocale}
           />
         );
       case CreateRecipeStep.TAGS:
@@ -168,6 +171,7 @@ export default function EditRecipePage() {
             recipe={recipe}
             onUpdateRecipe={handleUpdateRecipe}
             errors={errors}
+            displayLocale={displayLocale}
           />
         );
       case CreateRecipeStep.TRANSLATIONS:
@@ -239,7 +243,7 @@ export default function EditRecipePage() {
               onStepClick={handleStepClick}
               clickable={true}
             />
-            {currentStep === CreateRecipeStep.REVIEW && (
+            {currentStep !== CreateRecipeStep.BASIC_INFO && currentStep !== CreateRecipeStep.TRANSLATIONS && (
               <View className="mt-md">
                 <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
               </View>

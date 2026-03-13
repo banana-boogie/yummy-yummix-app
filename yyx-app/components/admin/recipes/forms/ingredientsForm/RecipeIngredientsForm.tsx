@@ -14,7 +14,6 @@ import { Image } from 'expo-image';
 import { CreateEditIngredientModal } from '@/components/admin/ingredients/CreateEditIngredientModal';
 import { Button } from '@/components/common/Button';
 import { AlertModal } from '@/components/common/AlertModal';
-import { LanguageBadge } from '@/components/common/LanguageBadge';
 import { v4 as generateUUID } from 'uuid';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
 import { COLORS } from '@/constants/design-tokens';
@@ -25,9 +24,10 @@ type IngredientsFormProps = {
   onUpdateRecipe: (updates: Partial<AdminRecipe>) => void;
   errors: Record<string, string>;
   authoringLocale?: string;
+  displayLocale?: string;
 };
 
-export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es' }: IngredientsFormProps) {
+export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es', displayLocale }: IngredientsFormProps) {
   const tForm = (key: string, opts?: any) => i18n.t(key, { ...opts, locale: authoringLocale });
   const { isMobile } = useDevice();
   const [ingredients, setIngredients] = useState<AdminIngredient[]>([]);
@@ -305,10 +305,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
         cachePolicy="memory-disk"
       />
       <View className="flex-1">
-        <View className="flex-row items-center mb-1">
-          <LanguageBadge language={authoringLocale.toUpperCase()} size="small" />
-          <Text className="text-sm ml-1 mb-0 self-center">{getTranslatedField(item.translations, authoringLocale, 'name')}</Text>
-        </View>
+        <Text className="text-sm mb-0 self-center">{getTranslatedField(item.translations, authoringLocale, 'name')}</Text>
       </View>
       <Ionicons name="add-circle-outline" size={24} className="text-primary-DEFAULT" />
     </TouchableOpacity>
@@ -322,7 +319,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
     return (
       <AdminRecipeIngredientCard
         recipeIngredient={item}
-        displayLocale={authoringLocale}
+        displayLocale={displayLocale || authoringLocale}
         onEditPress={() => handleEditRecipeIngredient(item)}
         onDeletePress={() => handleDeleteRecipeIngredient(item)}
         onMoveUpPress={() => handleMoveRecipeIngredientUp(item.id, section)}

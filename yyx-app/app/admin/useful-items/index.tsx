@@ -80,6 +80,9 @@ export default function UsefulItemsAdminPage() {
   return (
     <AdminLayout title={i18n.t('admin.usefulItems.title')} showBackButton={true}>
       <View className="p-md" style={{ backgroundColor: '#ffffff' }}>
+        <View className="mb-md">
+          <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+        </View>
         <View className="flex-col sm:flex-row sm:items-center gap-md">
           <SearchBar
             className="flex-none sm:flex-1"
@@ -87,16 +90,11 @@ export default function UsefulItemsAdminPage() {
             setSearchQuery={setSearchQuery}
             placeholder={i18n.t('admin.usefulItems.searchPlaceholder')}
           />
-
-          <View className="flex-row items-center gap-md">
-            <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
-
-            <Button
-              onPress={handleOpenCreateModal}
-              icon={<Ionicons name="add" size={24} color={COLORS.neutral.WHITE} />}
-              label={i18n.t('admin.usefulItems.createNew')}
-            />
-          </View>
+          <Button
+            onPress={handleOpenCreateModal}
+            icon={<Ionicons name="add" size={24} color={COLORS.neutral.WHITE} />}
+            label={i18n.t('admin.usefulItems.createNew')}
+          />
         </View>
       </View>
 
