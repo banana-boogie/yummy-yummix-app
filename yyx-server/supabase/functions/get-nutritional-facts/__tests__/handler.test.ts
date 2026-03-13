@@ -14,9 +14,9 @@
 
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
-  validateNutritionalData,
   applyRoundingRulesToData,
   type NutritionalData,
+  validateNutritionalData,
 } from "../../_shared/nutritional-utils.ts";
 
 // ============================================================
@@ -44,7 +44,8 @@ Deno.test("handler rejects invalid Authorization header", async () => {
 
 Deno.test("valid AI JSON response is parsed and rounded correctly", () => {
   // Simulate what getNutritionalFacts does after receiving AI response
-  const aiResponseContent = '{"calories": 77.123, "protein": 2.045, "fat": 0.089, "carbohydrates": 17.467}';
+  const aiResponseContent =
+    '{"calories": 77.123, "protein": 2.045, "fat": 0.089, "carbohydrates": 17.467}';
 
   const nutritionalData = JSON.parse(aiResponseContent);
   assertEquals(validateNutritionalData(nutritionalData), true);
@@ -73,7 +74,12 @@ Deno.test("AI response with missing fields fails validation", () => {
 });
 
 Deno.test("AI response with string values fails validation", () => {
-  const badData = { calories: "100", protein: "10", fat: "5", carbohydrates: "30" };
+  const badData = {
+    calories: "100",
+    protein: "10",
+    fat: "5",
+    carbohydrates: "30",
+  };
   assertEquals(validateNutritionalData(badData), false);
 });
 
@@ -89,7 +95,8 @@ Deno.test("AI response with null content returns no data", () => {
 
 Deno.test("potato nutritional data (typical AI response) processes correctly", () => {
   // Expected USDA-reference values for raw potato per 100g
-  const potatoResponse = '{"calories": 77, "protein": 2.0, "fat": 0.1, "carbohydrates": 17.5}';
+  const potatoResponse =
+    '{"calories": 77, "protein": 2.0, "fat": 0.1, "carbohydrates": 17.5}';
   const data: NutritionalData = JSON.parse(potatoResponse);
 
   assertEquals(validateNutritionalData(data), true);
@@ -102,7 +109,8 @@ Deno.test("potato nutritional data (typical AI response) processes correctly", (
 });
 
 Deno.test("rosemary nutritional data (low-calorie herb) processes correctly", () => {
-  const rosemaryResponse = '{"calories": 131, "protein": 3.3, "fat": 5.9, "carbohydrates": 20.7}';
+  const rosemaryResponse =
+    '{"calories": 131, "protein": 3.3, "fat": 5.9, "carbohydrates": 20.7}';
   const data: NutritionalData = JSON.parse(rosemaryResponse);
 
   assertEquals(validateNutritionalData(data), true);
