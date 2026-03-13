@@ -297,10 +297,12 @@ SELECT public.resolve_locale('en');
 The function walks the `parent_code` chain recursively (up to depth 5) and returns an ordered array from most-specific to least-specific. Callers then `COALESCE` or use `ANY()` to pick the best available translation. Ultimate fallback is `['es']` for completely unknown locales (Mexico-first audience).
 
 Fallback behaviour:
-- `es-MX` → `['es-MX', 'es', 'en']` (walks parent_code chain)
+- `es-MX` → `['es-MX', 'es', 'en']` (walks parent_code chain — `es.parent_code = 'en'` in seed data)
 - `en` → `['en']` (en has no parent_code)
 - Unknown region (`en-CA`) → strips region suffix, recurses on `en` → `['en']`
 - Completely unknown code → `['es']` (ultimate fallback)
+
+**Important — no cross-language fallback at the application layer:** The RPC returns `en` in the chain for Spanish locales because of the seed data structure, but application code (Edge Functions) uses `buildLocaleChain()` from `_shared/locale-utils.ts` which stops at the language boundary. `es` and `en` are separate user groups; a Spanish-language user must never receive English content as a fallback. Only use `resolve_locale()` directly in SQL where you are already filtering to a single language, or slice the result to exclude cross-language entries.
 
 ### 8 Translation Tables
 
@@ -322,7 +324,9 @@ All use composite PK `(entity_id, locale)` with `ON DELETE CASCADE` from parent.
 - **Base codes (`en`, `es`) store all content.** These serve all speakers of that language.
 - **Regional codes (`es-MX`, `es-ES`) are override-only.** Only create regional translation rows when content genuinely differs from the base.
 - **Never store base content under a regional code** — it breaks fallback for other regions.
-- **Fallback chain** via `resolve_locale()`: `es-MX` → `es` → `en` (walks parent_code). Ultimate fallback for unknown locales is `['es']` (Mexico-first audience).
+- **No cross-language fallback.** `en` and `es` are separate user groups. A Spanish speaker should never see English content as a fallback, and vice versa.
+- **Within-family fallback only:** `es-MX` → `es` (via `buildLocaleChain()` in server-side TypeScript). The DB `resolve_locale()` RPC walks `parent_code` and returns `['es-MX', 'es', 'en']` because `es.parent_code = 'en'` in the locales seed; application code stops at the language boundary using `buildLocaleChain()`.
+- **Ultimate fallback for unknown locales** in `resolve_locale()` is `['es']` (Mexico-first audience).
 
 ### RLS Patterns for Translation Tables
 
@@ -431,10 +435,6 @@ CREATE POLICY "Admins can read all recipe useful item translations"
 
 **Why the two-policy admin pattern matters:** Supabase evaluates `SELECT` policies with `OR` logic — if any policy matches the request is allowed. Admins need a separate `SELECT` policy (not just the write policy) to read unpublished rows, because the public-read policy would otherwise block them on drafts.
 
-### Base Translation Constraint
-
-Every parent entity row must have an `en` translation. This is enforced by a `DEFERRABLE INITIALLY DEFERRED` constraint trigger (`check_base_translation`) attached to all 8 parent tables. Because it is deferred, you can insert the parent row and its translations in the same transaction without ordering constraints.
-
 ### Adding a New Translatable Entity
 
 Determine which pattern applies first:
@@ -478,13 +478,6 @@ CREATE POLICY "Admins can read all <entity> translations"
 CREATE POLICY "Admin write <entity> translations"
   ON public.<entity>_translations FOR ALL TO authenticated
   USING (public.is_admin()) WITH CHECK (public.is_admin());
-
--- 5. Attach base-translation constraint trigger to the parent table
-CREATE CONSTRAINT TRIGGER check_<entity>_base_translation
-  AFTER INSERT ON public.<entity>
-  DEFERRABLE INITIALLY DEFERRED
-  FOR EACH ROW
-  EXECUTE FUNCTION public.check_base_translation('<entity>_translations', '<entity>_id');
 ```
 
 ### Adding a New Language

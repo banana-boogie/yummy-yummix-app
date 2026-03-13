@@ -77,7 +77,7 @@ const { inputTokens, outputTokens, costUsd } = await result.usage();
 |------|--------------|----------|----------|------|
 | `text` | grok-4-1-fast-non-reasoning | xai | Chat orchestrator (tool calling + streaming) | Low |
 | `recipe_generation` | gpt-4.1 | openai | Recipe generation (structured JSON output) — quality critical | Medium |
-| `recipe_modification` | gpt-4.1-mini | openai | Recipe modification (transform existing recipe JSON) | Low |
+| `recipe_modification` | gpt-4.1 | openai | Recipe modification (transform existing recipe JSON) | Medium |
 | `parsing` | gpt-4.1-nano | openai | Admin parsing, nutritional data extraction | Very low |
 | `embedding` | text-embedding-3-large | openai | Vector search (3072 dimensions) | Low |
 

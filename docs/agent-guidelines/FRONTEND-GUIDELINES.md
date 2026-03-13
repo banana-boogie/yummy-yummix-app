@@ -410,18 +410,19 @@ const t = pickTranslation(recipe.translations, 'es');
 // Convenience: get a single field as a string (returns '' if missing)
 const name = getTranslatedField(recipe.translations, 'es', 'name');
 
-// Display name helper: prefers 'es', falls back to 'en', then first available
+// Display name helper for admin UI (e.g., list labels, filenames): prefers 'es', falls back to 'en', then first available
 const displayName = getNameFromTranslations(ingredient.translations);
 ```
 
 Summary:
 
-| | Consumer (`recipeTransformer.ts`) | Admin (`recipe.admin.types.ts`) |
-|---|---|---|
-| Locale source | `i18n.locale` (implicit) | Caller-supplied argument |
-| Fallback chain | Full (prefix + reverse + en + first) | Exact match only |
-| Use in | Transformers converting raw API data | Admin forms, hooks, UI components |
-| Extra helpers | None | `getTranslatedField`, `getNameFromTranslations` |
+| | Consumer (`recipeTransformer.ts`) | Admin (`recipe.admin.types.ts`) | Server-side (`_shared/locale-utils.ts`) |
+|---|---|---|---|
+| Locale source | `i18n.locale` (implicit) | Caller-supplied argument | Caller-supplied chain from `buildLocaleChain()` |
+| Fallback chain | Full (prefix + reverse + en + first) | Exact match only | Within-family chain (no cross-language) |
+| No match returns | `undefined` | `undefined` | `undefined` (not `translations[0]`) |
+| Use in | Transformers converting raw API data | Admin forms, hooks, UI components | Edge Functions / server-side code |
+| Extra helpers | None | `getTranslatedField`, `getNameFromTranslations` | `buildLocaleChain`, `getBaseLanguage` |
 
 ### `EntityTranslation` base type
 
@@ -445,7 +446,8 @@ Concrete types add their fields:
 - `en` = base English (US English — serves all English speakers)
 - `es` = base Spanish (Mexican Spanish — serves all Spanish speakers)
 - Regional codes (`es-MX`, `es-ES`) are for overrides only — only add when content genuinely differs from the base
-- Fallback chain in DB: `es-MX` → `es` → `en` (via `resolve_locale()` RPC and `locales.parent_code`)
+- Fallback chain (within-family only): `es-MX` → `es` (via `buildLocaleChain()` server-side). No cross-language fallback — `es` and `en` are separate user groups.
+- The DB `resolve_locale()` RPC walks `parent_code` further (up to `en`) but application code stops at the language boundary.
 - Never store base content under a regional code — it breaks fallback for other regions
 
 ### Admin translation workflow

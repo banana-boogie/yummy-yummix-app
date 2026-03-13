@@ -135,13 +135,13 @@ const embedding = await embed({
 | --------------------- | -------- | ----------------------------- | -------------------------------------------- | -------- |
 | `text`                | xai      | grok-4-1-fast-non-reasoning   | Chat orchestrator (tool calling + streaming) | Low      |
 | `recipe_generation`   | openai   | gpt-4.1                       | Recipe generation (structured JSON output)   | Low      |
-| `recipe_modification` | openai   | gpt-4.1-mini                  | Recipe modification (transform existing JSON)| Low      |
+| `recipe_modification` | openai   | gpt-4.1                       | Recipe modification (transform existing JSON)| Medium   |
 | `parsing`             | openai   | gpt-4.1-nano                  | Admin parsing, nutritional data extraction   | Very low |
 | `embedding`           | openai   | text-embedding-3-large        | Vector search (3072 dimensions)              | Low      |
 
 The `text` usage type uses xAI Grok for 100% tool accuracy and lowest cost.
 `recipe_generation` uses `gpt-4.1` for quality-critical structured output.
-`recipe_modification` uses `gpt-4.1-mini` for reliable JSON transforms.
+`recipe_modification` uses `gpt-4.1` for quality-critical JSON transforms (matches generation quality).
 
 Override via env vars — supports two formats:
 

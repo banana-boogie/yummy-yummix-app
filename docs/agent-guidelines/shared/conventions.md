@@ -45,7 +45,8 @@ const { language, locale } = useLanguage();
 - `en` = base English content (US English — serves all English speakers)
 - `es` = base Spanish content (Mexican Spanish — serves all Spanish speakers)
 - Regional codes (e.g., `es-MX`, `es-ES`) are for **overrides only** — add them when you have region-specific content that differs from the base
-- Fallback chain: `es-MX` → `es` → `en` (via `resolve_locale()` RPC and `locales.parent_code`)
+- **No cross-language fallback.** `en` and `es` are separate user groups. A Spanish-language user must never fall back to English content, and vice versa.
+- Fallback chain (within-family only): `es-MX` → `es` (via `buildLocaleChain()` in `_shared/locale-utils.ts`)
 - **Never store base content under a regional code** — it breaks fallback for other regions
 
 **Reading translations (frontend services):**
@@ -69,7 +70,7 @@ const chain = buildLocaleChain(userLocale);
 
 // Pick the best available translation
 const translation = pickTranslation(recipe.translations, chain);
-// Falls back through chain; returns first available if no chain match
+// Falls back through chain; returns undefined if no chain match (caller must handle)
 ```
 
 The database-side equivalent is the `resolve_locale()` RPC, which walks the `locales.parent_code` tree to find the nearest ancestor with content for a given entity.

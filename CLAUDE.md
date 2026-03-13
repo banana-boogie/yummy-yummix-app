@@ -355,7 +355,7 @@ const { inputTokens, outputTokens, costUsd } = await result.usage();
 |------|--------------|----------|----------|------|
 | `text` | grok-4-1-fast-non-reasoning | xai | Chat orchestrator (tool calling + streaming) | Low |
 | `recipe_generation` | gpt-4.1 | openai | Recipe generation (structured JSON output) — quality critical | Medium |
-| `recipe_modification` | gpt-4.1-mini | openai | Recipe modification (transform existing recipe JSON) | Low |
+| `recipe_modification` | gpt-4.1 | openai | Recipe modification (transform existing recipe JSON) | Medium |
 | `parsing` | gpt-4.1-nano | openai | Admin parsing, nutritional data extraction | Very low |
 | `embedding` | text-embedding-3-large | openai | Vector search (3072 dimensions) | Low |
 
@@ -563,7 +563,8 @@ const { language, locale } = useLanguage();
 - `en` = base English content (US English — serves all English speakers)
 - `es` = base Spanish content (Mexican Spanish — serves all Spanish speakers)
 - Regional codes (e.g., `es-MX`, `es-ES`) are for **overrides only** — add them when you have region-specific content that differs from the base
-- Fallback chain: `es-MX` → `es` → `en` (via `resolve_locale()` RPC and `locales.parent_code`)
+- **No cross-language fallback.** `en` and `es` are separate user groups. A Spanish-language user must never fall back to English content, and vice versa.
+- Fallback chain (within-family only): `es-MX` → `es` (via `buildLocaleChain()` in `_shared/locale-utils.ts`)
 - **Never store base content under a regional code** — it breaks fallback for other regions
 
 **Reading translations (frontend services):**
@@ -582,12 +583,12 @@ Use `pickTranslation()` from `_shared/locale-utils.ts` to resolve the best match
 ```typescript
 import { buildLocaleChain, pickTranslation } from '../_shared/locale-utils.ts';
 
-// Build fallback chain: "es-MX" → ["es-MX", "es"]
+// Build fallback chain: "es-MX" → ["es-MX", "es"] (within-family only, no cross-language)
 const chain = buildLocaleChain(userLocale);
 
 // Pick the best available translation
 const translation = pickTranslation(recipe.translations, chain);
-// Falls back through chain; returns first available if no chain match
+// Falls back through chain; returns undefined if no chain match (caller must handle)
 ```
 
 The database-side equivalent is the `resolve_locale()` RPC, which walks the `locales.parent_code` tree to find the nearest ancestor with content for a given entity.
