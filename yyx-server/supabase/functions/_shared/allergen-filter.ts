@@ -41,7 +41,11 @@ export async function loadAllergenGroups(
   loadingPromise = (async () => {
     const { data, error } = await supabase
       .from("allergen_groups")
-      .select("category, ingredient_canonical, name_en, name_es");
+      .select(`
+        category,
+        ingredient_canonical,
+        translations:allergen_group_translations (locale, name)
+      `);
 
     if (error) {
       console.error("Failed to load allergen groups:", error);
@@ -49,21 +53,22 @@ export async function loadAllergenGroups(
       return [];
     }
 
-    // Map the old name_en/name_es columns to locale-keyed names
     allergenCache = (data || []).map(
       (row: {
         category: string;
         ingredient_canonical: string;
-        name_en: string;
-        name_es: string;
-      }) => ({
-        category: row.category,
-        ingredient_canonical: row.ingredient_canonical,
-        names: {
-          en: row.name_en,
-          es: row.name_es,
-        },
-      }),
+        translations: { locale: string; name: string }[];
+      }) => {
+        const names: Record<string, string> = {};
+        for (const t of row.translations || []) {
+          names[t.locale] = t.name;
+        }
+        return {
+          category: row.category,
+          ingredient_canonical: row.ingredient_canonical,
+          names,
+        };
+      },
     );
     loadingPromise = null;
     console.log(`Loaded ${allergenCache.length} allergen entries`);

@@ -8,7 +8,7 @@ export class AdminIngredientsService extends BaseService {
     super(supabase);
   }
 
-  async getAllIngredientsForAdmin(sortBy: 'name_en' | 'name_es' = 'name_en'): Promise<AdminIngredient[]> {
+  async getAllIngredientsForAdmin(sortBy: 'en' | 'es' = 'en'): Promise<AdminIngredient[]> {
     const { data, error } = await this.supabase
       .from('ingredients')
       .select(`
@@ -40,7 +40,7 @@ export class AdminIngredientsService extends BaseService {
     }));
 
     // Sort client-side since we can't sort by translation table column via PostgREST
-    const sortLocale = sortBy === 'name_es' ? 'es' : 'en';
+    const sortLocale = sortBy;
     result.sort((a: AdminIngredient, b: AdminIngredient) => {
       const aName = pickTranslation(a.translations, sortLocale)?.name || '';
       const bName = pickTranslation(b.translations, sortLocale)?.name || '';

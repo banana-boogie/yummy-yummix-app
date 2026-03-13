@@ -18,69 +18,72 @@ import {
   validateRecipeData,
 } from "../recipe-validator.ts";
 
-// ============================================================
-// validateRecipeData Tests
-// ============================================================
-
-Deno.test("validateRecipeData - valid recipe returns valid: true", () => {
-  const validRecipe = {
-    name: "Test Recipe",
+// Helper to build a valid recipe with translations format
+function validRecipe(overrides: Record<string, unknown> = {}) {
+  return {
     difficulty: "easy",
+    translations: [{ locale: "en", name: "Test Recipe" }],
     ingredients: [
       {
         quantity: 100,
-        ingredient: { name_en: "Flour" },
+        ingredient: {
+          translations: [{ locale: "en", name: "Flour" }],
+        },
       },
     ],
     steps: [
       {
         order: 1,
-        instruction_en: "Mix ingredients",
+        translations: [{ locale: "en", instruction: "Mix ingredients" }],
       },
     ],
+    ...overrides,
   };
+}
 
-  const result = validateRecipeData(validRecipe);
+// ============================================================
+// validateRecipeData Tests
+// ============================================================
+
+Deno.test("validateRecipeData - valid recipe returns valid: true", () => {
+  const result = validateRecipeData(validRecipe());
 
   assertEquals(result.valid, true);
   assertEquals(result.errors.length, 0);
 });
 
-Deno.test("validateRecipeData - missing name returns error", () => {
-  const invalidRecipe = {
-    difficulty: "easy",
-    ingredients: [{ quantity: 100, ingredient: { name_en: "Flour" } }],
-    steps: [{ order: 1, instruction_en: "Mix" }],
-  };
+Deno.test("validateRecipeData - missing translations returns error", () => {
+  const recipe = validRecipe({ translations: [] });
 
-  const result = validateRecipeData(invalidRecipe);
+  const result = validateRecipeData(recipe);
+
+  assertEquals(result.valid, false);
+  assertEquals(result.errors.some((e) => e.includes("translation")), true);
+});
+
+Deno.test("validateRecipeData - translations without name returns error", () => {
+  const recipe = validRecipe({
+    translations: [{ locale: "en" }], // no name
+  });
+
+  const result = validateRecipeData(recipe);
 
   assertEquals(result.valid, false);
   assertEquals(result.errors.some((e) => e.includes("name")), true);
 });
 
 Deno.test("validateRecipeData - missing difficulty returns error", () => {
-  const invalidRecipe = {
-    name: "Test Recipe",
-    ingredients: [{ quantity: 100, ingredient: { name_en: "Flour" } }],
-    steps: [{ order: 1, instruction_en: "Mix" }],
-  };
+  const recipe = validRecipe();
+  delete (recipe as any).difficulty;
 
-  const result = validateRecipeData(invalidRecipe);
+  const result = validateRecipeData(recipe);
 
   assertEquals(result.valid, false);
   assertEquals(result.errors.some((e) => e.includes("difficulty")), true);
 });
 
 Deno.test("validateRecipeData - invalid difficulty value returns error", () => {
-  const invalidRecipe = {
-    name: "Test Recipe",
-    difficulty: "super_hard", // Invalid value
-    ingredients: [{ quantity: 100, ingredient: { name_en: "Flour" } }],
-    steps: [{ order: 1, instruction_en: "Mix" }],
-  };
-
-  const result = validateRecipeData(invalidRecipe);
+  const result = validateRecipeData(validRecipe({ difficulty: "super_hard" }));
 
   assertEquals(result.valid, false);
   assertEquals(
@@ -92,69 +95,67 @@ Deno.test("validateRecipeData - invalid difficulty value returns error", () => {
 });
 
 Deno.test("validateRecipeData - empty ingredients array returns error", () => {
-  const invalidRecipe = {
-    name: "Test Recipe",
-    difficulty: "easy",
-    ingredients: [],
-    steps: [{ order: 1, instruction_en: "Mix" }],
-  };
-
-  const result = validateRecipeData(invalidRecipe);
+  const result = validateRecipeData(validRecipe({ ingredients: [] }));
 
   assertEquals(result.valid, false);
   assertEquals(result.errors.some((e) => e.includes("ingredient")), true);
 });
 
 Deno.test("validateRecipeData - empty steps array returns error", () => {
-  const invalidRecipe = {
-    name: "Test Recipe",
-    difficulty: "easy",
-    ingredients: [{ quantity: 100, ingredient: { name_en: "Flour" } }],
-    steps: [],
-  };
-
-  const result = validateRecipeData(invalidRecipe);
+  const result = validateRecipeData(validRecipe({ steps: [] }));
 
   assertEquals(result.valid, false);
   assertEquals(result.errors.some((e) => e.includes("step")), true);
 });
 
 Deno.test("validateRecipeData - ingredient without quantity returns error", () => {
-  const invalidRecipe = {
-    name: "Test Recipe",
-    difficulty: "easy",
+  const result = validateRecipeData(validRecipe({
     ingredients: [
       {
-        ingredient: { name_en: "Flour" },
+        ingredient: {
+          translations: [{ locale: "en", name: "Flour" }],
+        },
         // Missing quantity
       },
     ],
-    steps: [{ order: 1, instruction_en: "Mix" }],
-  };
-
-  const result = validateRecipeData(invalidRecipe);
+  }));
 
   assertEquals(result.valid, false);
   assertEquals(result.errors.some((e) => e.includes("quantity")), true);
 });
 
 Deno.test("validateRecipeData - step without instruction returns error", () => {
-  const invalidRecipe = {
-    name: "Test Recipe",
-    difficulty: "easy",
-    ingredients: [{ quantity: 100, ingredient: { name_en: "Flour" } }],
+  const result = validateRecipeData(validRecipe({
     steps: [
       {
         order: 1,
-        // Missing instruction_en
+        translations: [{ locale: "en" }], // No instruction
       },
     ],
-  };
-
-  const result = validateRecipeData(invalidRecipe);
+  }));
 
   assertEquals(result.valid, false);
   assertEquals(result.errors.some((e) => e.includes("instruction")), true);
+});
+
+Deno.test("validateRecipeData - step without translations returns error", () => {
+  const result = validateRecipeData(validRecipe({
+    steps: [{ order: 1 }],
+  }));
+
+  assertEquals(result.valid, false);
+  assertEquals(result.errors.some((e) => e.includes("translation")), true);
+});
+
+Deno.test("validateRecipeData - ingredient without translations returns error", () => {
+  const result = validateRecipeData(validRecipe({
+    ingredients: [
+      { quantity: 1, ingredient: {} },
+    ],
+  }));
+
+  assertEquals(result.valid, false);
+  assertEquals(result.errors.some((e) => e.includes("translation")), true);
 });
 
 Deno.test("validateRecipeData - null input returns error", () => {
@@ -171,15 +172,13 @@ Deno.test("validateRecipeData - non-object input returns error", () => {
   assertEquals(result.errors.some((e) => e.includes("object")), true);
 });
 
-Deno.test("validateRecipeData - accepts name_en instead of name", () => {
-  const recipe = {
-    name_en: "Test Recipe", // name_en instead of name
-    difficulty: "easy",
-    ingredients: [{ quantity: 100, ingredient: { name_en: "Flour" } }],
-    steps: [{ order: 1, instruction_en: "Mix" }],
-  };
-
-  const result = validateRecipeData(recipe);
+Deno.test("validateRecipeData - accepts multilingual translations", () => {
+  const result = validateRecipeData(validRecipe({
+    translations: [
+      { locale: "en", name: "English Name" },
+      { locale: "es", name: "Nombre en Español" },
+    ],
+  }));
 
   assertEquals(result.valid, true);
 });
@@ -190,7 +189,7 @@ Deno.test("validateRecipeData - accepts name_en instead of name", () => {
 
 Deno.test("normalizeRecipeData - sets default values for missing fields", () => {
   const input = {
-    name: "Test Recipe",
+    translations: [{ locale: "en", name: "Test Recipe" }],
     difficulty: "easy",
     ingredients: [],
     steps: [],
@@ -198,40 +197,55 @@ Deno.test("normalizeRecipeData - sets default values for missing fields", () => 
 
   const result = normalizeRecipeData(input);
 
-  assertExists(result.name);
-  assertExists(result.name_en);
-  assertEquals(result.portions, 4); // Default value
-  assertEquals(result.prep_time, 0); // Default value
-  assertEquals(result.total_time, 0); // Default value
+  assertEquals(result.name, "Test Recipe"); // Derived from translations
+  assertEquals(result.portions, 4);
+  assertEquals(result.prep_time, 0);
+  assertEquals(result.total_time, 0);
+  assertEquals(Array.isArray(result.translations), true);
 });
 
 Deno.test("normalizeRecipeData - preserves existing values", () => {
   const input = {
-    name: "My Recipe",
-    name_en: "My Recipe EN",
-    name_es: "Mi Receta",
+    translations: [
+      { locale: "en", name: "My Recipe EN" },
+      { locale: "es", name: "Mi Receta" },
+    ],
     difficulty: "hard",
     portions: 6,
     prep_time: 15,
     total_time: 45,
-    ingredients: [{ quantity: 1, ingredient: { name_en: "Salt" } }],
-    steps: [{ order: 1, instruction_en: "Add salt" }],
+    ingredients: [
+      {
+        quantity: 1,
+        ingredient: {
+          translations: [{ locale: "en", name: "Salt" }],
+        },
+      },
+    ],
+    steps: [
+      {
+        order: 1,
+        translations: [{ locale: "en", instruction: "Add salt" }],
+      },
+    ],
   };
 
   const result = normalizeRecipeData(input);
 
-  assertEquals(result.name, "My Recipe");
-  assertEquals(result.name_en, "My Recipe EN");
-  assertEquals(result.name_es, "Mi Receta");
+  assertEquals(result.name, "My Recipe EN"); // Derived from first translation
   assertEquals(result.difficulty, "hard");
   assertEquals(result.portions, 6);
   assertEquals(result.prep_time, 15);
   assertEquals(result.total_time, 45);
+  assertEquals(
+    (result.translations as any[]).length,
+    2,
+  );
 });
 
 Deno.test("normalizeRecipeData - converts string numbers to numbers", () => {
   const input = {
-    name: "Test Recipe",
+    translations: [{ locale: "en", name: "Test Recipe" }],
     difficulty: "easy",
     portions: "4" as unknown as number,
     prep_time: "10" as unknown as number,
@@ -247,9 +261,9 @@ Deno.test("normalizeRecipeData - converts string numbers to numbers", () => {
   assertEquals(typeof result.total_time, "number");
 });
 
-Deno.test("normalizeRecipeData - sets name from name_en if name is missing", () => {
+Deno.test("normalizeRecipeData - derives name from translations", () => {
   const input = {
-    name_en: "English Name",
+    translations: [{ locale: "es", name: "Nombre en Español" }],
     difficulty: "easy",
     ingredients: [],
     steps: [],
@@ -257,12 +271,12 @@ Deno.test("normalizeRecipeData - sets name from name_en if name is missing", () 
 
   const result = normalizeRecipeData(input);
 
-  assertEquals(result.name, "English Name");
+  assertEquals(result.name, "Nombre en Español");
 });
 
 Deno.test("normalizeRecipeData - ensures arrays are arrays", () => {
   const input = {
-    name: "Test Recipe",
+    translations: [{ locale: "en", name: "Test Recipe" }],
     difficulty: "easy",
     ingredients: null as unknown as unknown[],
     steps: undefined as unknown as unknown[],
@@ -280,7 +294,7 @@ Deno.test("normalizeRecipeData - ensures arrays are arrays", () => {
 
 Deno.test("normalizeRecipeData - preserves additional fields", () => {
   const input = {
-    name: "Test Recipe",
+    translations: [{ locale: "en", name: "Test Recipe" }],
     difficulty: "easy",
     ingredients: [],
     steps: [],
@@ -299,65 +313,50 @@ Deno.test("normalizeRecipeData - preserves additional fields", () => {
 // ============================================================
 
 Deno.test("validateRecipeData - accepts step with valid Thermomix settings", () => {
-  const recipe = {
-    name: "Thermomix Recipe",
-    difficulty: "medium",
-    ingredients: [{ quantity: 500, ingredient: { name_en: "Flour" } }],
+  const result = validateRecipeData(validRecipe({
     steps: [
       {
         order: 1,
-        instruction_en: "Mix ingredients",
+        translations: [{ locale: "en", instruction: "Mix ingredients" }],
         thermomix_time: 60,
         thermomix_speed: 5,
         thermomix_temperature: 100,
         thermomix_is_blade_reversed: false,
       },
     ],
-  };
-
-  const result = validateRecipeData(recipe);
+  }));
 
   assertEquals(result.valid, true);
   assertEquals(result.errors.length, 0);
 });
 
 Deno.test("validateRecipeData - accepts step with null Thermomix values", () => {
-  const recipe = {
-    name: "Non-Thermomix Recipe",
-    difficulty: "easy",
-    ingredients: [{ quantity: 1, ingredient: { name_en: "Salt" } }],
+  const result = validateRecipeData(validRecipe({
     steps: [
       {
         order: 1,
-        instruction_en: "Add salt",
+        translations: [{ locale: "en", instruction: "Add salt" }],
         thermomix_time: null,
         thermomix_speed: null,
         thermomix_temperature: null,
         thermomix_is_blade_reversed: null,
       },
     ],
-  };
-
-  const result = validateRecipeData(recipe);
+  }));
 
   assertEquals(result.valid, true);
 });
 
 Deno.test("validateRecipeData - accepts Varoma temperature as string", () => {
-  const recipe = {
-    name: "Varoma Recipe",
-    difficulty: "hard",
-    ingredients: [{ quantity: 200, ingredient: { name_en: "Vegetables" } }],
+  const result = validateRecipeData(validRecipe({
     steps: [
       {
         order: 1,
-        instruction_en: "Steam vegetables",
+        translations: [{ locale: "en", instruction: "Steam vegetables" }],
         thermomix_temperature: "Varoma",
       },
     ],
-  };
-
-  const result = validateRecipeData(recipe);
+  }));
 
   assertEquals(result.valid, true);
 });
@@ -367,90 +366,75 @@ Deno.test("validateRecipeData - accepts Varoma temperature as string", () => {
 // ============================================================
 
 Deno.test("validateRecipeData - accepts ingredient with full details", () => {
-  const recipe = {
-    name: "Detailed Recipe",
-    difficulty: "medium",
+  const result = validateRecipeData(validRecipe({
     ingredients: [
       {
         quantity: 250,
         ingredient: {
-          name_en: "All-purpose flour",
-          name_es: "Harina de trigo",
-          plural_name_en: "All-purpose flour",
-          plural_name_es: "Harina de trigo",
+          translations: [
+            { locale: "en", name: "All-purpose flour", plural_name: "All-purpose flour" },
+            { locale: "es", name: "Harina de trigo", plural_name: "Harina de trigo" },
+          ],
         },
         measurement_unit: {
           id: "g",
           type: "weight",
           system: "metric",
-          name_en: "gram",
-          symbol_en: "g",
+          translations: [{ locale: "en", name: "gram", symbol: "g" }],
         },
-        notes_en: "Sifted",
-        notes_es: "Tamizada",
+        translations: [
+          { locale: "en", notes: "Sifted" },
+          { locale: "es", notes: "Tamizada" },
+        ],
         display_order: 1,
         optional: false,
       },
     ],
-    steps: [{ order: 1, instruction_en: "Measure flour" }],
-  };
-
-  const result = validateRecipeData(recipe);
+  }));
 
   assertEquals(result.valid, true);
 });
 
-Deno.test("validateRecipeData - accepts ingredient with just name", () => {
-  const recipe = {
-    name: "Simple Recipe",
-    difficulty: "easy",
+Deno.test("validateRecipeData - rejects ingredient with only bare name (no translations)", () => {
+  const result = validateRecipeData(validRecipe({
     ingredients: [
       {
         quantity: 1,
-        ingredient: { name: "Salt" }, // Using name instead of name_en
+        ingredient: { name: "Salt" }, // No translations
       },
     ],
-    steps: [{ order: 1, instruction_en: "Add salt" }],
-  };
+  }));
 
-  const result = validateRecipeData(recipe);
-
-  assertEquals(result.valid, true);
+  assertEquals(result.valid, false);
 });
 
 Deno.test("validateRecipeData - ingredient with negative quantity returns error", () => {
-  const recipe = {
-    name: "Bad Recipe",
-    difficulty: "easy",
+  const result = validateRecipeData(validRecipe({
     ingredients: [
       {
         quantity: -5,
-        ingredient: { name_en: "Flour" },
+        ingredient: {
+          translations: [{ locale: "en", name: "Flour" }],
+        },
       },
     ],
-    steps: [{ order: 1, instruction_en: "Mix" }],
-  };
-
-  const result = validateRecipeData(recipe);
+  }));
 
   assertEquals(result.valid, false);
   assertEquals(result.errors.some((e) => e.includes("negative")), true);
 });
 
 Deno.test("validateRecipeData - ingredient with string quantity returns error", () => {
-  const recipe = {
-    name: "Bad Recipe",
-    difficulty: "easy",
+  const result = validateRecipeData(validRecipe({
     ingredients: [
       {
-        quantity: "one cup" as unknown as number, // String instead of number
-        ingredient: { name_en: "Flour" },
+        quantity: "one cup" as unknown as number,
+        ingredient: {
+          translations: [{ locale: "en", name: "Flour" }],
+        },
       },
     ],
-    steps: [{ order: 1, instruction_en: "Mix" }],
-  };
-
-  const result = validateRecipeData(recipe);
+  }));
 
   assertEquals(result.valid, false);
   assertEquals(result.errors.some((e) => e.includes("quantity")), true);
@@ -461,57 +445,44 @@ Deno.test("validateRecipeData - ingredient with string quantity returns error", 
 // ============================================================
 
 Deno.test("validateRecipeData - accepts multiple steps in order", () => {
-  const recipe = {
-    name: "Multi-step Recipe",
-    difficulty: "medium",
-    ingredients: [{ quantity: 100, ingredient: { name_en: "Flour" } }],
+  const result = validateRecipeData(validRecipe({
     steps: [
-      { order: 1, instruction_en: "First step" },
-      { order: 2, instruction_en: "Second step" },
-      { order: 3, instruction_en: "Third step" },
+      { order: 1, translations: [{ locale: "en", instruction: "First step" }] },
+      { order: 2, translations: [{ locale: "en", instruction: "Second step" }] },
+      { order: 3, translations: [{ locale: "en", instruction: "Third step" }] },
     ],
-  };
-
-  const result = validateRecipeData(recipe);
+  }));
 
   assertEquals(result.valid, true);
 });
 
-Deno.test("validateRecipeData - accepts step with instruction_es only when instruction_en present", () => {
-  const recipe = {
-    name: "Bilingual Recipe",
-    difficulty: "easy",
-    ingredients: [{ quantity: 1, ingredient: { name_en: "Salt" } }],
+Deno.test("validateRecipeData - accepts step with bilingual translations", () => {
+  const result = validateRecipeData(validRecipe({
     steps: [
       {
         order: 1,
-        instruction_en: "Add salt",
-        instruction_es: "Añadir sal",
+        translations: [
+          { locale: "en", instruction: "Add salt" },
+          { locale: "es", instruction: "Añadir sal" },
+        ],
       },
     ],
-  };
-
-  const result = validateRecipeData(recipe);
+  }));
 
   assertEquals(result.valid, true);
 });
 
-Deno.test("validateRecipeData - accepts step with only instruction (legacy format)", () => {
-  const recipe = {
-    name: "Legacy Recipe",
-    difficulty: "easy",
-    ingredients: [{ quantity: 1, ingredient: { name_en: "Salt" } }],
+Deno.test("validateRecipeData - rejects step with only bare instruction (no translations)", () => {
+  const result = validateRecipeData(validRecipe({
     steps: [
       {
         order: 1,
-        instruction: "Add salt", // Legacy field name
+        instruction: "Add salt", // No translations
       },
     ],
-  };
+  }));
 
-  const result = validateRecipeData(recipe);
-
-  assertEquals(result.valid, true);
+  assertEquals(result.valid, false);
 });
 
 // ============================================================
@@ -519,49 +490,49 @@ Deno.test("validateRecipeData - accepts step with only instruction (legacy forma
 // ============================================================
 
 Deno.test("validateRecipeData - accepts recipe with tags", () => {
-  const recipe = {
-    name: "Tagged Recipe",
-    difficulty: "easy",
-    ingredients: [{ quantity: 1, ingredient: { name_en: "Salt" } }],
-    steps: [{ order: 1, instruction_en: "Season" }],
+  const result = validateRecipeData(validRecipe({
     tags: [
       {
         recipe_tags: {
           id: "tag-1",
-          name_en: "Vegetarian",
-          name_es: "Vegetariano",
+          translations: [
+            { locale: "en", name: "Vegetarian" },
+            { locale: "es", name: "Vegetariano" },
+          ],
         },
       },
-      { recipe_tags: { id: "tag-2", name_en: "Quick", name_es: "Rápido" } },
+      {
+        recipe_tags: {
+          id: "tag-2",
+          translations: [
+            { locale: "en", name: "Quick" },
+            { locale: "es", name: "Rápido" },
+          ],
+        },
+      },
     ],
-  };
-
-  const result = validateRecipeData(recipe);
+  }));
 
   assertEquals(result.valid, true);
 });
 
 Deno.test("validateRecipeData - accepts recipe with useful items", () => {
-  const recipe = {
-    name: "Recipe with Tools",
-    difficulty: "medium",
-    ingredients: [{ quantity: 200, ingredient: { name_en: "Dough" } }],
-    steps: [{ order: 1, instruction_en: "Knead dough" }],
+  const result = validateRecipeData(validRecipe({
     useful_items: [
       {
         id: "item-1",
         display_order: 1,
-        notes_en: "For kneading",
+        translations: [{ locale: "en", notes: "For kneading" }],
         useful_item: {
           id: "tool-1",
-          name_en: "Rolling Pin",
-          name_es: "Rodillo",
+          translations: [
+            { locale: "en", name: "Rolling Pin" },
+            { locale: "es", name: "Rodillo" },
+          ],
         },
       },
     ],
-  };
-
-  const result = validateRecipeData(recipe);
+  }));
 
   assertEquals(result.valid, true);
 });
@@ -595,29 +566,32 @@ Deno.test("validateRecipeData - empty object returns all required field errors",
 Deno.test("validateRecipeData - accepts recipe with all optional fields", () => {
   const recipe = {
     name: "Complete Recipe",
-    name_en: "Complete Recipe",
-    name_es: "Receta Completa",
     image_url: "https://example.com/recipe.jpg",
     difficulty: "hard",
     prep_time: 30,
     total_time: 90,
     portions: 4,
-    tips_and_tricks_en: "Use fresh ingredients",
-    tips_and_tricks_es: "Usa ingredientes frescos",
+    translations: [
+      { locale: "en", name: "Complete Recipe", tips_and_tricks: "Use fresh ingredients" },
+      { locale: "es", name: "Receta Completa", tips_and_tricks: "Usa ingredientes frescos" },
+    ],
     ingredients: [
       {
         quantity: 500,
         ingredient: {
-          name_en: "Flour",
-          name_es: "Harina",
-          plural_name_en: "Flour",
-          plural_name_es: "Harina",
+          translations: [
+            { locale: "en", name: "Flour", plural_name: "Flour" },
+            { locale: "es", name: "Harina", plural_name: "Harina" },
+          ],
         },
-        measurement_unit: { id: "g", symbol_en: "g" },
-        notes_en: "Sifted",
-        notes_es: "Tamizada",
-        recipe_section_en: "Main",
-        recipe_section_es: "Principal",
+        measurement_unit: {
+          id: "g",
+          translations: [{ locale: "en", symbol: "g" }],
+        },
+        translations: [
+          { locale: "en", notes: "Sifted", recipe_section: "Main" },
+          { locale: "es", notes: "Tamizada", recipe_section: "Principal" },
+        ],
         display_order: 1,
         optional: false,
       },
@@ -625,18 +599,32 @@ Deno.test("validateRecipeData - accepts recipe with all optional fields", () => 
     steps: [
       {
         order: 1,
-        instruction_en: "Mix flour",
-        instruction_es: "Mezcla la harina",
-        recipe_section_en: "Preparation",
-        recipe_section_es: "Preparación",
+        translations: [
+          { locale: "en", instruction: "Mix flour", recipe_section: "Preparation" },
+          { locale: "es", instruction: "Mezcla la harina", recipe_section: "Preparación" },
+        ],
         thermomix_time: 30,
         thermomix_speed: 4,
         thermomix_temperature: null,
         thermomix_is_blade_reversed: false,
       },
     ],
-    tags: [{ recipe_tags: { id: "tag-1", name_en: "Baking" } }],
-    useful_items: [{ id: "item-1", useful_item: { name_en: "Bowl" } }],
+    tags: [
+      {
+        recipe_tags: {
+          id: "tag-1",
+          translations: [{ locale: "en", name: "Baking" }],
+        },
+      },
+    ],
+    useful_items: [
+      {
+        id: "item-1",
+        useful_item: {
+          translations: [{ locale: "en", name: "Bowl" }],
+        },
+      },
+    ],
   };
 
   const result = validateRecipeData(recipe);
@@ -649,10 +637,8 @@ Deno.test("validateRecipeData - accepts recipe with all optional fields", () => 
 // NORMALIZATION EDGE CASES
 // ============================================================
 
-Deno.test("normalizeRecipeData - handles empty string as name", () => {
+Deno.test("normalizeRecipeData - falls back to Untitled when no translations", () => {
   const input = {
-    name: "",
-    name_en: "",
     difficulty: "easy",
     ingredients: [],
     steps: [],
@@ -660,8 +646,8 @@ Deno.test("normalizeRecipeData - handles empty string as name", () => {
 
   const result = normalizeRecipeData(input);
 
-  // Empty strings should still trigger fallback
   assertEquals(result.name, "Untitled Recipe");
+  assertEquals(Array.isArray(result.translations), true);
 });
 
 Deno.test("normalizeRecipeData - handles NaN for numeric fields", () => {
@@ -683,9 +669,9 @@ Deno.test("normalizeRecipeData - handles NaN for numeric fields", () => {
   assertEquals(result.total_time, 0);
 });
 
-Deno.test("normalizeRecipeData - trims whitespace from name", () => {
+Deno.test("normalizeRecipeData - preserves translation name as-is", () => {
   const input = {
-    name: "  My Recipe  ",
+    translations: [{ locale: "en", name: "  My Recipe  " }],
     difficulty: "easy",
     ingredients: [],
     steps: [],
@@ -693,7 +679,6 @@ Deno.test("normalizeRecipeData - trims whitespace from name", () => {
 
   const result = normalizeRecipeData(input);
 
-  // Current implementation doesn't trim, just preserves
   assertEquals(result.name, "  My Recipe  ");
 });
 
@@ -702,7 +687,7 @@ Deno.test("normalizeRecipeData - preserves valid difficulty values", () => {
 
   difficulties.forEach((diff) => {
     const result = normalizeRecipeData({
-      name: "Test",
+      translations: [{ locale: "en", name: "Test" }],
       difficulty: diff,
       ingredients: [],
       steps: [],

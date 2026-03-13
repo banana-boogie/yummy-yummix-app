@@ -29,8 +29,7 @@ export interface SaveRecipeResult {
 // Internal types for database rows
 interface DbIngredientRow {
     id: string;
-    name_en: string;
-    name_es: string | null;
+    name: string;
     quantity: number;
     unit_text: string | null;
     image_url: string | null;
@@ -45,8 +44,7 @@ interface DbStepIngredientRow {
 interface DbStepRow {
     id: string;
     step_order: number;
-    instruction_en: string;
-    instruction_es: string | null;
+    instruction: string;
     thermomix_time: number | null;
     thermomix_speed: string | null;
     thermomix_temperature: string | null;
@@ -114,7 +112,7 @@ export const customRecipeService = {
             // 2. Insert ingredients
             const ingredientRows = recipe.ingredients.map((ing, index) => ({
                 user_recipe_id: recipeId,
-                name_en: ing.name,
+                name: ing.name,
                 quantity: ing.quantity,
                 unit_text: ing.unit,
                 image_url: ing.imageUrl || null,
@@ -124,7 +122,7 @@ export const customRecipeService = {
             const { data: insertedIngredients, error: ingError } = await supabase
                 .from('user_recipe_ingredients')
                 .insert(ingredientRows)
-                .select('id, name_en');
+                .select('id, name');
 
             if (ingError) {
                 if (__DEV__) console.error('Failed to save recipe ingredients:', ingError);
@@ -134,14 +132,14 @@ export const customRecipeService = {
             // Create a map for ingredient name -> id lookup
             const ingredientMap = new Map<string, string>();
             for (const ing of insertedIngredients || []) {
-                ingredientMap.set(ing.name_en.toLowerCase(), ing.id);
+                ingredientMap.set(ing.name.toLowerCase(), ing.id);
             }
 
             // 3. Insert steps
             const stepRows = recipe.steps.map((step) => ({
                 user_recipe_id: recipeId,
                 step_order: step.order,
-                instruction_en: step.instruction,
+                instruction: step.instruction,
                 thermomix_time: step.thermomixTime || null,
                 thermomix_speed: step.thermomixSpeed || null,
                 thermomix_temperature: step.thermomixTemp || null,
@@ -299,13 +297,13 @@ export const customRecipeService = {
         const { data: stepsData, error: stepsError } = await supabase
             .from('user_recipe_steps')
             .select(`
-                id, step_order, instruction_en, instruction_es,
+                id, step_order, instruction,
                 thermomix_time, thermomix_speed, thermomix_temperature,
                 tip,
                 ingredients:user_recipe_step_ingredients (
                     display_order,
                     ingredient:user_recipe_ingredients (
-                        id, name_en, name_es, quantity, unit_text, image_url, display_order
+                        id, name, quantity, unit_text, image_url, display_order
                     )
                 )
             `)
@@ -319,7 +317,7 @@ export const customRecipeService = {
 
         const { data: ingredientsData, error: ingredientsError } = await supabase
             .from('user_recipe_ingredients')
-            .select('id, name_en, name_es, quantity, unit_text, image_url, display_order')
+            .select('id, name, quantity, unit_text, image_url, display_order')
             .eq('user_recipe_id', userRecipeId)
             .order('display_order', { ascending: true });
 
@@ -341,7 +339,7 @@ export const customRecipeService = {
 
         // Transform to GeneratedRecipe format
         const ingredients: GeneratedIngredient[] = (ingredientsData || []).map((ing) => ({
-            name: ing.name_en,
+            name: ing.name,
             quantity: Number(ing.quantity),
             unit: ing.unit_text || '',
             imageUrl: ing.image_url || undefined,
@@ -351,12 +349,12 @@ export const customRecipeService = {
             // Get ingredient names used in this step
             const ingredientsUsed = (step.ingredients || [])
                 .sort((a, b) => a.display_order - b.display_order)
-                .map((si) => si.ingredient?.name_en)
+                .map((si) => si.ingredient?.name)
                 .filter(Boolean) as string[];
 
             return {
                 order: step.step_order,
-                instruction: step.instruction_en,
+                instruction: step.instruction,
                 ingredientsUsed,
                 thermomixTime: step.thermomix_time || undefined,
                 thermomixSpeed: step.thermomix_speed || undefined,

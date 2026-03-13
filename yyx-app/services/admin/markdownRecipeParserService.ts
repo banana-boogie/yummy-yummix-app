@@ -146,9 +146,8 @@ const processSteps = (steps: AdminRecipeSteps[], allIngredients: AdminRecipeIngr
  */
 const processUsefulItems = (usefulItemsNames: AdminUsefulItem[], allUsefulItems: AdminUsefulItem[]): { usefulItems: AdminRecipeUsefulItem[], missingUsefulItems: string[] } => {
   const matchUsefulItem = (usefulItem: AdminUsefulItem, allUsefulItems: AdminUsefulItem[]): AdminUsefulItem | null => {
-    // The parsed usefulItem may use old nameEn/nameEs or translations
-    const searchNameEn = getTranslatedField(usefulItem.translations, 'en', 'name') || (usefulItem as any).nameEn || '';
-    const searchNameEs = getTranslatedField(usefulItem.translations, 'es', 'name') || (usefulItem as any).nameEs || '';
+    const searchNameEn = getTranslatedField(usefulItem.translations, 'en', 'name');
+    const searchNameEs = getTranslatedField(usefulItem.translations, 'es', 'name');
     const match = allUsefulItems.find(item => {
       const itemNameEn = getTranslatedField(item.translations, 'en', 'name');
       const itemNameEs = getTranslatedField(item.translations, 'es', 'name');
@@ -179,7 +178,7 @@ const processUsefulItems = (usefulItemsNames: AdminUsefulItem[], allUsefulItems:
         usefulItem: matchedUsefulItem
       });
     } else {
-      const nameEn = getTranslatedField(usefulItem.translations, 'en', 'name') || (usefulItem as any).nameEn || '';
+      const nameEn = getTranslatedField(usefulItem.translations, 'en', 'name');
       missingUsefulItems.push(nameEn);
     }
   }

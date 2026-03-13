@@ -8,13 +8,15 @@
 /**
  * Compute a locale fallback chain for the given locale.
  *
+ * Only walks up the parent tree within the same language family.
+ * No cross-language fallback — es and en are separate user groups.
+ *
  * Examples:
  *   "es-MX" -> ["es-MX", "es"]
  *   "es"    -> ["es"]
- *   "en"    -> ["en", "es"]
- *   "fr"    -> ["fr", "es"]
- *
- * Spanish is always the terminal fallback (Mexico-first audience).
+ *   "en"    -> ["en"]
+ *   "en-US" -> ["en-US", "en"]
+ *   "fr"    -> ["fr"]
  */
 export function buildLocaleChain(locale: string): string[] {
   const chain: string[] = [locale];
@@ -25,11 +27,6 @@ export function buildLocaleChain(locale: string): string[] {
     if (!chain.includes(base)) {
       chain.push(base);
     }
-  }
-
-  // Spanish is the terminal fallback (Mexico-first audience, matches DB resolve_locale())
-  if (!chain.includes("es")) {
-    chain.push("es");
   }
 
   return chain;
@@ -55,8 +52,8 @@ export function pickTranslation<T extends { locale: string }>(
     if (match) return match;
   }
 
-  // If no locale chain match, return the first available translation
-  return translations[0];
+  // No match — caller must handle missing translation explicitly
+  return undefined;
 }
 
 /**

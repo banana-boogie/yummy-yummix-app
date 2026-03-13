@@ -80,9 +80,6 @@ export interface RawRecipe {
   created_at: string;
   updated_at: string;
   translations: RecipeTranslation[];
-  // Legacy fields — kept for write compatibility
-  [key: `name_${string}`]: string;
-  [key: `tips_and_tricks_${string}`]: string;
 }
 
 // Raw Ingredient Types
@@ -93,22 +90,12 @@ export interface RawRecipeIngredient {
   translations?: RecipeIngredientTranslation[];
   display_order: number;
   optional: boolean;
-  // Legacy write fields
-  notes_en?: string;
-  notes_es?: string;
-  recipe_section_en?: string;
-  recipe_section_es?: string;
 }
 
 export interface RawIngredient {
   id: string;
   image_url?: string;
   translations: IngredientTranslation[];
-  // Legacy write fields
-  name_en?: string;
-  name_es?: string;
-  plural_name_en?: string;
-  plural_name_es?: string;
 }
 
 export interface RawMeasurementUnit {
@@ -116,15 +103,6 @@ export interface RawMeasurementUnit {
   type: 'volume' | 'weight' | 'unit';
   system: 'metric' | 'imperial' | 'universal';
   translations: MeasurementUnitTranslation[];
-  // Legacy write fields
-  name_en: string;
-  name_en_plural: string;
-  symbol_en: string;
-  symbol_en_plural: string;
-  name_es: string;
-  name_es_plural: string;
-  symbol_es: string;
-  symbol_es_plural: string;
 }
 
 // Raw Tag Types
@@ -133,9 +111,6 @@ export interface RawRecipeTag {
     id: string;
     categories: string[];
     translations: RecipeTagTranslation[];
-    // Legacy write fields
-    name_en: string | null;
-    name_es: string | null;
   }
 }
 
@@ -152,13 +127,6 @@ export interface RawRecipeStep {
   thermomix_is_blade_reversed: boolean | null;
   step_ingredients?: RawStepIngredient[];
   translations: RecipeStepTranslation[];
-  // Legacy write fields
-  recipe_section_en: string | null;
-  recipe_section_es: string | null;
-  instruction_en: string;
-  instruction_es: string;
-  tip_en: string | null;
-  tip_es: string | null;
 }
 
 export interface RawStepIngredient {
@@ -181,16 +149,10 @@ export interface RawRecipeUsefulItem {
   display_order: number;
   useful_item: RawUsefulItem;
   translations?: RecipeUsefulItemTranslation[];
-  // Legacy write fields
-  notes_en?: string;
-  notes_es?: string;
 }
 
 export interface RawUsefulItem {
   id: string;
   image_url: string;
   translations: UsefulItemTranslation[];
-  // Legacy write fields
-  name_en: string;
-  name_es: string;
 }

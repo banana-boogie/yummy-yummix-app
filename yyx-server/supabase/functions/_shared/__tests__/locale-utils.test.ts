@@ -4,7 +4,8 @@
  * Verifies locale chain computation, translation picking with fallback,
  * base language extraction, language name resolution, and locale mapping.
  *
- * Terminal fallback is "es" (Mexico-first audience).
+ * No cross-language fallback — es and en are separate user groups.
+ * Only within-family fallback is valid (e.g., es-MX → es).
  */
 
 import { assertEquals } from "https://deno.land/std@0.192.0/testing/asserts.ts";
@@ -20,33 +21,33 @@ import {
 // buildLocaleChain
 // ============================================================
 
-Deno.test("buildLocaleChain - 'es' returns ['es'] (es is terminal)", () => {
+Deno.test("buildLocaleChain - 'es' returns ['es']", () => {
   assertEquals(buildLocaleChain("es"), ["es"]);
 });
 
-Deno.test("buildLocaleChain - 'en' returns ['en', 'es']", () => {
-  assertEquals(buildLocaleChain("en"), ["en", "es"]);
+Deno.test("buildLocaleChain - 'en' returns ['en'] (no cross-language fallback)", () => {
+  assertEquals(buildLocaleChain("en"), ["en"]);
 });
 
 Deno.test("buildLocaleChain - 'es-MX' returns ['es-MX', 'es']", () => {
   assertEquals(buildLocaleChain("es-MX"), ["es-MX", "es"]);
 });
 
-Deno.test("buildLocaleChain - 'en-CA' returns ['en-CA', 'en', 'es']", () => {
-  assertEquals(buildLocaleChain("en-CA"), ["en-CA", "en", "es"]);
+Deno.test("buildLocaleChain - 'en-CA' returns ['en-CA', 'en'] (no es fallback)", () => {
+  assertEquals(buildLocaleChain("en-CA"), ["en-CA", "en"]);
 });
 
-Deno.test("buildLocaleChain - 'fr' returns ['fr', 'es']", () => {
-  assertEquals(buildLocaleChain("fr"), ["fr", "es"]);
+Deno.test("buildLocaleChain - 'fr' returns ['fr'] (no cross-language fallback)", () => {
+  assertEquals(buildLocaleChain("fr"), ["fr"]);
 });
 
-Deno.test("buildLocaleChain - 'pt-BR' returns ['pt-BR', 'pt', 'es']", () => {
-  assertEquals(buildLocaleChain("pt-BR"), ["pt-BR", "pt", "es"]);
+Deno.test("buildLocaleChain - 'pt-BR' returns ['pt-BR', 'pt'] (no es fallback)", () => {
+  assertEquals(buildLocaleChain("pt-BR"), ["pt-BR", "pt"]);
 });
 
-Deno.test("buildLocaleChain - 'en-US' includes base 'en' and terminal 'es'", () => {
+Deno.test("buildLocaleChain - 'en-US' includes base 'en' only", () => {
   const chain = buildLocaleChain("en-US");
-  assertEquals(chain, ["en-US", "en", "es"]);
+  assertEquals(chain, ["en-US", "en"]);
 });
 
 Deno.test("buildLocaleChain - 'es-ES' does not duplicate 'es'", () => {
@@ -75,14 +76,14 @@ Deno.test("pickTranslation - falls back through chain", () => {
   assertEquals(result?.name, "Soupe de Poulet");
 });
 
-Deno.test("pickTranslation - falls back to es as terminal", () => {
+Deno.test("pickTranslation - picks es when chain includes es", () => {
   const result = pickTranslation(translations, ["pt", "es"]);
   assertEquals(result?.name, "Sopa de Pollo");
 });
 
-Deno.test("pickTranslation - returns first translation when no chain match", () => {
+Deno.test("pickTranslation - returns undefined when no chain match (no translations[0] fallback)", () => {
   const result = pickTranslation(translations, ["zh", "ja"]);
-  assertEquals(result?.name, "Chicken Soup");
+  assertEquals(result, undefined);
 });
 
 Deno.test("pickTranslation - returns undefined for empty array", () => {
@@ -105,6 +106,16 @@ Deno.test("pickTranslation - prefers earlier locale in chain", () => {
 Deno.test("pickTranslation - es-MX chain falls back to es", () => {
   const result = pickTranslation(translations, ["es-MX", "es"]);
   assertEquals(result?.name, "Sopa de Pollo");
+});
+
+Deno.test("pickTranslation - single locale chain with match", () => {
+  const result = pickTranslation(translations, ["en"]);
+  assertEquals(result?.name, "Chicken Soup");
+});
+
+Deno.test("pickTranslation - single locale chain without match returns undefined", () => {
+  const result = pickTranslation(translations, ["de"]);
+  assertEquals(result, undefined);
 });
 
 // ============================================================

@@ -11,11 +11,8 @@
  */
 export const recipeDataSchema = {
   type: "object",
-  required: ["name", "difficulty", "ingredients", "steps"],
+  required: ["difficulty", "ingredients", "steps", "translations"],
   properties: {
-    name: { type: "string", minLength: 1 },
-    name_en: { type: "string" },
-    name_es: { type: "string" },
     image_url: { type: "string" },
     difficulty: {
       type: "string",
@@ -24,8 +21,18 @@ export const recipeDataSchema = {
     prep_time: { type: "number", minimum: 0 },
     total_time: { type: "number", minimum: 0 },
     portions: { type: "number", minimum: 1 },
-    tips_and_tricks_en: { type: "string" },
-    tips_and_tricks_es: { type: "string" },
+    translations: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["locale", "name"],
+        properties: {
+          locale: { type: "string" },
+          name: { type: "string" },
+          tips_and_tricks: { type: "string" },
+        },
+      },
+    },
     ingredients: {
       type: "array",
       items: {
@@ -35,14 +42,21 @@ export const recipeDataSchema = {
           quantity: { type: "number" },
           ingredient: {
             type: "object",
-            required: ["name_en"],
             properties: {
               id: { type: "string" },
-              name_en: { type: "string" },
-              name_es: { type: "string" },
-              plural_name_en: { type: "string" },
-              plural_name_es: { type: "string" },
               image_url: { type: "string" },
+              translations: {
+                type: "array",
+                items: {
+                  type: "object",
+                  required: ["locale", "name"],
+                  properties: {
+                    locale: { type: "string" },
+                    name: { type: "string" },
+                    plural_name: { type: "string" },
+                  },
+                },
+              },
             },
           },
           measurement_unit: {
@@ -54,14 +68,32 @@ export const recipeDataSchema = {
                 type: "string",
                 enum: ["metric", "imperial", "universal"],
               },
-              name_en: { type: "string" },
-              symbol_en: { type: "string" },
+              translations: {
+                type: "array",
+                items: {
+                  type: "object",
+                  required: ["locale"],
+                  properties: {
+                    locale: { type: "string" },
+                    name: { type: "string" },
+                    symbol: { type: "string" },
+                  },
+                },
+              },
             },
           },
-          notes_en: { type: "string" },
-          notes_es: { type: "string" },
-          recipe_section_en: { type: "string" },
-          recipe_section_es: { type: "string" },
+          translations: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["locale"],
+              properties: {
+                locale: { type: "string" },
+                notes: { type: "string" },
+                recipe_section: { type: "string" },
+              },
+            },
+          },
           display_order: { type: "number" },
           optional: { type: "boolean" },
         },
@@ -71,14 +103,22 @@ export const recipeDataSchema = {
       type: "array",
       items: {
         type: "object",
-        required: ["order", "instruction_en"],
+        required: ["order"],
         properties: {
           id: { type: "string" },
           order: { type: "number", minimum: 1 },
-          instruction_en: { type: "string" },
-          instruction_es: { type: "string" },
-          recipe_section_en: { type: "string" },
-          recipe_section_es: { type: "string" },
+          translations: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["locale", "instruction"],
+              properties: {
+                locale: { type: "string" },
+                instruction: { type: "string" },
+                recipe_section: { type: "string" },
+              },
+            },
+          },
           thermomix_time: { type: ["number", "null"] },
           thermomix_speed: { type: ["number", "string", "null"] },
           thermomix_temperature: { type: ["number", "string", "null"] },
@@ -99,8 +139,17 @@ export const recipeDataSchema = {
             type: "object",
             properties: {
               id: { type: "string" },
-              name_en: { type: "string" },
-              name_es: { type: "string" },
+              translations: {
+                type: "array",
+                items: {
+                  type: "object",
+                  required: ["locale", "name"],
+                  properties: {
+                    locale: { type: "string" },
+                    name: { type: "string" },
+                  },
+                },
+              },
             },
           },
         },
@@ -113,15 +162,33 @@ export const recipeDataSchema = {
         properties: {
           id: { type: "string" },
           display_order: { type: "number" },
-          notes_en: { type: "string" },
-          notes_es: { type: "string" },
+          translations: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["locale"],
+              properties: {
+                locale: { type: "string" },
+                notes: { type: "string" },
+              },
+            },
+          },
           useful_item: {
             type: "object",
             properties: {
               id: { type: "string" },
-              name_en: { type: "string" },
-              name_es: { type: "string" },
               image_url: { type: "string" },
+              translations: {
+                type: "array",
+                items: {
+                  type: "object",
+                  required: ["locale", "name"],
+                  properties: {
+                    locale: { type: "string" },
+                    name: { type: "string" },
+                  },
+                },
+              },
             },
           },
         },
@@ -150,8 +217,11 @@ export function validateRecipeData(data: unknown): ValidationResult {
   const recipe = data as Record<string, unknown>;
 
   // Required fields
-  if (!recipe.name && !recipe.name_en) {
-    errors.push("Recipe must have a name (name or name_en)");
+  if (
+    !Array.isArray(recipe.translations) ||
+    !(recipe.translations as any[]).some((t: any) => t.name)
+  ) {
+    errors.push("Recipe must have at least one translation with a name");
   }
 
   if (!recipe.difficulty) {
@@ -179,9 +249,13 @@ export function validateRecipeData(data: unknown): ValidationResult {
         errors.push(`Ingredient ${index + 1}: quantity cannot be negative`);
       }
       if (
-        !ing.ingredient || (!ing.ingredient.name_en && !ing.ingredient.name)
+        !ing.ingredient ||
+        !Array.isArray(ing.ingredient.translations) ||
+        !ing.ingredient.translations.some((t: any) => t.name)
       ) {
-        errors.push(`Ingredient ${index + 1}: must have ingredient name`);
+        errors.push(
+          `Ingredient ${index + 1}: must have ingredient with translations`,
+        );
       }
     });
   }
@@ -192,8 +266,13 @@ export function validateRecipeData(data: unknown): ValidationResult {
       if (typeof step.order !== "number") {
         errors.push(`Step ${index + 1}: order must be a number`);
       }
-      if (!step.instruction_en && !step.instruction) {
-        errors.push(`Step ${index + 1}: must have instruction text`);
+      if (
+        !Array.isArray(step.translations) ||
+        !step.translations.some((t: any) => t.instruction)
+      ) {
+        errors.push(
+          `Step ${index + 1}: must have translations with instruction`,
+        );
       }
     });
   }
@@ -211,21 +290,25 @@ export function validateRecipeData(data: unknown): ValidationResult {
 export function normalizeRecipeData(
   data: Record<string, unknown>,
 ): Record<string, unknown> {
+  const translations = Array.isArray(data.translations)
+    ? data.translations
+    : [];
+  const firstTranslationName = translations.find(
+    (t: any) => t.name,
+  )?.name;
+
   return {
     // Preserve any additional fields first (so normalized values take precedence)
     ...data,
 
     // Core fields (these override the spread above)
-    name: data.name || data.name_en || "Untitled Recipe",
-    name_en: data.name_en || data.name || "Untitled Recipe",
-    name_es: data.name_es || "",
+    name: firstTranslationName || "Untitled Recipe",
     image_url: data.image_url || null,
     difficulty: data.difficulty || "medium",
     prep_time: Number(data.prep_time) || 0,
     total_time: Number(data.total_time) || 0,
     portions: Number(data.portions) || 4,
-    tips_and_tricks_en: data.tips_and_tricks_en || "",
-    tips_and_tricks_es: data.tips_and_tricks_es || "",
+    translations,
 
     // Arrays with defaults
     ingredients: Array.isArray(data.ingredients) ? data.ingredients : [],

@@ -127,7 +127,7 @@ describe('AdminUsefulItemsService', () => {
     });
 
     it('sorts by Spanish name client-side', async () => {
-      await service.getAllUsefulItems('name_es');
+      await service.getAllUsefulItems('es');
 
       // Still fetches from same table, sorting happens client-side now
       expect(mockFrom).toHaveBeenCalledWith('useful_items');
@@ -161,7 +161,7 @@ describe('AdminUsefulItemsService', () => {
           image_url: '',
         })
       );
-      // Should NOT contain name_en/name_es
+      // Should NOT contain legacy column-per-language fields
       expect(mockInsert).toHaveBeenCalledWith(
         expect.not.objectContaining({
           name_en: expect.anything(),

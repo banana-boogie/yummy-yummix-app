@@ -8,7 +8,7 @@ export class AdminUsefulItemsService extends BaseService {
     super(supabase);
   }
 
-  async getAllUsefulItems(sortBy: 'name_en' | 'name_es' = 'name_en'): Promise<AdminUsefulItem[]> {
+  async getAllUsefulItems(sortBy: 'en' | 'es' = 'en'): Promise<AdminUsefulItem[]> {
     const { data, error } = await this.supabase
       .from('useful_items')
       .select(`
@@ -35,7 +35,7 @@ export class AdminUsefulItemsService extends BaseService {
     }));
 
     // Sort client-side since translation table columns can't be sorted via PostgREST
-    const sortLocale = sortBy === 'name_es' ? 'es' : 'en';
+    const sortLocale = sortBy;
     result.sort((a: AdminUsefulItem, b: AdminUsefulItem) => {
       const aName = pickTranslation(a.translations, sortLocale)?.name || '';
       const bName = pickTranslation(b.translations, sortLocale)?.name || '';
