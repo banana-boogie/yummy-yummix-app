@@ -20,6 +20,12 @@ import { useMessageStreaming } from '@/hooks/chat/useMessageStreaming';
 import { useSmartScroll } from '@/hooks/chat/useSmartScroll';
 import { useResumeSession } from '@/hooks/chat/useResumeSession';
 import { useChatMessageActions } from '@/hooks/chat/useChatMessageActions';
+import {
+    executeAction,
+    resolveActionContext,
+    type ActionContextSource,
+} from '@/services/actions/actionRegistry';
+import type { Action } from '@/types/irmixy';
 import type { BudgetWarningPayload, ChatMessage, IrmixyStatus } from '@/services/chatService';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
@@ -172,6 +178,16 @@ export function ChatScreen({
         onResumeSessionClear,
         onBudgetWarning: handleBudgetWarning,
         onBudgetExceeded: handleBudgetExceeded,
+        onActionsReceived: useCallback((actions: Action[]) => {
+            const autoActions = actions.filter((a) => a.autoExecute);
+            if (autoActions.length === 0) return;
+            const context = resolveActionContext(
+                messagesRef.current as ActionContextSource[],
+            );
+            for (const action of autoActions) {
+                executeAction(action, context, { source: 'auto', path: 'text' });
+            }
+        }, []),
     });
 
     // Wire speech recognition to streaming hook's setInputText
@@ -185,6 +201,7 @@ export function ChatScreen({
     } = useChatMessageActions({
         setMessages,
         queryClient,
+        getMessages: useCallback(() => messagesRef.current, []),
     });
 
     // --- Effects ---

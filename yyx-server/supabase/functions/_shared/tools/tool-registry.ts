@@ -19,6 +19,11 @@ import {
   retrieveCookedRecipesTool,
 } from "./retrieve-cooked-recipes.ts";
 import { searchRecipes, searchRecipesTool } from "./search-recipes.ts";
+import {
+  type AppActionResult,
+  appActionTool,
+  executeAppAction,
+} from "./app-action.ts";
 
 export interface ToolExecutionContext {
   supabase: SupabaseClient;
@@ -32,6 +37,7 @@ export interface ToolShape {
   recipes?: RecipeCard[];
   customRecipe?: GenerateRecipeResult["recipe"];
   safetyFlags?: GenerateRecipeResult["safetyFlags"];
+  appActionResult?: AppActionResult;
   result?: unknown;
 }
 
@@ -119,6 +125,24 @@ const TOOL_REGISTRY: Record<string, ToolRegistration> = {
         customRecipe: generated.recipe,
         safetyFlags: generated.safetyFlags,
       };
+    },
+  },
+  app_action: {
+    aiTool: {
+      name: appActionTool.function.name,
+      description: appActionTool.function.description,
+      parameters: appActionTool.function.parameters as Record<
+        string,
+        unknown
+      >,
+    },
+    allowedInVoice: false,
+    execute: async (args) => executeAppAction(args),
+    shapeResult: (result) => {
+      if (result && typeof result === "object" && "action" in result) {
+        return { appActionResult: result as AppActionResult };
+      }
+      return { result };
     },
   },
   retrieve_cooked_recipes: {

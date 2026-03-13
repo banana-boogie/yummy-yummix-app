@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { View, TouchableOpacity, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from '@/components/common/Text';
+import { ActionButton } from '@/components/common/ActionButton';
 import { ChatRecipeCard } from '@/components/chat/ChatRecipeCard';
 import { CustomRecipeCard } from '@/components/chat/CustomRecipeCard';
 import { RecipeProgressTracker } from '@/components/chat/RecipeProgressTracker';
@@ -235,19 +236,15 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                 </View>
             )}
 
-            {/* Quick action buttons */}
+            {/* Action buttons */}
             {!isUser && item.actions && item.actions.length > 0 && (
                 <View className="mt-xs gap-xs">
-                    {item.actions.map((action, idx) => (
-                        <TouchableOpacity
-                            key={`${action.type}-${idx}`}
+                    {item.actions.map((action) => (
+                        <ActionButton
+                            key={action.id}
+                            label={action.label}
                             onPress={() => onActionPress(action)}
-                            className="self-start bg-primary-medium px-md py-xs rounded-lg"
-                        >
-                            <Text className="text-sm font-medium text-white">
-                                {action.label}
-                            </Text>
-                        </TouchableOpacity>
+                        />
                     ))}
                 </View>
             )}

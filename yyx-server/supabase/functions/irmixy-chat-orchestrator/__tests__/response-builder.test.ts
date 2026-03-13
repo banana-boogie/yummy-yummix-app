@@ -152,7 +152,6 @@ Deno.test("finalizeResponse persists actions in tool_calls when provided", async
     createUserContext(),
     undefined,
     undefined,
-    undefined,
     actions,
   );
 

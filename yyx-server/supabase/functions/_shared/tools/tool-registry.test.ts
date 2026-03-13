@@ -85,9 +85,9 @@ Deno.test("voice tools: required tools are voice-allowed", () => {
   }
 });
 
-Deno.test("voice tools: app_action is voice-allowed", () => {
+Deno.test("voice tools: app_action is not voice-allowed", () => {
   const voiceNames = getAllowedVoiceToolNames();
-  assertEquals(voiceNames.includes("app_action"), true);
+  assertEquals(voiceNames.includes("app_action"), false);
 });
 
 Deno.test("voice tools: all registered tools have execute and shapeResult", () => {
@@ -181,7 +181,7 @@ Deno.test("tool registry: retrieve_cooked_recipes shapeResult handles null", () 
 Deno.test("tool registry: app_action shapeResult handles valid result", () => {
   const reg = getToolRegistration("app_action")!;
   const shaped = reg.shapeResult({ action: "share_recipe", params: {} });
-  assertEquals(shaped.appAction?.action, "share_recipe");
+  assertEquals(shaped.appActionResult?.action, "share_recipe");
 });
 
 Deno.test("tool registry: app_action shapeResult handles null", () => {
