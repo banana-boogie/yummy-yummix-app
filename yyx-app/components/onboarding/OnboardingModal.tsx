@@ -56,8 +56,9 @@ export function OnboardingModal({ visible }: OnboardingModalProps) {
         formatEquipmentForStorage(eq.type, eq.model)
       ) ?? [];
 
-      // Remove kitchenEquipment from formData to avoid duplicates (it will be added as kitchen_equipment)
-      const { kitchenEquipment, ...restFormData } = formData;
+      // Remove kitchenEquipment (added as kitchen_equipment below) and language
+      // (dropped column — may still exist in persisted onboarding state from before migration)
+      const { kitchenEquipment, language: _language, ...restFormData } = formData as any;
       const normalizedPreferences = normalizeDietAndCuisinePreferences(
         formData.dietTypes ?? [],
         formData.cuisinePreferences ?? []
