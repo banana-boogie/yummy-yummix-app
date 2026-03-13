@@ -107,6 +107,7 @@ export default function UsefulItemsAdminPage() {
       ) : (
         <FlatList
           data={filteredUsefulItems}
+          extraData={displayLocale}
           renderItem={({ item }) => (
             <UsefulItemCard
               usefulItem={item}

@@ -293,6 +293,7 @@ export default function AdminTags() {
         ) : (
           <FlatList
             data={filteredTags}
+            extraData={displayLocale}
             renderItem={isPhone ? renderMobileTagCard : renderDesktopTagRow}
             keyExtractor={(item) => item.id}
             scrollEnabled={false}

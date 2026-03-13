@@ -357,6 +357,7 @@ export default function RecipesAdminPage() {
         ) : (
           <FlatList
             data={filteredRecipes}
+            extraData={displayLocale}
             renderItem={renderRecipeItem}
             keyExtractor={item => item.id}
             contentContainerStyle={{ paddingHorizontal: 16 }}

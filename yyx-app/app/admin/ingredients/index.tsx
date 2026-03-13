@@ -105,6 +105,7 @@ export default function IngredientsAdminPage() {
       ) : (
         <FlatList
           data={filteredIngredients}
+          extraData={displayLocale}
           renderItem={({ item }) => (
             <IngredientCard
               ingredient={item}
