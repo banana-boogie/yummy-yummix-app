@@ -28,6 +28,7 @@ export const admin = {
     draftRecipes: "Recetas en Borrador",
     adminMenu: "Menú de Administración",
     backToApp: "Volver a la App",
+    displayLanguage: "Mostrar",
   },
   analytics: {
     title: "Analítica",
@@ -504,6 +505,7 @@ export const admin = {
     },
   },
   tags: {
+    name: "Nombre",
     searchPlaceholder: "Buscar etiquetas...",
     addNew: "Agregar Etiqueta",
     createTitle: "Crear Nueva Etiqueta",
@@ -536,7 +538,7 @@ export const admin = {
     confirmDeletion: {
       title: "Confirmar Eliminación",
       message:
-        "¿Estás seguro de que deseas eliminar {{nameEn}} | {{nameEs}}?",
+        "¿Estás seguro de que deseas eliminar {{name}}?",
     },
     errors: {
       title: "Error",

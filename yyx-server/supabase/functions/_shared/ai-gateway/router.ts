@@ -45,12 +45,12 @@ const defaultRoutingConfig: AIRoutingConfig = {
     model: "gpt-4.1",
     apiKeyEnvVar: "OPENAI_API_KEY",
   },
-  // Recipe modification (transform existing recipe JSON)
-  // gpt-4.1-mini: 100% pass rate, reliable modifications, $0.0025/call
-  // Switched from gemini-3-flash-preview (unreliable in production — fabricated errors)
+  // Recipe modification (transform existing recipe JSON) — quality critical
+  // gpt-4.1: matches generation quality, ensures consistent multilingual output
+  // Switched from gpt-4.1-mini (quality upgrade for i18n translation fidelity)
   recipe_modification: {
     provider: "openai",
-    model: "gpt-4.1-mini",
+    model: "gpt-4.1",
     apiKeyEnvVar: "OPENAI_API_KEY",
   },
   // Structured data parsing (admin, nutrition extraction) — speed over quality

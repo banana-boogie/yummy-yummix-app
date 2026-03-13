@@ -25,88 +25,88 @@ export async function computeContentHash(
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/** Locales to include in embedding text. All locale translations are
+ *  concatenated into one embedding for cross-language search support.
+ *  Add new locales here as content expands. */
+const EMBEDDING_LOCALES = ["en", "es"];
+
+/** Section header labels keyed by base language code. */
+const SECTION_HEADERS: Record<string, {
+  recipe: string;
+  ingredients: string;
+  tags: string;
+  tips: string;
+  step: string;
+}> = {
+  en: { recipe: "Recipe", ingredients: "Ingredients", tags: "Tags", tips: "Tips", step: "Step" },
+  es: { recipe: "Receta", ingredients: "Ingredientes", tags: "Etiquetas", tips: "Consejos", step: "Paso" },
+};
+
+function getSectionHeaders(locale: string) {
+  return SECTION_HEADERS[locale] ?? SECTION_HEADERS["en"];
+}
+
 /**
- * Build rich bilingual text for embedding generation.
+ * Build rich multilingual text for embedding generation.
  * Includes recipe name, ingredients, tags, tips, and first few steps
- * in both EN and ES for cross-language search support.
+ * across all configured locales for cross-language search support.
  */
 export function buildEmbeddingText(recipe: RecipeEmbeddingRow): string {
   const sections: string[] = [];
-
-  // Recipe names from translations
   const translations = recipe.recipe_translations || [];
-  const enName = pickTranslation(translations, ["en"]);
-  const esName = pickTranslation(translations, ["es"]);
-  if (enName?.name) sections.push(`Recipe: ${enName.name}`);
-  if (esName?.name) sections.push(`Receta: ${esName.name}`);
 
-  // Ingredients (both languages from translations)
-  const ingredientsEN = (recipe.recipe_ingredients || [])
-    .map((ri) => {
-      const trans = ri.ingredients?.ingredient_translations || [];
-      const en = pickTranslation(trans, ["en"]);
-      return en?.name;
-    })
-    .filter((name): name is string => !!name)
-    .sort((a, b) => a.localeCompare(b));
-  const ingredientsES = (recipe.recipe_ingredients || [])
-    .map((ri) => {
-      const trans = ri.ingredients?.ingredient_translations || [];
-      const es = pickTranslation(trans, ["es"]);
-      return es?.name;
-    })
-    .filter((name): name is string => !!name)
-    .sort((a, b) => a.localeCompare(b));
+  for (const locale of EMBEDDING_LOCALES) {
+    const headers = getSectionHeaders(locale);
+    const trans = pickTranslation(translations, [locale]);
 
-  if (ingredientsEN.length > 0) {
-    sections.push(`Ingredients: ${ingredientsEN.join(", ")}`);
-  }
-  if (ingredientsES.length > 0) {
-    sections.push(`Ingredientes: ${ingredientsES.join(", ")}`);
-  }
+    // Recipe name
+    if (trans?.name) sections.push(`${headers.recipe}: ${trans.name}`);
 
-  // Tags (both languages from translations)
-  const tagsEN = (recipe.recipe_to_tag || [])
-    .map((rt) => {
-      const trans = rt.recipe_tags?.recipe_tag_translations || [];
-      const en = pickTranslation(trans, ["en"]);
-      return en?.name;
-    })
-    .filter((name): name is string => !!name)
-    .sort((a, b) => a.localeCompare(b));
-  const tagsES = (recipe.recipe_to_tag || [])
-    .map((rt) => {
-      const trans = rt.recipe_tags?.recipe_tag_translations || [];
-      const es = pickTranslation(trans, ["es"]);
-      return es?.name;
-    })
-    .filter((name): name is string => !!name)
-    .sort((a, b) => a.localeCompare(b));
+    // Ingredients
+    const ingredientNames = (recipe.recipe_ingredients || [])
+      .map((ri) => {
+        const iTrans = ri.ingredients?.ingredient_translations || [];
+        return pickTranslation(iTrans, [locale])?.name;
+      })
+      .filter((name): name is string => !!name)
+      .sort((a, b) => a.localeCompare(b));
+    if (ingredientNames.length > 0) {
+      sections.push(`${headers.ingredients}: ${ingredientNames.join(", ")}`);
+    }
 
-  if (tagsEN.length > 0) sections.push(`Tags: ${tagsEN.join(", ")}`);
-  if (tagsES.length > 0) sections.push(`Etiquetas: ${tagsES.join(", ")}`);
+    // Tags
+    const tagNames = (recipe.recipe_to_tag || [])
+      .map((rt) => {
+        const tTrans = rt.recipe_tags?.recipe_tag_translations || [];
+        return pickTranslation(tTrans, [locale])?.name;
+      })
+      .filter((name): name is string => !!name)
+      .sort((a, b) => a.localeCompare(b));
+    if (tagNames.length > 0) {
+      sections.push(`${headers.tags}: ${tagNames.join(", ")}`);
+    }
 
-  // Tips (both languages from translations, first 200 chars each)
-  const enTrans = pickTranslation(translations, ["en"]);
-  const esTrans = pickTranslation(translations, ["es"]);
-  if (enTrans?.tips_and_tricks) {
-    sections.push(`Tips: ${enTrans.tips_and_tricks.slice(0, 200)}`);
-  }
-  if (esTrans?.tips_and_tricks) {
-    sections.push(`Consejos: ${esTrans.tips_and_tricks.slice(0, 200)}`);
+    // Tips (first 200 chars)
+    if (trans?.tips_and_tricks) {
+      sections.push(`${headers.tips}: ${trans.tips_and_tricks.slice(0, 200)}`);
+    }
   }
 
-  // First 3 steps (EN only, for instruction context)
+  // Steps — include first 3 steps from the first locale that has them
   const sortedSteps = (recipe.recipe_steps || [])
     .sort((a, b) => a.order - b.order)
     .slice(0, 3);
   for (const step of sortedSteps) {
     const stepTrans = step.recipe_step_translations || [];
-    const enStep = pickTranslation(stepTrans, ["en"]);
-    if (enStep?.instruction) {
-      sections.push(
-        `Step ${step.order}: ${enStep.instruction.slice(0, 150)}`,
-      );
+    for (const locale of EMBEDDING_LOCALES) {
+      const headers = getSectionHeaders(locale);
+      const localeStep = pickTranslation(stepTrans, [locale]);
+      if (localeStep?.instruction) {
+        sections.push(
+          `${headers.step} ${step.order}: ${localeStep.instruction.slice(0, 150)}`,
+        );
+        break; // one locale per step is enough for embedding context
+      }
     }
   }
 

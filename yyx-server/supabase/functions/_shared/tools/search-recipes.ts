@@ -662,6 +662,9 @@ interface AllergenAnnotationResult {
 
 /** Locale-keyed restriction labels. Extensible to new locales.
  *  Lookup order: full locale (e.g. "es-ES") -> base language ("es") -> "en".
+ *
+ *  TODO: Migrate allergen_groups table from column-per-language (name_en, name_es)
+ *  to a translation table pattern (allergen_group_translations) for full locale support.
  */
 export const RESTRICTION_LABELS: Record<string, Record<string, string>> = {
   dairy: { en: "dairy", es: "lácteos" },
@@ -681,6 +684,12 @@ const VERIFICATION_WARNINGS: Record<string, string> = {
     "La verificación de alérgenos no está disponible temporalmente. Revisa los ingredientes antes de cocinar.",
   en:
     "Allergen verification is temporarily unavailable. Please check ingredients before cooking.",
+};
+
+/** Locale-keyed "Contains X (Y)" template for allergen warnings. */
+const ALLERGEN_CONTAINS_TEMPLATE: Record<string, string> = {
+  es: "Contiene {allergen} ({restriction})",
+  en: "Contains {allergen} ({restriction})",
 };
 
 function getVerificationWarning(locale: string): string {
@@ -796,10 +805,13 @@ async function annotateAllergenWarnings(
               locale,
             );
 
+            const template =
+              ALLERGEN_CONTAINS_TEMPLATE[baseLang] ||
+              ALLERGEN_CONTAINS_TEMPLATE["en"];
             warnings.push(
-              baseLang === "es"
-                ? `Contiene ${allergenName} (${restrictionLabel})`
-                : `Contains ${allergenName} (${restrictionLabel})`,
+              template
+                .replace("{allergen}", allergenName)
+                .replace("{restriction}", restrictionLabel),
             );
             matchedCategories.add(restriction);
             break;

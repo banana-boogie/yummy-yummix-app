@@ -28,6 +28,7 @@ export const admin = {
     draftRecipes: "Draft Recipes",
     adminMenu: "Admin Menu",
     backToApp: "Back to App",
+    displayLanguage: "Display",
   },
   analytics: {
     title: "Analytics",
@@ -497,6 +498,7 @@ export const admin = {
     },
   },
   tags: {
+    name: "Name",
     searchPlaceholder: "Search Tags, Categories...",
     addNew: "Add New Tag",
     createTitle: "Create New Tag",
@@ -528,7 +530,7 @@ export const admin = {
     noItemsFound: "No useful items found",
     confirmDeletion: {
       title: "Confirm Deletion",
-      message: "Are you sure you want to delete {{nameEn}} | {{nameEs}}?",
+      message: "Are you sure you want to delete {{name}}?",
     },
     errors: {
       title: "Error",

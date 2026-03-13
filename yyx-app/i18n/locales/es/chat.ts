@@ -1,7 +1,7 @@
 export const chat = {
   title: "Irmixy",
   greeting:
-    "¡Hola! Soy Irmixy, tu asistente de cocina con IA. ¡Pregúntame lo que quieras sobre cocina!",
+    "¡Hola! Soy Irmixy. ¡Pregúntame lo que quieras sobre cocina!",
   inputPlaceholder: "Pregunta a Irmixy...",
   sendButton: "Enviar",
   stopGenerating: "Detener generación",
@@ -27,7 +27,7 @@ export const chat = {
   cookingItUp: "Cocinando algo delicioso...",
   enriching: "Añadiendo los toques finales...",
   voice: {
-    greeting: "¡Hola! Soy Irmixy, tu sous chef. ¿En qué puedo ayudarte?",
+    greeting: "¡Hola! Soy Irmixy. ¿En qué puedo ayudarte?",
     connecting: "Conectando con Irmixy...",
     listening: "Escuchando...",
     thinking: "Pensando...",
