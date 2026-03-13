@@ -270,9 +270,10 @@ export function VoiceChatScreen({
         }
     }, [router, updateMessage]);
 
-    const handleActionPress = useCallback((action: Action) => {
+    const handleActionPress = useCallback((action: Action, messageId: string) => {
         const context = resolveActionContext(
             transcriptMessages as ActionContextSource[],
+            messageId,
         );
         executeAction(action, context, { source: 'manual', path: 'voice' });
     }, [transcriptMessages]);

@@ -135,7 +135,7 @@ export interface ChatMessageItemProps {
     showAvatar?: boolean;
     onCopyMessage: (content: string) => void;
     onStartCooking: (recipe: GeneratedRecipe, finalName: string, messageId: string, savedRecipeId?: string) => Promise<void>;
-    onActionPress: (action: Action) => void;
+    onActionPress: (action: Action, messageId: string) => void;
 }
 
 export const ChatMessageItem = memo(function ChatMessageItem({
@@ -243,7 +243,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                         <ActionButton
                             key={action.id}
                             label={action.label}
-                            onPress={() => onActionPress(action)}
+                            onPress={() => onActionPress(action, item.id)}
                         />
                     ))}
                 </View>
