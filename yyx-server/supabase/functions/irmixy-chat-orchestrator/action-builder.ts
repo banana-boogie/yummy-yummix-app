@@ -8,7 +8,11 @@
 import type { Action } from "../_shared/irmixy-schemas.ts";
 import type { AppActionResult } from "../_shared/tools/app-action.ts";
 
-/** Server-side label map (no i18n available on server). */
+/**
+ * Server-side label map for action buttons (no i18n library on server).
+ * This is the localization point for action button labels — add entries here
+ * when registering new actions in ALLOWED_ACTIONS (app-action.ts).
+ */
 const ACTION_LABELS: Record<string, Record<"en" | "es", string>> = {
   share_recipe: { en: "Share Recipe", es: "Compartir Receta" },
   view_recipe: { en: "View Recipe", es: "Ver Receta" },

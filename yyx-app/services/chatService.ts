@@ -39,6 +39,10 @@ export interface BudgetWarningPayload {
     budgetUsd: number;
 }
 
+/** Statuses that indicate recipe generation/modification is in progress */
+export const isRecipeToolStatus = (status: IrmixyStatus): boolean =>
+    status === 'cooking_it_up' || status === 'generating';
+
 // Re-export types for convenience
 export type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, Action };
 

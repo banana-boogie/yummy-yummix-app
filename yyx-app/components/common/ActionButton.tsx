@@ -18,7 +18,7 @@ interface ActionButtonProps {
     className?: string;
 }
 
-export function ActionButton({ label, onPress, loading, disabled, className }: ActionButtonProps) {
+export const ActionButton = React.memo(function ActionButton({ label, onPress, loading, disabled, className }: ActionButtonProps) {
     return (
         <TouchableOpacity
             onPress={onPress}
@@ -38,4 +38,4 @@ export function ActionButton({ label, onPress, loading, disabled, className }: A
             )}
         </TouchableOpacity>
     );
-}
+});
