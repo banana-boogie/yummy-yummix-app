@@ -46,7 +46,9 @@ async function getNutritionalFacts(
 
     if (validateNutritionalData(nutritionalData)) {
       console.info(
-        `Successfully retrieved nutrition data for '${ingredientName}': ${JSON.stringify(nutritionalData)}`,
+        `Successfully retrieved nutrition data for '${ingredientName}': ${
+          JSON.stringify(nutritionalData)
+        }`,
       );
       applyRoundingRulesToData(nutritionalData);
       return nutritionalData;
