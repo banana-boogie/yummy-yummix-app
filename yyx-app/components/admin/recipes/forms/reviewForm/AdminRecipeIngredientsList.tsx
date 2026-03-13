@@ -6,6 +6,7 @@ import { AdminRecipeIngredient, getTranslatedField } from '@/types/recipe.admin.
 
 interface RecipeIngredientsListProps {
   ingredients: AdminRecipeIngredient[];
+  displayLocale?: string;
   title?: string;
   showSections?: boolean;
   hideActions?: boolean;
@@ -13,14 +14,14 @@ interface RecipeIngredientsListProps {
 
 export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
   ingredients,
+  displayLocale = 'es',
   title,
   showSections = true,
   hideActions = false
 }) => {
   // Group ingredients by recipeSection
   const groupedIngredients = ingredients.reduce<Record<string, AdminRecipeIngredient[]>>((acc, ingredient) => {
-    const recipeSection = getTranslatedField(ingredient.translations, 'en', 'recipeSection')
-      || getTranslatedField(ingredient.translations, 'es', 'recipeSection')
+    const recipeSection = getTranslatedField(ingredient.translations, displayLocale, 'recipeSection')
       || '';
     if (!acc[recipeSection]) {
       acc[recipeSection] = [];
@@ -57,6 +58,7 @@ export const RecipeIngredientsList: React.FC<RecipeIngredientsListProps> = ({
           <AdminRecipeIngredientCard
             key={ingredient.id}
             recipeIngredient={ingredient}
+            displayLocale={displayLocale}
             isFirst={index === 0}
             isLast={index === sortedIngredients.length - 1}
             hideActions={hideActions}

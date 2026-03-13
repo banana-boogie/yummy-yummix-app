@@ -23,11 +23,13 @@ import {
   RecipeUsefulItemsForm
 } from '@/components/admin/recipes/forms';
 import { TranslationStep } from '@/components/admin/recipes/forms/translationForm/TranslationStep';
+import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
 
 // Recipe creation form with multiple steps
 export default function NewRecipePage() {
   const router = useRouter();
   const [showAlert, setShowAlert] = useState(false);
+  const [displayLocale, setDisplayLocale] = useState('es');
   const [alertMessage, setAlertMessage] = useState('');
   const [alertSuccess, setAlertSuccess] = useState(false);
 
@@ -83,7 +85,7 @@ export default function NewRecipePage() {
       case CreateRecipeStep.TRANSLATIONS:
         return <TranslationStep recipe={recipe} authoringLocale={authoringLocale} onUpdateRecipe={updateRecipe} />;
       case CreateRecipeStep.REVIEW:
-        return <ReviewForm recipe={recipe} onUpdateRecipe={updateRecipe} />;
+        return <ReviewForm recipe={recipe} displayLocale={displayLocale} onUpdateRecipe={updateRecipe} />;
       default:
         return null;
     }
@@ -113,6 +115,11 @@ export default function NewRecipePage() {
             {showNavElements && (
               <View className="w-full px-md pb-md">
                 <RecipeProgressIndicator currentStep={currentStep} />
+                {currentStep === CreateRecipeStep.REVIEW && (
+                  <View className="mt-md">
+                    <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+                  </View>
+                )}
               </View>
             )}
             {renderStepContent()}

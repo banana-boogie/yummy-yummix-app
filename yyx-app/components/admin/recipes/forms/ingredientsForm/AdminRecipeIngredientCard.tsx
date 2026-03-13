@@ -11,6 +11,7 @@ import { useDevice } from '@/hooks/useDevice';
 
 interface AdminRecipeIngredientCardProps {
   recipeIngredient: AdminRecipeIngredient;
+  displayLocale?: string;
   hideActions?: boolean;
   onEditPress?: () => void;
   onDeletePress?: () => void;
@@ -22,6 +23,7 @@ interface AdminRecipeIngredientCardProps {
 
 export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps> = ({
   recipeIngredient,
+  displayLocale = 'es',
   onEditPress,
   onDeletePress,
   onMoveUpPress,
@@ -31,12 +33,9 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
   hideActions = false
 }) => {
   const { isMobile } = useDevice();
-  const ingredientNameEn = getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name');
-  const ingredientNameEs = getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name');
-  const notesEn = getTranslatedField(recipeIngredient.translations, 'en', 'notes');
-  const notesEs = getTranslatedField(recipeIngredient.translations, 'es', 'notes');
-  const tipEn = getTranslatedField(recipeIngredient.translations, 'en', 'tip');
-  const tipEs = getTranslatedField(recipeIngredient.translations, 'es', 'tip');
+  const ingredientName = getTranslatedField(recipeIngredient.ingredient?.translations, displayLocale, 'name');
+  const notes = getTranslatedField(recipeIngredient.translations, displayLocale, 'notes');
+  const tip = getTranslatedField(recipeIngredient.translations, displayLocale, 'tip');
 
   return (
     <View className={`border border-border-DEFAULT rounded-md overflow-hidden mb-md bg-background-DEFAULT ${isMobile ? 'p-xs' : 'p-sm'}`}>
@@ -51,8 +50,10 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
               contentFit="contain"
             />
             <View className="flex-1">
-              <Text className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'} mb-[2px]`}>{ingredientNameEn}</Text>
-              <Text className="text-text-SECONDARY text-sm">{ingredientNameEs}</Text>
+              <View className="flex-row items-center gap-xs">
+                <LanguageBadge language={displayLocale.toUpperCase()} size="small" />
+                <Text className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`}>{ingredientName}</Text>
+              </View>
             </View>
           </View>
 
@@ -100,24 +101,11 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
         <View className="p-sm border-b border-border-DEFAULT">
           <Text preset="subheading" className="mb-sm">{i18n.t('admin.recipes.form.ingredientsInfo.quantityTitle')}</Text>
           <View className="flex-row items-center">
-            <LanguageBadge language="EN" size="small" />
-            <Text className="font-medium ml-xs">
-              {formatIngredientQuantity(recipeIngredient.quantity, recipeIngredient.measurementUnit?.id)} {getTranslatedField(recipeIngredient.measurementUnit?.translations, 'en', 'symbol')}
+            <Text className="font-medium">
+              {formatIngredientQuantity(recipeIngredient.quantity, recipeIngredient.measurementUnit?.id)} {getTranslatedField(recipeIngredient.measurementUnit?.translations, displayLocale, 'symbol')}
               {recipeIngredient.optional ? (
                 <Text className="text-xs text-text-SECONDARY italic">
                   {' '}({i18n.t('recipes.detail.ingredients.optional')})
-                </Text>
-              ) : null}
-            </Text>
-          </View>
-
-          <View className="flex-row items-center mt-1">
-            <LanguageBadge language="ES" size="small" />
-            <Text className="font-medium ml-xs">
-              {formatIngredientQuantity(recipeIngredient.quantity, recipeIngredient.measurementUnit?.id)} {getTranslatedField(recipeIngredient.measurementUnit?.translations, 'es', 'symbol')}
-              {recipeIngredient.optional ? (
-                <Text className="text-xs text-text-SECONDARY italic">
-                  {' '}({i18n.t('recipes.detail.ingredients.optional', { locale: 'es' })})
                 </Text>
               ) : null}
             </Text>
@@ -126,58 +114,28 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
 
         <View className="p-sm">
           {/* Notes */}
-          {(notesEn || notesEs) && (
+          {notes ? (
             <View className="mb-sm">
               <Text preset="subheading" className="mb-sm">
                 {i18n.t('admin.recipes.form.ingredientsInfo.notesTitle')}
               </Text>
-
-              {notesEn ? (
-                <View className="flex-row items-center mb-xs">
-                  <LanguageBadge language="EN" size="small" />
-                  <Text className="flex-1 text-xs text-text-SECONDARY ml-xs">
-                    {notesEn}
-                  </Text>
-                </View>
-              ) : null}
-
-              {notesEs ? (
-                <View className="flex-row items-center mb-xs">
-                  <LanguageBadge language="ES" size="small" />
-                  <Text className="flex-1 text-xs text-text-SECONDARY ml-xs">
-                    {notesEs}
-                  </Text>
-                </View>
-              ) : null}
+              <Text className="flex-1 text-xs text-text-SECONDARY">
+                {notes}
+              </Text>
             </View>
-          )}
+          ) : null}
 
           {/* Tips */}
-          {(tipEn || tipEs) && (
+          {tip ? (
             <View className="mt-xs">
               <Text preset="subheading" className="mb-sm">
                 {i18n.t('admin.recipes.form.ingredientsInfo.tipTitle')}
               </Text>
-
-              {tipEn ? (
-                <View className="flex-row items-center mb-xs">
-                  <LanguageBadge language="EN" size="small" />
-                  <Text className="flex-1 text-xs text-text-SECONDARY ml-xs">
-                    {tipEn}
-                  </Text>
-                </View>
-              ) : null}
-
-              {tipEs ? (
-                <View className="flex-row items-center mb-xs">
-                  <LanguageBadge language="ES" size="small" />
-                  <Text className="flex-1 text-xs text-text-SECONDARY ml-xs">
-                    {tipEs}
-                  </Text>
-                </View>
-              ) : null}
+              <Text className="flex-1 text-xs text-text-SECONDARY">
+                {tip}
+              </Text>
             </View>
-          )}
+          ) : null}
         </View>
       </View>
     </View>

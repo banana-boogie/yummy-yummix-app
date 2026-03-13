@@ -38,7 +38,7 @@ export function AuthoringLanguagePicker({ value, onChange }: AuthoringLanguagePi
             >
               <Text
                 preset="bodySmall"
-                fontWeight={isSelected ? '600' : '400'}
+                className={isSelected ? 'font-semibold' : 'font-normal'}
               >
                 {locale.displayName}
               </Text>

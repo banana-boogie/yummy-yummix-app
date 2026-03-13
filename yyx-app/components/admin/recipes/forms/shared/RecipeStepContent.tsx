@@ -14,10 +14,12 @@ import { useDevice } from '@/hooks/useDevice';
 
 interface RecipeStepContentProps {
   recipeStep: AdminRecipeSteps;
+  displayLocale?: string;
 }
 
 export function RecipeStepContent({
   recipeStep,
+  displayLocale = 'es',
 }: RecipeStepContentProps) {
   const { isMobile } = useDevice();
 
@@ -37,13 +39,11 @@ export function RecipeStepContent({
     return null;
   };
 
-  const instructionEn = getTranslatedField(recipeStep.translations, 'en', 'instruction');
-  const instructionEs = getTranslatedField(recipeStep.translations, 'es', 'instruction');
-  const tipEn = getTranslatedField(recipeStep.translations, 'en', 'tip');
-  const tipEs = getTranslatedField(recipeStep.translations, 'es', 'tip');
+  const instruction = getTranslatedField(recipeStep.translations, displayLocale, 'instruction');
+  const tip = getTranslatedField(recipeStep.translations, displayLocale, 'tip');
 
   // Preview thermomix parameters formatting
-  const formatStep = (language: string = 'en') => {
+  const formatStep = () => {
     // Check if thermomixSpeed is a SpeedRange
     let speed_start: number | undefined = undefined;
     let speed_end: number | undefined = undefined;
@@ -56,7 +56,6 @@ export function RecipeStepContent({
 
     const measurementSystem = (recipeStep.thermomixTemperatureUnit || 'C') === 'C' ? 'metric' : 'imperial';
 
-    const instruction = language === 'en' ? instructionEn : instructionEs;
     const thermomix = {
       time: recipeStep.thermomixTime || null,
       temperature: recipeStep.thermomixTemperature || null,
@@ -67,51 +66,26 @@ export function RecipeStepContent({
     return formatInstruction(instruction, thermomix, measurementSystem);
   };
 
-  const formattedStepEn = formatStep('en');
-  const formattedStepEs = formatStep('es');
+  const formattedStep = formatStep();
 
   const { seconds, minutes } = recipeStep.thermomixTime !== null ? formatTime(recipeStep.thermomixTime || 0) : { seconds: '', minutes: '' };
 
   return (
     <View className="p-md">
-      {/* Steps in both languages */}
+      {/* Step instruction */}
       <View className="flex-col gap-sm mb-sm">
-        {/* English Steps */}
-        {formattedStepEn !== undefined ? (
+        {formattedStep !== undefined ? (
           <View className="mb-xs border border-border-DEFAULT rounded-sm p-xs bg-background-DEFAULT">
-            <Text preset="caption" fontWeight="700" className="text-text-SECONDARY mb-[2px]">
-              {i18n.t('common.english')}
-            </Text>
-            {formattedStepEn ? (
-              <View>
-                {renderRecipeText(formattedStepEn, {
-                  textStyle: { color: COLORS.text.DEFAULT, marginBottom: 4 }, // Standard text color
-                  boldStyle: { fontWeight: 'bold', color: COLORS.text.DEFAULT },
-                })}
-              </View>
-            ) : (
-              <Text className="italic text-text-SECONDARY">
-                {i18n.t('admin.recipes.form.stepsInfo.noStepText')}
-              </Text>
-            )}
-          </View>
-        ) : null}
-
-        {/* Spanish Steps */}
-        {formattedStepEs !== undefined ? (
-          <View className="mb-xs border border-border-DEFAULT rounded-sm p-xs bg-background-DEFAULT">
-            <Text preset="caption" fontWeight="700" className="text-text-SECONDARY mb-[2px]">
-              {i18n.t('common.spanish')}
-            </Text>
-            {formattedStepEs ? (
-              <View>
-                {renderRecipeText(formattedStepEs, {
+            <LanguageBadge language={displayLocale.toUpperCase()} size="small" />
+            {formattedStep ? (
+              <View className="mt-xs">
+                {renderRecipeText(formattedStep, {
                   textStyle: { color: COLORS.text.DEFAULT, marginBottom: 4 },
                   boldStyle: { fontWeight: 'bold', color: COLORS.text.DEFAULT },
                 })}
               </View>
             ) : (
-              <Text className="italic text-text-SECONDARY">
+              <Text className="italic text-text-SECONDARY mt-xs">
                 {i18n.t('admin.recipes.form.stepsInfo.noStepText')}
               </Text>
             )}
@@ -142,19 +116,11 @@ export function RecipeStepContent({
                       cachePolicy="memory-disk"
                     />
                     <View className="flex-1 ml-sm">
-                      <Text fontWeight="700" className="text-base">{getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name')}</Text>
-                      <Text className="text-sm text-text-SECONDARY">{getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name')}</Text>
+                      <Text fontWeight="700" className="text-base">{getTranslatedField(recipeIngredient.ingredient?.translations, displayLocale, 'name')}</Text>
                     </View>
                   </View>
-                  <View className="flex-row justify-between items-center pt-xs border-t border-border-DEFAULT">
-                    <View className="flex-row items-center">
-                      <LanguageBadge language="EN" size="small" />
-                      <Text className="text-sm ml-xs">{recipeIngredient.quantity} {getTranslatedField(recipeIngredient.measurementUnit?.translations, 'en', 'symbol')}</Text>
-                    </View>
-                    <View className="flex-row items-center">
-                      <LanguageBadge language="ES" size="small" />
-                      <Text className="text-sm ml-xs">{recipeIngredient.quantity} {getTranslatedField(recipeIngredient.measurementUnit?.translations, 'es', 'symbol')}</Text>
-                    </View>
+                  <View className="flex-row items-center pt-xs border-t border-border-DEFAULT">
+                    <Text className="text-sm">{recipeIngredient.quantity} {getTranslatedField(recipeIngredient.measurementUnit?.translations, displayLocale, 'symbol')}</Text>
                   </View>
                 </View>
               ))}
@@ -175,20 +141,10 @@ export function RecipeStepContent({
                     <View className="w-full">
                       <View className="mb-xs flex-row items-center">
                         <View className="flex-row items-center flex-wrap mr-sm">
-                          <LanguageBadge language="EN" size="small" />
-                          <Text fontWeight="700" className="ml-1">{getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name')}</Text>
+                          <Text fontWeight="700">{getTranslatedField(recipeIngredient.ingredient?.translations, displayLocale, 'name')}</Text>
                         </View>
                         <Text className="bg-background-SECONDARY px-[2px] rounded-xs text-xs text-text-SECONDARY ml-auto">
-                          {recipeIngredient.quantity} {getTranslatedField(recipeIngredient.measurementUnit?.translations, 'en', 'symbol')}
-                        </Text>
-                      </View>
-                      <View className="mb-xs flex-row items-center">
-                        <View className="flex-row items-center flex-wrap mr-sm">
-                          <LanguageBadge language="ES" size="small" />
-                          <Text fontWeight="700" className="ml-1">{getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name')}</Text>
-                        </View>
-                        <Text className="bg-background-SECONDARY px-[2px] rounded-xs text-xs text-text-SECONDARY ml-auto">
-                          {recipeIngredient.quantity} {getTranslatedField(recipeIngredient.measurementUnit?.translations, 'es', 'symbol')}
+                          {recipeIngredient.quantity} {getTranslatedField(recipeIngredient.measurementUnit?.translations, displayLocale, 'symbol')}
                         </Text>
                       </View>
                     </View>
@@ -251,28 +207,15 @@ export function RecipeStepContent({
       ) : null}
 
       {/* Display tips if present */}
-      {tipEn || tipEs ? (
+      {tip ? (
         <View className="my-md bg-background-SECONDARY rounded-md p-sm">
           <Text preset="caption" fontWeight="700" className="mb-xs text-text-SECONDARY">
             {i18n.t('admin.recipes.form.stepsInfo.tipTitle')}
           </Text>
           <View className="flex-col p-md gap-sm rounded-md bg-background-DEFAULT">
-            {tipEn ? (
-              <View className="flex-row items-center gap-sm">
-                <LanguageBadge language="EN" size="small" />
-                <Text preset="caption">
-                  {tipEn}
-                </Text>
-              </View>
-            ) : null}
-            {tipEs ? (
-              <View className="flex-row items-center gap-sm">
-                <LanguageBadge language="ES" size="small" />
-                <Text preset="caption">
-                  {tipEs}
-                </Text>
-              </View>
-            ) : null}
+            <Text preset="caption">
+              {tip}
+            </Text>
           </View>
         </View>
       ) : null}

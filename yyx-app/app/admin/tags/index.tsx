@@ -13,6 +13,7 @@ import i18n from '@/i18n';
 import { AdminRecipeTag, getTranslatedField } from '@/types/recipe.admin.types';
 import { formatCategoryNameToTitleCase } from '@/utils/formatters';
 import { useDevice } from '@/hooks/useDevice';
+import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
 
 export default function AdminTags() {
   const { isPhone } = useDevice();
@@ -26,6 +27,7 @@ export default function AdminTags() {
   const [isNewTag, setIsNewTag] = useState(false);
   const [newCategoryModalVisible, setNewCategoryModalVisible] = useState(false);
   const [newCategory, setNewCategory] = useState('');
+  const [displayLocale, setDisplayLocale] = useState('es');
 
   useEffect(() => {
     fetchTags();
@@ -38,15 +40,13 @@ export default function AdminTags() {
       const query = searchQuery.toLowerCase();
       setFilteredTags(
         tags.filter(tag => {
-          const nameEn = getTranslatedField(tag.translations, 'en', 'name');
-          const nameEs = getTranslatedField(tag.translations, 'es', 'name');
-          return nameEn.toLowerCase().includes(query) ||
-            nameEs.toLowerCase().includes(query) ||
+          const name = getTranslatedField(tag.translations, displayLocale, 'name');
+          return name.toLowerCase().includes(query) ||
             (tag.categories && tag.categories.some(category => category.toLowerCase().includes(query)));
         })
       );
     }
-  }, [searchQuery, tags]);
+  }, [searchQuery, tags, displayLocale]);
 
   const fetchTags = async () => {
     setIsLoading(true);
@@ -145,10 +145,9 @@ export default function AdminTags() {
         elevation: 3,
       }}
     >
-      {/* Names */}
+      {/* Name */}
       <View className="mb-sm">
-        <Text preset="body" className="font-semibold">{getTranslatedField(item.translations, 'en', 'name')}</Text>
-        <Text preset="caption" color={COLORS.text.secondary}>{getTranslatedField(item.translations, 'es', 'name')}</Text>
+        <Text preset="body" className="font-semibold">{getTranslatedField(item.translations, displayLocale, 'name')}</Text>
       </View>
 
       {/* Categories */}
@@ -202,11 +201,8 @@ export default function AdminTags() {
         alignItems: 'center'
       }}
     >
-      <View className="w-[200px] pr-md">
-        <Text preset="body">{getTranslatedField(item.translations, 'es', 'name')}</Text>
-      </View>
-      <View className="w-[200px] pr-md">
-        <Text preset="body">{getTranslatedField(item.translations, 'en', 'name')}</Text>
+      <View className="w-[300px] pr-md">
+        <Text preset="body">{getTranslatedField(item.translations, displayLocale, 'name')}</Text>
       </View>
       <View className="flex-1 flex-row flex-wrap gap-xs">
         {item.categories && item.categories.map((category, index) => (
@@ -238,6 +234,10 @@ export default function AdminTags() {
   return (
     <AdminLayout title={i18n.t('admin.common.tags')}>
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
+        <View className="mb-md">
+          <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+        </View>
+
         {/* Search and Add Row - stacked on mobile */}
         <View className={`${isPhone ? 'flex-col gap-md' : 'flex-row justify-between items-center'} mb-lg`}>
           <View className={isPhone ? 'w-full' : 'flex-1 max-w-[400px]'}>
@@ -268,11 +268,8 @@ export default function AdminTags() {
         {/* Desktop Table Header - hidden on mobile */}
         {!isPhone && (
           <View className="flex-row items-center p-md bg-primary-light rounded-lg mb-sm">
-            <View className="w-[150px] pr-md">
-              <Text fontWeight="600">{i18n.t('admin.tags.spanishName')}</Text>
-            </View>
-            <View className="w-[150px] pr-md">
-              <Text fontWeight="600">{i18n.t('admin.tags.englishName')}</Text>
+            <View className="w-[300px] pr-md">
+              <Text fontWeight="600">{i18n.t('admin.tags.name')}</Text>
             </View>
             <View className="flex-1">
               <Text fontWeight="600">{i18n.t('admin.tags.categories')}</Text>

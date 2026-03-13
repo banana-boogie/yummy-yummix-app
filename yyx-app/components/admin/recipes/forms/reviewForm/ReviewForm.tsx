@@ -14,10 +14,11 @@ import { Image } from 'expo-image';
 
 interface ReviewFormProps {
   recipe: Partial<AdminRecipe>;
+  displayLocale?: string;
   onUpdateRecipe?: (updates: Partial<AdminRecipe>) => void;
 }
 
-export function ReviewForm({ recipe, onUpdateRecipe }: ReviewFormProps) {
+export function ReviewForm({ recipe, displayLocale = 'es', onUpdateRecipe }: ReviewFormProps) {
   // Toggle for isPublished field
   const handlePublishToggle = (value: boolean) => {
     if (onUpdateRecipe) {
@@ -33,7 +34,7 @@ export function ReviewForm({ recipe, onUpdateRecipe }: ReviewFormProps) {
     >
       {/* Preview of recipe */}
       <View className="flex-col gap-lg rounded-lg">
-        <Text preset="h1" className="mb-md">{`${getTranslatedField(recipe.translations, 'en', 'name')}  |  ${getTranslatedField(recipe.translations, 'es', 'name')}`}</Text>
+        <Text preset="h1" className="mb-md">{getTranslatedField(recipe.translations, displayLocale, 'name')}</Text>
 
         {recipe.pictureUrl ? (
           <View className="w-full h-[200px] rounded-lg mb-md overflow-hidden bg-background-SECONDARY">
@@ -55,14 +56,14 @@ export function ReviewForm({ recipe, onUpdateRecipe }: ReviewFormProps) {
           <Text preset="h1" fontWeight="700" className="mb-md">
             {i18n.t('admin.recipes.form.reviewInfo.usefulItems')} ({recipe.usefulItems?.length || 0})
           </Text>
-          <RecipeUsefulItemsList usefulItems={recipe.usefulItems || []} />
+          <RecipeUsefulItemsList usefulItems={recipe.usefulItems || []} displayLocale={displayLocale} />
         </View>
 
         <View className="mb-md">
           <Text preset="h1" fontWeight="700" className="mb-md">
             {i18n.t('admin.recipes.form.reviewInfo.ingredients')} ({recipe.ingredients?.length || 0})
           </Text>
-          <RecipeIngredientsList ingredients={recipe.ingredients || []} hideActions={true} />
+          <RecipeIngredientsList ingredients={recipe.ingredients || []} displayLocale={displayLocale} hideActions={true} />
         </View>
 
         <View>
@@ -70,7 +71,7 @@ export function ReviewForm({ recipe, onUpdateRecipe }: ReviewFormProps) {
             {i18n.t('admin.recipes.form.reviewInfo.steps')} ({recipe.steps?.length || 0})
           </Text>
 
-          <RecipeStepsList recipeSteps={recipe.steps || []} />
+          <RecipeStepsList recipeSteps={recipe.steps || []} displayLocale={displayLocale} />
         </View>
 
 

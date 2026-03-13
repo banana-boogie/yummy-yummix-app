@@ -22,6 +22,7 @@ import { useRecipeNavigation } from '@/hooks/admin/useRecipeNavigation';
 import { useDevice } from '@/hooks/useDevice';
 import { TranslationStep } from '@/components/admin/recipes/forms/translationForm/TranslationStep';
 import { loadAuthoringLocale, saveAuthoringLocale } from '@/components/admin/recipes/forms/shared/AuthoringLanguagePicker';
+import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
 
 export default function EditRecipePage() {
   const { id } = useLocalSearchParams();
@@ -38,6 +39,7 @@ export default function EditRecipePage() {
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [currentStep, setCurrentStep] = useState<CreateRecipeStep>(CreateRecipeStep.BASIC_INFO);
   const [authoringLocale, setAuthoringLocale] = useState('es');
+  const [displayLocale, setDisplayLocale] = useState('es');
 
   const { validateRecipe } = useRecipeValidation();
   const { getNextButtonLabel } = useRecipeNavigation(recipe, currentStep);
@@ -180,6 +182,7 @@ export default function EditRecipePage() {
         return (
           <ReviewForm
             recipe={recipe}
+            displayLocale={displayLocale}
             onUpdateRecipe={handleUpdateRecipe}
           />
         );
@@ -202,9 +205,9 @@ export default function EditRecipePage() {
   }
 
   // Show loading state until recipe name is loaded to prevent title flash
-  const recipeNameEs = getTranslatedField(recipe.translations, 'es', 'name');
-  const recipeNameEn = getTranslatedField(recipe.translations, 'en', 'name');
-  const recipeName = recipeNameEs || recipeNameEn;
+  const recipeName = getTranslatedField(recipe.translations, displayLocale, 'name')
+    || getTranslatedField(recipe.translations, 'es', 'name')
+    || getTranslatedField(recipe.translations, 'en', 'name');
   if (loading || !recipeName) {
     return (
       <AdminLayout title={i18n.t('admin.common.loading')} showBackButton={true}>
@@ -215,10 +218,9 @@ export default function EditRecipePage() {
     );
   }
 
-  const titleParts = [recipeNameEs, recipeNameEn].filter(Boolean);
   return (
     <AdminLayout
-      title={titleParts.length > 0 ? titleParts.join(' | ') : i18n.t('admin.recipes.form.newRecipe')}
+      title={recipeName || i18n.t('admin.recipes.form.newRecipe')}
       showBackButton={true}
     >
       <View className="flex-1">
@@ -237,6 +239,11 @@ export default function EditRecipePage() {
               onStepClick={handleStepClick}
               clickable={true}
             />
+            {currentStep === CreateRecipeStep.REVIEW && (
+              <View className="mt-md">
+                <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+              </View>
+            )}
           </View>
 
           <FormErrors errors={errors} />

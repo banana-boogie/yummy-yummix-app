@@ -44,8 +44,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
 
   // Group ingredients by recipeSection
   const groupedIngredients = recipe.ingredients.reduce<Record<string, AdminRecipeIngredient[]>>((acc, ingredient) => {
-    const recipeSection = getTranslatedField(ingredient.translations, 'en', 'recipeSection')
-      || getTranslatedField(ingredient.translations, 'es', 'recipeSection')
+    const recipeSection = getTranslatedField(ingredient.translations, authoringLocale, 'recipeSection')
       || '';
     if (!acc[recipeSection]) {
       acc[recipeSection] = [];
@@ -308,12 +307,8 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
       />
       <View className="flex-1">
         <View className="flex-row items-center mb-1">
-          <LanguageBadge language="EN" size="small" />
-          <Text className="text-sm ml-1 mb-0 self-center">{getTranslatedField(item.translations, 'en', 'name')}</Text>
-        </View>
-        <View className="flex-row items-center mb-1">
-          <LanguageBadge language="ES" size="small" />
-          <Text className="text-sm ml-1 mb-0 self-center">{getTranslatedField(item.translations, 'es', 'name')}</Text>
+          <LanguageBadge language={authoringLocale.toUpperCase()} size="small" />
+          <Text className="text-sm ml-1 mb-0 self-center">{getTranslatedField(item.translations, authoringLocale, 'name')}</Text>
         </View>
       </View>
       <Ionicons name="add-circle-outline" size={24} className="text-primary-DEFAULT" />
@@ -328,6 +323,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
     return (
       <AdminRecipeIngredientCard
         recipeIngredient={item}
+        displayLocale={authoringLocale}
         onEditPress={() => handleEditRecipeIngredient(item)}
         onDeletePress={() => handleDeleteRecipeIngredient(item)}
         onMoveUpPress={() => handleMoveRecipeIngredientUp(item.id, section)}

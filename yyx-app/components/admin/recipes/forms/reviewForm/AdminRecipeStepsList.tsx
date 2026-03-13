@@ -7,9 +7,10 @@ import { groupRecipeSteps } from '@/utils/admin/recipe/groupRecipeSteps';
 
 interface RecipeStepsListProps {
   recipeSteps: AdminRecipeSteps[];
+  displayLocale?: string;
 }
 
-export function RecipeStepsList({ recipeSteps }: RecipeStepsListProps) {
+export function RecipeStepsList({ recipeSteps, displayLocale = 'es' }: RecipeStepsListProps) {
   const sortedRecipeSteps = React.useMemo(() => {
     return [...recipeSteps].sort((a, b) => a.order - b.order);
   }, [recipeSteps]);
@@ -20,20 +21,14 @@ export function RecipeStepsList({ recipeSteps }: RecipeStepsListProps) {
 
   return (
     <View className="mb-md">
-      {Object.entries(groupedSteps).map(([sectionKey, { sectionEn, sectionEs, steps }]) => (
+      {Object.entries(groupedSteps).map(([sectionKey, { sectionEn, sectionEs, steps }]) => {
+        const sectionName = displayLocale === 'es' ? sectionEs : sectionEn;
+        return (
         <View key={sectionKey} className="mb-lg">
           <View className="mb-md pb-xs border-b border-border-default">
-            <View className="flex-row items-center gap-sm">
-              <Text preset="subheading" fontWeight="700" className="mb-0">
-                {sectionEn}
-              </Text>
-              <Text preset="caption" className="mb-0">
-                |
-              </Text>
-              <Text preset="subheading" fontWeight="700" className="mb-0 text-primary-dark">
-                {sectionEs}
-              </Text>
-            </View>
+            <Text preset="subheading" fontWeight="700" className="mb-0">
+              {sectionName}
+            </Text>
           </View>
           {steps.map((recipeStep, index) => (
             <View key={`${recipeStep.id}-${index}`} className="bg-background-default rounded-md overflow-hidden mb-xl shadow-md">
@@ -47,11 +42,13 @@ export function RecipeStepsList({ recipeSteps }: RecipeStepsListProps) {
 
               <RecipeStepContent
                 recipeStep={recipeStep}
+                displayLocale={displayLocale}
               />
             </View>
           ))}
         </View>
-      ))}
+        );
+      })}
     </View>
   );
 }

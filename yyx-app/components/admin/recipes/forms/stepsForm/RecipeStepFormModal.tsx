@@ -57,7 +57,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
     const grouped: Record<string, AdminRecipeIngredient[]> = {};
 
     recipeIngredients.forEach(ingredient => {
-      const section = getTranslatedField(ingredient.translations, 'en', 'recipeSection') || 'Main';
+      const section = getTranslatedField(ingredient.translations, authoringLocale, 'recipeSection') || 'Main';
       if (!grouped[section]) {
         grouped[section] = [];
       }
@@ -65,7 +65,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
     });
 
     return grouped;
-  }, [recipeIngredients]);
+  }, [recipeIngredients, authoringLocale]);
 
   // Memoize the measurement units if not provided via props
   const [cachedMeasurementUnits, setCachedMeasurementUnits] = useState<AdminMeasurementUnit[]>([]);
@@ -413,12 +413,8 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
                                 </View>
                                 <View className="flex-1">
                                   <View className="flex-row items-center gap-xs mb-xs">
-                                    <LanguageBadge language="EN" />
-                                    <Text preset="body" className="leading-6">{getIngredientName(ri.ingredient, 'en')}</Text>
-                                  </View>
-                                  <View className="flex-row items-center gap-xs mb-xs">
-                                    <LanguageBadge language="ES" />
-                                    <Text preset="body" className="leading-6">{getIngredientName(ri.ingredient, 'es')}</Text>
+                                    <LanguageBadge language={authoringLocale.toUpperCase()} />
+                                    <Text preset="body" className="leading-6">{getIngredientName(ri.ingredient, authoringLocale)}</Text>
                                   </View>
                                 </View>
                               </TouchableOpacity>
@@ -440,7 +436,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
                                       label={i18n.t('admin.recipes.form.ingredientsInfo.measurementUnit')}
                                       value={selectedIngredient?.measurementUnit?.id || ''}
                                       options={availableMeasurementUnits.map((unit) => ({
-                                        label: getTranslatedField(unit.translations, 'en', 'symbol'),
+                                        label: getTranslatedField(unit.translations, authoringLocale, 'symbol'),
                                         value: unit.id,
                                       }))}
                                       onValueChange={(value) => handleMeasurementUnitChange(selectedIngredient?.ingredientId || '', value)}

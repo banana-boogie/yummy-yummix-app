@@ -9,6 +9,7 @@ import i18n from '@/i18n';
 
 interface SelectedItemsSectionProps {
     items: AdminRecipeUsefulItem[];
+    displayLocale?: string;
     onEdit: (item: AdminRecipeUsefulItem) => void;
     onDelete: (item: AdminRecipeUsefulItem) => void;
     onMoveUp: (item: AdminRecipeUsefulItem) => void;
@@ -23,6 +24,7 @@ interface SelectedItemsSectionProps {
  */
 export function SelectedItemsSection({
     items,
+    displayLocale = 'es',
     onEdit,
     onDelete,
     onMoveUp,
@@ -57,6 +59,7 @@ export function SelectedItemsSection({
                         <AdminRecipeUsefulItemCard
                             key={recipeUsefulItem.id}
                             recipeUsefulItem={recipeUsefulItem}
+                            displayLocale={displayLocale}
                             onEdit={onEdit}
                             onDelete={onDelete}
                             onMoveUp={onMoveUp}

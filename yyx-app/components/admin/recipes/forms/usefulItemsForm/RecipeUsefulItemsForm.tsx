@@ -209,6 +209,7 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
                     <View className="mb-lg">
                         <SelectedItemsSection
                             items={sortedRecipeUsefulItems}
+                            displayLocale={authoringLocale}
                             onEdit={handleEditRecipeUsefulItem}
                             onDelete={handleDeleteRecipeUsefulItem}
                             onMoveUp={handleMoveUsefulItemUp}
@@ -274,6 +275,7 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
                         <View className="flex-[1.8]">
                             <SelectedItemsSection
                                 items={sortedRecipeUsefulItems}
+                                displayLocale={authoringLocale}
                                 onEdit={handleEditRecipeUsefulItem}
                                 onDelete={handleDeleteRecipeUsefulItem}
                                 onMoveUp={handleMoveUsefulItemUp}

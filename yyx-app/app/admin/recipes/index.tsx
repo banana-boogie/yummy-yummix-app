@@ -11,6 +11,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { AlertModal } from '@/components/common/AlertModal';
 import i18n from '@/i18n';
 import { useDevice } from '@/hooks/useDevice';
+import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
 
 export default function RecipesAdminPage() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export default function RecipesAdminPage() {
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [publishAction, setPublishAction] = useState<'publish' | 'unpublish'>('publish');
   const [recipeToPublish, setRecipeToPublish] = useState<AdminRecipe | null>(null);
+  const [displayLocale, setDisplayLocale] = useState('es');
 
   useEffect(() => {
     fetchRecipes();
@@ -56,10 +58,8 @@ export default function RecipesAdminPage() {
     // Apply search filter
     if (searchQuery) {
       filtered = filtered.filter(recipe => {
-        const nameEs = getTranslatedField(recipe.translations, 'es', 'name');
-        const nameEn = getTranslatedField(recipe.translations, 'en', 'name');
-        return nameEs?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          nameEn?.toLowerCase().includes(searchQuery.toLowerCase());
+        const name = getTranslatedField(recipe.translations, displayLocale, 'name');
+        return name?.toLowerCase().includes(searchQuery.toLowerCase());
       });
     }
 
@@ -76,7 +76,7 @@ export default function RecipesAdminPage() {
 
       switch (sortBy) {
         case 'name':
-          comparison = (getTranslatedField(a.translations, 'en', 'name') || '').localeCompare(getTranslatedField(b.translations, 'en', 'name') || '');
+          comparison = (getTranslatedField(a.translations, displayLocale, 'name') || '').localeCompare(getTranslatedField(b.translations, displayLocale, 'name') || '');
           break;
         case 'isPublished':
           comparison = (a.isPublished === b.isPublished) ? 0 : a.isPublished ? -1 : 1;
@@ -94,7 +94,7 @@ export default function RecipesAdminPage() {
     });
 
     setFilteredRecipes(filtered);
-  }, [recipes, searchQuery, filters, sortBy, sortDirection]);
+  }, [recipes, searchQuery, filters, sortBy, sortDirection, displayLocale]);
 
   const handleTogglePublished = async (recipe: AdminRecipe) => {
     setRecipeToPublish(recipe);
@@ -166,8 +166,7 @@ export default function RecipesAdminPage() {
             cachePolicy="memory-disk"
           />
           <View className="flex-col flex-1">
-            <Text preset="body" numberOfLines={1}>{getTranslatedField(item.translations, 'en', 'name')}</Text>
-            <Text preset="caption" color={COLORS.text.secondary} numberOfLines={1}>{getTranslatedField(item.translations, 'es', 'name')}</Text>
+            <Text preset="body" numberOfLines={1}>{getTranslatedField(item.translations, displayLocale, 'name')}</Text>
           </View>
         </View>
 
@@ -230,6 +229,9 @@ export default function RecipesAdminPage() {
         </View>
 
         <View className="px-md bg-background-default">
+          <View className="mb-md">
+            <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+          </View>
           <View className="flex-row items-center px-md rounded-lg mb-sm">
             <Ionicons name="search" size={20} color={COLORS.grey.MEDIUM} />
             <TextInput

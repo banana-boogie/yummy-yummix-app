@@ -164,6 +164,7 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
 
         <RecipeStepContent
           recipeStep={item}
+          displayLocale={authoringLocale}
         />
       </View>
     );
@@ -206,24 +207,19 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
         </View>
       ) : (
         <View>
-          {Object.entries(groupedSteps).map(([sectionKey, { sectionEn, sectionEs, steps }]) => (
+          {Object.entries(groupedSteps).map(([sectionKey, { sectionEn, sectionEs, steps }]) => {
+            const sectionName = authoringLocale === 'es' ? sectionEs : sectionEn;
+            return (
             <View key={sectionKey} className="mb-lg">
               <View className="mb-md pb-xs border-b border-border-DEFAULT">
-                <View className="flex-row items-center gap-sm">
-                  <Text preset="subheading" className="mb-[2px]">
-                    {sectionEn}
-                  </Text>
-                  <Text preset="caption" className="mb-[2px]">
-                    |
-                  </Text>
-                  <Text preset="subheading" className="mb-[2px] text-primary-DARK">
-                    {sectionEs}
-                  </Text>
-                </View>
+                <Text preset="subheading" className="mb-[2px]">
+                  {sectionName}
+                </Text>
               </View>
               {steps.map((item, index) => renderStepCard(item, sortedSteps.findIndex(s => s.id === item.id)))}
             </View>
-          ))}
+            );
+          })}
         </View>
       )}
 
