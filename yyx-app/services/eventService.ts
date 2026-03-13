@@ -209,6 +209,14 @@ class EventService {
     });
   }
 
+  logActionExecute(actionType: string, source: 'auto' | 'manual', path: 'text' | 'voice'): void {
+    this.queueEvent('action_execute', {
+      actionType,
+      source,
+      path,
+    });
+  }
+
   /**
    * Log when AI custom recipe generation succeeds or fails.
    */

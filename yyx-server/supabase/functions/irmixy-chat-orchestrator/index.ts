@@ -40,6 +40,7 @@ import { callAI, callAIStream } from "./ai-calls.ts";
 import { errorResponse, finalizeResponse } from "./response-builder.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
 import { detectTextToolCall, stripToolCallText } from "./tool-call-text.ts";
+import { buildActions } from "./action-builder.ts";
 import {
   BudgetCheckUnavailableError,
   checkTextBudget,
@@ -330,6 +331,9 @@ async function executeToolCalls(
   let recipes: RecipeCard[] | undefined;
   let recipesSourceTool: string | undefined;
   let customRecipeResult: GenerateRecipeResult | undefined;
+  let appActionResult:
+    | import("../_shared/tools/app-action.ts").AppActionResult
+    | undefined;
 
   const results = await Promise.all(
     toolCalls.map(async (toolCall) => {
@@ -388,9 +392,18 @@ async function executeToolCalls(
         safetyFlags: execution.shaped.safetyFlags,
       };
     }
+    if (execution.shaped.appActionResult) {
+      appActionResult = execution.shaped.appActionResult;
+    }
   }
 
-  return { toolMessages, recipes, recipesSourceTool, customRecipeResult };
+  return {
+    toolMessages,
+    recipes,
+    recipesSourceTool,
+    customRecipeResult,
+    appActionResult,
+  };
 }
 
 // ============================================================
@@ -513,6 +526,9 @@ function handleStreamingRequest(
         let recipes: RecipeCard[] | undefined;
         let recipesSourceTool: string | undefined;
         let customRecipeResult: GenerateRecipeResult | undefined;
+        let appActionResult:
+          | import("../_shared/tools/app-action.ts").AppActionResult
+          | undefined;
         let streamMessages = messages;
         const usageContext: AIUsageLogContext = {
           userId,
@@ -649,10 +665,12 @@ function handleStreamingRequest(
           recipes = toolResult.recipes;
           recipesSourceTool = toolResult.recipesSourceTool;
           customRecipeResult = toolResult.customRecipeResult;
+          appActionResult = toolResult.appActionResult;
 
           log.info("Tool execution result", {
             hasRecipes: !!recipes?.length,
             hasCustomRecipe: !!customRecipeResult?.recipe,
+            hasAppAction: !!appActionResult,
             recipesSourceTool: recipesSourceTool ?? null,
           });
 
@@ -745,6 +763,8 @@ function handleStreamingRequest(
           return;
         }
 
+        const actions = buildActions(userContext.language, appActionResult);
+
         const response = await finalizeResponse(
           supabase,
           sessionId,
@@ -753,6 +773,7 @@ function handleStreamingRequest(
           userContext,
           recipes,
           customRecipeResult,
+          actions.length > 0 ? actions : undefined,
         );
         timings.finalize_ms = Math.round(performance.now() - phaseStart);
         timings.total_ms = Math.round(performance.now() - startTime);

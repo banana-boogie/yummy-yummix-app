@@ -34,6 +34,7 @@ interface UseMessageStreamingParams {
     onResumeSessionClear: () => void;
     onBudgetWarning?: (warning: BudgetWarningPayload) => void;
     onBudgetExceeded?: (error: BudgetExceededError) => void;
+    onActionsReceived?: (actions: import('@/types/irmixy').Action[]) => void;
 }
 
 export function useMessageStreaming({
@@ -53,6 +54,7 @@ export function useMessageStreaming({
     onResumeSessionClear,
     onBudgetWarning,
     onBudgetExceeded,
+    onActionsReceived,
 }: UseMessageStreamingParams) {
     const isMountedRef = useRef(true);
     const streamCancelRef = useRef<(() => void) | null>(null);
@@ -311,6 +313,11 @@ export function useMessageStreaming({
                             actions: response.actions,
                         };
                     });
+
+                    // Auto-execute actions (e.g., share_recipe triggered by AI)
+                    if (response.actions?.length && onActionsReceived) {
+                        onActionsReceived(response.actions);
+                    }
 
                     if (hasRecipeData && assistantIndexRef.current !== null) {
                         const scrollToIdx = assistantIndexRef.current;

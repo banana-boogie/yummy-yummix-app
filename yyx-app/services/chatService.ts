@@ -10,7 +10,7 @@
 
 import { supabase } from '@/lib/supabase';
 import EventSource from 'react-native-sse';
-import type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, QuickAction } from '@/types/irmixy';
+import type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, Action } from '@/types/irmixy';
 import i18n from '@/i18n';
 
 export interface ChatMessage {
@@ -22,7 +22,7 @@ export interface ChatMessage {
     recipes?: RecipeCard[];
     customRecipe?: GeneratedRecipe;
     safetyFlags?: SafetyFlags;
-    actions?: QuickAction[];
+    actions?: Action[];
     // Error state flag for styling error messages
     hasError?: boolean;
     // ID of the saved custom recipe (to avoid duplicate saves)
@@ -40,7 +40,7 @@ export interface BudgetWarningPayload {
 }
 
 // Re-export types for convenience
-export type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, QuickAction };
+export type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, Action };
 
 // Constants
 const MAX_MESSAGE_LENGTH = 2000;

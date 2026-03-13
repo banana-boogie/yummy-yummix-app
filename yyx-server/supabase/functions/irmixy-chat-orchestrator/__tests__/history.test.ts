@@ -126,8 +126,8 @@ Deno.test("saveMessageToHistory - does not include actions when absent", async (
   );
 
   const assistantInsert = inserts[1] as Record<string, unknown>;
-  const toolCalls = assistantInsert.tool_calls as Record<string, unknown>;
-  assertEquals(toolCalls.actions, undefined);
+  // No recipes, customRecipe, safetyFlags, or actions → tool_calls is null
+  assertEquals(assistantInsert.tool_calls, null);
 });
 
 Deno.test("saveMessageToHistory - propagates insert failure", async () => {
