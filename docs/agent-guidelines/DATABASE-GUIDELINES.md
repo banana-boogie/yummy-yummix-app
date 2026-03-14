@@ -122,8 +122,8 @@ CREATE INDEX idx_<table>_user_id ON public.<table_name>(user_id);
 - `cuisine_preferences` — User cuisine preferences
 
 ### Chat/Voice Tables
-- `user_chat_sessions` — Chat sessions
-- `conversation_messages` — Chat message history with metadata
+- `ai_chat_sessions` — Chat sessions
+- `user_chat_messages` — Chat message history with metadata
 - `ai_voice_sessions` — Voice session records
 - `ai_voice_usage` — Voice quota tracking (30 min/month)
 
@@ -504,7 +504,7 @@ CREATE POLICY "Admin write <entity> translations"
 | B-tree (default) | Exact match, range queries, sorting | `CREATE INDEX idx_recipes_created_at ON recipes(created_at)` |
 | GIN | Full-text search, array containment | `CREATE INDEX idx_recipes_tags ON recipes USING GIN(tags)` |
 | HNSW (pgvector) | Vector similarity | `CREATE INDEX ON recipe_embeddings USING hnsw ((embedding::halfvec(3072)) halfvec_cosine_ops)` |
-| B-tree (FK) | Foreign key joins | `CREATE INDEX idx_messages_session_id ON conversation_messages(session_id)` |
+| B-tree (FK) | Foreign key joins | `CREATE INDEX idx_messages_session_id ON user_chat_messages(session_id)` |
 
 **Rules:**
 - Always add indexes on foreign key columns

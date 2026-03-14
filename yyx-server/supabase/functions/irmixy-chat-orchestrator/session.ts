@@ -44,7 +44,7 @@ export async function ensureSessionId(
 ): Promise<SessionResult> {
   if (sessionId) {
     const { data: session, error } = await supabase
-      .from("user_chat_sessions")
+      .from("ai_chat_sessions")
       .select("id")
       .eq("id", sessionId)
       .eq("user_id", userId)
@@ -66,7 +66,7 @@ export async function ensureSessionId(
   const title = initialMessage ? generateSessionTitle(initialMessage) : null;
 
   const { data, error } = await supabase
-    .from("user_chat_sessions")
+    .from("ai_chat_sessions")
     .insert({ user_id: userId, title })
     .select("id")
     .single();
