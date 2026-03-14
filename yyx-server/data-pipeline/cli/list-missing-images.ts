@@ -2,7 +2,7 @@
 /**
  * List Missing Images for Manual Generation
  *
- * Generates a manifest of recipes, ingredients, and useful items that do not
+ * Generates a manifest of recipes, ingredients, and kitchen tools that do not
  * have an image yet. This replaces automated DALL-E generation.
  *
  * Usage:
@@ -11,7 +11,7 @@
  *   deno task pipeline:images --local --type all --output ./missing-images.md --format md
  *
  * Flags:
- *   --type <type>     Entity type: recipe, ingredient, useful_item, all (default: all)
+ *   --type <type>     Entity type: recipe, ingredient, kitchen_tool, all (default: all)
  *   --limit <n>       Max rows to include (default: 50, global across all types)
  *   --format <fmt>    Output format: json, csv, md (default: json)
  *   --output <path>   Output file path (default: data-pipeline/missing-images.<ext>)
@@ -74,8 +74,8 @@ interface MissingImageStats {
   ingredientSelected: number;
   recipeMissing: number;
   recipeSelected: number;
-  usefulItemMissing: number;
-  usefulItemSelected: number;
+  kitchenToolMissing: number;
+  kitchenToolSelected: number;
 }
 
 function getName(value: string | null | undefined): string {
@@ -154,7 +154,7 @@ async function main() {
     logger.warn('DRY RUN MODE - manifest file will not be written');
   }
 
-  const validTypes = ['ingredient', 'recipe', 'useful_item', 'all'];
+  const validTypes = ['ingredient', 'recipe', 'kitchen_tool', 'all'];
   if (!validTypes.includes(entityType)) {
     logger.error(`Invalid --type "${entityType}". Valid: ${validTypes.join(', ')}`);
     Deno.exit(1);
@@ -171,8 +171,8 @@ async function main() {
     ingredientSelected: 0,
     recipeMissing: 0,
     recipeSelected: 0,
-    usefulItemMissing: 0,
-    usefulItemSelected: 0,
+    kitchenToolMissing: 0,
+    kitchenToolSelected: 0,
   };
 
   const manifestItems: ImageManifestItem[] = [];
@@ -209,19 +209,19 @@ async function main() {
     manifestItems.push(...result.items);
   }
 
-  if (entityType === 'useful_item' || entityType === 'all') {
+  if (entityType === 'kitchen_tool' || entityType === 'all') {
     const result = await collectForType(
-      'useful items',
-      'useful_item',
+      'kitchen tools',
+      'kitchen_tool',
       budget,
-      () => db.fetchAllUsefulItems(config.supabase),
+      () => db.fetchAllKitchenTools(config.supabase),
       (row) => row.id,
       (row) => row.name_en,
       (row) => row.name_es,
       (row) => !!row.image_url,
     );
-    stats.usefulItemMissing = result.missing;
-    stats.usefulItemSelected = result.selected;
+    stats.kitchenToolMissing = result.missing;
+    stats.kitchenToolSelected = result.selected;
     manifestItems.push(...result.items);
   }
 
@@ -237,7 +237,7 @@ async function main() {
     'Rows selected': manifestItems.length,
     'Ingredient missing': stats.ingredientMissing,
     'Recipe missing': stats.recipeMissing,
-    'Useful item missing': stats.usefulItemMissing,
+    'Kitchen tool missing': stats.kitchenToolMissing,
   });
 
   if (!dryRun) {

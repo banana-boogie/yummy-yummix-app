@@ -28,7 +28,7 @@ export interface DbIngredient {
   nutritional_facts: Record<string, unknown> | null;
 }
 
-export interface DbUsefulItem {
+export interface DbKitchenTool {
   id: string;
   name_en: string;
   name_es: string;
@@ -169,10 +169,10 @@ export function matchTag(tagName: string, dbTags: DbRecipeTag[]): DbRecipeTag | 
 }
 
 /** Match a useful item by name (EN or ES) */
-export function matchUsefulItem(
+export function matchKitchenTool(
   search: { nameEn: string; nameEs: string },
-  dbItems: DbUsefulItem[],
-): DbUsefulItem | null {
+  dbItems: DbKitchenTool[],
+): DbKitchenTool | null {
   return dbItems.find(
     (item) =>
       item.name_en.toLowerCase().trim() === search.nameEn.toLowerCase().trim() ||

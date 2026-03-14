@@ -2,7 +2,7 @@
 /**
  * Scan Notion Markdown Exports for Entity Names
  *
- * Extracts ingredient names, useful item names, and tags from Notion recipe
+ * Extracts ingredient names, kitchen tool names, and tags from Notion recipe
  * markdown files WITHOUT hitting any AI API. Cross-references against the
  * database to show only MISSING entities that need to be pre-seeded.
  *
@@ -16,7 +16,7 @@ import { createPipelineConfig, hasFlag, parseEnvironment, parseFlag } from '../l
 import {
   type DbIngredient,
   type DbRecipeTag,
-  type DbUsefulItem,
+  type DbKitchenTool,
 } from '../lib/entity-matcher.ts';
 import * as db from '../lib/db.ts';
 
@@ -116,8 +116,8 @@ function findTagMatch(tagName: string, dbTags: DbRecipeTag[]): DbRecipeTag | nul
   ) || null;
 }
 
-/** Check if a useful item name matches any DB item */
-function findUsefulItemMatch(nameEs: string, dbItems: DbUsefulItem[]): DbUsefulItem | null {
+/** Check if a kitchen tool name matches any DB item */
+function findKitchenToolMatch(nameEs: string, dbItems: DbKitchenTool[]): DbKitchenTool | null {
   const n = normalize(nameEs);
   const exact = dbItems.find(
     (item) => normalize(item.name_en) === n || normalize(item.name_es) === n,
@@ -147,12 +147,12 @@ function hasRecipeContent(content: string): boolean {
 
 function extractEntities(content: string): {
   ingredients: string[];
-  usefulItems: string[];
+  kitchenTools: string[];
   tags: string[];
 } {
   const lines = content.split('\n');
   const ingredients: string[] = [];
-  const usefulItems: string[] = [];
+  const kitchenTools: string[] = [];
   const tags: string[] = [];
 
   let section: 'none' | 'ingredientes' | 'procedimiento' | 'tips' | 'utensilios' = 'none';
@@ -171,7 +171,7 @@ function extractEntities(content: string): {
     }
   }
 
-  // Extract ingredients and useful items by section
+  // Extract ingredients and kitchen tools by section
   for (const line of lines) {
     const trimmed = line.trim();
 
@@ -210,17 +210,17 @@ function extractEntities(content: string): {
     if (section === 'utensilios' && trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('-') && !trimmed.startsWith('<')) {
       for (const item of trimmed.split(',').map((s) => s.trim()).filter(Boolean)) {
         if (item.length > 1 && !item.startsWith('#') && !item.startsWith('<')) {
-          usefulItems.push(item.toLowerCase());
+          kitchenTools.push(item.toLowerCase());
         }
       }
     }
     if (section === 'utensilios' && trimmed.startsWith('-') && trimmed.length > 2) {
       const item = trimmed.replace(/^-\s*/, '').trim();
-      if (item && !item.startsWith('**') && !item.startsWith('#')) usefulItems.push(item.toLowerCase());
+      if (item && !item.startsWith('**') && !item.startsWith('#')) kitchenTools.push(item.toLowerCase());
     }
   }
 
-  return { ingredients, usefulItems, tags };
+  return { ingredients, kitchenTools, tags };
 }
 
 // ─── Main ────────────────────────────────────────────────
@@ -235,16 +235,16 @@ if (!dataDir) {
 }
 
 console.log('\nLoading reference data from database...');
-const [dbIngredients, dbTags, dbUsefulItems] = await Promise.all([
+const [dbIngredients, dbTags, dbKitchenTools] = await Promise.all([
   db.fetchAllIngredients(config.supabase),
   db.fetchAllTags(config.supabase),
-  db.fetchAllUsefulItems(config.supabase),
+  db.fetchAllKitchenTools(config.supabase),
 ]);
-console.log(`Loaded: ${dbIngredients.length} ingredients, ${dbTags.length} tags, ${dbUsefulItems.length} useful items\n`);
+console.log(`Loaded: ${dbIngredients.length} ingredients, ${dbTags.length} tags, ${dbKitchenTools.length} kitchen tools\n`);
 
 // Scan files
 const allIngredients = new Map<string, number>();
-const allUsefulItems = new Map<string, number>();
+const allKitchenTools = new Map<string, number>();
 const allTags = new Map<string, number>();
 let recipeCount = 0;
 let stubCount = 0;
@@ -264,8 +264,8 @@ for (const entry of Deno.readDirSync(dataDir)) {
   for (const name of new Set(entities.ingredients)) {
     allIngredients.set(name, (allIngredients.get(name) || 0) + 1);
   }
-  for (const name of new Set(entities.usefulItems)) {
-    allUsefulItems.set(name, (allUsefulItems.get(name) || 0) + 1);
+  for (const name of new Set(entities.kitchenTools)) {
+    allKitchenTools.set(name, (allKitchenTools.get(name) || 0) + 1);
   }
   for (const name of new Set(entities.tags)) {
     allTags.set(name, (allTags.get(name) || 0) + 1);
@@ -297,17 +297,17 @@ for (const [name, count] of allTags) {
 }
 missingTags.sort((a, b) => b.count - a.count);
 
-const missingUsefulItems: Array<{ name: string; count: number }> = [];
-const matchedUsefulItems: Array<{ name: string; count: number; matchedTo: string }> = [];
-for (const [name, count] of allUsefulItems) {
-  const match = findUsefulItemMatch(name, dbUsefulItems);
+const missingKitchenTools: Array<{ name: string; count: number }> = [];
+const matchedKitchenTools: Array<{ name: string; count: number; matchedTo: string }> = [];
+for (const [name, count] of allKitchenTools) {
+  const match = findKitchenToolMatch(name, dbKitchenTools);
   if (match) {
-    matchedUsefulItems.push({ name, count, matchedTo: `${match.name_es} / ${match.name_en}` });
+    matchedKitchenTools.push({ name, count, matchedTo: `${match.name_es} / ${match.name_en}` });
   } else {
-    missingUsefulItems.push({ name, count });
+    missingKitchenTools.push({ name, count });
   }
 }
-missingUsefulItems.sort((a, b) => b.count - a.count);
+missingKitchenTools.sort((a, b) => b.count - a.count);
 
 // Write report
 const report = {
@@ -320,10 +320,10 @@ const report = {
       matched: matchedIngredients.length,
       missing: missingIngredients.length,
     },
-    usefulItems: {
-      total: allUsefulItems.size,
-      matched: matchedUsefulItems.length,
-      missing: missingUsefulItems.length,
+    kitchenTools: {
+      total: allKitchenTools.size,
+      matched: matchedKitchenTools.length,
+      missing: missingKitchenTools.length,
     },
     tags: {
       total: allTags.size,
@@ -332,10 +332,10 @@ const report = {
     },
   },
   missingIngredients,
-  missingUsefulItems,
+  missingKitchenTools,
   missingTags,
   matchedIngredients,
-  matchedUsefulItems,
+  matchedKitchenTools,
   matchedTags,
 };
 
@@ -354,10 +354,10 @@ if (missingIngredients.length > 0) {
   }
 }
 
-console.log(`\nUSEFUL ITEMS: ${allUsefulItems.size} unique → ${matchedUsefulItems.length} matched, ${missingUsefulItems.length} MISSING`);
-if (missingUsefulItems.length > 0) {
-  console.log(`\n  Missing useful items (need to create):`);
-  for (const { name, count } of missingUsefulItems) {
+console.log(`\nUSEFUL ITEMS: ${allKitchenTools.size} unique → ${matchedKitchenTools.length} matched, ${missingKitchenTools.length} MISSING`);
+if (missingKitchenTools.length > 0) {
+  console.log(`\n  Missing kitchen tools (need to create):`);
+  for (const { name, count } of missingKitchenTools) {
     console.log(`    ${count.toString().padStart(3)}x  ${name}`);
   }
 }

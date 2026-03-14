@@ -2,7 +2,7 @@
  * Helpers for manual image generation manifests.
  */
 
-export type ImageEntityType = 'ingredient' | 'recipe' | 'useful_item';
+export type ImageEntityType = 'ingredient' | 'recipe' | 'kitchen_tool';
 
 export interface ImageManifestItem {
   entityType: ImageEntityType;
@@ -21,7 +21,7 @@ const PROMPT_HINTS: Record<ImageEntityType, string> = {
     'Studio food product shot on white background. Ingredient only, no extra objects, high detail.',
   recipe:
     'Overhead plated dish photo, warm natural light, appetizing, realistic food photography style.',
-  useful_item:
+  kitchen_tool:
     'Clean product photo of a kitchen tool on white background, isolated object, no clutter.',
 };
 

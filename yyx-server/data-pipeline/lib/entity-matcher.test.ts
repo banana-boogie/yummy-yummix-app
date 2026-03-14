@@ -4,7 +4,7 @@
  * Tests for matching parsed recipe entities against DB records:
  * - matchIngredient: exact/plural/prep-strip/fuzzy/DISTINCT_INGREDIENTS
  * - matchTag: exact/#prefix/case-insensitive
- * - matchUsefulItem: exact/case-insensitive
+ * - matchKitchenTool: exact/case-insensitive
  * - matchMeasurementUnit: by ID/case-insensitive
  */
 
@@ -13,11 +13,11 @@ import {
   type DbIngredient,
   type DbMeasurementUnit,
   type DbRecipeTag,
-  type DbUsefulItem,
+  type DbKitchenTool,
   matchIngredient,
   matchMeasurementUnit,
   matchTag,
-  matchUsefulItem,
+  matchKitchenTool,
 } from './entity-matcher.ts';
 
 // ─── Test Data ────────────────────────────────────────────
@@ -66,7 +66,7 @@ const tags: DbRecipeTag[] = [
   { id: 'tag-2', name_en: 'Vegan', name_es: 'Vegano', categories: ['diet'] },
 ];
 
-const usefulItems: DbUsefulItem[] = [
+const kitchenTools: DbKitchenTool[] = [
   { id: 'ui-1', name_en: 'Whisk', name_es: 'Batidor', image_url: '' },
   { id: 'ui-2', name_en: 'Cutting Board', name_es: 'Tabla de Cortar', image_url: '' },
 ];
@@ -175,26 +175,26 @@ Deno.test('matchTag - null on unknown', () => {
 });
 
 // ============================================================
-// matchUsefulItem
+// matchKitchenTool
 // ============================================================
 
-Deno.test('matchUsefulItem - exact match', () => {
-  const result = matchUsefulItem({ nameEn: 'Whisk', nameEs: '' }, usefulItems);
+Deno.test('matchKitchenTool - exact match', () => {
+  const result = matchKitchenTool({ nameEn: 'Whisk', nameEs: '' }, kitchenTools);
   assertEquals(result?.id, 'ui-1');
 });
 
-Deno.test('matchUsefulItem - case insensitive', () => {
-  const result = matchUsefulItem({ nameEn: 'whisk', nameEs: '' }, usefulItems);
+Deno.test('matchKitchenTool - case insensitive', () => {
+  const result = matchKitchenTool({ nameEn: 'whisk', nameEs: '' }, kitchenTools);
   assertEquals(result?.id, 'ui-1');
 });
 
-Deno.test('matchUsefulItem - Spanish match', () => {
-  const result = matchUsefulItem({ nameEn: '', nameEs: 'Tabla de Cortar' }, usefulItems);
+Deno.test('matchKitchenTool - Spanish match', () => {
+  const result = matchKitchenTool({ nameEn: '', nameEs: 'Tabla de Cortar' }, kitchenTools);
   assertEquals(result?.id, 'ui-2');
 });
 
-Deno.test('matchUsefulItem - null on unknown', () => {
-  const result = matchUsefulItem({ nameEn: 'Blender', nameEs: 'Licuadora' }, usefulItems);
+Deno.test('matchKitchenTool - null on unknown', () => {
+  const result = matchKitchenTool({ nameEn: 'Blender', nameEs: 'Licuadora' }, kitchenTools);
   assertEquals(result, null);
 });
 

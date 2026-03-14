@@ -12,7 +12,7 @@ import type {
   DbIngredient,
   DbMeasurementUnit,
   DbRecipeTag,
-  DbUsefulItem,
+  DbKitchenTool,
 } from './entity-matcher.ts';
 
 // deno-lint-ignore no-explicit-any
@@ -86,13 +86,13 @@ export async function fetchAllTags(supabase: SupabaseClient): Promise<DbRecipeTa
     .sort((a, b) => a.name_en.localeCompare(b.name_en));
 }
 
-export async function fetchAllUsefulItems(supabase: SupabaseClient): Promise<DbUsefulItem[]> {
+export async function fetchAllKitchenTools(supabase: SupabaseClient): Promise<DbKitchenTool[]> {
   const { data, error } = await supabase
-    .from('useful_items')
-    .select('id, image_url, translations:useful_item_translations(locale, name)')
+    .from('kitchen_tools')
+    .select('id, image_url, translations:kitchen_tool_translations(locale, name)')
     .limit(FETCH_LIMIT);
-  if (error) throw new Error(`Failed to fetch useful items: ${error.message}`);
-  warnIfTruncated('useful_items', (data || []).length);
+  if (error) throw new Error(`Failed to fetch kitchen tools: ${error.message}`);
+  warnIfTruncated('kitchen_tools', (data || []).length);
   return (data || [])
     .map((row: Row) => {
       const t = row.translations || [];
@@ -206,24 +206,24 @@ export async function createIngredient(
   };
 }
 
-export async function createUsefulItem(
+export async function createKitchenTool(
   supabase: SupabaseClient,
   item: { name_en: string; name_es: string; image_url?: string },
-): Promise<DbUsefulItem> {
+): Promise<DbKitchenTool> {
   const { data, error } = await supabase
-    .from('useful_items')
+    .from('kitchen_tools')
     .insert({ image_url: item.image_url || '' })
     .select('id')
     .single();
-  if (error) throw new Error(`Failed to create useful item "${item.name_en}": ${error.message}`);
+  if (error) throw new Error(`Failed to create kitchen tool "${item.name_en}": ${error.message}`);
 
   const { error: tErr } = await supabase
-    .from('useful_item_translations')
+    .from('kitchen_tool_translations')
     .insert([
-      { useful_item_id: data.id, locale: 'en', name: item.name_en },
-      { useful_item_id: data.id, locale: 'es', name: item.name_es },
+      { kitchen_tool_id: data.id, locale: 'en', name: item.name_en },
+      { kitchen_tool_id: data.id, locale: 'es', name: item.name_es },
     ]);
-  if (tErr) throw new Error(`Failed to create useful item translations: ${tErr.message}`);
+  if (tErr) throw new Error(`Failed to create kitchen tool translations: ${tErr.message}`);
 
   return {
     id: data.id,
@@ -455,11 +455,11 @@ export async function insertRecipeTags(
   if (error) throw new Error(`Failed to insert recipe tags: ${error.message}`);
 }
 
-export async function insertRecipeUsefulItems(
+export async function insertRecipeKitchenTools(
   supabase: SupabaseClient,
   recipeId: string,
   items: Array<
-    { useful_item_id: string; display_order: number; notes_en: string; notes_es: string }
+    { kitchen_tool_id: string; display_order: number; notes_en: string; notes_es: string }
   >,
 ): Promise<void> {
   if (items.length === 0) return;
@@ -467,15 +467,15 @@ export async function insertRecipeUsefulItems(
   // 1. Insert base rows
   const baseRows = items.map((item) => ({
     recipe_id: recipeId,
-    useful_item_id: item.useful_item_id,
+    kitchen_tool_id: item.kitchen_tool_id,
     display_order: item.display_order,
   }));
 
   const { data: inserted, error } = await supabase
-    .from('recipe_useful_items')
+    .from('recipe_kitchen_tools')
     .insert(baseRows)
     .select('id, display_order');
-  if (error) throw new Error(`Failed to insert recipe useful items: ${error.message}`);
+  if (error) throw new Error(`Failed to insert recipe kitchen tools: ${error.message}`);
 
   // 2. Insert translations
   const orderToId = new Map((inserted || []).map((r: Row) => [r.display_order, r.id]));
@@ -484,15 +484,15 @@ export async function insertRecipeUsefulItems(
     const rowId = orderToId.get(item.display_order);
     if (!rowId) continue;
     translations.push(
-      { recipe_useful_item_id: rowId, locale: 'en', notes: item.notes_en },
-      { recipe_useful_item_id: rowId, locale: 'es', notes: item.notes_es },
+      { recipe_kitchen_tool_id: rowId, locale: 'en', notes: item.notes_en },
+      { recipe_kitchen_tool_id: rowId, locale: 'es', notes: item.notes_es },
     );
   }
   if (translations.length > 0) {
     const { error: tErr } = await supabase
-      .from('recipe_useful_item_translations')
+      .from('recipe_kitchen_tool_translations')
       .insert(translations);
-    if (tErr) throw new Error(`Failed to insert recipe useful item translations: ${tErr.message}`);
+    if (tErr) throw new Error(`Failed to insert recipe kitchen tool translations: ${tErr.message}`);
   }
 }
 
@@ -512,16 +512,16 @@ export async function updateIngredient(
   if (error) throw new Error(`Failed to update ingredient ${id}: ${error.message}`);
 }
 
-/** Update non-translatable fields on a useful item (e.g., image_url) */
-export async function updateUsefulItem(
+/** Update non-translatable fields on a kitchen tool (e.g., image_url) */
+export async function updateKitchenTool(
   supabase: SupabaseClient,
   id: string,
-  updates: Partial<DbUsefulItem>,
+  updates: Partial<DbKitchenTool>,
 ): Promise<void> {
   const { name_en: _, name_es: _2, ...baseUpdates } = updates;
   if (Object.keys(baseUpdates).length === 0) return;
-  const { error } = await supabase.from('useful_items').update(baseUpdates).eq('id', id);
-  if (error) throw new Error(`Failed to update useful item ${id}: ${error.message}`);
+  const { error } = await supabase.from('kitchen_tools').update(baseUpdates).eq('id', id);
+  if (error) throw new Error(`Failed to update kitchen tool ${id}: ${error.message}`);
 }
 
 /** Update non-translatable fields on a tag (e.g., categories) */

@@ -3,7 +3,7 @@
  * Translate Missing Content
  *
  * Uses OpenAI GPT-4o-mini to translate recipes, ingredients, and
- * useful items that are missing one language.
+ * kitchen tools that are missing one language.
  *
  * Usage:
  *   deno task pipeline:translate --local
@@ -103,8 +103,8 @@ async function main() {
     (i) => (!i.name_en && i.name_es) || (i.name_en && !i.name_es),
   );
 
-  logger.info('Checking useful items...');
-  const items = await db.fetchAllUsefulItems(config.supabase);
+  logger.info('Checking kitchen tools...');
+  const items = await db.fetchAllKitchenTools(config.supabase);
   const itemsNeedTranslation = items.filter(
     (i) => (!i.name_en && i.name_es) || (i.name_en && !i.name_es),
   );
@@ -123,7 +123,7 @@ async function main() {
   );
 
   logger.info(
-    `Global limit allocation -> ingredients: ${allocation.ingredientCount}, useful items: ${allocation.usefulItemCount}, tags: ${allocation.tagCount}`,
+    `Global limit allocation -> ingredients: ${allocation.ingredientCount}, kitchen tools: ${allocation.kitchenToolCount}, tags: ${allocation.tagCount}`,
   );
 
   // ─── Translate Ingredients ─────────────────────────────
@@ -158,21 +158,21 @@ async function main() {
 
   // ─── Translate Useful Items ────────────────────────────
   if (itemsNeedTranslation.length > 0) {
-    logger.info(`Found ${itemsNeedTranslation.length} useful items needing translation`);
-    for (const item of itemsNeedTranslation.slice(0, allocation.usefulItemCount)) {
+    logger.info(`Found ${itemsNeedTranslation.length} kitchen tools needing translation`);
+    for (const item of itemsNeedTranslation.slice(0, allocation.kitchenToolCount)) {
       const name = item.name_en || item.name_es;
       if (dryRun) {
-        logger.info(`[DRY RUN] Would translate useful item: ${name}`);
+        logger.info(`[DRY RUN] Would translate kitchen tool: ${name}`);
         continue;
       }
 
       try {
         const { nameEn, nameEs } = await translatePair(item.name_en, item.name_es);
-        await db.updateUsefulItem(config.supabase, item.id, {
+        await db.updateKitchenTool(config.supabase, item.id, {
           name_en: nameEn,
           name_es: nameEs,
         });
-        logger.success(`Translated useful item: ${name} -> EN: ${nameEn}, ES: ${nameEs}`);
+        logger.success(`Translated kitchen tool: ${name} -> EN: ${nameEn}, ES: ${nameEs}`);
         totalTranslated++;
       } catch (error) {
         logger.error(`Failed to translate "${name}": ${error}`);
@@ -209,7 +209,7 @@ async function main() {
   logger.summary({
     'Global translation limit': limit,
     'Ingredients needing translation': needsTranslation.length,
-    'Useful items needing translation': itemsNeedTranslation.length,
+    'Kitchen tools needing translation': itemsNeedTranslation.length,
     'Tags needing translation': tagsNeedTranslation.length,
     'Allocated for this run': allocation.total,
     'Total translated': totalTranslated,

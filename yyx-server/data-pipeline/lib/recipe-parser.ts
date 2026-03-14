@@ -111,10 +111,10 @@ const recipeJsonSchema = {
       portions: { type: 'number', description: 'Number of portions the recipe makes.' },
       tipsAndTricksEn: { type: 'string', description: 'English tips section.' },
       tipsAndTricksEs: { type: 'string', description: 'Spanish tips section.' },
-      usefulItems: {
+      kitchenTools: {
         type: 'array',
         description:
-          'List of the useful items for the recipe found in the Utensilios y herramientas utiles or Useful tools and utensils section.',
+          'List of the kitchen tools for the recipe found in the Utensilios y herramientas utiles or Kitchen tools section.',
         items: {
           type: 'object',
           properties: {
@@ -122,15 +122,15 @@ const recipeJsonSchema = {
             nameEs: { type: 'string', description: 'Spanish useful tool name.' },
             displayOrder: {
               type: 'number',
-              description: '1-based index indicating the order of the useful item.',
+              description: '1-based index indicating the order of the kitchen tool.',
             },
             notesEn: {
               type: 'string',
-              description: 'Additional notes about the useful item in English.',
+              description: 'Additional notes about the kitchen tool in English.',
             },
             notesEs: {
               type: 'string',
-              description: 'Additional notes about the useful item in Spanish.',
+              description: 'Additional notes about the kitchen tool in Spanish.',
             },
           },
           required: ['nameEn', 'nameEs', 'displayOrder', 'notesEn', 'notesEs'],
@@ -372,7 +372,7 @@ const recipeJsonSchema = {
       'portions',
       'tipsAndTricksEn',
       'tipsAndTricksEs',
-      'usefulItems',
+      'kitchenTools',
       'ingredients',
       'steps',
       'tags',
@@ -396,7 +396,7 @@ The file starts with Notion metadata lines — IGNORE these for recipe content:
 The H1 heading (# Recipe Name) is ALWAYS the Spanish recipe name. Use it as nameEs and translate it to English for nameEn.
 
 Content is typically in a "## Receta en Español" section with:
-  ### Ingredientes, ### Procedimiento, ### Tips, ### Utensilios y herramientas útiles
+  ### Ingredientes, ### Procedimiento, ### Tips, ### Kitchen tools
 
 There may also be a "## English Recipe" section — if populated, use it; if empty, translate from Spanish.
 
@@ -446,7 +446,7 @@ export interface ParsedRecipeData {
   portions: number;
   tipsAndTricksEn: string;
   tipsAndTricksEs: string;
-  usefulItems: Array<{
+  kitchenTools: Array<{
     nameEn: string;
     nameEs: string;
     displayOrder: number;
@@ -551,10 +551,10 @@ function assertArrayField(obj: Record<string, unknown>, key: string): unknown[] 
   return value;
 }
 
-function validateUsefulItems(usefulItems: unknown[]): void {
-  for (const item of usefulItems) {
+function validateKitchenTools(kitchenTools: unknown[]): void {
+  for (const item of kitchenTools) {
     if (!isObject(item)) {
-      throw new Error('Invalid recipe parser output: "usefulItems" entries must be objects');
+      throw new Error('Invalid recipe parser output: "kitchenTools" entries must be objects');
     }
     assertStringField(item, 'nameEn');
     assertStringField(item, 'nameEs');
@@ -701,12 +701,12 @@ function validateParsedRecipeData(data: unknown): ParsedRecipeData {
     throw new Error('Invalid recipe parser output: "difficulty" must be easy, medium, or hard');
   }
 
-  const usefulItems = assertArrayField(data, 'usefulItems');
+  const kitchenTools = assertArrayField(data, 'kitchenTools');
   const ingredients = assertArrayField(data, 'ingredients');
   const steps = assertArrayField(data, 'steps');
   const tags = assertArrayField(data, 'tags');
 
-  validateUsefulItems(usefulItems);
+  validateKitchenTools(kitchenTools);
   validateIngredients(ingredients);
   validateSteps(steps);
   validateTags(tags);

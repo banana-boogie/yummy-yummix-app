@@ -15,7 +15,7 @@ function createParsedRecipe(
     portions: 2,
     tipsAndTricksEn: '',
     tipsAndTricksEs: '',
-    usefulItems: [],
+    kitchenTools: [],
     ingredients: [],
     steps,
     tags: [],

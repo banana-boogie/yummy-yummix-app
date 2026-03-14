@@ -2,7 +2,7 @@
 /**
  * Audit Database for Missing Data
  *
- * Scans recipes, ingredients, and useful items for:
+ * Scans recipes, ingredients, and kitchen tools for:
  *   - Missing images
  *   - Missing nutritional facts (ingredients)
  *   - Missing translations (EN or ES)
@@ -24,7 +24,7 @@ const outputPath = parseFlag(Deno.args, '--output') ||
   new URL('../audit-report.json', import.meta.url).pathname;
 
 interface AuditIssue {
-  type: 'recipe' | 'ingredient' | 'useful_item';
+  type: 'recipe' | 'ingredient' | 'kitchen_tool';
   id: string;
   name: string;
   issue: string;
@@ -78,10 +78,10 @@ function auditEntities(
 async function main() {
   logger.section(`Data Audit (${env})`);
 
-  const [recipes, ingredients, usefulItems] = await Promise.all([
+  const [recipes, ingredients, kitchenTools] = await Promise.all([
     db.fetchAllRecipes(config.supabase),
     db.fetchAllIngredients(config.supabase),
-    db.fetchAllUsefulItems(config.supabase),
+    db.fetchAllKitchenTools(config.supabase),
   ]);
 
   const issues: AuditIssue[] = [];
@@ -107,8 +107,8 @@ async function main() {
     return [];
   }));
 
-  logger.info(`Auditing ${usefulItems.length} useful items...`);
-  issues.push(...auditEntities(usefulItems, 'useful_item'));
+  logger.info(`Auditing ${kitchenTools.length} kitchen tools...`);
+  issues.push(...auditEntities(kitchenTools, 'kitchen_tool'));
 
   // ─── Group and Report ──────────────────────────────────
   const byIssue: Record<string, AuditIssue[]> = {};
@@ -120,7 +120,7 @@ async function main() {
   logger.summary({
     'Total recipes': recipes.length,
     'Total ingredients': ingredients.length,
-    'Total useful items': usefulItems.length,
+    'Total kitchen tools': kitchenTools.length,
     'Total issues found': issues.length,
     ...Object.fromEntries(
       Object.entries(byIssue).map(([issue, items]) => [issue, items.length]),
@@ -134,7 +134,7 @@ async function main() {
     totals: {
       recipes: recipes.length,
       ingredients: ingredients.length,
-      usefulItems: usefulItems.length,
+      kitchenTools: kitchenTools.length,
       issues: issues.length,
     },
     issuesByType: byIssue,

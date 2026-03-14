@@ -96,7 +96,7 @@ function makeParsed(steps: ParsedRecipeData['steps']): ParsedRecipeData {
     portions: 4,
     tipsAndTricksEn: '',
     tipsAndTricksEs: '',
-    usefulItems: [],
+    kitchenTools: [],
     ingredients: [],
     steps,
     tags: [],

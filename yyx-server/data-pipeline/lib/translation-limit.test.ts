@@ -6,7 +6,7 @@ Deno.test('allocateTranslationLimit applies a single global cap across all bucke
 
   assertEquals(result, {
     ingredientCount: 20,
-    usefulItemCount: 0,
+    kitchenToolCount: 0,
     tagCount: 0,
     total: 20,
   });
@@ -17,7 +17,7 @@ Deno.test('allocateTranslationLimit carries remaining budget to next bucket', ()
 
   assertEquals(result, {
     ingredientCount: 5,
-    usefulItemCount: 5,
+    kitchenToolCount: 5,
     tagCount: 0,
     total: 10,
   });
@@ -28,7 +28,7 @@ Deno.test('allocateTranslationLimit handles non-positive limits', () => {
 
   assertEquals(result, {
     ingredientCount: 0,
-    usefulItemCount: 0,
+    kitchenToolCount: 0,
     tagCount: 0,
     total: 0,
   });

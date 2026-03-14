@@ -16,7 +16,7 @@ const baseRecipe: ParsedRecipeData = {
   portions: 4,
   tipsAndTricksEn: 'Serve warm',
   tipsAndTricksEs: 'Servir caliente',
-  usefulItems: [
+  kitchenTools: [
     {
       nameEn: 'Whisk',
       nameEs: 'Batidor',

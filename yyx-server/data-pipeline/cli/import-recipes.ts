@@ -27,11 +27,11 @@ import {
   type DbIngredient,
   type DbMeasurementUnit,
   type DbRecipeTag,
-  type DbUsefulItem,
+  type DbKitchenTool,
   matchIngredient,
   matchMeasurementUnit,
   matchTag,
-  matchUsefulItem,
+  matchKitchenTool,
 } from '../lib/entity-matcher.ts';
 import { resolveStepIngredients } from '../lib/step-ingredient-resolver.ts';
 import { buildRecipeSteps, hasRecipeContent } from '../lib/import-helpers.ts';
@@ -158,23 +158,23 @@ async function resolveTags(
   return tagIds;
 }
 
-/** Resolve useful items: match existing or create new ones */
-async function resolveUsefulItems(
+/** Resolve kitchen tools: match existing or create new ones */
+async function resolveKitchenTools(
   parsed: ParsedRecipeData,
-  allItems: DbUsefulItem[],
+  allItems: DbKitchenTool[],
 ): Promise<
-  Array<{ useful_item_id: string; display_order: number; notes_en: string; notes_es: string }>
+  Array<{ kitchen_tool_id: string; display_order: number; notes_en: string; notes_es: string }>
 > {
   const result: Array<
-    { useful_item_id: string; display_order: number; notes_en: string; notes_es: string }
+    { kitchen_tool_id: string; display_order: number; notes_en: string; notes_es: string }
   > = [];
 
-  for (const item of parsed.usefulItems) {
-    let matched = matchUsefulItem(item, allItems);
+  for (const item of parsed.kitchenTools) {
+    let matched = matchKitchenTool(item, allItems);
 
     if (!matched) {
-      logger.info(`Creating missing useful item: ${item.nameEn} / ${item.nameEs}`);
-      matched = await db.createUsefulItem(config.supabase, {
+      logger.info(`Creating missing kitchen tool: ${item.nameEn} / ${item.nameEs}`);
+      matched = await db.createKitchenTool(config.supabase, {
         name_en: item.nameEn,
         name_es: item.nameEs,
       });
@@ -182,7 +182,7 @@ async function resolveUsefulItems(
     }
 
     result.push({
-      useful_item_id: matched.id,
+      kitchen_tool_id: matched.id,
       display_order: item.displayOrder,
       notes_en: item.notesEn || '',
       notes_es: item.notesEs || '',
@@ -199,7 +199,7 @@ async function importRecipe(
   filename: string,
   allIngredients: DbIngredient[],
   allTags: DbRecipeTag[],
-  allItems: DbUsefulItem[],
+  allItems: DbKitchenTool[],
   allUnits: DbMeasurementUnit[],
 ): Promise<string> {
   // 1. Parse markdown with OpenAI
@@ -231,9 +231,9 @@ async function importRecipe(
   const tagIds = dryRun
     ? await resolveTagsDry(parsed.tags, allTags)
     : await resolveTags(parsed.tags, allTags);
-  const usefulItems = dryRun
-    ? await resolveUsefulItemsDry(parsed, allItems)
-    : await resolveUsefulItems(parsed, allItems);
+  const kitchenTools = dryRun
+    ? await resolveKitchenToolsDry(parsed, allItems)
+    : await resolveKitchenTools(parsed, allItems);
 
   // In dry-run mode: log everything and return without DB writes
   if (dryRun) {
@@ -255,7 +255,7 @@ async function importRecipe(
         : '';
       logger.info(`  ${step.order}. ${step.instructionEn}${tmx}`);
     }
-    logger.info(`Useful items (${parsed.usefulItems.length}): ${parsed.usefulItems.map((i) => i.nameEn).join(', ')}`);
+    logger.info(`Kitchen tools (${parsed.kitchenTools.length}): ${parsed.kitchenTools.map((i) => i.nameEn).join(', ')}`);
     if (parsed.tipsAndTricksEn) logger.info(`Tips: ${parsed.tipsAndTricksEn}`);
 
     // Show entity resolution status
@@ -273,7 +273,7 @@ async function importRecipe(
           (db.name_es?.toLowerCase() ?? '') === t.toLowerCase(),
       ),
     );
-    const missingItems = parsed.usefulItems.filter(
+    const missingItems = parsed.kitchenTools.filter(
       (i) => !allItems.some((db) => (db.name_en?.toLowerCase() ?? '') === i.nameEn.toLowerCase()),
     );
 
@@ -284,7 +284,7 @@ async function importRecipe(
       logger.warn(`Would create ${missingTags.length} new tag(s): ${missingTags.join(', ')}`);
     }
     if (missingItems.length > 0) {
-      logger.warn(`Would create ${missingItems.length} new useful item(s): ${missingItems.map((i) => i.nameEn).join(', ')}`);
+      logger.warn(`Would create ${missingItems.length} new kitchen tool(s): ${missingItems.map((i) => i.nameEn).join(', ')}`);
     }
 
     logger.info('--- END DRY RUN ---');
@@ -345,8 +345,8 @@ async function importRecipe(
     // 8. Insert tags
     await db.insertRecipeTags(config.supabase, recipeId, tagIds);
 
-    // 9. Insert useful items
-    await db.insertRecipeUsefulItems(config.supabase, recipeId, usefulItems);
+    // 9. Insert kitchen tools
+    await db.insertRecipeKitchenTools(config.supabase, recipeId, kitchenTools);
   } catch (childError) {
     // Clean up the orphaned recipe row (FK cascades delete children)
     logger.warn(`Cleaning up partial recipe "${parsed.nameEn}" (${recipeId}) after error`);
@@ -405,16 +405,16 @@ function resolveTagsDry(tagNames: string[], allTags: DbRecipeTag[]): Promise<str
   );
 }
 
-function resolveUsefulItemsDry(
+function resolveKitchenToolsDry(
   parsed: ParsedRecipeData,
-  allItems: DbUsefulItem[],
-): Promise<Array<{ useful_item_id: string; display_order: number; notes_en: string; notes_es: string }>> {
+  allItems: DbKitchenTool[],
+): Promise<Array<{ kitchen_tool_id: string; display_order: number; notes_en: string; notes_es: string }>> {
   return Promise.resolve(
-    parsed.usefulItems
+    parsed.kitchenTools
       .map((item, i) => {
-        const matched = matchUsefulItem(item, allItems);
+        const matched = matchKitchenTool(item, allItems);
         return matched
-          ? { useful_item_id: matched.id, display_order: i, notes_en: '', notes_es: '' }
+          ? { kitchen_tool_id: matched.id, display_order: i, notes_en: '', notes_es: '' }
           : null;
       })
       .filter((x): x is NonNullable<typeof x> => x !== null),
@@ -458,12 +458,12 @@ async function main() {
   const [allIngredients, allTags, allItems, allUnits] = await Promise.all([
     db.fetchAllIngredients(config.supabase),
     db.fetchAllTags(config.supabase),
-    db.fetchAllUsefulItems(config.supabase),
+    db.fetchAllKitchenTools(config.supabase),
     db.fetchAllMeasurementUnits(config.supabase),
   ]);
 
   logger.info(
-    `Loaded: ${allIngredients.length} ingredients, ${allTags.length} tags, ${allItems.length} useful items, ${allUnits.length} measurement units`,
+    `Loaded: ${allIngredients.length} ingredients, ${allTags.length} tags, ${allItems.length} kitchen tools, ${allUnits.length} measurement units`,
   );
 
   // Pre-filter: skip stubs (no ingredients) and already completed
@@ -527,7 +527,7 @@ async function main() {
     'Remaining': pending.length - toProcess.length,
     'Ingredients in DB': allIngredients.length,
     'Tags in DB': allTags.length,
-    'Useful items in DB': allItems.length,
+    'Kitchen tools in DB': allItems.length,
   });
 
   if (failCount > 0) {

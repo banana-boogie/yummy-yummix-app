@@ -28,9 +28,9 @@ Deno.test('imageManifestToCsv escapes quoted values', () => {
 });
 
 Deno.test('imageManifestToMarkdown renders table rows', () => {
-  const item = createImageManifestItem('useful_item', 'u-1', 'Chef Knife', 'Cuchillo');
+  const item = createImageManifestItem('kitchen_tool', 'u-1', 'Chef Knife', 'Cuchillo');
   const md = imageManifestToMarkdown([item]);
 
-  assertStringIncludes(md, '| useful_item | u-1 | Chef Knife / Cuchillo |');
+  assertStringIncludes(md, '| kitchen_tool | u-1 | Chef Knife / Cuchillo |');
   assertStringIncludes(md, 'Total items: 1');
 });

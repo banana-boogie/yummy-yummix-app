@@ -6,7 +6,7 @@
 
 export interface TranslationLimitAllocation {
   ingredientCount: number;
-  usefulItemCount: number;
+  kitchenToolCount: number;
   tagCount: number;
   total: number;
 }
@@ -18,7 +18,7 @@ function clampLimit(limit: number): number {
 
 export function allocateTranslationLimit(
   ingredientCandidates: number,
-  usefulItemCandidates: number,
+  kitchenToolCandidates: number,
   tagCandidates: number,
   limit: number,
 ): TranslationLimitAllocation {
@@ -27,15 +27,15 @@ export function allocateTranslationLimit(
   const ingredientCount = Math.min(Math.max(ingredientCandidates, 0), remaining);
   remaining -= ingredientCount;
 
-  const usefulItemCount = Math.min(Math.max(usefulItemCandidates, 0), remaining);
-  remaining -= usefulItemCount;
+  const kitchenToolCount = Math.min(Math.max(kitchenToolCandidates, 0), remaining);
+  remaining -= kitchenToolCount;
 
   const tagCount = Math.min(Math.max(tagCandidates, 0), remaining);
 
   return {
     ingredientCount,
-    usefulItemCount,
+    kitchenToolCount,
     tagCount,
-    total: ingredientCount + usefulItemCount + tagCount,
+    total: ingredientCount + kitchenToolCount + tagCount,
   };
 }
