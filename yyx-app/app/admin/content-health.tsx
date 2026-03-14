@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
@@ -59,41 +59,48 @@ export default function ContentHealthScreen() {
     filteredCount,
   } = useContentHealth();
 
-  const renderContent = () => {
-    if (loading) return <LoadingState />;
-    if (error) return <ErrorState error={error} onRetry={refresh} />;
-    if (!data) return null;
-
+  if (loading) {
     return (
-      <>
-        <HealthSummaryCards
-          summary={data.summary}
-          activeFilter={activeFilter}
-          onFilterSelect={setActiveFilter}
-        />
-        <FilterBar
-          activeFilter={activeFilter}
-          entityFilter={entityFilter}
-          onActiveFilterChange={setActiveFilter}
-          onEntityFilterChange={setEntityFilter}
-        />
-        <IssueList
-          issues={filteredIssues}
-          count={filteredCount}
-          onPublished={refresh}
-        />
-      </>
+      <AdminLayout title={i18n.t('admin.contentHealth.title')}>
+        <LoadingState />
+      </AdminLayout>
     );
-  };
+  }
+
+  if (error) {
+    return (
+      <AdminLayout title={i18n.t('admin.contentHealth.title')}>
+        <ErrorState error={error} onRetry={refresh} />
+      </AdminLayout>
+    );
+  }
+
+  if (!data) return null;
+
+  const listHeader = (
+    <>
+      <HealthSummaryCards
+        summary={data.summary}
+        activeFilter={activeFilter}
+        onFilterSelect={setActiveFilter}
+      />
+      <FilterBar
+        activeFilter={activeFilter}
+        entityFilter={entityFilter}
+        onActiveFilterChange={setActiveFilter}
+        onEntityFilterChange={setEntityFilter}
+      />
+    </>
+  );
 
   return (
     <AdminLayout title={i18n.t('admin.contentHealth.title')}>
-      <ScrollView
-        className="flex-1 bg-background-default"
-        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
-      >
-        {renderContent()}
-      </ScrollView>
+      <IssueList
+        issues={filteredIssues}
+        count={filteredCount}
+        onPublished={refresh}
+        ListHeaderComponent={listHeader}
+      />
     </AdminLayout>
   );
 }

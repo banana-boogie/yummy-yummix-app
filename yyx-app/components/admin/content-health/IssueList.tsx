@@ -9,9 +9,10 @@ interface IssueListProps {
   issues: ContentHealthIssue[];
   count: number;
   onPublished: () => void;
+  ListHeaderComponent?: React.ReactElement;
 }
 
-export function IssueList({ issues, count, onPublished }: IssueListProps) {
+export function IssueList({ issues, count, onPublished, ListHeaderComponent }: IssueListProps) {
   const t = (key: string, opts?: Record<string, unknown>) =>
     i18n.t(`admin.contentHealth.${key}`, opts);
 
@@ -27,27 +28,34 @@ export function IssueList({ issues, count, onPublished }: IssueListProps) {
     [],
   );
 
-  if (issues.length === 0) {
-    return (
-      <View className="items-center py-xl">
-        <Text preset="body" className="text-text-secondary">
-          {t('noIssues')}
+  const header = (
+    <>
+      {ListHeaderComponent}
+      {issues.length > 0 && (
+        <Text preset="caption" className="text-text-secondary mb-sm">
+          {t('issueCount', { count })}
         </Text>
-      </View>
-    );
-  }
+      )}
+    </>
+  );
+
+  const emptyComponent = (
+    <View className="items-center py-xl">
+      <Text preset="body" className="text-text-secondary">
+        {t('noIssues')}
+      </Text>
+    </View>
+  );
 
   return (
-    <View>
-      <Text preset="caption" className="text-text-secondary mb-sm">
-        {t('issueCount', { count })}
-      </Text>
-      <FlatList
-        data={issues}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        scrollEnabled={false}
-      />
-    </View>
+    <FlatList
+      data={issues}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      ListHeaderComponent={header}
+      ListEmptyComponent={emptyComponent}
+      contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+      className="flex-1 bg-background-default"
+    />
   );
 }

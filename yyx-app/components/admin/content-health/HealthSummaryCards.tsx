@@ -31,7 +31,7 @@ export function HealthSummaryCards({ summary, activeFilter, onFilterSelect }: He
       color: COLORS.status.warning,
       titleKey: 'missingTranslations',
       total: summary.missingTranslations.total,
-      breakdown: `${summary.missingTranslations.recipes} ${t('recipes')}, ${summary.missingTranslations.ingredients} ${t('ingredients')}`,
+      breakdown: `${summary.missingTranslations.recipes} ${t('recipes')}, ${summary.missingTranslations.ingredients} ${t('ingredients')}, ${summary.missingTranslations.usefulItems} ${t('usefulItems')}`,
     },
     {
       filter: 'image',
@@ -39,7 +39,7 @@ export function HealthSummaryCards({ summary, activeFilter, onFilterSelect }: He
       color: COLORS.status.error,
       titleKey: 'missingImages',
       total: summary.missingImages.total,
-      breakdown: `${summary.missingImages.recipes} ${t('recipes')}, ${summary.missingImages.ingredients} ${t('ingredients')}`,
+      breakdown: `${summary.missingImages.recipes} ${t('recipes')}, ${summary.missingImages.ingredients} ${t('ingredients')}, ${summary.missingImages.usefulItems} ${t('usefulItems')}`,
     },
     {
       filter: 'nutrition',
