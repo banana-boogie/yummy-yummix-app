@@ -97,7 +97,7 @@ jest.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: jest.fn().mockResolvedValue(undefined) }),
 }));
 
-jest.mock('react-native-markdown-display', () => {
+jest.mock('@ronradtke/react-native-markdown-display', () => {
   const { Text } = require('react-native');
   return {
     __esModule: true,

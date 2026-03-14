@@ -11,7 +11,7 @@ import {
     GeneratedRecipe,
     QuickAction,
 } from '@/services/chatService';
-import Markdown from 'react-native-markdown-display';
+import Markdown from '@ronradtke/react-native-markdown-display';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '@/constants/design-tokens';
 
 // ============================================================
