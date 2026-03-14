@@ -33,7 +33,7 @@ jest.mock('@/i18n', () => ({
       'recipes.common.ingredients': 'Ingredients',
       'recipes.common.instructions': 'Instructions',
       'recipes.common.steps': 'steps',
-      'recipes.common.usefulItems': 'Useful Items',
+      'recipes.common.kitchenTools': 'Kitchen Tools',
       'recipes.common.servings': 'servings',
       'recipes.common.difficulty.easy': 'Easy',
       'recipes.common.difficulty.medium': 'Medium',
@@ -328,9 +328,9 @@ describe('CustomRecipeCard', () => {
     expect(screen.getByText('Recipe generation failed')).toBeTruthy();
   });
 
-  it('renders useful items', () => {
+  it('renders kitchen tools', () => {
     const recipe = createMockGeneratedRecipe({
-      usefulItems: [
+      kitchenTools: [
         { name: 'Wok' },
         { name: 'Cutting board', imageUrl: 'https://example.com/board.png' },
       ],
@@ -344,7 +344,7 @@ describe('CustomRecipeCard', () => {
       />
     );
 
-    expect(screen.getByText('Useful Items:')).toBeTruthy();
+    expect(screen.getByText('Kitchen Tools:')).toBeTruthy();
     expect(screen.getByText('Wok')).toBeTruthy();
     expect(screen.getByText('Cutting board')).toBeTruthy();
   });

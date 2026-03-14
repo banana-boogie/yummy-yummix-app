@@ -3,83 +3,83 @@ import { View, ActivityIndicator, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { UsefulItemCard } from '@/components/admin/useful-items/UsefulItemCard';
-import { useUsefulItems } from '@/hooks/admin/useUsefulItems';
+import { KitchenToolCard } from '@/components/admin/kitchen-tools/KitchenToolCard';
+import { useKitchenTools } from '@/hooks/admin/useKitchenTools';
 import { AlertModal } from '@/components/common/AlertModal';
 import { SearchBar } from '@/components/common/SearchBar';
-import { AdminUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
+import { AdminKitchenTool, getTranslatedField } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
-import { CreateEditUsefulItemModal } from '@/components/admin/useful-items/CreateEditUsefulItemModal';
+import { CreateEditKitchenToolModal } from '@/components/admin/kitchen-tools/CreateEditKitchenToolModal';
 import { Button } from '@/components/common/Button';
 import { Text } from '@/components/common/Text';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
 import logger from '@/services/logger';
 
-export default function UsefulItemsAdminPage() {
+export default function KitchenToolsAdminPage() {
   const {
-    filteredUsefulItems,
-    setFilteredUsefulItems,
-    setUsefulItems,
+    filteredKitchenTools,
+    setFilteredKitchenTools,
+    setKitchenTools,
     loading,
     searchQuery,
     setSearchQuery,
-    handleDeleteUsefulItem,
-  } = useUsefulItems();
+    handleDeleteKitchenTool,
+  } = useKitchenTools();
 
   const [displayLocale, setDisplayLocale] = useState('es');
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingUsefulItem, setEditingUsefulItem] = useState<AdminUsefulItem | null>(null);
+  const [editingKitchenTool, setEditingKitchenTool] = useState<AdminKitchenTool | null>(null);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
-  const [selectedUsefulItem, setSelectedUsefulItem] = useState<AdminUsefulItem | null>(null);
+  const [selectedKitchenTool, setSelectedKitchenTool] = useState<AdminKitchenTool | null>(null);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const handleOpenEditModal = (usefulItem: AdminUsefulItem) => {
-    setEditingUsefulItem(usefulItem);
+  const handleOpenEditModal = (kitchenTool: AdminKitchenTool) => {
+    setEditingKitchenTool(kitchenTool);
     setModalVisible(true);
   };
 
   const handleOpenCreateModal = () => {
-    setEditingUsefulItem(null);
+    setEditingKitchenTool(null);
     setModalVisible(true);
   };
 
-  const handleDeleteConfirmation = (usefulItem: AdminUsefulItem) => {
-    setSelectedUsefulItem(usefulItem);
+  const handleDeleteConfirmation = (kitchenTool: AdminKitchenTool) => {
+    setSelectedKitchenTool(kitchenTool);
     setShowDeleteAlert(true);
   };
 
   const handleConfirmDelete = async () => {
-    if (!selectedUsefulItem) return;
+    if (!selectedKitchenTool) return;
 
     try {
-      await handleDeleteUsefulItem(selectedUsefulItem);
+      await handleDeleteKitchenTool(selectedKitchenTool);
     } catch (error) {
-      logger.error('Error deleting useful item:', error);
-      setErrorMessage(i18n.t('admin.usefulItems.errors.deleteFailed'));
+      logger.error('Error deleting kitchen tool:', error);
+      setErrorMessage(i18n.t('admin.kitchenTools.errors.deleteFailed'));
       setShowErrorAlert(true);
     } finally {
       setShowDeleteAlert(false);
-      setSelectedUsefulItem(null);
+      setSelectedKitchenTool(null);
     }
   };
 
-  const handleSuccessfullySavedUsefulItem = (usefulItem: AdminUsefulItem) => {
-    if (editingUsefulItem && editingUsefulItem.id === usefulItem.id) {
-      setFilteredUsefulItems(prev => prev.map(item =>
-        item.id === usefulItem.id ? usefulItem : item
+  const handleSuccessfullySavedKitchenTool = (kitchenTool: AdminKitchenTool) => {
+    if (editingKitchenTool && editingKitchenTool.id === kitchenTool.id) {
+      setFilteredKitchenTools(prev => prev.map(item =>
+        item.id === kitchenTool.id ? kitchenTool : item
       ));
-      setUsefulItems(prev => prev.map(item =>
-        item.id === usefulItem.id ? usefulItem : item
+      setKitchenTools(prev => prev.map(item =>
+        item.id === kitchenTool.id ? kitchenTool : item
       ));
     } else {
-      setFilteredUsefulItems(prev => [usefulItem, ...prev]);
+      setFilteredKitchenTools(prev => [kitchenTool, ...prev]);
     }
     setModalVisible(false);
   };
 
   return (
-    <AdminLayout title={i18n.t('admin.usefulItems.title')} showBackButton={true}>
+    <AdminLayout title={i18n.t('admin.kitchenTools.title')} showBackButton={true}>
       <View className="p-md" style={{ backgroundColor: '#ffffff' }}>
         <View className="mb-md">
           <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
@@ -89,12 +89,12 @@ export default function UsefulItemsAdminPage() {
             className="flex-none sm:flex-1"
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-            placeholder={i18n.t('admin.usefulItems.searchPlaceholder')}
+            placeholder={i18n.t('admin.kitchenTools.searchPlaceholder')}
           />
           <Button
             onPress={handleOpenCreateModal}
             icon={<Ionicons name="add" size={24} color={COLORS.neutral.WHITE} />}
-            label={i18n.t('admin.usefulItems.createNew')}
+            label={i18n.t('admin.kitchenTools.createNew')}
           />
         </View>
       </View>
@@ -105,11 +105,11 @@ export default function UsefulItemsAdminPage() {
         </View>
       ) : (
         <FlatList
-          data={filteredUsefulItems}
+          data={filteredKitchenTools}
           extraData={displayLocale}
           renderItem={({ item }) => (
-            <UsefulItemCard
-              usefulItem={item}
+            <KitchenToolCard
+              kitchenTool={item}
               displayLocale={displayLocale}
               onEdit={handleOpenEditModal}
               onDelete={handleDeleteConfirmation}
@@ -122,31 +122,31 @@ export default function UsefulItemsAdminPage() {
             <View className="items-center justify-center p-xl">
               <Ionicons name="cube-outline" size={48} color={COLORS.grey.MEDIUM} />
               <Text preset="body" color={COLORS.text.secondary}>
-                {i18n.t('admin.usefulItems.noItemsFound')}
+                {i18n.t('admin.kitchenTools.noItemsFound')}
               </Text>
             </View>
           }
         />
       )}
 
-      {/* UsefulItem Edit/Create Modal */}
-      <CreateEditUsefulItemModal
+      {/* KitchenTool Edit/Create Modal */}
+      <CreateEditKitchenToolModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        usefulItem={editingUsefulItem as AdminUsefulItem}
-        onSuccess={handleSuccessfullySavedUsefulItem}
+        kitchenTool={editingKitchenTool as AdminKitchenTool}
+        onSuccess={handleSuccessfullySavedKitchenTool}
       />
 
       <AlertModal
         visible={showDeleteAlert}
-        title={i18n.t('admin.usefulItems.confirmDeletion.title')}
-        message={i18n.t('admin.usefulItems.confirmDeletion.message', {
-          name: getTranslatedField(selectedUsefulItem?.translations, displayLocale, 'name'),
+        title={i18n.t('admin.kitchenTools.confirmDeletion.title')}
+        message={i18n.t('admin.kitchenTools.confirmDeletion.message', {
+          name: getTranslatedField(selectedKitchenTool?.translations, displayLocale, 'name'),
         })}
         onConfirm={handleConfirmDelete}
         onCancel={() => {
           setShowDeleteAlert(false);
-          setSelectedUsefulItem(null);
+          setSelectedKitchenTool(null);
         }}
         confirmText={i18n.t('common.delete')}
         isDestructive={true}
@@ -154,7 +154,7 @@ export default function UsefulItemsAdminPage() {
 
       <AlertModal
         visible={showErrorAlert}
-        title={i18n.t('admin.usefulItems.errors.title')}
+        title={i18n.t('admin.kitchenTools.errors.title')}
         message={errorMessage}
         onConfirm={() => setShowErrorAlert(false)}
         confirmText={i18n.t('common.ok')}

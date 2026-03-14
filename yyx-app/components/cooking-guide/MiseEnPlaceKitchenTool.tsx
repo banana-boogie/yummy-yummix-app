@@ -10,15 +10,15 @@ import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { COLORS } from '@/constants/design-tokens';
 
-type CheckableUsefulItem = {
+type CheckableKitchenTool = {
   id: string;
   name: string;
   pictureUrl: string;
   checked: boolean;
 };
 
-type MiseEnPlaceUsefulItemProps = {
-  item: CheckableUsefulItem;
+type MiseEnPlaceKitchenToolProps = {
+  item: CheckableKitchenTool;
   onPress: () => void;
   width: DimensionValue;
   className?: string;
@@ -26,19 +26,19 @@ type MiseEnPlaceUsefulItemProps = {
 };
 
 /**
- * Individual useful item component with checkbox
- * 
+ * Individual kitchen tool component with checkbox
+ *
  * Design: Consistent with MiseEnPlaceIngredient:
  * - Image with checkbox overlay
  * - Name prominent and centered
  */
-export function MiseEnPlaceUsefulItem({
+export function MiseEnPlaceKitchenTool({
   item,
   onPress,
   width,
   className = '',
   style
-}: MiseEnPlaceUsefulItemProps) {
+}: MiseEnPlaceKitchenToolProps) {
   const checkmarkOpacity = useSharedValue(item.checked ? 1 : 0);
 
   const animatedStyles = useAnimatedStyle(() => ({

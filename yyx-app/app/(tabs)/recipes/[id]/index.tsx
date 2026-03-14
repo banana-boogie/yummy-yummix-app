@@ -14,7 +14,7 @@ import { eventService } from '@/services/eventService';
 import { RecipeInfo } from '@/components/recipe-detail/RecipeInfo';
 import { CookButton } from '@/components/recipe-detail/CookButton';
 import { RecipeIngredients } from '@/components/recipe-detail/RecipeIngredients';
-import { RecipeUsefulItems } from '@/components/recipe-detail/RecipeUsefulItems';
+import { RecipeKitchenTools } from '@/components/recipe-detail/RecipeKitchenTools';
 import { RecipeSteps } from '@/components/recipe-detail/RecipeSteps';
 import { RecipeTip } from '@/components/recipe-detail/RecipeTip';
 import { RecipeImageHeader } from '@/components/recipe-detail/RecipeDetailHeader';
@@ -22,7 +22,7 @@ import { RecipeImageHeader } from '@/components/recipe-detail/RecipeDetailHeader
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { useDevice } from '@/hooks/useDevice';
 import { ResponsiveColumnLayout, MainColumn, SideColumn } from '@/components/layouts/ResponsiveColumnLayout';
-import { RecipeUsefulItem } from '@/types/recipe.types';
+import { RecipeKitchenTool } from '@/types/recipe.types';
 import { ShareButton } from '@/components/common/ShareButton';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
@@ -161,8 +161,8 @@ const RecipeDetail: React.FC = () => {
                     ingredients={recipe.ingredients}
                     className="mb-xxl"
                   />
-                  <RecipeUsefulItems
-                    usefulItems={recipe.usefulItems as RecipeUsefulItem[]}
+                  <RecipeKitchenTools
+                    kitchenTools={recipe.kitchenTools as RecipeKitchenTool[]}
                     className="mb-xxl"
                   />
                 </SideColumn>

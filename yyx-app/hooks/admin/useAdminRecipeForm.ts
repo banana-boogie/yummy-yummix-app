@@ -37,7 +37,7 @@ function createInitialRecipeState(authoringLocale: string): ExtendedRecipe {
   ingredients: [],
   tags: [],
   steps: [],
-  usefulItems: [],
+  kitchenTools: [],
   isPublished: false,
   };
 }
@@ -326,7 +326,7 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
         ingredients: recipe.ingredients,
         tags: recipe.tags,
         steps: recipe.steps,
-        usefulItems: recipe.usefulItems,
+        kitchenTools: recipe.kitchenTools,
       };
       
       // Create the recipe

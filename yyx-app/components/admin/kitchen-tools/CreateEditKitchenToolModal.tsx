@@ -1,46 +1,46 @@
 import React, { useState } from 'react';
 import { Modal, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import { UsefulItemForm } from '@/components/admin/useful-items/UsefulItemForm';
-import { adminUsefulItemsService } from '@/services/admin/adminUsefulItemsService';
-import { AdminUsefulItem } from '@/types/recipe.admin.types';
+import { KitchenToolForm } from '@/components/admin/kitchen-tools/KitchenToolForm';
+import { adminKitchenToolsService } from '@/services/admin/adminKitchenToolsService';
+import { AdminKitchenTool } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { useDevice } from '@/hooks/useDevice';
 import logger from '@/services/logger';
 
-interface CreateEditUsefulItemModalProps {
+interface CreateEditKitchenToolModalProps {
   visible: boolean;
   onClose: () => void;
-  onSuccess?: (newUsefulItem: AdminUsefulItem) => void;
-  usefulItem?: AdminUsefulItem;
+  onSuccess?: (newKitchenTool: AdminKitchenTool) => void;
+  kitchenTool?: AdminKitchenTool;
 }
 
-export function CreateEditUsefulItemModal({
+export function CreateEditKitchenToolModal({
   visible,
   onClose,
   onSuccess,
-  usefulItem
-}: CreateEditUsefulItemModalProps) {
+  kitchenTool
+}: CreateEditKitchenToolModalProps) {
   const { isPhone } = useDevice();
   const [saving, setSaving] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
 
-  const handleSaveUsefulItem = async (data: AdminUsefulItem) => {
+  const handleSaveKitchenTool = async (data: AdminKitchenTool) => {
     try {
       setSaving(true);
-      let savedUsefulItem: AdminUsefulItem;
+      let savedKitchenTool: AdminKitchenTool;
 
-      if (usefulItem?.id) {
-        savedUsefulItem = await adminUsefulItemsService.updateUsefulItem(usefulItem.id, data);
+      if (kitchenTool?.id) {
+        savedKitchenTool = await adminKitchenToolsService.updateKitchenTool(kitchenTool.id, data);
       } else {
-        savedUsefulItem = await adminUsefulItemsService.createUsefulItem(data);
+        savedKitchenTool = await adminKitchenToolsService.createKitchenTool(data);
       }
 
-      onSuccess?.(savedUsefulItem);
+      onSuccess?.(savedKitchenTool);
       onClose();
     } catch (error) {
-      logger.error('Error saving useful item:', error);
-      setGeneralError(i18n.t('admin.usefulItems.errors.saveFailed') || 'Failed to save useful item');
+      logger.error('Error saving kitchen tool:', error);
+      setGeneralError(i18n.t('admin.kitchenTools.errors.saveFailed') || 'Failed to save kitchen tool');
     } finally {
       setSaving(false);
     }
@@ -73,9 +73,9 @@ export function CreateEditUsefulItemModal({
               <ErrorMessage message={generalError} />
             ) : null}
 
-            <UsefulItemForm
-              usefulItem={usefulItem}
-              onSave={handleSaveUsefulItem}
+            <KitchenToolForm
+              kitchenTool={kitchenTool}
+              onSave={handleSaveKitchenTool}
               onCancel={onClose}
               saving={saving}
             />

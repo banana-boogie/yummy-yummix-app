@@ -1,29 +1,29 @@
 /**
- * useUsefulItems Hook Tests
+ * useKitchenTools Hook Tests
  *
- * Tests for admin useful items hook covering:
- * - Fetching useful items
+ * Tests for admin kitchen tools hook covering:
+ * - Fetching kitchen tools
  * - Filtering by search query
  * - Deleting items
  * - Loading states
  */
 
 import { renderHook, waitFor, act } from '@testing-library/react-native';
-import { useUsefulItems } from '../useUsefulItems';
+import { useKitchenTools } from '../useKitchenTools';
 
-// Mock the admin useful items service
-const mockGetAllUsefulItems = jest.fn();
-const mockDeleteUsefulItem = jest.fn();
+// Mock the admin kitchen tools service
+const mockGetAllKitchenTools = jest.fn();
+const mockDeleteKitchenTool = jest.fn();
 
-jest.mock('@/services/admin/adminUsefulItemsService', () => ({
-  adminUsefulItemsService: {
-    getAllUsefulItems: () => mockGetAllUsefulItems(),
-    deleteUsefulItem: (id: string) => mockDeleteUsefulItem(id),
+jest.mock('@/services/admin/adminKitchenToolsService', () => ({
+  adminKitchenToolsService: {
+    getAllKitchenTools: () => mockGetAllKitchenTools(),
+    deleteKitchenTool: (id: string) => mockDeleteKitchenTool(id),
   },
 }));
 
-describe('useUsefulItems', () => {
-  const mockUsefulItems = [
+describe('useKitchenTools', () => {
+  const mockKitchenTools = [
     {
       id: 'item-1',
       translations: [
@@ -52,8 +52,8 @@ describe('useUsefulItems', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetAllUsefulItems.mockResolvedValue(mockUsefulItems);
-    mockDeleteUsefulItem.mockResolvedValue(undefined);
+    mockGetAllKitchenTools.mockResolvedValue(mockKitchenTools);
+    mockDeleteKitchenTool.mockResolvedValue(undefined);
   });
 
   // ============================================================
@@ -61,54 +61,54 @@ describe('useUsefulItems', () => {
   // ============================================================
 
   describe('initial fetch', () => {
-    it('fetches useful items on mount', async () => {
-      const { result } = renderHook(() => useUsefulItems());
+    it('fetches kitchen tools on mount', async () => {
+      const { result } = renderHook(() => useKitchenTools());
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(mockGetAllUsefulItems).toHaveBeenCalledTimes(1);
-      expect(result.current.usefulItems).toHaveLength(3);
+      expect(mockGetAllKitchenTools).toHaveBeenCalledTimes(1);
+      expect(result.current.kitchenTools).toHaveLength(3);
     });
 
     it('sets loading to true initially', () => {
-      const { result } = renderHook(() => useUsefulItems());
+      const { result } = renderHook(() => useKitchenTools());
 
       expect(result.current.loading).toBe(true);
     });
 
     it('sets loading to false after fetch completes', async () => {
-      const { result } = renderHook(() => useUsefulItems());
+      const { result } = renderHook(() => useKitchenTools());
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
     });
 
-    it('populates both usefulItems and filteredUsefulItems', async () => {
-      const { result } = renderHook(() => useUsefulItems());
+    it('populates both kitchenTools and filteredKitchenTools', async () => {
+      const { result } = renderHook(() => useKitchenTools());
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.usefulItems).toEqual(mockUsefulItems);
-      expect(result.current.filteredUsefulItems).toEqual(mockUsefulItems);
+      expect(result.current.kitchenTools).toEqual(mockKitchenTools);
+      expect(result.current.filteredKitchenTools).toEqual(mockKitchenTools);
     });
 
     it('handles fetch error gracefully', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      mockGetAllUsefulItems.mockRejectedValue(new Error('Fetch failed'));
+      mockGetAllKitchenTools.mockRejectedValue(new Error('Fetch failed'));
 
-      const { result } = renderHook(() => useUsefulItems());
+      const { result } = renderHook(() => useKitchenTools());
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
 
       expect(consoleSpy).toHaveBeenCalled();
-      expect(result.current.usefulItems).toEqual([]);
+      expect(result.current.kitchenTools).toEqual([]);
       consoleSpy.mockRestore();
     });
   });
@@ -119,7 +119,7 @@ describe('useUsefulItems', () => {
 
   describe('search filtering', () => {
     it('filters by English name', async () => {
-      const { result } = renderHook(() => useUsefulItems());
+      const { result } = renderHook(() => useKitchenTools());
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -130,13 +130,13 @@ describe('useUsefulItems', () => {
       });
 
       await waitFor(() => {
-        expect(result.current.filteredUsefulItems).toHaveLength(1);
-        expect(result.current.filteredUsefulItems[0].id).toBe('item-1');
+        expect(result.current.filteredKitchenTools).toHaveLength(1);
+        expect(result.current.filteredKitchenTools[0].id).toBe('item-1');
       });
     });
 
     it('filters by Spanish name', async () => {
-      const { result } = renderHook(() => useUsefulItems());
+      const { result } = renderHook(() => useKitchenTools());
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -147,13 +147,13 @@ describe('useUsefulItems', () => {
       });
 
       await waitFor(() => {
-        expect(result.current.filteredUsefulItems).toHaveLength(1);
-        expect(result.current.filteredUsefulItems[0].id).toBe('item-2');
+        expect(result.current.filteredKitchenTools).toHaveLength(1);
+        expect(result.current.filteredKitchenTools[0].id).toBe('item-2');
       });
     });
 
     it('filters case-insensitively', async () => {
-      const { result } = renderHook(() => useUsefulItems());
+      const { result } = renderHook(() => useKitchenTools());
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -164,12 +164,12 @@ describe('useUsefulItems', () => {
       });
 
       await waitFor(() => {
-        expect(result.current.filteredUsefulItems).toHaveLength(1);
+        expect(result.current.filteredKitchenTools).toHaveLength(1);
       });
     });
 
     it('shows all items when search is cleared', async () => {
-      const { result } = renderHook(() => useUsefulItems());
+      const { result } = renderHook(() => useKitchenTools());
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -180,7 +180,7 @@ describe('useUsefulItems', () => {
       });
 
       await waitFor(() => {
-        expect(result.current.filteredUsefulItems).toHaveLength(1);
+        expect(result.current.filteredKitchenTools).toHaveLength(1);
       });
 
       act(() => {
@@ -188,12 +188,12 @@ describe('useUsefulItems', () => {
       });
 
       await waitFor(() => {
-        expect(result.current.filteredUsefulItems).toHaveLength(3);
+        expect(result.current.filteredKitchenTools).toHaveLength(3);
       });
     });
 
     it('returns empty array when no matches found', async () => {
-      const { result } = renderHook(() => useUsefulItems());
+      const { result } = renderHook(() => useKitchenTools());
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -204,12 +204,12 @@ describe('useUsefulItems', () => {
       });
 
       await waitFor(() => {
-        expect(result.current.filteredUsefulItems).toHaveLength(0);
+        expect(result.current.filteredKitchenTools).toHaveLength(0);
       });
     });
 
     it('trims whitespace from search query', async () => {
-      const { result } = renderHook(() => useUsefulItems());
+      const { result } = renderHook(() => useKitchenTools());
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -220,7 +220,7 @@ describe('useUsefulItems', () => {
       });
 
       await waitFor(() => {
-        expect(result.current.filteredUsefulItems).toHaveLength(1);
+        expect(result.current.filteredKitchenTools).toHaveLength(1);
       });
     });
   });
@@ -229,28 +229,28 @@ describe('useUsefulItems', () => {
   // DELETE TESTS
   // ============================================================
 
-  describe('handleDeleteUsefulItem', () => {
+  describe('handleDeleteKitchenTool', () => {
     it('deletes item and updates local state', async () => {
-      const { result } = renderHook(() => useUsefulItems());
+      const { result } = renderHook(() => useKitchenTools());
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
 
       await act(async () => {
-        await result.current.handleDeleteUsefulItem(mockUsefulItems[0]);
+        await result.current.handleDeleteKitchenTool(mockKitchenTools[0]);
       });
 
-      expect(mockDeleteUsefulItem).toHaveBeenCalledWith('item-1');
-      expect(result.current.usefulItems).toHaveLength(2);
-      expect(result.current.filteredUsefulItems).toHaveLength(2);
+      expect(mockDeleteKitchenTool).toHaveBeenCalledWith('item-1');
+      expect(result.current.kitchenTools).toHaveLength(2);
+      expect(result.current.filteredKitchenTools).toHaveLength(2);
     });
 
     it('throws error when deletion fails', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      mockDeleteUsefulItem.mockRejectedValue(new Error('Delete failed'));
+      mockDeleteKitchenTool.mockRejectedValue(new Error('Delete failed'));
 
-      const { result } = renderHook(() => useUsefulItems());
+      const { result } = renderHook(() => useKitchenTools());
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -258,29 +258,29 @@ describe('useUsefulItems', () => {
 
       await expect(
         act(async () => {
-          await result.current.handleDeleteUsefulItem(mockUsefulItems[0]);
+          await result.current.handleDeleteKitchenTool(mockKitchenTools[0]);
         })
       ).rejects.toThrow('Delete failed');
 
       consoleSpy.mockRestore();
     });
 
-    it('removes item from both usefulItems and filteredUsefulItems', async () => {
-      const { result } = renderHook(() => useUsefulItems());
+    it('removes item from both kitchenTools and filteredKitchenTools', async () => {
+      const { result } = renderHook(() => useKitchenTools());
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
 
-      const initialLength = result.current.usefulItems.length;
+      const initialLength = result.current.kitchenTools.length;
 
       await act(async () => {
-        await result.current.handleDeleteUsefulItem(mockUsefulItems[1]);
+        await result.current.handleDeleteKitchenTool(mockKitchenTools[1]);
       });
 
-      expect(result.current.usefulItems).toHaveLength(initialLength - 1);
-      expect(result.current.filteredUsefulItems).toHaveLength(initialLength - 1);
-      expect(result.current.usefulItems.find(i => i.id === 'item-2')).toBeUndefined();
+      expect(result.current.kitchenTools).toHaveLength(initialLength - 1);
+      expect(result.current.filteredKitchenTools).toHaveLength(initialLength - 1);
+      expect(result.current.kitchenTools.find(i => i.id === 'item-2')).toBeUndefined();
     });
   });
 
@@ -288,38 +288,38 @@ describe('useUsefulItems', () => {
   // REFRESH TESTS
   // ============================================================
 
-  describe('refreshUsefulItems', () => {
+  describe('refreshKitchenTools', () => {
     it('refetches items from server', async () => {
-      const { result } = renderHook(() => useUsefulItems());
+      const { result } = renderHook(() => useKitchenTools());
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
 
-      mockGetAllUsefulItems.mockClear();
+      mockGetAllKitchenTools.mockClear();
 
       await act(async () => {
-        await result.current.refreshUsefulItems();
+        await result.current.refreshKitchenTools();
       });
 
-      expect(mockGetAllUsefulItems).toHaveBeenCalledTimes(1);
+      expect(mockGetAllKitchenTools).toHaveBeenCalledTimes(1);
     });
 
     it('updates loading state during refresh', async () => {
-      const { result } = renderHook(() => useUsefulItems());
+      const { result } = renderHook(() => useKitchenTools());
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
 
       let loadingDuringRefresh = false;
-      mockGetAllUsefulItems.mockImplementation(() => {
+      mockGetAllKitchenTools.mockImplementation(() => {
         loadingDuringRefresh = result.current.loading;
-        return Promise.resolve(mockUsefulItems);
+        return Promise.resolve(mockKitchenTools);
       });
 
       await act(async () => {
-        await result.current.refreshUsefulItems();
+        await result.current.refreshKitchenTools();
       });
 
       // Loading should have been true during the refresh
@@ -332,8 +332,8 @@ describe('useUsefulItems', () => {
   // ============================================================
 
   describe('state setters', () => {
-    it('exposes setUsefulItems for external updates', async () => {
-      const { result } = renderHook(() => useUsefulItems());
+    it('exposes setKitchenTools for external updates', async () => {
+      const { result } = renderHook(() => useKitchenTools());
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -346,26 +346,26 @@ describe('useUsefulItems', () => {
       }];
 
       act(() => {
-        result.current.setUsefulItems(newItems as any);
+        result.current.setKitchenTools(newItems as any);
       });
 
-      expect(result.current.usefulItems).toEqual(newItems);
+      expect(result.current.kitchenTools).toEqual(newItems);
     });
 
-    it('exposes setFilteredUsefulItems for external filtering', async () => {
-      const { result } = renderHook(() => useUsefulItems());
+    it('exposes setFilteredKitchenTools for external filtering', async () => {
+      const { result } = renderHook(() => useKitchenTools());
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
       });
 
-      const filtered = [mockUsefulItems[0]];
+      const filtered = [mockKitchenTools[0]];
 
       act(() => {
-        result.current.setFilteredUsefulItems(filtered);
+        result.current.setFilteredKitchenTools(filtered);
       });
 
-      expect(result.current.filteredUsefulItems).toEqual(filtered);
+      expect(result.current.filteredKitchenTools).toEqual(filtered);
     });
   });
 });

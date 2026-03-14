@@ -81,7 +81,7 @@ export const voiceTools = [
                     description:
                         'Additional requests or constraints (e.g., "make it spicy", "kid-friendly")',
                 },
-                useful_items: {
+                kitchen_tools: {
                     type: "array",
                     items: { type: "string" },
                     description:

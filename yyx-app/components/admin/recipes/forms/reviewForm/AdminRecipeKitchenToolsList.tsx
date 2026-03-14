@@ -1,24 +1,24 @@
 import React from 'react';
 import { View, ScrollView } from 'react-native';
 import { Text } from '@/components/common/Text';
-import { AdminRecipeUsefulItem } from '@/types/recipe.admin.types';
-import { AdminRecipeUsefulItemCard } from '@/components/admin/recipes/forms/usefulItemsForm/AdminRecipeUsefulItemCard';
+import { AdminRecipeKitchenTool } from '@/types/recipe.admin.types';
+import { AdminRecipeKitchenToolCard } from '@/components/admin/recipes/forms/kitchenToolsForm/AdminRecipeKitchenToolCard';
 
-interface RecipeUsefulItemsListProps {
-  usefulItems: AdminRecipeUsefulItem[];
+interface AdminRecipeKitchenToolsListProps {
+  kitchenTools: AdminRecipeKitchenTool[];
   displayLocale?: string;
   title?: string;
   hideActions?: boolean;
 }
 
-export const RecipeUsefulItemsList: React.FC<RecipeUsefulItemsListProps> = ({
-  usefulItems,
+export const AdminRecipeKitchenToolsList: React.FC<AdminRecipeKitchenToolsListProps> = ({
+  kitchenTools,
   displayLocale = 'es',
   title,
   hideActions = false
 }) => {
-  // Sort usefulItems by displayOrder
-  const sortedUsefulItems = [...usefulItems].sort(
+  // Sort kitchenTools by displayOrder
+  const sortedKitchenTools = [...kitchenTools].sort(
     (a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)
   );
 
@@ -35,11 +35,11 @@ export const RecipeUsefulItemsList: React.FC<RecipeUsefulItemsListProps> = ({
         className="flex-1 rounded-md bg-background-SECONDARY"
         contentContainerStyle={{ padding: 8, paddingBottom: 16 }}
       >
-        {sortedUsefulItems.length > 0 ? (
-          sortedUsefulItems.map(usefulItem => (
-            <AdminRecipeUsefulItemCard
-              key={usefulItem.id}
-              recipeUsefulItem={usefulItem}
+        {sortedKitchenTools.length > 0 ? (
+          sortedKitchenTools.map(kitchenTool => (
+            <AdminRecipeKitchenToolCard
+              key={kitchenTool.id}
+              recipeKitchenTool={kitchenTool}
               displayLocale={displayLocale}
               hideActions={hideActions}
               variant="readonly"
@@ -48,7 +48,7 @@ export const RecipeUsefulItemsList: React.FC<RecipeUsefulItemsListProps> = ({
         ) : (
           <View className="p-md items-center justify-center">
             <Text preset="body" color="#6B7280" className="text-center">
-              No useful items added to this recipe.
+              No kitchen tools added to this recipe.
             </Text>
           </View>
         )}
@@ -57,4 +57,4 @@ export const RecipeUsefulItemsList: React.FC<RecipeUsefulItemsListProps> = ({
   );
 };
 
-export default RecipeUsefulItemsList;
+export default AdminRecipeKitchenToolsList;

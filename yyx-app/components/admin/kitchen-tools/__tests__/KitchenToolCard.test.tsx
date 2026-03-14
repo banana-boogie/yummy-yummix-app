@@ -1,5 +1,5 @@
 /**
- * UsefulItemCard Component Tests
+ * KitchenToolCard Component Tests
  *
  * Tests single-locale display behavior:
  * - Shows name for the given displayLocale
@@ -8,14 +8,14 @@
 
 import React from 'react';
 import { renderWithProviders, screen, fireEvent } from '@/test/utils/render';
-import { UsefulItemCard } from '../UsefulItemCard';
-import { AdminUsefulItem } from '@/types/recipe.admin.types';
+import { KitchenToolCard } from '../KitchenToolCard';
+import { AdminKitchenTool } from '@/types/recipe.admin.types';
 
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }));
 
-const mockUsefulItem: AdminUsefulItem = {
+const mockKitchenTool: AdminKitchenTool = {
   id: 'item-1',
   translations: [
     { locale: 'es', name: 'Espátula' },
@@ -29,12 +29,12 @@ const mockHandlers = {
   onDelete: jest.fn(),
 };
 
-describe('UsefulItemCard', () => {
+describe('KitchenToolCard', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('renders the Spanish name when displayLocale is es', () => {
     renderWithProviders(
-      <UsefulItemCard usefulItem={mockUsefulItem} displayLocale="es" {...mockHandlers} />
+      <KitchenToolCard kitchenTool={mockKitchenTool} displayLocale="es" {...mockHandlers} />
     );
     expect(screen.getByText('Espátula')).toBeTruthy();
     expect(screen.queryByText('Spatula')).toBeNull();
@@ -42,38 +42,38 @@ describe('UsefulItemCard', () => {
 
   it('renders the English name when displayLocale is en', () => {
     renderWithProviders(
-      <UsefulItemCard usefulItem={mockUsefulItem} displayLocale="en" {...mockHandlers} />
+      <KitchenToolCard kitchenTool={mockKitchenTool} displayLocale="en" {...mockHandlers} />
     );
     expect(screen.getByText('Spatula')).toBeTruthy();
     expect(screen.queryByText('Espátula')).toBeNull();
   });
 
   it('shows dash when translation is missing for locale', () => {
-    const noFrench: AdminUsefulItem = {
-      ...mockUsefulItem,
+    const noFrench: AdminKitchenTool = {
+      ...mockKitchenTool,
       translations: [{ locale: 'es', name: 'Espátula' }],
     };
     renderWithProviders(
-      <UsefulItemCard usefulItem={noFrench} displayLocale="fr" {...mockHandlers} />
+      <KitchenToolCard kitchenTool={noFrench} displayLocale="fr" {...mockHandlers} />
     );
     expect(screen.getByText('—')).toBeTruthy();
   });
 
   it('calls onEdit when edit button is pressed', () => {
     renderWithProviders(
-      <UsefulItemCard usefulItem={mockUsefulItem} displayLocale="es" {...mockHandlers} />
+      <KitchenToolCard kitchenTool={mockKitchenTool} displayLocale="es" {...mockHandlers} />
     );
     const buttons = screen.getAllByRole('button');
     fireEvent.press(buttons[0]);
-    expect(mockHandlers.onEdit).toHaveBeenCalledWith(mockUsefulItem);
+    expect(mockHandlers.onEdit).toHaveBeenCalledWith(mockKitchenTool);
   });
 
   it('calls onDelete when delete button is pressed', () => {
     renderWithProviders(
-      <UsefulItemCard usefulItem={mockUsefulItem} displayLocale="es" {...mockHandlers} />
+      <KitchenToolCard kitchenTool={mockKitchenTool} displayLocale="es" {...mockHandlers} />
     );
     const buttons = screen.getAllByRole('button');
     fireEvent.press(buttons[1]);
-    expect(mockHandlers.onDelete).toHaveBeenCalledWith(mockUsefulItem);
+    expect(mockHandlers.onDelete).toHaveBeenCalledWith(mockKitchenTool);
   });
 });

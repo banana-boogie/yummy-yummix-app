@@ -38,7 +38,7 @@ export interface RecipeContext {
     totalSteps?: number;
     stepInstructions?: string;
     ingredients?: { name: string; amount: string }[];
-    usefulItems?: string[];
+    kitchenTools?: string[];
 }
 
 // Conversation context

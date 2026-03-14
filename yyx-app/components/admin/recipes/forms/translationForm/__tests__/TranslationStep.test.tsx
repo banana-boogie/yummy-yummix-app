@@ -154,14 +154,14 @@ function createTestRecipe(overrides: Partial<ExtendedRecipe> = {}): ExtendedReci
         measurementUnit: { id: 'u1', type: 'unit' as const, system: 'universal' as const, translations: [] },
       },
     ],
-    usefulItems: [
+    kitchenTools: [
       {
         id: 'item-1',
         recipeId: 'r1',
-        usefulItemId: 'k1',
+        kitchenToolId: 'k1',
         displayOrder: 1,
         translations: [{ locale: 'es', notes: 'Cuchillo' }],
-        usefulItem: { id: 'k1', translations: [{ locale: 'es', name: 'Cuchillo' }], pictureUrl: '' },
+        kitchenTool: { id: 'k1', translations: [{ locale: 'es', name: 'Cuchillo' }], pictureUrl: '' },
       },
     ],
     ...overrides,
@@ -196,7 +196,7 @@ describe('TranslationStep', () => {
       expect(screen.getByText('admin.translate.recipeInfo')).toBeTruthy();
       expect(screen.getByText('admin.translate.steps')).toBeTruthy();
       expect(screen.getByText('admin.translate.ingredients')).toBeTruthy();
-      expect(screen.getByText('admin.translate.usefulItems')).toBeTruthy();
+      expect(screen.getByText('admin.translate.kitchenTools')).toBeTruthy();
     });
 
     it('renders Translate All button', () => {
@@ -227,7 +227,7 @@ describe('TranslationStep', () => {
         translations: [{ locale: 'es', name: '' }],
         steps: [],
         ingredients: [],
-        usefulItems: [],
+        kitchenTools: [],
       });
 
       renderWithProviders(

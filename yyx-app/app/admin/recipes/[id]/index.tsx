@@ -8,7 +8,7 @@ import { RecipeIngredientsForm } from '@/components/admin/recipes/forms/ingredie
 import { StepsForm } from '@/components/admin/recipes/forms/stepsForm/RecipeStepsForm';
 import { TagsForm } from '@/components/admin/recipes/forms/tagsForm/TagsForm';
 import { ReviewForm } from '@/components/admin/recipes/forms/reviewForm/ReviewForm';
-import { RecipeUsefulItemsForm } from '@/components/admin/recipes/forms/usefulItemsForm/RecipeUsefulItemsForm';
+import { RecipeKitchenToolsForm } from '@/components/admin/recipes/forms/kitchenToolsForm/RecipeKitchenToolsForm';
 import { AdminRecipe, getTranslatedField } from '@/types/recipe.admin.types';
 import { adminRecipeService } from '@/services/admin/adminRecipeService';
 import { Text } from '@/components/common/Text';
@@ -156,9 +156,9 @@ export default function EditRecipePage() {
             displayLocale={displayLocale}
           />
         );
-      case CreateRecipeStep.USEFUL_ITEMS:
+      case CreateRecipeStep.KITCHEN_TOOLS:
         return (
-          <RecipeUsefulItemsForm
+          <RecipeKitchenToolsForm
             recipe={recipe as AdminRecipe}
             onUpdateRecipe={handleUpdateRecipe}
             errors={errors}

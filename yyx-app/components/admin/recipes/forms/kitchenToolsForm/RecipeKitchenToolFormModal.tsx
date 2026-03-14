@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Modal, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
-import { AdminRecipeUsefulItem, AdminRecipeUsefulItemTranslation, pickTranslation, getTranslatedField } from '@/types/recipe.admin.types';
+import { AdminRecipeKitchenTool, AdminRecipeKitchenToolTranslation, pickTranslation, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/i18n';
 import { Image } from 'expo-image';
@@ -10,33 +10,33 @@ import { TextInput } from '@/components/form/TextInput';
 import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
 import { translateContent } from '@/services/admin/adminTranslateService';
 
-interface RecipeUsefulItemFormModalProps {
+interface RecipeKitchenToolFormModalProps {
   visible: boolean;
   onClose: () => void;
-  onSave: (recipeUsefulItem: AdminRecipeUsefulItem) => void;
-  recipeUsefulItem?: AdminRecipeUsefulItem;
-  existingUsefulItems?: AdminRecipeUsefulItem[];
+  onSave: (recipeKitchenTool: AdminRecipeKitchenTool) => void;
+  recipeKitchenTool?: AdminRecipeKitchenTool;
+  existingKitchenTools?: AdminRecipeKitchenTool[];
   authoringLocale?: string;
 }
 
 type ValidationErrors = Record<string, string>;
 
-export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps> = ({
+export const RecipeKitchenToolFormModal: React.FC<RecipeKitchenToolFormModalProps> = ({
   visible,
   onClose,
   onSave,
-  recipeUsefulItem,
-  existingUsefulItems = [],
+  recipeKitchenTool,
+  existingKitchenTools = [],
   authoringLocale = 'es',
 }) => {
   const [errors, setErrors] = useState<ValidationErrors>({});
-  const [formData, setFormData] = useState<AdminRecipeUsefulItem>({
+  const [formData, setFormData] = useState<AdminRecipeKitchenTool>({
     id: '',
     recipeId: '',
-    usefulItemId: '',
+    kitchenToolId: '',
     displayOrder: 0,
     translations: [],
-    usefulItem: {
+    kitchenTool: {
       id: '',
       translations: [],
       pictureUrl: '',
@@ -45,15 +45,15 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
 
   useEffect(() => {
     if (visible) {
-      if (recipeUsefulItem) {
+      if (recipeKitchenTool) {
         setFormData({
-          ...recipeUsefulItem,
-          translations: recipeUsefulItem.translations || [],
+          ...recipeKitchenTool,
+          translations: recipeKitchenTool.translations || [],
         });
       }
       setErrors({});
     }
-  }, [recipeUsefulItem, visible]);
+  }, [recipeKitchenTool, visible]);
 
   const getNotesForLocale = (locale: string): string => {
     return pickTranslation(formData.translations, locale)?.notes || '';
@@ -61,7 +61,7 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
 
   const setNotesForLocale = (locale: string, notes: string) => {
     const existing = formData.translations.find(t => t.locale === locale);
-    let updated: AdminRecipeUsefulItemTranslation[];
+    let updated: AdminRecipeKitchenToolTranslation[];
     if (existing) {
       updated = formData.translations.map(t =>
         t.locale === locale ? { ...t, notes } : t
@@ -75,15 +75,15 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
   const validateForm = (): boolean => {
     const newErrors: ValidationErrors = {};
 
-    const isDuplicate = existingUsefulItems.some(
+    const isDuplicate = existingKitchenTools.some(
       item =>
-        item.usefulItemId === formData.usefulItemId &&
+        item.kitchenToolId === formData.kitchenToolId &&
         item.id !== formData.id
     );
 
     if (isDuplicate) {
-      newErrors.duplicate = i18n.t('admin.recipes.form.usefulItemsInfo.duplicateError', {
-        defaultValue: 'This useful item is already added to the recipe.'
+      newErrors.duplicate = i18n.t('admin.recipes.form.kitchenToolsInfo.duplicateError', {
+        defaultValue: 'This kitchen tool is already added to the recipe.'
       });
     }
 
@@ -98,9 +98,9 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
     }
   };
 
-  // Get useful item display names
-  const usefulItemNameEn = getTranslatedField(formData.usefulItem?.translations, 'en', 'name');
-  const usefulItemNameEs = getTranslatedField(formData.usefulItem?.translations, 'es', 'name');
+  // Get kitchen tool display names
+  const kitchenToolNameEn = getTranslatedField(formData.kitchenTool?.translations, 'en', 'name');
+  const kitchenToolNameEs = getTranslatedField(formData.kitchenTool?.translations, 'es', 'name');
 
   return (
     <Modal
@@ -117,9 +117,9 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
           <View className="bg-background-default rounded-lg w-full shadow-md">
             <View className="flex-row justify-between items-center px-md py-sm border-b border-border-default">
               <Text preset="subheading" className="flex-1">
-                {recipeUsefulItem?.id
-                  ? i18n.t('admin.recipes.form.usefulItemsInfo.editItem')
-                  : i18n.t('admin.recipes.form.usefulItemsInfo.addItem')}
+                {recipeKitchenTool?.id
+                  ? i18n.t('admin.recipes.form.kitchenToolsInfo.editItem')
+                  : i18n.t('admin.recipes.form.kitchenToolsInfo.addItem')}
               </Text>
               <TouchableOpacity onPress={onClose} className="p-xs">
                 <Ionicons name="close" size={24} className="text-text-SECONDARY" />
@@ -129,9 +129,9 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
             <ScrollView className="max-h-[500px] p-md">
               <View className="flex-row items-center mb-md p-sm bg-background-SECONDARY rounded-md">
                 <View className="w-[60px] h-[60px] rounded-md overflow-hidden bg-background-default justify-center items-center mr-sm">
-                  {formData.usefulItem?.pictureUrl ? (
+                  {formData.kitchenTool?.pictureUrl ? (
                     <Image
-                      source={formData.usefulItem.pictureUrl}
+                      source={formData.kitchenTool.pictureUrl}
                       className="w-full h-full rounded-md"
                       contentFit="contain"
                       transition={300}
@@ -146,10 +146,10 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
 
                 <View className="flex-1">
                   <Text preset="subheading" className="mb-1">
-                    {usefulItemNameEn}
+                    {kitchenToolNameEn}
                   </Text>
                   <Text className="text-text-SECONDARY">
-                    {usefulItemNameEs}
+                    {kitchenToolNameEs}
                   </Text>
                 </View>
               </View>
@@ -165,7 +165,7 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
                 value={getNotesForLocale(authoringLocale)}
                 onChangeText={(value) => setNotesForLocale(authoringLocale, value)}
                 containerStyle={{ marginBottom: 16 }}
-                label={i18n.t('admin.recipes.form.usefulItemsInfo.notesEnLabel', { defaultValue: 'Notes' })}
+                label={i18n.t('admin.recipes.form.kitchenToolsInfo.notesEnLabel', { defaultValue: 'Notes' })}
               />
             </ScrollView>
 

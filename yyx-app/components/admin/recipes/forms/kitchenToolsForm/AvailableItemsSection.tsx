@@ -3,16 +3,16 @@ import { View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { AdminUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
+import { AdminKitchenTool, getTranslatedField } from '@/types/recipe.admin.types';
 import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 
 interface AvailableItemsSectionProps {
-    items: AdminUsefulItem[];
+    items: AdminKitchenTool[];
     loading: boolean;
     searchQuery: string;
     selectedItemIds: string[];
-    onAddItem: (item: AdminUsefulItem) => void;
+    onAddItem: (item: AdminKitchenTool) => void;
     /** Locale used for displaying item names */
     displayLocale?: string;
     /** Compact variant for mobile (no min-height constraint) */
@@ -20,8 +20,8 @@ interface AvailableItemsSectionProps {
 }
 
 /**
- * Displays the list of available useful items that can be added to a recipe.
- * Used in both mobile and desktop layouts of RecipeUsefulItemsForm.
+ * Displays the list of available kitchen tools that can be added to a recipe.
+ * Used in both mobile and desktop layouts of RecipeKitchenToolsForm.
  */
 export function AvailableItemsSection({
     items,
@@ -34,7 +34,7 @@ export function AvailableItemsSection({
 }: AvailableItemsSectionProps) {
     const isCompact = variant === 'compact';
 
-    const renderItemCard = (item: AdminUsefulItem) => {
+    const renderItemCard = (item: AdminKitchenTool) => {
         const isAdded = selectedItemIds.includes(item.id);
 
         return (
@@ -99,8 +99,8 @@ export function AvailableItemsSection({
                     <Ionicons name="information-circle-outline" size={32} color={COLORS.text.secondary} />
                     <Text className="mt-sm text-center" color={COLORS.text.secondary}>
                         {searchQuery
-                            ? i18n.t('admin.recipes.form.usefulItemsInfo.noSearchResults')
-                            : i18n.t('admin.recipes.form.usefulItemsInfo.noUsefulItems')}
+                            ? i18n.t('admin.recipes.form.kitchenToolsInfo.noSearchResults')
+                            : i18n.t('admin.recipes.form.kitchenToolsInfo.noKitchenTools')}
                     </Text>
                 </View>
             )}

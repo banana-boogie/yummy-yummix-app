@@ -6,7 +6,7 @@ import {
   AdminRecipeTranslation,
   AdminRecipeStepTranslation,
   AdminRecipeIngredientTranslation,
-  AdminRecipeUsefulItemTranslation,
+  AdminRecipeKitchenToolTranslation,
   pickTranslation,
 } from '@/types/recipe.admin.types';
 
@@ -51,12 +51,12 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
       setError(null);
       setFailedLocales([]);
 
-      // Count total batches: recipe info + each step + each ingredient + each useful item
+      // Count total batches: recipe info + each step + each ingredient + each kitchen tool
       const steps = recipe.steps || [];
       const ingredients = recipe.ingredients || [];
-      const usefulItems = recipe.usefulItems || [];
+      const kitchenTools = recipe.kitchenTools || [];
       const totalBatches =
-        1 + steps.length + ingredients.length + usefulItems.length;
+        1 + steps.length + ingredients.length + kitchenTools.length;
       let completed = 0;
 
       const tick = (label: string) => {
@@ -238,14 +238,14 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
         }
         updatedRecipe = { ...updatedRecipe, ingredients: updatedIngredients };
 
-        // 4. Translate useful items
-        const updatedUsefulItems = [...usefulItems];
-        for (let i = 0; i < usefulItems.length; i++) {
-          const item = usefulItems[i];
+        // 4. Translate kitchen tools
+        const updatedKitchenTools = [...kitchenTools];
+        for (let i = 0; i < kitchenTools.length; i++) {
+          const item = kitchenTools[i];
           const itemSource = pickTranslation(
             item.translations,
             sourceLocale,
-          ) as AdminRecipeUsefulItemTranslation | undefined;
+          ) as AdminRecipeKitchenToolTranslation | undefined;
           if (itemSource?.notes?.trim()) {
             try {
               const results = await translateContent(
@@ -271,14 +271,14 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
                   });
                 }
               }
-              updatedUsefulItems[i] = { ...item, translations: updated };
+              updatedKitchenTools[i] = { ...item, translations: updated };
             } catch (e) {
-              logger.error(`Failed to translate useful item ${i + 1}:`, e);
+              logger.error(`Failed to translate kitchen tool ${i + 1}:`, e);
             }
           }
-          tick(`Useful item ${i + 1}`);
+          tick(`Kitchen tool ${i + 1}`);
         }
-        updatedRecipe = { ...updatedRecipe, usefulItems: updatedUsefulItems };
+        updatedRecipe = { ...updatedRecipe, kitchenTools: updatedKitchenTools };
 
         if (failed.size > 0) {
           setFailedLocales([...failed]);

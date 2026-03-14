@@ -439,7 +439,7 @@ Concrete types add their fields:
 - `AdminRecipeTranslation` — `name`, `tipsAndTricks?`
 - `AdminRecipeStepTranslation` — `instruction`, `recipeSection?`, `tip?`
 - `AdminRecipeIngredientTranslation` — `notes?`, `tip?`, `recipeSection?`
-- `AdminRecipeUsefulItemTranslation` — `notes?`
+- `AdminRecipeKitchenToolTranslation` — `notes?`
 
 ### Locale design rules
 

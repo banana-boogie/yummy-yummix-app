@@ -155,7 +155,7 @@ export const recipeDataSchema = {
         },
       },
     },
-    useful_items: {
+    kitchen_tools: {
       type: "array",
       items: {
         type: "object",
@@ -173,7 +173,7 @@ export const recipeDataSchema = {
               },
             },
           },
-          useful_item: {
+          kitchen_tool: {
             type: "object",
             properties: {
               id: { type: "string" },
@@ -314,6 +314,6 @@ export function normalizeRecipeData(
     ingredients: Array.isArray(data.ingredients) ? data.ingredients : [],
     steps: Array.isArray(data.steps) ? data.steps : [],
     tags: Array.isArray(data.tags) ? data.tags : [],
-    useful_items: Array.isArray(data.useful_items) ? data.useful_items : [],
+    kitchen_tools: Array.isArray(data.kitchen_tools) ? data.kitchen_tools : [],
   };
 }

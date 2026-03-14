@@ -42,8 +42,8 @@ export interface RecipeTagTranslation {
   name: string;
 }
 
-export interface UsefulItemTranslation {
-  useful_item_id: string;
+export interface KitchenToolTranslation {
+  kitchen_tool_id: string;
   locale: string;
   name: string;
 }
@@ -55,8 +55,8 @@ export interface RecipeIngredientTranslation {
   recipe_section: string | null;
 }
 
-export interface RecipeUsefulItemTranslation {
-  recipe_useful_item_id: string;
+export interface RecipeKitchenToolTranslation {
+  recipe_kitchen_tool_id: string;
   locale: string;
   notes: string | null;
 }
@@ -75,7 +75,7 @@ export interface RawRecipe {
   ingredients?: RawRecipeIngredient[];
   tags?: RawRecipeTag[];
   steps?: RawRecipeStep[];
-  useful_items?: RawRecipeUsefulItem[];
+  kitchen_tools?: RawRecipeKitchenTool[];
   is_published: boolean;
   created_at: string;
   updated_at: string;
@@ -142,17 +142,17 @@ export interface RawStepIngredient {
   optional: boolean;
 }
 
-export interface RawRecipeUsefulItem {
+export interface RawRecipeKitchenTool {
   id: string;
   recipe_id: string;
-  useful_item_id: string;
+  kitchen_tool_id: string;
   display_order: number;
-  useful_item: RawUsefulItem;
-  translations?: RecipeUsefulItemTranslation[];
+  kitchen_tool: RawKitchenTool;
+  translations?: RecipeKitchenToolTranslation[];
 }
 
-export interface RawUsefulItem {
+export interface RawKitchenTool {
   id: string;
   image_url: string;
-  translations: UsefulItemTranslation[];
+  translations: KitchenToolTranslation[];
 }

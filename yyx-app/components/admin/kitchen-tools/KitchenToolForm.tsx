@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { TextInput } from '@/components/form/TextInput';
 import { Button } from '@/components/common/Button';
-import { AdminUsefulItem, AdminUsefulItemTranslation, pickTranslation } from '@/types/recipe.admin.types';
+import { AdminKitchenTool, AdminKitchenToolTranslation, pickTranslation } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { FormSection } from '@/components/form/FormSection';
 import { FormGroup } from '@/components/form/FormGroup';
@@ -14,30 +14,30 @@ import { useAdminLocales } from '@/hooks/admin/useAdminLocales';
 import { translateContent } from '@/services/admin/adminTranslateService';
 import logger from '@/services/logger';
 
-interface UsefulItemFormProps {
-    usefulItem?: AdminUsefulItem;
-    onSave: (data: AdminUsefulItem) => Promise<void>;
+interface KitchenToolFormProps {
+    kitchenTool?: AdminKitchenTool;
+    onSave: (data: AdminKitchenTool) => Promise<void>;
     onCancel: () => void;
     saving: boolean;
 }
 
-export function UsefulItemForm({
-    usefulItem,
+export function KitchenToolForm({
+    kitchenTool,
     onSave,
     onCancel,
     saving,
-}: UsefulItemFormProps) {
+}: KitchenToolFormProps) {
     const { locales } = useAdminLocales();
     const [translating, setTranslating] = useState(false);
     const [translateError, setTranslateError] = useState<string | null>(null);
 
-    const [formData, setFormData] = useState<AdminUsefulItem>({
-        id: usefulItem?.id || '',
-        translations: usefulItem?.translations || [
+    const [formData, setFormData] = useState<AdminKitchenTool>({
+        id: kitchenTool?.id || '',
+        translations: kitchenTool?.translations || [
             { locale: 'es', name: '' },
             { locale: 'en', name: '' },
         ],
-        pictureUrl: usefulItem?.pictureUrl || '',
+        pictureUrl: kitchenTool?.pictureUrl || '',
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -126,20 +126,20 @@ export function UsefulItemForm({
         const esName = getTranslationName('es');
         const enName = getTranslationName('en');
         if (!enName.trim()) {
-            newErrors['name_en'] = i18n.t('admin.usefulItems.form.errors.nameEnRequired');
+            newErrors['name_en'] = i18n.t('admin.kitchenTools.form.errors.nameEnRequired');
         }
         if (!esName.trim()) {
-            newErrors['name_es'] = i18n.t('admin.usefulItems.form.errors.nameEsRequired');
+            newErrors['name_es'] = i18n.t('admin.kitchenTools.form.errors.nameEsRequired');
         }
         if (!formData.pictureUrl) {
-            newErrors['pictureUrl'] = i18n.t('admin.usefulItems.form.errors.imageRequired');
+            newErrors['pictureUrl'] = i18n.t('admin.kitchenTools.form.errors.imageRequired');
         }
 
         setErrors(newErrors);
         if (Object.keys(newErrors).length > 0) return;
 
-        const data: AdminUsefulItem = {
-            id: usefulItem?.id || '',
+        const data: AdminKitchenTool = {
+            id: kitchenTool?.id || '',
             translations: formData.translations.filter(t => t.name?.trim()),
             pictureUrl: formData.pictureUrl,
         };
@@ -150,18 +150,18 @@ export function UsefulItemForm({
     return (
         <View className="flex-1">
             <Text preset="h1" className="mb-lg">
-                {usefulItem ? i18n.t('admin.usefulItems.form.editTitle') : i18n.t('admin.usefulItems.form.createTitle')}
+                {kitchenTool ? i18n.t('admin.kitchenTools.form.editTitle') : i18n.t('admin.kitchenTools.form.createTitle')}
             </Text>
 
             <ImageUploadSection
-                title={i18n.t('admin.usefulItems.form.imageTitle')}
+                title={i18n.t('admin.kitchenTools.form.imageTitle')}
                 imageUrl={formData.pictureUrl}
                 onImageSelected={(fileObject) => setFormData({ ...formData, pictureUrl: fileObject })}
                 error={errors['pictureUrl']}
                 required={true}
             />
 
-            <FormSection title={i18n.t('admin.usefulItems.form.detailsTitle')} titleStyle={{ marginBottom: 8 }}>
+            <FormSection title={i18n.t('admin.kitchenTools.form.detailsTitle')} titleStyle={{ marginBottom: 8 }}>
                 {locales.map(locale => (
                     <FormGroup
                         key={locale.code}
@@ -172,8 +172,8 @@ export function UsefulItemForm({
                             value={getTranslationName(locale.code)}
                             onChangeText={(text) => setTranslationName(locale.code, text)}
                             placeholder={locale.code.startsWith('es')
-                                ? i18n.t('admin.usefulItems.form.nameEsPlaceholder')
-                                : i18n.t('admin.usefulItems.form.nameEnPlaceholder')}
+                                ? i18n.t('admin.kitchenTools.form.nameEsPlaceholder')
+                                : i18n.t('admin.kitchenTools.form.nameEnPlaceholder')}
                             label={locale.displayName}
                         />
                     </FormGroup>

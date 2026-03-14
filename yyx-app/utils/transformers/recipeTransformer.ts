@@ -1,7 +1,7 @@
-import { Recipe, RecipeIngredient, MeasurementUnit, RecipeTag, RecipeStep, RecipeUsefulItem } from '@/types/recipe.types';
+import { Recipe, RecipeIngredient, MeasurementUnit, RecipeTag, RecipeStep, RecipeKitchenTool } from '@/types/recipe.types';
 import { ThermomixSettings, ThermomixSpeed, ThermomixTemperature } from '@/types/thermomix.types';
 import {
-  RawRecipeIngredient, RawMeasurementUnit, RawRecipeTag, RawRecipeStep, RawRecipe, RawRecipeUsefulItem,
+  RawRecipeIngredient, RawMeasurementUnit, RawRecipeTag, RawRecipeStep, RawRecipe, RawRecipeKitchenTool,
 } from '@/types/recipe.api.types';
 import i18n from '@/i18n';
 import { formatMeasurement } from '@/utils/recipes/measurements';
@@ -67,7 +67,7 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
         updatedAt: raw.updated_at,
         steps: this.transformSteps(raw.steps, measurementSystem),
         tipsAndTricks: t?.tips_and_tricks ?? undefined,
-        usefulItems: this.transformUsefulItems(raw.useful_items),
+        kitchenTools: this.transformKitchenTools(raw.kitchen_tools),
       };
     }
 
@@ -173,16 +173,16 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
         );
     }
 
-    private static transformUsefulItems(rawUsefulItems: RawRecipeUsefulItem[] | undefined): RecipeUsefulItem[] {
-      if (!rawUsefulItems) return [];
+    private static transformKitchenTools(rawKitchenTools: RawRecipeKitchenTool[] | undefined): RecipeKitchenTool[] {
+      if (!rawKitchenTools) return [];
 
-      return rawUsefulItems.map(item => {
-        const itemTranslation = pickTranslation(item.useful_item.translations);
+      return rawKitchenTools.map(item => {
+        const itemTranslation = pickTranslation(item.kitchen_tool.translations);
         const notesTranslation = pickTranslation(item.translations);
         return {
           id: item.id,
           name: itemTranslation?.name ?? '',
-          pictureUrl: item.useful_item.image_url,
+          pictureUrl: item.kitchen_tool.image_url,
           displayOrder: item.display_order,
           notes: notesTranslation?.notes ?? ''
         };

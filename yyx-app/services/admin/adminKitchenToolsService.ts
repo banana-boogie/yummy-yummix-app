@@ -1,21 +1,21 @@
 import { supabase } from '@/lib/supabase';
 import { BaseService } from '../base/BaseService';
 import { imageService } from '../storage/imageService';
-import { AdminUsefulItem, AdminUsefulItemTranslation, pickTranslation, getNameFromTranslations } from '@/types/recipe.admin.types';
+import { AdminKitchenTool, AdminKitchenToolTranslation, pickTranslation, getNameFromTranslations } from '@/types/recipe.admin.types';
 import logger from '@/services/logger';
 
-export class AdminUsefulItemsService extends BaseService {
+export class AdminKitchenToolsService extends BaseService {
   constructor() {
     super(supabase);
   }
 
-  async getAllUsefulItems(sortBy: 'en' | 'es' = 'en'): Promise<AdminUsefulItem[]> {
+  async getAllKitchenTools(sortBy: 'en' | 'es' = 'en'): Promise<AdminKitchenTool[]> {
     const { data, error } = await this.supabase
-      .from('useful_items')
+      .from('kitchen_tools')
       .select(`
         id,
         image_url,
-        translations:useful_item_translations (
+        translations:kitchen_tool_translations (
           locale,
           name
         )
@@ -23,10 +23,10 @@ export class AdminUsefulItemsService extends BaseService {
       .order('id', { ascending: true });
 
     if (error) {
-      throw new Error(`Error fetching useful items: ${error.message}`);
+      throw new Error(`Error fetching kitchen tools: ${error.message}`);
     }
 
-    const result: AdminUsefulItem[] = (data || []).map((item: any) => ({
+    const result: AdminKitchenTool[] = (data || []).map((item: any) => ({
       id: item.id,
       translations: (item.translations || []).map((t: any) => ({
         locale: t.locale,
@@ -37,7 +37,7 @@ export class AdminUsefulItemsService extends BaseService {
 
     // Sort client-side since translation table columns can't be sorted via PostgREST
     const sortLocale = sortBy;
-    result.sort((a: AdminUsefulItem, b: AdminUsefulItem) => {
+    result.sort((a: AdminKitchenTool, b: AdminKitchenTool) => {
       const aName = pickTranslation(a.translations, sortLocale)?.name || '';
       const bName = pickTranslation(b.translations, sortLocale)?.name || '';
       return aName.localeCompare(bName);
@@ -46,13 +46,13 @@ export class AdminUsefulItemsService extends BaseService {
     return result;
   }
 
-  private async handleImageUpload(file: any, translations?: AdminUsefulItemTranslation[]): Promise<string> {
+  private async handleImageUpload(file: any, translations?: AdminKitchenToolTranslation[]): Promise<string> {
     if (!file) return '';
 
     try {
-      const fileName = `${getNameFromTranslations(translations, 'useful-item')}.png`;
+      const fileName = `${getNameFromTranslations(translations, 'kitchen-tool')}.png`;
       return await this.uploadImage({
-        bucket: 'useful-items',
+        bucket: 'kitchen-tools',
         folderPath: 'images',
         fileName,
         file,
@@ -64,18 +64,18 @@ export class AdminUsefulItemsService extends BaseService {
     }
   }
 
-  async updateUsefulItem(id: string, item: AdminUsefulItem): Promise<AdminUsefulItem> {
+  async updateKitchenTool(id: string, item: AdminKitchenTool): Promise<AdminKitchenTool> {
     const itemData: Record<string, any> = {};
 
     if (item.pictureUrl !== undefined) {
       const { data: currentItem, error: fetchError } = await this.supabase
-        .from('useful_items')
+        .from('kitchen_tools')
         .select('image_url')
         .eq('id', id)
         .single();
 
       if (fetchError) {
-        throw new Error(`Error fetching current useful item: ${fetchError.message}`);
+        throw new Error(`Error fetching current kitchen tool: ${fetchError.message}`);
       }
 
       const isNewImage = typeof item.pictureUrl === 'object';
@@ -102,40 +102,40 @@ export class AdminUsefulItemsService extends BaseService {
     }
 
     if (Object.keys(itemData).length > 0) {
-      const updatedItem = await this.transformedUpdate<AdminUsefulItem>('useful_items', id, itemData);
+      const updatedItem = await this.transformedUpdate<AdminKitchenTool>('kitchen_tools', id, itemData);
       if (!updatedItem) {
-        throw new Error('Failed to update useful item');
+        throw new Error('Failed to update kitchen tool');
       }
     }
 
     // Upsert translations from the translations array
     if (item.translations && item.translations.length > 0) {
       const dbTranslations = item.translations.map(t => ({
-        useful_item_id: id,
+        kitchen_tool_id: id,
         locale: t.locale,
         name: t.name,
       }));
 
       const { error: translationError } = await this.supabase
-        .from('useful_item_translations')
-        .upsert(dbTranslations, { onConflict: 'useful_item_id,locale' });
+        .from('kitchen_tool_translations')
+        .upsert(dbTranslations, { onConflict: 'kitchen_tool_id,locale' });
 
       if (translationError) {
-        throw new Error(`Failed to upsert useful item translations: ${translationError.message}`);
+        throw new Error(`Failed to upsert kitchen tool translations: ${translationError.message}`);
       }
     }
 
     return item;
   }
 
-  async deleteUsefulItem(id: string): Promise<void> {
+  async deleteKitchenTool(id: string): Promise<void> {
     if (!id || typeof id !== 'string') {
-      throw new Error('Invalid useful item ID provided');
+      throw new Error('Invalid kitchen tool ID provided');
     }
 
     try {
         const { data: currentItem, error: fetchError } = await this.supabase
-        .from('useful_items')
+        .from('kitchen_tools')
         .select('image_url')
         .eq('id', id)
         .single();
@@ -144,25 +144,25 @@ export class AdminUsefulItemsService extends BaseService {
           await this.deleteImage(currentItem.image_url);
         }
         if (fetchError) {
-          logger.error('Error fetching current useful item:', fetchError);
+          logger.error('Error fetching current kitchen tool:', fetchError);
         }
       } catch (error) {
         logger.error('Error deleting old image:', error);
       }
 
     const { error } = await this.supabase
-      .from('useful_items')
+      .from('kitchen_tools')
       .delete()
       .eq('id', id);
 
     if (error) {
-      logger.error('Error deleting useful item:', error);
-      throw new Error(`Error deleting useful item: ${error.message}`);
+      logger.error('Error deleting kitchen tool:', error);
+      throw new Error(`Error deleting kitchen tool: ${error.message}`);
     }
   }
 
-  async createUsefulItem(item: AdminUsefulItem): Promise<AdminUsefulItem> {
-    const translations: AdminUsefulItemTranslation[] = item.translations || [];
+  async createKitchenTool(item: AdminKitchenTool): Promise<AdminKitchenTool> {
+    const translations: AdminKitchenToolTranslation[] = item.translations || [];
 
     const itemData: Record<string, any> = {
       image_url: '',
@@ -175,31 +175,31 @@ export class AdminUsefulItemsService extends BaseService {
       );
     }
 
-    // Insert the useful item and get the ID back
+    // Insert the kitchen tool and get the ID back
     const { data: inserted, error: insertError } = await this.supabase
-      .from('useful_items')
+      .from('kitchen_tools')
       .insert(itemData)
       .select('id')
       .single();
 
     if (insertError) {
-      throw new Error(`Failed to create useful item: ${insertError.message}`);
+      throw new Error(`Failed to create kitchen tool: ${insertError.message}`);
     }
 
     // Insert translations from the translations array
     const dbTranslations = translations.map(t => ({
-      useful_item_id: inserted.id,
+      kitchen_tool_id: inserted.id,
       locale: t.locale,
       name: t.name,
     }));
 
     if (dbTranslations.length > 0) {
       const { error: translationError } = await this.supabase
-        .from('useful_item_translations')
+        .from('kitchen_tool_translations')
         .insert(dbTranslations);
 
       if (translationError) {
-        throw new Error(`Failed to insert useful item translations: ${translationError.message}`);
+        throw new Error(`Failed to insert kitchen tool translations: ${translationError.message}`);
       }
     }
 
@@ -215,5 +215,5 @@ export class AdminUsefulItemsService extends BaseService {
   deleteImage = imageService.deleteImage.bind(imageService);
 }
 
-export const adminUsefulItemsService = new AdminUsefulItemsService();
-export default adminUsefulItemsService;
+export const adminKitchenToolsService = new AdminKitchenToolsService();
+export default adminKitchenToolsService;

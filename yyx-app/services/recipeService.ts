@@ -145,17 +145,17 @@ const getRecipeDetailQuery = () => {
         )
       )
     ),
-    useful_items:recipe_useful_items (
+    kitchen_tools:recipe_kitchen_tools (
       id,
       display_order,
-      translations:recipe_useful_item_translations (
+      translations:recipe_kitchen_tool_translations (
         locale,
         notes
       ),
-      useful_item:useful_items (
+      kitchen_tool:kitchen_tools (
         id,
         image_url,
-        translations:useful_item_translations (
+        translations:kitchen_tool_translations (
           locale,
           name
         )

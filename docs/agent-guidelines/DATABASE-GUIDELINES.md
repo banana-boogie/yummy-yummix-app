@@ -113,7 +113,7 @@ CREATE INDEX idx_<table>_user_id ON public.<table_name>(user_id);
 - `user_recipe_ingredients` — Custom recipe ingredients
 - `user_recipe_steps` — Custom recipe steps (with Thermomix parameters)
 - `user_recipe_tags` — Custom recipe tags
-- `user_recipe_useful_items` — Suggested kitchen items
+- `user_recipe_kitchen_tools` — Suggested kitchen items
 
 ### User Tables
 - `user_profiles` — Preferences, equipment, dietary restrictions, skill level
@@ -140,8 +140,8 @@ CREATE INDEX idx_<table>_user_id ON public.<table_name>(user_id);
 - `recipe_ingredient_translations` — Translatable ingredient-in-recipe fields (`notes`, `recipe_section`, `tip`)
 - `measurement_unit_translations` — Translatable unit labels (`name`, `name_plural`, `symbol`, `symbol_plural`)
 - `recipe_tag_translations` — Translatable tag names
-- `useful_item_translations` — Translatable useful item names
-- `recipe_useful_item_translations` — Translatable useful-item-in-recipe notes
+- `kitchen_tool_translations` — Translatable kitchen tool names
+- `recipe_kitchen_tool_translations` — Translatable kitchen-tool-in-recipe notes
 
 ### Analytics
 - `user_events` — User event tracking
@@ -314,8 +314,8 @@ Fallback behaviour:
 | `recipe_ingredient_translations` | `recipe_ingredients` | `notes`, `recipe_section`, `tip` | grandparent `is_published` (via `recipe_ingredients`) |
 | `measurement_unit_translations` | `measurement_units` | `name`, `name_plural`, `symbol`, `symbol_plural` | `USING (true)` — reference data |
 | `recipe_tag_translations` | `recipe_tags` | `name` | `USING (true)` — reference data |
-| `useful_item_translations` | `useful_items` | `name` | `USING (true)` — reference data |
-| `recipe_useful_item_translations` | `recipe_useful_items` | `notes` | grandparent `is_published` (via `recipe_useful_items`) |
+| `kitchen_tool_translations` | `kitchen_tools` | `name` | `USING (true)` — reference data |
+| `recipe_kitchen_tool_translations` | `recipe_kitchen_tools` | `notes` | grandparent `is_published` (via `recipe_kitchen_tools`) |
 
 All use composite PK `(entity_id, locale)` with `ON DELETE CASCADE` from parent. Note: `measurement_unit_translations.measurement_unit_id` is `text` (not `uuid`) because `measurement_units.id` is `text`.
 
@@ -349,7 +349,7 @@ CREATE POLICY "Admin write ingredient translations"
   USING (public.is_admin()) WITH CHECK (public.is_admin());
 ```
 
-Same pattern applies to: `measurement_unit_translations`, `recipe_tag_translations`, `useful_item_translations`.
+Same pattern applies to: `measurement_unit_translations`, `recipe_tag_translations`, `kitchen_tool_translations`.
 
 #### Pattern 2 — Recipe-scoped content (gate on parent `is_published`)
 
@@ -415,21 +415,21 @@ CREATE POLICY "Admins can read all recipe ingredient translations"
   USING (public.is_admin());
 ```
 
-**`recipe_useful_item_translations`** (FK chain: `recipe_useful_item_id` → `recipe_useful_items.recipe_id` → `recipes.is_published`):
+**`recipe_kitchen_tool_translations`** (FK chain: `recipe_kitchen_tool_id` → `recipe_kitchen_tools.recipe_id` → `recipes.is_published`):
 
 ```sql
-CREATE POLICY "Anyone can read published recipe useful item translations"
-  ON public.recipe_useful_item_translations FOR SELECT TO anon, authenticated
+CREATE POLICY "Anyone can read published recipe kitchen tool translations"
+  ON public.recipe_kitchen_tool_translations FOR SELECT TO anon, authenticated
   USING (
-    recipe_useful_item_id IN (
-      SELECT rui.id FROM public.recipe_useful_items rui
-      JOIN public.recipes r ON r.id = rui.recipe_id
+    recipe_kitchen_tool_id IN (
+      SELECT rkt.id FROM public.recipe_kitchen_tools rkt
+      JOIN public.recipes r ON r.id = rkt.recipe_id
       WHERE r.is_published = true
     )
   );
 
-CREATE POLICY "Admins can read all recipe useful item translations"
-  ON public.recipe_useful_item_translations FOR SELECT TO authenticated
+CREATE POLICY "Admins can read all recipe kitchen tool translations"
+  ON public.recipe_kitchen_tool_translations FOR SELECT TO authenticated
   USING (public.is_admin());
 ```
 

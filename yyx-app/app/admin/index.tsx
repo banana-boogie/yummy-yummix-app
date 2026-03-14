@@ -116,10 +116,10 @@ export default function AdminDashboard() {
           <TouchableOpacity
             className="bg-primary-default rounded-lg p-md flex-row items-center"
             style={{ width: '48%', minWidth: 150 }}
-            onPress={() => router.push('/admin/useful-items')}
+            onPress={() => router.push('/admin/kitchen-tools')}
           >
             <Ionicons name="cube" size={22} color={COLORS.text.default} />
-            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>{i18n.t('admin.common.usefulItems')}</Text>
+            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>{i18n.t('admin.common.kitchenTools')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

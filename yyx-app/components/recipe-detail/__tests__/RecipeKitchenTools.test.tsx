@@ -1,7 +1,7 @@
 /**
- * RecipeUsefulItems Tests
+ * RecipeKitchenTools Tests
  *
- * Tests for recipe useful items component covering:
+ * Tests for recipe kitchen tools component covering:
  * - Items list rendering
  * - Image display
  * - Empty state handling
@@ -9,8 +9,8 @@
 
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
-import { RecipeUsefulItems } from '../RecipeUsefulItems';
-import { RecipeUsefulItem } from '@/types/recipe.types';
+import { RecipeKitchenTools } from '../RecipeKitchenTools';
+import { RecipeKitchenTool } from '@/types/recipe.types';
 
 // Mock dependencies
 jest.mock('expo-image', () => ({
@@ -22,7 +22,7 @@ jest.mock('@/i18n', () => ({
   default: {
     t: (key: string) => {
       const translations: Record<string, string> = {
-        'recipes.detail.usefulItems.heading': 'Useful Items',
+        'recipes.detail.kitchenTools.heading': 'Kitchen Tools',
       };
       return translations[key] || key;
     },
@@ -33,18 +33,18 @@ jest.mock('@/components/recipe-detail/SectionHeading', () => ({
   SectionHeading: 'SectionHeading',
 }));
 
-describe('RecipeUsefulItems', () => {
-  const mockUsefulItems: RecipeUsefulItem[] = [
+describe('RecipeKitchenTools', () => {
+  const mockKitchenTools: RecipeKitchenTool[] = [
     {
       id: 'item-1',
       name: 'Mixing Bowl',
       pictureUrl: 'https://example.com/bowl.jpg',
-    } as RecipeUsefulItem,
+    } as RecipeKitchenTool,
     {
       id: 'item-2',
       name: 'Whisk',
       pictureUrl: 'https://example.com/whisk.jpg',
-    } as RecipeUsefulItem,
+    } as RecipeKitchenTool,
   ];
 
   // ============================================================
@@ -54,28 +54,28 @@ describe('RecipeUsefulItems', () => {
   describe('rendering', () => {
     it('renders without crashing', () => {
       const { toJSON } = render(
-        <RecipeUsefulItems usefulItems={mockUsefulItems} />
+        <RecipeKitchenTools kitchenTools={mockKitchenTools} />
       );
 
       expect(toJSON()).toBeTruthy();
     });
 
-    it('renders null when usefulItems is empty', () => {
-      const { toJSON } = render(<RecipeUsefulItems usefulItems={[]} />);
+    it('renders null when kitchenTools is empty', () => {
+      const { toJSON } = render(<RecipeKitchenTools kitchenTools={[]} />);
 
       expect(toJSON()).toBeNull();
     });
 
-    it('renders null when usefulItems is undefined', () => {
+    it('renders null when kitchenTools is undefined', () => {
       const { toJSON } = render(
-        <RecipeUsefulItems usefulItems={undefined as unknown as RecipeUsefulItem[]} />
+        <RecipeKitchenTools kitchenTools={undefined as unknown as RecipeKitchenTool[]} />
       );
 
       expect(toJSON()).toBeNull();
     });
 
     it('displays item names', () => {
-      render(<RecipeUsefulItems usefulItems={mockUsefulItems} />);
+      render(<RecipeKitchenTools kitchenTools={mockKitchenTools} />);
 
       expect(screen.getByText('Mixing Bowl')).toBeTruthy();
       expect(screen.getByText('Whisk')).toBeTruthy();
@@ -89,8 +89,8 @@ describe('RecipeUsefulItems', () => {
   describe('styling', () => {
     it('applies custom className', () => {
       const { toJSON } = render(
-        <RecipeUsefulItems
-          usefulItems={mockUsefulItems}
+        <RecipeKitchenTools
+          kitchenTools={mockKitchenTools}
           className="mt-lg"
         />
       );
@@ -100,8 +100,8 @@ describe('RecipeUsefulItems', () => {
 
     it('applies custom style', () => {
       const { toJSON } = render(
-        <RecipeUsefulItems
-          usefulItems={mockUsefulItems}
+        <RecipeKitchenTools
+          kitchenTools={mockKitchenTools}
           style={{ marginTop: 20 }}
         />
       );
@@ -117,19 +117,19 @@ describe('RecipeUsefulItems', () => {
   describe('edge cases', () => {
     it('handles single item', () => {
       const { toJSON } = render(
-        <RecipeUsefulItems usefulItems={[mockUsefulItems[0]]} />
+        <RecipeKitchenTools kitchenTools={[mockKitchenTools[0]]} />
       );
 
       expect(toJSON()).toBeTruthy();
     });
 
     it('handles items without picture URL', () => {
-      const itemsNoPicture: RecipeUsefulItem[] = [
-        { id: 'item-1', name: 'Bowl' } as RecipeUsefulItem,
+      const itemsNoPicture: RecipeKitchenTool[] = [
+        { id: 'item-1', name: 'Bowl' } as RecipeKitchenTool,
       ];
 
       const { toJSON } = render(
-        <RecipeUsefulItems usefulItems={itemsNoPicture} />
+        <RecipeKitchenTools kitchenTools={itemsNoPicture} />
       );
 
       expect(toJSON()).toBeTruthy();
@@ -140,26 +140,26 @@ describe('RecipeUsefulItems', () => {
         id: `item-${i}`,
         name: `Item ${i}`,
         pictureUrl: `https://example.com/item-${i}.jpg`,
-      })) as RecipeUsefulItem[];
+      })) as RecipeKitchenTool[];
 
       const { toJSON } = render(
-        <RecipeUsefulItems usefulItems={manyItems} />
+        <RecipeKitchenTools kitchenTools={manyItems} />
       );
 
       expect(toJSON()).toBeTruthy();
     });
 
     it('handles items with long names', () => {
-      const longNameItems: RecipeUsefulItem[] = [
+      const longNameItems: RecipeKitchenTool[] = [
         {
           id: 'item-1',
           name: 'Extra Large Professional Stainless Steel Mixing Bowl',
           pictureUrl: 'https://example.com/bowl.jpg',
-        } as RecipeUsefulItem,
+        } as RecipeKitchenTool,
       ];
 
       const { toJSON } = render(
-        <RecipeUsefulItems usefulItems={longNameItems} />
+        <RecipeKitchenTools kitchenTools={longNameItems} />
       );
 
       expect(toJSON()).toBeTruthy();

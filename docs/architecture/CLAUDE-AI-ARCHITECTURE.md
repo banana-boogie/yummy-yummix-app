@@ -826,7 +826,7 @@ Two layers of protection:
 | `user_recipe_ingredients` | Ingredients | `recipe_id`, `name`, `quantity`, `unit` |
 | `user_recipe_steps` | Steps with Thermomix params | `recipe_id`, `order`, `instruction`, `thermomix_time`, `thermomix_temp`, `thermomix_speed` |
 | `user_recipe_tags` | Tags | `recipe_id`, `tag` |
-| `user_recipe_useful_items` | Equipment needed | `recipe_id`, `item` |
+| `user_recipe_kitchen_tools` | Equipment needed | `recipe_id`, `item` |
 
 ### Supporting tables
 

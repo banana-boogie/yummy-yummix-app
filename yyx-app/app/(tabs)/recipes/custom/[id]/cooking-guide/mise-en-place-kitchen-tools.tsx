@@ -9,12 +9,12 @@ import { CookingGuidePageHeader } from '@/components/cooking-guide/CookingGuideP
 import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideStepNavigationButtons';
 import { useDevice } from '@/hooks/useDevice';
 import { PageLayout } from '@/components/layouts/PageLayout';
-import { MiseEnPlaceUsefulItem } from '@/components/cooking-guide/MiseEnPlaceUsefulItem';
+import { MiseEnPlaceKitchenTool } from '@/components/cooking-guide/MiseEnPlaceKitchenTool';
 import { Text } from '@/components/common/Text';
 import { LAYOUT } from '@/constants/design-tokens';
 import { getCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
 
-type CheckableUsefulItem = {
+type CheckableKitchenTool = {
     id: string;
     name: string;
     pictureUrl: string;
@@ -22,39 +22,39 @@ type CheckableUsefulItem = {
 };
 
 /**
- * Useful items prep screen for custom recipe cooking guide
+ * Kitchen tools prep screen for custom recipe cooking guide
  */
-export default function CustomUsefulItemsStep() {
+export default function CustomKitchenToolsStep() {
     const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
     const { recipe } = useCustomRecipe(id as string);
-    const [usefulItems, setUsefulItems] = useState<CheckableUsefulItem[]>([]);
+    const [kitchenTools, setKitchenTools] = useState<CheckableKitchenTool[]>([]);
     const { isMobile } = useDevice();
 
     // Calculate number of columns based on screen size
     const numColumns = 2;
 
-    // Reset useful items when recipe ID changes or recipe data loads
+    // Reset kitchen tools when recipe ID changes or recipe data loads
     // Adding `id` ensures state clears immediately when navigating to a different recipe
     useEffect(() => {
-        if (recipe && recipe.usefulItems) {
-            setUsefulItems(recipe.usefulItems.map(item => ({ ...item, checked: false })));
+        if (recipe && recipe.kitchenTools) {
+            setKitchenTools(recipe.kitchenTools.map(item => ({ ...item, checked: false })));
         } else {
             // Clear state when recipe is not yet loaded (e.g., navigating to new recipe)
-            setUsefulItems([]);
+            setKitchenTools([]);
         }
     }, [id, recipe]);
 
     // Effect to trigger success haptic when all items are checked
     useEffect(() => {
-        const allUsefulItemsChecked = usefulItems.length > 0 && usefulItems.every(i => i.checked);
-        if (allUsefulItemsChecked) {
+        const allKitchenToolsChecked = kitchenTools.length > 0 && kitchenTools.every(i => i.checked);
+        if (allKitchenToolsChecked) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
-    }, [usefulItems]);
+    }, [kitchenTools]);
 
-    const handleUsefulItemPress = async (index: number) => {
+    const handleKitchenToolPress = async (index: number) => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        setUsefulItems(prev => prev.map((item, i) =>
+        setKitchenTools(prev => prev.map((item, i) =>
             i === index ? { ...item, checked: !item.checked } : item
         ));
     };
@@ -85,7 +85,7 @@ export default function CustomUsefulItemsStep() {
                         type: 'custom',
                         recipeId: id as string,
                         recipeTitle: recipe?.name || '',
-                        usefulItems: usefulItems.map(item => item.name)
+                        kitchenTools: kitchenTools.map(item => item.name)
                     }}
                 />
 
@@ -100,15 +100,15 @@ export default function CustomUsefulItemsStep() {
                 >
                     <View className="mb-xl">
                         <Text preset="subheading" className="mb-sm">
-                            {i18n.t('recipes.cookingGuide.miseEnPlace.usefulItems.heading')}
+                            {i18n.t('recipes.cookingGuide.miseEnPlace.kitchenTools.heading')}
                         </Text>
                         {/* Indented content grid */}
                         <View className="flex-row flex-wrap pl-sm">
-                            {usefulItems.map((item, index) => (
-                                <MiseEnPlaceUsefulItem
+                            {kitchenTools.map((item, index) => (
+                                <MiseEnPlaceKitchenTool
                                     key={item.id}
                                     item={item}
-                                    onPress={() => handleUsefulItemPress(index)}
+                                    onPress={() => handleKitchenToolPress(index)}
                                     width={`${100 / numColumns}%`}
                                 />
                             ))}

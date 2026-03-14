@@ -1,23 +1,23 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, ScrollView, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/common/Text';
-import { AdminRecipe, AdminRecipeUsefulItem, AdminUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
+import { AdminRecipe, AdminRecipeKitchenTool, AdminKitchenTool, getTranslatedField } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { FormSection } from '@/components/form/FormSection';
-import { adminUsefulItemsService } from '@/services/admin/adminUsefulItemsService';
+import { adminKitchenToolsService } from '@/services/admin/adminKitchenToolsService';
 import { SearchBar } from '@/components/common/SearchBar';
 import { Button } from '@/components/common/Button';
 import { AlertModal } from '@/components/common/AlertModal';
 import { v4 as generateUUID } from 'uuid';
-import { RecipeUsefulItemFormModal } from './RecipeUsefulItemFormModal';
-import { CreateEditUsefulItemModal } from '@/components/admin/useful-items/CreateEditUsefulItemModal';
+import { RecipeKitchenToolFormModal } from './RecipeKitchenToolFormModal';
+import { CreateEditKitchenToolModal } from '@/components/admin/kitchen-tools/CreateEditKitchenToolModal';
 import { COLORS } from '@/constants/design-tokens';
 import { useDevice } from '@/hooks/useDevice';
 import logger from '@/services/logger';
 import { SelectedItemsSection } from './SelectedItemsSection';
 import { AvailableItemsSection } from './AvailableItemsSection';
 
-type UsefulItemsFormProps = {
+type KitchenToolsFormProps = {
     recipe: AdminRecipe;
     onUpdateRecipe: (updates: Partial<AdminRecipe>) => void;
     errors: Record<string, string>;
@@ -25,115 +25,115 @@ type UsefulItemsFormProps = {
     displayLocale?: string;
 };
 
-export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es', displayLocale }: UsefulItemsFormProps) {
+export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es', displayLocale }: KitchenToolsFormProps) {
     const { isMobile } = useDevice();
-    const [usefulItems, setUsefulItems] = useState<AdminUsefulItem[]>([]);
-    const [filteredUsefulItems, setFilteredUsefulItems] = useState<AdminUsefulItem[]>([]);
+    const [kitchenTools, setKitchenTools] = useState<AdminKitchenTool[]>([]);
+    const [filteredKitchenTools, setFilteredKitchenTools] = useState<AdminKitchenTool[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedRecipeUsefulItem, setSelectedRecipeUsefulItem] = useState<AdminRecipeUsefulItem>();
+    const [selectedRecipeKitchenTool, setSelectedRecipeKitchenTool] = useState<AdminRecipeKitchenTool>();
     const [modalVisible, setModalVisible] = useState(false);
-    const [newUsefulItemModalVisible, setNewUsefulItemModalVisible] = useState(false);
+    const [newKitchenToolModalVisible, setNewKitchenToolModalVisible] = useState(false);
     const [showErrorAlert, setShowErrorAlert] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [rightColHeight, setRightColHeight] = useState<number | undefined>(undefined);
 
-    // Initialize usefulItems array if it doesn't exist
+    // Initialize kitchenTools array if it doesn't exist
     useEffect(() => {
-        if (!recipe.usefulItems) {
-            onUpdateRecipe({ usefulItems: [] });
+        if (!recipe.kitchenTools) {
+            onUpdateRecipe({ kitchenTools: [] });
         }
     }, []);
 
-    // Load all useful items from the API
+    // Load all kitchen tools from the API
     useEffect(() => {
-        const fetchUsefulItems = async () => {
+        const fetchKitchenTools = async () => {
             try {
                 setLoading(true);
-                const fetchedUsefulItems = await adminUsefulItemsService.getAllUsefulItems();
-                setUsefulItems(fetchedUsefulItems);
-                setFilteredUsefulItems(fetchedUsefulItems);
+                const fetchedKitchenTools = await adminKitchenToolsService.getAllKitchenTools();
+                setKitchenTools(fetchedKitchenTools);
+                setFilteredKitchenTools(fetchedKitchenTools);
             } catch (error) {
-                logger.error('Error fetching useful items:', error);
-                setErrorMessage(i18n.t('admin.recipes.form.usefulItemsInfo.fetchError'));
+                logger.error('Error fetching kitchen tools:', error);
+                setErrorMessage(i18n.t('admin.recipes.form.kitchenToolsInfo.fetchError'));
                 setShowErrorAlert(true);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchUsefulItems();
+        fetchKitchenTools();
     }, []);
 
-    // Filter useful items when search query changes
+    // Filter kitchen tools when search query changes
     useEffect(() => {
         if (searchQuery) {
             const lowercaseQuery = searchQuery.toLowerCase();
-            const filtered = usefulItems.filter(item => {
+            const filtered = kitchenTools.filter(item => {
                 const nameEn = getTranslatedField(item.translations, 'en', 'name');
                 const nameEs = getTranslatedField(item.translations, 'es', 'name');
                 return nameEn?.toLowerCase().includes(lowercaseQuery) ||
                     nameEs?.toLowerCase().includes(lowercaseQuery);
             });
-            setFilteredUsefulItems(filtered);
+            setFilteredKitchenTools(filtered);
         } else {
-            setFilteredUsefulItems(usefulItems);
+            setFilteredKitchenTools(kitchenTools);
         }
-    }, [searchQuery, usefulItems]);
+    }, [searchQuery, kitchenTools]);
 
-    const handleAddRecipeUsefulItem = (usefulItem: AdminUsefulItem) => {
-        const newRecipeUsefulItem: AdminRecipeUsefulItem = {
+    const handleAddRecipeKitchenTool = (kitchenTool: AdminKitchenTool) => {
+        const newRecipeKitchenTool: AdminRecipeKitchenTool = {
             id: generateUUID(),
             recipeId: recipe.id || '',
-            usefulItemId: usefulItem.id,
-            displayOrder: recipe.usefulItems ? recipe.usefulItems.length : 0,
-            usefulItem,
+            kitchenToolId: kitchenTool.id,
+            displayOrder: recipe.kitchenTools ? recipe.kitchenTools.length : 0,
+            kitchenTool,
         };
 
-        setSelectedRecipeUsefulItem(newRecipeUsefulItem);
+        setSelectedRecipeKitchenTool(newRecipeKitchenTool);
         setModalVisible(true);
     };
 
-    const handleEditRecipeUsefulItem = (usefulItem: AdminRecipeUsefulItem) => {
-        setSelectedRecipeUsefulItem(usefulItem);
+    const handleEditRecipeKitchenTool = (kitchenTool: AdminRecipeKitchenTool) => {
+        setSelectedRecipeKitchenTool(kitchenTool);
         setModalVisible(true);
     };
 
-    const handleDeleteRecipeUsefulItem = (recipeUsefulItem: AdminRecipeUsefulItem) => {
-        const updatedUsefulItems = (recipe.usefulItems || []).filter(
-            item => item.id !== recipeUsefulItem.id
+    const handleDeleteRecipeKitchenTool = (recipeKitchenTool: AdminRecipeKitchenTool) => {
+        const updatedKitchenTools = (recipe.kitchenTools || []).filter(
+            item => item.id !== recipeKitchenTool.id
         );
 
-        const reorderedUsefulItems = updatedUsefulItems.map((item, index) => ({
+        const reorderedKitchenTools = updatedKitchenTools.map((item, index) => ({
             ...item,
             displayOrder: index
         }));
 
-        onUpdateRecipe({ usefulItems: reorderedUsefulItems });
+        onUpdateRecipe({ kitchenTools: reorderedKitchenTools });
     };
 
-    const handleSaveRecipeUsefulItem = (updatedRecipeUsefulItem: AdminRecipeUsefulItem) => {
-        let updatedRecipeUsefulItems: AdminRecipeUsefulItem[] = recipe.usefulItems || [];
+    const handleSaveRecipeKitchenTool = (updatedRecipeKitchenTool: AdminRecipeKitchenTool) => {
+        let updatedRecipeKitchenTools: AdminRecipeKitchenTool[] = recipe.kitchenTools || [];
 
-        const existingIndex = updatedRecipeUsefulItems.findIndex(
-            item => item.id === updatedRecipeUsefulItem.id
+        const existingIndex = updatedRecipeKitchenTools.findIndex(
+            item => item.id === updatedRecipeKitchenTool.id
         );
 
         if (existingIndex >= 0) {
-            updatedRecipeUsefulItems = [...updatedRecipeUsefulItems];
-            updatedRecipeUsefulItems[existingIndex] = updatedRecipeUsefulItem;
+            updatedRecipeKitchenTools = [...updatedRecipeKitchenTools];
+            updatedRecipeKitchenTools[existingIndex] = updatedRecipeKitchenTool;
         } else {
-            updatedRecipeUsefulItems = [...updatedRecipeUsefulItems, updatedRecipeUsefulItem];
+            updatedRecipeKitchenTools = [...updatedRecipeKitchenTools, updatedRecipeKitchenTool];
         }
 
-        updatedRecipeUsefulItems.sort((a, b) => a.displayOrder - b.displayOrder);
+        updatedRecipeKitchenTools.sort((a, b) => a.displayOrder - b.displayOrder);
 
-        onUpdateRecipe({ usefulItems: updatedRecipeUsefulItems });
+        onUpdateRecipe({ kitchenTools: updatedRecipeKitchenTools });
     };
 
-    const handleMoveUsefulItemUp = (recipeUsefulItem: AdminRecipeUsefulItem) => {
-        const items = [...(recipe.usefulItems || [])];
-        const currentIndex = items.findIndex(item => item.id === recipeUsefulItem.id);
+    const handleMoveKitchenToolUp = (recipeKitchenTool: AdminRecipeKitchenTool) => {
+        const items = [...(recipe.kitchenTools || [])];
+        const currentIndex = items.findIndex(item => item.id === recipeKitchenTool.id);
         if (currentIndex <= 0) return;
 
         const prevItem = items[currentIndex - 1];
@@ -143,12 +143,12 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
         items[currentIndex - 1].displayOrder = currentItemDisplayOrder;
 
         items.sort((a, b) => a.displayOrder - b.displayOrder);
-        onUpdateRecipe({ usefulItems: items });
+        onUpdateRecipe({ kitchenTools: items });
     };
 
-    const handleMoveUsefulItemDown = (recipeUsefulItem: AdminRecipeUsefulItem) => {
-        const items = [...(recipe.usefulItems || [])];
-        const currentIndex = items.findIndex(item => item.id === recipeUsefulItem.id);
+    const handleMoveKitchenToolDown = (recipeKitchenTool: AdminRecipeKitchenTool) => {
+        const items = [...(recipe.kitchenTools || [])];
+        const currentIndex = items.findIndex(item => item.id === recipeKitchenTool.id);
         if (currentIndex === -1 || currentIndex >= items.length - 1) return;
 
         const nextItem = items[currentIndex + 1];
@@ -158,35 +158,35 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
         items[currentIndex + 1].displayOrder = currentItemDisplayOrder;
 
         items.sort((a, b) => a.displayOrder - b.displayOrder);
-        onUpdateRecipe({ usefulItems: items });
+        onUpdateRecipe({ kitchenTools: items });
     };
 
-    const handleCreateNewUsefulItem = () => {
-        setNewUsefulItemModalVisible(true);
+    const handleCreateNewKitchenTool = () => {
+        setNewKitchenToolModalVisible(true);
     };
 
-    const handleNewUsefulItemCreated = (newUsefulItem: AdminUsefulItem) => {
-        setUsefulItems(prev => [...prev, newUsefulItem]);
-        setNewUsefulItemModalVisible(false);
-        handleAddRecipeUsefulItem(newUsefulItem);
+    const handleNewKitchenToolCreated = (newKitchenTool: AdminKitchenTool) => {
+        setKitchenTools(prev => [...prev, newKitchenTool]);
+        setNewKitchenToolModalVisible(false);
+        handleAddRecipeKitchenTool(newKitchenTool);
     };
 
-    // Sort the selected useful items by display order
-    const sortedRecipeUsefulItems = useMemo(() => {
-        return [...(recipe.usefulItems || [])].sort((a, b) =>
+    // Sort the selected kitchen tools by display order
+    const sortedRecipeKitchenTools = useMemo(() => {
+        return [...(recipe.kitchenTools || [])].sort((a, b) =>
             a.displayOrder - b.displayOrder
         );
-    }, [recipe.usefulItems]);
+    }, [recipe.kitchenTools]);
 
     // Get IDs of already selected items
     const selectedItemIds = useMemo(() => {
-        return (recipe.usefulItems || []).map(item => item.usefulItemId);
-    }, [recipe.usefulItems]);
+        return (recipe.kitchenTools || []).map(item => item.kitchenToolId);
+    }, [recipe.kitchenTools]);
 
     return (
         <FormSection
-            title={i18n.t('admin.recipes.form.usefulItemsInfo.title')}
-            error={errors.usefulItems}
+            title={i18n.t('admin.recipes.form.kitchenToolsInfo.title')}
+            error={errors.kitchenTools}
         >
             {isMobile ? (
                 /* ===== MOBILE LAYOUT: Stacked, Selected first ===== */
@@ -194,16 +194,16 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
                     {/* Create New + Search */}
                     <View className="mb-md">
                         <Button
-                            label={i18n.t('admin.recipes.form.usefulItemsInfo.createNew')}
+                            label={i18n.t('admin.recipes.form.kitchenToolsInfo.createNew')}
                             variant="outline"
                             size="small"
-                            onPress={handleCreateNewUsefulItem}
+                            onPress={handleCreateNewKitchenTool}
                             className="mb-sm"
                         />
                         <SearchBar
                             searchQuery={searchQuery}
                             setSearchQuery={setSearchQuery}
-                            placeholder={i18n.t('admin.recipes.form.usefulItemsInfo.searchPlaceholder')}
+                            placeholder={i18n.t('admin.recipes.form.kitchenToolsInfo.searchPlaceholder')}
                             className="w-full"
                         />
                     </View>
@@ -211,12 +211,12 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
                     {/* Selected Items (FIRST on mobile) */}
                     <View className="mb-lg">
                         <SelectedItemsSection
-                            items={sortedRecipeUsefulItems}
+                            items={sortedRecipeKitchenTools}
                             displayLocale={displayLocale || authoringLocale}
-                            onEdit={handleEditRecipeUsefulItem}
-                            onDelete={handleDeleteRecipeUsefulItem}
-                            onMoveUp={handleMoveUsefulItemUp}
-                            onMoveDown={handleMoveUsefulItemDown}
+                            onEdit={handleEditRecipeKitchenTool}
+                            onDelete={handleDeleteRecipeKitchenTool}
+                            onMoveUp={handleMoveKitchenToolUp}
+                            onMoveDown={handleMoveKitchenToolDown}
                             variant="compact"
                         />
                     </View>
@@ -224,14 +224,14 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
                     {/* Available Items (SECOND on mobile) */}
                     <View>
                         <Text preset="subheading" className="mb-sm">
-                            {i18n.t('admin.recipes.form.usefulItemsInfo.availableHeader', { defaultValue: 'Available Items' })}
+                            {i18n.t('admin.recipes.form.kitchenToolsInfo.availableHeader', { defaultValue: 'Available Items' })}
                         </Text>
                         <AvailableItemsSection
-                            items={filteredUsefulItems}
+                            items={filteredKitchenTools}
                             loading={loading}
                             searchQuery={searchQuery}
                             selectedItemIds={selectedItemIds}
-                            onAddItem={handleAddRecipeUsefulItem}
+                            onAddItem={handleAddRecipeKitchenTool}
                             displayLocale={displayLocale || authoringLocale}
                             variant="compact"
                         />
@@ -244,16 +244,16 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
                     <View className="flex-row items-center gap-md mb-md">
                         <View className="flex-1">
                             <Button
-                                label={i18n.t('admin.recipes.form.usefulItemsInfo.createNew')}
+                                label={i18n.t('admin.recipes.form.kitchenToolsInfo.createNew')}
                                 variant="outline"
                                 size="small"
-                                onPress={handleCreateNewUsefulItem}
+                                onPress={handleCreateNewKitchenTool}
                                 className="mb-sm max-w-[150px]"
                             />
                             <SearchBar
                                 searchQuery={searchQuery}
                                 setSearchQuery={setSearchQuery}
-                                placeholder={i18n.t('admin.recipes.form.usefulItemsInfo.searchPlaceholder')}
+                                placeholder={i18n.t('admin.recipes.form.kitchenToolsInfo.searchPlaceholder')}
                                 className="w-full mr-sm"
                             />
                         </View>
@@ -267,11 +267,11 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
                         {/* Left Column - Available Items */}
                         <ScrollView style={{ flex: 1, marginRight: 16, ...(rightColHeight ? { maxHeight: rightColHeight } : {}) }}>
                             <AvailableItemsSection
-                                items={filteredUsefulItems}
+                                items={filteredKitchenTools}
                                 loading={loading}
                                 searchQuery={searchQuery}
                                 selectedItemIds={selectedItemIds}
-                                onAddItem={handleAddRecipeUsefulItem}
+                                onAddItem={handleAddRecipeKitchenTool}
                                 displayLocale={displayLocale || authoringLocale}
                             />
                         </ScrollView>
@@ -279,12 +279,12 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
                         {/* Right Column - Selected Items */}
                         <View className="flex-[1.8]" onLayout={(e) => setRightColHeight(e.nativeEvent.layout.height)}>
                             <SelectedItemsSection
-                                items={sortedRecipeUsefulItems}
+                                items={sortedRecipeKitchenTools}
                                 displayLocale={displayLocale || authoringLocale}
-                                onEdit={handleEditRecipeUsefulItem}
-                                onDelete={handleDeleteRecipeUsefulItem}
-                                onMoveUp={handleMoveUsefulItemUp}
-                                onMoveDown={handleMoveUsefulItemDown}
+                                onEdit={handleEditRecipeKitchenTool}
+                                onDelete={handleDeleteRecipeKitchenTool}
+                                onMoveUp={handleMoveKitchenToolUp}
+                                onMoveDown={handleMoveKitchenToolDown}
                             />
                         </View>
                     </View>
@@ -292,24 +292,24 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
             )}
 
             {/* Modals */}
-            <RecipeUsefulItemFormModal
+            <RecipeKitchenToolFormModal
                 visible={modalVisible}
                 onClose={() => setModalVisible(false)}
-                onSave={handleSaveRecipeUsefulItem}
-                recipeUsefulItem={selectedRecipeUsefulItem}
-                existingUsefulItems={recipe.usefulItems || []}
+                onSave={handleSaveRecipeKitchenTool}
+                recipeKitchenTool={selectedRecipeKitchenTool}
+                existingKitchenTools={recipe.kitchenTools || []}
                 authoringLocale={authoringLocale}
             />
 
-            <CreateEditUsefulItemModal
-                visible={newUsefulItemModalVisible}
-                onClose={() => setNewUsefulItemModalVisible(false)}
-                onSuccess={handleNewUsefulItemCreated}
+            <CreateEditKitchenToolModal
+                visible={newKitchenToolModalVisible}
+                onClose={() => setNewKitchenToolModalVisible(false)}
+                onSuccess={handleNewKitchenToolCreated}
             />
 
             <AlertModal
                 visible={showErrorAlert}
-                title={i18n.t('admin.recipes.form.usefulItemsInfo.errorTitle')}
+                title={i18n.t('admin.recipes.form.kitchenToolsInfo.errorTitle')}
                 message={errorMessage}
                 onConfirm={() => setShowErrorAlert(false)}
                 confirmText={i18n.t('common.ok')}

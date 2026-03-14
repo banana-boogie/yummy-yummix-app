@@ -1,15 +1,15 @@
 /**
- * AdminUsefulItemsService Tests
+ * AdminKitchenToolsService Tests
  *
- * Tests for admin useful items service covering:
- * - Fetching all useful items
- * - Creating useful items
- * - Updating useful items
- * - Deleting useful items
+ * Tests for admin kitchen tools service covering:
+ * - Fetching all kitchen tools
+ * - Creating kitchen tools
+ * - Updating kitchen tools
+ * - Deleting kitchen tools
  * - Image handling
  */
 
-import { AdminUsefulItemsService } from '../adminUsefulItemsService';
+import { AdminKitchenToolsService } from '../adminKitchenToolsService';
 
 // Mock Supabase
 const mockFrom = jest.fn();
@@ -72,10 +72,10 @@ jest.mock('../../base/BaseService', () => ({
   },
 }));
 
-describe('AdminUsefulItemsService', () => {
-  let service: AdminUsefulItemsService;
+describe('AdminKitchenToolsService', () => {
+  let service: AdminKitchenToolsService;
 
-  const mockUsefulItem = {
+  const mockKitchenTool = {
     id: 'item-1',
     image_url: 'https://example.com/bowl.png',
     translations: [
@@ -86,7 +86,7 @@ describe('AdminUsefulItemsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new AdminUsefulItemsService();
+    service = new AdminKitchenToolsService();
 
     // Setup default mock chain
     mockFrom.mockReturnValue({
@@ -101,12 +101,12 @@ describe('AdminUsefulItemsService', () => {
       eq: mockEq,
       single: mockSingle,
     });
-    mockOrder.mockResolvedValue({ data: [mockUsefulItem], error: null });
+    mockOrder.mockResolvedValue({ data: [mockKitchenTool], error: null });
     mockEq.mockReturnValue({
       single: mockSingle,
       select: mockSelect,
     });
-    mockSingle.mockResolvedValue({ data: mockUsefulItem, error: null });
+    mockSingle.mockResolvedValue({ data: mockKitchenTool, error: null });
     mockDelete.mockReturnValue({ eq: mockEq });
     mockInsert.mockReturnValue({
       select: jest.fn().mockReturnValue({ single: mockSingle }),
@@ -116,29 +116,29 @@ describe('AdminUsefulItemsService', () => {
   });
 
   // ============================================================
-  // GET ALL USEFUL ITEMS TESTS
+  // GET ALL KITCHEN TOOLS TESTS
   // ============================================================
 
-  describe('getAllUsefulItems', () => {
-    it('fetches all useful items with default sort', async () => {
-      await service.getAllUsefulItems();
+  describe('getAllKitchenTools', () => {
+    it('fetches all kitchen tools with default sort', async () => {
+      await service.getAllKitchenTools();
 
-      expect(mockFrom).toHaveBeenCalledWith('useful_items');
+      expect(mockFrom).toHaveBeenCalledWith('kitchen_tools');
     });
 
     it('sorts by Spanish name client-side', async () => {
-      await service.getAllUsefulItems('es');
+      await service.getAllKitchenTools('es');
 
       // Still fetches from same table, sorting happens client-side now
-      expect(mockFrom).toHaveBeenCalledWith('useful_items');
+      expect(mockFrom).toHaveBeenCalledWith('kitchen_tools');
     });
   });
 
   // ============================================================
-  // CREATE USEFUL ITEM TESTS
+  // CREATE KITCHEN TOOL TESTS
   // ============================================================
 
-  describe('createUsefulItem', () => {
+  describe('createKitchenTool', () => {
     it('creates item without image', async () => {
       const newItem = {
         translations: [
@@ -152,10 +152,10 @@ describe('AdminUsefulItemsService', () => {
         error: null,
       });
 
-      await service.createUsefulItem(newItem as any);
+      await service.createKitchenTool(newItem as any);
 
-      // First call: insert into useful_items (non-translatable only)
-      expect(mockFrom).toHaveBeenCalledWith('useful_items');
+      // First call: insert into kitchen_tools (non-translatable only)
+      expect(mockFrom).toHaveBeenCalledWith('kitchen_tools');
       expect(mockInsert).toHaveBeenCalledWith(
         expect.objectContaining({
           image_url: '',
@@ -170,7 +170,7 @@ describe('AdminUsefulItemsService', () => {
       );
 
       // Second call: insert translations
-      expect(mockFrom).toHaveBeenCalledWith('useful_item_translations');
+      expect(mockFrom).toHaveBeenCalledWith('kitchen_tool_translations');
     });
 
     it('creates item with image upload', async () => {
@@ -189,10 +189,10 @@ describe('AdminUsefulItemsService', () => {
         error: null,
       });
 
-      await service.createUsefulItem(newItem as any);
+      await service.createKitchenTool(newItem as any);
 
       expect(mockUploadImage).toHaveBeenCalledWith({
-        bucket: 'useful-items',
+        bucket: 'kitchen-tools',
         folderPath: 'images',
         fileName: 'Espátula.png',
         file: mockFile,
@@ -202,10 +202,10 @@ describe('AdminUsefulItemsService', () => {
   });
 
   // ============================================================
-  // UPDATE USEFUL ITEM TESTS
+  // UPDATE KITCHEN TOOL TESTS
   // ============================================================
 
-  describe('updateUsefulItem', () => {
+  describe('updateKitchenTool', () => {
     it('updates item name fields via translation upsert', async () => {
       const updates = {
         id: 'item-1',
@@ -215,19 +215,19 @@ describe('AdminUsefulItemsService', () => {
         ],
       };
 
-      await service.updateUsefulItem('item-1', updates as any);
+      await service.updateKitchenTool('item-1', updates as any);
 
-      // Name fields should NOT go to the useful_items table update
+      // Name fields should NOT go to the kitchen_tools table update
       expect(mockUpdate).not.toHaveBeenCalled();
 
       // Should upsert translations
-      expect(mockFrom).toHaveBeenCalledWith('useful_item_translations');
+      expect(mockFrom).toHaveBeenCalledWith('kitchen_tool_translations');
       expect(mockUpsert).toHaveBeenCalledWith(
         [
-          { useful_item_id: 'item-1', locale: 'en', name: 'Updated Bowl' },
-          { useful_item_id: 'item-1', locale: 'es', name: 'Tazón Actualizado' },
+          { kitchen_tool_id: 'item-1', locale: 'en', name: 'Updated Bowl' },
+          { kitchen_tool_id: 'item-1', locale: 'es', name: 'Tazón Actualizado' },
         ],
-        { onConflict: 'useful_item_id,locale' }
+        { onConflict: 'kitchen_tool_id,locale' }
       );
     });
 
@@ -250,7 +250,7 @@ describe('AdminUsefulItemsService', () => {
       mockUploadImage.mockResolvedValue('https://example.com/new-bowl.png');
       mockDeleteImage.mockResolvedValue(undefined);
 
-      await service.updateUsefulItem('item-1', updates as any);
+      await service.updateKitchenTool('item-1', updates as any);
 
       expect(mockDeleteImage).toHaveBeenCalledWith('https://example.com/old-bowl.png');
       expect(mockUploadImage).toHaveBeenCalled();
@@ -259,7 +259,7 @@ describe('AdminUsefulItemsService', () => {
     it('returns original item when no changes', async () => {
       const item = { id: 'item-1' };
 
-      const result = await service.updateUsefulItem('item-1', item as any);
+      const result = await service.updateKitchenTool('item-1', item as any);
 
       expect(result).toEqual(item);
       expect(mockUpdate).not.toHaveBeenCalled();
@@ -279,17 +279,17 @@ describe('AdminUsefulItemsService', () => {
         }),
       });
 
-      await expect(service.updateUsefulItem('item-1', updates as any)).rejects.toThrow(
-        'Error fetching current useful item: Fetch failed'
+      await expect(service.updateKitchenTool('item-1', updates as any)).rejects.toThrow(
+        'Error fetching current kitchen tool: Fetch failed'
       );
     });
   });
 
   // ============================================================
-  // DELETE USEFUL ITEM TESTS
+  // DELETE KITCHEN TOOL TESTS
   // ============================================================
 
-  describe('deleteUsefulItem', () => {
+  describe('deleteKitchenTool', () => {
     it('deletes item and its image', async () => {
       mockEq.mockReturnValue({
         single: mockSingle,
@@ -306,17 +306,17 @@ describe('AdminUsefulItemsService', () => {
       });
       mockDeleteImage.mockResolvedValue(undefined);
 
-      await service.deleteUsefulItem('item-1');
+      await service.deleteKitchenTool('item-1');
 
       expect(mockDeleteImage).toHaveBeenCalledWith('https://example.com/bowl.png');
     });
 
     it('throws error for invalid id', async () => {
-      await expect(service.deleteUsefulItem('')).rejects.toThrow(
-        'Invalid useful item ID provided'
+      await expect(service.deleteKitchenTool('')).rejects.toThrow(
+        'Invalid kitchen tool ID provided'
       );
-      await expect(service.deleteUsefulItem(null as any)).rejects.toThrow(
-        'Invalid useful item ID provided'
+      await expect(service.deleteKitchenTool(null as any)).rejects.toThrow(
+        'Invalid kitchen tool ID provided'
       );
     });
 
@@ -330,8 +330,8 @@ describe('AdminUsefulItemsService', () => {
         }),
       });
 
-      await expect(service.deleteUsefulItem('item-1')).rejects.toThrow(
-        'Error deleting useful item: Delete failed'
+      await expect(service.deleteKitchenTool('item-1')).rejects.toThrow(
+        'Error deleting kitchen tool: Delete failed'
       );
     });
 
@@ -350,7 +350,7 @@ describe('AdminUsefulItemsService', () => {
         }),
       });
 
-      await service.deleteUsefulItem('item-1');
+      await service.deleteKitchenTool('item-1');
 
       // Should not throw, deletion continues
       expect(consoleSpy).toHaveBeenCalled();
@@ -376,7 +376,7 @@ describe('AdminUsefulItemsService', () => {
       mockUploadImage.mockResolvedValue('https://example.com/cutting-board.png');
       mockSingle.mockResolvedValue({ data: { id: 'new-item' }, error: null });
 
-      await service.createUsefulItem(newItem as any);
+      await service.createKitchenTool(newItem as any);
 
       expect(mockUploadImage).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -397,7 +397,7 @@ describe('AdminUsefulItemsService', () => {
       mockUploadImage.mockResolvedValue('https://example.com/tabla.png');
       mockSingle.mockResolvedValue({ data: { id: 'new-item' }, error: null });
 
-      await service.createUsefulItem(newItem as any);
+      await service.createKitchenTool(newItem as any);
 
       expect(mockUploadImage).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -412,14 +412,14 @@ describe('AdminUsefulItemsService', () => {
         pictureUrl: mockFile,
       };
 
-      mockUploadImage.mockResolvedValue('https://example.com/useful-item.png');
+      mockUploadImage.mockResolvedValue('https://example.com/kitchen-tool.png');
       mockSingle.mockResolvedValue({ data: { id: 'new-item' }, error: null });
 
-      await service.createUsefulItem(newItem as any);
+      await service.createKitchenTool(newItem as any);
 
       expect(mockUploadImage).toHaveBeenCalledWith(
         expect.objectContaining({
-          fileName: 'useful-item.png',
+          fileName: 'kitchen-tool.png',
         })
       );
     });

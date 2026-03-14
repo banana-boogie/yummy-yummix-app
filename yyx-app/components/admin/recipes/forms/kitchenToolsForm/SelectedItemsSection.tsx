@@ -2,25 +2,25 @@ import React from 'react';
 import { View } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
-import { AdminRecipeUsefulItem } from '@/types/recipe.admin.types';
-import { AdminRecipeUsefulItemCard } from './AdminRecipeUsefulItemCard';
+import { AdminRecipeKitchenTool } from '@/types/recipe.admin.types';
+import { AdminRecipeKitchenToolCard } from './AdminRecipeKitchenToolCard';
 import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 
 interface SelectedItemsSectionProps {
-    items: AdminRecipeUsefulItem[];
+    items: AdminRecipeKitchenTool[];
     displayLocale?: string;
-    onEdit: (item: AdminRecipeUsefulItem) => void;
-    onDelete: (item: AdminRecipeUsefulItem) => void;
-    onMoveUp: (item: AdminRecipeUsefulItem) => void;
-    onMoveDown: (item: AdminRecipeUsefulItem) => void;
+    onEdit: (item: AdminRecipeKitchenTool) => void;
+    onDelete: (item: AdminRecipeKitchenTool) => void;
+    onMoveUp: (item: AdminRecipeKitchenTool) => void;
+    onMoveDown: (item: AdminRecipeKitchenTool) => void;
     /** Compact variant for mobile (no min-height constraint) */
     variant?: 'default' | 'compact';
 }
 
 /**
- * Displays the list of selected useful items for a recipe.
- * Used in both mobile and desktop layouts of RecipeUsefulItemsForm.
+ * Displays the list of selected kitchen tools for a recipe.
+ * Used in both mobile and desktop layouts of RecipeKitchenToolsForm.
  */
 export function SelectedItemsSection({
     items,
@@ -37,10 +37,10 @@ export function SelectedItemsSection({
         <View>
             <View className="flex-row justify-between items-center p-sm bg-background-SECONDARY rounded-md mb-sm">
                 <Text preset="subheading">
-                    {i18n.t('admin.recipes.form.usefulItemsInfo.selectedHeader')}
+                    {i18n.t('admin.recipes.form.kitchenToolsInfo.selectedHeader')}
                 </Text>
                 <Text preset="caption" color={COLORS.text.secondary}>
-                    {i18n.t('admin.recipes.form.usefulItemsInfo.selectedCount', {
+                    {i18n.t('admin.recipes.form.kitchenToolsInfo.selectedCount', {
                         count: items.length || 0,
                     })}
                 </Text>
@@ -50,15 +50,15 @@ export function SelectedItemsSection({
                 <View className={`p-lg items-center justify-center bg-background-SECONDARY rounded-md ${isCompact ? 'min-h-[120px]' : 'min-h-[400px]'}`}>
                     <Ionicons name="information-circle-outline" size={32} color={COLORS.text.secondary} />
                     <Text className="mt-sm text-center" color={COLORS.text.secondary}>
-                        {i18n.t('admin.recipes.form.usefulItemsInfo.noSelectedItems')}
+                        {i18n.t('admin.recipes.form.kitchenToolsInfo.noSelectedItems')}
                     </Text>
                 </View>
             ) : (
                 <View className={`p-xs bg-background-SECONDARY rounded-md ${isCompact ? '' : 'min-h-[400px]'}`}>
-                    {items.map((recipeUsefulItem, index) => (
-                        <AdminRecipeUsefulItemCard
-                            key={recipeUsefulItem.id}
-                            recipeUsefulItem={recipeUsefulItem}
+                    {items.map((recipeKitchenTool, index) => (
+                        <AdminRecipeKitchenToolCard
+                            key={recipeKitchenTool.id}
+                            recipeKitchenTool={recipeKitchenTool}
                             displayLocale={displayLocale}
                             onEdit={onEdit}
                             onDelete={onDelete}

@@ -3,26 +3,26 @@ import { Text } from '@/components/common/Text';
 import { Image } from 'expo-image';
 import i18n from '@/i18n';
 import { SectionHeading } from '@/components/recipe-detail/SectionHeading';
-import { RecipeUsefulItem } from '@/types/recipe.types';
+import { RecipeKitchenTool } from '@/types/recipe.types';
 
-export interface RecipeUsefulItemsProps {
-  usefulItems: RecipeUsefulItem[];
+export interface RecipeKitchenToolsProps {
+  kitchenTools: RecipeKitchenTool[];
   className?: string; // Add className
   style?: StyleProp<ViewStyle>;
 }
 
-export const RecipeUsefulItems: React.FC<RecipeUsefulItemsProps> = ({
-  usefulItems,
+export const RecipeKitchenTools: React.FC<RecipeKitchenToolsProps> = ({
+  kitchenTools,
   className = '',
   style
 }) => {
-  if (!usefulItems || usefulItems.length === 0) return null;
+  if (!kitchenTools || kitchenTools.length === 0) return null;
 
   return (
     <View className={`mb-md ${className}`} style={style}>
-      <SectionHeading heading={i18n.t('recipes.detail.usefulItems.heading')} />
+      <SectionHeading heading={i18n.t('recipes.detail.kitchenTools.heading')} />
       <View className="flex-row justify-between flex-wrap gap-lg px-md lg:px-0">
-        {usefulItems.map((item) => (
+        {kitchenTools.map((item) => (
           <View key={item.id} className="items-center w-[45%]">
             <Image
               source={item.pictureUrl}

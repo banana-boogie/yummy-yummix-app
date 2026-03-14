@@ -1,30 +1,30 @@
 import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
-import { AdminUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
+import { AdminKitchenTool, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import { Text } from '@/components/common/Text';
 import { useDevice } from '@/hooks/useDevice';
 
-interface UsefulItemCardProps {
-  usefulItem: AdminUsefulItem;
+interface KitchenToolCardProps {
+  kitchenTool: AdminKitchenTool;
   displayLocale: string;
-  onEdit: (usefulItem: AdminUsefulItem) => void;
-  onDelete: (usefulItem: AdminUsefulItem) => void;
+  onEdit: (kitchenTool: AdminKitchenTool) => void;
+  onDelete: (kitchenTool: AdminKitchenTool) => void;
 }
 
-export function UsefulItemCard({ usefulItem, displayLocale, onEdit, onDelete }: UsefulItemCardProps) {
+export function KitchenToolCard({ kitchenTool, displayLocale, onEdit, onDelete }: KitchenToolCardProps) {
   const { isPhone } = useDevice();
-  const name = getTranslatedField(usefulItem.translations, displayLocale, 'name') || '—';
+  const name = getTranslatedField(kitchenTool.translations, displayLocale, 'name') || '—';
 
   return (
     <View className="flex-row bg-white rounded-sm mb-md p-md shadow-md items-center">
       {/* Image */}
       <View className={`${isPhone ? 'w-[50px] h-[50px]' : 'w-[60px] h-[60px]'} rounded-xs overflow-hidden mr-md`}>
-        {usefulItem.pictureUrl ? (
+        {kitchenTool.pictureUrl ? (
           <Image
-            source={{ uri: usefulItem.pictureUrl }}
+            source={{ uri: kitchenTool.pictureUrl }}
             className="w-full h-full"
             contentFit="cover"
           />
@@ -45,7 +45,7 @@ export function UsefulItemCard({ usefulItem, displayLocale, onEdit, onDelete }: 
         <TouchableOpacity
           className="p-sm"
           accessibilityRole="button"
-          onPress={() => onEdit(usefulItem)}
+          onPress={() => onEdit(kitchenTool)}
         >
           <Ionicons name="create-outline" size={isPhone ? 20 : 22} color={COLORS.text.default} />
         </TouchableOpacity>
@@ -53,7 +53,7 @@ export function UsefulItemCard({ usefulItem, displayLocale, onEdit, onDelete }: 
         <TouchableOpacity
           className="p-sm"
           accessibilityRole="button"
-          onPress={() => onDelete(usefulItem)}
+          onPress={() => onDelete(kitchenTool)}
         >
           <Ionicons name="trash-outline" size={isPhone ? 20 : 22} color={COLORS.status.error} />
         </TouchableOpacity>

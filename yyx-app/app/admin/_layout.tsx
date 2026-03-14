@@ -45,9 +45,9 @@ export default function AdminLayout() {
           }}
         />
         <Stack.Screen
-          name="useful-items"
+          name="kitchen-tools"
           options={{
-            title: i18n.t('admin.common.manageUsefulItems')
+            title: i18n.t('admin.common.manageKitchenTools')
           }}
         />
         <Stack.Screen
@@ -74,7 +74,7 @@ const navItems = [
   { titleKey: 'admin.common.recipes', icon: 'restaurant-outline', route: '/admin/recipes' as const },
   { titleKey: 'admin.common.ingredients', icon: 'leaf-outline', route: '/admin/ingredients' as const },
   { titleKey: 'admin.common.tags', icon: 'pricetags-outline', route: '/admin/tags' as const },
-  { titleKey: 'admin.common.usefulItems', icon: 'cube-outline', route: '/admin/useful-items' as const },
+  { titleKey: 'admin.common.kitchenTools', icon: 'cube-outline', route: '/admin/kitchen-tools' as const },
   { titleKey: 'admin.common.backToApp', icon: 'exit-outline', route: '/' as const },
 ];
 

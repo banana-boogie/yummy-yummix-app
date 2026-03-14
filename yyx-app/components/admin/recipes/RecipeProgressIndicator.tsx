@@ -6,7 +6,7 @@ import { Text } from '@/components/common/Text';
 export enum CreateRecipeStep {
   INITIAL_SETUP = 0,
   BASIC_INFO = 1,
-  USEFUL_ITEMS = 2,
+  KITCHEN_TOOLS = 2,
   INGREDIENTS = 3,
   STEPS = 4,
   TAGS = 5,
@@ -28,7 +28,7 @@ export function RecipeProgressIndicator({
 
   const steps = [
     i18n.t('admin.recipes.form.basicInfo.title'),
-    i18n.t('admin.recipes.form.usefulItemsInfo.title'),
+    i18n.t('admin.recipes.form.kitchenToolsInfo.title'),
     i18n.t('admin.recipes.form.ingredientsInfo.title'),
     i18n.t('admin.recipes.form.stepsInfo.title'),
     i18n.t('admin.recipes.form.tagsInfo.title'),
