@@ -206,29 +206,43 @@ export async function createIngredient(
   };
 }
 
+/** Capitalize first letter of each word (Title Case) */
+function titleCase(str: string): string {
+  return str.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Capitalize first letter only */
+function capitalizeFirst(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 export async function createKitchenTool(
   supabase: SupabaseClient,
   item: { name_en: string; name_es: string; image_url?: string },
 ): Promise<DbKitchenTool> {
+  // Normalize casing: Title Case for EN, capitalize first for ES
+  const nameEn = titleCase(item.name_en.trim());
+  const nameEs = capitalizeFirst(item.name_es.trim());
+
   const { data, error } = await supabase
     .from('kitchen_tools')
     .insert({ image_url: item.image_url || '' })
     .select('id')
     .single();
-  if (error) throw new Error(`Failed to create kitchen tool "${item.name_en}": ${error.message}`);
+  if (error) throw new Error(`Failed to create kitchen tool "${nameEn}": ${error.message}`);
 
   const { error: tErr } = await supabase
     .from('kitchen_tool_translations')
     .insert([
-      { kitchen_tool_id: data.id, locale: 'en', name: item.name_en },
-      { kitchen_tool_id: data.id, locale: 'es', name: item.name_es },
+      { kitchen_tool_id: data.id, locale: 'en', name: nameEn },
+      { kitchen_tool_id: data.id, locale: 'es', name: nameEs },
     ]);
   if (tErr) throw new Error(`Failed to create kitchen tool translations: ${tErr.message}`);
 
   return {
     id: data.id,
-    name_en: item.name_en,
-    name_es: item.name_es,
+    name_en: nameEn,
+    name_es: nameEs,
     image_url: item.image_url || '',
   };
 }

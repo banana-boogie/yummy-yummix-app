@@ -118,8 +118,8 @@ const recipeJsonSchema = {
         items: {
           type: 'object',
           properties: {
-            nameEn: { type: 'string', description: 'English useful tool name.' },
-            nameEs: { type: 'string', description: 'Spanish useful tool name.' },
+            nameEn: { type: 'string', description: 'English kitchen tool name in Title Case (e.g., "Airtight Container", "Rolling Pin", "Baking Tray").' },
+            nameEs: { type: 'string', description: 'Spanish kitchen tool name with first letter capitalized (e.g., "Recipiente hermético", "Rodillo", "Bandeja de hornear").' },
             displayOrder: {
               type: 'number',
               description: '1-based index indicating the order of the kitchen tool.',
@@ -150,22 +150,22 @@ const recipeJsonSchema = {
                 nameEn: {
                   type: 'string',
                   description:
-                    'Only the ingredient name (in English.), no quantities, no adjectives, no descriptions, or notes.',
+                    'The BASE ingredient name in English, singular. No quantities, no prep (fresh, chopped, diced), no form (cloves, sprigs, slices). E.g., "dientes de ajo" → "garlic", "ramita de romero fresco" → "rosemary", "miga de pan blanco" → "white bread crumbs".',
                 },
                 pluralNameEn: {
                   type: 'string',
                   description:
-                    'Only the plural ingredient name (in English.), no quantities, no adjectives, no descriptions, or notes.',
+                    'The PLURAL form of the base ingredient name in English. E.g., "garlic" → "garlic", "tomato" → "tomatoes", "bread crumb" → "bread crumbs".',
                 },
                 nameEs: {
                   type: 'string',
                   description:
-                    'Only the ingredient name (in Spanish), no quantities, no adjectives, no descriptions, or notes.',
+                    'The BASE ingredient name in Spanish, singular. No quantities, no prep (fresco, picado), no form (dientes, ramitas, rebanadas). E.g., "dientes de ajo" → "ajo", "ramita de romero fresco" → "romero", "miga de pan blanco" → "miga de pan".',
                 },
                 pluralNameEs: {
                   type: 'string',
                   description:
-                    'Only the plural ingredient name (in Spanish), no quantities, no adjectives, no descriptions, or notes.',
+                    'The PLURAL form of the base ingredient name in Spanish. E.g., "ajo" → "ajos", "tomate" → "tomates".',
                 },
               },
               required: ['nameEn', 'nameEs', 'pluralNameEn', 'pluralNameEs'],
@@ -429,6 +429,22 @@ Example: "licúa 20 seg/vel 4-8, aumentando la velocidad progresivamente"
 - portions: extract from aside blocks ("Porciones: 4"). Must be a whole number of servings. If a weight is given instead (e.g., "200g", "1 kg"), use 4 as default. If missing, use 4.
 - difficulty: extract from aside blocks ("Nivel de dificultad: fácil" → "easy", "medio/media" → "medium", "difícil" → "hard"). If missing, use "medium".
 - If English content is empty or missing, translate the Spanish content to English.
+
+## Ingredient Names
+
+Use BASE ingredient names only — strip prep methods, forms, and freshness from the name:
+- "dientes de ajo" → nameEs: "ajo", nameEn: "garlic" (NOT "garlic clove")
+- "ramita de romero fresco" → nameEs: "romero", nameEn: "rosemary" (NOT "fresh rosemary sprig")
+- "miga de pan blanco" → nameEs: "miga de pan", nameEn: "bread crumbs" (NOT "white bread crumb")
+- "pechuga de pollo deshuesada" → nameEs: "pechuga de pollo", nameEn: "chicken breast"
+
+Put prep/form details (fresh, chopped, sliced, cloves, sprigs) in the ingredient's notesEn/notesEs fields instead.
+Plural names must be actual plurals: "bread crumb" → "bread crumbs", "tomato" → "tomatoes".
+
+## Kitchen Tool Names
+
+Use Title Case for English names: "Airtight Container", "Rolling Pin", "Baking Tray".
+Capitalize first letter for Spanish names: "Recipiente hermético", "Rodillo".
 
 ## Critical Rules
 
