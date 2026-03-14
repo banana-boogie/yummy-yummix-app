@@ -104,6 +104,6 @@ export function AvailableItemsSection({
                     </Text>
                 </View>
             )}
-        </Wrapper>
+        </View>
     );
 }

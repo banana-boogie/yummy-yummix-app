@@ -35,6 +35,7 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
     const [newUsefulItemModalVisible, setNewUsefulItemModalVisible] = useState(false);
     const [showErrorAlert, setShowErrorAlert] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+    const [rightColHeight, setRightColHeight] = useState<number | undefined>(undefined);
 
     // Initialize usefulItems array if it doesn't exist
     useEffect(() => {
@@ -261,9 +262,9 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
                     </View>
 
                     {/* Content Row */}
-                    <View className="flex-row flex-wrap" style={{ minHeight: 400, alignItems: 'stretch' }}>
+                    <View className="flex-row flex-wrap" style={{ minHeight: 400 }}>
                         {/* Left Column - Available Items */}
-                        <ScrollView style={{ flex: 1, marginRight: 16 }}>
+                        <ScrollView style={{ flex: 1, marginRight: 16, ...(rightColHeight ? { maxHeight: rightColHeight } : {}) }}>
                             <AvailableItemsSection
                                 items={filteredUsefulItems}
                                 loading={loading}
@@ -275,7 +276,7 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
                         </ScrollView>
 
                         {/* Right Column - Selected Items */}
-                        <View className="flex-[1.8]">
+                        <View className="flex-[1.8]" onLayout={(e) => setRightColHeight(e.nativeEvent.layout.height)}>
                             <SelectedItemsSection
                                 items={sortedRecipeUsefulItems}
                                 displayLocale={displayLocale || authoringLocale}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, FlatList, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { AdminRecipe, AdminRecipeIngredient, AdminIngredient, getTranslatedField } from '@/types/recipe.admin.types';
@@ -41,6 +41,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [rightColHeight, setRightColHeight] = useState<number | undefined>(undefined);
   const isWeb = Platform.OS === 'web';
 
   // Group ingredients by recipeSection
@@ -508,8 +509,8 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
               </View>
             </View>
 
-            <View className="flex-1 min-h-[400px] flex-row gap-lg" style={{ alignItems: 'stretch' }}>
-              <ScrollView className="flex-[1.2] rounded-md bg-background-SECONDARY">
+            <View className="flex-1 min-h-[400px] flex-row gap-lg">
+              <ScrollView className="flex-[1.2] rounded-md bg-background-SECONDARY" style={rightColHeight ? { maxHeight: rightColHeight } : undefined}>
                 {loading ? (
                   <View className="flex-1 justify-center items-center p-lg">
                     <ActivityIndicator size="large" color={COLORS.primary.default} />
@@ -539,7 +540,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                 )}
               </ScrollView>
 
-              <View className="flex-[2.5] rounded-md bg-background-SECONDARY overflow-hidden">
+              <View className="flex-[2.5] rounded-md bg-background-SECONDARY overflow-hidden" onLayout={(e) => setRightColHeight(e.nativeEvent.layout.height)}>
                 {recipe.ingredients.length === 0 ? (
                   <View className="flex-1 justify-center items-center p-lg min-h-[200px]">
                     <Ionicons name="basket-outline" size={32} color={COLORS.text.secondary} />
