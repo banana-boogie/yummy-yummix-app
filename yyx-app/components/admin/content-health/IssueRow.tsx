@@ -30,16 +30,16 @@ function getIssueBadges(issue: ContentHealthIssue): Badge[] {
   const badges: Badge[] = [];
 
   if (issue.missingEn) {
-    badges.push({ label: t('noEn'), color: COLORS.status.warning, bgColor: '#FFF3E0' });
+    badges.push({ label: t('noEn'), color: COLORS.status.warning, bgColor: COLORS.status.warning + '1A' });
   }
   if (issue.missingEs) {
-    badges.push({ label: t('noEs'), color: COLORS.status.warning, bgColor: '#FFF3E0' });
+    badges.push({ label: t('noEs'), color: COLORS.status.warning, bgColor: COLORS.status.warning + '1A' });
   }
   if (issue.missingImage) {
-    badges.push({ label: t('noImage'), color: COLORS.status.error, bgColor: '#FDECEA' });
+    badges.push({ label: t('noImage'), color: COLORS.status.error, bgColor: COLORS.status.error + '1A' });
   }
   if (issue.missingNutrition) {
-    badges.push({ label: t('noNutrition'), color: COLORS.primary.darkest, bgColor: '#FDECEA' });
+    badges.push({ label: t('noNutrition'), color: COLORS.primary.darkest, bgColor: COLORS.primary.darkest + '1A' });
   }
   if (issue.isPublished === false) {
     badges.push({ label: t('draft'), color: COLORS.text.secondary, bgColor: COLORS.grey.light });
@@ -63,10 +63,10 @@ export function IssueRow({ issue, onPublished }: IssueRowProps) {
         router.push(`/admin/recipes/${issue.id}` as never);
         break;
       case 'ingredient':
-        router.push(`/admin/ingredients/${issue.id}` as never);
+        router.push('/admin/ingredients' as never);
         break;
       case 'useful_item':
-        router.push(`/admin/kitchen-tools/${issue.id}` as never);
+        router.push('/admin/kitchen-tools' as never);
         break;
     }
   };

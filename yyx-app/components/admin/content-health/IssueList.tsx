@@ -1,5 +1,5 @@
-import React from 'react';
-import { View } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, FlatList } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { ContentHealthIssue } from '@/services/admin/adminContentHealthService';
 import { IssueRow } from '@/components/admin/content-health/IssueRow';
@@ -14,6 +14,18 @@ interface IssueListProps {
 export function IssueList({ issues, count, onPublished }: IssueListProps) {
   const t = (key: string, opts?: Record<string, unknown>) =>
     i18n.t(`admin.contentHealth.${key}`, opts);
+
+  const renderItem = useCallback(
+    ({ item }: { item: ContentHealthIssue }) => (
+      <IssueRow issue={item} onPublished={onPublished} />
+    ),
+    [onPublished],
+  );
+
+  const keyExtractor = useCallback(
+    (item: ContentHealthIssue) => `${item.entityType}-${item.id}`,
+    [],
+  );
 
   if (issues.length === 0) {
     return (
@@ -30,9 +42,12 @@ export function IssueList({ issues, count, onPublished }: IssueListProps) {
       <Text preset="caption" className="text-text-secondary mb-sm">
         {t('issueCount', { count })}
       </Text>
-      {issues.map((issue) => (
-        <IssueRow key={`${issue.entityType}-${issue.id}`} issue={issue} onPublished={onPublished} />
-      ))}
+      <FlatList
+        data={issues}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        scrollEnabled={false}
+      />
     </View>
   );
 }

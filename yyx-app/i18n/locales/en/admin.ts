@@ -173,6 +173,7 @@ export const admin = {
     loading: "Loading content health...",
     error: "Failed to load content health data",
     retry: "Retry",
+    publishError: "Failed to publish recipe",
     noIssues: "No issues found",
     issueCount: "{{count}} issues",
   },

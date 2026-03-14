@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
@@ -38,8 +38,9 @@ export function PublishReadinessChecklist({ issue, onPublished }: PublishReadine
     try {
       await adminContentHealthService.publishRecipe(issue.id);
       onPublished();
-    } catch {
-      // Silently fail — user can retry
+    } catch (err) {
+      const message = err instanceof Error ? err.message : i18n.t('admin.contentHealth.publishError');
+      Alert.alert(i18n.t('admin.contentHealth.publishError'), message);
     } finally {
       setPublishing(false);
     }

@@ -15,15 +15,21 @@ BEGIN
     RAISE EXCEPTION 'Admin access required';
   END IF;
 
-  WITH recipe_issues AS (
+  WITH step_counts AS (
+    SELECT recipe_id, count(*)::int AS cnt FROM recipe_steps GROUP BY recipe_id
+  ),
+  ingredient_counts AS (
+    SELECT recipe_id, count(*)::int AS cnt FROM recipe_ingredients GROUP BY recipe_id
+  ),
+  recipe_issues AS (
     SELECT
       r.id,
       'recipe' AS entity_type,
       COALESCE(rt_en.name, rt_es.name, r.id::text) AS name,
       r.image_url,
       r.is_published,
-      (SELECT count(*)::int FROM recipe_steps rs WHERE rs.recipe_id = r.id) AS step_count,
-      (SELECT count(*)::int FROM recipe_ingredients ri WHERE ri.recipe_id = r.id) AS ingredient_count,
+      COALESCE(sc.cnt, 0) AS step_count,
+      COALESCE(ic.cnt, 0) AS ingredient_count,
       (rt_en.recipe_id IS NULL) AS missing_en,
       (rt_es.recipe_id IS NULL) AS missing_es,
       (r.image_url IS NULL OR r.image_url = '') AS missing_image,
@@ -31,6 +37,8 @@ BEGIN
     FROM recipes r
     LEFT JOIN recipe_translations rt_en ON rt_en.recipe_id = r.id AND rt_en.locale = 'en'
     LEFT JOIN recipe_translations rt_es ON rt_es.recipe_id = r.id AND rt_es.locale = 'es'
+    LEFT JOIN step_counts sc ON sc.recipe_id = r.id
+    LEFT JOIN ingredient_counts ic ON ic.recipe_id = r.id
     WHERE rt_en.recipe_id IS NULL
        OR rt_es.recipe_id IS NULL
        OR r.image_url IS NULL OR r.image_url = ''
