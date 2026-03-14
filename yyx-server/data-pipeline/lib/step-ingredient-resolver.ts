@@ -35,6 +35,8 @@ export function resolveStepIngredients(
   const stepOrderToId = new Map(insertedSteps.map((s) => [s.order, s.id]));
   const items: RecipeStepIngredientInsert[] = [];
   const unresolved: UnresolvedStepIngredient[] = [];
+  // Track (stepId, ingredientId) pairs to avoid duplicate key violations
+  const seen = new Set<string>();
 
   for (const step of parsed.steps) {
     const stepId = stepOrderToId.get(step.order);
@@ -74,6 +76,11 @@ export function resolveStepIngredients(
         });
         continue;
       }
+
+      // Skip duplicate (stepId, ingredientId) pairs — DB has unique constraint
+      const key = `${stepId}:${dbIngredient.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
 
       const unit = matchMeasurementUnit(ing.measurementUnitID, allUnits);
       items.push({
