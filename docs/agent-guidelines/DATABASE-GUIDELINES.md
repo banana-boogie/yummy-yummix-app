@@ -334,7 +334,7 @@ There are two distinct patterns depending on whether the translation table is fo
 
 #### Pattern 1 — Reference data (`USING (true)`)
 
-Use this for standalone reference tables (ingredients, measurement units, tags, useful items). Their translations are always public regardless of any recipe's publish status.
+Use this for standalone reference tables (ingredients, measurement units, tags, kitchen tools). Their translations are always public regardless of any recipe's publish status.
 
 ```sql
 ALTER TABLE public.ingredient_translations ENABLE ROW LEVEL SECURITY;
