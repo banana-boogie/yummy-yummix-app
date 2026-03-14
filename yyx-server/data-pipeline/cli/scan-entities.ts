@@ -1,25 +1,26 @@
-#!/usr/bin/env -S deno run --allow-read --allow-write
+#!/usr/bin/env -S deno run --allow-net --allow-read --allow-write --allow-env
 /**
  * Scan Notion Markdown Exports for Entity Names
  *
  * Extracts ingredient names, useful item names, and tags from Notion recipe
- * markdown files WITHOUT hitting any AI API. Outputs a JSON report of all
- * unique entities found across the export, useful for pre-seeding the DB
- * before running the full import.
+ * markdown files WITHOUT hitting any AI API. Cross-references against the
+ * database to show only MISSING entities that need to be pre-seeded.
  *
  * Usage:
- *   deno run --allow-read --allow-write data-pipeline/cli/scan-entities.ts \
- *     --dir ./path/to/RECIPES
+ *   deno task pipeline:scan --local --dir ./path/to/RECIPES
  *
  * Output: data-pipeline/scan-report.json
  */
 
-// ─── Helpers ─────────────────────────────────────────────
+import { createPipelineConfig, hasFlag, parseEnvironment, parseFlag } from '../lib/config.ts';
+import {
+  type DbIngredient,
+  type DbRecipeTag,
+  type DbUsefulItem,
+} from '../lib/entity-matcher.ts';
+import * as db from '../lib/db.ts';
 
-function parseFlag(args: string[], flag: string): string | undefined {
-  const idx = args.indexOf(flag);
-  return idx !== -1 && idx + 1 < args.length ? args[idx + 1] : undefined;
-}
+// ─── Helpers ─────────────────────────────────────────────
 
 /**
  * Strip quantity, unit, and prep notes from a Spanish ingredient line.
@@ -49,22 +50,86 @@ function extractIngredientName(line: string): string {
   text = text.replace(/^de\s+/i, '');
 
   // Remove trailing prep notes after comma
-  // "cilantro, y un poco más para decorar" → "cilantro"
-  // "pepino, pelado y cortado en trozos" → "pepino"
   text = text.replace(/,\s+.*$/, '');
 
   return text.trim();
 }
 
-// ─── Extraction ──────────────────────────────────────────
+// ─── Fuzzy matching (simplified from entity-matcher.ts) ──
 
-interface ScanResult {
-  ingredients: Map<string, number>; // name → count of recipes containing it
-  usefulItems: Map<string, number>;
-  tags: Map<string, number>;
-  recipeCount: number;
-  stubCount: number;
+function normalize(name: string): string {
+  return name.toLowerCase().trim();
 }
+
+function editDistance(s1: string, s2: string): number {
+  const a = s1.toLowerCase();
+  const b = s2.toLowerCase();
+  const costs: number[] = [];
+  for (let i = 0; i <= a.length; i++) {
+    let lastValue = i;
+    for (let j = 0; j <= b.length; j++) {
+      if (i === 0) {
+        costs[j] = j;
+      } else if (j > 0) {
+        let newValue = costs[j - 1];
+        if (a.charAt(i - 1) !== b.charAt(j - 1)) {
+          newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+        }
+        costs[j - 1] = lastValue;
+        lastValue = newValue;
+      }
+    }
+    if (i > 0) costs[b.length] = lastValue;
+  }
+  return costs[b.length];
+}
+
+function similarity(s1: string, s2: string): number {
+  if (!s1 || !s2) return 0;
+  const longer = s1.length > s2.length ? s1 : s2;
+  const shorter = s1.length > s2.length ? s2 : s1;
+  if (longer.length === 0) return 1.0;
+  return (longer.length - editDistance(longer, shorter)) / longer.length;
+}
+
+const SIMILARITY_THRESHOLD = 0.8;
+
+/** Check if a Spanish ingredient name matches any DB ingredient */
+function findIngredientMatch(nameEs: string, dbIngredients: DbIngredient[]): DbIngredient | null {
+  const n = normalize(nameEs);
+  // Exact match on name_es or plural_name_es
+  const exact = dbIngredients.find(
+    (db) => normalize(db.name_es) === n || normalize(db.plural_name_es) === n,
+  );
+  if (exact) return exact;
+  // Fuzzy match
+  return dbIngredients.find(
+    (db) => similarity(n, normalize(db.name_es)) >= SIMILARITY_THRESHOLD,
+  ) || null;
+}
+
+/** Check if a tag name matches any DB tag */
+function findTagMatch(tagName: string, dbTags: DbRecipeTag[]): DbRecipeTag | null {
+  const n = normalize(tagName);
+  return dbTags.find(
+    (tag) => normalize(tag.name_en) === n || normalize(tag.name_es) === n,
+  ) || null;
+}
+
+/** Check if a useful item name matches any DB item */
+function findUsefulItemMatch(nameEs: string, dbItems: DbUsefulItem[]): DbUsefulItem | null {
+  const n = normalize(nameEs);
+  const exact = dbItems.find(
+    (item) => normalize(item.name_en) === n || normalize(item.name_es) === n,
+  );
+  if (exact) return exact;
+  return dbItems.find(
+    (item) => similarity(n, normalize(item.name_es)) >= SIMILARITY_THRESHOLD ||
+      similarity(n, normalize(item.name_en)) >= SIMILARITY_THRESHOLD,
+  ) || null;
+}
+
+// ─── Extraction ──────────────────────────────────────────
 
 function hasRecipeContent(content: string): boolean {
   const lines = content.split('\n');
@@ -102,7 +167,7 @@ function extractEntities(content: string): {
           tags.push(t);
         }
       }
-      break; // Only first Tags line
+      break;
     }
   }
 
@@ -110,7 +175,6 @@ function extractEntities(content: string): {
   for (const line of lines) {
     const trimmed = line.trim();
 
-    // Detect section headers
     if (trimmed === '### Ingredientes' || trimmed === '### Ingredients (metric)') {
       section = 'ingredientes';
       continue;
@@ -138,22 +202,18 @@ function extractEntities(content: string): {
       }
     }
 
-    // Extract based on current section
     if (section === 'ingredientes' && trimmed.startsWith('-') && trimmed.length > 2) {
       const name = extractIngredientName(trimmed);
       if (name) ingredients.push(name.toLowerCase());
     }
 
     if (section === 'utensilios' && trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('-') && !trimmed.startsWith('<')) {
-      // Useful items are comma-separated on a single line
       for (const item of trimmed.split(',').map((s) => s.trim()).filter(Boolean)) {
-        // Skip hashtag entries and HTML tags that leaked into this section
         if (item.length > 1 && !item.startsWith('#') && !item.startsWith('<')) {
           usefulItems.push(item.toLowerCase());
         }
       }
     }
-    // Also handle list format for useful items
     if (section === 'utensilios' && trimmed.startsWith('-') && trimmed.length > 2) {
       const item = trimmed.replace(/^-\s*/, '').trim();
       if (item && !item.startsWith('**') && !item.startsWith('#')) usefulItems.push(item.toLowerCase());
@@ -165,15 +225,27 @@ function extractEntities(content: string): {
 
 // ─── Main ────────────────────────────────────────────────
 
+const env = parseEnvironment(Deno.args);
+const config = createPipelineConfig(env);
 const dataDir = parseFlag(Deno.args, '--dir');
+
 if (!dataDir) {
-  console.error('Usage: deno run ... --dir ./path/to/RECIPES');
+  console.error('Usage: deno task pipeline:scan --local --dir ./path/to/RECIPES');
   Deno.exit(1);
 }
 
-const ingredients = new Map<string, number>();
-const usefulItems = new Map<string, number>();
-const tags = new Map<string, number>();
+console.log('\nLoading reference data from database...');
+const [dbIngredients, dbTags, dbUsefulItems] = await Promise.all([
+  db.fetchAllIngredients(config.supabase),
+  db.fetchAllTags(config.supabase),
+  db.fetchAllUsefulItems(config.supabase),
+]);
+console.log(`Loaded: ${dbIngredients.length} ingredients, ${dbTags.length} tags, ${dbUsefulItems.length} useful items\n`);
+
+// Scan files
+const allIngredients = new Map<string, number>();
+const allUsefulItems = new Map<string, number>();
+const allTags = new Map<string, number>();
 let recipeCount = 0;
 let stubCount = 0;
 
@@ -190,53 +262,112 @@ for (const entry of Deno.readDirSync(dataDir)) {
   const entities = extractEntities(content);
 
   for (const name of new Set(entities.ingredients)) {
-    ingredients.set(name, (ingredients.get(name) || 0) + 1);
+    allIngredients.set(name, (allIngredients.get(name) || 0) + 1);
   }
   for (const name of new Set(entities.usefulItems)) {
-    usefulItems.set(name, (usefulItems.get(name) || 0) + 1);
+    allUsefulItems.set(name, (allUsefulItems.get(name) || 0) + 1);
   }
   for (const name of new Set(entities.tags)) {
-    tags.set(name, (tags.get(name) || 0) + 1);
+    allTags.set(name, (allTags.get(name) || 0) + 1);
   }
 }
 
-// Sort by frequency (most common first)
-const sortByCount = (map: Map<string, number>) =>
-  [...map.entries()].sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count }));
+// Cross-reference against DB
+const missingIngredients: Array<{ name: string; count: number }> = [];
+const matchedIngredients: Array<{ name: string; count: number; matchedTo: string }> = [];
+for (const [name, count] of allIngredients) {
+  const match = findIngredientMatch(name, dbIngredients);
+  if (match) {
+    matchedIngredients.push({ name, count, matchedTo: `${match.name_es} / ${match.name_en}` });
+  } else {
+    missingIngredients.push({ name, count });
+  }
+}
+missingIngredients.sort((a, b) => b.count - a.count);
 
+const missingTags: Array<{ name: string; count: number }> = [];
+const matchedTags: Array<{ name: string; count: number; matchedTo: string }> = [];
+for (const [name, count] of allTags) {
+  const match = findTagMatch(name, dbTags);
+  if (match) {
+    matchedTags.push({ name, count, matchedTo: `${match.name_es} / ${match.name_en}` });
+  } else {
+    missingTags.push({ name, count });
+  }
+}
+missingTags.sort((a, b) => b.count - a.count);
+
+const missingUsefulItems: Array<{ name: string; count: number }> = [];
+const matchedUsefulItems: Array<{ name: string; count: number; matchedTo: string }> = [];
+for (const [name, count] of allUsefulItems) {
+  const match = findUsefulItemMatch(name, dbUsefulItems);
+  if (match) {
+    matchedUsefulItems.push({ name, count, matchedTo: `${match.name_es} / ${match.name_en}` });
+  } else {
+    missingUsefulItems.push({ name, count });
+  }
+}
+missingUsefulItems.sort((a, b) => b.count - a.count);
+
+// Write report
 const report = {
   summary: {
     totalFiles: recipeCount + stubCount,
     recipesWithContent: recipeCount,
     stubs: stubCount,
-    uniqueIngredients: ingredients.size,
-    uniqueUsefulItems: usefulItems.size,
-    uniqueTags: tags.size,
+    ingredients: {
+      total: allIngredients.size,
+      matched: matchedIngredients.length,
+      missing: missingIngredients.length,
+    },
+    usefulItems: {
+      total: allUsefulItems.size,
+      matched: matchedUsefulItems.length,
+      missing: missingUsefulItems.length,
+    },
+    tags: {
+      total: allTags.size,
+      matched: matchedTags.length,
+      missing: missingTags.length,
+    },
   },
-  ingredients: sortByCount(ingredients),
-  usefulItems: sortByCount(usefulItems),
-  tags: sortByCount(tags),
+  missingIngredients,
+  missingUsefulItems,
+  missingTags,
+  matchedIngredients,
+  matchedUsefulItems,
+  matchedTags,
 };
 
 const outPath = new URL('../scan-report.json', import.meta.url).pathname;
 Deno.writeTextFileSync(outPath, JSON.stringify(report, null, 2));
 
-console.log(`\n=== Entity Scan Report ===\n`);
-console.log(`Recipes with content: ${recipeCount}`);
-console.log(`Stubs (no content): ${stubCount}`);
-console.log(`Unique ingredients: ${ingredients.size}`);
-console.log(`Unique useful items: ${usefulItems.size}`);
-console.log(`Unique tags: ${tags.size}`);
-console.log(`\nTop 20 ingredients:`);
-for (const { name, count } of sortByCount(ingredients).slice(0, 20)) {
-  console.log(`  ${count.toString().padStart(3)}x  ${name}`);
+// Console output
+console.log(`=== Entity Scan Report ===\n`);
+console.log(`Recipes with content: ${recipeCount} (${stubCount} stubs filtered)\n`);
+
+console.log(`INGREDIENTS: ${allIngredients.size} unique → ${matchedIngredients.length} matched, ${missingIngredients.length} MISSING`);
+if (missingIngredients.length > 0) {
+  console.log(`\n  Missing ingredients (need to create):`);
+  for (const { name, count } of missingIngredients) {
+    console.log(`    ${count.toString().padStart(3)}x  ${name}`);
+  }
 }
-console.log(`\nAll useful items:`);
-for (const { name, count } of sortByCount(usefulItems)) {
-  console.log(`  ${count.toString().padStart(3)}x  ${name}`);
+
+console.log(`\nUSEFUL ITEMS: ${allUsefulItems.size} unique → ${matchedUsefulItems.length} matched, ${missingUsefulItems.length} MISSING`);
+if (missingUsefulItems.length > 0) {
+  console.log(`\n  Missing useful items (need to create):`);
+  for (const { name, count } of missingUsefulItems) {
+    console.log(`    ${count.toString().padStart(3)}x  ${name}`);
+  }
 }
-console.log(`\nAll tags:`);
-for (const { name, count } of sortByCount(tags)) {
-  console.log(`  ${count.toString().padStart(3)}x  ${name}`);
+
+console.log(`\nTAGS: ${allTags.size} unique → ${matchedTags.length} matched, ${missingTags.length} MISSING`);
+if (missingTags.length > 0) {
+  console.log(`\n  Missing tags (need to create):`);
+  for (const { name, count } of missingTags) {
+    console.log(`    ${count.toString().padStart(3)}x  ${name}`);
+  }
 }
+
 console.log(`\nFull report: ${outPath}`);
