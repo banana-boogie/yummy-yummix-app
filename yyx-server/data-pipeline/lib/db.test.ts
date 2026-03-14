@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { escapeIlike, findRecipeByName } from './db.ts';
 
 type MaybeSingleResult = {
-  data?: { id: string } | null;
+  data?: { recipe_id: string } | null;
   error?: { message: string } | null;
 };
 
@@ -16,6 +16,7 @@ function createMockSupabase(results: MaybeSingleResult[]): {
 
   const chain = {
     select: () => chain,
+    eq: () => chain,
     ilike: (_column: string, value: string) => {
       patterns.push(value);
       return chain;
@@ -44,7 +45,7 @@ Deno.test('escapeIlike escapes wildcard characters', () => {
 
 Deno.test('findRecipeByName escapes and finds English match first', async () => {
   const { client, patterns } = createMockSupabase([
-    { data: { id: 'recipe-en' }, error: null },
+    { data: { recipe_id: 'recipe-en' }, error: null },
   ]);
 
   const id = await findRecipeByName(client, 'Best 50%_Soup', 'Sopa');
@@ -55,7 +56,7 @@ Deno.test('findRecipeByName escapes and finds English match first', async () => 
 Deno.test('findRecipeByName falls back to Spanish search', async () => {
   const { client, patterns } = createMockSupabase([
     { data: null, error: null },
-    { data: { id: 'recipe-es' }, error: null },
+    { data: { recipe_id: 'recipe-es' }, error: null },
   ]);
 
   const id = await findRecipeByName(client, 'Soup', 'Sopa_100%');
