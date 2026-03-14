@@ -379,6 +379,7 @@ export const admin = {
         kitchenTools: "Kitchen Tools",
         publish: "Publish Recipe",
         noTagsFound: "No tags found",
+        noKitchenTools: "No kitchen tools added to this recipe.",
       },
       tabs: {
         details: "Details",

@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, ScrollView } from 'react-native';
 import { Text } from '@/components/common/Text';
+import { COLORS } from '@/constants/design-tokens';
+import i18n from '@/i18n';
 import { AdminRecipeKitchenTool } from '@/types/recipe.admin.types';
 import { AdminRecipeKitchenToolCard } from '@/components/admin/recipes/forms/kitchenToolsForm/AdminRecipeKitchenToolCard';
 
@@ -47,8 +49,8 @@ export const AdminRecipeKitchenToolsList: React.FC<AdminRecipeKitchenToolsListPr
           ))
         ) : (
           <View className="p-md items-center justify-center">
-            <Text preset="body" color="#6B7280" className="text-center">
-              No kitchen tools added to this recipe.
+            <Text preset="body" color={COLORS.text.secondary} className="text-center">
+              {i18n.t('admin.recipes.form.reviewInfo.noKitchenTools')}
             </Text>
           </View>
         )}

@@ -384,6 +384,7 @@ export const admin = {
         kitchenTools: "Utensilios de Cocina",
         publish: "Publicar Receta",
         noTagsFound: "No se encontraron etiquetas",
+        noKitchenTools: "No se han agregado utensilios de cocina a esta receta.",
       },
       tabs: {
         details: "Detalles",
