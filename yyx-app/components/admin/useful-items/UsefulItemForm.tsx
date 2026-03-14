@@ -12,6 +12,7 @@ import { FormRow } from '@/components/form/FormRow';
 import { ImageUploadSection } from '@/components/admin/recipes/forms/common/ImageUploadSection';
 import { useAdminLocales } from '@/hooks/admin/useAdminLocales';
 import { translateContent } from '@/services/admin/adminTranslateService';
+import logger from '@/services/logger';
 
 interface UsefulItemFormProps {
     usefulItem?: AdminUsefulItem;
@@ -110,7 +111,7 @@ export function UsefulItemForm({
                 );
             }
         } catch (error) {
-            console.error('Auto-translate failed:', error);
+            logger.error('Auto-translate failed:', error);
             setTranslateError(i18n.t('admin.translate.autoTranslateFailed', { defaultValue: 'Auto-translate failed. Please try again.' }));
         } finally {
             setTranslating(false);

@@ -1,6 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Platform } from 'react-native';
+import logger from '@/services/logger';
 
 export interface ImagePickerOptions {
   aspect?: [number, number];
@@ -102,7 +103,7 @@ export const pickImage = async (options: ImagePickerOptions = {}) => {
           }
         }
       } catch (manipulationError) {
-        console.error('Image manipulation error:', manipulationError);
+        logger.error('Image manipulation error:', manipulationError);
         
         // Fallback: use the original image if manipulation fails
         const originalUri = result.assets[0].uri;
@@ -123,7 +124,7 @@ export const pickImage = async (options: ImagePickerOptions = {}) => {
       }
     }
   } catch (error) {
-    console.error('Error picking image:', error);
+    logger.error('Error picking image:', error);
     if (onError) onError(error);
   } finally {
     isLoading = false;

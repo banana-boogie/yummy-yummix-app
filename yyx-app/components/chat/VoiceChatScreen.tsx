@@ -26,6 +26,7 @@ import type { QuotaInfo, VoiceStatus } from '@/services/voice/types';
 import type { ChatMessage, IrmixyStatus, QuickAction } from '@/services/chatService';
 import type { GeneratedRecipe } from '@/types/irmixy';
 import i18n from '@/i18n';
+import logger from '@/services/logger';
 import { getChatCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
 
 const SCROLL_THRESHOLD = 600; // Large enough to accommodate recipe cards (~400px tall)
@@ -235,7 +236,7 @@ export function VoiceChatScreen({
                 Alert.alert(i18n.t('common.copied'), i18n.t('chat.messageCopied'));
             }
         } catch (copyError) {
-            if (__DEV__) console.error('[VoiceChatScreen] Failed to copy message:', copyError);
+            if (__DEV__) logger.error('[VoiceChatScreen] Failed to copy message:', copyError);
         }
     }, []);
 
@@ -259,7 +260,7 @@ export function VoiceChatScreen({
                 router.push(getChatCustomCookingGuidePath(recipeId));
             }
         } catch (startCookingError) {
-            console.error('[VoiceChatScreen] Start cooking error:', startCookingError);
+            logger.error('[VoiceChatScreen] Start cooking error:', startCookingError);
             Alert.alert(i18n.t('common.errors.title'), i18n.t('common.errors.generic'));
         }
     }, [router, updateMessage]);

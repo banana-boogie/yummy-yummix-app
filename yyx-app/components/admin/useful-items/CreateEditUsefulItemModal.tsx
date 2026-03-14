@@ -6,6 +6,7 @@ import { AdminUsefulItem } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { useDevice } from '@/hooks/useDevice';
+import logger from '@/services/logger';
 
 interface CreateEditUsefulItemModalProps {
   visible: boolean;
@@ -38,7 +39,7 @@ export function CreateEditUsefulItemModal({
       onSuccess?.(savedUsefulItem);
       onClose();
     } catch (error) {
-      console.error('Error saving useful item:', error);
+      logger.error('Error saving useful item:', error);
       setGeneralError(i18n.t('admin.usefulItems.errors.saveFailed') || 'Failed to save useful item');
     } finally {
       setSaving(false);

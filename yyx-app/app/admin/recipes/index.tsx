@@ -12,6 +12,7 @@ import { AlertModal } from '@/components/common/AlertModal';
 import i18n from '@/i18n';
 import { useDevice } from '@/hooks/useDevice';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
+import logger from '@/services/logger';
 
 export default function RecipesAdminPage() {
   const router = useRouter();
@@ -45,7 +46,7 @@ export default function RecipesAdminPage() {
       setRecipes(recipes);
       setFilteredRecipes(recipes);
     } catch (error) {
-      console.error('Error fetching recipes:', error);
+      logger.error('Error fetching recipes:', error);
     } finally {
       setLoading(false);
     }
@@ -110,7 +111,7 @@ export default function RecipesAdminPage() {
       );
       setRecipes(updatedRecipes);
     } catch (error) {
-      console.error('Error toggling recipe publish status:', error);
+      logger.error('Error toggling recipe publish status:', error);
     } finally {
       setShowPublishConfirm(false);
       setRecipeToPublish(null);
@@ -146,7 +147,7 @@ export default function RecipesAdminPage() {
       setShowDeleteConfirm(false);
       setRecipeToDelete(null);
     } catch (error) {
-      console.error('Error deleting recipe:', error);
+      logger.error('Error deleting recipe:', error);
       setDeleteError(error instanceof Error ? error.message : i18n.t('admin.recipes.errors.publishFailed'));
       setShowErrorAlert(true);
     }

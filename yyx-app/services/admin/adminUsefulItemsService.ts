@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { BaseService } from '../base/BaseService';
 import { imageService } from '../storage/imageService';
 import { AdminUsefulItem, AdminUsefulItemTranslation, pickTranslation, getNameFromTranslations } from '@/types/recipe.admin.types';
+import logger from '@/services/logger';
 
 export class AdminUsefulItemsService extends BaseService {
   constructor() {
@@ -58,7 +59,7 @@ export class AdminUsefulItemsService extends BaseService {
         forcePNG: true
       });
     } catch (error) {
-      console.error('Error uploading image:', error);
+      logger.error('Error uploading image:', error);
       throw new Error(`Error uploading image: ${error}`);
     }
   }
@@ -85,7 +86,7 @@ export class AdminUsefulItemsService extends BaseService {
           try {
             await this.deleteImage(currentItem.image_url);
           } catch (error) {
-            console.error('Error deleting old image:', error);
+            logger.error('Error deleting old image:', error);
           }
         }
 
@@ -143,10 +144,10 @@ export class AdminUsefulItemsService extends BaseService {
           await this.deleteImage(currentItem.image_url);
         }
         if (fetchError) {
-          console.error('Error fetching current useful item:', fetchError);
+          logger.error('Error fetching current useful item:', fetchError);
         }
       } catch (error) {
-        console.error('Error deleting old image:', error);
+        logger.error('Error deleting old image:', error);
       }
 
     const { error } = await this.supabase
@@ -155,7 +156,7 @@ export class AdminUsefulItemsService extends BaseService {
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting useful item:', error);
+      logger.error('Error deleting useful item:', error);
       throw new Error(`Error deleting useful item: ${error.message}`);
     }
   }

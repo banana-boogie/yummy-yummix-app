@@ -13,6 +13,7 @@ import { RecipeUsefulItemFormModal } from './RecipeUsefulItemFormModal';
 import { CreateEditUsefulItemModal } from '@/components/admin/useful-items/CreateEditUsefulItemModal';
 import { COLORS } from '@/constants/design-tokens';
 import { useDevice } from '@/hooks/useDevice';
+import logger from '@/services/logger';
 import { SelectedItemsSection } from './SelectedItemsSection';
 import { AvailableItemsSection } from './AvailableItemsSection';
 
@@ -53,7 +54,7 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
                 setUsefulItems(fetchedUsefulItems);
                 setFilteredUsefulItems(fetchedUsefulItems);
             } catch (error) {
-                console.error('Error fetching useful items:', error);
+                logger.error('Error fetching useful items:', error);
                 setErrorMessage(i18n.t('admin.recipes.form.usefulItemsInfo.fetchError'));
                 setShowErrorAlert(true);
             } finally {

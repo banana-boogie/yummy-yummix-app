@@ -3,6 +3,7 @@ import { getLocales } from 'expo-localization';
 import i18n from '../i18n';
 import { Platform } from 'react-native';
 import { Storage } from '@/utils/storage';
+import logger from '@/services/logger';
 
 export type Language = 'es' | 'en';
 
@@ -46,7 +47,7 @@ function getDeviceLocale(): string {
 
     return 'en';
   } catch (error) {
-    console.error('Error getting device locale:', error);
+    logger.error('Error getting device locale:', error);
     return 'en';
   }
 }
@@ -84,7 +85,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
         setIsLoading(false);
       } catch (error) {
-        console.error('Error loading locale preference:', error);
+        logger.error('Error loading locale preference:', error);
         setLocaleState('en');
         setLanguageState('en');
         i18n.locale = 'en';
@@ -107,7 +108,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       // Also update legacy key for backward compat
       await Storage.setItem('preferred-language', newLanguage);
     } catch (error) {
-      console.error('Error saving language preference:', error);
+      logger.error('Error saving language preference:', error);
     }
   };
 
@@ -123,7 +124,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       await Storage.setItem('preferred-locale', newLocale);
       await Storage.setItem('preferred-language', lang);
     } catch (error) {
-      console.error('Error saving locale preference:', error);
+      logger.error('Error saving locale preference:', error);
     }
   };
 

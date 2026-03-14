@@ -13,6 +13,7 @@ import { DangerButton } from '@/components/common/DangerButton';
 import { StatusModal } from '@/components/common/StatusModal';
 import { HeaderWithBack } from '@/components/common/HeaderWithBack';
 import { PageLayout } from '@/components/layouts/PageLayout';
+import logger from '@/services/logger';
 
 export default function Settings() {
   const { language, setLocale } = useLanguage();
@@ -49,7 +50,7 @@ export default function Settings() {
 
       setIsLoading(false);
     } catch (error) {
-      console.error('Error changing language:', error);
+      logger.error('Error changing language:', error);
       setError(i18n.t('common.errors.default'));
       setShowErrorModal(true);
       setIsLoading(false);
@@ -73,7 +74,7 @@ export default function Settings() {
       setShowSuccessModal(true);
       setTimeout(() => setShowSuccessModal(false), 2000);
     } catch (error) {
-      console.error('Error changing measurement system:', error);
+      logger.error('Error changing measurement system:', error);
       setError(i18n.t('common.errors.default'));
       setShowErrorModal(true);
     } finally {
@@ -88,7 +89,7 @@ export default function Settings() {
       await signOut();
 
     } catch (error) {
-      console.error('Error signing out:', error);
+      logger.error('Error signing out:', error);
       setError(typeof error === 'object' && error !== null && 'message' in error
         ? (error as Error).message
         : i18n.t('common.errors.default'));

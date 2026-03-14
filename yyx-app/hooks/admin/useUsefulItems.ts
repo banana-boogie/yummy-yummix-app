@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { adminUsefulItemsService } from '@/services/admin/adminUsefulItemsService';
 import { AdminUsefulItem } from '@/types/recipe.admin.types';
+import logger from '@/services/logger';
 
 export function useUsefulItems() {
   const [loading, setLoading] = useState(true);
@@ -15,7 +16,7 @@ export function useUsefulItems() {
       setUsefulItems(items);
       setFilteredUsefulItems(items);
     } catch (error) {
-      console.error('Error loading useful items:', error);
+      logger.error('Error loading useful items:', error);
     } finally {
       setLoading(false);
     }
@@ -46,7 +47,7 @@ export function useUsefulItems() {
       setUsefulItems(prev => prev.filter(i => i.id !== item.id));
       setFilteredUsefulItems(prev => prev.filter(i => i.id !== item.id));
     } catch (error) {
-      console.error('Error deleting useful item:', error);
+      logger.error('Error deleting useful item:', error);
       throw error;
     }
   };

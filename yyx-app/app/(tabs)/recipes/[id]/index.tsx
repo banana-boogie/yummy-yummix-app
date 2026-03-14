@@ -26,6 +26,7 @@ import { RecipeUsefulItem } from '@/types/recipe.types';
 import { ShareButton } from '@/components/common/ShareButton';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
+import logger from '@/services/logger';
 
 
 const RecipeDetail: React.FC = () => {
@@ -35,7 +36,7 @@ const RecipeDetail: React.FC = () => {
   // Validate ID early to prevent unnecessary API calls
   useEffect(() => {
     if (id && !isValidUUID(id as string)) {
-      console.warn(`Invalid recipe ID format: ${id}, redirecting to recipes page`);
+      logger.warn(`Invalid recipe ID format: ${id}, redirecting to recipes page`);
       // Using replace instead of push to avoid adding to history stack
       router.replace('/(tabs)/recipes');
     }

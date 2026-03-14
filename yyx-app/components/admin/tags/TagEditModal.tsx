@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/i18n';
 import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
 import { translateContent } from '@/services/admin/adminTranslateService';
+import logger from '@/services/logger';
 
 interface TagEditModalProps {
   visible: boolean;
@@ -65,7 +66,7 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
       setAvailableCategories(categories);
       setFilteredCategories(categories);
     } catch (error) {
-      console.error('Failed to fetch categories:', error);
+      logger.error('Failed to fetch categories:', error);
     }
   };
 
@@ -145,7 +146,7 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
       }
       setTranslations(updated);
     } catch (error) {
-      console.error('Auto-translate failed:', error);
+      logger.error('Auto-translate failed:', error);
     } finally {
       setTranslating(false);
     }
@@ -171,7 +172,7 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
         onSave(savedTag, isNew);
       }
     } catch (error) {
-      console.error('Error saving tag:', error);
+      logger.error('Error saving tag:', error);
     }
   };
 

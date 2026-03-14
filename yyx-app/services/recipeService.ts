@@ -1,5 +1,6 @@
 import i18n from '@/i18n';
 import { supabase } from '@/lib/supabase';
+import logger from '@/services/logger';
 import { RawRecipe } from '@/types/recipe.api.types';
 import { PostgrestSingleResponse } from '@supabase/supabase-js';
 import { recipeCache } from '@/services/cache/recipeCache';
@@ -189,7 +190,7 @@ const findRecipeIdsForSearch = async (
     .ilike('name', pattern)
     .limit(200);
 
-  if (nameError) console.warn('[recipeService] Name search error:', nameError.message);
+  if (nameError) logger.warn('[recipeService] Name search error:', nameError.message);
 
   // If isPublished filter is needed, we need to cross-reference
   if (isPublished !== undefined && nameMatches?.length) {
@@ -214,7 +215,7 @@ const findRecipeIdsForSearch = async (
     .select('ingredient_id')
     .ilike('name', pattern)
     .limit(200);
-  if (ingredientError) console.warn('[recipeService] Ingredient search error:', ingredientError.message);
+  if (ingredientError) logger.warn('[recipeService] Ingredient search error:', ingredientError.message);
 
   const ingredientIds = (ingredientMatches ?? []).map((row: any) => row.ingredient_id);
   if (ingredientIds.length > 0) {
@@ -223,7 +224,7 @@ const findRecipeIdsForSearch = async (
       .select('recipe_id')
       .in('ingredient_id', ingredientIds)
       .limit(500);
-    if (riError) console.warn('[recipeService] Recipe-ingredient join error:', riError.message);
+    if (riError) logger.warn('[recipeService] Recipe-ingredient join error:', riError.message);
 
     for (const row of recipeIngredientRows ?? []) {
       recipeIds.add(row.recipe_id);
@@ -236,7 +237,7 @@ const findRecipeIdsForSearch = async (
     .select('recipe_tag_id')
     .ilike('name', pattern)
     .limit(200);
-  if (tagError) console.warn('[recipeService] Tag search error:', tagError.message);
+  if (tagError) logger.warn('[recipeService] Tag search error:', tagError.message);
 
   const tagIds = (tagMatches ?? []).map((row: any) => row.recipe_tag_id);
   if (tagIds.length > 0) {
@@ -245,7 +246,7 @@ const findRecipeIdsForSearch = async (
       .select('recipe_id')
       .in('tag_id', tagIds)
       .limit(500);
-    if (rtError) console.warn('[recipeService] Recipe-tag join error:', rtError.message);
+    if (rtError) logger.warn('[recipeService] Recipe-tag join error:', rtError.message);
 
     for (const row of recipeTagRows ?? []) {
       recipeIds.add(row.recipe_id);

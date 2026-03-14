@@ -6,6 +6,7 @@ import i18n from '@/i18n';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { adminIngredientsService } from '@/services/admin/adminIngredientsService';
 import { useDevice } from '@/hooks/useDevice';
+import logger from '@/services/logger';
 
 interface CreateEditIngredientModalProps {
   visible: boolean;
@@ -36,7 +37,7 @@ export function CreateEditIngredientModal({
 
       onSuccess?.(savedIngredient);
     } catch (error) {
-      console.error('Error saving ingredient:', error);
+      logger.error('Error saving ingredient:', error);
       throw error; // Re-throw so IngredientForm can handle and show error alert
     } finally {
       setSaving(false);

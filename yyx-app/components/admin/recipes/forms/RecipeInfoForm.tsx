@@ -16,6 +16,7 @@ import { AlertModal } from '@/components/common/AlertModal';
 import { Text } from '@/components/common/Text';
 import { Image } from 'expo-image';
 import { AuthoringLanguagePicker } from './shared/AuthoringLanguagePicker';
+import logger from '@/services/logger';
 
 // Interface for recipe with image file
 interface ExtendedRecipe extends Partial<AdminRecipe> {
@@ -69,7 +70,7 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors, authoringLocale
         });
       },
       onError: (error) => {
-        console.error('Error picking image:', error);
+        logger.error('Error picking image:', error);
         setShowAlert(true);
       }
     });

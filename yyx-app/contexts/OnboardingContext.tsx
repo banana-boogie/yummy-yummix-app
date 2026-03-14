@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { OnboardingData } from '@/types/onboarding';
 import { Storage } from '@/utils/storage';
+import logger from '@/services/logger';
 
 const ONBOARDING_STORAGE_KEY = 'onboarding_state';
 
@@ -41,7 +42,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         setFormData(data);
       }
     } catch (error) {
-      console.error('Failed to load onboarding state:', error);
+      logger.error('Failed to load onboarding state:', error);
     }
   };
 
@@ -55,7 +56,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         })
       );
     } catch (error) {
-      console.error('Failed to save onboarding state:', error);
+      logger.error('Failed to save onboarding state:', error);
     }
   };
 
@@ -69,7 +70,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     try {
       await Storage.removeItem(ONBOARDING_STORAGE_KEY);
     } catch (error) {
-      console.error('Failed to reset onboarding state:', error);
+      logger.error('Failed to reset onboarding state:', error);
     }
   };
 

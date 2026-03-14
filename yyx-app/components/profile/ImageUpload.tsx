@@ -6,7 +6,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '@/lib/supabase';
 import { decode } from 'base64-arraybuffer';
 import { Text } from '@/components/common/Text';
-
+import logger from '@/services/logger';
 import { useProfileImage } from '@/hooks/useProfileImage';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -41,7 +41,7 @@ export default function ImageUpload(props: Props) {
           const signed = await getSignedUrl(url);
           setSignedUrl(signed);
         } catch (error) {
-          console.error('Error fetching signed URL:', error);
+          logger.error('Error fetching signed URL:', error);
         } finally {
           setLoading(false);
         }
@@ -102,7 +102,7 @@ export default function ImageUpload(props: Props) {
 
       await onUpload?.(publicUrl);
     } catch (error) {
-      console.error('Error uploading image:', error);
+      logger.error('Error uploading image:', error);
     } finally {
       setUploading(false);
     }

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { AppState, Platform } from 'react-native';
+import logger from '@/services/logger';
 
 type EventType =
   | 'view_recipe'
@@ -147,7 +148,7 @@ class EventService {
       if (this.queue.length < BATCH_SIZE * 3) {
         this.queue = [...eventsToSend, ...this.queue];
       }
-      console.warn('[eventService] Failed to flush events:', error);
+      logger.warn('[eventService] Failed to flush events:', error);
     }
   }
 

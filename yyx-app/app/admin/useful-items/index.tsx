@@ -13,6 +13,7 @@ import { CreateEditUsefulItemModal } from '@/components/admin/useful-items/Creat
 import { Button } from '@/components/common/Button';
 import { Text } from '@/components/common/Text';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
+import logger from '@/services/logger';
 
 export default function UsefulItemsAdminPage() {
   const {
@@ -54,7 +55,7 @@ export default function UsefulItemsAdminPage() {
     try {
       await handleDeleteUsefulItem(selectedUsefulItem);
     } catch (error) {
-      console.error('Error deleting useful item:', error);
+      logger.error('Error deleting useful item:', error);
       setErrorMessage(i18n.t('admin.usefulItems.errors.deleteFailed'));
       setShowErrorAlert(true);
     } finally {

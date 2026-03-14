@@ -1,5 +1,6 @@
 import { MeasurementUnit } from '@/types/recipe.types';
 import i18n from '@/i18n';
+import logger from '@/services/logger';
 
 // Conversion factors between units
 const CONVERSIONS = {
@@ -45,7 +46,7 @@ export function formatIngredientQuantity(value: number | string, unit?: string):
 
   // Handle NaN values
   if (isNaN(numValue)) {
-    console.warn('An invalid number was inputted in the formatIngredientQuantity', value)
+    logger.warn('An invalid number was inputted in the formatIngredientQuantity', value)
     return '0';
   }
 

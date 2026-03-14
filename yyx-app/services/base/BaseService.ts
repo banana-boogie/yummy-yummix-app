@@ -1,5 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toSnakeCaseKeys, toCamelCaseKeys } from '@/utils/transformers/caseTransform';
+import logger from '@/services/logger';
 
 export class BaseService {
   protected supabase: SupabaseClient;
@@ -126,7 +127,7 @@ export class BaseService {
     } catch (error) {
       const { error: rollbackError } = await this.supabase.rpc('rollback_transaction');
       if (rollbackError) {
-        console.error('Error during rollback:', rollbackError);
+        logger.error('Error during rollback:', rollbackError);
       }
       throw error;
     }

@@ -15,6 +15,7 @@ import { PageLayout } from '@/components/layouts/PageLayout';
 import { Ionicons } from '@expo/vector-icons';
 import { HamburgerMenu } from '@/components/navigation/HamburgerMenu';
 import { useDevice } from '@/hooks/useDevice';
+import logger from '@/services/logger';
 
 export default function Profile() {
   const { userProfile, updateUserProfile, isAdmin, loading } = useUserProfile();
@@ -43,7 +44,7 @@ export default function Profile() {
         await updateUserProfile({ profileImageUrl: null });
       }
     } catch (error) {
-      console.error('Error deleting image:', error);
+      logger.error('Error deleting image:', error);
     }
   };
 

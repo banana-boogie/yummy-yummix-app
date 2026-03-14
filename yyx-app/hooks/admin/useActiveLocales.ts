@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import logger from '@/services/logger';
 
 export interface ActiveLocale {
   code: string;
@@ -32,7 +33,7 @@ export function useActiveLocales(includeRegional = false) {
         const { data, error } = await query;
 
         if (error) {
-          console.error('Failed to fetch locales:', error);
+          logger.error('Failed to fetch locales:', error);
           // Fallback to hardcoded es/en
           if (!cancelled) {
             setLocales([

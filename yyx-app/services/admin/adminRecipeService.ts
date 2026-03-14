@@ -9,6 +9,7 @@ import { imageService } from '@/services/storage/imageService';
 import { BaseService } from '@/services/base/BaseService';
 import { RawStepIngredient } from '@/types/recipe.api.types';
 import { ThermomixSpeedSingle, ThermomixSpeedRange } from '@/types/thermomix.types';
+import logger from '@/services/logger';
 
 class AdminRecipeService extends BaseService {
   async getAllRecipesForAdmin(): Promise<AdminRecipe[]> {
@@ -239,7 +240,7 @@ class AdminRecipeService extends BaseService {
 
       return recipeId.id;
     } catch (error) {
-      console.error('Error in createRecipe:', error);
+      logger.error('Error in createRecipe:', error);
       throw error;
     }
   }
@@ -264,7 +265,7 @@ class AdminRecipeService extends BaseService {
         try {
           await this.deleteImage(oldRecipe.data.image_url);
         } catch (error) {
-          console.error('Error deleting old image:', error);
+          logger.error('Error deleting old image:', error);
         }
       }
 
@@ -522,12 +523,12 @@ class AdminRecipeService extends BaseService {
 
       const stepId = stepOrderToIdMap.get(recipeStep.order);
       if (!stepId) {
-        console.warn(`Could not find step ID for recipeStep order ${recipeStep.order}`);
+        logger.warn(`Could not find step ID for recipeStep order ${recipeStep.order}`);
         return;
       }
       recipeStep.ingredients.forEach((recipeStepIngredient, index) => {
         if (!recipeStepIngredient.ingredient?.id) {
-          console.warn(`Missing ingredient id for recipe step ${stepId}`)
+          logger.warn(`Missing ingredient id for recipe step ${stepId}`)
         }
         const transformedData = this.transformRequest({
           recipeId,
@@ -687,7 +688,7 @@ class AdminRecipeService extends BaseService {
         try {
           await this.deleteImage(recipe.image_url);
         } catch (imageError) {
-          console.error('Error deleting recipe image:', imageError);
+          logger.error('Error deleting recipe image:', imageError);
         }
       }
 
@@ -700,7 +701,7 @@ class AdminRecipeService extends BaseService {
         throw new Error(`Failed to delete recipe: ${error.message}`);
       }
     } catch (error) {
-      console.error('Error in deleteRecipe:', error);
+      logger.error('Error in deleteRecipe:', error);
       throw error;
     }
   }
@@ -935,7 +936,7 @@ class AdminRecipeService extends BaseService {
         file
       });
     } catch (error) {
-      console.error('Error uploading image:', error);
+      logger.error('Error uploading image:', error);
       throw new Error(`Error uploading image: ${error}`);
     }
   }

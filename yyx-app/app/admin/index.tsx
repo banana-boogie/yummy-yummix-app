@@ -7,6 +7,7 @@ import { adminRecipeService } from '@/services/admin/adminRecipeService';
 import { useRouter } from 'expo-router';
 import { Text } from '@/components/common/Text';
 import i18n from '@/i18n';
+import logger from '@/services/logger';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -24,7 +25,7 @@ export default function AdminDashboard() {
         setPublishedCount(recipes.filter(r => r.isPublished).length);
         setDraftCount(recipes.filter(r => !r.isPublished).length);
       } catch (error) {
-        console.error('Error loading dashboard data:', error);
+        logger.error('Error loading dashboard data:', error);
       } finally {
         setLoading(false);
       }

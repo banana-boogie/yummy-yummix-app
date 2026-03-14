@@ -12,6 +12,7 @@ import i18n from '@/i18n';
 import { CreateEditIngredientModal } from '@/components/admin/ingredients/CreateEditIngredientModal';
 import { Text } from '@/components/common/Text';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
+import logger from '@/services/logger';
 
 export default function IngredientsAdminPage() {
   const {
@@ -53,7 +54,7 @@ export default function IngredientsAdminPage() {
     try {
       await handleDeleteIngredient(selectedIngredient);
     } catch (error) {
-      console.error('Error deleting ingredient:', error);
+      logger.error('Error deleting ingredient:', error);
       setErrorMessage('Failed to delete ingredient');
       setShowErrorAlert(true);
     } finally {

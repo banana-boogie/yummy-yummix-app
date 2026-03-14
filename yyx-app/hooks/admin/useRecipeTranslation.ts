@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { translateContent , TranslationResult } from '@/services/admin/adminTranslateService';
+import logger from '@/services/logger';
 import { ExtendedRecipe } from './useAdminRecipeForm';
 import {
   AdminRecipeTranslation,
@@ -118,7 +119,7 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
             }
             updatedRecipe = { ...updatedRecipe, translations: updated };
           } catch (e) {
-            console.error('Failed to translate recipe info:', e);
+            logger.error('Failed to translate recipe info:', e);
           }
         }
         tick('Recipe info');
@@ -172,7 +173,7 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
               }
               updatedSteps[i] = { ...step, translations: updated };
             } catch (e) {
-              console.error(`Failed to translate step ${i + 1}:`, e);
+              logger.error(`Failed to translate step ${i + 1}:`, e);
             }
           }
           tick(`Step ${i + 1}`);
@@ -230,7 +231,7 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
               }
               updatedIngredients[i] = { ...ing, translations: updated };
             } catch (e) {
-              console.error(`Failed to translate ingredient ${i + 1}:`, e);
+              logger.error(`Failed to translate ingredient ${i + 1}:`, e);
             }
           }
           tick(`Ingredient ${i + 1}`);
@@ -272,7 +273,7 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
               }
               updatedUsefulItems[i] = { ...item, translations: updated };
             } catch (e) {
-              console.error(`Failed to translate useful item ${i + 1}:`, e);
+              logger.error(`Failed to translate useful item ${i + 1}:`, e);
             }
           }
           tick(`Useful item ${i + 1}`);

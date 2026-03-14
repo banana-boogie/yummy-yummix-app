@@ -1,6 +1,7 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import logger from '@/services/logger';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -16,7 +17,7 @@ const customStorage = {
       // Return null during server-side rendering
       return null;
     } catch (error) {
-      console.error('Error getting item from storage:', error);
+      logger.error('Error getting item from storage:', error);
       return null;
     }
   },
@@ -27,7 +28,7 @@ const customStorage = {
         return await AsyncStorage.setItem(key, value);
       }
     } catch (error) {
-      console.error('Error setting item in storage:', error);
+      logger.error('Error setting item in storage:', error);
     }
   },
   removeItem: async (key: string) => {
@@ -37,7 +38,7 @@ const customStorage = {
         return await AsyncStorage.removeItem(key);
       }
     } catch (error) {
-      console.error('Error removing item from storage:', error);
+      logger.error('Error removing item from storage:', error);
     }
   },
 };

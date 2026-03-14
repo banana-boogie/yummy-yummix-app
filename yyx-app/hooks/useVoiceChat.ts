@@ -23,6 +23,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import logger from '@/services/logger';
 import { supabase } from '@/lib/supabase';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -438,7 +439,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
 
             // Tool call handler
             addListener('toolCall', async (toolCall: VoiceToolCall) => {
-                console.log('[VoiceChat] Tool call:', toolCall.name);
+                logger.debug('[VoiceChat] Tool call:', toolCall.name);
                 setIsExecutingTool(true);
                 setExecutingToolName(toolCall.name);
                 try {
@@ -476,7 +477,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
                         JSON.stringify(result),
                     );
                 } catch (err) {
-                    console.error('[VoiceChat] Tool execution error:', err);
+                    logger.error('[VoiceChat] Tool execution error:', err);
                     const errorMsg = err instanceof Error ? err.message : 'Tool execution failed';
                     // Send error back to OpenAI so it can gracefully inform the user
                     providerRef.current?.sendToolResult(
@@ -528,7 +529,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             });
 
         } catch (err) {
-            console.error('[VoiceChat] Start error:', err);
+            logger.error('[VoiceChat] Start error:', err);
             setError(err instanceof Error ? err.message : 'Unknown error');
             unregisterSession(hookIdRef.current);
         }

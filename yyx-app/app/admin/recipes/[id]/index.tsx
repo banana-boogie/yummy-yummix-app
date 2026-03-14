@@ -23,6 +23,7 @@ import { useDevice } from '@/hooks/useDevice';
 import { TranslationStep } from '@/components/admin/recipes/forms/translationForm/TranslationStep';
 import { loadAuthoringLocale, saveAuthoringLocale } from '@/components/admin/recipes/forms/shared/AuthoringLanguagePicker';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
+import logger from '@/services/logger';
 
 export default function EditRecipePage() {
   const { id } = useLocalSearchParams();
@@ -66,7 +67,7 @@ export default function EditRecipePage() {
         setNotFound(true);
       }
     } catch (error) {
-      console.error('Error loading recipe:', error);
+      logger.error('Error loading recipe:', error);
       setErrors({ load: i18n.t('admin.recipes.form.errors.loadFailed') });
     } finally {
       setLoading(false);
@@ -99,7 +100,7 @@ export default function EditRecipePage() {
       setShowSuccessDialog(true);
       await loadRecipe();
     } catch (error) {
-      console.error('Error saving recipe:', error);
+      logger.error('Error saving recipe:', error);
       setErrors({ save: i18n.t('admin.recipes.form.errors.saveFailed') });
       setShowErrorDialog(true);
     } finally {

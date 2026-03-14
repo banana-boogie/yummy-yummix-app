@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import logger from '@/services/logger';
 
 interface UrlCache {
   [key: string]: {
@@ -35,7 +36,7 @@ export function useProfileImage() {
         return data.signedUrl;
       }
     } catch (error) {
-      console.error('Error getting signed URL:', error);
+      logger.error('Error getting signed URL:', error);
     }
     return null;
   };
