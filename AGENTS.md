@@ -492,17 +492,52 @@ import { Button } from '@/components/common';
 ```
 
 ### Internationalization
-Two languages: English (`en`) and Mexican Spanish (`es`).
+
+Two systems handle different concerns:
+
+**1. UI strings** (`i18n/`) — Static app text (buttons, labels, headings). Uses `i18n-js` with locale files.
 ```tsx
 import i18n from '@/i18n';
 <Text>{i18n.t('recipes.common.search')}</Text>
-
-// Access current language
-import { useLanguage } from '@/contexts/LanguageContext';
-const { language } = useLanguage();
 ```
 - Never hardcode user-facing strings
-- Add translations to BOTH languages in `i18n/index.ts`
+- Add translations to BOTH `en` and `es` in `i18n/index.ts`
+
+**2. Recipe/entity content** (translation tables) — Dynamic database content (recipe names, ingredients, steps).
+```tsx
+// Access user's locale
+import { useLanguage } from '@/contexts/LanguageContext';
+const { language, locale } = useLanguage();
+// language = 'en' | 'es' (for i18n UI strings)
+// locale = full locale like 'es-MX' (for user profile / device)
+```
+
+**Locale design:**
+- `en` = base English content (US English — serves all English speakers)
+- `es` = base Spanish content (Mexican Spanish — serves all Spanish speakers)
+- Regional codes (e.g., `es-MX`, `es-ES`) are for **overrides only** — add them when you have region-specific content that differs from the base
+- Fallback chain: `es-MX` → `es` → `en` (via `resolve_locale()` RPC and `locales.parent_code`)
+- **Never store base content under a regional code** — it breaks fallback for other regions
+
+**Reading translations (frontend services):**
+```tsx
+// PostgREST embedded select joins translation tables
+const { data } = await supabase
+  .from('recipes')
+  .select(`*, translations:recipe_translations(locale, name, tips_and_tricks)`)
+  .eq('translations.locale', 'en');
+```
+
+**Writing translations (admin services):**
+```tsx
+// 1. Insert/update entity (non-translatable fields only)
+const { data } = await supabase.from('recipes').insert({ difficulty, portions }).select('id').single();
+// 2. Insert/upsert translation rows
+await supabase.from('recipe_translations').upsert([
+  { recipe_id: data.id, locale: 'en', name: nameEn },
+  { recipe_id: data.id, locale: 'es', name: nameEs },
+], { onConflict: 'recipe_id,locale' });
+```
 
 ### Styling with NativeWind
 Use design tokens from `constants/design-tokens.js`:

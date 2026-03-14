@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
-import { AdminIngredient } from '@/types/recipe.admin.types';
+import { AdminIngredient, AdminIngredientTranslation, pickTranslation , NutritionalFacts } from '@/types/recipe.admin.types';
 import { ImageUploadSection } from '@/components/admin/recipes/forms/common/ImageUploadSection';
 import { TranslationsSection } from '@/components/admin/ingredients/IngredientForm/TranslationsSection';
 import { NutritionalFactsSection } from '@/components/admin/ingredients/IngredientForm/NutritionalFactsSection';
@@ -10,7 +10,6 @@ import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { AlertModal } from '@/components/common/AlertModal';
 import i18n from '@/i18n';
-import { NutritionalFacts } from '@/types/recipe.admin.types';
 
 interface IngredientFormProps {
     ingredient?: AdminIngredient;
@@ -20,10 +19,7 @@ interface IngredientFormProps {
 }
 
 interface ValidationErrors {
-    nameEn?: string;
-    nameEs?: string;
-    pluralNameEn?: string;
-    pluralNameEs?: string;
+    [key: string]: string | { [key: string]: string } | undefined;
     pictureUrl?: string;
     nutritionalFacts?: {
         [key: string]: string;
@@ -42,10 +38,10 @@ export function IngredientForm({
 
     const [formData, setFormData] = useState<AdminIngredient>({
         id: ingredient?.id || '',
-        nameEn: ingredient?.nameEn || '',
-        nameEs: ingredient?.nameEs || '',
-        pluralNameEn: ingredient?.pluralNameEn || '',
-        pluralNameEs: ingredient?.pluralNameEs || '',
+        translations: ingredient?.translations || [
+            { locale: 'es', name: '', pluralName: '' },
+            { locale: 'en', name: '', pluralName: '' },
+        ],
         pictureUrl: ingredient?.pictureUrl || '',
         nutritionalFacts: ingredient?.nutritionalFacts || {
             per_100g: {
@@ -59,31 +55,22 @@ export function IngredientForm({
 
     const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
 
-
     const validateForm = (data: Partial<AdminIngredient>): ValidationErrors => {
-        const validationErrors: ValidationErrors = {
-        };
+        const errors: ValidationErrors = {};
 
-        // NAMES VALIDATION
-        if (!data.nameEn) {
-            validationErrors.nameEn = i18n.t('validation.required');
-        }
+        // Validate that at least es and en have names
+        const translations = data.translations || [];
+        const esT = pickTranslation(translations, 'es');
+        const enT = pickTranslation(translations, 'en');
 
-        if (!data.nameEs) {
-            validationErrors.nameEs = i18n.t('validation.required');
-        }
-
-        if (!data.pluralNameEn) {
-            validationErrors.pluralNameEn = i18n.t('validation.required');
-        }
-
-        if (!data.pluralNameEs) {
-            validationErrors.pluralNameEs = i18n.t('validation.required');
-        }
+        if (!enT?.name) errors['name_en'] = i18n.t('validation.required');
+        if (!esT?.name) errors['name_es'] = i18n.t('validation.required');
+        if (!enT?.pluralName) errors['pluralName_en'] = i18n.t('validation.required');
+        if (!esT?.pluralName) errors['pluralName_es'] = i18n.t('validation.required');
 
         // PICTURE VALIDATION
         if (!data.pictureUrl) {
-            validationErrors.pictureUrl = i18n.t('validation.required');
+            errors.pictureUrl = i18n.t('validation.required');
         }
 
         // NUTRITIONAL FACTS VALIDATION
@@ -116,18 +103,18 @@ export function IngredientForm({
         }
 
         if (hasNutritionalErrors) {
-            validationErrors.nutritionalFacts = nutritionalErrors;
+            errors.nutritionalFacts = nutritionalErrors;
         }
 
-        setValidationErrors(validationErrors);
-        return validationErrors;
+        setValidationErrors(errors);
+        return errors;
     };
 
 
     const handleSubmit = async () => {
         try {
-            const validationErrors = validateForm(formData);
-            if (Object.keys(validationErrors).length > 0) {
+            const errors = validateForm(formData);
+            if (Object.keys(errors).length > 0) {
                 setErrorMessage(i18n.t('admin.ingredients.errors.validationFailed'));
                 setShowErrorAlert(true);
                 return;
@@ -146,6 +133,12 @@ export function IngredientForm({
         setShowSuccessAlert(false);
         onCancel(); // Close the modal
     };
+
+    // Get a display name for the nutritional facts lookup — prefer English (best training data)
+    const ingredientDisplayName =
+        pickTranslation(formData.translations, 'en')?.name?.trim() ||
+        pickTranslation(formData.translations, 'es')?.name?.trim() ||
+        '';
 
     return (
         <View className="flex-1">
@@ -191,33 +184,23 @@ export function IngredientForm({
                     title={i18n.t('admin.ingredients.image')}
                     imageUrl={formData.pictureUrl}
                     onImageSelected={(file) => setFormData({ ...formData, pictureUrl: file })}
-                    error={validationErrors.pictureUrl}
+                    error={validationErrors.pictureUrl as string}
                     required={true}
                 />
 
                 <TranslationsSection
-                    translations={{
-                        nameEn: formData.nameEn,
-                        nameEs: formData.nameEs,
-                        pluralNameEn: formData.pluralNameEn,
-                        pluralNameEs: formData.pluralNameEs,
-                    }}
-                    errors={{
-                        nameEn: validationErrors.nameEn,
-                        nameEs: validationErrors.nameEs,
-                        pluralNameEn: validationErrors.pluralNameEn,
-                        pluralNameEs: validationErrors.pluralNameEs,
-                    }}
-                    onChange={(translations) => setFormData({ ...formData, ...translations })}
+                    translations={formData.translations}
+                    errors={validationErrors as Record<string, string>}
+                    onChange={(translations) => setFormData({ ...formData, translations })}
                     required={true}
                 />
 
                 <NutritionalFactsSection
                     nutritionalFacts={formData.nutritionalFacts}
                     onChange={(facts: NutritionalFacts) => setFormData({ ...formData, nutritionalFacts: facts })}
-                    errors={validationErrors.nutritionalFacts}
+                    errors={validationErrors.nutritionalFacts as { [key: string]: string }}
                     required={true}
-                    ingredientName={formData.nameEn}
+                    ingredientName={ingredientDisplayName}
                 />
 
                 <View className="flex-row justify-end gap-md mt-md">

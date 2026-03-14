@@ -10,7 +10,8 @@ export enum CreateRecipeStep {
   INGREDIENTS = 3,
   STEPS = 4,
   TAGS = 5,
-  REVIEW = 6,
+  TRANSLATIONS = 6,
+  REVIEW = 7,
 }
 
 interface RecipeProgressIndicatorProps {
@@ -31,6 +32,7 @@ export function RecipeProgressIndicator({
     i18n.t('admin.recipes.form.ingredientsInfo.title'),
     i18n.t('admin.recipes.form.stepsInfo.title'),
     i18n.t('admin.recipes.form.tagsInfo.title'),
+    i18n.t('admin.translate.translationStep'),
     i18n.t('admin.recipes.form.reviewInfo.title'),
   ];
 

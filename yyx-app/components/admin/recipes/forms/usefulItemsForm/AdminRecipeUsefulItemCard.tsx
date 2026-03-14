@@ -1,15 +1,15 @@
 import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/common/Text';
-import { AdminRecipeUsefulItem } from '@/types/recipe.admin.types';
+import { AdminRecipeUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { LanguageBadge } from '@/components/common/LanguageBadge';
 import { Divider } from '@/components/common/Divider';
 import { useDevice } from '@/hooks/useDevice';
 
 interface AdminRecipeUsefulItemCardProps {
   recipeUsefulItem: AdminRecipeUsefulItem;
+  displayLocale?: string;
   onEdit?: (recipeUsefulItem: AdminRecipeUsefulItem) => void;
   onDelete?: (recipeUsefulItem: AdminRecipeUsefulItem) => void;
   onMoveUp?: (recipeUsefulItem: AdminRecipeUsefulItem) => void;
@@ -22,6 +22,7 @@ interface AdminRecipeUsefulItemCardProps {
 
 export function AdminRecipeUsefulItemCard({
   recipeUsefulItem,
+  displayLocale = 'es',
   onEdit,
   onDelete,
   onMoveUp,
@@ -32,7 +33,9 @@ export function AdminRecipeUsefulItemCard({
   variant = 'editable'
 }: AdminRecipeUsefulItemCardProps) {
   const { isMobile } = useDevice();
-  const hasNotes = !!(recipeUsefulItem.notesEn || recipeUsefulItem.notesEs);
+  const usefulItemName = getTranslatedField(recipeUsefulItem.usefulItem?.translations, displayLocale, 'name');
+  const notes = getTranslatedField(recipeUsefulItem.translations, displayLocale, 'notes');
+  const hasNotes = !!notes;
   const isReadonly = variant === 'readonly' || hideActions;
 
   return (
@@ -56,10 +59,7 @@ export function AdminRecipeUsefulItemCard({
 
         <View className="flex-1">
           <Text className={`font-semibold ${isMobile ? 'text-sm' : ''}`}>
-            {recipeUsefulItem.usefulItem?.nameEn}
-          </Text>
-          <Text className="text-xs text-text-SECONDARY">
-            {recipeUsefulItem.usefulItem?.nameEs}
+            {usefulItemName}
           </Text>
         </View>
 
@@ -116,18 +116,7 @@ export function AdminRecipeUsefulItemCard({
               <Divider thickness={0.3} opacity={0.2} />
             </>
           )}
-          {recipeUsefulItem.notesEn && (
-            <View className="flex-row mt-xs items-start">
-              <LanguageBadge language="EN" />
-              <Text className="text-xs text-text-SECONDARY flex-1 ml-xs">{recipeUsefulItem.notesEn}</Text>
-            </View>
-          )}
-          {recipeUsefulItem.notesEs && (
-            <View className="flex-row mt-xs items-start">
-              <LanguageBadge language="ES" />
-              <Text className="text-xs text-text-SECONDARY flex-1 ml-xs">{recipeUsefulItem.notesEs}</Text>
-            </View>
-          )}
+          <Text className="text-xs text-text-SECONDARY mt-xs">{notes}</Text>
         </View>
       )}
     </View>

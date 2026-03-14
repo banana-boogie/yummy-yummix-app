@@ -5,7 +5,7 @@ import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { TextInput } from '@/components/form/TextInput';
 import { FORM_MAX_WIDTH } from '@/components/form/FormSection';
-import { AdminRecipe, AdminIngredient, AdminRecipeTag, AdminRecipeIngredient, AdminUsefulItem, AdminRecipeUsefulItem } from '@/types/recipe.admin.types';
+import { AdminRecipe, AdminIngredient, AdminRecipeTag, AdminRecipeIngredient, AdminUsefulItem, AdminRecipeUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
 import { parseRecipeMarkdown } from '@/services/admin/markdownRecipeParserService';
 import { CreateEditIngredientModal } from '@/components/admin/ingredients/CreateEditIngredientModal';
 import { TagEditModal } from '@/components/admin/tags/TagEditModal';
@@ -14,6 +14,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { CreateEditUsefulItemModal } from '../useful-items/CreateEditUsefulItemModal';
 import { CheckboxButton } from '@/components/common/CheckboxButton';
 import { COLORS } from '@/constants/design-tokens';
+import { useRecipeTranslation } from '@/hooks/admin/useRecipeTranslation';
+import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
+import { ExtendedRecipe } from '@/hooks/admin/useAdminRecipeForm';
 
 interface InitialRecipeStepProps {
     onUpdateRecipe: (updates: Partial<AdminRecipe>) => void;
@@ -28,13 +31,31 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
     const [parsingStatus, setParsingStatus] = useState<{
         loading: boolean;
         error?: string;
-        missingIngredients?: Array<AdminRecipeIngredient>;
+        missingIngredients?: AdminRecipeIngredient[];
         missingTags?: string[];
         missingUsefulItems?: string[];
     }>({ loading: false });
     const [showIngredientModal, setShowIngredientModal] = useState(false);
     const [showTagModal, setShowTagModal] = useState(false);
     const [showUsefulItemModal, setShowUsefulItemModal] = useState(false);
+
+    // Locale selection for AI generation
+    // includeRegional=true to get es-ES, but filter out es-MX (redundant — 'es' IS Mexican Spanish)
+    const { locales: allLocales } = useActiveLocales(true);
+    const filteredLocales = allLocales.filter(l => l.code !== 'es-MX');
+    const { translating, progress, translateAll } = useRecipeTranslation();
+    // The parse-recipe-markdown edge function generates 'en' + 'es' by default.
+    // Additional locales (e.g. es-ES) are translated via translate-content after parsing.
+    const PARSE_GENERATED_LOCALES = ['en', 'es'];
+    const [selectedLocales, setSelectedLocales] = useState<Record<string, boolean>>({
+        en: true,
+        es: true,
+        'es-ES': true,
+    });
+
+    const toggleLocale = (code: string) => {
+        setSelectedLocales(prev => ({ ...prev, [code]: !prev[code] }));
+    };
 
     // State to track checked ingredients and tags
     const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
@@ -77,8 +98,35 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
         try {
             const { recipe: parsedRecipe, missingIngredients, missingTags, missingUsefulItems } = await parseRecipeMarkdown(markdownText);
 
-            // Update the recipe state with parsed data
-            onUpdateRecipe(parsedRecipe);
+            // Determine which additional locales need translation
+            // parse-recipe-markdown generates 'en' + 'es'. Any other selected locale needs translate-content.
+            const additionalLocales = Object.entries(selectedLocales)
+                .filter(([code, checked]) => checked && !PARSE_GENERATED_LOCALES.includes(code))
+                .map(([code]) => code);
+
+            let finalRecipe = parsedRecipe;
+
+            // Strip locales the admin unchecked
+            if (finalRecipe.translations) {
+                finalRecipe = {
+                    ...finalRecipe,
+                    translations: finalRecipe.translations.filter(
+                        t => selectedLocales[t.locale]
+                    ),
+                };
+            }
+
+            // Auto-translate to additional locales (e.g. es-ES) using translate-content
+            if (additionalLocales.length > 0) {
+                finalRecipe = await translateAll(
+                    finalRecipe as ExtendedRecipe,
+                    'es', // source is Spanish (Mexican)
+                    additionalLocales,
+                );
+            }
+
+            // Update the recipe state with parsed + translated data
+            onUpdateRecipe(finalRecipe);
 
             setParsingStatus({
                 loading: false,
@@ -106,11 +154,19 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
         setShowIngredientModal(false);
 
         const isIngredientMatch = (recipeIngredient: AdminRecipeIngredient, newIngredient: AdminIngredient) => {
+            const existingNameEn = getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name');
+            const existingNameEs = getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name');
+            const existingPluralEn = getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'pluralName');
+            const existingPluralEs = getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'pluralName');
+            const newNameEn = getTranslatedField(newIngredient.translations, 'en', 'name');
+            const newNameEs = getTranslatedField(newIngredient.translations, 'es', 'name');
+            const newPluralEn = getTranslatedField(newIngredient.translations, 'en', 'pluralName');
+            const newPluralEs = getTranslatedField(newIngredient.translations, 'es', 'pluralName');
             return (
-                recipeIngredient.ingredient?.nameEn?.toLowerCase() === newIngredient.nameEn.toLowerCase() ||
-                recipeIngredient.ingredient?.pluralNameEn?.toLowerCase() === newIngredient.pluralNameEn.toLowerCase() ||
-                recipeIngredient.ingredient?.nameEs?.toLowerCase() === newIngredient.nameEs.toLowerCase() ||
-                recipeIngredient.ingredient?.pluralNameEs?.toLowerCase() === newIngredient.pluralNameEs.toLowerCase()
+                (existingNameEn && newNameEn && existingNameEn.toLowerCase() === newNameEn.toLowerCase()) ||
+                (existingPluralEn && newPluralEn && existingPluralEn.toLowerCase() === newPluralEn.toLowerCase()) ||
+                (existingNameEs && newNameEs && existingNameEs.toLowerCase() === newNameEs.toLowerCase()) ||
+                (existingPluralEs && newPluralEs && existingPluralEs.toLowerCase() === newPluralEs.toLowerCase())
             );
         };
 
@@ -160,9 +216,11 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
         setShowTagModal(false);
 
         // Find matching missing tag
+        const newTagNameEn = getTranslatedField(newTag.translations, 'en', 'name');
+        const newTagNameEs = getTranslatedField(newTag.translations, 'es', 'name');
         const matchingIndex = parsingStatus.missingTags?.findIndex(
-            tag => tag.toLowerCase() === newTag.nameEn.toLowerCase() ||
-                tag.toLowerCase() === newTag.nameEs.toLowerCase()
+            tag => (newTagNameEn && tag.toLowerCase() === newTagNameEn.toLowerCase()) ||
+                (newTagNameEs && tag.toLowerCase() === newTagNameEs.toLowerCase())
         );
 
         // If there's a match, mark it as checked in the UI
@@ -200,9 +258,11 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
         setShowUsefulItemModal(false);
 
         // Find matching missing useful item
+        const newUsefulItemNameEn = getTranslatedField(newUsefulItem.translations, 'en', 'name');
+        const newUsefulItemNameEs = getTranslatedField(newUsefulItem.translations, 'es', 'name');
         const matchingIndex = parsingStatus.missingUsefulItems?.findIndex(
-            usefulItem => usefulItem.toLowerCase() === newUsefulItem.nameEn.toLowerCase() ||
-                usefulItem.toLowerCase() === newUsefulItem.nameEs.toLowerCase()
+            usefulItem => (newUsefulItemNameEn && usefulItem.toLowerCase() === newUsefulItemNameEn.toLowerCase()) ||
+                (newUsefulItemNameEs && usefulItem.toLowerCase() === newUsefulItemNameEs.toLowerCase())
         );
 
         // If there's a match, mark it as checked in the UI
@@ -283,6 +343,42 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                     </Text>
 
                     <ScrollView className="max-h-[500px] mb-md">
+                        {/* Locale checkboxes */}
+                        {!importSuccessful && (
+                            <View className="mb-md p-sm bg-background-SECONDARY rounded-md">
+                                <Text preset="bodySmall" className="mb-xs font-semibold">
+                                    {i18n.t('admin.translate.targetLanguages')}
+                                </Text>
+                                <View className="flex-row flex-wrap gap-xs">
+                                    {filteredLocales.map(locale => (
+                                        <CheckboxButton
+                                            key={locale.code}
+                                            checked={selectedLocales[locale.code] ?? false}
+                                            onPress={() => toggleLocale(locale.code)}
+                                            label={locale.displayName}
+                                            strikethrough={false}
+                                            className="flex-row items-center mr-md"
+                                        />
+                                    ))}
+                                </View>
+                            </View>
+                        )}
+
+                        {/* Translation progress */}
+                        {translating && progress && (
+                            <View className="mb-md p-sm bg-primary-LIGHT rounded-md border border-primary-MEDIUM">
+                                <Text preset="bodySmall" className="mb-xs">
+                                    {i18n.t('admin.translate.translating', { defaultValue: 'Translating...' })} {progress.current}/{progress.total}
+                                </Text>
+                                <View className="h-2 bg-background-DEFAULT rounded-full overflow-hidden">
+                                    <View
+                                        className="h-full bg-primary-DEFAULT rounded-full"
+                                        style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                                    />
+                                </View>
+                            </View>
+                        )}
+
                         {!importSuccessful && (
                             <View className="relative">
                                 <TextInput
@@ -291,7 +387,8 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                                     value={markdownText}
                                     onChangeText={setMarkdownText}
                                     placeholder={i18n.t('admin.recipes.form.initialSetup.pasteHere')}
-                                    className="w-full max-h-[250px] p-sm border border-border-DEFAULT rounded mb-md"
+                                    className="w-full max-h-[250px]"
+                                    containerClassName="mb-md"
                                     style={{ textAlignVertical: 'top' }}
                                     editable={!parsingStatus.loading}
                                 />
@@ -335,8 +432,7 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                                                         key={index}
                                                         checked={isChecked}
                                                         onPress={() => toggleIngredientChecked(ingredientId)}
-                                                        // @ts-ignore - recipeIngredient from 
-                                                        label={`${recipeIngredient.ingredient?.nameEn || ''} / ${recipeIngredient.ingredient?.nameEs || ''}`}
+                                                        label={`${getTranslatedField(recipeIngredient.ingredient?.translations, 'en', 'name') || ''} / ${getTranslatedField(recipeIngredient.ingredient?.translations, 'es', 'name') || ''}`}
                                                         className="flex-row items-center mb-xs py-xxs"
                                                     />
                                                 );
@@ -435,9 +531,9 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                             <Button
                                 label={i18n.t('common.import')}
                                 onPress={handleImportMarkdown}
-                                loading={parsingStatus.loading}
+                                loading={parsingStatus.loading || translating}
                                 className="flex-1"
-                                disabled={!markdownText}
+                                disabled={!markdownText || translating}
                             />
                         )}
                     </View>

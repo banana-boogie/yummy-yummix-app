@@ -42,8 +42,10 @@ export function OnboardingModal({ visible }: OnboardingModalProps) {
       setIsSubmitting(true);
 
       // Update language and measurement system
-      if (formData.language) {
-        await setLanguage(formData.language as Language);
+      // Derive UI language from locale (e.g., 'es-MX' -> 'es', 'en' -> 'en')
+      if (formData.locale) {
+        const uiLanguage = formData.locale.startsWith('es') ? 'es' : 'en';
+        await setLanguage(uiLanguage as Language);
       }
       if (formData.measurementSystem) {
         await setMeasurementSystem(formData.measurementSystem as MeasurementSystem);
@@ -54,8 +56,9 @@ export function OnboardingModal({ visible }: OnboardingModalProps) {
         formatEquipmentForStorage(eq.type, eq.model)
       ) ?? [];
 
-      // Remove kitchenEquipment from formData to avoid duplicates (it will be added as kitchen_equipment)
-      const { kitchenEquipment, ...restFormData } = formData;
+      // Remove kitchenEquipment (added as kitchen_equipment below) and language
+      // (dropped column — may still exist in persisted onboarding state from before migration)
+      const { kitchenEquipment, language: _language, ...restFormData } = formData as any;
       const normalizedPreferences = normalizeDietAndCuisinePreferences(
         formData.dietTypes ?? [],
         formData.cuisinePreferences ?? []

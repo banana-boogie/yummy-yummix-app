@@ -4,12 +4,14 @@ import { View } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { TextInput } from '@/components/form/TextInput';
 import { Button } from '@/components/common/Button';
-import { AdminUsefulItem } from '@/types/recipe.admin.types';
+import { AdminUsefulItem, AdminUsefulItemTranslation, pickTranslation } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { FormSection } from '@/components/form/FormSection';
 import { FormGroup } from '@/components/form/FormGroup';
 import { FormRow } from '@/components/form/FormRow';
 import { ImageUploadSection } from '@/components/admin/recipes/forms/common/ImageUploadSection';
+import { useAdminLocales } from '@/hooks/admin/useAdminLocales';
+import { translateContent } from '@/services/admin/adminTranslateService';
 
 interface UsefulItemFormProps {
     usefulItem?: AdminUsefulItem;
@@ -24,44 +26,120 @@ export function UsefulItemForm({
     onCancel,
     saving,
 }: UsefulItemFormProps) {
+    const { locales } = useAdminLocales();
+    const [translating, setTranslating] = useState(false);
+    const [translateError, setTranslateError] = useState<string | null>(null);
+
     const [formData, setFormData] = useState<AdminUsefulItem>({
         id: usefulItem?.id || '',
-        nameEn: usefulItem?.nameEn || '',
-        nameEs: usefulItem?.nameEs || '',
+        translations: usefulItem?.translations || [
+            { locale: 'es', name: '' },
+            { locale: 'en', name: '' },
+        ],
         pictureUrl: usefulItem?.pictureUrl || '',
     });
 
-    const [nameEnError, setNameEnError] = useState('');
-    const [nameEsError, setNameEsError] = useState('');
-    const [pictureUrlError, setPictureUrlError] = useState('');
+    const [errors, setErrors] = useState<Record<string, string>>({});
+
+    const getTranslationName = (locale: string): string => {
+        return pickTranslation(formData.translations, locale)?.name || '';
+    };
+
+    const setTranslationName = (locale: string, name: string) => {
+        const existing = formData.translations.find(t => t.locale === locale);
+        if (existing) {
+            setFormData({
+                ...formData,
+                translations: formData.translations.map(t =>
+                    t.locale === locale ? { ...t, name } : t
+                ),
+            });
+        } else {
+            setFormData({
+                ...formData,
+                translations: [...formData.translations, { locale, name }],
+            });
+        }
+    };
+
+    const handleAutoTranslate = async () => {
+        const sourceTranslation = formData.translations.find(t => t.name?.trim());
+        if (!sourceTranslation) return;
+
+        const sourceLocale = sourceTranslation.locale;
+        const targetLocales = locales
+            .map(l => l.code)
+            .filter(code => code !== sourceLocale);
+
+        if (targetLocales.length === 0) return;
+
+        setTranslating(true);
+        setTranslateError(null);
+        try {
+            const results = await translateContent(
+                { name: sourceTranslation.name },
+                sourceLocale,
+                targetLocales,
+            );
+
+            let updated = [...formData.translations];
+            const failedLocales: string[] = [];
+            for (const result of results) {
+                if (result.error) {
+                    failedLocales.push(result.targetLocale);
+                    continue;
+                }
+                const existing = updated.find(t => t.locale === result.targetLocale);
+                if (existing) {
+                    updated = updated.map(t =>
+                        t.locale === result.targetLocale
+                            ? { ...t, name: result.fields.name || t.name }
+                            : t
+                    );
+                } else {
+                    updated.push({ locale: result.targetLocale, name: result.fields.name || '' });
+                }
+            }
+            setFormData({ ...formData, translations: updated });
+            if (failedLocales.length > 0) {
+                setTranslateError(
+                    i18n.t('admin.translate.partialFailure', {
+                        locales: failedLocales.join(', '),
+                        defaultValue: `Translation failed for: ${failedLocales.join(', ')}`,
+                    })
+                );
+            }
+        } catch (error) {
+            console.error('Auto-translate failed:', error);
+            setTranslateError(i18n.t('admin.translate.autoTranslateFailed', { defaultValue: 'Auto-translate failed. Please try again.' }));
+        } finally {
+            setTranslating(false);
+        }
+    };
 
     const handleSubmit = async () => {
         // Reset errors
-        setNameEnError('');
-        setNameEsError('');
-        setPictureUrlError('');
+        const newErrors: Record<string, string> = {};
 
-        // Validate
-        let hasError = false;
-        if (!formData.nameEn.trim()) {
-            setNameEnError(i18n.t('admin.usefulItems.form.errors.nameEnRequired'));
-            hasError = true;
+        // Validate: require at least es and en
+        const esName = getTranslationName('es');
+        const enName = getTranslationName('en');
+        if (!enName.trim()) {
+            newErrors['name_en'] = i18n.t('admin.usefulItems.form.errors.nameEnRequired');
         }
-        if (!formData.nameEs.trim()) {
-            setNameEsError(i18n.t('admin.usefulItems.form.errors.nameEsRequired'));
-            hasError = true;
+        if (!esName.trim()) {
+            newErrors['name_es'] = i18n.t('admin.usefulItems.form.errors.nameEsRequired');
         }
         if (!formData.pictureUrl) {
-            setPictureUrlError(i18n.t('admin.usefulItems.form.errors.imageRequired'));
-            hasError = true;
+            newErrors['pictureUrl'] = i18n.t('admin.usefulItems.form.errors.imageRequired');
         }
 
-        if (hasError) return;
+        setErrors(newErrors);
+        if (Object.keys(newErrors).length > 0) return;
 
         const data: AdminUsefulItem = {
             id: usefulItem?.id || '',
-            nameEn: formData.nameEn.trim(),
-            nameEs: formData.nameEs.trim(),
+            translations: formData.translations.filter(t => t.name?.trim()),
             pictureUrl: formData.pictureUrl,
         };
 
@@ -78,34 +156,42 @@ export function UsefulItemForm({
                 title={i18n.t('admin.usefulItems.form.imageTitle')}
                 imageUrl={formData.pictureUrl}
                 onImageSelected={(fileObject) => setFormData({ ...formData, pictureUrl: fileObject })}
-                error={pictureUrlError}
+                error={errors['pictureUrl']}
                 required={true}
             />
 
             <FormSection title={i18n.t('admin.usefulItems.form.detailsTitle')} titleStyle={{ marginBottom: 8 }}>
-                <FormGroup
-                    error={nameEnError}
-                    className="mb-lg"
+                {locales.map(locale => (
+                    <FormGroup
+                        key={locale.code}
+                        error={errors[`name_${locale.code}`]}
+                        className="mb-lg"
+                    >
+                        <TextInput
+                            value={getTranslationName(locale.code)}
+                            onChangeText={(text) => setTranslationName(locale.code, text)}
+                            placeholder={locale.code.startsWith('es')
+                                ? i18n.t('admin.usefulItems.form.nameEsPlaceholder')
+                                : i18n.t('admin.usefulItems.form.nameEnPlaceholder')}
+                            label={locale.displayName}
+                        />
+                    </FormGroup>
+                ))}
+                <Button
+                    onPress={handleAutoTranslate}
+                    loading={translating}
+                    disabled={translating}
+                    variant="outline"
+                    size="small"
                 >
-                    <TextInput
-                        value={formData.nameEn}
-                        onChangeText={(text) => setFormData({ ...formData, nameEn: text })}
-                        placeholder={i18n.t('admin.usefulItems.form.nameEnPlaceholder')}
-                        label={i18n.t('admin.usefulItems.form.nameEn')}
-                    />
-                </FormGroup>
-
-                <FormGroup
-                    error={nameEsError}
-                    className="mb-lg"
-                >
-                    <TextInput
-                        value={formData.nameEs}
-                        onChangeText={(text) => setFormData({ ...formData, nameEs: text })}
-                        placeholder={i18n.t('admin.usefulItems.form.nameEsPlaceholder')}
-                        label={i18n.t('admin.usefulItems.form.nameEs')}
-                    />
-                </FormGroup>
+                    {translating
+                        ? i18n.t('admin.translate.translating')
+                        : i18n.t('admin.translate.autoTranslate')
+                    }
+                </Button>
+                {translateError ? (
+                    <Text preset="bodySmall" className="text-status-error mt-sm">{translateError}</Text>
+                ) : null}
             </FormSection>
 
             <FormRow className="justify-end">

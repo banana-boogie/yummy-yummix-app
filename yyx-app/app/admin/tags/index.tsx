@@ -10,9 +10,10 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import { TagEditModal } from '@/components/admin/tags/TagEditModal';
 import i18n from '@/i18n';
-import { AdminRecipeTag } from '@/types/recipe.admin.types';
+import { AdminRecipeTag, getTranslatedField } from '@/types/recipe.admin.types';
 import { formatCategoryNameToTitleCase } from '@/utils/formatters';
 import { useDevice } from '@/hooks/useDevice';
+import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
 
 export default function AdminTags() {
   const { isPhone } = useDevice();
@@ -26,6 +27,7 @@ export default function AdminTags() {
   const [isNewTag, setIsNewTag] = useState(false);
   const [newCategoryModalVisible, setNewCategoryModalVisible] = useState(false);
   const [newCategory, setNewCategory] = useState('');
+  const [displayLocale, setDisplayLocale] = useState('es');
 
   useEffect(() => {
     fetchTags();
@@ -37,15 +39,14 @@ export default function AdminTags() {
     } else {
       const query = searchQuery.toLowerCase();
       setFilteredTags(
-        tags.filter(
-          tag =>
-            tag.nameEn.toLowerCase().includes(query) ||
-            tag.nameEs.toLowerCase().includes(query) ||
-            (tag.categories && tag.categories.some(category => category.toLowerCase().includes(query)))
-        )
+        tags.filter(tag => {
+          const name = getTranslatedField(tag.translations, displayLocale, 'name');
+          return name.toLowerCase().includes(query) ||
+            (tag.categories && tag.categories.some(category => category.toLowerCase().includes(query)));
+        })
       );
     }
-  }, [searchQuery, tags]);
+  }, [searchQuery, tags, displayLocale]);
 
   const fetchTags = async () => {
     setIsLoading(true);
@@ -144,10 +145,9 @@ export default function AdminTags() {
         elevation: 3,
       }}
     >
-      {/* Names */}
+      {/* Name */}
       <View className="mb-sm">
-        <Text preset="body" className="font-semibold">{item.nameEn}</Text>
-        <Text preset="caption" color={COLORS.text.secondary}>{item.nameEs}</Text>
+        <Text preset="body" className="font-semibold">{getTranslatedField(item.translations, displayLocale, 'name')}</Text>
       </View>
 
       {/* Categories */}
@@ -201,11 +201,8 @@ export default function AdminTags() {
         alignItems: 'center'
       }}
     >
-      <View className="w-[200px] pr-md">
-        <Text preset="body">{item.nameEs}</Text>
-      </View>
-      <View className="w-[200px] pr-md">
-        <Text preset="body">{item.nameEn}</Text>
+      <View className="w-[300px] pr-md">
+        <Text preset="body">{getTranslatedField(item.translations, displayLocale, 'name')}</Text>
       </View>
       <View className="flex-1 flex-row flex-wrap gap-xs">
         {item.categories && item.categories.map((category, index) => (
@@ -237,6 +234,10 @@ export default function AdminTags() {
   return (
     <AdminLayout title={i18n.t('admin.common.tags')}>
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
+        <View className="mb-md">
+          <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+        </View>
+
         {/* Search and Add Row - stacked on mobile */}
         <View className={`${isPhone ? 'flex-col gap-md' : 'flex-row justify-between items-center'} mb-lg`}>
           <View className={isPhone ? 'w-full' : 'flex-1 max-w-[400px]'}>
@@ -267,11 +268,8 @@ export default function AdminTags() {
         {/* Desktop Table Header - hidden on mobile */}
         {!isPhone && (
           <View className="flex-row items-center p-md bg-primary-light rounded-lg mb-sm">
-            <View className="w-[150px] pr-md">
-              <Text fontWeight="600">{i18n.t('admin.tags.spanishName')}</Text>
-            </View>
-            <View className="w-[150px] pr-md">
-              <Text fontWeight="600">{i18n.t('admin.tags.englishName')}</Text>
+            <View className="w-[300px] pr-md">
+              <Text fontWeight="600">{i18n.t('admin.tags.name')}</Text>
             </View>
             <View className="flex-1">
               <Text fontWeight="600">{i18n.t('admin.tags.categories')}</Text>
@@ -295,6 +293,7 @@ export default function AdminTags() {
         ) : (
           <FlatList
             data={filteredTags}
+            extraData={displayLocale}
             renderItem={isPhone ? renderMobileTagCard : renderDesktopTagRow}
             keyExtractor={(item) => item.id}
             scrollEnabled={false}

@@ -3,7 +3,7 @@ import { View, ViewStyle, TextStyle } from 'react-native';
 import { Text } from './Text';
 
 interface LanguageBadgeProps {
-  language: 'EN' | 'ES';
+  language: string;
   size?: 'small' | 'regular';
   className?: string; // Add className support
   style?: ViewStyle;

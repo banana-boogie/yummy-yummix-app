@@ -190,7 +190,9 @@ EXPO_PUBLIC_DEV_LOGIN_PASSWORD=devpassword123
 SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_ANON_KEY=eyJhbGc...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...  # Get from dashboard (NEVER via MCP)
-OPENAI_API_KEY=sk-proj-xxx
+XAI_API_KEY=xai-...                   # For text/orchestrator (default provider)
+OPENAI_API_KEY=sk-proj-xxx            # For recipe_generation, recipe_modification, parsing, embedding
+GEMINI_API_KEY=AIza...                # Only needed if overriding defaults to Google
 USDA_API_KEY=xxx
 ```
 

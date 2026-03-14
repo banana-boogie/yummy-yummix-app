@@ -12,7 +12,7 @@ import { clearAliasCache } from "../ingredient-normalization.ts";
 type AliasRow = {
   canonical: string;
   alias: string;
-  language: "en" | "es";
+  locale: string;
 };
 
 type FoodSafetyRow = {
@@ -43,9 +43,9 @@ function createSupabaseMock(
 }
 
 const BASE_ALIASES: AliasRow[] = [
-  { canonical: "ground_beef", alias: "ground beef", language: "en" },
-  { canonical: "ground_beef", alias: "carne molida", language: "es" },
-  { canonical: "beef", alias: "beef steak", language: "en" },
+  { canonical: "ground_beef", alias: "ground beef", locale: "en" },
+  { canonical: "ground_beef", alias: "carne molida", locale: "es" },
+  { canonical: "beef", alias: "beef steak", locale: "en" },
 ];
 
 const BASE_RULES: FoodSafetyRow[] = [

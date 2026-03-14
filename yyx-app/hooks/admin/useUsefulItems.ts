@@ -32,10 +32,10 @@ export function useUsefulItems() {
     }
 
     const lowerQuery = searchQuery.toLowerCase().trim();
-    const filtered = usefulItems.filter(
-      item => 
-        item.nameEn.toLowerCase().includes(lowerQuery) || 
-        item.nameEs.toLowerCase().includes(lowerQuery)
+    const filtered = usefulItems.filter(item =>
+      item.translations.some(t =>
+        t.name?.toLowerCase().includes(lowerQuery)
+      )
     );
     setFilteredUsefulItems(filtered);
   }, [searchQuery, usefulItems]);

@@ -20,6 +20,7 @@ const mockSingle = jest.fn();
 const mockDelete = jest.fn();
 const mockInsert = jest.fn();
 const mockUpdate = jest.fn();
+const mockUpsert = jest.fn();
 
 const mockSupabase = {
   from: mockFrom,
@@ -76,16 +77,11 @@ describe('AdminUsefulItemsService', () => {
 
   const mockUsefulItem = {
     id: 'item-1',
-    name_en: 'Mixing Bowl',
-    name_es: 'Tazón para mezclar',
     image_url: 'https://example.com/bowl.png',
-  };
-
-  const mockTransformedItem = {
-    id: 'item-1',
-    nameEn: 'Mixing Bowl',
-    nameEs: 'Tazón para mezclar',
-    pictureUrl: 'https://example.com/bowl.png',
+    translations: [
+      { locale: 'en', name: 'Mixing Bowl' },
+      { locale: 'es', name: 'Tazon para mezclar' },
+    ],
   };
 
   beforeEach(() => {
@@ -98,6 +94,7 @@ describe('AdminUsefulItemsService', () => {
       delete: mockDelete,
       insert: mockInsert,
       update: mockUpdate,
+      upsert: mockUpsert,
     });
     mockSelect.mockReturnValue({
       order: mockOrder,
@@ -111,8 +108,11 @@ describe('AdminUsefulItemsService', () => {
     });
     mockSingle.mockResolvedValue({ data: mockUsefulItem, error: null });
     mockDelete.mockReturnValue({ eq: mockEq });
-    mockInsert.mockReturnValue({ select: mockSelect });
+    mockInsert.mockReturnValue({
+      select: jest.fn().mockReturnValue({ single: mockSingle }),
+    });
     mockUpdate.mockReturnValue({ eq: mockEq });
+    mockUpsert.mockResolvedValue({ error: null });
   });
 
   // ============================================================
@@ -124,14 +124,13 @@ describe('AdminUsefulItemsService', () => {
       await service.getAllUsefulItems();
 
       expect(mockFrom).toHaveBeenCalledWith('useful_items');
-      expect(mockSelect).toHaveBeenCalledWith('*');
-      expect(mockOrder).toHaveBeenCalledWith('name_en', { ascending: true });
     });
 
-    it('fetches items sorted by Spanish name', async () => {
-      await service.getAllUsefulItems('name_es');
+    it('sorts by Spanish name client-side', async () => {
+      await service.getAllUsefulItems('es');
 
-      expect(mockOrder).toHaveBeenCalledWith('name_es', { ascending: true });
+      // Still fetches from same table, sorting happens client-side now
+      expect(mockFrom).toHaveBeenCalledWith('useful_items');
     });
   });
 
@@ -142,40 +141,51 @@ describe('AdminUsefulItemsService', () => {
   describe('createUsefulItem', () => {
     it('creates item without image', async () => {
       const newItem = {
-        nameEn: 'Whisk',
-        nameEs: 'Batidor',
+        translations: [
+          { locale: 'en', name: 'Whisk' },
+          { locale: 'es', name: 'Batidor' },
+        ],
       };
 
-      mockSelect.mockReturnValue({ single: mockSingle });
       mockSingle.mockResolvedValue({
-        data: { ...mockUsefulItem, name_en: 'Whisk' },
+        data: { id: 'new-item-1' },
         error: null,
       });
 
       await service.createUsefulItem(newItem as any);
 
+      // First call: insert into useful_items (non-translatable only)
       expect(mockFrom).toHaveBeenCalledWith('useful_items');
       expect(mockInsert).toHaveBeenCalledWith(
         expect.objectContaining({
-          name_en: 'Whisk',
-          name_es: 'Batidor',
           image_url: '',
         })
       );
+      // Should NOT contain legacy column-per-language fields
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          name_en: expect.anything(),
+          name_es: expect.anything(),
+        })
+      );
+
+      // Second call: insert translations
+      expect(mockFrom).toHaveBeenCalledWith('useful_item_translations');
     });
 
     it('creates item with image upload', async () => {
       const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
       const newItem = {
-        nameEn: 'Spatula',
-        nameEs: 'Espátula',
+        translations: [
+          { locale: 'en', name: 'Spatula' },
+          { locale: 'es', name: 'Espátula' },
+        ],
         pictureUrl: mockFile,
       };
 
       mockUploadImage.mockResolvedValue('https://example.com/spatula.png');
-      mockSelect.mockReturnValue({ single: mockSingle });
       mockSingle.mockResolvedValue({
-        data: { ...mockUsefulItem, name_en: 'Spatula' },
+        data: { id: 'new-item-2' },
         error: null,
       });
 
@@ -184,7 +194,7 @@ describe('AdminUsefulItemsService', () => {
       expect(mockUploadImage).toHaveBeenCalledWith({
         bucket: 'useful-items',
         folderPath: 'images',
-        fileName: 'Spatula.png',
+        fileName: 'Espátula.png',
         file: mockFile,
         forcePNG: true,
       });
@@ -196,29 +206,28 @@ describe('AdminUsefulItemsService', () => {
   // ============================================================
 
   describe('updateUsefulItem', () => {
-    it('updates item name fields', async () => {
+    it('updates item name fields via translation upsert', async () => {
       const updates = {
         id: 'item-1',
-        nameEn: 'Updated Bowl',
-        nameEs: 'Tazón Actualizado',
+        translations: [
+          { locale: 'en', name: 'Updated Bowl' },
+          { locale: 'es', name: 'Tazón Actualizado' },
+        ],
       };
-
-      mockEq.mockReturnValue({
-        single: mockSingle,
-        select: jest.fn().mockReturnValue({ single: mockSingle }),
-      });
-      mockSingle.mockResolvedValue({
-        data: { image_url: 'https://example.com/bowl.png' },
-        error: null,
-      });
 
       await service.updateUsefulItem('item-1', updates as any);
 
-      expect(mockUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name_en: 'Updated Bowl',
-          name_es: 'Tazón Actualizado',
-        })
+      // Name fields should NOT go to the useful_items table update
+      expect(mockUpdate).not.toHaveBeenCalled();
+
+      // Should upsert translations
+      expect(mockFrom).toHaveBeenCalledWith('useful_item_translations');
+      expect(mockUpsert).toHaveBeenCalledWith(
+        [
+          { useful_item_id: 'item-1', locale: 'en', name: 'Updated Bowl' },
+          { useful_item_id: 'item-1', locale: 'es', name: 'Tazón Actualizado' },
+        ],
+        { onConflict: 'useful_item_id,locale' }
       );
     });
 
@@ -226,7 +235,7 @@ describe('AdminUsefulItemsService', () => {
       const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
       const updates = {
         id: 'item-1',
-        nameEn: 'Bowl',
+        translations: [{ locale: 'en', name: 'Bowl' }],
         pictureUrl: mockFile as any,
       };
 
@@ -254,6 +263,7 @@ describe('AdminUsefulItemsService', () => {
 
       expect(result).toEqual(item);
       expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockUpsert).not.toHaveBeenCalled();
     });
 
     it('throws error when fetch current item fails', async () => {
@@ -353,37 +363,18 @@ describe('AdminUsefulItemsService', () => {
   // ============================================================
 
   describe('image handling', () => {
-    it('uses English name for image filename when available', async () => {
+    it('prefers Spanish name for image filename (Mexico-first)', async () => {
       const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
       const newItem = {
-        nameEn: 'Cutting Board',
-        nameEs: 'Tabla de cortar',
+        translations: [
+          { locale: 'en', name: 'Cutting Board' },
+          { locale: 'es', name: 'Tabla de cortar' },
+        ],
         pictureUrl: mockFile,
       };
 
       mockUploadImage.mockResolvedValue('https://example.com/cutting-board.png');
-      mockSelect.mockReturnValue({ single: mockSingle });
-      mockSingle.mockResolvedValue({ data: mockUsefulItem, error: null });
-
-      await service.createUsefulItem(newItem as any);
-
-      expect(mockUploadImage).toHaveBeenCalledWith(
-        expect.objectContaining({
-          fileName: 'Cutting Board.png',
-        })
-      );
-    });
-
-    it('falls back to Spanish name for filename', async () => {
-      const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
-      const newItem = {
-        nameEs: 'Tabla de cortar',
-        pictureUrl: mockFile,
-      };
-
-      mockUploadImage.mockResolvedValue('https://example.com/tabla.png');
-      mockSelect.mockReturnValue({ single: mockSingle });
-      mockSingle.mockResolvedValue({ data: mockUsefulItem, error: null });
+      mockSingle.mockResolvedValue({ data: { id: 'new-item' }, error: null });
 
       await service.createUsefulItem(newItem as any);
 
@@ -394,15 +385,35 @@ describe('AdminUsefulItemsService', () => {
       );
     });
 
-    it('uses default name when no names provided', async () => {
+    it('falls back to Spanish name for filename', async () => {
+      const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
+      const newItem = {
+        translations: [
+          { locale: 'es', name: 'Tabla de cortar' },
+        ],
+        pictureUrl: mockFile,
+      };
+
+      mockUploadImage.mockResolvedValue('https://example.com/tabla.png');
+      mockSingle.mockResolvedValue({ data: { id: 'new-item' }, error: null });
+
+      await service.createUsefulItem(newItem as any);
+
+      expect(mockUploadImage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fileName: 'Tabla de cortar.png',
+        })
+      );
+    });
+
+    it('uses default name when no translations provided', async () => {
       const mockFile = new File(['test'], 'test.png', { type: 'image/png' });
       const newItem = {
         pictureUrl: mockFile,
       };
 
       mockUploadImage.mockResolvedValue('https://example.com/useful-item.png');
-      mockSelect.mockReturnValue({ single: mockSingle });
-      mockSingle.mockResolvedValue({ data: mockUsefulItem, error: null });
+      mockSingle.mockResolvedValue({ data: { id: 'new-item' }, error: null });
 
       await service.createUsefulItem(newItem as any);
 

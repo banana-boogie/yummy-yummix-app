@@ -14,13 +14,15 @@ import { Button } from '@/components/common/Button';
 import { Switch } from '@/components/common/Switch';
 import { SelectInput } from '@/components/form/SelectInput';
 import { Ionicons } from '@expo/vector-icons';
-import { AdminMeasurementUnit, AdminRecipeIngredient } from '@/types/recipe.admin.types';
+import { AdminMeasurementUnit, AdminRecipeIngredient, AdminRecipeIngredientTranslation, pickTranslation, getTranslatedField } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { FormGroup } from '@/components/form/FormGroup';
 import { FormRow } from '@/components/form/FormRow';
 import { FormDivider } from '@/components/form/FormDivider';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { useDevice } from '@/hooks/useDevice';
+import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
+import { translateContent } from '@/services/admin/adminTranslateService';
 
 interface RecipeIngredientFormModalProps {
   visible: boolean;
@@ -29,13 +31,13 @@ interface RecipeIngredientFormModalProps {
   recipeIngredient: AdminRecipeIngredient | undefined;
   measurementUnits: AdminMeasurementUnit[];
   existingIngredients?: AdminRecipeIngredient[];
+  authoringLocale?: string;
 }
 
 interface ValidationErrors {
   quantity?: string;
   measurementUnit?: string;
-  recipeSectionEn?: string;
-  recipeSectionEs?: string;
+  recipeSection?: string;
   duplicate?: string;
 }
 
@@ -46,58 +48,18 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
   recipeIngredient,
   measurementUnits,
   existingIngredients = [],
+  authoringLocale = 'es',
 }) => {
   const { isLarge: isLargeScreen } = useDevice();
   const [errors, setErrors] = useState<ValidationErrors>({});
-  const [formData, setFormData] = useState<AdminRecipeIngredient>({
-    id: '',
-    ingredientId: '',
-    ingredient: {
-      id: '',
-      nameEn: '',
-      nameEs: '',
-      pluralNameEn: '',
-      pluralNameEs: '',
-      pictureUrl: '',
-      nutritionalFacts: {
-        per_100g: {
-          calories: 0,
-          protein: 0,
-          fat: 0,
-          carbohydrates: 0,
-        },
-      },
-    },
-    measurementUnit: {
-      id: '',
-      type: 'unit',
-      system: 'metric',
-      nameEn: '',
-      nameEs: '',
-      symbolEn: '',
-      symbolEs: '',
-    },
-    quantity: '',
-    optional: false,
-    notesEn: '',
-    notesEs: '',
-    tipEn: '',
-    tipEs: '',
-    recipeSectionEn: '',
-    recipeSectionEs: '',
-    displayOrder: 0,
-  });
 
-  // Default empty state constant
+  // Default empty state
   const DEFAULT_FORM_DATA: AdminRecipeIngredient = {
     id: '',
     ingredientId: '',
     ingredient: {
       id: '',
-      nameEn: '',
-      nameEs: '',
-      pluralNameEn: '',
-      pluralNameEs: '',
+      translations: [],
       pictureUrl: '',
       nutritionalFacts: {
         per_100g: {
@@ -112,45 +74,48 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
       id: '',
       type: 'unit',
       system: 'metric',
-      nameEn: '',
-      nameEs: '',
-      symbolEn: '',
-      symbolEs: '',
+      translations: [],
     },
     quantity: '',
     optional: false,
-    notesEn: '',
-    notesEs: '',
-    tipEn: '',
-    tipEs: '',
-    recipeSectionEn: '',
-    recipeSectionEs: '',
+    translations: [],
     displayOrder: 0,
   };
+
+  const [formData, setFormData] = useState<AdminRecipeIngredient>(DEFAULT_FORM_DATA);
 
   useEffect(() => {
     if (visible) {
       if (recipeIngredient) {
-        // Merge with default data to ensure no undefined values (fixes controlled/uncontrolled error)
-        // and to ensure missing fields in recipeIngredient override with empty strings (fixes persistence bug)
         setFormData({
           ...DEFAULT_FORM_DATA,
           ...recipeIngredient,
-          // Explicitly fallback to empty string for optional string fields if they are null/undefined
-          notesEn: recipeIngredient.notesEn || '',
-          notesEs: recipeIngredient.notesEs || '',
-          tipEn: recipeIngredient.tipEn || '',
-          tipEs: recipeIngredient.tipEs || '',
-          recipeSectionEn: recipeIngredient.recipeSectionEn || '',
-          recipeSectionEs: recipeIngredient.recipeSectionEs || '',
+          translations: recipeIngredient.translations || [],
         });
       } else {
-        // Reset to default state when opening for a new ingredient
         setFormData(DEFAULT_FORM_DATA);
       }
       setErrors({});
     }
   }, [recipeIngredient, visible]);
+
+  const getTransField = (locale: string, field: string): string => {
+    const t = pickTranslation(formData.translations, locale);
+    return (t as any)?.[field] || '';
+  };
+
+  const setTransField = (locale: string, field: string, value: string) => {
+    const existing = formData.translations.find(t => t.locale === locale);
+    let updated: AdminRecipeIngredientTranslation[];
+    if (existing) {
+      updated = formData.translations.map(t =>
+        t.locale === locale ? { ...t, [field]: value } : t
+      );
+    } else {
+      updated = [...formData.translations, { locale, [field]: value } as AdminRecipeIngredientTranslation];
+    }
+    setFormData(prev => ({ ...prev, translations: updated }));
+  };
 
   const handleChange = (key: keyof AdminRecipeIngredient, value: any) => {
     const safeValue = value === undefined || value === null ? '' : value;
@@ -179,19 +144,20 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
       newErrors.measurementUnit = i18n.t('validation.required');
     }
 
-    if (!formData.recipeSectionEn) {
-      newErrors.recipeSectionEn = i18n.t('validation.required');
-    }
-
-    if (!formData.recipeSectionEs) {
-      newErrors.recipeSectionEs = i18n.t('validation.required');
+    // Check recipeSection is set for at least one locale
+    const hasRecipeSection = formData.translations.some(t => t.recipeSection?.trim());
+    if (!hasRecipeSection) {
+      newErrors.recipeSection = i18n.t('validation.required');
     }
 
     const isDuplicate = existingIngredients.some(
-      ing =>
-        ing.ingredientId === formData.ingredientId &&
-        ing.recipeSectionEn === formData.recipeSectionEn &&
-        ing.id !== formData.id
+      ing => {
+        const existingSection = getTranslatedField(ing.translations, 'en', 'recipeSection');
+        const currentSection = getTransField('en', 'recipeSection');
+        return ing.ingredientId === formData.ingredientId &&
+          existingSection === currentSection &&
+          ing.id !== formData.id;
+      }
     );
 
     if (isDuplicate) {
@@ -213,15 +179,20 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
 
   const sortedMeasurementUnits = React.useMemo(() => {
     const priorityUnits = ['gram', 'teaspoon', 'tablespoon'];
+    const getName = (unit: AdminMeasurementUnit) => getTranslatedField(unit.translations, 'en', 'name') || getTranslatedField(unit.translations, 'es', 'name');
     const topUnits = measurementUnits.filter(unit =>
-      priorityUnits.includes(unit.nameEn?.toLowerCase() || unit.nameEs?.toLowerCase())
+      priorityUnits.includes(getName(unit).toLowerCase())
     );
     const otherUnits = measurementUnits
-      .filter(unit => !priorityUnits.includes(unit.nameEn?.toLowerCase() || unit.nameEs?.toLowerCase()))
-      .sort((a, b) => a.nameEn?.localeCompare(b.nameEn) || 0);
+      .filter(unit => !priorityUnits.includes(getName(unit).toLowerCase()))
+      .sort((a, b) => getName(a).localeCompare(getName(b)));
 
     return [...topUnits, ...otherUnits];
   }, [measurementUnits]);
+
+  // Get ingredient display names from translations
+  const ingredientNameEn = getTranslatedField(formData.ingredient?.translations, 'en', 'name');
+  const ingredientNameEs = getTranslatedField(formData.ingredient?.translations, 'es', 'name');
 
   return (
     <Modal
@@ -256,10 +227,10 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
               <View className="flex-row items-center justify-between mb-lg">
                 <View className="flex-1">
                   <Text preset="h1" className="mb-[2px]">
-                    {formData.ingredient?.nameEn}
+                    {ingredientNameEn}
                   </Text>
                   <Text preset="subheading" className="mb-[2px]">
-                    {formData.ingredient?.nameEs}
+                    {ingredientNameEs}
                   </Text>
                 </View>
                 {formData.ingredient?.pictureUrl && (
@@ -293,10 +264,14 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
                   <SelectInput
                     label={i18n.t('admin.recipes.form.ingredientsInfo.measurementUnit')}
                     value={formData.measurementUnit?.id || ''}
-                    options={sortedMeasurementUnits.map((unit) => ({
-                      label: unit.nameEn ? `${unit.nameEn} (${unit.symbolEn})` : '',
-                      value: unit.id,
-                    }))}
+                    options={sortedMeasurementUnits.map((unit) => {
+                      const unitName = getTranslatedField(unit.translations, 'en', 'name');
+                      const unitSymbol = getTranslatedField(unit.translations, 'en', 'symbol');
+                      return {
+                        label: unitName ? `${unitName} (${unitSymbol})` : '',
+                        value: unit.id,
+                      };
+                    })}
                     onValueChange={handleMeasurementUnitChange}
                     error={errors.measurementUnit}
                     required
@@ -306,7 +281,7 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
 
               <FormDivider />
 
-              {/* Notes */}
+              {/* Notes - single language */}
               <FormRow column>
                 <View className="flex-row items-baseline gap-sm">
                   <Text preset="subheading">
@@ -318,24 +293,16 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
                 </View>
                 <FormGroup>
                   <TextInput
-                    label={i18n.t('admin.recipes.form.ingredientsInfo.notesEn')}
-                    value={formData.notesEn}
-                    onChangeText={(value) => handleChange('notesEn', value)}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <TextInput
-                    label={i18n.t('admin.recipes.form.ingredientsInfo.notesEs')}
-                    value={formData.notesEs}
-                    onChangeText={(value) => handleChange('notesEs', value)}
+                    label={i18n.t('admin.recipes.form.ingredientsInfo.notesTitle')}
+                    value={getTransField(authoringLocale, 'notes')}
+                    onChangeText={(value) => setTransField(authoringLocale, 'notes', value)}
                   />
                 </FormGroup>
               </FormRow>
 
               <FormDivider />
 
-              {/* Tips */}
+              {/* Tip - single language */}
               <FormRow column>
                 <View className="flex-row items-baseline gap-sm">
                   <Text preset="subheading">
@@ -344,21 +311,9 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
                 </View>
                 <FormGroup>
                   <TextInput
-                    label={i18n.t('admin.recipes.form.ingredientsInfo.tipEn')}
-                    value={formData.tipEn}
-                    onChangeText={(value) => handleChange('tipEn', value)}
-                    multiline={true}
-                    numberOfLines={4}
-                    className="min-h-[100px] p-md"
-                    style={{ textAlignVertical: 'top' }}
-                  />
-                </FormGroup>
-
-                <FormGroup>
-                  <TextInput
-                    label={i18n.t('admin.recipes.form.ingredientsInfo.tipEs')}
-                    value={formData.tipEs}
-                    onChangeText={(value) => handleChange('tipEs', value)}
+                    label={i18n.t('admin.recipes.form.ingredientsInfo.tipTitle')}
+                    value={getTransField(authoringLocale, 'tip')}
+                    onChangeText={(value) => setTransField(authoringLocale, 'tip', value)}
                     multiline={true}
                     numberOfLines={4}
                     className="min-h-[100px] p-md"
@@ -369,24 +324,15 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
 
               <FormDivider />
 
-              <FormRow>
-                <FormGroup required>
-                  <TextInput
-                    label={i18n.t('admin.recipes.form.ingredientsInfo.recipeSectionEn')}
-                    value={formData.recipeSectionEn}
-                    onChangeText={(value) => handleChange('recipeSectionEn', value)}
-                    error={errors.recipeSectionEn}
-                  />
-                </FormGroup>
-                <FormGroup required>
-                  <TextInput
-                    label={i18n.t('admin.recipes.form.ingredientsInfo.recipeSectionEs')}
-                    value={formData.recipeSectionEs}
-                    onChangeText={(value) => handleChange('recipeSectionEs', value)}
-                    error={errors.recipeSectionEs}
-                  />
-                </FormGroup>
-              </FormRow>
+              {/* Recipe Section - single language */}
+              <FormGroup required>
+                <TextInput
+                  label={i18n.t('admin.recipes.form.ingredientsInfo.recipeSectionEn', { defaultValue: 'Recipe Section' })}
+                  value={getTransField(authoringLocale, 'recipeSection')}
+                  onChangeText={(value) => setTransField(authoringLocale, 'recipeSection', value)}
+                  error={errors.recipeSection}
+                />
+              </FormGroup>
 
               <FormDivider />
 

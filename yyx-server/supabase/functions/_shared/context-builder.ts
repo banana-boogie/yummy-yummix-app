@@ -7,6 +7,7 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { UserContext } from "./irmixy-schemas.ts";
+import { buildLocaleChain } from "./locale-utils.ts";
 
 const MAX_HISTORY_MESSAGES = 50;
 const MAX_CONTENT_LENGTH = 2000;
@@ -87,7 +88,7 @@ async function buildContext(
     supabase
       .from("user_profiles")
       .select(`
-        language,
+        locale,
         dietary_restrictions,
         measurement_system,
         diet_types,
@@ -112,8 +113,11 @@ async function buildContext(
 
   const profile = profileResult.data;
 
-  // Determine language (default: 'en')
-  const language: "en" | "es" = profile?.language === "es" ? "es" : "en";
+  // Determine language from locale (default: 'en')
+  // locale is a regional code like 'es-MX', 'es-ES', 'en' — derive UI language from it
+  const locale = profile?.locale || "en";
+  const language: "en" | "es" = locale.startsWith("es") ? "es" : "en";
+  const localeChain = buildLocaleChain(locale);
 
   // Determine measurement system
   // Fallback: imperial for 'en', metric for 'es'
@@ -144,6 +148,8 @@ async function buildContext(
   });
 
   return {
+    locale,
+    localeChain,
     language,
     measurementSystem,
     dietaryRestrictions: sanitizeList(profile?.dietary_restrictions),

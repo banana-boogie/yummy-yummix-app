@@ -170,7 +170,8 @@ describe('RecipeProgressIndicator', () => {
       expect(CreateRecipeStep.INGREDIENTS).toBe(3);
       expect(CreateRecipeStep.STEPS).toBe(4);
       expect(CreateRecipeStep.TAGS).toBe(5);
-      expect(CreateRecipeStep.REVIEW).toBe(6);
+      expect(CreateRecipeStep.TRANSLATIONS).toBe(6);
+      expect(CreateRecipeStep.REVIEW).toBe(7);
     });
   });
 });

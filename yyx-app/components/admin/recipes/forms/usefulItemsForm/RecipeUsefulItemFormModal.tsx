@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { View, Modal, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
-import { AdminRecipeUsefulItem } from '@/types/recipe.admin.types';
+import { AdminRecipeUsefulItem, AdminRecipeUsefulItemTranslation, pickTranslation, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/i18n';
 import { Image } from 'expo-image';
 import { TextInput } from '@/components/form/TextInput';
+import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
+import { translateContent } from '@/services/admin/adminTranslateService';
 
 interface RecipeUsefulItemFormModalProps {
   visible: boolean;
@@ -14,6 +16,7 @@ interface RecipeUsefulItemFormModalProps {
   onSave: (recipeUsefulItem: AdminRecipeUsefulItem) => void;
   recipeUsefulItem?: AdminRecipeUsefulItem;
   existingUsefulItems?: AdminRecipeUsefulItem[];
+  authoringLocale?: string;
 }
 
 type ValidationErrors = Record<string, string>;
@@ -24,6 +27,7 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
   onSave,
   recipeUsefulItem,
   existingUsefulItems = [],
+  authoringLocale = 'es',
 }) => {
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [formData, setFormData] = useState<AdminRecipeUsefulItem>({
@@ -31,12 +35,10 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
     recipeId: '',
     usefulItemId: '',
     displayOrder: 0,
-    notesEn: '',
-    notesEs: '',
+    translations: [],
     usefulItem: {
       id: '',
-      nameEn: '',
-      nameEs: '',
+      translations: [],
       pictureUrl: '',
     },
   });
@@ -44,20 +46,39 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
   useEffect(() => {
     if (visible) {
       if (recipeUsefulItem) {
-        setFormData(recipeUsefulItem);
+        setFormData({
+          ...recipeUsefulItem,
+          translations: recipeUsefulItem.translations || [],
+        });
       }
       setErrors({});
     }
   }, [recipeUsefulItem, visible]);
 
+  const getNotesForLocale = (locale: string): string => {
+    return pickTranslation(formData.translations, locale)?.notes || '';
+  };
+
+  const setNotesForLocale = (locale: string, notes: string) => {
+    const existing = formData.translations.find(t => t.locale === locale);
+    let updated: AdminRecipeUsefulItemTranslation[];
+    if (existing) {
+      updated = formData.translations.map(t =>
+        t.locale === locale ? { ...t, notes } : t
+      );
+    } else {
+      updated = [...formData.translations, { locale, notes }];
+    }
+    setFormData(prev => ({ ...prev, translations: updated }));
+  };
+
   const validateForm = (): boolean => {
     const newErrors: ValidationErrors = {};
 
-    // Check for duplicates - prevent the user from proceeding if a duplicate is found
     const isDuplicate = existingUsefulItems.some(
       item =>
         item.usefulItemId === formData.usefulItemId &&
-        item.id !== formData.id // Not the same item we're editing
+        item.id !== formData.id
     );
 
     if (isDuplicate) {
@@ -77,12 +98,9 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
     }
   };
 
-  const handleChangeText = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  // Get useful item display names
+  const usefulItemNameEn = getTranslatedField(formData.usefulItem?.translations, 'en', 'name');
+  const usefulItemNameEs = getTranslatedField(formData.usefulItem?.translations, 'es', 'name');
 
   return (
     <Modal
@@ -128,10 +146,10 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
 
                 <View className="flex-1">
                   <Text preset="subheading" className="mb-1">
-                    {formData.usefulItem?.nameEn}
+                    {usefulItemNameEn}
                   </Text>
                   <Text className="text-text-SECONDARY">
-                    {formData.usefulItem?.nameEs}
+                    {usefulItemNameEs}
                   </Text>
                 </View>
               </View>
@@ -142,20 +160,12 @@ export const RecipeUsefulItemFormModal: React.FC<RecipeUsefulItemFormModalProps>
                 </Text>
               )}
 
-              {/* Notes in English */}
+              {/* Notes - single language */}
               <TextInput
-                value={formData.notesEn || ''}
-                onChangeText={(value) => handleChangeText('notesEn', value)}
+                value={getNotesForLocale(authoringLocale)}
+                onChangeText={(value) => setNotesForLocale(authoringLocale, value)}
                 containerStyle={{ marginBottom: 16 }}
-                label={i18n.t('admin.recipes.form.usefulItemsInfo.notesEnLabel', { defaultValue: 'Notes (English)' })}
-              />
-
-              {/* Notes in Spanish */}
-              <TextInput
-                value={formData.notesEs || ''}
-                onChangeText={(value) => handleChangeText('notesEs', value)}
-                containerStyle={{ marginBottom: 16 }}
-                label={i18n.t('admin.recipes.form.usefulItemsInfo.notesEsLabel', { defaultValue: 'Notes (Spanish)' })}
+                label={i18n.t('admin.recipes.form.usefulItemsInfo.notesEnLabel', { defaultValue: 'Notes' })}
               />
             </ScrollView>
 

@@ -6,12 +6,14 @@ import { AdminRecipeUsefulItemCard } from '@/components/admin/recipes/forms/usef
 
 interface RecipeUsefulItemsListProps {
   usefulItems: AdminRecipeUsefulItem[];
+  displayLocale?: string;
   title?: string;
   hideActions?: boolean;
 }
 
 export const RecipeUsefulItemsList: React.FC<RecipeUsefulItemsListProps> = ({
   usefulItems,
+  displayLocale = 'es',
   title,
   hideActions = false
 }) => {
@@ -38,6 +40,7 @@ export const RecipeUsefulItemsList: React.FC<RecipeUsefulItemsListProps> = ({
             <AdminRecipeUsefulItemCard
               key={usefulItem.id}
               recipeUsefulItem={usefulItem}
+              displayLocale={displayLocale}
               hideActions={hideActions}
               variant="readonly"
             />

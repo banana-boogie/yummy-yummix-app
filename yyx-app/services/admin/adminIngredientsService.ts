@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { AdminIngredient } from '@/types/recipe.admin.types';
+import { AdminIngredient, AdminIngredientTranslation, pickTranslation, getNameFromTranslations } from '@/types/recipe.admin.types';
 import { BaseService } from '../base/BaseService';
 import { imageService } from '../storage/imageService';
 
@@ -8,41 +8,53 @@ export class AdminIngredientsService extends BaseService {
     super(supabase);
   }
 
-  async getAllIngredientsForAdmin(sortBy: 'name_en' | 'name_es' = 'name_en'): Promise<AdminIngredient[]> {
+  async getAllIngredientsForAdmin(sortBy: 'en' | 'es' = 'en'): Promise<AdminIngredient[]> {
     const { data, error } = await this.supabase
       .from('ingredients')
       .select(`
         id,
-        name_en,
-        name_es,
-        plural_name_en,
-        plural_name_es,
         image_url,
-        nutritional_facts
+        nutritional_facts,
+        translations:ingredient_translations (
+          locale,
+          name,
+          plural_name
+        )
       `)
-      .order(sortBy, { ascending: true });
+      .order('id', { ascending: true });
 
     if (error) {
       console.error('Error fetching ingredients:', error);
       throw new Error(`Error fetching ingredients: ${error.message}`);
     }
 
-    return (data || []).map((item: any) => ({
+    const result: AdminIngredient[] = (data || []).map((item: any) => ({
       id: item.id,
-      nameEn: item.name_en || undefined,
-      nameEs: item.name_es || undefined,
-      pluralNameEn: item.plural_name_en || undefined,
-      pluralNameEs: item.plural_name_es || undefined,
+      translations: (item.translations || []).map((t: any) => ({
+        locale: t.locale,
+        name: t.name || '',
+        pluralName: t.plural_name || undefined,
+      })),
       pictureUrl: item.image_url,
-      nutritionalFacts: item.nutritional_facts
+      nutritionalFacts: item.nutritional_facts,
     }));
+
+    // Sort client-side since we can't sort by translation table column via PostgREST
+    const sortLocale = sortBy;
+    result.sort((a: AdminIngredient, b: AdminIngredient) => {
+      const aName = pickTranslation(a.translations, sortLocale)?.name || '';
+      const bName = pickTranslation(b.translations, sortLocale)?.name || '';
+      return aName.localeCompare(bName);
+    });
+
+    return result;
   }
 
-  private async handleImageUpload(file: any, nameEs?: string, nameEn?: string): Promise<string> {
+  private async handleImageUpload(file: any, translations?: AdminIngredientTranslation[]): Promise<string> {
     if (!file) return '';
-    
+
     try {
-      const fileName = `${nameEs || nameEn || 'ingredient'}.png`;
+      const fileName = `${getNameFromTranslations(translations, 'ingredient')}.png`;
       return await this.uploadImage({
         bucket: 'ingredients',
         folderPath: 'images',
@@ -58,18 +70,9 @@ export class AdminIngredientsService extends BaseService {
 
   async updateIngredient(id: string, ingredient: AdminIngredient): Promise<AdminIngredient> {
     const ingredientData: Record<string, any> = {};
-    
-    // Handle English name fields
-    if (ingredient.nameEn !== undefined) ingredientData.name_en = ingredient.nameEn;
-    if (ingredient.pluralNameEn !== undefined) ingredientData.plural_name_en = ingredient.pluralNameEn;
-    
-    // Handle Spanish name fields
-    if (ingredient.nameEs !== undefined) ingredientData.name_es = ingredient.nameEs;
-    if (ingredient.pluralNameEs !== undefined) ingredientData.plural_name_es = ingredient.pluralNameEs;
-    
+
     // Handle image update only if pictureUrl is explicitly provided and is different
     if (ingredient.pictureUrl !== undefined) {
-      // First, get the current ingredient to get its image URL
       const { data: currentIngredient, error: fetchError } = await this.supabase
         .from('ingredients')
         .select('image_url')
@@ -80,44 +83,54 @@ export class AdminIngredientsService extends BaseService {
         throw new Error(`Error fetching current ingredient: ${fetchError.message}`);
       }
 
-      // Only process image if it's actually different
       const isNewImage = typeof ingredient.pictureUrl === 'object';
       const isDifferentUrl = ingredient.pictureUrl !== currentIngredient?.image_url;
 
       if (isNewImage || isDifferentUrl) {
-        // If there's an existing image and we're updating to a new one, delete the old one
         if (currentIngredient?.image_url) {
           try {
             await this.deleteImage(currentIngredient.image_url);
           } catch (error) {
             console.error('Error deleting old image:', error);
-            // Continue with update even if image deletion fails
           }
         }
 
-        // If the new pictureUrl is a file object, upload it
         if (isNewImage) {
           ingredientData.image_url = await this.handleImageUpload(
             ingredient.pictureUrl,
-            ingredient.nameEs,
-            ingredient.nameEn
+            ingredient.translations
           );
         } else {
-          // If it's a different URL string, use it directly
           ingredientData.image_url = ingredient.pictureUrl;
         }
       }
     }
-    
+
     if (ingredient.nutritionalFacts !== undefined) ingredientData.nutritional_facts = ingredient.nutritionalFacts;
 
-    // Only perform update if there are changes
     if (Object.keys(ingredientData).length > 0) {
       const updatedIngredient = await this.transformedUpdate<AdminIngredient>('ingredients', id, ingredientData);
       if (!updatedIngredient) {
         throw new Error('Failed to update ingredient');
       }
-      return updatedIngredient;
+    }
+
+    // Upsert translations from the translations array
+    if (ingredient.translations && ingredient.translations.length > 0) {
+      const dbTranslations = ingredient.translations.map(t => ({
+        ingredient_id: id,
+        locale: t.locale,
+        name: t.name,
+        plural_name: t.pluralName || null,
+      }));
+
+      const { error: translationError } = await this.supabase
+        .from('ingredient_translations')
+        .upsert(dbTranslations, { onConflict: 'ingredient_id,locale' });
+
+      if (translationError) {
+        throw new Error(`Failed to upsert ingredient translations: ${translationError.message}`);
+      }
     }
 
     return ingredient;
@@ -140,11 +153,10 @@ export class AdminIngredientsService extends BaseService {
   }
 
   async createIngredient(ingredient: any): Promise<AdminIngredient> {
-    const ingredientData = {
-      name_en: ingredient.nameEn,
-      name_es: ingredient.nameEs,
-      plural_name_en: ingredient.pluralNameEn,
-      plural_name_es: ingredient.pluralNameEs,
+    // Support both old (nameEn/nameEs) and new (translations) formats
+    const translations: AdminIngredientTranslation[] = ingredient.translations || [];
+
+    const ingredientData: Record<string, any> = {
       image_url: '',
       nutritional_facts: ingredient.nutritionalFacts,
     };
@@ -152,13 +164,45 @@ export class AdminIngredientsService extends BaseService {
     if (ingredient.pictureUrl) {
       ingredientData.image_url = await this.handleImageUpload(
         ingredient.pictureUrl,
-        ingredient.nameEs,
-        ingredient.nameEn
+        translations
       );
     }
 
-    const result = await this.transformedInsert<AdminIngredient>('ingredients', ingredientData);
-    return result;
+    // Insert the ingredient and get the ID back
+    const { data: inserted, error: insertError } = await this.supabase
+      .from('ingredients')
+      .insert(ingredientData)
+      .select('id')
+      .single();
+
+    if (insertError) {
+      throw new Error(`Failed to create ingredient: ${insertError.message}`);
+    }
+
+    // Insert translations from the translations array
+    const dbTranslations = translations.map(t => ({
+      ingredient_id: inserted.id,
+      locale: t.locale,
+      name: t.name,
+      plural_name: t.pluralName || null,
+    }));
+
+    if (dbTranslations.length > 0) {
+      const { error: translationError } = await this.supabase
+        .from('ingredient_translations')
+        .insert(dbTranslations);
+
+      if (translationError) {
+        throw new Error(`Failed to insert ingredient translations: ${translationError.message}`);
+      }
+    }
+
+    return {
+      id: inserted.id,
+      translations,
+      pictureUrl: ingredientData.image_url,
+      nutritionalFacts: ingredient.nutritionalFacts,
+    };
   }
 
   // Image methods
@@ -167,4 +211,4 @@ export class AdminIngredientsService extends BaseService {
 }
 
 export const adminIngredientsService = new AdminIngredientsService();
-export default adminIngredientsService; 
+export default adminIngredientsService;

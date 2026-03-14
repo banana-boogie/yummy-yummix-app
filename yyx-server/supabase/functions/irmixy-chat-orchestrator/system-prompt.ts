@@ -11,6 +11,7 @@ import {
   buildPersonalityBlock,
   buildUserContextBlock,
 } from "../_shared/system-prompt-builder.ts";
+import { getLanguageName } from "../_shared/locale-utils.ts";
 
 /**
  * Build the full chat system prompt with user context.
@@ -20,13 +21,13 @@ export function buildSystemPrompt(
   mealContext?: { mealType?: string; timePreference?: string },
 ): string {
   const userContextBlock = buildUserContextBlock(userContext);
-  const lang = userContext.language === "es" ? "Mexican Spanish" : "English";
+  const lang = getLanguageName(userContext.locale);
   const units = userContext.measurementSystem === "imperial"
     ? "cups, oz, °F"
     : "ml, g, °C";
 
   // --- Personality first (sets tone before model enters encyclopedic mode) ---
-  const personality = buildPersonalityBlock(userContext.language);
+  const personality = buildPersonalityBlock(userContext.locale);
 
   // --- User context + communication + tools + security ---
   const coreRules = `${userContextBlock}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Modal, TouchableOpacity } from 'react-native';
 import i18n from '@/i18n';
-import { AdminRecipe } from '@/types/recipe.admin.types';
+import { AdminRecipe, getTranslatedField } from '@/types/recipe.admin.types';
 import { Text } from '@/components/common/Text';
 
 interface ResumeDialogProps {
@@ -19,13 +19,10 @@ export function ResumeDialog({
 }: ResumeDialogProps) {
   if (!savedRecipe) return null;
 
-  const recipeName = savedRecipe.nameEn
-    ? savedRecipe.nameEn
-    : savedRecipe.nameEs || i18n.t('admin.recipes.resume.untitledRecipe');
-
-  const recipeNameAlt = savedRecipe.nameEn && savedRecipe.nameEs
-    ? ` (${savedRecipe.nameEs})`
-    : '';
+  const nameEn = getTranslatedField(savedRecipe.translations, 'en', 'name');
+  const nameEs = getTranslatedField(savedRecipe.translations, 'es', 'name');
+  const recipeName = nameEn || nameEs || i18n.t('admin.recipes.resume.untitledRecipe');
+  const recipeNameAlt = nameEn && nameEs ? ` (${nameEs})` : '';
 
   return (
     <Modal

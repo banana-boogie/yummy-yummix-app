@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, isValidElement, cloneElement } from 'react';
 import { View, StyleProp, ViewStyle } from 'react-native';
 import { Text } from '@/components/common/Text';
 
@@ -8,7 +8,7 @@ interface FormGroupProps {
   error?: string;
   children: ReactNode;
   helperText?: string;
-  className?: string; // Add className support
+  className?: string;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -21,6 +21,12 @@ export function FormGroup({
   className = '',
   style
 }: FormGroupProps) {
+  // Pass hasError prop to child input so it shows error styling (red border)
+  // without duplicating the error message (FormGroup already shows it)
+  const enhancedChildren = error && isValidElement(children)
+    ? cloneElement(children as React.ReactElement<any>, { hasError: true })
+    : children;
+
   return (
     <View className={`flex-1 mb-md ${className}`} style={style}>
       {label ? (
@@ -33,7 +39,7 @@ export function FormGroup({
         <Text className="text-sm text-text-secondary mb-sm">{helperText}</Text>
       ) : null}
 
-      {children}
+      {enhancedChildren}
 
       {error ? (
         <Text className="text-status-error text-sm mt-xs">{error}</Text>

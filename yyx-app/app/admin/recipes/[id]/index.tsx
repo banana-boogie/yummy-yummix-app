@@ -9,7 +9,7 @@ import { StepsForm } from '@/components/admin/recipes/forms/stepsForm/RecipeStep
 import { TagsForm } from '@/components/admin/recipes/forms/tagsForm/TagsForm';
 import { ReviewForm } from '@/components/admin/recipes/forms/reviewForm/ReviewForm';
 import { RecipeUsefulItemsForm } from '@/components/admin/recipes/forms/usefulItemsForm/RecipeUsefulItemsForm';
-import { AdminRecipe } from '@/types/recipe.admin.types';
+import { AdminRecipe, getTranslatedField } from '@/types/recipe.admin.types';
 import { adminRecipeService } from '@/services/admin/adminRecipeService';
 import { Text } from '@/components/common/Text';
 import { AlertModal } from '@/components/common/AlertModal';
@@ -20,6 +20,9 @@ import { CreateRecipeStep, RecipeProgressIndicator } from '@/components/admin/re
 import { NavButtons } from '@/components/form/NavButtons';
 import { useRecipeNavigation } from '@/hooks/admin/useRecipeNavigation';
 import { useDevice } from '@/hooks/useDevice';
+import { TranslationStep } from '@/components/admin/recipes/forms/translationForm/TranslationStep';
+import { loadAuthoringLocale, saveAuthoringLocale } from '@/components/admin/recipes/forms/shared/AuthoringLanguagePicker';
+import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
 
 export default function EditRecipePage() {
   const { id } = useLocalSearchParams();
@@ -35,10 +38,21 @@ export default function EditRecipePage() {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [currentStep, setCurrentStep] = useState<CreateRecipeStep>(CreateRecipeStep.BASIC_INFO);
+  const [authoringLocale, setAuthoringLocale] = useState('es');
+  const [displayLocale, setDisplayLocale] = useState('es');
 
   const { validateRecipe } = useRecipeValidation();
   const { getNextButtonLabel } = useRecipeNavigation(recipe, currentStep);
   const { isSmall } = useDevice();
+
+  useEffect(() => {
+    loadAuthoringLocale().then(setAuthoringLocale);
+  }, []);
+
+  const handleAuthoringLocaleChange = (locale: string) => {
+    setAuthoringLocale(locale);
+    saveAuthoringLocale(locale);
+  };
 
   const loadRecipe = useCallback(async () => {
     if (!id) return;
@@ -117,6 +131,8 @@ export default function EditRecipePage() {
             recipe={recipe}
             onUpdateRecipe={handleUpdateRecipe}
             errors={errors}
+            authoringLocale={authoringLocale}
+            onAuthoringLocaleChange={handleAuthoringLocaleChange}
           />
         );
       case CreateRecipeStep.INGREDIENTS:
@@ -125,6 +141,8 @@ export default function EditRecipePage() {
             recipe={recipe as AdminRecipe}
             onUpdateRecipe={handleUpdateRecipe}
             errors={errors}
+            authoringLocale={authoringLocale}
+            displayLocale={displayLocale}
           />
         );
       case CreateRecipeStep.STEPS:
@@ -133,6 +151,8 @@ export default function EditRecipePage() {
             recipe={recipe as AdminRecipe}
             onUpdateRecipe={handleUpdateRecipe}
             errors={errors}
+            authoringLocale={authoringLocale}
+            displayLocale={displayLocale}
           />
         );
       case CreateRecipeStep.USEFUL_ITEMS:
@@ -141,6 +161,8 @@ export default function EditRecipePage() {
             recipe={recipe as AdminRecipe}
             onUpdateRecipe={handleUpdateRecipe}
             errors={errors}
+            authoringLocale={authoringLocale}
+            displayLocale={displayLocale}
           />
         );
       case CreateRecipeStep.TAGS:
@@ -149,12 +171,22 @@ export default function EditRecipePage() {
             recipe={recipe}
             onUpdateRecipe={handleUpdateRecipe}
             errors={errors}
+            displayLocale={displayLocale}
+          />
+        );
+      case CreateRecipeStep.TRANSLATIONS:
+        return (
+          <TranslationStep
+            recipe={recipe}
+            authoringLocale={authoringLocale}
+            onUpdateRecipe={handleUpdateRecipe}
           />
         );
       case CreateRecipeStep.REVIEW:
         return (
           <ReviewForm
             recipe={recipe}
+            displayLocale={displayLocale}
             onUpdateRecipe={handleUpdateRecipe}
           />
         );
@@ -177,7 +209,10 @@ export default function EditRecipePage() {
   }
 
   // Show loading state until recipe name is loaded to prevent title flash
-  if (loading || !recipe.nameEn) {
+  const recipeName = getTranslatedField(recipe.translations, displayLocale, 'name')
+    || getTranslatedField(recipe.translations, 'es', 'name')
+    || getTranslatedField(recipe.translations, 'en', 'name');
+  if (loading || !recipeName) {
     return (
       <AdminLayout title={i18n.t('admin.common.loading')} showBackButton={true}>
         <View className="flex-1 justify-center items-center">
@@ -189,7 +224,7 @@ export default function EditRecipePage() {
 
   return (
     <AdminLayout
-      title={recipe.nameEn ? `${recipe.nameEn} | ${recipe.nameEs}` : i18n.t('admin.recipes.form.newRecipe')}
+      title={recipeName || i18n.t('admin.recipes.form.newRecipe')}
       showBackButton={true}
     >
       <View className="flex-1">
@@ -208,6 +243,11 @@ export default function EditRecipePage() {
               onStepClick={handleStepClick}
               clickable={true}
             />
+            {currentStep !== CreateRecipeStep.BASIC_INFO && currentStep !== CreateRecipeStep.TRANSLATIONS && (
+              <View className="mt-md">
+                <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+              </View>
+            )}
           </View>
 
           <FormErrors errors={errors} />

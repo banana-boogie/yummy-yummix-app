@@ -1,13 +1,18 @@
 import { supabase } from '@/lib/supabase';
 
-export type TimeframeFilter = 'today' | '7_days' | '30_days' | 'all_time';
+export type TimeframeFilter = '24h' | '7d' | '30d' | '90d' | 'all';
 
 export interface OverviewMetrics {
-  dau: number;
-  wau: number;
-  mau: number;
-  totalSignups: number;
-  onboardingRate: number;
+  totalUsers: number;
+  newUsers: number;
+  onboardedUsers: number;
+  totalRecipes: number;
+  newRecipes: number;
+  totalSessions: number;
+  newSessions: number;
+  activeUsers: number;
+  totalMessages: number;
+  newMessages: number;
 }
 
 export interface RetentionMetrics {
@@ -170,7 +175,7 @@ export const analyticsService = {
     return (data as TopSearch[]) ?? [];
   },
 
-  async getAIMetrics(timeframe: TimeframeFilter = '7_days'): Promise<AIMetrics> {
+  async getAIMetrics(timeframe: TimeframeFilter = '7d'): Promise<AIMetrics> {
     const { data, error } = await supabase.rpc('admin_ai_adoption', { timeframe });
     if (error) throw error;
     return data as AIMetrics;
@@ -183,7 +188,7 @@ export const analyticsService = {
   },
 
   async getAIChatSessionMetrics(
-    timeframe: TimeframeFilter = '7_days'
+    timeframe: TimeframeFilter = '7d'
   ): Promise<AIChatSessionMetrics> {
     const { data, error } = await supabase.rpc('admin_ai_chat_session_depth', {
       timeframe,

@@ -21,17 +21,70 @@ import { Button } from '@/components/common';
 ```
 
 ### Internationalization
-Two languages: English (`en`) and Mexican Spanish (`es`).
+
+Two systems handle different concerns:
+
+**1. UI strings** (`i18n/`) — Static app text (buttons, labels, headings). Uses `i18n-js` with locale files.
 ```tsx
 import i18n from '@/i18n';
 <Text>{i18n.t('recipes.common.search')}</Text>
-
-// Access current language
-import { useLanguage } from '@/contexts/LanguageContext';
-const { language } = useLanguage();
 ```
 - Never hardcode user-facing strings
-- Add translations to BOTH languages in `i18n/index.ts`
+- Add translations to BOTH `en` and `es` in `i18n/index.ts`
+
+**2. Recipe/entity content** (translation tables) — Dynamic database content (recipe names, ingredients, steps).
+```tsx
+// Access user's locale
+import { useLanguage } from '@/contexts/LanguageContext';
+const { language, locale } = useLanguage();
+// language = 'en' | 'es' (for i18n UI strings)
+// locale = full locale like 'es-MX' (for user profile / device)
+```
+
+**Locale design:**
+- `en` = base English content (US English — serves all English speakers)
+- `es` = base Spanish content (Mexican Spanish — serves all Spanish speakers)
+- Regional codes (e.g., `es-MX`, `es-ES`) are for **overrides only** — add them when you have region-specific content that differs from the base
+- **No cross-language fallback.** `en` and `es` are separate user groups. A Spanish-language user must never fall back to English content, and vice versa.
+- Fallback chain (within-family only): `es-MX` → `es` (via `buildLocaleChain()` in `_shared/locale-utils.ts`)
+- **Never store base content under a regional code** — it breaks fallback for other regions
+
+**Reading translations (frontend services):**
+```tsx
+// PostgREST embedded select joins translation tables
+const { data } = await supabase
+  .from('recipes')
+  .select(`*, translations:recipe_translations(locale, name, tips_and_tricks)`)
+  .eq('translations.locale', 'en');
+```
+
+**Reading translations (Edge Functions / server-side):**
+
+Use `pickTranslation()` from `_shared/locale-utils.ts` to resolve the best match from an array of translation rows using a locale fallback chain. Build the chain first with `buildLocaleChain()`.
+
+```typescript
+import { buildLocaleChain, pickTranslation } from '../_shared/locale-utils.ts';
+
+// Build fallback chain: "es-MX" → ["es-MX", "es"]
+const chain = buildLocaleChain(userLocale);
+
+// Pick the best available translation
+const translation = pickTranslation(recipe.translations, chain);
+// Falls back through chain; returns undefined if no chain match (caller must handle)
+```
+
+The database-side equivalent is the `resolve_locale()` RPC, which walks the `locales.parent_code` tree to find the nearest ancestor with content for a given entity.
+
+**Writing translations (admin services):**
+```tsx
+// 1. Insert/update entity (non-translatable fields only)
+const { data } = await supabase.from('recipes').insert({ difficulty, portions }).select('id').single();
+// 2. Insert/upsert translation rows
+await supabase.from('recipe_translations').upsert([
+  { recipe_id: data.id, locale: 'en', name: nameEn },
+  { recipe_id: data.id, locale: 'es', name: nameEs },
+], { onConflict: 'recipe_id,locale' });
+```
 
 ### Styling with NativeWind
 Use design tokens from `constants/design-tokens.js`:

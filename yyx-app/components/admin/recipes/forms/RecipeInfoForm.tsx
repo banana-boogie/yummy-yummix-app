@@ -5,7 +5,7 @@ import { COLORS } from '@/constants/design-tokens';
 import { Ionicons } from '@expo/vector-icons';
 import { pickImage } from '@/utils/imageUtils';
 import i18n from '@/i18n';
-import { AdminRecipe } from '@/types/recipe.admin.types';
+import { AdminRecipe, AdminRecipeTranslation, pickTranslation } from '@/types/recipe.admin.types';
 import { RecipeDifficulty } from '@/types/recipe.types';
 import { FormSection } from '@/components/form/FormSection';
 import { FormGroup } from '@/components/form/FormGroup';
@@ -13,7 +13,9 @@ import { FormRow } from '@/components/form/FormRow';
 import { SelectInput, SelectOption } from '@/components/form/SelectInput';
 import { Button } from '@/components/common/Button';
 import { AlertModal } from '@/components/common/AlertModal';
+import { Text } from '@/components/common/Text';
 import { Image } from 'expo-image';
+import { AuthoringLanguagePicker } from './shared/AuthoringLanguagePicker';
 
 // Interface for recipe with image file
 interface ExtendedRecipe extends Partial<AdminRecipe> {
@@ -24,17 +26,41 @@ interface RecipeInfoFormProps {
   recipe: ExtendedRecipe;
   onUpdateRecipe: (updates: Partial<ExtendedRecipe>) => void;
   errors: Record<string, string>;
+  authoringLocale: string;
+  onAuthoringLocaleChange: (locale: string) => void;
 }
 
-export function RecipeInfoForm({ recipe, onUpdateRecipe, errors }: RecipeInfoFormProps) {
+export function RecipeInfoForm({ recipe, onUpdateRecipe, errors, authoringLocale, onAuthoringLocaleChange }: RecipeInfoFormProps) {
+  // Form labels follow the authoring locale so the admin sees labels in the language they're editing
+  const tForm = (key: string, opts?: any) => i18n.t(key, { ...opts, locale: authoringLocale });
   const [uploading, setUploading] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
+
+  const translations = recipe.translations || [];
+
+  const getTranslationField = (locale: string, field: string): string => {
+    const t = pickTranslation(translations, locale);
+    return (t as any)?.[field] || '';
+  };
+
+  const setTranslationField = (locale: string, field: string, value: string) => {
+    const existing = translations.find(t => t.locale === locale);
+    let updated: AdminRecipeTranslation[];
+    if (existing) {
+      updated = translations.map(t =>
+        t.locale === locale ? { ...t, [field]: value } : t
+      );
+    } else {
+      updated = [...translations, { locale, name: '', [field]: value } as AdminRecipeTranslation];
+    }
+    onUpdateRecipe({ translations: updated });
+  };
 
   const handlePickImage = async () => {
     setUploading(true);
 
     await pickImage({
-      aspect: [16, 9], // Changed to match the original aspect ratio for recipes
+      aspect: [16, 9],
       width: 1200,
       onSuccess: ({ fileObject }) => {
         onUpdateRecipe({
@@ -59,27 +85,19 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors }: RecipeInfoFor
   ];
 
   return (
-    <FormSection title={i18n.t('admin.recipes.form.basicInfo.title')}>
+    <FormSection title={tForm('admin.recipes.form.basicInfo.title')}>
+      <AuthoringLanguagePicker value={authoringLocale} onChange={onAuthoringLocaleChange} />
+
+      {/* Name - single language */}
       <FormRow>
         <FormGroup
-          label={i18n.t('admin.recipes.form.basicInfo.nameEnglish')}
+          label={tForm('admin.recipes.form.basicInfo.nameEnglish', { defaultValue: 'Name' })}
           required
           error={errors.name}
         >
           <TextInput
-            value={recipe.nameEn || ''}
-            onChangeText={(text) => onUpdateRecipe({ nameEn: text })}
-          />
-        </FormGroup>
-
-        <FormGroup
-          label={i18n.t('admin.recipes.form.basicInfo.nameSpanish')}
-          required
-          error={errors.name}
-        >
-          <TextInput
-            value={recipe.nameEs || ''}
-            onChangeText={(text) => onUpdateRecipe({ nameEs: text })}
+            value={getTranslationField(authoringLocale, 'name')}
+            onChangeText={(text) => setTranslationField(authoringLocale, 'name', text)}
           />
         </FormGroup>
       </FormRow>
@@ -87,7 +105,7 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors }: RecipeInfoFor
       {/* Image container gets its own full-width row to prevent layout issues */}
       <View className="mb-md w-full">
         <FormGroup
-          label={i18n.t('admin.recipes.form.basicInfo.recipeImage')}
+          label={tForm('admin.recipes.form.basicInfo.recipeImage')}
           required
           error={errors.pictureUrl}
         >
@@ -124,7 +142,7 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors }: RecipeInfoFor
 
       <FormRow>
         <FormGroup
-          label={i18n.t('admin.recipes.form.basicInfo.difficulty')}
+          label={tForm('admin.recipes.form.basicInfo.difficulty')}
           required
           error={errors.difficulty}
         >
@@ -132,12 +150,12 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors }: RecipeInfoFor
             value={recipe.difficulty || ''}
             options={difficultyOptions}
             onValueChange={(value) => onUpdateRecipe({ difficulty: value as RecipeDifficulty })}
-            placeholder={i18n.t('admin.recipes.form.basicInfo.difficultyPlaceholder')}
+            placeholder={tForm('admin.recipes.form.basicInfo.difficultyPlaceholder')}
           />
         </FormGroup>
 
         <FormGroup
-          label={i18n.t('admin.recipes.form.basicInfo.portions')}
+          label={tForm('admin.recipes.form.basicInfo.portions')}
           required
           error={errors.portions}
         >
@@ -151,7 +169,7 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors }: RecipeInfoFor
 
       <FormRow>
         <FormGroup
-          label={i18n.t('admin.recipes.form.basicInfo.prepTime')}
+          label={tForm('admin.recipes.form.basicInfo.prepTime')}
           required
           error={errors.prepTime}
         >
@@ -163,7 +181,7 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors }: RecipeInfoFor
         </FormGroup>
 
         <FormGroup
-          label={i18n.t('admin.recipes.form.basicInfo.totalTime')}
+          label={tForm('admin.recipes.form.basicInfo.totalTime')}
           required
           error={errors.totalTime}
         >
@@ -175,13 +193,14 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors }: RecipeInfoFor
         </FormGroup>
       </FormRow>
 
+      {/* Tips & Tricks - single language */}
       <FormRow>
         <FormGroup
-          label={i18n.t('admin.recipes.form.basicInfo.tipsAndTricksEnglish')}
+          label={tForm('admin.recipes.form.basicInfo.tipsAndTricksEnglish', { defaultValue: 'Tips & Tricks' })}
         >
           <TextInput
-            value={recipe.tipsAndTricksEn || ''}
-            onChangeText={(text) => onUpdateRecipe({ tipsAndTricksEn: text })}
+            value={getTranslationField(authoringLocale, 'tipsAndTricks')}
+            onChangeText={(text) => setTranslationField(authoringLocale, 'tipsAndTricks', text)}
             multiline
             numberOfLines={4}
             className="min-h-[100px] p-md"
@@ -190,20 +209,6 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors }: RecipeInfoFor
         </FormGroup>
       </FormRow>
 
-      <FormRow>
-        <FormGroup
-          label={i18n.t('admin.recipes.form.basicInfo.tipsAndTricksSpanish')}
-        >
-          <TextInput
-            value={recipe.tipsAndTricksEs || ''}
-            onChangeText={(text) => onUpdateRecipe({ tipsAndTricksEs: text })}
-            multiline
-            numberOfLines={4}
-            className="min-h-[100px] p-md"
-            style={{ textAlignVertical: 'top' }}
-          />
-        </FormGroup>
-      </FormRow>
       <AlertModal
         visible={showAlert}
         title="Error"

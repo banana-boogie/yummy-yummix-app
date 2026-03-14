@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Image, TouchableOpacity } from 'react-native';
-import { AdminUsefulItem } from '@/types/recipe.admin.types';
+import { AdminUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import { Text } from '@/components/common/Text';
@@ -8,12 +8,14 @@ import { useDevice } from '@/hooks/useDevice';
 
 interface UsefulItemCardProps {
   usefulItem: AdminUsefulItem;
+  displayLocale: string;
   onEdit: (usefulItem: AdminUsefulItem) => void;
   onDelete: (usefulItem: AdminUsefulItem) => void;
 }
 
-export function UsefulItemCard({ usefulItem, onEdit, onDelete }: UsefulItemCardProps) {
+export function UsefulItemCard({ usefulItem, displayLocale, onEdit, onDelete }: UsefulItemCardProps) {
   const { isPhone } = useDevice();
+  const name = getTranslatedField(usefulItem.translations, displayLocale, 'name') || '—';
 
   return (
     <View className="flex-row bg-white rounded-sm mb-md p-md shadow-md items-center">
@@ -32,16 +34,16 @@ export function UsefulItemCard({ usefulItem, onEdit, onDelete }: UsefulItemCardP
         )}
       </View>
 
-      {/* Names - takes up remaining space */}
+      {/* Name */}
       <View className="flex-1 justify-center mr-sm">
-        <Text preset="body" numberOfLines={1}>{usefulItem.nameEn}</Text>
-        <Text preset="caption" color={COLORS.text.secondary} numberOfLines={1}>{usefulItem.nameEs}</Text>
+        <Text preset="body" numberOfLines={1}>{name}</Text>
       </View>
 
-      {/* Actions - compact on mobile */}
+      {/* Actions */}
       <View className="flex-row items-center gap-xs">
         <TouchableOpacity
           className="p-sm"
+          accessibilityRole="button"
           onPress={() => onEdit(usefulItem)}
         >
           <Ionicons name="create-outline" size={isPhone ? 20 : 22} color={COLORS.text.default} />
@@ -49,6 +51,7 @@ export function UsefulItemCard({ usefulItem, onEdit, onDelete }: UsefulItemCardP
 
         <TouchableOpacity
           className="p-sm"
+          accessibilityRole="button"
           onPress={() => onDelete(usefulItem)}
         >
           <Ionicons name="trash-outline" size={isPhone ? 20 : 22} color={COLORS.status.error} />

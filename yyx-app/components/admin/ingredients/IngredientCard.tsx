@@ -3,16 +3,21 @@ import { View, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
-import { AdminIngredient } from '@/types/recipe.admin.types';
+import { AdminIngredient, getTranslatedField } from '@/types/recipe.admin.types';
 import { Text } from '@/components/common/Text';
+import i18n from '@/i18n';
 
 interface IngredientCardProps {
   ingredient: AdminIngredient;
+  displayLocale: string;
   onEdit: (ingredient: AdminIngredient) => void;
   onDelete: (ingredient: AdminIngredient) => void;
 }
 
-export function IngredientCard({ ingredient, onEdit, onDelete }: IngredientCardProps) {
+export function IngredientCard({ ingredient, displayLocale, onEdit, onDelete }: IngredientCardProps) {
+  const name = getTranslatedField(ingredient.translations, displayLocale, 'name') || '—';
+  const pluralName = getTranslatedField(ingredient.translations, displayLocale, 'pluralName');
+
   return (
     <View className="bg-white rounded-xl p-md mb-md shadow-lg flex-row items-center gap-md">
       {/* Left side with image */}
@@ -32,61 +37,29 @@ export function IngredientCard({ ingredient, onEdit, onDelete }: IngredientCardP
         )}
       </View>
 
-      {/* Middle section with names */}
-      <View className="flex-1 gap-md">
-        <View className="gap-xs">
+      {/* Middle section with name */}
+      <View className="flex-1 gap-xxs">
+        <Text
+          preset="subheading"
+          className="font-semibold"
+        >
+          {name}
+        </Text>
+        {pluralName ? (
           <Text
-            preset="caption"
-            className="text-text-SECONDARY uppercase tracking-widest"
+            preset="body"
+            className="text-text-SECONDARY"
           >
-            English
+            {i18n.t('admin.ingredients.pluralName', { defaultValue: 'Plural' })}: {pluralName}
           </Text>
-          <View className="gap-xxs">
-            <Text
-              preset="subheading"
-              className="font-semibold mb-xxs"
-            >
-              {ingredient.nameEn || '—'}
-            </Text>
-            <Text
-              preset="body"
-              className="text-text-SECONDARY"
-            >
-              Plural: {ingredient.pluralNameEn || '—'}
-            </Text>
-          </View>
-        </View>
-
-        <View className="h-[1px] bg-border-default my-xs" />
-
-        <View className="gap-xs">
-          <Text
-            preset="caption"
-            className="text-text-SECONDARY uppercase tracking-widest"
-          >
-            Spanish
-          </Text>
-          <View className="gap-xxs">
-            <Text
-              preset="subheading"
-              className="font-semibold mb-xxs"
-            >
-              {ingredient.nameEs || '—'}
-            </Text>
-            <Text
-              preset="body"
-              className="text-text-SECONDARY"
-            >
-              Plural: {ingredient.pluralNameEs || '—'}
-            </Text>
-          </View>
-        </View>
+        ) : null}
       </View>
 
       {/* Right section with actions */}
       <View className="gap-sm">
         <TouchableOpacity
           className="bg-primary-DARK p-sm rounded-md"
+          accessibilityRole="button"
           onPress={() => onEdit(ingredient)}
         >
           <Ionicons name="create-outline" size={20} color={COLORS.neutral.WHITE} />
@@ -94,6 +67,7 @@ export function IngredientCard({ ingredient, onEdit, onDelete }: IngredientCardP
 
         <TouchableOpacity
           className="bg-status-ERROR p-sm rounded-md"
+          accessibilityRole="button"
           onPress={() => onDelete(ingredient)}
         >
           <Ionicons name="trash-outline" size={20} color={COLORS.neutral.WHITE} />

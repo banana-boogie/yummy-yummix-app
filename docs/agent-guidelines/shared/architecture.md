@@ -29,7 +29,7 @@ import { chat, chatStream } from '../_shared/ai-gateway/index.ts';
 
 // For structured output (always use JSON schema):
 const response = await chat({
-  usageType: 'text',  // or 'recipe_generation', 'parsing'
+  usageType: 'text',  // or 'recipe_generation', 'recipe_modification', 'parsing', 'embedding'
   messages: [
     { role: 'system', content: 'You are a helpful assistant' },
     { role: 'user', content: 'Hello!' },
@@ -58,38 +58,43 @@ const response = await chat({
   },
 });
 
-// For streaming:
-for await (const chunk of chatStream({
+// For streaming (chatStream returns AIStreamResult — access .stream):
+const result = await chatStream({
   usageType: 'text',
   messages: [...],
   reasoningEffort: 'low',
-})) {
+});
+for await (const chunk of result.stream) {
   console.log(chunk);
 }
+// Optionally await usage/cost after the stream completes:
+const { inputTokens, outputTokens, costUsd } = await result.usage();
 ```
 
 #### Usage Types:
 
-| Type | Default Model | Config | Use Case | Cost |
-|------|--------------|--------|----------|------|
-| `text` | google/gemini-2.5-flash | thinking: minimal | Chat orchestrator (tool calling + streaming) | Low |
-| `recipe_generation` | google/gemini-2.5-flash | thinking: minimal | Recipe generation (structured JSON output) — quality critical | Low |
-| `recipe_modification` | google/gemini-2.5-flash | thinking: minimal | Recipe modification (transform existing JSON) | Low |
-| `parsing` | openai/gpt-4.1-nano | temperature: `1` | Admin parsing, nutritional data extraction | Very low |
-| `embedding` | openai/text-embedding-3-large | N/A | Vector search (3072 dimensions) | Low |
+| Type | Default Model | Provider | Use Case | Cost |
+|------|--------------|----------|----------|------|
+| `text` | grok-4-1-fast-non-reasoning | xai | Chat orchestrator (tool calling + streaming) | Low |
+| `recipe_generation` | gpt-4.1 | openai | Recipe generation (structured JSON output) — quality critical | Medium |
+| `recipe_modification` | gpt-4.1 | openai | Recipe modification (transform existing recipe JSON) | Medium |
+| `parsing` | gpt-4.1-nano | openai | Admin parsing, nutritional data extraction | Very low |
+| `embedding` | text-embedding-3-large | openai | Vector search (3072 dimensions) | Low |
 
 #### Configuration:
 
 ```bash
 # Required API Keys (in .env or Supabase secrets)
-GEMINI_API_KEY=AIza...            # For text, recipe_generation, recipe_modification
-OPENAI_API_KEY=sk-proj-xxx        # For parsing, embedding
+XAI_API_KEY=xai-...               # For text (orchestrator)
+OPENAI_API_KEY=sk-proj-xxx        # For recipe_generation, recipe_modification, parsing, embedding
+# GEMINI_API_KEY and ANTHROPIC_API_KEY needed only if overriding defaults to those providers
 
-# Optional: Override default models (supports provider:model format)
-AI_TEXT_MODEL=openai:gpt-4.1-mini             # Switch to OpenAI
-AI_RECIPE_GENERATION_MODEL=gemini-2.5-flash   # Same provider, different model
-AI_RECIPE_MODIFICATION_MODEL=openai:gpt-5-mini # Switch provider entirely
-AI_PARSING_MODEL=gpt-5-nano                   # Same provider, different model
+# Optional: Override default models (supports provider:model or model-only format)
+AI_TEXT_MODEL=openai:gpt-4.1-mini             # Switch provider + model
+AI_RECIPE_GENERATION_MODEL=google:gemini-2.5-flash  # Switch to Google
+AI_RECIPE_MODIFICATION_MODEL=xai:grok-4-1-fast-non-reasoning  # Switch provider
+AI_PARSING_MODEL=gpt-4.1-mini                 # Same provider, different model
+AI_EMBEDDING_MODEL=text-embedding-3-small     # Same provider, different model
 ```
 
 #### Design Pattern:
@@ -102,8 +107,8 @@ Developer Code -> Gateway (OpenAI format) -> Provider (translates to native form
 
 This design:
 - Uses OpenAI format because it's the industry standard
-- Each provider handles translation (implemented for OpenAI and Google)
-- Adding new providers (Anthropic) just requires a new translator
+- Each provider handles translation (implemented for OpenAI, xAI, Google Gemini, and Anthropic)
+- Adding new providers just requires a new translator in `providers/<name>.ts`
 - NOT OpenAI-specific - it's using OpenAI format as the **lingua franca**
 
 **When adding new providers:** Implement translation logic in `ai-gateway/providers/<provider>.ts`. The gateway interface stays the same.

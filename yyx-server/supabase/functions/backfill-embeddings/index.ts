@@ -113,13 +113,10 @@ async function runBackfill(params: BackfillParams): Promise<{
     .from("recipes")
     .select(`
       id,
-      name_en,
-      name_es,
-      tips_and_tricks_en,
-      tips_and_tricks_es,
-      recipe_ingredients ( ingredients ( name_en, name_es ) ),
-      recipe_to_tag ( recipe_tags ( name_en, name_es ) ),
-      recipe_steps ( instruction_en, instruction_es, order )
+      recipe_translations ( locale, name, tips_and_tricks ),
+      recipe_ingredients ( ingredients ( ingredient_translations ( locale, name ) ) ),
+      recipe_to_tag ( recipe_tags ( recipe_tag_translations ( locale, name ) ) ),
+      recipe_steps ( order, recipe_step_translations ( locale, instruction ) )
     `)
     .eq("is_published", true)
     .order("created_at", { ascending: true });
@@ -195,8 +192,12 @@ async function runBackfill(params: BackfillParams): Promise<{
         }
 
         if (params.dryRun) {
+          const dryRunName = (recipe.recipe_translations || [])
+            .find((t: { locale: string; name: string | null }) =>
+              t.locale === "en"
+            )?.name || recipe.id;
           console.log(
-            `[backfill] [DRY RUN] Would embed: ${recipe.name_en} (${recipe.id})`,
+            `[backfill] [DRY RUN] Would embed: ${dryRunName} (${recipe.id})`,
           );
           batchResult.processed++;
           totalProcessed++;
@@ -227,16 +228,24 @@ async function runBackfill(params: BackfillParams): Promise<{
         batchResult.processed++;
         totalProcessed++;
 
+        const embeddedName = (recipe.recipe_translations || [])
+          .find((t: { locale: string; name: string | null }) =>
+            t.locale === "en"
+          )?.name || recipe.id;
         console.log(
-          `[backfill] Embedded: ${recipe.name_en} (${recipe.id})`,
+          `[backfill] Embedded: ${embeddedName} (${recipe.id})`,
         );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         batchResult.errors++;
         batchResult.errorMessages.push(`${recipe.id}: ${msg}`);
         totalErrors++;
+        const errorName = (recipe.recipe_translations || [])
+          .find((t: { locale: string; name: string | null }) =>
+            t.locale === "en"
+          )?.name || "unknown";
         console.error(
-          `[backfill] Error for ${recipe.id} (${recipe.name_en}):`,
+          `[backfill] Error for ${recipe.id} (${errorName}):`,
           msg,
         );
       }

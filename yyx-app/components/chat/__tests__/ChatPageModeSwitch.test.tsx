@@ -102,22 +102,26 @@ describe('ChatPage mode switching', () => {
   it('preserves each mode\'s messages independently across toggles', () => {
     render(<ChatPage />);
 
-    // Starts in voice mode on native platforms
-    expect(screen.getByText('VoiceCount:0')).toBeTruthy();
-
-    // Add a voice message
-    fireEvent.press(screen.getByText('AddVoice'));
-    expect(screen.getByText('VoiceCount:1')).toBeTruthy();
-
-    // Switch to text — text starts empty (separate state)
-    fireEvent.press(screen.getByTestId('toggle-mode'));
+    // Starts in text mode by default
     expect(screen.getByText('TextCount:0')).toBeTruthy();
 
     // Add a text message
     fireEvent.press(screen.getByText('AddText'));
     expect(screen.getByText('TextCount:1')).toBeTruthy();
 
-    // Switch back to voice — voice message still preserved
+    // Switch to voice — voice starts empty (separate state)
+    fireEvent.press(screen.getByTestId('toggle-mode'));
+    expect(screen.getByText('VoiceCount:0')).toBeTruthy();
+
+    // Add a voice message
+    fireEvent.press(screen.getByText('AddVoice'));
+    expect(screen.getByText('VoiceCount:1')).toBeTruthy();
+
+    // Switch back to text — text message still preserved
+    fireEvent.press(screen.getByTestId('toggle-mode'));
+    expect(screen.getByText('TextCount:1')).toBeTruthy();
+
+    // Switch to voice — voice message still preserved
     fireEvent.press(screen.getByTestId('toggle-mode'));
     expect(screen.getByText('VoiceCount:1')).toBeTruthy();
 

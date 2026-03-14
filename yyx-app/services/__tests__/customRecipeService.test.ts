@@ -72,7 +72,7 @@ describe('customRecipeService', () => {
                         resolve({
                             data: recipe.ingredients.map((ing, i) => ({
                                 id: `ing-${i}`,
-                                name_en: ing.name,
+                                name: ing.name,
                             })),
                             error: null,
                         });

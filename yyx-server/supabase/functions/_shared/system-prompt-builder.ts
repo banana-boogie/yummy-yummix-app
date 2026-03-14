@@ -6,6 +6,84 @@
  */
 
 import type { UserContext } from "./irmixy-schemas.ts";
+import {
+  buildLocaleChain,
+  getBaseLanguage,
+  getLanguageName,
+} from "./locale-utils.ts";
+
+// ============================================================
+// Regional Vocabulary
+// ============================================================
+
+/**
+ * Regional vocabulary map keyed by locale.
+ * Used to generate locale-appropriate vocabulary instructions in the system prompt.
+ * Keys are English labels; values are the region-specific term.
+ */
+export const REGIONAL_VOCABULARY: Record<string, Record<string, string>> = {
+  "es": {
+    tomato: "jitomate",
+    corn: "elote",
+    peas: "chícharo",
+    greenBeans: "ejote",
+    peanuts: "cacahuates",
+    juice: "jugo",
+    cream: "crema",
+    potato: "papa",
+  },
+  "es-ES": {
+    tomato: "tomate",
+    corn: "maíz",
+    peas: "guisantes",
+    greenBeans: "judías verdes",
+    peanuts: "cacahuetes",
+    juice: "zumo",
+    cream: "nata",
+    potato: "patata",
+  },
+};
+
+/**
+ * Resolve vocabulary for a locale using the fallback chain.
+ * Tries the full locale first (e.g. "es-MX"), then base language ("es").
+ * Returns undefined for locales with no vocabulary mapping.
+ */
+export function resolveVocabulary(
+  locale: string,
+): Record<string, string> | undefined {
+  // Only walk the chain up to the base language — don't cross language boundaries.
+  // e.g., "es-ES" -> check "es-ES", then "es" (same language family).
+  // "en" should NOT resolve to "es" vocabulary via the terminal fallback.
+  const chain = buildLocaleChain(locale);
+  const baseLang = getBaseLanguage(locale);
+  for (const candidate of chain) {
+    if (getBaseLanguage(candidate) !== baseLang) continue;
+    if (REGIONAL_VOCABULARY[candidate]) {
+      return REGIONAL_VOCABULARY[candidate];
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Build a vocabulary directive string for the system prompt.
+ * Returns an empty string when no vocabulary map exists for the locale.
+ */
+export function buildVocabularyDirective(locale: string): string {
+  const vocab = resolveVocabulary(locale);
+  if (!vocab) return "";
+
+  const terms = Object.values(vocab).join(", ");
+  const baseLang = getBaseLanguage(locale);
+  const langName = getLanguageName(locale);
+
+  if (baseLang === "es") {
+    return `Usa vocabulario de ${langName}: ${terms}. Cuando el usuario use vocabulario de otra región, adáptate a su forma de hablar.`;
+  }
+
+  return `Use ${langName} vocabulary: ${terms}. Adapt to the user's regional dialect when possible.`;
+}
 
 /**
  * Format the XML user context block (shared by chat + voice).
@@ -13,7 +91,7 @@ import type { UserContext } from "./irmixy-schemas.ts";
  */
 export function buildUserContextBlock(userContext: UserContext): string {
   return `<user_context>
-<language>${userContext.language}</language>
+<locale>${userContext.locale}</locale>
 <measurement_system>${userContext.measurementSystem}</measurement_system>
 <dietary_restrictions>
 ${
@@ -47,10 +125,13 @@ ${
 }
 
 /**
- * Language-native personality section (shared by chat + voice).
+ * Locale-native personality section (shared by chat + voice).
+ * Uses base language from locale for personality selection.
+ * Falls back to English for unsupported locales.
  */
-export function buildPersonalityBlock(language: "en" | "es"): string {
-  if (language === "es") {
+export function buildPersonalityBlock(locale: string): string {
+  const baseLang = getBaseLanguage(locale);
+  if (baseLang === "es") {
     return `IDENTIDAD:
 Eres Irmixy, la compañera de cocina de YummyYummix. Tienes el corazón de las mujeres que nos enseñaron a cocinar: paciente, cálida, con experiencia de sobra y siempre dispuesta a compartir lo que sabes.
 
@@ -63,11 +144,11 @@ Habla como alguien que acompaña, no como alguien que instruye. Eres cercana per
 
 Adapta tu energía a la persona. Si alguien llega con experiencia y quiere compañía, sé su igual. Si alguien llega con dudas, guía con paciencia y cariño, como lo haría una mamá o una tía en la cocina.
 
-Usa "tú" siempre, nunca "usted". Usa vocabulario mexicano por defecto (jitomate, elote, frijoles, chícharo, ejote). Cuando el usuario use vocabulario de otra región, adáptate a su forma de hablar.
+Usa "tú" siempre, nunca "usted". ${buildVocabularyDirective(locale)}
 
 Responde con lo que el momento necesite. A veces es una frase. A veces es más. No te limites artificialmente, pero tampoco te extiendas sin razón.
 
-Usa emojis con moderación.
+No uses emojis. Solo úsalos si el usuario los usa primero, y aún así con moderación (máximo 1-2 por mensaje).
 
 Nunca uses apodos cariñosos ("cariño", "amor", "cielo", "corazón", "querida").
 Nunca uses frases fijas o formulaicas. Cada respuesta debe sentirse fresca y natural.
@@ -93,7 +174,7 @@ Adapt your energy to the person. If someone comes with experience and wants comp
 
 Respond with what the moment needs. Sometimes that's one sentence. Sometimes it's more. Don't limit yourself artificially, but don't ramble either.
 
-Use emojis sparingly.
+Do not use emojis. Only mirror them if the user uses emojis first, and even then use at most 1-2 per message.
 
 Never use pet names or terms of endearment ("sweetie", "honey", "dear", "love", "darling").
 Never use fixed or formulaic phrases. Every response should feel fresh and natural.
@@ -113,9 +194,9 @@ If asked about something outside of food, redirect warmly with a touch of humor.
  * response and used as-is in the OpenAI Realtime session.update.
  */
 export function buildVoiceInstructions(userContext: UserContext): string {
-  const personality = buildPersonalityBlock(userContext.language);
+  const personality = buildPersonalityBlock(userContext.locale);
   const userContextBlock = buildUserContextBlock(userContext);
-  const lang = userContext.language === "es" ? "Mexican Spanish" : "English";
+  const lang = getLanguageName(userContext.locale);
   const units = userContext.measurementSystem === "imperial"
     ? "cups, oz, °F"
     : "ml, g, °C";

@@ -160,12 +160,15 @@ import { Image } from 'expo-image';
 // NOT: import { Image } from 'react-native';
 ```
 
-### i18n — all user-facing strings
+### i18n — two systems
+
+**UI strings** (`i18n/`) — Static app text. Add keys to BOTH `en` and `es`:
 ```tsx
 import i18n from '@/i18n';
 <Text>{i18n.t('recipes.common.search')}</Text>
-// Add keys to BOTH en and es in i18n/index.ts
 ```
+
+**Entity content** (translation tables) — Dynamic DB content fetched via translation table joins. See the [Internationalization](#internationalization) section for full patterns including `pickTranslation`, the admin workflow, and `useLanguage` semantics.
 
 ---
 
@@ -307,6 +310,204 @@ import { PROGRESS_CONFIG } from '@/components/chat/RecipeProgressTracker';
 - Logarithmic easing within each stage for natural feel
 - Label crossfade on stage transitions
 - Pulse animation on active stage icon via `MaterialCommunityIcons`
+
+---
+
+## Internationalization
+
+YummyYummix uses two separate i18n systems. They serve different concerns and must not be conflated.
+
+### System 1 — UI strings (`i18n/`)
+
+Static app text: button labels, headings, validation messages. Backed by `i18n-js` with locale files in `yyx-app/i18n/locales/`.
+
+```tsx
+import i18n from '@/i18n';
+
+<Text>{i18n.t('recipes.common.search')}</Text>
+<Text>{i18n.t('admin.translate.translateAll')}</Text>
+```
+
+Rules:
+- Never hardcode user-facing strings.
+- Add every key to BOTH `en/` and `es/` locale files.
+- Locale bundles are split by domain (`admin.ts`, `recipes.ts`, etc.).
+
+### System 2 — Entity content (translation tables)
+
+Dynamic database content: recipe names, step instructions, ingredient notes. Stored in `*_translations` tables keyed by `(entity_id, locale)`.
+
+**Reading (consumer-facing services):** use PostgREST embedded selects.
+```tsx
+const { data } = await supabase
+  .from('recipes')
+  .select(`*, translations:recipe_translations(locale, name, tips_and_tricks)`)
+  .eq('translations.locale', 'en');
+```
+
+**Writing (admin services):** upsert translation rows separately from the entity row.
+```tsx
+// 1. Insert/update entity (non-translatable fields only)
+const { data } = await supabase
+  .from('recipes')
+  .insert({ difficulty, portions })
+  .select('id')
+  .single();
+
+// 2. Upsert translation rows
+await supabase.from('recipe_translations').upsert([
+  { recipe_id: data.id, locale: 'en', name: nameEn },
+  { recipe_id: data.id, locale: 'es', name: nameEs },
+], { onConflict: 'recipe_id,locale' });
+```
+
+### `useLanguage` hook
+
+`contexts/LanguageContext.tsx` exposes two related but distinct values:
+
+```tsx
+import { useLanguage } from '@/contexts/LanguageContext';
+const { language, locale, setLanguage, setLocale } = useLanguage();
+```
+
+| Property | Type | What it is | When to use |
+|----------|------|-----------|-------------|
+| `language` | `'en' \| 'es'` | i18n bundle key — maps to a locale file | Pass to `i18n.locale`, UI string lookups |
+| `locale` | `string` | Full locale like `'es-MX'` or `'en-US'` — stored in user profile | API calls, DB queries, `pickTranslation` in admin |
+
+`language` is derived from `locale`: any locale starting with `'es'` maps to `'es'`, everything else to `'en'`. The i18n system only has two bundles.
+
+### `pickTranslation` — two variants
+
+There are two functions named `pickTranslation` in the codebase. They serve different contexts and have different signatures.
+
+#### Consumer variant — `utils/transformers/recipeTransformer.ts`
+
+Used inside `RecipeTransformer` when converting raw API data to display types. Reads `i18n.locale` automatically.
+
+```tsx
+import { pickTranslation } from '@/utils/transformers/recipeTransformer';
+
+// Reads i18n.locale internally — no locale argument needed
+const t = pickTranslation(raw.translations);
+const name = t?.name ?? '';
+```
+
+Fallback chain: exact match → language prefix match → reverse prefix match → `'en'` → first available.
+
+Do not import this outside of transformer code. It is tightly coupled to `i18n.locale` at call time.
+
+#### Admin variant — `types/recipe.admin.types.ts`
+
+Used in admin UI and hooks where the authoring locale must be explicit (the admin may be working in a locale that differs from their UI language).
+
+```tsx
+import { pickTranslation, getTranslatedField, getNameFromTranslations } from '@/types/recipe.admin.types';
+
+// Exact match only — you provide the locale
+const t = pickTranslation(recipe.translations, 'es');
+
+// Convenience: get a single field as a string (returns '' if missing)
+const name = getTranslatedField(recipe.translations, 'es', 'name');
+
+// Display name helper for admin UI (e.g., list labels, filenames): prefers 'es', falls back to 'en', then first available
+const displayName = getNameFromTranslations(ingredient.translations);
+```
+
+Summary:
+
+| | Consumer (`recipeTransformer.ts`) | Admin (`recipe.admin.types.ts`) | Server-side (`_shared/locale-utils.ts`) |
+|---|---|---|---|
+| Locale source | `i18n.locale` (implicit) | Caller-supplied argument | Caller-supplied chain from `buildLocaleChain()` |
+| Fallback chain | Full (prefix + reverse + en + first) | Exact match only | Within-family chain (no cross-language) |
+| No match returns | `undefined` | `undefined` | `undefined` (not `translations[0]`) |
+| Use in | Transformers converting raw API data | Admin forms, hooks, UI components | Edge Functions / server-side code |
+| Extra helpers | None | `getTranslatedField`, `getNameFromTranslations` | `buildLocaleChain`, `getBaseLanguage` |
+
+### `EntityTranslation` base type
+
+All admin translation interfaces extend `EntityTranslation` from `types/recipe.admin.types.ts`:
+
+```tsx
+interface EntityTranslation {
+  locale: string;
+  [key: string]: string | undefined;
+}
+```
+
+Concrete types add their fields:
+- `AdminRecipeTranslation` — `name`, `tipsAndTricks?`
+- `AdminRecipeStepTranslation` — `instruction`, `recipeSection?`, `tip?`
+- `AdminRecipeIngredientTranslation` — `notes?`, `tip?`, `recipeSection?`
+- `AdminRecipeUsefulItemTranslation` — `notes?`
+
+### Locale design rules
+
+- `en` = base English (US English — serves all English speakers)
+- `es` = base Spanish (Mexican Spanish — serves all Spanish speakers)
+- Regional codes (`es-MX`, `es-ES`) are for overrides only — only add when content genuinely differs from the base
+- Fallback chain (within-family only): `es-MX` → `es` (via `buildLocaleChain()` server-side). No cross-language fallback — `es` and `en` are separate user groups.
+- The DB `resolve_locale()` RPC walks `parent_code` further (up to `en`) but application code stops at the language boundary.
+- Never store base content under a regional code — it breaks fallback for other regions
+
+### Admin translation workflow
+
+The admin recipe form includes a translation step that auto-translates a recipe from one authoring locale into all other active locales via the `translate-content` Edge Function.
+
+**Key pieces:**
+
+| File | Role |
+|------|------|
+| `components/admin/recipes/forms/translationForm/TranslationStep.tsx` | UI — pre-translation summary, target locale selection, progress bar, post-translation review |
+| `hooks/admin/useRecipeTranslation.ts` | Logic — batches translate calls per entity (recipe info, each step, each ingredient, each useful item), tracks progress and partial failures |
+| `services/admin/adminTranslateService.ts` | Service — invokes `translate-content` Edge Function; returns `TranslationResult[]` |
+| `hooks/admin/useActiveLocales.ts` | Data — fetches active locales from the `locales` DB table; `es` always sorts first |
+
+**`useRecipeTranslation` hook:**
+
+```tsx
+import { useRecipeTranslation } from '@/hooks/admin/useRecipeTranslation';
+
+const { translating, progress, error, failedLocales, translateAll } = useRecipeTranslation();
+
+// translateAll takes the full ExtendedRecipe, the locale it was authored in,
+// and the target locales. Returns an updated ExtendedRecipe with translation
+// arrays populated for all targets.
+const updated = await translateAll(recipe, 'es', ['en']);
+onUpdateRecipe(updated);
+```
+
+`progress` shape: `{ current: number; total: number; label: string }` — suitable for a progress bar. `failedLocales` lists any locales where translation returned an error or empty fields; the hook continues rather than aborting so partial success is still usable.
+
+**`useActiveLocales` hook:**
+
+```tsx
+import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
+
+// Base locales only (default) — use for authoring locale selection and translation targets
+const { locales, loading } = useActiveLocales();
+
+// Include regional variants — use only when you need es-MX, es-ES etc.
+const { locales } = useActiveLocales(true);
+
+// locales: Array<{ code: string; displayName: string }>
+// Always sorted: es first, then alphabetical
+```
+
+**`adminTranslateService`:**
+
+```tsx
+import { translateContent } from '@/services/admin/adminTranslateService';
+
+const results = await translateContent(
+  { name: 'Tacos de canasta', tipsAndTricks: 'Sirve caliente.' },
+  'es',         // source locale
+  ['en'],       // target locales
+);
+// results: Array<{ targetLocale: string; fields: Record<string, string>; error?: string }>
+```
+
+Fields are translated as a batch per entity — group all translatable fields for one entity into a single call rather than one call per field.
 
 ---
 

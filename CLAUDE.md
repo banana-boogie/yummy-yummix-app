@@ -223,7 +223,9 @@ EXPO_PUBLIC_DEV_LOGIN_PASSWORD=devpassword123
 SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_ANON_KEY=eyJhbGc...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...  # Get from dashboard (NEVER via MCP)
-OPENAI_API_KEY=sk-proj-xxx
+XAI_API_KEY=xai-...                   # For text/orchestrator (default provider)
+OPENAI_API_KEY=sk-proj-xxx            # For recipe_generation, recipe_modification, parsing, embedding
+GEMINI_API_KEY=AIza...                # Only needed if overriding defaults to Google
 USDA_API_KEY=xxx
 ```
 
@@ -334,38 +336,43 @@ const response = await chat({
   },
 });
 
-// For streaming:
-for await (const chunk of chatStream({
+// For streaming (chatStream returns AIStreamResult — access .stream):
+const result = await chatStream({
   usageType: 'text',
   messages: [...],
   reasoningEffort: 'low',
-})) {
+});
+for await (const chunk of result.stream) {
   console.log(chunk);
 }
+// Optionally await usage/cost after the stream completes:
+const { inputTokens, outputTokens, costUsd } = await result.usage();
 ```
 
 #### Usage Types:
 
-| Type | Default Model | Config | Use Case | Cost |
-|------|--------------|--------|----------|------|
-| `text` | xai/grok-4-1-fast-non-reasoning | — | Chat orchestrator (tool calling + streaming) | Low |
-| `recipe_generation` | openai/gpt-4.1 | — | Recipe generation (structured JSON output) — quality critical | Medium |
-| `recipe_modification` | openai/gpt-4.1-mini | — | Recipe modification (transform existing JSON) | Low |
-| `parsing` | openai/gpt-4.1-nano | temperature: `1` | Admin parsing, nutritional data extraction | Very low |
-| `embedding` | openai/text-embedding-3-large | N/A | Vector search (3072 dimensions) | Low |
+| Type | Default Model | Provider | Use Case | Cost |
+|------|--------------|----------|----------|------|
+| `text` | grok-4-1-fast-non-reasoning | xai | Chat orchestrator (tool calling + streaming) | Low |
+| `recipe_generation` | gpt-4.1 | openai | Recipe generation (structured JSON output) — quality critical | Medium |
+| `recipe_modification` | gpt-4.1 | openai | Recipe modification (transform existing recipe JSON) | Medium |
+| `parsing` | gpt-4.1-nano | openai | Admin parsing, nutritional data extraction | Very low |
+| `embedding` | text-embedding-3-large | openai | Vector search (3072 dimensions) | Low |
 
 #### Configuration:
 
 ```bash
 # Required API Keys (in .env or Supabase secrets)
-OPENAI_API_KEY=sk-proj-xxx        # For recipe_generation, recipe_modification, parsing, embedding
 XAI_API_KEY=xai-...               # For text (orchestrator)
+OPENAI_API_KEY=sk-proj-xxx        # For recipe_generation, recipe_modification, parsing, embedding
+# GEMINI_API_KEY and ANTHROPIC_API_KEY needed only if overriding defaults to those providers
 
-# Optional: Override default models (supports provider:model format)
-AI_TEXT_MODEL=openai:gpt-4.1-mini           # Fallback orchestrator (different provider)
-AI_RECIPE_GENERATION_MODEL=google:gemini-2.5-flash # Fallback recipe gen (cheaper)
-AI_RECIPE_MODIFICATION_MODEL=xai:grok-4-1-fast-non-reasoning  # Fallback recipe mod
-AI_PARSING_MODEL=gpt-5-nano                   # Same provider, different model
+# Optional: Override default models (supports provider:model or model-only format)
+AI_TEXT_MODEL=openai:gpt-4.1-mini             # Switch provider + model
+AI_RECIPE_GENERATION_MODEL=google:gemini-2.5-flash  # Switch to Google
+AI_RECIPE_MODIFICATION_MODEL=xai:grok-4-1-fast-non-reasoning  # Switch provider
+AI_PARSING_MODEL=gpt-4.1-mini                 # Same provider, different model
+AI_EMBEDDING_MODEL=text-embedding-3-small     # Same provider, different model
 ```
 
 #### Design Pattern:
@@ -378,8 +385,8 @@ Developer Code -> Gateway (OpenAI format) -> Provider (translates to native form
 
 This design:
 - Uses OpenAI format because it's the industry standard
-- Each provider handles translation (implemented for OpenAI and Google)
-- Adding new providers (Anthropic) just requires a new translator
+- Each provider handles translation (already implemented for OpenAI)
+- Adding new providers (Anthropic, Google) just requires a new translator
 - NOT OpenAI-specific - it's using OpenAI format as the **lingua franca**
 
 **When adding new providers:** Implement translation logic in `ai-gateway/providers/<provider>.ts`. The gateway interface stays the same.
@@ -532,17 +539,70 @@ import { Button } from '@/components/common';
 ```
 
 ### Internationalization
-Two languages: English (`en`) and Mexican Spanish (`es`).
+
+Two systems handle different concerns:
+
+**1. UI strings** (`i18n/`) — Static app text (buttons, labels, headings). Uses `i18n-js` with locale files.
 ```tsx
 import i18n from '@/i18n';
 <Text>{i18n.t('recipes.common.search')}</Text>
-
-// Access current language
-import { useLanguage } from '@/contexts/LanguageContext';
-const { language } = useLanguage();
 ```
 - Never hardcode user-facing strings
-- Add translations to BOTH languages in `i18n/index.ts`
+- Add translations to BOTH `en` and `es` in `i18n/index.ts`
+
+**2. Recipe/entity content** (translation tables) — Dynamic database content (recipe names, ingredients, steps).
+```tsx
+// Access user's locale
+import { useLanguage } from '@/contexts/LanguageContext';
+const { language, locale } = useLanguage();
+// language = 'en' | 'es' (for i18n UI strings)
+// locale = full locale like 'es-MX' (for user profile / device)
+```
+
+**Locale design:**
+- `en` = base English content (US English — serves all English speakers)
+- `es` = base Spanish content (Mexican Spanish — serves all Spanish speakers)
+- Regional codes (e.g., `es-MX`, `es-ES`) are for **overrides only** — add them when you have region-specific content that differs from the base
+- **No cross-language fallback.** `en` and `es` are separate user groups. A Spanish-language user must never fall back to English content, and vice versa.
+- Fallback chain (within-family only): `es-MX` → `es` (via `buildLocaleChain()` in `_shared/locale-utils.ts`)
+- **Never store base content under a regional code** — it breaks fallback for other regions
+
+**Reading translations (frontend services):**
+```tsx
+// PostgREST embedded select joins translation tables
+const { data } = await supabase
+  .from('recipes')
+  .select(`*, translations:recipe_translations(locale, name, tips_and_tricks)`)
+  .eq('translations.locale', 'en');
+```
+
+**Reading translations (Edge Functions / server-side):**
+
+Use `pickTranslation()` from `_shared/locale-utils.ts` to resolve the best match from an array of translation rows using a locale fallback chain. Build the chain first with `buildLocaleChain()`.
+
+```typescript
+import { buildLocaleChain, pickTranslation } from '../_shared/locale-utils.ts';
+
+// Build fallback chain: "es-MX" → ["es-MX", "es"] (within-family only, no cross-language)
+const chain = buildLocaleChain(userLocale);
+
+// Pick the best available translation
+const translation = pickTranslation(recipe.translations, chain);
+// Falls back through chain; returns undefined if no chain match (caller must handle)
+```
+
+The database-side equivalent is the `resolve_locale()` RPC, which walks the `locales.parent_code` tree to find the nearest ancestor with content for a given entity.
+
+**Writing translations (admin services):**
+```tsx
+// 1. Insert/update entity (non-translatable fields only)
+const { data } = await supabase.from('recipes').insert({ difficulty, portions }).select('id').single();
+// 2. Insert/upsert translation rows
+await supabase.from('recipe_translations').upsert([
+  { recipe_id: data.id, locale: 'en', name: nameEn },
+  { recipe_id: data.id, locale: 'es', name: nameEs },
+], { onConflict: 'recipe_id,locale' });
+```
 
 ### Styling with NativeWind
 Use design tokens from `constants/design-tokens.js`:
