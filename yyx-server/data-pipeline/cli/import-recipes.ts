@@ -35,6 +35,7 @@ import {
 } from '../lib/entity-matcher.ts';
 import { resolveStepIngredients } from '../lib/step-ingredient-resolver.ts';
 import { buildRecipeSteps, hasRecipeContent } from '../lib/import-helpers.ts';
+import { resolveNotionTag } from '../lib/notion-tag-map.ts';
 import * as db from '../lib/db.ts';
 import { assertRequiredApiKey } from '../lib/cli-validations.ts';
 
@@ -127,7 +128,8 @@ async function resolveIngredients(
   return { recipeIngredients, ingredientMap };
 }
 
-/** Resolve tags: match existing or create new ones */
+/** Resolve tags using the Notion tag map for exact matching.
+ * Falls back to fuzzy DB match for unmapped tags, creates if truly new. */
 async function resolveTags(
   tagNames: string[],
   allTags: DbRecipeTag[],
@@ -136,17 +138,35 @@ async function resolveTags(
   const seen = new Set<string>();
 
   for (const tagName of tagNames) {
-    let matched = matchTag(tagName, allTags);
+    // 1. Try Notion tag map first (exact, deterministic)
+    const mapped = resolveNotionTag(tagName);
+    let matched: DbRecipeTag | null = null;
 
-    if (!matched) {
-      const cleanName = tagName.startsWith('#') ? tagName.substring(1) : tagName;
-      logger.info(`Creating missing tag: ${cleanName}`);
-      matched = await db.createTag(config.supabase, {
-        name_en: cleanName,
-        name_es: cleanName, // Will need translation later
-        categories: ['GENERAL'],
-      });
-      allTags.push(matched);
+    if (mapped) {
+      // Look up by the mapped EN or ES name
+      matched = matchTag(mapped.en, allTags) || matchTag(mapped.es, allTags);
+      if (!matched) {
+        logger.info(`Creating mapped tag: ${mapped.en} / ${mapped.es}`);
+        matched = await db.createTag(config.supabase, {
+          name_en: mapped.en,
+          name_es: mapped.es,
+          categories: ['GENERAL'],
+        });
+        allTags.push(matched);
+      }
+    } else {
+      // 2. Fallback: try matching the raw tag name against DB
+      matched = matchTag(tagName, allTags);
+      if (!matched) {
+        const cleanName = tagName.startsWith('#') ? tagName.substring(1) : tagName;
+        logger.warn(`Unmapped tag "${tagName}" — creating with same name for EN/ES`);
+        matched = await db.createTag(config.supabase, {
+          name_en: cleanName,
+          name_es: cleanName,
+          categories: ['GENERAL'],
+        });
+        allTags.push(matched);
+      }
     }
 
     if (!seen.has(matched.id)) {
