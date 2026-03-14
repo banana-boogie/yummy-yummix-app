@@ -118,8 +118,8 @@ const recipeJsonSchema = {
         items: {
           type: 'object',
           properties: {
-            nameEn: { type: 'string', description: 'English kitchen tool name in Title Case (e.g., "Airtight Container", "Rolling Pin", "Baking Tray").' },
-            nameEs: { type: 'string', description: 'Spanish kitchen tool name with first letter capitalized (e.g., "Recipiente hermético", "Rodillo", "Bandeja de hornear").' },
+            nameEn: { type: 'string', description: 'English kitchen tool name, capitalize first letter only (e.g., "Airtight container", "Rolling pin", "Baking tray").' },
+            nameEs: { type: 'string', description: 'Spanish kitchen tool name, capitalize first letter only (e.g., "Recipiente hermético", "Rodillo", "Bandeja de hornear").' },
             displayOrder: {
               type: 'number',
               description: '1-based index indicating the order of the kitchen tool.',

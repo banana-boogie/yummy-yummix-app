@@ -220,8 +220,8 @@ export async function createKitchenTool(
   supabase: SupabaseClient,
   item: { name_en: string; name_es: string; image_url?: string },
 ): Promise<DbKitchenTool> {
-  // Normalize casing: Title Case for EN, capitalize first for ES
-  const nameEn = titleCase(item.name_en.trim());
+  // Normalize casing: capitalize first letter for both EN and ES
+  const nameEn = capitalizeFirst(item.name_en.trim());
   const nameEs = capitalizeFirst(item.name_es.trim());
 
   const { data, error } = await supabase
