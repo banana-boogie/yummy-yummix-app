@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -84,15 +84,13 @@ export function AvailableItemsSection({
         );
     }
 
-    const Wrapper = isCompact ? View : ScrollView;
-    const wrapperStyle = isCompact
-        ? { padding: 8, backgroundColor: COLORS.background.secondary }
-        : { padding: 8, backgroundColor: COLORS.background.secondary, maxHeight: 600 };
-
     return (
-        <Wrapper
+        <View
             className="rounded-lg"
-            style={wrapperStyle}
+            style={{
+                padding: 8,
+                backgroundColor: COLORS.background.secondary,
+            }}
         >
             {items.length > 0 ? (
                 items.map(item => renderItemCard(item))

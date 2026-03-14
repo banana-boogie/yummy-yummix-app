@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ScrollView, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { AdminRecipe, AdminRecipeUsefulItem, AdminUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
@@ -261,17 +261,22 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
                     </View>
 
                     {/* Content Row */}
-                    <View className="flex-row flex-wrap">
-                        {/* Left Column - Available Items */}
-                        <View className="flex-1 mr-md mb-md">
-                            <AvailableItemsSection
-                                items={filteredUsefulItems}
-                                loading={loading}
-                                searchQuery={searchQuery}
-                                selectedItemIds={selectedItemIds}
-                                onAddItem={handleAddRecipeUsefulItem}
-                                displayLocale={displayLocale || authoringLocale}
-                            />
+                    <View className="flex-row flex-wrap" style={{ minHeight: 400 }}>
+                        {/* Left Column - Available Items: height matches right column */}
+                        <View style={{ flex: 1, marginRight: 16, position: 'relative' }}>
+                            <ScrollView
+                                className="rounded-lg"
+                                style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
+                            >
+                                <AvailableItemsSection
+                                    items={filteredUsefulItems}
+                                    loading={loading}
+                                    searchQuery={searchQuery}
+                                    selectedItemIds={selectedItemIds}
+                                    onAddItem={handleAddRecipeUsefulItem}
+                                    displayLocale={displayLocale || authoringLocale}
+                                />
+                            </ScrollView>
                         </View>
 
                         {/* Right Column - Selected Items */}

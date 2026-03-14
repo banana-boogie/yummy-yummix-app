@@ -509,35 +509,42 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
             </View>
 
             <View className="flex-1 min-h-[400px] flex-row gap-lg">
-              <ScrollView className="flex-[1.2] rounded-md bg-background-SECONDARY" style={{ maxHeight: 600 }}>
-                {loading ? (
-                  <View className="flex-1 justify-center items-center p-lg">
-                    <ActivityIndicator size="large" color={COLORS.primary.default} />
-                    <Text className="mt-sm" color={COLORS.text.secondary}>
-                      {i18n.t('common.loading')}
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={{ padding: 12 }}>
-                    {filteredIngredients.length > 0 ? (
-                      filteredIngredients.map(item => (
-                        <React.Fragment key={item.id}>
-                          {renderSearchIngredientCard({ item })}
-                        </React.Fragment>
-                      ))
-                    ) : (
-                      <View className="flex-1 justify-center items-center p-lg min-h-[200px]">
-                        <Ionicons name="information-circle-outline" size={32} color={COLORS.text.secondary} />
-                        <Text className="mt-sm text-center" color={COLORS.text.secondary}>
-                          {searchQuery
-                            ? tForm('admin.recipes.form.ingredientsInfo.noSearchResults')
-                            : tForm('admin.recipes.form.ingredientsInfo.noIngredients')}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                )}
-              </ScrollView>
+              {/* Left: search results — positioned absolutely so its height
+                  matches the right column (driven by selected ingredients) */}
+              <View style={{ flex: 1.2, position: 'relative' }}>
+                <ScrollView
+                  className="rounded-md bg-background-SECONDARY"
+                  style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
+                >
+                  {loading ? (
+                    <View className="flex-1 justify-center items-center p-lg">
+                      <ActivityIndicator size="large" color={COLORS.primary.default} />
+                      <Text className="mt-sm" color={COLORS.text.secondary}>
+                        {i18n.t('common.loading')}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={{ padding: 12 }}>
+                      {filteredIngredients.length > 0 ? (
+                        filteredIngredients.map(item => (
+                          <React.Fragment key={item.id}>
+                            {renderSearchIngredientCard({ item })}
+                          </React.Fragment>
+                        ))
+                      ) : (
+                        <View className="flex-1 justify-center items-center p-lg min-h-[200px]">
+                          <Ionicons name="information-circle-outline" size={32} color={COLORS.text.secondary} />
+                          <Text className="mt-sm text-center" color={COLORS.text.secondary}>
+                            {searchQuery
+                              ? tForm('admin.recipes.form.ingredientsInfo.noSearchResults')
+                              : tForm('admin.recipes.form.ingredientsInfo.noIngredients')}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </ScrollView>
+              </View>
 
               <View className="flex-[2.5] rounded-md bg-background-SECONDARY overflow-hidden">
                 {recipe.ingredients.length === 0 ? (
