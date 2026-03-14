@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, FlatList, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { View, FlatList, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { AdminRecipe, AdminRecipeIngredient, AdminIngredient, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
@@ -509,7 +509,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
             </View>
 
             <View className="flex-1 min-h-[400px] flex-row gap-lg">
-              <View className="flex-[1.2] rounded-md bg-background-SECONDARY overflow-hidden">
+              <ScrollView className="flex-[1.2] rounded-md bg-background-SECONDARY" style={{ maxHeight: 600 }}>
                 {loading ? (
                   <View className="flex-1 justify-center items-center p-lg">
                     <ActivityIndicator size="large" color={COLORS.primary.default} />
@@ -537,7 +537,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                     )}
                   </View>
                 )}
-              </View>
+              </ScrollView>
 
               <View className="flex-[2.5] rounded-md bg-background-SECONDARY overflow-hidden">
                 {recipe.ingredients.length === 0 ? (
