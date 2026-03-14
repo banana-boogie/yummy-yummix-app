@@ -2,7 +2,9 @@
  * Database Operations
  *
  * Direct Supabase operations for the data pipeline.
- * Uses snake_case column names (no case transformation needed).
+ * Uses translation tables for all translatable fields (i18n schema).
+ * Entity interfaces (DbIngredient, etc.) still expose name_en/name_es —
+ * flattening happens here so downstream code is unchanged.
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -13,36 +15,81 @@ import type {
   DbUsefulItem,
 } from './entity-matcher.ts';
 
+// deno-lint-ignore no-explicit-any
+type Row = Record<string, any>;
+
+// ─── Translation Helpers ────────────────────────────────
+
+/** Extract a translated field from a translations array, falling back to '' */
+function tr(
+  translations: Array<{ locale: string; [k: string]: unknown }>,
+  locale: string,
+  field: string,
+): string {
+  const row = translations.find((t) => t.locale === locale);
+  return (row?.[field] as string) || '';
+}
+
 // ─── Fetch All ───────────────────────────────────────────
 
 export async function fetchAllIngredients(supabase: SupabaseClient): Promise<DbIngredient[]> {
   const { data, error } = await supabase
     .from('ingredients')
-    .select('id, name_en, name_es, plural_name_en, plural_name_es, image_url, nutritional_facts')
-    .order('name_en', { ascending: true })
+    .select('id, image_url, nutritional_facts, translations:ingredient_translations(locale, name, plural_name)')
     .limit(5000);
   if (error) throw new Error(`Failed to fetch ingredients: ${error.message}`);
-  return data || [];
+  return (data || [])
+    .map((row: Row) => {
+      const t = row.translations || [];
+      return {
+        id: row.id,
+        image_url: row.image_url,
+        nutritional_facts: row.nutritional_facts,
+        name_en: tr(t, 'en', 'name'),
+        name_es: tr(t, 'es', 'name'),
+        plural_name_en: tr(t, 'en', 'plural_name'),
+        plural_name_es: tr(t, 'es', 'plural_name'),
+      };
+    })
+    .sort((a, b) => a.name_en.localeCompare(b.name_en));
 }
 
 export async function fetchAllTags(supabase: SupabaseClient): Promise<DbRecipeTag[]> {
   const { data, error } = await supabase
     .from('recipe_tags')
-    .select('id, name_en, name_es, categories')
-    .order('name_en', { ascending: true })
+    .select('id, categories, translations:recipe_tag_translations(locale, name)')
     .limit(5000);
   if (error) throw new Error(`Failed to fetch tags: ${error.message}`);
-  return data || [];
+  return (data || [])
+    .map((row: Row) => {
+      const t = row.translations || [];
+      return {
+        id: row.id,
+        categories: row.categories,
+        name_en: tr(t, 'en', 'name'),
+        name_es: tr(t, 'es', 'name'),
+      };
+    })
+    .sort((a, b) => a.name_en.localeCompare(b.name_en));
 }
 
 export async function fetchAllUsefulItems(supabase: SupabaseClient): Promise<DbUsefulItem[]> {
   const { data, error } = await supabase
     .from('useful_items')
-    .select('id, name_en, name_es, image_url')
-    .order('name_en', { ascending: true })
+    .select('id, image_url, translations:useful_item_translations(locale, name)')
     .limit(5000);
   if (error) throw new Error(`Failed to fetch useful items: ${error.message}`);
-  return data || [];
+  return (data || [])
+    .map((row: Row) => {
+      const t = row.translations || [];
+      return {
+        id: row.id,
+        image_url: row.image_url,
+        name_en: tr(t, 'en', 'name'),
+        name_es: tr(t, 'es', 'name'),
+      };
+    })
+    .sort((a, b) => a.name_en.localeCompare(b.name_en));
 }
 
 export async function fetchAllMeasurementUnits(
@@ -50,11 +97,23 @@ export async function fetchAllMeasurementUnits(
 ): Promise<DbMeasurementUnit[]> {
   const { data, error } = await supabase
     .from('measurement_units')
-    .select('id, type, system, name_en, name_es, symbol_en, symbol_es')
-    .order('name_en', { ascending: true })
+    .select('id, type, system, translations:measurement_unit_translations(locale, name, symbol)')
     .limit(5000);
   if (error) throw new Error(`Failed to fetch measurement units: ${error.message}`);
-  return data || [];
+  return (data || [])
+    .map((row: Row) => {
+      const t = row.translations || [];
+      return {
+        id: row.id,
+        type: row.type,
+        system: row.system,
+        name_en: tr(t, 'en', 'name'),
+        name_es: tr(t, 'es', 'name'),
+        symbol_en: tr(t, 'en', 'symbol'),
+        symbol_es: tr(t, 'es', 'symbol'),
+      };
+    })
+    .sort((a, b) => a.name_en.localeCompare(b.name_en));
 }
 
 export async function fetchAllRecipes(supabase: SupabaseClient): Promise<
@@ -69,11 +128,22 @@ export async function fetchAllRecipes(supabase: SupabaseClient): Promise<
 > {
   const { data, error } = await supabase
     .from('recipes')
-    .select('id, name_en, name_es, image_url, is_published, nutritional_facts')
-    .order('name_en', { ascending: true })
+    .select('id, image_url, is_published, nutritional_facts, translations:recipe_translations(locale, name)')
     .limit(5000);
   if (error) throw new Error(`Failed to fetch recipes: ${error.message}`);
-  return data || [];
+  return (data || [])
+    .map((row: Row) => {
+      const t = row.translations || [];
+      return {
+        id: row.id,
+        image_url: row.image_url,
+        is_published: row.is_published,
+        nutritional_facts: row.nutritional_facts,
+        name_en: tr(t, 'en', 'name'),
+        name_es: tr(t, 'es', 'name'),
+      };
+    })
+    .sort((a, b) => a.name_en.localeCompare(b.name_en));
 }
 
 // ─── Create Entities ─────────────────────────────────────
@@ -89,22 +159,35 @@ export async function createIngredient(
     nutritional_facts?: Record<string, unknown> | null;
   },
 ): Promise<DbIngredient> {
+  // 1. Insert base entity
   const { data, error } = await supabase
     .from('ingredients')
     .insert({
-      name_en: ingredient.name_en,
-      name_es: ingredient.name_es,
-      plural_name_en: ingredient.plural_name_en,
-      plural_name_es: ingredient.plural_name_es,
       image_url: ingredient.image_url || '',
       nutritional_facts: ingredient.nutritional_facts || {},
     })
-    .select('*')
+    .select('id')
     .single();
-  if (error) {
-    throw new Error(`Failed to create ingredient "${ingredient.name_en}": ${error.message}`);
-  }
-  return data;
+  if (error) throw new Error(`Failed to create ingredient "${ingredient.name_en}": ${error.message}`);
+
+  // 2. Insert translations
+  const { error: tErr } = await supabase
+    .from('ingredient_translations')
+    .insert([
+      { ingredient_id: data.id, locale: 'en', name: ingredient.name_en, plural_name: ingredient.plural_name_en },
+      { ingredient_id: data.id, locale: 'es', name: ingredient.name_es, plural_name: ingredient.plural_name_es },
+    ]);
+  if (tErr) throw new Error(`Failed to create ingredient translations: ${tErr.message}`);
+
+  return {
+    id: data.id,
+    name_en: ingredient.name_en,
+    name_es: ingredient.name_es,
+    plural_name_en: ingredient.plural_name_en,
+    plural_name_es: ingredient.plural_name_es,
+    image_url: ingredient.image_url || '',
+    nutritional_facts: ingredient.nutritional_facts || null,
+  };
 }
 
 export async function createUsefulItem(
@@ -113,15 +196,25 @@ export async function createUsefulItem(
 ): Promise<DbUsefulItem> {
   const { data, error } = await supabase
     .from('useful_items')
-    .insert({
-      name_en: item.name_en,
-      name_es: item.name_es,
-      image_url: item.image_url || '',
-    })
-    .select('*')
+    .insert({ image_url: item.image_url || '' })
+    .select('id')
     .single();
   if (error) throw new Error(`Failed to create useful item "${item.name_en}": ${error.message}`);
-  return data;
+
+  const { error: tErr } = await supabase
+    .from('useful_item_translations')
+    .insert([
+      { useful_item_id: data.id, locale: 'en', name: item.name_en },
+      { useful_item_id: data.id, locale: 'es', name: item.name_es },
+    ]);
+  if (tErr) throw new Error(`Failed to create useful item translations: ${tErr.message}`);
+
+  return {
+    id: data.id,
+    name_en: item.name_en,
+    name_es: item.name_es,
+    image_url: item.image_url || '',
+  };
 }
 
 export async function createTag(
@@ -130,15 +223,25 @@ export async function createTag(
 ): Promise<DbRecipeTag> {
   const { data, error } = await supabase
     .from('recipe_tags')
-    .insert({
-      name_en: tag.name_en,
-      name_es: tag.name_es,
-      categories: tag.categories,
-    })
-    .select('*')
+    .insert({ categories: tag.categories })
+    .select('id')
     .single();
   if (error) throw new Error(`Failed to create tag "${tag.name_en}": ${error.message}`);
-  return data;
+
+  const { error: tErr } = await supabase
+    .from('recipe_tag_translations')
+    .insert([
+      { recipe_tag_id: data.id, locale: 'en', name: tag.name_en },
+      { recipe_tag_id: data.id, locale: 'es', name: tag.name_es },
+    ]);
+  if (tErr) throw new Error(`Failed to create tag translations: ${tErr.message}`);
+
+  return {
+    id: data.id,
+    name_en: tag.name_en,
+    name_es: tag.name_es,
+    categories: tag.categories,
+  };
 }
 
 // ─── Create Recipe (with all related entities) ───────────
@@ -202,12 +305,30 @@ export async function createRecipe(
   supabase: SupabaseClient,
   recipe: RecipeInsertData,
 ): Promise<string> {
+  // 1. Insert base recipe (non-translatable fields only)
   const { data, error } = await supabase
     .from('recipes')
-    .insert(recipe)
+    .insert({
+      image_url: recipe.image_url,
+      difficulty: recipe.difficulty,
+      prep_time: recipe.prep_time,
+      total_time: recipe.total_time,
+      portions: recipe.portions,
+      is_published: recipe.is_published,
+    })
     .select('id')
     .single();
   if (error) throw new Error(`Failed to create recipe "${recipe.name_en}": ${error.message}`);
+
+  // 2. Insert translations
+  const { error: tErr } = await supabase
+    .from('recipe_translations')
+    .insert([
+      { recipe_id: data.id, locale: 'en', name: recipe.name_en, tips_and_tricks: recipe.tips_and_tricks_en || '' },
+      { recipe_id: data.id, locale: 'es', name: recipe.name_es, tips_and_tricks: recipe.tips_and_tricks_es || '' },
+    ]);
+  if (tErr) throw new Error(`Failed to create recipe translations: ${tErr.message}`);
+
   return data.id;
 }
 
@@ -216,8 +337,40 @@ export async function insertRecipeIngredients(
   ingredients: RecipeIngredientInsert[],
 ): Promise<void> {
   if (ingredients.length === 0) return;
-  const { error } = await supabase.from('recipe_ingredients').insert(ingredients);
+
+  // 1. Insert base rows (non-translatable fields)
+  const baseRows = ingredients.map((ri) => ({
+    recipe_id: ri.recipe_id,
+    ingredient_id: ri.ingredient_id,
+    quantity: ri.quantity,
+    measurement_unit_id: ri.measurement_unit_id,
+    optional: ri.optional,
+    display_order: ri.display_order,
+  }));
+
+  const { data: inserted, error } = await supabase
+    .from('recipe_ingredients')
+    .insert(baseRows)
+    .select('id, display_order');
   if (error) throw new Error(`Failed to insert recipe ingredients: ${error.message}`);
+
+  // 2. Map display_order → inserted ID, then insert translations
+  const orderToId = new Map((inserted || []).map((r: Row) => [r.display_order, r.id]));
+  const translations: Row[] = [];
+  for (const ri of ingredients) {
+    const rowId = orderToId.get(ri.display_order);
+    if (!rowId) continue;
+    translations.push(
+      { recipe_ingredient_id: rowId, locale: 'en', notes: ri.notes_en, tip: ri.tip_en, recipe_section: ri.recipe_section_en },
+      { recipe_ingredient_id: rowId, locale: 'es', notes: ri.notes_es, tip: ri.tip_es, recipe_section: ri.recipe_section_es },
+    );
+  }
+  if (translations.length > 0) {
+    const { error: tErr } = await supabase
+      .from('recipe_ingredient_translations')
+      .insert(translations);
+    if (tErr) throw new Error(`Failed to insert recipe ingredient translations: ${tErr.message}`);
+  }
 }
 
 export async function insertRecipeSteps(
@@ -225,12 +378,45 @@ export async function insertRecipeSteps(
   steps: RecipeStepInsert[],
 ): Promise<Array<{ id: string; order: number }>> {
   if (steps.length === 0) return [];
-  const { data, error } = await supabase
+
+  // 1. Insert base rows (thermomix params + order)
+  const baseRows = steps.map((s) => ({
+    recipe_id: s.recipe_id,
+    order: s.order,
+    thermomix_time: s.thermomix_time,
+    thermomix_speed: s.thermomix_speed,
+    thermomix_speed_start: s.thermomix_speed_start,
+    thermomix_speed_end: s.thermomix_speed_end,
+    thermomix_temperature: s.thermomix_temperature,
+    thermomix_temperature_unit: s.thermomix_temperature_unit,
+    thermomix_is_blade_reversed: s.thermomix_is_blade_reversed,
+  }));
+
+  const { data: inserted, error } = await supabase
     .from('recipe_steps')
-    .insert(steps)
+    .insert(baseRows)
     .select('id, order');
   if (error) throw new Error(`Failed to insert recipe steps: ${error.message}`);
-  return data || [];
+
+  // 2. Map order → inserted ID, then insert translations
+  const orderToId = new Map((inserted || []).map((r: Row) => [r.order, r.id]));
+  const translations: Row[] = [];
+  for (const s of steps) {
+    const rowId = orderToId.get(s.order);
+    if (!rowId) continue;
+    translations.push(
+      { recipe_step_id: rowId, locale: 'en', instruction: s.instruction_en, recipe_section: s.recipe_section_en, tip: s.tip_en },
+      { recipe_step_id: rowId, locale: 'es', instruction: s.instruction_es, recipe_section: s.recipe_section_es, tip: s.tip_es },
+    );
+  }
+  if (translations.length > 0) {
+    const { error: tErr } = await supabase
+      .from('recipe_step_translations')
+      .insert(translations);
+    if (tErr) throw new Error(`Failed to insert recipe step translations: ${tErr.message}`);
+  }
+
+  return inserted || [];
 }
 
 export async function insertRecipeStepIngredients(
@@ -261,46 +447,90 @@ export async function insertRecipeUsefulItems(
   >,
 ): Promise<void> {
   if (items.length === 0) return;
-  const rows = items.map((item) => ({ recipe_id: recipeId, ...item }));
-  const { error } = await supabase.from('recipe_useful_items').insert(rows);
+
+  // 1. Insert base rows
+  const baseRows = items.map((item) => ({
+    recipe_id: recipeId,
+    useful_item_id: item.useful_item_id,
+    display_order: item.display_order,
+  }));
+
+  const { data: inserted, error } = await supabase
+    .from('recipe_useful_items')
+    .insert(baseRows)
+    .select('id, display_order');
   if (error) throw new Error(`Failed to insert recipe useful items: ${error.message}`);
+
+  // 2. Insert translations
+  const orderToId = new Map((inserted || []).map((r: Row) => [r.display_order, r.id]));
+  const translations: Row[] = [];
+  for (const item of items) {
+    const rowId = orderToId.get(item.display_order);
+    if (!rowId) continue;
+    translations.push(
+      { recipe_useful_item_id: rowId, locale: 'en', notes: item.notes_en },
+      { recipe_useful_item_id: rowId, locale: 'es', notes: item.notes_es },
+    );
+  }
+  if (translations.length > 0) {
+    const { error: tErr } = await supabase
+      .from('recipe_useful_item_translations')
+      .insert(translations);
+    if (tErr) throw new Error(`Failed to insert recipe useful item translations: ${tErr.message}`);
+  }
 }
 
 // ─── Update Entities ─────────────────────────────────────
 
+/** Update non-translatable fields on an ingredient (e.g., nutritional_facts, image_url) */
 export async function updateIngredient(
   supabase: SupabaseClient,
   id: string,
   updates: Partial<DbIngredient>,
 ): Promise<void> {
-  const { error } = await supabase.from('ingredients').update(updates).eq('id', id);
+  // Strip translation fields — only update base table columns
+  const { name_en: _, name_es: _2, plural_name_en: _3, plural_name_es: _4, ...baseUpdates } =
+    updates;
+  if (Object.keys(baseUpdates).length === 0) return;
+  const { error } = await supabase.from('ingredients').update(baseUpdates).eq('id', id);
   if (error) throw new Error(`Failed to update ingredient ${id}: ${error.message}`);
 }
 
+/** Update non-translatable fields on a useful item (e.g., image_url) */
 export async function updateUsefulItem(
   supabase: SupabaseClient,
   id: string,
   updates: Partial<DbUsefulItem>,
 ): Promise<void> {
-  const { error } = await supabase.from('useful_items').update(updates).eq('id', id);
+  const { name_en: _, name_es: _2, ...baseUpdates } = updates;
+  if (Object.keys(baseUpdates).length === 0) return;
+  const { error } = await supabase.from('useful_items').update(baseUpdates).eq('id', id);
   if (error) throw new Error(`Failed to update useful item ${id}: ${error.message}`);
 }
 
+/** Update non-translatable fields on a tag (e.g., categories) */
 export async function updateTag(
   supabase: SupabaseClient,
   id: string,
   updates: Partial<DbRecipeTag>,
 ): Promise<void> {
-  const { error } = await supabase.from('recipe_tags').update(updates).eq('id', id);
+  const { name_en: _, name_es: _2, ...baseUpdates } = updates;
+  if (Object.keys(baseUpdates).length === 0) return;
+  const { error } = await supabase.from('recipe_tags').update(baseUpdates).eq('id', id);
   if (error) throw new Error(`Failed to update tag ${id}: ${error.message}`);
 }
 
+/** Update non-translatable fields on a recipe (e.g., nutritional_facts, image_url) */
 export async function updateRecipe(
   supabase: SupabaseClient,
   id: string,
   updates: Record<string, unknown>,
 ): Promise<void> {
-  const { error } = await supabase.from('recipes').update(updates).eq('id', id);
+  // Strip any translation fields that callers might accidentally include
+  const { name_en: _, name_es: _2, tips_and_tricks_en: _3, tips_and_tricks_es: _4, ...baseUpdates } =
+    updates;
+  if (Object.keys(baseUpdates).length === 0) return;
+  const { error } = await supabase.from('recipes').update(baseUpdates).eq('id', id);
   if (error) throw new Error(`Failed to update recipe ${id}: ${error.message}`);
 }
 
@@ -324,23 +554,25 @@ export async function findRecipeByName(
   nameEn: string,
   nameEs: string,
 ): Promise<string | null> {
-  // Search by English name first, then Spanish name
-  // Using separate .ilike() calls to avoid unsafe string interpolation in .or()
+  // Search English translation first
   const { data: enMatch, error: enError } = await supabase
-    .from('recipes')
-    .select('id')
-    .ilike('name_en', escapeIlike(nameEn))
+    .from('recipe_translations')
+    .select('recipe_id')
+    .eq('locale', 'en')
+    .ilike('name', escapeIlike(nameEn))
     .limit(1)
     .maybeSingle();
   if (enError) throw new Error(`Failed to search recipes by English name: ${enError.message}`);
-  if (enMatch?.id) return enMatch.id;
+  if (enMatch?.recipe_id) return enMatch.recipe_id;
 
+  // Search Spanish translation
   const { data: esMatch, error: esError } = await supabase
-    .from('recipes')
-    .select('id')
-    .ilike('name_es', escapeIlike(nameEs))
+    .from('recipe_translations')
+    .select('recipe_id')
+    .eq('locale', 'es')
+    .ilike('name', escapeIlike(nameEs))
     .limit(1)
     .maybeSingle();
   if (esError) throw new Error(`Failed to search recipes by Spanish name: ${esError.message}`);
-  return esMatch?.id || null;
+  return esMatch?.recipe_id || null;
 }
