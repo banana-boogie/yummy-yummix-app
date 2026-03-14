@@ -116,10 +116,11 @@ Deno.test('matchIngredient - prep prefix stripping', () => {
   assertEquals(result?.id, 'ing-1');
 });
 
-Deno.test('matchIngredient - fuzzy match above threshold', () => {
-  // "Tomat" vs "Tomato" — 5/6 = 0.833 >= 0.8
+Deno.test('matchIngredient - fuzzy match rejects moderate typos (strict threshold)', () => {
+  // "Tomat" vs "Tomato" — 5/6 = 0.833, below 0.95 threshold → no match.
+  // This prevents mis-matching similar but distinct ingredients.
   const result = matchIngredient({ nameEn: 'Tomat', nameEs: '' }, ingredients);
-  assertEquals(result?.id, 'ing-1');
+  assertEquals(result, null);
 });
 
 Deno.test('matchIngredient - no match below threshold', () => {

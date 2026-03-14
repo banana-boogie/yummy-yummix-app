@@ -132,7 +132,9 @@ function similarity(s1: string, s2: string): number {
   return (longer.length - editDistance(longer, shorter)) / longer.length;
 }
 
-const SIMILARITY_THRESHOLD = 0.8;
+// High threshold = only exact matches + minor typos. Prevents mis-matching
+// similar but distinct ingredients (e.g., "tomillo"/thyme → "romero"/rosemary).
+const SIMILARITY_THRESHOLD = 0.95;
 
 /** Match a parsed ingredient against the database ingredient list */
 export function matchIngredient(

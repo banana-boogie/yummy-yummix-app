@@ -92,7 +92,7 @@ function similarity(s1: string, s2: string): number {
   return (longer.length - editDistance(longer, shorter)) / longer.length;
 }
 
-const SIMILARITY_THRESHOLD = 0.8;
+const SIMILARITY_THRESHOLD = 0.95;
 
 /** Check if a Spanish ingredient name matches any DB ingredient */
 function findIngredientMatch(nameEs: string, dbIngredients: DbIngredient[]): DbIngredient | null {
