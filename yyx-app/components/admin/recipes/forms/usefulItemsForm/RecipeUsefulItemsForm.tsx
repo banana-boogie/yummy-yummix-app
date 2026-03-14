@@ -261,23 +261,18 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
                     </View>
 
                     {/* Content Row */}
-                    <View className="flex-row flex-wrap" style={{ minHeight: 400 }}>
-                        {/* Left Column - Available Items: height matches right column */}
-                        <View style={{ flex: 1, marginRight: 16, position: 'relative' }}>
-                            <ScrollView
-                                className="rounded-lg"
-                                style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
-                            >
-                                <AvailableItemsSection
-                                    items={filteredUsefulItems}
-                                    loading={loading}
-                                    searchQuery={searchQuery}
-                                    selectedItemIds={selectedItemIds}
-                                    onAddItem={handleAddRecipeUsefulItem}
-                                    displayLocale={displayLocale || authoringLocale}
-                                />
-                            </ScrollView>
-                        </View>
+                    <View className="flex-row flex-wrap" style={{ minHeight: 400, alignItems: 'stretch' }}>
+                        {/* Left Column - Available Items */}
+                        <ScrollView style={{ flex: 1, marginRight: 16 }}>
+                            <AvailableItemsSection
+                                items={filteredUsefulItems}
+                                loading={loading}
+                                searchQuery={searchQuery}
+                                selectedItemIds={selectedItemIds}
+                                onAddItem={handleAddRecipeUsefulItem}
+                                displayLocale={displayLocale || authoringLocale}
+                            />
+                        </ScrollView>
 
                         {/* Right Column - Selected Items */}
                         <View className="flex-[1.8]">
