@@ -404,8 +404,9 @@ There may also be a "## English Recipe" section — if populated, use it; if emp
 
 ## Tags
 
-Extract tags from the metadata line at the top: " Tags: X, Y, Z" or "Tags: X, Y, Z".
-Split on commas. Do NOT include tags from "- **Tags**" lines (those are empty placeholders).
+Extract tags ONLY from the metadata line at the top: " Tags: X, Y, Z" or "Tags: X, Y, Z".
+Split on commas or hyphens. Do NOT include tags from "- **Tags**" lines (those are empty placeholders).
+If no "Tags:" metadata line exists, or it is empty, return an EMPTY array. Do NOT invent or infer tags.
 
 ## Thermomix Patterns (Spanish)
 
