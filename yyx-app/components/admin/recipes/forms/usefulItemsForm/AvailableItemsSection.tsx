@@ -13,6 +13,8 @@ interface AvailableItemsSectionProps {
     searchQuery: string;
     selectedItemIds: string[];
     onAddItem: (item: AdminUsefulItem) => void;
+    /** Locale used for displaying item names */
+    displayLocale?: string;
     /** Compact variant for mobile (no min-height constraint) */
     variant?: 'default' | 'compact';
 }
@@ -27,6 +29,7 @@ export function AvailableItemsSection({
     searchQuery,
     selectedItemIds,
     onAddItem,
+    displayLocale = 'es',
     variant = 'default'
 }: AvailableItemsSectionProps) {
     const isCompact = variant === 'compact';
@@ -58,8 +61,7 @@ export function AvailableItemsSection({
                 </View>
 
                 <View className="flex-1">
-                    <Text className="font-medium">{getTranslatedField(item.translations, 'en', 'name')}</Text>
-                    <Text className="text-xs text-text-SECONDARY">{getTranslatedField(item.translations, 'es', 'name')}</Text>
+                    <Text className="font-medium">{getTranslatedField(item.translations, displayLocale, 'name')}</Text>
                 </View>
 
                 {isAdded ? (

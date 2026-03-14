@@ -102,13 +102,15 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
       );
     }
 
-    // Apply search filtering
+    // Apply search filtering — search across all translations so admins
+    // can find tags by name in any language regardless of display locale.
     if (filters.searchQuery) {
       const searchTerm = filters.searchQuery.toLowerCase();
-      result = result.filter(tag => {
-        const name = getTranslatedField(tag.translations, displayLocale, 'name');
-        return name.toLowerCase().includes(searchTerm);
-      });
+      result = result.filter(tag =>
+        tag.translations.some(t =>
+          t.name?.toLowerCase().includes(searchTerm)
+        )
+      );
     }
 
     // Apply client-side sorting

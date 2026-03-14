@@ -230,6 +230,7 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
                             searchQuery={searchQuery}
                             selectedItemIds={selectedItemIds}
                             onAddItem={handleAddRecipeUsefulItem}
+                            displayLocale={displayLocale || authoringLocale}
                             variant="compact"
                         />
                     </View>
@@ -269,6 +270,7 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authorin
                                 searchQuery={searchQuery}
                                 selectedItemIds={selectedItemIds}
                                 onAddItem={handleAddRecipeUsefulItem}
+                                displayLocale={displayLocale || authoringLocale}
                             />
                         </View>
 
