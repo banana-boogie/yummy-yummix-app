@@ -93,7 +93,6 @@ Deno.test('resolveStepIngredients uses matcher fallback before failing', () => {
   ]);
 
   const result = resolveStepIngredients(
-    'recipe-1',
     parsed,
     [{ id: 'step-1', order: 1 }],
     new Map(),
@@ -112,7 +111,6 @@ Deno.test('resolveStepIngredients reports unresolved ingredients', () => {
   ]);
 
   const result = resolveStepIngredients(
-    'recipe-1',
     parsed,
     [{ id: 'step-1', order: 1 }],
     new Map(),
@@ -131,7 +129,6 @@ Deno.test('resolveStepIngredients reports missing step mapping', () => {
   ]);
 
   const result = resolveStepIngredients(
-    'recipe-1',
     parsed,
     [],
     new Map(),

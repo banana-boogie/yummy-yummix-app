@@ -26,7 +26,6 @@ export interface StepIngredientResolutionResult {
 }
 
 export function resolveStepIngredients(
-  _recipeId: string,
   parsed: ParsedRecipeData,
   insertedSteps: Array<{ id: string; order: number }>,
   ingredientMap: Map<string, DbIngredient>,

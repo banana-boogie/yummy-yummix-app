@@ -13,7 +13,11 @@ export interface NameFields {
   pluralNameEs?: string;
 }
 
-// DB row types (snake_case from Supabase)
+/**
+ * DB row types — flattened from translation tables by db.ts fetch functions.
+ * Fields like name_en/name_es don't exist as columns on the base tables;
+ * they come from *_translations tables joined and flattened at read time.
+ */
 export interface DbIngredient {
   id: string;
   name_en: string;

@@ -34,6 +34,7 @@ import {
   matchUsefulItem,
 } from '../lib/entity-matcher.ts';
 import { resolveStepIngredients } from '../lib/step-ingredient-resolver.ts';
+import { buildRecipeSteps, hasRecipeContent } from '../lib/import-helpers.ts';
 import * as db from '../lib/db.ts';
 import { assertRequiredApiKey } from '../lib/cli-validations.ts';
 
@@ -68,29 +69,6 @@ function loadMarkdownFiles(dir: string): Array<{ filename: string; content: stri
   }
   files.sort((a, b) => a.filename.localeCompare(b.filename));
   return files;
-}
-
-// ─── Pre-filter: detect stub files ───────────────────────
-
-/**
- * Returns true if the markdown file has actual recipe content
- * (at least one ingredient line). Stubs have empty sections.
- */
-function hasRecipeContent(content: string): boolean {
-  const lines = content.split('\n');
-  let inIngredientes = false;
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed === '### Ingredientes') {
-      inIngredientes = true;
-      continue;
-    }
-    if (inIngredientes) {
-      if (trimmed.startsWith('#')) break; // Hit next section — nothing found
-      if (trimmed.startsWith('-') && trimmed.length > 2) return true;
-    }
-  }
-  return false;
 }
 
 // ─── Resolve Entities ────────────────────────────────────
@@ -214,45 +192,6 @@ async function resolveUsefulItems(
   return result;
 }
 
-/** Build recipe steps with Thermomix parameters */
-function buildRecipeSteps(
-  recipeId: string,
-  parsed: ParsedRecipeData,
-): db.RecipeStepInsert[] {
-  return parsed.steps.map((step) => {
-    let speed: number | string | null = null;
-    let speedStart: number | string | null = null;
-    let speedEnd: number | string | null = null;
-
-    if (step.thermomixSpeed) {
-      if (step.thermomixSpeed.type === 'single') {
-        speed = step.thermomixSpeed.value;
-      } else if (step.thermomixSpeed.type === 'range') {
-        speedStart = step.thermomixSpeed.start;
-        speedEnd = step.thermomixSpeed.end;
-      }
-    }
-
-    return {
-      recipe_id: recipeId,
-      order: step.order,
-      instruction_en: step.instructionEn,
-      instruction_es: step.instructionEs,
-      thermomix_time: step.thermomixTime,
-      thermomix_speed: speed,
-      thermomix_speed_start: speedStart,
-      thermomix_speed_end: speedEnd,
-      thermomix_temperature: step.thermomixTemperature,
-      thermomix_temperature_unit: step.thermomixTemperatureUnit,
-      thermomix_is_blade_reversed: step.thermomixIsBladeReversed,
-      recipe_section_en: step.recipeSectionEn || 'Main',
-      recipe_section_es: step.recipeSectionEs || 'Principal',
-      tip_en: step.tipEn || '',
-      tip_es: step.tipEs || '',
-    };
-  });
-}
-
 // ─── Main Import Flow ────────────────────────────────────
 
 async function importRecipe(
@@ -290,10 +229,10 @@ async function importRecipe(
     ? await resolveIngredientsDry(parsed, allIngredients, allUnits)
     : await resolveIngredients(parsed, allIngredients, allUnits);
   const tagIds = dryRun
-    ? resolveTags_dry(parsed.tags, allTags)
+    ? await resolveTagsDry(parsed.tags, allTags)
     : await resolveTags(parsed.tags, allTags);
   const usefulItems = dryRun
-    ? resolveUsefulItemsDry(parsed, allItems)
+    ? await resolveUsefulItemsDry(parsed, allItems)
     : await resolveUsefulItems(parsed, allItems);
 
   // In dry-run mode: log everything and return without DB writes
@@ -382,7 +321,6 @@ async function importRecipe(
 
     // 7. Insert step ingredients
     const { items: stepIngredients, unresolved } = resolveStepIngredients(
-      recipeId,
       parsed,
       insertedSteps,
       ingredientMap,
@@ -459,7 +397,7 @@ function resolveIngredientsDry(
   return Promise.resolve({ recipeIngredients, ingredientMap });
 }
 
-function resolveTags_dry(tagNames: string[], allTags: DbRecipeTag[]): Promise<string[]> {
+function resolveTagsDry(tagNames: string[], allTags: DbRecipeTag[]): Promise<string[]> {
   return Promise.resolve(
     tagNames
       .map((name) => matchTag(name, allTags)?.id)

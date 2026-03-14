@@ -18,6 +18,17 @@ import type {
 // deno-lint-ignore no-explicit-any
 type Row = Record<string, any>;
 
+const FETCH_LIMIT = 5000;
+
+/** Warn if a query returned exactly FETCH_LIMIT rows (may be truncated) */
+function warnIfTruncated(entityName: string, count: number): void {
+  if (count >= FETCH_LIMIT) {
+    console.warn(
+      `[db] WARNING: ${entityName} query returned ${count} rows (limit: ${FETCH_LIMIT}). Data may be truncated.`,
+    );
+  }
+}
+
 // ─── Translation Helpers ────────────────────────────────
 
 /** Extract a translated field from a translations array, falling back to '' */
@@ -36,8 +47,9 @@ export async function fetchAllIngredients(supabase: SupabaseClient): Promise<DbI
   const { data, error } = await supabase
     .from('ingredients')
     .select('id, image_url, nutritional_facts, translations:ingredient_translations(locale, name, plural_name)')
-    .limit(5000);
+    .limit(FETCH_LIMIT);
   if (error) throw new Error(`Failed to fetch ingredients: ${error.message}`);
+  warnIfTruncated('ingredients', (data || []).length);
   return (data || [])
     .map((row: Row) => {
       const t = row.translations || [];
@@ -58,8 +70,9 @@ export async function fetchAllTags(supabase: SupabaseClient): Promise<DbRecipeTa
   const { data, error } = await supabase
     .from('recipe_tags')
     .select('id, categories, translations:recipe_tag_translations(locale, name)')
-    .limit(5000);
+    .limit(FETCH_LIMIT);
   if (error) throw new Error(`Failed to fetch tags: ${error.message}`);
+  warnIfTruncated('tags', (data || []).length);
   return (data || [])
     .map((row: Row) => {
       const t = row.translations || [];
@@ -77,8 +90,9 @@ export async function fetchAllUsefulItems(supabase: SupabaseClient): Promise<DbU
   const { data, error } = await supabase
     .from('useful_items')
     .select('id, image_url, translations:useful_item_translations(locale, name)')
-    .limit(5000);
+    .limit(FETCH_LIMIT);
   if (error) throw new Error(`Failed to fetch useful items: ${error.message}`);
+  warnIfTruncated('useful_items', (data || []).length);
   return (data || [])
     .map((row: Row) => {
       const t = row.translations || [];
@@ -98,8 +112,9 @@ export async function fetchAllMeasurementUnits(
   const { data, error } = await supabase
     .from('measurement_units')
     .select('id, type, system, translations:measurement_unit_translations(locale, name, symbol)')
-    .limit(5000);
+    .limit(FETCH_LIMIT);
   if (error) throw new Error(`Failed to fetch measurement units: ${error.message}`);
+  warnIfTruncated('measurement_units', (data || []).length);
   return (data || [])
     .map((row: Row) => {
       const t = row.translations || [];
@@ -129,8 +144,9 @@ export async function fetchAllRecipes(supabase: SupabaseClient): Promise<
   const { data, error } = await supabase
     .from('recipes')
     .select('id, image_url, is_published, nutritional_facts, translations:recipe_translations(locale, name)')
-    .limit(5000);
+    .limit(FETCH_LIMIT);
   if (error) throw new Error(`Failed to fetch recipes: ${error.message}`);
+  warnIfTruncated('recipes', (data || []).length);
   return (data || [])
     .map((row: Row) => {
       const t = row.translations || [];
