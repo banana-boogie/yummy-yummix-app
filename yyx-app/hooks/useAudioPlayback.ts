@@ -63,11 +63,14 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
     }, [player, stop]);
 
     // Listen for playback status changes
-    player.addListener('playbackStatusUpdate', (status) => {
-        if (status.didJustFinish) {
-            setIsPlaying(false);
-        }
-    });
+    useEffect(() => {
+        const subscription = player.addListener('playbackStatusUpdate', (status) => {
+            if (status.didJustFinish) {
+                setIsPlaying(false);
+            }
+        });
+        return () => subscription.remove();
+    }, [player]);
 
     return {
         isPlaying,
