@@ -168,16 +168,38 @@ export function matchTag(tagName: string, dbTags: DbRecipeTag[]): DbRecipeTag | 
   ) || null;
 }
 
-/** Match a useful item by name (EN or ES) */
+/** Match a kitchen tool by name (EN or ES).
+ * Uses exact match first, then substring match to handle cases like
+ * "Varoma" matching "Varoma Thermomix®" or "Cestillo" matching "Cestillo Thermomix®".
+ */
 export function matchKitchenTool(
   search: { nameEn: string; nameEs: string },
   dbItems: DbKitchenTool[],
 ): DbKitchenTool | null {
-  return dbItems.find(
+  const searchEn = search.nameEn.toLowerCase().trim();
+  const searchEs = search.nameEs.toLowerCase().trim();
+
+  // Exact match first
+  const exact = dbItems.find(
     (item) =>
-      item.name_en.toLowerCase().trim() === search.nameEn.toLowerCase().trim() ||
-      item.name_es.toLowerCase().trim() === search.nameEs.toLowerCase().trim(),
-  ) || null;
+      item.name_en.toLowerCase().trim() === searchEn ||
+      item.name_es.toLowerCase().trim() === searchEs,
+  );
+  if (exact) return exact;
+
+  // Substring match: search term is contained in DB name, or vice versa
+  // Requires at least 3 chars to avoid false positives
+  if (searchEn.length >= 3 || searchEs.length >= 3) {
+    const substr = dbItems.find((item) => {
+      const dbEn = item.name_en.toLowerCase().trim();
+      const dbEs = item.name_es.toLowerCase().trim();
+      return (searchEn.length >= 3 && (dbEn.includes(searchEn) || searchEn.includes(dbEn))) ||
+        (searchEs.length >= 3 && (dbEs.includes(searchEs) || searchEs.includes(dbEs)));
+    });
+    if (substr) return substr;
+  }
+
+  return null;
 }
 
 /** Match a measurement unit by ID */
