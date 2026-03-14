@@ -35,7 +35,7 @@ expo-env.d.ts
 # Environment files
 .env          # Production secrets (not committed)
 !.env.local   # Local dev config (committed - safe, uses localhost)
-.eas.json
+eas.json
 .vercel
 
 # Secrets

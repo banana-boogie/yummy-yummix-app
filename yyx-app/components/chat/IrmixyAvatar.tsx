@@ -11,7 +11,8 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { View, Image, Animated } from 'react-native';
+import { View, Animated } from 'react-native';
+import { Image } from 'expo-image';
 
 // Avatar images for different states
 const AVATAR_IMAGES = {
@@ -193,7 +194,7 @@ export function IrmixyAvatar({ state, size = 200 }: Props) {
                     source={avatarImage}
                     className="rounded-full"
                     style={{ width: size, height: size }}
-                    resizeMode="contain"
+                    contentFit="contain"
                 />
             </Animated.View>
         </View>

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Image, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { AdminUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
@@ -25,7 +26,7 @@ export function UsefulItemCard({ usefulItem, displayLocale, onEdit, onDelete }: 
           <Image
             source={{ uri: usefulItem.pictureUrl }}
             className="w-full h-full"
-            resizeMode="cover"
+            contentFit="cover"
           />
         ) : (
           <View className="w-full h-full justify-center items-center bg-background-SECONDARY">
