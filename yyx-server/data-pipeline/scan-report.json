@@ -1,0 +1,6324 @@
+{
+  "summary": {
+    "totalFiles": 1284,
+    "recipesWithContent": 288,
+    "stubs": 996,
+    "uniqueIngredients": 1467,
+    "uniqueUsefulItems": 79,
+    "uniqueTags": 31
+  },
+  "ingredients": [
+    {
+      "name": "agua",
+      "count": 115
+    },
+    {
+      "name": "ajo",
+      "count": 105
+    },
+    {
+      "name": "sal",
+      "count": 88
+    },
+    {
+      "name": "cebolla",
+      "count": 70
+    },
+    {
+      "name": "aceite de oliva",
+      "count": 69
+    },
+    {
+      "name": "azúcar",
+      "count": 47
+    },
+    {
+      "name": "sal fina",
+      "count": 40
+    },
+    {
+      "name": "aceite",
+      "count": 36
+    },
+    {
+      "name": "pimienta negra molida",
+      "count": 30
+    },
+    {
+      "name": "jitomate",
+      "count": 26
+    },
+    {
+      "name": "huevos",
+      "count": 25
+    },
+    {
+      "name": "mantequilla",
+      "count": 23
+    },
+    {
+      "name": "leche",
+      "count": 22
+    },
+    {
+      "name": "zanahoria",
+      "count": 17
+    },
+    {
+      "name": "cilantro",
+      "count": 16
+    },
+    {
+      "name": "cebolla en trozos",
+      "count": 15
+    },
+    {
+      "name": "harina",
+      "count": 15
+    },
+    {
+      "name": "pellizco de sal",
+      "count": 14
+    },
+    {
+      "name": "aceite de oliva virgen extra",
+      "count": 14
+    },
+    {
+      "name": "pechuga de pollo deshuesada y sin piel",
+      "count": 14
+    },
+    {
+      "name": "mantequilla sin sal",
+      "count": 13
+    },
+    {
+      "name": "aceite vegetal",
+      "count": 12
+    },
+    {
+      "name": "orégano seco",
+      "count": 11
+    },
+    {
+      "name": "crema ácida",
+      "count": 11
+    },
+    {
+      "name": "tortillas de maíz",
+      "count": 10
+    },
+    {
+      "name": "comino en polvo",
+      "count": 10
+    },
+    {
+      "name": "cebolla en cuartos",
+      "count": 10
+    },
+    {
+      "name": "pimienta molida",
+      "count": 10
+    },
+    {
+      "name": "salsa de soya",
+      "count": 9
+    },
+    {
+      "name": "pimienta negra recién molida",
+      "count": 9
+    },
+    {
+      "name": "polvo para hornear",
+      "count": 9
+    },
+    {
+      "name": "zumo de limón",
+      "count": 9
+    },
+    {
+      "name": "laurel seca",
+      "count": 8
+    },
+    {
+      "name": "jugo de limón",
+      "count": 8
+    },
+    {
+      "name": "tomate verde",
+      "count": 8
+    },
+    {
+      "name": "chile serrano",
+      "count": 8
+    },
+    {
+      "name": "hojas de cilantro",
+      "count": 8
+    },
+    {
+      "name": "water",
+      "count": 8
+    },
+    {
+      "name": "nata (35% de grasa)",
+      "count": 8
+    },
+    {
+      "name": "queso crema",
+      "count": 8
+    },
+    {
+      "name": "huevo",
+      "count": 8
+    },
+    {
+      "name": "cubitos de hielo",
+      "count": 8
+    },
+    {
+      "name": "queso parmesano",
+      "count": 7
+    },
+    {
+      "name": "jengibre",
+      "count": 7
+    },
+    {
+      "name": "pimiento rojo",
+      "count": 7
+    },
+    {
+      "name": "sal gruesa",
+      "count": 7
+    },
+    {
+      "name": "cubo de caldo",
+      "count": 7
+    },
+    {
+      "name": "orégano",
+      "count": 7
+    },
+    {
+      "name": "aceite de girasol",
+      "count": 7
+    },
+    {
+      "name": "yema de huevo",
+      "count": 7
+    },
+    {
+      "name": "vinagre",
+      "count": 7
+    },
+    {
+      "name": "ajo pelado",
+      "count": 7
+    },
+    {
+      "name": "epazote",
+      "count": 7
+    },
+    {
+      "name": "pimentón dulce",
+      "count": 7
+    },
+    {
+      "name": "pimentón",
+      "count": 7
+    },
+    {
+      "name": "harina de repostería",
+      "count": 7
+    },
+    {
+      "name": "perejil fresco",
+      "count": 6
+    },
+    {
+      "name": "pepino",
+      "count": 6
+    },
+    {
+      "name": "apio",
+      "count": 6
+    },
+    {
+      "name": "tomillo seco",
+      "count": 6
+    },
+    {
+      "name": "salsa de soja",
+      "count": 6
+    },
+    {
+      "name": "azúcar refinada",
+      "count": 6
+    },
+    {
+      "name": "maicena",
+      "count": 6
+    },
+    {
+      "name": "jugo de naranja",
+      "count": 6
+    },
+    {
+      "name": "hielos",
+      "count": 6
+    },
+    {
+      "name": "jugo de limón recién exprimido",
+      "count": 6
+    },
+    {
+      "name": "chocolate fondant para postres (50% cacao) en trozos",
+      "count": 6
+    },
+    {
+      "name": "yemas de huevo",
+      "count": 6
+    },
+    {
+      "name": "tsp salt",
+      "count": 6
+    },
+    {
+      "name": "hojas de perejil fresco",
+      "count": 5
+    },
+    {
+      "name": "cebolla morada",
+      "count": 5
+    },
+    {
+      "name": "vino blanco",
+      "count": 5
+    },
+    {
+      "name": "salsa inglesa",
+      "count": 5
+    },
+    {
+      "name": "nata",
+      "count": 5
+    },
+    {
+      "name": "garlic cloves",
+      "count": 5
+    },
+    {
+      "name": "leche condensada",
+      "count": 5
+    },
+    {
+      "name": "leche entera",
+      "count": 5
+    },
+    {
+      "name": "hojas de espinaca fresca",
+      "count": 5
+    },
+    {
+      "name": "queso cremoso",
+      "count": 5
+    },
+    {
+      "name": "chile guajillo",
+      "count": 5
+    },
+    {
+      "name": "mantequilla a temperatura ambiente",
+      "count": 5
+    },
+    {
+      "name": "miel",
+      "count": 5
+    },
+    {
+      "name": "almendras",
+      "count": 5
+    },
+    {
+      "name": "aguacate",
+      "count": 5
+    },
+    {
+      "name": "champiñones",
+      "count": 5
+    },
+    {
+      "name": "cubos de caldo",
+      "count": 5
+    },
+    {
+      "name": "granos de elote",
+      "count": 5
+    },
+    {
+      "name": "pellizco de pimienta negra molida",
+      "count": 5
+    },
+    {
+      "name": "chile chipotle adobado",
+      "count": 5
+    },
+    {
+      "name": "manteca de cerdo",
+      "count": 5
+    },
+    {
+      "name": "harina de trigo",
+      "count": 5
+    },
+    {
+      "name": "aceite de oliva extra virgen",
+      "count": 5
+    },
+    {
+      "name": "vinagre de arroz",
+      "count": 5
+    },
+    {
+      "name": "chile poblano",
+      "count": 5
+    },
+    {
+      "name": "perejil fresco picado",
+      "count": 5
+    },
+    {
+      "name": "salsa de ostión",
+      "count": 4
+    },
+    {
+      "name": "azúcar mascabado",
+      "count": 4
+    },
+    {
+      "name": "clavo de olor",
+      "count": 4
+    },
+    {
+      "name": "onion",
+      "count": 4
+    },
+    {
+      "name": "½ cucharaditas de sal",
+      "count": 4
+    },
+    {
+      "name": "lechuga romana",
+      "count": 4
+    },
+    {
+      "name": "calabacita",
+      "count": 4
+    },
+    {
+      "name": "clara de huevo",
+      "count": 4
+    },
+    {
+      "name": "vainilla",
+      "count": 4
+    },
+    {
+      "name": "tomillo fresco",
+      "count": 4
+    },
+    {
+      "name": "- 2 pellizcos de pimienta molida",
+      "count": 4
+    },
+    {
+      "name": "canela molida",
+      "count": 4
+    },
+    {
+      "name": "cocoa en polvo",
+      "count": 4
+    },
+    {
+      "name": "cubo de caldo de pollo",
+      "count": 4
+    },
+    {
+      "name": "arroz",
+      "count": 4
+    },
+    {
+      "name": "aguacates",
+      "count": 4
+    },
+    {
+      "name": "arroz de grano redondo",
+      "count": 4
+    },
+    {
+      "name": "levadura química en polvo",
+      "count": 4
+    },
+    {
+      "name": "queso parmesano en trozos",
+      "count": 4
+    },
+    {
+      "name": "harina de fuerza",
+      "count": 4
+    },
+    {
+      "name": "papa",
+      "count": 4
+    },
+    {
+      "name": "cacahuates tostados sin sal",
+      "count": 4
+    },
+    {
+      "name": "limón",
+      "count": 4
+    },
+    {
+      "name": "filetes de anchoa en aceite",
+      "count": 4
+    },
+    {
+      "name": "queso panela",
+      "count": 4
+    },
+    {
+      "name": "piñones",
+      "count": 4
+    },
+    {
+      "name": "pimientas gordas",
+      "count": 4
+    },
+    {
+      "name": "bicarbonato de sodio",
+      "count": 4
+    },
+    {
+      "name": "butter",
+      "count": 4
+    },
+    {
+      "name": "flour",
+      "count": 4
+    },
+    {
+      "name": "nueces",
+      "count": 4
+    },
+    {
+      "name": "puré de jitomate",
+      "count": 4
+    },
+    {
+      "name": "pimiento rojo en trozos",
+      "count": 4
+    },
+    {
+      "name": "dátiles sin hueso",
+      "count": 4
+    },
+    {
+      "name": "crema",
+      "count": 4
+    },
+    {
+      "name": "crema para batir (30-40% grasa)",
+      "count": 3
+    },
+    {
+      "name": "pimienta blanca molida",
+      "count": 3
+    },
+    {
+      "name": "chicharrón de cerdo",
+      "count": 3
+    },
+    {
+      "name": "agua mineral",
+      "count": 3
+    },
+    {
+      "name": "eggs",
+      "count": 3
+    },
+    {
+      "name": "olive oil",
+      "count": 3
+    },
+    {
+      "name": "poro",
+      "count": 3
+    },
+    {
+      "name": "pechuga de pollo",
+      "count": 3
+    },
+    {
+      "name": "½ cditas de sal fina",
+      "count": 3
+    },
+    {
+      "name": "limón verde",
+      "count": 3
+    },
+    {
+      "name": "leche evaporada",
+      "count": 3
+    },
+    {
+      "name": "galletas digestive",
+      "count": 3
+    },
+    {
+      "name": "chiles serranos",
+      "count": 3
+    },
+    {
+      "name": "rama de cilantro",
+      "count": 3
+    },
+    {
+      "name": "avena en hojuelas",
+      "count": 3
+    },
+    {
+      "name": "canela en polvo",
+      "count": 3
+    },
+    {
+      "name": "garlic clove",
+      "count": 3
+    },
+    {
+      "name": "nopales",
+      "count": 3
+    },
+    {
+      "name": "lechuga orejona",
+      "count": 3
+    },
+    {
+      "name": "dátiles deshuesados",
+      "count": 3
+    },
+    {
+      "name": "vodka",
+      "count": 3
+    },
+    {
+      "name": "cilantro fresco",
+      "count": 3
+    },
+    {
+      "name": "oil",
+      "count": 3
+    },
+    {
+      "name": "carne molida de res",
+      "count": 3
+    },
+    {
+      "name": "vinagre de vino tinto",
+      "count": 3
+    },
+    {
+      "name": "caldo de verduras",
+      "count": 3
+    },
+    {
+      "name": "½ cucharadita de sal",
+      "count": 3
+    },
+    {
+      "name": "queso cotija",
+      "count": 3
+    },
+    {
+      "name": "chiles pasilla",
+      "count": 3
+    },
+    {
+      "name": "salsa de pescado",
+      "count": 3
+    },
+    {
+      "name": "guindilla seca desmenuzada",
+      "count": 3
+    },
+    {
+      "name": "garbanzos cocidos",
+      "count": 3
+    },
+    {
+      "name": "queso mascarpone",
+      "count": 3
+    },
+    {
+      "name": "tomate troceado en conserva",
+      "count": 3
+    },
+    {
+      "name": "vino tinto",
+      "count": 3
+    },
+    {
+      "name": "puré de tomate",
+      "count": 3
+    },
+    {
+      "name": "ejotes",
+      "count": 3
+    },
+    {
+      "name": "mantequilla en trozos",
+      "count": 3
+    },
+    {
+      "name": "cebolleta",
+      "count": 3
+    },
+    {
+      "name": "cebolla cambray",
+      "count": 3
+    },
+    {
+      "name": "aceite de ajonjolí",
+      "count": 3
+    },
+    {
+      "name": "menta fresca",
+      "count": 3
+    },
+    {
+      "name": "cuscús",
+      "count": 3
+    },
+    {
+      "name": "claras de huevo",
+      "count": 3
+    },
+    {
+      "name": "jugo de limón amarillo",
+      "count": 3
+    },
+    {
+      "name": "mostaza dijon",
+      "count": 3
+    },
+    {
+      "name": "pellizco de pimienta molida",
+      "count": 3
+    },
+    {
+      "name": "granulated sugar",
+      "count": 3
+    },
+    {
+      "name": "brown sugar",
+      "count": 3
+    },
+    {
+      "name": "tsp baking soda",
+      "count": 3
+    },
+    {
+      "name": "chiles guajillo",
+      "count": 3
+    },
+    {
+      "name": "chiles anchos",
+      "count": 3
+    },
+    {
+      "name": "azúcar moreno",
+      "count": 3
+    },
+    {
+      "name": "jugo de limón verde",
+      "count": 3
+    },
+    {
+      "name": "zanahoria en trozos",
+      "count": 3
+    },
+    {
+      "name": "queso manchego",
+      "count": 3
+    },
+    {
+      "name": "semillas de ajonjolí tostadas",
+      "count": 3
+    },
+    {
+      "name": "galletas saladas",
+      "count": 3
+    },
+    {
+      "name": "flor de calabaza",
+      "count": 3
+    },
+    {
+      "name": "caramelo líquido",
+      "count": 3
+    },
+    {
+      "name": "limones",
+      "count": 3
+    },
+    {
+      "name": "pellizcos de pimienta molida",
+      "count": 3
+    },
+    {
+      "name": "tomate concentrado",
+      "count": 3
+    },
+    {
+      "name": "jengibre en polvo",
+      "count": 3
+    },
+    {
+      "name": "coliflor",
+      "count": 3
+    },
+    {
+      "name": "agua hirviendo",
+      "count": 3
+    },
+    {
+      "name": "zumo de naranja",
+      "count": 3
+    },
+    {
+      "name": "pellizcos de pimienta negra molida",
+      "count": 3
+    },
+    {
+      "name": "ice cubes",
+      "count": 3
+    },
+    {
+      "name": "sugar",
+      "count": 3
+    },
+    {
+      "name": "champiñones frescos laminados",
+      "count": 3
+    },
+    {
+      "name": "extracto de vainilla natural",
+      "count": 3
+    },
+    {
+      "name": "cebolla blanca",
+      "count": 2
+    },
+    {
+      "name": "½ cdita de sal fina",
+      "count": 2
+    },
+    {
+      "name": "filetes de pescado blanco",
+      "count": 2
+    },
+    {
+      "name": "lomo de cerdo",
+      "count": 2
+    },
+    {
+      "name": "fideos de arroz",
+      "count": 2
+    },
+    {
+      "name": "cebollas cambray",
+      "count": 2
+    },
+    {
+      "name": "tostadas",
+      "count": 2
+    },
+    {
+      "name": "aceite para engrasar",
+      "count": 2
+    },
+    {
+      "name": "cebolla en mitades",
+      "count": 2
+    },
+    {
+      "name": "calabacitas",
+      "count": 2
+    },
+    {
+      "name": "albahaca",
+      "count": 2
+    },
+    {
+      "name": "albahaca fresca (solo las hojas) troceadas a mano",
+      "count": 2
+    },
+    {
+      "name": "aceitunas negras sin hueso",
+      "count": 2
+    },
+    {
+      "name": "hojas de hierbabuena fresca",
+      "count": 2
+    },
+    {
+      "name": "rama de apio",
+      "count": 2
+    },
+    {
+      "name": "almendras tostadas sin sal",
+      "count": 2
+    },
+    {
+      "name": "tomillo fresco (solo las hojas)",
+      "count": 2
+    },
+    {
+      "name": "perejil fresco (solo las hojas)",
+      "count": 2
+    },
+    {
+      "name": "frambuesas frescas",
+      "count": 2
+    },
+    {
+      "name": "bistec de res",
+      "count": 2
+    },
+    {
+      "name": "levadura seca instantánea",
+      "count": 2
+    },
+    {
+      "name": "bicarbonato",
+      "count": 2
+    },
+    {
+      "name": "cebolla (en cuartos)",
+      "count": 2
+    },
+    {
+      "name": "pimienta negra entera",
+      "count": 2
+    },
+    {
+      "name": "frijoles cocidos",
+      "count": 2
+    },
+    {
+      "name": "laurel",
+      "count": 2
+    },
+    {
+      "name": "carne de cerdo",
+      "count": 2
+    },
+    {
+      "name": "tostadas para acompañar",
+      "count": 2
+    },
+    {
+      "name": "queso manchego en trozos",
+      "count": 2
+    },
+    {
+      "name": "hojas de espinaca frescas",
+      "count": 2
+    },
+    {
+      "name": "azúcar (opcional)",
+      "count": 2
+    },
+    {
+      "name": "- 2 pellizcos de pimienta negra molida",
+      "count": 2
+    },
+    {
+      "name": "gelatina",
+      "count": 2
+    },
+    {
+      "name": "nueces en mitades y 2-3 más para decorar",
+      "count": 2
+    },
+    {
+      "name": "dátiles sin hueso y 2-3 más para decorar",
+      "count": 2
+    },
+    {
+      "name": "orejones de albaricoque en trozos para decorar",
+      "count": 2
+    },
+    {
+      "name": "nuez pecana",
+      "count": 2
+    },
+    {
+      "name": "avena",
+      "count": 2
+    },
+    {
+      "name": "concentrado de caldo de res",
+      "count": 2
+    },
+    {
+      "name": "cúrcuma en polvo",
+      "count": 2
+    },
+    {
+      "name": "mayonesa",
+      "count": 2
+    },
+    {
+      "name": "tostadas de maíz",
+      "count": 2
+    },
+    {
+      "name": "cebolla en octavos",
+      "count": 2
+    },
+    {
+      "name": "lomos de salmón fresco sin piel ni espinas (125 g c/u)",
+      "count": 2
+    },
+    {
+      "name": "pastilla de caldo de verduras desmenuzada",
+      "count": 2
+    },
+    {
+      "name": "chícharos",
+      "count": 2
+    },
+    {
+      "name": "jengibre fresco",
+      "count": 2
+    },
+    {
+      "name": "pan rallado",
+      "count": 2
+    },
+    {
+      "name": "zanahorias en trozos",
+      "count": 2
+    },
+    {
+      "name": "- 8 hojas de albahaca fresca",
+      "count": 2
+    },
+    {
+      "name": "tequila reposado",
+      "count": 2
+    },
+    {
+      "name": "jitomates cherry",
+      "count": 2
+    },
+    {
+      "name": "rábanos",
+      "count": 2
+    },
+    {
+      "name": "albahaca frescas",
+      "count": 2
+    },
+    {
+      "name": "cm piece fresh ginger",
+      "count": 2
+    },
+    {
+      "name": "lentejas rojas partidas",
+      "count": 2
+    },
+    {
+      "name": "- 3 dientes de ajo",
+      "count": 2
+    },
+    {
+      "name": "guacamole",
+      "count": 2
+    },
+    {
+      "name": "½ cucharaditas rasas de sal",
+      "count": 2
+    },
+    {
+      "name": "garbanzos secos",
+      "count": 2
+    },
+    {
+      "name": "rajas de chile poblano",
+      "count": 2
+    },
+    {
+      "name": "concentrado de caldo de pollo",
+      "count": 2
+    },
+    {
+      "name": "nueces en mitades",
+      "count": 2
+    },
+    {
+      "name": "azúcar glas",
+      "count": 2
+    },
+    {
+      "name": "pimiento verde",
+      "count": 2
+    },
+    {
+      "name": "pasta filo",
+      "count": 2
+    },
+    {
+      "name": "queso brie",
+      "count": 2
+    },
+    {
+      "name": "tomates secos en aceite escurridos",
+      "count": 2
+    },
+    {
+      "name": "agua caliente",
+      "count": 2
+    },
+    {
+      "name": "chile verde",
+      "count": 2
+    },
+    {
+      "name": "garam masala",
+      "count": 2
+    },
+    {
+      "name": "vinagre blanco",
+      "count": 2
+    },
+    {
+      "name": "gramos de agua",
+      "count": 2
+    },
+    {
+      "name": "quinoa",
+      "count": 2
+    },
+    {
+      "name": "falda de res",
+      "count": 2
+    },
+    {
+      "name": "berenjenas",
+      "count": 2
+    },
+    {
+      "name": "queso emmental en trozos",
+      "count": 2
+    },
+    {
+      "name": "crutones",
+      "count": 2
+    },
+    {
+      "name": "- 2 cucharaditas de sal",
+      "count": 2
+    },
+    {
+      "name": "quinoa en grano",
+      "count": 2
+    },
+    {
+      "name": "vinagre de vino blanco",
+      "count": 2
+    },
+    {
+      "name": "jícama",
+      "count": 2
+    },
+    {
+      "name": "- 2 pellizcos de hebras de azafrán",
+      "count": 2
+    },
+    {
+      "name": "tomate triturado en conserva",
+      "count": 2
+    },
+    {
+      "name": "colorante amarillo (opcional)",
+      "count": 2
+    },
+    {
+      "name": "pasitas",
+      "count": 2
+    },
+    {
+      "name": "mostaza de dijon",
+      "count": 2
+    },
+    {
+      "name": "kale",
+      "count": 2
+    },
+    {
+      "name": "lentejas",
+      "count": 2
+    },
+    {
+      "name": "leche de coco",
+      "count": 2
+    },
+    {
+      "name": "queso parmesano en trozos (2-3 cm)",
+      "count": 2
+    },
+    {
+      "name": "¼ cditas de sal fina",
+      "count": 2
+    },
+    {
+      "name": "azúcar granulada",
+      "count": 2
+    },
+    {
+      "name": "huevos grandes",
+      "count": 2
+    },
+    {
+      "name": "1/4 cdita de extracto de vainilla",
+      "count": 2
+    },
+    {
+      "name": "/4 cdit de jugo de limón recién exprimido",
+      "count": 2
+    },
+    {
+      "name": "un pizca de canela",
+      "count": 2
+    },
+    {
+      "name": "nueces picadas (🙋🏽‍♀️ *tip*)",
+      "count": 2
+    },
+    {
+      "name": "large eggs",
+      "count": 2
+    },
+    {
+      "name": "1/4 tsp vanilla extract",
+      "count": 2
+    },
+    {
+      "name": "/4 tsp freshly squeezed lemon juice",
+      "count": 2
+    },
+    {
+      "name": "rolled oats",
+      "count": 2
+    },
+    {
+      "name": "a pinch of cinnamon",
+      "count": 2
+    },
+    {
+      "name": "chopped walnuts (*🙋🏽‍♀️ tip*)",
+      "count": 2
+    },
+    {
+      "name": "azúcar (y un poco más para espolvorear)",
+      "count": 2
+    },
+    {
+      "name": "polvo de hornear",
+      "count": 2
+    },
+    {
+      "name": "migas de bacalao remojadas y desaladas",
+      "count": 2
+    },
+    {
+      "name": "huevos batidos",
+      "count": 2
+    },
+    {
+      "name": "cacahuate pelado",
+      "count": 2
+    },
+    {
+      "name": "cebolleta recta en rodajas finas",
+      "count": 2
+    },
+    {
+      "name": "echalot",
+      "count": 2
+    },
+    {
+      "name": "cebollín",
+      "count": 2
+    },
+    {
+      "name": "vinagre de manzana",
+      "count": 2
+    },
+    {
+      "name": "manzana verde",
+      "count": 2
+    },
+    {
+      "name": "elote",
+      "count": 2
+    },
+    {
+      "name": "frijoles negros cocidos",
+      "count": 2
+    },
+    {
+      "name": "chispas de chocolate amargo",
+      "count": 2
+    },
+    {
+      "name": "cucharadita de sal",
+      "count": 2
+    },
+    {
+      "name": "tomate maduro en cuartos",
+      "count": 2
+    },
+    {
+      "name": "rodajas de limón",
+      "count": 2
+    },
+    {
+      "name": "zanahorias",
+      "count": 2
+    },
+    {
+      "name": "concentrado de caldo de verduras en polvo",
+      "count": 2
+    },
+    {
+      "name": "echalots",
+      "count": 2
+    },
+    {
+      "name": "papas cambray",
+      "count": 2
+    },
+    {
+      "name": "garbanzos cocidos (en conserva)",
+      "count": 2
+    },
+    {
+      "name": "fécula de maíz",
+      "count": 2
+    },
+    {
+      "name": "cebolla de cambray",
+      "count": 2
+    },
+    {
+      "name": "pastilla de caldo de verduras",
+      "count": 2
+    },
+    {
+      "name": "lemon juice",
+      "count": 2
+    },
+    {
+      "name": "mostaza",
+      "count": 2
+    },
+    {
+      "name": "arroz de grano largo",
+      "count": 2
+    },
+    {
+      "name": "milk",
+      "count": 2
+    },
+    {
+      "name": "sal fina o al gusto",
+      "count": 2
+    },
+    {
+      "name": "pimienta negra molida o al gusto",
+      "count": 2
+    },
+    {
+      "name": "chiles morita",
+      "count": 2
+    },
+    {
+      "name": "magro de cerdo en trozos",
+      "count": 2
+    },
+    {
+      "name": "tomate frito",
+      "count": 2
+    },
+    {
+      "name": "lomo de res",
+      "count": 2
+    },
+    {
+      "name": "soda",
+      "count": 2
+    },
+    {
+      "name": "pimiento verde en trozos",
+      "count": 2
+    },
+    {
+      "name": "calabacín con piel",
+      "count": 2
+    },
+    {
+      "name": "yogur griego",
+      "count": 2
+    },
+    {
+      "name": "pellizco de nuez moscada molida",
+      "count": 2
+    },
+    {
+      "name": "comino en polvo (opcional)",
+      "count": 2
+    },
+    {
+      "name": "nuez moscada en polvo",
+      "count": 2
+    },
+    {
+      "name": "aceite para freír",
+      "count": 2
+    },
+    {
+      "name": "plátanos",
+      "count": 2
+    },
+    {
+      "name": "chocolate oscuro rallado",
+      "count": 2
+    },
+    {
+      "name": "queso parmesano cortado en trozos (3 cm) (optional)",
+      "count": 1
+    },
+    {
+      "name": "apio cortado en trozos",
+      "count": 1
+    },
+    {
+      "name": "zanahoria cortada en trozos",
+      "count": 1
+    },
+    {
+      "name": "cebolla cortada en dos",
+      "count": 1
+    },
+    {
+      "name": "tomate cortado en trozos",
+      "count": 1
+    },
+    {
+      "name": "calabacín cortado en trozos",
+      "count": 1
+    },
+    {
+      "name": "setas frescas",
+      "count": 1
+    },
+    {
+      "name": "laurel seca (optional)",
+      "count": 1
+    },
+    {
+      "name": "hierbas frescas variadas (por ej. albahaca",
+      "count": 1
+    },
+    {
+      "name": "sal gorda",
+      "count": 1
+    },
+    {
+      "name": "vino blanco seco (o 30 g de agua)",
+      "count": 1
+    },
+    {
+      "name": "pimientos rojos",
+      "count": 1
+    },
+    {
+      "name": "polvo de 5 especias",
+      "count": 1
+    },
+    {
+      "name": "vainas de chícharos chinos",
+      "count": 1
+    },
+    {
+      "name": "bok choy",
+      "count": 1
+    },
+    {
+      "name": "chile rojo",
+      "count": 1
+    },
+    {
+      "name": "nuez de la india",
+      "count": 1
+    },
+    {
+      "name": "mantequilla (para engrasar el molde)",
+      "count": 1
+    },
+    {
+      "name": "- 8 tiras de piel de limón (solo la parte amarilla)",
+      "count": 1
+    },
+    {
+      "name": "zanahoria pelada y en trozos",
+      "count": 1
+    },
+    {
+      "name": "harina de repostería (y un poco más para enharinar el molde)",
+      "count": 1
+    },
+    {
+      "name": "levadura química en polvo (15 g)",
+      "count": 1
+    },
+    {
+      "name": "almendra molida",
+      "count": 1
+    },
+    {
+      "name": "pierna y muslo de pollo",
+      "count": 1
+    },
+    {
+      "name": "mezcla de verduras (p.ej. apio",
+      "count": 1
+    },
+    {
+      "name": "hierbas de olor",
+      "count": 1
+    },
+    {
+      "name": "semillas de cilantro",
+      "count": 1
+    },
+    {
+      "name": "chiles de árbol frescos",
+      "count": 1
+    },
+    {
+      "name": "salsa maggi",
+      "count": 1
+    },
+    {
+      "name": "camarones grandes",
+      "count": 1
+    },
+    {
+      "name": "roasted unsalted cashew nuts",
+      "count": 1
+    },
+    {
+      "name": "natural peanut butter",
+      "count": 1
+    },
+    {
+      "name": "lsa (a mixture of ground raw linseed also known as flaxseed",
+      "count": 1
+    },
+    {
+      "name": "dried blueberries",
+      "count": 1
+    },
+    {
+      "name": "natural vanilla protein powder (see tips)",
+      "count": 1
+    },
+    {
+      "name": "desiccated coconut",
+      "count": 1
+    },
+    {
+      "name": "levadura de panadería seca",
+      "count": 1
+    },
+    {
+      "name": "harina t65",
+      "count": 1
+    },
+    {
+      "name": "sémola de trigo duro fina y 2 cucharadas. sopa",
+      "count": 1
+    },
+    {
+      "name": "levadura en polvo",
+      "count": 1
+    },
+    {
+      "name": "setas de cardo frescaso 150 g de setas frescas de temporada",
+      "count": 1
+    },
+    {
+      "name": "- 600 g de pechugas de pollo sin piel en trozos (3x3 cm aprox.)",
+      "count": 1
+    },
+    {
+      "name": "queso gorgonzola en trozos",
+      "count": 1
+    },
+    {
+      "name": "ajo (opcional)",
+      "count": 1
+    },
+    {
+      "name": "carne molida de res (🙋🏽‍♀️*tip*)",
+      "count": 1
+    },
+    {
+      "name": "jitomates (en cuartos)",
+      "count": 1
+    },
+    {
+      "name": "/2 cdita de tomillo seco",
+      "count": 1
+    },
+    {
+      "name": "agua (o consomé)",
+      "count": 1
+    },
+    {
+      "name": "-12 fresh parsley leaves",
+      "count": 1
+    },
+    {
+      "name": "garlic clove (optional)",
+      "count": 1
+    },
+    {
+      "name": "ground beef (🙋🏽‍♀️ *tip*)",
+      "count": 1
+    },
+    {
+      "name": "teaspoon salt",
+      "count": 1
+    },
+    {
+      "name": "a pinch of ground black pepper",
+      "count": 1
+    },
+    {
+      "name": "oil for greasing",
+      "count": 1
+    },
+    {
+      "name": "tomatoes",
+      "count": 1
+    },
+    {
+      "name": "teaspoons salt",
+      "count": 1
+    },
+    {
+      "name": "teaspoon dried oregano",
+      "count": 1
+    },
+    {
+      "name": "teaspoon dried thyme",
+      "count": 1
+    },
+    {
+      "name": "ramas de albahaca",
+      "count": 1
+    },
+    {
+      "name": "carne molida de cerdo",
+      "count": 1
+    },
+    {
+      "name": "yogur natural sin azúcar",
+      "count": 1
+    },
+    {
+      "name": "piñones (y 1-2 cucharadas más para servir)",
+      "count": 1
+    },
+    {
+      "name": "pasta corta seca (tipo farfalle)",
+      "count": 1
+    },
+    {
+      "name": "tomates cherry",
+      "count": 1
+    },
+    {
+      "name": "mozzarellas mini",
+      "count": 1
+    },
+    {
+      "name": "- 3 pellizcos de sal en escamas",
+      "count": 1
+    },
+    {
+      "name": "vinagre de su preferencia",
+      "count": 1
+    },
+    {
+      "name": "pan molido",
+      "count": 1
+    },
+    {
+      "name": "- 30 g de aceite de oliva",
+      "count": 1
+    },
+    {
+      "name": "- 200 g de hortalizas para sofrito (p. ej. cebolla",
+      "count": 1
+    },
+    {
+      "name": "- 800 g de verduras variadas (p.ej. calabacín",
+      "count": 1
+    },
+    {
+      "name": "- 850 g de agua",
+      "count": 1
+    },
+    {
+      "name": "concentrado de caldo de verduras caseroo 1 pastilla de caldo de verduras",
+      "count": 1
+    },
+    {
+      "name": "cebada perlada",
+      "count": 1
+    },
+    {
+      "name": "cm de jengibre",
+      "count": 1
+    },
+    {
+      "name": "ramas de cilantro",
+      "count": 1
+    },
+    {
+      "name": "atún fresco en filetes (1 cm)",
+      "count": 1
+    },
+    {
+      "name": "mejorana fresca (solo las hojas)",
+      "count": 1
+    },
+    {
+      "name": "vino blanco seco tipo chardonnay",
+      "count": 1
+    },
+    {
+      "name": "pellizco de pimienta blanca molida",
+      "count": 1
+    },
+    {
+      "name": "grenetina en polvo (aprox. 14 g)",
+      "count": 1
+    },
+    {
+      "name": "cajetao 360 g de dulce de leche",
+      "count": 1
+    },
+    {
+      "name": "fruta fresca",
+      "count": 1
+    },
+    {
+      "name": "galletas (tipo digestive)",
+      "count": 1
+    },
+    {
+      "name": "chocolate blanco (en trozos pequeños)",
+      "count": 1
+    },
+    {
+      "name": "cuajada en polvo (de 12 g c/u)",
+      "count": 1
+    },
+    {
+      "name": "chocolate con leche (en trozos pequeños)",
+      "count": 1
+    },
+    {
+      "name": "chocolate fondant para postres (50% cacao) (en trozos pequeños)",
+      "count": 1
+    },
+    {
+      "name": "- 5 tiras de piel de limón (solo parte amarilla)",
+      "count": 1
+    },
+    {
+      "name": "mantequilla (lurpak®) a temperatura ambiente",
+      "count": 1
+    },
+    {
+      "name": "(7 g) de grenetina en polvo",
+      "count": 1
+    },
+    {
+      "name": "- 30 g de zumo de limón",
+      "count": 1
+    },
+    {
+      "name": "tocino ahumado rebanado",
+      "count": 1
+    },
+    {
+      "name": "galletas tipo graham",
+      "count": 1
+    },
+    {
+      "name": "huevo grande",
+      "count": 1
+    },
+    {
+      "name": "nuez",
+      "count": 1
+    },
+    {
+      "name": "endulzante monk fruit",
+      "count": 1
+    },
+    {
+      "name": "plátanos maduros",
+      "count": 1
+    },
+    {
+      "name": "aceite de coco (derretido)",
+      "count": 1
+    },
+    {
+      "name": "harina de almendra",
+      "count": 1
+    },
+    {
+      "name": "cocoa en polvo sin azúcar",
+      "count": 1
+    },
+    {
+      "name": "chocolate sin azúcar en trocitos (opcional)",
+      "count": 1
+    },
+    {
+      "name": "pimiento choricero (sin semillas ni pedúnculo)",
+      "count": 1
+    },
+    {
+      "name": "aceite de oliva virgen extra (y un poco más para regar la menestra)",
+      "count": 1
+    },
+    {
+      "name": "vino tinto (rioja",
+      "count": 1
+    },
+    {
+      "name": "½ pastillas de caldo de carne",
+      "count": 1
+    },
+    {
+      "name": "romero seco",
+      "count": 1
+    },
+    {
+      "name": "-2 pellizcos de pimienta molida",
+      "count": 1
+    },
+    {
+      "name": "carrilleras de cerdo ibérico (cortadas por la mitad y salpimentadas)",
+      "count": 1
+    },
+    {
+      "name": "- 2 hojas de laurel secas",
+      "count": 1
+    },
+    {
+      "name": "- 1000 g de menestra de verduras (si es congelada",
+      "count": 1
+    },
+    {
+      "name": "frijoles bayos cocidos y escurridos",
+      "count": 1
+    },
+    {
+      "name": "mantequilla sin sal (en trozos) (🙋🏽‍♀️ *tip*)",
+      "count": 1
+    },
+    {
+      "name": "papa (cortada en trozos)",
+      "count": 1
+    },
+    {
+      "name": "brócoli (floretes y tallos",
+      "count": 1
+    },
+    {
+      "name": "concentrado de caldo de verduras (colmada) (🙋🏽‍♀️ *tip*)",
+      "count": 1
+    },
+    {
+      "name": "½ cdita de sal (al gusto)",
+      "count": 1
+    },
+    {
+      "name": "onion (quartered)",
+      "count": 1
+    },
+    {
+      "name": "unsalted butter (cuarted) (🙋🏽‍♀️ *tip*)",
+      "count": 1
+    },
+    {
+      "name": "potato (cut in pieces)",
+      "count": 1
+    },
+    {
+      "name": "broccoli",
+      "count": 1
+    },
+    {
+      "name": "tsp vegetable stock paste",
+      "count": 1
+    },
+    {
+      "name": "½ tsp salt (to taste)",
+      "count": 1
+    },
+    {
+      "name": "azúcar vainillado",
+      "count": 1
+    },
+    {
+      "name": "mermelada de arándanos",
+      "count": 1
+    },
+    {
+      "name": "granillo de almendra cruda (opcional)",
+      "count": 1
+    },
+    {
+      "name": "semillas de comino",
+      "count": 1
+    },
+    {
+      "name": "clavos de olor",
+      "count": 1
+    },
+    {
+      "name": "carne de cordero",
+      "count": 1
+    },
+    {
+      "name": "para mixiote",
+      "count": 1
+    },
+    {
+      "name": "rábano",
+      "count": 1
+    },
+    {
+      "name": "mejorana fresca",
+      "count": 1
+    },
+    {
+      "name": "maíz pozolero",
+      "count": 1
+    },
+    {
+      "name": "limones para acompañar",
+      "count": 1
+    },
+    {
+      "name": "chile piquín",
+      "count": 1
+    },
+    {
+      "name": "- 5 dientes de ajo",
+      "count": 1
+    },
+    {
+      "name": "pimienta de cayena seca entera",
+      "count": 1
+    },
+    {
+      "name": "pasta seca de lenteja roja",
+      "count": 1
+    },
+    {
+      "name": "tomates secos en aceite (escurridos y cortados en trozos)",
+      "count": 1
+    },
+    {
+      "name": "nueces peladas troceadas",
+      "count": 1
+    },
+    {
+      "name": "manzanas gala (peladas",
+      "count": 1
+    },
+    {
+      "name": "fresas (🙋🏽‍♀️tip)",
+      "count": 1
+    },
+    {
+      "name": "gala apples (peeled",
+      "count": 1
+    },
+    {
+      "name": "strawberries (🙋🏽‍♀️tip)",
+      "count": 1
+    },
+    {
+      "name": "sugar (optional)",
+      "count": 1
+    },
+    {
+      "name": "verduras variadas",
+      "count": 1
+    },
+    {
+      "name": "mantequilla de cacahuete",
+      "count": 1
+    },
+    {
+      "name": "aceite de sésamoo 10 g de aceite de girasol",
+      "count": 1
+    },
+    {
+      "name": "agua (a temperatura ambiente)",
+      "count": 1
+    },
+    {
+      "name": "media crema a temperatura ambiente",
+      "count": 1
+    },
+    {
+      "name": "mantequilla sin sal a temperatura ambiente",
+      "count": 1
+    },
+    {
+      "name": "½ cda de levadura seca",
+      "count": 1
+    },
+    {
+      "name": "azúcar morena",
+      "count": 1
+    },
+    {
+      "name": "½ cda de canela en polvo",
+      "count": 1
+    },
+    {
+      "name": "queso crema a temperatura ambiente",
+      "count": 1
+    },
+    {
+      "name": "ciruela pasa deshuesada",
+      "count": 1
+    },
+    {
+      "name": "café fuerte (espresso) y frío",
+      "count": 1
+    },
+    {
+      "name": "extracto de vainilla",
+      "count": 1
+    },
+    {
+      "name": "bistec de res congelados",
+      "count": 1
+    },
+    {
+      "name": "jitomate en cuartos",
+      "count": 1
+    },
+    {
+      "name": "nopales limpios y cortados en cubitos",
+      "count": 1
+    },
+    {
+      "name": "queso de rancho",
+      "count": 1
+    },
+    {
+      "name": "nueces variadas enteras",
+      "count": 1
+    },
+    {
+      "name": "manzana limpia",
+      "count": 1
+    },
+    {
+      "name": "azúcar morena (opcional)",
+      "count": 1
+    },
+    {
+      "name": "- 2 pizcas de nuez moscada en polvo (opcional)",
+      "count": 1
+    },
+    {
+      "name": "cardamomo en polvo (opcional)",
+      "count": 1
+    },
+    {
+      "name": "hojuelas de avena",
+      "count": 1
+    },
+    {
+      "name": "leche de almendras",
+      "count": 1
+    },
+    {
+      "name": "manzana (cualquier tipo)",
+      "count": 1
+    },
+    {
+      "name": "miel de maple",
+      "count": 1
+    },
+    {
+      "name": "jitomate guaje",
+      "count": 1
+    },
+    {
+      "name": "fideos secos",
+      "count": 1
+    },
+    {
+      "name": "jitomate en trozos",
+      "count": 1
+    },
+    {
+      "name": "cubos de caldo de tomate",
+      "count": 1
+    },
+    {
+      "name": "sal (o al gusto)",
+      "count": 1
+    },
+    {
+      "name": "mezcla de verduras",
+      "count": 1
+    },
+    {
+      "name": "rice",
+      "count": 1
+    },
+    {
+      "name": "tomato",
+      "count": 1
+    },
+    {
+      "name": "tomato bouillon cubes",
+      "count": 1
+    },
+    {
+      "name": "salt (or to taste)",
+      "count": 1
+    },
+    {
+      "name": "frozen vegetable mix (carrot and peas)",
+      "count": 1
+    },
+    {
+      "name": "sprig fresh cilantro",
+      "count": 1
+    },
+    {
+      "name": "atún en aceite (escurrido)",
+      "count": 1
+    },
+    {
+      "name": "alcaparras",
+      "count": 1
+    },
+    {
+      "name": "filete de anchoa en aceite",
+      "count": 1
+    },
+    {
+      "name": "-3 dientes de ajo laminados",
+      "count": 1
+    },
+    {
+      "name": "- 3 pellizcos de pimienta de cayena desmenuzada",
+      "count": 1
+    },
+    {
+      "name": "brócoli en ramilletes",
+      "count": 1
+    },
+    {
+      "name": "almendras laminadas tostadas",
+      "count": 1
+    },
+    {
+      "name": "- 150 g de zanahorias en rodajas de 1-2 cm",
+      "count": 1
+    },
+    {
+      "name": "- 90 g de apio en rodajas de 0.5-1 cm",
+      "count": 1
+    },
+    {
+      "name": "patata en trozos de 2 cm",
+      "count": 1
+    },
+    {
+      "name": "kale (solo las hojas)",
+      "count": 1
+    },
+    {
+      "name": "- 50 g de picatostes",
+      "count": 1
+    },
+    {
+      "name": "pipas de calabaza",
+      "count": 1
+    },
+    {
+      "name": "aceite de oliva (y un poco más para engrasar)",
+      "count": 1
+    },
+    {
+      "name": "arroz basmati",
+      "count": 1
+    },
+    {
+      "name": "½ cucharadas de tomate concentrado",
+      "count": 1
+    },
+    {
+      "name": "eneldo fresco (solo las hojas)o 1 cucharadita de eneldo seco",
+      "count": 1
+    },
+    {
+      "name": "- 2 pellizcos de guindilla seca desmenuzada (opcional)",
+      "count": 1
+    },
+    {
+      "name": "puerro cortado en rodajas",
+      "count": 1
+    },
+    {
+      "name": "patatas cortadas en trozos",
+      "count": 1
+    },
+    {
+      "name": "espinacas congeladas",
+      "count": 1
+    },
+    {
+      "name": "lechuga romana (solo las hojas verdes exteriores) troceadas",
+      "count": 1
+    },
+    {
+      "name": "sal o 1 pastilla de caldo de verduras (para 0,5 l)",
+      "count": 1
+    },
+    {
+      "name": "picatostes para acompañar",
+      "count": 1
+    },
+    {
+      "name": "totopos",
+      "count": 1
+    },
+    {
+      "name": "jocoque natural",
+      "count": 1
+    },
+    {
+      "name": "chile en polvo",
+      "count": 1
+    },
+    {
+      "name": "cerveza",
+      "count": 1
+    },
+    {
+      "name": "harina de trigo y un poco más para trabajar",
+      "count": 1
+    },
+    {
+      "name": "mantequilla sin sal y un poco más para engrasar.",
+      "count": 1
+    },
+    {
+      "name": "col china (aprox. 800 g)",
+      "count": 1
+    },
+    {
+      "name": "azúcar de caña integral",
+      "count": 1
+    },
+    {
+      "name": "- 6 dientes de ajo",
+      "count": 1
+    },
+    {
+      "name": "zanahoria en juliana fina",
+      "count": 1
+    },
+    {
+      "name": "rábano daikon en juliana fina",
+      "count": 1
+    },
+    {
+      "name": "rabanitos en juliana fina",
+      "count": 1
+    },
+    {
+      "name": "cebolletas tiernas en juliana o rodajas finas",
+      "count": 1
+    },
+    {
+      "name": "garbanzos secos (puestos a remojo 12 horas en agua con sal)",
+      "count": 1
+    },
+    {
+      "name": "cebolla (cortada en cuartos)",
+      "count": 1
+    },
+    {
+      "name": "perejil fresco (solo las hojas)o 10 ramitas de cilantro fresco (solo las hojas)",
+      "count": 1
+    },
+    {
+      "name": "comino molido",
+      "count": 1
+    },
+    {
+      "name": "aceite para freír (y un poco más para engrasar las manos)",
+      "count": 1
+    },
+    {
+      "name": "levadura prensada frescao 10 g de levadura seca instantánea",
+      "count": 1
+    },
+    {
+      "name": "ralladura de naranja",
+      "count": 1
+    },
+    {
+      "name": "agua de azahar (opcional)",
+      "count": 1
+    },
+    {
+      "name": "nata (55% grasa)",
+      "count": 1
+    },
+    {
+      "name": "queso de pasta semidura (por ej. gruyère",
+      "count": 1
+    },
+    {
+      "name": "aceite de oliva virgen extra y algo más para servir",
+      "count": 1
+    },
+    {
+      "name": "pan blanco del día anterior en trozos (1-2 cm)",
+      "count": 1
+    },
+    {
+      "name": "espinacas troceadas congeladas",
+      "count": 1
+    },
+    {
+      "name": "sal y algo más para servir",
+      "count": 1
+    },
+    {
+      "name": "cebolla en 2 trozos",
+      "count": 1
+    },
+    {
+      "name": "tomates maduros en trozoso 700 g de tomate entero en conserva en trozos",
+      "count": 1
+    },
+    {
+      "name": "colmada de concentrado de caldo de verduras caseroo 1 pastilla de caldo de verduras (para 0,5 l.)",
+      "count": 1
+    },
+    {
+      "name": "verduras variadas (por ej. pimiento",
+      "count": 1
+    },
+    {
+      "name": "aceite de oliva (ajuste a su gusto)",
+      "count": 1
+    },
+    {
+      "name": "maracuyá",
+      "count": 1
+    },
+    {
+      "name": "refresco de toronja",
+      "count": 1
+    },
+    {
+      "name": "clorofila",
+      "count": 1
+    },
+    {
+      "name": "tostadas de arroz inflado",
+      "count": 1
+    },
+    {
+      "name": "huevos lo 6 huevos l",
+      "count": 1
+    },
+    {
+      "name": "harinao 30 g de maicena",
+      "count": 1
+    },
+    {
+      "name": "mielo 100 g de mermelada",
+      "count": 1
+    },
+    {
+      "name": "mantequilla (y 1 cucharada más para untar el molde)",
+      "count": 1
+    },
+    {
+      "name": "harina de repostería (y 1 cucharada más para espolvorear el molde)",
+      "count": 1
+    },
+    {
+      "name": "nueces peladas (100 g troceadas a mano y 50 g en mitades para decorar)",
+      "count": 1
+    },
+    {
+      "name": "- 3 cucharadas de azúcar glas",
+      "count": 1
+    },
+    {
+      "name": "- 2 fresh red chillies",
+      "count": 1
+    },
+    {
+      "name": "brown onions",
+      "count": 1
+    },
+    {
+      "name": "salted butter",
+      "count": 1
+    },
+    {
+      "name": "curry powder",
+      "count": 1
+    },
+    {
+      "name": "tsp ground turmeric",
+      "count": 1
+    },
+    {
+      "name": "tsp yellow mustard seeds",
+      "count": 1
+    },
+    {
+      "name": "beef chuck steak",
+      "count": 1
+    },
+    {
+      "name": "canned crushed tomatoes",
+      "count": 1
+    },
+    {
+      "name": "raw sugar",
+      "count": 1
+    },
+    {
+      "name": "tbsp white vinegar",
+      "count": 1
+    },
+    {
+      "name": "meat stock paste (see tip)",
+      "count": 1
+    },
+    {
+      "name": "pouring (whipping) cream",
+      "count": 1
+    },
+    {
+      "name": "- 2 pinches sea salt",
+      "count": 1
+    },
+    {
+      "name": "- 2 pinches ground black pepper",
+      "count": 1
+    },
+    {
+      "name": "fresh coriander leaves",
+      "count": 1
+    },
+    {
+      "name": "lemon wedges",
+      "count": 1
+    },
+    {
+      "name": "- 16 hojas de salvia fresca",
+      "count": 1
+    },
+    {
+      "name": "queso cheddar blanco (en trozos)",
+      "count": 1
+    },
+    {
+      "name": "granillo de almendra cruda",
+      "count": 1
+    },
+    {
+      "name": "queso cremoso (tipo philadelphia®)",
+      "count": 1
+    },
+    {
+      "name": "granada",
+      "count": 1
+    },
+    {
+      "name": "biscotes de pan tostado (para servir)o crackers (para servir)",
+      "count": 1
+    },
+    {
+      "name": "limón pelado (sin nada de parte blanca ni pepitas)",
+      "count": 1
+    },
+    {
+      "name": "membrillo crudo con piel (sin semillas y en trozos de 3-4 cm)",
+      "count": 1
+    },
+    {
+      "name": "pimiento en trozos",
+      "count": 1
+    },
+    {
+      "name": "jengibre molido",
+      "count": 1
+    },
+    {
+      "name": "berenjenas (en rodajas de 1 cm)",
+      "count": 1
+    },
+    {
+      "name": "mantequilla (y un poco más para engrasar)",
+      "count": 1
+    },
+    {
+      "name": "aceite vegetalo 20 g de aceite de oliva",
+      "count": 1
+    },
+    {
+      "name": "- 30 g de chiles chipotle",
+      "count": 1
+    },
+    {
+      "name": "jitomate triturado",
+      "count": 1
+    },
+    {
+      "name": "½ cdita de azúcar",
+      "count": 1
+    },
+    {
+      "name": "½ cdita de comino en polvo",
+      "count": 1
+    },
+    {
+      "name": "concentrado de caldo de reso 1 cubo de caldo de carne",
+      "count": 1
+    },
+    {
+      "name": "mantequilla (lurpak®) en trozos (y un poco más para el molde)",
+      "count": 1
+    },
+    {
+      "name": "levadura prensada fresca desmenuzadao 2 cucharaditas de levadura de panadería deshidratada (8 g)",
+      "count": 1
+    },
+    {
+      "name": "- 60 g de azúcar",
+      "count": 1
+    },
+    {
+      "name": "huevo ligeramente batido para pincelar la masa",
+      "count": 1
+    },
+    {
+      "name": "hoja de tomillo fresco",
+      "count": 1
+    },
+    {
+      "name": "carne de cerdo pierna cortada en trozos de 5 cm",
+      "count": 1
+    },
+    {
+      "name": "tomates secos",
+      "count": 1
+    },
+    {
+      "name": "romero fresco",
+      "count": 1
+    },
+    {
+      "name": "almendras fileteadas",
+      "count": 1
+    },
+    {
+      "name": "½ citas de sal marina fina",
+      "count": 1
+    },
+    {
+      "name": "aceite de oliva o mantequilla sin sal (opcional)",
+      "count": 1
+    },
+    {
+      "name": "arroz blanco de grano largo (🙋🏽‍♀️*tip*)",
+      "count": 1
+    },
+    {
+      "name": "½ tsp fine sea salt",
+      "count": 1
+    },
+    {
+      "name": "olive oil or unsalted butter (opcional)",
+      "count": 1
+    },
+    {
+      "name": "white long grain rice (🙋🏽‍♀️ *tip*)",
+      "count": 1
+    },
+    {
+      "name": "hojas de plátano asada",
+      "count": 1
+    },
+    {
+      "name": "ajo pelados",
+      "count": 1
+    },
+    {
+      "name": "elote blanco desgranado",
+      "count": 1
+    },
+    {
+      "name": "harina de maíz para tamales",
+      "count": 1
+    },
+    {
+      "name": "caldo de pollo",
+      "count": 1
+    },
+    {
+      "name": "½ cdita de polvo para hornear",
+      "count": 1
+    },
+    {
+      "name": "avellanas tostadas",
+      "count": 1
+    },
+    {
+      "name": "pistachos (sin piel y sin sal)",
+      "count": 1
+    },
+    {
+      "name": "lámina de masa de hojaldre rectangular (aprox. 275 g)",
+      "count": 1
+    },
+    {
+      "name": "lechuga iceberg en trozos regulares",
+      "count": 1
+    },
+    {
+      "name": "- 3 pellizcos de sal",
+      "count": 1
+    },
+    {
+      "name": "garbanzos cocidos (en conserva) aclarados y escurridos",
+      "count": 1
+    },
+    {
+      "name": "huevos cocidos",
+      "count": 1
+    },
+    {
+      "name": "hojuelas de chile seco",
+      "count": 1
+    },
+    {
+      "name": "hongos shiitake frescos",
+      "count": 1
+    },
+    {
+      "name": "lechuga francesa",
+      "count": 1
+    },
+    {
+      "name": "cebollín picado",
+      "count": 1
+    },
+    {
+      "name": "chiles chipotles adobados al gusto",
+      "count": 1
+    },
+    {
+      "name": "mermelada de cerezas",
+      "count": 1
+    },
+    {
+      "name": "campari",
+      "count": 1
+    },
+    {
+      "name": "vino espumoso",
+      "count": 1
+    },
+    {
+      "name": "coco rallado sin azúcar",
+      "count": 1
+    },
+    {
+      "name": "romero fresco (solo las hojas)",
+      "count": 1
+    },
+    {
+      "name": "- 3 tiras de piel de limón",
+      "count": 1
+    },
+    {
+      "name": "pellizcos de pimienta blanca molida",
+      "count": 1
+    },
+    {
+      "name": "nata (min. 30 % de grasa)",
+      "count": 1
+    },
+    {
+      "name": "chile piquíno 1 cdita de chile en polvo",
+      "count": 1
+    },
+    {
+      "name": "contramuslos de pollo sin piel ni hueso (cortados en 4 trozos)",
+      "count": 1
+    },
+    {
+      "name": "pimentón picante (ajuste a su gusto)",
+      "count": 1
+    },
+    {
+      "name": "½ cucharaditas de tandoori masala",
+      "count": 1
+    },
+    {
+      "name": "trozo de jengibre fresco (2-3 cm)",
+      "count": 1
+    },
+    {
+      "name": "cilantro fresco (hojas y parte del tallo)",
+      "count": 1
+    },
+    {
+      "name": "yogur natural",
+      "count": 1
+    },
+    {
+      "name": "vainas de cardamomo",
+      "count": 1
+    },
+    {
+      "name": "piloncillo",
+      "count": 1
+    },
+    {
+      "name": "achiote",
+      "count": 1
+    },
+    {
+      "name": "- 300 g de jugo de naranja",
+      "count": 1
+    },
+    {
+      "name": "chalotas",
+      "count": 1
+    },
+    {
+      "name": "albaricoques frescos y suaves",
+      "count": 1
+    },
+    {
+      "name": "alcaparras en vinagre",
+      "count": 1
+    },
+    {
+      "name": "celúla",
+      "count": 1
+    },
+    {
+      "name": "garbanzos enlatados",
+      "count": 1
+    },
+    {
+      "name": "tomates cherry cortados por la mitad",
+      "count": 1
+    },
+    {
+      "name": "bolitas de mozzarella",
+      "count": 1
+    },
+    {
+      "name": "gramos de semillas de calabaza",
+      "count": 1
+    },
+    {
+      "name": "jitomates",
+      "count": 1
+    },
+    {
+      "name": "endibias",
+      "count": 1
+    },
+    {
+      "name": "gruyere",
+      "count": 1
+    },
+    {
+      "name": "gramos de leche",
+      "count": 1
+    },
+    {
+      "name": "nuez moscada recién rallada",
+      "count": 1
+    },
+    {
+      "name": "lonchas de jamón blanco",
+      "count": 1
+    },
+    {
+      "name": "cubos de caldoo 2 cucharadas de sal",
+      "count": 1
+    },
+    {
+      "name": "rama de hierbas de olor frescas",
+      "count": 1
+    },
+    {
+      "name": "setas frescas variadas limpias en trozos",
+      "count": 1
+    },
+    {
+      "name": "dados de beicon",
+      "count": 1
+    },
+    {
+      "name": "- 1 cucharadita de hierbas provenzales secas",
+      "count": 1
+    },
+    {
+      "name": "lámina de masa de hojaldre redonda",
+      "count": 1
+    },
+    {
+      "name": "granos de elote amarillo enlatado y escurrodoso 500 g de granos de elote amarillo congelados",
+      "count": 1
+    },
+    {
+      "name": "cubos de caldo de pollo (ver tip)",
+      "count": 1
+    },
+    {
+      "name": "zumo de tomate",
+      "count": 1
+    },
+    {
+      "name": "- 1 cucharadita de tabasco",
+      "count": 1
+    },
+    {
+      "name": "- 2 cucharaditas de salsa inglesa (p. ej. perrins®)",
+      "count": 1
+    },
+    {
+      "name": "- 2 pellizcos de pimienta negra recién molida",
+      "count": 1
+    },
+    {
+      "name": "- 24 cubitos de hielo",
+      "count": 1
+    },
+    {
+      "name": "tomate entero en conserva (escurrido)o 800 g de tomate pelado",
+      "count": 1
+    },
+    {
+      "name": "- 4 ramitas de albahaca fresca picada (solo las hojas",
+      "count": 1
+    },
+    {
+      "name": "berenjenas cortadas en rodajas de 5 mm",
+      "count": 1
+    },
+    {
+      "name": "queso parmesano rallado",
+      "count": 1
+    },
+    {
+      "name": "queso mozzarella",
+      "count": 1
+    },
+    {
+      "name": "- 2 pizca orégano seco",
+      "count": 1
+    },
+    {
+      "name": "aceituna negra deshuesada",
+      "count": 1
+    },
+    {
+      "name": "½ cdas de salsa maggi",
+      "count": 1
+    },
+    {
+      "name": "betabeles",
+      "count": 1
+    },
+    {
+      "name": "eneldo",
+      "count": 1
+    },
+    {
+      "name": "queso de cabra",
+      "count": 1
+    },
+    {
+      "name": "pimiento amarillo",
+      "count": 1
+    },
+    {
+      "name": "totopos horneados",
+      "count": 1
+    },
+    {
+      "name": "- 400 g de almejas frescas",
+      "count": 1
+    },
+    {
+      "name": "sal gordao 2 cucharaditas de sal",
+      "count": 1
+    },
+    {
+      "name": "- 4 dientes de ajo",
+      "count": 1
+    },
+    {
+      "name": "calamares frescos limpios y en trozos",
+      "count": 1
+    },
+    {
+      "name": "fumet de pescado",
+      "count": 1
+    },
+    {
+      "name": "mejillones frescos limpios",
+      "count": 1
+    },
+    {
+      "name": "camarones crudos enteros",
+      "count": 1
+    },
+    {
+      "name": "blueberry",
+      "count": 1
+    },
+    {
+      "name": "- 100 g de mantequilla sin sal",
+      "count": 1
+    },
+    {
+      "name": "ajonjolí negro",
+      "count": 1
+    },
+    {
+      "name": "ajos",
+      "count": 1
+    },
+    {
+      "name": "rama de perejil (sólo las hojas)",
+      "count": 1
+    },
+    {
+      "name": "rama de albahaca (sólo las hojas más un poco extra para decorar)",
+      "count": 1
+    },
+    {
+      "name": "-½ chile rojo fresco",
+      "count": 1
+    },
+    {
+      "name": "tomates deshidratados",
+      "count": 1
+    },
+    {
+      "name": "pechugas de pollo sin piel (cortadas en cubos de 2-3cm)",
+      "count": 1
+    },
+    {
+      "name": "crema para batir",
+      "count": 1
+    },
+    {
+      "name": "tbsp concentrado de pollo",
+      "count": 1
+    },
+    {
+      "name": "penne pasta",
+      "count": 1
+    },
+    {
+      "name": "crema ácida para acompañar",
+      "count": 1
+    },
+    {
+      "name": "manzanas peladas",
+      "count": 1
+    },
+    {
+      "name": "vinagre de cidra",
+      "count": 1
+    },
+    {
+      "name": "sal marina fina",
+      "count": 1
+    },
+    {
+      "name": "queso de cabra desmenuzado",
+      "count": 1
+    },
+    {
+      "name": "remolacha cocida cortada en cubitos (1 cm)",
+      "count": 1
+    },
+    {
+      "name": "arándanos secos",
+      "count": 1
+    },
+    {
+      "name": "chile güero",
+      "count": 1
+    },
+    {
+      "name": "coco rallado",
+      "count": 1
+    },
+    {
+      "name": "ajonjolí blanco",
+      "count": 1
+    },
+    {
+      "name": "plátano macho maduro",
+      "count": 1
+    },
+    {
+      "name": "filetes de mero",
+      "count": 1
+    },
+    {
+      "name": "chocolate blanco",
+      "count": 1
+    },
+    {
+      "name": "epazote frito",
+      "count": 1
+    },
+    {
+      "name": "curry en polvo",
+      "count": 1
+    },
+    {
+      "name": "camote",
+      "count": 1
+    },
+    {
+      "name": "chícharos congelados",
+      "count": 1
+    },
+    {
+      "name": "aceite de oliva virgen extra (y un chorrito más para la pasta)",
+      "count": 1
+    },
+    {
+      "name": "verduras variadas (tallos de apio",
+      "count": 1
+    },
+    {
+      "name": "carne picada de ternera",
+      "count": 1
+    },
+    {
+      "name": "tallarines al huevo",
+      "count": 1
+    },
+    {
+      "name": "vino blanco seco",
+      "count": 1
+    },
+    {
+      "name": "dados de beicon ahumado (1-2 cm)",
+      "count": 1
+    },
+    {
+      "name": "pulpa de calabaza en trozos (2-3 cm)",
+      "count": 1
+    },
+    {
+      "name": "mozzarella fresca en trozos (2-3 cm)",
+      "count": 1
+    },
+    {
+      "name": "chile serrano sin rabo",
+      "count": 1
+    },
+    {
+      "name": "chispas de chocolate semi-amargo",
+      "count": 1
+    },
+    {
+      "name": "semi-sweet chocolate chips",
+      "count": 1
+    },
+    {
+      "name": "naranja de zumo sin pelar cortada en cuartos",
+      "count": 1
+    },
+    {
+      "name": "aceite de girasolo 100 g de mantequilla blanda",
+      "count": 1
+    },
+    {
+      "name": "yogur naturalo 130 g de nata líquida",
+      "count": 1
+    },
+    {
+      "name": "harina de repostería (y un poco más para espolvorear el molde)",
+      "count": 1
+    },
+    {
+      "name": "queso pecorino en trozos de 2 cm",
+      "count": 1
+    },
+    {
+      "name": "queso parmesano en trozos de 2 cm",
+      "count": 1
+    },
+    {
+      "name": "pistaches tostados sin cásacara y sin sal tostados (o 40 g de almendras tostadas sin sal)",
+      "count": 1
+    },
+    {
+      "name": "chalotas en mitades",
+      "count": 1
+    },
+    {
+      "name": "tocino en cubos (1-2 cm)",
+      "count": 1
+    },
+    {
+      "name": "espaguetis",
+      "count": 1
+    },
+    {
+      "name": "queso ahumado (por ej. scamorza ahumado o queso de oveja ahumado) en trozos (4-5 cm)",
+      "count": 1
+    },
+    {
+      "name": "- 400 g de cubitos de hielo",
+      "count": 1
+    },
+    {
+      "name": "cerveza de jengibreo 480 g de ginger ale",
+      "count": 1
+    },
+    {
+      "name": "zumo de lima (sin pulpa)",
+      "count": 1
+    },
+    {
+      "name": "rodajas de lima",
+      "count": 1
+    },
+    {
+      "name": "granada (solo los granos)",
+      "count": 1
+    },
+    {
+      "name": "- 2 ramitas de menta fresca (solo las hojas)",
+      "count": 1
+    },
+    {
+      "name": "rama de canela",
+      "count": 1
+    },
+    {
+      "name": "mejorana",
+      "count": 1
+    },
+    {
+      "name": "nata (35% de grasa) muy fría",
+      "count": 1
+    },
+    {
+      "name": "raisins",
+      "count": 1
+    },
+    {
+      "name": "levadura de panadería deshidratada (4 g)o 10 g de levadura prensada fresca",
+      "count": 1
+    },
+    {
+      "name": "queso manchego semicurado (en trozos)",
+      "count": 1
+    },
+    {
+      "name": "cebolleta (en trozos)",
+      "count": 1
+    },
+    {
+      "name": "aceite de oliva (y un poco más para batir el huevo)",
+      "count": 1
+    },
+    {
+      "name": "sal (y un pellizco más para batir el huevo)",
+      "count": 1
+    },
+    {
+      "name": "- 2 pellizcos de nuez moscada molida",
+      "count": 1
+    },
+    {
+      "name": "- 200 g de pan rallado",
+      "count": 1
+    },
+    {
+      "name": "- 600 g de aceite para freír",
+      "count": 1
+    },
+    {
+      "name": "chile de árbol seco sin rabo",
+      "count": 1
+    },
+    {
+      "name": "½ cditas de levadura instantánea seca *(o 15 g de levadura fresca prensada)*",
+      "count": 1
+    },
+    {
+      "name": "yogurt natural",
+      "count": 1
+    },
+    {
+      "name": "harina de trigo y un poco más de harina para espolvorear",
+      "count": 1
+    },
+    {
+      "name": "½ cditas de sal de mar *(y un poco más para espolvorear al final)*",
+      "count": 1
+    },
+    {
+      "name": "ajo granulado *(opcional)*",
+      "count": 1
+    },
+    {
+      "name": "filetes de ternera (tapa) en tiras de 1 cm de ancho x 5 cm de largo",
+      "count": 1
+    },
+    {
+      "name": "cebolla roja",
+      "count": 1
+    },
+    {
+      "name": "- 3 cucharadas de pasta de ají amarillo (ajuste a su gusto)",
+      "count": 1
+    },
+    {
+      "name": "- 3 cucharadas de salsa de ostras",
+      "count": 1
+    },
+    {
+      "name": "- 3 cucharadas de salsa de soja",
+      "count": 1
+    },
+    {
+      "name": "tallarines partidos por la mitad",
+      "count": 1
+    },
+    {
+      "name": "cilantro fresco (solo las hojas) para servir",
+      "count": 1
+    },
+    {
+      "name": "calabacita con los extremos recortados. si son grandes",
+      "count": 1
+    },
+    {
+      "name": "½ cda de pasta de curry rojo",
+      "count": 1
+    },
+    {
+      "name": "tallos de té limón",
+      "count": 1
+    },
+    {
+      "name": "raíz de galanga fresca (opcional)",
+      "count": 1
+    },
+    {
+      "name": "lima kaffir frescas (opcional)",
+      "count": 1
+    },
+    {
+      "name": "caldo en pasta",
+      "count": 1
+    },
+    {
+      "name": "elote baby en salmuera",
+      "count": 1
+    },
+    {
+      "name": "camarón crudo grande crudo y pelado",
+      "count": 1
+    },
+    {
+      "name": "filete de res cortado en tiras finas (aprox. 0,5 cm de grosor) ó 100 g de filete de pechuga de pollo sin piel",
+      "count": 1
+    },
+    {
+      "name": "limón verde en rebanadas finas",
+      "count": 1
+    },
+    {
+      "name": "cilantro fresco picado fino",
+      "count": 1
+    },
+    {
+      "name": "chiles",
+      "count": 1
+    },
+    {
+      "name": "puerro en rodajas de 2-3 cm",
+      "count": 1
+    },
+    {
+      "name": "patatas en trozos",
+      "count": 1
+    },
+    {
+      "name": "contramuslo de pollo sin piel ni hueso cortado en 4 trozos",
+      "count": 1
+    },
+    {
+      "name": "zanahorias en rodajas finas (2-3 mm)",
+      "count": 1
+    },
+    {
+      "name": "guisantes frescos en vaina (sin los extremos)",
+      "count": 1
+    },
+    {
+      "name": "salsa de chile dulce tailandesa",
+      "count": 1
+    },
+    {
+      "name": "kétchup",
+      "count": 1
+    },
+    {
+      "name": "semillas de sésamo",
+      "count": 1
+    },
+    {
+      "name": "levadura seca de panadería",
+      "count": 1
+    },
+    {
+      "name": "harina t55",
+      "count": 1
+    },
+    {
+      "name": "sémola de trigo duro fina y 3 cucharadas. sopa",
+      "count": 1
+    },
+    {
+      "name": "- 40 g de aceite de oliva",
+      "count": 1
+    },
+    {
+      "name": "salsa hoisin",
+      "count": 1
+    },
+    {
+      "name": "chile de árbol seco",
+      "count": 1
+    },
+    {
+      "name": "pera (aprox. 120 g)",
+      "count": 1
+    },
+    {
+      "name": "manzana (aprox. 100 g)",
+      "count": 1
+    },
+    {
+      "name": "chiles serranos sin tallo",
+      "count": 1
+    },
+    {
+      "name": "ostiones ahumados",
+      "count": 1
+    },
+    {
+      "name": "panes tostados",
+      "count": 1
+    },
+    {
+      "name": "pork loin steaks",
+      "count": 1
+    },
+    {
+      "name": "sesame oil",
+      "count": 1
+    },
+    {
+      "name": "peanut oil",
+      "count": 1
+    },
+    {
+      "name": "- 1 tsp dried chilli flakes",
+      "count": 1
+    },
+    {
+      "name": "spring onions/shallots",
+      "count": 1
+    },
+    {
+      "name": "fresh shiitake mushrooms or brown mushrooms",
+      "count": 1
+    },
+    {
+      "name": "caster sugar",
+      "count": 1
+    },
+    {
+      "name": "soy sauce",
+      "count": 1
+    },
+    {
+      "name": "oyster sauce",
+      "count": 1
+    },
+    {
+      "name": "rice wine vinegar",
+      "count": 1
+    },
+    {
+      "name": "sea salt",
+      "count": 1
+    },
+    {
+      "name": "- 10 leaves iceberg lettuce",
+      "count": 1
+    },
+    {
+      "name": "bunch fresh mint (see tips)",
+      "count": 1
+    },
+    {
+      "name": "fresh long red chillies",
+      "count": 1
+    },
+    {
+      "name": "fresh bean sprouts",
+      "count": 1
+    },
+    {
+      "name": "roasted unsalted peanuts",
+      "count": 1
+    },
+    {
+      "name": "huitlacoche",
+      "count": 1
+    },
+    {
+      "name": "col rizada (berza o kale)",
+      "count": 1
+    },
+    {
+      "name": "- 10 g de jengibre",
+      "count": 1
+    },
+    {
+      "name": "jugo de manzana",
+      "count": 1
+    },
+    {
+      "name": "- 2 cucharadas de miel",
+      "count": 1
+    },
+    {
+      "name": "trozo de mantequilla (para engrasar el molde)",
+      "count": 1
+    },
+    {
+      "name": "lámina de masa de hojaldre (30x40 cm)",
+      "count": 1
+    },
+    {
+      "name": "tiras de piel de limón",
+      "count": 1
+    },
+    {
+      "name": "palo de canela",
+      "count": 1
+    },
+    {
+      "name": "queso chihuahua",
+      "count": 1
+    },
+    {
+      "name": "granos de elote frescos",
+      "count": 1
+    },
+    {
+      "name": "½ cditas de sal gruesa",
+      "count": 1
+    },
+    {
+      "name": "crema para batir (min 30% de grasa)",
+      "count": 1
+    },
+    {
+      "name": "dulce de leche",
+      "count": 1
+    },
+    {
+      "name": "plátanos maduros (en rodajas de aprox. 5 mm)",
+      "count": 1
+    },
+    {
+      "name": "- 15 g de chocolate fondant para postres (50% cacao)",
+      "count": 1
+    },
+    {
+      "name": "queso pecorino",
+      "count": 1
+    },
+    {
+      "name": "cubos de tocino ahumado",
+      "count": 1
+    },
+    {
+      "name": "spaghetti",
+      "count": 1
+    },
+    {
+      "name": "quinoa blanca",
+      "count": 1
+    },
+    {
+      "name": "hojuelas de coco sin azúcar",
+      "count": 1
+    },
+    {
+      "name": "fresas",
+      "count": 1
+    },
+    {
+      "name": "lomo de cerdo (con la piel)",
+      "count": 1
+    },
+    {
+      "name": "- 4 pellizcos de pimienta molida",
+      "count": 1
+    },
+    {
+      "name": "manzanas granny smith en mitades",
+      "count": 1
+    },
+    {
+      "name": "judías verdes redondas frescaso 500 g de judías verdes redondas congeladas",
+      "count": 1
+    },
+    {
+      "name": "manzanas enteras con piel",
+      "count": 1
+    },
+    {
+      "name": "chalota en cuartos",
+      "count": 1
+    },
+    {
+      "name": "chile chilhuacle seco",
+      "count": 1
+    },
+    {
+      "name": "carne de res para guisar",
+      "count": 1
+    },
+    {
+      "name": "chicharrón",
+      "count": 1
+    },
+    {
+      "name": "- 3 pellizcos de pimienta de cayena molida",
+      "count": 1
+    },
+    {
+      "name": "bacalao fresco en 4 lomos",
+      "count": 1
+    },
+    {
+      "name": "calabacín sin pelar cortado en dados",
+      "count": 1
+    },
+    {
+      "name": "albahaca fresca",
+      "count": 1
+    },
+    {
+      "name": "pasta fresca rellena (tipo ravioli)",
+      "count": 1
+    },
+    {
+      "name": "queso parmesano rallado para espolvorear",
+      "count": 1
+    },
+    {
+      "name": "- 2 dientes de ajo",
+      "count": 1
+    },
+    {
+      "name": "contramuslos de pollo con piel y hueso pequeños (aprox. 1250 g) salpimentados",
+      "count": 1
+    },
+    {
+      "name": "pastilla de caldo",
+      "count": 1
+    },
+    {
+      "name": "crème fraîcheo 200 g de nata para cocinar",
+      "count": 1
+    },
+    {
+      "name": "chiles de árbol secos",
+      "count": 1
+    },
+    {
+      "name": "manzana golden en cuartos (pelada y sin semillas)",
+      "count": 1
+    },
+    {
+      "name": "jarabe de arce",
+      "count": 1
+    },
+    {
+      "name": "alcachofas frescas grandes (6 si son pequeñas)",
+      "count": 1
+    },
+    {
+      "name": "- 2 ramitas de perejil frescoo ½ limón",
+      "count": 1
+    },
+    {
+      "name": "cebolleta en cuartos",
+      "count": 1
+    },
+    {
+      "name": "harina sin gluten",
+      "count": 1
+    },
+    {
+      "name": "azúcar glass",
+      "count": 1
+    },
+    {
+      "name": "cuscús de grano medio",
+      "count": 1
+    },
+    {
+      "name": "almendras crudas con piel",
+      "count": 1
+    },
+    {
+      "name": "zanahoria en trozos (aprox. 2 cm)",
+      "count": 1
+    },
+    {
+      "name": "- 8 ramitas de perejil fresco (solo las hojas)",
+      "count": 1
+    },
+    {
+      "name": "menta fresca (solo las hojas) y algo más para decorar",
+      "count": 1
+    },
+    {
+      "name": "zumo de limón recién exprimido",
+      "count": 1
+    },
+    {
+      "name": "espinacas baby frescaso 100 g de rúcula",
+      "count": 1
+    },
+    {
+      "name": "aceite vegetal para freír",
+      "count": 1
+    },
+    {
+      "name": "aceite vegetalo 40 g de mantequilla sin sal",
+      "count": 1
+    },
+    {
+      "name": "- 1 ½ cdita de sal",
+      "count": 1
+    },
+    {
+      "name": "tocino ahumado",
+      "count": 1
+    },
+    {
+      "name": "pechugas de pollo aplanadas",
+      "count": 1
+    },
+    {
+      "name": "baby de ensalada",
+      "count": 1
+    },
+    {
+      "name": "pulpa de calabaza (en trozos de 2-3 cm)",
+      "count": 1
+    },
+    {
+      "name": "harina de trigo (y algo más para espolvorear)",
+      "count": 1
+    },
+    {
+      "name": "levadura prensada fresca",
+      "count": 1
+    },
+    {
+      "name": "jengibre fresco en trozos",
+      "count": 1
+    },
+    {
+      "name": "ajo pequeño",
+      "count": 1
+    },
+    {
+      "name": "aceite de sésamo tostado",
+      "count": 1
+    },
+    {
+      "name": "setas shiitake frescas",
+      "count": 1
+    },
+    {
+      "name": "carne picada de cerdo",
+      "count": 1
+    },
+    {
+      "name": "obleas para gyoza congeladas (descongeladas)",
+      "count": 1
+    },
+    {
+      "name": "pellizco de guindilla seca desmenuzada",
+      "count": 1
+    },
+    {
+      "name": "semillas de sésamo tostado",
+      "count": 1
+    },
+    {
+      "name": "alitas de pollo cortadas en dos",
+      "count": 1
+    },
+    {
+      "name": "ajo en polvo",
+      "count": 1
+    },
+    {
+      "name": "cebolla en polvo",
+      "count": 1
+    },
+    {
+      "name": "albahaca seca",
+      "count": 1
+    },
+    {
+      "name": "whisky",
+      "count": 1
+    },
+    {
+      "name": "muslos de pollo sin piel",
+      "count": 1
+    },
+    {
+      "name": "jitomate saladet",
+      "count": 1
+    },
+    {
+      "name": "pimientas gordas enteras",
+      "count": 1
+    },
+    {
+      "name": "caldo de polloo 200 g de agua y ½ cdita de concentrado de caldo de pollo",
+      "count": 1
+    },
+    {
+      "name": "muslos de pollo",
+      "count": 1
+    },
+    {
+      "name": "pasta corta seca (fusilli",
+      "count": 1
+    },
+    {
+      "name": "perejil fresco (hojas y parte del tallo)",
+      "count": 1
+    },
+    {
+      "name": "menta fresca(solo las hojas)",
+      "count": 1
+    },
+    {
+      "name": "-10 tiras de piel de limón(solo la parte amarilla)",
+      "count": 1
+    },
+    {
+      "name": "tomates cherry en mitades",
+      "count": 1
+    },
+    {
+      "name": "sal (6 pellizcos)",
+      "count": 1
+    },
+    {
+      "name": "imienta molida  (6 pellizcos)",
+      "count": 1
+    },
+    {
+      "name": "filetes de lubina (o pescado de tu preferencia)",
+      "count": 1
+    },
+    {
+      "name": "–3 manzanas (gala",
+      "count": 1
+    },
+    {
+      "name": "–2 cda maple syrup",
+      "count": 1
+    },
+    {
+      "name": "–1 cdta canela",
+      "count": 1
+    },
+    {
+      "name": "chiles poblanos",
+      "count": 1
+    },
+    {
+      "name": "verdolagas",
+      "count": 1
+    },
+    {
+      "name": "vinagre (opcional)",
+      "count": 1
+    },
+    {
+      "name": "chile guajillo sin tallo ni semillas",
+      "count": 1
+    },
+    {
+      "name": "ajos pelados",
+      "count": 1
+    },
+    {
+      "name": "camarón crudo grande con cabeza y sin pelar",
+      "count": 1
+    },
+    {
+      "name": "pulpa de calabaza",
+      "count": 1
+    },
+    {
+      "name": "almendras crudas sin piel",
+      "count": 1
+    },
+    {
+      "name": "azúcar regular",
+      "count": 1
+    },
+    {
+      "name": "fécula de maíz (maicena)",
+      "count": 1
+    },
+    {
+      "name": "chispas de chocolate (🙋🏽‍♀️tip)",
+      "count": 1
+    },
+    {
+      "name": "tsp cornstarch",
+      "count": 1
+    },
+    {
+      "name": "tsp baking powder",
+      "count": 1
+    },
+    {
+      "name": "chocolate chips (🙋🏽‍♀️tip)",
+      "count": 1
+    },
+    {
+      "name": "carne molida",
+      "count": 1
+    },
+    {
+      "name": "gr de tequila",
+      "count": 1
+    },
+    {
+      "name": "licor de naranja (p. ej. cointreau®)",
+      "count": 1
+    },
+    {
+      "name": "limas",
+      "count": 1
+    },
+    {
+      "name": "- 150 g de azúcar",
+      "count": 1
+    },
+    {
+      "name": "granos de elote amarillo congelados",
+      "count": 1
+    },
+    {
+      "name": "- 6 pechugas de pollo",
+      "count": 1
+    },
+    {
+      "name": "jamón",
+      "count": 1
+    },
+    {
+      "name": "- 8 ramitas de perejil fresco",
+      "count": 1
+    },
+    {
+      "name": "- 6 ramitas de cilantro fresco",
+      "count": 1
+    },
+    {
+      "name": "- 700 g de pierna de cordero deshuesada y cortada en trozos (4x4 cm)",
+      "count": 1
+    },
+    {
+      "name": "zanahorias (en dados de aprox. 2 cm)",
+      "count": 1
+    },
+    {
+      "name": "calabacín con piel (en dados de aprox. 2 cm)",
+      "count": 1
+    },
+    {
+      "name": "nabo (en dados de aprox. 2 cm)",
+      "count": 1
+    },
+    {
+      "name": "- 2 cucharadas de ras el hanout (ajuste a su gusto)",
+      "count": 1
+    },
+    {
+      "name": "pasas sin semillas",
+      "count": 1
+    },
+    {
+      "name": "chile pasilla",
+      "count": 1
+    },
+    {
+      "name": "- 1 ½ cditas de sal fina",
+      "count": 1
+    },
+    {
+      "name": "vinagre de manzanao 35 g de vinagre blanco",
+      "count": 1
+    },
+    {
+      "name": "tortillas de harina",
+      "count": 1
+    },
+    {
+      "name": "ensalada mixta",
+      "count": 1
+    },
+    {
+      "name": "zanahoria (aprox. 70 g)",
+      "count": 1
+    },
+    {
+      "name": "salsa de tomate",
+      "count": 1
+    },
+    {
+      "name": "lentejas cocidas (en conserva) lavadas y escurridas",
+      "count": 1
+    },
+    {
+      "name": "pequeña de champiñones laminados en conserva (aprox. 90 g)",
+      "count": 1
+    },
+    {
+      "name": "sal (y algo más para los calabacines)",
+      "count": 1
+    },
+    {
+      "name": "- 800 g de calabacines (aprox. 2 unidades)",
+      "count": 1
+    },
+    {
+      "name": "azúcar (y extra para decorar)",
+      "count": 1
+    },
+    {
+      "name": "mantequilla sin sal (en trozos)",
+      "count": 1
+    },
+    {
+      "name": "of sugar (plus extra for decorating)",
+      "count": 1
+    },
+    {
+      "name": "of unsalted butter (chopped)",
+      "count": 1
+    },
+    {
+      "name": "egg",
+      "count": 1
+    },
+    {
+      "name": "tsp of baking powder",
+      "count": 1
+    },
+    {
+      "name": "jitomate roma (en trozos)",
+      "count": 1
+    },
+    {
+      "name": "pechuga de pollo (deshuesada",
+      "count": 1
+    },
+    {
+      "name": "laurel (seca)",
+      "count": 1
+    },
+    {
+      "name": "tostadas (para servir)",
+      "count": 1
+    },
+    {
+      "name": "crema ácida (para servir",
+      "count": 1
+    },
+    {
+      "name": "queso panela rallado (🙋🏽‍♀️ *tip*)",
+      "count": 1
+    },
+    {
+      "name": "roma tomatoes (chopped)",
+      "count": 1
+    },
+    {
+      "name": "chicken breast (boneless",
+      "count": 1
+    },
+    {
+      "name": "chicken bouillon cubes",
+      "count": 1
+    },
+    {
+      "name": "bay leaves (dried)",
+      "count": 1
+    },
+    {
+      "name": "tostadas (for serving)",
+      "count": 1
+    },
+    {
+      "name": "sour cream (for serving)",
+      "count": 1
+    },
+    {
+      "name": "panela cheese (grated) (🙋🏽‍♀️ *tip*)",
+      "count": 1
+    },
+    {
+      "name": "muslo de pollo",
+      "count": 1
+    },
+    {
+      "name": "colmada de polvo de 5 especias",
+      "count": 1
+    },
+    {
+      "name": "mezcla de arroz salvaje",
+      "count": 1
+    },
+    {
+      "name": "brócoli",
+      "count": 1
+    },
+    {
+      "name": "ajonjolí tostado",
+      "count": 1
+    },
+    {
+      "name": "jitomates saladet",
+      "count": 1
+    },
+    {
+      "name": "cubos de caldo de pollo",
+      "count": 1
+    },
+    {
+      "name": "- 2 pepinos con piel",
+      "count": 1
+    },
+    {
+      "name": "jengibre fresco pelado",
+      "count": 1
+    },
+    {
+      "name": "trozo de lemon grass fresco (aprox. 5 mm) (opcional)",
+      "count": 1
+    },
+    {
+      "name": "pellizco de pimienta negra recién molida",
+      "count": 1
+    },
+    {
+      "name": "cilantro fresco picado",
+      "count": 1
+    },
+    {
+      "name": "menta fresca picada",
+      "count": 1
+    },
+    {
+      "name": "semillas de sésamo tostadas (para espolvorear)",
+      "count": 1
+    },
+    {
+      "name": "jengibre fresco (en láminas finas)",
+      "count": 1
+    },
+    {
+      "name": "crème fraîche",
+      "count": 1
+    },
+    {
+      "name": "cebollino fresco picado",
+      "count": 1
+    },
+    {
+      "name": "fresh blueberries",
+      "count": 1
+    },
+    {
+      "name": "sprig fresh rosemary",
+      "count": 1
+    },
+    {
+      "name": "honey",
+      "count": 1
+    },
+    {
+      "name": "club soda",
+      "count": 1
+    },
+    {
+      "name": "mantequilla para engrasar",
+      "count": 1
+    },
+    {
+      "name": "chocolate con leche en trozos",
+      "count": 1
+    },
+    {
+      "name": "yogur naturalo 1 yogur de limón",
+      "count": 1
+    },
+    {
+      "name": "harina de repostería (y algo más para enharinar)",
+      "count": 1
+    },
+    {
+      "name": "almendras laminadas",
+      "count": 1
+    },
+    {
+      "name": "catsup",
+      "count": 1
+    },
+    {
+      "name": "vinagre balsámico",
+      "count": 1
+    },
+    {
+      "name": "lomos de cerdo (aprox. 700 g)",
+      "count": 1
+    },
+    {
+      "name": "ajo ligeramente aplastados",
+      "count": 1
+    },
+    {
+      "name": "cubito de caldo de polloo 1 cdita de concentrado de caldo de pollo",
+      "count": 1
+    },
+    {
+      "name": "grenetina en polvo (ver tip)",
+      "count": 1
+    },
+    {
+      "name": "masa de hojaldre (1 lámina de aprox. 25x30 cm)",
+      "count": 1
+    },
+    {
+      "name": "azúcar avainillada (🙋🏽‍♀️tip)",
+      "count": 1
+    },
+    {
+      "name": "plátano en rodajas",
+      "count": 1
+    },
+    {
+      "name": "naranja (en gajos",
+      "count": 1
+    },
+    {
+      "name": "frutos rojos frescos variados (arándano",
+      "count": 1
+    },
+    {
+      "name": "mermelada de albaricoque",
+      "count": 1
+    },
+    {
+      "name": "egg yolk",
+      "count": 1
+    },
+    {
+      "name": "puff pastry (1 sheet of approx. 25x30 cm)",
+      "count": 1
+    },
+    {
+      "name": "cake flour",
+      "count": 1
+    },
+    {
+      "name": "tsp vanilla sugar (🙋🏽‍♀️tip)",
+      "count": 1
+    },
+    {
+      "name": "banana (sliced)",
+      "count": 1
+    },
+    {
+      "name": "orange (segmented",
+      "count": 1
+    },
+    {
+      "name": "assorted fresh berries (blueberries",
+      "count": 1
+    },
+    {
+      "name": "granos de elote blanco",
+      "count": 1
+    },
+    {
+      "name": "calabacita en cubos de (2 cm)",
+      "count": 1
+    },
+    {
+      "name": "mantequilla (en trozos)",
+      "count": 1
+    },
+    {
+      "name": "chiles de árbol (🙋🏽‍♀️ *tip*)",
+      "count": 1
+    },
+    {
+      "name": "ajo grandes",
+      "count": 1
+    },
+    {
+      "name": "surtido de nueces (🙋🏽‍♀️ *tip*)",
+      "count": 1
+    },
+    {
+      "name": "butter (in chunks)",
+      "count": 1
+    },
+    {
+      "name": "árbol chiles (🙋🏽‍♀️ *tip*)",
+      "count": 1
+    },
+    {
+      "name": "morita chiles",
+      "count": 1
+    },
+    {
+      "name": "guajillo chiles",
+      "count": 1
+    },
+    {
+      "name": "large garlic cloves",
+      "count": 1
+    },
+    {
+      "name": "mixed nuts (🙋🏽‍♀️ *tip*)",
+      "count": 1
+    },
+    {
+      "name": "garbanzos cocidos (escurridos)",
+      "count": 1
+    },
+    {
+      "name": "tahini (🙋🏽‍♀️ *tip*)",
+      "count": 1
+    },
+    {
+      "name": "aceite de oliva virgen extra (más extra para servir)",
+      "count": 1
+    },
+    {
+      "name": "pimentón o comino molido para servir (opcional)",
+      "count": 1
+    },
+    {
+      "name": "- 3 garlic cloves",
+      "count": 1
+    },
+    {
+      "name": "cooked chickpeas (drained)",
+      "count": 1
+    },
+    {
+      "name": "tahini (🙋🏽‍♀️ tip)",
+      "count": 1
+    },
+    {
+      "name": "extra virgin olive oil (plus extra for serving)",
+      "count": 1
+    },
+    {
+      "name": "paprika or ground cumin for serving (optional)",
+      "count": 1
+    },
+    {
+      "name": "puerro en trozos",
+      "count": 1
+    },
+    {
+      "name": "pastilla de caldo de carne",
+      "count": 1
+    },
+    {
+      "name": "patatas chascadas",
+      "count": 1
+    },
+    {
+      "name": "zanahoria en rodajas finas",
+      "count": 1
+    },
+    {
+      "name": "guisantes en conserva escurridos (1 lata pequeña)",
+      "count": 1
+    },
+    {
+      "name": "chorizo",
+      "count": 1
+    },
+    {
+      "name": "chocolate negro 70% para postres de valor",
+      "count": 1
+    },
+    {
+      "name": "cacao puro en polvo desgrasado de valor",
+      "count": 1
+    },
+    {
+      "name": "nata (mínimo 30% de grasa)",
+      "count": 1
+    },
+    {
+      "name": "tabasco",
+      "count": 1
+    },
+    {
+      "name": "cebolla amarilla",
+      "count": 1
+    },
+    {
+      "name": "jitomates en conserva",
+      "count": 1
+    },
+    {
+      "name": "menta frescas",
+      "count": 1
+    },
+    {
+      "name": "camarones crudos",
+      "count": 1
+    },
+    {
+      "name": "queso feta",
+      "count": 1
+    },
+    {
+      "name": "sake",
+      "count": 1
+    },
+    {
+      "name": "½ cda de azúcar",
+      "count": 1
+    },
+    {
+      "name": "yellow onions",
+      "count": 1
+    },
+    {
+      "name": "carrots",
+      "count": 1
+    },
+    {
+      "name": "celery",
+      "count": 1
+    },
+    {
+      "name": "extra virgin olive oil",
+      "count": 1
+    },
+    {
+      "name": "zucchini",
+      "count": 1
+    },
+    {
+      "name": "- 3 oz red bell pepper",
+      "count": 1
+    },
+    {
+      "name": "tomato paste",
+      "count": 1
+    },
+    {
+      "name": "tsp italian seasoning",
+      "count": 1
+    },
+    {
+      "name": "crushed tomatoes",
+      "count": 1
+    },
+    {
+      "name": "vegetable stock",
+      "count": 1
+    },
+    {
+      "name": "/2 taza de aceite de oliva",
+      "count": 1
+    },
+    {
+      "name": "gr. de jugo de limón",
+      "count": 1
+    },
+    {
+      "name": "/2 cda. mostaza",
+      "count": 1
+    },
+    {
+      "name": "/2 cda. de knor suiza",
+      "count": 1
+    },
+    {
+      "name": "/2 cda. de maggi",
+      "count": 1
+    },
+    {
+      "name": "/2 cda. de vinagre balsámico",
+      "count": 1
+    },
+    {
+      "name": "trozo pequeño de cebolla",
+      "count": 1
+    },
+    {
+      "name": "pimienta al gusto",
+      "count": 1
+    },
+    {
+      "name": "berenjena cortada en rodajas de 7-8 mm (aprox. 300 g)",
+      "count": 1
+    },
+    {
+      "name": "calabacín cortado en rodajas de 7-8 mm (aprox. 300 g)",
+      "count": 1
+    },
+    {
+      "name": "queso rallado vegano",
+      "count": 1
+    },
+    {
+      "name": "harina de arroz",
+      "count": 1
+    },
+    {
+      "name": "berenjena en dados de 2 cm",
+      "count": 1
+    },
+    {
+      "name": "½ - 2 ½ cucharaditas de sal",
+      "count": 1
+    },
+    {
+      "name": "pasta corta seca (plumas nº6 gallo®)",
+      "count": 1
+    },
+    {
+      "name": "corazones de alcachofa en conserva (lavados y escurridos)",
+      "count": 1
+    },
+    {
+      "name": "- 1 diente de ajo (opcional)",
+      "count": 1
+    },
+    {
+      "name": "red onion",
+      "count": 1
+    },
+    {
+      "name": "cucumber (approx. 400 g each)",
+      "count": 1
+    },
+    {
+      "name": "roasted salted peanut",
+      "count": 1
+    },
+    {
+      "name": "freshly squeezed lime juice",
+      "count": 1
+    },
+    {
+      "name": "fish sauce",
+      "count": 1
+    },
+    {
+      "name": "white sugar",
+      "count": 1
+    },
+    {
+      "name": "grapeseed oil",
+      "count": 1
+    },
+    {
+      "name": "fresh chilli",
+      "count": 1
+    },
+    {
+      "name": "tsp sea salt",
+      "count": 1
+    },
+    {
+      "name": "fresh coriander",
+      "count": 1
+    },
+    {
+      "name": "- 5 ramitas de perejil fresco",
+      "count": 1
+    },
+    {
+      "name": "tomates cortados en trozos",
+      "count": 1
+    },
+    {
+      "name": "cebollas cortadas en mitades",
+      "count": 1
+    },
+    {
+      "name": "zanahorias cortadas en trozos",
+      "count": 1
+    },
+    {
+      "name": "remolacha cortada en trozos (2 cm)",
+      "count": 1
+    },
+    {
+      "name": "patatas cortadas en trozos (2 cm)",
+      "count": 1
+    },
+    {
+      "name": "pimientos rojos cortados en trozos (2 cm)",
+      "count": 1
+    },
+    {
+      "name": "col blanca cortada en tiras",
+      "count": 1
+    },
+    {
+      "name": "naranjas (peladas sin nada de parte blanca ni semillas)",
+      "count": 1
+    },
+    {
+      "name": "zumo de arándanos rojos",
+      "count": 1
+    },
+    {
+      "name": "piña fresca en trozos",
+      "count": 1
+    },
+    {
+      "name": "chile ancho",
+      "count": 1
+    },
+    {
+      "name": "achiote en pasta",
+      "count": 1
+    },
+    {
+      "name": "sal de grano",
+      "count": 1
+    },
+    {
+      "name": "lentejas castellanas secas",
+      "count": 1
+    },
+    {
+      "name": "pimiento rojo en trozos 3-4 cm",
+      "count": 1
+    },
+    {
+      "name": "pimiento verde en trozos 3-4 cm",
+      "count": 1
+    },
+    {
+      "name": "zanahoria en trozos 3-4 cm",
+      "count": 1
+    },
+    {
+      "name": "cebolleta en trozos 3-4 cmo 50 g de cebolla en trozos 3-4 cm",
+      "count": 1
+    },
+    {
+      "name": "pastilla de caldo de pollo",
+      "count": 1
+    },
+    {
+      "name": "chorizo en rodajas",
+      "count": 1
+    },
+    {
+      "name": "jamón curado en dados",
+      "count": 1
+    },
+    {
+      "name": "jugo de limón (recién exprimido)",
+      "count": 1
+    },
+    {
+      "name": "mangos (en trozos) (🙋🏽‍♀️ *tip*)",
+      "count": 1
+    },
+    {
+      "name": "fresas (en trozos)",
+      "count": 1
+    },
+    {
+      "name": "piña (en trozos)",
+      "count": 1
+    },
+    {
+      "name": "lemon juice (freshly squeezed)",
+      "count": 1
+    },
+    {
+      "name": "mango (in pieces) (🙋🏽‍♀️ *tip*)",
+      "count": 1
+    },
+    {
+      "name": "strawberries (in pieces)",
+      "count": 1
+    },
+    {
+      "name": "pineapple (in pieces)",
+      "count": 1
+    },
+    {
+      "name": "plátanos maduros dulces en trozos de 3 cm",
+      "count": 1
+    },
+    {
+      "name": "agua la necesaria para cubrir las almendras",
+      "count": 1
+    },
+    {
+      "name": "setas deshidratadas",
+      "count": 1
+    },
+    {
+      "name": "elote amarillo enlatado y escurrido",
+      "count": 1
+    },
+    {
+      "name": "ramilletes de coliflor pequeños",
+      "count": 1
+    },
+    {
+      "name": "zanahoria en juliana",
+      "count": 1
+    },
+    {
+      "name": "tirabequeso 120 g de judías verdes frescas",
+      "count": 1
+    },
+    {
+      "name": "espaguetis integrales",
+      "count": 1
+    },
+    {
+      "name": "contramuslos de pollo sin piel ni hueso (en tiras y salpimentados)o 300 g de pechuga de pollo (en tiras y salpimentados)",
+      "count": 1
+    },
+    {
+      "name": "chorrito de aceite de sésamo (opcional)",
+      "count": 1
+    },
+    {
+      "name": "tomate triturado",
+      "count": 1
+    },
+    {
+      "name": "- 1200 g de pollo en trozos de 3 cm",
+      "count": 1
+    },
+    {
+      "name": "pimienta de cayena seca (opcional)",
+      "count": 1
+    },
+    {
+      "name": "piña",
+      "count": 1
+    },
+    {
+      "name": "espinaca baby frescao 20 g de kale",
+      "count": 1
+    },
+    {
+      "name": "pepino en cubos de 1 cm",
+      "count": 1
+    },
+    {
+      "name": "tomate en cubos de 1 cm",
+      "count": 1
+    },
+    {
+      "name": "pimiento verde en trozos de 1 cm",
+      "count": 1
+    },
+    {
+      "name": "cebolla roja en trocitos de 5 mm",
+      "count": 1
+    },
+    {
+      "name": "tiras de tocino",
+      "count": 1
+    },
+    {
+      "name": "muslo de pollo sin piel ni hueso en tiras de aprox. 1,5x3-4 cm (secadas con papel de cocina) o 250 g de pechuga de pollo",
+      "count": 1
+    },
+    {
+      "name": "aguacate en trozos",
+      "count": 1
+    },
+    {
+      "name": "hojas de cilantro fresco (y algo más para espolvorear)",
+      "count": 1
+    },
+    {
+      "name": "lechuga para servir",
+      "count": 1
+    },
+    {
+      "name": "pan blanco duro en trozos",
+      "count": 1
+    },
+    {
+      "name": "espinacas troceadas congeladas (previamente descongeladas y muy bien escurridas)",
+      "count": 1
+    },
+    {
+      "name": "calabacín pelado",
+      "count": 1
+    },
+    {
+      "name": "patatas paja fritas",
+      "count": 1
+    },
+    {
+      "name": "pepitas de calabaza",
+      "count": 1
+    },
+    {
+      "name": "agua (ver tip)",
+      "count": 1
+    },
+    {
+      "name": "piernas y muslos de pollo",
+      "count": 1
+    },
+    {
+      "name": "plátano cortado en trozos",
+      "count": 1
+    },
+    {
+      "name": "mantequilla de cacahuate",
+      "count": 1
+    },
+    {
+      "name": "mielo 30 g de miel de maple",
+      "count": 1
+    },
+    {
+      "name": "proteína en polvo (opcional)",
+      "count": 1
+    },
+    {
+      "name": "chocolate amargo",
+      "count": 1
+    },
+    {
+      "name": "papas",
+      "count": 1
+    },
+    {
+      "name": "cebolla cortada en cuartos",
+      "count": 1
+    },
+    {
+      "name": "tomate maduro troceadoo 200 g de tomate triturado en conserva troceado",
+      "count": 1
+    },
+    {
+      "name": "sal (y un poco más para espolvorear)",
+      "count": 1
+    },
+    {
+      "name": "atún en aceite (bien escurrido)",
+      "count": 1
+    },
+    {
+      "name": "lonchas finas de queso de sándwich",
+      "count": 1
+    },
+    {
+      "name": "pan de molde (blanco o integral)",
+      "count": 1
+    },
+    {
+      "name": "jamón cocido",
+      "count": 1
+    },
+    {
+      "name": "mozzarella rallada",
+      "count": 1
+    },
+    {
+      "name": "queso cheddar rallado",
+      "count": 1
+    },
+    {
+      "name": "cebollino fresco picadoo 1 cucharada de perejil fresco picado",
+      "count": 1
+    },
+    {
+      "name": "pepinos (pelados",
+      "count": 1
+    },
+    {
+      "name": "eneldo fresco",
+      "count": 1
+    },
+    {
+      "name": "yogur griego natural",
+      "count": 1
+    },
+    {
+      "name": "cucumbers",
+      "count": 1
+    },
+    {
+      "name": "tsp fine sea salt",
+      "count": 1
+    },
+    {
+      "name": "sprigs fresh dill",
+      "count": 1
+    },
+    {
+      "name": "greek yogurt",
+      "count": 1
+    },
+    {
+      "name": "lemon juice (opcional)o vinegar (opcional)",
+      "count": 1
+    },
+    {
+      "name": "tsp ground black pepper",
+      "count": 1
+    },
+    {
+      "name": "pistachos pelados (sin sal)",
+      "count": 1
+    },
+    {
+      "name": "jamón serrano en dados o lonchas",
+      "count": 1
+    },
+    {
+      "name": "queso ricota bien escurrido (sin suero)",
+      "count": 1
+    },
+    {
+      "name": "limón (preferiblemente biológico",
+      "count": 1
+    },
+    {
+      "name": "- 12 ramitas de hierbas frescas variadas (por ej. perejil",
+      "count": 1
+    },
+    {
+      "name": "chile frescoo 2 pellizcos de pimienta de cayena desmenuzada",
+      "count": 1
+    },
+    {
+      "name": "lomos de salmón fresco sin piel ni espinas (2 cm de grosor)",
+      "count": 1
+    },
+    {
+      "name": "pimientos en trozos",
+      "count": 1
+    },
+    {
+      "name": "cebolla roja en trozos",
+      "count": 1
+    },
+    {
+      "name": "pepino en trozos",
+      "count": 1
+    },
+    {
+      "name": "queso feta en trozos",
+      "count": 1
+    },
+    {
+      "name": "tomates pera en trozos (2 cm)",
+      "count": 1
+    },
+    {
+      "name": "aguacate (solo la pulpa",
+      "count": 1
+    },
+    {
+      "name": "kale en tiras finaso 100 g de espinacas baby frescas en tiras finas",
+      "count": 1
+    },
+    {
+      "name": "pipas de calabaza peladas (opcional)",
+      "count": 1
+    },
+    {
+      "name": "arándanos rojos deshidratados (opcional)",
+      "count": 1
+    },
+    {
+      "name": "- 6 tiras de piel de naranja (solo la parte naranja)",
+      "count": 1
+    },
+    {
+      "name": "crema de cacao y avellanas",
+      "count": 1
+    },
+    {
+      "name": "limón verde (sólo el jugo)",
+      "count": 1
+    },
+    {
+      "name": "lechugas orejonas sólo las hojas y troceadas",
+      "count": 1
+    },
+    {
+      "name": "crutones (los necesarios)",
+      "count": 1
+    },
+    {
+      "name": "melocotón en cuartos y sin hueso",
+      "count": 1
+    },
+    {
+      "name": "manzana granny smith con piel",
+      "count": 1
+    },
+    {
+      "name": "naranja con piel",
+      "count": 1
+    },
+    {
+      "name": "limón con piel",
+      "count": 1
+    },
+    {
+      "name": "botella de sidra asturiana (750 g)",
+      "count": 1
+    },
+    {
+      "name": "- 40 g de licor de manzana verde (opcional)",
+      "count": 1
+    },
+    {
+      "name": "- 120 g de azúcar",
+      "count": 1
+    },
+    {
+      "name": "galletas en trozos (maría",
+      "count": 1
+    },
+    {
+      "name": "fruta fresca variada pelada y en trozos (kiwi",
+      "count": 1
+    },
+    {
+      "name": "gelatina en polvo sabor fresa (limón",
+      "count": 1
+    },
+    {
+      "name": "nata (35% de grasa) fría",
+      "count": 1
+    },
+    {
+      "name": "menta fresca (solo las hojas)",
+      "count": 1
+    },
+    {
+      "name": "copos de coco",
+      "count": 1
+    },
+    {
+      "name": "pechuga de pollo sin piel troceada",
+      "count": 1
+    },
+    {
+      "name": "ajo en polvoo 1 diente de ajo",
+      "count": 1
+    },
+    {
+      "name": "pan de molde (sin corteza)",
+      "count": 1
+    },
+    {
+      "name": "aguja de terneraen trozos de 4-5 cm",
+      "count": 1
+    },
+    {
+      "name": "beicon entreverado",
+      "count": 1
+    },
+    {
+      "name": "zanahoriasen rodajas",
+      "count": 1
+    },
+    {
+      "name": "caldo de carne",
+      "count": 1
+    },
+    {
+      "name": "ramitas1 cucharadita de tomillo seco de tomillo fresco",
+      "count": 1
+    },
+    {
+      "name": "champiñones frescosen cuartos",
+      "count": 1
+    },
+    {
+      "name": "cebollitas francesas",
+      "count": 1
+    },
+    {
+      "name": "bacalao salado",
+      "count": 1
+    },
+    {
+      "name": "frijol bayo cocido",
+      "count": 1
+    },
+    {
+      "name": "hojas de cilantro picado",
+      "count": 1
+    },
+    {
+      "name": "- 8 rebanadas de bolillo",
+      "count": 1
+    },
+    {
+      "name": "chile cuaresmeño",
+      "count": 1
+    },
+    {
+      "name": "huauzontles",
+      "count": 1
+    },
+    {
+      "name": "levadura prensada fresca desmenuzadao 1 cucharadita de levadura de panadería deshidratada (4 g)",
+      "count": 1
+    },
+    {
+      "name": "tiras de piel de lima (solo la parte verde)",
+      "count": 1
+    },
+    {
+      "name": "manzana en cuartos (pelada y sin pepitas)",
+      "count": 1
+    },
+    {
+      "name": "nueces peladas y troceadas a mano",
+      "count": 1
+    },
+    {
+      "name": "crackers",
+      "count": 1
+    },
+    {
+      "name": "queso de cabra en rulo",
+      "count": 1
+    },
+    {
+      "name": "requesón",
+      "count": 1
+    },
+    {
+      "name": "- 9 pellizcos de pimienta molida",
+      "count": 1
+    },
+    {
+      "name": "jamón curado en trozos",
+      "count": 1
+    },
+    {
+      "name": "avellanas crudas",
+      "count": 1
+    },
+    {
+      "name": "- 4 pellizcos de sal",
+      "count": 1
+    },
+    {
+      "name": "pan de molde",
+      "count": 1
+    },
+    {
+      "name": "ramilletes de brócoli",
+      "count": 1
+    },
+    {
+      "name": "tomates cherry variados (cortados por la mitad)",
+      "count": 1
+    },
+    {
+      "name": "- 2 cucharadas de cebollino fresco picado",
+      "count": 1
+    },
+    {
+      "name": "- 3 ramitas de albahaca fresca (solo las hojas troceadas a mano)",
+      "count": 1
+    },
+    {
+      "name": "- 8 tiras de piel de naranja",
+      "count": 1
+    },
+    {
+      "name": "lomos de salmón fresco sin piel ni espinas (aprox. 200 g cada uno)",
+      "count": 1
+    },
+    {
+      "name": "arándanos frescos",
+      "count": 1
+    },
+    {
+      "name": "dátiles medjool sin hueso",
+      "count": 1
+    },
+    {
+      "name": "mantequilla de maní suave",
+      "count": 1
+    },
+    {
+      "name": "aceite de coco virgen extra",
+      "count": 1
+    },
+    {
+      "name": "cacahuetes tostados sin sal",
+      "count": 1
+    },
+    {
+      "name": "arroz inflado",
+      "count": 1
+    },
+    {
+      "name": "pepitas de chocolate negro",
+      "count": 1
+    },
+    {
+      "name": "- 600 g de filete de res limpio",
+      "count": 1
+    },
+    {
+      "name": "caldo de res",
+      "count": 1
+    },
+    {
+      "name": "brandy",
+      "count": 1
+    },
+    {
+      "name": "crema (min 30% de grasa)",
+      "count": 1
+    },
+    {
+      "name": "sal marina",
+      "count": 1
+    },
+    {
+      "name": "pellizcos de pimienta negra recién molida",
+      "count": 1
+    },
+    {
+      "name": "cebollín cortado en trozos",
+      "count": 1
+    },
+    {
+      "name": "queso azul cortado en trozos",
+      "count": 1
+    },
+    {
+      "name": "coñac",
+      "count": 1
+    },
+    {
+      "name": "ciboulette fresco picado",
+      "count": 1
+    },
+    {
+      "name": "acelgas cortadas en trozos",
+      "count": 1
+    },
+    {
+      "name": "pimienta negra en grano",
+      "count": 1
+    },
+    {
+      "name": "miga de pan blanco",
+      "count": 1
+    },
+    {
+      "name": "mantequilla blanda en trozos",
+      "count": 1
+    },
+    {
+      "name": "nueces peladas",
+      "count": 1
+    },
+    {
+      "name": "rama de albahaca",
+      "count": 1
+    },
+    {
+      "name": "pimientos en trozos de 2x2 cm",
+      "count": 1
+    },
+    {
+      "name": "verduras variadas para paella (judías verdes",
+      "count": 1
+    },
+    {
+      "name": "calabacín en trozos de aprox. 2 cm",
+      "count": 1
+    },
+    {
+      "name": "espárragos verdes en trozos de 3 cm",
+      "count": 1
+    },
+    {
+      "name": "zanahoria en rodajas",
+      "count": 1
+    },
+    {
+      "name": "pellizco de romero seco desmenuzado",
+      "count": 1
+    },
+    {
+      "name": "pellizco de pimienta de cayena molida",
+      "count": 1
+    },
+    {
+      "name": "- 2 alcachofas frescas en octavos (opcional)",
+      "count": 1
+    },
+    {
+      "name": "limón (en cuartos para servir)",
+      "count": 1
+    },
+    {
+      "name": "zumo de piña",
+      "count": 1
+    },
+    {
+      "name": "azúcar (y algo más para decorar los vasos)",
+      "count": 1
+    },
+    {
+      "name": "agua para decorar las copas",
+      "count": 1
+    },
+    {
+      "name": "granadina",
+      "count": 1
+    },
+    {
+      "name": "rodajas de naranja para decoraro 6 rodajas de limón para decorar",
+      "count": 1
+    },
+    {
+      "name": "limas sin pelar",
+      "count": 1
+    },
+    {
+      "name": "- 3 lemons unpeeled",
+      "count": 1
+    },
+    {
+      "name": "caster sugar adjust to taste",
+      "count": 1
+    },
+    {
+      "name": "water chilled",
+      "count": 1
+    },
+    {
+      "name": "-5 ajos",
+      "count": 1
+    },
+    {
+      "name": "calabacitas (en trozos)",
+      "count": 1
+    },
+    {
+      "name": "sal (al gusto)",
+      "count": 1
+    },
+    {
+      "name": "pimienta (al gusto)",
+      "count": 1
+    },
+    {
+      "name": "espinacas",
+      "count": 1
+    },
+    {
+      "name": "zucchini (chopped)",
+      "count": 1
+    },
+    {
+      "name": "salt (to taste)",
+      "count": 1
+    },
+    {
+      "name": "black pepper (to taste)",
+      "count": 1
+    },
+    {
+      "name": "spinach",
+      "count": 1
+    },
+    {
+      "name": "guayabas",
+      "count": 1
+    },
+    {
+      "name": "naranjas",
+      "count": 1
+    },
+    {
+      "name": "½ cdita de sal",
+      "count": 1
+    },
+    {
+      "name": "espinaca",
+      "count": 1
+    },
+    {
+      "name": "atún enlatado en agua",
+      "count": 1
+    },
+    {
+      "name": "chile chipotle en polvo",
+      "count": 1
+    },
+    {
+      "name": "½ cdas de fécula de maíz",
+      "count": 1
+    },
+    {
+      "name": "jengibre fresco y pelado (aprox. 3 cm)",
+      "count": 1
+    },
+    {
+      "name": "fideos ramen (ver tip)",
+      "count": 1
+    },
+    {
+      "name": "cinnamon sticks",
+      "count": 1
+    },
+    {
+      "name": "tsp ground ginger",
+      "count": 1
+    },
+    {
+      "name": "whole nutmeg",
+      "count": 1
+    },
+    {
+      "name": "tsp whole allspice",
+      "count": 1
+    },
+    {
+      "name": "whole cloves",
+      "count": 1
+    },
+    {
+      "name": "plátano",
+      "count": 1
+    },
+    {
+      "name": "yoghurt natural sin azúcar",
+      "count": 1
+    },
+    {
+      "name": "- 40 piezas de galletas",
+      "count": 1
+    },
+    {
+      "name": "limón amarillo",
+      "count": 1
+    },
+    {
+      "name": "leche condensada dulce",
+      "count": 1
+    },
+    {
+      "name": "chocolate amargo en trozo",
+      "count": 1
+    },
+    {
+      "name": "cacahuate pelado con sal",
+      "count": 1
+    },
+    {
+      "name": "miel de maíz",
+      "count": 1
+    },
+    {
+      "name": "cacahuate salado tostado más trocitos para decorar",
+      "count": 1
+    },
+    {
+      "name": "crema de cacahuate",
+      "count": 1
+    },
+    {
+      "name": "pimiento",
+      "count": 1
+    },
+    {
+      "name": "calabacita (aprox 1 pza)",
+      "count": 1
+    },
+    {
+      "name": "espinaca baby fresca",
+      "count": 1
+    },
+    {
+      "name": "pimienta de cayena molida",
+      "count": 1
+    },
+    {
+      "name": "pan de caja integral",
+      "count": 1
+    },
+    {
+      "name": "aguacate maduro",
+      "count": 1
+    },
+    {
+      "name": "arrachera",
+      "count": 1
+    },
+    {
+      "name": "granos de elote amarillo",
+      "count": 1
+    },
+    {
+      "name": "tostadaso 16 tortillas de maíz",
+      "count": 1
+    },
+    {
+      "name": "limones amarillos sin tratar",
+      "count": 1
+    },
+    {
+      "name": "miel liquida",
+      "count": 1
+    },
+    {
+      "name": "hielo",
+      "count": 1
+    },
+    {
+      "name": "lechuga sangría",
+      "count": 1
+    },
+    {
+      "name": "arúgula",
+      "count": 1
+    },
+    {
+      "name": "filetes de salmón fresco",
+      "count": 1
+    },
+    {
+      "name": "chile habanero sin rabo ni semillas",
+      "count": 1
+    },
+    {
+      "name": "cebolla cambray sólo el bulbo",
+      "count": 1
+    },
+    {
+      "name": "piña pelada y cortada en trozos",
+      "count": 1
+    },
+    {
+      "name": "pechuga de pollo sin piel",
+      "count": 1
+    },
+    {
+      "name": "almendras fritas con sal",
+      "count": 1
+    },
+    {
+      "name": "canela molida (y un poco más para espolvorear)",
+      "count": 1
+    },
+    {
+      "name": "pasas",
+      "count": 1
+    },
+    {
+      "name": "- 2 pellizcos de azafrán",
+      "count": 1
+    },
+    {
+      "name": "garbanzo blanco",
+      "count": 1
+    },
+    {
+      "name": "aceite para freír (el necesario)",
+      "count": 1
+    },
+    {
+      "name": "avellanas (tostadas)",
+      "count": 1
+    },
+    {
+      "name": "leche de tu preferencia",
+      "count": 1
+    },
+    {
+      "name": "semillas de ajonjolí",
+      "count": 1
+    },
+    {
+      "name": "nibs de cacao",
+      "count": 1
+    },
+    {
+      "name": "chile morita",
+      "count": 1
+    },
+    {
+      "name": "parmigiano reggiano en trozos (2-3 cm)",
+      "count": 1
+    },
+    {
+      "name": "patatas harinosas",
+      "count": 1
+    },
+    {
+      "name": "harina tipo 00",
+      "count": 1
+    },
+    {
+      "name": "½ huevos (unos 60 g)",
+      "count": 1
+    },
+    {
+      "name": "- 2 ½ cucharaditas de sal",
+      "count": 1
+    },
+    {
+      "name": "cebolla en trozos de 2-3 cm",
+      "count": 1
+    },
+    {
+      "name": "tomate triturado en conservao 800 g de tomate tamizado",
+      "count": 1
+    },
+    {
+      "name": "azúcar morenoo 1 cucharada de azúcar",
+      "count": 1
+    },
+    {
+      "name": "- 500 g de ramilletes de coliflor",
+      "count": 1
+    },
+    {
+      "name": "nata (35% de grasa) (y algo más para regar)",
+      "count": 1
+    },
+    {
+      "name": "- 80 g de yogur natural",
+      "count": 1
+    },
+    {
+      "name": "cilantro fresco para decorar",
+      "count": 1
+    },
+    {
+      "name": "azúcar vainillado o 1 cucharadita de vainilla líquida",
+      "count": 1
+    },
+    {
+      "name": "-3 tiras de piel de limón (sólo la parte amarilla)",
+      "count": 1
+    },
+    {
+      "name": "canela",
+      "count": 1
+    },
+    {
+      "name": "claras de huevo a temperatura ambiente",
+      "count": 1
+    },
+    {
+      "name": "pepitas de chocolate para los ojos",
+      "count": 1
+    },
+    {
+      "name": "harina (para espolvorear la carne)",
+      "count": 1
+    },
+    {
+      "name": "clavo",
+      "count": 1
+    },
+    {
+      "name": "verduras variadas congeladas",
+      "count": 1
+    },
+    {
+      "name": "licor de ponche de huevo",
+      "count": 1
+    },
+    {
+      "name": "fécula de patata",
+      "count": 1
+    },
+    {
+      "name": "mantequilla cortada en trozos",
+      "count": 1
+    },
+    {
+      "name": "levadura fresca desmenuzada",
+      "count": 1
+    },
+    {
+      "name": "azúcar de vainilla (🙋🏽‍♀️tip) o 2 cucharaditas de azúcar de vainilla",
+      "count": 1
+    },
+    {
+      "name": "harina de trigo más extra para espolvorear",
+      "count": 1
+    },
+    {
+      "name": "alcohol rectificado 96% o 2 cucharadas de vodka",
+      "count": 1
+    },
+    {
+      "name": "aceite para freír (aprox. 1 l)",
+      "count": 1
+    },
+    {
+      "name": "queso mascarpone a temperatura ambiente",
+      "count": 1
+    },
+    {
+      "name": "azúcar en polvo",
+      "count": 1
+    },
+    {
+      "name": "licor de huevo (🙋🏽‍♀️tip)",
+      "count": 1
+    },
+    {
+      "name": "chocolate negro cortado en trozos",
+      "count": 1
+    },
+    {
+      "name": "eggnog liqueur",
+      "count": 1
+    },
+    {
+      "name": "egg yolks",
+      "count": 1
+    },
+    {
+      "name": "wheat flour",
+      "count": 1
+    },
+    {
+      "name": "potato starch",
+      "count": 1
+    },
+    {
+      "name": "fresh yeast",
+      "count": 1
+    },
+    {
+      "name": "tsp homemade vanilla sugar (🙋🏽‍♀️tip) (or 2 tsp store-bought vanilla sugar)",
+      "count": 1
+    },
+    {
+      "name": "tbsp rectified spirit (96%) or 2 tbsp vodka",
+      "count": 1
+    },
+    {
+      "name": "pinch salt",
+      "count": 1
+    },
+    {
+      "name": "oil for frying (approx. 1l)",
+      "count": 1
+    },
+    {
+      "name": "mascarpone cheese",
+      "count": 1
+    },
+    {
+      "name": "powdered sugar",
+      "count": 1
+    },
+    {
+      "name": "eggnog liqueur (🙋🏽‍♀️tip)",
+      "count": 1
+    },
+    {
+      "name": "boiling water",
+      "count": 1
+    },
+    {
+      "name": "dark chocolate",
+      "count": 1
+    },
+    {
+      "name": "pimiento verde en trozos medianos (4 cm)",
+      "count": 1
+    },
+    {
+      "name": "pimiento rojo en trozos medianos (4 cm)",
+      "count": 1
+    },
+    {
+      "name": "costillas de cerdo adobadas en trozos de 5 cm",
+      "count": 1
+    },
+    {
+      "name": "patatas peladas y en trozos (3 x 3 cm)",
+      "count": 1
+    },
+    {
+      "name": "- 1 cucharadita de sal",
+      "count": 1
+    },
+    {
+      "name": "pellizco de comino molido",
+      "count": 1
+    },
+    {
+      "name": "- 600 g de agua",
+      "count": 1
+    },
+    {
+      "name": "avellanas",
+      "count": 1
+    },
+    {
+      "name": "yogurt griego natural **alto en proteína**",
+      "count": 1
+    },
+    {
+      "name": "scoops de proteína sabor chocolate (1 scoop por porción)",
+      "count": 1
+    },
+    {
+      "name": "semillas de chía",
+      "count": 1
+    },
+    {
+      "name": "semillas de hemp",
+      "count": 1
+    },
+    {
+      "name": "chiles chipotles adobados",
+      "count": 1
+    },
+    {
+      "name": "yoghurt natural",
+      "count": 1
+    },
+    {
+      "name": "¾ cditas de sal fina",
+      "count": 1
+    },
+    {
+      "name": "pimienta de cayena",
+      "count": 1
+    },
+    {
+      "name": "paprika",
+      "count": 1
+    },
+    {
+      "name": "semillas de cilantro molidas",
+      "count": 1
+    },
+    {
+      "name": "cúrcuma",
+      "count": 1
+    },
+    {
+      "name": "½ cdas de garam masala (ver receta)",
+      "count": 1
+    },
+    {
+      "name": "jugo de limón recién exprimdo",
+      "count": 1
+    },
+    {
+      "name": "queso oaxaca fresco",
+      "count": 1
+    },
+    {
+      "name": "- 1 cdita de sal",
+      "count": 1
+    },
+    {
+      "name": "queso oaxaca",
+      "count": 1
+    },
+    {
+      "name": "muslos de pollo con piel",
+      "count": 1
+    },
+    {
+      "name": "- 3 cucharadas de harina de trigo",
+      "count": 1
+    },
+    {
+      "name": "concentrado de caldo de carne (p. ej. bovril®)o 1 pastilla de caldo de pollo (p. ej. bovril®)",
+      "count": 1
+    }
+  ],
+  "usefulItems": [
+    {
+      "name": "horno",
+      "count": 8
+    },
+    {
+      "name": "oven",
+      "count": 6
+    },
+    {
+      "name": "parchment paper",
+      "count": 6
+    },
+    {
+      "name": "baking tray",
+      "count": 5
+    },
+    {
+      "name": "rodillo",
+      "count": 4
+    },
+    {
+      "name": "bowl",
+      "count": 4
+    },
+    {
+      "name": "film transparente",
+      "count": 4
+    },
+    {
+      "name": "recipiente hermético",
+      "count": 4
+    },
+    {
+      "name": "charola para hornear",
+      "count": 4
+    },
+    {
+      "name": "papel de hornear",
+      "count": 3
+    },
+    {
+      "name": "measuring spoons",
+      "count": 3
+    },
+    {
+      "name": "airtight container",
+      "count": 3
+    },
+    {
+      "name": "papel encerado",
+      "count": 3
+    },
+    {
+      "name": "cuchara",
+      "count": 3
+    },
+    {
+      "name": "spoon",
+      "count": 3
+    },
+    {
+      "name": "bandeja para hornear",
+      "count": 2
+    },
+    {
+      "name": "sartén",
+      "count": 2
+    },
+    {
+      "name": "bowl (x2)",
+      "count": 2
+    },
+    {
+      "name": "papel para hornear (encerado)",
+      "count": 2
+    },
+    {
+      "name": "bandeja de horno",
+      "count": 2
+    },
+    {
+      "name": "cooling rack",
+      "count": 2
+    },
+    {
+      "name": "paño de cocina",
+      "count": 1
+    },
+    {
+      "name": "cucharas medidoras",
+      "count": 1
+    },
+    {
+      "name": "spatula",
+      "count": 1
+    },
+    {
+      "name": "thermomix spatula",
+      "count": 1
+    },
+    {
+      "name": "molde desmontable",
+      "count": 1
+    },
+    {
+      "name": "tazón (x3)",
+      "count": 1
+    },
+    {
+      "name": "tapete de silicona para hornear",
+      "count": 1
+    },
+    {
+      "name": "papel pergamino",
+      "count": 1
+    },
+    {
+      "name": "silicone baking mat",
+      "count": 1
+    },
+    {
+      "name": "molde rectangular",
+      "count": 1
+    },
+    {
+      "name": "colador",
+      "count": 1
+    },
+    {
+      "name": "pinzas",
+      "count": 1
+    },
+    {
+      "name": "cucharitas medidoras",
+      "count": 1
+    },
+    {
+      "name": "cortador de galletas (ø 6 cm)",
+      "count": 1
+    },
+    {
+      "name": "congelador",
+      "count": 1
+    },
+    {
+      "name": "papel para hornear",
+      "count": 1
+    },
+    {
+      "name": "rack para enfriar",
+      "count": 1
+    },
+    {
+      "name": "mixing bowl",
+      "count": 1
+    },
+    {
+      "name": "baking sheet",
+      "count": 1
+    },
+    {
+      "name": "charola de horno",
+      "count": 1
+    },
+    {
+      "name": "cortador 6 cm",
+      "count": 1
+    },
+    {
+      "name": "cortador",
+      "count": 1
+    },
+    {
+      "name": "brocha para barnizar",
+      "count": 1
+    },
+    {
+      "name": "tenedor",
+      "count": 1
+    },
+    {
+      "name": "rejilla para enfrias",
+      "count": 1
+    },
+    {
+      "name": "fork",
+      "count": 1
+    },
+    {
+      "name": "rolling pin",
+      "count": 1
+    },
+    {
+      "name": "thermomix®",
+      "count": 1
+    },
+    {
+      "name": "tazón (x2)",
+      "count": 1
+    },
+    {
+      "name": "espátula",
+      "count": 1
+    },
+    {
+      "name": "cuchillo",
+      "count": 1
+    },
+    {
+      "name": "tabla para cortar",
+      "count": 1
+    },
+    {
+      "name": "film transparente o paño de cocina",
+      "count": 1
+    },
+    {
+      "name": "bandejas de horno",
+      "count": 1
+    },
+    {
+      "name": "cuchillo afilado",
+      "count": 1
+    },
+    {
+      "name": "sartén antiadherente de 22 cm",
+      "count": 1
+    },
+    {
+      "name": "molde redondo (ø 15 cm)",
+      "count": 1
+    },
+    {
+      "name": "bol",
+      "count": 1
+    },
+    {
+      "name": "refrigerador",
+      "count": 1
+    },
+    {
+      "name": "fuente para servir",
+      "count": 1
+    },
+    {
+      "name": "toalla de cocina",
+      "count": 1
+    },
+    {
+      "name": "sartén o cazuela honda para freír",
+      "count": 1
+    },
+    {
+      "name": "estufa",
+      "count": 1
+    },
+    {
+      "name": "espumadera (cuchara con hoyos para voltear las donas en el aceite)",
+      "count": 1
+    },
+    {
+      "name": "toallas de papel",
+      "count": 1
+    },
+    {
+      "name": "manga pastelera con punta redonda",
+      "count": 1
+    },
+    {
+      "name": "pincel de cocina",
+      "count": 1
+    },
+    {
+      "name": "manga pastelera con punta fina",
+      "count": 1
+    },
+    {
+      "name": "plastic wrap",
+      "count": 1
+    },
+    {
+      "name": "kitchen towel",
+      "count": 1
+    },
+    {
+      "name": "deep pan or pot for frying",
+      "count": 1
+    },
+    {
+      "name": "stove",
+      "count": 1
+    },
+    {
+      "name": "slotted spoon",
+      "count": 1
+    },
+    {
+      "name": "paper towels",
+      "count": 1
+    },
+    {
+      "name": "piping bag with a round tip",
+      "count": 1
+    },
+    {
+      "name": "pastry brush",
+      "count": 1
+    },
+    {
+      "name": "piping bag with a fine tip",
+      "count": 1
+    },
+    {
+      "name": "colador de malla fina",
+      "count": 1
+    }
+  ],
+  "tags": [
+    {
+      "name": "Plato fuerte",
+      "count": 80
+    },
+    {
+      "name": "Postre",
+      "count": 47
+    },
+    {
+      "name": "Sopa",
+      "count": 34
+    },
+    {
+      "name": "Pollo",
+      "count": 32
+    },
+    {
+      "name": "Guarnicion",
+      "count": 30
+    },
+    {
+      "name": "Bebida",
+      "count": 18
+    },
+    {
+      "name": "Seafood",
+      "count": 16
+    },
+    {
+      "name": "Res",
+      "count": 16
+    },
+    {
+      "name": "Pasta",
+      "count": 15
+    },
+    {
+      "name": "Vegetarian",
+      "count": 15
+    },
+    {
+      "name": "Aperitivo",
+      "count": 14
+    },
+    {
+      "name": "Cerdo",
+      "count": 13
+    },
+    {
+      "name": "Panadería",
+      "count": 13
+    },
+    {
+      "name": "Salsas",
+      "count": 10
+    },
+    {
+      "name": "Básicos de la cocina",
+      "count": 9
+    },
+    {
+      "name": "Healthy",
+      "count": 9
+    },
+    {
+      "name": "Botana",
+      "count": 8
+    },
+    {
+      "name": "Dip/Dressing",
+      "count": 8
+    },
+    {
+      "name": "International",
+      "count": 6
+    },
+    {
+      "name": "Desayuno",
+      "count": 5
+    },
+    {
+      "name": "Mexican",
+      "count": 5
+    },
+    {
+      "name": "Todo en 1",
+      "count": 5
+    },
+    {
+      "name": "FAV",
+      "count": 4
+    },
+    {
+      "name": "Lamb",
+      "count": 3
+    },
+    {
+      "name": "Sugar Free",
+      "count": 3
+    },
+    {
+      "name": "Candy",
+      "count": 2
+    },
+    {
+      "name": "Halloween",
+      "count": 2
+    },
+    {
+      "name": "Indian",
+      "count": 1
+    },
+    {
+      "name": "Baby friendly",
+      "count": 1
+    },
+    {
+      "name": "Sin gluten",
+      "count": 1
+    },
+    {
+      "name": "Spices",
+      "count": 1
+    }
+  ]
+}
