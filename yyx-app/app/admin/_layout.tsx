@@ -62,6 +62,12 @@ export default function AdminLayout() {
             title: i18n.t('admin.userRecipes.title')
           }}
         />
+        <Stack.Screen
+          name="content-health"
+          options={{
+            title: i18n.t('admin.common.contentHealth')
+          }}
+        />
       </Stack>
     </AdminRoute>
   );
@@ -75,6 +81,7 @@ const navItems = [
   { titleKey: 'admin.common.ingredients', icon: 'leaf-outline', route: '/admin/ingredients' as const },
   { titleKey: 'admin.common.tags', icon: 'pricetags-outline', route: '/admin/tags' as const },
   { titleKey: 'admin.common.kitchenTools', icon: 'cube-outline', route: '/admin/kitchen-tools' as const },
+  { titleKey: 'admin.common.contentHealth', icon: 'medkit-outline', route: '/admin/content-health' as const },
   { titleKey: 'admin.common.backToApp', icon: 'exit-outline', route: '/' as const },
 ];
 
