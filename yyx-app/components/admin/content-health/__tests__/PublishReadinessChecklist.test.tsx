@@ -19,7 +19,8 @@ jest.mock('@expo/vector-icons', () => {
   };
 });
 
-jest.spyOn(Alert, 'alert');
+const mockAlert = jest.fn();
+Alert.alert = mockAlert;
 
 const readyIssue: ContentHealthIssue = {
   id: 'recipe-ready',
@@ -72,9 +73,11 @@ describe('PublishReadinessChecklist', () => {
       <PublishReadinessChecklist issue={notReadyIssue} onPublished={jest.fn()} />
     );
 
-    // missingEn=true → close-circle, missingEs=false → checkmark-circle
-    expect(screen.getByTestId('icon-close-circle')).toBeTruthy();
-    expect(screen.getByTestId('icon-checkmark-circle')).toBeTruthy();
+    // notReadyIssue: missingEn + missingImage + stepCount=0 → 3 close, missingEs=false + ingredientCount=8 → 2 checkmark
+    const closeIcons = screen.getAllByTestId('icon-close-circle');
+    const checkIcons = screen.getAllByTestId('icon-checkmark-circle');
+    expect(closeIcons).toHaveLength(3);
+    expect(checkIcons).toHaveLength(2);
   });
 
   it('shows "Not ready" and disables publish when not all checks pass', () => {
@@ -127,7 +130,7 @@ describe('PublishReadinessChecklist', () => {
     fireEvent.press(screen.getByText('Publish'));
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
+      expect(mockAlert).toHaveBeenCalledWith(
         expect.any(String),
         'Network failure'
       );
