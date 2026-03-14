@@ -1,139 +1,73 @@
 //@ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { unauthorizedResponse, validateAuth } from "../_shared/auth.ts";
 import { chat } from "../_shared/ai-gateway/index.ts";
 import {
   applyRoundingRulesToData,
-  convertToPer100g,
   type NutritionalData,
   validateNutritionalData,
 } from "../_shared/nutritional-utils.ts";
 
-class USDAService {
-  private static API_KEY = Deno.env.get("USDA_API_KEY");
-  private static BASE_URL = "https://api.nal.usda.gov/fdc/v1";
-
-  static async getNutritionalFacts(
-    ingredientName: string,
-  ): Promise<NutritionalData | null> {
-    console.info(`Looking up nutrition for '${ingredientName}' via USDA`);
-    try {
-      const queryParams = new URLSearchParams({
-        api_key: this.API_KEY || "",
-        query: ingredientName,
-        pageSize: "1",
-        dataType: "Foundation",
-        format: "full",
-      });
-
-      const searchUrl = `${this.BASE_URL}/foods/search?${queryParams}`;
-      const searchResponse = await fetch(searchUrl);
-      const searchData = await searchResponse.json();
-
-      if (!searchData.foods || searchData.foods.length === 0) {
-        console.info(`No USDA data found for '${ingredientName}'`);
-        return null;
-      }
-
-      const food = searchData.foods[0];
-      console.info(`Found USDA match: '${food.description}'`);
-
-      const portionSize = this.getPortionSize(food);
-      const nutrients = food.foodNutrients;
-      const result = {
-        calories: this.findNutrient(nutrients, "Energy") || 0,
-        protein: this.findNutrient(nutrients, "Protein") || 0,
-        fat: this.findNutrient(nutrients, "Total lipid (fat)") || 0,
-        carbohydrates:
-          this.findNutrient(nutrients, "Carbohydrate, by difference") || 0,
-      };
-
-      // Convert values to per 100g if needed
-      if (portionSize && portionSize !== 100) {
-        convertToPer100g(result, portionSize);
-      }
-
-      applyRoundingRulesToData(result);
-
-      return result;
-    } catch (error) {
-      console.error(`USDA API error for '${ingredientName}':`, error);
-      return null;
-    }
-  }
-
-  private static findNutrient(nutrients: any[], name: string): number | null {
-    const nutrient = nutrients.find((n) => n.nutrientName === name);
-    return nutrient ? Number(nutrient.value) : null;
-  }
-
-  private static getPortionSize(food: any): number | null {
-    if (food.dataType === "Foundation") {
-      return 100;
-    }
-
-    return null;
-  }
-}
-
-class AIService {
-  static async getNutritionalFacts(
-    ingredientName: string,
-  ): Promise<NutritionalData | null> {
-    console.info(`Looking up nutrition for '${ingredientName}' via AI gateway`);
-    try {
-      const response = await chat({
-        usageType: "parsing",
-        messages: [{
-          role: "user",
-          content:
-            `Provide nutritional facts per 100g for ${ingredientName}. Return ONLY a JSON object in this exact format: {"calories": number, "protein": number, "fat": number, "carbohydrates": number}`,
-        }],
-        temperature: 1,
-        responseFormat: {
-          type: "json_schema",
-          schema: {
-            type: "object",
-            properties: {
-              calories: { type: "number" },
-              protein: { type: "number" },
-              fat: { type: "number" },
-              carbohydrates: { type: "number" },
-            },
-            required: ["calories", "protein", "fat", "carbohydrates"],
-            additionalProperties: false,
+export async function getNutritionalFacts(
+  ingredientName: string,
+): Promise<NutritionalData | null> {
+  console.info(`Looking up nutrition for '${ingredientName}' via AI gateway`);
+  try {
+    const response = await chat({
+      usageType: "parsing",
+      messages: [{
+        role: "user",
+        content:
+          `Provide nutritional facts per 100g for raw/unprocessed "${ingredientName}". Use USDA reference values. Return ONLY a JSON object in this exact format: {"calories": number, "protein": number, "fat": number, "carbohydrates": number}`,
+      }],
+      temperature: 0,
+      responseFormat: {
+        type: "json_schema",
+        schema: {
+          type: "object",
+          properties: {
+            calories: { type: "number" },
+            protein: { type: "number" },
+            fat: { type: "number" },
+            carbohydrates: { type: "number" },
           },
+          required: ["calories", "protein", "fat", "carbohydrates"],
+          additionalProperties: false,
         },
-      });
+      },
+    });
 
-      if (!response.content) {
-        console.warn(`No content in AI response for '${ingredientName}'`);
-        return null;
-      }
-
-      try {
-        const nutritionalData = JSON.parse(response.content);
-
-        if (validateNutritionalData(nutritionalData)) {
-          console.info(
-            `Successfully retrieved AI nutrition data for '${ingredientName}'`,
-          );
-          applyRoundingRulesToData(nutritionalData);
-          return nutritionalData;
-        } else {
-          console.warn(
-            `Invalid nutrition data format from AI for '${ingredientName}'`,
-          );
-          return null;
-        }
-      } catch (parseError) {
-        console.error(`JSON parse error for '${ingredientName}'`);
-        return null;
-      }
-    } catch (error) {
-      console.error(`AI service error for '${ingredientName}':`, error);
+    if (!response.content) {
+      console.warn(`No content in AI response for '${ingredientName}'`);
       return null;
     }
+
+    let nutritionalData;
+    try {
+      nutritionalData = JSON.parse(response.content);
+    } catch (_parseError) {
+      console.warn(`JSON parse error for '${ingredientName}'`);
+      return null;
+    }
+
+    if (validateNutritionalData(nutritionalData)) {
+      console.info(
+        `Successfully retrieved nutrition data for '${ingredientName}': ${
+          JSON.stringify(nutritionalData)
+        }`,
+      );
+      applyRoundingRulesToData(nutritionalData);
+      return nutritionalData;
+    } else {
+      console.warn(
+        `Invalid nutrition data format from AI for '${ingredientName}'`,
+      );
+      return null;
+    }
+  } catch (error) {
+    console.error(`Nutrition lookup error for '${ingredientName}':`, error);
+    return null;
   }
 }
 
@@ -147,8 +81,18 @@ serve(async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
+  // Auth — require authenticated user (AI calls have cost implications)
+  const authHeader = req.headers.get("Authorization");
+  const { user, error: authError } = await validateAuth(authHeader);
+  if (authError || !user) {
+    return unauthorizedResponse(
+      authError ?? "Authentication required",
+      corsHeaders,
+    );
+  }
+
   const requestId = crypto.randomUUID();
-  console.info(`Request ${requestId} started`);
+  console.info(`Request ${requestId} started (user: ${user.id})`);
 
   try {
     const body = await req.json();
@@ -161,16 +105,7 @@ serve(async (req) => {
       );
     }
 
-    let nutritionalFacts = await USDAService.getNutritionalFacts(
-      ingredientName,
-    );
-
-    if (!nutritionalFacts) {
-      console.info(`USDA lookup failed for '${ingredientName}', trying AI`);
-      nutritionalFacts = await AIService.getNutritionalFacts(
-        ingredientName,
-      );
-    }
+    const nutritionalFacts = await getNutritionalFacts(ingredientName);
 
     if (!nutritionalFacts) {
       return new Response(
@@ -180,7 +115,7 @@ serve(async (req) => {
     }
 
     console.info(
-      `Successfully retrieved nutrition data for '${ingredientName}'`,
+      `Request ${requestId} completed for '${ingredientName}'`,
     );
     return new Response(
       JSON.stringify({ per_100g: nutritionalFacts }),

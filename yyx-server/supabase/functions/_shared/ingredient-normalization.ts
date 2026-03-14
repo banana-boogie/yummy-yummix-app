@@ -7,10 +7,11 @@
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { getBaseLanguage } from "./locale-utils.ts";
 
 /**
  * Language-aware alias cache.
- * Key format: "${alias_lowercase}::${language}"
+ * Key format: "${alias_lowercase}::${locale}"
  * Value: canonical ingredient name
  */
 let aliasCache: Map<string, string> | null = null;
@@ -24,7 +25,7 @@ let loadingPromise: Promise<Map<string, string>> | null = null;
 
 /**
  * Load all ingredient aliases from DB into the cache.
- * Uses composite key: alias::language for language-aware lookups.
+ * Uses composite key: alias::locale for locale-aware lookups.
  */
 async function loadAliases(
   supabase: SupabaseClient,
@@ -41,7 +42,7 @@ async function loadAliases(
   loadingPromise = (async () => {
     const { data, error } = await supabase
       .from("ingredient_aliases")
-      .select("canonical, alias, language");
+      .select("canonical, alias, locale");
 
     if (error) {
       console.error("Failed to load ingredient aliases:", error);
@@ -51,7 +52,7 @@ async function loadAliases(
 
     aliasCache = new Map();
     for (const row of data || []) {
-      const key = `${row.alias.toLowerCase()}::${row.language}`;
+      const key = `${row.alias.toLowerCase()}::${row.locale}`;
       aliasCache.set(key, row.canonical);
     }
 
@@ -80,19 +81,20 @@ async function loadAliases(
 export async function normalizeIngredient(
   supabase: SupabaseClient,
   name: string,
-  language: "en" | "es" = "en",
+  locale: string = "en",
 ): Promise<string> {
   const aliases = await loadAliases(supabase);
   const lower = name.toLowerCase().trim();
+  const baseLang = getBaseLanguage(locale);
 
-  // Try language-specific match first
-  const langKey = `${lower}::${language}`;
+  // Try locale-specific match first (using base language since aliases use 'en'/'es')
+  const langKey = `${lower}::${baseLang}`;
   if (aliases.has(langKey)) {
     return aliases.get(langKey)!;
   }
 
   // Try English fallback
-  if (language !== "en") {
+  if (baseLang !== "en") {
     const enKey = `${lower}::en`;
     if (aliases.has(enKey)) {
       return aliases.get(enKey)!;
@@ -100,7 +102,7 @@ export async function normalizeIngredient(
   }
 
   // Try Spanish fallback
-  if (language !== "es") {
+  if (baseLang !== "es") {
     const esKey = `${lower}::es`;
     if (aliases.has(esKey)) {
       return aliases.get(esKey)!;
@@ -122,10 +124,10 @@ export async function normalizeIngredient(
 export async function normalizeIngredients(
   supabase: SupabaseClient,
   names: string[],
-  language: "en" | "es" = "en",
+  locale: string = "en",
 ): Promise<string[]> {
   return Promise.all(
-    names.map((name) => normalizeIngredient(supabase, name, language)),
+    names.map((name) => normalizeIngredient(supabase, name, locale)),
   );
 }
 

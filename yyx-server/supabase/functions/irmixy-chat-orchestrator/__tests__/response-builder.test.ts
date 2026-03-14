@@ -15,6 +15,8 @@ function createUserContext(
   overrides: Partial<UserContext> = {},
 ): UserContext {
   return {
+    locale: "en",
+    localeChain: ["en"],
     language: "en",
     measurementSystem: "imperial",
     dietaryRestrictions: [],
@@ -110,14 +112,14 @@ Deno.test("finalizeResponse preserves provided message when a custom recipe is p
     undefined,
     "make me a recipe",
     "Custom recipe is ready.",
-    createUserContext({ language: "en" }),
+    createUserContext({ locale: "en", localeChain: ["en"] }),
     undefined,
     {
       recipe: {
         schemaVersion: "1.0",
         suggestedName: "Weeknight Pasta",
         measurementSystem: "imperial",
-        language: "en",
+        locale: "en",
         ingredients: [],
         steps: [],
         totalTime: 20,

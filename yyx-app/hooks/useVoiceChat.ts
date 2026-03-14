@@ -116,7 +116,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     const listenersRef = useRef<{ event: string; callback: (...args: any[]) => void }[]>([]);
 
     const { userProfile } = useUserProfile();
-    const { language } = useLanguage();
+    const { locale } = useLanguage();
     const { measurementSystem } = useMeasurement();
     const { registerSession, unregisterSession } = useVoiceSession();
 
@@ -195,6 +195,8 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
     }, [transcriptMessages]);
 
     useEffect(() => {
+        // Copy ref value for cleanup closure
+        const hookId = hookIdRef.current;
         // Cleanup on unmount
         return () => {
             resetStreamingRefs();
@@ -204,7 +206,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             }
             listenersRef.current = [];
             providerRef.current?.destroy();
-            unregisterSession(hookIdRef.current);
+            unregisterSession(hookId);
         };
     }, [resetStreamingRefs, unregisterSession]);
 
@@ -488,7 +490,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             });
 
             const initData = await providerRef.current.initialize({
-                language: language?.startsWith('es') ? 'es' : 'en'
+                locale: locale || 'en'
             });
 
             if (initData) {
@@ -507,7 +509,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
 
             // 3. Build context
             const userContext = {
-                language: (language?.startsWith('es') ? 'es' : 'en') as 'es' | 'en',
+                locale: locale || 'en',
                 measurementSystem: measurementSystem || 'metric',
                 dietaryRestrictions: userProfile?.dietaryRestrictions || [],
                 dietTypes: userProfile?.dietTypes || []
@@ -530,7 +532,7 @@ export function useVoiceChat(options?: UseVoiceChatOptions) {
             setError(err instanceof Error ? err.message : 'Unknown error');
             unregisterSession(hookIdRef.current);
         }
-    }, [language, measurementSystem, userProfile, appendMessage, updateStreamingMessage, finalizeAssistantMessage, resetStreamingRefs, registerSession, unregisterSession]);
+    }, [locale, measurementSystem, userProfile, appendMessage, updateStreamingMessage, finalizeAssistantMessage, resetStreamingRefs, registerSession, unregisterSession]);
 
     const stopConversation = useCallback(() => {
         let messagesToSave = transcriptMessagesRef.current;

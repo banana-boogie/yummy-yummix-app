@@ -1,9 +1,20 @@
-import React from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { MeasurementSystem } from '@/types/user';
 import { useDevice } from '@/hooks/useDevice';
 import i18n from '@/i18n';
+import { supabase } from '@/lib/supabase';
+
+interface LocaleOption {
+  code: string;
+  displayName: string;
+}
+
+const FALLBACK_LOCALE_OPTIONS: LocaleOption[] = [
+  { code: 'en', displayName: 'English' },
+  { code: 'es', displayName: 'Espanol' },
+];
 
 interface SystemButtonsProps {
   language: string;
@@ -19,6 +30,34 @@ export function SystemButtons({
   onMeasurementChange,
 }: SystemButtonsProps) {
   const { isLarge: isLargeScreen } = useDevice();
+  const [localeOptions, setLocaleOptions] = useState<LocaleOption[]>(FALLBACK_LOCALE_OPTIONS);
+  const [loadingLocales, setLoadingLocales] = useState(true);
+
+  // Fetch available locales from the database
+  useEffect(() => {
+    async function fetchLocales() {
+      try {
+        const { data, error } = await supabase
+          .from('locales')
+          .select('code, display_name')
+          .eq('is_active', true)
+          .not('code', 'like', '%-%') // Base languages only (en, es), not regional variants (es-MX)
+          .order('display_name', { ascending: true });
+
+        if (!error && data && data.length > 0) {
+          setLocaleOptions(data.map((l: any) => ({
+            code: l.code,
+            displayName: l.display_name,
+          })));
+        }
+      } catch {
+        // Use fallback options silently
+      } finally {
+        setLoadingLocales(false);
+      }
+    }
+    fetchLocales();
+  }, []);
 
   const renderButton = (
     label: string,
@@ -57,18 +96,27 @@ export function SystemButtons({
         <Text className="text-text-secondary text-base mb-sm font-medium">
           {i18n.t('settings.language')}
         </Text>
-        <View className={`flex-row gap-sm ${isLargeScreen ? 'gap-md max-w-[600px]' : ''}`}>
-          {renderButton(
-            i18n.t('common.english'),
-            language === 'en',
-            () => onLanguageChange('en')
-          )}
-          {renderButton(
-            i18n.t('common.spanish'),
-            language === 'es',
-            () => onLanguageChange('es')
-          )}
-        </View>
+        {loadingLocales ? (
+          <ActivityIndicator size="small" />
+        ) : (
+          <View className={`flex-row gap-sm flex-wrap ${isLargeScreen ? 'gap-md max-w-[600px]' : ''}`}>
+            {localeOptions.map(option => {
+              const isActive = language === option.code ||
+                (language.startsWith('es') && option.code.startsWith('es')) ||
+                (language.startsWith('en') && option.code.startsWith('en'));
+              return (
+                <React.Fragment key={option.code}>
+                  {renderButton(
+                    option.displayName,
+                    isActive,
+                    () => onLanguageChange(option.code),
+                    undefined
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </View>
+        )}
       </View>
 
       {/* Measurement System Selection */}

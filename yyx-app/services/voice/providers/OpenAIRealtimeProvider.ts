@@ -2,10 +2,8 @@ import {
   RTCPeerConnection,
   RTCSessionDescription,
   mediaDevices,
-  MediaStreamTrack,
 } from "react-native-webrtc";
 import { supabase } from "@/lib/supabase";
-import { Platform } from "react-native";
 import InCallManager from "react-native-incall-manager";
 import { detectGoodbye, InactivityTimer } from "../shared/VoiceUtils";
 import { isLikelyEcho, extractTranscriptFromResponse } from "../shared/VoiceAnalysis";
@@ -272,7 +270,9 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         output_audio_format: "pcm16",
         input_audio_transcription: {
           model: "whisper-1",
-          language: context.userContext.language === 'es' ? 'es' : 'en',
+          // Whisper accepts ISO 639-1 language codes only (e.g. 'es', 'en'),
+          // not regional variants like 'es-MX'. Extract the base language code.
+          language: context.userContext.locale?.split('-')[0] ?? 'en',
         },
         turn_detection: {
           type: "server_vad",

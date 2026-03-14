@@ -6,11 +6,13 @@ import { TextInput } from '@/components/form/TextInput';
 import { FormSection } from '@/components/form/FormSection';
 import { FormRow } from '@/components/form/FormRow';
 import { FormGroup } from '@/components/form/FormGroup';
-import { AdminRecipeTag } from '@/types/recipe.admin.types';
+import { AdminRecipeTag, AdminRecipeTagTranslation, pickTranslation } from '@/types/recipe.admin.types';
 import { COLORS } from '@/constants/design-tokens';
 import { adminRecipeTagService } from '@/services/admin/adminRecipeTagService';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/i18n';
+import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
+import { translateContent } from '@/services/admin/adminTranslateService';
 
 interface TagEditModalProps {
   visible: boolean;
@@ -21,31 +23,28 @@ interface TagEditModalProps {
 }
 
 export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditModalProps) {
-  const [nameEn, setNameEn] = useState('');
-  const [nameEs, setNameEs] = useState('');
+  const { locales } = useActiveLocales();
+  const [translations, setTranslations] = useState<AdminRecipeTagTranslation[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [categorySearch, setCategorySearch] = useState('');
   const [filteredCategories, setFilteredCategories] = useState<string[]>([]);
-  const [errors, setErrors] = useState<{ nameEn?: string; nameEs?: string }>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [translating, setTranslating] = useState(false);
 
   useEffect(() => {
     if (visible) {
-      // Reset form when modal opens
       if (isNew) {
-        setNameEn('');
-        setNameEs('');
+        // Initialize with empty translations for each locale
+        setTranslations(locales.map(l => ({ locale: l.code, name: '' })));
         setSelectedCategories([]);
       } else if (tag) {
-        setNameEn(tag.nameEn);
-        setNameEs(tag.nameEs);
+        setTranslations(tag.translations || []);
         setSelectedCategories(tag.categories || []);
       }
-
-      // Fetch available categories
       fetchCategories();
     }
-  }, [visible, tag, isNew]);
+  }, [visible, tag, isNew, locales]);
 
   useEffect(() => {
     if (categorySearch.trim() === '') {
@@ -70,6 +69,21 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
     }
   };
 
+  const getTranslationName = (locale: string): string => {
+    return pickTranslation(translations, locale)?.name || '';
+  };
+
+  const setTranslationName = (locale: string, name: string) => {
+    const existing = translations.find(t => t.locale === locale);
+    if (existing) {
+      setTranslations(translations.map(t =>
+        t.locale === locale ? { ...t, name } : t
+      ));
+    } else {
+      setTranslations([...translations, { locale, name }]);
+    }
+  };
+
   const toggleCategory = (category: string) => {
     if (selectedCategories.includes(category)) {
       setSelectedCategories(prev => prev.filter(cat => cat !== category));
@@ -83,23 +97,65 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
   };
 
   const validateForm = (): boolean => {
-    const newErrors: { nameEn?: string; nameEs?: string } = {};
+    const newErrors: Record<string, string> = {};
 
-    if (!nameEn.trim() && !nameEs.trim()) {
-      newErrors.nameEn = i18n.t('validation.required');
-      newErrors.nameEs = i18n.t('validation.required');
+    // Check that at least one locale has a name
+    const hasAnyName = translations.some(t => t.name?.trim());
+    if (!hasAnyName) {
+      locales.forEach(l => {
+        newErrors[`name_${l.code}`] = i18n.t('validation.required');
+      });
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleAutoTranslate = async () => {
+    const sourceTranslation = translations.find(t => t.name?.trim());
+    if (!sourceTranslation) return;
+
+    const sourceLocale = sourceTranslation.locale;
+    const targetLocales = locales
+      .map(l => l.code)
+      .filter(code => code !== sourceLocale);
+
+    if (targetLocales.length === 0) return;
+
+    setTranslating(true);
+    try {
+      const results = await translateContent(
+        { name: sourceTranslation.name },
+        sourceLocale,
+        targetLocales,
+      );
+
+      let updated = [...translations];
+      for (const result of results) {
+        const existing = updated.find(t => t.locale === result.targetLocale);
+        if (existing) {
+          updated = updated.map(t =>
+            t.locale === result.targetLocale
+              ? { ...t, name: result.fields.name || t.name }
+              : t
+          );
+        } else {
+          updated.push({ locale: result.targetLocale, name: result.fields.name || '' });
+        }
+      }
+      setTranslations(updated);
+    } catch (error) {
+      console.error('Auto-translate failed:', error);
+    } finally {
+      setTranslating(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    const tagData = {
-      nameEn: nameEn.trim(),
-      nameEs: nameEs.trim(),
+    const tagData: Omit<AdminRecipeTag, 'id'> = {
+      translations: translations.filter(t => t.name?.trim()),
       categories: selectedCategories,
     };
 
@@ -143,28 +199,33 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
           </View>
 
           <ScrollView className="p-lg">
-            {/* Names Section */}
+            {/* Names Section - Dynamic locales */}
             <FormSection title={i18n.t('admin.tags.basicInfo')} className="mb-xl">
-              <FormRow>
+              {locales.map(locale => (
                 <FormGroup
-                  label={i18n.t('admin.tags.englishName')}
-                  error={errors.nameEn}
+                  key={locale.code}
+                  label={locale.displayName}
+                  error={errors[`name_${locale.code}`]}
+                  className="mb-md"
                 >
                   <TextInput
-                    value={nameEn}
-                    onChangeText={setNameEn}
+                    value={getTranslationName(locale.code)}
+                    onChangeText={(text) => setTranslationName(locale.code, text)}
                   />
                 </FormGroup>
-                <FormGroup
-                  label={i18n.t('admin.tags.spanishName')}
-                  error={errors.nameEs}
-                >
-                  <TextInput
-                    value={nameEs}
-                    onChangeText={setNameEs}
-                  />
-                </FormGroup>
-              </FormRow>
+              ))}
+              <Button
+                onPress={handleAutoTranslate}
+                loading={translating}
+                disabled={translating}
+                variant="outline"
+                size="small"
+              >
+                {translating
+                  ? i18n.t('admin.translate.translating')
+                  : i18n.t('admin.translate.autoTranslate')
+                }
+              </Button>
             </FormSection>
 
             {/* Categories Section */}

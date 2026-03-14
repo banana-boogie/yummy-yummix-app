@@ -3,7 +3,7 @@ import { View, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { AdminUsefulItem } from '@/types/recipe.admin.types';
+import { AdminUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
 import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 
@@ -13,6 +13,8 @@ interface AvailableItemsSectionProps {
     searchQuery: string;
     selectedItemIds: string[];
     onAddItem: (item: AdminUsefulItem) => void;
+    /** Locale used for displaying item names */
+    displayLocale?: string;
     /** Compact variant for mobile (no min-height constraint) */
     variant?: 'default' | 'compact';
 }
@@ -27,6 +29,7 @@ export function AvailableItemsSection({
     searchQuery,
     selectedItemIds,
     onAddItem,
+    displayLocale = 'es',
     variant = 'default'
 }: AvailableItemsSectionProps) {
     const isCompact = variant === 'compact';
@@ -58,8 +61,7 @@ export function AvailableItemsSection({
                 </View>
 
                 <View className="flex-1">
-                    <Text className="font-medium">{item.nameEn}</Text>
-                    <Text className="text-xs text-text-SECONDARY">{item.nameEs}</Text>
+                    <Text className="font-medium">{getTranslatedField(item.translations, displayLocale, 'name')}</Text>
                 </View>
 
                 {isAdded ? (
@@ -88,7 +90,6 @@ export function AvailableItemsSection({
             style={{
                 padding: 8,
                 backgroundColor: COLORS.background.secondary,
-                minHeight: isCompact ? undefined : 400
             }}
         >
             {items.length > 0 ? (

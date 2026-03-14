@@ -107,7 +107,7 @@ export function createMockIrmixyResponse(overrides?: Partial<IrmixyResponse>): I
   return {
     version: '1.0',
     message: 'Hello! How can I help you today?',
-    language: 'en',
+    locale: 'en',
     ...overrides,
   };
 }
@@ -222,7 +222,7 @@ export function createMockGeneratedRecipe(overrides?: Partial<GeneratedRecipe>):
     schemaVersion: '1.0',
     suggestedName: 'Chicken Stir Fry',
     measurementSystem: 'imperial',
-    language: 'en',
+    locale: 'en',
     ingredients: [
       { name: 'chicken breast', quantity: 2, unit: 'lb' },
       { name: 'broccoli', quantity: 1, unit: 'cup' },

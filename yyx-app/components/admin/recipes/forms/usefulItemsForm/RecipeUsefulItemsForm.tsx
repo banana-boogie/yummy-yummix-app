@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ScrollView, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/common/Text';
-import { AdminRecipe, AdminRecipeUsefulItem, AdminUsefulItem } from '@/types/recipe.admin.types';
+import { AdminRecipe, AdminRecipeUsefulItem, AdminUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { FormSection } from '@/components/form/FormSection';
 import { adminUsefulItemsService } from '@/services/admin/adminUsefulItemsService';
@@ -20,9 +20,11 @@ type UsefulItemsFormProps = {
     recipe: AdminRecipe;
     onUpdateRecipe: (updates: Partial<AdminRecipe>) => void;
     errors: Record<string, string>;
+    authoringLocale?: string;
+    displayLocale?: string;
 };
 
-export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors }: UsefulItemsFormProps) {
+export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es', displayLocale }: UsefulItemsFormProps) {
     const { isMobile } = useDevice();
     const [usefulItems, setUsefulItems] = useState<AdminUsefulItem[]>([]);
     const [filteredUsefulItems, setFilteredUsefulItems] = useState<AdminUsefulItem[]>([]);
@@ -33,6 +35,7 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors }: Useful
     const [newUsefulItemModalVisible, setNewUsefulItemModalVisible] = useState(false);
     const [showErrorAlert, setShowErrorAlert] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+    const [rightColHeight, setRightColHeight] = useState<number | undefined>(undefined);
 
     // Initialize usefulItems array if it doesn't exist
     useEffect(() => {
@@ -65,10 +68,12 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors }: Useful
     useEffect(() => {
         if (searchQuery) {
             const lowercaseQuery = searchQuery.toLowerCase();
-            const filtered = usefulItems.filter(item =>
-                item.nameEn?.toLowerCase().includes(lowercaseQuery) ||
-                item.nameEs?.toLowerCase().includes(lowercaseQuery)
-            );
+            const filtered = usefulItems.filter(item => {
+                const nameEn = getTranslatedField(item.translations, 'en', 'name');
+                const nameEs = getTranslatedField(item.translations, 'es', 'name');
+                return nameEn?.toLowerCase().includes(lowercaseQuery) ||
+                    nameEs?.toLowerCase().includes(lowercaseQuery);
+            });
             setFilteredUsefulItems(filtered);
         } else {
             setFilteredUsefulItems(usefulItems);
@@ -206,6 +211,7 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors }: Useful
                     <View className="mb-lg">
                         <SelectedItemsSection
                             items={sortedRecipeUsefulItems}
+                            displayLocale={displayLocale || authoringLocale}
                             onEdit={handleEditRecipeUsefulItem}
                             onDelete={handleDeleteRecipeUsefulItem}
                             onMoveUp={handleMoveUsefulItemUp}
@@ -225,6 +231,7 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors }: Useful
                             searchQuery={searchQuery}
                             selectedItemIds={selectedItemIds}
                             onAddItem={handleAddRecipeUsefulItem}
+                            displayLocale={displayLocale || authoringLocale}
                             variant="compact"
                         />
                     </View>
@@ -255,22 +262,24 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors }: Useful
                     </View>
 
                     {/* Content Row */}
-                    <View className="flex-row flex-wrap">
+                    <View className="flex-row flex-wrap" style={{ minHeight: 400 }}>
                         {/* Left Column - Available Items */}
-                        <View className="flex-1 mr-md mb-md">
+                        <ScrollView style={{ flex: 1, marginRight: 16, ...(rightColHeight ? { maxHeight: rightColHeight } : {}) }}>
                             <AvailableItemsSection
                                 items={filteredUsefulItems}
                                 loading={loading}
                                 searchQuery={searchQuery}
                                 selectedItemIds={selectedItemIds}
                                 onAddItem={handleAddRecipeUsefulItem}
+                                displayLocale={displayLocale || authoringLocale}
                             />
-                        </View>
+                        </ScrollView>
 
                         {/* Right Column - Selected Items */}
-                        <View className="flex-[1.8]">
+                        <View className="flex-[1.8]" onLayout={(e) => setRightColHeight(e.nativeEvent.layout.height)}>
                             <SelectedItemsSection
                                 items={sortedRecipeUsefulItems}
+                                displayLocale={displayLocale || authoringLocale}
                                 onEdit={handleEditRecipeUsefulItem}
                                 onDelete={handleDeleteRecipeUsefulItem}
                                 onMoveUp={handleMoveUsefulItemUp}
@@ -288,6 +297,7 @@ export function RecipeUsefulItemsForm({ recipe, onUpdateRecipe, errors }: Useful
                 onSave={handleSaveRecipeUsefulItem}
                 recipeUsefulItem={selectedRecipeUsefulItem}
                 existingUsefulItems={recipe.usefulItems || []}
+                authoringLocale={authoringLocale}
             />
 
             <CreateEditUsefulItemModal

@@ -7,10 +7,11 @@ import { IngredientCard } from '@/components/admin/ingredients/IngredientCard';
 import { useIngredients } from '@/hooks/admin/useIngredients';
 import { AlertModal } from '@/components/common/AlertModal';
 import { SearchBar } from '@/components/common/SearchBar';
-import { AdminIngredient } from '@/types/recipe.admin.types';
+import { AdminIngredient, getTranslatedField } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { CreateEditIngredientModal } from '@/components/admin/ingredients/CreateEditIngredientModal';
 import { Text } from '@/components/common/Text';
+import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
 
 export default function IngredientsAdminPage() {
   const {
@@ -22,6 +23,7 @@ export default function IngredientsAdminPage() {
     handleDeleteIngredient,
   } = useIngredients();
 
+  const [displayLocale, setDisplayLocale] = useState('es');
   const [modalVisible, setModalVisible] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<AdminIngredient | null>(null);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
@@ -74,14 +76,16 @@ export default function IngredientsAdminPage() {
   return (
     <AdminLayout title="Manage Ingredients" showBackButton={true}>
       <View className="p-md" style={{ backgroundColor: '#ffffff' }}>
-        <View className="flex-col sm:flex-row sm:items-center">
+        <View className="mb-md">
+          <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+        </View>
+        <View className="flex-col sm:flex-row sm:items-center gap-md">
           <SearchBar
-            className="flex-none sm:flex-1 mb-md sm:mb-0 sm:mr-md"
+            className="flex-none sm:flex-1"
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             placeholder="Search ingredients..."
           />
-
           <TouchableOpacity
             className="flex-row items-center bg-primary-dark px-md py-sm rounded-lg self-start sm:self-auto"
             onPress={handleOpenCreateModal}
@@ -99,9 +103,11 @@ export default function IngredientsAdminPage() {
       ) : (
         <FlatList
           data={filteredIngredients}
+          extraData={displayLocale}
           renderItem={({ item }) => (
             <IngredientCard
               ingredient={item}
+              displayLocale={displayLocale}
               onEdit={handleOpenEditModal}
               onDelete={handleDeleteConfirmation}
             />
@@ -129,7 +135,7 @@ export default function IngredientsAdminPage() {
       <AlertModal
         visible={showDeleteAlert}
         title={i18n.t('admin.ingredients.confirmDeletion.title')}
-        message={`${i18n.t('admin.ingredients.confirmDeletion.message')} ${selectedIngredient?.nameEn} | ${selectedIngredient?.nameEs}`}
+        message={`${i18n.t('admin.ingredients.confirmDeletion.message')} ${getTranslatedField(selectedIngredient?.translations, displayLocale, 'name')}`}
         onConfirm={handleConfirmDelete}
         onCancel={() => {
           setShowDeleteAlert(false);

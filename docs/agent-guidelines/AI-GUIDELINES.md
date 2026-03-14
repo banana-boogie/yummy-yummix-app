@@ -37,10 +37,14 @@ yyx-server/supabase/functions/
 │   ├── ai-gateway/                   # Provider-agnostic AI interface
 │   │   ├── index.ts                  # Public API: chat(), chatStream(), embed()
 │   │   ├── router.ts                 # Usage-type → provider/model routing
+│   │   ├── config.ts                 # Default routing config (provider + model per usage type)
 │   │   ├── types.ts                  # AICompletionRequest, AICompletionResponse, etc.
 │   │   └── providers/
+│   │       ├── openai-compatible.ts  # Shared base for OpenAI-format APIs
 │   │       ├── openai.ts             # OpenAI: completions, streaming, embeddings
-│   │       └── google.ts             # Google Gemini: completions, streaming
+│   │       ├── xai.ts                # xAI (Grok): thin wrapper over openai-compatible
+│   │       ├── google.ts             # Google Gemini: completions, streaming
+│   │       └── anthropic.ts          # Anthropic: completions, streaming, tool calling
 │   ├── tools/                        # AI function calling system
 │   │   ├── tool-registry.ts          # Single source of truth for all tools
 │   │   ├── execute-tool.ts           # Dispatches tool calls
@@ -107,13 +111,16 @@ const response = await chat({
   responseFormat: { type: 'json_schema', schema: { /* JSON Schema */ } },
 });
 
-// Streaming
-for await (const chunk of chatStream({
+// Streaming — chatStream returns AIStreamResult with .stream and .usage()
+const result = await chatStream({
   usageType: 'text',
   messages: [...],
-})) {
+});
+for await (const chunk of result.stream) {
   // chunk is a string token
 }
+// Optionally await cost data after stream completes:
+const { inputTokens, outputTokens, costUsd } = await result.usage();
 
 // Embeddings
 const embedding = await embed({
@@ -124,17 +131,32 @@ const embedding = await embed({
 
 ### Usage Types
 
-| Type                  | Default Model                    | Config            | Use Case                                     | Cost     |
-| --------------------- | -------------------------------- | ----------------- | -------------------------------------------- | -------- |
-| `text`                | google/gemini-2.5-flash          | thinking: minimal | Chat orchestrator (tool calling + streaming) | Low      |
-| `recipe_generation`   | google/gemini-2.5-flash          | thinking: minimal | Recipe generation (structured JSON output)   | Low      |
-| `recipe_modification` | google/gemini-2.5-flash          | thinking: minimal | Recipe modification (transform existing JSON)| Low      |
-| `parsing`             | openai/gpt-4.1-nano              | temperature: `1`  | Admin parsing, nutritional data extraction   | Very low |
-| `embedding`           | openai/text-embedding-3-large    | N/A               | Vector search (3072 dimensions)              | Low      |
+| Type                  | Provider | Default Model                 | Use Case                                     | Cost     |
+| --------------------- | -------- | ----------------------------- | -------------------------------------------- | -------- |
+| `text`                | xai      | grok-4-1-fast-non-reasoning   | Chat orchestrator (tool calling + streaming) | Low      |
+| `recipe_generation`   | openai   | gpt-4.1                       | Recipe generation (structured JSON output)   | Low      |
+| `recipe_modification` | openai   | gpt-4.1                       | Recipe modification (transform existing JSON)| Medium   |
+| `parsing`             | openai   | gpt-4.1-nano                  | Admin parsing, nutritional data extraction   | Very low |
+| `embedding`           | openai   | text-embedding-3-large        | Vector search (3072 dimensions)              | Low      |
 
-Override via env vars (supports `provider:model` format):
-`AI_TEXT_MODEL=openai:gpt-4.1-mini`, `AI_RECIPE_GENERATION_MODEL=gemini-2.5-flash`,
-`AI_RECIPE_MODIFICATION_MODEL`, `AI_PARSING_MODEL`.
+The `text` usage type uses xAI Grok for 100% tool accuracy and lowest cost.
+`recipe_generation` uses `gpt-4.1` for quality-critical structured output.
+`recipe_modification` uses `gpt-4.1` for quality-critical JSON transforms (matches generation quality).
+
+Override via env vars — supports two formats:
+
+```bash
+# Switch provider AND model
+AI_TEXT_MODEL=openai:gpt-4.1-mini
+
+# Same provider, different model (model-only override)
+AI_RECIPE_GENERATION_MODEL=gemini-2.5-flash
+AI_RECIPE_MODIFICATION_MODEL=gpt-4.1
+AI_PARSING_MODEL=gpt-4.1-nano
+AI_EMBEDDING_MODEL=text-embedding-3-large
+```
+
+The env var name is derived from the usage type: `AI_<USAGE_TYPE_UPPERCASE>_MODEL`.
 
 ### Design Pattern
 
@@ -142,16 +164,51 @@ OpenAI format is the **universal interface** (lingua franca). Each provider
 translates from this common format to their native API. This is NOT
 OpenAI-specific — it's the industry standard (same as Vercel AI SDK, LangChain).
 
+### Supported Providers
+
+| Provider    | Env Var Key         | Implementation              | Notes                                      |
+| ----------- | ------------------- | --------------------------- | ------------------------------------------ |
+| `openai`    | `OPENAI_API_KEY`    | `providers/openai.ts`       | Completions, streaming, embeddings         |
+| `xai`       | `XAI_API_KEY`       | `providers/xai.ts`          | Grok models — thin wrapper on openai-compat|
+| `google`    | `GEMINI_API_KEY`    | `providers/google.ts`       | Gemini models — native API translation     |
+| `anthropic` | `ANTHROPIC_API_KEY` | `providers/anthropic.ts`    | Claude models — streaming (no tools in stream)|
+
+xAI and OpenAI share the OpenAI-compatible base (`openai-compatible.ts`), which
+abstracts over field differences (`max_tokens` vs `max_completion_tokens`,
+reasoning support, etc.).
+
+Google and Anthropic have full native API translations including message format,
+tool calling, structured output, and thinking/reasoning config.
+
+### Required API Keys
+
+Configure these in `.env.local` and as Supabase cloud secrets:
+
+```bash
+OPENAI_API_KEY=sk-proj-...    # parsing, embedding, recipe_generation, recipe_modification
+XAI_API_KEY=...               # text (chat orchestrator)
+GEMINI_API_KEY=AIza...        # optional override target via AI_*_MODEL env vars
+ANTHROPIC_API_KEY=sk-ant-...  # optional override target via AI_*_MODEL env vars
+```
+
+Only the keys for providers actively in use need to be set. With the current
+defaults, `OPENAI_API_KEY` and `XAI_API_KEY` are required.
+
 ---
 
 ## Adding New Providers
 
 1. Create `ai-gateway/providers/<name>.ts`
-2. Implement the same interface as `openai.ts` or `google.ts`: `callProvider()`,
-   `callProviderStream()`, and optionally `callProviderEmbedding()`
-3. Add the provider to the `case` statements in `index.ts`
-4. Update `router.ts` to route appropriate usage types to the new provider
-5. Add tests in `ai-gateway/__tests__/<name>-provider.test.ts`
+2. Implement `callProvider()`, `callProviderStream()`, and optionally
+   `callProviderEmbedding()` — translate from the gateway's OpenAI-format
+   interface to the provider's native API (see `google.ts` or `anthropic.ts` as
+   reference)
+3. Add the provider name to the `AIProvider` union in `types.ts`
+4. Add the API key env var to `providerApiKeyMap` in `router.ts`
+5. Add the provider to the `case` statements in `index.ts`
+6. Optionally update `defaultRoutingConfig` in `router.ts` to route a usage type
+   to the new provider
+7. Add tests in `ai-gateway/__tests__/<name>-provider.test.ts`
 
 ---
 

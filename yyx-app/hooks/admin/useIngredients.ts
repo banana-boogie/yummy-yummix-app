@@ -56,16 +56,16 @@ export function useIngredients(): UseIngredientsReturn {
   };
 
 
-  // Filter ingredients when search query changes
+  // Filter ingredients when search query changes — searches all translations
   useEffect(() => {
     if (searchQuery) {
-      const filtered = ingredients.filter(ingredient => 
-        ingredient.nameEn?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ingredient.nameEs?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        ingredient.pluralNameEn?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        ingredient.pluralNameEs.toLowerCase().includes(searchQuery.toLowerCase())
+      const lowerQuery = searchQuery.toLowerCase();
+      const filtered = ingredients.filter(ingredient =>
+        ingredient.translations.some(t =>
+          t.name?.toLowerCase().includes(lowerQuery) ||
+          t.pluralName?.toLowerCase().includes(lowerQuery)
+        )
       );
-      
       setFilteredIngredients(filtered);
     } else {
       setFilteredIngredients(ingredients);

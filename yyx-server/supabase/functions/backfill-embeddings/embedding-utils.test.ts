@@ -21,38 +21,82 @@ function createRecipe(
 ): RecipeEmbeddingRow {
   return {
     id: "recipe-1",
-    name_en: "Chicken Soup",
-    name_es: "Sopa de Pollo",
-    tips_and_tricks_en: "Use fresh herbs for better flavor.",
-    tips_and_tricks_es: "Usa hierbas frescas para mejor sabor.",
+    recipe_translations: [
+      {
+        locale: "en",
+        name: "Chicken Soup",
+        tips_and_tricks: "Use fresh herbs for better flavor.",
+      },
+      {
+        locale: "es",
+        name: "Sopa de Pollo",
+        tips_and_tricks: "Usa hierbas frescas para mejor sabor.",
+      },
+    ],
     recipe_ingredients: [
-      { ingredients: { name_en: "Zucchini", name_es: "Calabacita" } },
-      { ingredients: { name_en: "Carrot", name_es: "Zanahoria" } },
+      {
+        ingredients: {
+          ingredient_translations: [
+            { locale: "en", name: "Zucchini" },
+            { locale: "es", name: "Calabacita" },
+          ],
+        },
+      },
+      {
+        ingredients: {
+          ingredient_translations: [
+            { locale: "en", name: "Carrot" },
+            { locale: "es", name: "Zanahoria" },
+          ],
+        },
+      },
     ],
     recipe_to_tag: [
-      { recipe_tags: { name_en: "Comfort", name_es: "Casera" } },
-      { recipe_tags: { name_en: "Dinner", name_es: "Cena" } },
+      {
+        recipe_tags: {
+          recipe_tag_translations: [
+            { locale: "en", name: "Comfort" },
+            { locale: "es", name: "Casera" },
+          ],
+        },
+      },
+      {
+        recipe_tags: {
+          recipe_tag_translations: [
+            { locale: "en", name: "Dinner" },
+            { locale: "es", name: "Cena" },
+          ],
+        },
+      },
     ],
     recipe_steps: [
       {
         order: 3,
-        instruction_en: "Serve hot.",
-        instruction_es: "Servir caliente.",
+        recipe_step_translations: [
+          { locale: "en", instruction: "Serve hot." },
+          { locale: "es", instruction: "Servir caliente." },
+        ],
       },
       {
         order: 1,
-        instruction_en: "Boil water.",
-        instruction_es: "Hervir agua.",
+        recipe_step_translations: [
+          { locale: "en", instruction: "Boil water." },
+          { locale: "es", instruction: "Hervir agua." },
+        ],
       },
       {
         order: 4,
-        instruction_en: "Optional garnish.",
-        instruction_es: "Adorno opcional.",
+        recipe_step_translations: [
+          { locale: "en", instruction: "Optional garnish." },
+          { locale: "es", instruction: "Adorno opcional." },
+        ],
       },
       {
         order: 2,
-        instruction_en: "Add vegetables.",
-        instruction_es: "Agregar verduras.",
+        recipe_step_translations: [
+          { locale: "en", instruction: "Add vegetables." },
+          { locale: "es", instruction: "Agregar verduras." },
+        ],
       },
     ],
     ...overrides,

@@ -22,11 +22,14 @@ import {
   ReviewForm,
   RecipeUsefulItemsForm
 } from '@/components/admin/recipes/forms';
+import { TranslationStep } from '@/components/admin/recipes/forms/translationForm/TranslationStep';
+import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
 
 // Recipe creation form with multiple steps
 export default function NewRecipePage() {
   const router = useRouter();
   const [showAlert, setShowAlert] = useState(false);
+  const [displayLocale, setDisplayLocale] = useState('es');
   const [alertMessage, setAlertMessage] = useState('');
   const [alertSuccess, setAlertSuccess] = useState(false);
 
@@ -37,6 +40,8 @@ export default function NewRecipePage() {
     saving,
     showResumeDialog,
     savedRecipe,
+    authoringLocale,
+    setAuthoringLocale,
     updateRecipe,
     handleNextStep,
     handlePrevStep,
@@ -68,17 +73,19 @@ export default function NewRecipePage() {
           recipe={recipe}
         />;
       case CreateRecipeStep.BASIC_INFO:
-        return <RecipeInfoForm recipe={recipe} onUpdateRecipe={updateRecipe} errors={errors} />;
+        return <RecipeInfoForm recipe={recipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} onAuthoringLocaleChange={setAuthoringLocale} />;
       case CreateRecipeStep.USEFUL_ITEMS:
-        return <RecipeUsefulItemsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} />;
+        return <RecipeUsefulItemsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} />;
       case CreateRecipeStep.INGREDIENTS:
-        return <RecipeIngredientsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} />;
+        return <RecipeIngredientsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} />;
       case CreateRecipeStep.STEPS:
-        return <StepsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} />;
+        return <StepsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} />;
       case CreateRecipeStep.TAGS:
-        return <TagsForm recipe={recipe} onUpdateRecipe={updateRecipe} errors={errors} />;
+        return <TagsForm recipe={recipe} onUpdateRecipe={updateRecipe} errors={errors} displayLocale={displayLocale} />;
+      case CreateRecipeStep.TRANSLATIONS:
+        return <TranslationStep recipe={recipe} authoringLocale={authoringLocale} onUpdateRecipe={updateRecipe} />;
       case CreateRecipeStep.REVIEW:
-        return <ReviewForm recipe={recipe} onUpdateRecipe={updateRecipe} />;
+        return <ReviewForm recipe={recipe} displayLocale={displayLocale} onUpdateRecipe={updateRecipe} />;
       default:
         return null;
     }
@@ -108,6 +115,11 @@ export default function NewRecipePage() {
             {showNavElements && (
               <View className="w-full px-md pb-md">
                 <RecipeProgressIndicator currentStep={currentStep} />
+                {currentStep !== CreateRecipeStep.INITIAL_SETUP && currentStep !== CreateRecipeStep.BASIC_INFO && currentStep !== CreateRecipeStep.TRANSLATIONS && (
+                  <View className="mt-md">
+                    <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+                  </View>
+                )}
               </View>
             )}
             {renderStepContent()}

@@ -10,6 +10,8 @@ import {
 import { clearEmbeddingCache, searchRecipesHybrid } from "./hybrid-search.ts";
 
 const BASE_USER_CONTEXT = {
+  locale: "en",
+  localeChain: ["en"],
   language: "en" as const,
   measurementSystem: "imperial" as const,
   dietaryRestrictions: [],
@@ -226,8 +228,10 @@ Deno.test("searchRecipesHybrid returns low_confidence when all scores are below 
 
   const mockRecipeRows = [{
     id: "11111111-1111-1111-1111-111111111111",
-    name_en: "Simple Salad",
-    name_es: "Ensalada Simple",
+    recipe_translations: [
+      { locale: "en", name: "Simple Salad" },
+      { locale: "es", name: "Ensalada Simple" },
+    ],
     image_url: null,
     total_time: 15,
     difficulty: "easy",
@@ -304,8 +308,10 @@ Deno.test("searchRecipesHybrid metadata scoring favors adjacent difficulty over 
             data: [
               {
                 id: nonAdjacentId,
-                name_en: "Dinner Bowl",
-                name_es: "Tazón Cena",
+                recipe_translations: [
+                  { locale: "en", name: "Dinner Bowl" },
+                  { locale: "es", name: "Tazón Cena" },
+                ],
                 image_url: null,
                 total_time: 30,
                 difficulty: "hard",
@@ -314,8 +320,10 @@ Deno.test("searchRecipesHybrid metadata scoring favors adjacent difficulty over 
               },
               {
                 id: adjacentId,
-                name_en: "Dinner Bowl",
-                name_es: "Tazón Cena",
+                recipe_translations: [
+                  { locale: "en", name: "Dinner Bowl" },
+                  { locale: "es", name: "Tazón Cena" },
+                ],
                 image_url: null,
                 total_time: 30,
                 difficulty: "medium",
@@ -383,8 +391,10 @@ Deno.test("searchRecipesHybrid keeps recipes up to 50% over max time with lower 
             data: [
               {
                 id: withinId,
-                name_en: "Pasta",
-                name_es: "Pasta",
+                recipe_translations: [
+                  { locale: "en", name: "Pasta" },
+                  { locale: "es", name: "Pasta" },
+                ],
                 image_url: null,
                 total_time: 30,
                 difficulty: "easy",
@@ -393,8 +403,10 @@ Deno.test("searchRecipesHybrid keeps recipes up to 50% over max time with lower 
               },
               {
                 id: over50Id,
-                name_en: "Pasta",
-                name_es: "Pasta",
+                recipe_translations: [
+                  { locale: "en", name: "Pasta" },
+                  { locale: "es", name: "Pasta" },
+                ],
                 image_url: null,
                 total_time: 45,
                 difficulty: "easy",

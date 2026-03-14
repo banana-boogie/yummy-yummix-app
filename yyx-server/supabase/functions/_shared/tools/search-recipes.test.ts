@@ -4,7 +4,12 @@ import {
   assertExists,
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { clearAllergenCache } from "../allergen-filter.ts";
-import { filterByAllKeywords, searchRecipes } from "./search-recipes.ts";
+import {
+  filterByAllKeywords,
+  formatRestrictionLabel,
+  RESTRICTION_LABELS,
+  searchRecipes,
+} from "./search-recipes.ts";
 
 type MockResult = { data: unknown; error: unknown };
 
@@ -76,7 +81,7 @@ function createMockSupabase(config: {
         };
       }
 
-      if (table === "recipe_tags") {
+      if (table === "recipe_tag_translations") {
         return {
           select: () => ({
             or: async (filter: string) => {
@@ -118,10 +123,14 @@ function createMockSupabase(config: {
 }
 
 function createUserContext(
-  language: "en" | "es",
+  locale: string,
   dietaryRestrictions: string[] = [],
 ) {
+  const localeChain = locale === "es" ? ["es", "en"] : ["en"];
+  const language: "en" | "es" = locale === "es" ? "es" : "en";
   return {
+    locale,
+    localeChain,
     language,
     measurementSystem: "imperial" as const,
     dietaryRestrictions,
@@ -141,8 +150,10 @@ Deno.test("searchRecipes adds verification warning when ingredient lookup fails"
   const supabase = createMockSupabase({
     searchRecipesData: [{
       id: "recipe-1",
-      name_en: "Creamy Pasta",
-      name_es: "Pasta Cremosa",
+      recipe_translations: [
+        { locale: "en", name: "Creamy Pasta" },
+        { locale: "es", name: "Pasta Cremosa" },
+      ],
       image_url: null,
       total_time: 25,
       difficulty: "easy",
@@ -171,8 +182,10 @@ Deno.test("searchRecipes adds verification warning when allergen map is empty", 
   const supabase = createMockSupabase({
     searchRecipesData: [{
       id: "recipe-1",
-      name_en: "Creamy Pasta",
-      name_es: "Pasta Cremosa",
+      recipe_translations: [
+        { locale: "en", name: "Creamy Pasta" },
+        { locale: "es", name: "Pasta Cremosa" },
+      ],
       image_url: null,
       total_time: 25,
       difficulty: "easy",
@@ -200,58 +213,57 @@ Deno.test("searchRecipes adds verification warning when allergen map is empty", 
   );
 });
 
-Deno.test("searchRecipes splits multi-word query for name and tag filters", async () => {
+Deno.test("searchRecipes post-filters by query text across translations", async () => {
   const supabase = createMockSupabase({
-    searchRecipesData: [],
+    searchRecipesData: [
+      {
+        id: "recipe-1",
+        recipe_translations: [
+          { locale: "en", name: "Tinga de Pollo" },
+          { locale: "es", name: "Tinga de Pollo" },
+        ],
+        image_url: null,
+        total_time: 25,
+        difficulty: "easy",
+        portions: 2,
+        recipe_to_tag: [],
+      },
+      {
+        id: "recipe-2",
+        recipe_translations: [
+          { locale: "en", name: "Banana Bread" },
+          { locale: "es", name: "Pan de Plátano" },
+        ],
+        image_url: null,
+        total_time: 45,
+        difficulty: "easy",
+        portions: 4,
+        recipe_to_tag: [],
+      },
+    ],
     matchingTagsData: [],
     recipeTagJoinsData: [],
   });
 
-  await searchRecipes(
+  const result = await searchRecipes(
     supabase,
-    { query: "tinga de pollo", limit: 5 },
+    { query: "tinga", limit: 5 },
     createUserContext("en"),
   );
 
-  assertEquals(supabase.calls.recipeNameOr.length > 0, true);
-  const nameFilter = supabase.calls.recipeNameOr[0];
-  assert(nameFilter.includes("name_en.ilike.%tinga de pollo%"));
-  assert(nameFilter.includes("name_en.ilike.%tinga%"));
-  assert(nameFilter.includes("name_en.ilike.%pollo%"));
-  assertEquals(nameFilter.includes("name_en.ilike.%de%"), false);
-
-  assertEquals(supabase.calls.tagNameOr.length > 0, true);
-  const tagFilter = supabase.calls.tagNameOr[0];
-  assert(tagFilter.includes("name_en.ilike.%tinga de pollo%"));
-  assert(tagFilter.includes("name_en.ilike.%tinga%"));
-  assert(tagFilter.includes("name_en.ilike.%pollo%"));
-});
-
-Deno.test("searchRecipes keeps single-word query unchanged in OR filter", async () => {
-  const supabase = createMockSupabase({
-    searchRecipesData: [],
-    matchingTagsData: [],
-    recipeTagJoinsData: [],
-  });
-
-  await searchRecipes(
-    supabase,
-    { query: "pasta", limit: 5 },
-    createUserContext("en"),
-  );
-
-  assertEquals(
-    supabase.calls.recipeNameOr[0],
-    "name_en.ilike.%pasta%,name_es.ilike.%pasta%",
-  );
+  // Post-filtering should only keep the recipe whose translation names contain "tinga"
+  assertEquals(result.length, 1);
+  assertEquals(result[0].name, "Tinga de Pollo");
 });
 
 Deno.test("searchRecipes keeps strict DB filters for filter-only requests", async () => {
   const supabase = createMockSupabase({
     searchRecipesData: [{
       id: "recipe-1",
-      name_en: "Simple Pasta",
-      name_es: "Pasta Simple",
+      recipe_translations: [
+        { locale: "en", name: "Simple Pasta" },
+        { locale: "es", name: "Pasta Simple" },
+      ],
       image_url: null,
       total_time: 25,
       difficulty: "easy",
@@ -285,8 +297,10 @@ Deno.test("searchRecipes query mode keeps near-over-time matches and ranks them 
     searchRecipesData: [
       {
         id: "11111111-1111-1111-1111-111111111111",
-        name_en: "Quick Pasta",
-        name_es: "Pasta Rápida",
+        recipe_translations: [
+          { locale: "en", name: "Quick Pasta" },
+          { locale: "es", name: "Pasta Rápida" },
+        ],
         image_url: null,
         total_time: 30,
         difficulty: "easy",
@@ -295,8 +309,10 @@ Deno.test("searchRecipes query mode keeps near-over-time matches and ranks them 
       },
       {
         id: "22222222-2222-2222-2222-222222222222",
-        name_en: "Slow Pasta",
-        name_es: "Pasta Lenta",
+        recipe_translations: [
+          { locale: "en", name: "Slow Pasta" },
+          { locale: "es", name: "Pasta Lenta" },
+        ],
         image_url: null,
         total_time: 34,
         difficulty: "easy",
@@ -330,26 +346,63 @@ Deno.test("searchRecipes query mode keeps near-over-time matches and ranks them 
 
 function makeRecipeWithTags(
   id: string,
-  tags: Array<{ name_en: string | null; name_es: string | null }>,
+  tags: Array<{ en: string | null; es: string | null }>,
 ) {
   return {
     id,
-    name_en: id,
-    name_es: null,
+    recipe_translations: [{ locale: "en", name: id }],
     image_url: null,
     total_time: 30,
     difficulty: "easy" as const,
     portions: 4,
     recipe_to_tag: tags.map((t) => ({
-      recipe_tags: { name_en: t.name_en, name_es: t.name_es, categories: [] },
+      recipe_tags: {
+        recipe_tag_translations: [
+          ...(t.en ? [{ locale: "en", name: t.en }] : []),
+          ...(t.es ? [{ locale: "es", name: t.es }] : []),
+        ],
+        categories: [],
+      },
     })),
   };
 }
 
+// ============================================================
+// formatRestrictionLabel — locale-aware allergen labels
+// ============================================================
+
+Deno.test("formatRestrictionLabel returns Mexican Spanish for 'es'", () => {
+  assertEquals(formatRestrictionLabel("peanuts", "es"), "cacahuates");
+  assertEquals(formatRestrictionLabel("nuts", "es"), "nueces");
+});
+
+Deno.test("formatRestrictionLabel returns Spain Spanish for 'es-ES'", () => {
+  assertEquals(formatRestrictionLabel("peanuts", "es-ES"), "cacahuetes");
+  assertEquals(formatRestrictionLabel("nuts", "es-ES"), "frutos secos");
+});
+
+Deno.test("formatRestrictionLabel falls back from es-ES to es for labels without es-ES variant", () => {
+  // dairy has no es-ES entry, should fall back to es
+  assertEquals(formatRestrictionLabel("dairy", "es-ES"), "lácteos");
+});
+
+Deno.test("formatRestrictionLabel falls back to en for unknown locale", () => {
+  assertEquals(formatRestrictionLabel("peanuts", "fr"), "peanuts");
+});
+
+Deno.test("RESTRICTION_LABELS has es-ES variants for peanuts and nuts", () => {
+  assertEquals(RESTRICTION_LABELS["peanuts"]["es-ES"], "cacahuetes");
+  assertEquals(RESTRICTION_LABELS["nuts"]["es-ES"], "frutos secos");
+});
+
+// ============================================================
+// filterByAllKeywords (pure function, no DB dependency)
+// ============================================================
+
 Deno.test("filterByAllKeywords - single word query passes all recipes through", () => {
   const recipes = [
-    makeRecipeWithTags("r1", [{ name_en: "chicken", name_es: "pollo" }]),
-    makeRecipeWithTags("r2", [{ name_en: "pasta", name_es: "pasta" }]),
+    makeRecipeWithTags("r1", [{ en: "chicken", es: "pollo" }]),
+    makeRecipeWithTags("r2", [{ en: "pasta", es: "pasta" }]),
   ];
   const result = filterByAllKeywords(recipes, "chicken");
   assertEquals(result.length, 2);
@@ -358,14 +411,14 @@ Deno.test("filterByAllKeywords - single word query passes all recipes through", 
 Deno.test("filterByAllKeywords - multi-word query keeps recipes matching all keywords", () => {
   const recipes = [
     makeRecipeWithTags("both", [
-      { name_en: "chicken", name_es: "pollo" },
-      { name_en: "pasta", name_es: "pasta" },
+      { en: "chicken", es: "pollo" },
+      { en: "pasta", es: "pasta" },
     ]),
     makeRecipeWithTags("chicken-only", [
-      { name_en: "chicken", name_es: "pollo" },
+      { en: "chicken", es: "pollo" },
     ]),
     makeRecipeWithTags("pasta-only", [
-      { name_en: "pasta", name_es: "pasta" },
+      { en: "pasta", es: "pasta" },
     ]),
   ];
   const result = filterByAllKeywords(recipes, "chicken pasta");
@@ -376,8 +429,8 @@ Deno.test("filterByAllKeywords - multi-word query keeps recipes matching all key
 Deno.test("filterByAllKeywords - matches Spanish tags too", () => {
   const recipes = [
     makeRecipeWithTags("r1", [
-      { name_en: null, name_es: "pollo" },
-      { name_en: null, name_es: "pasta" },
+      { en: null, es: "pollo" },
+      { en: null, es: "pasta" },
     ]),
   ];
   const result = filterByAllKeywords(recipes, "pollo pasta");
@@ -386,7 +439,7 @@ Deno.test("filterByAllKeywords - matches Spanish tags too", () => {
 
 Deno.test("filterByAllKeywords - short keywords (<=2 chars) are ignored", () => {
   const recipes = [
-    makeRecipeWithTags("r1", [{ name_en: "chicken", name_es: "pollo" }]),
+    makeRecipeWithTags("r1", [{ en: "chicken", es: "pollo" }]),
   ];
   // "de" is 2 chars, filtered out — only "chicken" remains → single keyword → pass-through
   const result = filterByAllKeywords(recipes, "chicken de");
@@ -401,8 +454,8 @@ Deno.test("filterByAllKeywords - empty recipes returns empty", () => {
 Deno.test("filterByAllKeywords - case insensitive matching", () => {
   const recipes = [
     makeRecipeWithTags("r1", [
-      { name_en: "Chicken", name_es: null },
-      { name_en: "Pasta", name_es: null },
+      { en: "Chicken", es: null },
+      { en: "Pasta", es: null },
     ]),
   ];
   const result = filterByAllKeywords(recipes, "CHICKEN PASTA");
@@ -412,8 +465,8 @@ Deno.test("filterByAllKeywords - case insensitive matching", () => {
 Deno.test("filterByAllKeywords - partial tag match works", () => {
   const recipes = [
     makeRecipeWithTags("r1", [
-      { name_en: "chicken breast", name_es: null },
-      { name_en: "pasta dish", name_es: null },
+      { en: "chicken breast", es: null },
+      { en: "pasta dish", es: null },
     ]),
   ];
   const result = filterByAllKeywords(recipes, "chicken pasta");

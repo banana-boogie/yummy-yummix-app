@@ -23,7 +23,7 @@ export interface VoiceToolCall {
 
 // User context
 export interface UserContext {
-    language: 'en' | 'es';
+    locale: string;
     measurementSystem: 'metric' | 'imperial';
     dietaryRestrictions: string[];
     dietTypes: string[];
@@ -57,7 +57,7 @@ export interface QuotaInfo {
 
 // Provider config
 export interface ProviderConfig {
-    language: 'en' | 'es';
+    locale: string;
     sessionId?: string; // Optional because provider generates/obtains it during initialize
 }
 

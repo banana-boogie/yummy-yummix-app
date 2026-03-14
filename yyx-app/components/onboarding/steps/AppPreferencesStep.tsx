@@ -1,14 +1,15 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, StyleProp, ViewStyle } from 'react-native';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { Text } from '@/components/common/Text';
-import * as Localization from 'expo-localization';
+import { getLocales } from 'expo-localization';
 import { StepNavigationButtons } from '../StepNavigationButtons';
 import { Language } from '@/types/Language';
 import { MeasurementSystem } from '@/types/user';
 import i18n from '@/i18n';
 import { Button } from '@/components/common/Button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
 
 const LANGUAGE_OPTIONS = [
   { value: 'es' as Language, label: 'Español' },
@@ -35,26 +36,49 @@ interface AppPreferencesStepProps {
 
 export function AppPreferencesStep({ className = '', style }: AppPreferencesStepProps) {
   const { formData, updateFormData, goToNextStep, goToPreviousStep } = useOnboarding();
-  const { setLanguage } = useLanguage();
-  const systemLocale = Localization.getLocales()[0].languageCode;
+  const { setLocale, language } = useLanguage();
+  const { locales: activeLocales } = useActiveLocales(true);
+  const deviceLocales = getLocales();
+  const hasUserSelected = useRef(false);
 
-  // Set defaults when component mounts
+  // Set defaults once active locales are loaded.
+  // We wait for activeLocales to be non-empty so the device-locale lookup
+  // actually has data to match against. The hasUserSelected ref prevents
+  // overwriting an explicit user choice if activeLocales re-renders later.
   useEffect(() => {
-    const defaultLanguage = systemLocale === 'es' ? 'es' : 'en';
-    const defaultMeasurement = defaultLanguage === 'en' ? 'imperial' : 'metric';
+    if (activeLocales.length === 0 || hasUserSelected.current) return;
 
-    if (!formData.language) {
+    const isSpanish = language === 'es';
+    const knownCodes = activeLocales.map((l) => l.code);
+    const deviceTag = deviceLocales[0]?.languageTag;
+    const bestLocale =
+      deviceTag && knownCodes.includes(deviceTag) ? deviceTag : (isSpanish ? 'es' : 'en');
+    const defaultMeasurement = isSpanish ? 'metric' : 'imperial';
+
+    if (!formData.locale || formData.locale === 'es' || formData.locale === 'en') {
       updateFormData({
-        language: defaultLanguage,
-        measurementSystem: defaultMeasurement
+        locale: bestLocale,
+        measurementSystem: formData.measurementSystem || defaultMeasurement,
       });
     }
-  }, []);
+  }, [activeLocales]);
 
   const handleLanguageSelect = async (language: Language) => {
-    await setLanguage(language);
+    hasUserSelected.current = true;
+
+    // Use device locale if it matches the selected language and exists
+    // in the locales table; otherwise fall back to the base code.
+    const matchingDevice = deviceLocales.find(
+      (dl) => dl.languageCode === language
+    );
+    const deviceTag = matchingDevice?.languageTag;
+    const knownCodes = activeLocales.map((l) => l.code);
+    const locale =
+      deviceTag && knownCodes.includes(deviceTag) ? deviceTag : language;
+
+    await setLocale(locale);
     i18n.locale = language;
-    updateFormData({ language });
+    updateFormData({ locale });
   };
 
   const handleMeasurementSelect = (measurementSystem: MeasurementSystem) => {
@@ -80,7 +104,7 @@ export function AppPreferencesStep({ className = '', style }: AppPreferencesStep
             {LANGUAGE_OPTIONS.map(option => (
               <Button
                 key={option.value}
-                variant={formData.language === option.value ? 'primary' : 'secondary'}
+                variant={(formData.locale?.startsWith(option.value) || (option.value === 'en' && !formData.locale?.startsWith('es'))) ? 'primary' : 'secondary'}
                 size="medium"
                 label={option.label}
                 onPress={() => handleLanguageSelect(option.value)}

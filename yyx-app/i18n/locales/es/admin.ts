@@ -28,6 +28,7 @@ export const admin = {
     draftRecipes: "Recetas en Borrador",
     adminMenu: "Menú de Administración",
     backToApp: "Volver a la App",
+    displayLanguage: "Mostrar",
   },
   analytics: {
     title: "Analítica",
@@ -309,6 +310,7 @@ export const admin = {
       },
       stepsInfo: {
         title: "Instrucciones",
+        step: "Paso",
         addStep: "Agregar Paso",
         editStep: "Editar Paso",
         updateStep: "Actualizar Paso",
@@ -503,6 +505,7 @@ export const admin = {
     },
   },
   tags: {
+    name: "Nombre",
     searchPlaceholder: "Buscar etiquetas...",
     addNew: "Agregar Etiqueta",
     createTitle: "Crear Nueva Etiqueta",
@@ -535,7 +538,7 @@ export const admin = {
     confirmDeletion: {
       title: "Confirmar Eliminación",
       message:
-        "¿Estás seguro de que deseas eliminar {{nameEn}} | {{nameEs}}?",
+        "¿Estás seguro de que deseas eliminar {{name}}?",
     },
     errors: {
       title: "Error",
@@ -557,5 +560,35 @@ export const admin = {
         imageRequired: "La imagen es obligatoria",
       },
     },
+  },
+  translate: {
+    autoTranslate: "Auto-traducir",
+    translating: "Traduciendo...",
+    translateError: "La traducción falló. Intente de nuevo.",
+    translateSuccess: "Traducciones generadas exitosamente.",
+    authoringLanguage: "Escribiendo en",
+    translationStep: "Traducciones",
+    summary: "Resumen de Traducción",
+    recipeInfo: "Info de Receta",
+    steps: "Pasos",
+    ingredients: "Ingredientes",
+    usefulItems: "Utensilios",
+    source: "Origen",
+    target: "Destino",
+    languages: "idiomas",
+    fields: "campos",
+    targetLanguages: "Traducir a",
+    translateAll: "Traducir Todo",
+    translationComplete: "¡Traducción completada!",
+    partialFailure: "La traducción falló para: %{locales}. El contenido existente se conservó.",
+    retranslate: "Re-traducir",
+    warningTitle: "¿Omitir inglés?",
+    enWarning: "Se recomienda la traducción al inglés para todas las recetas. ¿Estás seguro de que quieres omitirlo?",
+    skipEnglish: "Omitir inglés",
+    keepEnglish: "Mantener inglés",
+    fieldName: "Nombre",
+    fieldTipsAndTricks: "Consejos y Trucos",
+    fieldSection: "Sección",
+    fieldNotes: "Notas",
   },
 };

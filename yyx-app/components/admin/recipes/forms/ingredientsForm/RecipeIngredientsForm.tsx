@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { View, FlatList, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, FlatList, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { Text } from '@/components/common/Text';
-import { AdminRecipe, AdminRecipeIngredient, AdminIngredient } from '@/types/recipe.admin.types';
+import { AdminRecipe, AdminRecipeIngredient, AdminIngredient, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/i18n';
 import { AdminRecipeIngredientCard } from '@/components/admin/recipes/forms/ingredientsForm/AdminRecipeIngredientCard';
@@ -14,7 +14,6 @@ import { Image } from 'expo-image';
 import { CreateEditIngredientModal } from '@/components/admin/ingredients/CreateEditIngredientModal';
 import { Button } from '@/components/common/Button';
 import { AlertModal } from '@/components/common/AlertModal';
-import { LanguageBadge } from '@/components/common/LanguageBadge';
 import { v4 as generateUUID } from 'uuid';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
 import { COLORS } from '@/constants/design-tokens';
@@ -24,9 +23,12 @@ type IngredientsFormProps = {
   recipe: AdminRecipe;
   onUpdateRecipe: (updates: Partial<AdminRecipe>) => void;
   errors: Record<string, string>;
+  authoringLocale?: string;
+  displayLocale?: string;
 };
 
-export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: IngredientsFormProps) {
+export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es', displayLocale }: IngredientsFormProps) {
+  const tForm = (key: string, opts?: any) => i18n.t(key, { ...opts, locale: authoringLocale });
   const { isMobile } = useDevice();
   const [ingredients, setIngredients] = useState<AdminIngredient[]>([]);
   const [filteredIngredients, setFilteredIngredients] = useState<AdminIngredient[]>([]);
@@ -39,11 +41,13 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [rightColHeight, setRightColHeight] = useState<number | undefined>(undefined);
   const isWeb = Platform.OS === 'web';
 
   // Group ingredients by recipeSection
   const groupedIngredients = recipe.ingredients.reduce<Record<string, AdminRecipeIngredient[]>>((acc, ingredient) => {
-    const recipeSection = ingredient.recipeSectionEn || ingredient.recipeSectionEs || '';
+    const recipeSection = getTranslatedField(ingredient.translations, authoringLocale, 'recipeSection')
+      || '';
     if (!acc[recipeSection]) {
       acc[recipeSection] = [];
     }
@@ -92,9 +96,10 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
 
     const query = searchQuery.toLowerCase();
     const filtered = ingredients.filter(
-      ingredient =>
-        (ingredient.nameEn && ingredient.nameEn.toLowerCase().includes(query)) ||
-        (ingredient.nameEs && ingredient.nameEs.toLowerCase().includes(query))
+      ingredient => ingredient.translations.some(t =>
+        t.name?.toLowerCase().includes(query) ||
+        t.pluralName?.toLowerCase().includes(query)
+      )
     );
     setFilteredIngredients(filtered);
   }, [searchQuery, ingredients]);
@@ -110,17 +115,14 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
         id: '',
         type: 'unit',
         system: 'metric',
-        nameEn: '',
-        nameEs: '',
-        symbolEn: '',
-        symbolEs: '',
+        translations: [],
       },
       optional: false,
-      notesEn: '',
-      notesEs: '',
+      translations: [
+        { locale: 'es', recipeSection: 'Principal' },
+        { locale: 'en', recipeSection: 'Main' },
+      ],
       displayOrder: recipe.ingredients ? recipe.ingredients.length : 1,
-      recipeSectionEn: 'Main',
-      recipeSectionEs: 'Principal'
     };
 
     setSelectedRecipeIngredient(newRecipeIngredient);
@@ -304,14 +306,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
         cachePolicy="memory-disk"
       />
       <View className="flex-1">
-        <View className="flex-row items-center mb-1">
-          <LanguageBadge language="EN" size="small" />
-          <Text className="text-sm ml-1 mb-0 self-center">{item.nameEn}</Text>
-        </View>
-        <View className="flex-row items-center mb-1">
-          <LanguageBadge language="ES" size="small" />
-          <Text className="text-sm ml-1 mb-0 self-center">{item.nameEs}</Text>
-        </View>
+        <Text className="text-sm mb-0 self-center">{getTranslatedField(item.translations, displayLocale || authoringLocale, 'name')}</Text>
       </View>
       <Ionicons name="add-circle-outline" size={24} className="text-primary-DEFAULT" />
     </TouchableOpacity>
@@ -325,6 +320,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
     return (
       <AdminRecipeIngredientCard
         recipeIngredient={item}
+        displayLocale={displayLocale || authoringLocale}
         onEditPress={() => handleEditRecipeIngredient(item)}
         onDeletePress={() => handleDeleteRecipeIngredient(item)}
         onMoveUpPress={() => handleMoveRecipeIngredientUp(item.id, section)}
@@ -390,7 +386,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
   };
 
   return (
-    <FormSection title={i18n.t('admin.recipes.form.ingredientsInfo.title')} maxWidth={1000} className="mb-md">
+    <FormSection title={tForm('admin.recipes.form.ingredientsInfo.title')} maxWidth={1000} className="mb-md">
       {errors.ingredients ? (
         <Text preset="caption" className="text-status-ERROR mb-sm">
           {errors.ingredients}
@@ -413,7 +409,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
             {/* Search */}
             <View className="mb-md">
               <SearchBar
-                placeholder={i18n.t('admin.recipes.form.ingredientsInfo.searchPlaceholder')}
+                placeholder={tForm('admin.recipes.form.ingredientsInfo.searchPlaceholder')}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
                 className="w-full"
@@ -424,10 +420,10 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
             <View className="mb-lg">
               <View className="flex-row justify-between items-center pb-xs border-b border-border-DEFAULT mb-sm">
                 <Text preset="subheading" className="font-semibold">
-                  {i18n.t('admin.recipes.form.ingredientsInfo.selectedIngredients')}
+                  {tForm('admin.recipes.form.ingredientsInfo.selectedIngredients')}
                 </Text>
                 <Text preset="caption" color={COLORS.text.secondary}>
-                  {recipe.ingredients.length} {i18n.t('admin.recipes.form.ingredientsInfo.itemsSelected')}
+                  {recipe.ingredients.length} {tForm('admin.recipes.form.ingredientsInfo.itemsSelected')}
                 </Text>
               </View>
               <View className="rounded-md bg-background-SECONDARY overflow-hidden">
@@ -435,10 +431,10 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
                   <View className="justify-center items-center p-lg min-h-[120px]">
                     <Ionicons name="basket-outline" size={32} color={COLORS.text.secondary} />
                     <Text className="mt-sm text-center" color={COLORS.text.secondary}>
-                      {i18n.t('admin.recipes.form.ingredientsInfo.noIngredientsSelected')}
+                      {tForm('admin.recipes.form.ingredientsInfo.noIngredientsSelected')}
                     </Text>
                     <Text preset="caption" color={COLORS.text.secondary} className="mt-xs text-center">
-                      {i18n.t('admin.recipes.form.ingredientsInfo.selectFromBelow', { defaultValue: 'Tap an ingredient below to add it' })}
+                      {tForm('admin.recipes.form.ingredientsInfo.selectFromBelow', { defaultValue: 'Tap an ingredient below to add it' })}
                     </Text>
                   </View>
                 ) : (
@@ -456,7 +452,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
             {/* Available Ingredients (SECOND on mobile) */}
             <View>
               <Text preset="subheading" className="mb-sm">
-                {i18n.t('admin.recipes.form.ingredientsInfo.availableIngredients', { defaultValue: 'Available Ingredients' })}
+                {tForm('admin.recipes.form.ingredientsInfo.availableIngredients', { defaultValue: 'Available Ingredients' })}
               </Text>
               <View className="rounded-md bg-background-SECONDARY overflow-hidden">
                 {loading ? (
@@ -479,8 +475,8 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
                         <Ionicons name="information-circle-outline" size={32} color={COLORS.text.secondary} />
                         <Text className="mt-sm text-center" color={COLORS.text.secondary}>
                           {searchQuery
-                            ? i18n.t('admin.recipes.form.ingredientsInfo.noSearchResults')
-                            : i18n.t('admin.recipes.form.ingredientsInfo.noIngredients')}
+                            ? tForm('admin.recipes.form.ingredientsInfo.noSearchResults')
+                            : tForm('admin.recipes.form.ingredientsInfo.noIngredients')}
                         </Text>
                       </View>
                     )}
@@ -495,7 +491,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
             <View className="flex-row gap-xl mb-md">
               <View className="flex-[1.2]">
                 <SearchBar
-                  placeholder={i18n.t('admin.recipes.form.ingredientsInfo.searchPlaceholder')}
+                  placeholder={tForm('admin.recipes.form.ingredientsInfo.searchPlaceholder')}
                   searchQuery={searchQuery}
                   setSearchQuery={setSearchQuery}
                   className="w-full"
@@ -503,18 +499,18 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
               </View>
               <View className="flex-[2.5] flex-row justify-between items-center pb-xs border-b border-border-DEFAULT">
                 <Text preset="subheading" className="font-semibold">
-                  {i18n.t('admin.recipes.form.ingredientsInfo.selectedIngredients')}
+                  {tForm('admin.recipes.form.ingredientsInfo.selectedIngredients')}
                 </Text>
                 <View className="flex-row items-center">
                   <Text preset="caption" color={COLORS.text.secondary}>
-                    {recipe.ingredients.length} {i18n.t('admin.recipes.form.ingredientsInfo.itemsSelected')}
+                    {recipe.ingredients.length} {tForm('admin.recipes.form.ingredientsInfo.itemsSelected')}
                   </Text>
                 </View>
               </View>
             </View>
 
             <View className="flex-1 min-h-[400px] flex-row gap-lg">
-              <View className="flex-[1.2] rounded-md bg-background-SECONDARY overflow-hidden">
+              <ScrollView className="flex-[1.2] rounded-md bg-background-SECONDARY" style={rightColHeight ? { maxHeight: rightColHeight } : undefined}>
                 {loading ? (
                   <View className="flex-1 justify-center items-center p-lg">
                     <ActivityIndicator size="large" color={COLORS.primary.default} />
@@ -535,24 +531,24 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
                         <Ionicons name="information-circle-outline" size={32} color={COLORS.text.secondary} />
                         <Text className="mt-sm text-center" color={COLORS.text.secondary}>
                           {searchQuery
-                            ? i18n.t('admin.recipes.form.ingredientsInfo.noSearchResults')
-                            : i18n.t('admin.recipes.form.ingredientsInfo.noIngredients')}
+                            ? tForm('admin.recipes.form.ingredientsInfo.noSearchResults')
+                            : tForm('admin.recipes.form.ingredientsInfo.noIngredients')}
                         </Text>
                       </View>
                     )}
                   </View>
                 )}
-              </View>
+              </ScrollView>
 
-              <View className="flex-[2.5] rounded-md bg-background-SECONDARY overflow-hidden">
+              <View className="flex-[2.5] rounded-md bg-background-SECONDARY overflow-hidden" onLayout={(e) => setRightColHeight(e.nativeEvent.layout.height)}>
                 {recipe.ingredients.length === 0 ? (
                   <View className="flex-1 justify-center items-center p-lg min-h-[200px]">
                     <Ionicons name="basket-outline" size={32} color={COLORS.text.secondary} />
                     <Text className="mt-sm text-center" color={COLORS.text.secondary}>
-                      {i18n.t('admin.recipes.form.ingredientsInfo.noIngredientsSelected')}
+                      {tForm('admin.recipes.form.ingredientsInfo.noIngredientsSelected')}
                     </Text>
                     <Text preset="caption" color={COLORS.text.secondary} className="mt-xs text-center">
-                      {i18n.t('admin.recipes.form.ingredientsInfo.selectFromLeft')}
+                      {tForm('admin.recipes.form.ingredientsInfo.selectFromLeft')}
                     </Text>
                   </View>
                 ) : (
@@ -577,6 +573,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors }: Ingred
         recipeIngredient={selectedRecipeIngredient}
         measurementUnits={measurementUnits}
         existingIngredients={recipe.ingredients}
+        authoringLocale={authoringLocale}
       />
 
       <CreateEditIngredientModal

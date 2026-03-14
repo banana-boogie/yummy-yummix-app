@@ -293,12 +293,12 @@ export async function modifyRecipe(
       enrichIngredientsWithImages(
         recipe.ingredients,
         supabase,
-        userContext.language,
+        userContext.locale,
       ),
       getRelevantUsefulItems(
         supabase,
         recipe,
-        userContext.language,
+        userContext.locale,
         isThermomixUser,
       ),
       checkIngredientsForAllergens(
@@ -306,14 +306,14 @@ export async function modifyRecipe(
         modifiedIngredientNames,
         userContext.dietaryRestrictions,
         userContext.customAllergies,
-        userContext.language,
+        userContext.locale,
       ),
       checkRecipeSafety(
         supabase,
         recipe.ingredients,
         recipe.totalTime,
         userContext.measurementSystem,
-        userContext.language,
+        userContext.locale,
       ),
     ]);
   timings.enrichment_ms = Math.round(performance.now() - phaseStart);

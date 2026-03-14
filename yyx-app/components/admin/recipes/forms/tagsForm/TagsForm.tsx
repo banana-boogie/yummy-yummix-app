@@ -8,15 +8,17 @@ interface TagsFormProps {
   recipe: Partial<AdminRecipe>;
   onUpdateRecipe: (updates: Partial<AdminRecipe>) => void;
   errors: Record<string, string>;
+  displayLocale?: string;
 }
 
-export function TagsForm({ recipe, onUpdateRecipe, errors }: TagsFormProps) {
+export function TagsForm({ recipe, onUpdateRecipe, errors, displayLocale = 'es' }: TagsFormProps) {
 
   return (
     <FormSection title={i18n.t('admin.recipes.form.tagsInfo.title')}>
       <TagSelector
         selectedTags={recipe.tags as RecipeTagOption[] || []}
         onTagsChange={(tags) => onUpdateRecipe({ tags })}
+        displayLocale={displayLocale}
       />
     </FormSection>
   );

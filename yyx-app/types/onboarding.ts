@@ -13,7 +13,7 @@ export interface OnboardingData {
   cuisinePreferences: CuisinePreference[]; // NEW: cooking style preferences
   otherAllergy?: string[];
   otherDiet?: string[];
-  language?: string;
+  locale?: string;
   measurementSystem?: 'metric' | 'imperial';
   kitchenEquipment?: KitchenEquipment[];
 }

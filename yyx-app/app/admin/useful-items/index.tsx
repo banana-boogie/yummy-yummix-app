@@ -7,11 +7,12 @@ import { UsefulItemCard } from '@/components/admin/useful-items/UsefulItemCard';
 import { useUsefulItems } from '@/hooks/admin/useUsefulItems';
 import { AlertModal } from '@/components/common/AlertModal';
 import { SearchBar } from '@/components/common/SearchBar';
-import { AdminUsefulItem } from '@/types/recipe.admin.types';
+import { AdminUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { CreateEditUsefulItemModal } from '@/components/admin/useful-items/CreateEditUsefulItemModal';
 import { Button } from '@/components/common/Button';
 import { Text } from '@/components/common/Text';
+import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
 
 export default function UsefulItemsAdminPage() {
   const {
@@ -24,6 +25,7 @@ export default function UsefulItemsAdminPage() {
     handleDeleteUsefulItem,
   } = useUsefulItems();
 
+  const [displayLocale, setDisplayLocale] = useState('es');
   const [modalVisible, setModalVisible] = useState(false);
   const [editingUsefulItem, setEditingUsefulItem] = useState<AdminUsefulItem | null>(null);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
@@ -78,14 +80,16 @@ export default function UsefulItemsAdminPage() {
   return (
     <AdminLayout title={i18n.t('admin.usefulItems.title')} showBackButton={true}>
       <View className="p-md" style={{ backgroundColor: '#ffffff' }}>
-        <View className="flex-col sm:flex-row sm:items-center">
+        <View className="mb-md">
+          <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+        </View>
+        <View className="flex-col sm:flex-row sm:items-center gap-md">
           <SearchBar
-            className="flex-none sm:flex-1 mb-md sm:mb-0 sm:mr-md"
+            className="flex-none sm:flex-1"
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             placeholder={i18n.t('admin.usefulItems.searchPlaceholder')}
           />
-
           <Button
             onPress={handleOpenCreateModal}
             icon={<Ionicons name="add" size={24} color={COLORS.neutral.WHITE} />}
@@ -101,9 +105,11 @@ export default function UsefulItemsAdminPage() {
       ) : (
         <FlatList
           data={filteredUsefulItems}
+          extraData={displayLocale}
           renderItem={({ item }) => (
             <UsefulItemCard
               usefulItem={item}
+              displayLocale={displayLocale}
               onEdit={handleOpenEditModal}
               onDelete={handleDeleteConfirmation}
             />
@@ -134,8 +140,7 @@ export default function UsefulItemsAdminPage() {
         visible={showDeleteAlert}
         title={i18n.t('admin.usefulItems.confirmDeletion.title')}
         message={i18n.t('admin.usefulItems.confirmDeletion.message', {
-          nameEn: selectedUsefulItem?.nameEn,
-          nameEs: selectedUsefulItem?.nameEs
+          name: getTranslatedField(selectedUsefulItem?.translations, displayLocale, 'name'),
         })}
         onConfirm={handleConfirmDelete}
         onCancel={() => {

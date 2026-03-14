@@ -2,7 +2,7 @@ import React from 'react';
 import { View, ScrollView } from 'react-native';
 import i18n from '@/i18n';
 import { Text } from '@/components/common/Text';
-import { AdminRecipe } from '@/types/recipe.admin.types';
+import { AdminRecipe, getTranslatedField } from '@/types/recipe.admin.types';
 import { RecipeInfo } from '@/components/recipe-detail/RecipeInfo';
 import { RecipeIngredientsList } from '@/components/admin/recipes/forms/reviewForm/AdminRecipeIngredientsList';
 import { RecipeStepsList } from '@/components/admin/recipes/forms/reviewForm/AdminRecipeStepsList';
@@ -13,10 +13,11 @@ import { Image } from 'expo-image';
 
 interface ReviewFormProps {
   recipe: Partial<AdminRecipe>;
+  displayLocale?: string;
   onUpdateRecipe?: (updates: Partial<AdminRecipe>) => void;
 }
 
-export function ReviewForm({ recipe, onUpdateRecipe }: ReviewFormProps) {
+export function ReviewForm({ recipe, displayLocale = 'es', onUpdateRecipe }: ReviewFormProps) {
   // Toggle for isPublished field
   const handlePublishToggle = (value: boolean) => {
     if (onUpdateRecipe) {
@@ -32,7 +33,7 @@ export function ReviewForm({ recipe, onUpdateRecipe }: ReviewFormProps) {
     >
       {/* Preview of recipe */}
       <View className="flex-col gap-lg rounded-lg">
-        <Text preset="h1" className="mb-md">{`${recipe.nameEn}  |  ${recipe.nameEs}`}</Text>
+        <Text preset="h1" className="mb-md">{getTranslatedField(recipe.translations, displayLocale, 'name')}</Text>
 
         {recipe.pictureUrl ? (
           <View className="w-full h-[200px] rounded-lg mb-md overflow-hidden bg-background-SECONDARY">
@@ -58,14 +59,14 @@ export function ReviewForm({ recipe, onUpdateRecipe }: ReviewFormProps) {
           <Text preset="h1" fontWeight="700" className="mb-md">
             {i18n.t('admin.recipes.form.reviewInfo.usefulItems')} ({recipe.usefulItems?.length || 0})
           </Text>
-          <RecipeUsefulItemsList usefulItems={recipe.usefulItems || []} />
+          <RecipeUsefulItemsList usefulItems={recipe.usefulItems || []} displayLocale={displayLocale} />
         </View>
 
         <View className="mb-md">
           <Text preset="h1" fontWeight="700" className="mb-md">
             {i18n.t('admin.recipes.form.reviewInfo.ingredients')} ({recipe.ingredients?.length || 0})
           </Text>
-          <RecipeIngredientsList ingredients={recipe.ingredients || []} hideActions={true} />
+          <RecipeIngredientsList ingredients={recipe.ingredients || []} displayLocale={displayLocale} hideActions={true} />
         </View>
 
         <View>
@@ -73,7 +74,7 @@ export function ReviewForm({ recipe, onUpdateRecipe }: ReviewFormProps) {
             {i18n.t('admin.recipes.form.reviewInfo.steps')} ({recipe.steps?.length || 0})
           </Text>
 
-          <RecipeStepsList recipeSteps={recipe.steps || []} />
+          <RecipeStepsList recipeSteps={recipe.steps || []} displayLocale={displayLocale} />
         </View>
 
 
@@ -82,7 +83,7 @@ export function ReviewForm({ recipe, onUpdateRecipe }: ReviewFormProps) {
             {i18n.t('admin.recipes.form.reviewInfo.tags')} ({recipe.tags?.length || 0})
           </Text>
 
-          <RecipeTagsList tags={recipe.tags || []} />
+          <RecipeTagsList tags={recipe.tags || []} displayLocale={displayLocale} />
         </View>
 
         <View className="flex-col justify-start items-center my-md py-xs px-sm rounded-sm">

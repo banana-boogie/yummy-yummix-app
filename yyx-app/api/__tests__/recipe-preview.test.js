@@ -1,3 +1,4 @@
+/* global jest, describe, it, expect, beforeEach */
 /**
  * Recipe Preview API Tests
  *
@@ -58,9 +59,10 @@ describe('recipe-preview API', () => {
     const maliciousName = '<script>alert("x")</script>';
     const recipe = {
       id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-      name_en: maliciousName,
-      name_es: null,
       image_url: 'javascript:alert(1)',
+      translations: [
+        { locale: 'en', name: maliciousName },
+      ],
     };
 
     const query = {

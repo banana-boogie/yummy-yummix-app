@@ -1,19 +1,58 @@
 import { Recipe, RecipeIngredient, MeasurementUnit, RecipeTag, RecipeStep, RecipeUsefulItem } from '@/types/recipe.types';
 import { ThermomixSettings, ThermomixSpeed, ThermomixTemperature } from '@/types/thermomix.types';
-import { RawRecipeIngredient, RawMeasurementUnit, RawRecipeTag, RawRecipeStep, RawRecipe, RawRecipeUsefulItem } from '@/types/recipe.api.types';
+import {
+  RawRecipeIngredient, RawMeasurementUnit, RawRecipeTag, RawRecipeStep, RawRecipe, RawRecipeUsefulItem,
+} from '@/types/recipe.api.types';
 import i18n from '@/i18n';
 import { formatMeasurement } from '@/utils/recipes/measurements';
 import { formatInstruction, convertTemperature } from '@/utils/thermomix/formatters';
 
-const getLangSuffix = () => `${i18n.locale}`;
+/**
+ * Picks the best translation from an array based on the current i18n locale.
+ * Fallback chain: exact locale -> language prefix -> first available -> undefined.
+ *
+ * @example
+ * pickTranslation(translations, 'locale') // uses i18n.locale internally
+ */
+export function pickTranslation<T extends Record<string, any>>(
+  translations: T[] | undefined | null,
+  localeKey = 'locale',
+): T | undefined {
+  if (!translations || translations.length === 0) return undefined;
+
+  const currentLocale = i18n.locale; // 'en' or 'es'
+
+  // 1. Exact match
+  const exact = translations.find(t => t[localeKey] === currentLocale);
+  if (exact) return exact;
+
+  // 2. Prefix match (e.g. 'es' matches 'es-MX')
+  const prefix = translations.find(t =>
+    typeof t[localeKey] === 'string' && t[localeKey].startsWith(currentLocale)
+  );
+  if (prefix) return prefix;
+
+  // 3. Reverse prefix (e.g. locale is 'es-MX', translation has 'es')
+  const reversePrefix = translations.find(t =>
+    typeof t[localeKey] === 'string' && currentLocale.startsWith(t[localeKey])
+  );
+  if (reversePrefix) return reversePrefix;
+
+  // 4. Fallback to 'en' if nothing matched
+  const enFallback = translations.find(t => t[localeKey] === 'en');
+  if (enFallback) return enFallback;
+
+  // 5. Last resort: first available
+  return translations[0];
+}
 
 export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial') {
   class RecipeTransformer {
     static transform(raw: RawRecipe): Recipe | null {
-      const lang = getLangSuffix();
+      const t = pickTranslation(raw.translations);
       return {
         id: raw.id,
-        name: raw[`name_${lang}`],
+        name: t?.name ?? '',
         pictureUrl: raw.image_url,
         difficulty: raw.difficulty,
         prepTime: raw.prep_time,
@@ -22,31 +61,33 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
         ingredients: (raw.ingredients?.map(i => IngredientTransformer.transform(i, measurementSystem))
           .filter((i): i is RecipeIngredient => i !== null)
           .sort((a, b) => a.displayOrder - b.displayOrder)) || [],
-        tags: this.transformTags(raw.tags, lang),
+        tags: this.transformTags(raw.tags),
         isPublished: raw.is_published,
         createdAt: raw.created_at,
         updatedAt: raw.updated_at,
-        steps: this.transformSteps(raw.steps, lang, measurementSystem),
-        tipsAndTricks: raw[`tips_and_tricks_${lang}`],
-        usefulItems: this.transformUsefulItems(raw.useful_items, lang),
+        steps: this.transformSteps(raw.steps, measurementSystem),
+        tipsAndTricks: t?.tips_and_tricks ?? undefined,
+        usefulItems: this.transformUsefulItems(raw.useful_items),
       };
     }
 
-    private static transformTags(tags: RawRecipeTag[] | undefined, lang: string): RecipeTag[] {
+    private static transformTags(tags: RawRecipeTag[] | undefined): RecipeTag[] {
       if (!tags) return [];
 
       return tags
         .filter(t => t?.recipe_tags && t.recipe_tags.id)
-        .map(t => ({
-          id: t.recipe_tags.id,
-          name: t.recipe_tags[`name_${lang}` as 'name_en' | 'name_es'] ?? '',
-          categories: t.recipe_tags.categories
-        }));
+        .map(t => {
+          const translation = pickTranslation(t.recipe_tags.translations);
+          return {
+            id: t.recipe_tags.id,
+            name: translation?.name ?? '',
+            categories: t.recipe_tags.categories
+          };
+        });
     }
 
     private static transformSteps(
       rawRecipeSteps: RawRecipeStep[] | undefined,
-      lang: string,
       measurementSystem: 'metric' | 'imperial'
     ): RecipeStep[] {
       if (!rawRecipeSteps) return [];
@@ -96,13 +137,14 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
           };
         }
 
-        const instruction = recipeStep[`instruction_${lang}` as 'instruction_en' | 'instruction_es'];
-        const tip = recipeStep[`tip_${lang}` as 'tip_en' | 'tip_es'] || null;
+        const stepTranslation = pickTranslation(recipeStep.translations);
+        const instruction = stepTranslation?.instruction ?? '';
+        const tip = stepTranslation?.tip ?? null;
         return {
           id: recipeStep.id,
           order: recipeStep.order,
           instruction: formatInstruction(instruction, thermomix, measurementSystem),
-          recipeSection: recipeStep[`recipe_section_${lang}` as 'recipe_section_en' | 'recipe_section_es'],
+          recipeSection: stepTranslation?.recipe_section ?? null,
           tip,
           ingredients,
           thermomix
@@ -131,16 +173,20 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
         );
     }
 
-    private static transformUsefulItems(rawUsefulItems: RawRecipeUsefulItem[] | undefined, lang: string): RecipeUsefulItem[] {
+    private static transformUsefulItems(rawUsefulItems: RawRecipeUsefulItem[] | undefined): RecipeUsefulItem[] {
       if (!rawUsefulItems) return [];
 
-      return rawUsefulItems.map(item => ({
-        id: item.id,
-        name: item.useful_item[`name_${lang}` as 'name_en' | 'name_es'] ?? '',
-        pictureUrl: item.useful_item.image_url,
-        displayOrder: item.display_order,
-        notes: item[`notes_${lang}` as 'notes_en' | 'notes_es'] ?? ''
-      }));
+      return rawUsefulItems.map(item => {
+        const itemTranslation = pickTranslation(item.useful_item.translations);
+        const notesTranslation = pickTranslation(item.translations);
+        return {
+          id: item.id,
+          name: itemTranslation?.name ?? '',
+          pictureUrl: item.useful_item.image_url,
+          displayOrder: item.display_order,
+          notes: notesTranslation?.notes ?? ''
+        };
+      });
     }
   }
 
@@ -148,19 +194,20 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
     static transform(raw: RawRecipeIngredient, measurementSystem: 'metric' | 'imperial'): RecipeIngredient | null {
       if (!raw?.ingredient) return null;
 
-      const lang = getLangSuffix();
-
+      const ingredientTranslation = pickTranslation(raw.ingredient.translations);
       const measurementUnit = raw.measurement_unit ?
-        MeasurementUnitTransformer.transform(raw.measurement_unit, lang) : undefined;
+        MeasurementUnitTransformer.transform(raw.measurement_unit) : undefined;
 
       const formattedMeasurements = measurementUnit ?
         formatMeasurement(raw.quantity, measurementUnit, measurementSystem) :
         { quantity: raw.quantity.toString(), unit: '' };
 
+      const recipeIngTranslation = pickTranslation(raw.translations);
+
       return {
         id: raw.ingredient.id,
-        name: raw.ingredient[`name_${lang}` as 'name_en' | 'name_es'] ?? '',
-        pluralName: raw.ingredient[`plural_name_${lang}` as 'plural_name_en' | 'plural_name_es'] ?? '',
+        name: ingredientTranslation?.name ?? '',
+        pluralName: ingredientTranslation?.plural_name ?? '',
         quantity: raw.quantity.toString(),
         measurementUnit: measurementUnit || {
           id: '',
@@ -173,23 +220,24 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
         formattedQuantity: formattedMeasurements.quantity,
         formattedUnit: formattedMeasurements.unit,
         pictureUrl: raw.ingredient.image_url,
-        notes: raw[`notes_${lang}` as 'notes_en' | 'notes_es'] ?? '',
+        notes: recipeIngTranslation?.notes ?? '',
         displayOrder: raw.display_order,
         optional: raw.optional,
-        recipeSection: raw[`recipe_section_${lang}` as 'recipe_section_en' | 'recipe_section_es'] ?? '',
+        recipeSection: recipeIngTranslation?.recipe_section ?? '',
       };
     }
   }
 
   class MeasurementUnitTransformer {
-    static transform(raw: RawMeasurementUnit, lang: string): MeasurementUnit {
+    static transform(raw: RawMeasurementUnit): MeasurementUnit {
+      const t = pickTranslation(raw.translations);
       return {
         id: raw.id,
         type: raw.type,
         system: raw.system,
-        name: raw[`name_${lang}` as 'name_en' | 'name_es'] ?? '',
-        symbol: raw[`symbol_${lang}` as 'symbol_en' | 'symbol_es'] ?? '',
-        symbolPlural: raw[`symbol_${lang}_plural` as 'symbol_en_plural' | 'symbol_es_plural'] ?? '',
+        name: t?.name ?? '',
+        symbol: t?.symbol ?? '',
+        symbolPlural: t?.symbol_plural ?? '',
       };
     }
   }
@@ -204,4 +252,4 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
         .filter((recipe): recipe is Recipe => recipe !== null);
     }
   };
-} 
+}

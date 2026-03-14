@@ -20,6 +20,8 @@ interface TextInputProps extends RNTextInputProps {
   inputStyle?: StyleProp<TextStyle>;
   label?: string;
   error?: string;
+  /** Show error border without rendering error text (used by FormGroup) */
+  hasError?: boolean;
   helperText?: string;
   helperTextPosition?: 'left' | 'right';
   rightIcon?: keyof typeof Ionicons.glyphMap;
@@ -40,6 +42,7 @@ export function TextInput({
   inputStyle,
   inputClassName = '',
   error,
+  hasError,
   label,
   helperText,
   helperTextPosition = 'left',
@@ -94,7 +97,7 @@ export function TextInput({
       <View className={`
         flex-row items-center min-h-[56px] bg-background-default rounded-md border-[1.5px] border-border-default
         ${isFocused ? 'border-border-focus' : ''}
-        ${error ? 'border-status-error bg-primary-lighter' : ''}
+        ${error || hasError ? 'border-status-error bg-primary-lighter' : ''}
       `}>
         {leftIcon ? <View className="pl-sm">{leftIcon}</View> : null}
 

@@ -9,6 +9,7 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { RecipeCard, UserContext } from "../irmixy-schemas.ts";
 import { embed } from "../ai-gateway/index.ts";
+import { pickTranslation } from "../locale-utils.ts";
 
 // ============================================================
 // Query Embedding Cache (per-instance, best-effort)
@@ -47,18 +48,21 @@ export interface HybridSearchResult {
     | "low_confidence";
 }
 
+interface TranslationRow {
+  locale: string;
+  name: string | null;
+}
+
 interface RecipeTagJoin {
   recipe_tags: {
-    name_en: string | null;
-    name_es: string | null;
+    recipe_tag_translations: TranslationRow[];
     categories: string[];
   } | null;
 }
 
 interface RecipeRow {
   id: string;
-  name_en: string | null;
-  name_es: string | null;
+  recipe_translations: TranslationRow[];
   image_url: string | null;
   total_time: number;
   difficulty: "easy" | "medium" | "hard";
@@ -322,13 +326,12 @@ export async function searchRecipesHybrid(
     .from("recipes")
     .select(`
       id,
-      name_en,
-      name_es,
+      recipe_translations ( locale, name ),
       image_url,
       total_time,
       difficulty,
       portions,
-      recipe_to_tag ( recipe_tags ( name_en, name_es, categories ) )
+      recipe_to_tag ( recipe_tags ( recipe_tag_translations ( locale, name ), categories ) )
     `)
     .in("id", recipeIds)
     .eq("is_published", true);
@@ -354,14 +357,20 @@ export async function searchRecipesHybrid(
 
   // Score all recipes
   const scored: ScoredRecipe[] = recipes.map((recipe) => {
-    const name =
-      (userContext.language === "es" ? recipe.name_es : recipe.name_en) || "";
+    const nameMatch = pickTranslation(
+      recipe.recipe_translations || [],
+      userContext.localeChain,
+    );
+    const name = nameMatch?.name || "";
     const tagNames = (recipe.recipe_to_tag || [])
       .map((join) => {
         const tag = join.recipe_tags;
         if (!tag) return "";
-        return (userContext.language === "es" ? tag.name_es : tag.name_en) ||
-          "";
+        const tagMatch = pickTranslation(
+          tag.recipe_tag_translations || [],
+          userContext.localeChain,
+        );
+        return tagMatch?.name || "";
       })
       .filter(Boolean);
 

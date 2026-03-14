@@ -69,7 +69,7 @@ export async function retrieveCookedRecipes(
     : null;
 
   const { data, error } = await supabase.rpc("get_cooked_recipes", {
-    p_language: userContext.language,
+    p_locale: userContext.locale,
     p_query: params.query ?? null,
     p_after: timeRange?.after.toISOString() ?? null,
     p_before: timeRange?.before.toISOString() ?? null,

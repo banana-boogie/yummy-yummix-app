@@ -27,14 +27,11 @@ import {
 
 // Define the expected schema structure for recipe parsing
 const expectedSchemaProperties = [
-  "nameEn",
-  "nameEs",
+  "translations",
   "totalTime",
   "prepTime",
   "difficulty",
   "portions",
-  "tipsAndTricksEn",
-  "tipsAndTricksEs",
   "usefulItems",
   "ingredients",
   "steps",
@@ -145,14 +142,16 @@ Deno.test("response format - error response includes error field", () => {
 Deno.test("response format - success response returns JSON string", () => {
   // OpenAI returns a JSON string that gets passed through
   const mockParsedRecipe = JSON.stringify({
-    nameEn: "Test Recipe",
-    nameEs: "Receta de Prueba",
+    translations: [
+      { locale: "en", name: "Test Recipe", tipsAndTricks: "" },
+      { locale: "es", name: "Receta de Prueba", tipsAndTricks: "" },
+    ],
     difficulty: "easy",
   });
 
   const parsed = JSON.parse(mockParsedRecipe);
-  assertExists(parsed.nameEn);
-  assertExists(parsed.nameEs);
+  assertExists(parsed.translations);
+  assertEquals(parsed.translations.length, 2);
   assertEquals(parsed.difficulty, "easy");
 });
 
@@ -164,25 +163,23 @@ Deno.test("ingredient schema - requires quantity and ingredient object", () => {
   const validIngredient = {
     quantity: 100,
     ingredient: {
-      nameEn: "Flour",
-      nameEs: "Harina",
-      pluralNameEn: "Flour",
-      pluralNameEs: "Harina",
+      translations: [
+        { locale: "en", name: "Flour", pluralName: "Flour" },
+        { locale: "es", name: "Harina", pluralName: "Harina" },
+      ],
     },
     measurementUnitID: "g",
-    notesEn: "",
-    notesEs: "",
-    tipEn: "",
-    tipEs: "",
-    recipeSectionEn: "Main",
-    recipeSectionEs: "Principal",
+    translations: [
+      { locale: "en", notes: "", tip: "", recipeSection: "Main" },
+      { locale: "es", notes: "", tip: "", recipeSection: "Principal" },
+    ],
     displayOrder: 1,
   };
 
   assertEquals(typeof validIngredient.quantity, "number");
   assertExists(validIngredient.ingredient);
-  assertExists(validIngredient.ingredient.nameEn);
-  assertExists(validIngredient.ingredient.nameEs);
+  assertExists(validIngredient.ingredient.translations);
+  assertEquals(validIngredient.ingredient.translations.length, 2);
 });
 
 Deno.test("ingredient schema - measurement unit is optional", () => {
@@ -194,10 +191,10 @@ Deno.test("ingredient schema - measurement unit is optional", () => {
   } = {
     quantity: 2,
     ingredient: {
-      nameEn: "Eggs",
-      nameEs: "Huevos",
-      pluralNameEn: "Eggs",
-      pluralNameEs: "Huevos",
+      translations: [
+        { locale: "en", name: "Eggs", pluralName: "Eggs" },
+        { locale: "es", name: "Huevos", pluralName: "Huevos" },
+      ],
     },
     displayOrder: 1,
   };
@@ -210,42 +207,59 @@ Deno.test("ingredient schema - measurement unit is optional", () => {
 // STEP SCHEMA TESTS
 // ============================================================
 
-Deno.test("step schema - requires order and instruction", () => {
+Deno.test("step schema - requires order and translations", () => {
   const validStep = {
     order: 1,
-    instructionEn: "Mix the flour with water",
-    instructionEs: "Mezcla la harina con agua",
+    translations: [
+      {
+        locale: "en",
+        instruction: "Mix the flour with water",
+        tip: "",
+        recipeSection: "Main",
+      },
+      {
+        locale: "es",
+        instruction: "Mezcla la harina con agua",
+        tip: "",
+        recipeSection: "Principal",
+      },
+    ],
     thermomixTime: 30,
     thermomixTemperature: null,
     thermomixTemperatureUnit: null,
     thermomixSpeed: { type: "single", value: 4, start: null, end: null },
     thermomixIsBladeReversed: false,
     ingredients: [],
-    tipEn: "",
-    tipEs: "",
-    recipeSectionEn: "Main",
-    recipeSectionEs: "Principal",
   };
 
   assertEquals(typeof validStep.order, "number");
-  assertExists(validStep.instructionEn);
+  assertExists(validStep.translations);
+  assertEquals(validStep.translations.length, 2);
 });
 
 Deno.test("step schema - Thermomix fields can be null", () => {
   const stepWithoutThermomix = {
     order: 1,
-    instructionEn: "Preheat the oven",
-    instructionEs: "Precalienta el horno",
+    translations: [
+      {
+        locale: "en",
+        instruction: "Preheat the oven",
+        tip: "",
+        recipeSection: "Main",
+      },
+      {
+        locale: "es",
+        instruction: "Precalienta el horno",
+        tip: "",
+        recipeSection: "Principal",
+      },
+    ],
     thermomixTime: null,
     thermomixTemperature: null,
     thermomixTemperatureUnit: null,
     thermomixSpeed: null,
     thermomixIsBladeReversed: null,
     ingredients: [],
-    tipEn: "",
-    tipEs: "",
-    recipeSectionEn: "Main",
-    recipeSectionEs: "Principal",
   };
 
   assertEquals(stepWithoutThermomix.thermomixTime, null);
@@ -283,7 +297,14 @@ Deno.test("step schema - Thermomix speed can be range", () => {
 Deno.test("step schema - Thermomix temperature can be Varoma string", () => {
   const step = {
     order: 1,
-    instructionEn: "Steam vegetables",
+    translations: [
+      {
+        locale: "en",
+        instruction: "Steam vegetables",
+        tip: "",
+        recipeSection: "Main",
+      },
+    ],
     thermomixTemperature: "Varoma",
   };
 
@@ -307,15 +328,19 @@ Deno.test("step schema - Thermomix speed can be spoon", () => {
 
 Deno.test("useful items schema - includes name and display order", () => {
   const usefulItem = {
-    nameEn: "Mixing Bowl",
-    nameEs: "Tazón para mezclar",
+    translations: [
+      { locale: "en", name: "Mixing Bowl", notes: "Large size preferred" },
+      {
+        locale: "es",
+        name: "Tazón para mezclar",
+        notes: "Preferiblemente grande",
+      },
+    ],
     displayOrder: 1,
-    notesEn: "Large size preferred",
-    notesEs: "Preferiblemente grande",
   };
 
-  assertExists(usefulItem.nameEn);
-  assertExists(usefulItem.nameEs);
+  assertExists(usefulItem.translations);
+  assertEquals(usefulItem.translations.length, 2);
   assertEquals(typeof usefulItem.displayOrder, "number");
 });
 

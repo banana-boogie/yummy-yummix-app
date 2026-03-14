@@ -1,4 +1,4 @@
-import { AdminIngredient, AdminRecipeIngredient, AdminRecipeStepIngredient } from '@/types/recipe.admin.types';
+import { AdminIngredient, AdminRecipeIngredient, AdminRecipeStepIngredient, getTranslatedField } from '@/types/recipe.admin.types';
 
 // Types
 type IngredientMatchOptions = {
@@ -15,12 +15,10 @@ const DISTINCT_INGREDIENTS = [
 
 const PREP_PREFIXES = ['chopped ', 'diced ', 'sliced ', 'minced ', 'grated ', 'large ', 'freshly squeezed ', ' cloves ', 'fresh ', 'extra virgin '];
 
-
-interface IngredientNameFields {
-  nameEn?: string;
-  nameEs?: string;
-  pluralNameEn?: string;
-  pluralNameEs?: string;
+// All translatable names for an ingredient, collected across locales
+interface IngredientNames {
+  names: string[];
+  pluralNames: string[];
 }
 
 export class IngredientMatcher {
@@ -40,18 +38,18 @@ export class IngredientMatcher {
   private isIngredientVariation(name1: string, name2: string): boolean {
     const n1 = this.normalizeIngredientName(name1);
     const n2 = this.normalizeIngredientName(name2);
-    
+
     // Exact match
     if (n1 === n2) return true;
-    
+
     // Check if either name is in the distinct ingredients list
     for (const { base, distinct } of DISTINCT_INGREDIENTS) {
-      if ((n1 === base && distinct.includes(n2)) || 
+      if ((n1 === base && distinct.includes(n2)) ||
           (n2 === base && distinct.includes(n1))) {
         return false; // These should not match (e.g., sugar ≠ brown sugar)
       }
     }
-    
+
     if (this.ignorePrep) {
       // Remove prep method prefixes
       const stripped1 = PREP_PREFIXES.reduce((str, prefix) => str.replace(prefix, ''), n1);
@@ -64,15 +62,15 @@ export class IngredientMatcher {
 
   private calculateSimilarity(str1: string, str2: string): number {
     if (!str1 || !str2) return 0;
-    
+
     const s1 = str1.toLowerCase();
     const s2 = str2.toLowerCase();
-    
+
     const longer = s1.length > s2.length ? s1 : s2;
     const shorter = s1.length > s2.length ? s2 : s1;
-    
+
     if (longer.length === 0) return 1.0;
-    
+
     return (longer.length - this.editDistance(longer, shorter)) / longer.length;
   }
 
@@ -106,60 +104,50 @@ export class IngredientMatcher {
   ): AdminRecipeIngredient | AdminIngredient | null {
     // First try exact matches
     const exactMatch = availableIngredients.find(ingredient =>
-      this.hasNameMatch(this.extractNameFields(searchIngredient), this.extractNameFields(ingredient))
+      this.hasNameMatch(this.extractNames(searchIngredient), this.extractNames(ingredient))
   );
 
     if (exactMatch) return exactMatch;
 
     // If no exact match, try fuzzy matching
     const fuzzyMatch = availableIngredients.find(ingredient =>
-      this.hasFuzzyMatch(this.extractNameFields(searchIngredient), this.extractNameFields(ingredient))
+      this.hasFuzzyMatch(this.extractNames(searchIngredient), this.extractNames(ingredient))
     );
 
     return fuzzyMatch || null;
   }
 
-  private extractNameFields(ingredient: AdminIngredient | AdminRecipeIngredient | AdminRecipeStepIngredient): IngredientNameFields {
-    if ('ingredient' in ingredient) {
+  private extractNames(ingredient: AdminIngredient | AdminRecipeIngredient | AdminRecipeStepIngredient): IngredientNames {
+    const getNames = (ing: any): IngredientNames => {
+      const translations = ing.translations ?? [];
       return {
-        nameEn: ingredient.ingredient.nameEn,
-        nameEs: ingredient.ingredient.nameEs,
-        pluralNameEn: ingredient.ingredient.pluralNameEn,
-        pluralNameEs: ingredient.ingredient.pluralNameEs
+        names: translations.map((t: any) => t.name).filter(Boolean),
+        pluralNames: translations.map((t: any) => t.pluralName).filter(Boolean),
       };
-    }
-    
-    return {
-      nameEn: ingredient.nameEn,
-      nameEs: ingredient.nameEs,
-      pluralNameEn: ingredient.pluralNameEn,
-      pluralNameEs: ingredient.pluralNameEs
     };
+
+    if ('ingredient' in ingredient) {
+      return getNames(ingredient.ingredient);
+    }
+
+    return getNames(ingredient);
   }
 
-  private hasNameMatch(search: IngredientNameFields, ingredient: IngredientNameFields): boolean {
-    return (
-      this.isIngredientVariation(search.nameEn || '', ingredient.nameEn || '') ||
-      this.isIngredientVariation(search.nameEn || '', ingredient.pluralNameEn || '') ||
-      this.isIngredientVariation(search.nameEs || '', ingredient.nameEs || '') ||
-      this.isIngredientVariation(search.nameEs || '', ingredient.pluralNameEs || '')
+  private hasNameMatch(search: IngredientNames, ingredient: IngredientNames): boolean {
+    const allIngredientNames = [...ingredient.names, ...ingredient.pluralNames];
+    return search.names.some(searchName =>
+      allIngredientNames.some(ingName => this.isIngredientVariation(searchName, ingName))
     );
   }
 
-  private hasFuzzyMatch(search: IngredientNameFields, ingredient: IngredientNameFields): boolean {
-    const nameEnSimilarity = this.calculateSimilarity(
-      search.nameEn || '',
-      ingredient.nameEn || ''
+  private hasFuzzyMatch(search: IngredientNames, ingredient: IngredientNames): boolean {
+    return search.names.some(searchName =>
+      ingredient.names.some(ingName =>
+        this.calculateSimilarity(searchName, ingName) >= this.similarityThreshold
+      )
     );
-    const nameEsSimilarity = this.calculateSimilarity(
-      search.nameEs || '',
-      ingredient.nameEs || ''
-    );
-    
-    return nameEnSimilarity >= this.similarityThreshold || 
-           nameEsSimilarity >= this.similarityThreshold;
   }
 }
 
 // Export a default instance with standard options
-export const defaultMatcher = new IngredientMatcher(); 
+export const defaultMatcher = new IngredientMatcher();

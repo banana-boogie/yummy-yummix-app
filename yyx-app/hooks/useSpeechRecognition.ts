@@ -7,7 +7,8 @@ import {
 import i18n from '@/i18n';
 
 interface UseSpeechRecognitionOptions {
-    language: 'en' | 'es';
+    /** Locale string (e.g. 'es', 'es-MX', 'en', 'en-US') */
+    locale: string;
     onTranscript: (text: string) => void;
 }
 
@@ -20,7 +21,7 @@ interface UseSpeechRecognitionResult {
 }
 
 export function useSpeechRecognition({
-    language,
+    locale,
     onTranscript,
 }: UseSpeechRecognitionOptions): UseSpeechRecognitionResult {
     const [isListening, setIsListening] = useState(false);
@@ -87,8 +88,17 @@ export function useSpeechRecognition({
 
             speechStoppedByUserRef.current = false;
             setIsListening(true);
+            // Map locale to BCP 47 speech recognition locale.
+            // If already a full locale tag (e.g. 'es-MX', 'es-ES'), use as-is.
+            // If just a base language code, expand to a default regional variant
+            // so the speech engine picks the right dialect.
+            // Mexico-first for Spanish (primary audience).
+            const DEFAULT_SPEECH_LOCALES: Record<string, string> = { es: 'es-MX', en: 'en-US' };
+            const speechLang = locale.includes('-')
+                ? locale
+                : DEFAULT_SPEECH_LOCALES[locale] ?? `${locale}-${locale.toUpperCase()}`;
             ExpoSpeechRecognitionModule.start({
-                lang: language === 'es' ? 'es-MX' : 'en-US',
+                lang: speechLang,
                 interimResults: true,
             });
         } catch (error) {
@@ -98,7 +108,7 @@ export function useSpeechRecognition({
             }
             Alert.alert(i18n.t('chat.error.default'));
         }
-    }, [isListening, language]);
+    }, [isListening, locale]);
 
     const stopAndGuard = useCallback(() => {
         speechStoppedByUserRef.current = true;

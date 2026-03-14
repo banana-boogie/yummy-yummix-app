@@ -1,4 +1,4 @@
-import { AdminRecipeSteps } from '@/types/recipe.admin.types';
+import { AdminRecipeSteps, getTranslatedField } from '@/types/recipe.admin.types';
 
 export interface GroupedRecipeSteps {
   [key: string]: {
@@ -10,13 +10,15 @@ export interface GroupedRecipeSteps {
 
 export const groupRecipeSteps = (steps: AdminRecipeSteps[]): GroupedRecipeSteps => {
   const groups: GroupedRecipeSteps = {};
-  
+
   steps.forEach(step => {
-    const sectionKey = `${step.recipeSectionEn || 'Main'}|${step.recipeSectionEs || 'Principal'}`;
+    const sectionEn = getTranslatedField(step.translations, 'en', 'recipeSection') || 'Main';
+    const sectionEs = getTranslatedField(step.translations, 'es', 'recipeSection') || 'Principal';
+    const sectionKey = `${sectionEn}|${sectionEs}`;
     if (!groups[sectionKey]) {
       groups[sectionKey] = {
-        sectionEn: step.recipeSectionEn || 'Main',
-        sectionEs: step.recipeSectionEs || 'Principal',
+        sectionEn,
+        sectionEs,
         steps: []
       };
     }
@@ -24,4 +26,4 @@ export const groupRecipeSteps = (steps: AdminRecipeSteps[]): GroupedRecipeSteps 
   });
 
   return groups;
-}; 
+};

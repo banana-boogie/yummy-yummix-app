@@ -6,11 +6,12 @@ import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import adminRecipeService from '@/services/admin/adminRecipeService';
-import { AdminRecipe } from '@/types/recipe.admin.types';
+import { AdminRecipe, getTranslatedField } from '@/types/recipe.admin.types';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { AlertModal } from '@/components/common/AlertModal';
 import i18n from '@/i18n';
 import { useDevice } from '@/hooks/useDevice';
+import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
 
 export default function RecipesAdminPage() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export default function RecipesAdminPage() {
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [publishAction, setPublishAction] = useState<'publish' | 'unpublish'>('publish');
   const [recipeToPublish, setRecipeToPublish] = useState<AdminRecipe | null>(null);
+  const [displayLocale, setDisplayLocale] = useState('es');
 
   useEffect(() => {
     fetchRecipes();
@@ -55,11 +57,10 @@ export default function RecipesAdminPage() {
 
     // Apply search filter
     if (searchQuery) {
-      filtered = filtered.filter(recipe =>
-        recipe.nameEs?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        recipe.nameEn?.toLowerCase().includes(searchQuery.toLowerCase())
-
-      );
+      filtered = filtered.filter(recipe => {
+        const name = getTranslatedField(recipe.translations, displayLocale, 'name');
+        return name?.toLowerCase().includes(searchQuery.toLowerCase());
+      });
     }
 
     // Apply published/draft filter
@@ -75,7 +76,7 @@ export default function RecipesAdminPage() {
 
       switch (sortBy) {
         case 'name':
-          comparison = (a.nameEn || '').localeCompare(b.nameEn || '');
+          comparison = (getTranslatedField(a.translations, displayLocale, 'name') || '').localeCompare(getTranslatedField(b.translations, displayLocale, 'name') || '');
           break;
         case 'isPublished':
           comparison = (a.isPublished === b.isPublished) ? 0 : a.isPublished ? -1 : 1;
@@ -93,7 +94,7 @@ export default function RecipesAdminPage() {
     });
 
     setFilteredRecipes(filtered);
-  }, [recipes, searchQuery, filters, sortBy, sortDirection]);
+  }, [recipes, searchQuery, filters, sortBy, sortDirection, displayLocale]);
 
   const handleTogglePublished = async (recipe: AdminRecipe) => {
     setRecipeToPublish(recipe);
@@ -165,8 +166,7 @@ export default function RecipesAdminPage() {
             cachePolicy="memory-disk"
           />
           <View className="flex-col flex-1">
-            <Text preset="body" numberOfLines={1}>{item.nameEn}</Text>
-            <Text preset="caption" color={COLORS.text.secondary} numberOfLines={1}>{item.nameEs}</Text>
+            <Text preset="body" numberOfLines={1}>{getTranslatedField(item.translations, displayLocale, 'name')}</Text>
           </View>
         </View>
 
@@ -229,6 +229,9 @@ export default function RecipesAdminPage() {
         </View>
 
         <View className="px-md bg-background-default">
+          <View className="mb-md">
+            <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+          </View>
           <View className="flex-row items-center px-md rounded-lg mb-sm">
             <Ionicons name="search" size={20} color={COLORS.grey.MEDIUM} />
             <TextInput
@@ -354,6 +357,7 @@ export default function RecipesAdminPage() {
         ) : (
           <FlatList
             data={filteredRecipes}
+            extraData={displayLocale}
             renderItem={renderRecipeItem}
             keyExtractor={item => item.id}
             contentContainerStyle={{ paddingHorizontal: 16 }}
@@ -370,7 +374,7 @@ export default function RecipesAdminPage() {
         {/* Delete Confirmation Modal */}
         <AlertModal
           visible={showDeleteConfirm}
-          title={`${i18n.t('admin.recipes.list.deleteConfirm.title')} \n\n ${recipeToDelete?.nameEn} \n ${recipeToDelete?.nameEs}`}
+          title={`${i18n.t('admin.recipes.list.deleteConfirm.title')} \n\n ${getTranslatedField(recipeToDelete?.translations, 'en', 'name')} \n ${getTranslatedField(recipeToDelete?.translations, 'es', 'name')}`}
           message={i18n.t('admin.recipes.list.deleteConfirm.message')}
           onConfirm={confirmDeleteRecipe}
           onCancel={() => setShowDeleteConfirm(false)}
@@ -395,8 +399,8 @@ export default function RecipesAdminPage() {
             ? i18n.t('admin.recipes.publishConfirm.publishTitle')
             : i18n.t('admin.recipes.publishConfirm.unpublishTitle')}
           message={publishAction === 'publish'
-            ? i18n.t('admin.recipes.publishConfirm.publishMessage', { name: recipeToPublish?.nameEn || '' })
-            : i18n.t('admin.recipes.publishConfirm.unpublishMessage', { name: recipeToPublish?.nameEn || '' })}
+            ? i18n.t('admin.recipes.publishConfirm.publishMessage', { name: getTranslatedField(recipeToPublish?.translations, 'en', 'name') || '' })
+            : i18n.t('admin.recipes.publishConfirm.unpublishMessage', { name: getTranslatedField(recipeToPublish?.translations, 'en', 'name') || '' })}
           onConfirm={() => recipeToPublish && confirmTogglePublish(recipeToPublish.id, publishAction === 'unpublish')}
           onCancel={() => {
             setShowPublishConfirm(false);

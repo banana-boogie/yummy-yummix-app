@@ -50,7 +50,7 @@ function renderSpeechHook(overrides?: Partial<Parameters<typeof useSpeechRecogni
         onTranscript,
         ...renderHook(() =>
             useSpeechRecognition({
-                language: 'en',
+                locale: 'en',
                 onTranscript,
                 ...overrides,
             })
@@ -98,7 +98,7 @@ describe('useSpeechRecognition', () => {
         });
 
         it('uses es-MX locale for Spanish', async () => {
-            const { result } = renderSpeechHook({ language: 'es' });
+            const { result } = renderSpeechHook({ locale: 'es' });
 
             await act(async () => {
                 await result.current.handleMicPress();

@@ -7,6 +7,7 @@
  * - Device language detection
  * - Persistence
  * - i18n integration
+ * - Locale support
  */
 
 import React from 'react';
@@ -33,7 +34,6 @@ jest.mock('@/utils/storage', () => ({
 }));
 
 // Mock i18n - must be an object we can mutate
-// Using a getter function to ensure the mock is evaluated at runtime
 const mockI18nState = { locale: 'en', t: (key: string) => key };
 jest.mock('@/i18n', () => {
   return {
@@ -45,7 +45,7 @@ jest.mock('@/i18n', () => {
 });
 
 // Mock expo-localization
-const mockGetLocales = jest.fn(() => [{ languageCode: 'en' }]);
+const mockGetLocales = jest.fn(() => [{ languageCode: 'en', languageTag: 'en-US' }]);
 jest.mock('expo-localization', () => ({
   getLocales: () => mockGetLocales(),
 }));
@@ -60,7 +60,7 @@ describe('LanguageContext', () => {
     // Clear mock storage
     Object.keys(mockStorageData).forEach((key) => delete mockStorageData[key]);
     mockI18nState.locale = 'en';
-    mockGetLocales.mockReturnValue([{ languageCode: 'en' }]);
+    mockGetLocales.mockReturnValue([{ languageCode: 'en', languageTag: 'en-US' }]);
   });
 
   // ============================================================
@@ -68,8 +68,8 @@ describe('LanguageContext', () => {
   // ============================================================
 
   describe('initialization', () => {
-    it('loads saved language preference', async () => {
-      mockGetItem.mockResolvedValueOnce('es');
+    it('loads saved locale preference', async () => {
+      mockStorageData['preferred-locale'] = 'es';
 
       const { result } = renderHook(() => useLanguage(), { wrapper });
 
@@ -77,6 +77,7 @@ describe('LanguageContext', () => {
         () => {
           expect(result.current).toBeDefined();
           expect(result.current.language).toBe('es');
+          expect(result.current.locale).toBe('es');
         },
         { timeout: 3000 }
       );
@@ -84,9 +85,9 @@ describe('LanguageContext', () => {
       expect(mockI18nState.locale).toBe('es');
     });
 
-    it('detects device language when no saved preference', async () => {
-      mockGetItem.mockResolvedValueOnce(null);
-      mockGetLocales.mockReturnValue([{ languageCode: 'es' }]);
+    it('migrates legacy language preference to locale', async () => {
+      // Only legacy key set, no locale key
+      mockStorageData['preferred-language'] = 'es';
 
       const { result } = renderHook(() => useLanguage(), { wrapper });
 
@@ -99,9 +100,23 @@ describe('LanguageContext', () => {
       );
     });
 
+    it('detects device locale when no saved preference', async () => {
+      mockGetLocales.mockReturnValue([{ languageCode: 'es', languageTag: 'es-MX' }]);
+
+      const { result } = renderHook(() => useLanguage(), { wrapper });
+
+      await waitFor(
+        () => {
+          expect(result.current).toBeDefined();
+          expect(result.current.language).toBe('es');
+          expect(result.current.locale).toBe('es-MX');
+        },
+        { timeout: 3000 }
+      );
+    });
+
     it('defaults to English when device language is not supported', async () => {
-      mockGetItem.mockResolvedValueOnce(null);
-      mockGetLocales.mockReturnValue([{ languageCode: 'fr' }]);
+      mockGetLocales.mockReturnValue([{ languageCode: 'fr', languageTag: 'fr-FR' }]);
 
       const { result } = renderHook(() => useLanguage(), { wrapper });
 
@@ -154,7 +169,7 @@ describe('LanguageContext', () => {
     });
 
     it('switches language to English', async () => {
-      mockGetItem.mockResolvedValueOnce('es');
+      mockStorageData['preferred-locale'] = 'es';
 
       const { result } = renderHook(() => useLanguage(), { wrapper });
 
@@ -185,6 +200,7 @@ describe('LanguageContext', () => {
         await result.current.setLanguage('es');
       });
 
+      expect(mockSetItem).toHaveBeenCalledWith('preferred-locale', 'es');
       expect(mockSetItem).toHaveBeenCalledWith('preferred-language', 'es');
     });
 
@@ -230,6 +246,51 @@ describe('LanguageContext', () => {
   });
 
   // ============================================================
+  // LOCALE SWITCHING TESTS
+  // ============================================================
+
+  describe('setLocale', () => {
+    it('sets full locale and derives language', async () => {
+      const { result } = renderHook(() => useLanguage(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current).toBeDefined();
+        expect(result.current.language).toBeDefined();
+      });
+
+      await act(async () => {
+        await result.current.setLocale('es-MX');
+      });
+
+      expect(result.current.locale).toBe('es-MX');
+      expect(result.current.language).toBe('es');
+      expect(mockI18nState.locale).toBe('es');
+    });
+
+    it('does not update when setting same locale', async () => {
+      const { result } = renderHook(() => useLanguage(), { wrapper });
+
+      await waitFor(
+        () => {
+          expect(result.current).not.toBeNull();
+          expect(result.current.locale).toBeDefined();
+        },
+        { timeout: 3000 }
+      );
+
+      // The default locale is derived from device, which mocks to 'en-US'
+      // After loading, locale should be 'en-US' (from languageTag)
+      mockSetItem.mockClear();
+
+      await act(async () => {
+        await result.current.setLocale(result.current.locale);
+      });
+
+      expect(mockSetItem).not.toHaveBeenCalled();
+    });
+  });
+
+  // ============================================================
   // HOOK VALIDATION TESTS
   // ============================================================
 
@@ -242,6 +303,21 @@ describe('LanguageContext', () => {
       }).toThrow('useLanguage must be used within a LanguageProvider');
 
       consoleSpy.mockRestore();
+    });
+
+    it('exposes locale and setLocale', async () => {
+      const { result } = renderHook(() => useLanguage(), { wrapper });
+
+      await waitFor(
+        () => {
+          expect(result.current).not.toBeNull();
+          expect(result.current.locale).toBeDefined();
+        },
+        { timeout: 3000 }
+      );
+
+      expect(result.current.locale).toBeDefined();
+      expect(typeof result.current.setLocale).toBe('function');
     });
   });
 });
