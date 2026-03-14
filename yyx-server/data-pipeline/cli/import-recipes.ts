@@ -37,6 +37,7 @@ import { resolveStepIngredients } from '../lib/step-ingredient-resolver.ts';
 import { buildRecipeSteps, hasRecipeContent } from '../lib/import-helpers.ts';
 import { resolveNotionTag } from '../lib/notion-tag-map.ts';
 import * as db from '../lib/db.ts';
+import { adaptToSpainSpanish, type SpainAdaptOutput } from '../lib/spain-adapter.ts';
 import { assertRequiredApiKey } from '../lib/cli-validations.ts';
 
 const logger = new Logger('import');
@@ -82,10 +83,11 @@ async function resolveIngredients(
 ): Promise<{
   recipeIngredients: db.RecipeIngredientInsert[];
   ingredientMap: Map<string, DbIngredient>;
+  newlyCreatedIngredients: Array<{ id: string; nameEs: string; pluralNameEs: string }>;
 }> {
   const recipeIngredients: db.RecipeIngredientInsert[] = [];
-  // Map from ingredient nameEn (lowercase) to DbIngredient for step matching
   const ingredientMap = new Map<string, DbIngredient>();
+  const newlyCreatedIngredients: Array<{ id: string; nameEs: string; pluralNameEs: string }> = [];
 
   for (const item of parsed.ingredients) {
     let matched = matchIngredient(item.ingredient, allIngredients);
@@ -100,8 +102,12 @@ async function resolveIngredients(
         plural_name_en: item.ingredient.pluralNameEn,
         plural_name_es: item.ingredient.pluralNameEs,
       });
-      // Add to local cache so subsequent recipes can match it
       allIngredients.push(matched);
+      newlyCreatedIngredients.push({
+        id: matched.id,
+        nameEs: item.ingredient.nameEs,
+        pluralNameEs: item.ingredient.pluralNameEs,
+      });
     }
 
     ingredientMap.set(item.ingredient.nameEn.toLowerCase(), matched);
@@ -125,7 +131,7 @@ async function resolveIngredients(
     });
   }
 
-  return { recipeIngredients, ingredientMap };
+  return { recipeIngredients, ingredientMap, newlyCreatedIngredients };
 }
 
 /** Resolve tags using the Notion tag map for exact matching.
@@ -182,12 +188,14 @@ async function resolveTags(
 async function resolveKitchenTools(
   parsed: ParsedRecipeData,
   allItems: DbKitchenTool[],
-): Promise<
-  Array<{ kitchen_tool_id: string; display_order: number; notes_en: string; notes_es: string }>
-> {
-  const result: Array<
+): Promise<{
+  items: Array<{ kitchen_tool_id: string; display_order: number; notes_en: string; notes_es: string }>;
+  newlyCreatedTools: Array<{ id: string; nameEs: string }>;
+}> {
+  const items: Array<
     { kitchen_tool_id: string; display_order: number; notes_en: string; notes_es: string }
   > = [];
+  const newlyCreatedTools: Array<{ id: string; nameEs: string }> = [];
 
   for (const item of parsed.kitchenTools) {
     let matched = matchKitchenTool(item, allItems);
@@ -199,9 +207,10 @@ async function resolveKitchenTools(
         name_es: item.nameEs,
       });
       allItems.push(matched);
+      newlyCreatedTools.push({ id: matched.id, nameEs: item.nameEs });
     }
 
-    result.push({
+    items.push({
       kitchen_tool_id: matched.id,
       display_order: item.displayOrder,
       notes_en: item.notesEn || '',
@@ -209,7 +218,7 @@ async function resolveKitchenTools(
     });
   }
 
-  return result;
+  return { items, newlyCreatedTools };
 }
 
 // ─── Main Import Flow ────────────────────────────────────
@@ -245,15 +254,17 @@ async function importRecipe(
   }
 
   // 3. Resolve all entities (matching only — no DB writes in dry-run)
-  const { recipeIngredients, ingredientMap } = dryRun
-    ? await resolveIngredientsDry(parsed, allIngredients, allUnits)
+  const ingredientResult = dryRun
+    ? { ...(await resolveIngredientsDry(parsed, allIngredients, allUnits)), newlyCreatedIngredients: [] }
     : await resolveIngredients(parsed, allIngredients, allUnits);
+  const { recipeIngredients, ingredientMap, newlyCreatedIngredients } = ingredientResult;
   const tagIds = dryRun
     ? await resolveTagsDry(parsed.tags, allTags)
     : await resolveTags(parsed.tags, allTags);
-  const kitchenTools = dryRun
-    ? await resolveKitchenToolsDry(parsed, allItems)
+  const kitchenToolResult = dryRun
+    ? { items: await resolveKitchenToolsDry(parsed, allItems), newlyCreatedTools: [] }
     : await resolveKitchenTools(parsed, allItems);
+  const { items: kitchenTools, newlyCreatedTools } = kitchenToolResult;
 
   // In dry-run mode: log everything and return without DB writes
   if (dryRun) {
@@ -333,7 +344,7 @@ async function importRecipe(
       ...ri,
       recipe_id: recipeId,
     }));
-    await db.insertRecipeIngredients(config.supabase, ingredientsWithRecipeId);
+    const ingredientOrderToId = await db.insertRecipeIngredients(config.supabase, ingredientsWithRecipeId);
 
     // 6. Insert recipe steps
     const steps = buildRecipeSteps(recipeId, parsed);
@@ -367,6 +378,65 @@ async function importRecipe(
 
     // 9. Insert kitchen tools
     await db.insertRecipeKitchenTools(config.supabase, recipeId, kitchenTools);
+
+    // 10. Generate and insert es-ES (Spain Spanish) translations
+    const spainInput = {
+      recipeName: parsed.nameEs,
+      tipsAndTricks: parsed.tipsAndTricksEs || '',
+      steps: parsed.steps.map((s) => ({
+        order: s.order,
+        instruction: s.instructionEs,
+        section: s.recipeSectionEs || 'Principal',
+        tip: s.tipEs || '',
+      })),
+      ingredientNotes: parsed.ingredients.map((i) => ({
+        displayOrder: i.displayOrder,
+        notes: i.notesEs || '',
+        tip: i.tipEs || '',
+        section: i.recipeSectionEs || 'Principal',
+      })),
+      newIngredients: newlyCreatedIngredients.map((i) => ({
+        name: i.nameEs,
+        pluralName: i.pluralNameEs,
+      })),
+      newKitchenTools: newlyCreatedTools.map((kt) => ({
+        name: kt.nameEs,
+      })),
+    };
+
+    const spainOutput = await adaptToSpainSpanish(spainInput, config.openaiApiKey, logger);
+
+    // Build step ID mapping (order → DB id)
+    const stepOrderToId = new Map(insertedSteps.map((s) => [s.order, s.id]));
+
+    await db.insertSpainTranslations(config.supabase, {
+      recipe: {
+        recipeId,
+        name: spainOutput.recipeName || parsed.nameEs,
+        tipsAndTricks: spainOutput.tipsAndTricks || parsed.tipsAndTricksEs || '',
+      },
+      steps: (spainOutput.steps || []).map((s) => ({
+        stepId: stepOrderToId.get(s.order) || '',
+        instruction: s.instruction,
+        section: s.section,
+        tip: s.tip,
+      })).filter((s) => s.stepId),
+      ingredientNotes: (spainOutput.ingredientNotes || []).map((ri) => ({
+        recipeIngredientId: ingredientOrderToId.get(ri.displayOrder) || '',
+        notes: ri.notes,
+        tip: ri.tip,
+        section: ri.section,
+      })).filter((ri) => ri.recipeIngredientId),
+      ingredients: (spainOutput.newIngredients || []).map((i, idx) => ({
+        ingredientId: newlyCreatedIngredients[idx]?.id || '',
+        name: i.name,
+        pluralName: i.pluralName,
+      })).filter((i) => i.ingredientId),
+      kitchenTools: (spainOutput.newKitchenTools || []).map((kt, idx) => ({
+        kitchenToolId: newlyCreatedTools[idx]?.id || '',
+        name: kt.name,
+      })).filter((kt) => kt.kitchenToolId),
+    });
   } catch (childError) {
     // Clean up the orphaned recipe row (FK cascades delete children)
     logger.warn(`Cleaning up partial recipe "${parsed.nameEn}" (${recipeId}) after error`);

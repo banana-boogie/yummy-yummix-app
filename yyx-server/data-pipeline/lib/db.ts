@@ -351,8 +351,8 @@ export async function createRecipe(
 export async function insertRecipeIngredients(
   supabase: SupabaseClient,
   ingredients: RecipeIngredientInsert[],
-): Promise<void> {
-  if (ingredients.length === 0) return;
+): Promise<Map<number, string>> {
+  if (ingredients.length === 0) return new Map();
 
   // 1. Insert base rows (non-translatable fields)
   const baseRows = ingredients.map((ri) => ({
@@ -387,6 +387,8 @@ export async function insertRecipeIngredients(
       .insert(translations);
     if (tErr) throw new Error(`Failed to insert recipe ingredient translations: ${tErr.message}`);
   }
+
+  return orderToId;
 }
 
 export async function insertRecipeSteps(
@@ -493,6 +495,93 @@ export async function insertRecipeKitchenTools(
       .from('recipe_kitchen_tool_translations')
       .insert(translations);
     if (tErr) throw new Error(`Failed to insert recipe kitchen tool translations: ${tErr.message}`);
+  }
+}
+
+// ─── Insert es-ES Translations ──────────────────────────
+
+export interface SpainTranslations {
+  recipe?: { recipeId: string; name: string; tipsAndTricks: string };
+  steps?: Array<{ stepId: string; instruction: string; section: string; tip: string }>;
+  ingredientNotes?: Array<{ recipeIngredientId: string; notes: string; tip: string; section: string }>;
+  ingredients?: Array<{ ingredientId: string; name: string; pluralName: string }>;
+  kitchenTools?: Array<{ kitchenToolId: string; name: string }>;
+}
+
+export async function insertSpainTranslations(
+  supabase: SupabaseClient,
+  data: SpainTranslations,
+): Promise<void> {
+  const locale = 'es-ES';
+
+  // Recipe translation
+  if (data.recipe) {
+    const { error } = await supabase
+      .from('recipe_translations')
+      .upsert({
+        recipe_id: data.recipe.recipeId,
+        locale,
+        name: data.recipe.name,
+        tips_and_tricks: data.recipe.tipsAndTricks,
+      }, { onConflict: 'recipe_id,locale' });
+    if (error) throw new Error(`Failed to insert es-ES recipe translation: ${error.message}`);
+  }
+
+  // Step translations
+  if (data.steps && data.steps.length > 0) {
+    const rows = data.steps.map((s) => ({
+      recipe_step_id: s.stepId,
+      locale,
+      instruction: s.instruction,
+      recipe_section: s.section,
+      tip: s.tip,
+    }));
+    const { error } = await supabase
+      .from('recipe_step_translations')
+      .upsert(rows, { onConflict: 'recipe_step_id,locale' });
+    if (error) throw new Error(`Failed to insert es-ES step translations: ${error.message}`);
+  }
+
+  // Recipe ingredient translations
+  if (data.ingredientNotes && data.ingredientNotes.length > 0) {
+    const rows = data.ingredientNotes.map((ri) => ({
+      recipe_ingredient_id: ri.recipeIngredientId,
+      locale,
+      notes: ri.notes,
+      tip: ri.tip,
+      recipe_section: ri.section,
+    }));
+    const { error } = await supabase
+      .from('recipe_ingredient_translations')
+      .upsert(rows, { onConflict: 'recipe_ingredient_id,locale' });
+    if (error) throw new Error(`Failed to insert es-ES ingredient note translations: ${error.message}`);
+  }
+
+  // Ingredient translations (for newly created ingredients)
+  if (data.ingredients && data.ingredients.length > 0) {
+    const rows = data.ingredients.map((i) => ({
+      ingredient_id: i.ingredientId,
+      locale,
+      name: i.name,
+      plural_name: i.pluralName,
+    }));
+    const { error } = await supabase
+      .from('ingredient_translations')
+      .upsert(rows, { onConflict: 'ingredient_id,locale' });
+    if (error) throw new Error(`Failed to insert es-ES ingredient translations: ${error.message}`);
+  }
+
+  // Kitchen tool translations (for newly created tools)
+  if (data.kitchenTools && data.kitchenTools.length > 0) {
+    const rows = data.kitchenTools.map((kt) => ({
+      kitchen_tool_id: kt.kitchenToolId,
+      locale,
+      name: kt.name,
+    }));
+    const { error } = await supabase
+      .from('kitchen_tool_translations')
+      .upsert(rows, { onConflict: 'kitchen_tool_id,locale' });
+    if (error) throw new Error(`Failed to insert es-ES kitchen tool translations: ${error.message}`);
   }
 }
 
