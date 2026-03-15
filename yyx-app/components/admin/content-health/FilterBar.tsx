@@ -66,9 +66,10 @@ function ChipRow<T extends string>({
                 isActive
                   ? 'bg-primary-medium'
                   : isDisabled
-                    ? 'bg-grey-light border border-border-default'
+                    ? 'border border-dashed border-grey-medium'
                     : 'bg-white border border-border-default'
               }`}
+              style={isDisabled ? { opacity: 0.4 } : undefined}
               onPress={() => !isDisabled && onSelect(chip.value)}
               activeOpacity={isDisabled ? 1 : 0.7}
               disabled={isDisabled}
@@ -79,7 +80,7 @@ function ChipRow<T extends string>({
                   isActive
                     ? 'text-text-default font-semibold'
                     : isDisabled
-                      ? 'text-grey-medium'
+                      ? 'text-text-secondary line-through'
                       : 'text-text-secondary'
                 }
               >
