@@ -186,7 +186,7 @@ class AdminRecipeService extends BaseService {
 
       // Insert only non-translatable fields into recipes
       const recipeData = this.transformRequest({
-        pictureUrl: imageUrl,
+        imageUrl: imageUrl,
         difficulty: recipe.difficulty,
         prepTime: recipe.prepTime,
         totalTime: recipe.totalTime,
@@ -269,9 +269,9 @@ class AdminRecipeService extends BaseService {
         }
       }
 
-      nonTranslatableFields.pictureUrl = await this.handleImageUpload({file: recipe.pictureUrl, translations: recipe.translations});
+      nonTranslatableFields.imageUrl = await this.handleImageUpload({file: recipe.pictureUrl, translations: recipe.translations});
     } else if (recipe.pictureUrl !== undefined) {
-      nonTranslatableFields.pictureUrl = recipe.pictureUrl;
+      nonTranslatableFields.imageUrl = recipe.pictureUrl;
     }
 
     if (Object.keys(nonTranslatableFields).length > 0) {
@@ -504,15 +504,8 @@ class AdminRecipeService extends BaseService {
     recipeSteps: AdminRecipeSteps[],
     insertedSteps: { id: string, order: number }[]
   ): Promise<void> {
-    const { error: deleteError } = await this.supabase
-      .from('recipe_step_ingredients')
-      .delete()
-      .eq('recipe_id', recipeId);
-
-    if (deleteError) {
-      throw new Error(`Failed to delete existing step ingredients: ${deleteError.message}`);
-    }
-
+    // Old step ingredients are already deleted by the cascade from recipe_steps deletion
+    // in updateRecipeSteps(). We only need to insert new ones here.
     const stepOrderToIdMap = new Map(
       insertedSteps.map(step => [step.order, step.id])
     );
@@ -531,7 +524,6 @@ class AdminRecipeService extends BaseService {
           logger.warn(`Missing ingredient id for recipe step ${stepId}`)
         }
         const transformedData = this.transformRequest({
-          recipeId,
           recipeStepId: stepId,
           ingredientId: recipeStepIngredient.ingredient?.id,
           measurementUnitId: recipeStepIngredient.measurementUnit?.id || null,
