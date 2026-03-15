@@ -80,6 +80,8 @@ const { inputTokens, outputTokens, costUsd } = await result.usage();
 | `recipe_modification` | gpt-4.1 | openai | Recipe modification (transform existing recipe JSON) | Medium |
 | `parsing` | gpt-4.1-nano | openai | Admin parsing, nutritional data extraction | Very low |
 | `embedding` | text-embedding-3-large | openai | Vector search (3072 dimensions) | Low |
+| `nutrition` | gpt-4.1-mini | openai | Nutritional facts lookup (per 100g macros) | Low |
+| `translation` | gpt-4.1-mini | openai | Content localization (admin auto-translate) | Low |
 
 #### Configuration:
 

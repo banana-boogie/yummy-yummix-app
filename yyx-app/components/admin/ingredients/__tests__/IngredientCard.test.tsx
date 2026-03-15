@@ -31,7 +31,7 @@ const mockIngredient: AdminIngredient = {
     { locale: 'en', name: 'Tomato', pluralName: 'Tomatoes' },
   ],
   pictureUrl: 'https://example.com/tomato.jpg',
-  nutritionalFacts: { servingSize: { amount: 100, unit: 'g' } },
+  nutritionalFacts: { calories: 20, protein: 1.0, fat: 0.2, carbohydrates: 3.9 },
 };
 
 const mockHandlers = {

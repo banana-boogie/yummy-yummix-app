@@ -193,7 +193,6 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...  # Get from dashboard (NEVER via MCP)
 XAI_API_KEY=xai-...                   # For text/orchestrator (default provider)
 OPENAI_API_KEY=sk-proj-xxx            # For recipe_generation, recipe_modification, parsing, embedding
 GEMINI_API_KEY=AIza...                # Only needed if overriding defaults to Google
-USDA_API_KEY=xxx
 ```
 
 ### MCP Security Note

@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { AdminIngredient, AdminIngredientTranslation, pickTranslation, getNameFromTranslations } from '@/types/recipe.admin.types';
+import { AdminIngredient, AdminIngredientTranslation, NutritionalFacts, pickTranslation, getNameFromTranslations } from '@/types/recipe.admin.types';
 import { BaseService } from '../base/BaseService';
 import { imageService } from '../storage/imageService';
 import logger from '@/services/logger';
@@ -15,11 +15,17 @@ export class AdminIngredientsService extends BaseService {
       .select(`
         id,
         image_url,
-        nutritional_facts,
         translations:ingredient_translations (
           locale,
           name,
           plural_name
+        ),
+        nutrition:ingredient_nutrition (
+          calories,
+          protein,
+          fat,
+          carbohydrates,
+          source
         )
       `)
       .order('id', { ascending: true });
@@ -29,16 +35,25 @@ export class AdminIngredientsService extends BaseService {
       throw new Error(`Error fetching ingredients: ${error.message}`);
     }
 
-    const result: AdminIngredient[] = (data || []).map((item: any) => ({
-      id: item.id,
-      translations: (item.translations || []).map((t: any) => ({
-        locale: t.locale,
-        name: t.name || '',
-        pluralName: t.plural_name || undefined,
-      })),
-      pictureUrl: item.image_url,
-      nutritionalFacts: item.nutritional_facts,
-    }));
+    const result: AdminIngredient[] = (data || []).map((item: any) => {
+      // nutrition is a 1:1 relation — PostgREST returns single object or null
+      const n = Array.isArray(item.nutrition) ? item.nutrition[0] : item.nutrition;
+      return {
+        id: item.id,
+        translations: (item.translations || []).map((t: any) => ({
+          locale: t.locale,
+          name: t.name || '',
+          pluralName: t.plural_name || undefined,
+        })),
+        pictureUrl: item.image_url,
+        nutritionalFacts: n ? {
+          calories: n.calories,
+          protein: n.protein,
+          fat: n.fat,
+          carbohydrates: n.carbohydrates,
+        } : undefined,
+      };
+    });
 
     // Sort client-side since we can't sort by translation table column via PostgREST
     const sortLocale = sortBy;
@@ -66,6 +81,46 @@ export class AdminIngredientsService extends BaseService {
     } catch (error) {
       logger.error('Error uploading image:', error);
       throw new Error(`Error uploading image: ${error}`);
+    }
+  }
+
+  /**
+   * Persist or delete ingredient nutrition.
+   * If any of the 4 core fields has a value, upsert the row.
+   * If all are empty/undefined, delete the row.
+   */
+  private async persistNutrition(ingredientId: string, nf: NutritionalFacts | undefined): Promise<void> {
+    if (nf === undefined) return;
+
+    const hasValues = (nf.calories !== undefined && nf.calories !== '') ||
+      (nf.protein !== undefined && nf.protein !== '') ||
+      (nf.fat !== undefined && nf.fat !== '') ||
+      (nf.carbohydrates !== undefined && nf.carbohydrates !== '');
+
+    if (hasValues) {
+      const { error } = await this.supabase
+        .from('ingredient_nutrition')
+        .upsert({
+          ingredient_id: ingredientId,
+          calories: nf.calories !== '' && nf.calories !== undefined ? Number(nf.calories) : null,
+          protein: nf.protein !== '' && nf.protein !== undefined ? Number(nf.protein) : null,
+          fat: nf.fat !== '' && nf.fat !== undefined ? Number(nf.fat) : null,
+          carbohydrates: nf.carbohydrates !== '' && nf.carbohydrates !== undefined ? Number(nf.carbohydrates) : null,
+          source: 'manual',
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'ingredient_id' });
+      if (error) {
+        throw new Error(`Failed to upsert nutrition: ${error.message}`);
+      }
+    } else {
+      // All fields empty — delete the nutrition row
+      const { error } = await this.supabase
+        .from('ingredient_nutrition')
+        .delete()
+        .eq('ingredient_id', ingredientId);
+      if (error) {
+        throw new Error(`Failed to delete nutrition: ${error.message}`);
+      }
     }
   }
 
@@ -107,13 +162,16 @@ export class AdminIngredientsService extends BaseService {
       }
     }
 
-    if (ingredient.nutritionalFacts !== undefined) ingredientData.nutritional_facts = ingredient.nutritionalFacts;
-
     if (Object.keys(ingredientData).length > 0) {
       const updatedIngredient = await this.transformedUpdate<AdminIngredient>('ingredients', id, ingredientData);
       if (!updatedIngredient) {
         throw new Error('Failed to update ingredient');
       }
+    }
+
+    // Handle nutrition separately
+    if (ingredient.nutritionalFacts !== undefined) {
+      await this.persistNutrition(id, ingredient.nutritionalFacts);
     }
 
     // Upsert translations from the translations array
@@ -159,7 +217,6 @@ export class AdminIngredientsService extends BaseService {
 
     const ingredientData: Record<string, any> = {
       image_url: '',
-      nutritional_facts: ingredient.nutritionalFacts,
     };
 
     if (ingredient.pictureUrl) {
@@ -197,6 +254,9 @@ export class AdminIngredientsService extends BaseService {
         throw new Error(`Failed to insert ingredient translations: ${translationError.message}`);
       }
     }
+
+    // Upsert nutrition if provided
+    await this.persistNutrition(inserted.id, ingredient.nutritionalFacts);
 
     return {
       id: inserted.id,

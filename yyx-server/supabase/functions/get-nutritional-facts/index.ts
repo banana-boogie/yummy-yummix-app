@@ -15,7 +15,7 @@ export async function getNutritionalFacts(
   console.info(`Looking up nutrition for '${ingredientName}' via AI gateway`);
   try {
     const response = await chat({
-      usageType: "parsing",
+      usageType: "nutrition",
       messages: [{
         role: "user",
         content:

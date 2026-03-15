@@ -226,7 +226,6 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...  # Get from dashboard (NEVER via MCP)
 XAI_API_KEY=xai-...                   # For text/orchestrator (default provider)
 OPENAI_API_KEY=sk-proj-xxx            # For recipe_generation, recipe_modification, parsing, embedding
 GEMINI_API_KEY=AIza...                # Only needed if overriding defaults to Google
-USDA_API_KEY=xxx
 ```
 
 ### MCP Security Note
@@ -358,6 +357,8 @@ const { inputTokens, outputTokens, costUsd } = await result.usage();
 | `recipe_modification` | gpt-4.1 | openai | Recipe modification (transform existing recipe JSON) | Medium |
 | `parsing` | gpt-4.1-nano | openai | Admin parsing, nutritional data extraction | Very low |
 | `embedding` | text-embedding-3-large | openai | Vector search (3072 dimensions) | Low |
+| `nutrition` | gpt-4.1-mini | openai | Nutritional facts lookup (per 100g macros) | Low |
+| `translation` | gpt-4.1-mini | openai | Content localization (admin auto-translate) | Low |
 
 #### Configuration:
 
@@ -663,6 +664,11 @@ const { data, error } = await supabase.from('recipes').select('*');
 ### Performance
 - Use `React.memo` for pure components
 - Use `expo-image` for optimized images
+
+### Dependencies
+- Prefer built-in/native solutions over third-party packages
+- Use existing project utilities before adding new dependencies
+- Only add a dependency when no built-in alternative exists and the package provides clear value
 
 <!-- END:shared/conventions -->
 
