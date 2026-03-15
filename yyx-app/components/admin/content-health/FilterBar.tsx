@@ -32,14 +32,24 @@ const entityChips: ChipConfig<EntityFilter>[] = [
   { value: 'useful_item', labelKey: 'filterKitchenTools' },
 ];
 
+// Which issue filters are valid for each entity type
+const validIssueFilters: Record<EntityFilter, Set<IssueFilter>> = {
+  all: new Set(['all', 'translation', 'image', 'nutrition', 'unpublished']),
+  recipe: new Set(['all', 'translation', 'image', 'unpublished']),
+  ingredient: new Set(['all', 'translation', 'image', 'nutrition']),
+  useful_item: new Set(['all', 'translation', 'image']),
+};
+
 function ChipRow<T extends string>({
   chips,
   selected,
   onSelect,
+  disabledValues,
 }: {
   chips: ChipConfig<T>[];
   selected: T;
   onSelect: (value: T) => void;
+  disabledValues?: Set<T>;
 }) {
   const t = (key: string) => i18n.t(`admin.contentHealth.${key}`);
 
@@ -47,17 +57,31 @@ function ChipRow<T extends string>({
     <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-xs">
       <View className="flex-row gap-xs px-xxs">
         {chips.map((chip) => {
-          const isActive = selected === chip.value;
+          const isDisabled = disabledValues?.has(chip.value) ?? false;
+          const isActive = selected === chip.value && !isDisabled;
           return (
             <TouchableOpacity
               key={chip.value}
-              className={`px-md py-xs rounded-round ${isActive ? 'bg-primary-medium' : 'bg-white border border-border-default'}`}
-              onPress={() => onSelect(chip.value)}
-              activeOpacity={0.7}
+              className={`px-md py-xs rounded-round ${
+                isActive
+                  ? 'bg-primary-medium'
+                  : isDisabled
+                    ? 'bg-grey-light border border-border-default'
+                    : 'bg-white border border-border-default'
+              }`}
+              onPress={() => !isDisabled && onSelect(chip.value)}
+              activeOpacity={isDisabled ? 1 : 0.7}
+              disabled={isDisabled}
             >
               <Text
                 preset="bodySmall"
-                className={isActive ? 'text-text-default font-semibold' : 'text-text-secondary'}
+                className={
+                  isActive
+                    ? 'text-text-default font-semibold'
+                    : isDisabled
+                      ? 'text-grey-medium'
+                      : 'text-text-secondary'
+                }
               >
                 {t(chip.labelKey)}
               </Text>
@@ -75,10 +99,31 @@ export function FilterBar({
   onActiveFilterChange,
   onEntityFilterChange,
 }: FilterBarProps) {
+  const validFilters = validIssueFilters[entityFilter];
+  const disabledIssueFilters = new Set(
+    issueChips
+      .map(c => c.value)
+      .filter(v => !validFilters.has(v))
+  );
+
+  const handleEntityChange = (entity: EntityFilter) => {
+    onEntityFilterChange(entity);
+    // Reset issue filter if it becomes invalid for the new entity
+    const newValid = validIssueFilters[entity];
+    if (!newValid.has(activeFilter)) {
+      onActiveFilterChange('all');
+    }
+  };
+
   return (
     <View className="mb-md">
-      <ChipRow chips={issueChips} selected={activeFilter} onSelect={onActiveFilterChange} />
-      <ChipRow chips={entityChips} selected={entityFilter} onSelect={onEntityFilterChange} />
+      <ChipRow
+        chips={issueChips}
+        selected={activeFilter}
+        onSelect={onActiveFilterChange}
+        disabledValues={disabledIssueFilters}
+      />
+      <ChipRow chips={entityChips} selected={entityFilter} onSelect={handleEntityChange} />
     </View>
   );
 }

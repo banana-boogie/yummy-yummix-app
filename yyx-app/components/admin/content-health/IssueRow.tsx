@@ -63,10 +63,10 @@ export function IssueRow({ issue, onPublished }: IssueRowProps) {
         router.push(`/admin/recipes/${issue.id}` as never);
         break;
       case 'ingredient':
-        router.push('/admin/ingredients' as never);
+        router.push(`/admin/ingredients?edit=${issue.id}` as never);
         break;
       case 'useful_item':
-        router.push('/admin/kitchen-tools' as never);
+        router.push(`/admin/kitchen-tools?edit=${issue.id}` as never);
         break;
     }
   };

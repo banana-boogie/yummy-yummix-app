@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
 import { COLORS } from '@/constants/design-tokens';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { KitchenToolCard } from '@/components/admin/kitchen-tools/KitchenToolCard';
@@ -16,6 +17,7 @@ import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/share
 import logger from '@/services/logger';
 
 export default function KitchenToolsAdminPage() {
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
   const {
     filteredKitchenTools,
     setFilteredKitchenTools,
@@ -29,6 +31,17 @@ export default function KitchenToolsAdminPage() {
   const [displayLocale, setDisplayLocale] = useState('es');
   const [modalVisible, setModalVisible] = useState(false);
   const [editingKitchenTool, setEditingKitchenTool] = useState<AdminKitchenTool | null>(null);
+
+  // Auto-open edit modal when navigating with ?edit=<id> (e.g. from content health dashboard)
+  useEffect(() => {
+    if (edit && !loading && filteredKitchenTools.length > 0) {
+      const target = filteredKitchenTools.find(kt => kt.id === edit);
+      if (target) {
+        setEditingKitchenTool(target);
+        setModalVisible(true);
+      }
+    }
+  }, [edit, loading, filteredKitchenTools]);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [selectedKitchenTool, setSelectedKitchenTool] = useState<AdminKitchenTool | null>(null);
   const [showErrorAlert, setShowErrorAlert] = useState(false);

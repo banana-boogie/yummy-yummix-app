@@ -81,7 +81,7 @@ describe('IssueRow', () => {
     );
 
     fireEvent.press(screen.getByText('Fix'));
-    expect(mockPush).toHaveBeenCalledWith('/admin/ingredients');
+    expect(mockPush).toHaveBeenCalledWith('/admin/ingredients?edit=ing-1');
   });
 
   it('shows ingredient badges correctly', () => {

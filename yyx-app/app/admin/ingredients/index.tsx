@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator, TouchableOpacity, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
 import { COLORS } from '@/constants/design-tokens';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { IngredientCard } from '@/components/admin/ingredients/IngredientCard';
@@ -15,6 +16,7 @@ import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/share
 import logger from '@/services/logger';
 
 export default function IngredientsAdminPage() {
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
   const {
     filteredIngredients,
     setFilteredIngredients,
@@ -27,6 +29,17 @@ export default function IngredientsAdminPage() {
   const [displayLocale, setDisplayLocale] = useState('es');
   const [modalVisible, setModalVisible] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<AdminIngredient | null>(null);
+
+  // Auto-open edit modal when navigating with ?edit=<id> (e.g. from content health dashboard)
+  useEffect(() => {
+    if (edit && !loading && filteredIngredients.length > 0) {
+      const target = filteredIngredients.find(ing => ing.id === edit);
+      if (target) {
+        setEditingIngredient(target);
+        setModalVisible(true);
+      }
+    }
+  }, [edit, loading, filteredIngredients]);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [selectedIngredient, setSelectedIngredient] = useState<AdminIngredient | null>(null);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
