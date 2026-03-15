@@ -5,7 +5,7 @@
  * overrides using a lightweight AI call. Only generates text that
  * actually differs from the Mexican variant.
  *
- * Uses gpt-4.1-nano since this is a simple terminology swap task.
+ * Uses gpt-4.1-mini since this is a simple terminology swap task.
  */
 
 import { Logger } from './logger.ts';

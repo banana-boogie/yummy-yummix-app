@@ -653,6 +653,135 @@ export async function updateRecipe(
   if (error) throw new Error(`Failed to update recipe ${id}: ${error.message}`);
 }
 
+// ─── Backfill Queries ──────────────────────────────────
+
+/**
+ * Fetch entities that have a `sourceLocale` translation but are MISSING `targetLocale`.
+ * Returns the source-locale fields so they can be translated/adapted.
+ */
+export async function fetchEntitiesMissingLocale(
+  supabase: SupabaseClient,
+  translationTable: string,
+  idColumn: string,
+  fields: string[],
+  sourceLocale: string,
+  targetLocale: string,
+  limit?: number,
+): Promise<Array<Record<string, string>>> {
+  // Find IDs that have the source locale
+  const { data: sourceRows, error: srcErr } = await supabase
+    .from(translationTable)
+    .select(`${idColumn}, ${fields.join(', ')}`)
+    .eq('locale', sourceLocale)
+    .limit(FETCH_LIMIT);
+  if (srcErr) throw new Error(`Failed to fetch ${translationTable} (${sourceLocale}): ${srcErr.message}`);
+
+  // Find IDs that already have the target locale
+  const { data: targetRows, error: tgtErr } = await supabase
+    .from(translationTable)
+    .select(idColumn)
+    .eq('locale', targetLocale)
+    .limit(FETCH_LIMIT);
+  if (tgtErr) throw new Error(`Failed to fetch ${translationTable} (${targetLocale}): ${tgtErr.message}`);
+
+  const existingIds = new Set((targetRows || []).map((r: Row) => r[idColumn]));
+  const missing = (sourceRows as Row[] || []).filter((r: Row) => !existingIds.has(r[idColumn]));
+
+  const result = limit ? missing.slice(0, limit) : missing;
+  return result as Array<Record<string, string>>;
+}
+
+/**
+ * Generic upsert into any *_translations table.
+ * Each row must include the id column, locale, and translatable fields.
+ */
+export async function upsertEntityTranslations(
+  supabase: SupabaseClient,
+  translationTable: string,
+  idColumn: string,
+  rows: Row[],
+): Promise<void> {
+  if (rows.length === 0) return;
+  const { error } = await supabase
+    .from(translationTable)
+    .upsert(rows, { onConflict: `${idColumn},locale` });
+  if (error) throw new Error(`Failed to upsert ${translationTable}: ${error.message}`);
+}
+
+/**
+ * Fetch a single recipe with all translatable child content for backfill.
+ * Returns structured data with current es translations for steps, ingredient notes, etc.
+ */
+export async function fetchRecipeForBackfill(
+  supabase: SupabaseClient,
+  recipeId: string,
+  sourceLocale: string,
+): Promise<{
+  recipe: { id: string; name: string; tipsAndTricks: string };
+  steps: Array<{ id: string; order: number; instruction: string; section: string; tip: string }>;
+  ingredientNotes: Array<{ id: string; displayOrder: number; notes: string; tip: string; section: string }>;
+} | null> {
+  // Recipe translation
+  const { data: recipeT, error: rErr } = await supabase
+    .from('recipe_translations')
+    .select('recipe_id, name, tips_and_tricks')
+    .eq('recipe_id', recipeId)
+    .eq('locale', sourceLocale)
+    .maybeSingle();
+  if (rErr) throw new Error(`Failed to fetch recipe translation: ${rErr.message}`);
+  if (!recipeT) return null;
+
+  // Step translations — need step IDs, join through recipe_steps
+  const { data: steps, error: sErr } = await supabase
+    .from('recipe_steps')
+    .select('id, order, translations:recipe_step_translations(locale, instruction, recipe_section, tip)')
+    .eq('recipe_id', recipeId)
+    .order('order');
+  if (sErr) throw new Error(`Failed to fetch recipe steps: ${sErr.message}`);
+
+  const stepData = (steps || []).map((s: Row) => {
+    const t = (s.translations || []).find((t: Row) => t.locale === sourceLocale) ||
+      (s.translations || [])[0] || {};
+    return {
+      id: s.id,
+      order: s.order,
+      instruction: t.instruction || '',
+      section: t.recipe_section || '',
+      tip: t.tip || '',
+    };
+  });
+
+  // Recipe ingredient translations — need recipe_ingredient IDs
+  const { data: ris, error: riErr } = await supabase
+    .from('recipe_ingredients')
+    .select('id, display_order, translations:recipe_ingredient_translations(locale, notes, tip, recipe_section)')
+    .eq('recipe_id', recipeId)
+    .order('display_order');
+  if (riErr) throw new Error(`Failed to fetch recipe ingredients: ${riErr.message}`);
+
+  const riData = (ris || []).map((ri: Row) => {
+    const t = (ri.translations || []).find((t: Row) => t.locale === sourceLocale) ||
+      (ri.translations || [])[0] || {};
+    return {
+      id: ri.id,
+      displayOrder: ri.display_order,
+      notes: t.notes || '',
+      tip: t.tip || '',
+      section: t.recipe_section || '',
+    };
+  });
+
+  return {
+    recipe: {
+      id: recipeId,
+      name: recipeT.name || '',
+      tipsAndTricks: recipeT.tips_and_tricks || '',
+    },
+    steps: stepData,
+    ingredientNotes: riData,
+  };
+}
+
 export async function deleteRecipe(
   supabase: SupabaseClient,
   id: string,
