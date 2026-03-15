@@ -35,7 +35,7 @@ const entityChips: ChipConfig<EntityFilter>[] = [
 // Which issue filters are valid for each entity type
 const validIssueFilters: Record<EntityFilter, Set<IssueFilter>> = {
   all: new Set(['all', 'translation', 'image', 'nutrition', 'unpublished']),
-  recipe: new Set(['all', 'translation', 'image', 'unpublished']),
+  recipe: new Set(['all', 'translation', 'image', 'nutrition', 'unpublished']),
   ingredient: new Set(['all', 'translation', 'image', 'nutrition']),
   useful_item: new Set(['all', 'translation', 'image']),
 };
