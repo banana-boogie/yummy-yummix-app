@@ -685,7 +685,7 @@ export async function fetchEntitiesMissingLocale(
   if (tgtErr) throw new Error(`Failed to fetch ${translationTable} (${targetLocale}): ${tgtErr.message}`);
 
   const existingIds = new Set((targetRows || []).map((r: Row) => r[idColumn]));
-  const missing = (sourceRows as Row[] || []).filter((r: Row) => !existingIds.has(r[idColumn]));
+  const missing = ((sourceRows || []) as Row[]).filter((r: Row) => !existingIds.has(r[idColumn]));
 
   const result = limit ? missing.slice(0, limit) : missing;
   return result as Array<Record<string, string>>;

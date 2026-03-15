@@ -16,6 +16,8 @@ import { adaptToSpainSpanish } from './spain-adapter.ts';
 
 const BATCH_SIZE = 20;
 const API_DELAY_MS = 500;
+const MAX_RETRIES = 3;
+const BASE_BACKOFF_MS = 1000;
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -58,6 +60,7 @@ Rules:
 - Return valid JSON matching the exact schema requested
 - Preserve the "id" field exactly as given`;
 
+// NOTE: Keep this swap list in sync with spain-adapter.ts SYSTEM_PROMPT
 const ADAPT_SPAIN_SYSTEM_PROMPT = `You adapt Mexican Spanish recipe text to Spain Spanish (Castilian).
 
 Rules:
@@ -105,38 +108,66 @@ async function callOpenAI(
   userContent: string,
   schema: Record<string, unknown>,
   apiKey: string,
+  maxTokens = 4000,
 ): Promise<unknown> {
-  const response = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-4.1-mini',
-      temperature: 0.1,
-      max_output_tokens: 4000,
-      text: {
-        format: {
-          type: 'json_schema',
-          name: 'TranslationBatch',
-          schema,
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
         },
-      },
-      input: userContent,
-      instructions: systemPrompt,
-    }),
-  });
+        body: JSON.stringify({
+          model: 'gpt-4.1-mini',
+          temperature: 0.1,
+          max_output_tokens: maxTokens,
+          text: {
+            format: {
+              type: 'json_schema',
+              name: 'TranslationBatch',
+              schema,
+            },
+          },
+          input: userContent,
+          instructions: systemPrompt,
+        }),
+      });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenAI API error (${response.status}): ${errorText}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        const retryable = response.status === 429 || response.status >= 500;
+        if (retryable && attempt < MAX_RETRIES) {
+          const backoffMs = BASE_BACKOFF_MS * (2 ** (attempt - 1));
+          await sleep(backoffMs);
+          continue;
+        }
+        throw new Error(`OpenAI API error (${response.status}): ${errorText}`);
+      }
+
+      const data = await response.json();
+      const outputText = data.output_text || data.output?.[0]?.content?.[0]?.text;
+      if (!outputText) throw new Error('No content in OpenAI response');
+      return parseJsonFromLLM(outputText);
+    } catch (error) {
+      if (attempt < MAX_RETRIES) {
+        const backoffMs = BASE_BACKOFF_MS * (2 ** (attempt - 1));
+        await sleep(backoffMs);
+        continue;
+      }
+      throw error;
+    }
   }
+  throw new Error('callOpenAI: exhausted retries');
+}
 
-  const data = await response.json();
-  const outputText = data.output_text || data.output?.[0]?.content?.[0]?.text;
-  if (!outputText) throw new Error('No content in OpenAI response');
-  return parseJsonFromLLM(outputText);
+/** Warn if the AI returned a different number of items than we sent */
+function validateBatchCount(sent: number, received: number, context: string): void {
+  if (sent !== received) {
+    console.warn(
+      `[backfill] WARNING: ${context} — sent ${sent} items but received ${received}. Some translations may be missing.`,
+    );
+  }
 }
 
 /**
@@ -152,6 +183,7 @@ async function translateBatchToEnglish(
   const result = await callOpenAI(TRANSLATE_SYSTEM_PROMPT, userPrompt, schema, apiKey) as {
     items: BatchItem[];
   };
+  validateBatchCount(items.length, result.items.length, 'es→en translation');
   return result.items;
 }
 
@@ -171,6 +203,7 @@ async function adaptBatchToSpain(
   const result = await callOpenAI(ADAPT_SPAIN_SYSTEM_PROMPT, userPrompt, schema, apiKey) as {
     items: BatchItem[];
   };
+  validateBatchCount(items.length, result.items.length, 'es→es-ES adaptation');
   return result.items;
 }
 
@@ -330,6 +363,7 @@ async function translateRecipeToEnglish(
     JSON.stringify(input, null, 2),
     schema,
     apiKey,
+    8000, // Recipes with many steps/ingredients need more output tokens
   ) as {
     recipeName: string;
     tipsAndTricks: string;
