@@ -24,7 +24,7 @@ describe('FilterBar', () => {
     // Entity chips
     expect(screen.getByText('Recipes')).toBeTruthy();
     expect(screen.getByText('Ingredients')).toBeTruthy();
-    expect(screen.getByText('Useful Items')).toBeTruthy();
+    expect(screen.getByText('Kitchen Tools')).toBeTruthy();
   });
 
   it('calls onActiveFilterChange when issue chip is pressed', () => {

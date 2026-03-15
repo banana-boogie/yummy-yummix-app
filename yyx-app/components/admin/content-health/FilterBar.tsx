@@ -29,7 +29,7 @@ const entityChips: ChipConfig<EntityFilter>[] = [
   { value: 'all', labelKey: 'filterAll' },
   { value: 'recipe', labelKey: 'filterRecipes' },
   { value: 'ingredient', labelKey: 'filterIngredients' },
-  { value: 'useful_item', labelKey: 'filterUsefulItems' },
+  { value: 'useful_item', labelKey: 'filterKitchenTools' },
 ];
 
 function ChipRow<T extends string>({
