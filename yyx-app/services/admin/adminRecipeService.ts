@@ -504,15 +504,8 @@ class AdminRecipeService extends BaseService {
     recipeSteps: AdminRecipeSteps[],
     insertedSteps: { id: string, order: number }[]
   ): Promise<void> {
-    const { error: deleteError } = await this.supabase
-      .from('recipe_step_ingredients')
-      .delete()
-      .eq('recipe_id', recipeId);
-
-    if (deleteError) {
-      throw new Error(`Failed to delete existing step ingredients: ${deleteError.message}`);
-    }
-
+    // Old step ingredients are already deleted by the cascade from recipe_steps deletion
+    // in updateRecipeSteps(). We only need to insert new ones here.
     const stepOrderToIdMap = new Map(
       insertedSteps.map(step => [step.order, step.id])
     );
@@ -531,7 +524,6 @@ class AdminRecipeService extends BaseService {
           logger.warn(`Missing ingredient id for recipe step ${stepId}`)
         }
         const transformedData = this.transformRequest({
-          recipeId,
           recipeStepId: stepId,
           ingredientId: recipeStepIngredient.ingredient?.id,
           measurementUnitId: recipeStepIngredient.measurementUnit?.id || null,
