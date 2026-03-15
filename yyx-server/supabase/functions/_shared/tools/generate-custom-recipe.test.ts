@@ -530,10 +530,10 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
     },
   } as any;
 
-  // Override from() to also handle useful_items
+  // Override from() to also handle kitchen_tools
   const originalFrom = supabase.from.bind(supabase);
   supabase.from = (table: string) => {
-    if (table === "useful_items") {
+    if (table === "kitchen_tools") {
       return {
         select: () => ({ limit: async () => ({ data: [], error: null }) }),
       };
@@ -654,7 +654,7 @@ Deno.test("generateCustomRecipe proceeds with allergen warning when allergen det
         if (table === "ingredient_aliases") {
           return Promise.resolve({ data: [], error: null });
         }
-        if (table === "useful_items") {
+        if (table === "kitchen_tools") {
           return {
             limit: async (_n: number) => ({ data: [], error: null }),
           };

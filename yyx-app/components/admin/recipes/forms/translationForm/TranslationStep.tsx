@@ -14,7 +14,7 @@ import {
   AdminRecipeTranslation,
   AdminRecipeStepTranslation,
   AdminRecipeIngredientTranslation,
-  AdminRecipeUsefulItemTranslation,
+  AdminRecipeKitchenToolTranslation,
   pickTranslation,
   getTranslatedField,
 } from '@/types/recipe.admin.types';
@@ -69,7 +69,7 @@ export function TranslationStep({ recipe, authoringLocale, onUpdateRecipe }: Tra
   const fieldCounts = useMemo(() => {
     const steps = recipe.steps || [];
     const ingredients = recipe.ingredients || [];
-    const usefulItems = recipe.usefulItems || [];
+    const kitchenTools = recipe.kitchenTools || [];
 
     let recipeInfoFields = 0;
     const src = pickTranslation(recipe.translations, authoringLocale) as AdminRecipeTranslation | undefined;
@@ -92,18 +92,18 @@ export function TranslationStep({ recipe, authoringLocale, onUpdateRecipe }: Tra
       if (s?.recipeSection) ingredientFields++;
     }
 
-    let usefulItemFields = 0;
-    for (const item of usefulItems) {
-      const s = pickTranslation(item.translations, authoringLocale) as AdminRecipeUsefulItemTranslation | undefined;
-      if (s?.notes) usefulItemFields++;
+    let kitchenToolFields = 0;
+    for (const item of kitchenTools) {
+      const s = pickTranslation(item.translations, authoringLocale) as AdminRecipeKitchenToolTranslation | undefined;
+      if (s?.notes) kitchenToolFields++;
     }
 
     return {
       recipeInfo: recipeInfoFields,
       steps: stepFields,
       ingredients: ingredientFields,
-      usefulItems: usefulItemFields,
-      total: recipeInfoFields + stepFields + ingredientFields + usefulItemFields,
+      kitchenTools: kitchenToolFields,
+      total: recipeInfoFields + stepFields + ingredientFields + kitchenToolFields,
     };
   }, [recipe, authoringLocale]);
 
@@ -152,7 +152,7 @@ export function TranslationStep({ recipe, authoringLocale, onUpdateRecipe }: Tra
             <SummaryRow icon="document-text-outline" label={i18n.t('admin.translate.recipeInfo')} count={fieldCounts.recipeInfo} />
             <SummaryRow icon="list-outline" label={i18n.t('admin.translate.steps')} count={fieldCounts.steps} />
             <SummaryRow icon="basket-outline" label={i18n.t('admin.translate.ingredients')} count={fieldCounts.ingredients} />
-            <SummaryRow icon="construct-outline" label={i18n.t('admin.translate.usefulItems')} count={fieldCounts.usefulItems} />
+            <SummaryRow icon="construct-outline" label={i18n.t('admin.translate.kitchenTools')} count={fieldCounts.kitchenTools} />
           </View>
 
           <View className="flex-row items-center gap-sm mt-lg">
@@ -329,7 +329,7 @@ function TranslationReview({
     recipeInfo: true,
     steps: false,
     ingredients: false,
-    usefulItems: false,
+    kitchenTools: false,
   });
 
   const toggle = (key: string) =>
@@ -337,7 +337,7 @@ function TranslationReview({
 
   const steps = recipe.steps || [];
   const ingredients = recipe.ingredients || [];
-  const usefulItems = recipe.usefulItems || [];
+  const kitchenTools = recipe.kitchenTools || [];
 
   return (
     <View className="flex-col gap-md">
@@ -465,15 +465,15 @@ function TranslationReview({
         </CollapsibleSection>
       ) : null}
 
-      {/* Useful Items */}
-      {usefulItems.length > 0 ? (
+      {/* Kitchen Tools */}
+      {kitchenTools.length > 0 ? (
         <CollapsibleSection
-          title={`${i18n.t('admin.translate.usefulItems')} (${usefulItems.length})`}
-          isOpen={openSections.usefulItems}
-          onToggle={() => toggle('usefulItems')}
+          title={`${i18n.t('admin.translate.kitchenTools')} (${kitchenTools.length})`}
+          isOpen={openSections.kitchenTools}
+          onToggle={() => toggle('kitchenTools')}
         >
-          {usefulItems.map((item, idx) => {
-            const itemName = getTranslatedField(item.usefulItem?.translations, sourceLocale, 'name');
+          {kitchenTools.map((item, idx) => {
+            const itemName = getTranslatedField(item.kitchenTool?.translations, sourceLocale, 'name');
             if (!getTranslatedField(item.translations, sourceLocale, 'notes')) return null;
             return (
               <View key={item.id || idx} className="mb-md">
@@ -483,14 +483,14 @@ function TranslationReview({
                   sourceValue={getTranslatedField(item.translations, sourceLocale, 'notes')}
                   targetValue={getTranslatedField(item.translations, targetLocale, 'notes')}
                   onTargetChange={(text) => {
-                    const updatedItems = [...usefulItems];
+                    const updatedItems = [...kitchenTools];
                     updatedItems[idx] = {
                       ...item,
                       translations: item.translations.map(t =>
                         t.locale === targetLocale ? { ...t, notes: text } : t
                       ),
                     };
-                    onUpdateRecipe({ usefulItems: updatedItems });
+                    onUpdateRecipe({ kitchenTools: updatedItems });
                   }}
                   isMobile={isMobile}
                 />

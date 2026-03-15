@@ -439,7 +439,7 @@ Concrete types add their fields:
 - `AdminRecipeTranslation` — `name`, `tipsAndTricks?`
 - `AdminRecipeStepTranslation` — `instruction`, `recipeSection?`, `tip?`
 - `AdminRecipeIngredientTranslation` — `notes?`, `tip?`, `recipeSection?`
-- `AdminRecipeUsefulItemTranslation` — `notes?`
+- `AdminRecipeKitchenToolTranslation` — `notes?`
 
 ### Locale design rules
 
@@ -459,7 +459,7 @@ The admin recipe form includes a translation step that auto-translates a recipe 
 | File | Role |
 |------|------|
 | `components/admin/recipes/forms/translationForm/TranslationStep.tsx` | UI — pre-translation summary, target locale selection, progress bar, post-translation review |
-| `hooks/admin/useRecipeTranslation.ts` | Logic — batches translate calls per entity (recipe info, each step, each ingredient, each useful item), tracks progress and partial failures |
+| `hooks/admin/useRecipeTranslation.ts` | Logic — batches translate calls per entity (recipe info, each step, each ingredient, each kitchen tool), tracks progress and partial failures |
 | `services/admin/adminTranslateService.ts` | Service — invokes `translate-content` Edge Function; returns `TranslationResult[]` |
 | `hooks/admin/useActiveLocales.ts` | Data — fetches active locales from the `locales` DB table; `es` always sorts first |
 

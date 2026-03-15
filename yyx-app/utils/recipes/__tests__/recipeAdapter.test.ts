@@ -273,7 +273,7 @@ describe('recipeAdapter', () => {
     });
 
     it('maps difficulty correctly', () => {
-      const difficulties: Array<'easy' | 'medium' | 'hard'> = [
+      const difficulties: ('easy' | 'medium' | 'hard')[] = [
         'easy',
         'medium',
         'hard',
@@ -518,9 +518,9 @@ describe('recipeAdapter', () => {
       });
     });
 
-    it('transforms useful items with synthetic IDs', () => {
+    it('transforms kitchen tools with synthetic IDs', () => {
       const generated = createMockGeneratedRecipe({
-        usefulItems: [
+        kitchenTools: [
           { name: 'Spatula', imageUrl: 'https://example.com/spatula.jpg', notes: 'For stirring' },
           { name: 'Thermometer' },
         ],
@@ -528,41 +528,41 @@ describe('recipeAdapter', () => {
 
       const adapted = adaptGeneratedRecipe(generated, 'test-id', 'Test');
 
-      expect(adapted.usefulItems).toHaveLength(2);
-      expect(adapted.usefulItems![0].name).toBe('Spatula');
-      expect(adapted.usefulItems![0].pictureUrl).toBe('https://example.com/spatula.jpg');
-      expect(adapted.usefulItems![0].notes).toBe('For stirring');
-      expect(adapted.usefulItems![0].displayOrder).toBe(1);
-      expect(adapted.usefulItems![1].name).toBe('Thermometer');
-      expect(adapted.usefulItems![1].pictureUrl).toBe('');
-      expect(adapted.usefulItems![1].notes).toBe('');
-      expect(adapted.usefulItems![1].displayOrder).toBe(2);
+      expect(adapted.kitchenTools).toHaveLength(2);
+      expect(adapted.kitchenTools![0].name).toBe('Spatula');
+      expect(adapted.kitchenTools![0].pictureUrl).toBe('https://example.com/spatula.jpg');
+      expect(adapted.kitchenTools![0].notes).toBe('For stirring');
+      expect(adapted.kitchenTools![0].displayOrder).toBe(1);
+      expect(adapted.kitchenTools![1].name).toBe('Thermometer');
+      expect(adapted.kitchenTools![1].pictureUrl).toBe('');
+      expect(adapted.kitchenTools![1].notes).toBe('');
+      expect(adapted.kitchenTools![1].displayOrder).toBe(2);
 
       // Each item should have a UUID
-      adapted.usefulItems!.forEach((item) => {
+      adapted.kitchenTools!.forEach((item) => {
         expect(item.id).toMatch(
           /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
         );
       });
     });
 
-    it('handles empty useful items', () => {
+    it('handles empty kitchen tools', () => {
       const generated = createMockGeneratedRecipe({
-        usefulItems: [],
+        kitchenTools: [],
       });
 
       const adapted = adaptGeneratedRecipe(generated, 'test-id', 'Test');
 
-      expect(adapted.usefulItems).toEqual([]);
+      expect(adapted.kitchenTools).toEqual([]);
     });
 
-    it('handles undefined useful items', () => {
+    it('handles undefined kitchen tools', () => {
       const generated = createMockGeneratedRecipe();
-      delete (generated as Record<string, unknown>).usefulItems;
+      delete (generated as Record<string, unknown>).kitchenTools;
 
       const adapted = adaptGeneratedRecipe(generated, 'test-id', 'Test');
 
-      expect(adapted.usefulItems).toEqual([]);
+      expect(adapted.kitchenTools).toEqual([]);
     });
 
     it('sets isPublished to false', () => {

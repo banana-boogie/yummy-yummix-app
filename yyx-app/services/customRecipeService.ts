@@ -7,7 +7,7 @@
  */
 
 import { supabase } from '@/lib/supabase';
-import type { GeneratedRecipe, GeneratedIngredient, GeneratedStep, GeneratedUsefulItem } from '@/types/irmixy';
+import type { GeneratedRecipe, GeneratedIngredient, GeneratedStep, GeneratedKitchenTool } from '@/types/irmixy';
 
 // ============================================================
 // Types
@@ -56,7 +56,7 @@ interface DbTagRow {
     tag_name: string;
 }
 
-interface DbUsefulItemRow {
+interface DbKitchenToolRow {
     id: string;
     name: string;
     image_url: string | null;
@@ -216,9 +216,9 @@ export const customRecipeService = {
                 }
             }
 
-            // 6. Insert useful items
-            if (recipe.usefulItems?.length) {
-                const usefulItemRows = recipe.usefulItems.map((item, index) => ({
+            // 6. Insert kitchen tools
+            if (recipe.kitchenTools?.length) {
+                const kitchenToolRows = recipe.kitchenTools.map((item, index) => ({
                     user_recipe_id: recipeId,
                     name: item.name,
                     image_url: item.imageUrl || null,
@@ -227,11 +227,11 @@ export const customRecipeService = {
                 }));
 
                 const { error: itemsError } = await supabase
-                    .from('user_recipe_useful_items')
-                    .insert(usefulItemRows);
+                    .from('user_recipe_kitchen_tools')
+                    .insert(kitchenToolRows);
 
                 if (itemsError) {
-                    if (__DEV__) console.error('Failed to save recipe useful items:', itemsError);
+                    if (__DEV__) console.error('Failed to save recipe kitchen tools:', itemsError);
                     // Non-fatal
                 }
             }
@@ -331,8 +331,8 @@ export const customRecipeService = {
             .select('tag_name')
             .eq('user_recipe_id', userRecipeId);
 
-        const { data: usefulItemsData } = await supabase
-            .from('user_recipe_useful_items')
+        const { data: kitchenToolsData } = await supabase
+            .from('user_recipe_kitchen_tools')
             .select('id, name, image_url, notes, display_order')
             .eq('user_recipe_id', userRecipeId)
             .order('display_order', { ascending: true });
@@ -363,7 +363,7 @@ export const customRecipeService = {
             };
         });
 
-        const usefulItems: GeneratedUsefulItem[] = (usefulItemsData as DbUsefulItemRow[] || []).map((item) => ({
+        const kitchenTools: GeneratedKitchenTool[] = (kitchenToolsData as DbKitchenToolRow[] || []).map((item) => ({
             name: item.name,
             imageUrl: item.image_url || undefined,
             notes: item.notes || undefined,
@@ -380,7 +380,7 @@ export const customRecipeService = {
             difficulty: recipeData.difficulty as 'easy' | 'medium' | 'hard' || 'easy',
             portions: recipeData.portions || 4,
             tags: (tagsData as DbTagRow[] || []).map((t) => t.tag_name),
-            usefulItems,
+            kitchenTools,
         };
 
         return {

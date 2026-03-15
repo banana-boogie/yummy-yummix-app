@@ -9,6 +9,7 @@ import { normalizeFileName } from '@/utils/formatters';
 import { useRecipeValidation } from './useRecipeValidation';
 import { loadAuthoringLocale, saveAuthoringLocale } from '@/components/admin/recipes/forms/shared/AuthoringLanguagePicker';
 import i18n from '@/i18n';
+import logger from '@/services/logger';
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -36,7 +37,7 @@ function createInitialRecipeState(authoringLocale: string): ExtendedRecipe {
   ingredients: [],
   tags: [],
   steps: [],
-  usefulItems: [],
+  kitchenTools: [],
   isPublished: false,
   };
 }
@@ -134,7 +135,7 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
         loadSavedData();
       }
     } catch (error) {
-      console.error('Error checking for saved recipe:', error);
+      logger.error('Error checking for saved recipe:', error);
       loadSavedData(); // Fallback to normal loading
     }
   };
@@ -179,7 +180,7 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
         }
       }
     } catch (error) {
-      console.error('Error loading saved data:', error);
+      logger.error('Error loading saved data:', error);
     } finally {
       setIsLoaded(true);
     }
@@ -232,7 +233,7 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
         await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_STEP, currentStep.toString());
       }
     } catch (error) {
-      console.error('Error saving data:', error);
+      logger.error('Error saving data:', error);
     }
   };
 
@@ -247,7 +248,7 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
         await AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_STEP);
       }
     } catch (error) {
-      console.error('Error clearing saved data:', error);
+      logger.error('Error clearing saved data:', error);
     }
   };
 
@@ -325,7 +326,7 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
         ingredients: recipe.ingredients,
         tags: recipe.tags,
         steps: recipe.steps,
-        usefulItems: recipe.usefulItems,
+        kitchenTools: recipe.kitchenTools,
       };
       
       // Create the recipe
@@ -338,7 +339,7 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
       await clearSavedData();
       onPublishSuccess();
     } catch (error) {
-      console.error('Error publishing recipe:', error);
+      logger.error('Error publishing recipe:', error);
       onPublishError(i18n.t('admin.recipes.errors.publishFailed'));
     } finally {
       setSaving(false);

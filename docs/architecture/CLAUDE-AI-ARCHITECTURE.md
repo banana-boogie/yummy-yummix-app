@@ -124,7 +124,7 @@ Body: { message: "Make me a chicken pasta recipe", sessionId: "abc-123", stream:
 The orchestrator (`irmixy-chat-orchestrator/index.ts`) does several things before calling the AI:
 
 1. **Validates the JWT token** to confirm the user's identity
-2. **Creates or resumes a chat session** - if no `sessionId` is provided, a new row is created in `user_chat_sessions`. The first message becomes the session title.
+2. **Creates or resumes a chat session** - if no `sessionId` is provided, a new row is created in `ai_chat_sessions`. The first message becomes the session title.
 3. **Builds the user context** by loading from the database:
    - Language preference (English or Spanish)
    - Dietary restrictions and allergies
@@ -607,7 +607,7 @@ Every AI interaction is personalized based on what the system knows about the us
 | Household size | `user_profiles` | Default portion count |
 | Cuisine preferences | `user_profiles` | Personalization scoring in search |
 | Ingredient dislikes | `user_profiles` | Avoided in recipe generation |
-| Conversation history | `conversation_messages` | Last 10 messages for context continuity |
+| Conversation history | `user_chat_messages` | Last 10 messages for context continuity |
 | Active cooking session | Cooking progress tables | Offers to resume if user left mid-recipe |
 
 ### System prompt construction
@@ -799,8 +799,8 @@ Two layers of protection:
 
 | Table | Purpose | Key Columns |
 |-------|---------|-------------|
-| `user_chat_sessions` | Chat session metadata | `id`, `user_id`, `title`, `created_at`, `updated_at` |
-| `conversation_messages` | Individual messages | `id`, `session_id`, `role`, `content`, `metadata` (JSONB - stores tool_calls, recipes, customRecipe) |
+| `ai_chat_sessions` | Chat session metadata | `id`, `user_id`, `title`, `created_at`, `updated_at` |
+| `user_chat_messages` | Individual messages | `id`, `session_id`, `role`, `content`, `metadata` (JSONB - stores tool_calls, recipes, customRecipe) |
 
 ### Voice tables
 
@@ -826,7 +826,7 @@ Two layers of protection:
 | `user_recipe_ingredients` | Ingredients | `recipe_id`, `name`, `quantity`, `unit` |
 | `user_recipe_steps` | Steps with Thermomix params | `recipe_id`, `order`, `instruction`, `thermomix_time`, `thermomix_temp`, `thermomix_speed` |
 | `user_recipe_tags` | Tags | `recipe_id`, `tag` |
-| `user_recipe_useful_items` | Equipment needed | `recipe_id`, `item` |
+| `user_recipe_kitchen_tools` | Equipment needed | `recipe_id`, `item` |
 
 ### Supporting tables
 

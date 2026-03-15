@@ -194,7 +194,7 @@ Quality was scored using a weighted rubric (see `_eval/SCORING-RUBRIC.md`). Each
 - Carbonara correctly avoids cream. Uses TMX to grate parmesan at speed 8, cooks pasta at 100°C/speed reverse.
 - Mole includes proper technique: chiles triturados at speed 7, sofrito, chocolate + water simmer, then blend. Correct multi-layer approach.
 - Fast-easy: chose huevos rancheros — genuinely fast and Mexican.
-- **Best useful items count** (7.0 avg) — thorough and practical suggestions.
+- **Best kitchen tools count** (7.0 avg) — thorough and practical suggestions.
 - Thermomix params are consistently realistic. Good use of Air Fryer for vegan cake muffins.
 - Language is correct Spanish but slightly formal/generic — uses "tomate" rather than "jitomate."
 - **Downside:** $0.013/call (3-4x gemini-2.5-flash) and 12.1s latency (2x flash).
@@ -345,7 +345,7 @@ Quality was scored using a weighted rubric (see `_eval/SCORING-RUBRIC.md`). Each
 - **Fallback:** grok-4-1-fast-non-reasoning — second-best quality (4.55), best injection resistance, different provider. Cheapest at $0.50/MTok. Set via `AI_TEXT_MODEL=xai:grok-4-1-fast-non-reasoning`.
 
 ### Recipe Generation (structured JSON)
-- **Default:** gpt-4.1 — highest quality (4.52/5), zero dietary violations, best completeness (7.0 useful items avg), 100% reliable. At $0.013/call (~$0.05/user/month more than budget option), the quality difference is worth it — bad recipes cost more than API calls when Lupita loses trust in the app. 12.1s latency is acceptable with the existing loading progress bar.
+- **Default:** gpt-4.1 — highest quality (4.52/5), zero dietary violations, best completeness (7.0 kitchen tools avg), 100% reliable. At $0.013/call (~$0.05/user/month more than budget option), the quality difference is worth it — bad recipes cost more than API calls when Lupita loses trust in the app. 12.1s latency is acceptable with the existing loading progress bar.
 - **Fallback:** gemini-2.5-flash with "low" reasoning — quality (3.60), reliable (100%), different provider. Set via `AI_RECIPE_GENERATION_MODEL=google:gemini-2.5-flash`. Watch for TMX timing bug ("17s" instead of "17m").
 
 ### Recipe Modification (structured JSON)

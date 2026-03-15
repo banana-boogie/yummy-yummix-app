@@ -7,6 +7,7 @@ import { adminRecipeService } from '@/services/admin/adminRecipeService';
 import { useRouter } from 'expo-router';
 import { Text } from '@/components/common/Text';
 import i18n from '@/i18n';
+import logger from '@/services/logger';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -24,7 +25,7 @@ export default function AdminDashboard() {
         setPublishedCount(recipes.filter(r => r.isPublished).length);
         setDraftCount(recipes.filter(r => !r.isPublished).length);
       } catch (error) {
-        console.error('Error loading dashboard data:', error);
+        logger.error('Error loading dashboard data:', error);
       } finally {
         setLoading(false);
       }
@@ -115,10 +116,10 @@ export default function AdminDashboard() {
           <TouchableOpacity
             className="bg-primary-default rounded-lg p-md flex-row items-center"
             style={{ width: '48%', minWidth: 150 }}
-            onPress={() => router.push('/admin/useful-items')}
+            onPress={() => router.push('/admin/kitchen-tools')}
           >
             <Ionicons name="cube" size={22} color={COLORS.text.default} />
-            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>{i18n.t('admin.common.usefulItems')}</Text>
+            <Text preset="body" className="ml-sm font-bold" numberOfLines={1} color={COLORS.text.default}>{i18n.t('admin.common.kitchenTools')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

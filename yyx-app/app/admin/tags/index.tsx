@@ -14,6 +14,7 @@ import { AdminRecipeTag, getTranslatedField } from '@/types/recipe.admin.types';
 import { formatCategoryNameToTitleCase } from '@/utils/formatters';
 import { useDevice } from '@/hooks/useDevice';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
+import logger from '@/services/logger';
 
 export default function AdminTags() {
   const { isPhone } = useDevice();
@@ -59,7 +60,7 @@ export default function AdminTags() {
       setTags(tagData);
       setFilteredTags(tagData);
     } catch (error) {
-      console.error('Failed to fetch tags:', error);
+      logger.error('Failed to fetch tags:', error);
     } finally {
       setIsLoading(false);
     }
@@ -91,7 +92,7 @@ export default function AdminTags() {
       setTags(prev => prev.filter(tag => tag.id !== selectedTag.id));
       setDeleteModalVisible(false);
     } catch (error) {
-      console.error('Failed to delete tag:', error);
+      logger.error('Failed to delete tag:', error);
     }
   };
 
@@ -108,7 +109,7 @@ export default function AdminTags() {
 
       setEditModalVisible(false);
     } catch (error) {
-      console.error(`Failed to ${isNew ? 'create' : 'update'} tag:`, error);
+      logger.error(`Failed to ${isNew ? 'create' : 'update'} tag:`, error);
     }
   };
 
@@ -126,7 +127,7 @@ export default function AdminTags() {
       setNewCategory('');
       fetchTags();
     } catch (error) {
-      console.error('Failed to create category:', error);
+      logger.error('Failed to create category:', error);
     }
   };
 

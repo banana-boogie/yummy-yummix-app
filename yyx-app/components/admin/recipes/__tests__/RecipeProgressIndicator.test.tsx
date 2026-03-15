@@ -18,7 +18,7 @@ jest.mock('@/i18n', () => ({
     t: (key: string) => {
       const translations: Record<string, string> = {
         'admin.recipes.form.basicInfo.title': 'Basic Info',
-        'admin.recipes.form.usefulItemsInfo.title': 'Tools',
+        'admin.recipes.form.kitchenToolsInfo.title': 'Tools',
         'admin.recipes.form.ingredientsInfo.title': 'Ingredients',
         'admin.recipes.form.stepsInfo.title': 'Steps',
         'admin.recipes.form.tagsInfo.title': 'Tags',
@@ -166,7 +166,7 @@ describe('RecipeProgressIndicator', () => {
     it('has correct values', () => {
       expect(CreateRecipeStep.INITIAL_SETUP).toBe(0);
       expect(CreateRecipeStep.BASIC_INFO).toBe(1);
-      expect(CreateRecipeStep.USEFUL_ITEMS).toBe(2);
+      expect(CreateRecipeStep.KITCHEN_TOOLS).toBe(2);
       expect(CreateRecipeStep.INGREDIENTS).toBe(3);
       expect(CreateRecipeStep.STEPS).toBe(4);
       expect(CreateRecipeStep.TAGS).toBe(5);

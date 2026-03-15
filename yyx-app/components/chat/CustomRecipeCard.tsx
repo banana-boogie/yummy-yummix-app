@@ -408,19 +408,19 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                         )}
                     </View>
 
-                    {/* Useful items preview */}
-                    {recipe.usefulItems && recipe.usefulItems.length > 0 && (
+                    {/* Kitchen tools preview */}
+                    {recipe.kitchenTools && recipe.kitchenTools.length > 0 && (
                         <View
                             className="p-md border-b border-border-default"
                             accessible={true}
                             accessibilityRole="list"
-                            accessibilityLabel={`${i18n.t('recipes.common.usefulItems')}: ${recipe.usefulItems.length} ${i18n.t('common.items')}`}
+                            accessibilityLabel={`${i18n.t('recipes.common.kitchenTools')}: ${recipe.kitchenTools.length} ${i18n.t('common.items')}`}
                         >
                             <Text className="text-text-secondary text-base font-medium mb-sm">
-                                {i18n.t('recipes.common.usefulItems')}:
+                                {i18n.t('recipes.common.kitchenTools')}:
                             </Text>
                             <View className="flex-row flex-wrap gap-sm">
-                                {recipe.usefulItems.map((item, index) => (
+                                {recipe.kitchenTools.map((item, index) => (
                                     <View
                                         key={index}
                                         className="flex-row items-center bg-primary-lightest rounded-lg px-sm py-xs"

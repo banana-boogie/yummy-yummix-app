@@ -55,16 +55,16 @@ const jsonSchema = {
         "type": "number",
         "description": "Number of portions the recipe makes.",
       },
-      "usefulItems": {
+      "kitchenTools": {
         "type": "array",
         "description":
-          "List of the useful items for the recipe found in the Utensilios y herramientas útiles or Useful tools and utensils section.",
+          "List of the kitchen tools for the recipe found in the Utensilios y herramientas útiles or Useful tools and utensils section.",
         "items": {
           "type": "object",
           "properties": {
             "translations": {
               "type": "array",
-              "description": "Locale-keyed translations for this useful item.",
+              "description": "Locale-keyed translations for this kitchen tool.",
               "items": {
                 "type": "object",
                 "properties": {
@@ -74,12 +74,12 @@ const jsonSchema = {
                   },
                   "name": {
                     "type": "string",
-                    "description": "Useful tool name in this locale.",
+                    "description": "Kitchen tool name in this locale.",
                   },
                   "notes": {
                     "type": "string",
                     "description":
-                      "Additional notes or tips about the useful item in this locale.",
+                      "Additional notes or tips about the kitchen tool in this locale.",
                   },
                 },
                 "required": ["locale", "name", "notes"],
@@ -89,7 +89,7 @@ const jsonSchema = {
             "displayOrder": {
               "type": "number",
               "description":
-                "1-based index indicating the order of the useful item.",
+                "1-based index indicating the order of the kitchen tool.",
             },
           },
           "required": [
@@ -538,7 +538,7 @@ const jsonSchema = {
       "prepTime",
       "difficulty",
       "portions",
-      "usefulItems",
+      "kitchenTools",
       "ingredients",
       "steps",
       "tags",
@@ -560,7 +560,7 @@ For Thermomix instructions, extract the Thermomix parameters from patterns like 
 DO NOT make up any information.
 DO NOT include any information that is not found in the recipe.
 DO NOT include ingredients that are not found in the recipe.
-DO NOT include useful items that are not found in the recipe.
+DO NOT include kitchen tools that are not found in the recipe.
 DO NOT include tags that are not found in the recipe.
 DO NOT include tips that are not found in the recipe.
 DO NOT include steps that are not found in the recipe.

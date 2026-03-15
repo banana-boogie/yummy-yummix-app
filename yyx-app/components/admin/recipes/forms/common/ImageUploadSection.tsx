@@ -8,6 +8,7 @@ import { Text } from '@/components/common/Text';
 import { FormSection } from '@/components/form/FormSection';
 import { FormGroup } from '@/components/form/FormGroup';
 import i18n from '@/i18n';
+import logger from '@/services/logger';
 
 interface ImageUploadSectionProps {
   imageUrl?: string;
@@ -35,7 +36,7 @@ export function ImageUploadSection({
         onImageSelected(fileObject);
       },
       onError: (error) => {
-        console.error('Error picking image:', error);
+        logger.error('Error picking image:', error);
       }
     });
 

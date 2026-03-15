@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { AdminIngredient, AdminIngredientTranslation, pickTranslation, getNameFromTranslations } from '@/types/recipe.admin.types';
 import { BaseService } from '../base/BaseService';
 import { imageService } from '../storage/imageService';
+import logger from '@/services/logger';
 
 export class AdminIngredientsService extends BaseService {
   constructor() {
@@ -24,7 +25,7 @@ export class AdminIngredientsService extends BaseService {
       .order('id', { ascending: true });
 
     if (error) {
-      console.error('Error fetching ingredients:', error);
+      logger.error('Error fetching ingredients:', error);
       throw new Error(`Error fetching ingredients: ${error.message}`);
     }
 
@@ -63,7 +64,7 @@ export class AdminIngredientsService extends BaseService {
         forcePNG: true // Always use PNG for ingredients
       });
     } catch (error) {
-      console.error('Error uploading image:', error);
+      logger.error('Error uploading image:', error);
       throw new Error(`Error uploading image: ${error}`);
     }
   }
@@ -91,7 +92,7 @@ export class AdminIngredientsService extends BaseService {
           try {
             await this.deleteImage(currentIngredient.image_url);
           } catch (error) {
-            console.error('Error deleting old image:', error);
+            logger.error('Error deleting old image:', error);
           }
         }
 
@@ -147,7 +148,7 @@ export class AdminIngredientsService extends BaseService {
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting ingredient:', error);
+      logger.error('Error deleting ingredient:', error);
       throw new Error(`Error deleting ingredient: ${error.message}`);
     }
   }

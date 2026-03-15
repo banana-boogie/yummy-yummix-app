@@ -36,7 +36,7 @@ export {
   createStepList,
   createTag,
   createTagList,
-  createUsefulItem,
+  createKitchenTool,
   createMeasurementUnit,
   resetIdCounter as resetRecipeIdCounter,
 } from './recipe.factory';

@@ -57,9 +57,9 @@ export default function CustomIngredientsStep() {
   };
 
   const handleNext = () => {
-    // If useful items exist, go to useful-items prep page
-    if (recipe?.usefulItems && recipe.usefulItems.length > 0) {
-      router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-useful-items'));
+    // If kitchen tools exist, go to kitchen-tools prep page
+    if (recipe?.kitchenTools && recipe.kitchenTools.length > 0) {
+      router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-kitchen-tools'));
     } else {
       router.push(getCustomCookingGuidePath(id as string, from, '1'));
     }

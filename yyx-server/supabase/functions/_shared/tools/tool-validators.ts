@@ -127,7 +127,7 @@ export interface GenerateRecipeParams {
   difficulty?: "easy" | "medium" | "hard";
   portions?: number;
   additionalRequests?: string;
-  useful_items?: string[];
+  kitchen_tools?: string[];
 }
 
 /**
@@ -179,10 +179,10 @@ export function validateGenerateRecipeParams(
     );
   }
 
-  // Validate useful_items (optional)
-  let useful_items: string[] | undefined;
-  if (Array.isArray(p.useful_items) && p.useful_items.length > 0) {
-    useful_items = p.useful_items
+  // Validate kitchen_tools (optional)
+  let kitchen_tools: string[] | undefined;
+  if (Array.isArray(p.kitchen_tools) && p.kitchen_tools.length > 0) {
+    kitchen_tools = p.kitchen_tools
       .filter((item): item is string =>
         typeof item === "string" && item.trim().length > 0
       )
@@ -210,7 +210,7 @@ export function validateGenerateRecipeParams(
     additionalRequests: p.additionalRequests
       ? sanitizeString(p.additionalRequests, 2000)
       : undefined,
-    useful_items,
+    kitchen_tools,
   };
 }
 

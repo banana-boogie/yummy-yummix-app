@@ -3,6 +3,7 @@ import userProfileService from '@/services/userProfileService';
 import { UserProfile } from '@/types/user';
 import { useAuth } from '@/contexts/AuthContext';
 import { userProfileKeys } from '@/lib/queryKeys';
+import logger from '@/services/logger';
 
 // Re-export for convenience
 export { userProfileKeys };
@@ -56,7 +57,7 @@ export function useUpdateProfileMutation() {
             }
         },
         onError: (error) => {
-            console.error('Failed to update profile:', error);
+            logger.error('Failed to update profile:', error);
         },
     });
 }

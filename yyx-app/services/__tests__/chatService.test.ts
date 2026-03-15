@@ -111,7 +111,7 @@ describe('chatService', () => {
         order: jest.fn().mockResolvedValue({ data: mockMessages, error: null }),
       };
       (supabase.from as jest.Mock).mockImplementation((table: string) => {
-        if (table === 'user_chat_sessions') return mockSessionChain;
+        if (table === 'ai_chat_sessions') return mockSessionChain;
         return mockMessagesChain;
       });
 
@@ -137,7 +137,7 @@ describe('chatService', () => {
         order: jest.fn().mockResolvedValue({ data: [], error: null }),
       };
       (supabase.from as jest.Mock).mockImplementation((table: string) => {
-        if (table === 'user_chat_sessions') return mockSessionChain;
+        if (table === 'ai_chat_sessions') return mockSessionChain;
         return mockMessagesChain;
       });
 
@@ -161,7 +161,7 @@ describe('chatService', () => {
         }),
       };
       (supabase.from as jest.Mock).mockImplementation((table: string) => {
-        if (table === 'user_chat_sessions') return mockSessionChain;
+        if (table === 'ai_chat_sessions') return mockSessionChain;
         return mockMessagesChain;
       });
 
@@ -232,7 +232,7 @@ describe('chatService', () => {
 
       let userChatMessagesCallCount = 0;
       (supabase.from as jest.Mock).mockImplementation((table: string) => {
-        if (table === 'user_chat_sessions') {
+        if (table === 'ai_chat_sessions') {
           return {
             select: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
@@ -295,7 +295,7 @@ describe('chatService', () => {
       const mockSession = createMockChatSession({ id: 'empty-session' });
 
       (supabase.from as jest.Mock).mockImplementation((table: string) => {
-        if (table === 'user_chat_sessions') {
+        if (table === 'ai_chat_sessions') {
           return {
             select: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),

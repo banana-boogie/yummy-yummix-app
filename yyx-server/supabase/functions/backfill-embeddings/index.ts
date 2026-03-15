@@ -3,7 +3,7 @@
  *
  * Generates vector embeddings for published recipes using the AI Gateway embedding route.
  * Service-role auth required. Idempotent via content hash.
- * Per irmixy-completion-plan.md Sections 5.5, 5.6
+ * Uses AI Gateway embedding route (text-embedding-3-large, 3072 dimensions).
  *
  * Usage:
  *   curl -X POST https://<project>.supabase.co/functions/v1/backfill-embeddings \

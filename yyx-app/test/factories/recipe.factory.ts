@@ -33,7 +33,7 @@ import type {
   RecipeIngredient,
   RecipeStep,
   RecipeTag,
-  RecipeUsefulItem,
+  RecipeKitchenTool,
   MeasurementUnit,
   RecipeStepIngredient,
 } from '@/types/recipe.types';
@@ -268,10 +268,10 @@ export function createTagList(count: number): RecipeTag[] {
 }
 
 // ============================================================
-// USEFUL ITEM FACTORY
+// KITCHEN TOOL FACTORY
 // ============================================================
 
-const usefulItemNames = [
+const kitchenToolNames = [
   'Large mixing bowl',
   'Whisk',
   'Cutting board',
@@ -284,8 +284,8 @@ const usefulItemNames = [
   'Stand mixer',
 ];
 
-export function createUsefulItem(overrides?: Partial<RecipeUsefulItem>): RecipeUsefulItem {
-  const name = randomElement(usefulItemNames);
+export function createKitchenTool(overrides?: Partial<RecipeKitchenTool>): RecipeKitchenTool {
+  const name = randomElement(kitchenToolNames);
 
   return {
     id: generateId(),
@@ -318,7 +318,7 @@ export function createRecipe(overrides?: Partial<Recipe>): Recipe {
     tipsAndTricks: Math.random() > 0.5 ? 'For best results, use room temperature ingredients.' : undefined,
     ingredients: createIngredientList(randomInt(4, 12)),
     tags: createTagList(randomInt(1, 4)),
-    usefulItems: Math.random() > 0.5 ? [createUsefulItem()] : [],
+    kitchenTools: Math.random() > 0.5 ? [createKitchenTool()] : [],
     isPublished: true,
     createdAt,
     updatedAt: now,
@@ -379,7 +379,7 @@ export const recipeFactory = {
   createStepList,
   createTag,
   createTagList,
-  createUsefulItem,
+  createKitchenTool,
   createMeasurementUnit,
   createStepIngredient,
   resetIdCounter,

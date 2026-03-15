@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { Storage } from '@/utils/storage';
 import { queryClient } from '@/lib/queryClient';
 import { userProfileKeys } from '@/lib/queryKeys';
+import logger from '@/services/logger';
 
 type AuthContextType = {
   user: User | null;
@@ -135,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Add more routes as needed
 
     } catch (error) {
-      console.error('[handleDeepLink] Error handling deep link:', error);
+      logger.error('[handleDeepLink] Error handling deep link:', error);
     }
 
     return false;
@@ -152,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (error) {
-      console.error('[processPendingDeepLink] Error processing pending link:', error);
+      logger.error('[processPendingDeepLink] Error processing pending link:', error);
     }
   };
 
@@ -174,7 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await checkAndProcessPendingDeepLinks();
       }
     } catch (error) {
-      console.error('🔗 Auth Callback Error:', error);
+      logger.error('🔗 Auth Callback Error:', error);
       navigateToInvalidLink();
     }
   };
@@ -210,18 +211,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { params, errorCode } = QueryParams.getQueryParams(url);
 
       if (errorCode) {
-        console.error('🔗 Error code in URL params:', errorCode);
+        logger.error('🔗 Error code in URL params:', errorCode);
         throw new Error(errorCode);
       }
 
       const { access_token, refresh_token, error, error_description } = params;
       if (error) {
-        console.error('🔗 Error in URL params:', error, error_description);
+        logger.error('🔗 Error in URL params:', error, error_description);
         throw new Error(error_description);
       }
 
       if (!access_token) {
-        console.error('🔗 No access token found in URL params');
+        logger.error('🔗 No access token found in URL params');
         throw new Error('No access token found');
       }
 
@@ -231,13 +232,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (sessionError) {
-        console.error('🔗 Magic Link Flow - Error setting session:', sessionError);
+        logger.error('🔗 Magic Link Flow - Error setting session:', sessionError);
         throw sessionError;
       }
 
       return data.session;
     } catch (error) {
-      console.error('🔗 Magic Link Flow - Error in createSessionFromUrl:', error);
+      logger.error('🔗 Magic Link Flow - Error in createSessionFromUrl:', error);
       throw error;
     }
   };
@@ -250,7 +251,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return true;
       }
     } catch (error) {
-      console.error('Error checking for pending deep link:', error);
+      logger.error('Error checking for pending deep link:', error);
     }
     return false;
   };
@@ -280,10 +281,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Attempt to sign out of Supabase
       const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error('Error in signOut:', error);
+        logger.error('Error in signOut:', error);
       }
     } catch (error) {
-      console.error('Error in signOut:', error);
+      logger.error('Error in signOut:', error);
     } finally {
       setLoading(false);
     }

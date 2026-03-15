@@ -25,6 +25,7 @@ import { Gender, ActivityLevel } from '@/types/user';
 import { DietaryRestriction, DietType, CuisinePreference } from '@/types/dietary';
 import { COLORS } from '@/constants/design-tokens';
 import { normalizeDietAndCuisinePreferences } from '@/utils/preferencesNormalization';
+import logger from '@/services/logger';
 
 const BIO_MAX_LENGTH = 140;
 const NAME_MAX_LENGTH = 30;
@@ -172,7 +173,7 @@ export default function EditProfile() {
         setShowSuccessModal(false);
       }, 2000);
     } catch (error) {
-      console.error('Error updating profile:', error);
+      logger.error('Error updating profile:', error);
       setSaveError(i18n.t('common.errors.default'));
       setShowErrorModal(true);
     } finally {
@@ -187,7 +188,7 @@ export default function EditProfile() {
       }
       await updateUserProfile({ profileImageUrl: url });
     } catch (error) {
-      console.error('Error uploading image:', error);
+      logger.error('Error uploading image:', error);
       setSaveError(i18n.t('common.errors.default'));
       setShowErrorModal(true);
     }
@@ -200,7 +201,7 @@ export default function EditProfile() {
         await updateUserProfile({ profileImageUrl: null });
       }
     } catch (error) {
-      console.error('Error deleting image:', error);
+      logger.error('Error deleting image:', error);
     }
   };
 
@@ -227,7 +228,7 @@ export default function EditProfile() {
       setFormData(prev => ({ ...prev, ...formUpdates }));
       closeModal();
     } catch (error) {
-      console.error('Error updating preferences:', error);
+      logger.error('Error updating preferences:', error);
       setSaveError(i18n.t('common.errors.default'));
       setShowErrorModal(true);
     } finally {

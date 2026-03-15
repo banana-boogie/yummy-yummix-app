@@ -7,7 +7,7 @@ import { RecipeInfo } from '@/components/recipe-detail/RecipeInfo';
 import { RecipeIngredientsList } from '@/components/admin/recipes/forms/reviewForm/AdminRecipeIngredientsList';
 import { RecipeStepsList } from '@/components/admin/recipes/forms/reviewForm/AdminRecipeStepsList';
 import { RecipeTagsList } from '@/components/admin/recipes/forms/reviewForm/AdminRecipeTagsList';
-import { RecipeUsefulItemsList } from '@/components/admin/recipes/forms/reviewForm/AdminRecipeUsefulItemsList';
+import { AdminRecipeKitchenToolsList } from '@/components/admin/recipes/forms/reviewForm/AdminRecipeKitchenToolsList';
 import { Switch } from '@/components/common/Switch';
 import { Image } from 'expo-image';
 
@@ -57,9 +57,9 @@ export function ReviewForm({ recipe, displayLocale = 'es', onUpdateRecipe }: Rev
 
         <View className="mb-md">
           <Text preset="h1" fontWeight="700" className="mb-md">
-            {i18n.t('admin.recipes.form.reviewInfo.usefulItems')} ({recipe.usefulItems?.length || 0})
+            {i18n.t('admin.recipes.form.reviewInfo.kitchenTools')} ({recipe.kitchenTools?.length || 0})
           </Text>
-          <RecipeUsefulItemsList usefulItems={recipe.usefulItems || []} displayLocale={displayLocale} />
+          <AdminRecipeKitchenToolsList kitchenTools={recipe.kitchenTools || []} displayLocale={displayLocale} />
         </View>
 
         <View className="mb-md">
