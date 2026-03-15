@@ -31,6 +31,7 @@ yyx-app/
 │   ├── form/               # Form components
 │   ├── navigation/         # Navigation components
 │   └── admin/              # Admin dashboard
+│       └── content-health/ # HealthSummaryCards, FilterBar, IssueList, IssueRow, PublishReadinessChecklist
 ├── services/               # Data access and API services
 │   ├── recipeService.ts
 │   ├── chatService.ts
@@ -41,7 +42,7 @@ yyx-app/
 │   ├── preferencesService.ts
 │   ├── analyticsService.ts
 │   ├── voice/              # Voice provider system
-│   ├── admin/              # Admin services
+│   ├── admin/              # Admin services (adminRecipeService, adminContentHealthService, adminTranslateService, etc.)
 │   └── cache/              # Caching layer
 ├── hooks/                  # Custom React hooks (key hooks listed)
 │   ├── useRecipes.ts
@@ -52,6 +53,7 @@ yyx-app/
 │   ├── useDebounce.ts
 │   ├── useAudioPlayback.ts
 │   ├── useImmersiveMode.ts
+│   ├── admin/              # Admin hooks (useContentHealth, useRecipeTranslation, useActiveLocales, etc.)
 │   └── ... (useRecipe, useRecipeQuery, useUserProfileQuery, etc.)
 ├── contexts/               # React contexts
 │   ├── AuthContext.tsx
