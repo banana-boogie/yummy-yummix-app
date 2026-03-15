@@ -17,7 +17,11 @@ import {
   type DbIngredient,
   type DbRecipeTag,
   type DbKitchenTool,
+  editDistance,
+  similarity,
 } from '../lib/entity-matcher.ts';
+import { hasRecipeContent } from '../lib/import-helpers.ts';
+import { Logger } from '../lib/logger.ts';
 import * as db from '../lib/db.ts';
 
 // ─── Helpers ─────────────────────────────────────────────
@@ -55,41 +59,10 @@ function extractIngredientName(line: string): string {
   return text.trim();
 }
 
-// ─── Fuzzy matching (simplified from entity-matcher.ts) ──
+// ─── Fuzzy matching ──────────────────────────────────────
 
 function normalize(name: string): string {
   return name.toLowerCase().trim();
-}
-
-function editDistance(s1: string, s2: string): number {
-  const a = s1.toLowerCase();
-  const b = s2.toLowerCase();
-  const costs: number[] = [];
-  for (let i = 0; i <= a.length; i++) {
-    let lastValue = i;
-    for (let j = 0; j <= b.length; j++) {
-      if (i === 0) {
-        costs[j] = j;
-      } else if (j > 0) {
-        let newValue = costs[j - 1];
-        if (a.charAt(i - 1) !== b.charAt(j - 1)) {
-          newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
-        }
-        costs[j - 1] = lastValue;
-        lastValue = newValue;
-      }
-    }
-    if (i > 0) costs[b.length] = lastValue;
-  }
-  return costs[b.length];
-}
-
-function similarity(s1: string, s2: string): number {
-  if (!s1 || !s2) return 0;
-  const longer = s1.length > s2.length ? s1 : s2;
-  const shorter = s1.length > s2.length ? s2 : s1;
-  if (longer.length === 0) return 1.0;
-  return (longer.length - editDistance(longer, shorter)) / longer.length;
 }
 
 const SIMILARITY_THRESHOLD = 0.95;
@@ -130,20 +103,6 @@ function findKitchenToolMatch(nameEs: string, dbItems: DbKitchenTool[]): DbKitch
 }
 
 // ─── Extraction ──────────────────────────────────────────
-
-function hasRecipeContent(content: string): boolean {
-  const lines = content.split('\n');
-  let inIngredientes = false;
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed === '### Ingredientes') { inIngredientes = true; continue; }
-    if (inIngredientes) {
-      if (trimmed.startsWith('#')) break;
-      if (trimmed.startsWith('-') && trimmed.length > 2) return true;
-    }
-  }
-  return false;
-}
 
 function extractEntities(content: string): {
   ingredients: string[];
@@ -225,22 +184,25 @@ function extractEntities(content: string): {
 
 // ─── Main ────────────────────────────────────────────────
 
+const logger = new Logger('scan');
 const env = parseEnvironment(Deno.args);
 const config = createPipelineConfig(env);
 const dataDir = parseFlag(Deno.args, '--dir');
 
 if (!dataDir) {
-  console.error('Usage: deno task pipeline:scan --local --dir ./path/to/RECIPES');
+  logger.error('Usage: deno task pipeline:scan --local --dir ./path/to/RECIPES');
   Deno.exit(1);
 }
 
-console.log('\nLoading reference data from database...');
+logger.info('Loading reference data from database...');
 const [dbIngredients, dbTags, dbKitchenTools] = await Promise.all([
   db.fetchAllIngredients(config.supabase),
   db.fetchAllTags(config.supabase),
   db.fetchAllKitchenTools(config.supabase),
 ]);
-console.log(`Loaded: ${dbIngredients.length} ingredients, ${dbTags.length} tags, ${dbKitchenTools.length} kitchen tools\n`);
+logger.info(
+  `Loaded: ${dbIngredients.length} ingredients, ${dbTags.length} tags, ${dbKitchenTools.length} kitchen tools`,
+);
 
 // Scan files
 const allIngredients = new Map<string, number>();
@@ -343,31 +305,37 @@ const outPath = new URL('../scan-report.json', import.meta.url).pathname;
 Deno.writeTextFileSync(outPath, JSON.stringify(report, null, 2));
 
 // Console output
-console.log(`=== Entity Scan Report ===\n`);
-console.log(`Recipes with content: ${recipeCount} (${stubCount} stubs filtered)\n`);
+logger.section('Entity Scan Report');
+logger.info(`Recipes with content: ${recipeCount} (${stubCount} stubs filtered)`);
 
-console.log(`INGREDIENTS: ${allIngredients.size} unique → ${matchedIngredients.length} matched, ${missingIngredients.length} MISSING`);
+logger.info(
+  `INGREDIENTS: ${allIngredients.size} unique -> ${matchedIngredients.length} matched, ${missingIngredients.length} MISSING`,
+);
 if (missingIngredients.length > 0) {
-  console.log(`\n  Missing ingredients (need to create):`);
+  logger.info('Missing ingredients (need to create):');
   for (const { name, count } of missingIngredients) {
-    console.log(`    ${count.toString().padStart(3)}x  ${name}`);
+    logger.info(`  ${count.toString().padStart(3)}x  ${name}`);
   }
 }
 
-console.log(`\nUSEFUL ITEMS: ${allKitchenTools.size} unique → ${matchedKitchenTools.length} matched, ${missingKitchenTools.length} MISSING`);
+logger.info(
+  `KITCHEN TOOLS: ${allKitchenTools.size} unique -> ${matchedKitchenTools.length} matched, ${missingKitchenTools.length} MISSING`,
+);
 if (missingKitchenTools.length > 0) {
-  console.log(`\n  Missing kitchen tools (need to create):`);
+  logger.info('Missing kitchen tools (need to create):');
   for (const { name, count } of missingKitchenTools) {
-    console.log(`    ${count.toString().padStart(3)}x  ${name}`);
+    logger.info(`  ${count.toString().padStart(3)}x  ${name}`);
   }
 }
 
-console.log(`\nTAGS: ${allTags.size} unique → ${matchedTags.length} matched, ${missingTags.length} MISSING`);
+logger.info(
+  `TAGS: ${allTags.size} unique -> ${matchedTags.length} matched, ${missingTags.length} MISSING`,
+);
 if (missingTags.length > 0) {
-  console.log(`\n  Missing tags (need to create):`);
+  logger.info('Missing tags (need to create):');
   for (const { name, count } of missingTags) {
-    console.log(`    ${count.toString().padStart(3)}x  ${name}`);
+    logger.info(`  ${count.toString().padStart(3)}x  ${name}`);
   }
 }
 
-console.log(`\nFull report: ${outPath}`);
+logger.info(`Full report: ${outPath}`);

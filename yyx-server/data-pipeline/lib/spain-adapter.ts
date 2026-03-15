@@ -10,17 +10,12 @@
 
 import { Logger } from './logger.ts';
 import { parseJsonFromLLM } from './utils.ts';
+import { SPAIN_ADAPT_RULES } from './spain-constants.ts';
 
 const SYSTEM_PROMPT = `You adapt Mexican Spanish recipe text to Spain Spanish (Castilian).
 
 Rules:
-- ONLY change words/phrases that differ between Mexican and Spain Spanish
-- Common swaps: jitomate→tomate, ejotes→judías verdes, chícharos→guisantes, papa→patata, durazno→melocotón, elote→maíz, betabel→remolacha, aguacate→aguacate (same), frijoles→alubias, chile→pimiento/guindilla, crema→nata, popote→pajita, refrigerador→frigorífico, estufa→cocina/fogón, sartén→sartén (same), vaso (Thermomix)→vaso (same)
-- Keep Thermomix-specific terms unchanged (vaso, Varoma, vel, giro a la izquierda)
-- Keep measurements unchanged (g, ml, min, seg)
-- If the text is already neutral Spanish or doesn't need changes, return the EXACT same text
-- Do NOT rewrite or rephrase — only swap region-specific words
-- Return valid JSON matching the requested schema`;
+${SPAIN_ADAPT_RULES}`;
 
 interface SpainAdaptInput {
   recipeName?: string;
@@ -101,6 +96,87 @@ const responseSchema = {
   additionalProperties: false,
 };
 
+// ─── Validation helpers (follow recipe-parser.ts pattern) ──
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function isNumber(value: unknown): value is number {
+  return typeof value === 'number';
+}
+
+function validateSpainAdaptOutput(data: unknown): asserts data is SpainAdaptOutput {
+  if (!isObject(data)) {
+    throw new Error('Invalid es-ES adaptation output: expected a JSON object');
+  }
+  if (data.recipeName !== undefined && !isString(data.recipeName)) {
+    throw new Error('Invalid es-ES adaptation output: "recipeName" must be a string');
+  }
+  if (data.tipsAndTricks !== undefined && !isString(data.tipsAndTricks)) {
+    throw new Error('Invalid es-ES adaptation output: "tipsAndTricks" must be a string');
+  }
+  if (data.steps !== undefined) {
+    if (!Array.isArray(data.steps)) {
+      throw new Error('Invalid es-ES adaptation output: "steps" must be an array');
+    }
+    for (const step of data.steps) {
+      if (!isObject(step)) {
+        throw new Error('Invalid es-ES adaptation output: step entries must be objects');
+      }
+      if (!isNumber(step.order)) {
+        throw new Error('Invalid es-ES adaptation output: step "order" must be a number');
+      }
+      if (!isString(step.instruction)) {
+        throw new Error('Invalid es-ES adaptation output: step "instruction" must be a string');
+      }
+    }
+  }
+  if (data.ingredientNotes !== undefined) {
+    if (!Array.isArray(data.ingredientNotes)) {
+      throw new Error('Invalid es-ES adaptation output: "ingredientNotes" must be an array');
+    }
+    for (const note of data.ingredientNotes) {
+      if (!isObject(note)) {
+        throw new Error('Invalid es-ES adaptation output: ingredientNote entries must be objects');
+      }
+      if (!isNumber(note.displayOrder)) {
+        throw new Error(
+          'Invalid es-ES adaptation output: ingredientNote "displayOrder" must be a number',
+        );
+      }
+    }
+  }
+  if (data.newIngredients !== undefined) {
+    if (!Array.isArray(data.newIngredients)) {
+      throw new Error('Invalid es-ES adaptation output: "newIngredients" must be an array');
+    }
+    for (const ing of data.newIngredients) {
+      if (!isObject(ing) || !isString(ing.name) || !isString(ing.pluralName)) {
+        throw new Error(
+          'Invalid es-ES adaptation output: newIngredient entries must have "name" and "pluralName" strings',
+        );
+      }
+    }
+  }
+  if (data.newKitchenTools !== undefined) {
+    if (!Array.isArray(data.newKitchenTools)) {
+      throw new Error('Invalid es-ES adaptation output: "newKitchenTools" must be an array');
+    }
+    for (const kt of data.newKitchenTools) {
+      if (!isObject(kt) || !isString(kt.name)) {
+        throw new Error(
+          'Invalid es-ES adaptation output: newKitchenTool entries must have a "name" string',
+        );
+      }
+    }
+  }
+}
+
 /**
  * Adapt Mexican Spanish content to Spain Spanish.
  * Makes a single AI call with all translatable text bundled together.
@@ -148,7 +224,8 @@ export async function adaptToSpainSpanish(
     throw new Error('No content in OpenAI response for es-ES adaptation');
   }
 
-  const result = parseJsonFromLLM(outputText) as SpainAdaptOutput;
+  const result = parseJsonFromLLM(outputText);
+  validateSpainAdaptOutput(result);
   logger.info('Spain Spanish adaptation complete');
   return result;
 }

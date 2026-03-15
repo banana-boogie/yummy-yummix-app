@@ -27,8 +27,7 @@ export function ReviewForm({ recipe, displayLocale = 'es', onUpdateRecipe }: Rev
 
   return (
     <ScrollView
-      className="w-full max-w-[1000px] rounded-lg pt-md px-md mt-md mb-lg"
-      style={{ backgroundColor: '#ffffff' }}
+      className="w-full max-w-[1000px] rounded-lg pt-md px-md mt-md mb-lg bg-white"
       showsVerticalScrollIndicator={false}
     >
       {/* Preview of recipe */}

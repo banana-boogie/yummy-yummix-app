@@ -140,12 +140,30 @@ async function main() {
         const { nameEn, nameEs } = await translatePair(ing.name_en, ing.name_es);
         const plurals = await translatePair(ing.plural_name_en, ing.plural_name_es);
 
-        await db.updateIngredient(config.supabase, ing.id, {
-          name_en: nameEn,
-          name_es: nameEs,
-          plural_name_en: plurals.nameEn,
-          plural_name_es: plurals.nameEs,
-        });
+        // Use upsertEntityTranslations to persist to ingredient_translations table
+        const translationRows = [];
+        if (nameEn || plurals.nameEn) {
+          translationRows.push({
+            ingredient_id: ing.id,
+            locale: 'en',
+            name: nameEn,
+            plural_name: plurals.nameEn,
+          });
+        }
+        if (nameEs || plurals.nameEs) {
+          translationRows.push({
+            ingredient_id: ing.id,
+            locale: 'es',
+            name: nameEs,
+            plural_name: plurals.nameEs,
+          });
+        }
+        await db.upsertEntityTranslations(
+          config.supabase,
+          'ingredient_translations',
+          'ingredient_id',
+          translationRows,
+        );
         logger.success(`Translated ingredient: ${name} -> EN: ${nameEn}, ES: ${nameEs}`);
         totalTranslated++;
       } catch (error) {
@@ -168,10 +186,29 @@ async function main() {
 
       try {
         const { nameEn, nameEs } = await translatePair(item.name_en, item.name_es);
-        await db.updateKitchenTool(config.supabase, item.id, {
-          name_en: nameEn,
-          name_es: nameEs,
-        });
+
+        // Use upsertEntityTranslations to persist to kitchen_tool_translations table
+        const translationRows = [];
+        if (nameEn) {
+          translationRows.push({
+            kitchen_tool_id: item.id,
+            locale: 'en',
+            name: nameEn,
+          });
+        }
+        if (nameEs) {
+          translationRows.push({
+            kitchen_tool_id: item.id,
+            locale: 'es',
+            name: nameEs,
+          });
+        }
+        await db.upsertEntityTranslations(
+          config.supabase,
+          'kitchen_tool_translations',
+          'kitchen_tool_id',
+          translationRows,
+        );
         logger.success(`Translated kitchen tool: ${name} -> EN: ${nameEn}, ES: ${nameEs}`);
         totalTranslated++;
       } catch (error) {
@@ -194,7 +231,29 @@ async function main() {
 
       try {
         const { nameEn, nameEs } = await translatePair(tag.name_en, tag.name_es);
-        await db.updateTag(config.supabase, tag.id, { name_en: nameEn, name_es: nameEs });
+
+        // Use upsertEntityTranslations to persist to recipe_tag_translations table
+        const translationRows = [];
+        if (nameEn) {
+          translationRows.push({
+            recipe_tag_id: tag.id,
+            locale: 'en',
+            name: nameEn,
+          });
+        }
+        if (nameEs) {
+          translationRows.push({
+            recipe_tag_id: tag.id,
+            locale: 'es',
+            name: nameEs,
+          });
+        }
+        await db.upsertEntityTranslations(
+          config.supabase,
+          'recipe_tag_translations',
+          'recipe_tag_id',
+          translationRows,
+        );
 
         logger.success(`Translated tag: ${name} -> EN: ${nameEn}, ES: ${nameEs}`);
         totalTranslated++;

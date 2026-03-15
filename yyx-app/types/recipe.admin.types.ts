@@ -75,7 +75,7 @@ export interface AdminIngredient {
 export interface AdminKitchenTool {
   id: string;
   translations: AdminKitchenToolTranslation[];
-  pictureUrl: string | any;
+  pictureUrl: string;
 }
 
 export interface AdminRecipeIngredient {

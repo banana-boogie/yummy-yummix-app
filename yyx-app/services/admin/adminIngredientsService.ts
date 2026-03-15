@@ -92,20 +92,20 @@ export class AdminIngredientsService extends BaseService {
   private async persistNutrition(ingredientId: string, nf: NutritionalFacts | undefined): Promise<void> {
     if (nf === undefined) return;
 
-    const hasValues = nf.calories !== undefined && nf.calories !== '' ||
-      nf.protein !== undefined && nf.protein !== '' ||
-      nf.fat !== undefined && nf.fat !== '' ||
-      nf.carbohydrates !== undefined && nf.carbohydrates !== '';
+    const hasValues = (nf.calories !== undefined && nf.calories !== '') ||
+      (nf.protein !== undefined && nf.protein !== '') ||
+      (nf.fat !== undefined && nf.fat !== '') ||
+      (nf.carbohydrates !== undefined && nf.carbohydrates !== '');
 
     if (hasValues) {
       const { error } = await this.supabase
         .from('ingredient_nutrition')
         .upsert({
           ingredient_id: ingredientId,
-          calories: nf.calories !== '' ? Number(nf.calories) : null,
-          protein: nf.protein !== '' ? Number(nf.protein) : null,
-          fat: nf.fat !== '' ? Number(nf.fat) : null,
-          carbohydrates: nf.carbohydrates !== '' ? Number(nf.carbohydrates) : null,
+          calories: nf.calories !== '' && nf.calories !== undefined ? Number(nf.calories) : null,
+          protein: nf.protein !== '' && nf.protein !== undefined ? Number(nf.protein) : null,
+          fat: nf.fat !== '' && nf.fat !== undefined ? Number(nf.fat) : null,
+          carbohydrates: nf.carbohydrates !== '' && nf.carbohydrates !== undefined ? Number(nf.carbohydrates) : null,
           source: 'manual',
           updated_at: new Date().toISOString(),
         }, { onConflict: 'ingredient_id' });

@@ -427,15 +427,33 @@ async function importRecipe(
         tip: ri.tip,
         section: ri.section,
       })).filter((ri) => ri.recipeIngredientId),
-      ingredients: (spainOutput.newIngredients || []).map((i, idx) => ({
-        ingredientId: newlyCreatedIngredients[idx]?.id || '',
-        name: i.name,
-        pluralName: i.pluralName,
-      })).filter((i) => i.ingredientId),
-      kitchenTools: (spainOutput.newKitchenTools || []).map((kt, idx) => ({
-        kitchenToolId: newlyCreatedTools[idx]?.id || '',
-        name: kt.name,
-      })).filter((kt) => kt.kitchenToolId),
+      ingredients: (() => {
+        // Match by name instead of positional index to avoid silent corruption
+        // if AI returns items in a different order
+        const nameToIngredient = new Map(
+          newlyCreatedIngredients.map((i) => [i.nameEs.toLowerCase(), i]),
+        );
+        return (spainOutput.newIngredients || []).map((i) => {
+          const match = nameToIngredient.get(i.name.toLowerCase());
+          return {
+            ingredientId: match?.id || '',
+            name: i.name,
+            pluralName: i.pluralName,
+          };
+        }).filter((i) => i.ingredientId);
+      })(),
+      kitchenTools: (() => {
+        const nameToTool = new Map(
+          newlyCreatedTools.map((kt) => [kt.nameEs.toLowerCase(), kt]),
+        );
+        return (spainOutput.newKitchenTools || []).map((kt) => {
+          const match = nameToTool.get(kt.name.toLowerCase());
+          return {
+            kitchenToolId: match?.id || '',
+            name: kt.name,
+          };
+        }).filter((kt) => kt.kitchenToolId);
+      })(),
     });
   } catch (childError) {
     // Clean up the orphaned recipe row (FK cascades delete children)
@@ -582,7 +600,8 @@ async function main() {
   let successCount = 0;
   let failCount = 0;
 
-  for (const file of toProcess) {
+  for (let fileIdx = 0; fileIdx < toProcess.length; fileIdx++) {
+    const file = toProcess[fileIdx];
     try {
       logger.section(`Processing: ${file.filename}`);
       const recipeId = await importRecipe(
@@ -604,7 +623,7 @@ async function main() {
     }
 
     // Small delay between OpenAI calls
-    if (toProcess.indexOf(file) < toProcess.length - 1) await sleep(500);
+    if (fileIdx < toProcess.length - 1) await sleep(500);
   }
 
   // Summary

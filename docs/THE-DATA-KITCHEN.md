@@ -8,7 +8,7 @@ Where raw database entries get cooked into production-ready content.
 
 YummyYummix is a cooking app with recipes, ingredients, step-by-step cooking guides, and AI-powered features — all in English and Mexican Spanish. Before launch, the database needs to be fully populated: every ingredient needs nutritional facts, every entity needs translations in both languages, and every recipe/ingredient/item needs an image.
 
-Doing this manually for hundreds of entities would take days. The Data Kitchen is a set of **automated CLI tools** that handle the tedious parts — fetching nutrition data from the USDA, translating missing content with AI, and producing missing-image manifests for manual image creation/upload. Raw rows go in, fully-baked recipes come out. This feature also includes **analytics** to understand user behavior post-launch, **backup scripts** for disaster recovery, and **database hardening** for security and performance.
+Doing this manually for hundreds of entities would take days. The Data Kitchen is a set of **automated CLI tools** that handle the tedious parts — fetching nutrition data with AI, translating missing content with AI, and producing missing-image manifests for manual image creation/upload. Raw rows go in, fully-baked recipes come out. This feature also includes **analytics** to understand user behavior post-launch, **backup scripts** for disaster recovery, and **database hardening** for security and performance.
 
 ---
 
@@ -19,7 +19,7 @@ Doing this manually for hundreds of entities would take days. The Data Kitchen i
 │                    CLI Tools (Deno)                      │
 │                                                         │
 │   audit-data ──► Reports what's missing                 │
-│   fetch-nutrition ──► USDA API + OpenAI fallback        │
+│   fetch-nutrition ──► OpenAI gpt-4.1-mini                │
 │   translate-content ──► GPT-4o-mini translations        │
 │   list-missing-images ──► Manual image worklist         │
 │                                                         │
@@ -87,11 +87,8 @@ The report groups issues by type (`missing_image`, `missing_nutrition`, `missing
 **What it does:** Finds ingredients without nutritional data and fetches it automatically.
 
 **How it works:**
-1. Tries the **USDA FoodData Central API** first (free, authoritative, per-100g data)
-2. If USDA has no match, falls back to **OpenAI GPT-4o-mini** for an estimate
-3. Saves `{ calories, protein, fat, carbohydrates }` per 100g to the database
-
-**Why two sources:** The USDA database is the gold standard for common ingredients (chicken, rice, tomato) but doesn't cover everything — regional ingredients or prepared items might not exist. GPT-4o-mini fills the gaps with reasonable estimates.
+1. Uses **OpenAI gpt-4.1-mini** to look up per-100g nutrition data for each ingredient
+2. Saves `{ calories, protein, fat, carbohydrates }` per 100g to the database
 
 ```bash
 # Process up to 50 ingredients locally
@@ -337,7 +334,7 @@ yyx-server/
 ├── data-pipeline/
 │   ├── cli/
 │   │   ├── audit-data.ts          # Data quality scanner
-│   │   ├── fetch-nutrition.ts     # USDA + OpenAI nutrition fetcher
+│   │   ├── fetch-nutrition.ts     # AI-powered nutrition fetcher (gpt-4.1-mini)
 │   │   ├── translate-content.ts   # Bilingual translation tool
 │   │   ├── list-missing-images.ts # Missing image manifest generator
 │   │   └── import-recipes.ts      # Recipe markdown importer

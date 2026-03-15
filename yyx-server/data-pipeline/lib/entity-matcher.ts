@@ -100,7 +100,7 @@ function isVariation(name1: string, name2: string): boolean {
   return stripPrep(n1) === stripPrep(n2);
 }
 
-function editDistance(s1: string, s2: string): number {
+export function editDistance(s1: string, s2: string): number {
   const a = s1.toLowerCase();
   const b = s2.toLowerCase();
   const costs: number[] = [];
@@ -123,7 +123,7 @@ function editDistance(s1: string, s2: string): number {
   return costs[b.length];
 }
 
-function similarity(s1: string, s2: string): number {
+export function similarity(s1: string, s2: string): number {
   if (!s1 || !s2) return 0;
   const longer = s1.length > s2.length ? s1 : s2;
   const shorter = s1.length > s2.length ? s2 : s1;

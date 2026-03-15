@@ -13,6 +13,7 @@ import { Logger } from './logger.ts';
 import { parseJsonFromLLM, sleep } from './utils.ts';
 import * as db from './db.ts';
 import { adaptToSpainSpanish } from './spain-adapter.ts';
+import { SPAIN_ADAPT_RULES } from './spain-constants.ts';
 
 const BATCH_SIZE = 20;
 const API_DELAY_MS = 500;
@@ -60,17 +61,10 @@ Rules:
 - Return valid JSON matching the exact schema requested
 - Preserve the "id" field exactly as given`;
 
-// NOTE: Keep this swap list in sync with spain-adapter.ts SYSTEM_PROMPT
 const ADAPT_SPAIN_SYSTEM_PROMPT = `You adapt Mexican Spanish recipe text to Spain Spanish (Castilian).
 
 Rules:
-- ONLY change words/phrases that differ between Mexican and Spain Spanish
-- Common swaps: jitomate→tomate, ejotes→judías verdes, chícharos→guisantes, papa→patata, durazno→melocotón, elote→maíz, betabel→remolacha, frijoles→alubias, chile→pimiento/guindilla, crema→nata
-- Keep Thermomix-specific terms unchanged (vaso, Varoma, vel, giro a la izquierda)
-- Keep measurements unchanged (g, ml, min, seg)
-- If the text is already neutral Spanish or doesn't need changes, return the EXACT same text
-- Do NOT rewrite or rephrase — only swap region-specific words
-- Return valid JSON matching the exact schema requested
+${SPAIN_ADAPT_RULES}
 - Preserve the "id" field exactly as given`;
 
 interface BatchItem {

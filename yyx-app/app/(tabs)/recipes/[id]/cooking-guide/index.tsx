@@ -67,7 +67,7 @@ export default function CookingGuide() {
 
         <CookingGuidePageHeader
           title={recipe?.name || ''}
-          subtitle="Mise en place"
+          subtitle={i18n.t('recipes.cookingGuide.subtitle')}
           recipeContext={{
             type: 'recipe',
             recipeId: id as string,
@@ -99,7 +99,7 @@ export default function CookingGuide() {
               <Text preset="body" className="text-center text-md mb-0">
                 {i18n.t('recipes.cookingGuide.intro.checkboxSteps.checkmark')}
               </Text>
-              <View className="items-center justify-center mx-xs position-absolute">
+              <View className="items-center justify-center mx-xs absolute">
                 <Image
                   source={require('@/assets/images/icons/checkbox-checked.png')}
                   style={{ width: checkboxSize, height: checkboxSize, top: -5 }}

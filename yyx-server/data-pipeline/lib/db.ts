@@ -205,11 +205,6 @@ export async function createIngredient(
   };
 }
 
-/** Capitalize first letter of each word (Title Case) */
-function titleCase(str: string): string {
-  return str.replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 /** Capitalize first letter only */
 function capitalizeFirst(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);

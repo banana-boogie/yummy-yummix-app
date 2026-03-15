@@ -21,8 +21,6 @@ import { FormRow } from '@/components/form/FormRow';
 import { FormDivider } from '@/components/form/FormDivider';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { useDevice } from '@/hooks/useDevice';
-import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
-import { translateContent } from '@/services/admin/adminTranslateService';
 
 interface RecipeIngredientFormModalProps {
   visible: boolean;
