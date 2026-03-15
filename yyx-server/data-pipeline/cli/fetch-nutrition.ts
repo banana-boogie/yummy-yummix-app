@@ -3,7 +3,7 @@
  * Fetch Missing Nutritional Facts
  *
  * Finds ingredients missing nutritional data and fetches it using
- * the USDA API (primary) with OpenAI fallback.
+ * OpenAI (gpt-4.1-mini).
  *
  * Usage:
  *   deno task pipeline:nutrition --local
@@ -24,53 +24,7 @@ const limit = parseInt(parseFlag(Deno.args, '--limit', '50') || '50', 10);
 const auditFile = parseFlag(Deno.args, '--from-audit');
 const dryRun = hasFlag(Deno.args, '--dry-run');
 
-// ─── USDA API ────────────────────────────────────────────
-
-async function fetchFromUSDA(ingredientName: string): Promise<NutritionData | null> {
-  if (!config.usdaApiKey) return null;
-
-  try {
-    const params = new URLSearchParams({
-      api_key: config.usdaApiKey,
-      query: ingredientName,
-      pageSize: '1',
-      dataType: 'Foundation',
-      format: 'full',
-    });
-
-    const res = await fetch(`https://api.nal.usda.gov/fdc/v1/foods/search?${params}`);
-    if (!res.ok) {
-      logger.warn(`USDA API returned ${res.status} for "${ingredientName}"`);
-      return null;
-    }
-    const data = await res.json();
-
-    if (!data.foods || data.foods.length === 0) return null;
-
-    const food = data.foods[0];
-    const nutrients = food.foodNutrients;
-
-    const findNutrient = (name: string, unitName?: string): number => {
-      const match = nutrients.find(
-        (n: { nutrientName: string; unitName?: string }) =>
-          n.nutrientName === name && (!unitName || n.unitName === unitName),
-      );
-      return match?.value || 0;
-    };
-
-    return {
-      calories: Math.round(findNutrient('Energy', 'KCAL')),
-      protein: Math.round(findNutrient('Protein') * 10) / 10,
-      fat: Math.round(findNutrient('Total lipid (fat)') * 10) / 10,
-      carbohydrates: Math.round(findNutrient('Carbohydrate, by difference') * 10) / 10,
-    };
-  } catch (error) {
-    logger.warn(`USDA API error for "${ingredientName}": ${error}`);
-    return null;
-  }
-}
-
-// ─── OpenAI Fallback ─────────────────────────────────────
+// ─── OpenAI ─────────────────────────────────────────────
 
 async function fetchFromOpenAI(ingredientName: string): Promise<NutritionData | null> {
   if (!config.openaiApiKey) return null;
@@ -207,14 +161,8 @@ async function main() {
     const name = ing.name_en || ing.name_es;
     logger.info(`Fetching nutrition for: ${name}`);
 
-    // Try USDA first, then OpenAI
-    let nutrition = await fetchFromUSDA(name);
-    let source = 'usda';
-    if (!nutrition) {
-      logger.info(`USDA miss for "${name}", trying OpenAI...`);
-      nutrition = await fetchFromOpenAI(name);
-      source = 'openai:gpt-4.1-mini';
-    }
+    const nutrition = await fetchFromOpenAI(name);
+    const source = 'openai:gpt-4.1-mini';
 
     if (nutrition) {
       await db.upsertIngredientNutrition(config.supabase, ing.id, {
