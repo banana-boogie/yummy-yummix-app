@@ -276,9 +276,16 @@ export async function backfillSimpleEntities(
       return row;
     });
 
-    await db.upsertEntityTranslations(supabase, config.translationTable, config.idColumn, rows);
-    processed += rows.length;
-    logger.success(`  Upserted ${rows.length} ${targetLocale} translations for ${entityType}`);
+    const { skipped } = await db.upsertEntityTranslations(
+      supabase, config.translationTable, config.idColumn, rows,
+    );
+    processed += rows.length - skipped;
+    if (skipped > 0) {
+      logger.warn(`  Skipped ${skipped} rows due to name conflicts`);
+    }
+    logger.success(
+      `  Upserted ${rows.length - skipped} ${targetLocale} translations for ${entityType}`,
+    );
 
     if (i + BATCH_SIZE < missing.length) {
       await sleep(API_DELAY_MS);

@@ -700,12 +700,30 @@ export async function upsertEntityTranslations(
   translationTable: string,
   idColumn: string,
   rows: Row[],
-): Promise<void> {
-  if (rows.length === 0) return;
+): Promise<{ skipped: number }> {
+  if (rows.length === 0) return { skipped: 0 };
+
+  // Try batch upsert first (fast path)
   const { error } = await supabase
     .from(translationTable)
     .upsert(rows, { onConflict: `${idColumn},locale` });
-  if (error) throw new Error(`Failed to upsert ${translationTable}: ${error.message}`);
+
+  if (!error) return { skipped: 0 };
+
+  // If batch fails (e.g., unique name constraint), fall back to one-at-a-time
+  let skipped = 0;
+  for (const row of rows) {
+    const { error: rowErr } = await supabase
+      .from(translationTable)
+      .upsert(row, { onConflict: `${idColumn},locale` });
+    if (rowErr) {
+      console.warn(
+        `[db] Skipping ${translationTable} row (${row[idColumn]}, ${row.locale}): ${rowErr.message}`,
+      );
+      skipped++;
+    }
+  }
+  return { skipped };
 }
 
 /**
