@@ -415,18 +415,28 @@ async function importRecipe(
         name: spainOutput.recipeName || parsed.nameEs,
         tipsAndTricks: spainOutput.tipsAndTricks || parsed.tipsAndTricksEs || '',
       },
-      steps: (spainOutput.steps || []).map((s) => ({
-        stepId: stepOrderToId.get(s.order) || '',
-        instruction: s.instruction,
-        section: s.section,
-        tip: s.tip,
-      })).filter((s) => s.stepId),
-      ingredientNotes: (spainOutput.ingredientNotes || []).map((ri) => ({
-        recipeIngredientId: ingredientOrderToId.get(ri.displayOrder) || '',
-        notes: ri.notes,
-        tip: ri.tip,
-        section: ri.section,
-      })).filter((ri) => ri.recipeIngredientId),
+      steps: (() => {
+        const mapped = (spainOutput.steps || []).map((s) => ({
+          stepId: stepOrderToId.get(s.order) || '',
+          instruction: s.instruction,
+          section: s.section,
+          tip: s.tip,
+        }));
+        const dropped = mapped.filter((s) => !s.stepId).length;
+        if (dropped) logger.warn(`es-ES: ${dropped} step(s) dropped — order mismatch with inserted steps`);
+        return mapped.filter((s) => s.stepId);
+      })(),
+      ingredientNotes: (() => {
+        const mapped = (spainOutput.ingredientNotes || []).map((ri) => ({
+          recipeIngredientId: ingredientOrderToId.get(ri.displayOrder) || '',
+          notes: ri.notes,
+          tip: ri.tip,
+          section: ri.section,
+        }));
+        const dropped = mapped.filter((ri) => !ri.recipeIngredientId).length;
+        if (dropped) logger.warn(`es-ES: ${dropped} ingredient note(s) dropped — displayOrder mismatch`);
+        return mapped.filter((ri) => ri.recipeIngredientId);
+      })(),
       ingredients: (() => {
         // Match by name instead of positional index to avoid silent corruption
         // if AI returns items in a different order

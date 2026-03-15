@@ -78,7 +78,10 @@ serve(async (req) => {
   }
 
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+    return new Response("Method not allowed", {
+      status: 405,
+      headers: corsHeaders,
+    });
   }
 
   // Auth — require authenticated user (AI calls have cost implications)
@@ -101,7 +104,10 @@ serve(async (req) => {
     if (!ingredientName) {
       return new Response(
         JSON.stringify({ error: "Ingredient name is required" }),
-        { status: 400 },
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
       );
     }
 
@@ -110,7 +116,10 @@ serve(async (req) => {
     if (!nutritionalFacts) {
       return new Response(
         JSON.stringify({ error: "Could not find nutritional facts" }),
-        { status: 404 },
+        {
+          status: 404,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
       );
     }
 
@@ -128,7 +137,10 @@ serve(async (req) => {
     console.error(`Request ${requestId} failed:`, error);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
-      { status: 500 },
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
     );
   }
 });

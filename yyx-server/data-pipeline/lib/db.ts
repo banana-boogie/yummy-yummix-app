@@ -593,46 +593,6 @@ export async function insertSpainTranslations(
   }
 }
 
-// ─── Update Entities ─────────────────────────────────────
-
-/** Update non-translatable fields on an ingredient (e.g., image_url) */
-export async function updateIngredient(
-  supabase: SupabaseClient,
-  id: string,
-  updates: Partial<DbIngredient>,
-): Promise<void> {
-  // Strip translation fields — only update base table columns
-  const { name_en: _, name_es: _2, plural_name_en: _3, plural_name_es: _4, ...baseUpdates } =
-    updates;
-  if (Object.keys(baseUpdates).length === 0) return;
-  const { error } = await supabase.from('ingredients').update(baseUpdates).eq('id', id);
-  if (error) throw new Error(`Failed to update ingredient ${id}: ${error.message}`);
-}
-
-/** Update non-translatable fields on a kitchen tool (e.g., image_url) */
-export async function updateKitchenTool(
-  supabase: SupabaseClient,
-  id: string,
-  updates: Partial<DbKitchenTool>,
-): Promise<void> {
-  const { name_en: _, name_es: _2, ...baseUpdates } = updates;
-  if (Object.keys(baseUpdates).length === 0) return;
-  const { error } = await supabase.from('kitchen_tools').update(baseUpdates).eq('id', id);
-  if (error) throw new Error(`Failed to update kitchen tool ${id}: ${error.message}`);
-}
-
-/** Update non-translatable fields on a tag (e.g., categories) */
-export async function updateTag(
-  supabase: SupabaseClient,
-  id: string,
-  updates: Partial<DbRecipeTag>,
-): Promise<void> {
-  const { name_en: _, name_es: _2, ...baseUpdates } = updates;
-  if (Object.keys(baseUpdates).length === 0) return;
-  const { error } = await supabase.from('recipe_tags').update(baseUpdates).eq('id', id);
-  if (error) throw new Error(`Failed to update tag ${id}: ${error.message}`);
-}
-
 // ─── Ingredient Nutrition ─────────────────────────────────
 
 /** Upsert a row into ingredient_nutrition */
@@ -672,20 +632,6 @@ export async function fetchIngredientNutritionIds(
   if (error) throw new Error(`Failed to fetch nutrition IDs: ${error.message}`);
   warnIfTruncated('ingredient_nutrition', (data || []).length);
   return new Set((data || []).map((r: Row) => r.ingredient_id));
-}
-
-/** Update non-translatable fields on a recipe (e.g., image_url) */
-export async function updateRecipe(
-  supabase: SupabaseClient,
-  id: string,
-  updates: Record<string, unknown>,
-): Promise<void> {
-  // Strip any translation fields that callers might accidentally include
-  const { name_en: _, name_es: _2, tips_and_tricks_en: _3, tips_and_tricks_es: _4, ...baseUpdates } =
-    updates;
-  if (Object.keys(baseUpdates).length === 0) return;
-  const { error } = await supabase.from('recipes').update(baseUpdates).eq('id', id);
-  if (error) throw new Error(`Failed to update recipe ${id}: ${error.message}`);
 }
 
 // ─── Backfill Queries ──────────────────────────────────

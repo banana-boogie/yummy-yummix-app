@@ -18,7 +18,6 @@ interface NutritionalFactsSectionProps {
   onChange: (facts: NutritionalFacts) => void;
   errors?: NutritionalErrors;
   required?: boolean;
-  error?: string;
   ingredientName?: string;
 }
 

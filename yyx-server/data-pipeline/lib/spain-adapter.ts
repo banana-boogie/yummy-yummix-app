@@ -110,7 +110,7 @@ function isNumber(value: unknown): value is number {
   return typeof value === 'number';
 }
 
-function validateSpainAdaptOutput(data: unknown): asserts data is SpainAdaptOutput {
+export function validateSpainAdaptOutput(data: unknown): asserts data is SpainAdaptOutput {
   if (!isObject(data)) {
     throw new Error('Invalid es-ES adaptation output: expected a JSON object');
   }
