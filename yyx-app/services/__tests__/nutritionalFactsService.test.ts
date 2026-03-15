@@ -95,6 +95,22 @@ describe('NutritionalFactsService', () => {
       ).rejects.toThrow('Failed to fetch nutritional facts: Ingredient name is required');
     });
 
+    it('throws on malformed successful response', async () => {
+      mockInvoke.mockResolvedValue({ data: { per_100g: { calories: 'not-a-number' } }, error: null });
+
+      await expect(
+        NutritionalFactsService.fetchNutritionalFacts('chicken')
+      ).rejects.toThrow('Invalid nutrition data received');
+    });
+
+    it('throws on null data response', async () => {
+      mockInvoke.mockResolvedValue({ data: null, error: null });
+
+      await expect(
+        NutritionalFactsService.fetchNutritionalFacts('chicken')
+      ).rejects.toThrow('Invalid nutrition data received');
+    });
+
     it('normalizes ingredient name before sending', async () => {
       await NutritionalFactsService.fetchNutritionalFacts('  Chicken Breast  ');
 

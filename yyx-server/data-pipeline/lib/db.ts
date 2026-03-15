@@ -675,6 +675,7 @@ export async function fetchIngredientNutritionIds(
     .select('ingredient_id')
     .limit(FETCH_LIMIT);
   if (error) throw new Error(`Failed to fetch nutrition IDs: ${error.message}`);
+  warnIfTruncated('ingredient_nutrition', (data || []).length);
   return new Set((data || []).map((r: Row) => r.ingredient_id));
 }
 

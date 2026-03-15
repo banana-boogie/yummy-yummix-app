@@ -14,6 +14,16 @@ export class NutritionalFactsService {
     // Edge function returns { per_100g: { calories, protein, fat, carbohydrates } }
     // Unwrap to flat shape for the new NutritionalFacts interface
     const raw = data?.per_100g ?? data;
+    if (
+      !raw ||
+      typeof raw.calories !== 'number' ||
+      typeof raw.protein !== 'number' ||
+      typeof raw.fat !== 'number' ||
+      typeof raw.carbohydrates !== 'number'
+    ) {
+      throw new Error('Invalid nutrition data received');
+    }
+
     return {
       calories: raw.calories,
       protein: raw.protein,

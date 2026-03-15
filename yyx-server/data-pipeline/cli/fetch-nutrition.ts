@@ -87,7 +87,7 @@ async function fetchFromOpenAI(ingredientName: string): Promise<NutritionData | 
           'Authorization': `Bearer ${config.openaiApiKey}`,
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'gpt-4.1-mini',
           messages: [{
             role: 'user',
             content:
@@ -209,13 +209,14 @@ async function main() {
 
     // Try USDA first, then OpenAI
     let nutrition = await fetchFromUSDA(name);
+    let source = 'usda';
     if (!nutrition) {
       logger.info(`USDA miss for "${name}", trying OpenAI...`);
       nutrition = await fetchFromOpenAI(name);
+      source = 'openai:gpt-4.1-mini';
     }
 
     if (nutrition) {
-      const source = 'openai:gpt-4o-mini';
       await db.upsertIngredientNutrition(config.supabase, ing.id, {
         ...nutrition,
         source,

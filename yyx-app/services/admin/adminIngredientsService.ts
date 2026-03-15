@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { AdminIngredient, AdminIngredientTranslation, pickTranslation, getNameFromTranslations } from '@/types/recipe.admin.types';
+import { AdminIngredient, AdminIngredientTranslation, NutritionalFacts, pickTranslation, getNameFromTranslations } from '@/types/recipe.admin.types';
 import { BaseService } from '../base/BaseService';
 import { imageService } from '../storage/imageService';
 import logger from '@/services/logger';
@@ -84,6 +84,46 @@ export class AdminIngredientsService extends BaseService {
     }
   }
 
+  /**
+   * Persist or delete ingredient nutrition.
+   * If any of the 4 core fields has a value, upsert the row.
+   * If all are empty/undefined, delete the row.
+   */
+  private async persistNutrition(ingredientId: string, nf: NutritionalFacts | undefined): Promise<void> {
+    if (nf === undefined) return;
+
+    const hasValues = nf.calories !== undefined && nf.calories !== '' ||
+      nf.protein !== undefined && nf.protein !== '' ||
+      nf.fat !== undefined && nf.fat !== '' ||
+      nf.carbohydrates !== undefined && nf.carbohydrates !== '';
+
+    if (hasValues) {
+      const { error } = await this.supabase
+        .from('ingredient_nutrition')
+        .upsert({
+          ingredient_id: ingredientId,
+          calories: nf.calories !== '' ? Number(nf.calories) : null,
+          protein: nf.protein !== '' ? Number(nf.protein) : null,
+          fat: nf.fat !== '' ? Number(nf.fat) : null,
+          carbohydrates: nf.carbohydrates !== '' ? Number(nf.carbohydrates) : null,
+          source: 'manual',
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'ingredient_id' });
+      if (error) {
+        throw new Error(`Failed to upsert nutrition: ${error.message}`);
+      }
+    } else {
+      // All fields empty — delete the nutrition row
+      const { error } = await this.supabase
+        .from('ingredient_nutrition')
+        .delete()
+        .eq('ingredient_id', ingredientId);
+      if (error) {
+        throw new Error(`Failed to delete nutrition: ${error.message}`);
+      }
+    }
+  }
+
   async updateIngredient(id: string, ingredient: AdminIngredient): Promise<AdminIngredient> {
     const ingredientData: Record<string, any> = {};
 
@@ -129,36 +169,9 @@ export class AdminIngredientsService extends BaseService {
       }
     }
 
-    // Handle nutrition separately — upsert or delete from ingredient_nutrition
+    // Handle nutrition separately
     if (ingredient.nutritionalFacts !== undefined) {
-      const nf = ingredient.nutritionalFacts;
-      const hasValues = nf && (nf.calories !== undefined && nf.calories !== '' ||
-        nf.protein !== undefined && nf.protein !== '' ||
-        nf.fat !== undefined && nf.fat !== '' ||
-        nf.carbohydrates !== undefined && nf.carbohydrates !== '');
-
-      if (hasValues && nf) {
-        const { error: nutritionError } = await this.supabase
-          .from('ingredient_nutrition')
-          .upsert({
-            ingredient_id: id,
-            calories: nf.calories !== '' ? Number(nf.calories) : null,
-            protein: nf.protein !== '' ? Number(nf.protein) : null,
-            fat: nf.fat !== '' ? Number(nf.fat) : null,
-            carbohydrates: nf.carbohydrates !== '' ? Number(nf.carbohydrates) : null,
-            source: 'manual',
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'ingredient_id' });
-        if (nutritionError) {
-          throw new Error(`Failed to upsert nutrition: ${nutritionError.message}`);
-        }
-      } else {
-        // All fields empty — delete the nutrition row
-        await this.supabase
-          .from('ingredient_nutrition')
-          .delete()
-          .eq('ingredient_id', id);
-      }
+      await this.persistNutrition(id, ingredient.nutritionalFacts);
     }
 
     // Upsert translations from the translations array
@@ -243,26 +256,7 @@ export class AdminIngredientsService extends BaseService {
     }
 
     // Upsert nutrition if provided
-    const nf = ingredient.nutritionalFacts;
-    if (nf && (nf.calories !== undefined && nf.calories !== '' ||
-      nf.protein !== undefined && nf.protein !== '' ||
-      nf.fat !== undefined && nf.fat !== '' ||
-      nf.carbohydrates !== undefined && nf.carbohydrates !== '')) {
-      const { error: nutritionError } = await this.supabase
-        .from('ingredient_nutrition')
-        .upsert({
-          ingredient_id: inserted.id,
-          calories: nf.calories !== '' ? Number(nf.calories) : null,
-          protein: nf.protein !== '' ? Number(nf.protein) : null,
-          fat: nf.fat !== '' ? Number(nf.fat) : null,
-          carbohydrates: nf.carbohydrates !== '' ? Number(nf.carbohydrates) : null,
-          source: 'manual',
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'ingredient_id' });
-      if (nutritionError) {
-        throw new Error(`Failed to insert nutrition: ${nutritionError.message}`);
-      }
-    }
+    await this.persistNutrition(inserted.id, ingredient.nutritionalFacts);
 
     return {
       id: inserted.id,

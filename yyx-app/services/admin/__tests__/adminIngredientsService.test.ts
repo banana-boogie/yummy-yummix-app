@@ -380,6 +380,122 @@ describe('AdminIngredientsService', () => {
   });
 
   // ============================================================
+  // NUTRITION TESTS
+  // ============================================================
+
+  describe('nutrition persistence', () => {
+    it('upserts nutrition on create when provided', async () => {
+      const newIngredient = {
+        translations: [
+          { locale: 'en', name: 'Tomato' },
+          { locale: 'es', name: 'Tomate' },
+        ],
+        nutritionalFacts: { calories: 20, protein: 1.0, fat: 0.2, carbohydrates: 3.9 },
+      };
+
+      mockSingle.mockResolvedValue({ data: { id: 'new-ing-1' }, error: null });
+      mockInsert.mockReturnValueOnce({ select: mockSelect })
+        .mockResolvedValueOnce({ error: null });
+
+      await service.createIngredient(newIngredient);
+
+      expect(mockFrom).toHaveBeenCalledWith('ingredient_nutrition');
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ingredient_id: 'new-ing-1',
+          calories: 20,
+          protein: 1.0,
+          fat: 0.2,
+          carbohydrates: 3.9,
+          source: 'manual',
+        }),
+        { onConflict: 'ingredient_id' }
+      );
+    });
+
+    it('upserts nutrition on update when provided', async () => {
+      const updates = {
+        id: 'ing-1',
+        nutritionalFacts: { calories: 25, protein: 1.5, fat: 0.3, carbohydrates: 4.0 },
+      };
+
+      await service.updateIngredient('ing-1', updates as any);
+
+      expect(mockFrom).toHaveBeenCalledWith('ingredient_nutrition');
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ingredient_id: 'ing-1',
+          calories: 25,
+          protein: 1.5,
+          source: 'manual',
+        }),
+        { onConflict: 'ingredient_id' }
+      );
+    });
+
+    it('deletes nutrition when all fields are empty', async () => {
+      const updates = {
+        id: 'ing-1',
+        nutritionalFacts: { calories: '', protein: '', fat: '', carbohydrates: '' },
+      };
+
+      mockEq.mockResolvedValue({ error: null });
+
+      await service.updateIngredient('ing-1', updates as any);
+
+      expect(mockFrom).toHaveBeenCalledWith('ingredient_nutrition');
+      expect(mockDelete).toHaveBeenCalled();
+    });
+
+    it('throws when nutrition delete fails', async () => {
+      const updates = {
+        id: 'ing-1',
+        nutritionalFacts: { calories: '', protein: '', fat: '', carbohydrates: '' },
+      };
+
+      // Make delete return an error
+      mockEq.mockResolvedValue({ error: { message: 'Delete failed' } });
+
+      await expect(service.updateIngredient('ing-1', updates as any)).rejects.toThrow(
+        'Failed to delete nutrition: Delete failed'
+      );
+    });
+
+    it('throws when nutrition upsert fails', async () => {
+      const updates = {
+        id: 'ing-1',
+        nutritionalFacts: { calories: 20, protein: 1.0, fat: 0.2, carbohydrates: 3.9 },
+      };
+
+      mockUpsert.mockResolvedValue({ error: { message: 'Upsert failed' } });
+
+      await expect(service.updateIngredient('ing-1', updates as any)).rejects.toThrow(
+        'Failed to upsert nutrition: Upsert failed'
+      );
+    });
+
+    it('skips nutrition when not provided on create', async () => {
+      const newIngredient = {
+        translations: [
+          { locale: 'en', name: 'Tomato' },
+        ],
+      };
+
+      mockSingle.mockResolvedValue({ data: { id: 'new-ing-1' }, error: null });
+      mockInsert.mockReturnValueOnce({ select: mockSelect })
+        .mockResolvedValueOnce({ error: null });
+
+      await service.createIngredient(newIngredient);
+
+      // Should not call upsert for nutrition (only for translations)
+      const nutritionUpsertCalls = mockFrom.mock.calls.filter(
+        (call: string[]) => call[0] === 'ingredient_nutrition'
+      );
+      expect(nutritionUpsertCalls).toHaveLength(0);
+    });
+  });
+
+  // ============================================================
   // IMAGE HANDLING TESTS
   // ============================================================
 
