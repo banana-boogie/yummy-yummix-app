@@ -209,6 +209,7 @@ ALTER TABLE public.my_table ENABLE ROW LEVEL SECURITY;
 - `get_cooked_recipes(p_locale text, ...)` — User's cooked recipes with locale-based name resolution
 - `match_recipe_embeddings(query_embedding vector, match_threshold float, match_count int)` — Vector similarity search
 - `admin_analytics(action text, timeframe text, "limit" int)` — Admin dashboard metrics
+- `admin_content_health()` — Returns content quality issues (missing translations, images, nutrition, unpublished) across recipes, ingredients, and kitchen tools; used by the Content Health screen
 - `is_admin()` — Check current user's admin status
 
 ### Function Template
