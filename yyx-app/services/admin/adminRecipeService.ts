@@ -186,7 +186,7 @@ class AdminRecipeService extends BaseService {
 
       // Insert only non-translatable fields into recipes
       const recipeData = this.transformRequest({
-        pictureUrl: imageUrl,
+        imageUrl: imageUrl,
         difficulty: recipe.difficulty,
         prepTime: recipe.prepTime,
         totalTime: recipe.totalTime,
@@ -269,9 +269,9 @@ class AdminRecipeService extends BaseService {
         }
       }
 
-      nonTranslatableFields.pictureUrl = await this.handleImageUpload({file: recipe.pictureUrl, translations: recipe.translations});
+      nonTranslatableFields.imageUrl = await this.handleImageUpload({file: recipe.pictureUrl, translations: recipe.translations});
     } else if (recipe.pictureUrl !== undefined) {
-      nonTranslatableFields.pictureUrl = recipe.pictureUrl;
+      nonTranslatableFields.imageUrl = recipe.pictureUrl;
     }
 
     if (Object.keys(nonTranslatableFields).length > 0) {
