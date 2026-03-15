@@ -186,21 +186,26 @@ export async function createIngredient(
     .single();
   if (error) throw new Error(`Failed to create ingredient "${ingredient.name_en}": ${error.message}`);
 
-  // 2. Insert translations
+  // 2. Insert translations (capitalize-first for display consistency)
+  const nameEn = capitalizeFirst(ingredient.name_en.trim());
+  const nameEs = capitalizeFirst(ingredient.name_es.trim());
+  const pluralEn = capitalizeFirst(ingredient.plural_name_en.trim());
+  const pluralEs = capitalizeFirst(ingredient.plural_name_es.trim());
+
   const { error: tErr } = await supabase
     .from('ingredient_translations')
     .insert([
-      { ingredient_id: data.id, locale: 'en', name: ingredient.name_en, plural_name: ingredient.plural_name_en },
-      { ingredient_id: data.id, locale: 'es', name: ingredient.name_es, plural_name: ingredient.plural_name_es },
+      { ingredient_id: data.id, locale: 'en', name: nameEn, plural_name: pluralEn },
+      { ingredient_id: data.id, locale: 'es', name: nameEs, plural_name: pluralEs },
     ]);
   if (tErr) throw new Error(`Failed to create ingredient translations: ${tErr.message}`);
 
   return {
     id: data.id,
-    name_en: ingredient.name_en,
-    name_es: ingredient.name_es,
-    plural_name_en: ingredient.plural_name_en,
-    plural_name_es: ingredient.plural_name_es,
+    name_en: nameEn,
+    name_es: nameEs,
+    plural_name_en: pluralEn,
+    plural_name_es: pluralEs,
     image_url: ingredient.image_url || '',
     nutritional_facts: ingredient.nutritional_facts || null,
   };
