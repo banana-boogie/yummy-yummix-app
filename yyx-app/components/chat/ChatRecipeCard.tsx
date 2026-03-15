@@ -12,6 +12,7 @@ import { Text } from '@/components/common/Text';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { RecipeCard } from '@/types/irmixy';
 import i18n from '@/i18n';
+import logger from '@/services/logger';
 import { COLORS } from '@/constants/design-tokens';
 import {
     getChatCustomCookingGuidePath,
@@ -28,7 +29,7 @@ export const ChatRecipeCard = memo(function ChatRecipeCard({ recipe }: ChatRecip
     const handlePress = () => {
         // Validate recipe ID exists before navigating
         if (!recipe.recipeId) {
-            console.warn('[ChatRecipeCard] Invalid recipeId:', recipe);
+            logger.warn('[ChatRecipeCard] Invalid recipeId:', recipe);
             return;
         }
 

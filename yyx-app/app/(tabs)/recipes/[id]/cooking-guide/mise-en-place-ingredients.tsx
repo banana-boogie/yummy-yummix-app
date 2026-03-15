@@ -52,9 +52,9 @@ export default function IngredientsStep() {
   };
 
   const handleNext = () => {
-    // If useful items exist, go to useful-items prep page
-    if (recipe?.usefulItems && recipe.usefulItems.length > 0) {
-      router.push(`/(tabs)/recipes/${id}/cooking-guide/mise-en-place-useful-items`);
+    // If kitchen tools exist, go to kitchen-tools prep page
+    if (recipe?.kitchenTools && recipe.kitchenTools.length > 0) {
+      router.push(`/(tabs)/recipes/${id}/cooking-guide/mise-en-place-kitchen-tools`);
     } else {
       // Otherwise go straight to cooking steps
       router.push(`/(tabs)/recipes/${id}/cooking-guide/1`);

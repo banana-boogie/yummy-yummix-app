@@ -1,5 +1,6 @@
 import { RawRecipe } from '@/types/recipe.api.types';
 import { Storage } from '@/utils/storage';
+import logger from '@/services/logger';
 
 // Cache expiration times - shorter in development
 const QUERY_CACHE_EXPIRY = __DEV__ 
@@ -59,7 +60,7 @@ export const recipeCache = {
         }
       }
     } catch (error) {
-      console.warn('Failed to get query result from storage cache', error);
+      logger.warn('Failed to get query result from storage cache', error);
     }
     
     return null;
@@ -102,7 +103,7 @@ export const recipeCache = {
         }
       }
     } catch (error) {
-      console.warn('Failed to get recipe from storage cache', error);
+      logger.warn('Failed to get recipe from storage cache', error);
     }
     
     return undefined; // undefined means not in cache
@@ -141,7 +142,7 @@ export const recipeCache = {
       // Clear our tracking set
       allCacheKeys.clear();
     } catch (error) {
-      console.warn('Failed to clear storage cache', error);
+      logger.warn('Failed to clear storage cache', error);
     }
   },
   
@@ -155,7 +156,7 @@ export const recipeCache = {
       await Storage.removeItem(cacheKey);
       allCacheKeys.delete(cacheKey);
     } catch (error) {
-      console.warn('Failed to invalidate recipe in storage cache', error);
+      logger.warn('Failed to invalidate recipe in storage cache', error);
     }
   },
 
@@ -166,7 +167,7 @@ export const recipeCache = {
     try {
       await Storage.setItem(key, JSON.stringify(entry));
     } catch (error) {
-      console.warn('Failed to store in cache', error);
+      logger.warn('Failed to store in cache', error);
     }
   }
 }; 

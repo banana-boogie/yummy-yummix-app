@@ -7,8 +7,8 @@ import {
   AdminRecipeStepIngredient,
   AdminRecipeSteps,
   AdminRecipeTag,
-  AdminRecipeUsefulItem,
-  AdminUsefulItem,
+  AdminRecipeKitchenTool,
+  AdminKitchenTool,
   getTranslatedField,
 } from '@/types/recipe.admin.types';
 import { supabase } from 'lib/supabase'
@@ -17,13 +17,13 @@ import { adminIngredientsService } from './adminIngredientsService';
 import { adminRecipeTagService } from './adminRecipeTagService';
 import adminRecipeService from './adminRecipeService';
 import { defaultMatcher as ingredientMatcher } from '@/utils/ingredients/ingredientMatcher';
-import { adminUsefulItemsService } from './adminUsefulItemsService';
+import { adminKitchenToolsService } from './adminKitchenToolsService';
 
 interface ParseRecipeResult {
   recipe: Partial<AdminRecipe>;
   missingIngredients: AdminRecipeIngredient[];
   missingTags: string[];
-  missingUsefulItems: string[];
+  missingKitchenTools: string[];
 }
 
 // March measurement unit from database
@@ -139,16 +139,16 @@ const processSteps = (steps: AdminRecipeSteps[], allIngredients: AdminRecipeIngr
 };
 
 /**
- * Process useful items into AdminRecipeUsefulItem objects
- * @param usefulItemsNames - Array of useful item names
- * @param allUsefulItems - Array of all useful items
- * @returns - Object containing processed useful items and missing useful items
+ * Process kitchen tools into AdminRecipeKitchenTool objects
+ * @param kitchenToolNames - Array of kitchen tool names
+ * @param allKitchenTools - Array of all kitchen tools
+ * @returns - Object containing processed kitchen tools and missing kitchen tools
  */
-const processUsefulItems = (usefulItemsNames: AdminUsefulItem[], allUsefulItems: AdminUsefulItem[]): { usefulItems: AdminRecipeUsefulItem[], missingUsefulItems: string[] } => {
-  const matchUsefulItem = (usefulItem: AdminUsefulItem, allUsefulItems: AdminUsefulItem[]): AdminUsefulItem | null => {
-    const searchNameEn = getTranslatedField(usefulItem.translations, 'en', 'name');
-    const searchNameEs = getTranslatedField(usefulItem.translations, 'es', 'name');
-    const match = allUsefulItems.find(item => {
+const processKitchenTools = (kitchenToolNames: AdminKitchenTool[], allKitchenTools: AdminKitchenTool[]): { kitchenTools: AdminRecipeKitchenTool[], missingKitchenTools: string[] } => {
+  const matchKitchenTool = (kitchenTool: AdminKitchenTool, allKitchenTools: AdminKitchenTool[]): AdminKitchenTool | null => {
+    const searchNameEn = getTranslatedField(kitchenTool.translations, 'en', 'name');
+    const searchNameEs = getTranslatedField(kitchenTool.translations, 'es', 'name');
+    const match = allKitchenTools.find(item => {
       const itemNameEn = getTranslatedField(item.translations, 'en', 'name');
       const itemNameEs = getTranslatedField(item.translations, 'es', 'name');
       return itemNameEn.toLowerCase().trim() === searchNameEn.toLowerCase().trim() ||
@@ -157,42 +157,42 @@ const processUsefulItems = (usefulItemsNames: AdminUsefulItem[], allUsefulItems:
     return match || null;
   }
 
-  const usefulItemsMap: Map<string, AdminRecipeUsefulItem> = new Map();
-  const missingUsefulItems: string[] = [];
+  const kitchenToolsMap: Map<string, AdminRecipeKitchenTool> = new Map();
+  const missingKitchenTools: string[] = [];
 
-  for (const [index, usefulItem] of usefulItemsNames.entries()) {
-    const matchedUsefulItem = matchUsefulItem(usefulItem, allUsefulItems);
-    if (matchedUsefulItem) {
-      // Extract notes translations from the parsed useful item
-      const noteTranslations = (usefulItem as any).translations?.map((t: any) => ({
+  for (const [index, kitchenTool] of kitchenToolNames.entries()) {
+    const matchedKitchenTool = matchKitchenTool(kitchenTool, allKitchenTools);
+    if (matchedKitchenTool) {
+      // Extract notes translations from the parsed kitchen tool
+      const noteTranslations = (kitchenTool as any).translations?.map((t: any) => ({
         locale: t.locale,
         notes: t.notes || '',
       })) || [];
-      usefulItemsMap.set(matchedUsefulItem.id, {
+      kitchenToolsMap.set(matchedKitchenTool.id, {
         id: `temp-${generateUUID()}`,
         recipeId: `temp-recipe-id`,
-        usefulItemId: matchedUsefulItem.id,
+        kitchenToolId: matchedKitchenTool.id,
         // @ts-ignore - displayOrder should exist in markdown data
-        displayOrder: usefulItem.displayOrder || index,
+        displayOrder: kitchenTool.displayOrder || index,
         translations: noteTranslations,
-        usefulItem: matchedUsefulItem
+        kitchenTool: matchedKitchenTool
       });
     } else {
-      const nameEn = getTranslatedField(usefulItem.translations, 'en', 'name');
-      missingUsefulItems.push(nameEn);
+      const nameEn = getTranslatedField(kitchenTool.translations, 'en', 'name');
+      missingKitchenTools.push(nameEn);
     }
   }
 
-  return { usefulItems: Array.from(usefulItemsMap.values()), missingUsefulItems };
+  return { kitchenTools: Array.from(kitchenToolsMap.values()), missingKitchenTools };
 }
 
 export const parseRecipeMarkdown = async (markdown: string): Promise<ParseRecipeResult> => {
   try {
-    const [allIngredients, allTags, allMeasurementUnits, allUsefulItems] = await Promise.all([
+    const [allIngredients, allTags, allMeasurementUnits, allKitchenTools] = await Promise.all([
       adminIngredientsService.getAllIngredientsForAdmin(),
       adminRecipeTagService.getAllTags(),
       adminRecipeService.getAllMeasurementUnits(),
-      adminUsefulItemsService.getAllUsefulItems()
+      adminKitchenToolsService.getAllKitchenTools()
     ]);
 
     const { data: responseData, error } = await supabase.functions.invoke('parse-recipe-markdown', {
@@ -226,16 +226,16 @@ export const parseRecipeMarkdown = async (markdown: string): Promise<ParseRecipe
     // Use the processed ingredients as the data source for finding ingredients used in the instruction
     recipe.steps = processSteps(data.steps, ingredients)
 
-    // Process useful items
-    const { usefulItems, missingUsefulItems } = processUsefulItems(data.usefulItems, allUsefulItems);
-    recipe.usefulItems = usefulItems;
+    // Process kitchen tools
+    const { kitchenTools, missingKitchenTools } = processKitchenTools(data.kitchenTools, allKitchenTools);
+    recipe.kitchenTools = kitchenTools;
 
 
     return {
       recipe,
       missingIngredients,
       missingTags,
-      missingUsefulItems
+      missingKitchenTools
     };
   } catch (error) {
     throw new Error(`Failed to parse recipe: ${error instanceof Error ? error.message : 'Unknown error'}`);

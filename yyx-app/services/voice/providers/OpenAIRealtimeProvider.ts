@@ -8,6 +8,7 @@ import InCallManager from "react-native-incall-manager";
 import { detectGoodbye, InactivityTimer } from "../shared/VoiceUtils";
 import { isLikelyEcho, extractTranscriptFromResponse } from "../shared/VoiceAnalysis";
 import { voiceTools } from "../shared/VoiceToolDefinitions";
+import logger from "@/services/logger";
 import type {
   VoiceAssistantProvider,
   VoiceStatus,
@@ -137,7 +138,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       };
 
       this.dc.onerror = (err) => {
-        console.error("[OpenAI] Data channel ERROR:", err);
+        logger.error("[OpenAI] Data channel ERROR:", err);
         this.pendingToolCalls.clear();
         this.emit("error", new Error("Data channel error"));
       };
@@ -222,7 +223,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       this.setStatus("idle");
       return data;
     } catch (error) {
-      console.error("[OpenAI] Initialize error:", error);
+      logger.error("[OpenAI] Initialize error:", error);
       this.setStatus("error");
       this.emit("error", error);
       throw error;
@@ -308,7 +309,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       // Fire and forget - don't await to keep UI responsive
       this.updateSessionDuration(durationSeconds).catch((err) => {
-        console.error("[OpenAI] Failed to update session:", err);
+        logger.error("[OpenAI] Failed to update session:", err);
       });
 
       this.sessionStartTime = null;
@@ -615,7 +616,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
               };
               this.emit("toolCall", toolCall);
             } catch (e) {
-              console.error("[OpenAI] Failed to parse tool call args:", e);
+              logger.error("[OpenAI] Failed to parse tool call args:", e);
               // Send error back to OpenAI so it can ask the user to repeat
               // rather than silently dropping the tool call
               this.sendEvent({
@@ -708,7 +709,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
           }
 
           // Keep token usage log - useful for cost tracking
-          console.log(
+          logger.debug(
             `[Voice] Tokens - In: ${this.sessionInputTokens} (${this.sessionInputTextTokens}t/${this.sessionInputAudioTokens}a), ` +
               `Out: ${this.sessionOutputTokens} (${this.sessionOutputTextTokens}t/${this.sessionOutputAudioTokens}a)`,
           );
@@ -735,7 +736,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
       // Errors
       case "error":
-        console.error("[OpenAI] Error:", message.error);
+        logger.error("[OpenAI] Error:", message.error);
         this.emit("error", new Error(message.error.message || "Unknown error"));
         this.setStatus("error");
         break;
@@ -757,7 +758,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
    */
   private async updateSessionDuration(durationSeconds: number): Promise<void> {
     if (!this.sessionId) {
-      console.warn("[OpenAI] No session ID to update");
+      logger.warn("[OpenAI] No session ID to update");
       return;
     }
 
@@ -766,7 +767,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) {
-        console.error("[OpenAI] No auth session for DB update");
+        logger.error("[OpenAI] No auth session for DB update");
         return;
       }
 
@@ -789,7 +790,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         this.sessionOutputAudioTokens * (20 / 1_000_000);
 
       // Keep cost summary log - useful for monitoring
-      console.log(
+      logger.debug(
         `[Voice] Session: ${durationSeconds.toFixed(1)}s, Cost: $${costUsd.toFixed(4)}`,
       );
 
@@ -811,10 +812,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         .eq("id", this.sessionId);
 
       if (error) {
-        console.error("[OpenAI] Failed to update session:", error);
+        logger.error("[OpenAI] Failed to update session:", error);
       }
     } catch (error) {
-      console.error("[OpenAI] Error updating session duration:", error);
+      logger.error("[OpenAI] Error updating session duration:", error);
     }
   }
 }

@@ -7,6 +7,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useAudioPlayer, AudioSource, setAudioModeAsync } from 'expo-audio';
+import logger from '@/services/logger';
 
 export interface UseAudioPlaybackReturn {
     isPlaying: boolean;
@@ -26,7 +27,7 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
             player.seekTo(0);
             setIsPlaying(false);
         } catch (error) {
-            console.warn('Error stopping audio:', error);
+            logger.warn('Error stopping audio:', error);
         }
     }, [player]);
 
@@ -36,7 +37,7 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
             stop();
 
             setIsLoading(true);
-            console.log('[Audio] Starting playback for URI:', uri.substring(0, 50) + '...');
+            logger.debug('[Audio] Starting playback for URI:', uri.substring(0, 50) + '...');
 
             // Configure audio for media playback through speaker
             // This ensures volume button controls media (not ringer)
@@ -52,9 +53,9 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
             setIsPlaying(true);
             setIsLoading(false);
 
-            console.log('[Audio] Playback started');
+            logger.debug('[Audio] Playback started');
         } catch (error) {
-            console.error('[Audio] Failed to play:', error);
+            logger.error('[Audio] Failed to play:', error);
             setIsLoading(false);
             setIsPlaying(false);
             throw error;
@@ -62,11 +63,14 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
     }, [player, stop]);
 
     // Listen for playback status changes
-    player.addListener('playbackStatusUpdate', (status) => {
-        if (status.didJustFinish) {
-            setIsPlaying(false);
-        }
-    });
+    useEffect(() => {
+        const subscription = player.addListener('playbackStatusUpdate', (status) => {
+            if (status.didJustFinish) {
+                setIsPlaying(false);
+            }
+        });
+        return () => subscription.remove();
+    }, [player]);
 
     return {
         isPlaying,

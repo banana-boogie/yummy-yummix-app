@@ -7,6 +7,7 @@ import React, {
   useState,
   type ReactNode,
 } from 'react';
+import logger from '@/services/logger';
 
 type StopSessionFn = () => void;
 
@@ -68,7 +69,7 @@ export function VoiceSessionProvider({ children }: { children: ReactNode }) {
       try {
         entry.stop();
       } catch (error) {
-        console.error('[VoiceSession] Failed to stop session:', entry.id, error);
+        logger.error('[VoiceSession] Failed to stop session:', entry.id, error);
       }
     }
 

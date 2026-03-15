@@ -38,7 +38,7 @@ yyx-app (Expo React Native)
   |    |             -> allergen-filter + food-safety
   |    |        -> ai-gateway (router/providers) -> OpenAI Chat Completions
   |    |        -> Supabase DB:
-  |    |             user_chat_sessions, user_chat_messages, cooking_sessions
+  |    |             ai_chat_sessions, user_chat_messages, cooking_sessions
   |    |
   |    +-- Voice path:
   |          VoiceChatScreen -> useVoiceChat -> OpenAIRealtimeProvider
@@ -483,7 +483,7 @@ Evidence: `yyx-server/supabase/functions/irmixy-chat-orchestrator/index.ts:746`,
 
 ## Open Questions / Validation Needed
 1. Base DDL provenance for some legacy AI tables is not present in this repo snapshot.
-- `yyx-server/supabase/migrations/20260116234443_remote_schema.sql` is empty, so original `CREATE TABLE` statements for `user_chat_sessions`, `user_chat_messages`, `ai_voice_sessions`, and `ai_voice_usage` are not directly visible here.
+- `yyx-server/supabase/migrations/20260116234443_remote_schema.sql` is empty, so original `CREATE TABLE` statements for `ai_chat_sessions`, `user_chat_messages`, `ai_voice_sessions`, and `ai_voice_usage` are not directly visible here.
 - Next validation step: inspect Supabase cloud schema (table definitions + triggers + constraints) and capture exact DDL snapshot for documentation completeness.
 
 2. Legacy `ai-chat` function has been removed. All text chat traffic routes through `irmixy-chat-orchestrator`.

@@ -23,6 +23,7 @@ import { CuisineStep } from './steps/CuisineStep';
 import { AppPreferencesStep } from './steps/AppPreferencesStep';
 import { useDevice } from '@/hooks/useDevice';
 import { normalizeDietAndCuisinePreferences } from '@/utils/preferencesNormalization';
+import logger from '@/services/logger';
 
 interface OnboardingModalProps {
   visible: boolean;
@@ -77,11 +78,11 @@ export function OnboardingModal({ visible }: OnboardingModalProps) {
 
       router.replace('/');
     } catch (error) {
-      console.error('Failed to complete onboarding:', error);
+      logger.error('Failed to complete onboarding:', error);
 
       // Handle stale session (profile doesn't exist for current user)
       if (error instanceof Error && error.message === 'PROFILE_NOT_FOUND') {
-        console.warn('Stale session detected - signing out and redirecting to login');
+        logger.warn('Stale session detected - signing out and redirecting to login');
         await signOut();
         router.replace('/auth/login');
       }

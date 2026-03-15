@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import {
   AdminRecipe, AdminRecipeIngredient, AdminRecipeSteps,
-  AdminRecipeTag, AdminRecipeUsefulItem,
+  AdminRecipeTag, AdminRecipeKitchenTool,
   AdminRecipeTranslation,
   getNameFromTranslations,
 } from '@/types/recipe.admin.types';
@@ -9,6 +9,7 @@ import { imageService } from '@/services/storage/imageService';
 import { BaseService } from '@/services/base/BaseService';
 import { RawStepIngredient } from '@/types/recipe.api.types';
 import { ThermomixSpeedSingle, ThermomixSpeedRange } from '@/types/thermomix.types';
+import logger from '@/services/logger';
 
 class AdminRecipeService extends BaseService {
   async getAllRecipesForAdmin(): Promise<AdminRecipe[]> {
@@ -65,16 +66,16 @@ class AdminRecipeService extends BaseService {
           name,
           tips_and_tricks
         ),
-        useful_items:recipe_useful_items(
+        kitchen_tools:recipe_kitchen_tools(
           *,
-          translations:recipe_useful_item_translations (
+          translations:recipe_kitchen_tool_translations (
             locale,
             notes
           ),
-          useful_item:useful_items(
+          kitchen_tool:kitchen_tools(
             id,
             image_url,
-            translations:useful_item_translations (
+            translations:kitchen_tool_translations (
               locale,
               name
             )
@@ -233,13 +234,13 @@ class AdminRecipeService extends BaseService {
         await this.updateRecipeSteps(recipeId.id, recipe.steps);
       }
 
-      if (recipe.usefulItems?.length) {
-        await this.updateRecipeUsefulItems(recipeId.id, recipe.usefulItems);
+      if (recipe.kitchenTools?.length) {
+        await this.updateRecipeKitchenTools(recipeId.id, recipe.kitchenTools);
       }
 
       return recipeId.id;
     } catch (error) {
-      console.error('Error in createRecipe:', error);
+      logger.error('Error in createRecipe:', error);
       throw error;
     }
   }
@@ -264,7 +265,7 @@ class AdminRecipeService extends BaseService {
         try {
           await this.deleteImage(oldRecipe.data.image_url);
         } catch (error) {
-          console.error('Error deleting old image:', error);
+          logger.error('Error deleting old image:', error);
         }
       }
 
@@ -307,8 +308,8 @@ class AdminRecipeService extends BaseService {
       await this.updateRecipeSteps(id, recipe.steps);
     }
 
-    if (recipe.usefulItems) {
-      await this.updateRecipeUsefulItems(id, recipe.usefulItems);
+    if (recipe.kitchenTools) {
+      await this.updateRecipeKitchenTools(id, recipe.kitchenTools);
     }
   }
 
@@ -522,12 +523,12 @@ class AdminRecipeService extends BaseService {
 
       const stepId = stepOrderToIdMap.get(recipeStep.order);
       if (!stepId) {
-        console.warn(`Could not find step ID for recipeStep order ${recipeStep.order}`);
+        logger.warn(`Could not find step ID for recipeStep order ${recipeStep.order}`);
         return;
       }
       recipeStep.ingredients.forEach((recipeStepIngredient, index) => {
         if (!recipeStepIngredient.ingredient?.id) {
-          console.warn(`Missing ingredient id for recipe step ${stepId}`)
+          logger.warn(`Missing ingredient id for recipe step ${stepId}`)
         }
         const transformedData = this.transformRequest({
           recipeId,
@@ -554,34 +555,34 @@ class AdminRecipeService extends BaseService {
     }
   }
 
-  async updateRecipeUsefulItems(recipeId: string, usefulItems: AdminRecipeUsefulItem[]): Promise<void> {
+  async updateRecipeKitchenTools(recipeId: string, kitchenTools: AdminRecipeKitchenTool[]): Promise<void> {
     const { error: deleteError } = await this.supabase
-      .from('recipe_useful_items')
+      .from('recipe_kitchen_tools')
       .delete()
       .eq('recipe_id', recipeId);
 
     if (deleteError) {
-      throw new Error(`Failed to delete existing useful items: ${deleteError.message}`);
+      throw new Error(`Failed to delete existing kitchen tools: ${deleteError.message}`);
     }
 
-    if (usefulItems.length === 0) return;
+    if (kitchenTools.length === 0) return;
 
     // Insert only non-translatable fields
-    const usefulItemsToInsert = usefulItems.map(usefulItem =>
+    const kitchenToolsToInsert = kitchenTools.map(kitchenTool =>
       this.transformRequest({
         recipeId,
-        usefulItemId: usefulItem.usefulItemId,
-        displayOrder: usefulItem.displayOrder,
+        kitchenToolId: kitchenTool.kitchenToolId,
+        displayOrder: kitchenTool.displayOrder,
       })
     );
 
     const { data: insertedRows, error: insertError } = await this.supabase
-      .from('recipe_useful_items')
-      .insert(usefulItemsToInsert)
+      .from('recipe_kitchen_tools')
+      .insert(kitchenToolsToInsert)
       .select('id, display_order');
 
     if (insertError) {
-      throw new Error(`Failed to insert useful items: ${insertError.message}`);
+      throw new Error(`Failed to insert kitchen tools: ${insertError.message}`);
     }
 
     // Insert translations
@@ -591,15 +592,15 @@ class AdminRecipeService extends BaseService {
       );
 
       const translations: any[] = [];
-      usefulItems.forEach(usefulItem => {
-        const rowId = orderToIdMap.get(usefulItem.displayOrder);
+      kitchenTools.forEach(kitchenTool => {
+        const rowId = orderToIdMap.get(kitchenTool.displayOrder);
         if (!rowId) return;
 
         // Use translations array if available
-        if (usefulItem.translations && usefulItem.translations.length > 0) {
-          usefulItem.translations.forEach(t => {
+        if (kitchenTool.translations && kitchenTool.translations.length > 0) {
+          kitchenTool.translations.forEach(t => {
             translations.push({
-              recipe_useful_item_id: rowId,
+              recipe_kitchen_tool_id: rowId,
               locale: t.locale,
               notes: t.notes || null,
             });
@@ -609,11 +610,11 @@ class AdminRecipeService extends BaseService {
 
       if (translations.length > 0) {
         const { error: translationError } = await this.supabase
-          .from('recipe_useful_item_translations')
+          .from('recipe_kitchen_tool_translations')
           .insert(translations);
 
         if (translationError) {
-          throw new Error(`Failed to insert useful item translations: ${translationError.message}`);
+          throw new Error(`Failed to insert kitchen tool translations: ${translationError.message}`);
         }
       }
     }
@@ -687,7 +688,7 @@ class AdminRecipeService extends BaseService {
         try {
           await this.deleteImage(recipe.image_url);
         } catch (imageError) {
-          console.error('Error deleting recipe image:', imageError);
+          logger.error('Error deleting recipe image:', imageError);
         }
       }
 
@@ -700,7 +701,7 @@ class AdminRecipeService extends BaseService {
         throw new Error(`Failed to delete recipe: ${error.message}`);
       }
     } catch (error) {
-      console.error('Error in deleteRecipe:', error);
+      logger.error('Error in deleteRecipe:', error);
       throw error;
     }
   }
@@ -891,21 +892,21 @@ class AdminRecipeService extends BaseService {
       result.steps = [];
     }
 
-    // Transform useful items
-    if (recipe.usefulItems?.length || recipe.useful_items?.length) {
-      const items = recipe.usefulItems || recipe.useful_items;
-      result.usefulItems = items.map((ui: any) => {
-        const uiItem = ui.usefulItem || ui.useful_item;
+    // Transform kitchen tools
+    if (recipe.kitchenTools?.length || recipe.kitchen_tools?.length) {
+      const items = recipe.kitchenTools || recipe.kitchen_tools;
+      result.kitchenTools = items.map((ui: any) => {
+        const uiItem = ui.kitchenTool || ui.kitchen_tool;
         return {
           id: ui.id,
           recipeId: ui.recipeId || ui.recipe_id,
-          usefulItemId: ui.usefulItemId || ui.useful_item_id,
+          kitchenToolId: ui.kitchenToolId || ui.kitchen_tool_id,
           displayOrder: ui.displayOrder || ui.display_order,
           translations: (ui.translations || []).map((t: any) => ({
             locale: t.locale,
             notes: t.notes || undefined,
           })),
-          usefulItem: {
+          kitchenTool: {
             id: uiItem?.id,
             translations: (uiItem?.translations || []).map((t: any) => ({
               locale: t.locale,
@@ -916,7 +917,7 @@ class AdminRecipeService extends BaseService {
         };
       });
     } else {
-      result.usefulItems = [];
+      result.kitchenTools = [];
     }
 
     return result as AdminRecipe;
@@ -935,7 +936,7 @@ class AdminRecipeService extends BaseService {
         file
       });
     } catch (error) {
-      console.error('Error uploading image:', error);
+      logger.error('Error uploading image:', error);
       throw new Error(`Error uploading image: ${error}`);
     }
   }

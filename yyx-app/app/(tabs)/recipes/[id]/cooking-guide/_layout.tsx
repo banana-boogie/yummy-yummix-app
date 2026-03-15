@@ -16,7 +16,7 @@ export default function CookingGuideLayout() {
     >
       <Stack.Screen name="index" />
       <Stack.Screen name="mise-en-place-ingredients" />
-      <Stack.Screen name="mise-en-place-useful-items" />
+      <Stack.Screen name="mise-en-place-kitchen-tools" />
       <Stack.Screen
         name="[step]"
         dangerouslySingular={(name, params) => {

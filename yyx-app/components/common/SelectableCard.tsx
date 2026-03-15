@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, ViewStyle, Image, ImageSourcePropType, View, TextStyle } from 'react-native';
+import { Pressable, ViewStyle, View } from 'react-native';
+import { Image, ImageSource } from 'expo-image';
 import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -7,7 +8,7 @@ interface SelectableCardProps {
   selected: boolean;
   onPress: () => void;
   label: string;
-  icon?: ImageSourcePropType;
+  icon?: ImageSource;
   className?: string; // Add className support
   style?: ViewStyle;
 }
@@ -35,7 +36,7 @@ export function SelectableCard({
           <Image
             source={icon}
             className="w-8 h-8 mr-3"
-            resizeMode="contain"
+            contentFit="contain"
           />
         )}
         <Text

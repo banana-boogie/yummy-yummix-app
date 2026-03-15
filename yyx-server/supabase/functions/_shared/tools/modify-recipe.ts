@@ -24,7 +24,7 @@ import {
   checkIngredientsForAllergens,
   enrichIngredientsWithImages,
   GenerateRecipeResult,
-  getRelevantUsefulItems,
+  getRelevantKitchenTools,
   getSystemPrompt,
   parseAndValidateGeneratedRecipe,
   PartialRecipeCallback,
@@ -288,14 +288,14 @@ export async function modifyRecipe(
   const modifiedIngredientNames = recipe.ingredients.map((i) => i.name);
 
   // Run enrichment, allergen check, and safety check in parallel
-  const [enrichedIngredients, usefulItems, allergenCheck, safetyCheck] =
+  const [enrichedIngredients, kitchenTools, allergenCheck, safetyCheck] =
     await Promise.all([
       enrichIngredientsWithImages(
         recipe.ingredients,
         supabase,
         userContext.locale,
       ),
-      getRelevantUsefulItems(
+      getRelevantKitchenTools(
         supabase,
         recipe,
         userContext.locale,
@@ -319,7 +319,7 @@ export async function modifyRecipe(
   timings.enrichment_ms = Math.round(performance.now() - phaseStart);
 
   recipe.ingredients = enrichedIngredients;
-  recipe.usefulItems = usefulItems;
+  recipe.kitchenTools = kitchenTools;
 
   timings.total_ms = Math.round(performance.now() - totalStart);
   console.log("[ModifyRecipe Timings]", JSON.stringify(timings));

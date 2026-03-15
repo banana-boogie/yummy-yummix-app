@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { AdminIngredient } from '@/types/recipe.admin.types';
 import adminIngredientsService from '@/services/admin/adminIngredientsService';
+import logger from '@/services/logger';
 
 interface UseIngredientsReturn {
   ingredients: AdminIngredient[];
@@ -27,7 +28,7 @@ export function useIngredients(): UseIngredientsReturn {
       setIngredients(fetchedIngredients);
       setFilteredIngredients(fetchedIngredients);
     } catch (error) {
-      console.error('Error fetching ingredients:', error);
+      logger.error('Error fetching ingredients:', error);
       throw error;
     } finally {
       setLoading(false);
@@ -40,7 +41,7 @@ export function useIngredients(): UseIngredientsReturn {
         try {
           await adminIngredientsService.deleteImage(ingredient.pictureUrl);
         } catch (imgError) {
-          console.error('Error deleting image:', imgError);
+          logger.error('Error deleting image:', imgError);
         }
       }
 
@@ -50,7 +51,7 @@ export function useIngredients(): UseIngredientsReturn {
       setIngredients(prev => prev.filter(item => item.id !== ingredient.id));
       setFilteredIngredients(prev => prev.filter(item => item.id !== ingredient.id));
     } catch (error) {
-      console.error('Error deleting ingredient:', error);
+      logger.error('Error deleting ingredient:', error);
       throw error;
     }
   };

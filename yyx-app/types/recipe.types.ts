@@ -13,7 +13,7 @@ export interface Recipe {
   tipsAndTricks?: string;
   ingredients: RecipeIngredient[];
   tags?: RecipeTag[];
-  usefulItems?: RecipeUsefulItem[];
+  kitchenTools?: RecipeKitchenTool[];
   isPublished: boolean;
   createdAt: string;
   updatedAt: string;
@@ -81,8 +81,8 @@ export interface RecipeTag {
   categories: string[];
 }
 
-// Useful Item Related Types
-export interface RecipeUsefulItem {
+// Kitchen Tool Related Types
+export interface RecipeKitchenTool {
   id: string;
   name: string;
   pictureUrl: string;

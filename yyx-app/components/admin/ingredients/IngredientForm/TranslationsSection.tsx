@@ -10,6 +10,7 @@ import { FormRow } from '@/components/form/FormRow';
 import { AdminIngredientTranslation } from '@/types/recipe.admin.types';
 import { useAdminLocales } from '@/hooks/admin/useAdminLocales';
 import { translateContent } from '@/services/admin/adminTranslateService';
+import logger from '@/services/logger';
 
 interface TranslationsSectionProps {
   translations: AdminIngredientTranslation[];
@@ -97,7 +98,7 @@ export function TranslationsSection({
         );
       }
     } catch (error) {
-      console.error('Auto-translate failed:', error);
+      logger.error('Auto-translate failed:', error);
       setTranslateError(i18n.t('admin.translate.autoTranslateFailed', { defaultValue: 'Auto-translate failed. Please try again.' }));
     } finally {
       setTranslating(false);

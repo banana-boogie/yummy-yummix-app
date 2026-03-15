@@ -3,6 +3,7 @@ import { Platform, Share, TouchableOpacity, ViewStyle } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
+import logger from '@/services/logger';
 
 interface ShareButtonProps {
   message?: string;
@@ -23,7 +24,7 @@ export function ShareButton({ message, url, size = 30, className = '', style }: 
             url,
           });
         } catch (error) {
-          console.error('Web Share API error:', error);
+          logger.error('Web Share API error:', error);
           // Fallback to copy to clipboard
           navigator.clipboard.writeText(url);
           // You could show a toast notification here

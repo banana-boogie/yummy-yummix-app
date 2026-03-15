@@ -5,13 +5,13 @@ import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { TextInput } from '@/components/form/TextInput';
 import { FORM_MAX_WIDTH } from '@/components/form/FormSection';
-import { AdminRecipe, AdminIngredient, AdminRecipeTag, AdminRecipeIngredient, AdminUsefulItem, AdminRecipeUsefulItem, getTranslatedField } from '@/types/recipe.admin.types';
+import { AdminRecipe, AdminIngredient, AdminRecipeTag, AdminRecipeIngredient, AdminKitchenTool, AdminRecipeKitchenTool, getTranslatedField } from '@/types/recipe.admin.types';
 import { parseRecipeMarkdown } from '@/services/admin/markdownRecipeParserService';
 import { CreateEditIngredientModal } from '@/components/admin/ingredients/CreateEditIngredientModal';
 import { TagEditModal } from '@/components/admin/tags/TagEditModal';
 import i18n from '@/i18n';
 import { Ionicons } from '@expo/vector-icons';
-import { CreateEditUsefulItemModal } from '../useful-items/CreateEditUsefulItemModal';
+import { CreateEditKitchenToolModal } from '../kitchen-tools/CreateEditKitchenToolModal';
 import { CheckboxButton } from '@/components/common/CheckboxButton';
 import { COLORS } from '@/constants/design-tokens';
 import { useRecipeTranslation } from '@/hooks/admin/useRecipeTranslation';
@@ -33,11 +33,11 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
         error?: string;
         missingIngredients?: AdminRecipeIngredient[];
         missingTags?: string[];
-        missingUsefulItems?: string[];
+        missingKitchenTools?: string[];
     }>({ loading: false });
     const [showIngredientModal, setShowIngredientModal] = useState(false);
     const [showTagModal, setShowTagModal] = useState(false);
-    const [showUsefulItemModal, setShowUsefulItemModal] = useState(false);
+    const [showKitchenToolModal, setShowKitchenToolModal] = useState(false);
 
     // Locale selection for AI generation
     // includeRegional=true to get es-ES, but filter out es-MX (redundant — 'es' IS Mexican Spanish)
@@ -60,7 +60,7 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
     // State to track checked ingredients and tags
     const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
     const [checkedTags, setCheckedTags] = useState<Record<string, boolean>>({});
-    const [checkedUsefulItems, setCheckedUsefulItems] = useState<Record<string, boolean>>({});
+    const [checkedKitchenTools, setCheckedKitchenTools] = useState<Record<string, boolean>>({});
 
     // Toggle ingredient checked state
     const toggleIngredientChecked = (ingredientId: string) => {
@@ -78,11 +78,11 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
         }));
     };
 
-    // Toggle useful item checked state
-    const toggleUsefulItemChecked = (usefulItemId: string) => {
-        setCheckedUsefulItems(prev => ({
+    // Toggle kitchen tool checked state
+    const toggleKitchenToolChecked = (kitchenToolId: string) => {
+        setCheckedKitchenTools(prev => ({
             ...prev,
-            [usefulItemId]: !prev[usefulItemId]
+            [kitchenToolId]: !prev[kitchenToolId]
         }));
     };
 
@@ -94,9 +94,9 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
         // Reset checked states when importing
         setCheckedIngredients({});
         setCheckedTags({});
-        setCheckedUsefulItems({});
+        setCheckedKitchenTools({});
         try {
-            const { recipe: parsedRecipe, missingIngredients, missingTags, missingUsefulItems } = await parseRecipeMarkdown(markdownText);
+            const { recipe: parsedRecipe, missingIngredients, missingTags, missingKitchenTools } = await parseRecipeMarkdown(markdownText);
 
             // Determine which additional locales need translation
             // parse-recipe-markdown generates 'en' + 'es'. Any other selected locale needs translate-content.
@@ -132,11 +132,11 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                 loading: false,
                 missingIngredients,
                 missingTags,
-                missingUsefulItems
+                missingKitchenTools
             });
 
-            // Proceed to the next step if there are no missing ingredients, tags or useful items
-            if (!missingIngredients?.length && !missingTags?.length && !missingUsefulItems?.length) {
+            // Proceed to the next step if there are no missing ingredients, tags or kitchen tools
+            if (!missingIngredients?.length && !missingTags?.length && !missingKitchenTools?.length) {
                 handleNextStep();
             } else {
                 setImportSuccessful(true);
@@ -253,42 +253,42 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
         onUpdateRecipe(updatedRecipe);
     };
 
-    // Handle newly created useful item
-    const handleUsefulItemSaved = (newUsefulItem: AdminUsefulItem) => {
-        setShowUsefulItemModal(false);
+    // Handle newly created kitchen tool
+    const handleKitchenToolSaved = (newKitchenTool: AdminKitchenTool) => {
+        setShowKitchenToolModal(false);
 
-        // Find matching missing useful item
-        const newUsefulItemNameEn = getTranslatedField(newUsefulItem.translations, 'en', 'name');
-        const newUsefulItemNameEs = getTranslatedField(newUsefulItem.translations, 'es', 'name');
-        const matchingIndex = parsingStatus.missingUsefulItems?.findIndex(
-            usefulItem => (newUsefulItemNameEn && usefulItem.toLowerCase() === newUsefulItemNameEn.toLowerCase()) ||
-                (newUsefulItemNameEs && usefulItem.toLowerCase() === newUsefulItemNameEs.toLowerCase())
+        // Find matching missing kitchen tool
+        const newKitchenToolNameEn = getTranslatedField(newKitchenTool.translations, 'en', 'name');
+        const newKitchenToolNameEs = getTranslatedField(newKitchenTool.translations, 'es', 'name');
+        const matchingIndex = parsingStatus.missingKitchenTools?.findIndex(
+            kitchenTool => (newKitchenToolNameEn && kitchenTool.toLowerCase() === newKitchenToolNameEn.toLowerCase()) ||
+                (newKitchenToolNameEs && kitchenTool.toLowerCase() === newKitchenToolNameEs.toLowerCase())
         );
 
         // If there's a match, mark it as checked in the UI
         if (matchingIndex !== -1) {
-            // Update the checked state for this useful item
-            setCheckedUsefulItems(prev => ({
+            // Update the checked state for this kitchen tool
+            setCheckedKitchenTools(prev => ({
                 ...prev,
-                [`usefulItem-${matchingIndex}`]: true
+                [`kitchenTool-${matchingIndex}`]: true
             }));
         }
 
-        const mergedUsefulItem: AdminRecipeUsefulItem = {
-            id: `temp-${generateUUID()}`, // Ensure recipeUsefulItem has an id
-            recipeId: `temp-recipe-id`, // Ensure recipeUsefulItem has a recipeId
-            usefulItemId: newUsefulItem.id,
+        const mergedKitchenTool: AdminRecipeKitchenTool = {
+            id: `temp-${generateUUID()}`, // Ensure recipeKitchenTool has an id
+            recipeId: `temp-recipe-id`, // Ensure recipeKitchenTool has a recipeId
+            kitchenToolId: newKitchenTool.id,
             displayOrder: 0,
-            usefulItem: newUsefulItem
+            kitchenTool: newKitchenTool
         };
 
         const updatedRecipe = { ...recipe };
-        if (!updatedRecipe.usefulItems) {
-            updatedRecipe.usefulItems = [];
+        if (!updatedRecipe.kitchenTools) {
+            updatedRecipe.kitchenTools = [];
         }
 
-        // Add the merged useful item to the recipe
-        updatedRecipe.usefulItems.push(mergedUsefulItem);
+        // Add the merged kitchen tool to the recipe
+        updatedRecipe.kitchenTools.push(mergedKitchenTool);
 
         onUpdateRecipe(updatedRecipe);
     };
@@ -406,7 +406,7 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                             </View>
                         )}
 
-                        {(parsingStatus.missingIngredients?.length || parsingStatus.missingTags?.length || parsingStatus.missingUsefulItems?.length) ? (
+                        {(parsingStatus.missingIngredients?.length || parsingStatus.missingTags?.length || parsingStatus.missingKitchenTools?.length) ? (
                             <View className="mt-md p-md bg-primary-LIGHT rounded border border-primary-MEDIUM">
                                 {parsingStatus.missingIngredients && parsingStatus.missingIngredients?.length > 0 ? (
                                     <View className="mb-md bg-background-DEFAULT rounded overflow-hidden border border-border-DEFAULT">
@@ -474,31 +474,31 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                                     </View>
                                 ) : null}
 
-                                {parsingStatus.missingUsefulItems && parsingStatus.missingUsefulItems.length > 0 ? (
+                                {parsingStatus.missingKitchenTools && parsingStatus.missingKitchenTools.length > 0 ? (
                                     <View className="mb-md bg-background-DEFAULT rounded overflow-hidden border border-border-DEFAULT">
                                         <View className="flex-row justify-between items-center p-sm bg-background-SECONDARY border-b border-border-DEFAULT">
                                             <Text className="font-bold text-text-DEFAULT flex-1">
-                                                {i18n.t('admin.recipes.form.initialSetup.missingUsefulItems')}
+                                                {i18n.t('admin.recipes.form.initialSetup.missingKitchenTools')}
                                             </Text>
                                             <Button
-                                                label={i18n.t('admin.recipes.form.initialSetup.createUsefulItem')}
+                                                label={i18n.t('admin.recipes.form.initialSetup.createKitchenTool')}
                                                 variant="outline"
                                                 size="small"
-                                                onPress={() => setShowUsefulItemModal(true)}
+                                                onPress={() => setShowKitchenToolModal(true)}
                                                 className="ml-sm"
                                             />
                                         </View>
                                         <View className="p-sm">
-                                            {parsingStatus.missingUsefulItems.map((usefulItem, index) => {
-                                                const usefulItemId = `usefulItem-${index}`;
-                                                const isChecked = checkedUsefulItems[usefulItemId] || false;
+                                            {parsingStatus.missingKitchenTools.map((kitchenTool, index) => {
+                                                const kitchenToolId = `kitchenTool-${index}`;
+                                                const isChecked = checkedKitchenTools[kitchenToolId] || false;
 
                                                 return (
                                                     <CheckboxButton
                                                         key={index}
                                                         checked={isChecked}
-                                                        onPress={() => toggleUsefulItemChecked(usefulItemId)}
-                                                        label={usefulItem}
+                                                        onPress={() => toggleKitchenToolChecked(kitchenToolId)}
+                                                        label={kitchenTool}
                                                         className="flex-row items-center mb-xs py-xxs"
                                                     />
                                                 );
@@ -555,11 +555,11 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                 isNew={true}
             />
 
-            {/* Create Useful Item Modal */}
-            <CreateEditUsefulItemModal
-                visible={showUsefulItemModal}
-                onClose={() => setShowUsefulItemModal(false)}
-                onSuccess={handleUsefulItemSaved}
+            {/* Create Kitchen Tool Modal */}
+            <CreateEditKitchenToolModal
+                visible={showKitchenToolModal}
+                onClose={() => setShowKitchenToolModal(false)}
+                onSuccess={handleKitchenToolSaved}
             />
         </KeyboardAvoidingView>
     );

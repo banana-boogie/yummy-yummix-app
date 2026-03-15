@@ -90,7 +90,7 @@ export const generateCustomRecipeTool = {
           description:
             'Additional requests, constraints, or modifications (e.g., "make it spicy", "increase to 8 portions", "kid-friendly")',
         },
-        useful_items: {
+        kitchen_tools: {
           type: "array",
           items: { type: "string" },
           description:
@@ -247,13 +247,13 @@ export async function generateCustomRecipe(
   }
 
   // Run post-recipe enrichment and validation in parallel
-  const [enrichedIngredients, usefulItems, safetyCheck] = await Promise.all([
+  const [enrichedIngredients, kitchenTools, safetyCheck] = await Promise.all([
     enrichIngredientsWithImages(
       recipe.ingredients,
       supabase,
       userContext.locale,
     ),
-    getRelevantUsefulItems(
+    getRelevantKitchenTools(
       supabase,
       recipe,
       userContext.locale,
@@ -270,7 +270,7 @@ export async function generateCustomRecipe(
   timings.enrichment_ms = Math.round(performance.now() - phaseStart);
 
   recipe.ingredients = enrichedIngredients;
-  recipe.usefulItems = usefulItems;
+  recipe.kitchenTools = kitchenTools;
 
   timings.total_ms = Math.round(performance.now() - totalStart);
   console.log("[GenerateRecipe Timings]", JSON.stringify(timings));
@@ -363,7 +363,7 @@ export function buildRecipeJsonSchema(
       difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
       portions: { type: "integer" },
       tags: { type: "array", items: { type: "string" } },
-      usefulItems: {
+      kitchenTools: {
         type: "array",
         items: {
           type: "object",
@@ -388,7 +388,7 @@ export function buildRecipeJsonSchema(
       "difficulty",
       "portions",
       "tags",
-      "usefulItems",
+      "kitchenTools",
     ],
     additionalProperties: false,
   };
@@ -727,8 +727,8 @@ Add a practical tip to steps where it genuinely helps. Good tips:
 - Substitution ideas ("No crema? Use Greek yogurt")
 Keep tips short (1-2 sentences). Not every step needs a tip — only where it adds value. Set to null for simple steps.
 
-OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Include "usefulItems" — kitchen tools and accessories that would be helpful for this recipe. Not just required tools, but things that make the cooking experience easier — like a waste bowl for peels and trimmings. Think like a seasoned home cook setting up their station. Use this structure:
-{"schemaVersion":"1.0","suggestedName":"...","description":"A brief 1-2 sentence description of the dish","measurementSystem":"${userContext.measurementSystem}","locale":"${userContext.locale}","ingredients":[{"name":"...","quantity":1,"unit":"..."}],"steps":[{"order":1,"instruction":"...","ingredientsUsed":["..."]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":[],"usefulItems":[{"name":"...","notes":"..."}]}`;
+OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Include "kitchenTools" — kitchen tools and accessories that would be helpful for this recipe. Not just required tools, but things that make the cooking experience easier — like a waste bowl for peels and trimmings. Think like a seasoned home cook setting up their station. Use this structure:
+{"schemaVersion":"1.0","suggestedName":"...","description":"A brief 1-2 sentence description of the dish","measurementSystem":"${userContext.measurementSystem}","locale":"${userContext.locale}","ingredients":[{"name":"...","quantity":1,"unit":"..."}],"steps":[{"order":1,"instruction":"...","ingredientsUsed":["..."]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":[],"kitchenTools":[{"name":"...","notes":"..."}]}`;
 }
 
 /**
@@ -820,10 +820,10 @@ function buildRecipeGenerationPrompt(
   }
 
   // === EQUIPMENT (use where appropriate in the recipe) ===
-  if (params.useful_items && params.useful_items.length > 0) {
+  if (params.kitchen_tools && params.kitchen_tools.length > 0) {
     parts.push("\n🍳 EQUIPMENT for this recipe:");
     parts.push(
-      `Use these where they fit best: ${params.useful_items.join(", ")}`,
+      `Use these where they fit best: ${params.kitchen_tools.join(", ")}`,
     );
   } else if (userContext.kitchenEquipment.length > 0) {
     parts.push("\n🍳 AVAILABLE EQUIPMENT:");
@@ -1055,52 +1055,52 @@ export async function enrichIngredientsWithImages(
 }
 
 /**
- * Get relevant useful items for a recipe based on recipe context.
+ * Get relevant kitchen tools for a recipe based on recipe context.
  * Matches items based on cooking techniques and equipment used.
  */
-interface UsefulItemTranslationRow {
+interface KitchenToolTranslationRow {
   locale: string;
   name: string | null;
 }
 
-type UsefulItemRow = {
+type KitchenToolRow = {
   id: string;
-  useful_item_translations: UsefulItemTranslationRow[];
+  kitchen_tool_translations: KitchenToolTranslationRow[];
   image_url: string | null;
 };
 
-const USEFUL_ITEMS_CACHE_TTL_MS = 5 * 60 * 1000;
-let usefulItemsCache: UsefulItemRow[] | null = null;
-let usefulItemsCacheTimestamp = 0;
+const KITCHEN_TOOLS_CACHE_TTL_MS = 5 * 60 * 1000;
+let kitchenToolsCache: KitchenToolRow[] | null = null;
+let kitchenToolsCacheTimestamp = 0;
 
-export async function getRelevantUsefulItems(
+export async function getRelevantKitchenTools(
   supabase: SupabaseClient,
   recipe: GeneratedRecipe,
   locale: string,
   hasThermomix: boolean,
 ): Promise<Array<{ name: string; imageUrl?: string; notes?: string }>> {
   try {
-    // Query useful items from database (cached)
-    let allItems = usefulItemsCache;
-    const cacheAge = Date.now() - usefulItemsCacheTimestamp;
+    // Query kitchen tools from database (cached)
+    let allItems = kitchenToolsCache;
+    const cacheAge = Date.now() - kitchenToolsCacheTimestamp;
 
-    if (!allItems || cacheAge > USEFUL_ITEMS_CACHE_TTL_MS) {
+    if (!allItems || cacheAge > KITCHEN_TOOLS_CACHE_TTL_MS) {
       const { data, error } = await supabase
-        .from("useful_items")
-        .select(`id, useful_item_translations ( locale, name ), image_url`)
+        .from("kitchen_tools")
+        .select(`id, kitchen_tool_translations ( locale, name ), image_url`)
         .limit(50);
 
       if (error || !data || data.length === 0) {
         console.warn(
-          "[Useful Items] Failed to fetch or no items available:",
+          "[Kitchen Tools] Failed to fetch or no items available:",
           error?.message,
         );
         return [];
       }
 
-      allItems = data as unknown as UsefulItemRow[];
-      usefulItemsCache = allItems;
-      usefulItemsCacheTimestamp = Date.now();
+      allItems = data as unknown as KitchenToolRow[];
+      kitchenToolsCache = allItems;
+      kitchenToolsCacheTimestamp = Date.now();
     }
 
     if (!allItems) {
@@ -1114,7 +1114,7 @@ export async function getRelevantUsefulItems(
       recipe.steps.map((s) => s.instruction).join(" ")
     ).toLowerCase();
 
-    // Keywords that suggest specific useful items
+    // Keywords that suggest specific kitchen tools
     const itemKeywords: Record<string, string[]> = {
       "spatula": ["stir", "flip", "fold", "mix", "mezclar", "revolver"],
       "whisk": ["whisk", "beat", "whip", "batir"],
@@ -1140,7 +1140,7 @@ export async function getRelevantUsefulItems(
     // Score each item based on keyword matches
     const scoredItems = allItems.map((item) => {
       // Combine all translation names for matching
-      const allTransNames = (item.useful_item_translations || [])
+      const allTransNames = (item.kitchen_tool_translations || [])
         .map((t) => t.name)
         .filter(Boolean)
         .join(" ");
@@ -1184,7 +1184,7 @@ export async function getRelevantUsefulItems(
       .map((si) => {
         const localeChain = buildLocaleChain(locale);
         const match = pickTranslation(
-          si.item.useful_item_translations || [],
+          si.item.kitchen_tool_translations || [],
           localeChain,
         );
         return {
@@ -1194,12 +1194,12 @@ export async function getRelevantUsefulItems(
       });
 
     console.log(
-      "[Useful Items] Found relevant items:",
+      "[Kitchen Tools] Found relevant items:",
       relevantItems.map((i) => i.name),
     );
     return relevantItems;
   } catch (error) {
-    console.error("[Useful Items] Error fetching useful items:", error);
+    console.error("[Kitchen Tools] Error fetching kitchen tools:", error);
     return [];
   }
 }

@@ -5,7 +5,7 @@
  * - Parsing markdown into structured recipe data
  * - Ingredient matching
  * - Tag processing
- * - Useful items matching
+ * - Kitchen tools matching
  * - Step processing
  * - Error handling
  */
@@ -17,7 +17,7 @@ import { parseRecipeMarkdown } from '../markdownRecipeParserService';
 const mockGetAllIngredientsForAdmin = jest.fn();
 const mockGetAllTags = jest.fn();
 const mockGetAllMeasurementUnits = jest.fn();
-const mockGetAllUsefulItems = jest.fn();
+const mockGetAllKitchenTools = jest.fn();
 const mockInvoke = jest.fn();
 
 jest.mock('../adminIngredientsService', () => ({
@@ -39,9 +39,9 @@ jest.mock('../adminRecipeService', () => ({
   },
 }));
 
-jest.mock('../adminUsefulItemsService', () => ({
-  adminUsefulItemsService: {
-    getAllUsefulItems: () => mockGetAllUsefulItems(),
+jest.mock('../adminKitchenToolsService', () => ({
+  adminKitchenToolsService: {
+    getAllKitchenTools: () => mockGetAllKitchenTools(),
   },
 }));
 
@@ -124,7 +124,7 @@ describe('MarkdownRecipeParserService', () => {
     { id: 'tbsp', nameEn: 'tablespoon', symbolEn: 'tbsp', type: 'volume', system: 'universal' },
   ];
 
-  const mockUsefulItems = [
+  const mockKitchenTools = [
     {
       id: 'item-1',
       translations: [
@@ -188,7 +188,7 @@ describe('MarkdownRecipeParserService', () => {
       },
     ],
     tags: ['Vegetarian', 'Easy'],
-    usefulItems: [
+    kitchenTools: [
       { translations: [{ locale: 'en', name: 'Mixing Bowl', notes: '' }, { locale: 'es', name: 'Tazón para mezclar', notes: '' }], displayOrder: 1 },
     ],
   };
@@ -198,7 +198,7 @@ describe('MarkdownRecipeParserService', () => {
     mockGetAllIngredientsForAdmin.mockResolvedValue(mockIngredients);
     mockGetAllTags.mockResolvedValue(mockTags);
     mockGetAllMeasurementUnits.mockResolvedValue(mockMeasurementUnits);
-    mockGetAllUsefulItems.mockResolvedValue(mockUsefulItems);
+    mockGetAllKitchenTools.mockResolvedValue(mockKitchenTools);
     mockInvoke.mockResolvedValue({
       data: JSON.stringify(mockParsedRecipe),
       error: null,
@@ -249,7 +249,7 @@ describe('MarkdownRecipeParserService', () => {
       expect(mockGetAllIngredientsForAdmin).toHaveBeenCalledTimes(1);
       expect(mockGetAllTags).toHaveBeenCalledTimes(1);
       expect(mockGetAllMeasurementUnits).toHaveBeenCalledTimes(1);
-      expect(mockGetAllUsefulItems).toHaveBeenCalledTimes(1);
+      expect(mockGetAllKitchenTools).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -452,21 +452,21 @@ describe('MarkdownRecipeParserService', () => {
   });
 
   // ============================================================
-  // USEFUL ITEMS PROCESSING TESTS
+  // KITCHEN TOOLS PROCESSING TESTS
   // ============================================================
 
-  describe('useful items processing', () => {
-    it('matches useful items from database', async () => {
+  describe('kitchen tools processing', () => {
+    it('matches kitchen tools from database', async () => {
       const result = await parseRecipeMarkdown('# Test');
 
-      expect(result.recipe.usefulItems).toBeDefined();
-      expect(result.recipe.usefulItems!.length).toBeGreaterThan(0);
+      expect(result.recipe.kitchenTools).toBeDefined();
+      expect(result.recipe.kitchenTools!.length).toBeGreaterThan(0);
     });
 
-    it('tracks missing useful items', async () => {
+    it('tracks missing kitchen tools', async () => {
       const parsedWithMissingItem = {
         ...mockParsedRecipe,
-        usefulItems: [
+        kitchenTools: [
           { translations: [{ locale: 'en', name: 'Mixing Bowl', notes: '' }, { locale: 'es', name: 'Tazón', notes: '' }], displayOrder: 1 },
           { translations: [{ locale: 'en', name: 'Rare Kitchen Tool', notes: '' }, { locale: 'es', name: 'Herramienta Rara', notes: '' }], displayOrder: 2 },
         ],
@@ -478,14 +478,14 @@ describe('MarkdownRecipeParserService', () => {
 
       const result = await parseRecipeMarkdown('# Test');
 
-      expect(result.missingUsefulItems).toBeDefined();
-      expect(result.missingUsefulItems).toContain('Rare Kitchen Tool');
+      expect(result.missingKitchenTools).toBeDefined();
+      expect(result.missingKitchenTools).toContain('Rare Kitchen Tool');
     });
 
-    it('generates temp IDs for useful items', async () => {
+    it('generates temp IDs for kitchen tools', async () => {
       const result = await parseRecipeMarkdown('# Test');
 
-      result.recipe.usefulItems?.forEach((item) => {
+      result.recipe.kitchenTools?.forEach((item) => {
         expect(item.id).toBeDefined();
         expect(item.id?.startsWith('temp-')).toBe(true);
       });
@@ -494,15 +494,15 @@ describe('MarkdownRecipeParserService', () => {
     it('preserves display order', async () => {
       const result = await parseRecipeMarkdown('# Test');
 
-      result.recipe.usefulItems?.forEach((item, index) => {
+      result.recipe.kitchenTools?.forEach((item, index) => {
         expect(item.displayOrder).toBeDefined();
       });
     });
 
-    it('deduplicates useful items', async () => {
+    it('deduplicates kitchen tools', async () => {
       const parsedWithDuplicates = {
         ...mockParsedRecipe,
-        usefulItems: [
+        kitchenTools: [
           { translations: [{ locale: 'en', name: 'Mixing Bowl', notes: '' }, { locale: 'es', name: 'Tazón para mezclar', notes: '' }], displayOrder: 1 },
           { translations: [{ locale: 'en', name: 'Mixing Bowl', notes: '' }, { locale: 'es', name: 'Tazón para mezclar', notes: '' }], displayOrder: 2 }, // Duplicate
         ],
@@ -515,7 +515,7 @@ describe('MarkdownRecipeParserService', () => {
       const result = await parseRecipeMarkdown('# Test');
 
       // Should deduplicate by item ID
-      const itemIds = result.recipe.usefulItems?.map((i) => i.usefulItemId);
+      const itemIds = result.recipe.kitchenTools?.map((i) => i.kitchenToolId);
       const uniqueItemIds = [...new Set(itemIds)];
       expect(itemIds?.length).toBe(uniqueItemIds.length);
     });
@@ -600,10 +600,10 @@ describe('MarkdownRecipeParserService', () => {
       expect(result.missingTags).toEqual([]);
     });
 
-    it('handles empty useful items array', async () => {
+    it('handles empty kitchen tools array', async () => {
       const parsedEmpty = {
         ...mockParsedRecipe,
-        usefulItems: [],
+        kitchenTools: [],
       };
       mockInvoke.mockResolvedValue({
         data: JSON.stringify(parsedEmpty),
@@ -612,8 +612,8 @@ describe('MarkdownRecipeParserService', () => {
 
       const result = await parseRecipeMarkdown('# Test');
 
-      expect(result.recipe.usefulItems).toEqual([]);
-      expect(result.missingUsefulItems).toEqual([]);
+      expect(result.recipe.kitchenTools).toEqual([]);
+      expect(result.missingKitchenTools).toEqual([]);
     });
 
     it('handles recipe with only required fields', async () => {
@@ -629,7 +629,7 @@ describe('MarkdownRecipeParserService', () => {
         ingredients: [],
         steps: [],
         tags: [],
-        usefulItems: [],
+        kitchenTools: [],
       };
       mockInvoke.mockResolvedValue({
         data: JSON.stringify(minimalParsed),

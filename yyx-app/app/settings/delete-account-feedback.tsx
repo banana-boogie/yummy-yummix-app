@@ -10,6 +10,7 @@ import { DangerButton } from '@/components/common/DangerButton';
 import { HeaderWithBack } from '@/components/common/HeaderWithBack';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { supabase } from '@/lib/supabase';
+import logger from '@/services/logger';
 
 type DeleteReason = 'noUse' | 'technical' | 'foundBetter' | 'other';
 
@@ -192,7 +193,7 @@ export default function DeleteAccountFeedback() {
             setShowConfirmation(false);
             setShowRequestReceivedModal(true);
         } catch (error) {
-            console.error('Error processing deletion request:', error);
+            logger.error('Error processing deletion request:', error);
             setShowConfirmation(false);
             setShowErrorModal(true);
         } finally {

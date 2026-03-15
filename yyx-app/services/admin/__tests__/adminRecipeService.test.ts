@@ -119,7 +119,7 @@ describe('AdminRecipeService', () => {
         ingredients: [],
         steps: [],
         tags: [],
-        useful_items: [],
+        kitchen_tools: [],
       };
       mockChain = createChainableMock({ data: recipeWithRelations, error: null });
       mockFrom.mockImplementation(() => mockChain);
@@ -344,17 +344,17 @@ describe('AdminRecipeService', () => {
       expect(mockFrom).toHaveBeenCalledWith('recipe_steps');
     });
 
-    it('creates recipe with useful items', async () => {
+    it('creates recipe with kitchen tools', async () => {
       mockChain = createChainableMock({ data: { id: 'new-id' }, error: null });
       mockChain.eq = jest.fn().mockResolvedValue({ error: null });
       mockFrom.mockImplementation(() => mockChain);
 
       await adminRecipeService.createRecipe({
         nameEn: 'Test',
-        usefulItems: [{ usefulItemId: 'item-1', displayOrder: 0 }],
+        kitchenTools: [{ kitchenToolId: 'item-1', displayOrder: 0 }],
       });
 
-      expect(mockFrom).toHaveBeenCalledWith('recipe_useful_items');
+      expect(mockFrom).toHaveBeenCalledWith('recipe_kitchen_tools');
     });
   });
 
@@ -424,17 +424,17 @@ describe('AdminRecipeService', () => {
     });
   });
 
-  describe('updateRecipeUsefulItems', () => {
+  describe('updateRecipeKitchenTools', () => {
     it('deletes existing items before inserting new ones', async () => {
       mockChain = createChainableMock({ data: null, error: null });
       mockChain.eq = jest.fn().mockResolvedValue({ error: null });
       mockFrom.mockImplementation(() => mockChain);
 
-      await adminRecipeService.updateRecipeUsefulItems('recipe-1', [
-        { usefulItemId: 'item-1', displayOrder: 0 },
+      await adminRecipeService.updateRecipeKitchenTools('recipe-1', [
+        { kitchenToolId: 'item-1', displayOrder: 0 },
       ]);
 
-      expect(mockFrom).toHaveBeenCalledWith('recipe_useful_items');
+      expect(mockFrom).toHaveBeenCalledWith('recipe_kitchen_tools');
       expect(mockChain.delete).toHaveBeenCalled();
       expect(mockChain.insert).toHaveBeenCalled();
     });
@@ -445,8 +445,8 @@ describe('AdminRecipeService', () => {
       mockFrom.mockImplementation(() => mockChain);
 
       await expect(
-        adminRecipeService.updateRecipeUsefulItems('recipe-1', [])
-      ).rejects.toThrow('Failed to delete existing useful items: Delete failed');
+        adminRecipeService.updateRecipeKitchenTools('recipe-1', [])
+      ).rejects.toThrow('Failed to delete existing kitchen tools: Delete failed');
     });
   });
 });

@@ -39,7 +39,7 @@ export const QuickActionSchema = z.object({
   payload: z.record(z.unknown()),
 });
 
-export const UsefulItemSchema = z.object({
+export const KitchenToolSchema = z.object({
   name: z.string(),
   imageUrl: z.string().optional(),
   notes: z.string().nullish(),
@@ -70,7 +70,7 @@ export const GeneratedRecipeSchema = z.object({
   difficulty: z.enum(["easy", "medium", "hard"]),
   portions: z.number().int().positive(),
   tags: z.array(z.string()),
-  usefulItems: z.array(UsefulItemSchema).optional(),
+  kitchenTools: z.array(KitchenToolSchema).optional(),
 });
 
 export const SafetyFlagsSchema = z.object({
@@ -100,7 +100,7 @@ export const IrmixyResponseSchema = z.object({
 
 export type RecipeCard = z.infer<typeof RecipeCardSchema>;
 export type QuickAction = z.infer<typeof QuickActionSchema>;
-export type UsefulItem = z.infer<typeof UsefulItemSchema>;
+export type KitchenTool = z.infer<typeof KitchenToolSchema>;
 export type GeneratedRecipe = z.infer<typeof GeneratedRecipeSchema>;
 export type SafetyFlags = z.infer<typeof SafetyFlagsSchema>;
 export type IrmixyResponse = z.infer<typeof IrmixyResponseSchema>;

@@ -6,6 +6,7 @@ import { getAuthErrorKey, AuthErrorKey } from '@/utils/supabase/authErrors';
 import { makeRedirectUri } from 'expo-auth-session';
 import { supabase } from '@/lib/supabase';
 import { AuthError } from '@supabase/supabase-js';
+import logger from '@/services/logger';
 
 export function useMagicLink() {
   const params = useLocalSearchParams<{ 
@@ -51,13 +52,13 @@ export function useMagicLink() {
       });
 
       if (error) {
-        console.error('🔗 Magic Link Flow - Error sending magic link:', error);
+        logger.error('Magic Link Flow - Error sending magic link:', error);
       } else {
       }
 
       return { error };
     } catch (error) {
-      console.error('🔗 Magic Link Flow - Error in loginWithMagicLink:', error);
+      logger.error('Magic Link Flow - Error in loginWithMagicLink:', error);
       return { error: error as AuthError };
     }
   };
@@ -103,7 +104,7 @@ export function useMagicLink() {
         }
       }
     } catch (error) {
-      console.error('Error opening email app:', error);
+      logger.error('Error opening email app:', error);
     }
   };
 

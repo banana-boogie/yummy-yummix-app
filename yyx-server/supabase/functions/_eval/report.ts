@@ -194,14 +194,14 @@ function generateSummaryTable(
         ? "no"
         : "—";
 
-      // Useful items metrics
+      // Kitchen tools metrics
       const itemsResults = modelResults.filter(
-        (r) => r.usefulItemsCount != null && r.usefulItemsCount > 0,
+        (r) => r.kitchenToolsCount != null && r.kitchenToolsCount > 0,
       );
       const avgItems = itemsResults.length > 0
         ? (
           itemsResults.reduce(
-            (sum, r) => sum + (r.usefulItemsCount ?? 0),
+            (sum, r) => sum + (r.kitchenToolsCount ?? 0),
             0,
           ) / itemsResults.length
         ).toFixed(1)
@@ -471,7 +471,7 @@ function generateRecipeDetailedResults(
         result.jsonValid ? "json:✅" : "json:❌",
         result.schemaValid ? "schema:✅" : "schema:❌",
         result.thermomixPresent ? "tmx:✅" : "tmx:❌",
-        `items:${result.usefulItemsCount ?? 0}`,
+        `items:${result.kitchenToolsCount ?? 0}`,
       ].join(" ");
       metricsParts.push(checks);
       if (result.schemaEnforced === false) {
@@ -663,10 +663,10 @@ function formatRecipeForReport(content: string): string {
       lines.push("");
     }
 
-    // Useful Items
-    if (recipe.usefulItems && recipe.usefulItems.length > 0) {
-      lines.push("**Useful Items:**");
-      for (const item of recipe.usefulItems) {
+    // Kitchen Tools
+    if (recipe.kitchenTools && recipe.kitchenTools.length > 0) {
+      lines.push("**Kitchen Tools:**");
+      for (const item of recipe.kitchenTools) {
         const note = item.notes ? ` — ${item.notes}` : "";
         lines.push(`- ${item.name}${note}`);
       }

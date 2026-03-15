@@ -33,7 +33,7 @@ export interface AdminRecipeTagTranslation extends EntityTranslation {
   name: string;
 }
 
-export interface AdminUsefulItemTranslation extends EntityTranslation {
+export interface AdminKitchenToolTranslation extends EntityTranslation {
   name: string;
 }
 
@@ -49,7 +49,7 @@ export interface AdminRecipeStepTranslation extends EntityTranslation {
   tip?: string;
 }
 
-export interface AdminRecipeUsefulItemTranslation extends EntityTranslation {
+export interface AdminRecipeKitchenToolTranslation extends EntityTranslation {
   notes?: string;
 }
 
@@ -74,9 +74,9 @@ export interface AdminIngredient {
   nutritionalFacts: NutritionalFacts;
 }
 
-export interface AdminUsefulItem {
+export interface AdminKitchenTool {
   id: string;
-  translations: AdminUsefulItemTranslation[];
+  translations: AdminKitchenToolTranslation[];
   pictureUrl: string | any;
 }
 
@@ -122,21 +122,21 @@ export interface AdminRecipeStepIngredient {
   measurementUnit: AdminMeasurementUnit | undefined;
 }
 
-export interface AdminRecipeUsefulItem {
+export interface AdminRecipeKitchenTool {
   id: string;
   recipeId: string;
-  usefulItemId: string;
+  kitchenToolId: string;
   displayOrder: number;
-  translations: AdminRecipeUsefulItemTranslation[];
-  usefulItem: AdminUsefulItem;
+  translations: AdminRecipeKitchenToolTranslation[];
+  kitchenTool: AdminKitchenTool;
 }
 
-export interface AdminRecipe extends Omit<Recipe, 'name' | 'ingredients' | 'tags' | 'steps' | 'usefulItems'> {
+export interface AdminRecipe extends Omit<Recipe, 'name' | 'ingredients' | 'tags' | 'steps' | 'kitchenTools'> {
   translations: AdminRecipeTranslation[];
   ingredients: AdminRecipeIngredient[];
   tags: AdminRecipeTag[];
   steps: AdminRecipeSteps[];
-  usefulItems?: AdminRecipeUsefulItem[];
+  kitchenTools?: AdminRecipeKitchenTool[];
 }
 
 // ============================================================

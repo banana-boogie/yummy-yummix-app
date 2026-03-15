@@ -20,7 +20,7 @@ import {
   StepsForm,
   TagsForm,
   ReviewForm,
-  RecipeUsefulItemsForm
+  RecipeKitchenToolsForm
 } from '@/components/admin/recipes/forms';
 import { TranslationStep } from '@/components/admin/recipes/forms/translationForm/TranslationStep';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
@@ -74,8 +74,8 @@ export default function NewRecipePage() {
         />;
       case CreateRecipeStep.BASIC_INFO:
         return <RecipeInfoForm recipe={recipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} onAuthoringLocaleChange={setAuthoringLocale} />;
-      case CreateRecipeStep.USEFUL_ITEMS:
-        return <RecipeUsefulItemsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} />;
+      case CreateRecipeStep.KITCHEN_TOOLS:
+        return <RecipeKitchenToolsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} />;
       case CreateRecipeStep.INGREDIENTS:
         return <RecipeIngredientsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} />;
       case CreateRecipeStep.STEPS:

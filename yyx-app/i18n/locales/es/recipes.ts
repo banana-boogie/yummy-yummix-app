@@ -27,7 +27,7 @@ export const recipes = {
     },
     emptyState: "No se encontraron recetas",
     noRecipesFound: "No se encontraron recetas",
-    usefulItems: "Elementos Útiles",
+    kitchenTools: "Utensilios de Cocina",
     servings: "porciones",
   },
   detail: {
@@ -50,8 +50,8 @@ export const recipes = {
       },
     },
     tips: "Consejos",
-    usefulItems: {
-      heading: "Elementos Útiles",
+    kitchenTools: {
+      heading: "Utensilios de Cocina",
       notes: "Notas",
     },
   },
@@ -81,8 +81,8 @@ export const recipes = {
       ingredients: {
         heading: "Ingredientes",
       },
-      usefulItems: {
-        heading: "Elementos Útiles",
+      kitchenTools: {
+        heading: "Utensilios de Cocina",
       },
     },
   },

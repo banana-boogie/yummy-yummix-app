@@ -74,8 +74,8 @@ export interface TestCaseResult {
   jsonValid?: boolean;
   schemaValid?: boolean;
   thermomixPresent?: boolean;
-  usefulItemsPresent?: boolean;
-  usefulItemsCount?: number;
+  kitchenToolsPresent?: boolean;
+  kitchenToolsCount?: number;
   /** Whether JSON schema was enforced via responseFormat */
   schemaEnforced?: boolean;
 }

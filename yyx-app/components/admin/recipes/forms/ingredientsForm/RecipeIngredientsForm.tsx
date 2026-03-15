@@ -18,6 +18,7 @@ import { v4 as generateUUID } from 'uuid';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
 import { COLORS } from '@/constants/design-tokens';
 import { useDevice } from '@/hooks/useDevice';
+import logger from '@/services/logger';
 
 type IngredientsFormProps = {
   recipe: AdminRecipe;
@@ -78,7 +79,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
 
         setMeasurementUnits(fetchedUnits);
       } catch (error) {
-        console.error('Error fetching ingredients:', error);
+        logger.error('Error fetching ingredients:', error);
       } finally {
         setLoading(false);
       }

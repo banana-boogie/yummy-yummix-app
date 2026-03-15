@@ -4,7 +4,7 @@ import { ChatMessageItem } from '../ChatMessageItem';
 import type { ChatMessage } from '@/services/chatService';
 import { createMockRecipeCard } from '@/test/mocks/chat';
 
-jest.mock('react-native-markdown-display', () => {
+jest.mock('@ronradtke/react-native-markdown-display', () => {
   const { Text } = require('react-native');
   return {
     __esModule: true,

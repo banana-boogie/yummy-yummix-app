@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { UserProfile } from '@/types/user';
 import { BaseService } from './base/BaseService';
 import { OnboardingData } from '@/types/onboarding';
+import logger from '@/services/logger';
 
 class UserProfileService extends BaseService {
   async fetchProfile(userId: string) {
@@ -39,7 +40,7 @@ class UserProfileService extends BaseService {
     if (!existingProfile) {
       // Profile doesn't exist - this indicates a stale session or missing profile
       // The user needs to re-authenticate
-      console.warn('Profile does not exist for user:', userId);
+      logger.warn('Profile does not exist for user:', userId);
       throw new Error('PROFILE_NOT_FOUND');
     }
 
@@ -55,7 +56,7 @@ class UserProfileService extends BaseService {
     error = result.error;
 
     if (error) {
-      console.error('Update profile error:', {
+      logger.error('Update profile error:', {
         error,
         userId,
         updates: Object.keys(updates),

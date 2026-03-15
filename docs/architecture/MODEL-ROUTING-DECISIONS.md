@@ -66,7 +66,7 @@ The 0.15-point quality gap is outweighed by no fabricated errors, 1/3 the cost, 
 - Best overall quality score (4.52/5) across culinary sense, dietary compliance, TMX params, portions, language
 - Zero dietary violations (never added gluten for gluten-free users, never used cilantro)
 - 100% schema validity, 100% pass rate
-- 7.0 useful items per recipe (highest of all models)
+- 7.0 kitchen tools per recipe (highest of all models)
 - 12.1s latency is acceptable for a quality-critical path (user sees progress tracker)
 - $0.013/call is higher but justified for the quality difference
 

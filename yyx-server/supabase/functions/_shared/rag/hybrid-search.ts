@@ -3,7 +3,7 @@
  *
  * Combines semantic vector similarity with lexical scoring for recipe discovery.
  * Falls back to lexical-only when embedding API is unavailable.
- * Per irmixy-completion-plan.md Sections 4.2, 6.5, 6.10
+ * Combines semantic (vector) + lexical (text) scoring with RRF fusion.
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";

@@ -14,7 +14,7 @@ import { eventService } from '@/services/eventService';
 import { RecipeInfo } from '@/components/recipe-detail/RecipeInfo';
 import { CookButton } from '@/components/recipe-detail/CookButton';
 import { RecipeIngredients } from '@/components/recipe-detail/RecipeIngredients';
-import { RecipeUsefulItems } from '@/components/recipe-detail/RecipeUsefulItems';
+import { RecipeKitchenTools } from '@/components/recipe-detail/RecipeKitchenTools';
 import { RecipeSteps } from '@/components/recipe-detail/RecipeSteps';
 import { RecipeTip } from '@/components/recipe-detail/RecipeTip';
 import { RecipeImageHeader } from '@/components/recipe-detail/RecipeDetailHeader';
@@ -22,10 +22,11 @@ import { RecipeImageHeader } from '@/components/recipe-detail/RecipeDetailHeader
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { useDevice } from '@/hooks/useDevice';
 import { ResponsiveColumnLayout, MainColumn, SideColumn } from '@/components/layouts/ResponsiveColumnLayout';
-import { RecipeUsefulItem } from '@/types/recipe.types';
+import { RecipeKitchenTool } from '@/types/recipe.types';
 import { ShareButton } from '@/components/common/ShareButton';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
+import logger from '@/services/logger';
 
 
 const RecipeDetail: React.FC = () => {
@@ -35,7 +36,7 @@ const RecipeDetail: React.FC = () => {
   // Validate ID early to prevent unnecessary API calls
   useEffect(() => {
     if (id && !isValidUUID(id as string)) {
-      console.warn(`Invalid recipe ID format: ${id}, redirecting to recipes page`);
+      logger.warn(`Invalid recipe ID format: ${id}, redirecting to recipes page`);
       // Using replace instead of push to avoid adding to history stack
       router.replace('/(tabs)/recipes');
     }
@@ -160,8 +161,8 @@ const RecipeDetail: React.FC = () => {
                     ingredients={recipe.ingredients}
                     className="mb-xxl"
                   />
-                  <RecipeUsefulItems
-                    usefulItems={recipe.usefulItems as RecipeUsefulItem[]}
+                  <RecipeKitchenTools
+                    kitchenTools={recipe.kitchenTools as RecipeKitchenTool[]}
                     className="mb-xxl"
                   />
                 </SideColumn>

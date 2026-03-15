@@ -11,6 +11,7 @@ import { Button } from '@/components/common/Button';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { COLORS } from '@/constants/design-tokens';
 import { useDevice } from '@/hooks/useDevice';
+import logger from '@/services/logger';
 
 interface NutritionalFactsSectionProps {
   nutritionalFacts?: NutritionalFacts;
@@ -93,7 +94,7 @@ export function NutritionalFactsSection({
       onChange(data);
     } catch (error) {
       setError(i18n.t('admin.ingredients.nutritionalFacts.errors.fetchFailed'));
-      console.error(error);
+      logger.error(error);
     } finally {
       setIsLoading(false);
     }

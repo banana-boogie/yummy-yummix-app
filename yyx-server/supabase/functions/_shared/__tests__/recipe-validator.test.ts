@@ -281,7 +281,7 @@ Deno.test("normalizeRecipeData - ensures arrays are arrays", () => {
     ingredients: null as unknown as unknown[],
     steps: undefined as unknown as unknown[],
     tags: "not an array" as unknown as unknown[],
-    useful_items: null as unknown as unknown[],
+    kitchen_tools: null as unknown as unknown[],
   };
 
   const result = normalizeRecipeData(input);
@@ -289,7 +289,7 @@ Deno.test("normalizeRecipeData - ensures arrays are arrays", () => {
   assertEquals(Array.isArray(result.ingredients), true);
   assertEquals(Array.isArray(result.steps), true);
   assertEquals(Array.isArray(result.tags), true);
-  assertEquals(Array.isArray(result.useful_items), true);
+  assertEquals(Array.isArray(result.kitchen_tools), true);
 });
 
 Deno.test("normalizeRecipeData - preserves additional fields", () => {
@@ -527,14 +527,14 @@ Deno.test("validateRecipeData - accepts recipe with tags", () => {
   assertEquals(result.valid, true);
 });
 
-Deno.test("validateRecipeData - accepts recipe with useful items", () => {
+Deno.test("validateRecipeData - accepts recipe with kitchen tools", () => {
   const result = validateRecipeData(validRecipe({
-    useful_items: [
+    kitchen_tools: [
       {
         id: "item-1",
         display_order: 1,
         translations: [{ locale: "en", notes: "For kneading" }],
-        useful_item: {
+        kitchen_tool: {
           id: "tool-1",
           translations: [
             { locale: "en", name: "Rolling Pin" },
@@ -644,10 +644,10 @@ Deno.test("validateRecipeData - accepts recipe with all optional fields", () => 
         },
       },
     ],
-    useful_items: [
+    kitchen_tools: [
       {
         id: "item-1",
-        useful_item: {
+        kitchen_tool: {
           translations: [{ locale: "en", name: "Bowl" }],
         },
       },

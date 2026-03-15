@@ -360,7 +360,7 @@ async function handleSaveTranscript(
 
   // Create chat session with source = 'voice'
   const { data: session, error: sessionError } = await serviceClient
-    .from("user_chat_sessions")
+    .from("ai_chat_sessions")
     .insert({
       user_id: userId,
       title,
@@ -408,7 +408,7 @@ async function handleSaveTranscript(
     );
     // Clean up orphaned session
     await serviceClient
-      .from("user_chat_sessions")
+      .from("ai_chat_sessions")
       .delete()
       .eq("id", session.id);
     return jsonResponse(

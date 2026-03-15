@@ -201,8 +201,8 @@ export async function runRecipeTests(
           let jsonValid = false;
           let schemaValid = false;
           let thermomixPresent = false;
-          let usefulItemsPresent = false;
-          let usefulItemsCount = 0;
+          let kitchenToolsPresent = false;
+          let kitchenToolsCount = 0;
 
           try {
             const recipe = parseAndValidateGeneratedRecipe(content);
@@ -214,9 +214,9 @@ export async function runRecipeTests(
                 s.thermomixTemp != null ||
                 s.thermomixSpeed != null,
             );
-            usefulItemsPresent = Array.isArray(recipe.usefulItems) &&
-              recipe.usefulItems.length > 0;
-            usefulItemsCount = recipe.usefulItems?.length ?? 0;
+            kitchenToolsPresent = Array.isArray(recipe.kitchenTools) &&
+              recipe.kitchenTools.length > 0;
+            kitchenToolsCount = recipe.kitchenTools?.length ?? 0;
           } catch {
             try {
               let jsonContent = content.trim();
@@ -244,7 +244,7 @@ export async function runRecipeTests(
           console.log(
             `  ${tag} ${testCase.id}${variantLabel} ${
               formatDuration(result.totalLatencyMs)
-            } ${outputTokensPerSec} tok/s [${schemaTag}] json=${jsonValid} schema=${schemaValid} tmx=${thermomixPresent} items=${usefulItemsCount}`,
+            } ${outputTokensPerSec} tok/s [${schemaTag}] json=${jsonValid} schema=${schemaValid} tmx=${thermomixPresent} items=${kitchenToolsCount}`,
           );
 
           return {
@@ -270,8 +270,8 @@ export async function runRecipeTests(
             jsonValid,
             schemaValid,
             thermomixPresent,
-            usefulItemsPresent,
-            usefulItemsCount,
+            kitchenToolsPresent,
+            kitchenToolsCount,
             schemaEnforced: variant.useSchema,
           };
         } catch (error) {

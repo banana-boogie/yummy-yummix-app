@@ -10,6 +10,7 @@ import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { AlertModal } from '@/components/common/AlertModal';
 import i18n from '@/i18n';
+import logger from '@/services/logger';
 
 interface IngredientFormProps {
     ingredient?: AdminIngredient;
@@ -123,7 +124,7 @@ export function IngredientForm({
             await onSave(formData);
             setShowSuccessAlert(true);
         } catch (error) {
-            console.error('Error saving ingredient:', error);
+            logger.error('Error saving ingredient:', error);
             setErrorMessage(i18n.t('admin.ingredients.errors.saveFailed', { defaultValue: 'Failed to save ingredient. Please try again.' }));
             setShowErrorAlert(true);
         }

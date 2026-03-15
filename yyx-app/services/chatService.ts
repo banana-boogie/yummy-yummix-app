@@ -510,7 +510,7 @@ export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]>
 
     // First verify session ownership
     const { data: session, error: sessionError } = await supabase
-        .from('user_chat_sessions')
+        .from('ai_chat_sessions')
         .select('id')
         .eq('id', sessionId)
         .eq('user_id', userData.user.id)
@@ -577,7 +577,7 @@ export async function loadChatSessions(): Promise<
     }
 
     const { data, error } = await supabase
-        .from('user_chat_sessions')
+        .from('ai_chat_sessions')
         .select('id, title, created_at, source')
         .eq('user_id', userData.user.id)
         .order('created_at', { ascending: false })
@@ -610,7 +610,7 @@ export async function getLastSessionWithMessages(): Promise<{
 
     // Get most recent session for this user
     const { data: sessions, error: sessionError } = await supabase
-        .from('user_chat_sessions')
+        .from('ai_chat_sessions')
         .select('id, title, created_at')
         .eq('user_id', userData.user.id)
         .order('created_at', { ascending: false })

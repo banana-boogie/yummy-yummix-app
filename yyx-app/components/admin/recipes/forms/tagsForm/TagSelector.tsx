@@ -13,6 +13,7 @@ import { MultiSelect } from '@/components/form/MultiSelect';
 import { AlertModal } from '@/components/common/AlertModal';
 import { Text } from '@/components/common/Text';
 import { useDevice } from '@/hooks/useDevice';
+import logger from '@/services/logger';
 
 // Local filters interface with categories
 interface LocalFilters {
@@ -69,7 +70,7 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
       const fetchedCategories = await adminRecipeTagService.getTagCategories();
       setCategories(fetchedCategories);
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      logger.error('Error fetching categories:', error);
       setAlertMessage('Failed to load tag categories');
       setShowAlert(true);
     }
@@ -82,7 +83,7 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
       const fetchedTags = await adminRecipeTagService.getAllTags();
       setAllTags(fetchedTags);
     } catch (error: any) {
-      console.error('Error fetching tags:', error);
+      logger.error('Error fetching tags:', error);
       setError(error.message || 'Failed to fetch tags');
     } finally {
       setLoading(false);

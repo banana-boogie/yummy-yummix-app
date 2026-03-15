@@ -32,7 +32,7 @@ const expectedSchemaProperties = [
   "prepTime",
   "difficulty",
   "portions",
-  "usefulItems",
+  "kitchenTools",
   "ingredients",
   "steps",
   "tags",
@@ -323,11 +323,11 @@ Deno.test("step schema - Thermomix speed can be spoon", () => {
 });
 
 // ============================================================
-// USEFUL ITEMS SCHEMA TESTS
+// KITCHEN TOOLS SCHEMA TESTS
 // ============================================================
 
-Deno.test("useful items schema - includes name and display order", () => {
-  const usefulItem = {
+Deno.test("kitchen tools schema - includes name and display order", () => {
+  const kitchenTool = {
     translations: [
       { locale: "en", name: "Mixing Bowl", notes: "Large size preferred" },
       {
@@ -339,9 +339,9 @@ Deno.test("useful items schema - includes name and display order", () => {
     displayOrder: 1,
   };
 
-  assertExists(usefulItem.translations);
-  assertEquals(usefulItem.translations.length, 2);
-  assertEquals(typeof usefulItem.displayOrder, "number");
+  assertExists(kitchenTool.translations);
+  assertEquals(kitchenTool.translations.length, 2);
+  assertEquals(typeof kitchenTool.displayOrder, "number");
 });
 
 // ============================================================

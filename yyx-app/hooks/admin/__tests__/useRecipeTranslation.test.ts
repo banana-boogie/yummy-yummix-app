@@ -4,7 +4,7 @@
  * Tests for the recipe translation hook covering:
  * - Initial state
  * - translateAll progress tracking
- * - Translation of recipe info, steps, ingredients, useful items
+ * - Translation of recipe info, steps, ingredients, kitchen tools
  * - Merging translations into existing recipe
  * - Error handling
  */
@@ -52,14 +52,14 @@ function createTestRecipe(overrides: Partial<ExtendedRecipe> = {}): ExtendedReci
         measurementUnit: { id: 'unit-1', type: 'unit' as const, system: 'universal' as const, translations: [] },
       },
     ],
-    usefulItems: [
+    kitchenTools: [
       {
         id: 'item-1',
         recipeId: 'recipe-1',
-        usefulItemId: 'knife',
+        kitchenToolId: 'knife',
         displayOrder: 1,
         translations: [{ locale: 'es', notes: 'Cuchillo grande' }],
-        usefulItem: { id: 'knife', translations: [{ locale: 'es', name: 'Cuchillo' }], pictureUrl: '' },
+        kitchenTool: { id: 'knife', translations: [{ locale: 'es', name: 'Cuchillo' }], pictureUrl: '' },
       },
     ],
     ...overrides,
@@ -166,7 +166,7 @@ describe('useRecipeTranslation', () => {
       expect(ingEn?.notes).toBe('[en] Bien maduros');
     });
 
-    it('translates useful item notes', async () => {
+    it('translates kitchen tool notes', async () => {
       mockTranslateContent.mockImplementation((fields) =>
         Promise.resolve(mockTranslationResponse(fields, 'en'))
       );
@@ -179,7 +179,7 @@ describe('useRecipeTranslation', () => {
         updated = await result.current.translateAll(recipe, 'es', ['en']);
       });
 
-      const itemEn = updated!.usefulItems![0].translations.find(t => t.locale === 'en');
+      const itemEn = updated!.kitchenTools![0].translations.find(t => t.locale === 'en');
       expect(itemEn).toBeDefined();
       expect(itemEn?.notes).toBe('[en] Cuchillo grande');
     });
@@ -217,7 +217,7 @@ describe('useRecipeTranslation', () => {
       const recipe = createTestRecipe({
         steps: [],
         ingredients: [],
-        usefulItems: [],
+        kitchenTools: [],
       });
       const { result } = renderHook(() => useRecipeTranslation());
 
@@ -246,7 +246,7 @@ describe('useRecipeTranslation', () => {
         return Promise.resolve(mockTranslationResponse(fields, 'en'));
       });
 
-      const recipe = createTestRecipe(); // 1 recipe info + 1 step + 1 ingredient + 1 useful item = 4 batches
+      const recipe = createTestRecipe(); // 1 recipe info + 1 step + 1 ingredient + 1 kitchen tool = 4 batches
 
       const { result } = renderHook(() => useRecipeTranslation());
 
@@ -254,8 +254,8 @@ describe('useRecipeTranslation', () => {
         await result.current.translateAll(recipe, 'es', ['en']);
       });
 
-      // 4 batches total: recipe info, step, ingredient, useful item
-      // translateContent called for: recipe info, step instruction, ingredient notes, useful item notes
+      // 4 batches total: recipe info, step, ingredient, kitchen tool
+      // translateContent called for: recipe info, step instruction, ingredient notes, kitchen tool notes
       expect(mockTranslateContent).toHaveBeenCalledTimes(4);
     });
   });
@@ -283,7 +283,7 @@ describe('useRecipeTranslation', () => {
             measurementUnit: { id: 'u1', type: 'unit' as const, system: 'universal' as const, translations: [] },
           },
         ] as any,
-        usefulItems: [],
+        kitchenTools: [],
       });
 
       const { result } = renderHook(() => useRecipeTranslation());
@@ -296,20 +296,20 @@ describe('useRecipeTranslation', () => {
       expect(mockTranslateContent).toHaveBeenCalledTimes(2);
     });
 
-    it('skips useful items with empty notes', async () => {
+    it('skips kitchen tools with empty notes', async () => {
       mockTranslateContent.mockImplementation((fields) =>
         Promise.resolve(mockTranslationResponse(fields, 'en'))
       );
 
       const recipe = createTestRecipe({
-        usefulItems: [
+        kitchenTools: [
           {
             id: 'item-1',
             recipeId: 'r1',
-            usefulItemId: 'k1',
+            kitchenToolId: 'k1',
             displayOrder: 1,
             translations: [{ locale: 'es', notes: '   ' }], // Whitespace only
-            usefulItem: { id: 'k1', translations: [], pictureUrl: '' },
+            kitchenTool: { id: 'k1', translations: [], pictureUrl: '' },
           },
         ] as any,
       });
@@ -320,7 +320,7 @@ describe('useRecipeTranslation', () => {
         await result.current.translateAll(recipe, 'es', ['en']);
       });
 
-      // recipe info + step + ingredient = 3, useful item skipped
+      // recipe info + step + ingredient = 3, kitchen tool skipped
       expect(mockTranslateContent).toHaveBeenCalledTimes(3);
     });
   });
@@ -334,16 +334,16 @@ describe('useRecipeTranslation', () => {
       // The outer try/catch wraps lines starting with `{ ...recipe }`.
       // To trigger it, make the recipe's translations property a getter
       // that throws during the spread operation inside the try block.
-      // The steps/ingredients/usefulItems are read BEFORE try, so we
+      // The steps/ingredients/kitchenTools are read BEFORE try, so we
       // must target something accessed INSIDE the try block.
-      const recipe = createTestRecipe({ steps: [], ingredients: [], usefulItems: [] });
+      const recipe = createTestRecipe({ steps: [], ingredients: [], kitchenTools: [] });
 
       // Override translations with a proxy that throws on spread
       Object.defineProperty(recipe, 'translations', {
         get() {
           // Allow the first access (for counting batches etc) but throw
           // when called inside the try block for the spread operation.
-          // Since steps/ingredients/usefulItems are read before try,
+          // Since steps/ingredients/kitchenTools are read before try,
           // and translations is first read at line 63 inside try, this works.
           throw new Error('Unexpected crash');
         },
@@ -378,7 +378,7 @@ describe('useRecipeTranslation', () => {
 
       const recipe = createTestRecipe({
         ingredients: [],
-        usefulItems: [],
+        kitchenTools: [],
       });
       const { result } = renderHook(() => useRecipeTranslation());
 
@@ -399,7 +399,7 @@ describe('useRecipeTranslation', () => {
     it('resets translating state after error', async () => {
       mockTranslateContent.mockRejectedValue(new Error('Fail'));
 
-      const recipe = createTestRecipe({ steps: [], ingredients: [], usefulItems: [] });
+      const recipe = createTestRecipe({ steps: [], ingredients: [], kitchenTools: [] });
       const { result } = renderHook(() => useRecipeTranslation());
 
       await act(async () => {
@@ -416,7 +416,7 @@ describe('useRecipeTranslation', () => {
   // ============================================================
 
   describe('edge cases', () => {
-    it('handles recipe with no steps, ingredients, or useful items', async () => {
+    it('handles recipe with no steps, ingredients, or kitchen tools', async () => {
       mockTranslateContent.mockImplementation((fields) =>
         Promise.resolve(mockTranslationResponse(fields, 'en'))
       );
@@ -424,7 +424,7 @@ describe('useRecipeTranslation', () => {
       const recipe = createTestRecipe({
         steps: [],
         ingredients: [],
-        usefulItems: [],
+        kitchenTools: [],
       });
       const { result } = renderHook(() => useRecipeTranslation());
 
@@ -447,7 +447,7 @@ describe('useRecipeTranslation', () => {
         translations: [], // No source translations at all
         steps: [],
         ingredients: [],
-        usefulItems: [],
+        kitchenTools: [],
       });
       const { result } = renderHook(() => useRecipeTranslation());
 

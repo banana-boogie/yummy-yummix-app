@@ -38,7 +38,7 @@ export interface GeneratedStep {
   tip?: string | null;
 }
 
-export interface GeneratedUsefulItem {
+export interface GeneratedKitchenTool {
   name: string;
   imageUrl?: string;
   notes?: string;
@@ -56,7 +56,7 @@ export interface GeneratedRecipe {
   difficulty: 'easy' | 'medium' | 'hard';
   portions: number;
   tags: string[];
-  usefulItems?: GeneratedUsefulItem[];
+  kitchenTools?: GeneratedKitchenTool[];
 }
 
 export interface SafetyFlags {

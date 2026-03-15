@@ -4,6 +4,7 @@ import { normalizeFileName } from '@/utils/formatters';
 import { Platform } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { decode } from 'base64-arraybuffer';
+import logger from '@/services/logger';
 
 interface UploadImageProps {
   bucket: string;
@@ -47,7 +48,7 @@ export class ImageService extends BaseService {
 
       return data.publicUrl;
     } catch (error) {
-      console.error('Error in uploadImage:', error);
+      logger.error('Error in uploadImage:', error);
       throw new Error('Failed to upload image. Please try again.');
     }
   }

@@ -1,4 +1,5 @@
 import { Storage } from '@/utils/storage';
+import logger from '@/services/logger';
 
 // Configuration types
 export type CacheConfig = {
@@ -34,7 +35,7 @@ export class BaseCache<T> {
         return JSON.parse(registry) as string[];
       }
     } catch (error) {
-      console.warn(`Failed to load cache registry for ${this.cachePrefix}`, error);
+      logger.warn(`Failed to load cache registry for ${this.cachePrefix}`, error);
     }
     return [];
   }
@@ -48,7 +49,7 @@ export class BaseCache<T> {
         await Storage.setItem(this.registryKey, JSON.stringify(keys));
       }
     } catch (error) {
-      console.warn(`Failed to save key to registry: ${key}`, error);
+      logger.warn(`Failed to save key to registry: ${key}`, error);
     }
   }
   
@@ -62,7 +63,7 @@ export class BaseCache<T> {
         await Storage.setItem(this.registryKey, JSON.stringify(filteredKeys));
       }
     } catch (error) {
-      console.warn(`Failed to remove key from registry: ${key}`, error);
+      logger.warn(`Failed to remove key from registry: ${key}`, error);
     }
   }
 
@@ -97,7 +98,7 @@ export class BaseCache<T> {
         }
       }
     } catch (error) {
-      console.warn(`Failed to get item from storage cache: ${cacheKey}`, error);
+      logger.warn(`Failed to get item from storage cache: ${cacheKey}`, error);
     }
     
     return undefined;
@@ -122,7 +123,7 @@ export class BaseCache<T> {
         return parsed.timestamp;
       }
     } catch (error) {
-      console.warn(`Failed to get timestamp from cache: ${cacheKey}`, error);
+      logger.warn(`Failed to get timestamp from cache: ${cacheKey}`, error);
     }
     
     return undefined;
@@ -153,7 +154,7 @@ export class BaseCache<T> {
     try {
       await Storage.setItem(cacheKey, JSON.stringify(entry));
     } catch (error) {
-      console.warn(`Failed to store in cache: ${cacheKey}`, error);
+      logger.warn(`Failed to store in cache: ${cacheKey}`, error);
     }
     
     // Limit memory cache size
@@ -181,7 +182,7 @@ export class BaseCache<T> {
       // Clear registry
       await Storage.removeItem(this.registryKey);
     } catch (error) {
-      console.warn('Failed to clear storage cache', error);
+      logger.warn('Failed to clear storage cache', error);
     }
   }
   
@@ -197,7 +198,7 @@ export class BaseCache<T> {
       await Storage.removeItem(cacheKey);
       await this.removeKeyFromRegistry(cacheKey);
     } catch (error) {
-      console.warn(`Failed to invalidate item in storage cache: ${cacheKey}`, error);
+      logger.warn(`Failed to invalidate item in storage cache: ${cacheKey}`, error);
     }
   }
 } 
