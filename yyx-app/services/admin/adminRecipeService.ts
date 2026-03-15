@@ -766,7 +766,7 @@ class AdminRecipeService extends BaseService {
                 pluralName: t.plural_name || t.pluralName || undefined,
               })),
               pictureUrl: ri.ingredient?.imageUrl || ri.ingredient?.image_url || '',
-              nutritionalFacts: ri.ingredient?.nutritionalFacts || ri.ingredient?.nutritional_facts,
+              nutritionalFacts: ri.ingredient?.nutritionalFacts || ri.ingredient?.nutritional_facts || undefined,
             },
             quantity: ri.quantity,
             translations: (ri.translations || []).map((t: any) => ({

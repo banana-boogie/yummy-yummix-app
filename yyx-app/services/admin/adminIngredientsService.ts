@@ -15,11 +15,17 @@ export class AdminIngredientsService extends BaseService {
       .select(`
         id,
         image_url,
-        nutritional_facts,
         translations:ingredient_translations (
           locale,
           name,
           plural_name
+        ),
+        nutrition:ingredient_nutrition (
+          calories,
+          protein,
+          fat,
+          carbohydrates,
+          source
         )
       `)
       .order('id', { ascending: true });
@@ -29,16 +35,25 @@ export class AdminIngredientsService extends BaseService {
       throw new Error(`Error fetching ingredients: ${error.message}`);
     }
 
-    const result: AdminIngredient[] = (data || []).map((item: any) => ({
-      id: item.id,
-      translations: (item.translations || []).map((t: any) => ({
-        locale: t.locale,
-        name: t.name || '',
-        pluralName: t.plural_name || undefined,
-      })),
-      pictureUrl: item.image_url,
-      nutritionalFacts: item.nutritional_facts,
-    }));
+    const result: AdminIngredient[] = (data || []).map((item: any) => {
+      // nutrition is a 1:1 relation — PostgREST returns single object or null
+      const n = Array.isArray(item.nutrition) ? item.nutrition[0] : item.nutrition;
+      return {
+        id: item.id,
+        translations: (item.translations || []).map((t: any) => ({
+          locale: t.locale,
+          name: t.name || '',
+          pluralName: t.plural_name || undefined,
+        })),
+        pictureUrl: item.image_url,
+        nutritionalFacts: n ? {
+          calories: n.calories,
+          protein: n.protein,
+          fat: n.fat,
+          carbohydrates: n.carbohydrates,
+        } : undefined,
+      };
+    });
 
     // Sort client-side since we can't sort by translation table column via PostgREST
     const sortLocale = sortBy;
@@ -107,12 +122,42 @@ export class AdminIngredientsService extends BaseService {
       }
     }
 
-    if (ingredient.nutritionalFacts !== undefined) ingredientData.nutritional_facts = ingredient.nutritionalFacts;
-
     if (Object.keys(ingredientData).length > 0) {
       const updatedIngredient = await this.transformedUpdate<AdminIngredient>('ingredients', id, ingredientData);
       if (!updatedIngredient) {
         throw new Error('Failed to update ingredient');
+      }
+    }
+
+    // Handle nutrition separately — upsert or delete from ingredient_nutrition
+    if (ingredient.nutritionalFacts !== undefined) {
+      const nf = ingredient.nutritionalFacts;
+      const hasValues = nf && (nf.calories !== undefined && nf.calories !== '' ||
+        nf.protein !== undefined && nf.protein !== '' ||
+        nf.fat !== undefined && nf.fat !== '' ||
+        nf.carbohydrates !== undefined && nf.carbohydrates !== '');
+
+      if (hasValues && nf) {
+        const { error: nutritionError } = await this.supabase
+          .from('ingredient_nutrition')
+          .upsert({
+            ingredient_id: id,
+            calories: nf.calories !== '' ? Number(nf.calories) : null,
+            protein: nf.protein !== '' ? Number(nf.protein) : null,
+            fat: nf.fat !== '' ? Number(nf.fat) : null,
+            carbohydrates: nf.carbohydrates !== '' ? Number(nf.carbohydrates) : null,
+            source: 'manual',
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'ingredient_id' });
+        if (nutritionError) {
+          throw new Error(`Failed to upsert nutrition: ${nutritionError.message}`);
+        }
+      } else {
+        // All fields empty — delete the nutrition row
+        await this.supabase
+          .from('ingredient_nutrition')
+          .delete()
+          .eq('ingredient_id', id);
       }
     }
 
@@ -159,7 +204,6 @@ export class AdminIngredientsService extends BaseService {
 
     const ingredientData: Record<string, any> = {
       image_url: '',
-      nutritional_facts: ingredient.nutritionalFacts,
     };
 
     if (ingredient.pictureUrl) {
@@ -195,6 +239,28 @@ export class AdminIngredientsService extends BaseService {
 
       if (translationError) {
         throw new Error(`Failed to insert ingredient translations: ${translationError.message}`);
+      }
+    }
+
+    // Upsert nutrition if provided
+    const nf = ingredient.nutritionalFacts;
+    if (nf && (nf.calories !== undefined && nf.calories !== '' ||
+      nf.protein !== undefined && nf.protein !== '' ||
+      nf.fat !== undefined && nf.fat !== '' ||
+      nf.carbohydrates !== undefined && nf.carbohydrates !== '')) {
+      const { error: nutritionError } = await this.supabase
+        .from('ingredient_nutrition')
+        .upsert({
+          ingredient_id: inserted.id,
+          calories: nf.calories !== '' ? Number(nf.calories) : null,
+          protein: nf.protein !== '' ? Number(nf.protein) : null,
+          fat: nf.fat !== '' ? Number(nf.fat) : null,
+          carbohydrates: nf.carbohydrates !== '' ? Number(nf.carbohydrates) : null,
+          source: 'manual',
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'ingredient_id' });
+      if (nutritionError) {
+        throw new Error(`Failed to insert nutrition: ${nutritionError.message}`);
       }
     }
 

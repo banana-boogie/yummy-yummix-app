@@ -1,16 +1,8 @@
 import { supabase } from '@/lib/supabase';
-
-export interface NutritionalFactsResponse {
-  per_100g: {
-    calories: number;
-    protein: number;
-    fat: number;
-    carbohydrates: number;
-  }
-}
+import { NutritionalFacts } from '@/types/recipe.admin.types';
 
 export class NutritionalFactsService {
-  static async fetchNutritionalFacts(ingredientName: string): Promise<NutritionalFactsResponse> {
+  static async fetchNutritionalFacts(ingredientName: string): Promise<NutritionalFacts> {
     const { data, error } = await supabase.functions.invoke('get-nutritional-facts', {
       body: { ingredientName },
     });
@@ -19,6 +11,14 @@ export class NutritionalFactsService {
       throw new Error(`Failed to fetch nutritional facts: ${error.message}`);
     }
 
-    return data;
+    // Edge function returns { per_100g: { calories, protein, fat, carbohydrates } }
+    // Unwrap to flat shape for the new NutritionalFacts interface
+    const raw = data?.per_100g ?? data;
+    return {
+      calories: raw.calories,
+      protein: raw.protein,
+      fat: raw.fat,
+      carbohydrates: raw.carbohydrates,
+    };
   }
-} 
+}

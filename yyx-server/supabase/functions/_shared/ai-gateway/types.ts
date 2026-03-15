@@ -12,6 +12,7 @@ export type AIUsageType =
   | "recipe_modification"
   | "translation"
   | "parsing"
+  | "nutrition"
   | "embedding";
 
 export type AIProvider = "openai" | "anthropic" | "google" | "xai";

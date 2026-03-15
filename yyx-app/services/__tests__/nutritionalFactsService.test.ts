@@ -4,10 +4,10 @@
  * Tests for nutritional facts service covering:
  * - Fetching nutritional data
  * - Error handling
- * - Response format validation
+ * - Response format validation (unwraps per_100g from edge function)
  */
 
-import { NutritionalFactsService, NutritionalFactsResponse } from '../nutritionalFactsService';
+import { NutritionalFactsService } from '../nutritionalFactsService';
 
 // Mock Supabase
 const mockInvoke = jest.fn();
@@ -22,7 +22,8 @@ jest.mock('@/lib/supabase', () => ({
 }));
 
 describe('NutritionalFactsService', () => {
-  const mockNutritionalResponse: NutritionalFactsResponse = {
+  // Edge function returns { per_100g: { ... } }, service unwraps to flat shape
+  const mockEdgeFunctionResponse = {
     per_100g: {
       calories: 165,
       protein: 31,
@@ -33,7 +34,7 @@ describe('NutritionalFactsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockInvoke.mockResolvedValue({ data: mockNutritionalResponse, error: null });
+    mockInvoke.mockResolvedValue({ data: mockEdgeFunctionResponse, error: null });
   });
 
   // ============================================================
@@ -49,14 +50,19 @@ describe('NutritionalFactsService', () => {
       });
     });
 
-    it('returns nutritional data on success', async () => {
+    it('returns flat nutritional data (unwrapped from per_100g)', async () => {
       const result = await NutritionalFactsService.fetchNutritionalFacts('chicken breast');
 
-      expect(result).toEqual(mockNutritionalResponse);
-      expect(result.per_100g.calories).toBe(165);
-      expect(result.per_100g.protein).toBe(31);
-      expect(result.per_100g.fat).toBe(3.6);
-      expect(result.per_100g.carbohydrates).toBe(0);
+      expect(result).toEqual({
+        calories: 165,
+        protein: 31,
+        fat: 3.6,
+        carbohydrates: 0,
+      });
+      expect(result.calories).toBe(165);
+      expect(result.protein).toBe(31);
+      expect(result.fat).toBe(3.6);
+      expect(result.carbohydrates).toBe(0);
     });
 
     it('throws error when edge function returns error', async () => {
@@ -103,18 +109,18 @@ describe('NutritionalFactsService', () => {
   // ============================================================
 
   describe('response format', () => {
-    it('returns expected per_100g structure', async () => {
+    it('returns flat structure (no per_100g wrapper)', async () => {
       const result = await NutritionalFactsService.fetchNutritionalFacts('rice');
 
-      expect(result).toHaveProperty('per_100g');
-      expect(result.per_100g).toHaveProperty('calories');
-      expect(result.per_100g).toHaveProperty('protein');
-      expect(result.per_100g).toHaveProperty('fat');
-      expect(result.per_100g).toHaveProperty('carbohydrates');
+      expect(result).toHaveProperty('calories');
+      expect(result).toHaveProperty('protein');
+      expect(result).toHaveProperty('fat');
+      expect(result).toHaveProperty('carbohydrates');
+      expect(result).not.toHaveProperty('per_100g');
     });
 
     it('handles high-carb food response', async () => {
-      const riceResponse: NutritionalFactsResponse = {
+      const riceResponse = {
         per_100g: {
           calories: 130,
           protein: 2.7,
@@ -126,12 +132,12 @@ describe('NutritionalFactsService', () => {
 
       const result = await NutritionalFactsService.fetchNutritionalFacts('white rice');
 
-      expect(result.per_100g.carbohydrates).toBe(28.2);
-      expect(result.per_100g.fat).toBe(0.3);
+      expect(result.carbohydrates).toBe(28.2);
+      expect(result.fat).toBe(0.3);
     });
 
     it('handles high-fat food response', async () => {
-      const butterResponse: NutritionalFactsResponse = {
+      const butterResponse = {
         per_100g: {
           calories: 717,
           protein: 0.9,
@@ -143,12 +149,12 @@ describe('NutritionalFactsService', () => {
 
       const result = await NutritionalFactsService.fetchNutritionalFacts('butter');
 
-      expect(result.per_100g.fat).toBe(81.1);
-      expect(result.per_100g.calories).toBe(717);
+      expect(result.fat).toBe(81.1);
+      expect(result.calories).toBe(717);
     });
 
     it('handles zero values', async () => {
-      const waterResponse: NutritionalFactsResponse = {
+      const waterResponse = {
         per_100g: {
           calories: 0,
           protein: 0,
@@ -160,10 +166,10 @@ describe('NutritionalFactsService', () => {
 
       const result = await NutritionalFactsService.fetchNutritionalFacts('water');
 
-      expect(result.per_100g.calories).toBe(0);
-      expect(result.per_100g.protein).toBe(0);
-      expect(result.per_100g.fat).toBe(0);
-      expect(result.per_100g.carbohydrates).toBe(0);
+      expect(result.calories).toBe(0);
+      expect(result.protein).toBe(0);
+      expect(result.fat).toBe(0);
+      expect(result.carbohydrates).toBe(0);
     });
   });
 

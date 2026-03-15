@@ -25,7 +25,6 @@ export interface DbIngredient {
   plural_name_en: string;
   plural_name_es: string;
   image_url: string;
-  nutritional_facts: Record<string, unknown> | null;
 }
 
 export interface DbKitchenTool {

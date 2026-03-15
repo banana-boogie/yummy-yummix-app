@@ -30,7 +30,6 @@ const ingredients: DbIngredient[] = [
     plural_name_en: 'Tomatoes',
     plural_name_es: 'Tomates',
     image_url: '',
-    nutritional_facts: null,
   },
   {
     id: 'ing-2',
@@ -39,7 +38,6 @@ const ingredients: DbIngredient[] = [
     plural_name_en: 'Sugar',
     plural_name_es: 'Azúcar',
     image_url: '',
-    nutritional_facts: null,
   },
   {
     id: 'ing-3',
@@ -48,7 +46,6 @@ const ingredients: DbIngredient[] = [
     plural_name_en: 'Brown Sugar',
     plural_name_es: 'Azúcar Moreno',
     image_url: '',
-    nutritional_facts: null,
   },
   {
     id: 'ing-4',
@@ -57,7 +54,6 @@ const ingredients: DbIngredient[] = [
     plural_name_en: 'Olive Oil',
     plural_name_es: 'Aceite de Oliva',
     image_url: '',
-    nutritional_facts: null,
   },
 ];
 

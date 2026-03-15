@@ -46,7 +46,7 @@ function tr(
 export async function fetchAllIngredients(supabase: SupabaseClient): Promise<DbIngredient[]> {
   const { data, error } = await supabase
     .from('ingredients')
-    .select('id, image_url, nutritional_facts, translations:ingredient_translations(locale, name, plural_name)')
+    .select('id, image_url, translations:ingredient_translations(locale, name, plural_name)')
     .limit(FETCH_LIMIT);
   if (error) throw new Error(`Failed to fetch ingredients: ${error.message}`);
   warnIfTruncated('ingredients', (data || []).length);
@@ -56,7 +56,6 @@ export async function fetchAllIngredients(supabase: SupabaseClient): Promise<DbI
       return {
         id: row.id,
         image_url: row.image_url,
-        nutritional_facts: row.nutritional_facts,
         name_en: tr(t, 'en', 'name'),
         name_es: tr(t, 'es', 'name'),
         plural_name_en: tr(t, 'en', 'plural_name'),
@@ -138,12 +137,11 @@ export async function fetchAllRecipes(supabase: SupabaseClient): Promise<
     name_es: string;
     image_url: string;
     is_published: boolean;
-    nutritional_facts: Record<string, unknown> | null;
   }>
 > {
   const { data, error } = await supabase
     .from('recipes')
-    .select('id, image_url, is_published, nutritional_facts, translations:recipe_translations(locale, name)')
+    .select('id, image_url, is_published, translations:recipe_translations(locale, name)')
     .limit(FETCH_LIMIT);
   if (error) throw new Error(`Failed to fetch recipes: ${error.message}`);
   warnIfTruncated('recipes', (data || []).length);
@@ -154,7 +152,6 @@ export async function fetchAllRecipes(supabase: SupabaseClient): Promise<
         id: row.id,
         image_url: row.image_url,
         is_published: row.is_published,
-        nutritional_facts: row.nutritional_facts,
         name_en: tr(t, 'en', 'name'),
         name_es: tr(t, 'es', 'name'),
       };
@@ -172,7 +169,6 @@ export async function createIngredient(
     plural_name_en: string;
     plural_name_es: string;
     image_url?: string;
-    nutritional_facts?: Record<string, unknown> | null;
   },
 ): Promise<DbIngredient> {
   // 1. Insert base entity
@@ -180,7 +176,6 @@ export async function createIngredient(
     .from('ingredients')
     .insert({
       image_url: ingredient.image_url || '',
-      nutritional_facts: ingredient.nutritional_facts || {},
     })
     .select('id')
     .single();
@@ -207,7 +202,6 @@ export async function createIngredient(
     plural_name_en: pluralEn,
     plural_name_es: pluralEs,
     image_url: ingredient.image_url || '',
-    nutritional_facts: ingredient.nutritional_facts || null,
   };
 }
 
@@ -606,7 +600,7 @@ export async function insertSpainTranslations(
 
 // ─── Update Entities ─────────────────────────────────────
 
-/** Update non-translatable fields on an ingredient (e.g., nutritional_facts, image_url) */
+/** Update non-translatable fields on an ingredient (e.g., image_url) */
 export async function updateIngredient(
   supabase: SupabaseClient,
   id: string,
@@ -644,7 +638,47 @@ export async function updateTag(
   if (error) throw new Error(`Failed to update tag ${id}: ${error.message}`);
 }
 
-/** Update non-translatable fields on a recipe (e.g., nutritional_facts, image_url) */
+// ─── Ingredient Nutrition ─────────────────────────────────
+
+/** Upsert a row into ingredient_nutrition */
+export async function upsertIngredientNutrition(
+  supabase: SupabaseClient,
+  ingredientId: string,
+  data: {
+    calories: number;
+    protein: number;
+    fat: number;
+    carbohydrates: number;
+    source: string;
+  },
+): Promise<void> {
+  const { error } = await supabase
+    .from('ingredient_nutrition')
+    .upsert({
+      ingredient_id: ingredientId,
+      calories: data.calories,
+      protein: data.protein,
+      fat: data.fat,
+      carbohydrates: data.carbohydrates,
+      source: data.source,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'ingredient_id' });
+  if (error) throw new Error(`Failed to upsert nutrition for ${ingredientId}: ${error.message}`);
+}
+
+/** Fetch the set of ingredient IDs that already have nutrition data */
+export async function fetchIngredientNutritionIds(
+  supabase: SupabaseClient,
+): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from('ingredient_nutrition')
+    .select('ingredient_id')
+    .limit(FETCH_LIMIT);
+  if (error) throw new Error(`Failed to fetch nutrition IDs: ${error.message}`);
+  return new Set((data || []).map((r: Row) => r.ingredient_id));
+}
+
+/** Update non-translatable fields on a recipe (e.g., image_url) */
 export async function updateRecipe(
   supabase: SupabaseClient,
   id: string,

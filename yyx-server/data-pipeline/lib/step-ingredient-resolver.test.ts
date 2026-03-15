@@ -44,7 +44,6 @@ function createIngredientRow(
     plural_name_en: 'onions',
     plural_name_es: 'cebollas',
     image_url: '',
-    nutritional_facts: null,
     ...overrides,
   };
 }

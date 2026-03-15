@@ -45,12 +45,10 @@ export function IngredientForm({
         ],
         pictureUrl: ingredient?.pictureUrl || '',
         nutritionalFacts: ingredient?.nutritionalFacts || {
-            per_100g: {
-                calories: '',
-                protein: '',
-                fat: '',
-                carbohydrates: ''
-            }
+            calories: '',
+            protein: '',
+            fat: '',
+            carbohydrates: ''
         }
     });
 
@@ -82,7 +80,7 @@ export function IngredientForm({
         const nutritionalErrors: { [key: string]: string } = {};
 
         for (const field of nutritionalFields) {
-            const value = data.nutritionalFacts?.per_100g?.[field];
+            const value = data.nutritionalFacts?.[field];
             if (value === undefined || value === '') {
                 nutritionalErrors[field] = i18n.t('validation.required');
                 hasNutritionalErrors = true;

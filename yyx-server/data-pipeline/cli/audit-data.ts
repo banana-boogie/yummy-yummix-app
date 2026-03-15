@@ -78,10 +78,11 @@ function auditEntities(
 async function main() {
   logger.section(`Data Audit (${env})`);
 
-  const [recipes, ingredients, kitchenTools] = await Promise.all([
+  const [recipes, ingredients, kitchenTools, nutritionIds] = await Promise.all([
     db.fetchAllRecipes(config.supabase),
     db.fetchAllIngredients(config.supabase),
     db.fetchAllKitchenTools(config.supabase),
+    db.fetchIngredientNutritionIds(config.supabase),
   ]);
 
   const issues: AuditIssue[] = [];
@@ -91,12 +92,7 @@ async function main() {
 
   logger.info(`Auditing ${ingredients.length} ingredients...`);
   issues.push(...auditEntities(ingredients, 'ingredient', (ing) => {
-    const facts = (ing as typeof ingredients[number]).nutritional_facts;
-    const hasNutrition = facts &&
-      typeof facts === 'object' &&
-      Object.keys(facts).length > 0 &&
-      'per_100g' in facts;
-    if (!hasNutrition) {
+    if (!nutritionIds.has(ing.id)) {
       return [{
         type: 'ingredient',
         id: ing.id,

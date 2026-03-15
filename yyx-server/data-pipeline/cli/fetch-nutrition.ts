@@ -174,17 +174,17 @@ async function main() {
     }
   }
 
-  const allIngredients = await db.fetchAllIngredients(config.supabase);
+  const [allIngredients, nutritionIds] = await Promise.all([
+    db.fetchAllIngredients(config.supabase),
+    db.fetchIngredientNutritionIds(config.supabase),
+  ]);
 
   const needsNutrition = allIngredients.filter((ing) => {
     // If we have an audit list, only process those
     if (ingredientIds) return ingredientIds.includes(ing.id);
 
     // Otherwise, check if nutrition is missing
-    const facts = ing.nutritional_facts;
-    if (!facts || typeof facts !== 'object') return true;
-    if (!('per_100g' in facts)) return true;
-    return false;
+    return !nutritionIds.has(ing.id);
   });
 
   const toProcess = needsNutrition.slice(0, limit);
@@ -215,8 +215,10 @@ async function main() {
     }
 
     if (nutrition) {
-      await db.updateIngredient(config.supabase, ing.id, {
-        nutritional_facts: { per_100g: nutrition },
+      const source = 'openai:gpt-4o-mini';
+      await db.upsertIngredientNutrition(config.supabase, ing.id, {
+        ...nutrition,
+        source,
       });
       logger.success(
         `Updated ${name}: ${nutrition.calories} cal, ${nutrition.protein}g protein, ${nutrition.fat}g fat, ${nutrition.carbohydrates}g carbs`,

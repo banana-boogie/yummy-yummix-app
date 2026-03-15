@@ -78,11 +78,11 @@ describe('AdminIngredientsService', () => {
   const mockIngredient = {
     id: 'ing-1',
     image_url: 'https://example.com/tomato.png',
-    nutritional_facts: { calories: 20 },
     translations: [
       { locale: 'en', name: 'Tomato', plural_name: 'Tomatoes' },
       { locale: 'es', name: 'Tomate', plural_name: 'Tomates' },
     ],
+    nutrition: [{ calories: 20, protein: 1.0, fat: 0.2, carbohydrates: 3.9, source: 'openai:gpt-4o-mini' }],
   };
 
   const mockTransformedIngredient = {
@@ -92,7 +92,7 @@ describe('AdminIngredientsService', () => {
       { locale: 'es', name: 'Tomate', pluralName: 'Tomates' },
     ],
     pictureUrl: 'https://example.com/tomato.png',
-    nutritionalFacts: { calories: 20 },
+    nutritionalFacts: { calories: 20, protein: 1.0, fat: 0.2, carbohydrates: 3.9 },
   };
 
   beforeEach(() => {
@@ -166,7 +166,7 @@ describe('AdminIngredientsService', () => {
 
     it('transforms missing translations to empty array', async () => {
       mockOrder.mockResolvedValue({
-        data: [{ id: 'ing-2', image_url: null, nutritional_facts: null, translations: [] }],
+        data: [{ id: 'ing-2', image_url: null, translations: [], nutrition: null }],
         error: null,
       });
 

@@ -67,6 +67,12 @@ const defaultRoutingConfig: AIRoutingConfig = {
     model: "gpt-4.1-nano",
     apiKeyEnvVar: "OPENAI_API_KEY",
   },
+  // Nutritional facts lookup — slightly better than nano for accuracy
+  nutrition: {
+    provider: "openai",
+    model: "gpt-4.1-mini",
+    apiKeyEnvVar: "OPENAI_API_KEY",
+  },
   // Text embeddings for vector search
   embedding: {
     provider: "openai",

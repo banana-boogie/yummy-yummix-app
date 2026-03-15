@@ -42,7 +42,7 @@ function createTestRecipe(overrides: Partial<ExtendedRecipe> = {}): ExtendedReci
       {
         id: 'ing-1',
         ingredientId: 'tomato',
-        ingredient: { id: 'tomato', translations: [{ locale: 'es', name: 'Tomate' }], pictureUrl: '', nutritionalFacts: { per_100g: { calories: 0, protein: 0, fat: 0, carbohydrates: 0 } } },
+        ingredient: { id: 'tomato', translations: [{ locale: 'es', name: 'Tomate' }], pictureUrl: '', nutritionalFacts: { calories: 0, protein: 0, fat: 0, carbohydrates: 0 } },
         quantity: '4',
         translations: [
           { locale: 'es', notes: 'Bien maduros', tip: 'Frescos', recipeSection: 'Base' },
@@ -275,7 +275,7 @@ describe('useRecipeTranslation', () => {
           {
             id: 'ing-1',
             ingredientId: 'salt',
-            ingredient: { id: 'salt', translations: [], pictureUrl: '', nutritionalFacts: { per_100g: { calories: 0, protein: 0, fat: 0, carbohydrates: 0 } } },
+            ingredient: { id: 'salt', translations: [], pictureUrl: '', nutritionalFacts: { calories: 0, protein: 0, fat: 0, carbohydrates: 0 } },
             quantity: '1',
             translations: [{ locale: 'es' }], // No notes, tip, or recipeSection
             optional: false,

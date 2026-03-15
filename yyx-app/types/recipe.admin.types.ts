@@ -2,12 +2,10 @@ import { Recipe } from '@/types/recipe.types';
 import { ThermomixSpeed, ThermomixTemperature, ThermomixTemperatureUnit } from '@/types/thermomix.types';
 
 export interface NutritionalFacts {
-  per_100g: {
-    calories: number | string | undefined;
-    protein: number | string | undefined;
-    fat: number | string | undefined;
-    carbohydrates: number | string | undefined;
-  };
+  calories: number | string | undefined;
+  protein: number | string | undefined;
+  fat: number | string | undefined;
+  carbohydrates: number | string | undefined;
 }
 
 /**
@@ -71,7 +69,7 @@ export interface AdminIngredient {
   id: string;
   translations: AdminIngredientTranslation[];
   pictureUrl: string;
-  nutritionalFacts: NutritionalFacts;
+  nutritionalFacts?: NutritionalFacts;
 }
 
 export interface AdminKitchenTool {
