@@ -18,6 +18,13 @@ jest.mock('@/i18n', () => ({
     if (key === 'chat.resume.chatAbout') {
       return `You were chatting about '${params?.title}'`;
     }
+    // Return arrays for cycling greeting keys
+    if (key === 'chat.greetingCycling.withName') {
+      return ['Hi {{name}}, what are we cooking today?'];
+    }
+    if (key === 'chat.greetingCycling.withoutName') {
+      return ['Hi, what are we cooking today?'];
+    }
 
     const translations: Record<string, string> = {
       'chat.greeting': 'Hi! I\'m Irmixy, your AI sous chef. How can I help?',
@@ -65,6 +72,10 @@ jest.mock('@/contexts/AuthContext', () => ({
 
 jest.mock('@/contexts/LanguageContext', () => ({
   useLanguage: () => ({ language: 'en' }),
+}));
+
+jest.mock('@/contexts/UserProfileContext', () => ({
+  useUserProfile: () => ({ userProfile: { name: 'TestUser' }, loading: false, error: null }),
 }));
 
 // Mock safe area
@@ -186,7 +197,8 @@ describe('ChatScreen', () => {
     it('renders greeting in empty state', () => {
       render(<ChatScreen />);
 
-      expect(screen.getByText("Hi! I'm Irmixy, your AI sous chef. How can I help?")).toBeTruthy();
+      // Cycling greeting with user's name from profile
+      expect(screen.getByText("Hi TestUser, what are we cooking today?")).toBeTruthy();
     });
   });
 

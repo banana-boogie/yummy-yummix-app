@@ -2,6 +2,22 @@ export const chat = {
   title: "Irmixy",
   greeting:
     "¡Hola! Soy Irmixy. ¡Pregúntame lo que quieras sobre cocina!",
+  greetingCycling: {
+    withName: [
+      "Hola {{name}}, ¿qué cocinamos hoy?",
+      "Hola {{name}}, dime qué se te antoja",
+      "Hola {{name}}, ¿necesitas ayuda para encontrar una receta?",
+      "Hola {{name}}, ¿qué ingredientes tienes?",
+      "Hola {{name}}, ¿lista para cocinar algo delicioso?",
+    ],
+    withoutName: [
+      "¡Hola! ¿Qué cocinamos hoy?",
+      "¡Hola! Dime qué se te antoja",
+      "¡Hola! ¿Necesitas ayuda para encontrar una receta?",
+      "¡Hola! ¿Qué ingredientes tienes?",
+      "¡Hola! ¿Lista para cocinar algo delicioso?",
+    ],
+  },
   inputPlaceholder: "Pregunta a Irmixy...",
   sendButton: "Enviar",
   stopGenerating: "Detener generación",
@@ -75,6 +91,10 @@ export const chat = {
   suggestions: {},
   messageCopied: "Mensaje copiado al portapapeles",
   cancelledRequest: "Solicitud cancelada",
+  cookingModal: {
+    greeting: "Dime, ¿cómo te ayudo?",
+    contextHint: "Cocinando {{recipeName}} — paso {{step}} de {{total}}",
+  },
   sessions: {
     menuLabel: "Menú de sesiones de chat",
     title: "Sesiones de Chat",

@@ -432,4 +432,38 @@ export const recipeService = {
   }
 };
 
+/**
+ * Semantic search via the semantic-recipe-search edge function.
+ * Used as a fallback when lexical search returns too few results.
+ */
+export async function semanticRecipeSearch(
+  query: string,
+  locale: string,
+  limit: number = 10,
+): Promise<{ recipeId: string; name: string; imageUrl?: string; totalTime: number; difficulty: string; portions: number }[]> {
+  const functionsUrl = process.env.EXPO_PUBLIC_SUPABASE_FUNCTIONS_URL;
+  if (!functionsUrl) return [];
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return [];
+
+    const response = await fetch(`${functionsUrl}/semantic-recipe-search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ query, locale, limit }),
+    });
+
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    return data.recipes || [];
+  } catch {
+    return [];
+  }
+}
+
 export default recipeService;

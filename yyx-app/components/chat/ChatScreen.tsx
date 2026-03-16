@@ -25,6 +25,7 @@ import type { BudgetWarningPayload, ChatMessage, IrmixyStatus } from '@/services
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useUserProfile } from '@/contexts/UserProfileContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import i18n from '@/i18n';
@@ -56,6 +57,7 @@ export function ChatScreen({
 }: Props) {
     const { user } = useAuth();
     const { locale } = useLanguage();
+    const { userProfile } = useUserProfile();
     const queryClient = useQueryClient();
     const insets = useSafeAreaInsets();
 
@@ -194,6 +196,24 @@ export function ChatScreen({
         setMessages,
         queryClient,
     });
+
+    // --- Cycling greeting for empty state ---
+    const greetingKey = userProfile?.name ? 'withName' : 'withoutName';
+    const greetings = i18n.t(`chat.greetingCycling.${greetingKey}`, { returnObjects: true }) as unknown as string[];
+    const greetingList = Array.isArray(greetings) ? greetings : [i18n.t('chat.greeting')];
+    const [greetingIndex, setGreetingIndex] = useState(() => Math.floor(Math.random() * greetingList.length));
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setGreetingIndex((prev) => (prev + 1) % greetingList.length);
+        }, 6000);
+        return () => clearInterval(interval);
+    }, [greetingList.length]);
+
+    const currentGreeting = useMemo(() => {
+        const raw = greetingList[greetingIndex] || i18n.t('chat.greeting');
+        return userProfile?.name ? raw.replace('{{name}}', userProfile.name) : raw;
+    }, [greetingIndex, greetingList, userProfile?.name]);
 
     // --- Effects ---
 
@@ -334,12 +354,14 @@ export function ChatScreen({
                     <View className="flex-1 justify-center items-center pt-xxxl">
                         <Image
                             source={require('@/assets/images/irmixy-avatar/irmixy-with-book.png')}
-                            style={{ width: 120, height: 120 }}
+                            style={{ width: 180, height: 180 }}
                             contentFit="contain"
                         />
-                        <Text className="text-text-secondary text-center mt-md px-xl">
-                            {i18n.t('chat.greeting')}
-                        </Text>
+                        <View className="mt-md mx-lg bg-primary-lightest rounded-xl px-md py-sm" style={{ maxWidth: 300 }}>
+                            <Text className="text-text-primary text-center text-base">
+                                {currentGreeting}
+                            </Text>
+                        </View>
                     </View>
                 }
             />

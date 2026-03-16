@@ -266,7 +266,7 @@ export async function searchRecipes(
 
   let results = (data || []) as unknown as RecipeSearchResult[];
 
-  // Post-filter by query text across all translation names
+  // Post-filter by query text across all translation names (word-start matching)
   if (params.query) {
     const queryTerms = getSearchTerms(params.query);
     if (queryTerms.length > 0) {
@@ -276,7 +276,7 @@ export async function searchRecipes(
           .filter(Boolean)
           .map((n) => n!.toLowerCase());
         return queryTerms.some((term) =>
-          allNames.some((name) => name.includes(term))
+          allNames.some((name) => wordStartMatch(name, term))
         );
       });
     }
@@ -572,13 +572,13 @@ function scoreByQuery(
     // Exact name match
     if (name === queryLower) {
       score += 100;
-    } else if (name.includes(queryLower)) {
+    } else if (wordStartMatch(name, queryLower)) {
       score += 50;
     }
 
     // Keyword matches in name
     for (const keyword of keywords) {
-      if (name.includes(keyword)) score += 10;
+      if (wordStartMatch(name, keyword)) score += 10;
     }
 
     // Tag matches
@@ -638,6 +638,15 @@ function scoreByQuery(
   scored.sort((a, b) => b.score - a.score);
 
   return scored.map((s) => s.card);
+}
+
+/**
+ * Check if any word in `text` starts with `term`.
+ * Prevents "ice" from matching "r**ice**" — only matches "ice cream".
+ */
+function wordStartMatch(text: string, term: string): boolean {
+  const words = text.split(/\s+/);
+  return words.some((word) => word.startsWith(term));
 }
 
 function getSearchTerms(query: string): string[] {

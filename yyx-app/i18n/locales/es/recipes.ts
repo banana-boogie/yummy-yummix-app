@@ -27,6 +27,8 @@ export const recipes = {
     },
     emptyState: "No se encontraron recetas",
     noRecipesFound: "No se encontraron recetas",
+    noResultsIrmixyPrompt: "¿No encuentras lo que buscas? ¡Te puedo ayudar!",
+    askIrmixy: "Pregunta a Irmixy",
     kitchenTools: "Utensilios de Cocina",
     servings: "porciones",
   },

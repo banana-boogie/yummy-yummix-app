@@ -21,7 +21,7 @@ type TabConfigItem = {
 };
 
 const TAB_CONFIG: TabConfigItem[] = [
-  { name: 'recipes', icon: 'sparkles-outline', iconActive: 'sparkles', href: '/recipes' },
+  { name: 'recipes', icon: 'compass-outline', iconActive: 'compass', href: '/recipes' },
   { name: 'chat', image: require('@/assets/images/irmixy-avatar/irmixy-face.png'), href: '/chat' },
   { name: 'profile', icon: 'person-outline', iconActive: 'person', href: '/profile' },
 ];
@@ -179,7 +179,15 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
             <TouchableOpacity
               key={tab.name}
               className="items-center justify-center py-xxs"
-              onPress={() => navigation.navigate(tab.name)}
+              onPress={() => {
+                if (isActive) {
+                  // Pop to root of current tab on re-tap
+                  navigation.emit({ type: 'tabPress', target: state.routes[state.index]?.key ?? '' });
+                  navigation.navigate(tab.name, { screen: 'index' });
+                } else {
+                  navigation.navigate(tab.name);
+                }
+              }}
               activeOpacity={0.7}
               style={{ minWidth: SPACING.xxl }}
             >

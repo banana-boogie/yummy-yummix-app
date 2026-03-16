@@ -2,6 +2,22 @@ export const chat = {
   title: "Irmixy",
   greeting:
     "Hi! I'm Irmixy. Ask me anything about cooking!",
+  greetingCycling: {
+    withName: [
+      "Hi {{name}}, what are we cooking today?",
+      "Hi {{name}}, tell me what you're craving",
+      "Hi {{name}}, need help finding a recipe?",
+      "Hi {{name}}, what ingredients do you have?",
+      "Hi {{name}}, ready to cook something delicious?",
+    ],
+    withoutName: [
+      "Hi, what are we cooking today?",
+      "Hi, tell me what you're craving",
+      "Hi, need help finding a recipe?",
+      "Hi, what ingredients do you have?",
+      "Hi, ready to cook something delicious?",
+    ],
+  },
   inputPlaceholder: "Ask Irmixy...",
   sendButton: "Send",
   stopGenerating: "Stop generating",
@@ -75,6 +91,10 @@ export const chat = {
   suggestions: {},
   messageCopied: "Message copied to clipboard",
   cancelledRequest: "Request cancelled",
+  cookingModal: {
+    greeting: "Tell me, how can I help?",
+    contextHint: "Cooking {{recipeName}} — step {{step}} of {{total}}",
+  },
   sessions: {
     menuLabel: "Chat sessions menu",
     title: "Chat Sessions",

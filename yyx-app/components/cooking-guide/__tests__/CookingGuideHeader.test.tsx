@@ -43,17 +43,6 @@ jest.mock('@/components/navigation/HamburgerMenu', () => ({
   HamburgerMenu: () => null,
 }));
 
-// Mock VoiceAssistantButton
-jest.mock('@/components/common/VoiceAssistantButton', () => ({
-  VoiceAssistantButton: ({ recipeContext }: { recipeContext?: any }) => {
-    const { View, Text } = require('react-native');
-    return (
-      <View testID="voice-assistant-button">
-        <Text>Voice Assistant</Text>
-      </View>
-    );
-  },
-}));
 
 describe('CookingGuideHeader', () => {
   beforeEach(() => {
@@ -149,44 +138,6 @@ describe('CookingGuideHeader', () => {
       fireEvent.press(screen.getByTestId('back-button'));
 
       expect(onBackPress).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  // ============================================================
-  // VOICE ASSISTANT BUTTON TESTS
-  // ============================================================
-
-  describe('voice assistant button', () => {
-    it('renders VoiceAssistantButton when recipeContext is provided', () => {
-      const recipeContext = {
-        recipeId: 'recipe-123',
-        recipeName: 'Test Recipe',
-        currentStep: 1,
-        totalSteps: 5,
-      };
-
-      render(<CookingGuideHeader title="Recipe" recipeContext={recipeContext} />);
-
-      expect(screen.getByTestId('voice-assistant-button')).toBeTruthy();
-    });
-
-    it('does not render VoiceAssistantButton when recipeContext is not provided', () => {
-      render(<CookingGuideHeader title="Recipe" />);
-
-      expect(screen.queryByTestId('voice-assistant-button')).toBeNull();
-    });
-
-    it('renders VoiceAssistantButton inline with title', () => {
-      const recipeContext = {
-        recipeId: 'recipe-123',
-        recipeName: 'Test Recipe',
-      };
-
-      render(<CookingGuideHeader title="Recipe" recipeContext={recipeContext} />);
-
-      // Both title and voice button should be present
-      expect(screen.getByText('Recipe')).toBeTruthy();
-      expect(screen.getByTestId('voice-assistant-button')).toBeTruthy();
     });
   });
 

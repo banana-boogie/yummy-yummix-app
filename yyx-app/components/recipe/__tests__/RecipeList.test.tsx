@@ -27,6 +27,19 @@ jest.mock('../RecipeCard', () => ({
   },
 }));
 
+jest.mock('expo-router', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    navigate: jest.fn(),
+  }),
+}));
+
+jest.mock('expo-image', () => ({
+  Image: 'Image',
+}));
+
 // Mock i18n
 jest.mock('@/i18n', () => ({
   __esModule: true,
@@ -111,7 +124,9 @@ describe('RecipeList', () => {
         />
       );
 
-      expect(screen.getByText('recipes.common.noRecipesFound')).toBeTruthy();
+      // Now shows Irmixy prompt + Ask Irmixy button
+      expect(screen.getByText('recipes.common.noResultsIrmixyPrompt')).toBeTruthy();
+      expect(screen.getByText('recipes.common.askIrmixy')).toBeTruthy();
     });
 
     it('does not show empty state when loading', () => {
@@ -126,7 +141,7 @@ describe('RecipeList', () => {
         />
       );
 
-      expect(screen.queryByText('recipes.common.noRecipesFound')).toBeNull();
+      expect(screen.queryByText('recipes.common.noResultsIrmixyPrompt')).toBeNull();
     });
   });
 

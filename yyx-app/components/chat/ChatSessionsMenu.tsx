@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, TouchableOpacity, Modal, Pressable, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, Modal, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { loadChatSessions, loadChatHistory } from '@/services/chatService';
@@ -174,7 +174,7 @@ export function ChatSessionsMenu({
                                 </Text>
                             </View>
                         ) : (
-                            <View className="max-h-80">
+                            <ScrollView>
                                 {sessions.map((session) => (
                                     <TouchableOpacity
                                         key={session.id}
@@ -208,7 +208,7 @@ export function ChatSessionsMenu({
                                         )}
                                     </TouchableOpacity>
                                 ))}
-                            </View>
+                            </ScrollView>
                         )}
                     </Pressable>
                 </Pressable>

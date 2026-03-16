@@ -1,64 +1,32 @@
 /**
- * AskIrmixyButton — Navigates from cooking guide to Irmixy chat tab.
+ * AskIrmixyButton — Small Irmixy avatar that opens the cooking help modal.
  *
- * Saves the current cooking session so the user can return to the exact step.
  * Designed to be always visible in the footer area of each cooking step,
  * so Lupita never has to hunt for it.
  */
-import React, { useCallback } from 'react';
-import { useRouter } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button } from '@/components/common/Button';
-import { useCookingSession } from '@/contexts/CookingSessionContext';
-import { COLORS } from '@/constants/design-tokens';
+import React from 'react';
+import { TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import i18n from '@/i18n';
 
 interface AskIrmixyButtonProps {
-  recipeId: string;
-  recipeName: string;
-  currentStep: number;
-  totalSteps: number;
-  isCustom?: boolean;
-  from?: string;
+  onPress: () => void;
 }
 
-export function AskIrmixyButton({
-  recipeId,
-  recipeName,
-  currentStep,
-  totalSteps,
-  isCustom = false,
-  from,
-}: AskIrmixyButtonProps) {
-  const { startCookingSession } = useCookingSession();
-  const router = useRouter();
-
-  const handlePress = useCallback(() => {
-    startCookingSession({
-      recipeId,
-      recipeName,
-      currentStep,
-      totalSteps,
-      isCustom,
-      from,
-    });
-    router.navigate('/(tabs)/chat' as any);
-  }, [recipeId, recipeName, currentStep, totalSteps, isCustom, from, startCookingSession, router]);
-
+export function AskIrmixyButton({ onPress }: AskIrmixyButtonProps) {
   return (
-    <Button
-      variant="outline"
-      size="small"
-      onPress={handlePress}
-      icon={
-        <MaterialCommunityIcons
-          name="chat-question-outline"
-          size={18}
-          color={COLORS.primary.darkest}
-        />
-      }
-      label={i18n.t('recipes.cookingGuide.navigation.askIrmixy')}
+    <TouchableOpacity
+      onPress={onPress}
       accessibilityLabel={i18n.t('recipes.cookingGuide.navigation.askIrmixy')}
-    />
+      accessibilityRole="button"
+      activeOpacity={0.7}
+    >
+      <Image
+        source={require('@/assets/images/irmixy-avatar/irmixy-face.png')}
+        style={{ width: 40, height: 40, borderRadius: 20 }}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+      />
+    </TouchableOpacity>
   );
 }

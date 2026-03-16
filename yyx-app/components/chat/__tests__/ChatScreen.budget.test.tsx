@@ -14,6 +14,12 @@ import { ChatScreen } from '../ChatScreen';
 // Mock i18n
 jest.mock('@/i18n', () => ({
   t: (key: string, _params?: Record<string, unknown>) => {
+    if (key === 'chat.greetingCycling.withName') {
+      return ['Hi {{name}}, what are we cooking today?'];
+    }
+    if (key === 'chat.greetingCycling.withoutName') {
+      return ['Hi, what are we cooking today?'];
+    }
     const translations: Record<string, string> = {
       'chat.greeting': "Hi! I'm Irmixy, your AI sous chef. How can I help?",
       'chat.inputPlaceholder': 'Ask Irmixy...',
@@ -49,6 +55,10 @@ jest.mock('@/contexts/AuthContext', () => ({
 
 jest.mock('@/contexts/LanguageContext', () => ({
   useLanguage: () => ({ language: 'en' }),
+}));
+
+jest.mock('@/contexts/UserProfileContext', () => ({
+  useUserProfile: () => ({ userProfile: { name: 'TestUser' }, loading: false, error: null }),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({

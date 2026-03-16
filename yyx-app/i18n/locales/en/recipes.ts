@@ -27,6 +27,8 @@ export const recipes = {
     },
     emptyState: "No recipes found",
     noRecipesFound: "No recipes found",
+    noResultsIrmixyPrompt: "Can't find what you're looking for? I can help!",
+    askIrmixy: "Ask Irmixy",
     kitchenTools: "Kitchen Tools",
     servings: "servings",
   },

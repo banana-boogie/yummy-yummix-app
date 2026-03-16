@@ -8,8 +8,6 @@ import { FONTS, TextPreset, COLORS, SPACING } from '@/constants/design-tokens';
 import { SafeImage } from '@/components/common';
 import { useDevice } from '@/hooks/useDevice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
-import type { RecipeContext } from '@/services/voice/types';
 
 interface CookingGuideHeaderProps {
     title?: string;
@@ -23,8 +21,6 @@ interface CookingGuideHeaderProps {
     style?: StyleProp<ViewStyle>;
     showBackButton?: boolean;
     onBackPress?: () => void;
-    /** Optional recipe context to show VoiceAssistantButton next to title */
-    recipeContext?: RecipeContext;
     /** Flag to indicate custom recipe without image */
     isCustomRecipe?: boolean;
 }
@@ -41,7 +37,6 @@ export function CookingGuideHeader({
     onBackPress,
     className = '',
     style,
-    recipeContext,
     isCustomRecipe = false,
 }: CookingGuideHeaderProps) {
     const { isLarge, isWeb, isPhone } = useDevice();
@@ -122,15 +117,6 @@ export function CookingGuideHeader({
                     null
                 }
 
-                {recipeContext && (
-                    <View style={{ position: 'absolute', bottom: SPACING.xs, right: SPACING.xs, zIndex: 50 }}>
-                        <VoiceAssistantButton
-                            position="inline"
-                            size="small"
-                            recipeContext={recipeContext}
-                        />
-                    </View>
-                )}
             </View>
         </View>
     );

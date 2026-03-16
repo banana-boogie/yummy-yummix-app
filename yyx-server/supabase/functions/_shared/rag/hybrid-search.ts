@@ -154,6 +154,15 @@ async function semanticSearch(
 // ============================================================
 
 /**
+ * Check if any word in `text` starts with `term`.
+ * Prevents "ice" from matching "r**ice**" — only matches "ice cream".
+ */
+function wordStartMatch(text: string, term: string): boolean {
+  const words = text.split(/\s+/);
+  return words.some((word) => word.startsWith(term));
+}
+
+/**
  * Compute normalized lexical score for a recipe against a query.
  * Reuses scoring logic from search-recipes.ts, normalized to [0,1].
  */
@@ -168,15 +177,15 @@ function computeLexicalScore(
 
   let rawScore = 0;
 
-  // Name matching
+  // Name matching (word-start to avoid "ice" matching "rice")
   if (nameLower === queryLower) {
     rawScore += 100;
-  } else if (nameLower.includes(queryLower)) {
+  } else if (wordStartMatch(nameLower, queryLower)) {
     rawScore += 50;
   }
 
   for (const keyword of keywords) {
-    if (nameLower.includes(keyword)) rawScore += 10;
+    if (wordStartMatch(nameLower, keyword)) rawScore += 10;
   }
 
   // Tag matching
@@ -414,6 +423,31 @@ export async function searchRecipesHybrid(
   });
 
   if (needsFallback) {
+    // When top score is above minimum confidence (0.25), return top 3 instead of
+    // falling back to broken lexical search
+    const topScore = scored.length > 0
+      ? Math.max(...scored.map((r) => r.finalScore))
+      : 0;
+    if (topScore >= 0.25) {
+      const topN = scored
+        .sort((a, b) => b.finalScore - a.finalScore)
+        .slice(0, 3);
+      console.log("[hybrid-search] Low-confidence top-N fallback", {
+        topScore: topScore.toFixed(3),
+        returned: topN.length,
+      });
+      const fallbackCards: RecipeCard[] = topN.map((r) => ({
+        recipeId: r.recipeId,
+        recipeTable: "recipes",
+        name: r.name,
+        imageUrl: r.imageUrl,
+        totalTime: r.totalTime,
+        difficulty: r.difficulty,
+        portions: r.portions,
+      }));
+      return { recipes: fallbackCards, method: "hybrid" };
+    }
+
     return {
       recipes: [],
       method: "hybrid",

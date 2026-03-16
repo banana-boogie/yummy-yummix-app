@@ -4,9 +4,10 @@ import { useCustomRecipe } from "@/hooks/useCustomRecipe";
 import { CookingGuideHeader } from "@/components/cooking-guide/CookingGuideHeader";
 import { RecipeStepContent } from "@/components/cooking-guide/RecipeStepContent";
 import { AskIrmixyButton } from "@/components/cooking-guide/AskIrmixyButton";
+import { IrmixyCookingModal } from "@/components/cooking-guide/IrmixyCookingModal";
 import { Text } from "@/components/common/Text";
 import i18n from "@/i18n";
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideStepNavigationButtons';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
@@ -20,6 +21,7 @@ export default function CustomCookingStep() {
     const { recipe } = useCustomRecipe(id as string);
     const { updateStep } = useCookingSession();
     const isChatFlow = isFromChat(from);
+    const [showIrmixyModal, setShowIrmixyModal] = useState(false);
 
     const currentStepNumber = Number(stepParam);
     const steps = recipe?.steps;
@@ -58,19 +60,6 @@ export default function CustomCookingStep() {
         }
     }), [id, currentStepNumber, from, recipe?.id, recipe?.name, isChatFlow]);
 
-    const recipeContext = useMemo(() => ({
-        type: 'custom' as const,
-        recipeId: id as string,
-        recipeTitle: recipe?.name ?? '',
-        currentStep: currentStepNumber,
-        totalSteps,
-        stepInstructions: currentStep?.instruction ?? '',
-        ingredients: currentStep?.ingredients?.map(ing => ({
-            name: ing.name,
-            amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
-        }))
-    }), [id, recipe?.name, currentStepNumber, totalSteps, currentStep]);
-
     const header = useMemo(() => (
         <CookingGuideHeader
             title={i18n.t('recipes.cookingGuide.navigation.step', {
@@ -81,21 +70,13 @@ export default function CustomCookingStep() {
             pictureUrl={recipe?.pictureUrl}
             isCustomRecipe={true}
             onBackPress={handleNavigation.back}
-            recipeContext={recipeContext}
         />
-    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation, recipeContext]);
+    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation]);
 
     const footer = useMemo(() => (
         <View>
             <View className="items-center pb-xs">
-                <AskIrmixyButton
-                    recipeId={id as string}
-                    recipeName={recipe?.name ?? ''}
-                    currentStep={currentStepNumber}
-                    totalSteps={totalSteps}
-                    isCustom
-                    from={from}
-                />
+                <AskIrmixyButton onPress={() => setShowIrmixyModal(true)} />
             </View>
             <StepNavigationButtons
                 onBack={handleNavigation.back}
@@ -106,7 +87,7 @@ export default function CustomCookingStep() {
                 finishText={i18n.t('recipes.cookingGuide.navigation.finish')}
             />
         </View>
-    ), [handleNavigation, isLastStep, id, recipe?.name, currentStepNumber, totalSteps, from]);
+    ), [handleNavigation, isLastStep]);
 
     if (!steps || !currentStep) return null;
 
@@ -131,6 +112,16 @@ export default function CustomCookingStep() {
                     <RecipeStepContent step={currentStep} />
                 </View>
             </PageLayout>
+
+            <IrmixyCookingModal
+                visible={showIrmixyModal}
+                onClose={() => setShowIrmixyModal(false)}
+                recipeId={id as string}
+                recipeName={recipe?.name ?? ''}
+                currentStep={currentStepNumber}
+                totalSteps={totalSteps}
+                stepInstruction={currentStep?.instruction}
+            />
         </View>
     );
 }
