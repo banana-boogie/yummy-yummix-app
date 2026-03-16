@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, TouchableOpacity, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Tabs, Redirect, usePathname, Link } from 'expo-router';
@@ -154,6 +154,15 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
     );
   };
 
+  const handleTabPress = useCallback((tabName: string, isActive: boolean) => {
+    if (isActive) {
+      navigation.emit({ type: 'tabPress', target: state.routes[state.index]?.key ?? '' });
+      navigation.navigate(tabName, { screen: 'index' });
+    } else {
+      navigation.navigate(tabName);
+    }
+  }, [navigation, state]);
+
   // Don't show tab bar on mobile web or when it should be hidden based on route
   if ((isWeb && isPhone) || !showTabBar) return null;
 
@@ -179,15 +188,7 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
             <TouchableOpacity
               key={tab.name}
               className="items-center justify-center py-xxs"
-              onPress={() => {
-                if (isActive) {
-                  // Pop to root of current tab on re-tap
-                  navigation.emit({ type: 'tabPress', target: state.routes[state.index]?.key ?? '' });
-                  navigation.navigate(tab.name, { screen: 'index' });
-                } else {
-                  navigation.navigate(tab.name);
-                }
-              }}
+              onPress={() => handleTabPress(tab.name, isActive)}
               activeOpacity={0.7}
               style={{ minWidth: SPACING.xxl }}
             >

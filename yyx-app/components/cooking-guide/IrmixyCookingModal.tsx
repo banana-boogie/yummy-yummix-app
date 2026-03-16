@@ -41,11 +41,6 @@ interface IrmixyCookingModalProps {
 const keyExtractor = (item: ChatMessage) => item.id;
 const LIST_CONTENT_STYLE = { padding: 16, flexGrow: 1 };
 
-let msgCounter = 0;
-function nextMsgId(prefix: string): string {
-    return `${prefix}-${Date.now()}-${++msgCounter}`;
-}
-
 export function IrmixyCookingModal({
     visible,
     onClose,
@@ -65,6 +60,9 @@ export function IrmixyCookingModal({
     const [isLoading, setIsLoading] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
     const streamCancelRef = useRef<(() => void) | null>(null);
+    const msgCounterRef = useRef(0);
+    const nextMsgId = useCallback((prefix: string) =>
+        `${prefix}-${Date.now()}-${++msgCounterRef.current}`, []);
 
     // Speech recognition
     const setInputTextRef = useRef<(text: string) => void>(() => {});
