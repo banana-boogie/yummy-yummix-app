@@ -29,6 +29,8 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import i18n from '@/i18n';
+import { chat as chatEn } from '@/i18n/locales/en/chat';
+import { chat as chatEs } from '@/i18n/locales/es/chat';
 
 const SCROLL_DELAY_MS = 100;
 
@@ -198,9 +200,10 @@ export function ChatScreen({
     });
 
     // --- Cycling greeting for empty state ---
+    // Access greeting arrays directly (i18n-js doesn't support returnObjects)
+    const greetingLocale = locale.startsWith('es') ? chatEs : chatEn;
     const greetingKey = userProfile?.name ? 'withName' : 'withoutName';
-    const greetings = i18n.t(`chat.greetingCycling.${greetingKey}`, { returnObjects: true }) as unknown as string[];
-    const greetingList = Array.isArray(greetings) ? greetings : [i18n.t('chat.greeting')];
+    const greetingList = greetingLocale.greetingCycling[greetingKey];
     const [greetingIndex, setGreetingIndex] = useState(() => Math.floor(Math.random() * greetingList.length));
 
     useEffect(() => {

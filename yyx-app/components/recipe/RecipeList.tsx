@@ -23,8 +23,6 @@ interface RecipeListProps {
   style?: StyleProp<ViewStyle>;
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   contentContainerStyle?: StyleProp<ViewStyle>;
-  /** Current search query — used to pre-fill Irmixy chat on empty state CTA */
-  searchQuery?: string;
 }
 
 // Memoized item wrapper - defined outside component to prevent recreation
@@ -51,7 +49,6 @@ export const RecipeList: React.FC<RecipeListProps> = ({
   style,
   onScroll,
   contentContainerStyle,
-  searchQuery,
 }) => {
   const { isPhone } = useDevice();
   const router = useRouter();

@@ -10,6 +10,7 @@ import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { RecipeCard, UserContext } from "../irmixy-schemas.ts";
 import { embed } from "../ai-gateway/index.ts";
 import { pickTranslation } from "../locale-utils.ts";
+import { wordStartMatch } from "../text-utils.ts";
 
 // ============================================================
 // Query Embedding Cache (per-instance, best-effort)
@@ -152,15 +153,6 @@ async function semanticSearch(
 // ============================================================
 // Scoring Functions
 // ============================================================
-
-/**
- * Check if any word in `text` starts with `term`.
- * Prevents "ice" from matching "r**ice**" — only matches "ice cream".
- */
-function wordStartMatch(text: string, term: string): boolean {
-  const words = text.split(/\s+/);
-  return words.some((word) => word.startsWith(term));
-}
 
 /**
  * Compute normalized lexical score for a recipe against a query.

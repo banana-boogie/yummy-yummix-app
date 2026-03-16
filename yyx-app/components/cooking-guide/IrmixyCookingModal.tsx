@@ -5,7 +5,7 @@
  * Uses a lightweight chat interface with recipe context passed to the
  * orchestrator so Irmixy knows which recipe/step the user is on.
  */
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
     View,
     Modal,
@@ -39,6 +39,12 @@ interface IrmixyCookingModalProps {
 }
 
 const keyExtractor = (item: ChatMessage) => item.id;
+const LIST_CONTENT_STYLE = { padding: 16, flexGrow: 1 };
+
+let msgCounter = 0;
+function nextMsgId(prefix: string): string {
+    return `${prefix}-${Date.now()}-${++msgCounter}`;
+}
 
 export function IrmixyCookingModal({
     visible,
@@ -68,9 +74,11 @@ export function IrmixyCookingModal({
     });
     setInputTextRef.current = setInputText;
 
-    // Reset state when modal opens
+    // Reset state when modal opens; cancel any in-flight stream first
     useEffect(() => {
         if (visible) {
+            streamCancelRef.current?.();
+            streamCancelRef.current = null;
             setMessages([]);
             setInputText('');
             setIsLoading(false);
@@ -84,16 +92,14 @@ export function IrmixyCookingModal({
 
         stopAndGuard();
 
-        // Add user message
         const userMessage: ChatMessage = {
-            id: `user-${Date.now()}`,
+            id: nextMsgId('user'),
             role: 'user',
             content: text,
             createdAt: new Date(),
         };
 
-        // Add placeholder assistant message
-        const assistantId = `assistant-${Date.now()}`;
+        const assistantId = nextMsgId('assistant');
         const assistantMessage: ChatMessage = {
             id: assistantId,
             role: 'assistant',
@@ -171,6 +177,22 @@ export function IrmixyCookingModal({
         />
     ), []);
 
+    const emptyComponent = useMemo(() => (
+        <View className="flex-1 justify-center items-center pt-xxxl">
+            <Image
+                source={require('@/assets/images/irmixy-avatar/irmixy-face.png')}
+                style={{ width: 80, height: 80, borderRadius: 40 }}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+            />
+            <View className="mt-md bg-primary-lightest rounded-xl px-md py-sm" style={{ maxWidth: 260 }}>
+                <Text className="text-text-primary text-center text-base">
+                    {i18n.t('chat.cookingModal.greeting')}
+                </Text>
+            </View>
+        </View>
+    ), []);
+
     return (
         <Modal
             visible={visible}
@@ -195,7 +217,7 @@ export function IrmixyCookingModal({
                             cachePolicy="memory-disk"
                         />
                         <View className="ml-sm flex-1">
-                            <Text className="font-semibold text-text-primary">Irmixy</Text>
+                            <Text className="font-semibold text-text-primary">{i18n.t('chat.title')}</Text>
                             <Text className="text-xs text-text-secondary" numberOfLines={1}>
                                 {i18n.t('chat.cookingModal.contextHint', {
                                     recipeName,
@@ -208,7 +230,7 @@ export function IrmixyCookingModal({
                     <TouchableOpacity
                         onPress={onClose}
                         className="w-10 h-10 items-center justify-center"
-                        accessibilityLabel="Close"
+                        accessibilityLabel={i18n.t('common.close')}
                         accessibilityRole="button"
                     >
                         <MaterialCommunityIcons name="close" size={24} color={COLORS.text.secondary} />
@@ -221,22 +243,8 @@ export function IrmixyCookingModal({
                     data={messages}
                     renderItem={renderMessage}
                     keyExtractor={keyExtractor}
-                    contentContainerStyle={{ padding: 16, flexGrow: 1 }}
-                    ListEmptyComponent={
-                        <View className="flex-1 justify-center items-center pt-xxxl">
-                            <Image
-                                source={require('@/assets/images/irmixy-avatar/irmixy-face.png')}
-                                style={{ width: 80, height: 80, borderRadius: 40 }}
-                                contentFit="cover"
-                                cachePolicy="memory-disk"
-                            />
-                            <View className="mt-md bg-primary-lightest rounded-xl px-md py-sm" style={{ maxWidth: 260 }}>
-                                <Text className="text-text-primary text-center text-base">
-                                    {i18n.t('chat.cookingModal.greeting')}
-                                </Text>
-                            </View>
-                        </View>
-                    }
+                    contentContainerStyle={LIST_CONTENT_STYLE}
+                    ListEmptyComponent={emptyComponent}
                     onContentSizeChange={() => {
                         if (messages.length > 0) {
                             flatListRef.current?.scrollToEnd({ animated: true });

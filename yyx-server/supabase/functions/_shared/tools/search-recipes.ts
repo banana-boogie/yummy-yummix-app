@@ -25,6 +25,7 @@ import { normalizeIngredient } from "../ingredient-normalization.ts";
 import { searchRecipesHybrid } from "../rag/hybrid-search.ts";
 import { validateSearchRecipesParams } from "./tool-validators.ts";
 import { getBaseLanguage, pickTranslation } from "../locale-utils.ts";
+import { wordStartMatch } from "../text-utils.ts";
 
 // ============================================================
 // Types for Supabase query results
@@ -638,15 +639,6 @@ function scoreByQuery(
   scored.sort((a, b) => b.score - a.score);
 
   return scored.map((s) => s.card);
-}
-
-/**
- * Check if any word in `text` starts with `term`.
- * Prevents "ice" from matching "r**ice**" — only matches "ice cream".
- */
-function wordStartMatch(text: string, term: string): boolean {
-  const words = text.split(/\s+/);
-  return words.some((word) => word.startsWith(term));
 }
 
 function getSearchTerms(query: string): string[] {

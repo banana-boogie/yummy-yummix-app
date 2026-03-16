@@ -7,6 +7,7 @@ export const common = {
   save: "Guardar Cambios",
   saved: "Guardado",
   back: "Atrás",
+  close: "Cerrar",
   remove: "Eliminar",
   cancel: "Cancelar",
   dismiss: "Cerrar",

@@ -41,7 +41,7 @@ export const useRecipes = (initialFilters: RecipeFilters = { isPublished: true }
 
   // Semantic search fallback state
   const [semanticResults, setSemanticResults] = useState<Recipe[]>([]);
-  const semanticDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const primaryCountRef = useRef(0);
 
   const {
     data,
@@ -76,23 +76,27 @@ export const useRecipes = (initialFilters: RecipeFilters = { isPublished: true }
     });
   }, [data, searchInput]);
 
+  // Track primary count in a ref to avoid unstable dependency
+  primaryCountRef.current = primaryRecipes.length;
+
   // Fire semantic search fallback when primary results < 3 and query > 3 chars
   useEffect(() => {
-    // Clear previous debounce
-    if (semanticDebounceRef.current) {
-      clearTimeout(semanticDebounceRef.current);
-      semanticDebounceRef.current = null;
-    }
+    let isCancelled = false;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
 
     const term = debouncedSearchTerm;
-    if (!term || term.length <= 3 || primaryRecipes.length >= 3 || isLoading) {
+    if (!term || term.length <= 3 || isLoading) {
       setSemanticResults([]);
       return;
     }
 
-    semanticDebounceRef.current = setTimeout(async () => {
+    timerId = setTimeout(async () => {
+      // Check primary count at execution time (via ref) to avoid dependency instability
+      if (primaryCountRef.current >= 3 || isCancelled) return;
+
       try {
         const results = await semanticRecipeSearch(term, language, 10);
+        if (isCancelled) return;
         // Convert semantic results to Recipe-like objects for merging
         const asRecipes: Recipe[] = results.map((r) => ({
           id: r.recipeId,
@@ -107,16 +111,15 @@ export const useRecipes = (initialFilters: RecipeFilters = { isPublished: true }
         }));
         setSemanticResults(asRecipes);
       } catch {
-        setSemanticResults([]);
+        if (!isCancelled) setSemanticResults([]);
       }
     }, 500);
 
     return () => {
-      if (semanticDebounceRef.current) {
-        clearTimeout(semanticDebounceRef.current);
-      }
+      isCancelled = true;
+      if (timerId) clearTimeout(timerId);
     };
-  }, [debouncedSearchTerm, primaryRecipes.length, isLoading, language]);
+  }, [debouncedSearchTerm, isLoading, language]);
 
   // Merge primary + semantic, deduplicating by ID
   const recipes = useMemo(() => {

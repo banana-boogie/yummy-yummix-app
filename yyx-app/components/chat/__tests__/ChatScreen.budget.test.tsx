@@ -54,11 +54,29 @@ jest.mock('@/contexts/AuthContext', () => ({
 }));
 
 jest.mock('@/contexts/LanguageContext', () => ({
-  useLanguage: () => ({ language: 'en' }),
+  useLanguage: () => ({ language: 'en', locale: 'en' }),
 }));
 
 jest.mock('@/contexts/UserProfileContext', () => ({
   useUserProfile: () => ({ userProfile: { name: 'TestUser' }, loading: false, error: null }),
+}));
+
+jest.mock('@/i18n/locales/en/chat', () => ({
+  chat: {
+    greetingCycling: {
+      withName: ['Hi {{name}}, what are we cooking today?'],
+      withoutName: ['Hi, what are we cooking today?'],
+    },
+  },
+}));
+
+jest.mock('@/i18n/locales/es/chat', () => ({
+  chat: {
+    greetingCycling: {
+      withName: ['Hola {{name}}, ¿qué cocinamos hoy?'],
+      withoutName: ['¡Hola! ¿Qué cocinamos hoy?'],
+    },
+  },
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
