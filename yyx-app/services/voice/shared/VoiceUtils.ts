@@ -34,9 +34,6 @@ export class InactivityTimer {
   private timeoutId: NodeJS.Timeout | null = null;
   private readonly timeoutMs: number;
   private paused = false;
-  private pausedCallback: (() => void) | null = null;
-  private pausedRemainingMs: number = 0;
-  private pausedAt: number = 0;
 
   constructor(timeoutMs: number = 10000) {
     this.timeoutMs = timeoutMs;
@@ -48,21 +45,16 @@ export class InactivityTimer {
    */
   reset(callback: () => void): void {
     this.clear();
-    this.paused = false;
-    this.pausedCallback = null;
     this.timeoutId = setTimeout(callback, this.timeoutMs);
   }
 
   /**
    * Pause the timer (e.g., during tool execution).
-   * Saves remaining time so resume() can restart with correct duration.
+   * Restarts with full duration on resume since tool execution >> remaining time.
    */
   pause(): void {
     if (this.paused || !this.timeoutId) return;
     this.paused = true;
-    this.pausedAt = Date.now();
-    // We can't read remaining time from setTimeout, so store the callback
-    // and restart with full duration on resume (tool execution >> remaining time anyway)
     clearTimeout(this.timeoutId);
     this.timeoutId = null;
   }
@@ -74,7 +66,6 @@ export class InactivityTimer {
   resume(callback: () => void): void {
     if (!this.paused) return;
     this.paused = false;
-    this.pausedCallback = null;
     this.timeoutId = setTimeout(callback, this.timeoutMs);
   }
 
@@ -92,6 +83,5 @@ export class InactivityTimer {
       this.timeoutId = null;
     }
     this.paused = false;
-    this.pausedCallback = null;
   }
 }

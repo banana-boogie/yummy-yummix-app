@@ -9,6 +9,7 @@ export const common = {
   back: "Atrás",
   remove: "Eliminar",
   cancel: "Cancelar",
+  dismiss: "Cerrar",
   import: "Import",
   done: "Listo",
   selectDate: "Seleccionar Fecha",

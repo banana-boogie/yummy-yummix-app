@@ -13,6 +13,7 @@ export const common = {
   done: "Done",
   next: "Next",
   delete: "Delete",
+  dismiss: "Dismiss",
   selectDate: "Select Date",
   showAll: "Show {{count}} more",
   showLess: "Show less",

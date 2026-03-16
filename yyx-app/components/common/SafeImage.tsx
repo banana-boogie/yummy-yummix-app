@@ -44,10 +44,15 @@ export function SafeImage({
 }: SafeImageProps) {
   const [hasError, setHasError] = useState(false);
 
+  // Stable key for source identity — avoids re-triggering on new object references
+  const sourceKey = typeof source === 'string' ? source
+    : typeof source === 'number' ? source
+    : source?.uri ?? null;
+
   // Reset error state when source changes
   useEffect(() => {
     setHasError(false);
-  }, [source]);
+  }, [sourceKey]);
 
   const normalized = normalizeSource(source);
   const usePlaceholder = normalized == null || hasError;

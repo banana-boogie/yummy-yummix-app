@@ -96,7 +96,7 @@ Deno.test('StreamingToolCallFilter: flushes large false positive buffer', () => 
   const output: string[] = [];
   const filter = new StreamingToolCallFilter((text) => output.push(text));
 
-  // Start with '{' which triggers buffering, then add enough non-matching text
+  // Start with '{' at stream start (charsFlushed=0) which triggers buffering
   filter.push('{');
   const padding = 'a'.repeat(101);
   filter.push(padding);
@@ -123,12 +123,21 @@ Deno.test('StreamingToolCallFilter: abort discards buffer', () => {
   const filter = new StreamingToolCallFilter((text) => output.push(text));
 
   filter.push('Normal text');
-  filter.push('{');
+  filter.push('\n{"query":');
   filter.push('partial');
   filter.abort();
 
   // Only the normal text passed through before buffering started
   assertEquals(output, ['Normal text']);
+});
+
+Deno.test('StreamingToolCallFilter: mid-stream { passes through (not buffered)', () => {
+  const output: string[] = [];
+  const filter = new StreamingToolCallFilter((text) => output.push(text));
+
+  filter.push('Use {ingredient} for best results');
+
+  assertEquals(output, ['Use {ingredient} for best results']);
 });
 
 Deno.test('StreamingToolCallFilter: mixed content with tool call at end', () => {

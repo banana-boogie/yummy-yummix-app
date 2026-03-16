@@ -57,6 +57,7 @@ export function stripToolCallText(text: string): string {
 export class StreamingToolCallFilter {
   private buffer = "";
   private buffering = false;
+  private charsFlushed = 0;
   private readonly onFlush: (text: string) => void;
   private readonly disabled: boolean;
 
@@ -101,6 +102,7 @@ export class StreamingToolCallFilter {
       // Buffer too large without match -> false positive, flush everything
       if (this.buffer.length > StreamingToolCallFilter.MAX_BUFFER) {
         const flushed = this.buffer;
+        this.charsFlushed += flushed.length;
         this.buffer = "";
         this.buffering = false;
         this.onFlush(flushed);
@@ -118,6 +120,7 @@ export class StreamingToolCallFilter {
     }
 
     // Normal token — pass through immediately
+    this.charsFlushed += token.length;
     this.onFlush(token);
   }
 
@@ -128,18 +131,27 @@ export class StreamingToolCallFilter {
     }
     this.buffer = "";
     this.buffering = false;
+    this.charsFlushed = 0;
   }
 
   /** Call on abort — discard buffer entirely. */
   abort(): void {
     this.buffer = "";
     this.buffering = false;
+    this.charsFlushed = 0;
   }
 
   private shouldStartBuffering(token: string): boolean {
     const trimmed = token.trimStart();
     if (trimmed.startsWith("<")) return true; // XML-style <tool_calls>
-    if (trimmed.startsWith("{")) return true; // JSON object start
+
+    // Only buffer `{` at stream start or after a newline — avoids false positives
+    // on legitimate `{` mid-sentence (e.g., "Use {ingredient} for best results")
+    if (trimmed.startsWith("{")) {
+      const isStreamStart = this.charsFlushed === 0;
+      const afterNewline = token.startsWith("\n") || token.startsWith("\r");
+      if (isStreamStart || afterNewline) return true;
+    }
 
     // Check if token starts with a tool name
     for (const name of TOOL_NAMES) {

@@ -398,6 +398,26 @@ Deno.test("grace buffer - custom grace percentage works", () => {
   assertEquals(pastGrace.allowed, false); // Beyond effective limit
 });
 
+Deno.test("grace buffer - 111% of budget (beyond 10% grace) is blocked", () => {
+  _clearTierCache();
+  _setTierCacheForTesting(TIERS);
+
+  // 111% of $2.00 = $2.22, effective limit = $2.00 * 1.10 = $2.20
+  const result = _computeTextBudgetResult("premium", 2.22);
+  assertEquals(result.allowed, false);
+  assertEquals(result.remainingUsd, 0);
+});
+
+Deno.test("grace buffer - 111% of voice budget (beyond 10% grace) is blocked", () => {
+  _clearTierCache();
+  _setTierCacheForTesting(TIERS);
+
+  // 111% of 30 minutes = 33.3, effective limit = 30 * 1.10 = 33
+  const result = _computeVoiceBudgetResult("premium", 33.3);
+  assertEquals(result.allowed, false);
+  assertEquals(result.remainingMinutes, 0);
+});
+
 Deno.test("grace buffer - zero grace behaves like strict budget", () => {
   _clearTierCache();
   _setTierCacheForTesting(TIERS_NO_GRACE);

@@ -64,7 +64,7 @@ export function ReturnToCookingBanner() {
         <Pressable
           onPress={handleDismiss}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          accessibilityLabel="Dismiss"
+          accessibilityLabel={i18n.t('common.dismiss')}
           accessibilityRole="button"
           className="p-xs"
         >

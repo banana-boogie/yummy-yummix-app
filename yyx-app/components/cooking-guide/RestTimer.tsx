@@ -84,22 +84,22 @@ export function RestTimer({ instruction }: RestTimerProps) {
         if (!isRunning) return;
 
         intervalRef.current = setInterval(() => {
-            setRemainingSeconds(prev => {
-                if (prev <= 1) {
-                    setIsRunning(false);
-                    setIsComplete(true);
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                    if (intervalRef.current) clearInterval(intervalRef.current);
-                    return 0;
-                }
-                return prev - 1;
-            });
+            setRemainingSeconds(prev => (prev <= 1 ? 0 : prev - 1));
         }, 1000);
 
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
     }, [isRunning]);
+
+    // Completion handler — separate from the interval to avoid race conditions
+    useEffect(() => {
+        if (isRunning && remainingSeconds === 0) {
+            setIsRunning(false);
+            setIsComplete(true);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+    }, [remainingSeconds, isRunning]);
 
     const handleStartPause = useCallback(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
