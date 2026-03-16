@@ -25,7 +25,8 @@
     "pipeline:translate": "deno task pipeline:translate",
     "pipeline:images": "deno task pipeline:images",
     "pipeline:scan": "deno task pipeline:scan",
-    "pipeline:backfill": "deno task pipeline:backfill-translations"
+    "pipeline:backfill": "deno task pipeline:backfill-translations",
+    "pipeline:upload-images": "deno task pipeline:upload-images"
   },
   "devDependencies": {
     "@types/deno": "^2.2.0"

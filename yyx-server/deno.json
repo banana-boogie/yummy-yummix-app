@@ -24,7 +24,8 @@
     "pipeline:images": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/list-missing-images.ts",
     "pipeline:translate": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/translate-content.ts",
     "pipeline:scan": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/scan-entities.ts",
-    "pipeline:backfill-translations": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/backfill-translations.ts"
+    "pipeline:backfill-translations": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/backfill-translations.ts",
+    "pipeline:upload-images": "deno run --allow-net --allow-read --allow-write --allow-env data-pipeline/cli/upload-images.ts"
   },
   "lint": {
     "include": ["supabase/functions/", "data-pipeline/"],

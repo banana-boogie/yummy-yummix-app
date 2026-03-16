@@ -15,6 +15,7 @@ Run from `yyx-server/`:
 | `npm run pipeline:backfill -- --local` | Backfill es-ES (Spain Spanish) translations |
 | `npm run pipeline:images -- --local --type all` | List entities missing images |
 | `npm run pipeline:scan -- --local --dir ../path/to/RECIPES` | Scan Notion export for entities |
+| `npm run pipeline:upload-images -- --local --dir ../path/to/images` | Upload ingredient images from folder |
 
 All commands also work with `deno task` directly (e.g., `deno task pipeline:audit --local`).
 
@@ -126,6 +127,31 @@ npm run pipeline:images -- --local --type ingredient --format csv --output ./mis
 
 Types: `ingredient`, `recipe`, `kitchen_tool`, `all`.
 
+### Upload Ingredient Images (`pipeline:upload-images`)
+
+Uploads PNG images from a folder to Supabase storage and links them to database ingredients. For each image: matches or creates the ingredient, uploads the image, and optionally backfills translations and nutrition.
+
+```bash
+# Dry run first — see what would happen
+npm run pipeline:upload-images -- --local --dir /path/to/images --dry-run
+
+# Upload 5 to test
+npm run pipeline:upload-images -- --local --dir /path/to/images --limit 5
+
+# Full upload (overwrite existing images)
+npm run pipeline:upload-images -- --local --dir /path/to/images --force
+
+# Skip nutrition backfill
+npm run pipeline:upload-images -- --local --dir /path/to/images --skip-nutrition
+```
+
+**Key behaviors:**
+- Filenames become ingredient names: `carne_de_cerdo.png` → "Carne de cerdo"
+- Matches against existing DB ingredients (EN and ES, fuzzy)
+- Creates new ingredients when no match found (auto-translates EN↔ES + plurals)
+- Skips upload if ingredient already has an image (use `--force` to overwrite)
+- Backfills nutrition for new/missing ingredients (use `--skip-nutrition` to disable)
+
 ### Scan Entities (`pipeline:scan`)
 
 Scans Notion markdown exports and cross-references against the database to find new ingredients, tags, and kitchen tools that would need to be created during import.
@@ -145,7 +171,8 @@ data-pipeline/
 │   ├── translate-content.ts      # EN/ES translation
 │   ├── backfill-translations.ts  # es-ES backfill
 │   ├── list-missing-images.ts    # Missing image manifest
-│   └── scan-entities.ts          # Notion entity scanner
+│   ├── scan-entities.ts          # Notion entity scanner
+│   └── upload-images.ts         # Ingredient image uploader
 ├── lib/                          # Shared libraries
 │   ├── db.ts                     # All Supabase CRUD operations
 │   ├── config.ts                 # Environment + API key loading
