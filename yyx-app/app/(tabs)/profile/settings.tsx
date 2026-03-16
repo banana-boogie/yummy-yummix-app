@@ -9,6 +9,7 @@ import { useUserProfile } from '@/contexts/UserProfileContext';
 import { MeasurementSystem } from '@/types/user';
 import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
 import { SystemButtons } from '@/components/settings/SystemButtons';
+import { IrmixyUsageCard } from '@/components/settings/IrmixyUsageCard';
 import { DangerButton } from '@/components/common/DangerButton';
 import { StatusModal } from '@/components/common/StatusModal';
 import { HeaderWithBack } from '@/components/common/HeaderWithBack';
@@ -100,6 +101,8 @@ export default function Settings() {
 
   return (
     <PageLayout header={<HeaderWithBack title={i18n.t('settings.title')} />}>
+      <IrmixyUsageCard />
+
       <SystemButtons
         language={language}
         onLanguageChange={handleLanguageChange}

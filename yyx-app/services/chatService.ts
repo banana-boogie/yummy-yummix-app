@@ -232,12 +232,6 @@ export function routeSSEMessage(
             return { action: 'continue' };
 
         case 'recipe_partial':
-            if (__DEV__) {
-                console.log('[SSE] recipe_partial event received:', {
-                    hasRecipe: !!data.recipe,
-                    recipeName: (data.recipe as any)?.suggestedName,
-                });
-            }
             try {
                 if (data.recipe) {
                     callbacks.onPartialRecipe?.(data.recipe as GeneratedRecipe);
@@ -248,14 +242,6 @@ export function routeSSEMessage(
             return { action: 'continue' };
 
         case 'done':
-            if (__DEV__) {
-                console.log('[SSE] done event received:', {
-                    hasResponse: !!data.response,
-                    responseKeys: data.response ? Object.keys(data.response as object) : [],
-                    hasCustomRecipe: !!(data.response as any)?.customRecipe,
-                    customRecipeName: (data.response as any)?.customRecipe?.suggestedName,
-                });
-            }
             try {
                 if (data.response) {
                     callbacks.onComplete?.(data.response as IrmixyResponse);
@@ -406,11 +392,6 @@ export function sendMessage(
 
                         try {
                             const json = JSON.parse(event.data);
-
-                            // Debug: log important SSE events
-                            if (__DEV__ && (json.type === 'done' || json.type === 'recipe_partial')) {
-                                console.log('[SSE] Raw message:', JSON.stringify(json).substring(0, 500));
-                            }
 
                             const routeResult = routeSSEMessage(json, {
                                 onChunk,
@@ -581,7 +562,7 @@ export async function loadChatSessions(): Promise<
         .select('id, title, created_at, source')
         .eq('user_id', userData.user.id)
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(10);
 
     if (error) throw error;
 

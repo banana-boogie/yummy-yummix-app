@@ -5,7 +5,7 @@
  * followed by other equipment options.
  */
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, Pressable, StyleProp, ViewStyle, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, ScrollView, Pressable, StyleProp, ViewStyle, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -129,9 +129,12 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
                 : 'bg-background-secondary border-transparent'
             }`}
           >
-            <Text className="text-4xl mr-md">
-              {EQUIPMENT_CONFIG.thermomix.icon}
-            </Text>
+            <Image
+              source={EQUIPMENT_CONFIG.thermomix.icon}
+              style={{ width: 48, height: 48 }}
+              resizeMode="contain"
+              className="mr-md"
+            />
             <View className="flex-1">
               <Text preset="subheading">
                 {i18n.t('onboarding.steps.equipment.thermomix.name')}
@@ -199,7 +202,12 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
                         : 'bg-background-secondary'
                     }`}
                   >
-                    <Text className="text-2xl mr-md">{config.icon}</Text>
+                    <Image
+                      source={config.icon}
+                      style={{ width: 36, height: 36 }}
+                      resizeMode="contain"
+                      className="mr-md"
+                    />
                     <Text className="flex-1">
                       {i18n.t(`onboarding.steps.equipment.${type}.name`)}
                     </Text>

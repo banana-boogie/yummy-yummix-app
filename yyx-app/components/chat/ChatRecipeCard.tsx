@@ -5,10 +5,9 @@
  */
 import React, { memo } from 'react';
 import { View, TouchableOpacity } from 'react-native';
-import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Text } from '@/components/common/Text';
+import { Text, SafeImage } from '@/components/common';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { RecipeCard } from '@/types/irmixy';
 import i18n from '@/i18n';
@@ -63,31 +62,23 @@ export const ChatRecipeCard = memo(function ChatRecipeCard({ recipe }: ChatRecip
             style={{ maxWidth: 280 }}
             activeOpacity={0.7}
         >
-            {/* Hero image */}
+            {/* Hero image — only shown when recipe has a photo */}
             {recipe.imageUrl ? (
                 <View
                     style={{ width: '100%', height: HERO_IMAGE_HEIGHT, backgroundColor: COLORS.background.secondary }}
                     pointerEvents="none"
                 >
-                    <Image
-                        source={{ uri: recipe.imageUrl }}
+                    <SafeImage
+                        source={recipe.imageUrl}
+                        placeholder="recipe"
                         style={{ width: '100%', height: HERO_IMAGE_HEIGHT }}
                         contentFit="cover"
                         cachePolicy="memory-disk"
                         recyclingKey={recipe.recipeId}
                         transition={0}
-                        placeholder={null}
                     />
                 </View>
-            ) : (
-                <View
-                    style={{ height: HERO_IMAGE_HEIGHT }}
-                    className="w-full bg-background-secondary items-center justify-center"
-                    pointerEvents="none"
-                >
-                    <MaterialCommunityIcons name="food" size={40} color={COLORS.grey.medium} />
-                </View>
-            )}
+            ) : null}
 
             {/* Content */}
             <View className="p-md">

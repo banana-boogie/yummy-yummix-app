@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/common/Text';
 import { IrmixyAvatar } from '@/components/chat/IrmixyAvatar';
 import { TypingDots } from '@/components/chat/TypingIndicator';
+import { SearchingAnimation } from '@/components/chat/SearchingAnimation';
 import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
 import { ChatResumeBar } from '@/components/chat/ChatResumeBar';
 import { ChatInputBar } from '@/components/chat/ChatInputBar';
@@ -127,11 +128,16 @@ export function ChatScreen({
     const handleBudgetWarning = useCallback((_warning: BudgetWarningPayload) => {
         if (budgetWarningShownRef.current) return;
         budgetWarningShownRef.current = true;
-        Alert.alert(
-            i18n.t('chat.budget.warningTitle'),
-            i18n.t('chat.budget.warningDetailed'),
-        );
-    }, []);
+
+        // Inject a warm Irmixy chat message instead of a system Alert
+        const warningMessage: ChatMessage = {
+            id: `budget-warning-${Date.now()}`,
+            role: 'assistant',
+            content: i18n.t('chat.budget.warmWarning'),
+            createdAt: new Date(),
+        };
+        setMessages((prev) => [...prev, warningMessage]);
+    }, [setMessages]);
 
     const handleBudgetExceeded = useCallback(() => {
         setIsBudgetExceeded(true);
@@ -349,8 +355,13 @@ export function ChatScreen({
                 </TouchableOpacity>
             )}
 
-            {/* Status indicator with avatar (hidden when recipe tracker is visible) */}
-            {isLoading && !showRecipeTracker && (
+            {/* Prominent centered animation for recipe search */}
+            {isLoading && !showRecipeTracker && currentStatus === 'searching' && (
+                <SearchingAnimation />
+            )}
+
+            {/* Inline status indicator for other statuses (hidden during search + recipe tracker) */}
+            {isLoading && !showRecipeTracker && currentStatus !== 'searching' && (
                 <View className="px-md py-sm">
                     <View className="flex-row items-center">
                         <IrmixyAvatar state={currentStatus ?? 'thinking'} size={40} />

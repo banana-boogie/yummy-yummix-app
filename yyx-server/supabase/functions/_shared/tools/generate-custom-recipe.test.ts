@@ -19,7 +19,10 @@ import {
   validateGenerateRecipeParams,
 } from "./tool-validators.ts";
 import {
+  clearKitchenToolsCache,
   enrichIngredientsWithImages,
+  enrichKitchenTools,
+  fuzzyMatchToolName,
   generateCustomRecipe,
   getSystemPrompt,
   parseThermomixSpeed,
@@ -450,10 +453,37 @@ Deno.test("getSystemPrompt Thermomix section includes temperature and speed guid
   );
 
   assertStringIncludes(prompt, '"37°C"-"120°C"');
-  assertStringIncludes(prompt, "TEMPERATURE GUIDE:");
+  assertStringIncludes(prompt, "TEMPERATURE GUIDE (TM6");
   assertStringIncludes(prompt, "SPEED GUIDE:");
   assertStringIncludes(prompt, "REVERSE");
   assertStringIncludes(prompt, "Above 60°C: max speed 6");
+  assertStringIncludes(prompt, "User has a Thermomix TM6");
+});
+
+Deno.test("getSystemPrompt TM7 section includes extended temperature range and open cooking", () => {
+  const prompt = getSystemPrompt(
+    createMockUserContext({
+      measurementSystem: "metric",
+      kitchenEquipment: ["thermomix_TM7"],
+    }),
+  );
+
+  assertStringIncludes(prompt, '"37°C"-"160°C"');
+  assertStringIncludes(prompt, "TEMPERATURE GUIDE (TM7");
+  assertStringIncludes(prompt, "120-160°C");
+  assertStringIncludes(prompt, "OPEN COOKING (TM7 only)");
+  assertStringIncludes(prompt, "User has a Thermomix TM7");
+  assertStringIncludes(prompt, "Cutter+");
+});
+
+Deno.test("getSystemPrompt includes kitchen-friendly measurement minimums", () => {
+  const prompt = getSystemPrompt(
+    createMockUserContext({ measurementSystem: "metric" }),
+  );
+
+  assertStringIncludes(prompt, "Kitchen-friendly minimums");
+  assertStringIncludes(prompt, "min 1/4 tsp");
+  assertStringIncludes(prompt, "Never output sub-gram quantities");
 });
 
 // ============================================================
@@ -1199,4 +1229,271 @@ Deno.test("parseThermomixSpeed accepts reversed order 'spoon reverse'", () => {
 
 Deno.test("parseThermomixSpeed rejects invalid 'turbo'", () => {
   assertEquals(parseThermomixSpeed("turbo"), null);
+});
+
+// ============================================================
+// fuzzyMatchToolName Tests
+// ============================================================
+
+Deno.test("fuzzyMatchToolName matches exact name", () => {
+  const result = fuzzyMatchToolName("Spatula", [
+    { locale: "en", name: "Spatula" },
+  ]);
+  assertEquals(result, true);
+});
+
+Deno.test("fuzzyMatchToolName matches case-insensitively", () => {
+  const result = fuzzyMatchToolName("spatula", [
+    { locale: "en", name: "Silicone Spatula" },
+  ]);
+  assertEquals(result, true);
+});
+
+Deno.test("fuzzyMatchToolName matches when DB name contains LLM name", () => {
+  const result = fuzzyMatchToolName("Knife", [
+    { locale: "en", name: "Chef's Knife" },
+    { locale: "es", name: "Cuchillo de chef" },
+  ]);
+  assertEquals(result, true);
+});
+
+Deno.test("fuzzyMatchToolName matches when LLM name contains DB name", () => {
+  const result = fuzzyMatchToolName("Large Mixing Bowl", [
+    { locale: "en", name: "Bowl" },
+  ]);
+  assertEquals(result, true);
+});
+
+Deno.test("fuzzyMatchToolName matches via word overlap", () => {
+  const result = fuzzyMatchToolName("Cutting Board", [
+    { locale: "en", name: "Wooden Board" },
+  ]);
+  assertEquals(result, true);
+});
+
+Deno.test("fuzzyMatchToolName does not match unrelated tools", () => {
+  const result = fuzzyMatchToolName("Spatula", [
+    { locale: "en", name: "Oven Mitt" },
+    { locale: "es", name: "Guante de horno" },
+  ]);
+  assertEquals(result, false);
+});
+
+Deno.test("fuzzyMatchToolName skips null translation names", () => {
+  const result = fuzzyMatchToolName("Spatula", [
+    { locale: "en", name: null },
+    { locale: "es", name: "Espátula" },
+  ]);
+  // "spatula" and "espátula" — substring match because "spatula" is in "espátula"
+  // Actually espátula contains the accent so let's check
+  assertEquals(result, false); // no match because of accent difference
+});
+
+Deno.test("fuzzyMatchToolName ignores short words (length <= 2)", () => {
+  // "a" and "of" are too short to count as word overlap
+  const result = fuzzyMatchToolName("A Pot", [
+    { locale: "en", name: "A Pan" },
+  ]);
+  // "pot" vs "pan" — no substring match, no word overlap
+  assertEquals(result, false);
+});
+
+// ============================================================
+// enrichKitchenTools Tests
+// ============================================================
+
+function createKitchenToolsMockSupabase(
+  tools: Array<{
+    id: string;
+    image_url: string | null;
+    kitchen_tool_translations: Array<{ locale: string; name: string | null }>;
+  }>,
+) {
+  return {
+    from: (table: string) => {
+      if (table === "kitchen_tools") {
+        return {
+          select: () => ({
+            limit: () => Promise.resolve({ data: tools, error: null }),
+          }),
+        };
+      }
+      return {
+        select: () => ({
+          limit: () => Promise.resolve({ data: [], error: null }),
+        }),
+      };
+    },
+  } as any;
+}
+
+Deno.test("enrichKitchenTools preserves LLM notes and adds DB imageUrl", async () => {
+  clearKitchenToolsCache();
+  const supabase = createKitchenToolsMockSupabase([
+    {
+      id: "1",
+      image_url: "https://example.com/spatula.jpg",
+      kitchen_tool_translations: [{ locale: "en", name: "Spatula" }],
+    },
+  ]);
+
+  const recipe = {
+    suggestedName: "Test Recipe",
+    steps: [{ order: 1, instruction: "Stir the mixture" }],
+    kitchenTools: [{ name: "Spatula", notes: "for folding batter" }],
+  } as any;
+
+  const result = await enrichKitchenTools(supabase, recipe, "en", false);
+
+  assertEquals(result.length, 1);
+  assertEquals(result[0].name, "Spatula");
+  assertEquals(result[0].imageUrl, "https://example.com/spatula.jpg");
+  assertEquals(result[0].notes, "for folding batter");
+});
+
+Deno.test("enrichKitchenTools keeps LLM tools without DB match", async () => {
+  clearKitchenToolsCache();
+  const supabase = createKitchenToolsMockSupabase([]);
+
+  const recipe = {
+    suggestedName: "Test Recipe",
+    steps: [{ order: 1, instruction: "Use the pizza stone" }],
+    kitchenTools: [{ name: "Pizza Stone", notes: "preheat first" }],
+  } as any;
+
+  const result = await enrichKitchenTools(supabase, recipe, "en", false);
+
+  assertEquals(result.length, 1);
+  assertEquals(result[0].name, "Pizza Stone");
+  assertEquals(result[0].notes, "preheat first");
+  assertEquals(result[0].imageUrl, undefined);
+});
+
+Deno.test("enrichKitchenTools gap-fills Varoma for steaming recipes with Thermomix", async () => {
+  clearKitchenToolsCache();
+  const supabase = createKitchenToolsMockSupabase([
+    {
+      id: "varoma-1",
+      image_url: "https://example.com/varoma.jpg",
+      kitchen_tool_translations: [
+        { locale: "en", name: "Varoma" },
+        { locale: "es", name: "Varoma" },
+      ],
+    },
+    {
+      id: "spatula-1",
+      image_url: "https://example.com/spatula.jpg",
+      kitchen_tool_translations: [{ locale: "en", name: "Spatula" }],
+    },
+  ]);
+
+  const recipe = {
+    suggestedName: "Steamed Fish",
+    steps: [{ order: 1, instruction: "Steam the fish for 20 minutes" }],
+    kitchenTools: [{ name: "Spatula" }],
+  } as any;
+
+  const result = await enrichKitchenTools(supabase, recipe, "en", true);
+
+  assertEquals(result.length, 2);
+  assertEquals(result[0].name, "Spatula");
+  assertEquals(result[1].name, "Varoma");
+  assertEquals(result[1].imageUrl, "https://example.com/varoma.jpg");
+});
+
+Deno.test("enrichKitchenTools does not gap-fill Varoma when already in LLM output", async () => {
+  clearKitchenToolsCache();
+  const supabase = createKitchenToolsMockSupabase([
+    {
+      id: "varoma-1",
+      image_url: "https://example.com/varoma.jpg",
+      kitchen_tool_translations: [{ locale: "en", name: "Varoma" }],
+    },
+  ]);
+
+  const recipe = {
+    suggestedName: "Steamed Fish",
+    steps: [{ order: 1, instruction: "Steam the fish for 20 minutes" }],
+    kitchenTools: [{ name: "Varoma", notes: "place fish on tray" }],
+  } as any;
+
+  const result = await enrichKitchenTools(supabase, recipe, "en", true);
+
+  assertEquals(result.length, 1);
+  assertEquals(result[0].name, "Varoma");
+  assertEquals(result[0].notes, "place fish on tray");
+});
+
+Deno.test("enrichKitchenTools deduplicates by name case-insensitively", async () => {
+  clearKitchenToolsCache();
+  const supabase = createKitchenToolsMockSupabase([
+    {
+      id: "1",
+      image_url: "https://example.com/spatula.jpg",
+      kitchen_tool_translations: [{ locale: "en", name: "Spatula" }],
+    },
+  ]);
+
+  const recipe = {
+    suggestedName: "Test Recipe",
+    steps: [{ order: 1, instruction: "Mix" }],
+    kitchenTools: [
+      { name: "Spatula", notes: "first" },
+      { name: "spatula", notes: "duplicate" },
+    ],
+  } as any;
+
+  const result = await enrichKitchenTools(supabase, recipe, "en", false);
+
+  assertEquals(result.length, 1);
+  assertEquals(result[0].notes, "first"); // keeps first occurrence
+});
+
+Deno.test("enrichKitchenTools caps at 8 tools", async () => {
+  clearKitchenToolsCache();
+  // Provide at least one DB tool so the main enrichment path is exercised
+  const supabase = createKitchenToolsMockSupabase([
+    {
+      id: "1",
+      image_url: null,
+      kitchen_tool_translations: [{ locale: "en", name: "Placeholder" }],
+    },
+  ]);
+
+  const recipe = {
+    suggestedName: "Test Recipe",
+    steps: [{ order: 1, instruction: "Cook" }],
+    kitchenTools: Array.from({ length: 10 }, (_, i) => ({
+      name: `Tool ${i + 1}`,
+    })),
+  } as any;
+
+  const result = await enrichKitchenTools(supabase, recipe, "en", false);
+
+  assertEquals(result.length, 8);
+});
+
+Deno.test("enrichKitchenTools uses locale-appropriate translated name from DB", async () => {
+  clearKitchenToolsCache();
+  const supabase = createKitchenToolsMockSupabase([
+    {
+      id: "1",
+      image_url: "https://example.com/spatula.jpg",
+      kitchen_tool_translations: [
+        { locale: "en", name: "Spatula" },
+        { locale: "es", name: "Espátula" },
+      ],
+    },
+  ]);
+
+  const recipe = {
+    suggestedName: "Receta de Prueba",
+    steps: [{ order: 1, instruction: "Mezclar" }],
+    kitchenTools: [{ name: "Spatula" }],
+  } as any;
+
+  const result = await enrichKitchenTools(supabase, recipe, "es", false);
+
+  assertEquals(result.length, 1);
+  assertEquals(result[0].name, "Espátula");
 });

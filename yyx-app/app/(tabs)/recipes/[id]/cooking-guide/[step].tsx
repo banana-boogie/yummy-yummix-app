@@ -3,24 +3,34 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useRecipe } from "@/hooks/useRecipe";
 import { CookingGuideHeader } from "@/components/cooking-guide/CookingGuideHeader";
 import { RecipeStepContent } from "@/components/cooking-guide/RecipeStepContent";
+import { AskIrmixyButton } from "@/components/cooking-guide/AskIrmixyButton";
 import { Text } from "@/components/common/Text";
 import i18n from "@/i18n";
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideStepNavigationButtons';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
 import { eventService } from '@/services/eventService';
+import { useCookingSession } from '@/contexts/CookingSessionContext';
 import { COLORS } from '@/constants/design-tokens';
 
 export default function CookingStep() {
     const { id, step: stepParam } = useLocalSearchParams();
     const { recipe } = useRecipe(id as string);
+    const { updateStep } = useCookingSession();
 
     const currentStepNumber = Number(stepParam);
     const steps = recipe?.steps;
     const currentStep = steps?.[currentStepNumber - 1];
     const totalSteps = steps?.length || 0;
     const isLastStep = currentStepNumber === totalSteps;
+
+    // Keep CookingSessionContext in sync when the step changes
+    useEffect(() => {
+        if (recipe?.name && totalSteps > 0) {
+            updateStep(currentStepNumber);
+        }
+    }, [currentStepNumber, recipe?.name, totalSteps, updateStep]);
 
     const handleNavigation = useMemo(() => ({
         back: () => {
@@ -69,15 +79,25 @@ export default function CookingStep() {
     ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation, recipeContext]);
 
     const footer = useMemo(() => (
-        <StepNavigationButtons
-            onBack={handleNavigation.back}
-            onNext={isLastStep ? handleNavigation.finish : handleNavigation.next}
-            backText={i18n.t('recipes.cookingGuide.navigation.back')}
-            nextText={i18n.t('recipes.cookingGuide.navigation.next')}
-            isLastStep={isLastStep}
-            finishText={i18n.t('recipes.cookingGuide.navigation.finish')}
-        />
-    ), [handleNavigation, isLastStep]);
+        <View>
+            <View className="items-center pb-xs">
+                <AskIrmixyButton
+                    recipeId={id as string}
+                    recipeName={recipe?.name ?? ''}
+                    currentStep={currentStepNumber}
+                    totalSteps={totalSteps}
+                />
+            </View>
+            <StepNavigationButtons
+                onBack={handleNavigation.back}
+                onNext={isLastStep ? handleNavigation.finish : handleNavigation.next}
+                backText={i18n.t('recipes.cookingGuide.navigation.back')}
+                nextText={i18n.t('recipes.cookingGuide.navigation.next')}
+                isLastStep={isLastStep}
+                finishText={i18n.t('recipes.cookingGuide.navigation.finish')}
+            />
+        </View>
+    ), [handleNavigation, isLastStep, id, recipe?.name, currentStepNumber, totalSteps]);
 
     if (!steps || !currentStep) return null;
 

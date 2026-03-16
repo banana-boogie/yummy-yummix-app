@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { Tabs, Redirect, usePathname, Link } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { VoiceSessionProvider } from '@/contexts/VoiceSessionContext';
+import { CookingSessionProvider } from '@/contexts/CookingSessionContext';
 import { useDevice } from '@/hooks/useDevice';
 import { useTabBarVisibility } from '@/hooks/useTabBarVisibility';
 import { COLORS, LAYOUT, SPACING } from '@/constants/design-tokens';
@@ -33,6 +34,7 @@ export default function TabLayout() {
   if (!user) return <Redirect href="/auth/signup" />;
 
   return (
+    <CookingSessionProvider>
     <VoiceSessionProvider>
       <View className="flex-1 flex-row">
         {isLarge && <Sidebar />}
@@ -55,6 +57,7 @@ export default function TabLayout() {
         </Tabs>
       </View>
     </VoiceSessionProvider>
+    </CookingSessionProvider>
   );
 }
 

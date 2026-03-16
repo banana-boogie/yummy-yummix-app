@@ -75,6 +75,7 @@ export const recipes = {
       finish: "Finish",
       next: "Next",
       back: "Back",
+      askIrmixy: "Ask Irmixy",
     },
     miseEnPlace: {
       ingredients: {
@@ -84,6 +85,10 @@ export const recipes = {
         heading: "Kitchen Tools",
       },
     },
+    timerStart: "Start",
+    timerPause: "Pause",
+    timerReset: "Reset",
+    timerDone: "Time's up!",
   },
   share: {
     message: "Check out this recipe on YummyYummix!",

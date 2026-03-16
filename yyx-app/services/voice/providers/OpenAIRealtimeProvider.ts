@@ -70,6 +70,9 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private lastAssistantTranscript: string = '';
   /** Timestamp when AI audio playback completed */
   private lastAudioDoneTime: number = 0;
+  /** Tracks time when audio/speech is active (excludes tool execution pauses) */
+  private toolPauseStart: number = 0;
+  private totalToolPauseMs: number = 0;
 
   /**
    * Initialize a Realtime voice session transport.
@@ -305,7 +308,10 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     this.goodbyeDetected = false;
 
     if (this.sessionStartTime) {
-      const durationSeconds = (Date.now() - this.sessionStartTime) / 1000;
+      // Subtract tool execution pauses from wall-clock time for accurate audio usage
+      const wallClockMs = Date.now() - this.sessionStartTime;
+      const activeMs = wallClockMs - this.totalToolPauseMs;
+      const durationSeconds = Math.max(0, activeMs) / 1000;
 
       // Fire and forget - don't await to keep UI responsive
       this.updateSessionDuration(durationSeconds).catch((err) => {
@@ -339,6 +345,8 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     this.serverInstructions = null;
     this.lastAssistantTranscript = '';
     this.lastAudioDoneTime = 0;
+    this.toolPauseStart = 0;
+    this.totalToolPauseMs = 0;
 
     // Reset token counters for next session
     this.sessionInputTokens = 0;
@@ -578,10 +586,13 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
             name: message.item.name,
             args: "",
           });
-          // Clear inactivity timer — tool execution (especially generate_custom_recipe)
-          // can take 10-15s+. sendToolResult() restarts the timer when the backend returns.
-          // Both success and error paths in the hook call sendToolResult, so no hang risk.
-          this.inactivityTimer.clear();
+          // Pause inactivity timer — tool execution (especially generate_custom_recipe)
+          // can take 10-15s+. Timer resumes in response.audio.done after AI finishes speaking.
+          this.inactivityTimer.pause();
+          // Track tool pause start for accurate usage duration
+          if (!this.toolPauseStart) {
+            this.toolPauseStart = Date.now();
+          }
         }
         break;
 
@@ -664,10 +675,19 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         // AI finished sending audio — don't disconnect on goodbye here;
         // response.done handles it with a delay so the audio buffer can drain.
         if (!this.goodbyeDetected) {
-          // Give user a fresh inactivity window to respond
-          this.inactivityTimer.reset(() => {
-            this.stopConversation();
-          });
+          const stopCallback = () => this.stopConversation();
+          if (this.inactivityTimer.isPaused()) {
+            // Accumulate tool pause duration for accurate usage tracking
+            if (this.toolPauseStart) {
+              this.totalToolPauseMs += Date.now() - this.toolPauseStart;
+              this.toolPauseStart = 0;
+            }
+            // Resume after tool execution — fresh timeout for user to respond
+            this.inactivityTimer.resume(stopCallback);
+          } else {
+            // Normal case — give user a fresh inactivity window
+            this.inactivityTimer.reset(stopCallback);
+          }
         }
         break;
 

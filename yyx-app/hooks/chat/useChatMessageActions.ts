@@ -59,10 +59,6 @@ export function useChatMessageActions({
                 await queryClient.invalidateQueries({ queryKey: customRecipeKeys.all });
             }
 
-            if (__DEV__) {
-                console.log('[ChatScreen] Starting cooking - recipe ID:', recipeId, 'name:', finalName, 'wasAlreadySaved:', !!savedRecipeId);
-            }
-
             router.push(getChatCustomCookingGuidePath(recipeId));
         } catch (error) {
             if (__DEV__) console.error('Failed to save custom recipe:', error);

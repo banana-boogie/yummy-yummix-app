@@ -24,7 +24,7 @@ import {
   checkIngredientsForAllergens,
   enrichIngredientsWithImages,
   GenerateRecipeResult,
-  getRelevantKitchenTools,
+  enrichKitchenTools,
   getSystemPrompt,
   parseAndValidateGeneratedRecipe,
   PartialRecipeCallback,
@@ -295,7 +295,7 @@ export async function modifyRecipe(
         supabase,
         userContext.locale,
       ),
-      getRelevantKitchenTools(
+      enrichKitchenTools(
         supabase,
         recipe,
         userContext.locale,

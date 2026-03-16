@@ -12,6 +12,7 @@ import i18n from '@/i18n';
 
 const CHUNK_BATCH_MS = 50;
 const SCROLL_DELAY_MS = 100;
+const LOADING_TIMEOUT_MS = 60_000; // Force-reset isLoading after 60s (hung SSE recovery)
 
 /** Statuses that indicate recipe generation/modification is in progress */
 const isRecipeToolStatus = (status: IrmixyStatus): boolean =>
@@ -94,6 +95,16 @@ export function useMessageStreaming({
             }
         };
     }, []);
+
+    // Safety net: force-reset loading state if SSE connection hangs
+    useEffect(() => {
+        if (!isLoading) return;
+        const timeoutId = setTimeout(() => {
+            if (__DEV__) console.warn('[Chat] Loading timeout — force-resetting after 60s');
+            resetStreamingState();
+        }, LOADING_TIMEOUT_MS);
+        return () => clearTimeout(timeoutId);
+    }, [isLoading, resetStreamingState]);
 
     /**
      * Helper to find and update the assistant message by ID.
@@ -226,14 +237,6 @@ export function useMessageStreaming({
                 (partialRecipe) => {
                     if (!isActiveRequest()) return;
 
-                    if (__DEV__) {
-                        console.log('[ChatScreen] onPartialRecipe received:', {
-                            recipeName: partialRecipe.suggestedName,
-                            hasIngredients: !!partialRecipe.ingredients?.length,
-                            hasSteps: !!partialRecipe.steps?.length,
-                        });
-                    }
-
                     hasRecipeInCurrentStreamRef.current = true;
 
                     updateAssistantMessage(assistantMessageId, (msg) => ({
@@ -255,18 +258,6 @@ export function useMessageStreaming({
                 // onComplete
                 (response) => {
                     if (!isActiveRequest()) return;
-
-                    if (__DEV__) {
-                        console.log('[ChatScreen] onComplete received:', {
-                            hasMessage: !!response.message,
-                            messagePreview: response.message?.substring(0, 50),
-                            hasCustomRecipe: !!response.customRecipe,
-                            customRecipeName: response.customRecipe?.suggestedName,
-                            hasRecipes: !!response.recipes?.length,
-                            hasActions: !!response.actions?.length,
-                            safetyFlags: response.safetyFlags,
-                        });
-                    }
 
                     if (chunkTimerRef.current) {
                         clearTimeout(chunkTimerRef.current);
@@ -290,16 +281,6 @@ export function useMessageStreaming({
                         }
                         if (response.customRecipe && response.message) {
                             finalContent = response.message;
-                        }
-
-                        if (__DEV__) {
-                            console.log('[ChatScreen] Updated message:', {
-                                messageId: msg.id,
-                                hasCustomRecipe: !!response.customRecipe || !!msg.customRecipe,
-                                recipeName: response.customRecipe?.suggestedName ?? msg.customRecipe?.suggestedName,
-                                hasBufferedContent: !!bufferedContent,
-                                usedResponseMessage: !!((!finalContent || finalContent === response.message) && response.message),
-                            });
                         }
 
                         return {

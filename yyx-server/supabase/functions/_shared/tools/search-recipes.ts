@@ -608,6 +608,17 @@ function scoreByQuery(
       }
     }
 
+    // Soft difficulty signal — easier recipes get a slight boost when no explicit filter
+    // (target audience prefers approachable recipes)
+    if (!difficulty) {
+      const difficultyBoost: Record<string, number> = {
+        easy: 5,
+        medium: 2,
+        hard: 0,
+      };
+      score += difficultyBoost[original.difficulty] ?? 0;
+    }
+
     if (maxTime) {
       if (original.total_time <= maxTime) {
         score += 25;

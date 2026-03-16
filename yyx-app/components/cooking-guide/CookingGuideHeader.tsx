@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BackButton } from '@/components/navigation/BackButton';
 import { HamburgerMenu } from '@/components/navigation/HamburgerMenu';
 import { FONTS, TextPreset, COLORS, SPACING } from '@/constants/design-tokens';
-import { Image } from 'expo-image';
+import { SafeImage } from '@/components/common';
 import { useDevice } from '@/hooks/useDevice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
@@ -66,8 +66,8 @@ export function CookingGuideHeader({
                     style={{ paddingTop: insets.top }}
                 >
                     <View className="w-full h-[120px] lg:h-[250px]">
-                        <Image
-                            source={{ uri: pictureUrl }}
+                        <SafeImage
+                            source={pictureUrl}
                             className="w-full h-full"
                             contentFit="cover"
                             transition={300}

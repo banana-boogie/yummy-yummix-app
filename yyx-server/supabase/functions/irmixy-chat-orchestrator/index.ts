@@ -39,7 +39,11 @@ import { buildSystemPrompt } from "./system-prompt.ts";
 import { callAI, callAIStream } from "./ai-calls.ts";
 import { errorResponse, finalizeResponse } from "./response-builder.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
-import { detectTextToolCall, stripToolCallText } from "./tool-call-text.ts";
+import {
+  detectTextToolCall,
+  StreamingToolCallFilter,
+  stripToolCallText,
+} from "./tool-call-text.ts";
 import {
   BudgetCheckUnavailableError,
   checkTextBudget,
@@ -53,6 +57,8 @@ import type { CostContext } from "../_shared/ai-gateway/types.ts";
 
 const STREAM_TIMEOUT_MS = 30_000;
 const HEARTBEAT_INTERVAL_MS = 15_000;
+const DISABLE_STREAMING_FILTER =
+  Deno.env.get("DISABLE_STREAMING_FILTER") === "true";
 
 /** Build and fire a usage log entry. Keeps orchestrator DRY. */
 function fireUsageLog(
@@ -684,6 +690,10 @@ function handleStreamingRequest(
         // Stream AI response — text first, then tool results arrive in the done event.
         let finalText: string;
         const streamStart = performance.now();
+        const streamFilter = new StreamingToolCallFilter(
+          (text) => send({ type: "content", content: text }),
+          DISABLE_STREAMING_FILTER,
+        );
         try {
           const streamResult = await callAIStream(
             streamMessages,
@@ -693,12 +703,13 @@ function handleStreamingRequest(
                 clearInterval(streamHeartbeatId);
                 heartbeatCleared = true;
               }
-              send({ type: "content", content: token });
+              streamFilter.push(token);
             },
             signal,
             costContext,
           );
           finalText = streamResult.content;
+          streamFilter.end();
 
           fireUsageLog(
             usageContext,
@@ -715,6 +726,7 @@ function handleStreamingRequest(
             },
           );
         } catch (error) {
+          streamFilter.abort();
           fireUsageLog(
             usageContext,
             "response_stream",
@@ -740,6 +752,7 @@ function handleStreamingRequest(
 
         if (signal.aborted) {
           log.info("Request aborted by client (after streaming)");
+          streamFilter.abort();
           clearStreamTimeout();
           safeClose();
           return;

@@ -1,0 +1,149 @@
+/**
+ * RestTimer Component
+ *
+ * Detects "let sit/rest/cool/stand" instructions in recipe steps,
+ * extracts the duration, and offers a countdown timer.
+ */
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Pressable } from 'react-native';
+import { Text } from '@/components/common/Text';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '@/constants/design-tokens';
+import * as Haptics from 'expo-haptics';
+import i18n from '@/i18n';
+
+interface RestTimerProps {
+    instruction: string;
+}
+
+// Rest/wait keywords in English and Spanish
+const REST_KEYWORDS = [
+    'let sit', 'let rest', 'let cool', 'let stand', 'set aside',
+    'allow to rest', 'allow to cool', 'rest for', 'cool for', 'stand for',
+    'wait for', 'let it sit', 'let it rest', 'let it cool',
+    'dejar reposar', 'dejar enfriar', 'dejar descansar', 'dejar asentar',
+    'reposar por', 'enfriar por', 'descansar por', 'esperar',
+];
+
+// Patterns to extract time: "5 minutes", "30 min", "1 hour", "2 horas", etc.
+const TIME_PATTERNS = [
+    /(\d+)\s*(?:minutes?|mins?|minutos?)/i,
+    /(\d+)\s*(?:hours?|hrs?|horas?)/i,
+    /(\d+)\s*(?:seconds?|secs?|segundos?)/i,
+];
+
+/**
+ * Detect rest instruction and extract duration in seconds.
+ * Returns null if no rest detected or no time found.
+ */
+export function detectRestTime(instruction: string): number | null {
+    const lower = instruction.toLowerCase();
+
+    const hasRestKeyword = REST_KEYWORDS.some(kw => lower.includes(kw));
+    if (!hasRestKeyword) return null;
+
+    for (const pattern of TIME_PATTERNS) {
+        const match = lower.match(pattern);
+        if (match) {
+            const value = parseInt(match[1], 10);
+            if (pattern.source.includes('hour')) return value * 3600;
+            if (pattern.source.includes('second')) return value;
+            return value * 60; // minutes
+        }
+    }
+
+    return null;
+}
+
+function formatTime(seconds: number): string {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+export function RestTimer({ instruction }: RestTimerProps) {
+    const totalSeconds = detectRestTime(instruction);
+    const [remainingSeconds, setRemainingSeconds] = useState(totalSeconds ?? 0);
+    const [isRunning, setIsRunning] = useState(false);
+    const [isComplete, setIsComplete] = useState(false);
+    const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Reset when instruction changes
+    useEffect(() => {
+        const newTotal = detectRestTime(instruction);
+        setRemainingSeconds(newTotal ?? 0);
+        setIsRunning(false);
+        setIsComplete(false);
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
+    }, [instruction]);
+
+    useEffect(() => {
+        if (!isRunning) return;
+
+        intervalRef.current = setInterval(() => {
+            setRemainingSeconds(prev => {
+                if (prev <= 1) {
+                    setIsRunning(false);
+                    setIsComplete(true);
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    if (intervalRef.current) clearInterval(intervalRef.current);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+        };
+    }, [isRunning]);
+
+    const handleStartPause = useCallback(() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        if (isComplete) {
+            // Reset
+            setRemainingSeconds(totalSeconds ?? 0);
+            setIsComplete(false);
+            setIsRunning(false);
+        } else {
+            setIsRunning(prev => !prev);
+        }
+    }, [isComplete, totalSeconds]);
+
+    if (!totalSeconds) return null;
+
+    return (
+        <View className="flex-row items-center justify-center mt-md mx-md bg-primary-lightest rounded-lg p-sm gap-sm">
+            <Ionicons
+                name={isComplete ? 'checkmark-circle' : 'timer-outline'}
+                size={24}
+                color={isComplete ? COLORS.status.success : COLORS.primary.medium}
+            />
+            <Text
+                preset="subheading"
+                className={isComplete ? 'text-status-success' : 'text-text-default'}
+            >
+                {isComplete
+                    ? i18n.t('recipes.cookingGuide.timerDone')
+                    : formatTime(remainingSeconds)
+                }
+            </Text>
+            <Pressable
+                onPress={handleStartPause}
+                className="bg-primary-medium rounded-full px-md py-xs"
+            >
+                <Text preset="bodySmall" className="text-white font-semibold">
+                    {isComplete
+                        ? i18n.t('recipes.cookingGuide.timerReset')
+                        : isRunning
+                            ? i18n.t('recipes.cookingGuide.timerPause')
+                            : i18n.t('recipes.cookingGuide.timerStart')
+                    }
+                </Text>
+            </Pressable>
+        </View>
+    );
+}

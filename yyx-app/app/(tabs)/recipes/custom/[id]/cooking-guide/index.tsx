@@ -32,11 +32,6 @@ export default function CustomCookingGuide() {
     }
   };
 
-  // Debug: log recipe ID and session to trace navigation issues
-  if (__DEV__) {
-    console.log('[CookingGuide] Rendering with id:', id, 'session:', session, 'recipe:', recipe?.name);
-  }
-
   // Responsive sizes: keep mobile original, make desktop larger
   const chefSize = isPhone ? { width: 165, height: 270 } : { width: 180, height: 270 };
   const checkboxSize = isPhone ? 32 : 40;
