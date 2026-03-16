@@ -3,6 +3,14 @@ import {
   RTCSessionDescription,
   mediaDevices,
 } from "react-native-webrtc";
+
+// Silence react-native-webrtc's verbose debug logs (rn-webrtc:pc:DEBUG)
+try {
+  const debug = require("debug");
+  debug.disable("rn-webrtc*");
+} catch {
+  // debug package may not be available — safe to ignore
+}
 import { supabase } from "@/lib/supabase";
 import InCallManager from "react-native-incall-manager";
 import { detectGoodbye, InactivityTimer } from "../shared/VoiceUtils";
@@ -754,6 +762,26 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       case "rate_limits.updated":
         break;
 
+      // Audio transcript events (parallel to response.output_audio_transcript.*)
+      // These are the same content in a different event name format — safe to ignore.
+      case "response.audio_transcript.delta":
+      case "response.audio_transcript.done":
+        break;
+
+      // Audio buffer lifecycle — no action needed client-side
+      case "output_audio_buffer.started":
+      case "output_audio_buffer.stopped":
+      case "output_audio_buffer.cleared":
+        break;
+
+      // Partial input transcription deltas (we only use the final .completed event)
+      case "conversation.item.input_audio_transcription.delta":
+        break;
+
+      // Conversation item truncation (server-side housekeeping)
+      case "conversation.item.truncated":
+        break;
+
       // Errors
       case "error":
         logger.error("[OpenAI] Error:", message.error);
@@ -762,7 +790,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         break;
 
       default:
-        if (__DEV__) console.log("[OpenAI] Unhandled event:", message.type);
+        logger.debug(`[OpenAI] Unhandled event: ${message.type}`);
         break;
     }
   }
