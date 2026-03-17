@@ -415,31 +415,6 @@ export async function searchRecipesHybrid(
   });
 
   if (needsFallback) {
-    // When top score is above minimum confidence (0.25), return top 3 instead of
-    // falling back to broken lexical search
-    const topScore = scored.length > 0
-      ? Math.max(...scored.map((r) => r.finalScore))
-      : 0;
-    if (topScore >= 0.25) {
-      const topN = scored
-        .sort((a, b) => b.finalScore - a.finalScore)
-        .slice(0, 3);
-      console.log("[hybrid-search] Low-confidence top-N fallback", {
-        topScore: topScore.toFixed(3),
-        returned: topN.length,
-      });
-      const fallbackCards: RecipeCard[] = topN.map((r) => ({
-        recipeId: r.recipeId,
-        recipeTable: "recipes",
-        name: r.name,
-        imageUrl: r.imageUrl,
-        totalTime: r.totalTime,
-        difficulty: r.difficulty,
-        portions: r.portions,
-      }));
-      return { recipes: fallbackCards, method: "hybrid" };
-    }
-
     return {
       recipes: [],
       method: "hybrid",
