@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Animated, View } from 'react-native';
+import { Animated, View, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useRecipes } from '@/hooks/useRecipes';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { SPACING } from '@/constants/design-tokens';
@@ -42,31 +42,61 @@ const Recipes = () => {
     }
   }, [searchQuery]);
 
-  // Collapsible header logic
-  // Uses simple interpolate with clamp instead of Animated.diffClamp to avoid
-  // the "Illegal node ID" crash (diffClamp nodes can't be safely recreated).
+  // Collapsible header: "scroll up to reveal" behavior
+  // Uses JS-driven scroll tracking instead of Animated.diffClamp (which crashes
+  // when recreated) to detect scroll direction and animate the header.
   const [headerHeight, setHeaderHeight] = useState(180);
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerTranslateY = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
+  const accumulatedDelta = useRef(0);
 
-  const translateY = scrollY.interpolate({
-    inputRange: [0, headerHeight],
-    outputRange: [0, -headerHeight],
-    extrapolate: 'clamp',
-  });
+  const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const currentY = event.nativeEvent.contentOffset.y;
+    const delta = currentY - lastScrollY.current;
+    lastScrollY.current = currentY;
+
+    // At the top of the list, always show the header
+    if (currentY <= 0) {
+      accumulatedDelta.current = 0;
+      Animated.timing(headerTranslateY, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
+      return;
+    }
+
+    // Accumulate scroll delta in the current direction
+    if ((delta > 0 && accumulatedDelta.current < 0) || (delta < 0 && accumulatedDelta.current > 0)) {
+      accumulatedDelta.current = 0; // Direction changed, reset
+    }
+    accumulatedDelta.current += delta;
+
+    // Require a minimum scroll distance before hiding/showing (reduces jitter)
+    const threshold = 10;
+
+    if (accumulatedDelta.current > threshold) {
+      // Scrolling down — hide header
+      Animated.timing(headerTranslateY, {
+        toValue: -headerHeight,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    } else if (accumulatedDelta.current < -threshold) {
+      // Scrolling up — show header
+      Animated.timing(headerTranslateY, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [headerHeight, headerTranslateY]);
 
   const displayName = userProfile?.name || '';
 
-  const onScroll = useMemo(
-    () => Animated.event(
-      [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-      { useNativeDriver: true }
-    ),
-    [scrollY]
-  );
-
   // Keep search bar visible whenever search is active.
   const isSearching = searchQuery.trim().length > 0;
-  const headerTranslateY = isSearching ? 0 : translateY;
+  const animatedTranslateY = isSearching ? 0 : headerTranslateY;
 
   // Build recipe sections for the sectioned feed
   const sections = useMemo((): RecipeSection[] => {
@@ -107,7 +137,7 @@ const Recipes = () => {
     <PageLayout contentPaddingHorizontal={0} disableMaxWidth={true}>
       <Animated.View
         style={{
-          transform: [{ translateY: headerTranslateY }],
+          transform: [{ translateY: animatedTranslateY }],
           position: 'absolute',
           top: 0,
           left: 0,
