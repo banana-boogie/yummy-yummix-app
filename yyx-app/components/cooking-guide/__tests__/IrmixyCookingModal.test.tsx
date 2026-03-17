@@ -1,8 +1,9 @@
 /**
  * IrmixyCookingModal Component Tests
  *
- * Tests for the full-screen modal chat that opens from the cooking guide.
- * Covers rendering states, header content, close button, and input bar.
+ * Tests for the full-screen modal that opens from the cooking guide.
+ * The modal now reuses ChatScreen and VoiceChatScreen as embedded
+ * components. Tests cover rendering, header, mode toggle, and close.
  */
 
 import React from 'react';
@@ -15,14 +16,9 @@ jest.mock('@/i18n', () => ({
     const translations: Record<string, string> = {
       'chat.title': 'Irmixy',
       'chat.cookingModal.greeting': 'How can I help with your recipe?',
-      'chat.inputPlaceholder': 'Ask Irmixy...',
+      'chat.cookingModal.switchToVoice': 'Switch to voice',
+      'chat.cookingModal.switchToText': 'Switch to text',
       'common.close': 'Close',
-      'chat.stopGenerating': 'Stop generating',
-      'chat.voice.tapToSpeak': 'Tap to speak',
-      'chat.voice.listening': 'Listening...',
-      'chat.voice.stopRecording': 'Stop recording',
-      'chat.sendButton': 'Send',
-      'chat.error.default': 'Something went wrong.',
     };
     if (key === 'chat.cookingModal.contextHint') {
       return `${params?.recipeName} - Step ${params?.step}/${params?.total}`;
@@ -31,75 +27,46 @@ jest.mock('@/i18n', () => ({
   },
 }));
 
-// Mock contexts
-jest.mock('@/contexts/LanguageContext', () => ({
-  useLanguage: () => ({ locale: 'en-US', language: 'en' }),
-}));
-
-jest.mock('@/contexts/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 'user-1', email: 'test@example.com' } }),
-}));
-
 // Mock safe area
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 44, bottom: 34, left: 0, right: 0 }),
 }));
 
-// Mock chatService
-jest.mock('@/services/chatService', () => ({
-  sendMessage: jest.fn().mockReturnValue({
-    done: Promise.resolve(),
-    cancel: jest.fn(),
-  }),
-}));
-
-// Mock speech recognition hook
-jest.mock('@/hooks/useSpeechRecognition', () => ({
-  useSpeechRecognition: () => ({
-    isListening: false,
-    pulseAnim: { setValue: jest.fn(), interpolate: jest.fn().mockReturnValue(1) },
-    handleMicPress: jest.fn(),
-    stopAndGuard: jest.fn(),
-  }),
-}));
-
-// Mock ChatMessageItem
-jest.mock('@/components/chat/ChatMessageItem', () => ({
-  ChatMessageItem: () => {
-    const { View } = require('react-native');
-    return <View testID="chat-message-item" />;
-  },
-}));
-
-// Mock ChatInputBar with a simplified version that exposes testIDs
-jest.mock('@/components/chat/ChatInputBar', () => ({
-  ChatInputBar: () => {
+// Mock ChatScreen
+jest.mock('@/components/chat/ChatScreen', () => ({
+  ChatScreen: (props: Record<string, unknown>) => {
     const { View, Text } = require('react-native');
     return (
-      <View testID="chat-input-bar">
-        <Text>ChatInputBar</Text>
+      <View testID="chat-screen">
+        <Text>{String(props.emptyStateGreeting ?? '')}</Text>
       </View>
     );
   },
 }));
 
-// Mock markdown
-jest.mock('@ronradtke/react-native-markdown-display', () => {
-  const { Text } = require('react-native');
-  return {
-    __esModule: true,
-    default: ({ children }: { children: string }) => <Text>{children}</Text>,
-  };
-});
+// Mock VoiceChatScreen
+jest.mock('@/components/chat/VoiceChatScreen', () => ({
+  VoiceChatScreen: () => {
+    const { View, Text } = require('react-native');
+    return (
+      <View testID="voice-chat-screen">
+        <Text>VoiceChatScreen</Text>
+      </View>
+    );
+  },
+}));
 
 const defaultProps = {
   visible: true,
   onClose: jest.fn(),
-  recipeId: 'recipe-1',
-  recipeName: 'Pasta Carbonara',
-  currentStep: 2,
-  totalSteps: 5,
-  stepInstruction: 'Boil the pasta',
+  recipeContext: {
+    type: 'cooking' as const,
+    recipeId: 'recipe-1',
+    recipeTitle: 'Pasta Carbonara',
+    currentStep: 2,
+    totalSteps: 5,
+    stepInstructions: 'Boil the pasta',
+  },
 };
 
 describe('IrmixyCookingModal', () => {
@@ -112,10 +79,11 @@ describe('IrmixyCookingModal', () => {
   // ============================================================
 
   describe('rendering', () => {
-    it('renders when visible with greeting empty state', () => {
+    it('renders ChatScreen in text mode by default', () => {
       render(<IrmixyCookingModal {...defaultProps} />);
 
-      expect(screen.getByText('How can I help with your recipe?')).toBeTruthy();
+      expect(screen.getByTestId('chat-screen')).toBeTruthy();
+      expect(screen.queryByTestId('voice-chat-screen')).toBeNull();
     });
 
     it('shows Irmixy title in header', () => {
@@ -130,10 +98,38 @@ describe('IrmixyCookingModal', () => {
       expect(screen.getByText('Pasta Carbonara - Step 2/5')).toBeTruthy();
     });
 
-    it('renders ChatInputBar', () => {
+    it('passes emptyStateGreeting to ChatScreen', () => {
       render(<IrmixyCookingModal {...defaultProps} />);
 
-      expect(screen.getByTestId('chat-input-bar')).toBeTruthy();
+      expect(screen.getByText('How can I help with your recipe?')).toBeTruthy();
+    });
+  });
+
+  // ============================================================
+  // MODE TOGGLE TESTS
+  // ============================================================
+
+  describe('mode toggle', () => {
+    it('switches to voice mode when toggle is pressed', () => {
+      render(<IrmixyCookingModal {...defaultProps} />);
+
+      const toggleButton = screen.getByLabelText('Switch to voice');
+      fireEvent.press(toggleButton);
+
+      expect(screen.getByTestId('voice-chat-screen')).toBeTruthy();
+      expect(screen.queryByTestId('chat-screen')).toBeNull();
+    });
+
+    it('switches back to text mode from voice mode', () => {
+      render(<IrmixyCookingModal {...defaultProps} />);
+
+      // Switch to voice
+      fireEvent.press(screen.getByLabelText('Switch to voice'));
+      expect(screen.getByTestId('voice-chat-screen')).toBeTruthy();
+
+      // Switch back to text
+      fireEvent.press(screen.getByLabelText('Switch to text'));
+      expect(screen.getByTestId('chat-screen')).toBeTruthy();
     });
   });
 
@@ -158,11 +154,10 @@ describe('IrmixyCookingModal', () => {
   // ============================================================
 
   describe('visibility', () => {
-    it('does not render greeting when visible is false', () => {
+    it('does not render content when visible is false', () => {
       render(<IrmixyCookingModal {...defaultProps} visible={false} />);
 
-      // In the test environment, Modal with visible=false does not render children
-      expect(screen.queryByText('How can I help with your recipe?')).toBeNull();
+      expect(screen.queryByTestId('chat-screen')).toBeNull();
     });
   });
 });

@@ -63,8 +63,9 @@ export default function CookingStep() {
             showSubtitle={false}
             pictureUrl={recipe?.pictureUrl}
             onBackPress={handleNavigation.back}
+            onExitPress={() => router.replace(`/(tabs)/recipes/${id}`)}
         />
-    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation]);
+    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation, router, id]);
 
     const footer = useMemo(() => (
         <View>
@@ -109,11 +110,14 @@ export default function CookingStep() {
             <IrmixyCookingModal
                 visible={showIrmixyModal}
                 onClose={() => setShowIrmixyModal(false)}
-                recipeId={id as string}
-                recipeName={recipe?.name ?? ''}
-                currentStep={currentStepNumber}
-                totalSteps={totalSteps}
-                stepInstruction={currentStep?.instruction}
+                recipeContext={{
+                    type: 'cooking',
+                    recipeId: id as string,
+                    recipeTitle: recipe?.name ?? '',
+                    currentStep: currentStepNumber,
+                    totalSteps,
+                    stepInstructions: currentStep?.instruction,
+                }}
             />
         </View>
     );

@@ -1,5 +1,6 @@
 import { View } from 'react-native';
 import { useState, useEffect } from 'react';
+import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
 import * as Haptics from 'expo-haptics';
 import i18n from '@/i18n';
 import { useCustomRecipe } from '@/hooks/useCustomRecipe';
@@ -28,6 +29,7 @@ export default function CustomKitchenToolsStep() {
     const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
     const { recipe } = useCustomRecipe(id as string);
     const [kitchenTools, setKitchenTools] = useState<CheckableKitchenTool[]>([]);
+    const [showIrmixyModal, setShowIrmixyModal] = useState(false);
     const { isMobile } = useDevice();
 
     // Calculate number of columns based on screen size
@@ -77,16 +79,18 @@ export default function CustomKitchenToolsStep() {
                     showTitle={false}
                     pictureUrl={recipe?.pictureUrl}
                     isCustomRecipe={true}
+                    onExitPress={() => {
+                        if (from === 'chat') {
+                            router.replace('/(tabs)/chat');
+                        } else {
+                            router.replace(`/(tabs)/recipes/custom/${id}`);
+                        }
+                    }}
                 />
 
                 <CookingGuidePageHeader
                     title={recipe?.name || ''}
-                    recipeContext={{
-                        type: 'custom',
-                        recipeId: id as string,
-                        recipeTitle: recipe?.name || '',
-                        kitchenTools: kitchenTools.map(item => item.name)
-                    }}
+                    onIrmixyPress={() => setShowIrmixyModal(true)}
                 />
 
                 {/* Content wrapper - centered on desktop with max-width */}
@@ -116,6 +120,16 @@ export default function CustomKitchenToolsStep() {
                     </View>
                 </View>
             </PageLayout>
+            <IrmixyCookingModal
+                visible={showIrmixyModal}
+                onClose={() => setShowIrmixyModal(false)}
+                recipeContext={{
+                    type: 'custom',
+                    recipeId: id as string,
+                    recipeTitle: recipe?.name || '',
+                    kitchenTools: kitchenTools.map(item => item.name)
+                }}
+            />
         </View>
     );
 }

@@ -70,8 +70,15 @@ export default function CustomCookingStep() {
             pictureUrl={recipe?.pictureUrl}
             isCustomRecipe={true}
             onBackPress={handleNavigation.back}
+            onExitPress={() => {
+                if (isChatFlow) {
+                    router.replace('/(tabs)/chat');
+                } else {
+                    router.replace(`/(tabs)/recipes/custom/${id}`);
+                }
+            }}
         />
-    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation]);
+    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation, isChatFlow, router, id]);
 
     const footer = useMemo(() => (
         <View>
@@ -116,11 +123,14 @@ export default function CustomCookingStep() {
             <IrmixyCookingModal
                 visible={showIrmixyModal}
                 onClose={() => setShowIrmixyModal(false)}
-                recipeId={id as string}
-                recipeName={recipe?.name ?? ''}
-                currentStep={currentStepNumber}
-                totalSteps={totalSteps}
-                stepInstruction={currentStep?.instruction}
+                recipeContext={{
+                    type: 'cooking',
+                    recipeId: id as string,
+                    recipeTitle: recipe?.name ?? '',
+                    currentStep: currentStepNumber,
+                    totalSteps,
+                    stepInstructions: currentStep?.instruction,
+                }}
             />
         </View>
     );

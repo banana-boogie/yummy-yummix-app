@@ -1,5 +1,6 @@
 import { View } from 'react-native';
 import { useState, useEffect } from 'react';
+import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
 import * as Haptics from 'expo-haptics';
 import i18n from '@/i18n';
 import { useRecipe } from '@/hooks/useRecipe';
@@ -24,6 +25,7 @@ export default function IngredientsStep() {
   const { id } = useLocalSearchParams();
   const { recipe } = useRecipe(id as string);
   const [ingredients, setIngredients] = useState<CheckableIngredient[]>([]);
+  const [showIrmixyModal, setShowIrmixyModal] = useState(false);
   const { isMobile } = useDevice();
 
   // Calculate number of columns based on screen size
@@ -78,20 +80,12 @@ export default function IngredientsStep() {
         <CookingGuideHeader
           showTitle={false}
           pictureUrl={recipe?.pictureUrl}
+          onExitPress={() => router.replace(`/(tabs)/recipes/${id}`)}
         />
 
         <CookingGuidePageHeader
           title={recipe?.name || ''}
-          recipeContext={{
-            type: 'cooking',
-            recipeId: id as string,
-            recipeTitle: recipe?.name,
-            stepInstructions: i18n.t('chat.prepareIngredients'),
-            ingredients: ingredients.map(ing => ({
-              name: ing.name,
-              amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
-            }))
-          }}
+          onIrmixyPress={() => setShowIrmixyModal(true)}
         />
 
         {/* Content wrapper - centered on desktop with max-width */}
@@ -123,6 +117,20 @@ export default function IngredientsStep() {
         </View>
 
       </PageLayout>
+      <IrmixyCookingModal
+        visible={showIrmixyModal}
+        onClose={() => setShowIrmixyModal(false)}
+        recipeContext={{
+          type: 'cooking',
+          recipeId: id as string,
+          recipeTitle: recipe?.name,
+          stepInstructions: i18n.t('chat.prepareIngredients'),
+          ingredients: ingredients.map(ing => ({
+            name: ing.name,
+            amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
+          }))
+        }}
+      />
     </View>
   );
 }

@@ -35,6 +35,8 @@ interface UseMessageStreamingParams {
     onResumeSessionClear: () => void;
     onBudgetWarning?: (warning: BudgetWarningPayload) => void;
     onBudgetExceeded?: (error: BudgetExceededError) => void;
+    /** Prepended to each user message before sending (invisible to the user) */
+    contextPrefix?: string;
 }
 
 export function useMessageStreaming({
@@ -54,6 +56,7 @@ export function useMessageStreaming({
     onResumeSessionClear,
     onBudgetWarning,
     onBudgetExceeded,
+    contextPrefix,
 }: UseMessageStreamingParams) {
     const isMountedRef = useRef(true);
     const streamCancelRef = useRef<(() => void) | null>(null);
@@ -196,8 +199,11 @@ export function useMessageStreaming({
         };
 
         try {
+            const messageToSend = contextPrefix
+                ? `${contextPrefix} ${userMessage.content}`
+                : userMessage.content;
             const handle = sendMessage(
-                userMessage.content,
+                messageToSend,
                 currentSessionId,
                 // onChunk — positional arg 3
                 (chunk) => {
@@ -388,6 +394,7 @@ export function useMessageStreaming({
             streamCancelRef.current = null;
         }
     }, [
+        contextPrefix,
         currentSessionId,
         isLoading,
         onSessionCreated,

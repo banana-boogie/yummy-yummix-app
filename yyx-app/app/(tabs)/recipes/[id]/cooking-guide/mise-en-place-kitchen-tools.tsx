@@ -1,5 +1,6 @@
 import { View } from 'react-native';
 import { useState, useEffect } from 'react';
+import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
 import * as Haptics from 'expo-haptics';
 import i18n from '@/i18n';
 import { useRecipe } from '@/hooks/useRecipe';
@@ -27,6 +28,7 @@ export default function KitchenToolsStep() {
     const { id } = useLocalSearchParams();
     const { recipe } = useRecipe(id as string);
     const [kitchenTools, setKitchenTools] = useState<CheckableKitchenTool[]>([]);
+    const [showIrmixyModal, setShowIrmixyModal] = useState(false);
     const { isMobile } = useDevice();
 
     const numColumns = 2;
@@ -69,16 +71,12 @@ export default function KitchenToolsStep() {
                 <CookingGuideHeader
                     showTitle={false}
                     pictureUrl={recipe?.pictureUrl}
+                    onExitPress={() => router.replace(`/(tabs)/recipes/${id}`)}
                 />
 
                 <CookingGuidePageHeader
                     title={recipe?.name || ''}
-                    recipeContext={{
-                        type: 'prep',
-                        recipeId: id as string,
-                        recipeTitle: recipe?.name || '',
-                        kitchenTools: kitchenTools.map(item => item.name)
-                    }}
+                    onIrmixyPress={() => setShowIrmixyModal(true)}
                 />
 
                 {/* Content wrapper - centered on desktop with max-width */}
@@ -108,6 +106,16 @@ export default function KitchenToolsStep() {
                     </View>
                 </View>
             </PageLayout>
+            <IrmixyCookingModal
+                visible={showIrmixyModal}
+                onClose={() => setShowIrmixyModal(false)}
+                recipeContext={{
+                    type: 'prep',
+                    recipeId: id as string,
+                    recipeTitle: recipe?.name || '',
+                    kitchenTools: kitchenTools.map(item => item.name)
+                }}
+            />
         </View>
     );
 }

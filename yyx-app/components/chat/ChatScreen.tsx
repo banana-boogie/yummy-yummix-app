@@ -45,6 +45,10 @@ interface Props {
     onMessagesChange?: (messages: ChatMessage[]) => void;
     onOpenSessionsMenu?: () => void;
     newChatSignal?: number;
+    /** Prepended to each user message before sending (invisible to the user) */
+    contextPrefix?: string;
+    /** Override the cycling greeting shown in the empty state */
+    emptyStateGreeting?: string;
 }
 
 const keyExtractor = (item: ChatMessage) => item.id;
@@ -56,6 +60,8 @@ export function ChatScreen({
     onMessagesChange,
     onOpenSessionsMenu,
     newChatSignal,
+    contextPrefix,
+    emptyStateGreeting,
 }: Props) {
     const { user } = useAuth();
     const { locale } = useLanguage();
@@ -184,6 +190,7 @@ export function ChatScreen({
         onResumeSessionClear,
         onBudgetWarning: handleBudgetWarning,
         onBudgetExceeded: handleBudgetExceeded,
+        contextPrefix,
     });
 
     // Wire speech recognition to streaming hook's setInputText
@@ -362,7 +369,7 @@ export function ChatScreen({
                         />
                         <View className="mt-md mx-lg bg-primary-lightest rounded-xl px-md py-sm" style={{ maxWidth: 300 }}>
                             <Text className="text-text-primary text-center text-base">
-                                {currentGreeting}
+                                {emptyStateGreeting ?? currentGreeting}
                             </Text>
                         </View>
                     </View>

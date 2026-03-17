@@ -1,5 +1,6 @@
 import { View } from 'react-native';
 import { useState, useEffect } from 'react';
+import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
 import * as Haptics from 'expo-haptics';
 import i18n from '@/i18n';
 import { useCustomRecipe } from '@/hooks/useCustomRecipe';
@@ -25,6 +26,7 @@ export default function CustomIngredientsStep() {
   const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
   const { recipe } = useCustomRecipe(id as string);
   const [ingredients, setIngredients] = useState<CheckableIngredient[]>([]);
+  const [showIrmixyModal, setShowIrmixyModal] = useState(false);
   const { isMobile } = useDevice();
 
   const numColumns = 2;
@@ -83,20 +85,18 @@ export default function CustomIngredientsStep() {
           showTitle={false}
           pictureUrl={recipe?.pictureUrl}
           isCustomRecipe={true}
+          onExitPress={() => {
+            if (from === 'chat') {
+              router.replace('/(tabs)/chat');
+            } else {
+              router.replace(`/(tabs)/recipes/custom/${id}`);
+            }
+          }}
         />
 
         <CookingGuidePageHeader
           title={recipe?.name || ''}
-          recipeContext={{
-            type: 'custom',
-            recipeId: id as string,
-            recipeTitle: recipe?.name,
-            stepInstructions: i18n.t('chat.prepareIngredients'),
-            ingredients: ingredients.map(ing => ({
-              name: ing.name,
-              amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
-            }))
-          }}
+          onIrmixyPress={() => setShowIrmixyModal(true)}
         />
 
         {/* Content wrapper - centered on desktop with max-width */}
@@ -128,6 +128,20 @@ export default function CustomIngredientsStep() {
         </View>
 
       </PageLayout>
+      <IrmixyCookingModal
+        visible={showIrmixyModal}
+        onClose={() => setShowIrmixyModal(false)}
+        recipeContext={{
+          type: 'custom',
+          recipeId: id as string,
+          recipeTitle: recipe?.name,
+          stepInstructions: i18n.t('chat.prepareIngredients'),
+          ingredients: ingredients.map(ing => ({
+            name: ing.name,
+            amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
+          }))
+        }}
+      />
     </View>
   );
 }

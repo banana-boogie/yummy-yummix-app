@@ -14,6 +14,8 @@ import i18n from '@/i18n';
 
 import { COLORS } from '@/constants/design-tokens';
 import * as Haptics from 'expo-haptics';
+import { useState } from 'react';
+import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
 import { getCustomCookingGuidePath, isFromChat } from '@/utils/navigation/recipeRoutes';
 import { eventService } from '@/services/eventService';
 
@@ -23,6 +25,7 @@ export default function CustomCookingGuide() {
   const { isPhone } = useDevice();
   const navigation = useNavigation();
   const isChatFlow = isFromChat(from);
+  const [showIrmixyModal, setShowIrmixyModal] = useState(false);
 
   const handleBackPress = () => {
     if (isChatFlow && !navigation.canGoBack()) {
@@ -95,16 +98,19 @@ export default function CustomCookingGuide() {
           onBackPress={handleBackPress}
           pictureUrl={recipe?.pictureUrl}
           isCustomRecipe={true}
+          onExitPress={() => {
+            if (isChatFlow) {
+              router.replace('/(tabs)/chat');
+            } else {
+              router.replace(`/(tabs)/recipes/custom/${id}`);
+            }
+          }}
         />
 
         <CookingGuidePageHeader
           title={recipe?.name || ''}
           subtitle={i18n.t('chat.miseEnPlace')}
-          recipeContext={{
-            type: 'custom',
-            recipeId: id as string,
-            recipeTitle: recipe?.name
-          }}
+          onIrmixyPress={() => setShowIrmixyModal(true)}
         />
 
         <View className="px-md">
@@ -153,6 +159,15 @@ export default function CustomCookingGuide() {
           </MessageBubble>
         </View>
       </PageLayout>
+      <IrmixyCookingModal
+        visible={showIrmixyModal}
+        onClose={() => setShowIrmixyModal(false)}
+        recipeContext={{
+          type: 'custom',
+          recipeId: id as string,
+          recipeTitle: recipe?.name,
+        }}
+      />
     </View>
   );
 }

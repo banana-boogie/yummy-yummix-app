@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, StyleProp, ViewStyle, StatusBar } from 'react-native';
+import { View, StyleProp, ViewStyle, StatusBar, TouchableOpacity } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text } from '@/components/common/Text';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BackButton } from '@/components/navigation/BackButton';
@@ -8,6 +9,7 @@ import { FONTS, TextPreset, COLORS, SPACING } from '@/constants/design-tokens';
 import { SafeImage } from '@/components/common';
 import { useDevice } from '@/hooks/useDevice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import i18n from '@/i18n';
 
 interface CookingGuideHeaderProps {
     title?: string;
@@ -23,6 +25,8 @@ interface CookingGuideHeaderProps {
     onBackPress?: () => void;
     /** Flag to indicate custom recipe without image */
     isCustomRecipe?: boolean;
+    /** When provided, renders an X (exit) button in the header */
+    onExitPress?: () => void;
 }
 
 export function CookingGuideHeader({
@@ -38,6 +42,7 @@ export function CookingGuideHeader({
     className = '',
     style,
     isCustomRecipe = false,
+    onExitPress,
 }: CookingGuideHeaderProps) {
     const { isLarge, isWeb, isPhone } = useDevice();
     const isWebMobile = isWeb && isPhone;
@@ -90,7 +95,19 @@ export function CookingGuideHeader({
                             {showBackButton && (
                                 <BackButton onPress={onBackPress} className="bg-white/60" />
                             )}
-                            {isWebMobile && <HamburgerMenu style={{ marginLeft: 'auto' }} />}
+                            <View className="flex-row items-center" style={{ marginLeft: 'auto' }}>
+                                {onExitPress && (
+                                    <TouchableOpacity
+                                        onPress={onExitPress}
+                                        className="w-10 h-10 rounded-full bg-white/60 items-center justify-center"
+                                        accessibilityLabel={i18n.t('recipes.cookingGuide.navigation.exitCookingGuide')}
+                                        accessibilityRole="button"
+                                    >
+                                        <MaterialCommunityIcons name="close" size={22} color={COLORS.text.default} />
+                                    </TouchableOpacity>
+                                )}
+                                {isWebMobile && <HamburgerMenu style={{ marginLeft: 8 }} />}
+                            </View>
                         </View>
                     </View>
                 </View>
@@ -100,7 +117,20 @@ export function CookingGuideHeader({
                 className="px-sm mt-md mb-xxs lg:mb-sm lg:max-w-[1000px] lg:self-center lg:w-full"
                 style={{ position: 'relative' }}
             >
-                {!showImage && showBackButton && <BackButton onPress={onBackPress} className="mb-sm bg-black/5" />}
+                <View className="flex-row justify-between items-center">
+                    {!showImage && showBackButton && <BackButton onPress={onBackPress} className="mb-sm bg-black/5" />}
+                    {!showImage && onExitPress && (
+                        <TouchableOpacity
+                            onPress={onExitPress}
+                            className="w-10 h-10 rounded-full bg-black/5 items-center justify-center mb-sm"
+                            accessibilityLabel={i18n.t('recipes.cookingGuide.navigation.exitCookingGuide')}
+                            accessibilityRole="button"
+                            style={{ marginLeft: 'auto' }}
+                        >
+                            <MaterialCommunityIcons name="close" size={22} color={COLORS.text.default} />
+                        </TouchableOpacity>
+                    )}
+                </View>
 
                 {/* Title */}
                 {showTitle && title !== undefined ? (

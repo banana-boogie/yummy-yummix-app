@@ -22,7 +22,7 @@ import { VoiceToolLoader } from './VoiceToolLoader';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { useAuth } from '@/contexts/AuthContext';
 import { customRecipeService } from '@/services/customRecipeService';
-import type { QuotaInfo, VoiceStatus } from '@/services/voice/types';
+import type { QuotaInfo, RecipeContext, VoiceStatus } from '@/services/voice/types';
 import type { ChatMessage, IrmixyStatus, QuickAction } from '@/services/chatService';
 import type { GeneratedRecipe } from '@/types/irmixy';
 import i18n from '@/i18n';
@@ -39,6 +39,8 @@ interface Props {
     /** External transcript messages for mode-switch persistence */
     transcriptMessages?: ChatMessage[];
     onTranscriptChange?: (messages: ChatMessage[]) => void;
+    /** Recipe context for cooking-mode voice chat */
+    recipeContext?: RecipeContext;
 }
 
 export function VoiceChatScreen({
@@ -46,6 +48,7 @@ export function VoiceChatScreen({
     onSessionCreated,
     transcriptMessages: externalMessages,
     onTranscriptChange,
+    recipeContext,
 }: Props) {
     const { user } = useAuth();
     const router = useRouter();
@@ -69,6 +72,7 @@ export function VoiceChatScreen({
         sessionId: initialSessionId,
         initialTranscriptMessages: externalMessages,
         onTranscriptChange,
+        recipeContext,
         onQuotaWarning: (info: QuotaInfo) => {
             Alert.alert(
                 i18n.t('chat.voice.quotaWarningTitle'),

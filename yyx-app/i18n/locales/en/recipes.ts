@@ -78,6 +78,7 @@ export const recipes = {
       next: "Next",
       back: "Back",
       askIrmixy: "Ask Irmixy",
+      exitCookingGuide: "Exit cooking guide",
     },
     miseEnPlace: {
       ingredients: {

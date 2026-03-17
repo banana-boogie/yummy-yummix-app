@@ -43,6 +43,16 @@ jest.mock('@/components/navigation/HamburgerMenu', () => ({
   HamburgerMenu: () => null,
 }));
 
+// Mock i18n
+jest.mock('@/i18n', () => ({
+  t: (key: string) => {
+    const translations: Record<string, string> = {
+      'recipes.cookingGuide.navigation.exitCookingGuide': 'Exit cooking guide',
+    };
+    return translations[key] || key;
+  },
+}));
+
 
 describe('CookingGuideHeader', () => {
   beforeEach(() => {
@@ -138,6 +148,33 @@ describe('CookingGuideHeader', () => {
       fireEvent.press(screen.getByTestId('back-button'));
 
       expect(onBackPress).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ============================================================
+  // EXIT BUTTON TESTS
+  // ============================================================
+
+  describe('exit button', () => {
+    it('shows exit button when onExitPress is provided', () => {
+      render(<CookingGuideHeader title="Recipe" onExitPress={jest.fn()} />);
+
+      expect(screen.getByLabelText('Exit cooking guide')).toBeTruthy();
+    });
+
+    it('does not show exit button when onExitPress is not provided', () => {
+      render(<CookingGuideHeader title="Recipe" />);
+
+      expect(screen.queryByLabelText('Exit cooking guide')).toBeNull();
+    });
+
+    it('calls onExitPress when exit button is pressed', () => {
+      const onExitPress = jest.fn();
+      render(<CookingGuideHeader title="Recipe" onExitPress={onExitPress} />);
+
+      fireEvent.press(screen.getByLabelText('Exit cooking guide'));
+
+      expect(onExitPress).toHaveBeenCalledTimes(1);
     });
   });
 

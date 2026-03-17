@@ -9,16 +9,19 @@ import { CookingGuidePageHeader } from '@/components/cooking-guide/CookingGuideP
 import { MessageBubble } from '@/components/cooking-guide/MessageBubble';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { useDevice } from '@/hooks/useDevice';
+import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
 import i18n from '@/i18n';
 import { eventService } from '@/services/eventService';
 import { COLORS } from '@/constants/design-tokens';
 
 import * as Haptics from 'expo-haptics';
+import { useState } from 'react';
 
 export default function CookingGuide() {
   const { id } = useLocalSearchParams();
   const { recipe } = useRecipe(id as string);
   const { isPhone } = useDevice();
+  const [showIrmixyModal, setShowIrmixyModal] = useState(false);
 
   // Responsive sizes: keep mobile original, make desktop larger
   const chefSize = isPhone ? { width: 165, height: 270 } : { width: 180, height: 270 };
@@ -60,16 +63,13 @@ export default function CookingGuide() {
           showSubtitle={false}
           showBackButton={true}
           pictureUrl={recipe?.pictureUrl}
+          onExitPress={() => router.replace(`/(tabs)/recipes/${id}`)}
         />
 
         <CookingGuidePageHeader
           title={recipe?.name || ''}
           subtitle="Mise en place"
-          recipeContext={{
-            type: 'recipe',
-            recipeId: id as string,
-            recipeTitle: recipe?.name
-          }}
+          onIrmixyPress={() => setShowIrmixyModal(true)}
         />
 
         <View className="px-md">
@@ -118,6 +118,15 @@ export default function CookingGuide() {
           </MessageBubble>
         </View>
       </PageLayout>
+      <IrmixyCookingModal
+        visible={showIrmixyModal}
+        onClose={() => setShowIrmixyModal(false)}
+        recipeContext={{
+          type: 'recipe',
+          recipeId: id as string,
+          recipeTitle: recipe?.name,
+        }}
+      />
     </View>
   );
 }

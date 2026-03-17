@@ -92,6 +92,8 @@ export const chat = {
   cookingModal: {
     greeting: "Dime, ¿cómo te ayudo?",
     contextHint: "Cocinando {{recipeName}} — paso {{step}} de {{total}}",
+    switchToVoice: "Cambiar a voz",
+    switchToText: "Cambiar a texto",
   },
   sessions: {
     menuLabel: "Menú de sesiones de chat",
