@@ -73,25 +73,6 @@ function loadMarkdownFiles(dir: string): Array<{ filename: string; content: stri
   return files;
 }
 
-// ─── Kitchen Tool Exclusion ──────────────────────────────
-
-/** Common household appliances that should not be created as kitchen tools */
-const EXCLUDED_KITCHEN_TOOLS = [
-  'refrigerator', 'fridge', 'freezer',
-  'oven', 'horno',
-  'stove', 'stovetop', 'estufa',
-  'microwave', 'microondas',
-  'dishwasher', 'lavavajillas',
-  'toaster', 'tostador',
-  'nevera', 'frigorífico', 'refrigerador', 'congelador',
-];
-
-function isExcludedKitchenTool(nameEn: string, nameEs: string): boolean {
-  const en = nameEn.toLowerCase().trim();
-  const es = nameEs.toLowerCase().trim();
-  return EXCLUDED_KITCHEN_TOOLS.some((excl) => en === excl || es === excl);
-}
-
 // ─── Resolve Entities ────────────────────────────────────
 
 /** Resolve all ingredients: match existing or create new ones */
@@ -217,11 +198,6 @@ async function resolveKitchenTools(
   const newlyCreatedTools: Array<{ id: string; nameEs: string }> = [];
 
   for (const item of parsed.kitchenTools) {
-    if (isExcludedKitchenTool(item.nameEn, item.nameEs)) {
-      logger.info(`Skipping excluded kitchen tool: ${item.nameEn} / ${item.nameEs}`);
-      continue;
-    }
-
     let matched = matchKitchenTool(item, allItems);
 
     if (!matched) {
@@ -329,9 +305,7 @@ async function importRecipe(
       ),
     );
     const missingItems = parsed.kitchenTools.filter(
-      (i) =>
-        !isExcludedKitchenTool(i.nameEn, i.nameEs) &&
-        !allItems.some((db) => (db.name_en?.toLowerCase() ?? '') === i.nameEn.toLowerCase()),
+      (i) => !allItems.some((db) => (db.name_en?.toLowerCase() ?? '') === i.nameEn.toLowerCase()),
     );
 
     if (missingIngredients.length > 0) {

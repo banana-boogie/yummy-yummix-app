@@ -56,7 +56,7 @@ export function buildRecipeSteps(
       order: index + 1, // Sequential numbering to avoid duplicates across sections
       instruction_en: step.instructionEn,
       instruction_es: step.instructionEs,
-      thermomix_time: step.thermomixTime,
+      thermomix_time: step.thermomixTime != null ? Math.max(Math.round(step.thermomixTime), 1) : null,
       thermomix_speed: speed,
       thermomix_speed_start: speedStart,
       thermomix_speed_end: speedEnd,
