@@ -1,19 +1,83 @@
 /**
- * AskIrmixyButton — Small Irmixy avatar that opens the cooking help modal.
+ * AskIrmixyButton — Animated pill that collapses to an avatar.
  *
- * Designed to be always visible in the footer area of each cooking step,
- * so Lupita never has to hunt for it.
+ * On first render: shows [avatar] "Ask Irmixy" as a pill.
+ * After 3 seconds: text slides out, pill shrinks to just the avatar.
+ * After text hides: subtle bounce on the avatar draws attention.
+ *
+ * When `animate={false}` (e.g. subsequent steps), shows just the avatar
+ * immediately — no animation.
  */
-import React from 'react';
-import { TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, TouchableOpacity, View } from 'react-native';
 import { Image } from 'expo-image';
+import { Text } from '@/components/common/Text';
+import { COLORS, SPACING } from '@/constants/design-tokens';
 import i18n from '@/i18n';
+
+const AVATAR_SIZE = 40;
+const PILL_DELAY_MS = 3000;
+const COLLAPSE_DURATION_MS = 400;
+const BOUNCE_DURATION_MS = 300;
 
 interface AskIrmixyButtonProps {
   onPress: () => void;
+  /** Show the pill→avatar animation. Default true on first step. */
+  animate?: boolean;
 }
 
-export function AskIrmixyButton({ onPress }: AskIrmixyButtonProps) {
+export function AskIrmixyButton({ onPress, animate = true }: AskIrmixyButtonProps) {
+  const textOpacity = useRef(new Animated.Value(animate ? 1 : 0)).current;
+  const textWidth = useRef(new Animated.Value(animate ? 1 : 0)).current;
+  const avatarScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!animate) return;
+
+    const timer = setTimeout(() => {
+      // Collapse: fade text + shrink width
+      Animated.parallel([
+        Animated.timing(textOpacity, {
+          toValue: 0,
+          duration: COLLAPSE_DURATION_MS,
+          useNativeDriver: false, // width animation can't use native driver
+        }),
+        Animated.timing(textWidth, {
+          toValue: 0,
+          duration: COLLAPSE_DURATION_MS,
+          useNativeDriver: false,
+        }),
+      ]).start(() => {
+        // Bounce the avatar after text hides
+        Animated.sequence([
+          Animated.timing(avatarScale, {
+            toValue: 1.15,
+            duration: BOUNCE_DURATION_MS / 2,
+            useNativeDriver: true,
+          }),
+          Animated.timing(avatarScale, {
+            toValue: 1,
+            duration: BOUNCE_DURATION_MS / 2,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    }, PILL_DELAY_MS);
+
+    return () => clearTimeout(timer);
+  }, [animate, textOpacity, textWidth, avatarScale]);
+
+  // Interpolate text container width from full to 0
+  const textContainerMaxWidth = textWidth.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 120],
+  });
+
+  const textContainerPadding = textWidth.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, SPACING.sm],
+  });
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -21,12 +85,31 @@ export function AskIrmixyButton({ onPress }: AskIrmixyButtonProps) {
       accessibilityRole="button"
       activeOpacity={0.7}
     >
-      <Image
-        source={require('@/assets/images/irmixy-avatar/irmixy-face.png')}
-        style={{ width: 40, height: 40, borderRadius: 20 }}
-        contentFit="cover"
-        cachePolicy="memory-disk"
-      />
+      <View
+        className="flex-row items-center rounded-full bg-primary-lightest"
+        style={{ paddingVertical: SPACING.xxs, paddingLeft: SPACING.xxs, overflow: 'hidden' }}
+      >
+        <Animated.View style={{ transform: [{ scale: avatarScale }] }}>
+          <Image
+            source={require('@/assets/images/irmixy-avatar/irmixy-face.png')}
+            style={{ width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2 }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
+        </Animated.View>
+        <Animated.View
+          style={{
+            opacity: textOpacity,
+            maxWidth: textContainerMaxWidth,
+            paddingRight: textContainerPadding,
+            overflow: 'hidden',
+          }}
+        >
+          <Text className="text-primary-darkest font-medium text-sm" numberOfLines={1}>
+            {i18n.t('recipes.cookingGuide.navigation.askIrmixy')}
+          </Text>
+        </Animated.View>
+      </View>
     </TouchableOpacity>
   );
 }

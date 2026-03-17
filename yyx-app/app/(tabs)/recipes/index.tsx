@@ -49,6 +49,18 @@ const Recipes = () => {
   const headerTranslateY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
   const accumulatedDelta = useRef(0);
+  const activeAnimRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const animateHeader = useCallback((toValue: number, duration: number) => {
+    activeAnimRef.current?.stop();
+    const anim = Animated.timing(headerTranslateY, {
+      toValue,
+      duration,
+      useNativeDriver: true,
+    });
+    activeAnimRef.current = anim;
+    anim.start(() => { activeAnimRef.current = null; });
+  }, [headerTranslateY]);
 
   const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const currentY = event.nativeEvent.contentOffset.y;
@@ -58,11 +70,7 @@ const Recipes = () => {
     // At the top of the list, always show the header
     if (currentY <= 0) {
       accumulatedDelta.current = 0;
-      Animated.timing(headerTranslateY, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }).start();
+      animateHeader(0, 150);
       return;
     }
 
@@ -76,21 +84,11 @@ const Recipes = () => {
     const threshold = 10;
 
     if (accumulatedDelta.current > threshold) {
-      // Scrolling down — hide header
-      Animated.timing(headerTranslateY, {
-        toValue: -headerHeight,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
+      animateHeader(-headerHeight, 200);
     } else if (accumulatedDelta.current < -threshold) {
-      // Scrolling up — show header
-      Animated.timing(headerTranslateY, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
+      animateHeader(0, 200);
     }
-  }, [headerHeight, headerTranslateY]);
+  }, [headerHeight, animateHeader]);
 
   const displayName = userProfile?.name || '';
 

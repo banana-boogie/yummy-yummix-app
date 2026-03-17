@@ -70,7 +70,7 @@ export default function CookingStep() {
     const footer = useMemo(() => (
         <View>
             <View className="items-center pb-xs">
-                <AskIrmixyButton onPress={() => setShowIrmixyModal(true)} />
+                <AskIrmixyButton onPress={() => setShowIrmixyModal(true)} animate={currentStepNumber === 1} />
             </View>
             <StepNavigationButtons
                 onBack={handleNavigation.back}

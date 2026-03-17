@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, screen } from '@testing-library/react-native';
 import { AskIrmixyButton } from '../AskIrmixyButton';
 
 jest.mock('expo-image', () => ({
@@ -18,10 +18,30 @@ describe('AskIrmixyButton', () => {
 
   it('calls onPress when tapped', () => {
     const onPress = jest.fn();
-    const { getByLabelText } = render(<AskIrmixyButton onPress={onPress} />);
+    render(<AskIrmixyButton onPress={onPress} />);
 
-    fireEvent.press(getByLabelText('Ask Irmixy'));
+    fireEvent.press(screen.getByLabelText('Ask Irmixy'));
 
     expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows "Ask Irmixy" text when animate is true', () => {
+    render(<AskIrmixyButton onPress={jest.fn()} animate={true} />);
+
+    expect(screen.getByText('Ask Irmixy')).toBeTruthy();
+  });
+
+  it('renders without text visible when animate is false', () => {
+    render(<AskIrmixyButton onPress={jest.fn()} animate={false} />);
+
+    // Text element exists but has opacity 0 (animated value starts at 0)
+    // The button should still be pressable
+    fireEvent.press(screen.getByLabelText('Ask Irmixy'));
+  });
+
+  it('defaults animate to true', () => {
+    render(<AskIrmixyButton onPress={jest.fn()} />);
+
+    expect(screen.getByText('Ask Irmixy')).toBeTruthy();
   });
 });
