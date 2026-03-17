@@ -18,7 +18,7 @@ yyx-app/
 │   ├── onboarding/         # Onboarding flow
 │   └── _layout.tsx         # Root layout
 ├── components/             # Reusable UI components
-│   ├── common/             # Core shared: Text, Button, SearchBar, Switch, AlertModal, ErrorMessage, CheckboxButton, Divider, GradientHeader, HeaderWithBack, LanguageBadge, ShareButton, StatusModal, SelectableCard, DangerButton, VoiceAssistantButton
+│   ├── common/             # Core shared: Text, Button, SearchBar, Switch, AlertModal, ErrorMessage, CheckboxButton, Divider, GradientHeader, HeaderWithBack, LanguageBadge, ShareButton, StatusModal, SelectableCard, DangerButton, SafeImage
 │   ├── layouts/            # PageLayout, ResponsiveLayout
 │   ├── chat/               # Chat-specific components (RecipeProgressTracker, ChatScreen, VoiceChatScreen, etc.)
 │   ├── recipe/             # Recipe cards, lists

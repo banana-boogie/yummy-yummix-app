@@ -160,4 +160,47 @@ describe('IrmixyCookingModal', () => {
       expect(screen.queryByTestId('chat-screen')).toBeNull();
     });
   });
+
+  // ============================================================
+  // SESSION PERSISTENCE TESTS
+  // ============================================================
+
+  describe('session persistence', () => {
+    it('preserves mode state across close and reopen', () => {
+      const { rerender } = render(<IrmixyCookingModal {...defaultProps} />);
+
+      // Switch to voice
+      fireEvent.press(screen.getByLabelText('Switch to voice'));
+      expect(screen.getByTestId('voice-chat-screen')).toBeTruthy();
+
+      // Close — voice mode should reset to text (to stop WebRTC)
+      rerender(<IrmixyCookingModal {...defaultProps} visible={false} />);
+
+      // Reopen — should be back in text mode
+      rerender(<IrmixyCookingModal {...defaultProps} visible={true} />);
+      expect(screen.getByTestId('chat-screen')).toBeTruthy();
+    });
+  });
+
+  // ============================================================
+  // VOICE CLEANUP TESTS
+  // ============================================================
+
+  describe('voice cleanup', () => {
+    it('resets to text mode when modal closes in voice mode', () => {
+      const { rerender } = render(<IrmixyCookingModal {...defaultProps} />);
+
+      // Switch to voice
+      fireEvent.press(screen.getByLabelText('Switch to voice'));
+      expect(screen.getByTestId('voice-chat-screen')).toBeTruthy();
+
+      // Close modal — should switch back to text (unmounting VoiceChatScreen)
+      rerender(<IrmixyCookingModal {...defaultProps} visible={false} />);
+
+      // Reopen — should be text mode, not voice
+      rerender(<IrmixyCookingModal {...defaultProps} visible={true} />);
+      expect(screen.getByTestId('chat-screen')).toBeTruthy();
+      expect(screen.queryByTestId('voice-chat-screen')).toBeNull();
+    });
+  });
 });

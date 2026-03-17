@@ -6,7 +6,7 @@
  * no chat logic duplication. The modal is just a shell with header,
  * mode toggle, and the appropriate screen component.
  */
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
     View,
     Modal,
@@ -46,16 +46,19 @@ export function IrmixyCookingModal({
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [voiceTranscriptMessages, setVoiceTranscriptMessages] = useState<ChatMessage[]>([]);
 
-    // Ref to stop voice conversation when modal closes
-    const stopVoiceRef = useRef<(() => void) | null>(null);
+    // When modal closes while in voice mode, switch to text to trigger
+    // VoiceChatScreen unmount — its internal useFocusEffect cleanup stops the WebRTC session.
+    const prevVisibleRef = useRef(visible);
+    useEffect(() => {
+        if (prevVisibleRef.current && !visible && mode === 'voice') {
+            setMode('text');
+        }
+        prevVisibleRef.current = visible;
+    }, [visible, mode]);
 
     const handleClose = useCallback(() => {
-        // Stop voice conversation if active
-        if (mode === 'voice') {
-            stopVoiceRef.current?.();
-        }
         onClose();
-    }, [mode, onClose]);
+    }, [onClose]);
 
     const toggleMode = useCallback(() => {
         setMode((m) => (m === 'text' ? 'voice' : 'text'));
@@ -66,7 +69,10 @@ export function IrmixyCookingModal({
     }, []);
 
     // Build the context prefix for text mode
-    const contextPrefix = `[Cooking context: "${recipeContext.recipeTitle ?? ''}", step ${recipeContext.currentStep ?? '?'}/${recipeContext.totalSteps ?? '?'}${recipeContext.stepInstructions ? `. Current step: "${recipeContext.stepInstructions}"` : ''}]`;
+    const contextPrefix = useMemo(() =>
+        `[Cooking context: "${recipeContext.recipeTitle ?? ''}", step ${recipeContext.currentStep ?? '?'}/${recipeContext.totalSteps ?? '?'}${recipeContext.stepInstructions ? `. Current step: "${recipeContext.stepInstructions}"` : ''}]`,
+        [recipeContext.recipeTitle, recipeContext.currentStep, recipeContext.totalSteps, recipeContext.stepInstructions],
+    );
 
     const isNative = Platform.OS !== 'web';
 
