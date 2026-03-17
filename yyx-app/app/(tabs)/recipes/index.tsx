@@ -43,17 +43,16 @@ const Recipes = () => {
   }, [searchQuery]);
 
   // Collapsible header logic
-  // Animation nodes are created once via useRef to avoid the "Illegal node ID"
-  // crash that occurs when Animated.diffClamp is recreated on re-render.
+  // Uses simple interpolate with clamp instead of Animated.diffClamp to avoid
+  // the "Illegal node ID" crash (diffClamp nodes can't be safely recreated).
   const [headerHeight, setHeaderHeight] = useState(180);
   const scrollY = useRef(new Animated.Value(0)).current;
-  const diffClamp = useRef(Animated.diffClamp(scrollY, 0, headerHeight)).current;
-  const translateY = useRef(
-    diffClamp.interpolate({
-      inputRange: [0, headerHeight],
-      outputRange: [0, -headerHeight],
-    })
-  ).current;
+
+  const translateY = scrollY.interpolate({
+    inputRange: [0, headerHeight],
+    outputRange: [0, -headerHeight],
+    extrapolate: 'clamp',
+  });
 
   const displayName = userProfile?.name || '';
 
