@@ -41,7 +41,7 @@ export async function fetchBudgetUsage(userId: string): Promise<BudgetUsage> {
     .from('ai_membership_tiers')
     .select('monthly_text_budget_usd')
     .eq('tier', tier)
-    .single();
+    .maybeSingle();
 
   if (tierError) {
     logger.error('[budgetService] Failed to fetch tier limits:', tierError);

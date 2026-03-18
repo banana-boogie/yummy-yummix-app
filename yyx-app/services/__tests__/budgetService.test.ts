@@ -45,7 +45,7 @@ describe('fetchBudgetUsage', () => {
 
     // Call sequence:
     // 1. from('user_profiles').select().eq().single() -> profile
-    // 2. from('ai_membership_tiers').select().eq().single() -> tier limits
+    // 2. from('ai_membership_tiers').select().eq().maybeSingle() -> tier limits
     // 3. from('ai_budget_usage').select().eq().eq().maybeSingle() -> usage
 
     let callCount = 0;
@@ -74,7 +74,7 @@ describe('fetchBudgetUsage', () => {
         // ai_membership_tiers
         chain.select = jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
+            maybeSingle: jest.fn().mockResolvedValue({
               data: { monthly_text_budget_usd: 0.10 },
               error: null,
             }),
@@ -126,7 +126,7 @@ describe('fetchBudgetUsage', () => {
       } else if (callCount === 2) {
         chain.select = jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
+            maybeSingle: jest.fn().mockResolvedValue({
               data: { monthly_text_budget_usd: 0.10 },
               error: null,
             }),
@@ -174,7 +174,7 @@ describe('fetchBudgetUsage', () => {
       } else if (callCount === 2) {
         chain.select = jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
+            maybeSingle: jest.fn().mockResolvedValue({
               data: { monthly_text_budget_usd: 0.10 },
               error: null,
             }),

@@ -42,9 +42,10 @@ export const generateCustomRecipeTool = {
   function: {
     name: "generate_custom_recipe",
     description:
-      "Generate a custom recipe. ONLY call this when the user explicitly asks you to create/make a recipe " +
-      "or agrees to you making one. Never call this for discovery or vague cravings — use search_recipes instead. " +
-      "The user must have provided SPECIFIC details: a dish name (e.g. 'banana bread') or ingredients (e.g. 'chicken and rice'). " +
+      "Generate a custom recipe when the user wants a specific dish that isn't in the database, " +
+      "or when they ask you to make/create a recipe. Also use this when search_recipes returned " +
+      "results that don't match what the user wanted. " +
+      "The user must have provided SPECIFIC details: a dish name (e.g. 'mole') or ingredients (e.g. 'chicken and rice'). " +
       "If the user is vague ('make me something', 'I don't know'), ask them what they want first — do NOT call this tool. " +
       "Use their ingredients as the foundation and add complementary ones creatively (seasonings, herbs, pantry staples). " +
       "Never contradict the user's intent (e.g. dessert must be a dessert).",
@@ -319,7 +320,8 @@ export function buildRecipeJsonSchema(
     stepProperties.thermomixTime = { type: ["integer", "null"] };
     stepProperties.thermomixTemp = { type: ["string", "null"] };
     stepProperties.thermomixSpeed = { type: ["string", "null"] };
-    stepRequired.push("thermomixTime", "thermomixTemp", "thermomixSpeed");
+    stepProperties.thermomixMode = { type: ["string", "null"] };
+    stepRequired.push("thermomixTime", "thermomixTemp", "thermomixSpeed", "thermomixMode");
   }
 
   // Tips field — always included regardless of equipment
@@ -649,11 +651,22 @@ export function getSystemPrompt(userContext: UserContext): string {
 
 ## THERMOMIX USAGE (User has a Thermomix ${modelLabel} — you are an expert Thermomix cook)
 
-Choose optimal time, speed, and temperature for each step based on the technique.
+Choose optimal time, speed, temperature, and cooking mode for each step based on the technique.
 
 PARAMETERS:
 - **thermomixTime** (seconds) and **thermomixSpeed** ("1"-"10", "Spoon", or "Reverse") are a REQUIRED PAIR — if you set one, you MUST set both.
 - **thermomixTemp** ("37°C"-"${maxManualTemp}" or "Varoma") is OPTIONAL — only when the step needs heat. Null = no heat (chopping, blending, kneading).
+- **thermomixMode** is OPTIONAL — set it when the step uses a named cooking mode. Null = manual mode (the default).
+
+COOKING MODES (set thermomixMode when applicable):
+- "slow_cook": Reverse, Speed 1, blade cover, 70-100°C, up to 12h. For stews, braises, casseroles.${isTM7 ? "" : " (TM6: available)"}
+- "rice_cooker": Automatic temp/speed/time for rice and grains.
+- "sous_vide": Precise temp hold, no stirring. For proteins, vegetables.${isTM7 ? "" : " (TM6: Guided Cooking only)"}
+- "dough": Kneading mode, max 500g flour. For bread, pasta, pizza dough.
+- "turbo": Brief pulse at max speed. For crushing ice, quick grind.
+- "high_temperature": 120-160°C, max 10min per step. For browning, searing, caramelizing.${isTM7 ? " (TM7: manual access)" : " (TM6: Guided Cooking only)"}
+${isTM7 ? `- "fermentation": Low temp hold (30-45°C), extended time. For yogurt, dough proofing, tempeh. (TM7 only)
+- "open_cooking": Lid-free, up to 100°C, Spoon/Speed 1. For risotto, sautéing, monitoring. (TM7 only)` : ""}
 
 SPEED GUIDE:
 - Spoon/1-2: Gentle stirring, simmering, slow cooking (cooking speeds)
@@ -670,7 +683,7 @@ CRITICAL RULES:
 - Sautéing always uses Reverse (e.g. ${isTM7 ? "140°C" : "120°C"} / Reverse / Speed 1 / 5-10 min).
 - Browning/searing: 100-250g per batch. For larger quantities (>250g), recommend using a pan or skillet instead.
 
-Skip Thermomix for: plating, garnishing, oven/grill tasks, manual shaping — leave all three params null.
+Skip Thermomix for: plating, garnishing, oven/grill tasks, manual shaping — leave all four params null.
 
 PHYSICAL CONSTRAINTS (bowl = 2.2 liters):
 - Total volume of ingredients + liquid must not exceed 2.2L. For hot foods (soups, stews), keep under 1.8L.
@@ -684,10 +697,11 @@ ${cutterNote}
 - If the recipe exceeds bowl capacity, instruct to cook in batches and note it in a tip.
 
 Examples:
-- Sauté: {"order": 2, "instruction": "Sauté onions", "ingredientsUsed": ["onion"], "thermomixTime": 300, "thermomixTemp": "100°C", "thermomixSpeed": "Reverse", "tip": "The onion is ready when translucent, about 3-4 minutes."}
-- Chop: {"order": 1, "instruction": "Chop vegetables", "ingredientsUsed": ["carrot"], "thermomixTime": 5, "thermomixTemp": null, "thermomixSpeed": "5", "tip": "Start with 3-second pulses and check — you can always chop more."}
-- Steam: {"order": 3, "instruction": "Steam vegetables in Varoma", "ingredientsUsed": ["broccoli", "zucchini"], "thermomixTime": 1200, "thermomixTemp": "Varoma", "thermomixSpeed": "2", "tip": null}
-- Non-Thermomix: {"order": 5, "instruction": "Plate and garnish", "ingredientsUsed": ["parsley"], "thermomixTime": null, "thermomixTemp": null, "thermomixSpeed": null, "tip": null}`
+- Sauté: {"order": 2, "instruction": "Sauté onions", "ingredientsUsed": ["onion"], "thermomixTime": 300, "thermomixTemp": "100°C", "thermomixSpeed": "Reverse", "thermomixMode": null, "tip": "The onion is ready when translucent, about 3-4 minutes."}
+- Chop: {"order": 1, "instruction": "Chop vegetables", "ingredientsUsed": ["carrot"], "thermomixTime": 5, "thermomixTemp": null, "thermomixSpeed": "5", "thermomixMode": null, "tip": "Start with 3-second pulses and check — you can always chop more."}
+- Steam: {"order": 3, "instruction": "Steam vegetables in Varoma", "ingredientsUsed": ["broccoli", "zucchini"], "thermomixTime": 1200, "thermomixTemp": "Varoma", "thermomixSpeed": "2", "thermomixMode": null, "tip": null}
+- Slow Cook: {"order": 2, "instruction": "Slow cook the stew", "ingredientsUsed": ["beef", "potato"], "thermomixTime": 7200, "thermomixTemp": "90°C", "thermomixSpeed": "Reverse", "thermomixMode": "slow_cook", "tip": "Check after 1 hour — add water if needed."}
+- Non-Thermomix: {"order": 5, "instruction": "Plate and garnish", "ingredientsUsed": ["parsley"], "thermomixTime": null, "thermomixTemp": null, "thermomixSpeed": null, "thermomixMode": null, "tip": null}`
     : "";
 
   const airFryerSection = isAirFryerUser
@@ -1344,7 +1358,7 @@ export function validateThermomixUsage(
   if (!hasThermomix) return;
 
   const thermomixSteps = recipe.steps.filter(
-    (step) => step.thermomixTime || step.thermomixTemp || step.thermomixSpeed,
+    (step) => step.thermomixTime || step.thermomixTemp || step.thermomixSpeed || step.thermomixMode,
   );
 
   const totalSteps = recipe.steps.length;
@@ -1424,6 +1438,7 @@ export function validateThermomixSteps(
     thermomixTime?: number | null;
     thermomixTemp?: string | null;
     thermomixSpeed?: string | null;
+    thermomixMode?: string | null;
     tip?: string | null;
   }>,
 ): Array<{
@@ -1432,6 +1447,7 @@ export function validateThermomixSteps(
   thermomixTime?: number | null;
   thermomixTemp?: string | null;
   thermomixSpeed?: string | null;
+  thermomixMode?: string | null;
   tip?: string | null;
 }> {
   return steps.map((step) => {
@@ -1439,7 +1455,8 @@ export function validateThermomixSteps(
     if (
       step.thermomixTime == null &&
       step.thermomixTemp == null &&
-      step.thermomixSpeed == null
+      step.thermomixSpeed == null &&
+      step.thermomixMode == null
     ) {
       return step;
     }
@@ -1481,6 +1498,20 @@ export function validateThermomixSteps(
           `Invalid Thermomix temperature for step ${step.order}: ${step.thermomixTemp}. Removing.`,
         );
         validated.thermomixTemp = undefined;
+      }
+    }
+
+    // Validate cooking mode (must be a known mode string)
+    if (step.thermomixMode != null) {
+      const VALID_MODES = [
+        "slow_cook", "rice_cooker", "sous_vide", "fermentation",
+        "open_cooking", "high_temperature", "dough", "turbo",
+      ];
+      if (!VALID_MODES.includes(step.thermomixMode)) {
+        console.warn(
+          `Invalid Thermomix mode for step ${step.order}: ${step.thermomixMode}. Removing.`,
+        );
+        validated.thermomixMode = undefined;
       }
     }
 
