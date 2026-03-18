@@ -2,7 +2,7 @@
 /**
  * Translate Missing Content
  *
- * Uses OpenAI GPT-4o-mini to translate recipes, ingredients, and
+ * Uses OpenAI gpt-4.1-mini to translate recipes, ingredients, and
  * kitchen tools that are missing one language.
  *
  * Usage:
@@ -33,35 +33,64 @@ async function translate(
   fromLang: 'English' | 'Spanish',
   toLang: 'English' | 'Mexican Spanish',
 ): Promise<string> {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${config.openaiApiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [{
-        role: 'user',
-        content:
-          `Translate the following ${fromLang} food/cooking term to ${toLang}. Return ONLY the translated text, nothing else.\n\n${text}`,
-      }],
-      temperature: 0.3,
-      max_tokens: 200,
-    }),
-  });
+  const maxAttempts = 3;
+  const baseBackoffMs = 1000;
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Translation API error (${res.status}): ${body}`);
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${config.openaiApiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4.1-mini',
+          messages: [{
+            role: 'user',
+            content:
+              `Translate the following ${fromLang} food/cooking term to ${toLang}. Return ONLY the translated text, nothing else.\n\n${text}`,
+          }],
+          temperature: 0.3,
+          max_tokens: 200,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.text();
+        const retryable = res.status === 429 || res.status >= 500;
+        if (retryable && attempt < maxAttempts) {
+          const backoffMs = baseBackoffMs * (2 ** (attempt - 1));
+          logger.warn(
+            `Translation API transient error for "${text}" (attempt ${attempt}/${maxAttempts}, status ${res.status}). Retrying in ${backoffMs}ms...`,
+          );
+          await sleep(backoffMs);
+          continue;
+        }
+        throw new Error(`Translation API error (${res.status}): ${body}`);
+      }
+
+      const data = await res.json();
+      const translated = data.choices?.[0]?.message?.content?.trim() || '';
+      if (!translated) {
+        throw new Error(`Translation returned empty result for "${text}"`);
+      }
+      return translated;
+    } catch (error) {
+      if (attempt < maxAttempts) {
+        const backoffMs = baseBackoffMs * (2 ** (attempt - 1));
+        logger.warn(
+          `Translation failed for "${text}" (attempt ${attempt}/${maxAttempts}): ${error}. Retrying in ${backoffMs}ms...`,
+        );
+        await sleep(backoffMs);
+        continue;
+      }
+      throw error;
+    }
   }
 
-  const data = await res.json();
-  const translated = data.choices?.[0]?.message?.content?.trim() || '';
-  if (!translated) {
-    throw new Error(`Translation returned empty result for "${text}"`);
-  }
-  return translated;
+  // Unreachable, but satisfies TypeScript
+  throw new Error(`Translation failed after ${maxAttempts} attempts for "${text}"`);
 }
 
 async function translatePair(

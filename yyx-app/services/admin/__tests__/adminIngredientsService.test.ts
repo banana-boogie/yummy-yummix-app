@@ -174,6 +174,80 @@ describe('AdminIngredientsService', () => {
 
       expect(result[0].translations).toEqual([]);
     });
+
+    it('maps nutrition from join when returned as single object', async () => {
+      mockOrder.mockResolvedValue({
+        data: [{
+          id: 'ing-3',
+          image_url: null,
+          translations: [{ locale: 'en', name: 'Apple', plural_name: null }],
+          nutrition: { calories: 52, protein: 0.3, fat: 0.2, carbohydrates: 14, source: 'manual' },
+        }],
+        error: null,
+      });
+
+      const result = await service.getAllIngredientsForAdmin();
+
+      expect(result[0].nutritionalFacts).toEqual({
+        calories: 52,
+        protein: 0.3,
+        fat: 0.2,
+        carbohydrates: 14,
+      });
+    });
+
+    it('maps nutrition from join when returned as array', async () => {
+      mockOrder.mockResolvedValue({
+        data: [{
+          id: 'ing-4',
+          image_url: null,
+          translations: [{ locale: 'en', name: 'Banana', plural_name: null }],
+          nutrition: [{ calories: 89, protein: 1.1, fat: 0.3, carbohydrates: 23, source: 'openai:gpt-4o-mini' }],
+        }],
+        error: null,
+      });
+
+      const result = await service.getAllIngredientsForAdmin();
+
+      expect(result[0].nutritionalFacts).toEqual({
+        calories: 89,
+        protein: 1.1,
+        fat: 0.3,
+        carbohydrates: 23,
+      });
+    });
+
+    it('sets nutritionalFacts to undefined when nutrition join is null', async () => {
+      mockOrder.mockResolvedValue({
+        data: [{
+          id: 'ing-5',
+          image_url: null,
+          translations: [{ locale: 'en', name: 'Salt', plural_name: null }],
+          nutrition: null,
+        }],
+        error: null,
+      });
+
+      const result = await service.getAllIngredientsForAdmin();
+
+      expect(result[0].nutritionalFacts).toBeUndefined();
+    });
+
+    it('sets nutritionalFacts to undefined when nutrition join is empty array', async () => {
+      mockOrder.mockResolvedValue({
+        data: [{
+          id: 'ing-6',
+          image_url: null,
+          translations: [{ locale: 'en', name: 'Pepper', plural_name: null }],
+          nutrition: [],
+        }],
+        error: null,
+      });
+
+      const result = await service.getAllIngredientsForAdmin();
+
+      expect(result[0].nutritionalFacts).toBeUndefined();
+    });
   });
 
   // ============================================================
@@ -492,6 +566,113 @@ describe('AdminIngredientsService', () => {
         (call: string[]) => call[0] === 'ingredient_nutrition'
       );
       expect(nutritionUpsertCalls).toHaveLength(0);
+    });
+
+    it('skips nutrition when nutritionalFacts is not provided on update', async () => {
+      const updates = {
+        id: 'ing-1',
+        translations: [
+          { locale: 'en', name: 'Updated Tomato' },
+        ],
+      };
+
+      await service.updateIngredient('ing-1', updates as any);
+
+      const nutritionCalls = mockFrom.mock.calls.filter(
+        (call: string[]) => call[0] === 'ingredient_nutrition'
+      );
+      expect(nutritionCalls).toHaveLength(0);
+    });
+
+    it('upserts with partial nutrition values and nulls for missing fields', async () => {
+      const updates = {
+        id: 'ing-1',
+        nutritionalFacts: { calories: 50, protein: undefined, fat: '', carbohydrates: undefined },
+      };
+
+      await service.updateIngredient('ing-1', updates as any);
+
+      expect(mockFrom).toHaveBeenCalledWith('ingredient_nutrition');
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ingredient_id: 'ing-1',
+          calories: 50,
+          protein: null,
+          fat: null,
+          carbohydrates: null,
+          source: 'manual',
+        }),
+        { onConflict: 'ingredient_id' }
+      );
+    });
+
+    it('converts string nutrition values to numbers on upsert', async () => {
+      const updates = {
+        id: 'ing-1',
+        nutritionalFacts: { calories: '120', protein: '5.5', fat: '2.3', carbohydrates: '18.7' },
+      };
+
+      await service.updateIngredient('ing-1', updates as any);
+
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ingredient_id: 'ing-1',
+          calories: 120,
+          protein: 5.5,
+          fat: 2.3,
+          carbohydrates: 18.7,
+        }),
+        { onConflict: 'ingredient_id' }
+      );
+    });
+
+    it('deletes nutrition when all fields are undefined', async () => {
+      const updates = {
+        id: 'ing-1',
+        nutritionalFacts: { calories: undefined, protein: undefined, fat: undefined, carbohydrates: undefined },
+      };
+
+      mockEq.mockResolvedValue({ error: null });
+
+      await service.updateIngredient('ing-1', updates as any);
+
+      expect(mockFrom).toHaveBeenCalledWith('ingredient_nutrition');
+      expect(mockDelete).toHaveBeenCalled();
+    });
+
+    it('deletes nutrition on create when all fields are empty strings', async () => {
+      const newIngredient = {
+        translations: [
+          { locale: 'en', name: 'Garlic' },
+        ],
+        nutritionalFacts: { calories: '', protein: '', fat: '', carbohydrates: '' },
+      };
+
+      mockSingle.mockResolvedValue({ data: { id: 'new-ing-2' }, error: null });
+      mockInsert.mockReturnValueOnce({ select: mockSelect })
+        .mockResolvedValueOnce({ error: null });
+      mockEq.mockResolvedValue({ error: null });
+
+      await service.createIngredient(newIngredient);
+
+      expect(mockFrom).toHaveBeenCalledWith('ingredient_nutrition');
+      expect(mockDelete).toHaveBeenCalled();
+    });
+
+    it('includes updated_at timestamp in nutrition upsert', async () => {
+      const updates = {
+        id: 'ing-1',
+        nutritionalFacts: { calories: 10, protein: 0.5, fat: 0.1, carbohydrates: 2.0 },
+      };
+
+      await service.updateIngredient('ing-1', updates as any);
+
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          updated_at: expect.any(String),
+        }),
+        { onConflict: 'ingredient_id' }
+      );
     });
   });
 

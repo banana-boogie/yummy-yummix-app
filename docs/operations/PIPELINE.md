@@ -23,12 +23,12 @@ All commands also work with `deno task` directly (e.g., `deno task pipeline:audi
 
 | Flag | Purpose |
 |------|---------|
-| `--local` | Target the cloud database (required — safety confirmation) |
-| `--production` | Same as `--local` (both use cloud credentials) |
+| `--local` | Load credentials from `yyx-app/.env.local` (Supabase URL) and `yyx-server/.env.local` (API keys) |
+| `--production` | Load credentials from `yyx-app/.env` (Supabase URL) and `yyx-server/.env` (API keys) |
 | `--limit N` | Process at most N items |
 | `--dry-run` | Preview what would happen without making changes |
 
-**Why `--local` is required:** It's a safety guard to prevent accidentally running pipeline commands. You must explicitly confirm which environment you're targeting. Both `--local` and `--production` use the same Supabase credentials from `.env.local`.
+**Why a flag is required:** One of `--local` or `--production` must be specified. This is a safety guard to prevent accidentally running pipeline commands without explicitly choosing which env files to load. In practice both may point to the same Supabase project if your `.env.local` and `.env` contain the same credentials, but the flag controls *which files* are read.
 
 ## Typical Workflow
 

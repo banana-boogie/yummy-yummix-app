@@ -50,6 +50,7 @@ temp/
 data-pipeline/.import-progress.json
 data-pipeline/audit-report.json
 data-pipeline/scan-report.json
+data-pipeline/quality-report.json
 data-pipeline/data/notion-exports/*.md
 data-pipeline/data/failed-uploads/
 

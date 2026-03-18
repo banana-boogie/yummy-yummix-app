@@ -1,7 +1,7 @@
 /**
  * Recipe Parser
  *
- * Parses bilingual recipe markdown using OpenAI GPT-4o-mini with structured output.
+ * Parses bilingual recipe markdown using OpenAI gpt-4.1-mini with structured output.
  * Uses the same JSON schema as the parse-recipe-markdown edge function.
  */
 
