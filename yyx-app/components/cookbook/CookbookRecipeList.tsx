@@ -13,72 +13,22 @@ import i18n from '@/i18n';
 
 const listContentStyle = { paddingVertical: 16 } as const;
 
-interface CookbookRecipeListProps {
-  recipes: CookbookRecipe[];
-  cookbookId: string;
-  isOwner: boolean; // Whether the current user owns this cookbook
-  emptyMessage?: string;
+interface RecipeItemProps {
+  item: CookbookRecipe;
+  isOwner: boolean;
+  onPress: (recipeId: string) => void;
+  onRemove: (recipeId: string, recipeName: string) => void;
 }
 
-export function CookbookRecipeList({
-  recipes,
-  cookbookId,
+const RecipeItem = React.memo(function RecipeItem({
+  item,
   isOwner,
-  emptyMessage,
-}: CookbookRecipeListProps) {
-  const router = useRouter();
-  const removeRecipeMutation = useRemoveRecipeFromCookbook();
-  const [sortBy, setSortBy] = useState<'custom' | 'recent'>('custom');
-
-  const sortedRecipes = useMemo(() => {
-    const copy = [...recipes];
-    if (sortBy === 'recent') {
-      return copy.sort(
-        (a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime()
-      );
-    }
-    return copy.sort((a, b) => a.displayOrder - b.displayOrder);
-  }, [recipes, sortBy]);
-
-  const handleRecipePress = async (recipeId: string) => {
-    await Haptics.selectionAsync();
-    router.push(`/(tabs)/recipes/${recipeId}`);
-  };
-
-  const handleRemoveRecipe = (recipeId: string, recipeName: string) => {
-    Alert.alert(
-      i18n.t('cookbooks.removeRecipe'),
-      i18n.t('cookbooks.removeRecipeConfirm', { name: recipeName }),
-      [
-        {
-          text: i18n.t('common.cancel'),
-          style: 'cancel',
-        },
-        {
-          text: i18n.t('common.remove'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await removeRecipeMutation.mutateAsync({
-                cookbookId,
-                recipeId,
-              });
-            } catch (error) {
-              const err = error as Error;
-              Alert.alert(
-                i18n.t('common.errors.title'),
-                err.message || i18n.t('cookbooks.errors.removeRecipeFailed')
-              );
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const renderRecipeItem = ({ item }: { item: CookbookRecipe }) => (
+  onPress,
+  onRemove,
+}: RecipeItemProps) {
+  return (
     <Pressable
-      onPress={() => handleRecipePress(item.id)}
+      onPress={() => onPress(item.id)}
       className="bg-white rounded-md shadow-sm mb-md mx-md active:opacity-70"
     >
       <View className="flex-row p-md">
@@ -144,7 +94,7 @@ export function CookbookRecipeList({
         {/* Remove button (only for owner) */}
         {isOwner && (
           <Pressable
-            onPress={() => handleRemoveRecipe(item.id, item.name)}
+            onPress={() => onRemove(item.id, item.name)}
             accessibilityRole="button"
             accessibilityLabel={i18n.t('cookbooks.a11y.removeFromCookbook')}
             className="p-xs ml-sm"
@@ -164,6 +114,82 @@ export function CookbookRecipeList({
         </View>
       )}
     </Pressable>
+  );
+});
+
+interface CookbookRecipeListProps {
+  recipes: CookbookRecipe[];
+  cookbookId: string;
+  isOwner: boolean; // Whether the current user owns this cookbook
+  emptyMessage?: string;
+}
+
+export function CookbookRecipeList({
+  recipes,
+  cookbookId,
+  isOwner,
+  emptyMessage,
+}: CookbookRecipeListProps) {
+  const router = useRouter();
+  const removeRecipeMutation = useRemoveRecipeFromCookbook();
+  const [sortBy, setSortBy] = useState<'custom' | 'recent'>('custom');
+
+  const sortedRecipes = useMemo(() => {
+    const copy = [...recipes];
+    if (sortBy === 'recent') {
+      return copy.sort(
+        (a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime()
+      );
+    }
+    return copy.sort((a, b) => a.displayOrder - b.displayOrder);
+  }, [recipes, sortBy]);
+
+  const handleRecipePress = React.useCallback(async (recipeId: string) => {
+    await Haptics.selectionAsync();
+    router.push(`/(tabs)/recipes/${recipeId}`);
+  }, [router]);
+
+  const handleRemoveRecipe = React.useCallback((recipeId: string, recipeName: string) => {
+    Alert.alert(
+      i18n.t('cookbooks.removeRecipe'),
+      i18n.t('cookbooks.removeRecipeConfirm', { name: recipeName }),
+      [
+        {
+          text: i18n.t('common.cancel'),
+          style: 'cancel',
+        },
+        {
+          text: i18n.t('common.remove'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await removeRecipeMutation.mutateAsync({
+                cookbookId,
+                recipeId,
+              });
+            } catch (error) {
+              const err = error as Error;
+              Alert.alert(
+                i18n.t('common.errors.title'),
+                i18n.t('cookbooks.errors.removeRecipeFailed')
+              );
+            }
+          },
+        },
+      ]
+    );
+  }, [cookbookId, removeRecipeMutation]);
+
+  const renderRecipeItem = React.useCallback(
+    ({ item }: { item: CookbookRecipe }) => (
+      <RecipeItem
+        item={item}
+        isOwner={isOwner}
+        onPress={handleRecipePress}
+        onRemove={handleRemoveRecipe}
+      />
+    ),
+    [isOwner, handleRecipePress, handleRemoveRecipe]
   );
 
   const renderEmpty = () => (

@@ -46,14 +46,11 @@ const COOKBOOK_WITH_RECIPES_SELECT = `
 
 /**
  * Response shape from get_cookbook_by_share_token() RPC function
+ * Returns only non-translatable fields (translations fetched separately)
  */
 interface SharedCookbookRpcResponse {
   id: string;
   user_id: string;
-  name_en: string;
-  name_es: string | null;
-  description_en: string | null;
-  description_es: string | null;
   is_public: boolean;
   is_default: boolean;
   share_token: string;
@@ -64,19 +61,14 @@ interface SharedCookbookRpcResponse {
 
 /**
  * Response shape from get_cookbook_recipes_by_share_token() RPC function
+ * Returns only non-translatable fields (translations fetched separately)
  */
 interface SharedCookbookRecipeRpcResponse {
   cookbook_recipe_id: string;
   cookbook_id: string;
   recipe_id: string;
-  notes_en: string | null;
-  notes_es: string | null;
   display_order: number;
   added_at: string;
-  recipe_name_en: string;
-  recipe_name_es: string | null;
-  recipe_description_en: string | null;
-  recipe_description_es: string | null;
   recipe_image_url: string | null;
   recipe_prep_time_minutes: number | null;
   recipe_cook_time_minutes: number | null;
@@ -85,9 +77,11 @@ interface SharedCookbookRecipeRpcResponse {
 }
 
 /**
- * Response shape for cookbook with recipe count aggregate
+ * Response shape for cookbook with filtered recipe IDs and total count aggregate.
+ * Used by getCookbooksContainingRecipe where cookbook_recipes is filtered by !inner
+ * and total_recipes provides the unfiltered count.
  */
-interface CookbookWithRecipeCountResponse extends CookbookApiResponse {
+interface CookbookWithRecipeFilterResponse extends CookbookApiResponse {
   cookbook_recipes: { recipe_id: string; id: string }[];
   total_recipes: { count: number }[];
 }
@@ -247,6 +241,12 @@ async function getCookbookByShareToken(
 
   const cookbook = typedCookbookData[0];
 
+  // Fetch translations for this cookbook (RPC doesn't return them)
+  const { data: cookbookTranslations } = await supabase
+    .from('cookbook_translations')
+    .select('locale, name, description')
+    .eq('cookbook_id', cookbook.id);
+
   // Call the SECURITY DEFINER function to get cookbook recipes
   const { data: recipesData, error: recipesError } = await supabase.rpc(
     'get_cookbook_recipes_by_share_token',
@@ -259,15 +259,47 @@ async function getCookbookByShareToken(
 
   const typedRecipesData = recipesData as SharedCookbookRecipeRpcResponse[] | null;
 
-  // Transform RPC flat rows into translation array shape expected by transform functions
+  // Collect recipe IDs to batch-fetch translations
+  const recipeIds = (typedRecipesData || []).map((item) => item.recipe_id);
+  const cookbookRecipeIds = (typedRecipesData || []).map((item) => item.cookbook_recipe_id);
+
+  // Fetch recipe translations and note translations in parallel
+  const [recipeTransResult, noteTransResult] = await Promise.all([
+    recipeIds.length > 0
+      ? supabase
+          .from('recipe_translations')
+          .select('recipe_id, locale, name')
+          .in('recipe_id', recipeIds)
+      : Promise.resolve({ data: [] }),
+    cookbookRecipeIds.length > 0
+      ? supabase
+          .from('cookbook_recipe_translations')
+          .select('cookbook_recipe_id, locale, notes')
+          .in('cookbook_recipe_id', cookbookRecipeIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  // Index translations by entity ID for efficient lookup
+  const recipeTransByRecipeId = new Map<string, { locale: string; name: string }[]>();
+  for (const row of recipeTransResult.data || []) {
+    const existing = recipeTransByRecipeId.get(row.recipe_id) || [];
+    existing.push({ locale: row.locale, name: row.name });
+    recipeTransByRecipeId.set(row.recipe_id, existing);
+  }
+
+  const noteTransByCrId = new Map<string, { locale: string; notes: string }[]>();
+  for (const row of noteTransResult.data || []) {
+    const existing = noteTransByCrId.get(row.cookbook_recipe_id) || [];
+    existing.push({ locale: row.locale, notes: row.notes });
+    noteTransByCrId.set(row.cookbook_recipe_id, existing);
+  }
+
+  // Reconstruct the full data structure with translations
   const transformedRecipes = (typedRecipesData || []).map((item) => ({
     id: item.cookbook_recipe_id,
     cookbook_id: item.cookbook_id,
     recipe_id: item.recipe_id,
-    translations: [
-      { locale: 'en', notes: item.notes_en },
-      ...(item.notes_es ? [{ locale: 'es', notes: item.notes_es }] : []),
-    ],
+    translations: noteTransByCrId.get(item.cookbook_recipe_id) || [],
     display_order: item.display_order,
     added_at: item.added_at,
     recipes: {
@@ -277,29 +309,13 @@ async function getCookbookByShareToken(
       cook_time_minutes: item.recipe_cook_time_minutes,
       servings: item.recipe_servings,
       difficulty: item.recipe_difficulty,
-      translations: [
-        { locale: 'en', name: item.recipe_name_en },
-        ...(item.recipe_name_es ? [{ locale: 'es', name: item.recipe_name_es }] : []),
-      ],
+      translations: recipeTransByRecipeId.get(item.recipe_id) || [],
     },
   }));
 
-  // Reconstruct the data structure with translations arrays
   const reconstructedData = {
-    id: cookbook.id,
-    user_id: cookbook.user_id,
-    is_public: cookbook.is_public,
-    is_default: cookbook.is_default,
-    share_token: cookbook.share_token,
-    share_enabled: cookbook.share_enabled,
-    created_at: cookbook.created_at,
-    updated_at: cookbook.updated_at,
-    translations: [
-      { locale: 'en', name: cookbook.name_en, description: cookbook.description_en },
-      ...(cookbook.name_es
-        ? [{ locale: 'es', name: cookbook.name_es, description: cookbook.description_es }]
-        : []),
-    ],
+    ...cookbook,
+    translations: cookbookTranslations || [],
     cookbook_recipes: transformedRecipes,
   };
 
@@ -432,15 +448,14 @@ async function deleteCookbook(cookbookId: string): Promise<void> {
 async function addRecipeToCookbook(input: AddRecipeToCookbookInput): Promise<void> {
   const locale = i18n.locale;
 
-  // Get current max display order
-  const { data: existing } = await supabase
-    .from('cookbook_recipes')
-    .select('display_order')
-    .eq('cookbook_id', input.cookbookId)
-    .order('display_order', { ascending: false })
-    .limit(1);
-
-  const nextOrder = existing && existing.length > 0 ? existing[0].display_order + 1 : 0;
+  // Get next display_order atomically via DB function (avoids race conditions)
+  let nextOrder = 0;
+  if (input.displayOrder === undefined) {
+    const { data: orderData } = await supabase.rpc('next_cookbook_recipe_order', {
+      p_cookbook_id: input.cookbookId,
+    });
+    nextOrder = orderData ?? 0;
+  }
 
   // 1. Insert the cookbook_recipes junction row
   const { data: inserted, error } = await supabase
@@ -595,7 +610,7 @@ async function getCookbooksContainingRecipe(
   }
 
   return (data || []).map((raw) => {
-    const typedRaw = raw as unknown as CookbookWithRecipeCountResponse;
+    const typedRaw = raw as unknown as CookbookWithRecipeFilterResponse;
     const recipeCount = typedRaw.total_recipes?.[0]?.count ?? 0;
     return transformCookbook(typedRaw, recipeCount);
   });

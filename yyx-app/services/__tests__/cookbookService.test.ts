@@ -406,13 +406,8 @@ describe('cookbookService', () => {
   it('adds recipe with correct display_order and upserts notes translation', async () => {
     const mockClient = getMockSupabaseClient();
 
-    // Mock getting current max display order
-    const selectChain = {
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockResolvedValue({ data: [{ display_order: 2 }] }),
-    };
+    // Mock RPC for atomic display_order
+    mockClient.rpc.mockResolvedValueOnce({ data: 3, error: null });
 
     // Mock inserting the junction row
     const insertChain = {
@@ -429,13 +424,8 @@ describe('cookbookService', () => {
       upsert: jest.fn().mockResolvedValue({ error: null }),
     };
 
-    let callCount = 0;
     mockClient.from.mockImplementation((table: string) => {
-      if (table === 'cookbook_recipes') {
-        callCount++;
-        // First call = select for display_order, second call = insert
-        return callCount === 1 ? selectChain : insertChain;
-      }
+      if (table === 'cookbook_recipes') return insertChain;
       if (table === 'cookbook_recipe_translations') return translationChain;
       return {};
     });
@@ -446,7 +436,12 @@ describe('cookbookService', () => {
       notes: 'Extra garlic',
     });
 
-    // Should insert with display_order = 3 (max existing is 2)
+    // Should call RPC for atomic ordering
+    expect(mockClient.rpc).toHaveBeenCalledWith('next_cookbook_recipe_order', {
+      p_cookbook_id: 'cb-1',
+    });
+
+    // Should insert with display_order = 3 (from RPC)
     expect(insertChain.insert).toHaveBeenCalledWith({
       cookbook_id: 'cb-1',
       recipe_id: 'recipe-1',
@@ -464,15 +459,11 @@ describe('cookbookService', () => {
     );
   });
 
-  it('uses display_order 0 when cookbook has no recipes', async () => {
+  it('uses display_order 0 when RPC returns null', async () => {
     const mockClient = getMockSupabaseClient();
 
-    const selectChain = {
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockResolvedValue({ data: [] }),
-    };
+    // Mock RPC returning null (empty cookbook)
+    mockClient.rpc.mockResolvedValueOnce({ data: null, error: null });
 
     const insertChain = {
       insert: jest.fn().mockReturnThis(),
@@ -483,12 +474,8 @@ describe('cookbookService', () => {
       }),
     };
 
-    let callCount = 0;
     mockClient.from.mockImplementation((table: string) => {
-      if (table === 'cookbook_recipes') {
-        callCount++;
-        return callCount === 1 ? selectChain : insertChain;
-      }
+      if (table === 'cookbook_recipes') return insertChain;
       return {};
     });
 
@@ -507,12 +494,8 @@ describe('cookbookService', () => {
   it('throws RECIPE_ALREADY_ADDED on unique constraint violation', async () => {
     const mockClient = getMockSupabaseClient();
 
-    const selectChain = {
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockResolvedValue({ data: [] }),
-    };
+    // Mock RPC for display_order
+    mockClient.rpc.mockResolvedValueOnce({ data: 0, error: null });
 
     const insertChain = {
       insert: jest.fn().mockReturnThis(),
@@ -523,12 +506,8 @@ describe('cookbookService', () => {
       }),
     };
 
-    let callCount = 0;
     mockClient.from.mockImplementation((table: string) => {
-      if (table === 'cookbook_recipes') {
-        callCount++;
-        return callCount === 1 ? selectChain : insertChain;
-      }
+      if (table === 'cookbook_recipes') return insertChain;
       return {};
     });
 

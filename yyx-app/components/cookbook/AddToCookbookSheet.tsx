@@ -3,7 +3,7 @@ import { View, Modal, Pressable, FlatList, Alert } from 'react-native';
 import { Text, Button } from '@/components/common';
 import { TextInput } from '@/components/form';
 import { Ionicons } from '@expo/vector-icons';
-import { Cookbook, CreateCookbookInput, UpdateCookbookInput } from '@/types/cookbook.types';
+import { Cookbook, CreateCookbookInput } from '@/types/cookbook.types';
 import {
     useUserCookbooksQuery,
     useAddRecipeToCookbook,
