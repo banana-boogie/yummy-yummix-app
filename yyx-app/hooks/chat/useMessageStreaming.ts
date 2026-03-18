@@ -10,12 +10,10 @@ import {
 } from '@/services/chatService';
 import i18n from '@/i18n';
 
+import { isRecipeToolStatus } from '@/services/chatService';
+
 const CHUNK_BATCH_MS = 50;
 const SCROLL_DELAY_MS = 100;
-
-/** Statuses that indicate recipe generation/modification is in progress */
-const isRecipeToolStatus = (status: IrmixyStatus): boolean =>
-    status === 'cooking_it_up' || status === 'generating';
 
 interface UseMessageStreamingParams {
     user: User | null;
@@ -34,6 +32,7 @@ interface UseMessageStreamingParams {
     onResumeSessionClear: () => void;
     onBudgetWarning?: (warning: BudgetWarningPayload) => void;
     onBudgetExceeded?: (error: BudgetExceededError) => void;
+    onActionsReceived?: (actions: import('@/types/irmixy').Action[], response: import('@/types/irmixy').IrmixyResponse) => void;
 }
 
 export function useMessageStreaming({
@@ -53,6 +52,7 @@ export function useMessageStreaming({
     onResumeSessionClear,
     onBudgetWarning,
     onBudgetExceeded,
+    onActionsReceived,
 }: UseMessageStreamingParams) {
     const isMountedRef = useRef(true);
     const streamCancelRef = useRef<(() => void) | null>(null);
@@ -312,6 +312,11 @@ export function useMessageStreaming({
                         };
                     });
 
+                    // Auto-execute actions (e.g., share_recipe triggered by AI)
+                    if (response.actions?.length && onActionsReceived) {
+                        onActionsReceived(response.actions, response);
+                    }
+
                     if (hasRecipeData && assistantIndexRef.current !== null) {
                         const scrollToIdx = assistantIndexRef.current;
                         skipNextScrollToEndRef.current = true;
@@ -419,6 +424,7 @@ export function useMessageStreaming({
         stopAndGuard,
         updateAssistantMessage,
         user,
+        onActionsReceived,
         flatListRef,
         hasRecipeInCurrentStreamRef,
         isNearBottomRef,

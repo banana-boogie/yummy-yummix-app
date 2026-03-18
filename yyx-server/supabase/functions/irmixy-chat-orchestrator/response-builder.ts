@@ -6,8 +6,8 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import type {
+  Action,
   IrmixyResponse,
-  QuickAction,
   RecipeCard,
   UserContext,
 } from "../_shared/irmixy-schemas.ts";
@@ -30,7 +30,7 @@ export async function finalizeResponse(
   userContext: UserContext,
   recipes: RecipeCard[] | undefined,
   customRecipeResult: GenerateRecipeResult | undefined,
-  actions?: QuickAction[],
+  actions?: Action[],
 ): Promise<IrmixyResponse> {
   const irmixyResponse: IrmixyResponse = {
     version: "1.0",

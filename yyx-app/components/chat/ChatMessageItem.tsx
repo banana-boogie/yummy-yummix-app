@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { View, TouchableOpacity, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from '@/components/common/Text';
+import { ActionButton } from '@/components/common/ActionButton';
 import { ChatRecipeCard } from '@/components/chat/ChatRecipeCard';
 import { CustomRecipeCard } from '@/components/chat/CustomRecipeCard';
 import { RecipeProgressTracker } from '@/components/chat/RecipeProgressTracker';
@@ -9,7 +10,7 @@ import {
     ChatMessage,
     IrmixyStatus,
     GeneratedRecipe,
-    QuickAction,
+    Action,
 } from '@/services/chatService';
 import Markdown from '@ronradtke/react-native-markdown-display';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '@/constants/design-tokens';
@@ -134,7 +135,7 @@ export interface ChatMessageItemProps {
     showAvatar?: boolean;
     onCopyMessage: (content: string) => void;
     onStartCooking: (recipe: GeneratedRecipe, finalName: string, messageId: string, savedRecipeId?: string) => Promise<void>;
-    onActionPress: (action: QuickAction) => void;
+    onActionPress: (action: Action, messageId: string) => void;
 }
 
 export const ChatMessageItem = memo(function ChatMessageItem({
@@ -235,19 +236,15 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                 </View>
             )}
 
-            {/* Quick action buttons */}
+            {/* Action buttons */}
             {!isUser && item.actions && item.actions.length > 0 && (
                 <View className="mt-xs gap-xs">
-                    {item.actions.map((action, idx) => (
-                        <TouchableOpacity
-                            key={`${action.type}-${idx}`}
-                            onPress={() => onActionPress(action)}
-                            className="self-start bg-primary-medium px-md py-xs rounded-lg"
-                        >
-                            <Text className="text-sm font-medium text-white">
-                                {action.label}
-                            </Text>
-                        </TouchableOpacity>
+                    {item.actions.map((action) => (
+                        <ActionButton
+                            key={action.id}
+                            label={action.label}
+                            onPress={() => onActionPress(action, item.id)}
+                        />
                     ))}
                 </View>
             )}
