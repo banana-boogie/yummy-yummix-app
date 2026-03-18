@@ -95,8 +95,13 @@ export const chat = {
     switchToVoice: "Switch to voice",
     switchToText: "Switch to text",
   },
+  modeLabel: {
+    voice: "Voice",
+    text: "Text",
+  },
   sessions: {
     menuLabel: "Chat sessions menu",
+    chatsLabel: "Chats",
     title: "Chat Sessions",
     newChat: "New Chat",
     noSessions: "No previous conversations",

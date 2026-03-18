@@ -70,6 +70,11 @@ export default function CookingStep() {
     const footer = useMemo(() => (
         <View>
             <View className="items-center pb-xs">
+                {currentStepNumber === 1 && (
+                    <Text className="text-text-secondary text-xs mb-xxs">
+                        {i18n.t('recipes.cookingGuide.navigation.needHelp')}
+                    </Text>
+                )}
                 <AskIrmixyButton onPress={() => setShowIrmixyModal(true)} animate={currentStepNumber === 1} />
             </View>
             <StepNavigationButtons

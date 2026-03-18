@@ -99,11 +99,14 @@ export function CookingGuideHeader({
                                 {onExitPress && (
                                     <TouchableOpacity
                                         onPress={onExitPress}
-                                        className="w-10 h-10 rounded-full bg-white/60 items-center justify-center"
+                                        className="flex-row items-center rounded-full bg-white/60 px-sm py-xs gap-xxs"
                                         accessibilityLabel={i18n.t('recipes.cookingGuide.navigation.exitCookingGuide')}
                                         accessibilityRole="button"
                                     >
-                                        <MaterialCommunityIcons name="close" size={22} color={COLORS.text.default} />
+                                        <MaterialCommunityIcons name="close" size={18} color={COLORS.text.default} />
+                                        <Text className="text-text-default text-sm font-medium">
+                                            {i18n.t('recipes.cookingGuide.navigation.exit')}
+                                        </Text>
                                     </TouchableOpacity>
                                 )}
                                 {isWebMobile && <HamburgerMenu style={{ marginLeft: 8 }} />}
@@ -122,12 +125,15 @@ export function CookingGuideHeader({
                     {!showImage && onExitPress && (
                         <TouchableOpacity
                             onPress={onExitPress}
-                            className="w-10 h-10 rounded-full bg-black/5 items-center justify-center mb-sm"
+                            className="flex-row items-center rounded-full bg-black/5 px-sm py-xs gap-xxs mb-sm"
                             accessibilityLabel={i18n.t('recipes.cookingGuide.navigation.exitCookingGuide')}
                             accessibilityRole="button"
                             style={{ marginLeft: 'auto' }}
                         >
-                            <MaterialCommunityIcons name="close" size={22} color={COLORS.text.default} />
+                            <MaterialCommunityIcons name="close" size={18} color={COLORS.text.default} />
+                            <Text className="text-text-default text-sm font-medium">
+                                {i18n.t('recipes.cookingGuide.navigation.exit')}
+                            </Text>
                         </TouchableOpacity>
                     )}
                 </View>

@@ -119,11 +119,16 @@ export function ChatSessionsMenu({
             {/* Hamburger Button */}
             <TouchableOpacity
                 onPress={handleOpen}
-                className="w-10 h-10 items-center justify-center rounded-full bg-background-secondary ml-md"
+                className="items-center justify-center ml-md"
                 accessibilityLabel={i18n.t('chat.sessions.menuLabel')}
                 accessibilityRole="button"
             >
-                <MaterialCommunityIcons name="menu" size={24} color={COLORS.text.default} />
+                <View className="w-10 h-10 items-center justify-center rounded-full bg-background-secondary">
+                    <MaterialCommunityIcons name="menu" size={24} color={COLORS.text.default} />
+                </View>
+                <Text className="text-text-secondary text-[10px] mt-[1px]">
+                    {i18n.t('chat.sessions.chatsLabel')}
+                </Text>
             </TouchableOpacity>
 
             {/* Sessions Modal */}

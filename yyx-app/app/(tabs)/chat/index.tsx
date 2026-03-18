@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack } from 'expo-router';
 import { ChatScreen } from '@/components/chat/ChatScreen';
@@ -95,14 +95,21 @@ export default function ChatPage() {
                         Platform.OS !== 'web' ? (
                             <TouchableOpacity
                                 onPress={toggleMode}
-                                className="mr-md w-10 h-10 rounded-full border-2 border-primary-darkest items-center justify-center"
+                                className="mr-md items-center justify-center"
                                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                             >
-                                <MaterialCommunityIcons
-                                    name={mode === 'text' ? 'microphone' : 'keyboard'}
-                                    size={22}
-                                    color={COLORS.primary.darkest}
-                                />
+                                <View className="w-10 h-10 rounded-full border-2 border-primary-darkest items-center justify-center">
+                                    <MaterialCommunityIcons
+                                        name={mode === 'text' ? 'microphone' : 'keyboard'}
+                                        size={22}
+                                        color={COLORS.primary.darkest}
+                                    />
+                                </View>
+                                <Text style={{ fontSize: 10, color: COLORS.primary.darkest, marginTop: 1 }}>
+                                    {mode === 'text'
+                                        ? i18n.t('chat.modeLabel.voice')
+                                        : i18n.t('chat.modeLabel.text')}
+                                </Text>
                             </TouchableOpacity>
                         ) : undefined,
                 }}
