@@ -18,7 +18,13 @@ export interface PipelineConfig {
   usdaApiKey: string;
 }
 
-/** Parse --local / --production from Deno.args */
+/**
+ * Parse --local / --production from Deno.args.
+ *
+ * Throws on invalid input -- use this in tests where you want to catch errors.
+ * For CLI scripts, prefer `parseEnvironment()` which prints a message and exits
+ * instead of throwing.
+ */
 export function resolveEnvironment(args: string[]): Environment {
   const hasLocal = args.includes('--local');
   const hasProduction = args.includes('--production');
@@ -30,7 +36,12 @@ export function resolveEnvironment(args: string[]): Environment {
   throw new Error('Must specify --local or --production');
 }
 
-/** Parse --local / --production from Deno.args */
+/**
+ * Parse --local / --production from Deno.args.
+ *
+ * Unlike `resolveEnvironment()`, this prints a user-friendly error and calls
+ * `Deno.exit(1)` instead of throwing. Use this in CLI entry points.
+ */
 export function parseEnvironment(args: string[]): Environment {
   try {
     return resolveEnvironment(args);
@@ -70,6 +81,8 @@ function loadEnvFile(path: string): Record<string, string> {
     }
     return result;
   } catch {
+    // Not an error — .env files are optional. Log at debug level for troubleshooting.
+    console.debug(`loadEnvFile: file not found or unreadable: ${path}`);
     return {};
   }
 }
@@ -104,6 +117,11 @@ export function createPipelineConfig(env: Environment): PipelineConfig {
       supabaseKey = serviceKey;
       keyType = 'service_role';
     } else {
+      // console.warn intentional: Logger not yet available during bootstrap
+      console.warn(
+        'Warning: SUPABASE_SERVICE_ROLE_KEY not found — falling back to anon key. ' +
+          'DB writes that require RLS bypass will fail.',
+      );
       supabaseKey = envLocal['EXPO_PUBLIC_SUPABASE_ANON_KEY'] || '';
       keyType = 'anon';
     }

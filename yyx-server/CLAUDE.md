@@ -130,6 +130,25 @@ If a migration breaks the database:
 
 ---
 
+## Data Pipeline
+
+Located in `data-pipeline/`. CLI tools for recipe import, translation, nutrition fetching, image upload, and data auditing.
+
+Run tools with `npm run pipeline:<tool>` or `deno task pipeline:<tool>`:
+```bash
+deno task pipeline:import --local          # Import recipes from Notion export
+deno task pipeline:nutrition --local       # Fetch missing nutritional data
+deno task pipeline:upload-images --local --dir /path/to/images
+deno task pipeline:audit --local           # Audit data quality
+deno task pipeline:translate --local       # Translate content
+```
+
+All tools require `--local` or `--production` to select the target environment.
+
+See `docs/operations/PIPELINE.md` for full documentation.
+
+---
+
 ## Environment Variables
 
 ### Required in `.env.local`:

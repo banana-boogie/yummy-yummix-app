@@ -166,3 +166,67 @@ Deno.test('buildRecipeSteps defaults section names', () => {
   assertEquals(result[0].recipe_section_en, 'Main');
   assertEquals(result[0].recipe_section_es, 'Principal');
 });
+
+Deno.test('buildRecipeSteps returns empty array for no steps', () => {
+  const parsed = makeParsed([]);
+  const result = buildRecipeSteps('recipe-1', parsed);
+  assertEquals(result.length, 0);
+});
+
+Deno.test('buildRecipeSteps clamps fractional thermomixTime to rounded integer', () => {
+  const parsed = makeParsed([
+    makeStep({ thermomixTime: 59.7 }),
+  ]);
+
+  const result = buildRecipeSteps('recipe-1', parsed);
+  assertEquals(result[0].thermomix_time, 60);
+});
+
+Deno.test('buildRecipeSteps clamps sub-1 thermomixTime to minimum of 1', () => {
+  const parsed = makeParsed([
+    makeStep({ thermomixTime: 0.3 }),
+  ]);
+
+  const result = buildRecipeSteps('recipe-1', parsed);
+  assertEquals(result[0].thermomix_time, 1);
+});
+
+Deno.test('buildRecipeSteps sets thermomix_time to null when not provided', () => {
+  const parsed = makeParsed([
+    makeStep({ thermomixTime: null }),
+  ]);
+
+  const result = buildRecipeSteps('recipe-1', parsed);
+  assertEquals(result[0].thermomix_time, null);
+});
+
+Deno.test('buildRecipeSteps sets all speed fields to null when no speed', () => {
+  const parsed = makeParsed([
+    makeStep({ thermomixSpeed: null }),
+  ]);
+
+  const result = buildRecipeSteps('recipe-1', parsed);
+  assertEquals(result[0].thermomix_speed, null);
+  assertEquals(result[0].thermomix_speed_start, null);
+  assertEquals(result[0].thermomix_speed_end, null);
+});
+
+Deno.test('buildRecipeSteps maps tip fields', () => {
+  const parsed = makeParsed([
+    makeStep({ tipEn: 'Stir gently', tipEs: 'Revolver suavemente' }),
+  ]);
+
+  const result = buildRecipeSteps('recipe-1', parsed);
+  assertEquals(result[0].tip_en, 'Stir gently');
+  assertEquals(result[0].tip_es, 'Revolver suavemente');
+});
+
+Deno.test('buildRecipeSteps sets recipe_id on all steps', () => {
+  const parsed = makeParsed([
+    makeStep({ order: 1 }),
+    makeStep({ order: 2 }),
+  ]);
+
+  const result = buildRecipeSteps('my-recipe-id', parsed);
+  assertEquals(result.every((s) => s.recipe_id === 'my-recipe-id'), true);
+});

@@ -14,6 +14,8 @@
 
 import { createPipelineConfig, parseEnvironment, parseFlag } from '../lib/config.ts';
 import { Logger } from '../lib/logger.ts';
+import { auditEntities } from '../lib/audit-helpers.ts';
+import type { AuditIssue } from '../lib/audit-helpers.ts';
 import * as db from '../lib/db.ts';
 
 const logger = new Logger('audit');
@@ -22,58 +24,6 @@ const config = createPipelineConfig(env);
 
 const outputPath = parseFlag(Deno.args, '--output') ||
   new URL('../audit-report.json', import.meta.url).pathname;
-
-interface AuditIssue {
-  type: 'recipe' | 'ingredient' | 'kitchen_tool';
-  id: string;
-  name: string;
-  issue: string;
-}
-
-interface AuditEntity {
-  id: string;
-  name_en: string;
-  name_es: string;
-  image_url?: string;
-}
-
-function auditEntities(
-  entities: AuditEntity[],
-  type: AuditIssue['type'],
-  extraChecks?: (entity: AuditEntity) => AuditIssue[],
-): AuditIssue[] {
-  const issues: AuditIssue[] = [];
-  for (const entity of entities) {
-    if (!entity.image_url) {
-      issues.push({
-        type,
-        id: entity.id,
-        name: entity.name_en || entity.name_es,
-        issue: 'missing_image',
-      });
-    }
-    if (!entity.name_en) {
-      issues.push({
-        type,
-        id: entity.id,
-        name: entity.name_es || '(unknown)',
-        issue: 'missing_english_name',
-      });
-    }
-    if (!entity.name_es) {
-      issues.push({
-        type,
-        id: entity.id,
-        name: entity.name_en || '(unknown)',
-        issue: 'missing_spanish_name',
-      });
-    }
-    if (extraChecks) {
-      issues.push(...extraChecks(entity));
-    }
-  }
-  return issues;
-}
 
 async function main() {
   logger.section(`Data Audit (${env})`);

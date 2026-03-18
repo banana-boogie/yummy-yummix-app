@@ -19,7 +19,10 @@ import * as db from '../lib/db.ts';
 import { matchIngredient } from '../lib/entity-matcher.ts';
 import type { DbIngredient } from '../lib/entity-matcher.ts';
 import { normalizeFileName } from '../lib/image-manifest.ts';
+import { extractIngredientName } from '../lib/upload-helpers.ts';
 import { parseJsonFromLLM, sleep } from '../lib/utils.ts';
+import { callOpenAI, fetchNutritionFromOpenAI } from '../lib/openai-client.ts';
+import type { NutritionData } from '../lib/openai-client.ts';
 
 const logger = new Logger('upload-images');
 const env = parseEnvironment(Deno.args);
@@ -36,16 +39,7 @@ if (!dirPath) {
   Deno.exit(1);
 }
 
-// ─── Helpers ──────────────────────────────────────────────
-
-/** Extract a display name from a filename: strip .png, replace _ with space, capitalize first */
-function extractIngredientName(filename: string): string {
-  const name = filename
-    .replace(/\.png$/i, '')
-    .replace(/_/g, ' ')
-    .trim();
-  return name.charAt(0).toUpperCase() + name.slice(1);
-}
+// ─── Helpers (using shared OpenAI retry wrapper) ─────────
 
 /** Detect language and translate ingredient name + plurals using gpt-4.1-mini */
 async function translateIngredient(
@@ -56,162 +50,50 @@ async function translateIngredient(
     return null;
   }
 
-  const maxAttempts = 3;
-  const baseBackoffMs = 1000;
+  const content = await callOpenAI({
+    apiKey: config.openaiApiKey,
+    model: 'gpt-4.1-mini',
+    messages: [{
+      role: 'user',
+      content:
+        `You are a bilingual food/ingredient translator (English ↔ Spanish). Given the ingredient name "${name}", detect its language and provide translations. Return ONLY a JSON object: {"name_en": "english name", "name_es": "spanish name", "plural_en": "english plural", "plural_es": "spanish plural"}. Use lowercase except for proper nouns. If the name is already English, still provide the Spanish translation and vice versa.`,
+    }],
+    temperature: 0.2,
+    logger,
+    label: name,
+  });
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.openaiApiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4.1-mini',
-          messages: [{
-            role: 'user',
-            content:
-              `You are a bilingual food/ingredient translator (English ↔ Spanish). Given the ingredient name "${name}", detect its language and provide translations. Return ONLY a JSON object: {"name_en": "english name", "name_es": "spanish name", "plural_en": "english plural", "plural_es": "spanish plural"}. Use lowercase except for proper nouns. If the name is already English, still provide the Spanish translation and vice versa.`,
-          }],
-          temperature: 0.2,
-        }),
-      });
+  if (!content) return null;
 
-      if (!res.ok) {
-        const body = await res.text();
-        const retryable = res.status === 429 || res.status >= 500;
-        if (retryable && attempt < maxAttempts) {
-          const backoffMs = baseBackoffMs * (2 ** (attempt - 1));
-          logger.warn(
-            `OpenAI transient error for "${name}" (attempt ${attempt}/${maxAttempts}, status ${res.status}). Retrying in ${backoffMs}ms...`,
-          );
-          await sleep(backoffMs);
-          continue;
-        }
-        throw new Error(`OpenAI API error (${res.status}): ${body}`);
-      }
-
-      const data = await res.json();
-      const content = data.choices?.[0]?.message?.content;
-      if (!content) return null;
-
-      const parsed = parseJsonFromLLM(content) as Record<string, unknown> | null;
-      if (
-        !parsed ||
-        typeof parsed.name_en !== 'string' ||
-        typeof parsed.name_es !== 'string' ||
-        typeof parsed.plural_en !== 'string' ||
-        typeof parsed.plural_es !== 'string'
-      ) {
-        logger.warn(`Invalid translation response for "${name}": ${content}`);
-        return null;
-      }
-
-      return {
-        name_en: parsed.name_en as string,
-        name_es: parsed.name_es as string,
-        plural_en: parsed.plural_en as string,
-        plural_es: parsed.plural_es as string,
-      };
-    } catch (error) {
-      if (attempt < maxAttempts) {
-        const backoffMs = baseBackoffMs * (2 ** (attempt - 1));
-        logger.warn(
-          `Translation failed for "${name}" (attempt ${attempt}/${maxAttempts}): ${error}. Retrying in ${backoffMs}ms...`,
-        );
-        await sleep(backoffMs);
-        continue;
-      }
-      logger.warn(`Translation error for "${name}": ${error}`);
+  try {
+    const parsed = parseJsonFromLLM(content) as Record<string, unknown> | null;
+    if (
+      !parsed ||
+      typeof parsed.name_en !== 'string' ||
+      typeof parsed.name_es !== 'string' ||
+      typeof parsed.plural_en !== 'string' ||
+      typeof parsed.plural_es !== 'string'
+    ) {
+      logger.warn(`Invalid translation response for "${name}": ${content}`);
       return null;
     }
+
+    return {
+      name_en: parsed.name_en as string,
+      name_es: parsed.name_es as string,
+      plural_en: parsed.plural_en as string,
+      plural_es: parsed.plural_es as string,
+    };
+  } catch {
+    logger.warn(`Failed to parse translation JSON for "${name}": ${content}`);
+    return null;
   }
-
-  return null;
 }
 
-interface NutritionData {
-  calories: number;
-  protein: number;
-  fat: number;
-  carbohydrates: number;
-}
-
-/** Fetch nutrition per 100g using gpt-4.1-mini (same as fetch-nutrition.ts) */
-async function fetchFromOpenAI(ingredientName: string): Promise<NutritionData | null> {
+/** Fetch nutrition per 100g using the shared OpenAI nutrition helper */
+async function fetchNutrition(ingredientName: string): Promise<NutritionData | null> {
   if (!config.openaiApiKey) return null;
-
-  const maxAttempts = 3;
-  const baseBackoffMs = 1000;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${config.openaiApiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4.1-mini',
-          messages: [{
-            role: 'user',
-            content:
-              `Provide nutritional facts per 100g for ${ingredientName}. Return ONLY a JSON object in this exact format: {"calories": number, "protein": number, "fat": number, "carbohydrates": number}`,
-          }],
-          temperature: 0.3,
-        }),
-      });
-
-      if (!res.ok) {
-        const body = await res.text();
-        const retryable = res.status === 429 || res.status >= 500;
-        if (retryable && attempt < maxAttempts) {
-          const backoffMs = baseBackoffMs * (2 ** (attempt - 1));
-          logger.warn(
-            `OpenAI transient error for "${ingredientName}" (attempt ${attempt}/${maxAttempts}, status ${res.status}). Retrying in ${backoffMs}ms...`,
-          );
-          await sleep(backoffMs);
-          continue;
-        }
-        throw new Error(`OpenAI API error (${res.status}): ${body}`);
-      }
-
-      const data = await res.json();
-      const content = data.choices?.[0]?.message?.content;
-      if (!content) return null;
-
-      const nutrition = parseJsonFromLLM(content) as Record<string, unknown> | null;
-      if (
-        !nutrition ||
-        typeof nutrition.calories !== 'number' ||
-        typeof nutrition.protein !== 'number' ||
-        typeof nutrition.fat !== 'number' ||
-        typeof nutrition.carbohydrates !== 'number'
-      ) return null;
-
-      return {
-        calories: Math.round(nutrition.calories),
-        protein: Math.round(nutrition.protein * 10) / 10,
-        fat: Math.round(nutrition.fat * 10) / 10,
-        carbohydrates: Math.round(nutrition.carbohydrates * 10) / 10,
-      };
-    } catch (error) {
-      if (attempt < maxAttempts) {
-        const backoffMs = baseBackoffMs * (2 ** (attempt - 1));
-        logger.warn(
-          `Nutrition fetch failed for "${ingredientName}" (attempt ${attempt}/${maxAttempts}): ${error}. Retrying in ${backoffMs}ms...`,
-        );
-        await sleep(backoffMs);
-        continue;
-      }
-      logger.warn(`Nutrition error for "${ingredientName}": ${error}`);
-      return null;
-    }
-  }
-
-  return null;
+  return fetchNutritionFromOpenAI(ingredientName, config.openaiApiKey, logger);
 }
 
 /** Upload an image file to Supabase storage */
@@ -371,7 +253,7 @@ async function main() {
       if (!skipNutrition && !nutritionIds.has(ingredient.id)) {
         const nutritionName = ingredient.name_en || ingredient.name_es;
         logger.info(`  Fetching nutrition for "${nutritionName}"...`);
-        const nutrition = await fetchFromOpenAI(nutritionName);
+        const nutrition = await fetchNutrition(nutritionName);
         if (nutrition) {
           await db.upsertIngredientNutrition(config.supabase, ingredient.id, {
             ...nutrition,
