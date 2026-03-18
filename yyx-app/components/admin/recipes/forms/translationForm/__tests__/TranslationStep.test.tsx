@@ -145,7 +145,7 @@ function createTestRecipe(overrides: Partial<ExtendedRecipe> = {}): ExtendedReci
           id: 'tomato',
           translations: [{ locale: 'es', name: 'Tomate' }],
           pictureUrl: '',
-          nutritionalFacts: { per_100g: { calories: 0, protein: 0, fat: 0, carbohydrates: 0 } },
+          nutritionalFacts: { calories: 0, protein: 0, fat: 0, carbohydrates: 0 },
         },
         quantity: '4',
         translations: [{ locale: 'es', notes: 'Maduros', tip: 'Frescos', recipeSection: 'Base' }],

@@ -61,7 +61,7 @@ async function translateToLocale(
   const userMessage = JSON.stringify(fields);
 
   const response = await chat({
-    usageType: "parsing",
+    usageType: "translation",
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userMessage },

@@ -12,6 +12,8 @@ import { AlertModal } from '@/components/common/AlertModal';
 import i18n from '@/i18n';
 import logger from '@/services/logger';
 
+const scrollContentStyle = { padding: 24, gap: 32 } as const;
+
 interface IngredientFormProps {
     ingredient?: AdminIngredient;
     onSave: (data: AdminIngredient) => Promise<void>;
@@ -45,12 +47,10 @@ export function IngredientForm({
         ],
         pictureUrl: ingredient?.pictureUrl || '',
         nutritionalFacts: ingredient?.nutritionalFacts || {
-            per_100g: {
-                calories: '',
-                protein: '',
-                fat: '',
-                carbohydrates: ''
-            }
+            calories: '',
+            protein: '',
+            fat: '',
+            carbohydrates: ''
         }
     });
 
@@ -82,7 +82,7 @@ export function IngredientForm({
         const nutritionalErrors: { [key: string]: string } = {};
 
         for (const field of nutritionalFields) {
-            const value = data.nutritionalFacts?.per_100g?.[field];
+            const value = data.nutritionalFacts?.[field];
             if (value === undefined || value === '') {
                 nutritionalErrors[field] = i18n.t('validation.required');
                 hasNutritionalErrors = true;
@@ -177,7 +177,7 @@ export function IngredientForm({
 
             <ScrollView
                 className="flex-1"
-                contentContainerStyle={{ padding: 24, gap: 32 }}
+                contentContainerStyle={scrollContentStyle}
                 showsVerticalScrollIndicator={false}
             >
 

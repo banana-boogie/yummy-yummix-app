@@ -4,7 +4,6 @@ import i18n from '@/i18n';
 import { Text } from '@/components/common/Text';
 import { AdminRecipe, getTranslatedField } from '@/types/recipe.admin.types';
 import { RecipeInfo } from '@/components/recipe-detail/RecipeInfo';
-import { RecipeDifficulty } from '@/types/recipe.types';
 import { RecipeIngredientsList } from '@/components/admin/recipes/forms/reviewForm/AdminRecipeIngredientsList';
 import { RecipeStepsList } from '@/components/admin/recipes/forms/reviewForm/AdminRecipeStepsList';
 import { RecipeTagsList } from '@/components/admin/recipes/forms/reviewForm/AdminRecipeTagsList';
@@ -28,8 +27,7 @@ export function ReviewForm({ recipe, displayLocale = 'es', onUpdateRecipe }: Rev
 
   return (
     <ScrollView
-      className="w-full max-w-[1000px] rounded-lg pt-md px-md mt-md mb-lg"
-      style={{ backgroundColor: '#ffffff' }}
+      className="w-full max-w-[1000px] rounded-lg pt-md px-md mt-md mb-lg bg-white"
       showsVerticalScrollIndicator={false}
     >
       {/* Preview of recipe */}
@@ -49,7 +47,11 @@ export function ReviewForm({ recipe, displayLocale = 'es', onUpdateRecipe }: Rev
         ) : null}
 
         <View className="self-center">
-          <RecipeInfo totalTime={recipe.totalTime || 0} prepTime={recipe.prepTime || 0} difficulty={recipe.difficulty || RecipeDifficulty.EASY} />
+          <RecipeInfo
+            totalTime={recipe.totalTime || 0}
+            prepTime={recipe.prepTime || 0}
+            difficulty={recipe.difficulty}
+          />
         </View>
 
         <View className="mb-md">
