@@ -26,14 +26,13 @@ npm test -- --coverage
   - Feedback submission (length validation, trimming)
   - User rating retrieval
   - Rating statistics
-  - Rating distribution (single query + client-side grouping)
+  - Rating distribution (server-side RPC with GROUP BY)
 
 - **`services/recipeCompletionService.test.ts`** - Tests for recipe completion tracking
   - Recording append-only completion events (insert path)
   - Concurrent insert behavior
   - Unauthenticated user handling
   - Completion existence checks
-  - Completion count retrieval
 
 ### Components
 - **`components/RecipeRatingModal.test.tsx`** - Tests for the rating modal

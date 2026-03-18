@@ -17,11 +17,6 @@ interface FeedbackRpcResult {
     hasMore: boolean;
 }
 
-interface RawRecipeRow {
-    id: string;
-    [key: string]: string;
-}
-
 export interface FeedbackFilters {
     recipeId?: string;
     startDate?: string;
@@ -88,21 +83,19 @@ export const adminFeedbackService = {
      * Get list of recipes for filter dropdown
      */
     async getRecipesForFilter(language: 'en' | 'es' = 'en'): Promise<{ id: string; name: string }[]> {
-        const nameColumn = language === 'es' ? 'name_es' : 'name_en';
-
         const { data, error } = await supabase
             .from('recipes')
-            .select(`id, ${nameColumn}`)
+            .select('id, translations:recipe_translations(locale, name)')
             .eq('is_published', true)
-            .order(nameColumn);
+            .eq('translations.locale', language);
 
         if (error) {
             throw new Error(`Failed to fetch recipes: ${error.message}`);
         }
 
-        return ((data || []) as RawRecipeRow[]).map((recipe) => ({
+        return (data || []).map((recipe: { id: string; translations: { name: string }[] }) => ({
             id: recipe.id,
-            name: recipe[nameColumn],
+            name: recipe.translations?.[0]?.name ?? 'Untitled',
         }));
     },
 };

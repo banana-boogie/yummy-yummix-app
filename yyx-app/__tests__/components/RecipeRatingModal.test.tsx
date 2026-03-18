@@ -1,5 +1,5 @@
 import React from 'react';
-import { renderWithProviders, screen, fireEvent, waitFor } from '@/test/utils/render';
+import { renderWithProviders, screen, fireEvent, waitFor, act } from '@/test/utils/render';
 import { RecipeRatingModal } from '@/components/rating/RecipeRatingModal';
 
 // Mock the useRecipeRating hook
@@ -104,5 +104,26 @@ describe('RecipeRatingModal', () => {
       (btn) => btn.props.accessibilityLabel?.includes('star')
     );
     expect(starButtons.length).toBe(5);
+  });
+
+  it('should submit rating when star is selected and submit is pressed', async () => {
+    renderWithProviders(<RecipeRatingModal {...defaultProps} />);
+
+    // Select 4th star (triggers onChange -> setRating(4))
+    const starButtons = screen.getAllByRole('button').filter(
+      (btn) => btn.props.accessibilityLabel?.includes('star')
+    );
+    await act(async () => {
+      fireEvent.press(starButtons[3]);
+    });
+
+    // Press submit — button should now be enabled since rating > 0
+    await act(async () => {
+      fireEvent.press(screen.getByText('Submit'));
+    });
+
+    await waitFor(() => {
+      expect(mockSubmitRatingAsync).toHaveBeenCalledWith(4);
+    });
   });
 });

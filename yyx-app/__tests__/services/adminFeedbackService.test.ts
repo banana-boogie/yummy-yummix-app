@@ -97,4 +97,64 @@ describe('adminFeedbackService', () => {
       });
     });
   });
+
+  describe('getRecipesForFilter', () => {
+    function mockChainedQuery(resolvedValue: { data: unknown; error: unknown }) {
+      // Supabase chains: from().select().eq().eq() — last eq resolves
+      const mockFrom: Record<string, jest.Mock> = {
+        select: jest.fn(),
+        eq: jest.fn(),
+      };
+      mockFrom.select.mockReturnValue(mockFrom);
+      // First .eq returns chainable, second .eq resolves
+      let eqCallCount = 0;
+      mockFrom.eq.mockImplementation(() => {
+        eqCallCount++;
+        if (eqCallCount >= 2) return Promise.resolve(resolvedValue);
+        return mockFrom;
+      });
+      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
+      return mockFrom;
+    }
+
+    it('should return mapped recipes from translation join', async () => {
+      mockChainedQuery({
+        data: [
+          { id: 'r-1', translations: [{ name: 'Paella' }] },
+          { id: 'r-2', translations: [{ name: 'Tacos' }] },
+        ],
+        error: null,
+      });
+
+      const result = await adminFeedbackService.getRecipesForFilter('es');
+
+      expect(supabase.from).toHaveBeenCalledWith('recipes');
+      expect(result).toEqual([
+        { id: 'r-1', name: 'Paella' },
+        { id: 'r-2', name: 'Tacos' },
+      ]);
+    });
+
+    it('should return "Untitled" when translation is missing', async () => {
+      mockChainedQuery({
+        data: [{ id: 'r-1', translations: [] }],
+        error: null,
+      });
+
+      const result = await adminFeedbackService.getRecipesForFilter('en');
+
+      expect(result).toEqual([{ id: 'r-1', name: 'Untitled' }]);
+    });
+
+    it('should throw on query error', async () => {
+      mockChainedQuery({
+        data: null,
+        error: { message: 'DB error' },
+      });
+
+      await expect(adminFeedbackService.getRecipesForFilter()).rejects.toThrow(
+        'Failed to fetch recipes: DB error'
+      );
+    });
+  });
 });
