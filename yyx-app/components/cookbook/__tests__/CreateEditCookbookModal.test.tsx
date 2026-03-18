@@ -89,8 +89,8 @@ describe('CreateEditCookbookModal', () => {
     fireEvent.press(screen.getByText(i18n.t('cookbooks.create')));
 
     expect(defaultProps.onSave).toHaveBeenCalledWith({
-      nameEn: 'My Cookbook',
-      descriptionEn: 'A description',
+      name: 'My Cookbook',
+      description: 'A description',
       isPublic: false,
     });
   });

@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 import { View, Pressable, Alert } from 'react-native';
 import { Text } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
-import { Cookbook } from '@/types/cookbook.types';
+import { Cookbook , UpdateCookbookInput } from '@/types/cookbook.types';
 import { CreateEditCookbookModal } from './CreateEditCookbookModal';
 import { useUpdateCookbook, useDeleteCookbook } from '@/hooks/useCookbookQuery';
-import { UpdateCookbookInput } from '@/types/cookbook.types';
 import { getGradientForCookbook } from '@/utils/gradients';
 import { getRecipeCountText } from '@/utils/formatters';
 import { COLORS } from '@/constants/design-tokens';
@@ -36,11 +35,10 @@ export const CookbookHeader = React.memo(function CookbookHeader({
         input,
       });
       setShowEditModal(false);
-    } catch (error) {
-      const err = error as Error;
+    } catch (_error) {
       Alert.alert(
         i18n.t('common.errors.title'),
-        err.message || i18n.t('cookbooks.errors.updateFailed')
+        i18n.t('cookbooks.errors.updateFailed')
       );
     }
   };
@@ -69,11 +67,10 @@ export const CookbookHeader = React.memo(function CookbookHeader({
             try {
               await deleteMutation.mutateAsync(cookbook.id);
               onDelete?.();
-            } catch (error) {
-              const err = error as Error;
+            } catch (_error) {
               Alert.alert(
                 i18n.t('common.errors.title'),
-                err.message || i18n.t('cookbooks.errors.deleteFailed')
+                i18n.t('cookbooks.errors.deleteFailed')
               );
             }
           },
@@ -169,16 +166,4 @@ export const CookbookHeader = React.memo(function CookbookHeader({
       )}
     </>
   );
-}, (prevProps, nextProps) => {
-    return (
-        prevProps.cookbook.id === nextProps.cookbook.id &&
-        prevProps.isOwner === nextProps.isOwner &&
-        prevProps.cookbook.updatedAt === nextProps.cookbook.updatedAt &&
-        prevProps.cookbook.name === nextProps.cookbook.name &&
-        prevProps.cookbook.description === nextProps.cookbook.description &&
-        prevProps.cookbook.isPublic === nextProps.cookbook.isPublic &&
-        prevProps.cookbook.recipeCount === nextProps.cookbook.recipeCount &&
-        prevProps.cookbook.shareEnabled === nextProps.cookbook.shareEnabled &&
-        prevProps.cookbook.shareToken === nextProps.cookbook.shareToken
-    );
 });

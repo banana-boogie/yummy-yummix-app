@@ -1,8 +1,8 @@
+import { useEffect, useRef } from 'react';
 import {
   useQuery,
   useMutation,
   useQueryClient,
-  UseMutationOptions,
 } from '@tanstack/react-query';
 import { cookbookService } from '@/services/cookbookService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -41,12 +41,24 @@ export const cookbookKeys = {
  *
  * Features:
  * - Automatic caching per user and language
- * - Auto-creates default "Favorites" cookbook on first access
+ * - Auto-creates default "Favorites" cookbook once per session
  * - Loading and error states built-in
  */
 export function useUserCookbooksQuery() {
   const { user } = useAuth();
   const { language } = useLanguage();
+  const defaultEnsuredRef = useRef(false);
+
+  // Ensure default cookbook exists once per mount (not on every query/refocus)
+  useEffect(() => {
+    if (user?.id && !defaultEnsuredRef.current) {
+      defaultEnsuredRef.current = true;
+      cookbookService.ensureDefaultCookbook(user.id).catch(() => {
+        // Reset flag so it retries on next mount if creation failed
+        defaultEnsuredRef.current = false;
+      });
+    }
+  }, [user?.id]);
 
   return useQuery({
     queryKey: cookbookKeys.list(user?.id || '', language),
@@ -55,10 +67,6 @@ export function useUserCookbooksQuery() {
         throw new Error('User not authenticated');
       }
 
-      // Ensure default cookbook exists
-      await cookbookService.ensureDefaultCookbook(user.id);
-
-      // Fetch all cookbooks
       return await cookbookService.getUserCookbooks(user.id);
     },
     enabled: !!user?.id,

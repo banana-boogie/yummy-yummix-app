@@ -114,8 +114,8 @@ export function CreateEditCookbookModal({
         }
 
         const input: CreateCookbookInput | UpdateCookbookInput = {
-            nameEn: trimmedName,
-            descriptionEn: trimmedDescription || undefined,
+            name: trimmedName,
+            description: trimmedDescription || undefined,
             isPublic,
         };
 

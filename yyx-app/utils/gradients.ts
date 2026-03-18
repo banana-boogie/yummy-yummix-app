@@ -9,7 +9,7 @@ export const COOKBOOK_GRADIENTS: [string, string][] = [
   ['#FF9A9E', '#FECFEF'], // Pink sunset
   ['#a18cd1', '#fbc2eb'], // Purple dream
   ['#fa709a', '#fee140'], // Orange crush
-  ['#ff9a9e', '#fecfef'], // Coral wave
+  ['#667eea', '#764ba2'], // Indigo violet
   ['#f6d365', '#fda085'], // Golden hour
   ['#84fab0', '#8fd3f4'], // Mint breeze
   ['#a1c4fd', '#c2e9fb'], // Sky blue

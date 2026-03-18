@@ -81,4 +81,46 @@ describe('CookbookHeader', () => {
 
     alertSpy.mockRestore();
   });
+
+  it('opens edit modal and calls updateCookbook on save', async () => {
+    const mutateAsync = jest.fn().mockResolvedValue(undefined);
+    useUpdateCookbook.mockReturnValue({ mutateAsync, isPending: false });
+
+    renderWithProviders(
+      <CookbookHeader cookbook={baseCookbook} isOwner={true} />
+    );
+
+    // Press the edit button to open the modal
+    fireEvent.press(screen.getByLabelText(i18n.t('cookbooks.a11y.editCookbook')));
+
+    // Modal should show the edit title
+    await waitFor(() => {
+      expect(screen.getByText(i18n.t('cookbooks.editCookbook'))).toBeTruthy();
+    });
+
+    // The modal pre-fills with the cookbook name, change it
+    const nameInput = screen.getByLabelText(i18n.t('cookbooks.name'));
+    fireEvent.changeText(nameInput, 'Updated Family');
+
+    // Press Save
+    fireEvent.press(screen.getByText(i18n.t('common.save')));
+
+    await waitFor(() => {
+      expect(mutateAsync).toHaveBeenCalledWith({
+        cookbookId: 'cb-1',
+        input: expect.objectContaining({ name: 'Updated Family' }),
+      });
+    });
+  });
+
+  it('shows alert for default cookbook delete attempt', () => {
+    const defaultCookbook = { ...baseCookbook, isDefault: true };
+
+    renderWithProviders(
+      <CookbookHeader cookbook={defaultCookbook} isOwner={true} />
+    );
+
+    // Default cookbooks should not show delete button
+    expect(screen.queryByLabelText(i18n.t('cookbooks.a11y.deleteCookbook'))).toBeNull();
+  });
 });

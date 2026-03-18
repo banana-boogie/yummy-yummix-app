@@ -339,7 +339,7 @@ Rules:
 
 ### System 2 — Entity content (translation tables)
 
-Dynamic database content: recipe names, step instructions, ingredient notes. Stored in `*_translations` tables keyed by `(entity_id, locale)`.
+Dynamic database content: recipe names, step instructions, ingredient notes, cookbook names/descriptions. Stored in `*_translations` tables keyed by `(entity_id, locale)`. Cookbooks follow the same pattern via `cookbook_translations` and `cookbook_recipe_translations`.
 
 **Reading (consumer-facing services):** use PostgREST embedded selects.
 ```tsx

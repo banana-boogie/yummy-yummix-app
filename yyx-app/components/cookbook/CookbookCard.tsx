@@ -84,14 +84,4 @@ export const CookbookCard = React.memo(function CookbookCard({
             </View>
         </Pressable>
     );
-}, (prevProps, nextProps) => {
-    return (
-        prevProps.cookbook.id === nextProps.cookbook.id &&
-        prevProps.cookbook.updatedAt === nextProps.cookbook.updatedAt &&
-        prevProps.cookbook.recipeCount === nextProps.cookbook.recipeCount &&
-        prevProps.cookbook.name === nextProps.cookbook.name &&
-        prevProps.cookbook.isPublic === nextProps.cookbook.isPublic &&
-        prevProps.cookbook.isDefault === nextProps.cookbook.isDefault &&
-        prevProps.size === nextProps.size
-    );
 });

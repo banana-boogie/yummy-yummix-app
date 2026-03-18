@@ -92,20 +92,18 @@ export function AddToCookbookSheet({
             await addRecipeMutation.mutateAsync({
                 cookbookId: selectedCookbook.id,
                 recipeId,
-                notesEn: notes.trim() || undefined,
+                notes: notes.trim() || undefined,
             });
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             onSuccess?.();
             onClose();
         } catch (error) {
             const err = error as Error;
-            console.error('Failed to add recipe:', err.message);
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            // Handle specific error for duplicate recipe
             const errorMessage =
                 err.message === 'RECIPE_ALREADY_ADDED'
                     ? i18n.t('cookbooks.errors.recipeAlreadyAdded')
-                    : err.message || i18n.t('cookbooks.errors.addRecipeFailed');
+                    : i18n.t('cookbooks.errors.addRecipeFailed');
             Alert.alert(i18n.t('common.errors.title'), errorMessage);
         }
     };
@@ -126,12 +124,10 @@ export function AddToCookbookSheet({
             setSelectedCookbook(created);
             setNotes('');
             setStep('notes');
-        } catch (error) {
-            const err = error as Error;
-            console.error('Failed to create cookbook:', err.message);
+        } catch (_error) {
             Alert.alert(
                 i18n.t('common.errors.title'),
-                err.message || i18n.t('cookbooks.errors.createFailed')
+                i18n.t('cookbooks.errors.createFailed')
             );
         }
     };

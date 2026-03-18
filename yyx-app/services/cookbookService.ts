@@ -1,5 +1,6 @@
 import i18n from '@/i18n';
 import { supabase } from '@/lib/supabase';
+import { pickTranslation } from '@/utils/transformers/recipeTransformer';
 import {
   Cookbook,
   CookbookWithRecipes,
@@ -11,6 +12,33 @@ import {
   UpdateCookbookRecipeInput,
   CookbookRecipe,
 } from '@/types/cookbook.types';
+
+// ============================================================================
+// Embedded select fragments
+// ============================================================================
+
+const COOKBOOK_WITH_TRANSLATIONS = `
+  *,
+  translations:cookbook_translations(locale, name, description)
+`;
+
+const COOKBOOK_WITH_RECIPES_SELECT = `
+  *,
+  translations:cookbook_translations(locale, name, description),
+  cookbook_recipes(
+    *,
+    translations:cookbook_recipe_translations(locale, notes),
+    recipes(
+      id,
+      image_url,
+      prep_time_minutes,
+      cook_time_minutes,
+      servings,
+      difficulty,
+      translations:recipe_translations(locale, name)
+    )
+  )
+`;
 
 // ============================================================================
 // RPC Response Types (for SECURITY DEFINER functions)
@@ -60,8 +88,8 @@ interface SharedCookbookRecipeRpcResponse {
  * Response shape for cookbook with recipe count aggregate
  */
 interface CookbookWithRecipeCountResponse extends CookbookApiResponse {
-  cookbook_recipes: Array<{ recipe_id: string; id: string }>;
-  total_recipes: Array<{ count: number }>;
+  cookbook_recipes: { recipe_id: string; id: string }[];
+  total_recipes: { count: number }[];
 }
 
 // ============================================================================
@@ -72,16 +100,10 @@ interface CookbookWithRecipeCountResponse extends CookbookApiResponse {
  * Transform API response to frontend Cookbook type
  */
 function transformCookbook(raw: CookbookApiResponse, recipeCount = 0): Cookbook {
-  const lang = i18n.locale;
-  const isDefault = raw.is_default;
-  const name =
-    isDefault && lang === 'es' && raw.name_es
-      ? raw.name_es
-      : raw.name_en || raw.name_es || '';
-  const description =
-    isDefault && lang === 'es' && raw.description_es
-      ? raw.description_es
-      : raw.description_en || raw.description_es || undefined;
+  const t = pickTranslation(raw.translations);
+  const name = t?.name ?? '';
+  const description = t?.description ?? undefined;
+
   return {
     id: raw.id,
     userId: raw.user_id,
@@ -103,27 +125,26 @@ function transformCookbook(raw: CookbookApiResponse, recipeCount = 0): Cookbook 
 function transformCookbookWithRecipes(
   raw: CookbookWithRecipesApiResponse
 ): CookbookWithRecipes {
-  const lang = i18n.locale;
-  const recipes: CookbookRecipe[] = (raw.cookbook_recipes || []).map((cr) => ({
-    id: cr.recipes.id,
-    name:
-      lang === 'es' && cr.recipes.name_es
-        ? cr.recipes.name_es
-        : cr.recipes.name_en,
-    description:
-      lang === 'es' && cr.recipes.description_es
-        ? cr.recipes.description_es
-        : cr.recipes.description_en || undefined,
-    imageUrl: cr.recipes.image_url || undefined,
-    prepTimeMinutes: cr.recipes.prep_time_minutes || undefined,
-    cookTimeMinutes: cr.recipes.cook_time_minutes || undefined,
-    servings: cr.recipes.servings || undefined,
-    difficulty: cr.recipes.difficulty || undefined,
-    notes: cr.notes_en || cr.notes_es || undefined,
-    displayOrder: cr.display_order,
-    addedAt: cr.added_at,
-    cookbookRecipeId: cr.id,
-  }));
+  const recipes: CookbookRecipe[] = (raw.cookbook_recipes || [])
+    .filter((cr) => cr.recipes != null)
+    .map((cr) => {
+      const recipeT = pickTranslation(cr.recipes.translations);
+      const notesT = pickTranslation(cr.translations);
+
+      return {
+        id: cr.recipes.id,
+        name: recipeT?.name ?? '',
+        imageUrl: cr.recipes.image_url || undefined,
+        prepTimeMinutes: cr.recipes.prep_time_minutes || undefined,
+        cookTimeMinutes: cr.recipes.cook_time_minutes || undefined,
+        servings: cr.recipes.servings || undefined,
+        difficulty: cr.recipes.difficulty || undefined,
+        notes: notesT?.notes ?? undefined,
+        displayOrder: cr.display_order,
+        addedAt: cr.added_at,
+        cookbookRecipeId: cr.id,
+      };
+    });
 
   // Sort by display order
   recipes.sort((a, b) => a.displayOrder - b.displayOrder);
@@ -147,6 +168,7 @@ async function getUserCookbooks(userId: string): Promise<Cookbook[]> {
     .select(
       `
       *,
+      translations:cookbook_translations(locale, name, description),
       cookbook_recipes(count)
     `
     )
@@ -155,7 +177,6 @@ async function getUserCookbooks(userId: string): Promise<Cookbook[]> {
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Error fetching cookbooks:', error);
     throw new Error(error.message);
   }
 
@@ -175,31 +196,11 @@ async function getUserCookbooks(userId: string): Promise<Cookbook[]> {
 async function getCookbookById(cookbookId: string): Promise<CookbookWithRecipes> {
   const { data, error } = await supabase
     .from('cookbooks')
-    .select(
-      `
-      *,
-      cookbook_recipes(
-        *,
-        recipes(
-          id,
-          name_en,
-          name_es,
-          description_en,
-          description_es,
-          image_url,
-          prep_time_minutes,
-          cook_time_minutes,
-          servings,
-          difficulty
-        )
-      )
-    `
-    )
+    .select(COOKBOOK_WITH_RECIPES_SELECT)
     .eq('id', cookbookId)
     .single();
 
   if (error) {
-    console.error('Error fetching cookbook:', error);
     throw new Error(error.message);
   }
 
@@ -213,6 +214,11 @@ async function getCookbookById(cookbookId: string): Promise<CookbookWithRecipes>
 /**
  * Get a cookbook by share token (for unauthenticated users)
  * Uses SECURITY DEFINER function to bypass RLS in a controlled manner
+ *
+ * Note: RPC functions still return flat rows with name_en/name_es columns.
+ * These are transformed into the translations array shape expected by
+ * transformCookbookWithRecipes. When the RPC functions are updated to
+ * return translation joins, this mapping can be simplified.
  */
 async function getCookbookByShareToken(
   shareToken: string
@@ -224,14 +230,12 @@ async function getCookbookByShareToken(
   }
 
   // Call the SECURITY DEFINER function to get cookbook data
-  // This bypasses RLS but only returns the specific cookbook matching the token
   const { data: cookbookData, error: cookbookError } = await supabase.rpc(
     'get_cookbook_by_share_token',
     { p_share_token: trimmedToken }
   );
 
   if (cookbookError) {
-    console.error('Error fetching shared cookbook:', cookbookError);
     throw new Error(cookbookError.message);
   }
 
@@ -244,49 +248,58 @@ async function getCookbookByShareToken(
   const cookbook = typedCookbookData[0];
 
   // Call the SECURITY DEFINER function to get cookbook recipes
-  // Returns flattened rows with both junction table and recipe data
   const { data: recipesData, error: recipesError } = await supabase.rpc(
     'get_cookbook_recipes_by_share_token',
     { p_share_token: trimmedToken }
   );
 
   if (recipesError) {
-    console.error('Error fetching shared cookbook recipes:', recipesError);
     throw new Error(recipesError.message);
   }
 
   const typedRecipesData = recipesData as SharedCookbookRecipeRpcResponse[] | null;
 
-  // Transform RPC flat rows back to nested structure expected by transformCookbookWithRecipes
-  // RPC returns: { cookbook_recipe_id, recipe_name_en, ... } (flat)
-  // Expected:    { id, recipes: { name_en, ... } } (nested)
+  // Transform RPC flat rows into translation array shape expected by transform functions
   const transformedRecipes = (typedRecipesData || []).map((item) => ({
-    // Junction table fields (cookbook_recipes)
     id: item.cookbook_recipe_id,
     cookbook_id: item.cookbook_id,
     recipe_id: item.recipe_id,
-    notes_en: item.notes_en,
-    notes_es: item.notes_es,
+    translations: [
+      { locale: 'en', notes: item.notes_en },
+      ...(item.notes_es ? [{ locale: 'es', notes: item.notes_es }] : []),
+    ],
     display_order: item.display_order,
     added_at: item.added_at,
-    // Nested recipe object (recipes table)
     recipes: {
       id: item.recipe_id,
-      name_en: item.recipe_name_en,
-      name_es: item.recipe_name_es,
-      description_en: item.recipe_description_en,
-      description_es: item.recipe_description_es,
       image_url: item.recipe_image_url,
       prep_time_minutes: item.recipe_prep_time_minutes,
       cook_time_minutes: item.recipe_cook_time_minutes,
       servings: item.recipe_servings,
       difficulty: item.recipe_difficulty,
+      translations: [
+        { locale: 'en', name: item.recipe_name_en },
+        ...(item.recipe_name_es ? [{ locale: 'es', name: item.recipe_name_es }] : []),
+      ],
     },
   }));
 
-  // Reconstruct the data structure to match CookbookWithRecipesApiResponse
+  // Reconstruct the data structure with translations arrays
   const reconstructedData = {
-    ...cookbook,
+    id: cookbook.id,
+    user_id: cookbook.user_id,
+    is_public: cookbook.is_public,
+    is_default: cookbook.is_default,
+    share_token: cookbook.share_token,
+    share_enabled: cookbook.share_enabled,
+    created_at: cookbook.created_at,
+    updated_at: cookbook.updated_at,
+    translations: [
+      { locale: 'en', name: cookbook.name_en, description: cookbook.description_en },
+      ...(cookbook.name_es
+        ? [{ locale: 'es', name: cookbook.name_es, description: cookbook.description_es }]
+        : []),
+    ],
     cookbook_recipes: transformedRecipes,
   };
 
@@ -300,14 +313,13 @@ async function createCookbook(
   userId: string,
   input: CreateCookbookInput
 ): Promise<Cookbook> {
+  const locale = i18n.locale;
+
+  // 1. Insert the cookbook entity (non-translatable fields only)
   const { data, error } = await supabase
     .from('cookbooks')
     .insert({
       user_id: userId,
-      name_en: input.nameEn,
-      name_es: input.nameEs || null,
-      description_en: input.descriptionEn || null,
-      description_es: input.descriptionEs || null,
       is_public: input.isPublic || false,
       is_default: input.isDefault || false,
     })
@@ -315,11 +327,40 @@ async function createCookbook(
     .single();
 
   if (error) {
-    console.error('Error creating cookbook:', error);
     throw new Error(error.message);
   }
 
-  return transformCookbook(data, 0);
+  // 2. Upsert translation row for the user's current locale
+  const { error: translationError } = await supabase
+    .from('cookbook_translations')
+    .upsert(
+      {
+        cookbook_id: data.id,
+        locale,
+        name: input.name,
+        description: input.description || null,
+      },
+      { onConflict: 'cookbook_id,locale' }
+    );
+
+  if (translationError) {
+    throw new Error(translationError.message);
+  }
+
+  // Return transformed cookbook with the translation we just wrote
+  return {
+    id: data.id,
+    userId: data.user_id,
+    name: input.name,
+    description: input.description,
+    isPublic: data.is_public,
+    isDefault: data.is_default,
+    shareEnabled: data.share_enabled,
+    shareToken: data.share_token,
+    recipeCount: 0,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
 }
 
 /**
@@ -329,33 +370,45 @@ async function updateCookbook(
   cookbookId: string,
   input: UpdateCookbookInput
 ): Promise<void> {
-  const updateData: Partial<{
-    name_en: string;
-    name_es: string | null;
-    description_en: string | null;
-    description_es: string | null;
+  const locale = i18n.locale;
+
+  // 1. Update non-translatable fields on the cookbooks table
+  const entityUpdate: Partial<{
     is_public: boolean;
     share_enabled: boolean;
   }> = {};
 
-  if (input.nameEn !== undefined) updateData.name_en = input.nameEn;
-  if (input.nameEs !== undefined) updateData.name_es = input.nameEs;
-  if (input.descriptionEn !== undefined)
-    updateData.description_en = input.descriptionEn;
-  if (input.descriptionEs !== undefined)
-    updateData.description_es = input.descriptionEs;
-  if (input.isPublic !== undefined) updateData.is_public = input.isPublic;
-  if (input.shareEnabled !== undefined)
-    updateData.share_enabled = input.shareEnabled;
+  if (input.isPublic !== undefined) entityUpdate.is_public = input.isPublic;
+  if (input.shareEnabled !== undefined) entityUpdate.share_enabled = input.shareEnabled;
 
-  const { error } = await supabase
-    .from('cookbooks')
-    .update(updateData)
-    .eq('id', cookbookId);
+  if (Object.keys(entityUpdate).length > 0) {
+    const { error } = await supabase
+      .from('cookbooks')
+      .update(entityUpdate)
+      .eq('id', cookbookId);
 
-  if (error) {
-    console.error('Error updating cookbook:', error);
-    throw new Error(error.message);
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  // 2. Upsert translation fields if provided
+  const hasTranslationChanges = input.name !== undefined || input.description !== undefined;
+  if (hasTranslationChanges) {
+    const translationData: Record<string, unknown> = {
+      cookbook_id: cookbookId,
+      locale,
+    };
+    if (input.name !== undefined) translationData.name = input.name;
+    if (input.description !== undefined) translationData.description = input.description;
+
+    const { error: translationError } = await supabase
+      .from('cookbook_translations')
+      .upsert(translationData, { onConflict: 'cookbook_id,locale' });
+
+    if (translationError) {
+      throw new Error(translationError.message);
+    }
   }
 }
 
@@ -369,7 +422,6 @@ async function deleteCookbook(cookbookId: string): Promise<void> {
     .eq('id', cookbookId);
 
   if (error) {
-    console.error('Error deleting cookbook:', error);
     throw new Error(error.message);
   }
 }
@@ -378,6 +430,8 @@ async function deleteCookbook(cookbookId: string): Promise<void> {
  * Add a recipe to a cookbook
  */
 async function addRecipeToCookbook(input: AddRecipeToCookbookInput): Promise<void> {
+  const locale = i18n.locale;
+
   // Get current max display order
   const { data: existing } = await supabase
     .from('cookbook_recipes')
@@ -388,21 +442,41 @@ async function addRecipeToCookbook(input: AddRecipeToCookbookInput): Promise<voi
 
   const nextOrder = existing && existing.length > 0 ? existing[0].display_order + 1 : 0;
 
-  const { error } = await supabase.from('cookbook_recipes').insert({
-    cookbook_id: input.cookbookId,
-    recipe_id: input.recipeId,
-    notes_en: input.notesEn || null,
-    notes_es: input.notesEs || null,
-    display_order: input.displayOrder ?? nextOrder,
-  });
+  // 1. Insert the cookbook_recipes junction row
+  const { data: inserted, error } = await supabase
+    .from('cookbook_recipes')
+    .insert({
+      cookbook_id: input.cookbookId,
+      recipe_id: input.recipeId,
+      display_order: input.displayOrder ?? nextOrder,
+    })
+    .select('id')
+    .single();
 
   if (error) {
-    console.error('Error adding recipe to cookbook:', error);
     // Handle unique constraint violation (recipe already in cookbook)
     if (error.code === '23505') {
       throw new Error('RECIPE_ALREADY_ADDED');
     }
     throw new Error(error.message);
+  }
+
+  // 2. If notes provided, upsert translation row
+  if (input.notes) {
+    const { error: translationError } = await supabase
+      .from('cookbook_recipe_translations')
+      .upsert(
+        {
+          cookbook_recipe_id: inserted.id,
+          locale,
+          notes: input.notes,
+        },
+        { onConflict: 'cookbook_recipe_id,locale' }
+      );
+
+    if (translationError) {
+      throw new Error(translationError.message);
+    }
   }
 }
 
@@ -420,7 +494,6 @@ async function removeRecipeFromCookbook(
     .eq('recipe_id', recipeId);
 
   if (error) {
-    console.error('Error removing recipe from cookbook:', error);
     throw new Error(error.message);
   }
 }
@@ -432,25 +505,36 @@ async function updateCookbookRecipe(
   cookbookRecipeId: string,
   input: UpdateCookbookRecipeInput
 ): Promise<void> {
-  const updateData: Partial<{
-    notes_en: string | null;
-    notes_es: string | null;
-    display_order: number;
-  }> = {};
+  const locale = i18n.locale;
 
-  if (input.notesEn !== undefined) updateData.notes_en = input.notesEn;
-  if (input.notesEs !== undefined) updateData.notes_es = input.notesEs;
-  if (input.displayOrder !== undefined)
-    updateData.display_order = input.displayOrder;
+  // 1. Update non-translatable fields on junction table
+  if (input.displayOrder !== undefined) {
+    const { error } = await supabase
+      .from('cookbook_recipes')
+      .update({ display_order: input.displayOrder })
+      .eq('id', cookbookRecipeId);
 
-  const { error } = await supabase
-    .from('cookbook_recipes')
-    .update(updateData)
-    .eq('id', cookbookRecipeId);
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
 
-  if (error) {
-    console.error('Error updating cookbook recipe:', error);
-    throw new Error(error.message);
+  // 2. Upsert notes translation if provided
+  if (input.notes !== undefined) {
+    const { error: translationError } = await supabase
+      .from('cookbook_recipe_translations')
+      .upsert(
+        {
+          cookbook_recipe_id: cookbookRecipeId,
+          locale,
+          notes: input.notes,
+        },
+        { onConflict: 'cookbook_recipe_id,locale' }
+      );
+
+    if (translationError) {
+      throw new Error(translationError.message);
+    }
   }
 }
 
@@ -473,7 +557,6 @@ async function getCookbookIdsContainingRecipe(
     .eq('cookbooks.user_id', userId);
 
   if (error) {
-    console.error('Error fetching cookbook ids containing recipe:', error);
     return [];
   }
 
@@ -494,13 +577,12 @@ async function getCookbooksContainingRecipe(
     return [];
   }
 
-  // Use inner join to filter cookbooks containing the recipe,
-  // plus a separate count aggregate for the total recipe count
   const { data, error } = await supabase
     .from('cookbooks')
     .select(
       `
       *,
+      translations:cookbook_translations(locale, name, description),
       cookbook_recipes!inner(recipe_id, id),
       total_recipes:cookbook_recipes(count)
     `
@@ -509,18 +591,12 @@ async function getCookbooksContainingRecipe(
     .eq('cookbook_recipes.recipe_id', recipeId);
 
   if (error) {
-    console.error('Error fetching cookbooks containing recipe:', error);
     throw new Error(error.message);
   }
 
   return (data || []).map((raw) => {
-    // Cast to typed response for proper access
     const typedRaw = raw as unknown as CookbookWithRecipeCountResponse;
-
-    // Use the total_recipes aggregate for the actual total count
-    // This gives us ALL recipes in the cookbook, not just the filtered one
     const recipeCount = typedRaw.total_recipes?.[0]?.count ?? 0;
-
     return transformCookbook(typedRaw, recipeCount);
   });
 }
@@ -533,14 +609,13 @@ async function ensureDefaultCookbook(userId: string): Promise<Cookbook> {
   // Check if default cookbook exists
   const { data: existing, error: checkError } = await supabase
     .from('cookbooks')
-    .select('*')
+    .select(COOKBOOK_WITH_TRANSLATIONS)
     .eq('user_id', userId)
     .eq('is_default', true)
     .single();
 
   if (checkError && checkError.code !== 'PGRST116') {
     // PGRST116 = not found, which is fine
-    console.error('Error checking for default cookbook:', checkError);
     throw new Error(checkError.message);
   }
 
@@ -548,40 +623,61 @@ async function ensureDefaultCookbook(userId: string): Promise<Cookbook> {
     return transformCookbook(existing, 0);
   }
 
-  // Create default "Favorites" cookbook
-  return createCookbook(userId, {
-    nameEn: 'Favorites',
-    nameEs: 'Favoritos',
-    descriptionEn: 'My favorite recipes',
-    descriptionEs: 'Mis recetas favoritas',
-    isPublic: false,
-    isDefault: true,
-  });
+  // Create default "Favorites" cookbook with both locale translations
+  const { data, error } = await supabase
+    .from('cookbooks')
+    .insert({
+      user_id: userId,
+      is_public: false,
+      is_default: true,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  // Insert translations for both locales for the default cookbook
+  const { error: translationError } = await supabase
+    .from('cookbook_translations')
+    .upsert(
+      [
+        { cookbook_id: data.id, locale: 'en', name: 'Favorites', description: 'My favorite recipes' },
+        { cookbook_id: data.id, locale: 'es', name: 'Favoritos', description: 'Mis recetas favoritas' },
+      ],
+      { onConflict: 'cookbook_id,locale' }
+    );
+
+  if (translationError) {
+    throw new Error(translationError.message);
+  }
+
+  return {
+    id: data.id,
+    userId: data.user_id,
+    name: i18n.locale === 'es' ? 'Favoritos' : 'Favorites',
+    description: i18n.locale === 'es' ? 'Mis recetas favoritas' : 'My favorite recipes',
+    isPublic: data.is_public,
+    isDefault: data.is_default,
+    shareEnabled: data.share_enabled,
+    shareToken: data.share_token,
+    recipeCount: 0,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
 }
 
 /**
  * Regenerate share token for a cookbook
  */
 async function regenerateShareToken(cookbookId: string): Promise<string> {
-  // Supabase will generate a new UUID via gen_random_uuid()
   const { data, error } = await supabase.rpc('regenerate_cookbook_share_token', {
     cookbook_id: cookbookId,
   });
 
   if (error) {
-    // Fallback: generate token on client side if RPC doesn't exist
-    const newToken = crypto.randomUUID();
-    const { error: updateError } = await supabase
-      .from('cookbooks')
-      .update({ share_token: newToken, share_enabled: true })
-      .eq('id', cookbookId);
-
-    if (updateError) {
-      console.error('Error regenerating share token:', updateError);
-      throw new Error(updateError.message);
-    }
-
-    return newToken;
+    throw new Error(error.message);
   }
 
   return data;

@@ -2,7 +2,16 @@
 
 ## Status
 
-The cookbook sharing backend is implemented, but sharing is intentionally disabled in the app for now (UI entry points are hidden and shared-link route access is redirected). This keeps current cookbook CRUD stable while the broader social sharing model is designed.
+The cookbook sharing backend is implemented, but sharing is intentionally disabled in the app for MVP (UI entry points are hidden and shared-link route access is redirected). Anon public-read RLS policies have been dropped until sharing ships. Sharing will be re-enabled in a future phase once the broader social sharing model is designed.
+
+### Schema
+
+Cookbooks follow the project's translation table pattern:
+
+- `cookbooks` — base table (non-translatable fields: `is_public`, `is_default`, `share_token`, `share_enabled`)
+- `cookbook_translations` — translatable fields (`name`, `description`), keyed by `(cookbook_id, locale)`
+- `cookbook_recipes` — junction table linking recipes to cookbooks (`display_order`, `added_at`)
+- `cookbook_recipe_translations` — translatable fields (`notes`), keyed by `(cookbook_recipe_id, locale)`
 
 ## High-Level Overview
 
@@ -20,8 +29,9 @@ This model supports private-by-default cookbooks while allowing controlled link 
 
 - **Creation**: `share_token` is generated with `gen_random_uuid()` when the cookbook row is created.
 - **Enable sharing**: sharing is made active by setting `share_enabled = true` (and token is available).
-- **Rotate token**: `regenerate_cookbook_share_token(...)` generates a new UUID and enables sharing.
+- **Rotate token**: `regenerate_cookbook_share_token(...)` generates a new UUID and enables sharing. Restricted to `authenticated` role only.
 - **Disable sharing**: set `share_enabled = false`; token lookups should no longer return cookbook data.
+- **Display ordering**: `next_cookbook_recipe_order(p_cookbook_id)` returns the next atomic `display_order` value, avoiding race conditions from client-side reads.
 
 ## What Is an RPC?
 

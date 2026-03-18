@@ -54,8 +54,8 @@ export function ShareCookbookModal({
                 url: Platform.OS === 'ios' ? shareUrl : undefined,
                 title: cookbook.name,
             });
-        } catch (error) {
-            console.error('Error sharing:', error);
+        } catch (_error) {
+            // Share cancelled or failed — no user-facing action needed
         }
     };
 
@@ -64,8 +64,7 @@ export function ShareCookbookModal({
             const newToken = await regenerateTokenMutation.mutateAsync(cookbook.id);
             setShareToken(newToken);
             setShareEnabled(true);
-        } catch (error) {
-            console.error('Error regenerating link:', error);
+        } catch (_error) {
             Alert.alert(i18n.t('common.errors.title'), i18n.t('common.errors.default'));
         }
     };
@@ -82,8 +81,7 @@ export function ShareCookbookModal({
             });
             setShareEnabled(false);
             setCopied(false);
-        } catch (error) {
-            console.error('Error updating sharing setting:', error);
+        } catch (_error) {
             Alert.alert(i18n.t('common.errors.title'), i18n.t('common.errors.default'));
         }
     };

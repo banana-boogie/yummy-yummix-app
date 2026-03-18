@@ -305,7 +305,7 @@ Fallback behaviour:
 
 **Important — no cross-language fallback at the application layer:** The RPC returns `en` in the chain for Spanish locales because of the seed data structure, but application code (Edge Functions) uses `buildLocaleChain()` from `_shared/locale-utils.ts` which stops at the language boundary. `es` and `en` are separate user groups; a Spanish-language user must never receive English content as a fallback. Only use `resolve_locale()` directly in SQL where you are already filtering to a single language, or slice the result to exclude cross-language entries.
 
-### 8 Translation Tables
+### 10 Translation Tables
 
 | Translation Table | Parent Table | Translated Fields | RLS Read Pattern |
 |---|---|---|---|
@@ -317,6 +317,8 @@ Fallback behaviour:
 | `recipe_tag_translations` | `recipe_tags` | `name` | `USING (true)` — reference data |
 | `kitchen_tool_translations` | `kitchen_tools` | `name` | `USING (true)` — reference data |
 | `recipe_kitchen_tool_translations` | `recipe_kitchen_tools` | `notes` | grandparent `is_published` (via `recipe_kitchen_tools`) |
+| `cookbook_translations` | `cookbooks` | `name`, `description` | owner `user_id` |
+| `cookbook_recipe_translations` | `cookbook_recipes` | `notes` | owner (via `cookbook_recipes` → `cookbooks.user_id`) |
 
 All use composite PK `(entity_id, locale)` with `ON DELETE CASCADE` from parent. Note: `measurement_unit_translations.measurement_unit_id` is `text` (not `uuid`) because `measurement_units.id` is `text`.
 

@@ -51,12 +51,10 @@ export default function CookbooksScreen() {
     try {
       await createMutation.mutateAsync(input);
       setShowCreateModal(false);
-    } catch (error) {
-      const err = error as Error;
-      console.error('Failed to create cookbook:', err.message);
+    } catch (_error) {
       Alert.alert(
         i18n.t('common.errors.title'),
-        err.message || i18n.t('cookbooks.errors.createFailed')
+        i18n.t('cookbooks.errors.createFailed')
       );
     }
   };
