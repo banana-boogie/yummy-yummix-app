@@ -6,7 +6,8 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Platform } from 'react-native';
+import { View, TouchableOpacity, Platform } from 'react-native';
+import { Text } from '@/components/common/Text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack } from 'expo-router';
 import { ChatScreen } from '@/components/chat/ChatScreen';
@@ -105,7 +106,7 @@ export default function ChatPage() {
                                         color={COLORS.primary.darkest}
                                     />
                                 </View>
-                                <Text style={{ fontSize: 10, color: COLORS.primary.darkest, marginTop: 1 }}>
+                                <Text className="text-[10px] text-primary-darkest mt-[1px]">
                                     {mode === 'text'
                                         ? i18n.t('chat.modeLabel.voice')
                                         : i18n.t('chat.modeLabel.text')}

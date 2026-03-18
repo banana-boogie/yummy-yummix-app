@@ -201,4 +201,53 @@ describe('fetchBudgetUsage', () => {
 
     expect(result.usagePercent).toBe(100);
   });
+
+  it('returns default budget when tier row is missing', async () => {
+    let callCount = 0;
+    mockFrom.mockImplementation(() => {
+      callCount++;
+      const chain: any = {};
+
+      if (callCount === 1) {
+        chain.select = jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            single: jest.fn().mockResolvedValue({
+              data: { membership_tier: 'unknown_tier' },
+              error: null,
+            }),
+          }),
+        });
+      } else if (callCount === 2) {
+        // No tier row found — maybeSingle returns null data
+        chain.select = jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            maybeSingle: jest.fn().mockResolvedValue({
+              data: null,
+              error: null,
+            }),
+          }),
+        });
+      } else if (callCount === 3) {
+        chain.select = jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              maybeSingle: jest.fn().mockResolvedValue({
+                data: { total_cost_usd: 0.03, request_count: 5 },
+                error: null,
+              }),
+            }),
+          }),
+        });
+      }
+
+      return chain;
+    });
+
+    const result = await fetchBudgetUsage('user-123');
+
+    expect(result.budgetUsd).toBe(0.10);
+    expect(result.totalCostUsd).toBe(0.03);
+    expect(result.usagePercent).toBe(30);
+    expect(result.tier).toBe('unknown_tier');
+  });
 });

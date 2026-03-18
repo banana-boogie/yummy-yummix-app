@@ -24,7 +24,7 @@ import {
 import { buildSafetyReminders, checkRecipeSafety } from "../food-safety.ts";
 import { chat } from "../ai-gateway/index.ts";
 import type { CostContext } from "../ai-gateway/types.ts";
-import { getThermomixModel, hasAirFryer, hasThermomix } from "../equipment-utils.ts";
+import { getThermomixModel, hasAirFryer, hasThermomix, VALID_THERMOMIX_MODES } from "../equipment-utils.ts";
 import {
   buildLocaleChain,
   getBaseLanguage,
@@ -1503,11 +1503,7 @@ export function validateThermomixSteps(
 
     // Validate cooking mode (must be a known mode string)
     if (step.thermomixMode != null) {
-      const VALID_MODES = [
-        "slow_cook", "rice_cooker", "sous_vide", "fermentation",
-        "open_cooking", "high_temperature", "dough", "turbo",
-      ];
-      if (!VALID_MODES.includes(step.thermomixMode)) {
+      if (!(VALID_THERMOMIX_MODES as readonly string[]).includes(step.thermomixMode)) {
         console.warn(
           `Invalid Thermomix mode for step ${step.order}: ${step.thermomixMode}. Removing.`,
         );

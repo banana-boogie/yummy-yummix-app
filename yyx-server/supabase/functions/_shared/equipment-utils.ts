@@ -35,6 +35,21 @@ export function getThermomixModel(
 /**
  * Check if the user's kitchen equipment includes an Air Fryer.
  */
+/** Valid Thermomix cooking mode identifiers. Single source of truth. */
+export const VALID_THERMOMIX_MODES = [
+  "slow_cook",
+  "rice_cooker",
+  "sous_vide",
+  "fermentation",
+  "open_cooking",
+  "high_temperature",
+  "dough",
+  "turbo",
+] as const;
+
+/**
+ * Check if the user's kitchen equipment includes an Air Fryer.
+ */
 export function hasAirFryer(kitchenEquipment: string[]): boolean {
   return kitchenEquipment.some((eq) => {
     const lower = eq.toLowerCase();
