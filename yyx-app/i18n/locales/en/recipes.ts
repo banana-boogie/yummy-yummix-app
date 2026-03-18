@@ -17,6 +17,7 @@ export const recipes = {
     portions: "Portions",
     prepTime: "Prep",
     totalTime: "Total",
+    difficultyLabel: "Difficulty",
     ingredients: "Ingredients",
     instructions: "Instructions",
     steps: "steps",

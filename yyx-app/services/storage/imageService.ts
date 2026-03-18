@@ -6,6 +6,10 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { decode } from 'base64-arraybuffer';
 import logger from '@/services/logger';
 
+/** Max file size for image uploads (2MB — matches Supabase bucket config) */
+const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024;
+const MAX_IMAGE_SIZE_MB = 2;
+
 interface UploadImageProps {
   bucket: string;
   folderPath: string;
@@ -34,6 +38,14 @@ export class ImageService extends BaseService {
       // Process the file based on platform
       const processedFile = await this.processFile(file, forcePNG);
 
+      // Validate file size before upload
+      if (processedFile.size > MAX_IMAGE_SIZE_BYTES) {
+        const sizeMB = (processedFile.size / (1024 * 1024)).toFixed(1);
+        throw new Error(
+          `Image is too large (${sizeMB}MB). Maximum size is ${MAX_IMAGE_SIZE_MB}MB. Please use a smaller image.`
+        );
+      }
+
       const { error } = await this.supabase.storage
         .from(bucket)
         .upload(fullPath, processedFile);
@@ -49,6 +61,10 @@ export class ImageService extends BaseService {
       return data.publicUrl;
     } catch (error) {
       logger.error('Error in uploadImage:', error);
+      // Preserve the original error message so callers can show useful feedback
+      if (error instanceof Error) {
+        throw error;
+      }
       throw new Error('Failed to upload image. Please try again.');
     }
   }
@@ -61,38 +77,64 @@ export class ImageService extends BaseService {
   }
 
   private async processWebFile(file: any, forcePNG: boolean): Promise<File> {
-    // If it's already a File object
+    let blob: Blob;
+
     if (file instanceof File) {
-      if (forcePNG) {
-        const blob = await this.convertToPNG(file);
-        return new File([blob], file.name || 'image.png', { type: 'image/png' });
-      }
-      return file;
-    }
-
-    // If it's a data URL or blob URL
-    if (file.uri && (file.uri.startsWith('data:') || file.uri.startsWith('blob:'))) {
+      blob = file;
+    } else if (file.uri) {
       const response = await fetch(file.uri);
-      const blob = await response.blob();
-      if (forcePNG) {
-        const pngBlob = await this.convertToPNG(blob);
-        return new File([pngBlob], file.name || 'image.png', { type: 'image/png' });
-      }
-      return new File([blob], file.name || 'image.jpg', { type: blob.type || 'image/jpeg' });
+      blob = await response.blob();
+    } else {
+      throw new Error('Invalid file format for web platform');
     }
 
-    // If it's a regular URL (like http/https)
-    if (file.uri && (file.uri.startsWith('http:') || file.uri.startsWith('https:'))) {
-      const response = await fetch(file.uri);
-      const blob = await response.blob();
-      if (forcePNG) {
-        const pngBlob = await this.convertToPNG(blob);
-        return new File([pngBlob], file.name || 'image.png', { type: 'image/png' });
-      }
-      return new File([blob], file.name || 'image.jpg', { type: blob.type || 'image/jpeg' });
-    }
+    // Resize and optionally convert format (matches mobile behavior)
+    const resized = await this.resizeWebImage(blob, 1200, forcePNG);
+    const ext = forcePNG ? 'png' : 'jpg';
+    const mime = forcePNG ? 'image/png' : 'image/jpeg';
+    return new File([resized], file.name || `image.${ext}`, { type: mime });
+  }
 
-    throw new Error('Invalid file format for web platform');
+  /** Resize a web image to maxWidth, optionally converting to PNG */
+  private async resizeWebImage(blob: Blob, maxWidth: number, asPNG: boolean): Promise<Blob> {
+    const img = new Image();
+    const blobUrl = URL.createObjectURL(blob);
+
+    try {
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = blobUrl;
+      });
+
+      // Only downscale, never upscale
+      const scale = img.width > maxWidth ? maxWidth / img.width : 1;
+      const width = Math.round(img.width * scale);
+      const height = Math.round(img.height * scale);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Failed to get canvas context');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      const format = asPNG ? 'image/png' : 'image/jpeg';
+      const quality = 1;
+
+      return new Promise((resolve, reject) => {
+        canvas.toBlob(
+          (result) => {
+            if (result) resolve(result);
+            else reject(new Error('Failed to resize image'));
+          },
+          format,
+          quality,
+        );
+      });
+    } finally {
+      URL.revokeObjectURL(blobUrl);
+    }
   }
 
   private async processMobileFile(file: any, forcePNG: boolean): Promise<File> {
@@ -117,44 +159,6 @@ export class ImageService extends BaseService {
     const extension = forcePNG ? 'png' : 'jpg';
     const blob = new Blob([arrayBuffer], { type: mimeType });
     return new File([blob], `image.${extension}`, { type: mimeType });
-  }
-
-  private async convertToPNG(blob: Blob): Promise<Blob> {
-    // Create an image element
-    const img = new Image();
-    const blobUrl = URL.createObjectURL(blob);
-
-    try {
-      // Wait for the image to load
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = blobUrl;
-      });
-
-      // Create a canvas and draw the image
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Failed to get canvas context');
-
-      ctx.drawImage(img, 0, 0);
-
-      // Convert to PNG blob
-      return new Promise((resolve, reject) => {
-        canvas.toBlob(
-          (pngBlob) => {
-            if (pngBlob) resolve(pngBlob);
-            else reject(new Error('Failed to convert to PNG'));
-          },
-          'image/png',
-          1
-        );
-      });
-    } finally {
-      URL.revokeObjectURL(blobUrl);
-    }
   }
 
   async deleteImage(imageUrl: string): Promise<void> {

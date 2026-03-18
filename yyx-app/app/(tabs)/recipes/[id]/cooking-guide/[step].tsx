@@ -15,6 +15,8 @@ import { eventService } from '@/services/eventService';
 import { useCookingSession } from '@/contexts/CookingSessionContext';
 import { COLORS } from '@/constants/design-tokens';
 
+const contentContainerStyle = { paddingHorizontal: 0 } as const;
+
 export default function CookingStep() {
     const { id, step: stepParam } = useLocalSearchParams();
     const { recipe } = useRecipe(id as string);
@@ -95,7 +97,7 @@ export default function CookingStep() {
             <PageLayout
                 footer={footer}
                 backgroundColor={COLORS.grey.light}
-                contentContainerStyle={{ paddingHorizontal: 0 }}
+                contentContainerStyle={contentContainerStyle}
                 contentPaddingHorizontal={0}
                 scrollEnabled={true}
             >

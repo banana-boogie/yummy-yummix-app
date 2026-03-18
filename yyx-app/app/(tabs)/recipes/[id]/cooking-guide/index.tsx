@@ -17,6 +17,8 @@ import { COLORS } from '@/constants/design-tokens';
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 
+const contentContainerStyle = { paddingHorizontal: 0, paddingBottom: 180 } as const;
+
 export default function CookingGuide() {
   const { id } = useLocalSearchParams();
   const { recipe } = useRecipe(id as string);
@@ -44,7 +46,7 @@ export default function CookingGuide() {
       <PageLayout
         backgroundColor={COLORS.grey.light}
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 180 }}
+        contentContainerStyle={contentContainerStyle}
         contentPaddingHorizontal={0}
         scrollEnabled={true}
         footer={
@@ -54,6 +56,7 @@ export default function CookingGuide() {
               className="absolute bottom-[-50px] right-0"
               style={{ width: chefSize.width, height: chefSize.height }}
               contentFit="contain"
+              cachePolicy="memory-disk"
             />
           </View>
         }
@@ -96,10 +99,12 @@ export default function CookingGuide() {
               <Text preset="body" className="text-center text-md mb-0">
                 {i18n.t('recipes.cookingGuide.intro.checkboxSteps.checkmark')}
               </Text>
-              <View className="items-center justify-center mx-xs position-absolute">
+              <View className="items-center justify-center mx-xs absolute">
                 <Image
                   source={require('@/assets/images/icons/checkbox-checked.png')}
                   style={{ width: checkboxSize, height: checkboxSize, top: -5 }}
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
                 />
               </View>
               <Text preset="body" className="text-center text-md mb-0">

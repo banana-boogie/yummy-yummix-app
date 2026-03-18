@@ -1,3 +1,4 @@
+import React from 'react';
 import { Pressable, View, DimensionValue, StyleProp, ViewStyle } from 'react-native';
 import Animated, {
   withTiming,
@@ -33,7 +34,7 @@ type MiseEnPlaceKitchenToolProps = {
  * - Image with checkbox overlay
  * - Name prominent and centered
  */
-export function MiseEnPlaceKitchenTool({
+export const MiseEnPlaceKitchenTool = React.memo(function MiseEnPlaceKitchenTool({
   item,
   onPress,
   width,
@@ -100,4 +101,4 @@ export function MiseEnPlaceKitchenTool({
       </Animated.View>
     </Pressable>
   );
-}
+});

@@ -101,6 +101,12 @@ class AdminRecipeService extends BaseService {
               locale,
               name,
               plural_name
+            ),
+            nutrition:ingredient_nutrition (
+              calories,
+              protein,
+              fat,
+              carbohydrates
             )
           ),
           measurement_unit:measurement_units(
@@ -768,7 +774,10 @@ class AdminRecipeService extends BaseService {
                 pluralName: t.plural_name || t.pluralName || undefined,
               })),
               pictureUrl: ri.ingredient?.imageUrl || ri.ingredient?.image_url || '',
-              nutritionalFacts: ri.ingredient?.nutritionalFacts || ri.ingredient?.nutritional_facts,
+              nutritionalFacts: (() => {
+                const n = Array.isArray(ri.ingredient?.nutrition) ? ri.ingredient.nutrition[0] : ri.ingredient?.nutrition;
+                return n ? { calories: n.calories, protein: n.protein, fat: n.fat, carbohydrates: n.carbohydrates } : undefined;
+              })(),
             },
             quantity: ri.quantity,
             translations: (ri.translations || []).map((t: any) => ({

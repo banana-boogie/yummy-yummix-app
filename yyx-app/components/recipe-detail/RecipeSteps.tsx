@@ -60,7 +60,7 @@ const getIngredientNames = (ingredients?: RecipeStepIngredient[]) => {
 };
 
 // Extract step rendering to a separate component for reuse
-const StepItem = ({ step }: { step: RecipeStep }) => (
+const StepItem = React.memo(({ step }: { step: RecipeStep }) => (
   <View className="flex-row items-start lg:mb-lg">
     <View className="w-[60px] h-[60px] justify-center items-center mr-md mt-0 relative">
       <Image
@@ -79,4 +79,4 @@ const StepItem = ({ step }: { step: RecipeStep }) => (
       }, getIngredientNames(step.ingredients))}
     </View>
   </View>
-);
+));

@@ -1,0 +1,624 @@
+{
+  "scanned": 307,
+  "totalIssues": 102,
+  "byCategory": {
+    "no_steps": 2,
+    "same_en_es_name": 16,
+    "zero_time": 82,
+    "few_ingredients": 2
+  },
+  "issues": [
+    {
+      "recipeId": "f4b73b2c-43c2-4743-88fb-29ddd739efc0",
+      "recipeName": "Beef Salad",
+      "category": "no_steps",
+      "detail": "0 steps"
+    },
+    {
+      "recipeId": "e50b81a2-b7e3-4802-b276-2a84cf8946e9",
+      "recipeName": "Tinga de pollo",
+      "category": "same_en_es_name",
+      "detail": "EN=\"Tinga de pollo\" ES=\"Tinga de pollo\""
+    },
+    {
+      "recipeId": "8ef111aa-e965-42a4-a5be-6f7053c53269",
+      "recipeName": "Cochinita pibil",
+      "category": "same_en_es_name",
+      "detail": "EN=\"Cochinita pibil\" ES=\"Cochinita pibil\""
+    },
+    {
+      "recipeId": "8ef111aa-e965-42a4-a5be-6f7053c53269",
+      "recipeName": "Cochinita pibil",
+      "category": "no_steps",
+      "detail": "0 steps"
+    },
+    {
+      "recipeId": "b165b4bf-84a3-4507-9ce2-0cbeb86f67c2",
+      "recipeName": "Caesar Dressing",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "6b735d38-b64e-412f-ae10-7de9f5699b3d",
+      "recipeName": "Caesar Dressing",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "ae5ad98f-4976-4574-8fc3-4a1824b4f062",
+      "recipeName": "Stuffed Avocados with Tuna",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "6022fda8-da88-42ff-bb25-5767c5c1985e",
+      "recipeName": "Shrimp Aguachile",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "7a4c95dd-3c90-4f57-ab8f-4b9ee3b918cb",
+      "recipeName": "White Rice",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "c6944b76-f211-4efa-972f-40ee75b12a51",
+      "recipeName": "Chocolate Bars",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "ca399e51-c89e-4d4d-a873-9926219106cd",
+      "recipeName": "Non-Alcoholic Bloody Mary",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "b3b4193a-1712-41fa-afab-f6d4c2e454bf",
+      "recipeName": "Blueberry Rosemary Smash",
+      "category": "same_en_es_name",
+      "detail": "EN=\"Blueberry Rosemary Smash\" ES=\"Blueberry Rosemary Smash\""
+    },
+    {
+      "recipeId": "b3b4193a-1712-41fa-afab-f6d4c2e454bf",
+      "recipeName": "Blueberry Rosemary Smash",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "9be02b4b-07cf-43fd-9196-f5a9119d40c9",
+      "recipeName": "Golden Broccoli with Tuna Sauce",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "0babcb97-055c-4aca-af25-d3e481a696c6",
+      "recipeName": "Country-style Broth",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "1df8c9b4-e8c8-480d-8d22-90735243e0ad",
+      "recipeName": "Garlic Shrimp",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "eb78b815-a24e-4df9-a2af-852b5594ca6d",
+      "recipeName": "Charlotte",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "f61964cf-d142-4f71-970d-b4788c080e60",
+      "recipeName": "Meat in its juice",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "069591f9-8a35-42ad-9232-168077271e8f",
+      "recipeName": "Pork cheek with thyme and vegetable medley",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "f4612888-2f02-40c2-82f2-6af18719b6df",
+      "recipeName": "Green Onions with Habanero Chili and Pineapple",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "5b657b48-beed-48be-92ea-18fba4a41669",
+      "recipeName": "Cucumber and Jicama Ceviche",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "d099b09b-260b-42c5-8471-808310da3784",
+      "recipeName": "Raspberry Cheesecake",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "42c9a6d7-9756-4072-9690-1e662b98c525",
+      "recipeName": "Chocolate hazelnut overnight chia bowl",
+      "category": "same_en_es_name",
+      "detail": "EN=\"Chocolate hazelnut overnight chia bowl\" ES=\"Chocolate hazelnut overnight chia bowl\""
+    },
+    {
+      "recipeId": "42c9a6d7-9756-4072-9690-1e662b98c525",
+      "recipeName": "Chocolate hazelnut overnight chia bowl",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "e50b831e-3ad7-4759-8669-1546a4a0f0c7",
+      "recipeName": "Chocolate hazelnut smoothie bowl",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "296eebcd-cbde-4418-ad91-262067f9c555",
+      "recipeName": "Cranberry and Orange Cocktail (Non-Alcoholic)",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "8fa3dbed-b947-4936-8b7c-eb25257fba20",
+      "recipeName": "Serrano Chili and Passion Fruit Cocktail",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "c69cd8c2-e3a5-418e-ad93-c1f84cc8fe38",
+      "recipeName": "Vegetable Concentrate",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "856b5177-fb76-427f-942f-f892294e175a",
+      "recipeName": "Blue Coast",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "ddfdf9b5-a66b-44e0-8c76-39225f8d83b6",
+      "recipeName": "Creamy chicken and sun-dried tomato pasta",
+      "category": "same_en_es_name",
+      "detail": "EN=\"Creamy chicken and sun-dried tomato pasta\" ES=\"Creamy chicken and sun-dried tomato pasta\""
+    },
+    {
+      "recipeId": "ddfdf9b5-a66b-44e0-8c76-39225f8d83b6",
+      "recipeName": "Creamy chicken and sun-dried tomato pasta",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "66cc293e-b483-4c43-bc2e-c3f14afcbd75",
+      "recipeName": "Catalan Cream",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "e42bbf39-e94b-4045-9919-cb25c54be66c",
+      "recipeName": "Florentine Cream (Spinach Cream Soup)",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "27a15090-b814-4471-8efc-a5c7c9540ed9",
+      "recipeName": "Chocolate Cubes (dates, cocoa, and oats)",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "86b5284c-879f-4717-af09-85eb509cfbdf",
+      "recipeName": "Caesar Salad with Kale, Arugula, and Salmon",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "55069688-5377-49fe-af37-3fe16590f7f4",
+      "recipeName": "Couscous Salad with Dates and Almonds",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "7730193f-0e7e-49a4-aa25-cf5bc1298740",
+      "recipeName": "Chicken Salad",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "fd8ec1e2-758a-4ca7-be86-f28ffeb7e67e",
+      "recipeName": "Caesar Salad",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "5b09bb87-ba76-4b1a-851c-bea214194577",
+      "recipeName": "Chickpea Salad with Pepper Vinaigrette",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "107f329e-a00c-49b0-b538-0c27e3f7faeb",
+      "recipeName": "Quinoa, Tomato, Chickpea, and Mozzarella Salad (FR)",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "7f2e09d1-f5f2-4a00-b0ff-dc4ff3f2be3f",
+      "recipeName": "Salmon, Quinoa, Feta Cheese, and Vegetable Salad",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "76262b6b-7a29-4136-aab6-6018ef9d710d",
+      "recipeName": "Italian Pasta Salad with Pesto",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "4927093b-7e71-4ce9-a226-35e2337028bf",
+      "recipeName": "Whole Wheat Spaghetti with Chicken and Vegetables",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "eb9c89d2-08af-4916-a605-c8557c7e982f",
+      "recipeName": "Spaghetti Carbonara",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "ae4be129-bfdc-4a70-a38d-b3608b2498bb",
+      "recipeName": "Creamy Spaghetti with Cheese and Pistachios",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "12a91cde-275d-49f1-8cae-f35442a8602a",
+      "recipeName": "Pepper Steak",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "e47dfa84-c6c4-447a-a09d-469009c6da64",
+      "recipeName": "Banana Ice Cream (Nicecream)",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "e47dfa84-c6c4-447a-a09d-469009c6da64",
+      "recipeName": "Banana Ice Cream (Nicecream)",
+      "category": "few_ingredients",
+      "detail": "Only 1 ingredient"
+    },
+    {
+      "recipeId": "7808a8bd-7fd2-4e17-b733-81ef1c1161be",
+      "recipeName": "Apple and Pear Detox Juice",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "3086981e-5a3a-4319-ad72-640aac4478bf",
+      "recipeName": "Spring Green Juice",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "deedac61-0ecf-4d33-abef-7eec33d4a948",
+      "recipeName": "Kimchi",
+      "category": "same_en_es_name",
+      "detail": "EN=\"Kimchi\" ES=\"Kimchi\""
+    },
+    {
+      "recipeId": "deedac61-0ecf-4d33-abef-7eec33d4a948",
+      "recipeName": "Kimchi",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "acf8a23c-a742-4084-a0bc-e19de0a986e5",
+      "recipeName": "Almond Milk",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "388b52a1-e5b5-4c41-a004-f47469d80ca5",
+      "recipeName": "Coffee Liqueur",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "8d28e504-c639-4a56-9d2a-1a66b4aac63f",
+      "recipeName": "Margarita",
+      "category": "same_en_es_name",
+      "detail": "EN=\"Margarita\" ES=\"Margarita\""
+    },
+    {
+      "recipeId": "12409e57-b638-467c-bf72-1e3a866276bd",
+      "recipeName": "Cucumber and Chile Piquín Margarita",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "2bc86d1c-6001-419d-8913-5ad1dd47fa23",
+      "recipeName": "Mediterranean Sea Bass Papillote with Couscous and Vegetables",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "d94fe4c6-715b-4b16-877c-d95750112020",
+      "recipeName": "Chocolate and Caramel Mille-feuille",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "e8786e29-0aae-4b5d-bbc7-9c18c8b37978",
+      "recipeName": "Mongolian Beef",
+      "category": "same_en_es_name",
+      "detail": "EN=\"Mongolian Beef\" ES=\"Mongolian Beef\""
+    },
+    {
+      "recipeId": "e8786e29-0aae-4b5d-bbc7-9c18c8b37978",
+      "recipeName": "Mongolian Beef",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "877bc73f-d75d-4c36-9e5d-467b19eadc19",
+      "recipeName": "Chocolate Mousse",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "972e18af-ee53-4dce-990d-328fc8ff94f2",
+      "recipeName": "Moscow Mule with Pomegranate and Mint",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "833ece90-d382-4965-b02b-5f740ae5fc81",
+      "recipeName": "Naan",
+      "category": "same_en_es_name",
+      "detail": "EN=\"Naan\" ES=\"Naan\""
+    },
+    {
+      "recipeId": "833ece90-d382-4965-b02b-5f740ae5fc81",
+      "recipeName": "Naan",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "cdc64330-1ac0-4224-9719-ceb598da0c1d",
+      "recipeName": "Whipped Cream",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "cdc64330-1ac0-4224-9719-ceb598da0c1d",
+      "recipeName": "Whipped Cream",
+      "category": "few_ingredients",
+      "detail": "Only 1 ingredient"
+    },
+    {
+      "recipeId": "7a078d8c-9e1f-4b0d-8a23-15b3d9327749",
+      "recipeName": "Chicken Nuggets",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "71c03e02-a8ff-409e-992e-d22083a13ac5",
+      "recipeName": "Chicken Pacholas with Salad",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "c607dd9c-fe0d-4c84-970c-994f9f9b8cd0",
+      "recipeName": "Milk Bread",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "f2237f47-cc06-40bc-9e79-533ef59fd3fd",
+      "recipeName": "Pasta with Avocado and Walnut Pesto",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "392c790a-cb1c-4682-ab9e-f28e5b2fda79",
+      "recipeName": "Herb Pork Leg",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "ee540e68-397a-4433-b210-ced4d446a32d",
+      "recipeName": "Penne with Artichoke Pesto and Sautéed Eggplants",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "3dcfce93-7954-458f-8afd-d0c2e91800fa",
+      "recipeName": "Huertana-style Chicken",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "109a6fe3-552b-44c5-8e8c-c69adf2c5422",
+      "recipeName": "Polvorones",
+      "category": "same_en_es_name",
+      "detail": "EN=\"Polvorones\" ES=\"Polvorones\""
+    },
+    {
+      "recipeId": "109a6fe3-552b-44c5-8e8c-c69adf2c5422",
+      "recipeName": "Polvorones",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "49d365d6-16c1-460c-86a7-de08643be4ae",
+      "recipeName": "Express dessert with natural fruits",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "be70f70e-6a81-41bf-85b4-b6b144f1934e",
+      "recipeName": "Pumpkin Spice Mix",
+      "category": "same_en_es_name",
+      "detail": "EN=\"Pumpkin Spice Mix\" ES=\"Pumpkin Spice Mix\""
+    },
+    {
+      "recipeId": "04ed136d-0d18-4622-9585-76cfbe873bb7",
+      "recipeName": "Raw Snickers Slice",
+      "category": "same_en_es_name",
+      "detail": "EN=\"Raw Snickers Slice\" ES=\"Raw snickers slice\""
+    },
+    {
+      "recipeId": "5265723e-5f62-4faa-a7e4-ff5e9c6d0b68",
+      "recipeName": "Thyme Salt",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "c586d24b-40c0-41da-a877-bece3a6bf122",
+      "recipeName": "Asian Stir-Fry with Noodles",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "65cecf2c-a654-4c10-8c7b-d844b1e6e5cf",
+      "recipeName": "San Choy Bau",
+      "category": "same_en_es_name",
+      "detail": "EN=\"San Choy Bau\" ES=\"San Choy bau\""
+    },
+    {
+      "recipeId": "65cecf2c-a654-4c10-8c7b-d844b1e6e5cf",
+      "recipeName": "San Choy Bau",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "d0e95c64-562d-4062-93e7-db69f535b66d",
+      "recipeName": "San Francisco",
+      "category": "same_en_es_name",
+      "detail": "EN=\"San Francisco\" ES=\"San francisco\""
+    },
+    {
+      "recipeId": "d0e95c64-562d-4062-93e7-db69f535b66d",
+      "recipeName": "San Francisco",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "6b794d84-2b4d-4b46-bc43-173292bd2d54",
+      "recipeName": "Cider Sangria",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "dccece11-336f-43d6-8b76-eac122f56170",
+      "recipeName": "Cauliflower and Chicken Soup",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "c5be6beb-c89d-4cbf-9d25-be4103ace310",
+      "recipeName": "Thai Tom Yum Style Noodle Soup",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "186cb167-2f85-470a-aa78-085921b331e3",
+      "recipeName": "Tortilla Soup",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "c1752b27-aaca-46c5-8aa9-09abc096f0ab",
+      "recipeName": "Lettuce Tacos with Chicken",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "79d882c0-6c95-49d1-84bb-5107b07b7a07",
+      "recipeName": "Chicken Tacos al Pastor",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "5003f784-c15e-4b74-8e39-b3b78946f742",
+      "recipeName": "Stir-fried Noodles with Beef",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "26b75d3e-c643-4822-991b-648849316d7d",
+      "recipeName": "Three Chocolate Tart",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "e2d6bfe6-47c3-4704-b45c-57c13b8fe844",
+      "recipeName": "Banoffee Pie",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "520f1429-f393-4e2a-8d45-c0ef430887bd",
+      "recipeName": "Thai cucumber salad",
+      "category": "same_en_es_name",
+      "detail": "EN=\"Thai cucumber salad\" ES=\"Thai cucumber salad\""
+    },
+    {
+      "recipeId": "520f1429-f393-4e2a-8d45-c0ef430887bd",
+      "recipeName": "Thai cucumber salad",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "6bae685e-8c58-4bfd-aede-3c6403cec801",
+      "recipeName": "Chickpea Patties",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "52560263-0752-4ac2-918e-ccccd2361a7f",
+      "recipeName": "Rice Cakes with Chickpeas and Avocado",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "26e4c280-a934-4d70-941b-a1839ff44e7c",
+      "recipeName": "Chicken Salad Tostadas with Greek Jocoque",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "ed593a73-f851-4ae6-99d7-67575b3679d6",
+      "recipeName": "Picadillo Tostadas",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "4b2f9325-4c18-4370-8c2e-6bc9e5f42fba",
+      "recipeName": "Vanilla Protein Balls",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    },
+    {
+      "recipeId": "90b05900-df7a-4332-9274-841cb4b57c4e",
+      "recipeName": "Veggie Loaded Pasta Sauce",
+      "category": "same_en_es_name",
+      "detail": "EN=\"Veggie Loaded Pasta Sauce\" ES=\"Veggie loaded pasta sauce\""
+    },
+    {
+      "recipeId": "069e9035-77ce-48ec-b9e8-63623248cbd4",
+      "recipeName": "Vegetables with Sesame Hummus",
+      "category": "zero_time",
+      "detail": "Both prep and total time are 0"
+    }
+  ]
+}

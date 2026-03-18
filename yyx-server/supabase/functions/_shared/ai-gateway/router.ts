@@ -53,10 +53,24 @@ const defaultRoutingConfig: AIRoutingConfig = {
     model: "gpt-4.1",
     apiKeyEnvVar: "OPENAI_API_KEY",
   },
+  // Translation (admin auto-translate, content localization) — culinary terminology accuracy
+  // gpt-4.1-mini: good translation quality at low cost
+  // Upgraded from gpt-4.1-nano (too weak for ambiguous culinary terms like "pimienta gorda")
+  translation: {
+    provider: "openai",
+    model: "gpt-4.1-mini",
+    apiKeyEnvVar: "OPENAI_API_KEY",
+  },
   // Structured data parsing (admin, nutrition extraction) — speed over quality
   parsing: {
     provider: "openai",
     model: "gpt-4.1-nano",
+    apiKeyEnvVar: "OPENAI_API_KEY",
+  },
+  // Nutritional facts lookup — slightly better than nano for accuracy
+  nutrition: {
+    provider: "openai",
+    model: "gpt-4.1-mini",
     apiKeyEnvVar: "OPENAI_API_KEY",
   },
   // Text embeddings for vector search

@@ -18,7 +18,6 @@ interface NutritionalFactsSectionProps {
   onChange: (facts: NutritionalFacts) => void;
   errors?: NutritionalErrors;
   required?: boolean;
-  error?: string;
   ingredientName?: string;
 }
 
@@ -31,12 +30,10 @@ interface NutritionalErrors {
 
 export function NutritionalFactsSection({
   nutritionalFacts = {
-    per_100g: {
-      calories: undefined,
-      protein: undefined,
-      fat: undefined,
-      carbohydrates: undefined
-    }
+    calories: undefined,
+    protein: undefined,
+    fat: undefined,
+    carbohydrates: undefined
   },
   onChange,
   errors = {},
@@ -46,7 +43,7 @@ export function NutritionalFactsSection({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleChange = (field: keyof NutritionalFacts['per_100g'], value: string) => {
+  const handleChange = (field: keyof NutritionalFacts, value: string) => {
     // If value is empty or just a decimal point, treat specially
     let numericValue;
 
@@ -67,10 +64,8 @@ export function NutritionalFactsSection({
     }
 
     const newFacts = {
-      per_100g: {
-        ...nutritionalFacts.per_100g,
-        [field]: numericValue
-      }
+      ...nutritionalFacts,
+      [field]: numericValue
     };
     onChange(newFacts);
   };
@@ -130,7 +125,7 @@ export function NutritionalFactsSection({
           required={true}
         >
           <TextInput
-            value={formatValue(nutritionalFacts?.per_100g?.calories)}
+            value={formatValue(nutritionalFacts?.calories)}
             onChangeText={(text) => handleChange('calories', text)}
             keyboardType="numeric"
             numericOnly
@@ -145,7 +140,7 @@ export function NutritionalFactsSection({
           required={true}
         >
           <TextInput
-            value={formatValue(nutritionalFacts?.per_100g?.protein)}
+            value={formatValue(nutritionalFacts?.protein)}
             onChangeText={(text) => handleChange('protein', text)}
             keyboardType="numeric"
             numericOnly
@@ -160,7 +155,7 @@ export function NutritionalFactsSection({
           required={true}
         >
           <TextInput
-            value={formatValue(nutritionalFacts?.per_100g?.fat)}
+            value={formatValue(nutritionalFacts?.fat)}
             onChangeText={(text) => handleChange('fat', text)}
             keyboardType="numeric"
             numericOnly
@@ -175,7 +170,7 @@ export function NutritionalFactsSection({
           required={true}
         >
           <TextInput
-            value={formatValue(nutritionalFacts?.per_100g?.carbohydrates)}
+            value={formatValue(nutritionalFacts?.carbohydrates)}
             onChangeText={(text) => handleChange('carbohydrates', text)}
             keyboardType="numeric"
             numericOnly

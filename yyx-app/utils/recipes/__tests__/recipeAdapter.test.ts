@@ -273,7 +273,7 @@ describe('recipeAdapter', () => {
     });
 
     it('maps difficulty correctly', () => {
-      const difficulties: Array<'easy' | 'medium' | 'hard'> = [
+      const difficulties: ('easy' | 'medium' | 'hard')[] = [
         'easy',
         'medium',
         'hard',

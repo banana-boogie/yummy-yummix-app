@@ -18,7 +18,15 @@
     "backfill-embeddings:force": "bash scripts/backfill-embeddings.sh --execute --force",
     "test": "deno task test",
     "test:watch": "deno task test:watch",
-    "test:integration": "deno task test:integration"
+    "test:integration": "deno task test:integration",
+    "pipeline:import": "deno task pipeline:import",
+    "pipeline:audit": "deno task pipeline:audit",
+    "pipeline:nutrition": "deno task pipeline:nutrition",
+    "pipeline:translate": "deno task pipeline:translate",
+    "pipeline:images": "deno task pipeline:images",
+    "pipeline:scan": "deno task pipeline:scan",
+    "pipeline:backfill": "deno task pipeline:backfill-translations",
+    "pipeline:upload-images": "deno task pipeline:upload-images"
   },
   "devDependencies": {
     "@types/deno": "^2.2.0"

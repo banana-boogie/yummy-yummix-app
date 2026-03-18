@@ -31,15 +31,18 @@ export default function IngredientsAdminPage() {
   const [editingIngredient, setEditingIngredient] = useState<AdminIngredient | null>(null);
 
   // Auto-open edit modal when navigating with ?edit=<id> (e.g. from content health dashboard)
+  // Only run once when data first loads — not on every filter/search change
+  const [autoEditHandled, setAutoEditHandled] = useState(false);
   useEffect(() => {
-    if (edit && !loading && filteredIngredients.length > 0) {
+    if (edit && !loading && filteredIngredients.length > 0 && !autoEditHandled) {
       const target = filteredIngredients.find(ing => ing.id === edit);
       if (target) {
         setEditingIngredient(target);
         setModalVisible(true);
+        setAutoEditHandled(true);
       }
     }
-  }, [edit, loading, filteredIngredients]);
+  }, [edit, loading, filteredIngredients, autoEditHandled]);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   const [selectedIngredient, setSelectedIngredient] = useState<AdminIngredient | null>(null);
   const [showErrorAlert, setShowErrorAlert] = useState(false);
