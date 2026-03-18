@@ -35,6 +35,7 @@ export interface GeneratedStep {
   thermomixTime?: number;
   thermomixTemp?: string;
   thermomixSpeed?: string;
+  thermomixMode?: string;
   tip?: string | null;
 }
 

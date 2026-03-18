@@ -136,6 +136,7 @@ class AdminRecipeService extends BaseService {
           thermomix_temperature,
           thermomix_temperature_unit,
           thermomix_is_blade_reversed,
+          thermomix_mode,
           created_at,
           updated_at,
           translations:recipe_step_translations (
@@ -448,6 +449,7 @@ class AdminRecipeService extends BaseService {
         thermomixSpeedEnd: speedEnd,
         thermomixTemperature: recipeStep.thermomixTemperature || null,
         thermomixTemperatureUnit: recipeStep.thermomixTemperatureUnit || null,
+        thermomixMode: recipeStep.thermomixMode || null,
       });
     });
 
@@ -832,6 +834,7 @@ class AdminRecipeService extends BaseService {
             thermomixTemperature: rawStep.thermomixTemperature ?? rawStep.thermomix_temperature,
             thermomixTemperatureUnit: rawStep.thermomixTemperatureUnit ?? rawStep.thermomix_temperature_unit,
             thermomixIsBladeReversed: rawStep.thermomixIsBladeReversed ?? rawStep.thermomix_is_blade_reversed,
+            thermomixMode: rawStep.thermomixMode ?? rawStep.thermomix_mode ?? null,
           };
 
           // Handle speed

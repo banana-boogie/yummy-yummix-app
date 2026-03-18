@@ -246,6 +246,29 @@ Rotates blade counter-clockwise so the **blunt edge** leads instead of the sharp
 
 ---
 
+## Cooking Modes
+
+Named cooking modes that set specific parameter combinations automatically. The user selects the mode on their Thermomix screen.
+
+| Mode | Code | TM5 | TM6 | TM7 | Parameters | Best For |
+|------|------|-----|-----|-----|------------|----------|
+| **Slow Cook** | `slow_cook` | No | Yes | Yes | Reverse, Speed 1, blade cover, 70-100°C, up to 12h | Stews, braises, casseroles |
+| **Rice Cooker** | `rice_cooker` | No | Yes | Yes | Automatic temp/speed/time | Rice, grains |
+| **Sous Vide** | `sous_vide` | No | Guided only | Yes | Precise temp hold, no stirring | Proteins, vegetables |
+| **Fermentation** | `fermentation` | No | No | Yes | Low temp hold (30-45°C), extended time | Yogurt, dough proofing, tempeh |
+| **Open Cooking** | `open_cooking` | No | No | Yes | Lid-free, up to 100°C, Spoon/Speed 1 | Risotto, sautéing, monitoring |
+| **High Temperature** | `high_temperature` | No | Guided only | Yes (manual) | 120-160°C, max 10min per step | Browning, searing, caramelizing |
+| **Dough** | `dough` | Yes | Yes | Yes | Kneading mode, max 500g flour | Bread, pasta, pizza dough |
+| **Turbo** | `turbo` | Yes | Yes | Yes | Brief pulse at max speed | Crushing ice, quick grind |
+
+### When to Use a Mode vs Manual
+
+- Use a **named mode** when the Thermomix has a dedicated program for the technique — the user selects the mode from the screen.
+- Use **manual mode** (no mode set) for standard cooking with time/speed/temp — the user sets parameters individually.
+- Some modes on TM6 are only available via **Guided Cooking** (sous vide, high temperature). On TM7 they're available as manual modes.
+
+---
+
 ## TM7-Specific Features
 
 The Thermomix TM7 (released 2024) adds several capabilities not available on TM5/TM6:
@@ -310,7 +333,7 @@ The Thermomix TM7 (released 2024) adds several capabilities not available on TM5
 | **Open Cooking** | No | No | Yes (up to 100°C, lid-free) |
 | **Cutter accessory** | Cutter Disc | Cutter Disc | Cutter+ |
 | **Butterfly whisk** | Yes (max speed 4) | Yes (max speed 4) | Yes (max speed 4) |
-| **Sous vide** | No | Yes (Guided Cooking) | Yes |
+| **Sous vide** | No | Yes (Guided Cooking) | Yes (manual) |
 | **Fermentation** | No | No | Yes (built-in) |
 | **High temp (Guided)** | No | Up to 160°C | N/A (manual goes to 160°C) |
 | **Screen** | Small monochrome | 6.8" touchscreen | 10" touchscreen |

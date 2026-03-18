@@ -487,7 +487,8 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
                   temperature: formData.thermomixTemperature || null,
                   temperatureUnit: formData.thermomixTemperatureUnit || null,
                   speed: getThermomixSpeedObject(formData),
-                  isBladeReversed: formData.thermomixIsBladeReversed || null
+                  isBladeReversed: formData.thermomixIsBladeReversed || null,
+                  mode: (formData.thermomixMode as ThermomixSettings['mode']) || null
                 }}
                 onChange={(settings: Partial<ThermomixSettings>) => {
                   setFormData(prev => {
@@ -498,7 +499,8 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
                       thermomixTemperature: settings.temperature,
                       thermomixTemperatureUnit: settings.temperatureUnit,
                       thermomixSpeed,
-                      thermomixIsBladeReversed: settings.isBladeReversed
+                      thermomixIsBladeReversed: settings.isBladeReversed,
+                      thermomixMode: settings.mode || null
                     };
                   });
                 }}

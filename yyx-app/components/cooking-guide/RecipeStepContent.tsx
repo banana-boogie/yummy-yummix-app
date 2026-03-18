@@ -122,6 +122,7 @@ export function RecipeStepContent({ step, className = '', style }: RecipeStepCon
                     temperatureUnit={step.thermomix?.temperatureUnit}
                     isBladeReversed={step.thermomix?.isBladeReversed}
                     speed={step.thermomix?.speed}
+                    mode={step.thermomix?.mode}
                     className="mt-[-4px]"
                 />
             ) : null}

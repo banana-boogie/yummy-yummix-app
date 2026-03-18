@@ -106,6 +106,7 @@ export interface AdminRecipeSteps {
   thermomixTemperature?: ThermomixTemperature | null;
   thermomixTemperatureUnit?: ThermomixTemperatureUnit | null;
   thermomixIsBladeReversed? : boolean | null;
+  thermomixMode?: string | null;
   ingredients?: AdminRecipeStepIngredient[];
 }
 

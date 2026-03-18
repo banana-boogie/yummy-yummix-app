@@ -1,9 +1,55 @@
+/**
+ * Named cooking modes available on TM6 and TM7.
+ * Stored as free text in the database to allow new modes without migrations.
+ */
+export type ThermomixCookingMode =
+    | 'slow_cook'
+    | 'rice_cooker'
+    | 'sous_vide'
+    | 'fermentation'    // TM7 only
+    | 'open_cooking'    // TM7 only
+    | 'high_temperature'
+    | 'dough'
+    | 'turbo'
+    | null;
+
+export const THERMOMIX_COOKING_MODES = [
+    'slow_cook',
+    'rice_cooker',
+    'sous_vide',
+    'fermentation',
+    'open_cooking',
+    'high_temperature',
+    'dough',
+    'turbo',
+] as const;
+
+/** Human-readable labels keyed by mode value. */
+export const COOKING_MODE_LABELS: Record<string, { en: string; es: string }> = {
+    slow_cook: { en: 'Slow Cook', es: 'Cocción Lenta' },
+    rice_cooker: { en: 'Rice Cooker', es: 'Arrocera' },
+    sous_vide: { en: 'Sous Vide', es: 'Sous Vide' },
+    fermentation: { en: 'Fermentation', es: 'Fermentación' },
+    open_cooking: { en: 'Open Cooking', es: 'Cocción Abierta' },
+    high_temperature: { en: 'High Temperature', es: 'Alta Temperatura' },
+    dough: { en: 'Dough', es: 'Masa' },
+    turbo: { en: 'Turbo', es: 'Turbo' },
+};
+
+/** Modes available per Thermomix model. */
+export const COOKING_MODES_BY_MODEL: Record<ThermomixModel, readonly string[]> = {
+    TM5: ['dough', 'turbo'],
+    TM6: ['slow_cook', 'rice_cooker', 'sous_vide', 'high_temperature', 'dough', 'turbo'],
+    TM7: ['slow_cook', 'rice_cooker', 'sous_vide', 'fermentation', 'open_cooking', 'high_temperature', 'dough', 'turbo'],
+};
+
 export interface ThermomixSettings {
     time: ThermomixTime;
     speed: ThermomixSpeed;
     temperature: ThermomixTemperature;
     temperatureUnit: ThermomixTemperatureUnit;
     isBladeReversed: ThermomixIsBladeReversed;
+    mode?: ThermomixCookingMode;
 }
 
 export type ThermomixTime = number | null;

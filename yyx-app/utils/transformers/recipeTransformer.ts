@@ -133,7 +133,8 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
             speed: speed,
             temperature: temperature,
             temperatureUnit: measurementSystem === 'imperial' ? 'F' : 'C',
-            isBladeReversed: recipeStep.thermomix_is_blade_reversed || null
+            isBladeReversed: recipeStep.thermomix_is_blade_reversed || null,
+            mode: recipeStep.thermomix_mode || null,
           };
         }
 

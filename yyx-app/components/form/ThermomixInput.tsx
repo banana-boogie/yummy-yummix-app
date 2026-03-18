@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, Image } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { TextInput } from '@/components/form/TextInput';
-import { ThermomixSettings, ThermomixTemperature, VALID_TEMPERATURES, VALID_SPEEDS, ThermomixSpeedValue, ThermomixSpeed, ThermomixSpeedRange } from '@/types/thermomix.types';
+import { ThermomixSettings, ThermomixTemperature, ThermomixCookingMode, VALID_TEMPERATURES, VALID_SPEEDS, THERMOMIX_COOKING_MODES, COOKING_MODE_LABELS, ThermomixSpeedValue, ThermomixSpeed, ThermomixSpeedRange } from '@/types/thermomix.types';
 import { COLORS } from '@/constants/design-tokens';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 
@@ -24,6 +24,7 @@ export const ThermomixInput: React.FC<ThermomixInputFormProps> = ({
     temperatureUnit: initialValues.temperatureUnit || 'C',
     speed: initialValues.speed || null,
     isBladeReversed: initialValues.isBladeReversed || false,
+    mode: initialValues.mode || null,
   });
 
   // UI state for showing temperature and speed selectors
@@ -39,6 +40,7 @@ export const ThermomixInput: React.FC<ThermomixInputFormProps> = ({
       temperatureUnit: initialValues.temperatureUnit || 'C',
       speed: initialValues.speed || null,
       isBladeReversed: initialValues.isBladeReversed || false,
+      mode: initialValues.mode || null,
     });
 
     // Determine initial speed mode based on the speed type
@@ -568,6 +570,30 @@ export const ThermomixInput: React.FC<ThermomixInputFormProps> = ({
             </View>
           </View>
         )}
+      </View>
+
+      {/* Cooking Mode Selector */}
+      <View className="mb-lg">
+        <Text preset="subheading" className="mb-xs text-text-secondary">Cooking Mode</Text>
+        <View className="flex-row flex-wrap gap-xs">
+          <TouchableOpacity
+            className={`px-md py-sm rounded-md border border-border-default ${!settings.mode ? 'bg-primary-default' : 'bg-background-secondary'}`}
+            onPress={() => updateParent({ ...settings, mode: null })}
+          >
+            <Text preset="body" className={!settings.mode ? 'font-bold' : ''}>Manual</Text>
+          </TouchableOpacity>
+          {THERMOMIX_COOKING_MODES.map((mode) => (
+            <TouchableOpacity
+              key={mode}
+              className={`px-md py-sm rounded-md border border-border-default ${settings.mode === mode ? 'bg-primary-default' : 'bg-background-secondary'}`}
+              onPress={() => updateParent({ ...settings, mode: mode as ThermomixCookingMode })}
+            >
+              <Text preset="body" className={settings.mode === mode ? 'font-bold' : ''}>
+                {COOKING_MODE_LABELS[mode]?.en ?? mode}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
     </View>
   );
