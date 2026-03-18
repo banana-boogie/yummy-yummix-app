@@ -10,11 +10,14 @@ import {
 } from 'react-native';
 import { Text, Button } from '@/components/common';
 import { StarRatingInput } from './StarRatingInput';
+import { SentimentTags } from './SentimentTags';
+import type { SentimentTagKey } from './SentimentTags';
 import { useRecipeRating } from '@/hooks/useRecipeRating';
 import { COLORS } from '@/constants/design-tokens';
 import * as Haptics from 'expo-haptics';
 import i18n from '@/i18n';
 import { RATING_REQUIRES_COMPLETION_ERROR } from '@/services/ratingService';
+import { eventService } from '@/services/eventService';
 
 interface RecipeRatingModalProps {
     visible: boolean;
@@ -42,9 +45,12 @@ export function RecipeRatingModal({
 
     const [rating, setRating] = useState<number>(0);
     const [feedback, setFeedback] = useState('');
+    const [selectedTags, setSelectedTags] = useState<SentimentTagKey[]>([]);
+    const [showFreeText, setShowFreeText] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const submittingRef = useRef(false);
 
     // Clear timeout on unmount
     useEffect(() => {
@@ -62,7 +68,15 @@ export function RecipeRatingModal({
         }
     }, [existingRating]);
 
+    // Track modal shown
+    useEffect(() => {
+        if (visible) {
+            eventService.logRatingModalShown(recipeId, recipeName);
+        }
+    }, [visible, recipeId, recipeName]);
+
     const handleSubmit = async () => {
+        if (submittingRef.current) return;
         if (rating === 0) {
             setError(i18n.t('recipes.rating.pleaseSelectRating'));
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -70,28 +84,44 @@ export function RecipeRatingModal({
         }
 
         setError(null);
+        submittingRef.current = true;
 
         try {
             // Submit rating
             await submitRatingAsync(rating);
 
-            // Submit feedback if provided
-            if (feedback.trim()) {
-                await submitFeedbackAsync(feedback.trim());
+            // Build combined feedback: tags + free text
+            const tagLabels = selectedTags.map(key =>
+                i18n.t(`recipes.rating.sentimentTags.${key}`)
+            );
+            const parts = [
+                ...(tagLabels.length > 0 ? [`[${tagLabels.join(', ')}]`] : []),
+                ...(feedback.trim() ? [feedback.trim()] : []),
+            ];
+            if (parts.length > 0) {
+                await submitFeedbackAsync(parts.join(' '));
             }
 
-            // Show success
+            // Track and show success
+            eventService.logRatingSubmitted(
+                recipeId, recipeName, rating,
+                feedback.trim().length > 0, selectedTags.length > 0, 'modal',
+            );
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             setShowSuccess(true);
 
             // Auto-close after showing success
             timeoutRef.current = setTimeout(() => {
+                submittingRef.current = false;
                 setShowSuccess(false);
                 setRating(0);
                 setFeedback('');
+                setSelectedTags([]);
+                setShowFreeText(false);
                 onClose();
             }, 1500);
         } catch (err) {
+            submittingRef.current = false;
             const errorMessage = err instanceof Error && err.message === RATING_REQUIRES_COMPLETION_ERROR
                 ? i18n.t('recipes.rating.completeRecipeToRate')
                 : i18n.t('recipes.rating.submitError');
@@ -101,9 +131,12 @@ export function RecipeRatingModal({
     };
 
     const handleSkip = async () => {
+        eventService.logRatingSkipped(recipeId, recipeName);
         await Haptics.selectionAsync();
         setRating(0);
         setFeedback('');
+        setSelectedTags([]);
+        setShowFreeText(false);
         onClose();
     };
 
@@ -172,29 +205,48 @@ export function RecipeRatingModal({
                                 )}
                             </View>
 
-                            {/* Feedback Input */}
-                            <View className="mb-lg">
+                            {/* Sentiment Tags */}
+                            <View className="mb-md">
                                 <Text preset="bodySmall" className="text-text-secondary mb-xs">
                                     {i18n.t('recipes.rating.feedbackLabel')}
                                 </Text>
-                                <TextInput
-                                    value={feedback}
-                                    onChangeText={setFeedback}
-                                    placeholder={i18n.t('recipes.rating.feedbackPlaceholder')}
-                                    placeholderTextColor={COLORS.grey.medium}
-                                    multiline
-                                    numberOfLines={3}
-                                    maxLength={2000}
-                                    editable={!isSubmitting}
-                                    className="bg-background-secondary rounded-lg p-md text-text-default"
-                                    style={{
-                                        minHeight: 80,
-                                        textAlignVertical: 'top',
-                                        fontFamily: 'Montserrat',
-                                        fontSize: 14,
-                                    }}
+                                <SentimentTags
+                                    selected={selectedTags}
+                                    onChange={setSelectedTags}
+                                    disabled={isSubmitting}
                                 />
                             </View>
+
+                            {/* Expandable Free Text */}
+                            {showFreeText ? (
+                                <View className="mb-lg">
+                                    <TextInput
+                                        value={feedback}
+                                        onChangeText={setFeedback}
+                                        placeholder={i18n.t('recipes.rating.feedbackPlaceholder')}
+                                        placeholderTextColor={COLORS.grey.medium}
+                                        multiline
+                                        numberOfLines={3}
+                                        maxLength={2000}
+                                        editable={!isSubmitting}
+                                        className="bg-background-secondary rounded-lg p-md text-text-default font-body text-sm"
+                                        style={{
+                                            minHeight: 80,
+                                            textAlignVertical: 'top',
+                                        }}
+                                    />
+                                </View>
+                            ) : (
+                                <TouchableOpacity
+                                    onPress={() => setShowFreeText(true)}
+                                    disabled={isSubmitting}
+                                    className="mb-lg"
+                                >
+                                    <Text preset="bodySmall" className="text-primary-darkest underline">
+                                        {i18n.t('recipes.rating.addComment')}
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
 
                             {/* Action Buttons */}
                             <View className="flex-row gap-md">
@@ -225,5 +277,3 @@ export function RecipeRatingModal({
         </Modal>
     );
 }
-
-export default RecipeRatingModal;

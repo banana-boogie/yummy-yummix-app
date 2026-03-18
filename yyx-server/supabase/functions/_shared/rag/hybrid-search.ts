@@ -67,6 +67,8 @@ interface RecipeRow {
   total_time: number;
   difficulty: "easy" | "medium" | "hard";
   portions: number;
+  average_rating: number | null;
+  rating_count: number | null;
   recipe_to_tag: RecipeTagJoin[];
 }
 
@@ -77,6 +79,8 @@ interface ScoredRecipe {
   totalTime: number;
   difficulty: "easy" | "medium" | "hard";
   portions: number;
+  averageRating?: number;
+  ratingCount?: number;
   finalScore: number;
 }
 
@@ -84,10 +88,11 @@ interface ScoredRecipe {
 // Hybrid Scoring Weights (per plan Section 6.5)
 // ============================================================
 
-const SEMANTIC_WEIGHT = 0.40;
-const LEXICAL_WEIGHT = 0.35;
-const METADATA_WEIGHT = 0.10;
+const SEMANTIC_WEIGHT = 0.38;
+const LEXICAL_WEIGHT = 0.33;
+const METADATA_WEIGHT = 0.09;
 const PERSONALIZATION_WEIGHT = 0.15;
+const RATING_WEIGHT = 0.05;
 
 // Thresholds
 const INCLUDE_THRESHOLD = 0.42;
@@ -331,6 +336,8 @@ export async function searchRecipesHybrid(
       total_time,
       difficulty,
       portions,
+      average_rating,
+      rating_count,
       recipe_to_tag ( recipe_tags ( recipe_tag_translations ( locale, name ), categories ) )
     `)
     .in("id", recipeIds)
@@ -382,10 +389,17 @@ export async function searchRecipesHybrid(
       userContext,
     );
 
+    // Rating score: neutral (0.5) for unrated recipes, normalized 0-1 for rated
+    const ratingScore =
+      (recipe.average_rating && (recipe.rating_count ?? 0) >= 3)
+        ? recipe.average_rating / 5
+        : 0.5;
+
     const finalScore = SEMANTIC_WEIGHT * semanticScore +
       LEXICAL_WEIGHT * lexicalScore +
       METADATA_WEIGHT * metadataScore +
-      PERSONALIZATION_WEIGHT * personalizationScore;
+      PERSONALIZATION_WEIGHT * personalizationScore +
+      RATING_WEIGHT * ratingScore;
 
     return {
       recipeId: recipe.id,
@@ -394,6 +408,10 @@ export async function searchRecipesHybrid(
       totalTime: recipe.total_time,
       difficulty: recipe.difficulty,
       portions: recipe.portions,
+      ...(recipe.average_rating
+        ? { averageRating: recipe.average_rating }
+        : {}),
+      ...(recipe.rating_count ? { ratingCount: recipe.rating_count } : {}),
       finalScore,
     };
   });
@@ -433,6 +451,8 @@ export async function searchRecipesHybrid(
       totalTime: r.totalTime,
       difficulty: r.difficulty,
       portions: r.portions,
+      ...(r.averageRating ? { averageRating: r.averageRating } : {}),
+      ...(r.ratingCount ? { ratingCount: r.ratingCount } : {}),
     }));
 
   console.log("[hybrid-search] Hybrid results", {

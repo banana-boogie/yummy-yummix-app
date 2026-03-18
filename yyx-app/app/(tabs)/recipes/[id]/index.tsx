@@ -1,5 +1,5 @@
 import { View, Platform, StatusBar, Animated } from 'react-native';
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Head from 'expo-router/head';
 import { useQuery } from '@tanstack/react-query';
@@ -79,6 +79,16 @@ const RecipeDetail: React.FC = () => {
       eventService.logRecipeView(recipe.id, recipe.name);
     }
   }, [recipe?.id, recipe?.name]);
+
+  const handleInlineRating = useCallback((rating: number) => {
+    submitRating(rating);
+    if (recipe?.name) {
+      eventService.logRatingSubmitted(
+        validId, recipe.name, rating,
+        false, false, 'inline',
+      );
+    }
+  }, [submitRating, validId, recipe?.name]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const { isMedium } = useDevice();
@@ -184,7 +194,7 @@ const RecipeDetail: React.FC = () => {
                     </Text>
                     <StarRatingInput
                       value={userRating ?? 0}
-                      onChange={submitRating}
+                      onChange={handleInlineRating}
                       disabled={isRatingInputDisabled}
                       size="md"
                     />

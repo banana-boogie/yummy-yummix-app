@@ -11,6 +11,8 @@ export interface RecipeCard {
   totalTime: number;
   difficulty: 'easy' | 'medium' | 'hard';
   portions: number;
+  averageRating?: number;
+  ratingCount?: number;
   allergenWarnings?: string[];
   allergenVerificationWarning?: string;
 }

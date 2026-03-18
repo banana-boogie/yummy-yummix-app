@@ -34,7 +34,7 @@ Allowed event types:
 - `cook_start`
 - `cook_complete`
 - `search`
-- `rate_recipe` (reserved)
+- `rate_recipe` — payload: `{ action, recipe_id, recipe_name, rating?, has_feedback?, has_tags? }`
 - `save_recipe` (reserved)
 - `chat_message` (reserved)
 - `recipe_generate`
@@ -77,6 +77,9 @@ Tracked methods:
 - `logCookComplete(recipeId, recipeName)`
 - `logSearch(query)`
 - `logRecipeGenerate(recipeName, success, durationMs)`
+- `logRatingModalShown(recipeId, recipeName)` — rating modal displayed after cooking
+- `logRatingSubmitted(recipeId, recipeName, rating, hasFeedback, hasTags, source)` — rating submitted (modal or inline)
+- `logRatingSkipped(recipeId, recipeName)` — user skipped rating modal
 
 Current behavior note:
 - If auth user cache is not ready yet, events are dropped. This is intentional and matches existing event behavior.

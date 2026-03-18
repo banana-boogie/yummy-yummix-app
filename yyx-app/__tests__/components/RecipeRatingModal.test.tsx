@@ -16,6 +16,14 @@ jest.mock('@/hooks/useRecipeRating', () => ({
   }),
 }));
 
+jest.mock('@/services/eventService', () => ({
+  eventService: {
+    logRatingModalShown: jest.fn(),
+    logRatingSubmitted: jest.fn(),
+    logRatingSkipped: jest.fn(),
+  },
+}));
+
 jest.mock('@/i18n', () => ({
   t: (key: string) => {
     const translations: Record<string, string> = {
@@ -78,11 +86,14 @@ describe('RecipeRatingModal', () => {
     expect(screen.queryByText('How was it?')).toBeNull();
   });
 
-  it('should render feedback input', () => {
+  it('should render sentiment tags and expandable feedback', () => {
     renderWithProviders(<RecipeRatingModal {...defaultProps} />);
 
     expect(screen.getByText('Any feedback? (optional)')).toBeTruthy();
-    expect(screen.getByPlaceholderText('Tell us what you think...')).toBeTruthy();
+    // Free text is hidden behind "Want to say more?" link
+    expect(screen.getByText('recipes.rating.addComment')).toBeTruthy();
+    // Placeholder is not visible until link is tapped
+    expect(screen.queryByPlaceholderText('Tell us what you think...')).toBeNull();
   });
 
   it('should render 5 star buttons', () => {

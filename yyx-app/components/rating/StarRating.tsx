@@ -1,12 +1,7 @@
 import React from 'react';
 import { View, StyleProp, ViewStyle } from 'react-native';
 import { Text } from '@/components/common';
-import { COLORS } from '@/constants/design-tokens';
-
-const STAR_COLORS = {
-    filled: COLORS.status.warning,
-    empty: COLORS.grey.medium,
-};
+import { STAR_COLORS } from './constants';
 
 const SIZE_CONFIG = {
     sm: { starSize: 12, fontSize: 11, gap: 1 },
@@ -108,4 +103,3 @@ export const StarRating = React.memo(function StarRating({
     );
 });
 
-export default StarRating;

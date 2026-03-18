@@ -120,21 +120,19 @@ export const ratingService = {
 
     /**
      * Get rating distribution for a recipe (count of each star rating)
+     * Uses server-side GROUP BY via RPC (returns max 5 rows instead of N).
      */
     async getRatingDistribution(recipeId: string): Promise<{
         distribution: { [key: number]: number };
         total: number;
     }> {
         const { data, error } = await supabase
-            .from('recipe_ratings')
-            .select('rating')
-            .eq('recipe_id', recipeId);
+            .rpc('get_recipe_rating_distribution', { p_recipe_id: recipeId });
 
         if (error) {
             throw new Error(`Failed to get rating distribution: ${error.message}`);
         }
 
-        // Group client-side
         const distribution: { [key: number]: number } = {
             1: 0,
             2: 0,
@@ -143,13 +141,13 @@ export const ratingService = {
             5: 0,
         };
 
+        let total = 0;
         for (const row of data || []) {
             if (row.rating >= 1 && row.rating <= 5) {
-                distribution[row.rating]++;
+                distribution[row.rating] = Number(row.count);
+                total += Number(row.count);
             }
         }
-
-        const total = (data || []).length;
 
         return { distribution, total };
     },

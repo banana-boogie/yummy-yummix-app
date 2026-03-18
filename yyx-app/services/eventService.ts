@@ -8,7 +8,8 @@ type EventType =
   | 'cook_complete'
   | 'search'
   | 'recipe_generate'
-  | 'action_execute';
+  | 'action_execute'
+  | 'rate_recipe';
 type RecipeTable = 'recipes' | 'user_recipes';
 
 interface QueuedEvent {
@@ -215,6 +216,44 @@ class EventService {
       actionType,
       source,
       path,
+    });
+  }
+
+  /**
+   * Log when a user interacts with the rating system.
+   * Tracks rating funnel: modal shown → submitted/skipped.
+   */
+  logRatingModalShown(recipeId: string, recipeName: string): void {
+    this.queueEvent('rate_recipe', {
+      action: 'modal_shown',
+      recipe_id: recipeId,
+      recipe_name: recipeName,
+    });
+  }
+
+  logRatingSubmitted(
+    recipeId: string,
+    recipeName: string,
+    rating: number,
+    hasFeedback: boolean,
+    hasTags: boolean,
+    source: 'modal' | 'inline',
+  ): void {
+    this.queueEvent('rate_recipe', {
+      action: source === 'modal' ? 'submitted' : 'inline_submitted',
+      recipe_id: recipeId,
+      recipe_name: recipeName,
+      rating,
+      has_feedback: hasFeedback,
+      has_tags: hasTags,
+    });
+  }
+
+  logRatingSkipped(recipeId: string, recipeName: string): void {
+    this.queueEvent('rate_recipe', {
+      action: 'skipped',
+      recipe_id: recipeId,
+      recipe_name: recipeName,
     });
   }
 

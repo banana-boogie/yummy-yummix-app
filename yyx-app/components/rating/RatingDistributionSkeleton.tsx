@@ -33,5 +33,3 @@ export const RatingDistributionSkeleton = React.memo(function RatingDistribution
     </View>
   );
 });
-
-export default RatingDistributionSkeleton;

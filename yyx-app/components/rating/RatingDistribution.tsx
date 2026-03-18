@@ -111,5 +111,3 @@ export const RatingDistribution = React.memo(function RatingDistribution({
         </View>
     );
 });
-
-export default RatingDistribution;

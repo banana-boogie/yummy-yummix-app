@@ -9,6 +9,7 @@ jest.mock('@/lib/supabase', () => ({
       getUser: jest.fn(),
     },
     from: jest.fn(),
+    rpc: jest.fn(),
   },
 }));
 
@@ -245,44 +246,31 @@ describe('ratingService', () => {
   });
 
   describe('getRatingDistribution', () => {
-    it('should return grouped distribution from a single query', async () => {
-      const mockFrom = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-      };
-      // Simulate the final resolved value (after select + eq chain)
-      mockFrom.eq.mockResolvedValue({
+    it('should return grouped distribution from RPC', async () => {
+      (supabase.rpc as jest.Mock).mockResolvedValue({
         data: [
-          { rating: 5 },
-          { rating: 5 },
-          { rating: 5 },
-          { rating: 4 },
-          { rating: 4 },
-          { rating: 3 },
-          { rating: 1 },
+          { rating: 5, count: 3 },
+          { rating: 4, count: 2 },
+          { rating: 3, count: 1 },
+          { rating: 1, count: 1 },
         ],
         error: null,
       });
 
-      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
-
       const result = await ratingService.getRatingDistribution(mockRecipeId);
 
+      expect(supabase.rpc).toHaveBeenCalledWith('get_recipe_rating_distribution', {
+        p_recipe_id: mockRecipeId,
+      });
       expect(result.distribution).toEqual({ 1: 1, 2: 0, 3: 1, 4: 2, 5: 3 });
       expect(result.total).toBe(7);
     });
 
     it('should return empty distribution when no ratings exist', async () => {
-      const mockFrom = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-      };
-      mockFrom.eq.mockResolvedValue({
+      (supabase.rpc as jest.Mock).mockResolvedValue({
         data: [],
         error: null,
       });
-
-      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
 
       const result = await ratingService.getRatingDistribution(mockRecipeId);
 
@@ -290,17 +278,11 @@ describe('ratingService', () => {
       expect(result.total).toBe(0);
     });
 
-    it('should throw on query error', async () => {
-      const mockFrom = {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-      };
-      mockFrom.eq.mockResolvedValue({
+    it('should throw on RPC error', async () => {
+      (supabase.rpc as jest.Mock).mockResolvedValue({
         data: null,
         error: { message: 'DB error' },
       });
-
-      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
 
       await expect(ratingService.getRatingDistribution(mockRecipeId)).rejects.toThrow(
         'Failed to get rating distribution: DB error'

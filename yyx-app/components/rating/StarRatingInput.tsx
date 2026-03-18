@@ -9,14 +9,8 @@ import Animated, {
     withSpring,
     withSequence,
 } from 'react-native-reanimated';
-import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
-
-// Star rating colors matching the app's warm branding
-const STAR_COLORS = {
-    filled: COLORS.status.warning, // Warm amber
-    empty: COLORS.grey.medium, // Gray
-};
+import { STAR_COLORS } from './constants';
 
 interface AnimatedStarProps {
     index: number;
@@ -149,4 +143,3 @@ export function StarRatingInput({
     );
 }
 
-export default StarRatingInput;

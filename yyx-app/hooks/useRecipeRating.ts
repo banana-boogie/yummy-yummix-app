@@ -8,7 +8,6 @@ import { useAuth } from '@/contexts/AuthContext';
 export const ratingKeys = {
     all: ['ratings'] as const,
     userRating: (recipeId: string) => [...ratingKeys.all, 'user', recipeId] as const,
-    stats: (recipeId: string) => [...ratingKeys.all, 'stats', recipeId] as const,
     distribution: (recipeId: string) => [...ratingKeys.all, 'distribution', recipeId] as const,
 };
 
@@ -68,10 +67,9 @@ export function useRecipeRating(recipeId: string) {
         onSettled: () => {
             // Invalidate to refetch
             queryClient.invalidateQueries({ queryKey: ratingKeys.userRating(recipeId) });
-            queryClient.invalidateQueries({ queryKey: ratingKeys.stats(recipeId) });
             queryClient.invalidateQueries({ queryKey: ratingKeys.distribution(recipeId) });
-            // Also invalidate recipe queries to refresh the cached rating stats
-            queryClient.invalidateQueries({ queryKey: ['recipes'] });
+            // Invalidate this specific recipe to refresh cached rating stats
+            queryClient.invalidateQueries({ queryKey: ['recipes', recipeId] });
         },
     });
 
