@@ -7,7 +7,8 @@ type EventType =
   | 'cook_start'
   | 'cook_complete'
   | 'search'
-  | 'recipe_generate';
+  | 'recipe_generate'
+  | 'action_execute';
 type RecipeTable = 'recipes' | 'user_recipes';
 
 interface QueuedEvent {
@@ -206,6 +207,14 @@ class EventService {
     }
     this.queueEvent('search', {
       query: query.trim(),
+    });
+  }
+
+  logActionExecute(actionType: string, source: 'auto' | 'manual', path: 'text' | 'voice'): void {
+    this.queueEvent('action_execute', {
+      actionType,
+      source,
+      path,
     });
   }
 

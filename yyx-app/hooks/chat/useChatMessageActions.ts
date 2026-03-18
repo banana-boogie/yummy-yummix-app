@@ -4,24 +4,31 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { QueryClient } from '@tanstack/react-query';
-import type { GeneratedRecipe, QuickAction } from '@/types/irmixy';
+import type { Action, GeneratedRecipe } from '@/types/irmixy';
 import type { ChatMessage } from '@/services/chatService';
 import { customRecipeService } from '@/services/customRecipeService';
 import { customRecipeKeys } from '@/hooks/useCustomRecipe';
 import {
     getChatCustomCookingGuidePath,
-    getChatRecipeDetailPath,
 } from '@/utils/navigation/recipeRoutes';
+import {
+    executeAction,
+    resolveActionContext,
+    type ActionContextSource,
+} from '@/services/actions/actionRegistry';
 import i18n from '@/i18n';
 
 interface UseChatMessageActionsParams {
     setMessages: (update: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void;
     queryClient: QueryClient;
+    /** Live message list for resolving action context */
+    getMessages: () => ChatMessage[];
 }
 
 export function useChatMessageActions({
     setMessages,
     queryClient,
+    getMessages,
 }: UseChatMessageActionsParams) {
     const handleCopyMessage = useCallback(async (content: string) => {
         try {
@@ -74,20 +81,14 @@ export function useChatMessageActions({
         }
     }, [queryClient, setMessages]);
 
-    const handleActionPress = useCallback((action: QuickAction) => {
-        const payload = action.payload || {};
-        switch (action.type) {
-            case 'view_recipe': {
-                const recipeId = payload.recipeId as string;
-                if (recipeId) {
-                    router.push(getChatRecipeDetailPath(recipeId));
-                }
-                break;
-            }
-            default:
-                break;
-        }
-    }, []);
+    const handleActionPress = useCallback((action: Action, messageId: string) => {
+        const messages = getMessages();
+        const context = resolveActionContext(
+            messages as ActionContextSource[],
+            messageId,
+        );
+        executeAction(action, context, { source: 'manual', path: 'text' });
+    }, [getMessages]);
 
     return {
         handleCopyMessage,

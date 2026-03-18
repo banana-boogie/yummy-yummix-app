@@ -20,6 +20,12 @@ import { useMessageStreaming } from '@/hooks/chat/useMessageStreaming';
 import { useSmartScroll } from '@/hooks/chat/useSmartScroll';
 import { useResumeSession } from '@/hooks/chat/useResumeSession';
 import { useChatMessageActions } from '@/hooks/chat/useChatMessageActions';
+import {
+    executeAction,
+    type ActionContext,
+} from '@/services/actions/actionRegistry';
+import type { Action, IrmixyResponse } from '@/types/irmixy';
+import { isRecipeToolStatus } from '@/services/chatService';
 import type { BudgetWarningPayload, ChatMessage, IrmixyStatus } from '@/services/chatService';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,10 +35,6 @@ import { Image } from 'expo-image';
 import i18n from '@/i18n';
 
 const SCROLL_DELAY_MS = 100;
-
-/** Statuses that indicate recipe generation/modification is in progress */
-const isRecipeToolStatus = (status: IrmixyStatus): boolean =>
-    status === 'cooking_it_up' || status === 'generating';
 
 interface Props {
     sessionId?: string | null;
@@ -174,6 +176,19 @@ export function ChatScreen({
         onResumeSessionClear,
         onBudgetWarning: handleBudgetWarning,
         onBudgetExceeded: handleBudgetExceeded,
+        onActionsReceived: useCallback((actions: Action[], response: IrmixyResponse) => {
+            const autoActions = actions.filter((a) => a.autoExecute);
+            if (autoActions.length === 0) return;
+            // Build context from the response itself, not from stale messagesRef
+            const context: ActionContext = {
+                currentRecipe: response.customRecipe,
+                recipes: response.recipes,
+            };
+            const hasContext = !!context.currentRecipe || !!context.recipes?.length;
+            for (const action of autoActions) {
+                executeAction(action, hasContext ? context : undefined, { source: 'auto', path: 'text' });
+            }
+        }, []),
     });
 
     // Wire speech recognition to streaming hook's setInputText
@@ -187,6 +202,7 @@ export function ChatScreen({
     } = useChatMessageActions({
         setMessages,
         queryClient,
+        getMessages: useCallback(() => messagesRef.current, []),
     });
 
     // --- Effects ---

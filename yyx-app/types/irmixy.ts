@@ -15,11 +15,14 @@ export interface RecipeCard {
   allergenVerificationWarning?: string;
 }
 
-export interface QuickAction {
-  type: 'start_cooking' | 'view_recipe' | 'save_recipe' | 'set_timer' | 'resume_cooking';
+export interface Action {
+  id: string;
+  type: 'start_cooking' | 'view_recipe' | 'save_recipe' | 'set_timer' | 'resume_cooking' | 'share_recipe';
   label: string;
   payload: Record<string, unknown>;
+  autoExecute?: boolean;
 }
+
 
 export interface GeneratedIngredient {
   name: string;
@@ -73,7 +76,7 @@ export interface IrmixyResponse {
   recipes?: RecipeCard[];
   customRecipe?: GeneratedRecipe;
   isAIGenerated?: boolean;
-  actions?: QuickAction[];
+  actions?: Action[];
   memoryUsed?: string[];
   safetyFlags?: SafetyFlags;
 }

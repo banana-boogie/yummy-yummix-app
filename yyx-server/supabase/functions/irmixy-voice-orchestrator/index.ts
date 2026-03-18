@@ -313,6 +313,7 @@ interface TranscriptMessage {
   recipes?: unknown;
   customRecipe?: unknown;
   safetyFlags?: unknown;
+  actions?: unknown;
 }
 
 async function handleSaveTranscript(
@@ -387,13 +388,15 @@ async function handleSaveTranscript(
     role: msg.role,
     content: msg.content,
     // Store recipe data in tool_calls JSONB (same format as text chat)
-    tool_calls: (msg.recipes || msg.customRecipe || msg.safetyFlags)
-      ? {
-        ...(msg.recipes ? { recipes: msg.recipes } : {}),
-        ...(msg.customRecipe ? { customRecipe: msg.customRecipe } : {}),
-        ...(msg.safetyFlags ? { safetyFlags: msg.safetyFlags } : {}),
-      }
-      : null,
+    tool_calls:
+      (msg.recipes || msg.customRecipe || msg.safetyFlags || msg.actions)
+        ? {
+          ...(msg.recipes ? { recipes: msg.recipes } : {}),
+          ...(msg.customRecipe ? { customRecipe: msg.customRecipe } : {}),
+          ...(msg.safetyFlags ? { safetyFlags: msg.safetyFlags } : {}),
+          ...(msg.actions ? { actions: msg.actions } : {}),
+        }
+        : null,
     created_at: new Date(Date.now() + idx).toISOString(), // offset by idx to preserve order
   }));
 
