@@ -104,7 +104,7 @@ export const IrmixyResponseSchema = z.object({
 
 export type RecipeCard = z.infer<typeof RecipeCardSchema>;
 export type Action = z.infer<typeof ActionSchema>;
-export type UsefulItem = z.infer<typeof UsefulItemSchema>;
+export type KitchenTool = z.infer<typeof KitchenToolSchema>;
 export type GeneratedRecipe = z.infer<typeof GeneratedRecipeSchema>;
 export type SafetyFlags = z.infer<typeof SafetyFlagsSchema>;
 export type IrmixyResponse = z.infer<typeof IrmixyResponseSchema>;
