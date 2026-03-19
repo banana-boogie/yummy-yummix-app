@@ -47,8 +47,6 @@ Format:
 ```
 **Must fix**
 - [Critical] `file:line` — description (one sentence)
-
-**Should fix**
 - [Warning] `file:line` — description (one sentence)
 
 **Nice to have**
