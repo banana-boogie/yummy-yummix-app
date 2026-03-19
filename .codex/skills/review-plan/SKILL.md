@@ -26,11 +26,11 @@ Resolve `$ARGUMENTS` in this order:
 3. Verify referenced files exist — note any that are missing or have moved
 4. Read project standards:
    - `docs/agent-guidelines/PLAN-REVIEW-CRITERIA.md` (canonical plan review criteria, categories, severity, and recommendation logic)
-   - `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md` (output sections, finding format, and plan review variant)
+   - `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md` (output format — two-tier: human summary + detailed findings)
    - `CLAUDE.md` (architecture and key conventions)
 5. Read key codebase files the plan references to verify accuracy of assumptions — focus on files the plan modifies or depends on
 
-### Step 3: Review Against 8 Categories
+### Step 3: Full Internal Review
 
 Evaluate the plan against all 8 categories defined in `docs/agent-guidelines/PLAN-REVIEW-CRITERIA.md`:
 
@@ -45,25 +45,21 @@ Evaluate the plan against all 8 categories defined in `docs/agent-guidelines/PLA
 
 Apply the **Review Preferences** from that document throughout. Use the **Severity Levels** (Critical / High / Warning / Suggestion) and **Recommendation Logic** defined there.
 
-**Finding format** — Follow the plan review variant defined in `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md`:
-- Every finding: severity tag, section reference (plan section name or number), concrete description, specific recommendation.
-- Critical and High findings: include 2-3 options with effort/risk/impact tradeoffs. Recommended option first.
+For every finding, capture internally:
+- Severity tag, section reference, concrete description, specific recommendation.
+- Critical and High findings: 2-3 options with effort/risk/impact tradeoffs.
 - Warning findings that affect recommendation: also include options/tradeoffs.
-- Suggestion findings: concise, no option matrix needed.
 
-### Step 4: Prepare Additional Sections
+Also prepare:
+- **Highlights** — Strong aspects of the plan.
+- **Recommendations** — High-value improvements outside Findings. Do NOT repeat findings.
+- **Unverified Assumptions** — Assumptions that couldn't be confirmed. Reframe as questions.
 
-After completing the category evaluation, prepare material for these additional report sections:
+### Step 4: Output the Report
 
-**Highlights** — Strong aspects of the plan. Good reviews are balanced — calling out what's well thought through provides useful context and encourages good planning practices.
+The output is designed to be copy-pasted into the planning agent's chat as direct feedback. It has **two tiers**: a short human-readable summary, then detailed findings for the planning AI.
 
-**Recommendations** — High-value improvements **related to the plan but outside what was flagged in Findings**. These are opportunities the planner may have missed, not a restatement of issues already found. **Do NOT repeat issues already listed in Findings.** Rank by impact vs effort. Format as a table with Rank, Recommendation, Impact, Effort, and Rationale columns.
-
-**Unverified Assumptions** — Assumptions in the plan that couldn't be confirmed against the codebase. Reframe as direct questions for the planner to verify.
-
-### Step 5: Output the Report
-
-The entire output is designed to be copy-pasted by the user into the planning agent's chat as direct feedback. The framing header tells the receiving agent what to do.
+**Keep the human section short and scannable.**
 
 ````markdown
 ## Plan Review Feedback: <plan-file-name or "Inline Plan">
@@ -72,64 +68,66 @@ The entire output is designed to be copy-pasted by the user into the planning ag
 
 **Plan:** <brief description from plan title or first section>
 **File:** <path or "inline">
-**Domains:** <frontend/backend/AI/database/infrastructure areas the plan touches>
+**Domains:** <areas the plan touches>
 
----
+### Verdict
+
+**<PROCEED / REFINE THEN PROCEED / RETHINK>** — <critical count> critical, <high count> high, <warning count> warnings, <suggestion count> suggestions
 
 ### Highlights
 
 - <strong aspect of the plan>
 
+### Issues
+
+**Must fix**
+- [Critical] Section X — one-sentence description
+- [High] Section X — one-sentence description
+- [Warning] Section X — one-sentence description
+
+**Nice to have**
+- [Suggestion] Section X — one-sentence description
+
+### Unverified Assumptions
+
+Please verify:
+- <assumption reframed as a question>
+
 ---
 
-### Findings
+### Detailed Findings
+
+> For the planning AI — full context for each finding.
 
 #### Problem & Goal Clarity
 - [severity] Section X — description
   - Recommendation: <specific recommendation>
+  - Options: (Critical/High only)
+    1. **A (Recommended)** <option> — Effort: S/M/L, Risk: <...>, Impact: <...>
+    2. **B** <option> — Effort: S/M/L, Risk: <...>, Impact: <...>
 
 #### Completeness & Specificity
-- [severity] Section X — description
-  - Recommendation: <specific recommendation>
+...
 
 #### Architecture Fit
-- [severity] Section X — description
-  - Recommendation: <specific recommendation>
+...
 
 #### Feasibility & Accuracy
-- [severity] Section X — description
-  - Recommendation: <specific recommendation>
+...
 
 #### Scope & Sequencing
-- [severity] Section X — description
-  - Recommendation: <specific recommendation>
+...
 
 #### Risk & Gaps
-- [severity] Section X — description
-  - Recommendation: <specific recommendation>
+...
 
 #### Verification Strategy
-- [severity] Section X — description
-  - Recommendation: <specific recommendation>
+...
 
 #### Conventions & Standards
-- [severity] Section X — description
-  - Recommendation: <specific recommendation>
+...
 
 (Use *No issues found.* if a category is clean.)
-
----
-
-### Summary
-
-**Critical:** <count> — Plan will lead to breakage
-**High:** <count> — Will cause major rework
-**Warning:** <count> — Should improve
-**Suggestion:** <count> — Nice to have
-
-**Recommendation:** <PROCEED / REFINE THEN PROCEED / RETHINK>
-
----
 
 ### Recommendations
 
@@ -137,14 +135,7 @@ The entire output is designed to be copy-pasted by the user into the planning ag
 |------|----------------|--------|--------|-----------|
 | 1 | <high-value improvement outside Findings> | High | Low | <reason> |
 
-Do NOT repeat issues already listed in Findings. These are opportunities related to the plan that the planner may have missed.
-
----
-
-### Unverified Assumptions
-
-Assumptions in the plan that couldn't be confirmed against the codebase. Please verify:
-- <assumption and what to check>
+Do NOT repeat issues already listed above.
 ````
 
 For a reusable invocation template, use `references/review-plan-prompt.md`.
