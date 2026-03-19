@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 
 import { Recipe } from '@/types/recipe.types';
 import { RecipeImage } from '@/components/recipe/RecipeImage';
+import { FavoriteHeart } from '@/components/recipe/FavoriteHeart';
 import { Text } from '@/components/common/Text';
 import { COLORS, FONT_SIZES } from '@/constants/design-tokens';
 import { useDevice } from '@/hooks/useDevice';
@@ -55,12 +56,17 @@ export const WatercolorRecipeCard = React.memo(function WatercolorRecipeCard({
           className="active:opacity-70"
           onPress={handlePress}
         >
-          <RecipeImage
-            pictureUrl={recipe.pictureUrl}
-            className="w-full"
-            aspectRatio={compact ? 4 / 3 : 16 / 9}
-            width="100%"
-          />
+          <View>
+            <RecipeImage
+              pictureUrl={recipe.pictureUrl}
+              className="w-full"
+              aspectRatio={compact ? 4 / 3 : 16 / 9}
+              width="100%"
+            />
+            <View style={{ position: 'absolute', top: 8, right: 8 }}>
+              <FavoriteHeart recipeId={recipe.id} size={20} />
+            </View>
+          </View>
 
           <View className="px-xxs pt-xxs pb-sm flex-row items-center justify-between">
             <Text

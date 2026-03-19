@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { Cookbook } from '@/types/cookbook.types';
@@ -20,12 +21,9 @@ export const CookbookCard = React.memo(function CookbookCard({
     size = 'medium',
 }: CookbookCardProps) {
     const colors = getGradientForCookbook(cookbook.id);
-
-    // Dimensions based on screen width/columns logic in parent, but we can set fixed aspect ratio
-    // For grid, usually handled by parent container width, but let's enforce min height
     const height = size === 'small' ? 120 : size === 'large' ? 200 : 160;
-
     const recipeCountText = getRecipeCountText(cookbook.recipeCount, i18n);
+    const hasCoverImage = !!cookbook.coverImageUrl;
 
     return (
         <Pressable
@@ -38,17 +36,44 @@ export const CookbookCard = React.memo(function CookbookCard({
             className="rounded-lg overflow-hidden shadow-sm active:opacity-80 mb-md flex-1 mx-xs"
             style={{ height, backgroundColor: colors[0] }}
         >
-            <View
-                className="flex-1 p-md justify-between"
-                style={{ backgroundColor: colors[0] }} // Fallback if LinearGradient not installed yet, MVP standard view
-            >
+            {/* Cover image layer */}
+            {hasCoverImage && (
+                <Image
+                    source={{ uri: cookbook.coverImageUrl }}
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                    }}
+                    contentFit="cover"
+                    transition={200}
+                />
+            )}
+
+            {/* Overlay for readability when image is present */}
+            {hasCoverImage && (
+                <View
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0,0,0,0.3)',
+                    }}
+                />
+            )}
+
+            <View className="flex-1 p-md justify-between">
                 <View className="flex-row justify-between items-start">
                     {cookbook.isDefault && (
                         <View
                             className="bg-white/30 rounded-full p-xs"
                             accessibilityLabel={i18n.t('cookbooks.a11y.favoritesCookbook')}
                         >
-                            <Ionicons name="heart" size={16} color={COLORS.primary.darkest} />
+                            <Ionicons name="heart" size={16} color={hasCoverImage ? '#FFFFFF' : COLORS.primary.darkest} />
                         </View>
                     )}
                     {!cookbook.isPublic && !cookbook.isDefault && (
@@ -56,7 +81,7 @@ export const CookbookCard = React.memo(function CookbookCard({
                             className="bg-black/10 rounded-full p-xs"
                             accessibilityLabel={i18n.t('cookbooks.a11y.privateCookbook')}
                         >
-                            <Ionicons name="lock-closed" size={14} color={COLORS.grey.dark} />
+                            <Ionicons name="lock-closed" size={14} color={hasCoverImage ? '#FFFFFF' : COLORS.grey.dark} />
                         </View>
                     )}
                     {cookbook.isPublic && (
@@ -64,7 +89,7 @@ export const CookbookCard = React.memo(function CookbookCard({
                             className="bg-white/30 rounded-full p-xs"
                             accessibilityLabel={i18n.t('cookbooks.a11y.publicCookbook')}
                         >
-                            <Ionicons name="globe-outline" size={14} color={COLORS.grey.dark} />
+                            <Ionicons name="globe-outline" size={14} color={hasCoverImage ? '#FFFFFF' : COLORS.grey.dark} />
                         </View>
                     )}
                 </View>
@@ -72,12 +97,17 @@ export const CookbookCard = React.memo(function CookbookCard({
                 <View>
                     <Text
                         preset="subheading"
-                        className="text-text-primary mb-xs"
+                        className={hasCoverImage ? 'mb-xs' : 'text-text-primary mb-xs'}
+                        style={hasCoverImage ? { color: '#FFFFFF' } : undefined}
                         numberOfLines={2}
                     >
                         {cookbook.name}
                     </Text>
-                    <Text preset="caption" className="text-text-secondary">
+                    <Text
+                        preset="caption"
+                        className={hasCoverImage ? '' : 'text-text-secondary'}
+                        style={hasCoverImage ? { color: 'rgba(255,255,255,0.85)' } : undefined}
+                    >
                         {recipeCountText}
                     </Text>
                 </View>

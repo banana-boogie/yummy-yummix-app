@@ -14,12 +14,14 @@ interface CookbookHeaderProps {
   cookbook: Cookbook;
   isOwner: boolean;
   onDelete?: () => void;
+  onUpdate?: () => void;
 }
 
 export const CookbookHeader = React.memo(function CookbookHeader({
   cookbook,
   isOwner,
   onDelete,
+  onUpdate,
 }: CookbookHeaderProps) {
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -35,6 +37,7 @@ export const CookbookHeader = React.memo(function CookbookHeader({
         input,
       });
       setShowEditModal(false);
+      onUpdate?.();
     } catch (_error) {
       Alert.alert(
         i18n.t('common.errors.title'),

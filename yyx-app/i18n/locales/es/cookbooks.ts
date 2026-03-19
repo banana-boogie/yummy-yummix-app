@@ -50,6 +50,15 @@ export const cookbooks = {
   sharedCookbook: "Recetario Compartido",
   likeThis: "¿Te gusta lo que ves?",
   signUpToSave: "Regístrate para crear tus propios recetarios y guardar recetas",
+  browseRecipes: "Explorar Recetas",
+  searchRecipes: "Buscar recetas...",
+  toasts: {
+    created: "Recetario creado",
+    updated: "Recetario actualizado",
+    deleted: "Recetario eliminado",
+    recipeAdded: "Receta agregada a {{name}}",
+    recipeRemoved: "Receta eliminada",
+  },
   errors: {
     createFailed: "No se pudo crear el recetario",
     updateFailed: "No se pudo actualizar el recetario",

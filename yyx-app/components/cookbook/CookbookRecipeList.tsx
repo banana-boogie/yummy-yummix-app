@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
-import { View, Pressable, Alert, FlatList } from 'react-native';
-import { Text } from '@/components/common';
+import React, { useMemo, useState, useCallback } from 'react';
+import { View, Pressable, Alert, FlatList, RefreshControl } from 'react-native';
+import { Text, Button } from '@/components/common';
+import { TextInput } from '@/components/form';
 import { Ionicons } from '@expo/vector-icons';
 import { CookbookRecipe } from '@/types/cookbook.types';
 import { RecipeImage } from '@/components/recipe/RecipeImage';
@@ -120,8 +121,10 @@ const RecipeItem = React.memo(function RecipeItem({
 interface CookbookRecipeListProps {
   recipes: CookbookRecipe[];
   cookbookId: string;
-  isOwner: boolean; // Whether the current user owns this cookbook
+  isOwner: boolean;
   emptyMessage?: string;
+  onRefresh?: () => Promise<unknown>;
+  onRecipeRemoved?: () => void;
 }
 
 export function CookbookRecipeList({
@@ -129,10 +132,14 @@ export function CookbookRecipeList({
   cookbookId,
   isOwner,
   emptyMessage,
+  onRefresh,
+  onRecipeRemoved,
 }: CookbookRecipeListProps) {
   const router = useRouter();
   const removeRecipeMutation = useRemoveRecipeFromCookbook();
   const [sortBy, setSortBy] = useState<'custom' | 'recent'>('custom');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   const sortedRecipes = useMemo(() => {
     const copy = [...recipes];
@@ -143,6 +150,22 @@ export function CookbookRecipeList({
     }
     return copy.sort((a, b) => a.displayOrder - b.displayOrder);
   }, [recipes, sortBy]);
+
+  const filteredRecipes = useMemo(() => {
+    if (!searchQuery.trim()) return sortedRecipes;
+    const query = searchQuery.toLowerCase();
+    return sortedRecipes.filter(r => r.name.toLowerCase().includes(query));
+  }, [sortedRecipes, searchQuery]);
+
+  const handleRefresh = useCallback(async () => {
+    if (!onRefresh) return;
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [onRefresh]);
 
   const handleRecipePress = React.useCallback(async (recipeId: string) => {
     await Haptics.selectionAsync();
@@ -167,8 +190,8 @@ export function CookbookRecipeList({
                 cookbookId,
                 recipeId,
               });
-            } catch (error) {
-              const err = error as Error;
+              onRecipeRemoved?.();
+            } catch (_error) {
               Alert.alert(
                 i18n.t('common.errors.title'),
                 i18n.t('cookbooks.errors.removeRecipeFailed')
@@ -178,7 +201,7 @@ export function CookbookRecipeList({
         },
       ]
     );
-  }, [cookbookId, removeRecipeMutation]);
+  }, [cookbookId, removeRecipeMutation, onRecipeRemoved]);
 
   const renderRecipeItem = React.useCallback(
     ({ item }: { item: CookbookRecipe }) => (
@@ -201,6 +224,14 @@ export function CookbookRecipeList({
       <Text preset="body" className="text-text-secondary mt-sm text-center">
         {i18n.t('cookbooks.noRecipesDescription')}
       </Text>
+      <View className="mt-lg">
+        <Button
+          variant="primary"
+          onPress={() => router.push('/(tabs)/recipes')}
+        >
+          {i18n.t('cookbooks.browseRecipes')}
+        </Button>
+      </View>
     </View>
   );
 
@@ -208,48 +239,86 @@ export function CookbookRecipeList({
     return renderEmpty();
   }
 
+  const listHeader = (
+    <View className="px-md pb-sm">
+      {/* Search bar */}
+      <View className="mb-sm">
+        <TextInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder={i18n.t('cookbooks.searchRecipes')}
+          leftIcon={
+            <Ionicons name="search" size={18} color={COLORS.text.secondary} />
+          }
+          containerClassName="mb-0"
+        />
+      </View>
+
+      {/* Sort controls */}
+      {recipes.length > 1 && (
+        <View>
+          <Text preset="caption" className="text-text-secondary mb-xs">
+            {i18n.t('cookbooks.sort.label')}
+          </Text>
+          <View className="flex-row gap-sm">
+            {[
+              { value: 'custom', label: i18n.t('cookbooks.sort.customOrder') },
+              { value: 'recent', label: i18n.t('cookbooks.sort.recent') },
+            ].map((option) => {
+              const isActive = sortBy === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  onPress={() => setSortBy(option.value as 'custom' | 'recent')}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isActive }}
+                  className={`px-sm py-xxs rounded-full border ${
+                    isActive
+                      ? 'bg-primary-medium/30 border-primary-medium'
+                      : 'bg-white border-neutral-200'
+                  }`}
+                >
+                  <Text
+                    preset="caption"
+                    className={isActive ? 'text-text-default' : 'text-text-secondary'}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      )}
+    </View>
+  );
+
   return (
     <FlatList
-      data={sortedRecipes}
+      data={filteredRecipes}
       renderItem={renderRecipeItem}
       keyExtractor={(item) => item.cookbookRecipeId}
       contentContainerStyle={listContentStyle}
-      ListHeaderComponent={
-        recipes.length > 1 ? (
-          <View className="px-md pb-sm">
-            <Text preset="caption" className="text-text-secondary mb-xs">
-              {i18n.t('cookbooks.sort.label')}
+      ListHeaderComponent={listHeader}
+      ListEmptyComponent={
+        searchQuery.trim() ? (
+          <View className="items-center justify-center p-xl">
+            <Ionicons name="search-outline" size={48} color={COLORS.grey.medium} />
+            <Text preset="body" className="text-text-secondary mt-md text-center">
+              {i18n.t('recipes.common.noRecipesFound')}
             </Text>
-            <View className="flex-row gap-sm">
-              {[
-                { value: 'custom', label: i18n.t('cookbooks.sort.customOrder') },
-                { value: 'recent', label: i18n.t('cookbooks.sort.recent') },
-              ].map((option) => {
-                const isActive = sortBy === option.value;
-                return (
-                  <Pressable
-                    key={option.value}
-                    onPress={() => setSortBy(option.value as 'custom' | 'recent')}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isActive }}
-                    className={`px-sm py-xxs rounded-full border ${
-                      isActive
-                        ? 'bg-primary-medium/30 border-primary-medium'
-                        : 'bg-white border-neutral-200'
-                    }`}
-                  >
-                    <Text
-                      preset="caption"
-                      className={isActive ? 'text-text-default' : 'text-text-secondary'}
-                    >
-                      {option.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
           </View>
         ) : null
+      }
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.primary.medium}
+            colors={[COLORS.primary.medium]}
+          />
+        ) : undefined
       }
       showsVerticalScrollIndicator={false}
     />

@@ -50,6 +50,15 @@ export const cookbooks = {
   sharedCookbook: "Shared Cookbook",
   likeThis: "Like what you see?",
   signUpToSave: "Sign up to create your own cookbooks and save recipes",
+  browseRecipes: "Browse Recipes",
+  searchRecipes: "Search recipes...",
+  toasts: {
+    created: "Cookbook created",
+    updated: "Cookbook updated",
+    deleted: "Cookbook deleted",
+    recipeAdded: "Recipe added to {{name}}",
+    recipeRemoved: "Recipe removed",
+  },
   errors: {
     createFailed: "Failed to create cookbook",
     updateFailed: "Failed to update cookbook",

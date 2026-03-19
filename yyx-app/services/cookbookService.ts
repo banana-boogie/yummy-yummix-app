@@ -163,7 +163,10 @@ async function getUserCookbooks(userId: string): Promise<Cookbook[]> {
       `
       *,
       translations:cookbook_translations(locale, name, description),
-      cookbook_recipes(count)
+      cookbook_recipes(count),
+      cover_recipes:cookbook_recipes(
+        recipes(image_url)
+      )
     `
     )
     .eq('user_id', userId)
@@ -180,7 +183,17 @@ async function getUserCookbooks(userId: string): Promise<Cookbook[]> {
       | [{ count: number }]
       | null;
     const recipeCount = recipeCountResult?.[0]?.count ?? 0;
-    return transformCookbook(raw, recipeCount);
+
+    // Extract first recipe's image URL from cover_recipes
+    const coverRecipes = raw.cover_recipes as unknown as
+      | { recipes: { image_url: string | null } | null }[]
+      | null;
+    const coverImageUrl = coverRecipes
+      ?.map((cr) => cr.recipes?.image_url)
+      .find((url) => !!url) ?? undefined;
+
+    const cookbook = transformCookbook(raw, recipeCount);
+    return { ...cookbook, coverImageUrl };
   });
 }
 

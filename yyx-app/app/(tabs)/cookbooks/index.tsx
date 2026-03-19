@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { PageLayout } from '@/components/layouts/PageLayout';
-import { Text } from '@/components/common';
+import { Text, Toast } from '@/components/common';
 import {
   CookbookList,
   CreateEditCookbookModal,
@@ -12,14 +12,17 @@ import {
   useUserCookbooksQuery,
   useCreateCookbook,
 } from '@/hooks/useCookbookQuery';
+import { useToast } from '@/hooks/useToast';
 import { Cookbook, CreateCookbookInput } from '@/types/cookbook.types';
+import { eventService } from '@/services/eventService';
 import i18n from '@/i18n';
 import type { CookbookSortOption } from '@/components/cookbook/CookbookSortBar';
 
 export default function CookbooksScreen() {
   const router = useRouter();
-  const { data: cookbooks = [], isLoading } = useUserCookbooksQuery();
+  const { data: cookbooks = [], isLoading, refetch } = useUserCookbooksQuery();
   const createMutation = useCreateCookbook();
+  const { toast, showToast, dismissToast } = useToast();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [sortBy, setSortBy] = useState<CookbookSortOption>('recent');
@@ -51,6 +54,8 @@ export default function CookbooksScreen() {
     try {
       await createMutation.mutateAsync(input);
       setShowCreateModal(false);
+      showToast({ message: i18n.t('cookbooks.toasts.created'), type: 'success' });
+      eventService.logCookbookCreated(input.name);
     } catch (_error) {
       Alert.alert(
         i18n.t('common.errors.title'),
@@ -81,6 +86,7 @@ export default function CookbooksScreen() {
           onCookbookPress={handleCookbookPress}
           onCreatePress={() => setShowCreateModal(true)}
           isLoading={isLoading}
+          onRefresh={refetch}
         />
       </View>
 
@@ -90,6 +96,8 @@ export default function CookbooksScreen() {
         onSave={handleCreateCookbook}
         isLoading={createMutation.isPending}
       />
+
+      <Toast toast={toast} onDismiss={dismissToast} />
     </PageLayout>
   );
 }

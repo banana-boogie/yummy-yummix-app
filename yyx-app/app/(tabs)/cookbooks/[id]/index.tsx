@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PageLayout } from '@/components/layouts/PageLayout';
-import { Text } from '@/components/common';
+import { Text, Toast } from '@/components/common';
 import { CookbookHeader, CookbookRecipeList } from '@/components/cookbook';
 import { useCookbookQuery } from '@/hooks/useCookbookQuery';
+import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/contexts/AuthContext';
+import { eventService } from '@/services/eventService';
 import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 
@@ -13,8 +15,16 @@ export default function CookbookDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
+  const { toast, showToast, dismissToast } = useToast();
 
-  const { data: cookbook, isLoading, error } = useCookbookQuery(id || '');
+  const { data: cookbook, isLoading, error, refetch } = useCookbookQuery(id || '');
+
+  // Track cookbook view
+  useEffect(() => {
+    if (id) {
+      eventService.logCookbookViewed(id);
+    }
+  }, [id]);
 
   if (isLoading) {
     return (
@@ -50,7 +60,14 @@ export default function CookbookDetailScreen() {
         <CookbookHeader
           cookbook={cookbook}
           isOwner={isOwner}
-          onDelete={() => router.back()}
+          onDelete={() => {
+            showToast({ message: i18n.t('cookbooks.toasts.deleted'), type: 'success' });
+            eventService.logCookbookDeleted(cookbook.id);
+            router.back();
+          }}
+          onUpdate={() => {
+            showToast({ message: i18n.t('cookbooks.toasts.updated'), type: 'success' });
+          }}
         />
 
         {/* Recipes List */}
@@ -59,9 +76,15 @@ export default function CookbookDetailScreen() {
             recipes={cookbook.recipes}
             cookbookId={cookbook.id}
             isOwner={isOwner}
+            onRefresh={refetch}
+            onRecipeRemoved={() => {
+              showToast({ message: i18n.t('cookbooks.toasts.recipeRemoved'), type: 'success' });
+            }}
           />
         </View>
       </View>
+
+      <Toast toast={toast} onDismiss={dismissToast} />
     </PageLayout>
   );
 }

@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, FlatList, Pressable } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, FlatList, Pressable, RefreshControl } from 'react-native';
 import { Text } from '@/components/common';
 import { Cookbook } from '@/types/cookbook.types';
 import { CookbookCard } from './CookbookCard';
@@ -17,6 +17,7 @@ interface CookbookListProps {
     onCreatePress: () => void;
     isLoading?: boolean;
     emptyMessage?: string;
+    onRefresh?: () => Promise<unknown>;
 }
 
 export function CookbookList({
@@ -24,8 +25,20 @@ export function CookbookList({
     onCookbookPress,
     onCreatePress,
     isLoading = false,
-    emptyMessage
+    emptyMessage,
+    onRefresh,
 }: CookbookListProps) {
+    const [refreshing, setRefreshing] = useState(false);
+
+    const handleRefresh = useCallback(async () => {
+        if (!onRefresh) return;
+        setRefreshing(true);
+        try {
+            await onRefresh();
+        } finally {
+            setRefreshing(false);
+        }
+    }, [onRefresh]);
     // We'll use 2 columns for now
     const numColumns = 2;
 
@@ -64,6 +77,16 @@ export function CookbookList({
             keyExtractor={(item) => item.id}
             numColumns={numColumns}
             contentContainerStyle={gridContentStyle}
+            refreshControl={
+                onRefresh ? (
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                        tintColor={COLORS.primary.medium}
+                        colors={[COLORS.primary.medium]}
+                    />
+                ) : undefined
+            }
             renderItem={({ item }) => {
                 if ('isCreateAction' in item) {
                     return renderCreateCard();

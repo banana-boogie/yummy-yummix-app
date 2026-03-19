@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 
 import { Recipe } from '@/types/recipe.types';
 import { RecipeImage } from '@/components/recipe/RecipeImage';
+import { FavoriteHeart } from '@/components/recipe/FavoriteHeart';
 import { Text } from '@/components/common/Text';
 import { RecipeInfo } from '../recipe-detail/RecipeInfo';
 
@@ -53,6 +54,9 @@ export const RecipeCard = React.memo(function RecipeCard({
               aspectRatio={featured ? 21 / 9 : 16 / 9}
               width='100%'
             />
+            <View style={{ position: 'absolute', top: 8, right: 8 }}>
+              <FavoriteHeart recipeId={recipe.id} size={20} />
+            </View>
           </View>
           <View className={`w-full ${featured ? 'px-sm' : ''}`}>
             <Text preset="h1" className="mb-xs">{recipe.name}</Text>

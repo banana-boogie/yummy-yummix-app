@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Modal, Pressable, FlatList, Alert } from 'react-native';
-import { Text, Button } from '@/components/common';
+import { Text, Button, Toast } from '@/components/common';
 import { TextInput } from '@/components/form';
 import { Ionicons } from '@expo/vector-icons';
-import { Cookbook, CreateCookbookInput } from '@/types/cookbook.types';
+import { Cookbook, CreateCookbookInput, UpdateCookbookInput } from '@/types/cookbook.types';
 import {
     useUserCookbooksQuery,
     useAddRecipeToCookbook,
@@ -11,6 +11,8 @@ import {
 } from '@/hooks/useCookbookQuery';
 import { cookbookService } from '@/services/cookbookService';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/useToast';
+import { eventService } from '@/services/eventService';
 import * as Haptics from 'expo-haptics';
 import { getRecipeCountText } from '@/utils/formatters';
 import { COLORS } from '@/constants/design-tokens';
@@ -36,6 +38,7 @@ export function AddToCookbookSheet({
     const { data: cookbooks = [], isLoading } = useUserCookbooksQuery();
     const addRecipeMutation = useAddRecipeToCookbook();
     const createCookbookMutation = useCreateCookbook();
+    const { toast, showToast, dismissToast } = useToast();
 
     const [selectedCookbook, setSelectedCookbook] = useState<Cookbook | null>(null);
     const [notes, setNotes] = useState('');
@@ -95,8 +98,14 @@ export function AddToCookbookSheet({
                 notes: notes.trim() || undefined,
             });
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            eventService.logRecipeAddedToCookbook(selectedCookbook.id, recipeId);
+            showToast({
+                message: i18n.t('cookbooks.toasts.recipeAdded', { name: selectedCookbook.name }),
+                type: 'success',
+            });
             onSuccess?.();
-            onClose();
+            // Delay close slightly so toast is visible
+            setTimeout(() => onClose(), 300);
         } catch (error) {
             const err = error as Error;
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -296,6 +305,8 @@ export function AddToCookbookSheet({
                 onSave={handleCreateCookbook}
                 isLoading={createCookbookMutation.isPending}
             />
+
+            <Toast toast={toast} onDismiss={dismissToast} />
         </>
     );
 }

@@ -14,3 +14,5 @@ export { LanguageBadge } from './LanguageBadge';
 export { Switch } from './Switch';
 export { Divider } from './Divider';
 export { ErrorMessage } from './ErrorMessage';
+export { Toast } from './Toast';
+export type { ToastConfig } from './Toast';

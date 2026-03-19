@@ -16,6 +16,7 @@ export interface Cookbook {
   shareEnabled: boolean;
   shareToken: string;
   recipeCount: number; // Computed from cookbook_recipes junction
+  coverImageUrl?: string; // First recipe's image URL, for card display
   createdAt: string;
   updatedAt: string;
 }
