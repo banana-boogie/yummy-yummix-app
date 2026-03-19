@@ -6,6 +6,8 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import type { UserContext } from "../irmixy-schemas.ts";
+import { pickTranslation } from "../locale-utils.ts";
+import { validateGetCookbookRecipesParams } from "./tool-validators.ts";
 
 export interface CookbookRecipeItem {
   id: string;
@@ -28,9 +30,16 @@ export interface GetCookbookRecipesNotFoundResult {
   message: string;
 }
 
+export interface GetCookbookRecipesAmbiguousResult {
+  ambiguous: true;
+  matches: Array<{ id: string; name: string }>;
+  message: string;
+}
+
 export type GetCookbookRecipesResponse =
   | GetCookbookRecipesResult
-  | GetCookbookRecipesNotFoundResult;
+  | GetCookbookRecipesNotFoundResult
+  | GetCookbookRecipesAmbiguousResult;
 
 /** AI tool definition for the LLM. */
 export const getCookbookRecipesTool = {
@@ -66,9 +75,8 @@ export async function getCookbookRecipes(
   args: unknown,
   userContext: UserContext,
 ): Promise<GetCookbookRecipesResponse> {
-  const params = (args ?? {}) as Record<string, unknown>;
-  const cookbookName = params.cookbookName as string | undefined;
-  const cookbookId = params.cookbookId as string | undefined;
+  const params = validateGetCookbookRecipesParams(args);
+  const { cookbookName, cookbookId } = params;
 
   // Get user from auth context
   const {
@@ -131,7 +139,18 @@ export async function getCookbookRecipes(
       };
     }
 
-    // Use first match (best effort)
+    if (matches.length > 1) {
+      return {
+        ambiguous: true,
+        matches: matches.map((cb: any) => ({
+          id: cb.id,
+          name: resolveTranslatedName(cb.translations, userContext.localeChain),
+        })),
+        message:
+          `Multiple cookbooks match "${cookbookName}". Ask the user which one.`,
+      };
+    }
+
     targetCookbookId = matches[0].id;
     targetCookbookName = resolveTranslatedName(
       (matches[0] as any).translations,
@@ -191,18 +210,10 @@ export async function getCookbookRecipes(
     .filter((cr: any) => cr.recipe)
     .map((cr: any) => {
       const r = cr.recipe;
-      const translations = r.translations ?? [];
-      let name = "Untitled";
-      for (const locale of userContext.localeChain) {
-        const match = translations.find((t: any) => t.locale === locale);
-        if (match?.name) {
-          name = match.name;
-          break;
-        }
-      }
-      if (name === "Untitled" && translations.length > 0) {
-        name = translations[0]?.name ?? "Untitled";
-      }
+      const name = resolveTranslatedName(
+        r.translations,
+        userContext.localeChain,
+      );
 
       const totalTime = (r.prep_time_minutes ?? 0) + (r.cook_time_minutes ?? 0);
 
@@ -224,19 +235,11 @@ export async function getCookbookRecipes(
   };
 }
 
-/**
- * Resolve a translated name from a translations array using the locale chain.
- */
+/** Resolve translated name using shared pickTranslation, with "Untitled" fallback. */
 function resolveTranslatedName(
   translations: Array<{ locale: string; name: string }> | undefined,
   localeChain: string[],
 ): string {
-  if (!translations || translations.length === 0) return "Untitled";
-
-  for (const locale of localeChain) {
-    const match = translations.find((t) => t.locale === locale);
-    if (match?.name) return match.name;
-  }
-
-  return translations[0]?.name ?? "Untitled";
+  const t = pickTranslation(translations ?? [], localeChain);
+  return t?.name ?? translations?.[0]?.name ?? "Untitled";
 }

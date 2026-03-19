@@ -7,6 +7,8 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import type { UserContext } from "../irmixy-schemas.ts";
+import { pickTranslation } from "../locale-utils.ts";
+import { validateListUserCookbooksParams } from "./tool-validators.ts";
 
 export interface CookbookListItem {
   id: string;
@@ -39,6 +41,8 @@ export async function listUserCookbooks(
   _args: unknown,
   userContext: UserContext,
 ): Promise<CookbookListItem[]> {
+  validateListUserCookbooksParams(_args);
+
   // Get user from auth context
   const {
     data: { user },
@@ -55,7 +59,7 @@ export async function listUserCookbooks(
       id,
       is_default,
       translations:cookbook_translations(locale, name),
-      cookbook_recipes(id)
+      cookbook_recipes(count)
     `,
     )
     .eq("user_id", user.id)
@@ -70,31 +74,24 @@ export async function listUserCookbooks(
     return [];
   }
 
-  // Resolve translated names using the user's locale chain
+  // Resolve translated names using shared pickTranslation
   return cookbooks.map((cookbook: any) => {
-    const translations = cookbook.translations ?? [];
-    // Pick best translation: walk locale chain, fall back to first available
-    let name = "Untitled";
-    for (const locale of userContext.localeChain) {
-      const match = translations.find((t: any) => t.locale === locale);
-      if (match?.name) {
-        name = match.name;
-        break;
-      }
-    }
-    // If no chain match, use first available translation
-    if (
-      name === "Untitled" && translations.length > 0 && translations[0].name
-    ) {
-      name = translations[0].name;
-    }
+    const translations = (cookbook.translations ?? []) as Array<
+      { locale: string; name: string }
+    >;
+    const t = pickTranslation(translations, userContext.localeChain);
+    const name = t?.name ?? translations[0]?.name ?? "Untitled";
+
+    // cookbook_recipes(count) returns [{ count: number }]
+    const recipeCountResult = cookbook.cookbook_recipes as
+      | [{ count: number }]
+      | null;
+    const recipeCount = recipeCountResult?.[0]?.count ?? 0;
 
     return {
       id: cookbook.id,
       name,
-      recipeCount: Array.isArray(cookbook.cookbook_recipes)
-        ? cookbook.cookbook_recipes.length
-        : 0,
+      recipeCount,
       isDefault: cookbook.is_default ?? false,
     };
   });

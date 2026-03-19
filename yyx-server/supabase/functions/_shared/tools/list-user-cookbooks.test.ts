@@ -114,13 +114,13 @@ Deno.test("listUserCookbooks: returns cookbooks with correct shape", async () =>
         id: "cb-1",
         is_default: true,
         translations: [{ locale: "es", name: "Favoritos" }],
-        cookbook_recipes: [{ id: "cr-1" }, { id: "cr-2" }],
+        cookbook_recipes: [{ count: 2 }],
       },
       {
         id: "cb-2",
         is_default: false,
         translations: [{ locale: "es", name: "Cenas" }],
-        cookbook_recipes: [],
+        cookbook_recipes: [{ count: 0 }],
       },
     ],
   });

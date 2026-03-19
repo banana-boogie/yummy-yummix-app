@@ -79,7 +79,7 @@ Deno.test("createCookbook: throws on empty name", async () => {
   await assertRejects(
     () => createCookbook(supabase, { name: "" }, mockUserContext),
     Error,
-    "Cookbook name is required",
+    "create_cookbook requires a non-empty name",
   );
 });
 
@@ -94,7 +94,7 @@ Deno.test("createCookbook: throws on whitespace-only name", async () => {
   await assertRejects(
     () => createCookbook(supabase, { name: "   " }, mockUserContext),
     Error,
-    "Cookbook name is required",
+    "create_cookbook requires a non-empty name",
   );
 });
 

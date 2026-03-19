@@ -7,6 +7,7 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import type { UserContext } from "../irmixy-schemas.ts";
+import { validateCreateCookbookParams } from "./tool-validators.ts";
 
 export interface CreateCookbookResult {
   id: string;
@@ -45,16 +46,9 @@ export async function createCookbook(
   args: unknown,
   userContext: UserContext,
 ): Promise<CreateCookbookResult> {
-  const params = args as Record<string, unknown>;
-  const name = params.name as string;
-  const description = params.description as string | undefined;
-
-  if (!name || typeof name !== "string" || !name.trim()) {
-    throw new Error("Cookbook name is required");
-  }
-
-  const trimmedName = name.trim().slice(0, 100);
-  const trimmedDescription = description?.trim().slice(0, 500);
+  const { name, description } = validateCreateCookbookParams(args);
+  const trimmedName = name;
+  const trimmedDescription = description;
 
   // Get user from auth context
   const {

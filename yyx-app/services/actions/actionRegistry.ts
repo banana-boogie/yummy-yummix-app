@@ -72,7 +72,7 @@ function formatRecipeForSharing(recipe: GeneratedRecipe): string {
     lines.push('');
 
     if (recipe.ingredients.length > 0) {
-        lines.push(recipe.language === 'es' ? 'Ingredientes:' : 'Ingredients:');
+        lines.push(recipe.locale?.startsWith('es') ? 'Ingredientes:' : 'Ingredients:');
         for (const ing of recipe.ingredients) {
             lines.push(`- ${ing.quantity} ${ing.unit} ${ing.name}`);
         }
@@ -80,7 +80,7 @@ function formatRecipeForSharing(recipe: GeneratedRecipe): string {
     }
 
     if (recipe.steps.length > 0) {
-        lines.push(recipe.language === 'es' ? 'Pasos:' : 'Steps:');
+        lines.push(recipe.locale?.startsWith('es') ? 'Pasos:' : 'Steps:');
         for (const step of recipe.steps) {
             lines.push(`${step.order}. ${step.instruction}`);
         }

@@ -7,6 +7,8 @@
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import type { UserContext } from "../irmixy-schemas.ts";
+import { pickTranslation } from "../locale-utils.ts";
+import { validateAddRecipeToCookbookParams } from "./tool-validators.ts";
 
 export interface AddRecipeToCookbookResult {
   success: boolean;
@@ -74,14 +76,8 @@ export async function addRecipeToCookbook(
   args: unknown,
   userContext: UserContext,
 ): Promise<AddRecipeToCookbookResponse> {
-  const params = args as Record<string, unknown>;
-  const recipeId = params.recipeId as string;
-  const cookbookName = params.cookbookName as string | undefined;
-  const cookbookId = params.cookbookId as string | undefined;
-
-  if (!recipeId) {
-    throw new Error("recipeId is required");
-  }
+  const params = validateAddRecipeToCookbookParams(args);
+  const { recipeId, cookbookName, cookbookId } = params;
 
   // Get user from auth context
   const {
@@ -251,22 +247,13 @@ export async function addRecipeToCookbook(
   };
 }
 
-/**
- * Resolve a translated name from a translations array using the locale chain.
- */
+/** Resolve translated name using shared pickTranslation, with "Untitled" fallback. */
 function resolveTranslatedName(
   translations: Array<{ locale: string; name: string }> | undefined,
   localeChain: string[],
 ): string {
-  if (!translations || translations.length === 0) return "Untitled";
-
-  for (const locale of localeChain) {
-    const match = translations.find((t) => t.locale === locale);
-    if (match?.name) return match.name;
-  }
-
-  // Fallback to first available
-  return translations[0]?.name ?? "Untitled";
+  const t = pickTranslation(translations ?? [], localeChain);
+  return t?.name ?? translations?.[0]?.name ?? "Untitled";
 }
 
 /**

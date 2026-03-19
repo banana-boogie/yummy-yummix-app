@@ -26,6 +26,8 @@ import { RecipeKitchenTool } from '@/types/recipe.types';
 import { ShareButton } from '@/components/common/ShareButton';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { AddToCookbookSheet } from '@/components/cookbook';
+import { Toast } from '@/components/common';
+import { useToast } from '@/hooks/useToast';
 import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
 import logger from '@/services/logger';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,6 +39,7 @@ const RecipeDetail: React.FC = () => {
   const router = useRouter();
   const { user } = useAuth();
   const [showCookbookSheet, setShowCookbookSheet] = useState(false);
+  const { toast, showToast, dismissToast } = useToast();
 
   // Validate ID early to prevent unnecessary API calls
   useEffect(() => {
@@ -205,7 +208,15 @@ const RecipeDetail: React.FC = () => {
           onClose={() => setShowCookbookSheet(false)}
           recipeId={recipe.id}
           recipeName={recipe.name}
+          onSuccess={(cookbookName) => {
+            showToast({
+              message: i18n.t('cookbooks.toasts.recipeAdded', { name: cookbookName }),
+              type: 'success',
+            });
+          }}
         />
+
+        <Toast toast={toast} onDismiss={dismissToast} />
 
         <VoiceAssistantButton
           recipeContext={{

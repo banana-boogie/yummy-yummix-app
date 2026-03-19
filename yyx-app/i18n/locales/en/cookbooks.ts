@@ -88,6 +88,8 @@ export const cookbooks = {
     deleteCookbook: "Delete cookbook",
     addToCookbook: "Add to cookbook",
     removeFromCookbook: "Remove from cookbook",
+    addToFavorites: "Add to favorites",
+    removeFromFavorites: "Remove from favorites",
     favoritesCookbook: "Favorites cookbook",
     privateCookbook: "Private cookbook",
     publicCookbook: "Public cookbook",

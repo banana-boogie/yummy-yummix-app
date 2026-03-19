@@ -10,6 +10,7 @@ import {
   useCookbooksContainingRecipe,
 } from '@/hooks/useCookbookQuery';
 import { COLORS } from '@/constants/design-tokens';
+import i18n from '@/i18n';
 
 interface FavoriteHeartProps {
   recipeId: string;
@@ -70,7 +71,7 @@ export const FavoriteHeart = React.memo(function FavoriteHeart({
       onPress={handleToggle}
       disabled={isLoading}
       accessibilityRole="button"
-      accessibilityLabel={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+      accessibilityLabel={isFavorited ? i18n.t('cookbooks.a11y.removeFromFavorites') : i18n.t('cookbooks.a11y.addToFavorites')}
       accessibilityState={{ checked: isFavorited }}
       className="bg-white/80 rounded-full p-xs active:scale-90"
       style={{

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Modal, Pressable, FlatList, Alert } from 'react-native';
-import { Text, Button, Toast } from '@/components/common';
+import { Text, Button } from '@/components/common';
 import { TextInput } from '@/components/form';
 import { Ionicons } from '@expo/vector-icons';
 import { Cookbook, CreateCookbookInput, UpdateCookbookInput } from '@/types/cookbook.types';
@@ -11,7 +11,6 @@ import {
 } from '@/hooks/useCookbookQuery';
 import { cookbookService } from '@/services/cookbookService';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/useToast';
 import { eventService } from '@/services/eventService';
 import * as Haptics from 'expo-haptics';
 import { getRecipeCountText } from '@/utils/formatters';
@@ -24,7 +23,7 @@ interface AddToCookbookSheetProps {
     onClose: () => void;
     recipeId: string;
     recipeName: string;
-    onSuccess?: () => void;
+    onSuccess?: (cookbookName: string) => void;
 }
 
 export function AddToCookbookSheet({
@@ -38,8 +37,6 @@ export function AddToCookbookSheet({
     const { data: cookbooks = [], isLoading } = useUserCookbooksQuery();
     const addRecipeMutation = useAddRecipeToCookbook();
     const createCookbookMutation = useCreateCookbook();
-    const { toast, showToast, dismissToast } = useToast();
-
     const [selectedCookbook, setSelectedCookbook] = useState<Cookbook | null>(null);
     const [notes, setNotes] = useState('');
     const [step, setStep] = useState<'select' | 'notes'>('select');
@@ -99,13 +96,8 @@ export function AddToCookbookSheet({
             });
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             eventService.logRecipeAddedToCookbook(selectedCookbook.id, recipeId);
-            showToast({
-                message: i18n.t('cookbooks.toasts.recipeAdded', { name: selectedCookbook.name }),
-                type: 'success',
-            });
-            onSuccess?.();
-            // Delay close slightly so toast is visible
-            setTimeout(() => onClose(), 300);
+            onSuccess?.(selectedCookbook.name);
+            onClose();
         } catch (error) {
             const err = error as Error;
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -306,7 +298,6 @@ export function AddToCookbookSheet({
                 isLoading={createCookbookMutation.isPending}
             />
 
-            <Toast toast={toast} onDismiss={dismissToast} />
         </>
     );
 }

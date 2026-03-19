@@ -71,7 +71,7 @@ Deno.test("addRecipeToCookbook: throws on missing recipeId", async () => {
   await assertRejects(
     () => addRecipeToCookbook(supabase, {}, mockUserContext),
     Error,
-    "recipeId is required",
+    "add_recipe_to_cookbook requires a recipeId string",
   );
 });
 
