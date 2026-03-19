@@ -19,7 +19,7 @@ function escapeRegex(input: string): string {
 
 const TOOL_PATTERN = TOOL_NAMES.map(escapeRegex).join("|");
 const TOOL_CALL_TAIL_REGEX = new RegExp(
-  `\\n?(?:call:)?(?:${TOOL_PATTERN})\\{[\\s\\S]*$`,
+  `\\n?(?:call:)?(?:${TOOL_PATTERN})(?:\\{|\\s+\\w)[\\s\\S]*$`,
   "m",
 );
 
@@ -30,6 +30,9 @@ export function detectTextToolCall(content: string): string | null {
     if (content.includes(`call:${name}`) || content.includes(`${name}{`)) {
       return name;
     }
+    // Detect space-separated format: toolname word:
+    const spaceArgPattern = new RegExp(`${name}\\s+\\w+:`);
+    if (spaceArgPattern.test(content)) return name;
   }
 
   // Detect bracket-style markers — AI mimicking history summary format
@@ -73,6 +76,7 @@ export class StreamingToolCallFilter {
     /\{"recipeDescription":/,
     /\{"suggestedName":/,
     /\{"query":/,
+    new RegExp(`^\\n?(?:${TOOL_PATTERN})\\s+\\w`),
   ];
 
   // Max buffer size before we flush as false positive

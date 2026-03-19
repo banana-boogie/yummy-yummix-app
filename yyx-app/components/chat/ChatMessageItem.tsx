@@ -37,7 +37,7 @@ function hasMarkdownSyntax(content: string): boolean {
 export const markdownStyles = {
     body: {
         color: COLORS.text.default,
-        fontSize: 16,
+        fontSize: 18,
         lineHeight: 24,
     },
     heading1: {
@@ -67,7 +67,7 @@ export const markdownStyles = {
     paragraph: {
         marginTop: 0,
         marginBottom: SPACING.sm,
-        lineHeight: 22,
+        lineHeight: 26,
     },
     strong: {
         fontWeight: '700' as const,
@@ -171,7 +171,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                         activeOpacity={0.7}
                         className="max-w-[80%] p-sm rounded-lg self-end bg-primary-default"
                     >
-                        <Text className="text-base leading-relaxed text-white">
+                        <Text className="text-base leading-relaxed text-white" style={{ fontSize: 18, lineHeight: 26 }}>
                             {item.content}
                         </Text>
                     </TouchableOpacity>
@@ -193,7 +193,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                                     {displayContent}
                                 </Markdown>
                             ) : (
-                                <Text className="text-base leading-relaxed text-text-default">
+                                <Text className="text-base leading-relaxed text-text-default" style={{ fontSize: 18, lineHeight: 26 }}>
                                     {displayContent}
                                 </Text>
                             )}

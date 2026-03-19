@@ -149,3 +149,43 @@ Deno.test("buildSystemPrompt routes modifications to modify_recipe", () => {
   assertStringIncludes(prompt, "modify_recipe");
   assertStringIncludes(prompt, "change a recipe that Irmixy created");
 });
+
+Deno.test("buildSystemPrompt includes FORMATTING section", () => {
+  const prompt = buildSystemPrompt(createUserContext());
+  assertStringIncludes(prompt, "FORMATTING:");
+  assertStringIncludes(prompt, "**bold**");
+});
+
+Deno.test("buildSystemPrompt includes scannable communication rule", () => {
+  const prompt = buildSystemPrompt(createUserContext());
+  assertStringIncludes(prompt, "scannable");
+});
+
+Deno.test("buildSystemPrompt with Thermomix includes quick reference", () => {
+  const prompt = buildSystemPrompt(
+    createUserContext({ kitchenEquipment: ["thermomix_TM6"] }),
+  );
+  assertStringIncludes(prompt, "THERMOMIX QUICK REFERENCE");
+  assertStringIncludes(prompt, "Varoma is a STEAM MODE");
+});
+
+Deno.test("buildSystemPrompt without Thermomix excludes quick reference", () => {
+  const prompt = buildSystemPrompt(
+    createUserContext({ kitchenEquipment: [] }),
+  );
+  assertEquals(prompt.includes("THERMOMIX QUICK REFERENCE"), false);
+});
+
+Deno.test("buildSystemPrompt with TM7 includes Open Cooking", () => {
+  const prompt = buildSystemPrompt(
+    createUserContext({ kitchenEquipment: ["thermomix_TM7"] }),
+  );
+  assertStringIncludes(prompt, "Open Cooking (TM7 only)");
+});
+
+Deno.test("buildSystemPrompt with TM6 excludes Open Cooking", () => {
+  const prompt = buildSystemPrompt(
+    createUserContext({ kitchenEquipment: ["thermomix_TM6"] }),
+  );
+  assertEquals(prompt.includes("Open Cooking (TM7 only)"), false);
+});
