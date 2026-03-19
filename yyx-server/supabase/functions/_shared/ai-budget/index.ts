@@ -81,7 +81,9 @@ async function ensureTierCache(): Promise<void> {
     const supabase = createServiceClient();
     const { data, error } = await supabase
       .from("ai_membership_tiers")
-      .select("tier, monthly_text_budget_usd, monthly_voice_minutes, grace_buffer_pct");
+      .select(
+        "tier, monthly_text_budget_usd, monthly_voice_minutes, grace_buffer_pct",
+      );
 
     if (error) {
       console.error("[ai-budget] Failed to load tiers:", error.message);
@@ -118,7 +120,11 @@ function getTierLimits(tier: string): TierLimits {
   console.warn(
     "[ai-budget] No tier data in cache, using hardcoded free defaults",
   );
-  return { monthlyTextBudgetUsd: 0.10, monthlyVoiceMinutes: 5, graceBufferPct: 0.10 };
+  return {
+    monthlyTextBudgetUsd: 0.10,
+    monthlyVoiceMinutes: 5,
+    graceBufferPct: 0.10,
+  };
 }
 
 // ============================================================
@@ -271,7 +277,12 @@ export function _clearTierCache(): void {
 /** Exported for testing */
 export function _setTierCacheForTesting(
   tiers: Array<
-    { tier: string; monthlyTextBudgetUsd: number; monthlyVoiceMinutes: number; graceBufferPct?: number }
+    {
+      tier: string;
+      monthlyTextBudgetUsd: number;
+      monthlyVoiceMinutes: number;
+      graceBufferPct?: number;
+    }
   >,
 ): void {
   tierCache.clear();

@@ -6,6 +6,7 @@
 
 import type { GenerateRecipeResult } from "../_shared/tools/generate-custom-recipe.ts";
 import type { RecipeCard } from "../_shared/irmixy-schemas.ts";
+import type { AppActionResult } from "../_shared/tools/app-action.ts";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant" | "tool";
@@ -33,6 +34,7 @@ export interface ToolExecutionResult {
   recipes: RecipeCard[] | undefined;
   recipesSourceTool?: string;
   customRecipeResult: GenerateRecipeResult | undefined;
+  appActionResult?: AppActionResult;
 }
 
 export interface SessionResult {

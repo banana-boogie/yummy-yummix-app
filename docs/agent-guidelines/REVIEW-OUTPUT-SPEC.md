@@ -6,95 +6,79 @@ For review categories, severity levels, and recommendation logic, see [REVIEW-CR
 
 ---
 
-## Report Sections
+## Output Philosophy
 
-Every review report must include these sections in order. Section names are canonical.
+The report has **two audiences** with different needs:
 
-### 1. CI Status (PR reviews only)
+1. **The human** (the user reading the review) — Wants a quick, scannable verdict: what's good, what's wrong, how bad is it. No option matrices, no category-by-category breakdown. Lead with the answer.
+2. **The AI** (the implementing agent) — Needs full detail: exact file:line references, category grouping, options/tradeoffs for complex findings, recommendations. This goes in the Next Steps prompt.
 
-Pass/fail table for CI checks. Omit for pre-PR reviews.
-
-### 2. Highlights
-
-Acknowledge good patterns, clean implementations, or smart design choices. Balanced reviews encourage good practices and provide useful context for the author.
-
-### 3. Findings
-
-Issues grouped by the 9 review categories (Architecture & Design, Correctness, Security, Performance, Code Quality, Testing, i18n, Hygiene, Documentation). Each finding tagged with a severity level.
-
-Use *No issues found.* for clean categories.
-
-### 4. Summary
-
-Severity counts (Critical, High, Warning, Suggestion) and overall recommendation:
-- PR context: APPROVE / COMMENT / REQUEST CHANGES
-- Pre-PR context: READY FOR PR / QUICK FIXES THEN PR / NEEDS WORK
-
-### 5. Recommendations
-
-High-value improvements **related to the changes but outside what was flagged in Findings**. These are opportunities the author may have missed, not a restatement of issues already found.
-
-Think about:
-- Adjacent code that could benefit from similar treatment
-- Patterns elsewhere in the codebase worth adopting
-- Opportunities this change opens up
-- Missing tests for related (not just changed) code
-- Documentation that would help future developers
-
-**Do NOT repeat issues already listed in Findings.** Rank by impact vs effort.
-
-Format as a table:
-
-| Rank | Recommendation | Impact | Effort | Rationale |
-|------|----------------|--------|--------|-----------|
-| 1 | ... | High | Low | ... |
-
-### 6. Potential Misses
-
-Areas the review couldn't fully evaluate. Be explicit about what is uncertain and why.
-
-Think about: files that couldn't be read, runtime behavior not verifiable from a diff, integration concerns, UX flows, accessibility, areas where the diff was too large to review thoroughly, transitive dependencies.
-
-### 7. Next Steps
-
-A self-contained prompt for an implementation agent. See [Next Steps Prompt Contract](#next-steps-prompt-contract) below.
+**Rule: Keep the human section short. Put the detail in the AI section.**
 
 ---
 
-## Finding Format
+## Report Sections
 
-Every finding must include:
+Every review report must include these sections in order.
+
+### 1. Header
+
+Brief metadata: PR number/branch, author, file count, additions/deletions, areas touched. Two lines max.
+
+### 2. CI Status (PR reviews only)
+
+Pass/fail table for CI checks. Omit for pre-PR reviews.
+
+### 3. Verdict
+
+One line. The recommendation (APPROVE / COMMENT / REQUEST CHANGES for PRs; READY FOR PR / QUICK FIXES THEN PR / NEEDS WORK for pre-PR) with severity counts inline.
+
+Example: **QUICK FIXES THEN PR** — 0 critical, 2 warnings, 4 suggestions
+
+### 4. Highlights
+
+2-4 bullet points of what's done well. Keep it genuine — skip if nothing stands out.
+
+### 5. Issues
+
+A **flat list** of findings grouped by severity (not by category). Each finding is one line: severity tag, file reference, and a short description. No options, no recommendations, no sub-bullets.
+
+Format:
+```
+**Must fix**
+- [Critical] `file:line` — description (one sentence)
+- [Warning] `file:line` — description (one sentence)
+
+**Nice to have**
+- [Suggestion] `file:line` — description (one sentence)
+```
+
+If there are zero findings in a severity group, omit that group. If there are zero findings total, write *No issues found.*
+
+### 6. Next Steps
+
+A self-contained prompt for an implementation agent. This is where **all the detail lives** — category grouping, options/tradeoffs for complex findings, recommendations table, potential misses. See [Next Steps Prompt Contract](#next-steps-prompt-contract) below.
+
+If there are no findings to act on, omit this section.
+
+---
+
+## Internal Review Process
+
+The reviewer still performs the full analysis internally (all 9 categories, severity assessment, options for critical findings, recommendations, potential misses). This work feeds into the report — the human section is a distillation, and the Next Steps prompt is a reorganization with full detail. **Don't skip the analysis, just don't dump all of it into the human-facing output.**
+
+---
+
+## Finding Format (Internal)
+
+During review, every finding should have:
 - Severity tag: `[Critical]`, `[High]`, `[Warning]`, or `[Suggestion]`
 - File path and line number (when possible)
 - Concrete description of the issue
 - Specific recommendation/fix
+- For Critical/High: 2-3 options with effort/risk/impact tradeoffs
 
-### Critical Findings
-
-Must include 2-3 options with tradeoffs:
-
-```
-- [Critical] `path/to/file.ts:42` - <description>
-  - Recommendation: <specific recommendation>
-  - Options:
-    1. **A (Recommended)** <option> - Effort: S/M/L, Risk: <...>, Impact: <...>, Maintenance: <...>
-    2. **B** <option> - Effort: S/M/L, Risk: <...>, Impact: <...>, Maintenance: <...>
-    3. **C** <option> - Effort: S/M/L, Risk: <...>, Impact: <...>, Maintenance: <...>
-```
-
-Put the recommended option first and explain why.
-
-### High Findings
-
-Also include options/tradeoffs (same format as Critical).
-
-### Warning Findings That Affect Merge/Readiness Risk
-
-Also include options/tradeoffs (same format as Critical).
-
-### Suggestion Findings
-
-Concise recommendation, no option matrix needed.
+This detail goes into the Next Steps prompt, not the human summary.
 
 ---
 
@@ -102,11 +86,12 @@ Concise recommendation, no option matrix needed.
 
 The Next Steps section must produce a **self-contained prompt** that an implementation agent can execute without reading the review report. The prompt must:
 
-1. List **Critical, High, and Warning** findings from the review with severity, file:line, and description under "Fix All"
+1. List **Critical, High, and Warning** findings with full detail (severity, file:line, description, recommendation, options where applicable) under "Fix All"
 2. List **Suggestion** findings under "Implement If Worthwhile"
-3. List Recommendations worth implementing under "Implement If Worthwhile"
-4. Instruct the agent to: read relevant files, create an implementation plan addressing required findings plus selected suggestions/recommendations, implement the plan, run tests/validation
-5. Be fully self-contained — executable without reading the review
+3. List Recommendations (improvements outside findings) under "Implement If Worthwhile"
+4. Note any potential misses or areas the review couldn't fully evaluate
+5. Instruct the agent to: read relevant files, create an implementation plan, implement, run tests/validation
+6. Be fully self-contained — executable without reading the review
 
 ### Template
 
@@ -117,23 +102,33 @@ You are the implementation agent for [PR #N / branch-name].
 
 ### Critical
 - [Critical] `file:line` — description
+  - Recommendation: <specific recommendation>
+  - Options:
+    1. **A (Recommended)** <option> — Effort: S/M/L, Risk: <...>, Impact: <...>
+    2. **B** <option> — Effort: S/M/L, Risk: <...>, Impact: <...>
 
 ### High
 - [High] `file:line` — description
+  - Recommendation: <specific recommendation>
 
 ### Warning
 - [Warning] `file:line` — description
+  - Recommendation: <specific recommendation>
 
 ## Suggestions — Implement If Worthwhile
 
-### Suggestion
-- [Suggestion] `file:line` — description
+- [Suggestion] `file:line` — description. Recommendation: <what to do>
 
 ## Recommendations — Implement If Worthwhile
 
 | Rank | Recommendation | Impact | Effort |
 |------|----------------|--------|--------|
 | 1 | ... | High | Low |
+
+## Potential Misses
+
+Areas the review couldn't fully evaluate:
+- <what was uncertain and why>
 
 ## Workflow
 
@@ -149,9 +144,10 @@ Constraints:
 ```
 
 Key rules:
-- Critical/High/Warning findings are required fixes.
-- Suggestions and Recommendations are listed separately and marked "implement if worthwhile" — the agent uses judgment here.
+- Critical/High/Warning findings are required fixes — include full detail and options.
+- Suggestions and Recommendations are listed separately and marked "implement if worthwhile."
 - The prompt never references the review report — it is the complete instruction set.
+- Potential misses and recommendations that were previously separate human-facing sections now live here.
 
 ---
 
@@ -168,49 +164,24 @@ For review categories, severity levels, and recommendation logic specific to pla
 | **Finding references** | `file:line` | Section names/numbers (e.g., "Section 3.2", "Implementation Step 4") |
 | **CI Status section** | Included (PR) or omitted (pre-PR) | Always omitted |
 | **Recommendation labels** | APPROVE / COMMENT / REQUEST CHANGES (PR) or READY FOR PR / QUICK FIXES THEN PR / NEEDS WORK (pre-PR) | PROCEED / REFINE THEN PROCEED / RETHINK |
-| **Severity levels** | Critical / High / Warning / Suggestion | Same 4 levels (Critical and High are distinct) |
-| **Review categories** | 9 code-focused categories | 8 plan-focused categories |
-| **Potential Misses** | Areas review couldn't evaluate | Replaced by **Unverified Assumptions** |
 | **Next Steps** | Self-contained implementation prompt | Omitted — the entire output IS the feedback |
 
-### Finding Format
+### Plan Review Output
 
-Every plan review finding must include:
-- Severity tag: `[Critical]`, `[High]`, `[Warning]`, or `[Suggestion]`
-- Section reference (plan section name or number, not file:line)
-- Concrete description of the issue
-- Specific recommendation
+Plan reviews follow the same two-tier philosophy:
 
-Critical and High findings include options with tradeoffs (same format as code review):
+**Human section:** Header, verdict, highlights, flat issues list by severity.
 
-```
-- [Critical] Section 3.2 — description
-  - Recommendation: <specific recommendation>
-  - Options:
-    1. **A (Recommended)** <option> — Effort: S/M/L, Risk: <...>, Impact: <...>
-    2. **B** <option> — Effort: S/M/L, Risk: <...>, Impact: <...>
-```
+**Detail section:** Since plan reviews don't have a "Next Steps" prompt (the output IS the feedback), the detailed findings with options/tradeoffs go into a collapsible "Detailed Findings" section after the issues list. Also includes Unverified Assumptions.
 
 ### Unverified Assumptions
 
-Replaces "Potential Misses" from code reviews. Reframed as direct questions for the planner to confirm:
+In plan reviews, replaces "Potential Misses." Reframed as direct questions for the planner to confirm:
 
 ```markdown
 ### Unverified Assumptions
 
-Assumptions in the plan that couldn't be confirmed against the codebase. Please verify:
-- The `recipes` table has a `thermomix_params` JSONB column (couldn't find in current schema)
-- The AI Gateway supports streaming with structured output (current code only shows one or the other)
+Please verify:
+- Does the `recipes` table have a `thermomix_params` JSONB column?
+- Does the AI Gateway support streaming with structured output simultaneously?
 ```
-
-### Feedback Framing
-
-The entire plan review output is designed to be copy-pasted into the planning agent's chat as direct feedback. The report header tells the receiving agent what to do:
-
-```markdown
-## Plan Review Feedback: <plan-file-name>
-
-> This is feedback from a cross-AI plan review. Address all Critical, High, and Warning findings before implementing. Suggestions and Recommendations are optional improvements.
-```
-
-There is no "Next Steps" section — the receiving agent reads the findings directly and revises the plan accordingly.

@@ -24,10 +24,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { customRecipeService } from '@/services/customRecipeService';
 import type { QuotaInfo, RecipeContext, VoiceStatus } from '@/services/voice/types';
 import type { ChatMessage, IrmixyStatus, QuickAction } from '@/services/chatService';
-import type { GeneratedRecipe } from '@/types/irmixy';
+import type { Action, GeneratedRecipe } from '@/types/irmixy';
 import i18n from '@/i18n';
 import logger from '@/services/logger';
 import { getChatCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
+import {
+    executeAction,
+    resolveActionContext,
+    type ActionContextSource,
+} from '@/services/actions/actionRegistry';
 
 const SCROLL_THRESHOLD = 600; // Large enough to accommodate recipe cards (~400px tall)
 const LIST_CONTENT_STYLE = { paddingVertical: 8 };
@@ -269,9 +274,13 @@ export function VoiceChatScreen({
         }
     }, [router, updateMessage]);
 
-    const handleActionPress = useCallback((_action: QuickAction) => {
-        // Voice mode is speech-driven; no quick actions for now.
-    }, []);
+    const handleActionPress = useCallback((action: Action, messageId: string) => {
+        const context = resolveActionContext(
+            transcriptMessages as ActionContextSource[],
+            messageId,
+        );
+        executeAction(action, context, { source: 'manual', path: 'voice' });
+    }, [transcriptMessages]);
 
     const renderMessage = useCallback(({ item }: { item: ChatMessage }) => (
         <View className="px-md mb-sm">

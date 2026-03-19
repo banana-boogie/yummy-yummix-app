@@ -24,7 +24,12 @@ import {
 import { buildSafetyReminders, checkRecipeSafety } from "../food-safety.ts";
 import { chat } from "../ai-gateway/index.ts";
 import type { CostContext } from "../ai-gateway/types.ts";
-import { getThermomixModel, hasAirFryer, hasThermomix, VALID_THERMOMIX_MODES } from "../equipment-utils.ts";
+import {
+  getThermomixModel,
+  hasAirFryer,
+  hasThermomix,
+  VALID_THERMOMIX_MODES,
+} from "../equipment-utils.ts";
 import {
   buildLocaleChain,
   getBaseLanguage,
@@ -248,8 +253,8 @@ export async function generateCustomRecipe(
   }
 
   // Run post-recipe enrichment and validation in parallel
-  const [enrichedIngredients, enrichedKitchenTools, safetyCheck] =
-    await Promise.all([
+  const [enrichedIngredients, enrichedKitchenTools, safetyCheck] = await Promise
+    .all([
       enrichIngredientsWithImages(
         recipe.ingredients,
         supabase,
@@ -321,7 +326,12 @@ export function buildRecipeJsonSchema(
     stepProperties.thermomixTemp = { type: ["string", "null"] };
     stepProperties.thermomixSpeed = { type: ["string", "null"] };
     stepProperties.thermomixMode = { type: ["string", "null"] };
-    stepRequired.push("thermomixTime", "thermomixTemp", "thermomixSpeed", "thermomixMode");
+    stepRequired.push(
+      "thermomixTime",
+      "thermomixTemp",
+      "thermomixSpeed",
+      "thermomixMode",
+    );
   }
 
   // Tips field — always included regardless of equipment
@@ -659,14 +669,24 @@ PARAMETERS:
 - **thermomixMode** is OPTIONAL — set it when the step uses a named cooking mode. Null = manual mode (the default).
 
 COOKING MODES (set thermomixMode when applicable):
-- "slow_cook": Reverse, Speed 1, blade cover, 70-100°C, up to 12h. For stews, braises, casseroles.${isTM7 ? "" : " (TM6: available)"}
+- "slow_cook": Reverse, Speed 1, blade cover, 70-100°C, up to 12h. For stews, braises, casseroles.${
+      isTM7 ? "" : " (TM6: available)"
+    }
 - "rice_cooker": Automatic temp/speed/time for rice and grains.
-- "sous_vide": Precise temp hold, no stirring. For proteins, vegetables.${isTM7 ? "" : " (TM6: Guided Cooking only)"}
+- "sous_vide": Precise temp hold, no stirring. For proteins, vegetables.${
+      isTM7 ? "" : " (TM6: Guided Cooking only)"
+    }
 - "dough": Kneading mode, max 500g flour. For bread, pasta, pizza dough.
 - "turbo": Brief pulse at max speed. For crushing ice, quick grind.
-- "high_temperature": 120-160°C, max 10min per step. For browning, searing, caramelizing.${isTM7 ? " (TM7: manual access)" : " (TM6: Guided Cooking only)"}
-${isTM7 ? `- "fermentation": Low temp hold (30-45°C), extended time. For yogurt, dough proofing, tempeh. (TM7 only)
-- "open_cooking": Lid-free, up to 100°C, Spoon/Speed 1. For risotto, sautéing, monitoring. (TM7 only)` : ""}
+- "high_temperature": 120-160°C, max 10min per step. For browning, searing, caramelizing.${
+      isTM7 ? " (TM7: manual access)" : " (TM6: Guided Cooking only)"
+    }
+${
+      isTM7
+        ? `- "fermentation": Low temp hold (30-45°C), extended time. For yogurt, dough proofing, tempeh. (TM7 only)
+- "open_cooking": Lid-free, up to 100°C, Spoon/Speed 1. For risotto, sautéing, monitoring. (TM7 only)`
+        : ""
+    }
 
 SPEED GUIDE:
 - Spoon/1-2: Gentle stirring, simmering, slow cooking (cooking speeds)
@@ -680,7 +700,9 @@ ${openCookingNote}
 CRITICAL RULES:
 - Above 60°C: max speed 6. Never use high speeds with hot food.
 - Chopping is SECONDS (3-10 sec), not minutes. Start short, check.
-- Sautéing always uses Reverse (e.g. ${isTM7 ? "140°C" : "120°C"} / Reverse / Speed 1 / 5-10 min).
+- Sautéing always uses Reverse (e.g. ${
+      isTM7 ? "140°C" : "120°C"
+    } / Reverse / Speed 1 / 5-10 min).
 - Browning/searing: 100-250g per batch. For larger quantities (>250g), recommend using a pan or skillet instead.
 
 Skip Thermomix for: plating, garnishing, oven/grill tasks, manual shaping — leave all four params null.
@@ -1358,7 +1380,9 @@ export function validateThermomixUsage(
   if (!hasThermomix) return;
 
   const thermomixSteps = recipe.steps.filter(
-    (step) => step.thermomixTime || step.thermomixTemp || step.thermomixSpeed || step.thermomixMode,
+    (step) =>
+      step.thermomixTime || step.thermomixTemp || step.thermomixSpeed ||
+      step.thermomixMode,
   );
 
   const totalSteps = recipe.steps.length;
@@ -1503,7 +1527,11 @@ export function validateThermomixSteps(
 
     // Validate cooking mode (must be a known mode string)
     if (step.thermomixMode != null) {
-      if (!(VALID_THERMOMIX_MODES as readonly string[]).includes(step.thermomixMode)) {
+      if (
+        !(VALID_THERMOMIX_MODES as readonly string[]).includes(
+          step.thermomixMode,
+        )
+      ) {
         console.warn(
           `Invalid Thermomix mode for step ${step.order}: ${step.thermomixMode}. Removing.`,
         );

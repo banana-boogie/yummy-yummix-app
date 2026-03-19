@@ -7,16 +7,13 @@ import {
     BudgetWarningPayload,
     sendMessage,
     BudgetExceededError,
-} from '@/services/chatService';
+ isRecipeToolStatus } from '@/services/chatService';
 import i18n from '@/i18n';
+
 
 const CHUNK_BATCH_MS = 50;
 const SCROLL_DELAY_MS = 100;
 const LOADING_TIMEOUT_MS = 60_000; // Force-reset isLoading after 60s (hung SSE recovery)
-
-/** Statuses that indicate recipe generation/modification is in progress */
-const isRecipeToolStatus = (status: IrmixyStatus): boolean =>
-    status === 'cooking_it_up' || status === 'generating';
 
 interface UseMessageStreamingParams {
     user: User | null;
@@ -37,6 +34,7 @@ interface UseMessageStreamingParams {
     onBudgetExceeded?: (error: BudgetExceededError) => void;
     /** Prepended to each user message before sending (invisible to the user) */
     contextPrefix?: string;
+    onActionsReceived?: (actions: import('@/types/irmixy').Action[], response: import('@/types/irmixy').IrmixyResponse) => void;
 }
 
 export function useMessageStreaming({
@@ -57,6 +55,7 @@ export function useMessageStreaming({
     onBudgetWarning,
     onBudgetExceeded,
     contextPrefix,
+    onActionsReceived,
 }: UseMessageStreamingParams) {
     const isMountedRef = useRef(true);
     const streamCancelRef = useRef<(() => void) | null>(null);
@@ -299,6 +298,11 @@ export function useMessageStreaming({
                         };
                     });
 
+                    // Auto-execute actions (e.g., share_recipe triggered by AI)
+                    if (response.actions?.length && onActionsReceived) {
+                        onActionsReceived(response.actions, response);
+                    }
+
                     if (hasRecipeData && assistantIndexRef.current !== null) {
                         const scrollToIdx = assistantIndexRef.current;
                         skipNextScrollToEndRef.current = true;
@@ -407,6 +411,7 @@ export function useMessageStreaming({
         stopAndGuard,
         updateAssistantMessage,
         user,
+        onActionsReceived,
         flatListRef,
         hasRecipeInCurrentStreamRef,
         isNearBottomRef,

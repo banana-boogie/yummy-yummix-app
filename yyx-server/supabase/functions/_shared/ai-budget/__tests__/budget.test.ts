@@ -21,8 +21,18 @@ const TIERS = [
 
 // Tiers with no grace buffer for strict-boundary tests
 const TIERS_NO_GRACE = [
-  { tier: "free", monthlyTextBudgetUsd: 0.10, monthlyVoiceMinutes: 5, graceBufferPct: 0 },
-  { tier: "premium", monthlyTextBudgetUsd: 2.00, monthlyVoiceMinutes: 30, graceBufferPct: 0 },
+  {
+    tier: "free",
+    monthlyTextBudgetUsd: 0.10,
+    monthlyVoiceMinutes: 5,
+    graceBufferPct: 0,
+  },
+  {
+    tier: "premium",
+    monthlyTextBudgetUsd: 2.00,
+    monthlyVoiceMinutes: 30,
+    graceBufferPct: 0,
+  },
 ];
 
 // ============================================================
@@ -384,7 +394,12 @@ Deno.test("grace buffer - remainingUsd is based on advertised budget not effecti
 Deno.test("grace buffer - custom grace percentage works", () => {
   _clearTierCache();
   _setTierCacheForTesting([
-    { tier: "free", monthlyTextBudgetUsd: 1.00, monthlyVoiceMinutes: 10, graceBufferPct: 0.20 },
+    {
+      tier: "free",
+      monthlyTextBudgetUsd: 1.00,
+      monthlyVoiceMinutes: 10,
+      graceBufferPct: 0.20,
+    },
   ]);
 
   // Effective limit = $1.00 * 1.20 = $1.20

@@ -8,7 +8,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { corsHeaders } from "../_shared/cors.ts";
-import { validateAuth, unauthorizedResponse } from "../_shared/auth.ts";
+import { unauthorizedResponse, validateAuth } from "../_shared/auth.ts";
 import { searchRecipesHybrid } from "../_shared/rag/hybrid-search.ts";
 import { buildLocaleChain } from "../_shared/locale-utils.ts";
 
@@ -32,7 +32,10 @@ Deno.serve(async (req: Request) => {
     if (!query || typeof query !== "string" || query.trim().length < 2) {
       return new Response(
         JSON.stringify({ error: "Query must be at least 2 characters" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -76,7 +79,10 @@ Deno.serve(async (req: Request) => {
     console.error("[semantic-recipe-search] Error:", err);
     return new Response(
       JSON.stringify({ error: "Search failed" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
   }
 });

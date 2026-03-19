@@ -132,6 +132,7 @@ jest.mock('@/services/chatService', () => {
     loadChatHistory: (...args: any[]) => mockLoadChatHistory(...args),
     sendMessage: (...args: any[]) => mockSendMessage(...args),
     getLastSessionWithMessages: (...args: any[]) => mockGetLastSessionWithMessages(...args),
+    isRecipeToolStatus: (status: string) => status === 'cooking_it_up' || status === 'generating',
     BudgetExceededError,
   };
 });
