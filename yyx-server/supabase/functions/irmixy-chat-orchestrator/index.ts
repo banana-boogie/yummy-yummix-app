@@ -416,6 +416,10 @@ const TOOL_STATUS: Record<string, string> = {
   retrieve_cooked_recipes: "searching",
   generate_custom_recipe: "cooking_it_up",
   modify_recipe: "cooking_it_up",
+  list_user_cookbooks: "searching",
+  add_recipe_to_cookbook: "generating",
+  get_cookbook_recipes: "searching",
+  create_cookbook: "generating",
 };
 
 function getToolStatus(toolName: string): string {

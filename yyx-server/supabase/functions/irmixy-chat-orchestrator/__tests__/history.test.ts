@@ -87,7 +87,7 @@ Deno.test("saveMessageToHistory - includes actions in tool_calls when present", 
   const response: IrmixyResponse = {
     version: "1.0",
     message: "Sharing the recipe!",
-    language: "en",
+    locale: "en",
     status: null,
     actions: [
       {

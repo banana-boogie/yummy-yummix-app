@@ -6,8 +6,12 @@ import {
   clampNumber,
   sanitizeString,
   ToolValidationError,
+  validateAddRecipeToCookbookParams,
+  validateCreateCookbookParams,
   validateEnum,
   validateGenerateRecipeParams,
+  validateGetCookbookRecipesParams,
+  validateListUserCookbooksParams,
   validateRetrieveCookedRecipesParams,
   validateSearchRecipesParams,
   validateUUID,
@@ -332,4 +336,162 @@ Deno.test("validateGenerateRecipeParams passes through undefined portions", () =
     ingredients: ["chicken"],
   });
   assertEquals(result.portions, undefined);
+});
+
+// ============================================================
+// validateListUserCookbooksParams Tests
+// ============================================================
+
+Deno.test("validateListUserCookbooksParams returns empty object", () => {
+  const result = validateListUserCookbooksParams({});
+  assertEquals(result, {});
+});
+
+Deno.test("validateListUserCookbooksParams accepts anything", () => {
+  const result = validateListUserCookbooksParams("whatever");
+  assertEquals(result, {});
+});
+
+// ============================================================
+// validateAddRecipeToCookbookParams Tests
+// ============================================================
+
+Deno.test("validateAddRecipeToCookbookParams requires recipeId", () => {
+  assertThrows(
+    () => validateAddRecipeToCookbookParams({}),
+    ToolValidationError,
+    "requires a recipeId",
+  );
+});
+
+Deno.test("validateAddRecipeToCookbookParams validates recipeId as UUID", () => {
+  assertThrows(
+    () => validateAddRecipeToCookbookParams({ recipeId: "not-a-uuid" }),
+    ToolValidationError,
+    "Invalid UUID",
+  );
+});
+
+Deno.test("validateAddRecipeToCookbookParams accepts valid recipeId", () => {
+  const result = validateAddRecipeToCookbookParams({
+    recipeId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  });
+  assertEquals(result.recipeId, "a1b2c3d4-e5f6-7890-abcd-ef1234567890");
+});
+
+Deno.test("validateAddRecipeToCookbookParams sanitizes cookbookName", () => {
+  const result = validateAddRecipeToCookbookParams({
+    recipeId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    cookbookName: "  My Favorites  ",
+  });
+  assertEquals(result.cookbookName, "My Favorites");
+});
+
+Deno.test("validateAddRecipeToCookbookParams validates cookbookId as UUID", () => {
+  assertThrows(
+    () =>
+      validateAddRecipeToCookbookParams({
+        recipeId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        cookbookId: "bad-id",
+      }),
+    ToolValidationError,
+    "Invalid UUID",
+  );
+});
+
+Deno.test("validateAddRecipeToCookbookParams handles JSON string input", () => {
+  const result = validateAddRecipeToCookbookParams(
+    '{"recipeId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","cookbookName":"Dinners"}',
+  );
+  assertEquals(result.recipeId, "a1b2c3d4-e5f6-7890-abcd-ef1234567890");
+  assertEquals(result.cookbookName, "Dinners");
+});
+
+// ============================================================
+// validateGetCookbookRecipesParams Tests
+// ============================================================
+
+Deno.test("validateGetCookbookRecipesParams allows empty params", () => {
+  const result = validateGetCookbookRecipesParams({});
+  assertEquals(result.cookbookName, undefined);
+  assertEquals(result.cookbookId, undefined);
+});
+
+Deno.test("validateGetCookbookRecipesParams sanitizes cookbookName", () => {
+  const result = validateGetCookbookRecipesParams({
+    cookbookName: "  Favorites  ",
+  });
+  assertEquals(result.cookbookName, "Favorites");
+});
+
+Deno.test("validateGetCookbookRecipesParams validates cookbookId as UUID", () => {
+  assertThrows(
+    () => validateGetCookbookRecipesParams({ cookbookId: "bad" }),
+    ToolValidationError,
+    "Invalid UUID",
+  );
+});
+
+Deno.test("validateGetCookbookRecipesParams handles JSON string input", () => {
+  const result = validateGetCookbookRecipesParams(
+    '{"cookbookName":"Holiday"}',
+  );
+  assertEquals(result.cookbookName, "Holiday");
+});
+
+// ============================================================
+// validateCreateCookbookParams Tests
+// ============================================================
+
+Deno.test("validateCreateCookbookParams requires non-empty name", () => {
+  assertThrows(
+    () => validateCreateCookbookParams({ name: "" }),
+    ToolValidationError,
+    "requires a non-empty name",
+  );
+});
+
+Deno.test("validateCreateCookbookParams rejects whitespace-only name", () => {
+  assertThrows(
+    () => validateCreateCookbookParams({ name: "   " }),
+    ToolValidationError,
+    "requires a non-empty name",
+  );
+});
+
+Deno.test("validateCreateCookbookParams sanitizes name", () => {
+  const result = validateCreateCookbookParams({ name: "  Holiday Baking  " });
+  assertEquals(result.name, "Holiday Baking");
+});
+
+Deno.test("validateCreateCookbookParams truncates long name", () => {
+  const longName = "a".repeat(200);
+  const result = validateCreateCookbookParams({ name: longName });
+  assertEquals(result.name.length, 100);
+});
+
+Deno.test("validateCreateCookbookParams truncates long description", () => {
+  const longDesc = "b".repeat(1000);
+  const result = validateCreateCookbookParams({
+    name: "Test",
+    description: longDesc,
+  });
+  assertEquals(result.description!.length, 500);
+});
+
+Deno.test("validateCreateCookbookParams accepts valid input", () => {
+  const result = validateCreateCookbookParams({
+    name: "Holiday Baking",
+    description: "My favorite holiday recipes",
+  });
+  assertEquals(result.name, "Holiday Baking");
+  assertEquals(result.description, "My favorite holiday recipes");
+});
+
+Deno.test("validateCreateCookbookParams handles JSON string input", () => {
+  const result = validateCreateCookbookParams(
+    '{"name":"Quick Meals","description":"Under 30 minutes"}',
+  );
+  assertEquals(result.name, "Quick Meals");
+  assertEquals(result.description, "Under 30 minutes");
 });

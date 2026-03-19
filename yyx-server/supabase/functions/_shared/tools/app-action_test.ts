@@ -71,3 +71,25 @@ Deno.test("executeAppAction - requires object argument, throws on string", () =>
     "app_action requires an object argument",
   );
 });
+
+// ============================================================
+// Cookbook Action Tests
+// ============================================================
+
+Deno.test("executeAppAction - validates add_to_cookbook action", () => {
+  const result = executeAppAction({
+    action: "add_to_cookbook",
+    params: { recipeId: "abc-123" },
+  });
+  assertEquals(result.action, "add_to_cookbook");
+  assertEquals(result.params.recipeId, "abc-123");
+});
+
+Deno.test("executeAppAction - validates view_cookbook action", () => {
+  const result = executeAppAction({
+    action: "view_cookbook",
+    params: { cookbookId: "cb-456" },
+  });
+  assertEquals(result.action, "view_cookbook");
+  assertEquals(result.params.cookbookId, "cb-456");
+});

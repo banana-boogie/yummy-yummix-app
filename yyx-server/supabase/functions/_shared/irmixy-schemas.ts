@@ -36,6 +36,8 @@ export const ActionSchema = z.object({
     "set_timer",
     "resume_cooking",
     "share_recipe",
+    "add_to_cookbook",
+    "view_cookbook",
   ]),
   label: z.string(),
   payload: z.record(z.unknown()),
@@ -103,7 +105,7 @@ export const IrmixyResponseSchema = z.object({
 
 export type RecipeCard = z.infer<typeof RecipeCardSchema>;
 export type Action = z.infer<typeof ActionSchema>;
-export type UsefulItem = z.infer<typeof UsefulItemSchema>;
+export type KitchenTool = z.infer<typeof KitchenToolSchema>;
 export type GeneratedRecipe = z.infer<typeof GeneratedRecipeSchema>;
 export type SafetyFlags = z.infer<typeof SafetyFlagsSchema>;
 export type IrmixyResponse = z.infer<typeof IrmixyResponseSchema>;
