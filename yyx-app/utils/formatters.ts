@@ -63,12 +63,24 @@ export const transformCategories = {
 
 export const formatTimeInHoursAndMinutes = (minutes: number | null): string => {
   if (minutes === null) return '';
-  
+
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
-  
+
   if (hours > 0) {
     return `${hours}h ${remainingMinutes}m`;
   }
   return `${remainingMinutes}m`;
-}; 
+};
+
+export function getRecipeCountText(count: number, i18n: { t: (key: string) => string }): string {
+  return `${count} ${count === 1 ? i18n.t('cookbooks.recipe') : i18n.t('cookbooks.recipes')}`;
+}
+
+export function getDifficultyLabel(difficulty: string | undefined, i18n: { t: (key: string) => string }): string {
+  if (!difficulty) return '';
+  if (['easy', 'medium', 'hard'].includes(difficulty)) {
+    return i18n.t(`recipes.common.difficulty.${difficulty}`);
+  }
+  return difficulty;
+}

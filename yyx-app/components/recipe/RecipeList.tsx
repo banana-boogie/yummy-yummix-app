@@ -3,6 +3,7 @@ import React, { useMemo, useCallback } from 'react';
 import { View, Animated, StyleProp, ViewStyle, ActivityIndicator, NativeSyntheticEvent, NativeScrollEvent, useWindowDimensions } from 'react-native';
 
 import { RecipeCard } from '@/components/recipe/RecipeCard';
+import { FavoriteHeart } from '@/components/recipe/FavoriteHeart';
 import { Text } from '@/components/common/Text';
 import { COLORS, SPACING } from '@/constants/design-tokens';
 import i18n from '@/i18n';
@@ -31,7 +32,10 @@ const RecipeItemWrapper = React.memo(({
   itemWidth: number | string;
 }) => (
   <View style={{ width: itemWidth, marginBottom: SPACING.xl }}>
-    <RecipeCard recipe={item} />
+    <RecipeCard
+      recipe={item}
+      favoriteHeart={<FavoriteHeart recipeId={item.id} size={20} />}
+    />
   </View>
 ));
 
@@ -108,7 +112,11 @@ export const RecipeList: React.FC<RecipeListProps> = ({
     if (!featuredRecipe) return null;
     return (
       <View style={{ marginBottom: SPACING.xl }}>
-        <RecipeCard recipe={featuredRecipe} featured={!isPhone} />
+        <RecipeCard
+          recipe={featuredRecipe}
+          featured={!isPhone}
+          favoriteHeart={<FavoriteHeart recipeId={featuredRecipe.id} size={20} />}
+        />
       </View>
     );
   }, [featuredRecipe, isPhone]);

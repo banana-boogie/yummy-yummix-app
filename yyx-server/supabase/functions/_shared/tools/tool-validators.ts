@@ -309,6 +309,166 @@ export function validateModifyRecipeParams(
 }
 
 // ============================================================
+// List User Cookbooks Params
+// ============================================================
+
+/**
+ * Validate list_user_cookbooks tool arguments (no params required).
+ */
+export function validateListUserCookbooksParams(
+  raw: unknown,
+): Record<string, never> {
+  // No parameters needed — the tool uses auth context only.
+  // Accept anything and return empty object.
+  return {};
+}
+
+// ============================================================
+// Add Recipe to Cookbook Params
+// ============================================================
+
+export interface AddRecipeToCookbookParams {
+  recipeId: string;
+  cookbookName?: string;
+  cookbookId?: string;
+}
+
+/**
+ * Validate and sanitize add_recipe_to_cookbook tool arguments.
+ */
+export function validateAddRecipeToCookbookParams(
+  raw: unknown,
+): AddRecipeToCookbookParams {
+  let params: unknown;
+  if (typeof raw === "string") {
+    try {
+      params = JSON.parse(raw);
+    } catch {
+      throw new ToolValidationError(
+        "Invalid JSON in add_recipe_to_cookbook params",
+      );
+    }
+  } else {
+    params = raw;
+  }
+
+  if (!params || typeof params !== "object") {
+    throw new ToolValidationError(
+      "add_recipe_to_cookbook params must be an object",
+    );
+  }
+
+  const p = params as Record<string, unknown>;
+
+  if (!p.recipeId || typeof p.recipeId !== "string") {
+    throw new ToolValidationError(
+      "add_recipe_to_cookbook requires a recipeId string",
+    );
+  }
+
+  const recipeId = validateUUID(p.recipeId);
+
+  return {
+    recipeId,
+    cookbookName: p.cookbookName
+      ? sanitizeString(p.cookbookName, 100)
+      : undefined,
+    cookbookId: p.cookbookId ? validateUUID(p.cookbookId) : undefined,
+  };
+}
+
+// ============================================================
+// Get Cookbook Recipes Params
+// ============================================================
+
+export interface GetCookbookRecipesParams {
+  cookbookName?: string;
+  cookbookId?: string;
+}
+
+/**
+ * Validate and sanitize get_cookbook_recipes tool arguments.
+ */
+export function validateGetCookbookRecipesParams(
+  raw: unknown,
+): GetCookbookRecipesParams {
+  let params: unknown;
+  if (typeof raw === "string") {
+    try {
+      params = JSON.parse(raw);
+    } catch {
+      throw new ToolValidationError(
+        "Invalid JSON in get_cookbook_recipes params",
+      );
+    }
+  } else {
+    params = raw;
+  }
+
+  if (!params || typeof params !== "object") {
+    // Allow empty params — will default to default cookbook
+    return {};
+  }
+
+  const p = params as Record<string, unknown>;
+
+  return {
+    cookbookName: p.cookbookName
+      ? sanitizeString(p.cookbookName, 100)
+      : undefined,
+    cookbookId: p.cookbookId ? validateUUID(p.cookbookId) : undefined,
+  };
+}
+
+// ============================================================
+// Create Cookbook Params
+// ============================================================
+
+export interface CreateCookbookParams {
+  name: string;
+  description?: string;
+}
+
+/**
+ * Validate and sanitize create_cookbook tool arguments.
+ */
+export function validateCreateCookbookParams(
+  raw: unknown,
+): CreateCookbookParams {
+  let params: unknown;
+  if (typeof raw === "string") {
+    try {
+      params = JSON.parse(raw);
+    } catch {
+      throw new ToolValidationError(
+        "Invalid JSON in create_cookbook params",
+      );
+    }
+  } else {
+    params = raw;
+  }
+
+  if (!params || typeof params !== "object") {
+    throw new ToolValidationError(
+      "create_cookbook params must be an object",
+    );
+  }
+
+  const p = params as Record<string, unknown>;
+
+  if (!p.name || typeof p.name !== "string" || !p.name.trim()) {
+    throw new ToolValidationError(
+      "create_cookbook requires a non-empty name",
+    );
+  }
+
+  return {
+    name: sanitizeString(p.name, 100),
+    description: p.description ? sanitizeString(p.description, 500) : undefined,
+  };
+}
+
+// ============================================================
 // Search Recipes Params
 // ============================================================
 

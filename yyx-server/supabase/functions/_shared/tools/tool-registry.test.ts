@@ -195,3 +195,89 @@ Deno.test("tool registry: app_action shapeResult handles non-object", () => {
   const shaped = reg.shapeResult("unexpected");
   assertEquals(shaped.result, "unexpected");
 });
+
+// ============================================================
+// Cookbook Tool Registration Tests
+// ============================================================
+
+Deno.test("tool registry: has list_user_cookbooks registered", () => {
+  const reg = getToolRegistration("list_user_cookbooks");
+  assertNotEquals(reg, undefined);
+  assertEquals(reg!.aiTool.name, "list_user_cookbooks");
+});
+
+Deno.test("tool registry: list_user_cookbooks is voice-allowed", () => {
+  const reg = getToolRegistration("list_user_cookbooks");
+  assertEquals(reg!.allowedInVoice, true);
+});
+
+Deno.test("tool registry: has add_recipe_to_cookbook registered", () => {
+  const reg = getToolRegistration("add_recipe_to_cookbook");
+  assertNotEquals(reg, undefined);
+  assertEquals(reg!.aiTool.name, "add_recipe_to_cookbook");
+});
+
+Deno.test("tool registry: add_recipe_to_cookbook is voice-allowed", () => {
+  const reg = getToolRegistration("add_recipe_to_cookbook");
+  assertEquals(reg!.allowedInVoice, true);
+});
+
+Deno.test("tool registry: has get_cookbook_recipes registered", () => {
+  const reg = getToolRegistration("get_cookbook_recipes");
+  assertNotEquals(reg, undefined);
+  assertEquals(reg!.aiTool.name, "get_cookbook_recipes");
+});
+
+Deno.test("tool registry: get_cookbook_recipes is voice-allowed", () => {
+  const reg = getToolRegistration("get_cookbook_recipes");
+  assertEquals(reg!.allowedInVoice, true);
+});
+
+Deno.test("tool registry: has create_cookbook registered", () => {
+  const reg = getToolRegistration("create_cookbook");
+  assertNotEquals(reg, undefined);
+  assertEquals(reg!.aiTool.name, "create_cookbook");
+});
+
+Deno.test("tool registry: create_cookbook is voice-allowed", () => {
+  const reg = getToolRegistration("create_cookbook");
+  assertEquals(reg!.allowedInVoice, true);
+});
+
+Deno.test("tool registry: cookbook tools have execute and shapeResult", () => {
+  for (
+    const name of [
+      "list_user_cookbooks",
+      "add_recipe_to_cookbook",
+      "get_cookbook_recipes",
+      "create_cookbook",
+    ]
+  ) {
+    const reg = getToolRegistration(name)!;
+    assertEquals(typeof reg.execute, "function", `${name} missing execute`);
+    assertEquals(
+      typeof reg.shapeResult,
+      "function",
+      `${name} missing shapeResult`,
+    );
+  }
+});
+
+Deno.test("tool registry: cookbook tools shapeResult returns result key", () => {
+  for (
+    const name of [
+      "list_user_cookbooks",
+      "add_recipe_to_cookbook",
+      "get_cookbook_recipes",
+      "create_cookbook",
+    ]
+  ) {
+    const reg = getToolRegistration(name)!;
+    const shaped = reg.shapeResult({ test: true });
+    assertEquals(
+      shaped.result !== undefined,
+      true,
+      `${name} shapeResult missing result`,
+    );
+  }
+});

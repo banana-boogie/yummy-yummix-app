@@ -16,6 +16,7 @@ interface WatercolorRecipeCardProps {
   compact?: boolean;
   className?: string;
   style?: StyleProp<ViewStyle>;
+  favoriteHeart?: React.ReactNode;
 }
 
 export const WatercolorRecipeCard = React.memo(function WatercolorRecipeCard({
@@ -23,6 +24,7 @@ export const WatercolorRecipeCard = React.memo(function WatercolorRecipeCard({
   compact = false,
   className = '',
   style,
+  favoriteHeart,
 }: WatercolorRecipeCardProps) {
   const router = useRouter();
   const { isPhone } = useDevice();
@@ -55,12 +57,19 @@ export const WatercolorRecipeCard = React.memo(function WatercolorRecipeCard({
           className="active:opacity-70"
           onPress={handlePress}
         >
-          <RecipeImage
-            pictureUrl={recipe.pictureUrl}
-            className="w-full"
-            aspectRatio={compact ? 4 / 3 : 16 / 9}
-            width="100%"
-          />
+          <View>
+            <RecipeImage
+              pictureUrl={recipe.pictureUrl}
+              className="w-full"
+              aspectRatio={compact ? 4 / 3 : 16 / 9}
+              width="100%"
+            />
+            {favoriteHeart && (
+              <View style={{ position: 'absolute', top: 8, right: 8 }}>
+                {favoriteHeart}
+              </View>
+            )}
+          </View>
 
           <View className="px-xxs pt-xxs pb-sm flex-row items-center justify-between">
             <Text

@@ -6,7 +6,11 @@
  */
 
 /** Allowed frontend action types. Add new actions here. */
-const ALLOWED_ACTIONS = ["share_recipe"] as const;
+const ALLOWED_ACTIONS = [
+  "share_recipe",
+  "add_to_cookbook",
+  "view_cookbook",
+] as const;
 export type AppActionType = (typeof ALLOWED_ACTIONS)[number];
 
 export interface AppActionResult {
@@ -20,7 +24,9 @@ export const appActionTool = {
     name: "app_action",
     description:
       "Trigger a frontend action in the app. Use this for actions that don't require server-side work. " +
-      "Available actions: share_recipe (share the current recipe via the device's share sheet). " +
+      "Available actions: share_recipe (share the current recipe via the device's share sheet), " +
+      "add_to_cookbook (open the add-to-cookbook sheet for a recipe — pass recipeId in params), " +
+      "view_cookbook (navigate to a cookbook — pass cookbookId in params). " +
       "Only use this tool when the user explicitly requests one of these actions.",
     parameters: {
       type: "object",
@@ -34,7 +40,8 @@ export const appActionTool = {
         params: {
           type: "object",
           description:
-            "Optional parameters for the action. For share_recipe, no params are needed.",
+            "Optional parameters for the action. For share_recipe, no params needed. " +
+            "For add_to_cookbook, pass { recipeId: string }. For view_cookbook, pass { cookbookId: string }.",
         },
       },
       required: ["action"],

@@ -17,7 +17,7 @@ export interface RecipeCard {
 
 export interface Action {
   id: string;
-  type: 'start_cooking' | 'view_recipe' | 'save_recipe' | 'set_timer' | 'resume_cooking' | 'share_recipe';
+  type: 'start_cooking' | 'view_recipe' | 'save_recipe' | 'set_timer' | 'resume_cooking' | 'share_recipe' | 'add_to_cookbook' | 'view_cookbook';
   label: string;
   payload: Record<string, unknown>;
   autoExecute?: boolean;

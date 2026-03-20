@@ -8,7 +8,11 @@ type EventType =
   | 'cook_complete'
   | 'search'
   | 'recipe_generate'
-  | 'action_execute';
+  | 'action_execute'
+  | 'cookbook_created'
+  | 'cookbook_deleted'
+  | 'cookbook_viewed'
+  | 'recipe_added_to_cookbook';
 type RecipeTable = 'recipes' | 'user_recipes';
 
 interface QueuedEvent {
@@ -230,6 +234,43 @@ class EventService {
       recipe_name: recipeName,
       success,
       duration_ms: Math.round(durationMs),
+    });
+  }
+
+  /**
+   * Log when a user creates a cookbook.
+   */
+  logCookbookCreated(cookbookName: string): void {
+    this.queueEvent('cookbook_created', {
+      cookbook_name: cookbookName,
+    });
+  }
+
+  /**
+   * Log when a user deletes a cookbook.
+   */
+  logCookbookDeleted(cookbookId: string): void {
+    this.queueEvent('cookbook_deleted', {
+      cookbook_id: cookbookId,
+    });
+  }
+
+  /**
+   * Log when a user views a cookbook detail page.
+   */
+  logCookbookViewed(cookbookId: string): void {
+    this.queueEvent('cookbook_viewed', {
+      cookbook_id: cookbookId,
+    });
+  }
+
+  /**
+   * Log when a user adds a recipe to a cookbook.
+   */
+  logRecipeAddedToCookbook(cookbookId: string, recipeId: string): void {
+    this.queueEvent('recipe_added_to_cookbook', {
+      cookbook_id: cookbookId,
+      recipe_id: recipeId,
     });
   }
 

@@ -14,6 +14,7 @@ interface RecipeCardProps {
   featured?: boolean;
   className?: string;
   style?: StyleProp<ViewStyle>;
+  favoriteHeart?: React.ReactNode;
 }
 
 // Using React.memo to prevent unnecessary re-renders
@@ -21,7 +22,8 @@ export const RecipeCard = React.memo(function RecipeCard({
   recipe,
   featured = false,
   className = '',
-  style
+  style,
+  favoriteHeart,
 }: RecipeCardProps) {
   const router = useRouter();
 
@@ -53,6 +55,11 @@ export const RecipeCard = React.memo(function RecipeCard({
               aspectRatio={featured ? 21 / 9 : 16 / 9}
               width='100%'
             />
+            {favoriteHeart && (
+              <View style={{ position: 'absolute', top: 8, right: 8 }}>
+                {favoriteHeart}
+              </View>
+            )}
           </View>
           <View className={`w-full ${featured ? 'px-sm' : ''}`}>
             <Text preset="h1" className="mb-xs">{recipe.name}</Text>

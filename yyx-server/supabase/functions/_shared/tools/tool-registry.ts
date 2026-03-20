@@ -24,6 +24,19 @@ import {
   appActionTool,
   executeAppAction,
 } from "./app-action.ts";
+import {
+  listUserCookbooks,
+  listUserCookbooksTool,
+} from "./list-user-cookbooks.ts";
+import {
+  addRecipeToCookbook,
+  addRecipeToCookbookTool,
+} from "./add-recipe-to-cookbook.ts";
+import {
+  getCookbookRecipes,
+  getCookbookRecipesTool,
+} from "./get-cookbook-recipes.ts";
+import { createCookbook, createCookbookTool } from "./create-cookbook.ts";
 
 export interface ToolExecutionContext {
   supabase: SupabaseClient;
@@ -144,6 +157,78 @@ const TOOL_REGISTRY: Record<string, ToolRegistration> = {
       }
       return { result };
     },
+  },
+  list_user_cookbooks: {
+    aiTool: {
+      name: listUserCookbooksTool.function.name,
+      description: listUserCookbooksTool.function.description,
+      parameters: listUserCookbooksTool.function.parameters as Record<
+        string,
+        unknown
+      >,
+    },
+    allowedInVoice: true,
+    execute: async (args, context) =>
+      await listUserCookbooks(
+        context.supabase,
+        args,
+        context.userContext,
+      ),
+    shapeResult: (result) => ({ result }),
+  },
+  add_recipe_to_cookbook: {
+    aiTool: {
+      name: addRecipeToCookbookTool.function.name,
+      description: addRecipeToCookbookTool.function.description,
+      parameters: addRecipeToCookbookTool.function.parameters as Record<
+        string,
+        unknown
+      >,
+    },
+    allowedInVoice: true,
+    execute: async (args, context) =>
+      await addRecipeToCookbook(
+        context.supabase,
+        args,
+        context.userContext,
+      ),
+    shapeResult: (result) => ({ result }),
+  },
+  get_cookbook_recipes: {
+    aiTool: {
+      name: getCookbookRecipesTool.function.name,
+      description: getCookbookRecipesTool.function.description,
+      parameters: getCookbookRecipesTool.function.parameters as Record<
+        string,
+        unknown
+      >,
+    },
+    allowedInVoice: true,
+    execute: async (args, context) =>
+      await getCookbookRecipes(
+        context.supabase,
+        args,
+        context.userContext,
+      ),
+    shapeResult: (result) => ({ result }),
+  },
+  create_cookbook: {
+    aiTool: {
+      name: createCookbookTool.function.name,
+      description: createCookbookTool.function.description,
+      parameters: createCookbookTool.function.parameters as Record<
+        string,
+        unknown
+      >,
+    },
+    allowedInVoice: true,
+    execute: async (args, context) =>
+      await createCookbook(
+        context.supabase,
+        args,
+        context.userContext,
+      ),
+    shapeResult: (result) => ({ result }),
   },
   retrieve_cooked_recipes: {
     aiTool: {

@@ -72,7 +72,7 @@ function formatRecipeForSharing(recipe: GeneratedRecipe): string {
     lines.push('');
 
     if (recipe.ingredients.length > 0) {
-        lines.push(recipe.language === 'es' ? 'Ingredientes:' : 'Ingredients:');
+        lines.push(recipe.locale?.startsWith('es') ? 'Ingredientes:' : 'Ingredients:');
         for (const ing of recipe.ingredients) {
             lines.push(`- ${ing.quantity} ${ing.unit} ${ing.name}`);
         }
@@ -80,7 +80,7 @@ function formatRecipeForSharing(recipe: GeneratedRecipe): string {
     }
 
     if (recipe.steps.length > 0) {
-        lines.push(recipe.language === 'es' ? 'Pasos:' : 'Steps:');
+        lines.push(recipe.locale?.startsWith('es') ? 'Pasos:' : 'Steps:');
         for (const step of recipe.steps) {
             lines.push(`${step.order}. ${step.instruction}`);
         }
@@ -93,6 +93,25 @@ function formatRecipeForSharing(recipe: GeneratedRecipe): string {
 }
 
 const ACTION_HANDLERS: Record<string, ActionHandler> = {
+    add_to_cookbook: {
+        execute: (payload) => {
+            const recipeId = payload.recipeId as string;
+            if (!recipeId) return false;
+            router.push({
+                pathname: '/(tabs)/recipes/[id]',
+                params: { id: recipeId, openCookbookSheet: 'true' },
+            });
+            return true;
+        },
+    },
+    view_cookbook: {
+        execute: (payload) => {
+            const cookbookId = payload.cookbookId as string;
+            if (!cookbookId) return false;
+            router.push(`/(tabs)/cookbooks/${cookbookId}`);
+            return true;
+        },
+    },
     view_recipe: {
         execute: (payload) => {
             const recipeId = payload.recipeId as string;
