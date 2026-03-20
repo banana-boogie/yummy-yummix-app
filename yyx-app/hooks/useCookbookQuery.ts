@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import {
   useQuery,
   useMutation,
@@ -47,18 +46,6 @@ export const cookbookKeys = {
 export function useUserCookbooksQuery() {
   const { user } = useAuth();
   const { language } = useLanguage();
-  const defaultEnsuredRef = useRef(false);
-
-  // Ensure default cookbook exists once per mount (not on every query/refocus)
-  useEffect(() => {
-    if (user?.id && !defaultEnsuredRef.current) {
-      defaultEnsuredRef.current = true;
-      cookbookService.ensureDefaultCookbook(user.id).catch(() => {
-        // Reset flag so it retries on next mount if creation failed
-        defaultEnsuredRef.current = false;
-      });
-    }
-  }, [user?.id]);
 
   return useQuery({
     queryKey: cookbookKeys.list(user?.id || '', language),
@@ -66,6 +53,9 @@ export function useUserCookbooksQuery() {
       if (!user?.id) {
         throw new Error('User not authenticated');
       }
+
+      // Ensure default Favorites cookbook exists before fetching
+      await cookbookService.ensureDefaultCookbook(user.id);
 
       return await cookbookService.getUserCookbooks(user.id);
     },

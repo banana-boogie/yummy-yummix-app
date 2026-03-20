@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { WatercolorRecipeCard } from '@/components/recipe/WatercolorRecipeCard';
+import { FavoriteHeart } from '@/components/recipe/FavoriteHeart';
 import { Text } from '@/components/common/Text';
 import { COLORS, SPACING, FONT_SIZES } from '@/constants/design-tokens';
 import i18n from '@/i18n';
@@ -47,7 +48,12 @@ const HorizontalSection = React.memo(function HorizontalSection({ recipes }: { r
       removeClippedSubviews
     >
       {recipes.map(recipe => (
-        <WatercolorRecipeCard key={recipe.id} recipe={recipe} compact />
+        <WatercolorRecipeCard
+          key={recipe.id}
+          recipe={recipe}
+          compact
+          favoriteHeart={<FavoriteHeart recipeId={recipe.id} size={20} />}
+        />
       ))}
     </ScrollView>
   );
@@ -63,7 +69,10 @@ const GridItem = React.memo(function GridItem({
 }) {
   return (
     <View style={{ width: itemWidth, marginBottom: SPACING.xl }}>
-      <WatercolorRecipeCard recipe={recipe} />
+      <WatercolorRecipeCard
+        recipe={recipe}
+        favoriteHeart={<FavoriteHeart recipeId={recipe.id} size={20} />}
+      />
     </View>
   );
 });

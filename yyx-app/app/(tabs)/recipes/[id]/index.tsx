@@ -35,11 +35,20 @@ import { useCookbooksContainingRecipe } from '@/hooks/useCookbookQuery';
 import { useAuth } from '@/contexts/AuthContext';
 
 const RecipeDetail: React.FC = () => {
-  const { id } = useLocalSearchParams();
+  const { id, openCookbookSheet } = useLocalSearchParams<{ id: string; openCookbookSheet?: string }>();
   const router = useRouter();
   const { user } = useAuth();
   const [showCookbookSheet, setShowCookbookSheet] = useState(false);
   const { toast, showToast, dismissToast } = useToast();
+  const openSheetHandledRef = React.useRef(false);
+
+  // Auto-open cookbook sheet when navigated via AI add_to_cookbook action
+  useEffect(() => {
+    if (openCookbookSheet === 'true' && !openSheetHandledRef.current) {
+      openSheetHandledRef.current = true;
+      setShowCookbookSheet(true);
+    }
+  }, [openCookbookSheet]);
 
   // Validate ID early to prevent unnecessary API calls
   useEffect(() => {

@@ -6,7 +6,6 @@ import * as Haptics from 'expo-haptics';
 
 import { Recipe } from '@/types/recipe.types';
 import { RecipeImage } from '@/components/recipe/RecipeImage';
-import { FavoriteHeart } from '@/components/recipe/FavoriteHeart';
 import { Text } from '@/components/common/Text';
 import { RecipeInfo } from '../recipe-detail/RecipeInfo';
 
@@ -15,6 +14,7 @@ interface RecipeCardProps {
   featured?: boolean;
   className?: string;
   style?: StyleProp<ViewStyle>;
+  favoriteHeart?: React.ReactNode;
 }
 
 // Using React.memo to prevent unnecessary re-renders
@@ -22,7 +22,8 @@ export const RecipeCard = React.memo(function RecipeCard({
   recipe,
   featured = false,
   className = '',
-  style
+  style,
+  favoriteHeart,
 }: RecipeCardProps) {
   const router = useRouter();
 
@@ -54,9 +55,11 @@ export const RecipeCard = React.memo(function RecipeCard({
               aspectRatio={featured ? 21 / 9 : 16 / 9}
               width='100%'
             />
-            <View style={{ position: 'absolute', top: 8, right: 8 }}>
-              <FavoriteHeart recipeId={recipe.id} size={20} />
-            </View>
+            {favoriteHeart && (
+              <View style={{ position: 'absolute', top: 8, right: 8 }}>
+                {favoriteHeart}
+              </View>
+            )}
           </View>
           <View className={`w-full ${featured ? 'px-sm' : ''}`}>
             <Text preset="h1" className="mb-xs">{recipe.name}</Text>
