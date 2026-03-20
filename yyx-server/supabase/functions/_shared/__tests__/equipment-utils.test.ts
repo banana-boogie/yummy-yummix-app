@@ -3,7 +3,11 @@
  */
 
 import { assertEquals } from "https://deno.land/std@0.192.0/testing/asserts.ts";
-import { getThermomixModel, hasThermomix } from "../equipment-utils.ts";
+import {
+  getThermomixModel,
+  getThermomixModels,
+  hasThermomix,
+} from "../equipment-utils.ts";
 
 Deno.test("hasThermomix - returns true for Thermomix", () => {
   assertEquals(hasThermomix(["Thermomix", "Oven"]), true);
@@ -52,6 +56,41 @@ Deno.test("getThermomixModel - returns null for non-Thermomix equipment", () => 
   assertEquals(getThermomixModel(["Oven", "Blender"]), null);
 });
 
-Deno.test("getThermomixModel - picks first Thermomix if multiple present", () => {
-  assertEquals(getThermomixModel(["thermomix_TM5", "thermomix_TM7"]), "TM5");
+Deno.test("getThermomixModel - picks newest model when multiple present", () => {
+  assertEquals(getThermomixModel(["thermomix_TM5", "thermomix_TM7"]), "TM7");
+});
+
+// --- getThermomixModels ---
+
+Deno.test("getThermomixModels - returns all models sorted newest-first", () => {
+  assertEquals(
+    getThermomixModels(["thermomix_TM5", "thermomix_TM6", "thermomix_TM7"]),
+    ["TM7", "TM6", "TM5"],
+  );
+});
+
+Deno.test("getThermomixModels - returns single model in array", () => {
+  assertEquals(getThermomixModels(["thermomix_TM6"]), ["TM6"]);
+});
+
+Deno.test("getThermomixModels - returns empty array when no models", () => {
+  assertEquals(getThermomixModels(["Oven", "Blender"]), []);
+});
+
+Deno.test("getThermomixModels - returns empty array for empty input", () => {
+  assertEquals(getThermomixModels([]), []);
+});
+
+Deno.test("getThermomixModels - deduplicates models", () => {
+  assertEquals(
+    getThermomixModels(["thermomix_TM6", "Thermomix TM6"]),
+    ["TM6"],
+  );
+});
+
+Deno.test("getThermomixModels - handles mixed formats", () => {
+  assertEquals(
+    getThermomixModels(["thermomix_tm5", "Thermomix TM7"]),
+    ["TM7", "TM5"],
+  );
 });

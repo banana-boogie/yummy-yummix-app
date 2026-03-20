@@ -25,8 +25,10 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
   const [selectedEquipment, setSelectedEquipment] = useState<KitchenEquipment[]>(
     formData.kitchenEquipment ?? []
   );
-  const [thermomixModel, setThermomixModel] = useState<ThermomixModel | null>(
-    formData.kitchenEquipment?.find(e => e.type === 'thermomix')?.model ?? null
+  const [thermomixModels, setThermomixModels] = useState<ThermomixModel[]>(
+    formData.kitchenEquipment
+      ?.filter(e => e.type === 'thermomix' && e.model)
+      .map(e => e.model!) ?? []
   );
   const [showModelError, setShowModelError] = useState(false);
 
@@ -34,12 +36,10 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
   useEffect(() => {
     if (formData.kitchenEquipment) {
       setSelectedEquipment(formData.kitchenEquipment);
-      const thermomix = formData.kitchenEquipment.find(e => e.type === 'thermomix');
-      if (thermomix?.model) {
-        setThermomixModel(thermomix.model);
-      } else {
-        setThermomixModel(null);
-      }
+      const models = formData.kitchenEquipment
+        .filter(e => e.type === 'thermomix' && e.model)
+        .map(e => e.model!);
+      setThermomixModels(models);
     }
   }, [formData.kitchenEquipment]);
 
@@ -53,12 +53,13 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
       // Remove equipment
       newEquipment = selectedEquipment.filter(e => e.type !== type);
       if (type === 'thermomix') {
-        setThermomixModel(null);
+        setThermomixModels([]);
       }
     } else {
-      // Add equipment
+      // Add equipment (Thermomix entries are added via model selection)
       if (type === 'thermomix') {
-        newEquipment = [...selectedEquipment, { type, model: thermomixModel ?? undefined }];
+        // Add a placeholder; models will be selected next
+        newEquipment = [...selectedEquipment, { type }];
       } else {
         newEquipment = [...selectedEquipment, { type }];
       }
@@ -68,22 +69,34 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
     updateFormData({ kitchenEquipment: newEquipment });
   };
 
-  const selectThermomixModel = (model: ThermomixModel) => {
-    setThermomixModel(model);
-    setShowModelError(false); // Clear error when model is selected
+  const toggleThermomixModel = (model: ThermomixModel) => {
+    setShowModelError(false);
 
-    // Update the thermomix equipment with the selected model
-    const newEquipment = selectedEquipment.map(e =>
-      e.type === 'thermomix' ? { ...e, model } : e
-    );
+    const isSelected = thermomixModels.includes(model);
+    const newModels = isSelected
+      ? thermomixModels.filter(m => m !== model)
+      : [...thermomixModels, model];
+
+    setThermomixModels(newModels);
+
+    // Rebuild equipment: remove all thermomix entries, add one per selected model
+    const nonThermomix = selectedEquipment.filter(e => e.type !== 'thermomix');
+    const thermomixEntries: KitchenEquipment[] = newModels.map(m => ({
+      type: 'thermomix' as const,
+      model: m,
+    }));
+    // If models are selected, add one entry per model; otherwise keep a bare entry
+    const newEquipment = newModels.length > 0
+      ? [...nonThermomix, ...thermomixEntries]
+      : [...nonThermomix, { type: 'thermomix' as const }];
 
     setSelectedEquipment(newEquipment);
     updateFormData({ kitchenEquipment: newEquipment });
   };
 
   const handleNext = () => {
-    // Validate: if Thermomix is selected, a model must be chosen
-    if (hasThermomix && !thermomixModel) {
+    // Validate: if Thermomix is selected, at least one model must be chosen
+    if (hasThermomix && thermomixModels.length === 0) {
       setShowModelError(true);
       return;
     }
@@ -152,25 +165,34 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
                 {i18n.t('onboarding.steps.equipment.thermomix.modelQuestion')}
               </Text>
               <View className="flex-row gap-md">
-                {EQUIPMENT_CONFIG.thermomix.models.map(model => (
-                  <Pressable
-                    key={model}
-                    onPress={() => selectThermomixModel(model)}
-                    className={`px-lg py-md rounded-lg border-2 ${
-                      thermomixModel === model
-                        ? 'bg-primary-medium border-primary-medium'
-                        : showModelError
-                          ? 'bg-background-secondary border-status-error'
-                          : 'bg-background-secondary border-transparent'
-                    }`}
-                  >
-                    <Text className={`font-semibold ${
-                      thermomixModel === model ? 'text-white' : 'text-text-primary'
-                    }`}>
-                      {model}
-                    </Text>
-                  </Pressable>
-                ))}
+                {EQUIPMENT_CONFIG.thermomix.models.map(model => {
+                  const isModelSelected = thermomixModels.includes(model);
+                  return (
+                    <Pressable
+                      key={model}
+                      onPress={() => toggleThermomixModel(model)}
+                      className={`flex-row items-center px-lg py-md rounded-lg border-2 ${
+                        isModelSelected
+                          ? 'bg-primary-medium border-primary-medium'
+                          : showModelError
+                            ? 'bg-background-secondary border-status-error'
+                            : 'bg-background-secondary border-transparent'
+                      }`}
+                    >
+                      <Ionicons
+                        name={isModelSelected ? 'checkbox' : 'square-outline'}
+                        size={18}
+                        color={isModelSelected ? '#FFFFFF' : '#828181'}
+                        style={{ marginRight: 6 }}
+                      />
+                      <Text className={`font-semibold ${
+                        isModelSelected ? 'text-white' : 'text-text-primary'
+                      }`}>
+                        {model}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
               {showModelError && (
                 <Text preset="caption" className="text-status-error mt-sm">

@@ -25,6 +25,9 @@ import { Gender, ActivityLevel } from '@/types/user';
 import { DietaryRestriction, DietType, CuisinePreference } from '@/types/dietary';
 import { COLORS } from '@/constants/design-tokens';
 import { normalizeDietAndCuisinePreferences } from '@/utils/preferencesNormalization';
+import { EquipmentModal } from '@/components/profile/EquipmentModal';
+import { parseEquipmentString, formatEquipmentForStorage } from '@/constants/equipment';
+import type { KitchenEquipment } from '@/types/onboarding';
 import logger from '@/services/logger';
 
 const BIO_MAX_LENGTH = 140;
@@ -64,6 +67,7 @@ export default function EditProfile() {
   const [showDietaryModal, setShowDietaryModal] = useState(false);
   const [showDietModal, setShowDietModal] = useState(false);
   const [showCuisineModal, setShowCuisineModal] = useState(false);
+  const [showEquipmentModal, setShowEquipmentModal] = useState(false);
 
   // Validation state
   const [heightError, setHeightError] = useState<string | undefined>();
@@ -271,6 +275,26 @@ export default function EditProfile() {
       () => setShowCuisineModal(false),
     );
 
+  const handleEquipmentUpdate = async (equipment: KitchenEquipment[]) => {
+    try {
+      setIsSaving(true);
+      setSaveError(null);
+      const formattedEquipment = equipment.map(eq =>
+        formatEquipmentForStorage(eq.type, eq.model)
+      );
+      await updateUserProfile({
+        kitchen_equipment: formattedEquipment,
+      } as any);
+      setShowEquipmentModal(false);
+    } catch (error) {
+      logger.error('Error updating equipment:', error);
+      setSaveError(i18n.t('common.errors.default'));
+      setShowErrorModal(true);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // --- Display name mappers ---
 
   const dietDisplayNames = formData.dietTypes
@@ -284,6 +308,17 @@ export default function EditProfile() {
   const cuisineDisplayNames = formData.cuisinePreferences.map(
     slug => i18n.t(`onboarding.steps.cuisines.options.${slug}`)
   );
+
+  // Parse stored equipment strings back to KitchenEquipment[]
+  const currentEquipment: KitchenEquipment[] = useMemo(() =>
+    (userProfile?.kitchenEquipment ?? []).map(parseEquipmentString),
+    [userProfile?.kitchenEquipment]
+  );
+
+  const equipmentDisplayNames = currentEquipment.map(eq => {
+    const name = i18n.t(`onboarding.steps.equipment.${eq.type}.name`);
+    return eq.model ? `${name} (${eq.model})` : name;
+  });
 
   // --- Render ---
 
@@ -363,6 +398,12 @@ export default function EditProfile() {
                 selected={cuisineDisplayNames}
                 onEdit={() => setShowCuisineModal(true)}
                 emptyText={i18n.t('profile.summaries.noCuisine')}
+              />
+              <PreferenceSummary
+                label={i18n.t('profile.summaries.equipment')}
+                selected={equipmentDisplayNames}
+                onEdit={() => setShowEquipmentModal(true)}
+                emptyText={i18n.t('profile.summaries.noEquipment')}
               />
             </View>
           </FormSection>
@@ -450,6 +491,13 @@ export default function EditProfile() {
         onClose={() => setShowCuisineModal(false)}
         currentCuisines={formData.cuisinePreferences}
         onSave={handleCuisineUpdate}
+      />
+
+      <EquipmentModal
+        visible={showEquipmentModal}
+        onClose={() => setShowEquipmentModal(false)}
+        currentEquipment={currentEquipment}
+        onSave={handleEquipmentUpdate}
       />
 
       <StatusModal

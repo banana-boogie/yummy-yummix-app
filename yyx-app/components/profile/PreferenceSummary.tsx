@@ -28,12 +28,12 @@ export const PreferenceSummary = React.memo(function PreferenceSummary({ label, 
         <View className="flex-row flex-wrap gap-xs">
           {selected.map((item) => (
             <View key={item} className="bg-primary-light rounded-full px-sm py-xxs">
-              <Text preset="caption">{item}</Text>
+              <Text preset="bodySmall">{item}</Text>
             </View>
           ))}
         </View>
       ) : (
-        <Text preset="caption" className="text-text-secondary">
+        <Text preset="bodySmall" className="text-text-secondary">
           {emptyText}
         </Text>
       )}

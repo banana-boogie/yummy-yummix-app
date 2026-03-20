@@ -94,8 +94,8 @@ export const onboarding = {
         title: "Thermomix",
         name: "Thermomix",
         description: "Get step-by-step Thermomix cooking parameters",
-        modelQuestion: "Which model do you have?",
-        modelRequired: "Please select your Thermomix model",
+        modelQuestion: "Which model(s) do you have?",
+        modelRequired: "Please select at least one Thermomix model",
       },
       air_fryer: {
         name: "Air Fryer",

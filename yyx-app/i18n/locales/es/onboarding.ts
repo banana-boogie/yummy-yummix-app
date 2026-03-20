@@ -95,8 +95,8 @@ export const onboarding = {
         title: "Thermomix",
         name: "Thermomix",
         description: "Obtén parámetros de cocción paso a paso para Thermomix",
-        modelQuestion: "¿Qué modelo tienes?",
-        modelRequired: "Por favor selecciona tu modelo de Thermomix",
+        modelQuestion: "¿Qué modelo(s) tienes?",
+        modelRequired: "Por favor selecciona al menos un modelo de Thermomix",
       },
       air_fryer: {
         name: "Freidora de Aire",

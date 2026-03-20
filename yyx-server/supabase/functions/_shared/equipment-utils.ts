@@ -14,22 +14,44 @@ export function hasThermomix(kitchenEquipment: string[]): boolean {
   return kitchenEquipment.some((eq) => eq.toLowerCase().includes("thermomix"));
 }
 
+/** Model ranking used for sorting (highest = newest). */
+const MODEL_RANK: Record<ThermomixModel, number> = {
+  TM5: 1,
+  TM6: 2,
+  TM7: 3,
+};
+
+/**
+ * Extract ALL Thermomix models from a kitchen_equipment array.
+ *
+ * Parses entries like "thermomix_TM6", "thermomix_tm7", "Thermomix TM5".
+ * Returns an array of unique models sorted newest-first (e.g. ["TM7", "TM6"]).
+ * Returns an empty array if no models are found.
+ */
+export function getThermomixModels(
+  kitchenEquipment: string[],
+): ThermomixModel[] {
+  const found = new Set<ThermomixModel>();
+  for (const eq of kitchenEquipment) {
+    const upper = eq.toUpperCase();
+    if (upper.includes("TM7")) found.add("TM7");
+    if (upper.includes("TM6")) found.add("TM6");
+    if (upper.includes("TM5")) found.add("TM5");
+  }
+  return [...found].sort((a, b) => MODEL_RANK[b] - MODEL_RANK[a]);
+}
+
 /**
  * Extract the Thermomix model from a kitchen_equipment array.
  *
- * Parses entries like "thermomix_TM6", "thermomix_tm7", "Thermomix TM5".
- * Returns the model ("TM5" | "TM6" | "TM7") or null if no match is found.
+ * Returns the newest (highest-ranked) model, or null if none found.
+ * For multi-model support, use `getThermomixModels()` instead.
  */
 export function getThermomixModel(
   kitchenEquipment: string[],
 ): ThermomixModel | null {
-  for (const eq of kitchenEquipment) {
-    const upper = eq.toUpperCase();
-    if (upper.includes("TM7")) return "TM7";
-    if (upper.includes("TM6")) return "TM6";
-    if (upper.includes("TM5")) return "TM5";
-  }
-  return null;
+  const models = getThermomixModels(kitchenEquipment);
+  return models.length > 0 ? models[0] : null;
 }
 
 /**

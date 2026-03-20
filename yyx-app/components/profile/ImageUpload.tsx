@@ -144,7 +144,7 @@ export default function ImageUpload(props: Props) {
                 cachePolicy="memory-disk"
               />
               {caption && (
-                <Text preset="caption" className="mt-xxs text-center text-xs">
+                <Text preset="bodySmall" className="mt-xxs text-center text-text-secondary">
                   {caption}
                 </Text>
               )}
