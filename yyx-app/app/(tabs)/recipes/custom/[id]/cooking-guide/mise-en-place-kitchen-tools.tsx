@@ -1,6 +1,7 @@
 import { View } from 'react-native';
 import { useState, useEffect } from 'react';
 import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
+import { AskIrmixyButton } from '@/components/cooking-guide/AskIrmixyButton';
 import * as Haptics from 'expo-haptics';
 import i18n from '@/i18n';
 import { useCustomRecipe } from '@/hooks/useCustomRecipe';
@@ -14,6 +15,7 @@ import { MiseEnPlaceKitchenTool } from '@/components/cooking-guide/MiseEnPlaceKi
 import { Text } from '@/components/common/Text';
 import { LAYOUT } from '@/constants/design-tokens';
 import { getCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
+import { useCookingSession } from '@/contexts/CookingSessionContext';
 
 type CheckableKitchenTool = {
     id: string;
@@ -31,6 +33,14 @@ export default function CustomKitchenToolsStep() {
     const [kitchenTools, setKitchenTools] = useState<CheckableKitchenTool[]>([]);
     const [showIrmixyModal, setShowIrmixyModal] = useState(false);
     const { isMobile } = useDevice();
+    const {
+        irmixyChatSessionId,
+        setIrmixyChatSessionId,
+        irmixyChatMessages,
+        setIrmixyChatMessages,
+        irmixyVoiceTranscriptMessages,
+        setIrmixyVoiceTranscriptMessages,
+    } = useCookingSession();
 
     // Calculate number of columns based on screen size
     const numColumns = 2;
@@ -67,12 +77,20 @@ export default function CustomKitchenToolsStep() {
                 scrollEnabled={true}
                 contentPaddingHorizontal={0}
                 footer={
-                    <StepNavigationButtons
-                        onBack={() => router.back()}
-                        onNext={() => router.push(getCustomCookingGuidePath(id as string, from, '1'))}
-                        backText={i18n.t('recipes.cookingGuide.navigation.back')}
-                        nextText={i18n.t('recipes.cookingGuide.navigation.next')}
-                    />
+                    <View>
+                        <View className="items-center pb-sm pt-xs">
+                            <AskIrmixyButton onPress={() => setShowIrmixyModal(true)} animate={false} />
+                        </View>
+                        <View className="mx-lg mb-xs">
+                            <View className="h-[1px] bg-border-default opacity-30" />
+                        </View>
+                        <StepNavigationButtons
+                            onBack={() => router.back()}
+                            onNext={() => router.push(getCustomCookingGuidePath(id as string, from, '1'))}
+                            backText={i18n.t('recipes.cookingGuide.navigation.back')}
+                            nextText={i18n.t('recipes.cookingGuide.navigation.next')}
+                        />
+                    </View>
                 }
             >
                 <CookingGuideHeader
@@ -129,6 +147,12 @@ export default function CustomKitchenToolsStep() {
                     recipeTitle: recipe?.name || '',
                     kitchenTools: kitchenTools.map(item => item.name)
                 }}
+                externalSessionId={irmixyChatSessionId}
+                onExternalSessionIdChange={setIrmixyChatSessionId}
+                externalMessages={irmixyChatMessages}
+                onExternalMessagesChange={setIrmixyChatMessages}
+                externalVoiceTranscriptMessages={irmixyVoiceTranscriptMessages}
+                onExternalVoiceTranscriptMessagesChange={setIrmixyVoiceTranscriptMessages}
             />
         </View>
     );

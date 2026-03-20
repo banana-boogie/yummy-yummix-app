@@ -126,7 +126,7 @@ export function ChatSessionsMenu({
                 <View className="w-10 h-10 items-center justify-center rounded-full bg-background-secondary">
                     <MaterialCommunityIcons name="menu" size={24} color={COLORS.text.default} />
                 </View>
-                <Text className="text-text-secondary text-[10px] mt-[1px]">
+                <Text className="text-text-secondary text-xs font-medium mt-[1px]">
                     {i18n.t('chat.sessions.chatsLabel')}
                 </Text>
             </TouchableOpacity>
@@ -201,7 +201,7 @@ export function ChatSessionsMenu({
                                             >
                                                 {session.title}
                                             </Text>
-                                            <Text className="text-text-tertiary text-xs">
+                                            <Text className="text-text-tertiary text-sm">
                                                 {formatDate(session.createdAt)}
                                             </Text>
                                         </View>

@@ -16,6 +16,8 @@ interface UseResumeSessionParams {
     onSessionCreated?: (sessionId: string) => void;
     resumeDismissed: boolean;
     setResumeDismissed: (dismissed: boolean) => void;
+    /** When true, skip session lookup entirely (e.g. cooking modal context) */
+    disableResume?: boolean;
 }
 
 export function useResumeSession({
@@ -28,6 +30,7 @@ export function useResumeSession({
     onSessionCreated,
     resumeDismissed,
     setResumeDismissed,
+    disableResume,
 }: UseResumeSessionParams) {
     const [resumeSession, setResumeSession] = useState<{ sessionId: string; title: string } | null>(null);
     const isMountedRef = useRef(true);
@@ -55,7 +58,7 @@ export function useResumeSession({
 
     // Check for resumable session on mount
     useEffect(() => {
-        if (initialSessionId || messagesLength > 0 || resumeDismissed) return;
+        if (disableResume || initialSessionId || messagesLength > 0 || resumeDismissed) return;
 
         getLastSessionWithMessages().then((result) => {
             if (!isMountedRef.current) return;

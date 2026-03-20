@@ -19,7 +19,15 @@ import { useCookingSession } from '@/contexts/CookingSessionContext';
 export default function CustomCookingStep() {
     const { id, step: stepParam, from } = useLocalSearchParams<{ id: string; step: string; from?: string }>();
     const { recipe } = useCustomRecipe(id as string);
-    const { updateStep } = useCookingSession();
+    const {
+        updateStep,
+        irmixyChatSessionId,
+        setIrmixyChatSessionId,
+        irmixyChatMessages,
+        setIrmixyChatMessages,
+        irmixyVoiceTranscriptMessages,
+        setIrmixyVoiceTranscriptMessages,
+    } = useCookingSession();
     const isChatFlow = isFromChat(from);
     const [showIrmixyModal, setShowIrmixyModal] = useState(false);
 
@@ -82,8 +90,15 @@ export default function CustomCookingStep() {
 
     const footer = useMemo(() => (
         <View>
-            <View className="items-center pb-xs">
-                <AskIrmixyButton onPress={() => setShowIrmixyModal(true)} animate={currentStepNumber === 1} />
+            <View className="items-center pb-sm pt-xs">
+                <AskIrmixyButton
+                    onPress={() => setShowIrmixyModal(true)}
+                    animate={currentStepNumber === 1}
+                    showHelpText={currentStepNumber === 1}
+                />
+            </View>
+            <View className="mx-lg mb-xs">
+                <View className="h-[1px] bg-border-default opacity-30" />
             </View>
             <StepNavigationButtons
                 onBack={handleNavigation.back}
@@ -131,6 +146,12 @@ export default function CustomCookingStep() {
                     totalSteps,
                     stepInstructions: currentStep?.instruction,
                 }}
+                externalSessionId={irmixyChatSessionId}
+                onExternalSessionIdChange={setIrmixyChatSessionId}
+                externalMessages={irmixyChatMessages}
+                onExternalMessagesChange={setIrmixyChatMessages}
+                externalVoiceTranscriptMessages={irmixyVoiceTranscriptMessages}
+                onExternalVoiceTranscriptMessagesChange={setIrmixyVoiceTranscriptMessages}
             />
         </View>
     );

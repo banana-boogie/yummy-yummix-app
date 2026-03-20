@@ -49,7 +49,7 @@ export function ThermomixCookingParameters({
     <View className={`items-center ${className}`} style={style}>
       {mode && COOKING_MODE_LABELS[mode] && (
         <View className="bg-primary-medium/20 rounded-lg px-sm py-xxs mb-xs">
-          <Text preset="caption" className="text-text-default font-medium">
+          <Text preset="body" className="text-text-default font-medium">
             {COOKING_MODE_LABELS[mode][language] ?? COOKING_MODE_LABELS[mode].es}
           </Text>
         </View>

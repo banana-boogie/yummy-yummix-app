@@ -95,19 +95,17 @@ export default function CookingGuide() {
               </Text>
             </View>
 
-            <View className="flex-row flex-wrap items-center justify-center mb-md">
-              <Text preset="body" className="text-center text-md mb-0">
+            <View className="items-center mb-md gap-xs">
+              <Text preset="body" className="text-center text-md">
                 {i18n.t('recipes.cookingGuide.intro.checkboxSteps.checkmark')}
               </Text>
-              <View className="items-center justify-center mx-xs absolute">
-                <Image
-                  source={require('@/assets/images/icons/checkbox-checked.png')}
-                  style={{ width: checkboxSize, height: checkboxSize, top: -5 }}
-                  contentFit="contain"
-                  cachePolicy="memory-disk"
-                />
-              </View>
-              <Text preset="body" className="text-center text-md mb-0">
+              <Image
+                source={require('@/assets/images/icons/checkbox-checked.png')}
+                style={{ width: checkboxSize, height: checkboxSize }}
+                contentFit="contain"
+                cachePolicy="memory-disk"
+              />
+              <Text preset="body" className="text-center text-md">
                 {i18n.t('recipes.cookingGuide.intro.checkboxSteps.steps')}
               </Text>
             </View>

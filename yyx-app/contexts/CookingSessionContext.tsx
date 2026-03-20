@@ -2,8 +2,12 @@
  * Persists active cooking session state across tab navigation.
  * When a user is in the cooking guide and switches to Irmixy chat,
  * this context remembers where they were so they can return.
+ *
+ * Also persists Irmixy chat state (session ID, messages, voice transcripts)
+ * so conversations carry over when navigating between cooking steps.
  */
 import React, { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
+import type { ChatMessage } from '@/services/chatService';
 
 export interface CookingSession {
   recipeId: string;
@@ -21,6 +25,15 @@ interface CookingSessionContextType {
   startCookingSession: (session: CookingSession) => void;
   updateStep: (step: number) => void;
   clearCookingSession: () => void;
+  /** Irmixy chat session ID — persists across step navigation */
+  irmixyChatSessionId: string | null;
+  setIrmixyChatSessionId: (id: string | null) => void;
+  /** Irmixy text chat messages — persists across step navigation */
+  irmixyChatMessages: ChatMessage[];
+  setIrmixyChatMessages: (messages: ChatMessage[]) => void;
+  /** Irmixy voice transcript messages — persists across step navigation */
+  irmixyVoiceTranscriptMessages: ChatMessage[];
+  setIrmixyVoiceTranscriptMessages: (messages: ChatMessage[]) => void;
 }
 
 const noop = () => {};
@@ -30,10 +43,19 @@ const CookingSessionContext = createContext<CookingSessionContextType>({
   startCookingSession: noop,
   updateStep: noop,
   clearCookingSession: noop,
+  irmixyChatSessionId: null,
+  setIrmixyChatSessionId: noop,
+  irmixyChatMessages: [],
+  setIrmixyChatMessages: noop,
+  irmixyVoiceTranscriptMessages: [],
+  setIrmixyVoiceTranscriptMessages: noop,
 });
 
 export function CookingSessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<CookingSession | null>(null);
+  const [irmixyChatSessionId, setIrmixyChatSessionId] = useState<string | null>(null);
+  const [irmixyChatMessages, setIrmixyChatMessages] = useState<ChatMessage[]>([]);
+  const [irmixyVoiceTranscriptMessages, setIrmixyVoiceTranscriptMessages] = useState<ChatMessage[]>([]);
 
   const startCookingSession = useCallback((newSession: CookingSession) => {
     setSession(newSession);
@@ -45,6 +67,9 @@ export function CookingSessionProvider({ children }: { children: ReactNode }) {
 
   const clearCookingSession = useCallback(() => {
     setSession(null);
+    setIrmixyChatSessionId(null);
+    setIrmixyChatMessages([]);
+    setIrmixyVoiceTranscriptMessages([]);
   }, []);
 
   const value = useMemo<CookingSessionContextType>(
@@ -53,8 +78,15 @@ export function CookingSessionProvider({ children }: { children: ReactNode }) {
       startCookingSession,
       updateStep,
       clearCookingSession,
+      irmixyChatSessionId,
+      setIrmixyChatSessionId,
+      irmixyChatMessages,
+      setIrmixyChatMessages,
+      irmixyVoiceTranscriptMessages,
+      setIrmixyVoiceTranscriptMessages,
     }),
-    [session, startCookingSession, updateStep, clearCookingSession],
+    [session, startCookingSession, updateStep, clearCookingSession,
+     irmixyChatSessionId, irmixyChatMessages, irmixyVoiceTranscriptMessages],
   );
 
   return (

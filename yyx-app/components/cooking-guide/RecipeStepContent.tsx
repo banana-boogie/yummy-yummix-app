@@ -91,7 +91,7 @@ export function RecipeStepContent({ step, className = '', style }: RecipeStepCon
                             </View>
                             <Text
                                 preset="handwritten"
-                                className="text-[14px] text-grey-medium_dark text-center"
+                                className="text-[16px] text-grey-medium_dark text-center"
                                 style={{ opacity: isChecked ? 0.5 : 1 }}
                             >
                                 {getIngredientName(ingredient)}
@@ -126,10 +126,10 @@ export function RecipeStepContent({ step, className = '', style }: RecipeStepCon
                     className="mt-[-4px]"
                 />
             ) : null}
-            <RestTimer instruction={step.instruction} />
+            {!step.thermomix?.time && <RestTimer instruction={step.instruction} />}
             {step.tip ? (
                 <View className="bg-[#FAF3E8] rounded-sm p-sm mt-sm mx-md">
-                    <Text preset="bodySmall" className="text-text-secondary">
+                    <Text preset="body" className="text-text-secondary">
                         {step.tip}
                     </Text>
                 </View>

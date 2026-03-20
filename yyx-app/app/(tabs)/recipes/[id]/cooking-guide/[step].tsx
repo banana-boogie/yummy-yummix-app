@@ -20,7 +20,15 @@ const contentContainerStyle = { paddingHorizontal: 0 } as const;
 export default function CookingStep() {
     const { id, step: stepParam } = useLocalSearchParams();
     const { recipe } = useRecipe(id as string);
-    const { updateStep } = useCookingSession();
+    const {
+        updateStep,
+        irmixyChatSessionId,
+        setIrmixyChatSessionId,
+        irmixyChatMessages,
+        setIrmixyChatMessages,
+        irmixyVoiceTranscriptMessages,
+        setIrmixyVoiceTranscriptMessages,
+    } = useCookingSession();
     const [showIrmixyModal, setShowIrmixyModal] = useState(false);
 
     const currentStepNumber = Number(stepParam);
@@ -71,13 +79,15 @@ export default function CookingStep() {
 
     const footer = useMemo(() => (
         <View>
-            <View className="items-center pb-xs">
-                {currentStepNumber === 1 && (
-                    <Text className="text-text-secondary text-xs mb-xxs">
-                        {i18n.t('recipes.cookingGuide.navigation.needHelp')}
-                    </Text>
-                )}
-                <AskIrmixyButton onPress={() => setShowIrmixyModal(true)} animate={currentStepNumber === 1} />
+            <View className="items-center pb-sm pt-xs">
+                <AskIrmixyButton
+                    onPress={() => setShowIrmixyModal(true)}
+                    animate={currentStepNumber === 1}
+                    showHelpText={currentStepNumber === 1}
+                />
+            </View>
+            <View className="mx-lg mb-xs">
+                <View className="h-[1px] bg-border-default opacity-30" />
             </View>
             <StepNavigationButtons
                 onBack={handleNavigation.back}
@@ -125,6 +135,12 @@ export default function CookingStep() {
                     totalSteps,
                     stepInstructions: currentStep?.instruction,
                 }}
+                externalSessionId={irmixyChatSessionId}
+                onExternalSessionIdChange={setIrmixyChatSessionId}
+                externalMessages={irmixyChatMessages}
+                onExternalMessagesChange={setIrmixyChatMessages}
+                externalVoiceTranscriptMessages={irmixyVoiceTranscriptMessages}
+                onExternalVoiceTranscriptMessagesChange={setIrmixyVoiceTranscriptMessages}
             />
         </View>
     );

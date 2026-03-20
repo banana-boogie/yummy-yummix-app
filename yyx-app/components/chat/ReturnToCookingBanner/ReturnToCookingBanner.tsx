@@ -54,10 +54,10 @@ export function ReturnToCookingBanner() {
           color={COLORS.primary.darkest}
         />
         <View className="flex-1 ml-sm mr-sm">
-          <Text preset="bodySmall" className="font-semibold text-text-default">
+          <Text preset="body" className="font-semibold text-text-default">
             {i18n.t('chat.returnToCooking')}
           </Text>
-          <Text preset="caption" className="text-text-secondary">
+          <Text preset="bodySmall" className="text-text-secondary">
             {i18n.t('chat.returnToCookingStep', { step: currentStep, recipeName })}
           </Text>
         </View>

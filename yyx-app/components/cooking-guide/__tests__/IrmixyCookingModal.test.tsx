@@ -38,7 +38,8 @@ jest.mock('@/components/chat/ChatScreen', () => ({
     const { View, Text } = require('react-native');
     return (
       <View testID="chat-screen">
-        <Text>{String(props.emptyStateGreeting ?? '')}</Text>
+        <Text>{String(props.initialGreeting ?? '')}</Text>
+        {props.disableResume && <Text testID="resume-disabled">resume-disabled</Text>}
       </View>
     );
   },
@@ -98,10 +99,16 @@ describe('IrmixyCookingModal', () => {
       expect(screen.getByText('Pasta Carbonara - Step 2/5')).toBeTruthy();
     });
 
-    it('passes emptyStateGreeting to ChatScreen', () => {
+    it('passes initialGreeting to ChatScreen', () => {
       render(<IrmixyCookingModal {...defaultProps} />);
 
       expect(screen.getByText('How can I help with your recipe?')).toBeTruthy();
+    });
+
+    it('passes disableResume to ChatScreen', () => {
+      render(<IrmixyCookingModal {...defaultProps} />);
+
+      expect(screen.getByTestId('resume-disabled')).toBeTruthy();
     });
   });
 
@@ -178,6 +185,30 @@ describe('IrmixyCookingModal', () => {
 
       // Reopen — should be back in text mode
       rerender(<IrmixyCookingModal {...defaultProps} visible={true} />);
+      expect(screen.getByTestId('chat-screen')).toBeTruthy();
+    });
+  });
+
+  // ============================================================
+  // EXTERNAL STATE TESTS
+  // ============================================================
+
+  describe('external state (context persistence)', () => {
+    it('uses external session ID and messages when provided', () => {
+      const onSessionChange = jest.fn();
+      const onMessagesChange = jest.fn();
+
+      render(
+        <IrmixyCookingModal
+          {...defaultProps}
+          externalSessionId="ext-session-1"
+          onExternalSessionIdChange={onSessionChange}
+          externalMessages={[]}
+          onExternalMessagesChange={onMessagesChange}
+        />,
+      );
+
+      // Should render without errors
       expect(screen.getByTestId('chat-screen')).toBeTruthy();
     });
   });

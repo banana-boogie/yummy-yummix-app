@@ -23,7 +23,7 @@ import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { useAuth } from '@/contexts/AuthContext';
 import { customRecipeService } from '@/services/customRecipeService';
 import type { QuotaInfo, RecipeContext, VoiceStatus } from '@/services/voice/types';
-import type { ChatMessage, IrmixyStatus, QuickAction } from '@/services/chatService';
+import type { ChatMessage, IrmixyStatus } from '@/services/chatService';
 import type { Action, GeneratedRecipe } from '@/types/irmixy';
 import i18n from '@/i18n';
 import logger from '@/services/logger';
@@ -333,10 +333,10 @@ export function VoiceChatScreen({
                         <View className="flex-row items-center gap-sm flex-1 mr-sm">
                             <IrmixyAvatar state={getAvatarState(status)} size={32} />
                             <View accessibilityLiveRegion="polite" className="flex-row items-center gap-xs flex-1">
-                                <Text preset="bodySmall" className="text-text-default font-medium">
+                                <Text preset="body" className="text-text-default font-medium">
                                     {getStatusText(status)}
                                 </Text>
-                                <Text preset="caption" className="text-text-secondary">
+                                <Text preset="bodySmall" className="text-text-secondary">
                                     {formatDuration(duration)}
                                 </Text>
                             </View>
@@ -351,7 +351,7 @@ export function VoiceChatScreen({
                             style={STOP_BUTTON_STYLE}
                         >
                             <Ionicons name="stop-circle" size={20} color="white" />
-                            <Text preset="bodySmall" className="text-white font-bold">
+                            <Text preset="body" className="text-white font-bold">
                                 {i18n.t('chat.voice.stop')}
                             </Text>
                         </TouchableOpacity>
@@ -446,7 +446,7 @@ export function VoiceChatScreen({
                         accessibilityLabel={i18n.t('chat.voice.tapToSpeak')}
                     />
                     {quotaInfo && !isConnected && (
-                        <Text preset="caption" className="text-text-secondary mt-sm text-xs">
+                        <Text preset="bodySmall" className="text-text-secondary mt-sm">
                             {i18n.t('chat.voice.minsRemaining', { mins: quotaInfo.remainingMinutes.toFixed(1) })}
                         </Text>
                     )}

@@ -3,6 +3,8 @@
  *
  * Detects "let sit/rest/cool/stand" instructions in recipe steps,
  * extracts the duration, and offers a countdown timer.
+ * Centered card-style design with large timer text for kitchen visibility.
+ * Plays audio notification on completion alongside haptic feedback.
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Pressable } from 'react-native';
@@ -10,6 +12,7 @@ import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import * as Haptics from 'expo-haptics';
+import { Audio } from 'expo-av';
 import i18n from '@/i18n';
 
 interface RestTimerProps {
@@ -61,6 +64,24 @@ function formatTime(seconds: number): string {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
+/** Play a completion chime when the timer finishes */
+async function playCompletionSound(): Promise<void> {
+    try {
+        const { sound } = await Audio.Sound.createAsync(
+            require('@/assets/sounds/timer-complete.mp3')
+        );
+        await sound.playAsync();
+        // Unload after playback finishes to free resources
+        sound.setOnPlaybackStatusUpdate((status) => {
+            if ('didJustFinish' in status && status.didJustFinish) {
+                sound.unloadAsync();
+            }
+        });
+    } catch {
+        // Audio file may not exist yet — fail silently
+    }
+}
+
 export function RestTimer({ instruction }: RestTimerProps) {
     const totalSeconds = detectRestTime(instruction);
     const [remainingSeconds, setRemainingSeconds] = useState(totalSeconds ?? 0);
@@ -98,6 +119,7 @@ export function RestTimer({ instruction }: RestTimerProps) {
             setIsRunning(false);
             setIsComplete(true);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            playCompletionSound();
         }
     }, [remainingSeconds, isRunning]);
 
@@ -116,15 +138,15 @@ export function RestTimer({ instruction }: RestTimerProps) {
     if (!totalSeconds) return null;
 
     return (
-        <View className="flex-row items-center justify-center mt-md mx-md bg-primary-lightest rounded-lg p-sm gap-sm">
+        <View className="bg-primary-lightest rounded-xl p-lg items-center w-full shadow-sm mt-md">
             <Ionicons
                 name={isComplete ? 'checkmark-circle' : 'timer-outline'}
-                size={24}
+                size={32}
                 color={isComplete ? COLORS.status.success : COLORS.primary.medium}
             />
             <Text
-                preset="subheading"
-                className={isComplete ? 'text-status-success' : 'text-text-default'}
+                className={`font-subheading font-light mt-xs ${isComplete ? 'text-status-success' : 'text-text-default'}`}
+                style={{ fontSize: 48, lineHeight: 56 }}
             >
                 {isComplete
                     ? i18n.t('recipes.cookingGuide.timerDone')
@@ -133,9 +155,10 @@ export function RestTimer({ instruction }: RestTimerProps) {
             </Text>
             <Pressable
                 onPress={handleStartPause}
-                className="bg-primary-medium rounded-full px-md py-xs"
+                className="bg-primary-medium rounded-full px-xl py-sm mt-sm"
+                style={{ minWidth: 120, minHeight: 44 }}
             >
-                <Text preset="bodySmall" className="text-white font-semibold">
+                <Text preset="body" className="text-white font-semibold text-center">
                     {isComplete
                         ? i18n.t('recipes.cookingGuide.timerReset')
                         : isRunning

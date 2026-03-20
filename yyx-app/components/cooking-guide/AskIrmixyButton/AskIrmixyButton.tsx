@@ -25,20 +25,24 @@ interface AskIrmixyButtonProps {
   onPress: () => void;
   /** Show the pill→avatar animation. Default true on first step. */
   animate?: boolean;
+  /** Show "Need help?" text inside the pill, before the avatar. Default false. */
+  showHelpText?: boolean;
 }
 
-export function AskIrmixyButton({ onPress, animate = true }: AskIrmixyButtonProps) {
+export function AskIrmixyButton({ onPress, animate = true, showHelpText = false }: AskIrmixyButtonProps) {
   const textOpacity = useRef(new Animated.Value(animate ? 1 : 0)).current;
   const textWidth = useRef(new Animated.Value(animate ? 1 : 0)).current;
   const avatarScale = useRef(new Animated.Value(1)).current;
   const labelOpacity = useRef(new Animated.Value(animate ? 0 : 1)).current;
+  const helpTextOpacity = useRef(new Animated.Value(showHelpText && animate ? 1 : 0)).current;
+  const helpTextWidth = useRef(new Animated.Value(showHelpText && animate ? 1 : 0)).current;
 
   useEffect(() => {
     if (!animate) return;
 
     const timer = setTimeout(() => {
-      // Collapse: fade text + shrink width
-      Animated.parallel([
+      // Collapse: fade text + shrink width (both sides collapse toward center avatar)
+      const collapseAnimations = [
         Animated.timing(textOpacity, {
           toValue: 0,
           duration: COLLAPSE_DURATION_MS,
@@ -49,7 +53,23 @@ export function AskIrmixyButton({ onPress, animate = true }: AskIrmixyButtonProp
           duration: COLLAPSE_DURATION_MS,
           useNativeDriver: false,
         }),
-      ]).start(() => {
+      ];
+      // Also collapse help text if shown
+      if (showHelpText) {
+        collapseAnimations.push(
+          Animated.timing(helpTextOpacity, {
+            toValue: 0,
+            duration: COLLAPSE_DURATION_MS,
+            useNativeDriver: false,
+          }),
+          Animated.timing(helpTextWidth, {
+            toValue: 0,
+            duration: COLLAPSE_DURATION_MS,
+            useNativeDriver: false,
+          }),
+        );
+      }
+      Animated.parallel(collapseAnimations).start(() => {
         // Fade in the small label + bounce the avatar after text hides
         Animated.parallel([
           Animated.timing(labelOpacity, {
@@ -74,7 +94,7 @@ export function AskIrmixyButton({ onPress, animate = true }: AskIrmixyButtonProp
     }, PILL_DELAY_MS);
 
     return () => clearTimeout(timer);
-  }, [animate, textOpacity, textWidth, avatarScale, labelOpacity]);
+  }, [animate, textOpacity, textWidth, avatarScale, labelOpacity, showHelpText, helpTextOpacity, helpTextWidth]);
 
   // Interpolate text container width from full to 0
   const textContainerMaxWidth = textWidth.interpolate({
@@ -83,6 +103,17 @@ export function AskIrmixyButton({ onPress, animate = true }: AskIrmixyButtonProp
   });
 
   const textContainerPadding = textWidth.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, SPACING.sm],
+  });
+
+  // Interpolate help text container width and padding
+  const helpTextMaxWidth = helpTextWidth.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 130],
+  });
+
+  const helpTextPaddingLeft = helpTextWidth.interpolate({
     inputRange: [0, 1],
     outputRange: [0, SPACING.sm],
   });
@@ -99,6 +130,21 @@ export function AskIrmixyButton({ onPress, animate = true }: AskIrmixyButtonProp
           className="flex-row items-center rounded-full bg-primary-lightest"
           style={{ paddingVertical: SPACING.xxs, paddingLeft: SPACING.xxs, overflow: 'hidden' }}
         >
+          {/* "Need help?" text — visible only when showHelpText is true, collapses with animation */}
+          {showHelpText && (
+            <Animated.View
+              style={{
+                opacity: helpTextOpacity,
+                maxWidth: helpTextMaxWidth,
+                paddingLeft: helpTextPaddingLeft,
+                overflow: 'hidden',
+              }}
+            >
+              <Text className="text-text-secondary font-medium text-sm" numberOfLines={1}>
+                {i18n.t('recipes.cookingGuide.navigation.needHelp')}
+              </Text>
+            </Animated.View>
+          )}
           <Animated.View style={{ transform: [{ scale: avatarScale }] }}>
             <Image
               source={require('@/assets/images/irmixy-avatar/irmixy-face.png')}

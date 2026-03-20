@@ -1,6 +1,7 @@
 import { View } from 'react-native';
 import { useState, useEffect } from 'react';
 import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
+import { AskIrmixyButton } from '@/components/cooking-guide/AskIrmixyButton';
 import * as Haptics from 'expo-haptics';
 import i18n from '@/i18n';
 import { useCustomRecipe } from '@/hooks/useCustomRecipe';
@@ -15,6 +16,7 @@ import { MiseEnPlaceIngredient } from '@/components/cooking-guide/MiseEnPlaceIng
 import { Text } from '@/components/common/Text';
 import { LAYOUT } from '@/constants/design-tokens';
 import { getCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
+import { useCookingSession } from '@/contexts/CookingSessionContext';
 
 // Define the ingredient type
 type CheckableIngredient = RecipeIngredient & { checked: boolean };
@@ -28,6 +30,14 @@ export default function CustomIngredientsStep() {
   const [ingredients, setIngredients] = useState<CheckableIngredient[]>([]);
   const [showIrmixyModal, setShowIrmixyModal] = useState(false);
   const { isMobile } = useDevice();
+  const {
+    irmixyChatSessionId,
+    setIrmixyChatSessionId,
+    irmixyChatMessages,
+    setIrmixyChatMessages,
+    irmixyVoiceTranscriptMessages,
+    setIrmixyVoiceTranscriptMessages,
+  } = useCookingSession();
 
   const numColumns = 2;
 
@@ -73,12 +83,20 @@ export default function CustomIngredientsStep() {
         scrollEnabled={true}
         contentPaddingHorizontal={0}
         footer={
-          <StepNavigationButtons
-            onBack={() => router.back()}
-            onNext={handleNext}
-            backText={i18n.t('recipes.cookingGuide.navigation.back')}
-            nextText={i18n.t('recipes.cookingGuide.navigation.next')}
-          />
+          <View>
+            <View className="items-center pb-sm pt-xs">
+              <AskIrmixyButton onPress={() => setShowIrmixyModal(true)} animate={false} />
+            </View>
+            <View className="mx-lg mb-xs">
+              <View className="h-[1px] bg-border-default opacity-30" />
+            </View>
+            <StepNavigationButtons
+              onBack={() => router.back()}
+              onNext={handleNext}
+              backText={i18n.t('recipes.cookingGuide.navigation.back')}
+              nextText={i18n.t('recipes.cookingGuide.navigation.next')}
+            />
+          </View>
         }
       >
         <CookingGuideHeader
@@ -141,6 +159,12 @@ export default function CustomIngredientsStep() {
             amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
           }))
         }}
+        externalSessionId={irmixyChatSessionId}
+        onExternalSessionIdChange={setIrmixyChatSessionId}
+        externalMessages={irmixyChatMessages}
+        onExternalMessagesChange={setIrmixyChatMessages}
+        externalVoiceTranscriptMessages={irmixyVoiceTranscriptMessages}
+        onExternalVoiceTranscriptMessagesChange={setIrmixyVoiceTranscriptMessages}
       />
     </View>
   );

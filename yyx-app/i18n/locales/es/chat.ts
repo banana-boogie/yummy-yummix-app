@@ -90,7 +90,7 @@ export const chat = {
   messageCopied: "Mensaje copiado al portapapeles",
   cancelledRequest: "Solicitud cancelada",
   cookingModal: {
-    greeting: "Dime, ¿cómo te ayudo?",
+    greeting: "Hola! Veo que estás preparando {{recipeName}}. ¿En qué te ayudo?",
     contextHint: "Cocinando {{recipeName}} — paso {{step}} de {{total}}",
     switchToVoice: "Cambiar a voz",
     switchToText: "Cambiar a texto",
