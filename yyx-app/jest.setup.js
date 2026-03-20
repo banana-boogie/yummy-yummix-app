@@ -67,18 +67,13 @@ jest.mock('expo-router', () => ({
   Redirect: 'Redirect',
 }));
 
-// Expo AV (Audio/Video)
-jest.mock('expo-av', () => ({
-  Audio: {
-    Sound: {
-      createAsync: jest.fn().mockResolvedValue({
-        sound: {
-          playAsync: jest.fn().mockResolvedValue(undefined),
-          unloadAsync: jest.fn().mockResolvedValue(undefined),
-        },
-      }),
-    },
-  },
+// Expo Audio
+jest.mock('expo-audio', () => ({
+  createAudioPlayer: jest.fn().mockReturnValue({
+    play: jest.fn(),
+    pause: jest.fn(),
+    release: jest.fn(),
+  }),
 }));
 
 // Expo Image

@@ -3,14 +3,6 @@ import {
   RTCSessionDescription,
   mediaDevices,
 } from "react-native-webrtc";
-
-// Silence react-native-webrtc's verbose debug logs (rn-webrtc:pc:DEBUG)
-try {
-  const debug = require("debug");
-  debug.disable("rn-webrtc*");
-} catch {
-  // debug package may not be available — safe to ignore
-}
 import { supabase } from "@/lib/supabase";
 import InCallManager from "react-native-incall-manager";
 import { detectGoodbye, InactivityTimer } from "../shared/VoiceUtils";
@@ -28,6 +20,14 @@ import type {
   RecipeContext,
   QuotaInfo,
 } from "../types";
+
+// Silence react-native-webrtc's verbose debug logs (rn-webrtc:pc:DEBUG)
+try {
+  const debug = require("debug");
+  debug.disable("rn-webrtc*");
+} catch {
+  // debug package may not be available — safe to ignore
+}
 
 /**
  * OpenAI Realtime WebRTC voice provider.
@@ -67,6 +67,8 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
   private serverInstructions: string | null = null;
   // Goodbye detection — wait for AI response before disconnecting
   private goodbyeDetected = false;
+  /** Set when goodbye is detected + response.done fires — waits for audio buffer to drain. */
+  private pendingGoodbyeDisconnect = false;
   // Token tracking for cost calculation (separated by type for accurate pricing)
   private sessionInputTokens: number = 0;
   private sessionOutputTokens: number = 0;
@@ -314,6 +316,7 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
     // Reset goodbye state
     this.goodbyeDetected = false;
+    this.pendingGoodbyeDisconnect = false;
 
     if (this.sessionStartTime) {
       // Subtract tool execution pauses from wall-clock time for accurate audio usage
@@ -745,14 +748,17 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
 
         this.activeResponseId = null;
 
-        // If goodbye was detected, delay disconnect to let the WebRTC audio
-        // buffer finish playing the farewell response on the client.
+        // If goodbye was detected, wait for audio buffer to drain before disconnecting.
+        // output_audio_buffer.stopped signals playback completion; safety timeout as fallback.
         if (this.goodbyeDetected) {
           this.inactivityTimer.clear();
+          this.pendingGoodbyeDisconnect = true;
+          // Safety net: disconnect after 8s if output_audio_buffer.stopped never fires
           this.goodbyeTimeoutId = setTimeout(() => {
             this.goodbyeTimeoutId = null;
+            this.pendingGoodbyeDisconnect = false;
             this.stopConversation();
-          }, 1500);
+          }, 8000);
         } else {
           this.setStatus("listening");
         }
@@ -768,10 +774,21 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
       case "response.audio_transcript.done":
         break;
 
-      // Audio buffer lifecycle — no action needed client-side
+      // Audio buffer lifecycle
       case "output_audio_buffer.started":
-      case "output_audio_buffer.stopped":
       case "output_audio_buffer.cleared":
+        break;
+      case "output_audio_buffer.stopped":
+        // Audio playback finished — if we're waiting for goodbye audio to drain, disconnect now
+        if (this.pendingGoodbyeDisconnect) {
+          this.pendingGoodbyeDisconnect = false;
+          if (this.goodbyeTimeoutId) {
+            clearTimeout(this.goodbyeTimeoutId);
+            this.goodbyeTimeoutId = null;
+          }
+          // Small grace period for the last audio samples to reach the speaker
+          setTimeout(() => this.stopConversation(), 500);
+        }
         break;
 
       // Partial input transcription deltas (we only use the final .completed event)

@@ -12,7 +12,7 @@ import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
+import { createAudioPlayer } from 'expo-audio';
 import i18n from '@/i18n';
 
 interface RestTimerProps {
@@ -67,16 +67,10 @@ function formatTime(seconds: number): string {
 /** Play a completion chime when the timer finishes */
 async function playCompletionSound(): Promise<void> {
     try {
-        const { sound } = await Audio.Sound.createAsync(
+        const player = createAudioPlayer(
             require('@/assets/sounds/timer-complete.mp3')
         );
-        await sound.playAsync();
-        // Unload after playback finishes to free resources
-        sound.setOnPlaybackStatusUpdate((status) => {
-            if ('didJustFinish' in status && status.didJustFinish) {
-                sound.unloadAsync();
-            }
-        });
+        player.play();
     } catch {
         // Audio file may not exist yet — fail silently
     }
