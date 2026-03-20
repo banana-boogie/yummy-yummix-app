@@ -24,6 +24,11 @@ import {
   appActionTool,
   executeAppAction,
 } from "./app-action.ts";
+import {
+  submitRecipeRating,
+  type SubmitRecipeRatingResult,
+  submitRecipeRatingTool,
+} from "./submit-recipe-rating.ts";
 
 export interface ToolExecutionContext {
   supabase: SupabaseClient;
@@ -38,6 +43,7 @@ export interface ToolShape {
   customRecipe?: GenerateRecipeResult["recipe"];
   safetyFlags?: GenerateRecipeResult["safetyFlags"];
   appActionResult?: AppActionResult;
+  ratingResult?: SubmitRecipeRatingResult;
   result?: unknown;
 }
 
@@ -163,6 +169,29 @@ const TOOL_REGISTRY: Record<string, ToolRegistration> = {
       ),
     shapeResult: (result) =>
       Array.isArray(result) ? { recipes: result as RecipeCard[] } : { result },
+  },
+  submit_recipe_rating: {
+    aiTool: {
+      name: submitRecipeRatingTool.function.name,
+      description: submitRecipeRatingTool.function.description,
+      parameters: submitRecipeRatingTool.function.parameters as Record<
+        string,
+        unknown
+      >,
+    },
+    allowedInVoice: true,
+    execute: async (args, context) =>
+      await submitRecipeRating(
+        context.supabase,
+        args,
+        context.userContext.locale,
+      ),
+    shapeResult: (result) => {
+      if (result && typeof result === "object" && "success" in result) {
+        return { ratingResult: result as SubmitRecipeRatingResult };
+      }
+      return { result };
+    },
   },
 };
 

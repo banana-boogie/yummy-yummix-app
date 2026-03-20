@@ -191,6 +191,8 @@ Custom PostgreSQL functions for RPC calls are documented in `docs/DATABASE_FUNCT
 - Admin RPCs: `admin_overview`, `admin_retention`, `admin_funnel`, `admin_top_viewed_recipes`, `admin_top_cooked_recipes`, `admin_top_searches`, `admin_ai_adoption`, `admin_ai_usage`, `admin_ai_chat_session_depth`, `admin_recipe_generation`, `admin_daily_signups`, `admin_daily_active_users`, `admin_daily_ai_users`, `admin_content_source_split`, `admin_content_health`
 - `is_admin()` — Check current user's admin status
 - `get_cooked_recipes(language, query, after, before, limit)` — Current user's cooked recipe history with optional search and date range
+- `get_recipe_rating_distribution(p_recipe_id)` — Server-side GROUP BY rating (returns max 5 rows)
+- `admin_recipe_feedback_list(p_page, p_page_size, p_recipe_id, p_start_date, p_end_date, p_language)` — Paginated admin feedback with locale-aware recipe names
 - `upsert_cooking_session_progress(...)` — Upsert active cooking progress
 - `match_recipe_embeddings(...)` — Vector similarity search for recipes
 - `update_ai_voice_usage()` — Track AI voice minutes

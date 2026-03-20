@@ -355,6 +355,8 @@ function makeRecipeWithTags(
     total_time: 30,
     difficulty: "easy" as const,
     portions: 4,
+    average_rating: null,
+    rating_count: null,
     recipe_to_tag: tags.map((t) => ({
       recipe_tags: {
         recipe_tag_translations: [

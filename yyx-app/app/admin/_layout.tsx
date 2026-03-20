@@ -68,6 +68,12 @@ export default function AdminLayout() {
             title: i18n.t('admin.common.contentHealth')
           }}
         />
+        <Stack.Screen
+          name="feedback"
+          options={{
+            title: i18n.t('admin.feedback.title')
+          }}
+        />
       </Stack>
     </AdminRoute>
   );
@@ -82,6 +88,7 @@ const navItems = [
   { titleKey: 'admin.common.tags', icon: 'pricetags-outline', route: '/admin/tags' as const },
   { titleKey: 'admin.common.kitchenTools', icon: 'cube-outline', route: '/admin/kitchen-tools' as const },
   { titleKey: 'admin.common.contentHealth', icon: 'medkit-outline', route: '/admin/content-health' as const },
+  { titleKey: 'admin.common.feedback', icon: 'chatbubble-ellipses-outline', route: '/admin/feedback' as const },
   { titleKey: 'admin.common.backToApp', icon: 'exit-outline', route: '/' as const },
 ];
 

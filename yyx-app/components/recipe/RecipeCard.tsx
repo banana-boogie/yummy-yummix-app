@@ -6,8 +6,9 @@ import * as Haptics from 'expo-haptics';
 
 import { Recipe } from '@/types/recipe.types';
 import { RecipeImage } from '@/components/recipe/RecipeImage';
-import { Text } from '@/components/common/Text';
+import { Text } from '@/components/common';
 import { RecipeInfo } from '../recipe-detail/RecipeInfo';
+import { StarRating } from '@/components/rating/StarRating';
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -35,6 +36,8 @@ export const RecipeCard = React.memo(function RecipeCard({
     router.push(`/(tabs)/recipes/${recipe.id}`);
   };
 
+  const hasRating = recipe.ratingCount && recipe.ratingCount > 0 && recipe.averageRating;
+
   return (
     <View
       className={`bg-white rounded-md shadow-md ${className}`}
@@ -56,13 +59,23 @@ export const RecipeCard = React.memo(function RecipeCard({
           </View>
           <View className={`w-full ${featured ? 'px-sm' : ''}`}>
             <Text preset="h1" className="mb-xs">{recipe.name}</Text>
-            {recipe.totalTime && recipe.prepTime && (
-              <RecipeInfo
-                totalTime={recipe.totalTime}
-                prepTime={recipe.prepTime}
-                difficulty={recipe.difficulty}
-              />
-            )}
+            <View className="flex-row items-center flex-wrap gap-x-sm">
+              {hasRating && (
+                <StarRating
+                  rating={recipe.averageRating!}
+                  size="sm"
+                  showCount
+                  count={recipe.ratingCount}
+                />
+              )}
+              {recipe.totalTime && recipe.prepTime && (
+                <RecipeInfo
+                  totalTime={recipe.totalTime}
+                  prepTime={recipe.prepTime}
+                  difficulty={recipe.difficulty}
+                />
+              )}
+            </View>
           </View>
         </View>
       </Pressable>

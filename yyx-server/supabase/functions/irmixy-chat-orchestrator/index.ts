@@ -334,6 +334,9 @@ async function executeToolCalls(
   let appActionResult:
     | import("../_shared/tools/app-action.ts").AppActionResult
     | undefined;
+  let ratingResult:
+    | import("../_shared/tools/submit-recipe-rating.ts").SubmitRecipeRatingResult
+    | undefined;
 
   const results = await Promise.all(
     toolCalls.map(async (toolCall) => {
@@ -395,6 +398,9 @@ async function executeToolCalls(
     if (execution.shaped.appActionResult) {
       appActionResult = execution.shaped.appActionResult;
     }
+    if (execution.shaped.ratingResult) {
+      ratingResult = execution.shaped.ratingResult;
+    }
   }
 
   return {
@@ -403,6 +409,7 @@ async function executeToolCalls(
     recipesSourceTool,
     customRecipeResult,
     appActionResult,
+    ratingResult,
   };
 }
 
@@ -416,6 +423,7 @@ const TOOL_STATUS: Record<string, string> = {
   retrieve_cooked_recipes: "searching",
   generate_custom_recipe: "cooking_it_up",
   modify_recipe: "cooking_it_up",
+  submit_recipe_rating: "thinking",
 };
 
 function getToolStatus(toolName: string): string {
@@ -528,6 +536,9 @@ function handleStreamingRequest(
         let customRecipeResult: GenerateRecipeResult | undefined;
         let appActionResult:
           | import("../_shared/tools/app-action.ts").AppActionResult
+          | undefined;
+        let ratingResult:
+          | import("../_shared/tools/submit-recipe-rating.ts").SubmitRecipeRatingResult
           | undefined;
         let streamMessages = messages;
         const usageContext: AIUsageLogContext = {
@@ -666,11 +677,13 @@ function handleStreamingRequest(
           recipesSourceTool = toolResult.recipesSourceTool;
           customRecipeResult = toolResult.customRecipeResult;
           appActionResult = toolResult.appActionResult;
+          ratingResult = toolResult.ratingResult;
 
           log.info("Tool execution result", {
             hasRecipes: !!recipes?.length,
             hasCustomRecipe: !!customRecipeResult?.recipe,
             hasAppAction: !!appActionResult,
+            hasRating: !!ratingResult,
             recipesSourceTool: recipesSourceTool ?? null,
           });
 

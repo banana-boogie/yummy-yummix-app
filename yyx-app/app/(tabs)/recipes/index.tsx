@@ -11,7 +11,7 @@ import { RecipeList } from '@/components/recipe/RecipeList';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import i18n from '@/i18n';
 import { eventService } from '@/services/eventService';
-import { filterQuick, filterFamily, filterRecent } from '@/utils/recipeFilters';
+import { filterQuick, filterFamily, filterRecent, filterTopRated } from '@/utils/recipeFilters';
 
 const Recipes = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -77,7 +77,15 @@ const Recipes = () => {
   const sections = useMemo((): RecipeSection[] => {
     if (!recipes.length) return [];
 
+    const topRated = filterTopRated(recipes);
+
     const allSections: RecipeSection[] = [
+      ...(topRated.length > 0 ? [{
+        id: 'topRated' as const,
+        title: i18n.t('recipes.sections.topRated'),
+        recipes: topRated,
+        layout: 'horizontal' as const,
+      }] : []),
       {
         id: 'quick',
         title: i18n.t('recipes.sections.quick'),

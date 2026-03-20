@@ -41,6 +41,16 @@ export function filterFamily(recipes: Recipe[], minPortions: number): Recipe[] {
 }
 
 /**
+ * Filter top-rated recipes (minimum rating count threshold to avoid single-vote bias).
+ */
+export function filterTopRated(recipes: Recipe[], minRatings: number = 2): Recipe[] {
+  return recipes
+    .filter(r => (r.ratingCount ?? 0) >= minRatings && (r.averageRating ?? 0) > 0)
+    .sort((a, b) => (b.averageRating ?? 0) - (a.averageRating ?? 0))
+    .slice(0, 10);
+}
+
+/**
  * Filter recently added recipes (within N days).
  */
 export function filterRecent(recipes: Recipe[], days: number): Recipe[] {

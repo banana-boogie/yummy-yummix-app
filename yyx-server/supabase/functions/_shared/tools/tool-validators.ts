@@ -309,6 +309,13 @@ export function validateModifyRecipeParams(
 }
 
 // ============================================================
+// Submit Recipe Rating Params
+// ============================================================
+
+export { validateSubmitRecipeRatingParams } from "./submit-recipe-rating.ts";
+export type { SubmitRecipeRatingParams } from "./submit-recipe-rating.ts";
+
+// ============================================================
 // Search Recipes Params
 // ============================================================
 

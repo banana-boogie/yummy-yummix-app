@@ -22,6 +22,8 @@ export const RecipeCardSchema = z.object({
   totalTime: z.number().int().nonnegative(), // Allow 0 for recipes with unknown time
   difficulty: z.enum(["easy", "medium", "hard"]),
   portions: z.number().int().positive(),
+  averageRating: z.number().min(1).max(5).optional(),
+  ratingCount: z.number().int().nonnegative().optional(),
   allergenWarnings: z.array(z.string()).optional(),
   // Present when allergen verification data is temporarily unavailable.
   allergenVerificationWarning: z.string().optional(),
@@ -103,7 +105,6 @@ export const IrmixyResponseSchema = z.object({
 
 export type RecipeCard = z.infer<typeof RecipeCardSchema>;
 export type Action = z.infer<typeof ActionSchema>;
-export type UsefulItem = z.infer<typeof UsefulItemSchema>;
 export type GeneratedRecipe = z.infer<typeof GeneratedRecipeSchema>;
 export type SafetyFlags = z.infer<typeof SafetyFlagsSchema>;
 export type IrmixyResponse = z.infer<typeof IrmixyResponseSchema>;

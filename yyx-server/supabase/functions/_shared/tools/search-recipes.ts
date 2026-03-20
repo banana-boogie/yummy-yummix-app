@@ -49,6 +49,8 @@ interface RecipeSearchResult {
   total_time: number;
   difficulty: "easy" | "medium" | "hard";
   portions: number;
+  average_rating: number | null;
+  rating_count: number | null;
   recipe_to_tag: RecipeTagJoin[];
 }
 
@@ -234,6 +236,8 @@ export async function searchRecipes(
       total_time,
       difficulty,
       portions,
+      average_rating,
+      rating_count,
       recipe_to_tag ( recipe_tags ( recipe_tag_translations ( locale, name ), categories ) )
     `)
     .eq("is_published", true)
@@ -332,6 +336,8 @@ export async function searchRecipes(
     totalTime: recipe.total_time,
     difficulty: recipe.difficulty,
     portions: recipe.portions,
+    ...(recipe.average_rating ? { averageRating: recipe.average_rating } : {}),
+    ...(recipe.rating_count ? { ratingCount: recipe.rating_count } : {}),
   }));
 
   // Annotate recipes with allergen warnings instead of filtering
@@ -463,6 +469,8 @@ async function searchByTags(
       total_time,
       difficulty,
       portions,
+      average_rating,
+      rating_count,
       recipe_to_tag ( recipe_tags ( recipe_tag_translations ( locale, name ), categories ) )
     `)
     .in("id", recipeIds)
@@ -618,6 +626,11 @@ function scoreByQuery(
       } else {
         score -= 10;
       }
+    }
+
+    // Gentle rating boost — only for recipes with enough ratings to be trustworthy
+    if (original.average_rating && (original.rating_count ?? 0) >= 3) {
+      score += (original.average_rating - 3) * 8;
     }
 
     return { card, score };
