@@ -279,9 +279,9 @@ export default function EditProfile() {
     try {
       setIsSaving(true);
       setSaveError(null);
-      const formattedEquipment = equipment.map(eq =>
-        formatEquipmentForStorage(eq.type, eq.model)
-      );
+      const formattedEquipment = [...new Set(
+        equipment.map(eq => formatEquipmentForStorage(eq.type, eq.model))
+      )];
       await updateUserProfile({
         kitchen_equipment: formattedEquipment,
       } as any);

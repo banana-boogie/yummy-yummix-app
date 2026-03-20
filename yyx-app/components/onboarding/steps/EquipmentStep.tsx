@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, ScrollView, Pressable, StyleProp, ViewStyle, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { Text } from '@/components/common/Text';
+import { COLORS } from '@/constants/design-tokens';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/i18n';
@@ -154,13 +155,13 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
               </Text>
             </View>
             {hasThermomix && (
-              <Ionicons name="checkmark-circle" size={24} color="#FFBFB7" />
+              <Ionicons name="checkmark-circle" size={24} color={COLORS.primary.medium} />
             )}
           </Pressable>
 
           {/* Thermomix model selection */}
           {hasThermomix && (
-            <View className="mt-md ml-md">
+            <View className="mt-md mx-md">
               <Text preset="caption" className="mb-sm text-text-secondary">
                 {i18n.t('onboarding.steps.equipment.thermomix.modelQuestion')}
               </Text>
@@ -182,7 +183,7 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
                       <Ionicons
                         name={isModelSelected ? 'checkbox' : 'square-outline'}
                         size={18}
-                        color={isModelSelected ? '#FFFFFF' : '#828181'}
+                        color={isModelSelected ? COLORS.neutral.white : COLORS.text.secondary}
                         style={{ marginRight: 6 }}
                       />
                       <Text className={`font-semibold ${
@@ -234,7 +235,7 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
                       {i18n.t(`onboarding.steps.equipment.${type}.name`)}
                     </Text>
                     {isSelected && (
-                      <Ionicons name="checkmark-circle" size={20} color="#FFBFB7" />
+                      <Ionicons name="checkmark-circle" size={20} color={COLORS.primary.medium} />
                     )}
                   </Pressable>
                   {/* Divider between equipment items, but not after the last one */}

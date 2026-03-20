@@ -67,7 +67,7 @@ export const WatercolorRecipeCard = React.memo(function WatercolorRecipeCard({
               preset="body"
               className="font-normal flex-1"
               numberOfLines={1}
-              style={{ fontSize: FONT_SIZES.xl }}
+              style={{ fontSize: FONT_SIZES.lg }}
               marginBottom={0}
             >
               {recipe.name}

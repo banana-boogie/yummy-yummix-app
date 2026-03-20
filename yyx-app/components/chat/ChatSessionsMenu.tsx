@@ -124,10 +124,10 @@ export function ChatSessionsMenu({
                 accessibilityRole="button"
             >
                 <View className="w-10 h-10 items-center justify-center rounded-full bg-background-secondary">
-                    <MaterialCommunityIcons name="menu" size={24} color={COLORS.text.default} />
+                    <MaterialCommunityIcons name="clock-outline" size={24} color={COLORS.text.default} />
                 </View>
                 <Text className="text-text-secondary text-xs font-medium mt-[1px]">
-                    {i18n.t('chat.sessions.chatsLabel')}
+                    {i18n.t('chat.sessions.historyLabel')}
                 </Text>
             </TouchableOpacity>
 
@@ -151,7 +151,11 @@ export function ChatSessionsMenu({
                             <Text className="text-lg font-semibold text-text-primary">
                                 {i18n.t('chat.sessions.title')}
                             </Text>
-                            <TouchableOpacity onPress={handleClose}>
+                            <TouchableOpacity
+                                onPress={handleClose}
+                                className="w-11 h-11 items-center justify-center"
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
                                 <MaterialCommunityIcons name="close" size={24} color={COLORS.grey.medium} />
                             </TouchableOpacity>
                         </View>

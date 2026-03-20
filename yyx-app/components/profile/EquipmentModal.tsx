@@ -6,6 +6,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useDevice } from '@/hooks/useDevice';
 import i18n from '@/i18n';
 import { EQUIPMENT_CONFIG, type EquipmentType, type ThermomixModel } from '@/constants/equipment';
+import { COLORS } from '@/constants/design-tokens';
 import type { KitchenEquipment } from '@/types/onboarding';
 
 interface EquipmentModalProps {
@@ -22,16 +23,18 @@ export function EquipmentModal({
   onSave,
 }: EquipmentModalProps) {
   const [selectedEquipment, setSelectedEquipment] = useState<KitchenEquipment[]>(currentEquipment);
-  const [thermomixModel, setThermomixModel] = useState<ThermomixModel | null>(
-    currentEquipment.find(e => e.type === 'thermomix')?.model ?? null
+  const [thermomixModels, setThermomixModels] = useState<ThermomixModel[]>(
+    currentEquipment.filter(e => e.type === 'thermomix' && e.model).map(e => e.model as ThermomixModel)
   );
   const [showModelError, setShowModelError] = useState(false);
   const { isWeb } = useDevice();
 
   useEffect(() => {
     setSelectedEquipment(currentEquipment);
-    const thermomix = currentEquipment.find(e => e.type === 'thermomix');
-    setThermomixModel(thermomix?.model ?? null);
+    const models = currentEquipment
+      .filter(e => e.type === 'thermomix' && e.model)
+      .map(e => e.model as ThermomixModel);
+    setThermomixModels(models);
     setShowModelError(false);
   }, [currentEquipment]);
 
@@ -44,12 +47,12 @@ export function EquipmentModal({
     if (exists) {
       newEquipment = selectedEquipment.filter(e => e.type !== type);
       if (type === 'thermomix') {
-        setThermomixModel(null);
+        setThermomixModels([]);
         setShowModelError(false);
       }
     } else {
       if (type === 'thermomix') {
-        newEquipment = [...selectedEquipment, { type, model: thermomixModel ?? undefined }];
+        newEquipment = [...selectedEquipment, { type }];
       } else {
         newEquipment = [...selectedEquipment, { type }];
       }
@@ -58,19 +61,30 @@ export function EquipmentModal({
     setSelectedEquipment(newEquipment);
   };
 
-  const selectThermomixModel = (model: ThermomixModel) => {
-    setThermomixModel(model);
+  const toggleThermomixModel = (model: ThermomixModel) => {
     setShowModelError(false);
 
-    const newEquipment = selectedEquipment.map(e =>
-      e.type === 'thermomix' ? { ...e, model } : e
-    );
+    let newModels: ThermomixModel[];
+    if (thermomixModels.includes(model)) {
+      newModels = thermomixModels.filter(m => m !== model);
+    } else {
+      newModels = [...thermomixModels, model];
+    }
+    setThermomixModels(newModels);
 
-    setSelectedEquipment(newEquipment);
+    // Rebuild equipment: remove all thermomix entries, add one per model
+    const nonThermomix = selectedEquipment.filter(e => e.type !== 'thermomix');
+    const thermomixEntries = newModels.map(m => ({ type: 'thermomix' as EquipmentType, model: m }));
+    // Keep at least one thermomix entry if models are empty (so hasThermomix stays true)
+    if (thermomixEntries.length === 0) {
+      setSelectedEquipment([...nonThermomix, { type: 'thermomix' }]);
+    } else {
+      setSelectedEquipment([...nonThermomix, ...thermomixEntries]);
+    }
   };
 
   const handleSave = () => {
-    if (hasThermomix && !thermomixModel) {
+    if (hasThermomix && thermomixModels.length === 0) {
       setShowModelError(true);
       return;
     }
@@ -94,8 +108,8 @@ export function EquipmentModal({
             className={`bg-background-default rounded-lg self-center p-lg shadow-md w-full max-w-[400px] ${isWeb ? 'max-h-[80%] h-auto' : 'h-[90%] rounded-b-none'}`}
           >
             <View className="items-end mb-xs">
-              <TouchableOpacity onPress={onClose} className="p-1">
-                <Feather name="x" size={24} className="text-text-default" />
+              <TouchableOpacity onPress={onClose} className="p-2" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Feather name="x" size={24} color={COLORS.text.default} />
               </TouchableOpacity>
             </View>
             <Text preset="h1" className="text-center mb-sm">
@@ -132,35 +146,44 @@ export function EquipmentModal({
                     </Text>
                   </View>
                   {hasThermomix && (
-                    <Ionicons name="checkmark-circle" size={24} color="#FFBFB7" />
+                    <Ionicons name="checkmark-circle" size={24} color={COLORS.primary.medium} />
                   )}
                 </Pressable>
 
                 {hasThermomix && (
-                  <View className="mt-md ml-md">
+                  <View className="mt-md mx-md">
                     <Text preset="caption" className="mb-sm text-text-secondary">
                       {i18n.t('onboarding.steps.equipment.thermomix.modelQuestion')}
                     </Text>
-                    <View className="flex-row gap-md">
-                      {EQUIPMENT_CONFIG.thermomix.models.map(model => (
-                        <Pressable
-                          key={model}
-                          onPress={() => selectThermomixModel(model)}
-                          className={`px-lg py-md rounded-lg border-2 ${
-                            thermomixModel === model
-                              ? 'bg-primary-medium border-primary-medium'
-                              : showModelError
-                                ? 'bg-background-secondary border-status-error'
-                                : 'bg-background-secondary border-transparent'
-                          }`}
-                        >
-                          <Text className={`font-semibold ${
-                            thermomixModel === model ? 'text-white' : 'text-text-primary'
-                          }`}>
-                            {model}
-                          </Text>
-                        </Pressable>
-                      ))}
+                    <View className="flex-row flex-wrap gap-md">
+                      {EQUIPMENT_CONFIG.thermomix.models.map(model => {
+                        const isModelSelected = thermomixModels.includes(model);
+                        return (
+                          <Pressable
+                            key={model}
+                            onPress={() => toggleThermomixModel(model)}
+                            className={`flex-row items-center px-lg py-md rounded-lg border-2 ${
+                              isModelSelected
+                                ? 'bg-primary-medium border-primary-medium'
+                                : showModelError
+                                  ? 'bg-background-secondary border-status-error'
+                                  : 'bg-background-secondary border-transparent'
+                            }`}
+                          >
+                            <Ionicons
+                              name={isModelSelected ? 'checkbox' : 'square-outline'}
+                              size={20}
+                              color={isModelSelected ? COLORS.neutral.white : COLORS.text.secondary}
+                              style={{ marginRight: 8 }}
+                            />
+                            <Text className={`font-semibold ${
+                              isModelSelected ? 'text-white' : 'text-text-primary'
+                            }`}>
+                              {model}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
                     </View>
                     {showModelError && (
                       <Text preset="caption" className="text-status-error mt-sm">
@@ -202,7 +225,7 @@ export function EquipmentModal({
                           {i18n.t(`onboarding.steps.equipment.${type}.name`)}
                         </Text>
                         {isSelected && (
-                          <Ionicons name="checkmark-circle" size={20} color="#FFBFB7" />
+                          <Ionicons name="checkmark-circle" size={20} color={COLORS.primary.medium} />
                         )}
                       </Pressable>
                       {index < otherEquipment.length - 1 && (

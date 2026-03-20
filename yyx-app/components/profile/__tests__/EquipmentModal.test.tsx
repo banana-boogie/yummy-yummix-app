@@ -74,6 +74,22 @@ describe('EquipmentModal', () => {
     expect(mockOnClose).toHaveBeenCalled();
   });
 
+  it('allows selecting multiple Thermomix models', () => {
+    renderWithProviders(<EquipmentModal {...defaultProps} />);
+
+    fireEvent.press(screen.getByText('Thermomix'));
+    fireEvent.press(screen.getByText('TM6'));
+    fireEvent.press(screen.getByText('TM7'));
+    fireEvent.press(screen.getByText('Save'));
+
+    expect(mockOnSave).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        { type: 'thermomix', model: 'TM6' },
+        { type: 'thermomix', model: 'TM7' },
+      ])
+    );
+  });
+
   it('saves empty equipment when nothing selected', () => {
     renderWithProviders(<EquipmentModal {...defaultProps} />);
 

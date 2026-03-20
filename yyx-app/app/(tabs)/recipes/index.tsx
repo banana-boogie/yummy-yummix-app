@@ -50,12 +50,17 @@ const Recipes = () => {
   const headerTranslateY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
   const accumulatedDelta = useRef(0);
+  const isHeaderVisible = useRef(true);
   const activeAnimRef = useRef<Animated.CompositeAnimation | null>(null);
 
-  const animateHeader = useCallback((toValue: number) => {
+  const animateHeader = useCallback((show: boolean) => {
+    // Don't re-trigger if already in the target state
+    if (isHeaderVisible.current === show) return;
+    isHeaderVisible.current = show;
+
     activeAnimRef.current?.stop();
     const anim = Animated.spring(headerTranslateY, {
-      toValue,
+      toValue: show ? 0 : -headerHeight,
       useNativeDriver: true,
       stiffness: 200,
       damping: 25,
@@ -63,7 +68,7 @@ const Recipes = () => {
     });
     activeAnimRef.current = anim;
     anim.start(() => { activeAnimRef.current = null; });
-  }, [headerTranslateY]);
+  }, [headerTranslateY, headerHeight]);
 
   const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const currentY = event.nativeEvent.contentOffset.y;
@@ -73,7 +78,7 @@ const Recipes = () => {
     // At the top of the list, always show the header
     if (currentY <= 0) {
       accumulatedDelta.current = 0;
-      animateHeader(0);
+      animateHeader(true);
       return;
     }
 
@@ -83,26 +88,31 @@ const Recipes = () => {
     }
     accumulatedDelta.current += delta;
 
-    // Require a minimum scroll distance before hiding/showing (reduces jitter)
+    // Require a minimum scroll distance before committing to hide/show
     const threshold = 20;
 
     if (accumulatedDelta.current > threshold) {
-      animateHeader(-headerHeight);
+      animateHeader(false);
+      accumulatedDelta.current = 0;
     } else if (accumulatedDelta.current < -threshold) {
-      animateHeader(0);
+      animateHeader(true);
+      accumulatedDelta.current = 0;
     }
-  }, [headerHeight, animateHeader]);
+  }, [animateHeader]);
 
   // J3: Scroll-to-top on tab re-press
   const listRef = useRef<FlatList>(null);
   const navigation = useNavigation();
 
   useEffect(() => {
-    const unsubscribe = navigation.addListener('tabPress', () => {
+    const unsubscribe = navigation.addListener('tabPress', (e: { preventDefault: () => void }) => {
+      e.preventDefault();
       listRef.current?.scrollToOffset({ offset: 0, animated: true });
+      // Show header if it was hidden
+      animateHeader(true);
     });
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, animateHeader]);
 
   const displayName = userProfile?.name || '';
 
