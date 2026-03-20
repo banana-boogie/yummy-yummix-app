@@ -205,7 +205,7 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                         size={14}
                         color={COLORS.grey.medium_dark}
                     />
-                    <Text className="text-text-secondary text-xs ml-xs">
+                    <Text className="text-text-secondary text-sm ml-xs">
                         {i18n.t('chat.aiGeneratedRecipe')}
                     </Text>
                     <MaterialCommunityIcons
@@ -217,7 +217,7 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                 </TouchableOpacity>
                 {showDisclaimer && (
                     <View className="mt-xs bg-background-secondary rounded-md p-sm">
-                        <Text className="text-text-secondary text-xs leading-relaxed">
+                        <Text className="text-text-secondary text-sm leading-relaxed">
                             {i18n.t('chat.aiGeneratedDisclaimer')}
                         </Text>
                     </View>

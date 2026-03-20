@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Animated, View, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { Animated, FlatList, View, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useRecipes } from '@/hooks/useRecipes';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { SPACING } from '@/constants/design-tokens';
@@ -51,12 +52,14 @@ const Recipes = () => {
   const accumulatedDelta = useRef(0);
   const activeAnimRef = useRef<Animated.CompositeAnimation | null>(null);
 
-  const animateHeader = useCallback((toValue: number, duration: number) => {
+  const animateHeader = useCallback((toValue: number) => {
     activeAnimRef.current?.stop();
-    const anim = Animated.timing(headerTranslateY, {
+    const anim = Animated.spring(headerTranslateY, {
       toValue,
-      duration,
       useNativeDriver: true,
+      stiffness: 200,
+      damping: 25,
+      mass: 0.8,
     });
     activeAnimRef.current = anim;
     anim.start(() => { activeAnimRef.current = null; });
@@ -70,7 +73,7 @@ const Recipes = () => {
     // At the top of the list, always show the header
     if (currentY <= 0) {
       accumulatedDelta.current = 0;
-      animateHeader(0, 150);
+      animateHeader(0);
       return;
     }
 
@@ -81,14 +84,25 @@ const Recipes = () => {
     accumulatedDelta.current += delta;
 
     // Require a minimum scroll distance before hiding/showing (reduces jitter)
-    const threshold = 10;
+    const threshold = 20;
 
     if (accumulatedDelta.current > threshold) {
-      animateHeader(-headerHeight, 200);
+      animateHeader(-headerHeight);
     } else if (accumulatedDelta.current < -threshold) {
-      animateHeader(0, 200);
+      animateHeader(0);
     }
   }, [headerHeight, animateHeader]);
+
+  // J3: Scroll-to-top on tab re-press
+  const listRef = useRef<FlatList>(null);
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('tabPress', () => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const displayName = userProfile?.name || '';
 
@@ -176,6 +190,7 @@ const Recipes = () => {
         ) : (
           /* Default: sectioned feed */
           <RecipeSectionList
+            ref={listRef}
             sections={sections}
             loading={loading}
             initialLoading={initialLoading}

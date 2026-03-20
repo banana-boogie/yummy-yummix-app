@@ -1,7 +1,8 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, forwardRef } from 'react';
 import {
   View,
   Animated,
+  FlatList,
   ScrollView,
   StyleProp,
   ViewStyle,
@@ -68,7 +69,7 @@ const GridItem = React.memo(function GridItem({
   );
 });
 
-export const RecipeSectionList: React.FC<RecipeSectionListProps> = ({
+const RecipeSectionListInner = forwardRef<FlatList, RecipeSectionListProps>(({
   sections,
   onLoadMore,
   onScroll,
@@ -77,7 +78,7 @@ export const RecipeSectionList: React.FC<RecipeSectionListProps> = ({
   error,
   hasMore,
   contentContainerStyle,
-}) => {
+}, ref) => {
   const { isPhone } = useDevice();
   const { width: screenWidth } = useWindowDimensions();
 
@@ -180,7 +181,7 @@ export const RecipeSectionList: React.FC<RecipeSectionListProps> = ({
                   {section.title}
                 </Text>
                 {section.subtitle && (
-                  <Text preset="bodySmall" className="text-text-secondary mt-xxs">
+                  <Text preset="body" className="text-text-secondary mt-xxs">
                     {section.subtitle}
                   </Text>
                 )}
@@ -269,6 +270,7 @@ export const RecipeSectionList: React.FC<RecipeSectionListProps> = ({
   return (
     <View className="flex-1">
       <Animated.FlatList
+        ref={ref as React.Ref<FlatList>}
         className="flex-1"
         data={flatData}
         renderItem={renderItem}
@@ -281,11 +283,13 @@ export const RecipeSectionList: React.FC<RecipeSectionListProps> = ({
         onEndReachedThreshold={0.5}
         onScroll={onScroll}
         contentContainerStyle={contentContainerStyle}
-        initialNumToRender={6}
+        initialNumToRender={4}
         maxToRenderPerBatch={4}
         windowSize={7}
-        removeClippedSubviews={false}
+        removeClippedSubviews={true}
       />
     </View>
   );
-};
+});
+
+export const RecipeSectionList = React.memo(RecipeSectionListInner);

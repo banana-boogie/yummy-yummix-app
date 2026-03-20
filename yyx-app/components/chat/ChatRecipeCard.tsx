@@ -82,32 +82,32 @@ export const ChatRecipeCard = memo(function ChatRecipeCard({ recipe }: ChatRecip
 
             {/* Content */}
             <View className="p-md">
-                <Text className="text-text-primary font-semibold text-base" numberOfLines={2}>
+                <Text className="text-text-primary font-semibold text-lg" numberOfLines={2}>
                     {recipe.name}
                 </Text>
 
                 <View className="flex-row items-center mt-xs gap-sm">
                     {/* Time */}
                     <View className="flex-row items-center">
-                        <MaterialCommunityIcons name="clock-outline" size={14} color={COLORS.grey.medium_dark} />
-                        <Text className="text-text-secondary text-xs ml-xs">
+                        <MaterialCommunityIcons name="clock-outline" size={16} color={COLORS.grey.medium_dark} />
+                        <Text className="text-text-secondary text-sm ml-xs">
                             {recipe.totalTime} {i18n.t('common.minutesShort')}
                         </Text>
                     </View>
 
-                    <Text className="text-text-secondary text-xs">&middot;</Text>
+                    <Text className="text-text-secondary text-sm">&middot;</Text>
 
                     {/* Difficulty */}
-                    <Text className={`text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
+                    <Text className={`text-sm font-medium ${getDifficultyColor(recipe.difficulty)}`}>
                         {getDifficultyLabel(recipe.difficulty)}
                     </Text>
 
-                    <Text className="text-text-secondary text-xs">&middot;</Text>
+                    <Text className="text-text-secondary text-sm">&middot;</Text>
 
                     {/* Portions */}
                     <View className="flex-row items-center">
-                        <MaterialCommunityIcons name="account-group-outline" size={14} color={COLORS.grey.medium_dark} />
-                        <Text className="text-text-secondary text-xs ml-xs">
+                        <MaterialCommunityIcons name="account-group-outline" size={16} color={COLORS.grey.medium_dark} />
+                        <Text className="text-text-secondary text-sm ml-xs">
                             {recipe.portions}
                         </Text>
                     </View>
@@ -124,11 +124,11 @@ export const ChatRecipeCard = memo(function ChatRecipeCard({ recipe }: ChatRecip
                 >
                     <MaterialCommunityIcons
                         name="alert-outline"
-                        size={14}
+                        size={16}
                         color={COLORS.status.warning}
                         accessibilityElementsHidden={true}
                     />
-                    <Text className="text-text-secondary text-xs ml-xs flex-1" numberOfLines={2}>
+                    <Text className="text-text-secondary text-sm ml-xs flex-1" numberOfLines={2}>
                         {recipe.allergenVerificationWarning}
                     </Text>
                 </View>
@@ -142,11 +142,11 @@ export const ChatRecipeCard = memo(function ChatRecipeCard({ recipe }: ChatRecip
                 >
                     <MaterialCommunityIcons
                         name="alert-outline"
-                        size={14}
+                        size={16}
                         color={COLORS.status.warning}
                         accessibilityElementsHidden={true}
                     />
-                    <Text className="text-text-secondary text-xs ml-xs flex-1" numberOfLines={2}>
+                    <Text className="text-text-secondary text-sm ml-xs flex-1" numberOfLines={2}>
                         {recipe.allergenWarnings.join(' · ')}
                     </Text>
                 </View>

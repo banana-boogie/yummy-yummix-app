@@ -67,7 +67,7 @@ export const WatercolorRecipeCard = React.memo(function WatercolorRecipeCard({
               preset="body"
               className="font-normal flex-1"
               numberOfLines={1}
-              style={{ fontSize: FONT_SIZES.lg }}
+              style={{ fontSize: FONT_SIZES.xl }}
               marginBottom={0}
             >
               {recipe.name}
@@ -75,8 +75,8 @@ export const WatercolorRecipeCard = React.memo(function WatercolorRecipeCard({
 
             {recipe.totalTime != null && (
               <View className="flex-row items-center gap-xxs ml-sm">
-                <Ionicons name="time-outline" size={13} color={COLORS.text.secondary} />
-                <Text preset="caption" className="text-text-secondary">
+                <Ionicons name="time-outline" size={16} color={COLORS.text.secondary} />
+                <Text preset="bodySmall" className="text-text-secondary">
                   {formatTimeInHoursAndMinutes(recipe.totalTime)}
                 </Text>
               </View>
