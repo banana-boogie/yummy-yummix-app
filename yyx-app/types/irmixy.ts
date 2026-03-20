@@ -69,6 +69,12 @@ export interface SafetyFlags {
   error?: boolean;
 }
 
+export interface Suggestion {
+  label: string;
+  message: string;
+  type?: 'recipe_generation' | 'default';
+}
+
 export interface IrmixyResponse {
   version: '1.0';
   message: string;
@@ -78,6 +84,7 @@ export interface IrmixyResponse {
   customRecipe?: GeneratedRecipe;
   isAIGenerated?: boolean;
   actions?: Action[];
+  suggestions?: Suggestion[];
   memoryUsed?: string[];
   safetyFlags?: SafetyFlags;
 }

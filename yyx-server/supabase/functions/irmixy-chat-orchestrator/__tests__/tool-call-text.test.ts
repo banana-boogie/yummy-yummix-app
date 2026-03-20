@@ -135,6 +135,61 @@ Deno.test("StreamingToolCallFilter suppresses XML <function_calls> block", () =>
   assertEquals(output.join(""), "Great choice! ");
 });
 
+// ============================================================
+// Cross-token "The tool returned:" detection
+// ============================================================
+
+Deno.test("StreamingToolCallFilter suppresses 'The tool returned:' split across tokens", () => {
+  const output: string[] = [];
+  const filter = new StreamingToolCallFilter((text) => output.push(text));
+
+  filter.push("Here are some recipes! ");
+  filter.push("The");
+  filter.push(" tool");
+  filter.push(" returned");
+  filter.push(":");
+  filter.push(" Found 1 recipe(s).");
+  filter.end();
+
+  assertEquals(output.join(""), "Here are some recipes! ");
+});
+
+Deno.test("StreamingToolCallFilter suppresses 'The tool returned:' split into two tokens", () => {
+  const output: string[] = [];
+  const filter = new StreamingToolCallFilter((text) => output.push(text));
+
+  filter.push("Great! ");
+  filter.push("The tool");
+  filter.push(" returned: some data here");
+  filter.end();
+
+  assertEquals(output.join(""), "Great! ");
+});
+
+Deno.test("StreamingToolCallFilter flushes 'The' when followed by non-matching token", () => {
+  const output: string[] = [];
+  const filter = new StreamingToolCallFilter((text) => output.push(text));
+
+  filter.push("Hello ");
+  filter.push("The");
+  filter.push(" chicken is ready.");
+  filter.end();
+
+  assertEquals(output.join(""), "Hello The chicken is ready.");
+});
+
+Deno.test("StreamingToolCallFilter flushes partial phrase at end of stream", () => {
+  const output: string[] = [];
+  const filter = new StreamingToolCallFilter((text) => output.push(text));
+
+  filter.push("Hello ");
+  filter.push("The tool");
+  filter.end();
+
+  // "The tool" is a partial match — flushed as false positive at end()
+  assertEquals(output.join(""), "Hello The tool");
+});
+
 Deno.test("StreamingToolCallFilter passes normal text with angle brackets", () => {
   // Text like "Use <5 min" should NOT be suppressed once buffer exceeds MAX_BUFFER
   // But short angle bracket tokens DO trigger buffering — test that they flush

@@ -17,6 +17,7 @@ import { SearchingAnimation } from '@/components/chat/SearchingAnimation';
 import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
 import { ChatResumeBar } from '@/components/chat/ChatResumeBar';
 import { ChatInputBar } from '@/components/chat/ChatInputBar';
+import { SuggestionChips } from '@/components/chat/SuggestionChips';
 import { useMessageStreaming } from '@/hooks/chat/useMessageStreaming';
 import { useSmartScroll } from '@/hooks/chat/useSmartScroll';
 import { useResumeSession } from '@/hooks/chat/useResumeSession';
@@ -25,7 +26,7 @@ import {
     executeAction,
     type ActionContext,
 } from '@/services/actions/actionRegistry';
-import type { Action, IrmixyResponse } from '@/types/irmixy';
+import type { Action, IrmixyResponse, Suggestion } from '@/types/irmixy';
 import { isRecipeToolStatus } from '@/services/chatService';
 import type { BudgetWarningPayload, ChatMessage, IrmixyStatus } from '@/services/chatService';
 import { useQueryClient } from '@tanstack/react-query';
@@ -55,6 +56,8 @@ interface Props {
     disableResume?: boolean;
     /** Injected as the first assistant message (renders as a chat bubble from Irmixy) */
     initialGreeting?: string;
+    /** Called before navigating away (e.g. "Start Cooking" inside a modal) */
+    onNavigateAway?: () => void;
 }
 
 const keyExtractor = (item: ChatMessage) => item.id;
@@ -70,6 +73,7 @@ export function ChatScreen({
     emptyStateGreeting,
     disableResume,
     initialGreeting,
+    onNavigateAway,
 }: Props) {
     const { user } = useAuth();
     const { locale } = useLanguage();
@@ -181,6 +185,7 @@ export function ChatScreen({
         isRecipeGenerating,
         currentStatus,
         handleSend,
+        handleSendMessage,
         resetStreamingState,
     } = useMessageStreaming({
         user,
@@ -227,6 +232,7 @@ export function ChatScreen({
         setMessages,
         queryClient,
         getMessages: useCallback(() => messagesRef.current, []),
+        onNavigateAway,
     });
 
     // --- Cycling greeting for empty state ---
@@ -333,6 +339,18 @@ export function ChatScreen({
     const latestMessage = messages.length > 0 ? messages[messages.length - 1] : null;
     const showRecipeTracker = isRecipeGenerating && !latestMessage?.customRecipe;
 
+    // Show suggestion chips only on the last assistant message, and only when not loading
+    const lastAssistantSuggestions = useMemo(() => {
+        if (isLoading) return undefined;
+        if (!latestMessage || latestMessage.role !== 'assistant') return undefined;
+        return latestMessage.suggestions;
+    }, [isLoading, latestMessage]);
+
+    const handleSuggestionPress = useCallback((suggestion: Suggestion) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        handleSendMessage(suggestion.message);
+    }, [handleSendMessage]);
+
     const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
         const isLast = item.id === lastMessageId;
         return (
@@ -386,10 +404,10 @@ export function ChatScreen({
                 onScroll={handleScroll}
                 scrollEventThrottle={200}
                 removeClippedSubviews={Platform.OS !== 'web'}
-                maxToRenderPerBatch={3}
+                maxToRenderPerBatch={8}
                 updateCellsBatchingPeriod={50}
-                windowSize={5}
-                initialNumToRender={8}
+                windowSize={7}
+                initialNumToRender={10}
                 getItemLayout={undefined}
                 onScrollToIndexFailed={(info) => {
                     setTimeout(() => {
@@ -400,6 +418,14 @@ export function ChatScreen({
                         });
                     }, 100);
                 }}
+                ListFooterComponent={
+                    lastAssistantSuggestions && lastAssistantSuggestions.length > 0 ? (
+                        <SuggestionChips
+                            suggestions={lastAssistantSuggestions}
+                            onPress={handleSuggestionPress}
+                        />
+                    ) : null
+                }
                 ListEmptyComponent={
                     <View className="flex-1 justify-center items-center pt-xxxl">
                         <Image

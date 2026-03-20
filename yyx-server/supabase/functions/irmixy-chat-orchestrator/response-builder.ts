@@ -31,6 +31,9 @@ export async function finalizeResponse(
   recipes: RecipeCard[] | undefined,
   customRecipeResult: GenerateRecipeResult | undefined,
   actions?: Action[],
+  suggestions?: Array<
+    { label: string; message: string; type?: "recipe_generation" | "default" }
+  >,
 ): Promise<IrmixyResponse> {
   const irmixyResponse: IrmixyResponse = {
     version: "1.0",
@@ -42,6 +45,9 @@ export async function finalizeResponse(
     isAIGenerated: customRecipeResult?.recipe ? true : undefined,
     safetyFlags: customRecipeResult?.safetyFlags,
     actions: actions && actions.length > 0 ? actions : undefined,
+    suggestions: suggestions && suggestions.length > 0
+      ? suggestions
+      : undefined,
   };
 
   validateSchema(IrmixyResponseSchema, irmixyResponse);

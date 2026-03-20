@@ -83,6 +83,11 @@ export class StreamingToolCallFilter {
   private readonly onFlush: (text: string) => void;
   private readonly disabled: boolean;
 
+  // Cross-token phrase detection: accumulates text that could be the start of
+  // "The tool returned:" arriving across multiple streaming tokens.
+  private pendingPhrase = "";
+  private static readonly CROSS_TOKEN_PHRASE = "The tool returned:";
+
   // Patterns that confirm a tool call leak (check against accumulated buffer)
   private static readonly SUPPRESS_PATTERNS = [
     /<tool_calls>/,
@@ -147,6 +152,33 @@ export class StreamingToolCallFilter {
       return;
     }
 
+    // Cross-token phrase detection for "The tool returned:"
+    // Accumulate tokens that could be building up to the phrase
+    if (this.pendingPhrase.length > 0 || this.couldStartPhrase(token)) {
+      this.pendingPhrase += token;
+      const phrase = StreamingToolCallFilter.CROSS_TOKEN_PHRASE;
+
+      // Complete match — start suppression buffering
+      if (this.pendingPhrase.includes(phrase)) {
+        this.buffering = true;
+        this.buffer = this.pendingPhrase;
+        this.pendingPhrase = "";
+        return;
+      }
+
+      // Still a valid prefix of the phrase — keep holding
+      if (phrase.startsWith(this.pendingPhrase.trimStart())) {
+        return;
+      }
+
+      // Broke the pattern — flush pending as normal output
+      const flushed = this.pendingPhrase;
+      this.pendingPhrase = "";
+      this.charsFlushed += flushed.length;
+      this.onFlush(flushed);
+      return;
+    }
+
     // Normal token — pass through immediately
     this.charsFlushed += token.length;
     this.onFlush(token);
@@ -154,6 +186,11 @@ export class StreamingToolCallFilter {
 
   /** Call when stream ends. Flushes any remaining buffer (partial match = false positive). */
   end(): void {
+    // Flush pending phrase buffer (partial cross-token match = false positive)
+    if (this.pendingPhrase) {
+      this.onFlush(this.pendingPhrase);
+      this.pendingPhrase = "";
+    }
     if (this.buffer && !this.matchesSuppressPattern()) {
       this.onFlush(this.buffer);
     }
@@ -166,6 +203,7 @@ export class StreamingToolCallFilter {
   abort(): void {
     this.buffer = "";
     this.buffering = false;
+    this.pendingPhrase = "";
     this.charsFlushed = 0;
   }
 
@@ -202,5 +240,13 @@ export class StreamingToolCallFilter {
       if (pattern.test(this.buffer)) return true;
     }
     return false;
+  }
+
+  /** Check if a token could be the beginning of "The tool returned:" */
+  private couldStartPhrase(token: string): boolean {
+    const trimmed = token.trimStart();
+    const phrase = StreamingToolCallFilter.CROSS_TOKEN_PHRASE;
+    // Check if the trimmed token is a prefix of the phrase
+    return trimmed.length > 0 && phrase.startsWith(trimmed);
   }
 }

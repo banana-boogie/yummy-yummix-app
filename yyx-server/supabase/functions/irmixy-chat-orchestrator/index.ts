@@ -46,6 +46,7 @@ import {
   stripToolCallText,
 } from "./tool-call-text.ts";
 import { buildActions } from "./action-builder.ts";
+import { buildSuggestions } from "./suggestions.ts";
 import {
   BudgetCheckUnavailableError,
   checkTextBudget,
@@ -808,6 +809,13 @@ function handleStreamingRequest(
         }
 
         const actions = buildActions(userContext.language, appActionResult);
+        const suggestions = buildSuggestions(
+          message,
+          finalText,
+          !!recipes?.length,
+          !!customRecipeResult?.recipe,
+          userContext.locale,
+        );
 
         const response = await finalizeResponse(
           supabase,
@@ -818,6 +826,7 @@ function handleStreamingRequest(
           recipes,
           customRecipeResult,
           actions.length > 0 ? actions : undefined,
+          suggestions.length > 0 ? suggestions : undefined,
         );
         timings.finalize_ms = Math.round(performance.now() - phaseStart);
         timings.total_ms = Math.round(performance.now() - startTime);

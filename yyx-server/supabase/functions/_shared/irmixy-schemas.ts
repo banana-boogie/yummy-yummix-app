@@ -96,6 +96,15 @@ export const IrmixyResponseSchema = z.object({
   actions: z.array(ActionSchema).optional(),
   memoryUsed: z.array(z.string()).optional(),
   safetyFlags: SafetyFlagsSchema.optional(),
+  suggestions: z
+    .array(
+      z.object({
+        label: z.string(),
+        message: z.string(),
+        type: z.enum(["recipe_generation", "default"]).optional(),
+      }),
+    )
+    .optional(),
 });
 
 // ============================================================

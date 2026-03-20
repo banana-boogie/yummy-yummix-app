@@ -293,6 +293,7 @@ export function useMessageStreaming({
                             customRecipe: hasRecipeData ? response.customRecipe : msg.customRecipe,
                             safetyFlags: hasRecipeData ? response.safetyFlags : msg.safetyFlags,
                             actions: response.actions,
+                            suggestions: response.suggestions,
                         };
                     });
 
@@ -428,6 +429,7 @@ export function useMessageStreaming({
         isRecipeGenerating,
         currentStatus,
         handleSend,
+        handleSendMessage,
         resetStreamingState,
     };
 }
