@@ -636,5 +636,7 @@ export const admin = {
     from: "From: {{email}}",
     previous: "Previous",
     next: "Next",
+    unknownRecipe: "Unknown Recipe",
+    unknownUser: "Unknown User",
   },
 };

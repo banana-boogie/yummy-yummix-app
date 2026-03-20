@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ratingService } from '@/services/ratingService';
 import { useAuth } from '@/contexts/AuthContext';
+import { recipeKeys } from '@/hooks/useRecipeQuery';
 
 /**
  * Query keys for rating-related queries
@@ -68,8 +69,8 @@ export function useRecipeRating(recipeId: string) {
             // Invalidate to refetch
             queryClient.invalidateQueries({ queryKey: ratingKeys.userRating(recipeId) });
             queryClient.invalidateQueries({ queryKey: ratingKeys.distribution(recipeId) });
-            // Invalidate this specific recipe to refresh cached rating stats
-            queryClient.invalidateQueries({ queryKey: ['recipes', recipeId] });
+            // Invalidate recipe detail cache to refresh averageRating/ratingCount
+            queryClient.invalidateQueries({ queryKey: recipeKeys.details() });
         },
     });
 

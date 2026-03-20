@@ -61,7 +61,7 @@ UNIQUE constraint on `(user_id, recipe_id)` — re-rating uses upsert. Ratings a
 | `feedback` | text | 1–2000 characters |
 | `created_at` | timestamptz | |
 
-Multiple feedback rows per user/recipe are allowed. Users can only read their own feedback; admins access all rows via the `admin_recipe_feedback_list` RPC (service role).
+Multiple feedback rows per user/recipe are allowed. Users can only read their own feedback; admins access all rows via the `admin_recipe_feedback_list` RPC (authenticated RPC guarded by `is_admin()` with `SECURITY DEFINER`).
 
 ---
 

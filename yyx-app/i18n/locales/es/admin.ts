@@ -644,5 +644,7 @@ export const admin = {
     from: "De: {{email}}",
     previous: "Anterior",
     next: "Siguiente",
+    unknownRecipe: "Receta desconocida",
+    unknownUser: "Usuario desconocido",
   },
 };

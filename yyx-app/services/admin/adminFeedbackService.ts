@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { AdminFeedbackItem } from '@/types/rating.types';
+import i18n from '@/i18n';
 
 interface FeedbackRpcRow {
     id: string;
@@ -67,9 +68,9 @@ export const adminFeedbackService = {
             feedback: item.feedback,
             createdAt: item.created_at,
             recipeId: item.recipe_id,
-            recipeName: item.recipe_name || 'Unknown Recipe',
+            recipeName: item.recipe_name || i18n.t('admin.feedback.unknownRecipe'),
             userId: item.user_id,
-            userEmail: item.user_email || 'Unknown User',
+            userEmail: item.user_email || i18n.t('admin.feedback.unknownUser'),
         }));
 
         return {

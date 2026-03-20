@@ -113,12 +113,32 @@ $$;
 -- The project already has handle_updated_at(). Repoint the trigger.
 -- ============================================================================
 
--- Drop the duplicate trigger and function
-DROP TRIGGER IF EXISTS set_updated_at_trigger ON public.recipe_ratings;
+-- Drop the real trigger (created as trg_recipe_ratings_updated_at in 20260212110000),
+-- then the orphaned function, then recreate with handle_updated_at().
+DROP TRIGGER IF EXISTS trg_recipe_ratings_updated_at ON public.recipe_ratings;
 DROP FUNCTION IF EXISTS public.set_updated_at();
 
 -- Recreate trigger using existing handle_updated_at()
-CREATE TRIGGER set_updated_at_trigger
+CREATE TRIGGER trg_recipe_ratings_updated_at
   BEFORE UPDATE ON public.recipe_ratings
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_updated_at();
+
+-- ============================================================================
+-- Fix 4: Completion-gate recipe_feedback inserts (mirrors recipe_ratings gate)
+-- ============================================================================
+
+DROP POLICY IF EXISTS "Users can insert own feedback" ON public.recipe_feedback;
+
+CREATE POLICY "Users can insert own feedback"
+  ON public.recipe_feedback FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    auth.uid() = user_id
+    AND EXISTS (
+      SELECT 1
+      FROM public.recipe_completions rc
+      WHERE rc.user_id = auth.uid()
+        AND rc.recipe_id = recipe_id
+    )
+  );
