@@ -5,7 +5,11 @@
  */
 
 import { assertEquals } from "https://deno.land/std@0.192.0/testing/asserts.ts";
-import { detectTextToolCall, stripToolCallText } from "../tool-call-text.ts";
+import {
+  detectTextToolCall,
+  StreamingToolCallFilter,
+  stripToolCallText,
+} from "../tool-call-text.ts";
 
 Deno.test("detectTextToolCall detects call:<tool>{...} syntax", () => {
   const content =
@@ -56,4 +60,94 @@ Deno.test("stripToolCallText keeps normal text unchanged", () => {
 
 Deno.test("stripToolCallText safely handles empty input", () => {
   assertEquals(stripToolCallText(""), "");
+});
+
+// ============================================================
+// Workstream B: Tool Result Leak Fix
+// ============================================================
+
+Deno.test("stripToolCallText strips 'The tool returned:' text from end", () => {
+  const text =
+    "Here are some great chicken recipes!\nThe tool returned: Found 3 recipe(s) matching your search.";
+  assertEquals(
+    stripToolCallText(text),
+    "Here are some great chicken recipes!",
+  );
+});
+
+Deno.test("stripToolCallText keeps normal text containing 'returned' unchanged", () => {
+  const text = "The chicken returned to room temperature before cooking.";
+  assertEquals(stripToolCallText(text), text);
+});
+
+Deno.test("StreamingToolCallFilter suppresses 'The tool returned:' text", () => {
+  const output: string[] = [];
+  const filter = new StreamingToolCallFilter((text) => output.push(text));
+
+  filter.push("Here are some recipes! ");
+  filter.push("The tool returned:");
+  filter.push(" Found 1 recipe(s).");
+  filter.end();
+
+  assertEquals(output.join(""), "Here are some recipes! ");
+});
+
+// ============================================================
+// Workstream F: XML Tool Call Leak
+// ============================================================
+
+Deno.test("detectTextToolCall detects <function_calls> XML syntax", () => {
+  const content =
+    'Let me search for that.\n<function_calls>\n<invoke name="search_recipes">\n<parameter name="query">chicken</parameter>\n</invoke>\n</function_calls>';
+  assertEquals(detectTextToolCall(content), "search_recipes");
+});
+
+Deno.test("detectTextToolCall detects <invoke name='tool'> XML syntax", () => {
+  const content =
+    'I will generate a recipe.\n<invoke name="generate_custom_recipe">\n<parameter name="ingredients">["chicken"]</parameter>\n</invoke>';
+  assertEquals(detectTextToolCall(content), "generate_custom_recipe");
+});
+
+Deno.test("stripToolCallText strips XML <function_calls> blocks", () => {
+  const text =
+    'Here is your recipe!\n<function_calls>\n<invoke name="search_recipes">\n<parameter name="query">pasta</parameter>\n</invoke>\n</function_calls>';
+  assertEquals(stripToolCallText(text), "Here is your recipe!");
+});
+
+Deno.test("stripToolCallText strips unclosed <function_calls> blocks", () => {
+  const text =
+    'Let me find that.\n<function_calls>\n<invoke name="search_recipes">';
+  assertEquals(stripToolCallText(text), "Let me find that.");
+});
+
+Deno.test("StreamingToolCallFilter suppresses XML <function_calls> block", () => {
+  const output: string[] = [];
+  const filter = new StreamingToolCallFilter((text) => output.push(text));
+
+  filter.push("Great choice! ");
+  filter.push("<function_calls>");
+  filter.push('\n<invoke name="search_recipes">');
+  filter.push('\n<parameter name="query">chicken</parameter>');
+  filter.push("\n</invoke>");
+  filter.push("\n</function_calls>");
+  filter.end();
+
+  assertEquals(output.join(""), "Great choice! ");
+});
+
+Deno.test("StreamingToolCallFilter passes normal text with angle brackets", () => {
+  // Text like "Use <5 min" should NOT be suppressed once buffer exceeds MAX_BUFFER
+  // But short angle bracket tokens DO trigger buffering — test that they flush
+  // when no suppress pattern matches at buffer end
+  const output: string[] = [];
+  const filter = new StreamingToolCallFilter((text) => output.push(text));
+
+  filter.push("Cook for ");
+  // A token starting with < that won't match any suppress pattern at end()
+  filter.push("<");
+  filter.push("5 minutes.");
+  filter.end();
+
+  // The "<5 minutes." text should have been flushed (either during or at end)
+  assertEquals(output.join(""), "Cook for <5 minutes.");
 });

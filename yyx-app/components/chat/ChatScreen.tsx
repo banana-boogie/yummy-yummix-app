@@ -47,10 +47,14 @@ interface Props {
     onMessagesChange?: (messages: ChatMessage[]) => void;
     onOpenSessionsMenu?: () => void;
     newChatSignal?: number;
-    /** Prepended to each user message before sending (invisible to the user) */
-    contextPrefix?: string;
+    /** Structured cooking context — sent as a separate field to the backend */
+    cookingContext?: import('@/types/irmixy').CookingContext;
     /** Override the cycling greeting shown in the empty state */
     emptyStateGreeting?: string;
+    /** When true, skip resume session lookup (e.g. cooking modal) */
+    disableResume?: boolean;
+    /** Injected as the first assistant message (renders as a chat bubble from Irmixy) */
+    initialGreeting?: string;
 }
 
 const keyExtractor = (item: ChatMessage) => item.id;
@@ -62,8 +66,10 @@ export function ChatScreen({
     onMessagesChange,
     onOpenSessionsMenu,
     newChatSignal,
-    contextPrefix,
+    cookingContext,
     emptyStateGreeting,
+    disableResume,
+    initialGreeting,
 }: Props) {
     const { user } = useAuth();
     const { locale } = useLanguage();
@@ -125,6 +131,7 @@ export function ChatScreen({
         onSessionCreated,
         resumeDismissed,
         setResumeDismissed,
+        disableResume,
     });
 
     const onResumeSessionClear = useCallback(() => {
@@ -192,7 +199,7 @@ export function ChatScreen({
         onResumeSessionClear,
         onBudgetWarning: handleBudgetWarning,
         onBudgetExceeded: handleBudgetExceeded,
-        contextPrefix,
+        cookingContext,
         onActionsReceived: useCallback((actions: Action[], response: IrmixyResponse) => {
             const autoActions = actions.filter((a) => a.autoExecute);
             if (autoActions.length === 0) return;
@@ -240,6 +247,23 @@ export function ChatScreen({
         const raw = greetingList[greetingIndex] || i18n.t('chat.greeting');
         return userProfile?.name ? raw.replace('{{name}}', userProfile.name) : raw;
     }, [greetingIndex, greetingList, userProfile?.name]);
+
+    // --- Inject initial greeting as an assistant chat bubble ---
+    const initialGreetingInjectedRef = useRef(false);
+    useEffect(() => {
+        if (initialGreeting && !initialGreetingInjectedRef.current && messages.length === 0) {
+            initialGreetingInjectedRef.current = true;
+            const greetingMessage: ChatMessage = {
+                id: `initial-greeting-${Date.now()}`,
+                role: 'assistant',
+                content: initialGreeting,
+                createdAt: new Date(),
+            };
+            setMessages([greetingMessage]);
+        }
+    // Only run once on mount when initialGreeting is provided
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialGreeting]);
 
     // --- Effects ---
 

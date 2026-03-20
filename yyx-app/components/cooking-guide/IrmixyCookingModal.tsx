@@ -6,7 +6,7 @@
  * no chat logic duplication. The modal is just a shell with header,
  * mode toggle, and the appropriate screen component.
  */
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
     View,
     Modal,
@@ -22,6 +22,7 @@ import { ChatScreen } from '@/components/chat/ChatScreen';
 import { VoiceChatScreen } from '@/components/chat/VoiceChatScreen';
 import type { ChatMessage } from '@/services/chatService';
 import type { RecipeContext } from '@/services/voice/types';
+import type { CookingContext } from '@/types/irmixy';
 import { COLORS, SPACING } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 
@@ -31,20 +32,45 @@ interface IrmixyCookingModalProps {
     visible: boolean;
     onClose: () => void;
     recipeContext: RecipeContext;
+    /** External chat session ID — when provided, persists across step navigation via context */
+    externalSessionId?: string | null;
+    /** Setter for external session ID */
+    onExternalSessionIdChange?: (id: string | null) => void;
+    /** External chat messages — when provided, persists across step navigation via context */
+    externalMessages?: ChatMessage[];
+    /** Setter for external messages */
+    onExternalMessagesChange?: (messages: ChatMessage[]) => void;
+    /** External voice transcript messages */
+    externalVoiceTranscriptMessages?: ChatMessage[];
+    /** Setter for external voice transcript messages */
+    onExternalVoiceTranscriptMessagesChange?: (messages: ChatMessage[]) => void;
 }
 
 export function IrmixyCookingModal({
     visible,
     onClose,
     recipeContext,
+    externalSessionId,
+    onExternalSessionIdChange,
+    externalMessages,
+    onExternalMessagesChange,
+    externalVoiceTranscriptMessages,
+    onExternalVoiceTranscriptMessagesChange,
 }: IrmixyCookingModalProps) {
     const insets = useSafeAreaInsets();
     const [mode, setMode] = useState<CookingChatMode>('text');
 
-    // Lifted state for session persistence across close/reopen
-    const [sessionId, setSessionId] = useState<string | null>(null);
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [voiceTranscriptMessages, setVoiceTranscriptMessages] = useState<ChatMessage[]>([]);
+    // Use external state when provided (persists across steps), otherwise local state (persists across close/reopen)
+    const [localSessionId, setLocalSessionId] = useState<string | null>(null);
+    const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
+    const [localVoiceTranscriptMessages, setLocalVoiceTranscriptMessages] = useState<ChatMessage[]>([]);
+
+    const sessionId = externalSessionId !== undefined ? externalSessionId : localSessionId;
+    const setSessionId = onExternalSessionIdChange ?? setLocalSessionId;
+    const messages = externalMessages ?? localMessages;
+    const setMessages = onExternalMessagesChange ?? setLocalMessages;
+    const voiceTranscriptMessages = externalVoiceTranscriptMessages ?? localVoiceTranscriptMessages;
+    const setVoiceTranscriptMessages = onExternalVoiceTranscriptMessagesChange ?? setLocalVoiceTranscriptMessages;
 
     // When modal closes while in voice mode, switch to text to trigger
     // VoiceChatScreen unmount — its internal useFocusEffect cleanup stops the WebRTC session.
@@ -66,13 +92,14 @@ export function IrmixyCookingModal({
 
     const handleSessionCreated = useCallback((newSessionId: string) => {
         setSessionId(newSessionId);
-    }, []);
+    }, [setSessionId]);
 
-    // Build the context prefix for text mode
-    const contextPrefix = useMemo(() =>
-        `[Cooking context: "${recipeContext.recipeTitle ?? ''}", step ${recipeContext.currentStep ?? '?'}/${recipeContext.totalSteps ?? '?'}${recipeContext.stepInstructions ? `. Current step: "${recipeContext.stepInstructions}"` : ''}]`,
-        [recipeContext.recipeTitle, recipeContext.currentStep, recipeContext.totalSteps, recipeContext.stepInstructions],
-    );
+    // Build structured cooking context for the backend system prompt
+    const cookingContext: CookingContext = useMemo(() => ({
+        recipeTitle: recipeContext.recipeTitle ?? '',
+        currentStep: `${recipeContext.currentStep ?? '?'}/${recipeContext.totalSteps ?? '?'}`,
+        ...(recipeContext.stepInstructions ? { stepInstructions: recipeContext.stepInstructions } : {}),
+    }), [recipeContext.recipeTitle, recipeContext.currentStep, recipeContext.totalSteps, recipeContext.stepInstructions]);
 
     const isNative = Platform.OS !== 'web';
 
@@ -93,7 +120,7 @@ export function IrmixyCookingModal({
                     className="flex-row items-center justify-between border-b border-border-default bg-background-default"
                     style={{
                         paddingTop: insets.top + SPACING.xs,
-                        paddingBottom: SPACING.sm,
+                        paddingBottom: SPACING.md,
                         paddingHorizontal: SPACING.md,
                     }}
                 >
@@ -108,7 +135,7 @@ export function IrmixyCookingModal({
                             <Text className="font-semibold text-text-primary">
                                 {i18n.t('chat.title')}
                             </Text>
-                            <Text className="text-xs text-text-secondary" numberOfLines={1}>
+                            <Text className="text-sm text-text-secondary" numberOfLines={1}>
                                 {i18n.t('chat.cookingModal.contextHint', {
                                     recipeName: recipeContext.recipeTitle ?? '',
                                     step: recipeContext.currentStep ?? '?',
@@ -118,42 +145,49 @@ export function IrmixyCookingModal({
                         </View>
                     </View>
 
-                    <View className="flex-row items-center gap-xs">
-                        {/* Mode toggle (native only) */}
-                        {isNative && (
-                            <TouchableOpacity
-                                onPress={toggleMode}
-                                className="w-10 h-10 rounded-full border-2 border-primary-darkest items-center justify-center"
-                                accessibilityLabel={
-                                    mode === 'text'
-                                        ? i18n.t('chat.cookingModal.switchToVoice')
-                                        : i18n.t('chat.cookingModal.switchToText')
-                                }
-                                accessibilityRole="button"
-                            >
-                                <MaterialCommunityIcons
-                                    name={mode === 'text' ? 'microphone' : 'keyboard'}
-                                    size={22}
-                                    color={COLORS.primary.darkest}
-                                />
-                            </TouchableOpacity>
-                        )}
+                    {/* Close button (only) */}
+                    <TouchableOpacity
+                        onPress={handleClose}
+                        className="w-10 h-10 items-center justify-center"
+                        accessibilityLabel={i18n.t('common.close')}
+                        accessibilityRole="button"
+                    >
+                        <MaterialCommunityIcons
+                            name="close"
+                            size={24}
+                            color={COLORS.text.secondary}
+                        />
+                    </TouchableOpacity>
+                </View>
 
-                        {/* Close button */}
+                {/* Voice/Text mode toggle bar (native only) */}
+                {isNative && (
+                    <View className="flex-row items-center justify-center py-xs px-md bg-primary-lightest">
                         <TouchableOpacity
-                            onPress={handleClose}
-                            className="w-10 h-10 items-center justify-center"
-                            accessibilityLabel={i18n.t('common.close')}
+                            onPress={toggleMode}
+                            className="flex-row items-center gap-xs bg-background-default rounded-full px-lg py-xs shadow-sm"
+                            accessibilityLabel={
+                                mode === 'text'
+                                    ? i18n.t('chat.cookingModal.switchToVoice')
+                                    : i18n.t('chat.cookingModal.switchToText')
+                            }
                             accessibilityRole="button"
+                            style={{ minHeight: 44 }}
                         >
                             <MaterialCommunityIcons
-                                name="close"
+                                name={mode === 'text' ? 'microphone' : 'keyboard'}
                                 size={24}
-                                color={COLORS.text.secondary}
+                                color={COLORS.primary.darkest}
                             />
+                            <Text preset="bodySmall" className="text-primary-darkest font-semibold">
+                                {mode === 'text'
+                                    ? i18n.t('chat.cookingModal.switchToVoice')
+                                    : i18n.t('chat.cookingModal.switchToText')
+                                }
+                            </Text>
                         </TouchableOpacity>
                     </View>
-                </View>
+                )}
 
                 {/* Chat content */}
                 <View className="flex-1" style={{ paddingBottom: Math.max(insets.bottom, SPACING.sm) }}>
@@ -171,8 +205,9 @@ export function IrmixyCookingModal({
                             onSessionCreated={handleSessionCreated}
                             messages={messages}
                             onMessagesChange={setMessages}
-                            contextPrefix={contextPrefix}
-                            emptyStateGreeting={i18n.t('chat.cookingModal.greeting')}
+                            cookingContext={cookingContext}
+                            disableResume
+                            initialGreeting={i18n.t('chat.cookingModal.greeting', { recipeName: recipeContext.recipeTitle ?? '' })}
                         />
                     )}
                 </View>

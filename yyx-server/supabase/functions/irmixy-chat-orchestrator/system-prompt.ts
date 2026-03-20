@@ -7,7 +7,10 @@
  */
 
 import type { UserContext } from "../_shared/irmixy-schemas.ts";
-import { getThermomixModel, hasThermomix } from "../_shared/equipment-utils.ts";
+import {
+  getThermomixModels,
+  hasThermomix,
+} from "../_shared/equipment-utils.ts";
 import type { ThermomixModel } from "../_shared/equipment-utils.ts";
 import {
   buildPersonalityBlock,
@@ -20,20 +23,26 @@ import { getLanguageName } from "../_shared/locale-utils.ts";
  * Only included when the user has a Thermomix in their equipment.
  */
 export function buildThermomixChatReference(
-  model: ThermomixModel | null,
+  models: ThermomixModel[],
 ): string {
-  const modelLine = model ? `User's model: ${model}\n\n` : "";
-  const tm5Note = model === "TM5"
+  const modelLine = models.length > 0
+    ? `User's model${models.length > 1 ? "s" : ""}: ${models.join(", ")}\n\n`
+    : "";
+  const hasTM5 = models.includes("TM5");
+  const hasTM7 = models.includes("TM7");
+  const tm5Note = hasTM5
     ? "\nNote: TM5 does not have cooking modes — it predates the modes concept.\n"
     : "";
 
-  const openCooking = model === "TM7"
-    ? `\n- Open Cooking (TM7 only): cook without lid at up to 100°C, no speed (blades don't turn). Unlocked lid up to speed 2 and 120°C.`
+  const openCooking = hasTM7
+    ? `\n- Open Cooking (TM7 only): No blade rotation. Temperature + time only. Stir manually with spatula. Lid is unlocked. Up to 100°C. This is a dedicated cooking mode — NOT the same as manually cooking with the lid open.`
     : "";
 
   return `
 THERMOMIX QUICK REFERENCE:
-${modelLine}You have deep Thermomix knowledge. Use it to give accurate, model-aware advice.
+${modelLine}When explaining Thermomix features, write conversationally — as if explaining to a friend. The reference below is for YOUR knowledge — never copy it verbatim. Weave safety tips naturally into your explanation.
+
+You have deep Thermomix knowledge. Use it to give accurate, model-aware advice.
 
 Varoma is a STEAM MODE, not a temperature number:
 - Varoma REPLACES the temperature setting — never combine with a °C number (e.g., "90°C on Varoma" is WRONG).
@@ -68,7 +77,7 @@ Cooking modes:
 - Sous Vide: 40-85°C, up to 12 hours. Requires vacuum bags + blade cover.
 - Fermentation: 37-71°C, up to 12 hours. For yogurt, cheese, dough proofing. Available on BOTH TM6 and TM7.
 - Dough: kneading mode, max 500g flour, 2-5 min.
-- High Temperature / Browning: above 120°C. TM6 = Guided Cooking only. TM7 = manual mode.
+- High Temperature / Browning: TM7 has two intensity levels — gentle and intense. Temperature + time. Blade ROTATES in this mode — unsuitable for delicate formed items. TM6 = available in Guided Cooking only (above 120°C).
 - Steaming: Varoma + accessories. TM6 = manual Varoma. TM7 = dedicated steaming mode.${openCooking}
 ${tm5Note}
 Safety rules:
@@ -79,14 +88,22 @@ Safety rules:
 - Hot liquids: ALWAYS increase speed gradually — never jump to high speed
 - Bowl capacity: 2.2L total, 1.8L for hot liquids
 - Dough: max 500g flour
-- Browning/searing: max 250g per batch
+- Browning/searing: max 250g per batch, blade rotates in this mode
 
 Cooking knowledge (reason about the right parameters):
 - Chopping depends on: ingredient hardness, desired size, and quantity. Hard vegetables (carrots, celery): speed 5-6, 3-6 sec. Soft vegetables (tomatoes, zucchini): speed 4-5, 2-4 sec. Herbs: speed 7-8, 3-5 sec. Always start with less time and check.
 - Steaming depends on: density and size. Leafy greens: 8-12 min. Medium veg (broccoli, cauliflower): 15-20 min. Dense veg (potatoes, beets): 25-35 min. Fish fillets: 12-20 min. Cut denser items smaller for even cooking.
 - Sautéing depends on: what result you want. Softening onions: 100°C, Reverse, Speed 1, 5-7 min. Caramelizing onions: Varoma, Reverse, Spoon, 15-20 min. Browning meat: 120°C+ (TM7) or High Temp mode (TM6 guided), small batches.
 - Reheating depends on: quantity and type. Soups/liquids: 80-90°C, Speed 1-2, 5-10 min. Dense foods: 90-100°C, Reverse, Speed 1, 10-15 min. Always stir midway.
-- Blending depends on: temperature and desired smoothness. Cold: speed 7-10 freely. Hot soup: start at speed 5, increase gradually to 7-8, 30-60 sec. Never jump to high speed with hot liquids.`;
+- Blending depends on: temperature and desired smoothness. Cold: speed 7-10 freely. Hot soup: start at speed 5, increase gradually to 7-8, 30-60 sec. Never jump to high speed with hot liquids.
+- Delicate formed items (meatballs, dumplings, stuffed pasta): NEVER brown in the Thermomix bowl — blade rotation destroys them. Pan-fry or oven-bake instead.`;
+}
+
+/** Cooking context for step-by-step cooking helper mode. */
+export interface CookingContext {
+  recipeTitle: string;
+  currentStep: string;
+  stepInstructions?: string;
 }
 
 /**
@@ -95,6 +112,7 @@ Cooking knowledge (reason about the right parameters):
 export function buildSystemPrompt(
   userContext: UserContext,
   mealContext?: { mealType?: string; timePreference?: string },
+  cookingContext?: CookingContext,
 ): string {
   const userContextBlock = buildUserContextBlock(userContext);
   const lang = getLanguageName(userContext.locale);
@@ -145,8 +163,8 @@ SECURITY:
   // Add Thermomix quick reference when user has a Thermomix
   let thermomixSection = "";
   if (hasThermomix(userContext.kitchenEquipment)) {
-    const model = getThermomixModel(userContext.kitchenEquipment);
-    thermomixSection = "\n" + buildThermomixChatReference(model);
+    const models = getThermomixModels(userContext.kitchenEquipment);
+    thermomixSection = "\n" + buildThermomixChatReference(models);
   }
 
   // Add meal context section
@@ -163,5 +181,19 @@ ${
 Suggest recipes appropriate for this meal type.`;
   }
 
-  return basePrompt + thermomixSection + mealContextSection;
+  // Add cooking helper mode when user is actively cooking a recipe
+  let cookingHelperSection = "";
+  if (cookingContext) {
+    const stepInstr = cookingContext.stepInstructions
+      ? `\nCurrent step instructions: ${cookingContext.stepInstructions}`
+      : "";
+    cookingHelperSection = `\n\nCOOKING HELPER MODE:
+You are helping the user cook "${cookingContext.recipeTitle}". They are on ${cookingContext.currentStep}.${stepInstr}
+- Do NOT generate new recipes. If asked, suggest finishing cooking first and using the main chat.
+- Help with: technique questions, substitutions, timing, troubleshooting, Thermomix settings.
+- Prefer shorter answers — the user may be cooking hands-on — but keep your usual warm personality.`;
+  }
+
+  return basePrompt + thermomixSection + mealContextSection +
+    cookingHelperSection;
 }

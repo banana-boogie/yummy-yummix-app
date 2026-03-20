@@ -36,6 +36,7 @@ import { createLogger, generateRequestId, type Logger } from "./logger.ts";
 import { ensureSessionId } from "./session.ts";
 import { detectMealContext } from "./meal-context.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
+import type { CookingContext } from "./system-prompt.ts";
 import { callAI, callAIStream } from "./ai-calls.ts";
 import { errorResponse, finalizeResponse } from "./response-builder.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
@@ -113,7 +114,15 @@ serve(async (req) => {
 
   try {
     let body:
-      | { message: string; sessionId?: string }
+      | {
+        message: string;
+        sessionId?: string;
+        cookingContext?: {
+          recipeTitle: string;
+          currentStep: string;
+          stepInstructions?: string;
+        };
+      }
       | null = null;
     try {
       body = await req.json();
@@ -124,6 +133,20 @@ serve(async (req) => {
     const message = typeof body?.message === "string" ? body.message : "";
     const sessionId = typeof body?.sessionId === "string"
       ? body.sessionId
+      : undefined;
+
+    // Extract cooking context if provided
+    const cookingContext: CookingContext | undefined = body?.cookingContext &&
+        typeof body.cookingContext.recipeTitle === "string" &&
+        typeof body.cookingContext.currentStep === "string"
+      ? {
+        recipeTitle: body.cookingContext.recipeTitle,
+        currentStep: body.cookingContext.currentStep,
+        stepInstructions: typeof body.cookingContext.stepInstructions ===
+            "string"
+          ? body.cookingContext.stepInstructions
+          : undefined,
+      }
       : undefined;
 
     log.info("Request received", {
@@ -251,6 +274,7 @@ serve(async (req) => {
       req.signal,
       costContext,
       budget.warningData,
+      cookingContext,
     );
   } catch (error) {
     log.error("Orchestrator error", error);
@@ -281,6 +305,7 @@ async function buildRequestContext(
   userId: string,
   sessionId: string | undefined,
   message: string,
+  cookingContext?: CookingContext,
 ): Promise<RequestContext> {
   const contextBuilder = createContextBuilder(supabase);
   const userContext = await contextBuilder.buildContext(userId, sessionId);
@@ -288,7 +313,11 @@ async function buildRequestContext(
   // Detect meal context from user message
   const mealContext = detectMealContext(message);
 
-  const systemPrompt = buildSystemPrompt(userContext, mealContext);
+  const systemPrompt = buildSystemPrompt(
+    userContext,
+    mealContext,
+    cookingContext,
+  );
 
   // Build message array from conversation history.
   // Tool result summaries are injected as system-role messages (not appended to
@@ -441,6 +470,7 @@ function handleStreamingRequest(
   reqSignal?: AbortSignal,
   costContext?: CostContext,
   budgetWarning?: { usedUsd: number; budgetUsd: number },
+  cookingContext?: CookingContext,
 ): Response {
   const encoder = new TextEncoder();
 
@@ -525,6 +555,7 @@ function handleStreamingRequest(
           userId,
           sessionId,
           message,
+          cookingContext,
         );
         timings.context_build_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();

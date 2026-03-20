@@ -10,7 +10,7 @@
 
 import { supabase } from '@/lib/supabase';
 import EventSource from 'react-native-sse';
-import type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, Action } from '@/types/irmixy';
+import type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, Action, CookingContext } from '@/types/irmixy';
 import i18n from '@/i18n';
 
 export interface ChatMessage {
@@ -44,7 +44,7 @@ export const isRecipeToolStatus = (status: IrmixyStatus): boolean =>
     status === 'cooking_it_up' || status === 'generating';
 
 // Re-export types for convenience
-export type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, Action };
+export type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, Action, CookingContext };
 
 // Constants
 const MAX_MESSAGE_LENGTH = 2000;
@@ -93,7 +93,8 @@ export interface StreamHandle {
 }
 
 export interface SendMessageOptions {
-    // Reserved for future options
+    /** Structured cooking context — backend injects into system prompt */
+    cookingContext?: CookingContext;
 }
 
 export type SSERouteAction = 'continue' | 'resolve' | 'reject';
@@ -357,6 +358,7 @@ export function sendMessage(
                     const requestBody: Record<string, unknown> = {
                         message,
                         sessionId,
+                        ...(options?.cookingContext ? { cookingContext: options.cookingContext } : {}),
                     };
 
                     // Create EventSource with POST method and body
@@ -428,7 +430,6 @@ export function sendMessage(
                     });
 
                     es.addEventListener('error', (event: any) => {
-                        if (__DEV__) console.error('[SSE] Connection error:', event, 'hasReceivedData:', hasReceivedData);
                         es?.close();
 
                         const budgetError = parseBudgetExceededErrorFromSSEEvent(event);
@@ -438,6 +439,7 @@ export function sendMessage(
                             return;
                         }
 
+                        if (__DEV__) console.error('[SSE] Connection error:', event, 'hasReceivedData:', hasReceivedData);
                         connectionError = new Error(event.message || 'SSE connection failed');
                         rejectConnection(connectionError);
                     });

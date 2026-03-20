@@ -10,7 +10,10 @@ import {
   assertStringIncludes,
 } from "https://deno.land/std@0.192.0/testing/asserts.ts";
 import type { UserContext } from "../../_shared/irmixy-schemas.ts";
-import { buildSystemPrompt } from "../system-prompt.ts";
+import {
+  buildSystemPrompt,
+  buildThermomixChatReference,
+} from "../system-prompt.ts";
 
 function createUserContext(overrides: Partial<UserContext> = {}): UserContext {
   return {
@@ -188,4 +191,77 @@ Deno.test("buildSystemPrompt with TM6 excludes Open Cooking", () => {
     createUserContext({ kitchenEquipment: ["thermomix_TM6"] }),
   );
   assertEquals(prompt.includes("Open Cooking (TM7 only)"), false);
+});
+
+// ============================================================
+// Workstream A1: Thermomix cooking mode corrections
+// ============================================================
+
+Deno.test("buildThermomixChatReference browning section mentions blade ROTATES", () => {
+  const ref = buildThermomixChatReference(["TM7"]);
+  assertStringIncludes(ref, "Blade ROTATES");
+});
+
+Deno.test("buildThermomixChatReference Open Cooking says no blade rotation", () => {
+  const ref = buildThermomixChatReference(["TM7"]);
+  assertStringIncludes(ref, "No blade rotation");
+  assertStringIncludes(ref, "dedicated cooking mode");
+});
+
+Deno.test("buildThermomixChatReference includes delicate items warning", () => {
+  const ref = buildThermomixChatReference(["TM6"]);
+  assertStringIncludes(ref, "Delicate formed items");
+  assertStringIncludes(ref, "NEVER brown in the Thermomix bowl");
+  assertStringIncludes(ref, "blade rotation destroys them");
+});
+
+Deno.test("buildThermomixChatReference includes conversational tone instruction", () => {
+  const ref = buildThermomixChatReference(["TM6"]);
+  assertStringIncludes(ref, "write conversationally");
+  assertStringIncludes(ref, "never copy it verbatim");
+});
+
+// ============================================================
+// Workstream A3: Cooking helper mode
+// ============================================================
+
+Deno.test("buildSystemPrompt includes cooking helper mode when cookingContext provided", () => {
+  const prompt = buildSystemPrompt(
+    createUserContext(),
+    undefined,
+    {
+      recipeTitle: "Chicken Soup",
+      currentStep: "Step 3",
+      stepInstructions: "Add the vegetables and simmer for 20 minutes.",
+    },
+  );
+
+  assertStringIncludes(prompt, "COOKING HELPER MODE:");
+  assertStringIncludes(prompt, '"Chicken Soup"');
+  assertStringIncludes(prompt, "Step 3");
+  assertStringIncludes(prompt, "Add the vegetables and simmer for 20 minutes.");
+  assertStringIncludes(prompt, "Do NOT generate new recipes");
+  assertStringIncludes(prompt, "shorter answers");
+});
+
+Deno.test("buildSystemPrompt excludes cooking helper mode when no cookingContext", () => {
+  const prompt = buildSystemPrompt(createUserContext());
+
+  assertEquals(prompt.includes("COOKING HELPER MODE"), false);
+});
+
+Deno.test("buildSystemPrompt cooking helper mode works without stepInstructions", () => {
+  const prompt = buildSystemPrompt(
+    createUserContext(),
+    undefined,
+    {
+      recipeTitle: "Pasta Carbonara",
+      currentStep: "Step 1",
+    },
+  );
+
+  assertStringIncludes(prompt, "COOKING HELPER MODE:");
+  assertStringIncludes(prompt, '"Pasta Carbonara"');
+  assertStringIncludes(prompt, "Step 1");
+  assertEquals(prompt.includes("Current step instructions:"), false);
 });

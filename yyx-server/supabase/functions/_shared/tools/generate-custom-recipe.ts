@@ -649,7 +649,7 @@ export function getSystemPrompt(userContext: UserContext): string {
 - Varoma: Steam cooking (needs 500ml+ water in bowl, speed 2)`;
 
   const openCookingNote = isTM7
-    ? `\nOPEN COOKING (TM7 only): The TM7 can cook without the lid at temperatures up to 100°C. Use for risottos, manual stirring, visual monitoring. Lid does not lock until Speed 2.`
+    ? `\nOPEN COOKING (TM7 only): No blade rotation. Temperature + time only. Stir manually with spatula. Lid is unlocked. Up to 100°C. This is a dedicated cooking mode — NOT manual cooking with the lid open.`
     : "";
 
   const cutterNote = isTM7
@@ -678,13 +678,15 @@ COOKING MODES (set thermomixMode when applicable):
     }
 - "dough": Kneading mode, max 500g flour. For bread, pasta, pizza dough.
 - "turbo": Brief pulse at max speed. For crushing ice, quick grind.
-- "high_temperature": 120-160°C, max 10min per step. For browning, searing, caramelizing.${
-      isTM7 ? " (TM7: manual access)" : " (TM6: Guided Cooking only)"
+- "high_temperature": 120-160°C, max 10min per step. For browning, searing, caramelizing. Blade ROTATES — unsuitable for delicate formed items.${
+      isTM7
+        ? " TM7 has two intensity levels: gentle and intense."
+        : " (TM6: Guided Cooking only)"
     }
 ${
       isTM7
         ? `- "fermentation": Low temp hold (30-45°C), extended time. For yogurt, dough proofing, tempeh. (TM7 only)
-- "open_cooking": Lid-free, up to 100°C, Spoon/Speed 1. For risotto, sautéing, monitoring. (TM7 only)`
+- "open_cooking": No blade rotation. Temperature + time only. Stir manually with spatula. Lid is unlocked. Up to 100°C. A dedicated cooking mode — NOT manual cooking with lid open. (TM7 only)`
         : ""
     }
 
@@ -703,7 +705,9 @@ CRITICAL RULES:
 - Sautéing always uses Reverse (e.g. ${
       isTM7 ? "140°C" : "120°C"
     } / Reverse / Speed 1 / 5-10 min).
-- Browning/searing: 100-250g per batch. For larger quantities (>250g), recommend using a pan or skillet instead.
+- Browning/searing: 100-250g per batch, blade rotates in this mode. For larger quantities (>250g), recommend using a pan or skillet instead.
+- Delicate formed items (meatballs, dumplings, stuffed pasta): NEVER brown in the Thermomix bowl. Blade rotation destroys them. Pan-fry or oven-bake instead.
+- When a step uses a mixture from a previous step, reference it as "the [name] mixture" in instructions. In ingredientsUsed, list only NEW ingredients added in this step — not the components of an already-combined mixture.
 
 Skip Thermomix for: plating, garnishing, oven/grill tasks, manual shaping — leave all four params null.
 

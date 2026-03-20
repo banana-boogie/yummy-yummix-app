@@ -41,13 +41,32 @@ export function detectTextToolCall(content: string): string | null {
   if (lower.includes("[modified recipe:")) return "modify_recipe";
   if (lower.includes("[generated recipe:")) return "generate_custom_recipe";
 
+  // Detect XML-format tool call syntax (<function_calls> / <invoke name="...">)
+  if (content.includes("<function_calls>")) return TOOL_NAMES[0];
+  for (const name of TOOL_NAMES) {
+    if (content.includes(`<invoke name="${name}"`)) return name;
+  }
+
   return null;
 }
+
+// Regex to strip "The tool returned: ..." text from end of responses
+const TOOL_RETURNED_REGEX = /\n?The tool returned:[\s\S]*$/;
+
+// Regex to strip XML <function_calls>...</function_calls> blocks
+const XML_FUNCTION_CALLS_REGEX = /<function_calls>[\s\S]*?<\/function_calls>/g;
+// Fallback: strip unclosed <function_calls> blocks (stream cut off before closing tag)
+const XML_FUNCTION_CALLS_UNCLOSED_REGEX = /<function_calls>[\s\S]*$/;
 
 /** Strip residual tool-call text from a final assistant message. */
 export function stripToolCallText(text: string): string {
   if (!text) return text;
-  return text.replace(TOOL_CALL_TAIL_REGEX, "").trim();
+  const result = text
+    .replace(TOOL_CALL_TAIL_REGEX, "")
+    .replace(TOOL_RETURNED_REGEX, "")
+    .replace(XML_FUNCTION_CALLS_REGEX, "")
+    .replace(XML_FUNCTION_CALLS_UNCLOSED_REGEX, "");
+  return result.trim();
 }
 
 /**
@@ -67,6 +86,9 @@ export class StreamingToolCallFilter {
   // Patterns that confirm a tool call leak (check against accumulated buffer)
   private static readonly SUPPRESS_PATTERNS = [
     /<tool_calls>/,
+    /<function_calls>/,
+    /<invoke\s/,
+    /<parameter\s/,
     /\ncall:\w+\{/,
     /^call:\w+\{/,
     /^search_recipes\{/,
@@ -76,11 +98,13 @@ export class StreamingToolCallFilter {
     /\{"recipeDescription":/,
     /\{"suggestedName":/,
     /\{"query":/,
+    /The tool returned:/,
     new RegExp(`^\\n?(?:${TOOL_PATTERN})\\s+\\w`),
   ];
 
   // Max buffer size before we flush as false positive
-  private static readonly MAX_BUFFER = 100;
+  // Increased to 500 to handle multi-line XML tool call blocks
+  private static readonly MAX_BUFFER = 500;
 
   constructor(onFlush: (text: string) => void, disabled = false) {
     this.onFlush = onFlush;
@@ -166,6 +190,9 @@ export class StreamingToolCallFilter {
 
     // Newline followed by "call:" pattern
     if (token.includes("\ncall:")) return true;
+
+    // "The tool returned:" — parroted tool result summary
+    if (trimmed.startsWith("The tool returned:")) return true;
 
     return false;
   }

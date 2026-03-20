@@ -89,3 +89,10 @@ export type IrmixyStatus =
   | 'cooking_it_up'
   | 'enriching'
   | null;
+
+/** Structured cooking context sent as a separate field (not prepended to user message) */
+export interface CookingContext {
+  recipeTitle: string;
+  currentStep: string;
+  stepInstructions?: string;
+}

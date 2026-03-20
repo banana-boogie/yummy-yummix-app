@@ -7,9 +7,10 @@ import {
     BudgetWarningPayload,
     sendMessage,
     BudgetExceededError,
- isRecipeToolStatus } from '@/services/chatService';
+    isRecipeToolStatus,
+} from '@/services/chatService';
+import type { CookingContext } from '@/types/irmixy';
 import i18n from '@/i18n';
-
 
 const CHUNK_BATCH_MS = 50;
 const SCROLL_DELAY_MS = 100;
@@ -32,8 +33,8 @@ interface UseMessageStreamingParams {
     onResumeSessionClear: () => void;
     onBudgetWarning?: (warning: BudgetWarningPayload) => void;
     onBudgetExceeded?: (error: BudgetExceededError) => void;
-    /** Prepended to each user message before sending (invisible to the user) */
-    contextPrefix?: string;
+    /** Structured cooking context — sent as a separate field in the request body */
+    cookingContext?: CookingContext;
     onActionsReceived?: (actions: import('@/types/irmixy').Action[], response: import('@/types/irmixy').IrmixyResponse) => void;
 }
 
@@ -54,7 +55,7 @@ export function useMessageStreaming({
     onResumeSessionClear,
     onBudgetWarning,
     onBudgetExceeded,
-    contextPrefix,
+    cookingContext,
     onActionsReceived,
 }: UseMessageStreamingParams) {
     const isMountedRef = useRef(true);
@@ -198,11 +199,8 @@ export function useMessageStreaming({
         };
 
         try {
-            const messageToSend = contextPrefix
-                ? `${contextPrefix} ${userMessage.content}`
-                : userMessage.content;
             const handle = sendMessage(
-                messageToSend,
+                userMessage.content,
                 currentSessionId,
                 // onChunk — positional arg 3
                 (chunk) => {
@@ -322,7 +320,7 @@ export function useMessageStreaming({
                     hasRecipeInCurrentStreamRef.current = false;
                     completedSuccessfully = true;
                 },
-                undefined, // options
+                cookingContext ? { cookingContext } : undefined, // options
                 onBudgetWarning,
             );
 
@@ -398,7 +396,7 @@ export function useMessageStreaming({
             streamCancelRef.current = null;
         }
     }, [
-        contextPrefix,
+        cookingContext,
         currentSessionId,
         isLoading,
         onSessionCreated,
