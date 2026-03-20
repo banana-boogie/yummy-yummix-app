@@ -23,12 +23,15 @@ interface UseChatMessageActionsParams {
     queryClient: QueryClient;
     /** Live message list for resolving action context */
     getMessages: () => ChatMessage[];
+    /** Called before navigating away (e.g. dismiss a modal before pushing a route) */
+    onNavigateAway?: () => void;
 }
 
 export function useChatMessageActions({
     setMessages,
     queryClient,
     getMessages,
+    onNavigateAway,
 }: UseChatMessageActionsParams) {
     const handleCopyMessage = useCallback(async (content: string) => {
         try {
@@ -66,6 +69,7 @@ export function useChatMessageActions({
                 await queryClient.invalidateQueries({ queryKey: customRecipeKeys.all });
             }
 
+            onNavigateAway?.();
             router.push(getChatCustomCookingGuidePath(recipeId));
         } catch (error) {
             if (__DEV__) console.error('Failed to save custom recipe:', error);
@@ -75,7 +79,7 @@ export function useChatMessageActions({
                 [{ text: i18n.t('common.ok') }]
             );
         }
-    }, [queryClient, setMessages]);
+    }, [queryClient, setMessages, onNavigateAway]);
 
     const handleActionPress = useCallback((action: Action, messageId: string) => {
         const messages = getMessages();

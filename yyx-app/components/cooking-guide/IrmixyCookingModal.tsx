@@ -94,12 +94,16 @@ export function IrmixyCookingModal({
         setSessionId(newSessionId);
     }, [setSessionId]);
 
+    const isMiseEnPlace = recipeContext.currentStep == null;
+
     // Build structured cooking context for the backend system prompt
     const cookingContext: CookingContext = useMemo(() => ({
         recipeTitle: recipeContext.recipeTitle ?? '',
-        currentStep: `${recipeContext.currentStep ?? '?'}/${recipeContext.totalSteps ?? '?'}`,
+        currentStep: isMiseEnPlace
+            ? 'Mise en place'
+            : `${recipeContext.currentStep ?? '?'}/${recipeContext.totalSteps ?? '?'}`,
         ...(recipeContext.stepInstructions ? { stepInstructions: recipeContext.stepInstructions } : {}),
-    }), [recipeContext.recipeTitle, recipeContext.currentStep, recipeContext.totalSteps, recipeContext.stepInstructions]);
+    }), [recipeContext.recipeTitle, recipeContext.currentStep, recipeContext.totalSteps, recipeContext.stepInstructions, isMiseEnPlace]);
 
     const isNative = Platform.OS !== 'web';
 
@@ -136,11 +140,15 @@ export function IrmixyCookingModal({
                                 {i18n.t('chat.title')}
                             </Text>
                             <Text className="text-sm text-text-secondary" numberOfLines={1}>
-                                {i18n.t('chat.cookingModal.contextHint', {
-                                    recipeName: recipeContext.recipeTitle ?? '',
-                                    step: recipeContext.currentStep ?? '?',
-                                    total: recipeContext.totalSteps ?? '?',
-                                })}
+                                {isMiseEnPlace
+                                    ? i18n.t('chat.cookingModal.contextHintMiseEnPlace', {
+                                        recipeName: recipeContext.recipeTitle ?? '',
+                                    })
+                                    : i18n.t('chat.cookingModal.contextHint', {
+                                        recipeName: recipeContext.recipeTitle ?? '',
+                                        step: recipeContext.currentStep ?? '?',
+                                        total: recipeContext.totalSteps ?? '?',
+                                    })}
                             </Text>
                         </View>
                     </View>
@@ -208,6 +216,7 @@ export function IrmixyCookingModal({
                             cookingContext={cookingContext}
                             disableResume
                             initialGreeting={i18n.t('chat.cookingModal.greeting', { recipeName: recipeContext.recipeTitle ?? '' })}
+                            onNavigateAway={handleClose}
                         />
                     )}
                 </View>

@@ -85,7 +85,7 @@ export default function CustomIngredientsStep() {
         footer={
           <View>
             <View className="items-center pb-sm pt-xs">
-              <AskIrmixyButton onPress={() => setShowIrmixyModal(true)} animate={false} />
+              <AskIrmixyButton onPress={() => setShowIrmixyModal(true)} animate={true} showHelpText={true} />
             </View>
             <View className="mx-lg mb-xs">
               <View className="h-[1px] bg-border-default opacity-30" />
@@ -114,7 +114,6 @@ export default function CustomIngredientsStep() {
 
         <CookingGuidePageHeader
           title={recipe?.name || ''}
-          onIrmixyPress={() => setShowIrmixyModal(true)}
         />
 
         {/* Content wrapper - centered on desktop with max-width */}

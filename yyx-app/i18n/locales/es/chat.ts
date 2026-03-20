@@ -86,12 +86,15 @@ export const chat = {
   },
   returnToCooking: "Volver a cocinar",
   returnToCookingStep: "Paso {{step}} de {{recipeName}}",
-  suggestions: {},
+  suggestions: {
+    generate: "Crear una receta personalizada de {{recipeName}}",
+  },
   messageCopied: "Mensaje copiado al portapapeles",
   cancelledRequest: "Solicitud cancelada",
   cookingModal: {
     greeting: "Hola! Veo que estás preparando {{recipeName}}. ¿En qué te ayudo?",
     contextHint: "Cocinando {{recipeName}} — paso {{step}} de {{total}}",
+    contextHintMiseEnPlace: "Cocinando {{recipeName}} — Mise en place",
     switchToVoice: "Cambiar a voz",
     switchToText: "Cambiar a texto",
   },
@@ -102,6 +105,7 @@ export const chat = {
   sessions: {
     menuLabel: "Menú de sesiones de chat",
     chatsLabel: "Chats",
+    historyLabel: "Historial",
     title: "Sesiones de Chat",
     newChat: "Nuevo Chat",
     noSessions: "No hay conversaciones anteriores",

@@ -36,6 +36,7 @@ export function AskIrmixyButton({ onPress, animate = true, showHelpText = false 
   const labelOpacity = useRef(new Animated.Value(animate ? 0 : 1)).current;
   const helpTextOpacity = useRef(new Animated.Value(showHelpText && animate ? 1 : 0)).current;
   const helpTextWidth = useRef(new Animated.Value(showHelpText && animate ? 1 : 0)).current;
+  const pillScale = useRef(new Animated.Value(animate ? 1.1 : 1)).current;
 
   useEffect(() => {
     if (!animate) return;
@@ -69,6 +70,14 @@ export function AskIrmixyButton({ onPress, animate = true, showHelpText = false 
           }),
         );
       }
+      // Animate pill scale down to 1.0 alongside the collapse
+      collapseAnimations.push(
+        Animated.timing(pillScale, {
+          toValue: 1,
+          duration: COLLAPSE_DURATION_MS,
+          useNativeDriver: false,
+        }),
+      );
       Animated.parallel(collapseAnimations).start(() => {
         // Fade in the small label + bounce the avatar after text hides
         Animated.parallel([
@@ -94,7 +103,7 @@ export function AskIrmixyButton({ onPress, animate = true, showHelpText = false 
     }, PILL_DELAY_MS);
 
     return () => clearTimeout(timer);
-  }, [animate, textOpacity, textWidth, avatarScale, labelOpacity, showHelpText, helpTextOpacity, helpTextWidth]);
+  }, [animate, textOpacity, textWidth, avatarScale, labelOpacity, showHelpText, helpTextOpacity, helpTextWidth, pillScale]);
 
   // Interpolate text container width from full to 0
   const textContainerMaxWidth = textWidth.interpolate({
@@ -104,18 +113,18 @@ export function AskIrmixyButton({ onPress, animate = true, showHelpText = false 
 
   const textContainerPadding = textWidth.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, SPACING.sm],
+    outputRange: [0, SPACING.md],
   });
 
   // Interpolate help text container width and padding
   const helpTextMaxWidth = helpTextWidth.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 130],
+    outputRange: [0, 160],
   });
 
   const helpTextPaddingLeft = helpTextWidth.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, SPACING.sm],
+    outputRange: [0, SPACING.md],
   });
 
   return (
@@ -126,9 +135,9 @@ export function AskIrmixyButton({ onPress, animate = true, showHelpText = false 
       activeOpacity={0.7}
     >
       <View className="items-center">
-        <View
+        <Animated.View
           className="flex-row items-center rounded-full bg-primary-lightest"
-          style={{ paddingVertical: SPACING.xxs, paddingLeft: SPACING.xxs, overflow: 'hidden' }}
+          style={{ paddingVertical: SPACING.xxs, paddingLeft: SPACING.xxs, overflow: 'hidden', transform: [{ scale: pillScale }] }}
         >
           {/* "Need help?" text — visible only when showHelpText is true, collapses with animation */}
           {showHelpText && (
@@ -165,7 +174,7 @@ export function AskIrmixyButton({ onPress, animate = true, showHelpText = false 
               {i18n.t('recipes.cookingGuide.navigation.askIrmixy')}
             </Text>
           </Animated.View>
-        </View>
+        </Animated.View>
         {/* Small label visible after pill collapses (or immediately when not animating) */}
         <Animated.View style={{ opacity: labelOpacity, marginTop: 2 }}>
           <Text className="text-primary-darkest text-xs font-medium">{COLLAPSED_LABEL}</Text>

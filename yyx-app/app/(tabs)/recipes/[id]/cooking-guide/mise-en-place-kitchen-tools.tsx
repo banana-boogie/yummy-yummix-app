@@ -94,7 +94,6 @@ export default function KitchenToolsStep() {
 
                 <CookingGuidePageHeader
                     title={recipe?.name || ''}
-                    onIrmixyPress={() => setShowIrmixyModal(true)}
                 />
 
                 {/* Content wrapper - centered on desktop with max-width */}

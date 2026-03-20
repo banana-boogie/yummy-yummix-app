@@ -23,6 +23,9 @@ jest.mock('@/i18n', () => ({
     if (key === 'chat.cookingModal.contextHint') {
       return `${params?.recipeName} - Step ${params?.step}/${params?.total}`;
     }
+    if (key === 'chat.cookingModal.contextHintMiseEnPlace') {
+      return `${params?.recipeName} - Mise en place`;
+    }
     return translations[key] || key;
   },
 }));
@@ -97,6 +100,21 @@ describe('IrmixyCookingModal', () => {
       render(<IrmixyCookingModal {...defaultProps} />);
 
       expect(screen.getByText('Pasta Carbonara - Step 2/5')).toBeTruthy();
+    });
+
+    it('shows mise-en-place context hint when currentStep is undefined', () => {
+      render(
+        <IrmixyCookingModal
+          {...defaultProps}
+          recipeContext={{
+            type: 'cooking',
+            recipeId: 'recipe-1',
+            recipeTitle: 'Pasta Carbonara',
+          }}
+        />,
+      );
+
+      expect(screen.getByText('Pasta Carbonara - Mise en place')).toBeTruthy();
     });
 
     it('passes initialGreeting to ChatScreen', () => {

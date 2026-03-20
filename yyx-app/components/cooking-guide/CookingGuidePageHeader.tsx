@@ -11,7 +11,8 @@ import i18n from '@/i18n';
 interface CookingGuidePageHeaderProps {
     title: string;
     subtitle?: string;
-    onIrmixyPress: () => void;
+    /** When provided, renders the Irmixy avatar button. Omit to hide it (e.g. mise-en-place screens). */
+    onIrmixyPress?: () => void;
 }
 
 export function CookingGuidePageHeader({
@@ -22,7 +23,7 @@ export function CookingGuidePageHeader({
     return (
         <View className="px-md mb-sm">
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View style={{ flex: 1, flexShrink: 1, marginRight: 12 }}>
+                <View style={{ flex: 1, flexShrink: 1, marginRight: onIrmixyPress ? 12 : 0 }}>
                     {title ? (
                         <Text preset="h1" className="text-text-default">
                             {title}
@@ -34,19 +35,21 @@ export function CookingGuidePageHeader({
                         </Text>
                     )}
                 </View>
-                <TouchableOpacity
-                    onPress={onIrmixyPress}
-                    accessibilityLabel={i18n.t('recipes.cookingGuide.navigation.askIrmixy')}
-                    accessibilityRole="button"
-                    activeOpacity={0.7}
-                >
-                    <Image
-                        source={require('@/assets/images/irmixy-avatar/irmixy-face.png')}
-                        style={{ width: 40, height: 40, borderRadius: 20 }}
-                        contentFit="cover"
-                        cachePolicy="memory-disk"
-                    />
-                </TouchableOpacity>
+                {onIrmixyPress && (
+                    <TouchableOpacity
+                        onPress={onIrmixyPress}
+                        accessibilityLabel={i18n.t('recipes.cookingGuide.navigation.askIrmixy')}
+                        accessibilityRole="button"
+                        activeOpacity={0.7}
+                    >
+                        <Image
+                            source={require('@/assets/images/irmixy-avatar/irmixy-face.png')}
+                            style={{ width: 40, height: 40, borderRadius: 20 }}
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                        />
+                    </TouchableOpacity>
+                )}
             </View>
         </View>
     );
