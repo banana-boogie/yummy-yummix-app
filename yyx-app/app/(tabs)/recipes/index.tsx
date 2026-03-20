@@ -106,10 +106,12 @@ const Recipes = () => {
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('tabPress', (e: { preventDefault: () => void }) => {
-      e.preventDefault();
-      listRef.current?.scrollToOffset({ offset: 0, animated: true });
-      // Show header if it was hidden
-      animateHeader(true);
+      if (navigation.isFocused()) {
+        e.preventDefault();
+        listRef.current?.scrollToOffset({ offset: 0, animated: true });
+        // Show header if it was hidden
+        animateHeader(true);
+      }
     });
     return unsubscribe;
   }, [navigation, animateHeader]);

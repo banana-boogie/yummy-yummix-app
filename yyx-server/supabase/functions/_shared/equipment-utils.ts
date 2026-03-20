@@ -54,9 +54,6 @@ export function getThermomixModel(
   return models.length > 0 ? models[0] : null;
 }
 
-/**
- * Check if the user's kitchen equipment includes an Air Fryer.
- */
 /** Valid Thermomix cooking mode identifiers. Single source of truth. */
 export const VALID_THERMOMIX_MODES = [
   "slow_cook",

@@ -19,7 +19,6 @@ const AVATAR_SIZE = 40;
 const PILL_DELAY_MS = 3000;
 const COLLAPSE_DURATION_MS = 400;
 const BOUNCE_DURATION_MS = 300;
-const COLLAPSED_LABEL = 'Irmixy';
 
 interface AskIrmixyButtonProps {
   onPress: () => void;
@@ -177,7 +176,7 @@ export function AskIrmixyButton({ onPress, animate = true, showHelpText = false 
         </Animated.View>
         {/* Small label visible after pill collapses (or immediately when not animating) */}
         <Animated.View style={{ opacity: labelOpacity, marginTop: 2 }}>
-          <Text className="text-primary-darkest text-xs font-medium">{COLLAPSED_LABEL}</Text>
+          <Text className="text-primary-darkest text-xs font-medium">{i18n.t('recipes.cookingGuide.navigation.irmixyLabel')}</Text>
         </Animated.View>
       </View>
     </TouchableOpacity>

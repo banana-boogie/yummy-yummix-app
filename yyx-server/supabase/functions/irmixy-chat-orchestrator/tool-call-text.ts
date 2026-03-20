@@ -11,6 +11,7 @@ const TOOL_NAMES = [
   "generate_custom_recipe",
   "modify_recipe",
   "retrieve_cooked_recipes",
+  "app_action",
 ];
 
 function escapeRegex(input: string): string {

@@ -51,11 +51,7 @@ export function EquipmentModal({
         setShowModelError(false);
       }
     } else {
-      if (type === 'thermomix') {
-        newEquipment = [...selectedEquipment, { type }];
-      } else {
-        newEquipment = [...selectedEquipment, { type }];
-      }
+      newEquipment = [...selectedEquipment, { type }];
     }
 
     setSelectedEquipment(newEquipment);

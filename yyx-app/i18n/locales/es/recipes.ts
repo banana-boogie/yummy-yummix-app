@@ -83,6 +83,7 @@ export const recipes = {
       exitCookingGuide: "Salir de la guía de cocina",
       exit: "Salir",
       needHelp: "¿Necesitas ayuda?",
+      irmixyLabel: "Irmixy",
     },
     miseEnPlace: {
       ingredients: {

@@ -18,6 +18,7 @@ import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
 import { ChatResumeBar } from '@/components/chat/ChatResumeBar';
 import { ChatInputBar } from '@/components/chat/ChatInputBar';
 import { SuggestionChips } from '@/components/chat/SuggestionChips';
+import { SPACING } from '@/constants/design-tokens';
 import { useMessageStreaming } from '@/hooks/chat/useMessageStreaming';
 import { useSmartScroll } from '@/hooks/chat/useSmartScroll';
 import { useResumeSession } from '@/hooks/chat/useResumeSession';
@@ -40,6 +41,7 @@ import { chat as chatEn } from '@/i18n/locales/en/chat';
 import { chat as chatEs } from '@/i18n/locales/es/chat';
 
 const SCROLL_DELAY_MS = 100;
+const CHAT_CONTENT_STYLE = { padding: SPACING.md, flexGrow: 1 };
 
 interface Props {
     sessionId?: string | null;
@@ -389,7 +391,7 @@ export function ChatScreen({
                 data={messages}
                 renderItem={renderMessage}
                 keyExtractor={keyExtractor}
-                contentContainerStyle={{ padding: 16, flexGrow: 1 }}
+                contentContainerStyle={CHAT_CONTENT_STYLE}
                 ListHeaderComponent={
                     resumeSession && !resumeDismissed && messages.length === 0 && !currentSessionId ? (
                         <ChatResumeBar

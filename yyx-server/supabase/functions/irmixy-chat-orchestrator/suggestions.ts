@@ -5,11 +5,9 @@
  * Suggestions appear as tappable chips in the chat UI.
  */
 
-interface Suggestion {
-  label: string;
-  message: string;
-  type?: "recipe_generation" | "default";
-}
+import type { IrmixyResponse } from "../_shared/irmixy-schemas.ts";
+
+type Suggestion = NonNullable<IrmixyResponse["suggestions"]>[number];
 
 /**
  * Build suggestions based on the conversation context.
@@ -91,7 +89,7 @@ function extractRecipeName(message: string, locale: string): string {
   for (const pattern of patterns) {
     const match = message.match(pattern);
     if (match?.[1]) {
-      return match[1].trim().toLowerCase();
+      return match[1].trim().toLowerCase().replace(/[.!?,"]+$/, "");
     }
   }
 

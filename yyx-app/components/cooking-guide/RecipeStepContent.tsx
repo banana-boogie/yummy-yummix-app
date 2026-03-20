@@ -111,7 +111,7 @@ export function RecipeStepContent({ step, className = '', style }: RecipeStepCon
         >
             {renderRecipeText(step.instruction, {
                 textStyle: { textAlign: 'center', fontSize: 24, lineHeight: 32, marginBottom: 16, paddingHorizontal: 8 },
-                boldStyle: { color: '#FF9A99', fontSize: 24, lineHeight: 32 },
+                boldStyle: { color: COLORS.primary.dark, fontSize: 24, lineHeight: 32 },
                 bulletStyle: { marginBottom: 4, paddingLeft: 24, textAlign: 'left' }
             }, step.ingredients)}
             {renderIngredientImages()}
@@ -128,7 +128,7 @@ export function RecipeStepContent({ step, className = '', style }: RecipeStepCon
             ) : null}
             {!step.thermomix?.time && <RestTimer instruction={step.instruction} />}
             {step.tip ? (
-                <View className="bg-[#FAF3E8] rounded-sm p-sm mt-sm mx-md">
+                <View className="bg-primary-lightest rounded-sm p-sm mt-sm mx-md">
                     <Text preset="body" className="text-text-secondary">
                         {step.tip}
                     </Text>

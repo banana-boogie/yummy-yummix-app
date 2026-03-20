@@ -141,11 +141,11 @@ serve(async (req) => {
         typeof body.cookingContext.recipeTitle === "string" &&
         typeof body.cookingContext.currentStep === "string"
       ? {
-        recipeTitle: body.cookingContext.recipeTitle,
-        currentStep: body.cookingContext.currentStep,
+        recipeTitle: sanitizeContent(body.cookingContext.recipeTitle),
+        currentStep: sanitizeContent(body.cookingContext.currentStep),
         stepInstructions: typeof body.cookingContext.stepInstructions ===
             "string"
-          ? body.cookingContext.stepInstructions
+          ? sanitizeContent(body.cookingContext.stepInstructions)
           : undefined,
       }
       : undefined;

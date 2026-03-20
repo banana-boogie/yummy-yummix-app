@@ -1561,24 +1561,3 @@ export function validateThermomixSteps(
     return validated;
   });
 }
-
-/**
- * Create an empty recipe for error cases.
- */
-function createEmptyRecipe(userContext: UserContext): GeneratedRecipe {
-  const baseLang = getBaseLanguage(userContext.locale);
-  return {
-    schemaVersion: "1.0",
-    suggestedName: baseLang === "es"
-      ? "Receta no disponible"
-      : "Recipe unavailable",
-    measurementSystem: userContext.measurementSystem,
-    locale: userContext.locale,
-    ingredients: [],
-    steps: [],
-    totalTime: 0,
-    difficulty: "easy",
-    portions: 4,
-    tags: [],
-  };
-}
