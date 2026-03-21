@@ -185,7 +185,7 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
       }}
     >
       <View className="flex-row items-center justify-around px-lg">
-        {TAB_CONFIG.map((tab) => {
+        {TAB_CONFIG.map((tab, tabIndex) => {
           const isActive = activeRouteName === tab.name;
           const iconSize = tab.image ? (isActive ? 34 : 32) : (isActive ? 26 : 24);
 
@@ -193,7 +193,7 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
             <TouchableOpacity
               key={tab.name}
               className="items-center justify-center py-xxs"
-              onPress={() => handleTabPress(tab.name, state.routes.findIndex(r => r.name === tab.name), isActive)}
+              onPress={() => handleTabPress(tab.name, tabIndex, isActive)}
               activeOpacity={0.7}
               style={{ minWidth: SPACING.xxl }}
             >

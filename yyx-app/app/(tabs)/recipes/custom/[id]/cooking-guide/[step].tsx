@@ -17,7 +17,6 @@ import { getCustomCookingGuidePath, isFromChat } from '@/utils/navigation/recipe
 import { eventService } from '@/services/eventService';
 import { useCookingSession } from '@/contexts/CookingSessionContext';
 
-
 export default function CustomCookingStep() {
     const { id, step: stepParam, from } = useLocalSearchParams<{ id: string; step: string; from?: string }>();
     const { recipe } = useCustomRecipe(id as string);

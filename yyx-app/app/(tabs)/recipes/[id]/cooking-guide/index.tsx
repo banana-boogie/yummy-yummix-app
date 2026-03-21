@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { Image } from 'expo-image'; // used for checkbox-checked.png
+import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';

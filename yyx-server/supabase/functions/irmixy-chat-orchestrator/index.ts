@@ -1008,7 +1008,6 @@ function handleStreamingRequest(
 
         if (signal.aborted) {
           log.info("Request aborted by client (after streaming)");
-          streamFilter.abort();
           clearStreamTimeout();
           safeClose();
           return;
