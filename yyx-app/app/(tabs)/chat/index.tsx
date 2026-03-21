@@ -96,17 +96,15 @@ export default function ChatPage() {
                         Platform.OS !== 'web' ? (
                             <TouchableOpacity
                                 onPress={toggleMode}
-                                className="mr-md items-center justify-center"
+                                className="flex-row items-center gap-xs px-sm py-xs"
                                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                             >
-                                <View className="w-10 h-10 rounded-full border-2 border-primary-darkest items-center justify-center">
-                                    <MaterialCommunityIcons
-                                        name={mode === 'text' ? 'microphone' : 'keyboard'}
-                                        size={22}
-                                        color={COLORS.primary.darkest}
-                                    />
-                                </View>
-                                <Text className="text-[10px] text-primary-darkest mt-[1px]">
+                                <MaterialCommunityIcons
+                                    name={mode === 'text' ? 'microphone' : 'keyboard'}
+                                    size={20}
+                                    color={COLORS.text.secondary}
+                                />
+                                <Text className="text-text-secondary text-sm font-medium">
                                     {mode === 'text'
                                         ? i18n.t('chat.modeLabel.voice')
                                         : i18n.t('chat.modeLabel.text')}

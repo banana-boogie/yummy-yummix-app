@@ -10,6 +10,8 @@ import { MessageBubble } from '@/components/cooking-guide/MessageBubble';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { useDevice } from '@/hooks/useDevice';
 import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
+import { AskIrmixyButton } from '@/components/cooking-guide/AskIrmixyButton';
+import { useCookingSession } from '@/contexts/CookingSessionContext';
 import i18n from '@/i18n';
 import { eventService } from '@/services/eventService';
 import { COLORS } from '@/constants/design-tokens';
@@ -24,6 +26,14 @@ export default function CookingGuide() {
   const { recipe } = useRecipe(id as string);
   const { isPhone } = useDevice();
   const [showIrmixyModal, setShowIrmixyModal] = useState(false);
+  const {
+    irmixyChatSessionId,
+    setIrmixyChatSessionId,
+    irmixyChatMessages,
+    setIrmixyChatMessages,
+    irmixyVoiceTranscriptMessages,
+    setIrmixyVoiceTranscriptMessages,
+  } = useCookingSession();
 
   // Responsive sizes: keep mobile original, make desktop larger
   const chefSize = isPhone ? { width: 165, height: 270 } : { width: 180, height: 270 };
@@ -72,7 +82,6 @@ export default function CookingGuide() {
         <CookingGuidePageHeader
           title={recipe?.name || ''}
           subtitle="Mise en place"
-          onIrmixyPress={() => setShowIrmixyModal(true)}
         />
 
         <View className="px-md">
@@ -110,6 +119,13 @@ export default function CookingGuide() {
               </Text>
             </View>
 
+            <View className="items-center pb-sm pt-xs">
+              <AskIrmixyButton onPress={() => setShowIrmixyModal(true)} animate={true} />
+            </View>
+            <View className="mx-lg mb-xs">
+              <View className="h-[1px] bg-border-default opacity-30" />
+            </View>
+
             <Button
               variant='primary'
               size={buttonSize}
@@ -129,6 +145,12 @@ export default function CookingGuide() {
           recipeId: id as string,
           recipeTitle: recipe?.name,
         }}
+        externalSessionId={irmixyChatSessionId}
+        onExternalSessionIdChange={setIrmixyChatSessionId}
+        externalMessages={irmixyChatMessages}
+        onExternalMessagesChange={setIrmixyChatMessages}
+        externalVoiceTranscriptMessages={irmixyVoiceTranscriptMessages}
+        onExternalVoiceTranscriptMessagesChange={setIrmixyVoiceTranscriptMessages}
       />
     </View>
   );

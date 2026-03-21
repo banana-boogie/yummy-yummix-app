@@ -73,6 +73,7 @@ export interface Suggestion {
   label: string;
   message: string;
   type?: 'recipe_generation' | 'default';
+  metadata?: Record<string, unknown>;
 }
 
 export interface IrmixyResponse {

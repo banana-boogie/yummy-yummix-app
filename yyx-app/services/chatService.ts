@@ -96,6 +96,8 @@ export interface StreamHandle {
 export interface SendMessageOptions {
     /** Structured cooking context — backend injects into system prompt */
     cookingContext?: CookingContext;
+    /** Pre-confirmed tool call from a suggestion chip — backend executes directly */
+    confirmedToolCall?: { name: string; arguments: Record<string, unknown> };
 }
 
 export type SSERouteAction = 'continue' | 'resolve' | 'reject';
@@ -360,6 +362,7 @@ export function sendMessage(
                         message,
                         sessionId,
                         ...(options?.cookingContext ? { cookingContext: options.cookingContext } : {}),
+                        ...(options?.confirmedToolCall ? { confirmedToolCall: options.confirmedToolCall } : {}),
                     };
 
                     // Create EventSource with POST method and body

@@ -119,14 +119,12 @@ export function ChatSessionsMenu({
             {/* Hamburger Button */}
             <TouchableOpacity
                 onPress={handleOpen}
-                className="items-center justify-center ml-md"
+                className="flex-row items-center gap-xs px-sm py-xs"
                 accessibilityLabel={i18n.t('chat.sessions.menuLabel')}
                 accessibilityRole="button"
             >
-                <View className="w-10 h-10 items-center justify-center rounded-full bg-background-secondary">
-                    <MaterialCommunityIcons name="clock-outline" size={24} color={COLORS.text.default} />
-                </View>
-                <Text className="text-text-secondary text-xs font-medium mt-[1px]">
+                <MaterialCommunityIcons name="clock-outline" size={20} color={COLORS.text.secondary} />
+                <Text className="text-text-secondary text-sm font-medium">
                     {i18n.t('chat.sessions.historyLabel')}
                 </Text>
             </TouchableOpacity>

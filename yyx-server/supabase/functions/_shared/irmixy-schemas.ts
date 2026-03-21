@@ -102,6 +102,7 @@ export const IrmixyResponseSchema = z.object({
         label: z.string(),
         message: z.string(),
         type: z.enum(["recipe_generation", "default"]).optional(),
+        metadata: z.record(z.unknown()).optional(),
       }),
     )
     .optional(),

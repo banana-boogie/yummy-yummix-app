@@ -350,26 +350,38 @@ export function ChatScreen({
 
     const handleSuggestionPress = useCallback((suggestion: Suggestion) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        handleSendMessage(suggestion.message);
+        const confirmedToolCall = suggestion.metadata
+            ? { name: 'generate_custom_recipe', arguments: suggestion.metadata }
+            : undefined;
+        handleSendMessage(suggestion.message, { silent: true, confirmedToolCall });
     }, [handleSendMessage]);
 
     const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
         const isLast = item.id === lastMessageId;
+        const showSuggestions = isLast && item.role === 'assistant' && lastAssistantSuggestions && lastAssistantSuggestions.length > 0;
         return (
-            <ChatMessageItem
-                item={item}
-                isLastMessage={isLast}
-                isLoading={isLast ? isLoading : false}
-                isRecipeGenerating={isLast ? isRecipeGenerating : false}
-                currentStatus={isLast ? currentStatus : null}
-                statusText={isLast ? statusText : ''}
-                showAvatar
-                onCopyMessage={handleCopyMessage}
-                onStartCooking={handleStartCooking}
-                onActionPress={handleActionPress}
-            />
+            <>
+                <ChatMessageItem
+                    item={item}
+                    isLastMessage={isLast}
+                    isLoading={isLast ? isLoading : false}
+                    isRecipeGenerating={isLast ? isRecipeGenerating : false}
+                    currentStatus={isLast ? currentStatus : null}
+                    statusText={isLast ? statusText : ''}
+                    showAvatar
+                    onCopyMessage={handleCopyMessage}
+                    onStartCooking={handleStartCooking}
+                    onActionPress={handleActionPress}
+                />
+                {showSuggestions && (
+                    <SuggestionChips
+                        suggestions={lastAssistantSuggestions!}
+                        onPress={handleSuggestionPress}
+                    />
+                )}
+            </>
         );
-    }, [lastMessageId, isLoading, isRecipeGenerating, currentStatus, statusText, handleCopyMessage, handleStartCooking, handleActionPress]);
+    }, [lastMessageId, isLoading, isRecipeGenerating, currentStatus, statusText, handleCopyMessage, handleStartCooking, handleActionPress, lastAssistantSuggestions, handleSuggestionPress]);
 
     if (!user) {
         return (
@@ -420,26 +432,18 @@ export function ChatScreen({
                         });
                     }, 100);
                 }}
-                ListFooterComponent={
-                    lastAssistantSuggestions && lastAssistantSuggestions.length > 0 ? (
-                        <SuggestionChips
-                            suggestions={lastAssistantSuggestions}
-                            onPress={handleSuggestionPress}
-                        />
-                    ) : null
-                }
                 ListEmptyComponent={
-                    <View className="flex-1 justify-center items-center pt-xxxl">
-                        <Image
-                            source={require('@/assets/images/irmixy-avatar/irmixy-with-book.png')}
-                            style={{ width: 180, height: 180 }}
-                            contentFit="contain"
-                        />
-                        <View className="mt-md mx-lg bg-primary-lightest rounded-xl px-md py-sm" style={{ maxWidth: 300 }}>
+                    <View className="flex-1 justify-center items-center">
+                        <View className="mb-md mx-lg bg-primary-lightest rounded-xl px-md py-sm" style={{ maxWidth: 300 }}>
                             <Text className="text-text-primary text-center text-base">
                                 {emptyStateGreeting ?? currentGreeting}
                             </Text>
                         </View>
+                        <Image
+                            source={require('@/assets/images/irmixy-avatar/irmixy-with-book.png')}
+                            style={{ width: 240, height: 240 }}
+                            contentFit="contain"
+                        />
                     </View>
                 }
             />

@@ -402,6 +402,12 @@ When generating recipes for users with Thermomix equipment:
 
 See `generate-custom-recipe.ts` for Thermomix system prompt section.
 
+#### Recipe Generation Confirmation (Interception Pattern)
+
+`generate_custom_recipe` requires user confirmation before executing. When the AI calls this tool, the chat orchestrator **intercepts** it — the tool does not execute immediately. Instead, the orchestrator streams back the AI's conversational text and a confirmation chip whose label comes from `recipeDescription` in the tool args (already localized by the AI — no hardcoded strings). The chip embeds the tool args with a `@@GENERATE_RECIPE@@` prefix; when the user taps it, the orchestrator skips the LLM and executes the tool directly.
+
+`modify_recipe` is NOT intercepted — modifications execute immediately.
+
 ## Architecture
 
 ### Mobile App (`yyx-app/`)

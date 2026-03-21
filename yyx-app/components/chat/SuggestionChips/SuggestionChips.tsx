@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { ScrollView, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text } from '@/components/common/Text';
 import type { Suggestion } from '@/types/irmixy';
@@ -17,49 +17,50 @@ export const SuggestionChips = memo(function SuggestionChips({
     if (!suggestions.length) return null;
 
     return (
-        <View className="mt-xs mb-sm">
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 4, gap: 8 }}
-            >
-                {suggestions.map((suggestion, index) => {
-                    const isRecipeGeneration = suggestion.type === 'recipe_generation';
+        <View className="mt-sm mb-sm px-xs gap-sm">
+            {suggestions.map((suggestion, index) => {
+                const isRecipeGeneration = suggestion.type === 'recipe_generation';
 
-                    return (
-                        <TouchableOpacity
-                            key={`${suggestion.label}-${index}`}
-                            onPress={() => onPress(suggestion)}
-                            activeOpacity={0.7}
-                            className={
-                                isRecipeGeneration
-                                    ? 'flex-row items-center bg-primary-medium px-lg py-sm rounded-round shadow-sm'
-                                    : 'flex-row items-center bg-primary-lightest px-lg py-sm rounded-round border border-border-default'
-                            }
-                            style={{ minHeight: 44 }}
-                        >
-                            {isRecipeGeneration && (
+                return (
+                    <TouchableOpacity
+                        key={`${suggestion.label}-${index}`}
+                        onPress={() => onPress(suggestion)}
+                        activeOpacity={0.7}
+                        className={
+                            isRecipeGeneration
+                                ? 'flex-row items-center bg-primary-medium px-md py-md rounded-xl shadow-sm'
+                                : 'flex-row items-center bg-primary-lightest px-md py-md rounded-xl border border-border-default'
+                        }
+                        style={{ minHeight: 52 }}
+                    >
+                        {isRecipeGeneration && (
+                            <View className="w-9 h-9 rounded-full bg-white/20 items-center justify-center mr-sm">
                                 <MaterialCommunityIcons
                                     name="chef-hat"
-                                    size={18}
+                                    size={20}
                                     color={COLORS.neutral.white}
-                                    style={{ marginRight: 6 }}
                                 />
-                            )}
-                            <Text
-                                className={
-                                    isRecipeGeneration
-                                        ? 'text-base text-white font-subheading'
-                                        : 'text-base text-text-default font-body'
-                                }
-                                style={{ fontSize: 16 }}
-                            >
-                                {suggestion.label}
-                            </Text>
-                        </TouchableOpacity>
-                    );
-                })}
-            </ScrollView>
+                            </View>
+                        )}
+                        <Text
+                            className={
+                                isRecipeGeneration
+                                    ? 'text-base text-white font-subheading flex-1'
+                                    : 'text-base text-text-default font-body flex-1'
+                            }
+                            style={{ fontSize: 16 }}
+                        >
+                            {suggestion.label}
+                        </Text>
+                        <MaterialCommunityIcons
+                            name="chevron-right"
+                            size={20}
+                            color={isRecipeGeneration ? COLORS.neutral.white : COLORS.text.secondary}
+                            style={{ marginLeft: 8 }}
+                        />
+                    </TouchableOpacity>
+                );
+            })}
         </View>
     );
 });

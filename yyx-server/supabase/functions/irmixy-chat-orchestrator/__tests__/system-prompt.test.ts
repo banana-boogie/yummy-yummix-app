@@ -250,12 +250,12 @@ Deno.test("buildSystemPrompt excludes cooking helper mode when no cookingContext
   assertEquals(prompt.includes("COOKING HELPER MODE"), false);
 });
 
-Deno.test("buildSystemPrompt includes generate_custom_recipe guardrail against technique questions", () => {
+Deno.test("buildSystemPrompt includes generate_custom_recipe guidance", () => {
   const prompt = buildSystemPrompt(createUserContext());
 
-  assertStringIncludes(prompt, "EXPLICITLY asks");
-  assertStringIncludes(prompt, "NEVER trigger recipe generation");
-  assertStringIncludes(prompt, "How do I brown meat?");
+  // Rule 10: use for recipe creation, answer info questions in text
+  assertStringIncludes(prompt, "generate_custom_recipe");
+  assertStringIncludes(prompt, "answered directly in text");
 });
 
 Deno.test("buildSystemPrompt cooking helper mode works without stepInstructions", () => {

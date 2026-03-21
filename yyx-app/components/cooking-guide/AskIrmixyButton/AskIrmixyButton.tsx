@@ -136,7 +136,7 @@ export function AskIrmixyButton({ onPress, animate = true, showHelpText = false 
       <View className="items-center">
         <Animated.View
           className="flex-row items-center rounded-full bg-primary-lightest"
-          style={{ paddingVertical: SPACING.xxs, paddingLeft: SPACING.xxs, overflow: 'hidden', transform: [{ scale: pillScale }] }}
+          style={{ paddingVertical: SPACING.xs, paddingHorizontal: SPACING.xs, overflow: 'hidden', transform: [{ scale: pillScale }] }}
         >
           {/* "Need help?" text — visible only when showHelpText is true, collapses with animation */}
           {showHelpText && (

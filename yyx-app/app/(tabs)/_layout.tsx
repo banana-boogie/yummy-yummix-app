@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { View, TouchableOpacity, Platform } from 'react-native';
 import { Image } from 'expo-image';
-import { Tabs, Redirect, usePathname, Link, router } from 'expo-router';
+import { Tabs, Redirect, usePathname, Link } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { VoiceSessionProvider } from '@/contexts/VoiceSessionContext';
 import { CookingSessionProvider } from '@/contexts/CookingSessionContext';
@@ -156,11 +156,10 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
 
   const handleTabPress = useCallback((tabName: string, isActive: boolean) => {
     if (isActive) {
-      // Use router.replace for instant navigation back to tab root (no transition flash)
-      router.replace(`/(tabs)/${tabName}` as any);
-    } else {
-      navigation.navigate(tabName);
+      // Do nothing — the screen's own tabPress listener handles scroll-to-top
+      return;
     }
+    navigation.navigate(tabName);
   }, [navigation]);
 
   // Don't show tab bar on mobile web or when it should be hidden based on route

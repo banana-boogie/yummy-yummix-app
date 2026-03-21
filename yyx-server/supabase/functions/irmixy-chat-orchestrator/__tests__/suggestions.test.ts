@@ -1,140 +1,51 @@
-import { assertEquals } from "std/assert/mod.ts";
-import { buildSuggestions } from "../suggestions.ts";
+import { assertEquals, assertStringIncludes } from "std/assert/mod.ts";
+import { buildRecipeConfirmationChip } from "../suggestions.ts";
 
-Deno.test("buildSuggestions — returns empty when recipe already generated", () => {
-  const result = buildSuggestions(
-    "make me a chicken soup",
-    "Here's your recipe!",
-    false,
-    true, // hasCustomRecipe
-    "en",
+Deno.test("buildRecipeConfirmationChip — uses recipeDescription as label", () => {
+  const chip = buildRecipeConfirmationChip(
+    { recipeDescription: "ice cream", ingredients: ["milk", "sugar"] },
   );
-  assertEquals(result.length, 0);
+  assertEquals(chip.type, "recipe_generation");
+  assertStringIncludes(chip.label, "Ice cream");
+  assertEquals(chip.metadata?.recipeDescription, "ice cream");
+  assertEquals(chip.metadata?.ingredients, ["milk", "sugar"]);
 });
 
-Deno.test("buildSuggestions — returns empty when recipes found", () => {
-  const result = buildSuggestions(
-    "find me a pasta recipe",
-    "I found some recipes for you.",
-    true, // hasRecipeResults
-    false,
-    "en",
+Deno.test("buildRecipeConfirmationChip — message is human-readable", () => {
+  const chip = buildRecipeConfirmationChip(
+    { recipeDescription: "tacos al pastor" },
   );
-  assertEquals(result.length, 0);
+  assertEquals(chip.message, "tacos al pastor");
 });
 
-Deno.test("buildSuggestions — detects English user wanting a recipe", () => {
-  const result = buildSuggestions(
-    "make me a chicken soup",
-    "That sounds delicious!",
-    false,
-    false,
-    "en",
+Deno.test("buildRecipeConfirmationChip — falls back to ingredients when no description", () => {
+  const chip = buildRecipeConfirmationChip(
+    { ingredients: ["flour", "eggs", "butter"] },
   );
-  assertEquals(result.length, 1);
-  assertEquals(result[0].type, "recipe_generation");
-  assertEquals(result[0].label.includes("chicken soup"), true);
-  assertEquals(result[0].message.includes("chicken soup"), true);
+  assertStringIncludes(chip.label, "flour, eggs, butter");
+  assertEquals(chip.message, "flour, eggs, butter");
 });
 
-Deno.test("buildSuggestions — detects 'I want to cook' pattern", () => {
-  const result = buildSuggestions(
-    "I want to make ice cream",
-    "Ice cream is fun to make at home!",
-    false,
-    false,
-    "en",
-  );
-  assertEquals(result.length, 1);
-  assertEquals(result[0].label.includes("ice cream"), true);
+Deno.test("buildRecipeConfirmationChip — minimal label when no description or ingredients", () => {
+  const chip = buildRecipeConfirmationChip({});
+  assertEquals(chip.label, "🍳");
+  assertEquals(chip.message, "");
 });
 
-Deno.test("buildSuggestions — detects Spanish user wanting a recipe", () => {
-  const result = buildSuggestions(
-    "hazme una sopa de pollo",
-    "Que buena idea!",
-    false,
-    false,
-    "es-MX",
+Deno.test("buildRecipeConfirmationChip — truncates ingredients to 3", () => {
+  const chip = buildRecipeConfirmationChip(
+    { ingredients: ["a", "b", "c", "d", "e"] },
   );
-  assertEquals(result.length, 1);
-  assertEquals(result[0].type, "recipe_generation");
-  assertEquals(result[0].label.includes("sopa de pollo"), true);
+  assertStringIncludes(chip.label, "a, b, c");
+  assertEquals(chip.label.includes("d"), false);
 });
 
-Deno.test("buildSuggestions — detects Spanish 'quiero hacer' pattern", () => {
-  const result = buildSuggestions(
-    "quiero hacer tacos al pastor",
-    "Los tacos al pastor son deliciosos!",
-    false,
-    false,
-    "es",
-  );
-  assertEquals(result.length, 1);
-  assertEquals(result[0].label.includes("tacos al pastor"), true);
-});
-
-Deno.test("buildSuggestions — detects AI hint at recipe creation", () => {
-  const result = buildSuggestions(
-    "what about brownies",
-    "I'd be happy to create a brownie recipe for you!",
-    false,
-    false,
-    "en",
-  );
-  assertEquals(result.length, 1);
-  assertEquals(result[0].type, "recipe_generation");
-});
-
-Deno.test("buildSuggestions — returns empty for info question", () => {
-  const result = buildSuggestions(
-    "how do I brown meat in the thermomix",
-    "Browning in the Thermomix uses high temperature mode.",
-    false,
-    false,
-    "en",
-  );
-  assertEquals(result.length, 0);
-});
-
-Deno.test("buildSuggestions — returns empty for empty strings", () => {
-  const result = buildSuggestions("", "", false, false, "en");
-  assertEquals(result.length, 0);
-});
-
-Deno.test("buildSuggestions — falls back to generic name when no pattern matches", () => {
-  const result = buildSuggestions(
-    "something yummy",
-    "I can create something special for you!",
-    false,
-    false,
-    "en",
-  );
-  assertEquals(result.length, 1);
-  assertEquals(result[0].label.includes("this dish"), true);
-});
-
-Deno.test("buildSuggestions — Spanish fallback uses 'este platillo'", () => {
-  const result = buildSuggestions(
-    "algo rico",
-    "Puedo crear algo especial para ti!",
-    false,
-    false,
-    "es",
-  );
-  assertEquals(result.length, 1);
-  assertEquals(result[0].label.includes("este platillo"), true);
-});
-
-Deno.test("buildSuggestions — strips trailing punctuation from recipe name", () => {
-  const result = buildSuggestions(
-    "make me a chicken soup!",
-    "Great idea!",
-    false,
-    false,
-    "en",
-  );
-  assertEquals(result.length, 1);
-  assertEquals(result[0].label.includes("chicken soup!"), false);
-  assertEquals(result[0].label.includes("chicken soup"), true);
+Deno.test("buildRecipeConfirmationChip — metadata contains full tool args", () => {
+  const args = {
+    recipeDescription: "pasta",
+    ingredients: ["tomato"],
+    portions: 4,
+  };
+  const chip = buildRecipeConfirmationChip(args);
+  assertEquals(chip.metadata, args);
 });

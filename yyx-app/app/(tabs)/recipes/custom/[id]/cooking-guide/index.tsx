@@ -16,6 +16,8 @@ import { COLORS } from '@/constants/design-tokens';
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
+import { AskIrmixyButton } from '@/components/cooking-guide/AskIrmixyButton';
+import { useCookingSession } from '@/contexts/CookingSessionContext';
 import { getCustomCookingGuidePath, isFromChat } from '@/utils/navigation/recipeRoutes';
 import { eventService } from '@/services/eventService';
 
@@ -26,6 +28,14 @@ export default function CustomCookingGuide() {
   const navigation = useNavigation();
   const isChatFlow = isFromChat(from);
   const [showIrmixyModal, setShowIrmixyModal] = useState(false);
+  const {
+    irmixyChatSessionId,
+    setIrmixyChatSessionId,
+    irmixyChatMessages,
+    setIrmixyChatMessages,
+    irmixyVoiceTranscriptMessages,
+    setIrmixyVoiceTranscriptMessages,
+  } = useCookingSession();
 
   const handleBackPress = () => {
     if (isChatFlow && !navigation.canGoBack()) {
@@ -110,7 +120,6 @@ export default function CustomCookingGuide() {
         <CookingGuidePageHeader
           title={recipe?.name || ''}
           subtitle={i18n.t('chat.miseEnPlace')}
-          onIrmixyPress={() => setShowIrmixyModal(true)}
         />
 
         <View className="px-md">
@@ -148,6 +157,13 @@ export default function CustomCookingGuide() {
               </Text>
             </View>
 
+            <View className="items-center pb-sm pt-xs">
+              <AskIrmixyButton onPress={() => setShowIrmixyModal(true)} animate={true} />
+            </View>
+            <View className="mx-lg mb-xs">
+              <View className="h-[1px] bg-border-default opacity-30" />
+            </View>
+
             <Button
               variant='primary'
               size={buttonSize}
@@ -167,6 +183,12 @@ export default function CustomCookingGuide() {
           recipeId: id as string,
           recipeTitle: recipe?.name,
         }}
+        externalSessionId={irmixyChatSessionId}
+        onExternalSessionIdChange={setIrmixyChatSessionId}
+        externalMessages={irmixyChatMessages}
+        onExternalMessagesChange={setIrmixyChatMessages}
+        externalVoiceTranscriptMessages={irmixyVoiceTranscriptMessages}
+        onExternalVoiceTranscriptMessagesChange={setIrmixyVoiceTranscriptMessages}
       />
     </View>
   );

@@ -46,7 +46,7 @@ import {
   stripToolCallText,
 } from "./tool-call-text.ts";
 import { buildActions } from "./action-builder.ts";
-import { buildSuggestions } from "./suggestions.ts";
+import { buildRecipeConfirmationChip } from "./suggestions.ts";
 import {
   BudgetCheckUnavailableError,
   checkTextBudget,
@@ -123,6 +123,10 @@ serve(async (req) => {
           currentStep: string;
           stepInstructions?: string;
         };
+        confirmedToolCall?: {
+          name: string;
+          arguments: Record<string, unknown>;
+        };
       }
       | null = null;
     try {
@@ -150,9 +154,18 @@ serve(async (req) => {
       }
       : undefined;
 
+    // Extract confirmed tool call from suggestion chip metadata
+    const confirmedToolCall = body?.confirmedToolCall &&
+        typeof body.confirmedToolCall.name === "string" &&
+        body.confirmedToolCall.arguments &&
+        typeof body.confirmedToolCall.arguments === "object"
+      ? body.confirmedToolCall
+      : undefined;
+
     log.info("Request received", {
       hasSessionId: !!sessionId,
       messageLength: message.length,
+      hasConfirmedToolCall: !!confirmedToolCall,
     });
 
     // Validate request
@@ -276,6 +289,7 @@ serve(async (req) => {
       costContext,
       budget.warningData,
       cookingContext,
+      confirmedToolCall,
     );
   } catch (error) {
     log.error("Orchestrator error", error);
@@ -472,6 +486,7 @@ function handleStreamingRequest(
   costContext?: CostContext,
   budgetWarning?: { usedUsd: number; budgetUsd: number },
   cookingContext?: CookingContext,
+  confirmedToolCall?: { name: string; arguments: Record<string, unknown> },
 ): Response {
   const encoder = new TextEncoder();
 
@@ -551,6 +566,14 @@ function handleStreamingRequest(
         }
         send({ type: "status", status: "thinking" });
 
+        // ── Confirmed recipe fast path ──
+        // When user taps a confirmation chip, the frontend sends the tool args
+        // via the confirmedToolCall field in the request body.
+        const confirmedRecipeArgs =
+          confirmedToolCall?.name === "generate_custom_recipe"
+            ? confirmedToolCall.arguments
+            : null;
+
         const { userContext, messages } = await buildRequestContext(
           supabase,
           userId,
@@ -574,6 +597,148 @@ function handleStreamingRequest(
           requestId,
           functionName: "irmixy-chat-orchestrator",
         };
+
+        // ── Confirmed recipe: execute tool directly, then stream response ──
+        if (confirmedRecipeArgs) {
+          log.info("Confirmed recipe generation — executing directly", {
+            description: confirmedRecipeArgs.recipeDescription,
+          });
+
+          send({ type: "status", status: "cooking_it_up" });
+
+          const syntheticToolCall: ToolCall = {
+            id: `call_${crypto.randomUUID()}`,
+            type: "function",
+            function: {
+              name: "generate_custom_recipe",
+              arguments: JSON.stringify(confirmedRecipeArgs),
+            },
+          };
+
+          const onPartialRecipe: PartialRecipeCallback = (partialRecipe) => {
+            send({ type: "recipe_partial", recipe: partialRecipe });
+            send({ type: "status", status: "enriching" });
+          };
+
+          const heartbeatId = setInterval(() => {
+            send({ type: "heartbeat" });
+          }, HEARTBEAT_INTERVAL_MS);
+
+          let toolResult: ToolExecutionResult;
+          try {
+            toolResult = await executeToolCalls(
+              supabase,
+              [syntheticToolCall],
+              userContext,
+              log,
+              usageContext,
+              onPartialRecipe,
+              costContext,
+            );
+          } finally {
+            clearInterval(heartbeatId);
+            send({ type: "status", status: "thinking" });
+          }
+          timings.tool_exec_ms = Math.round(performance.now() - phaseStart);
+          phaseStart = performance.now();
+
+          recipes = toolResult.recipes;
+          customRecipeResult = toolResult.customRecipeResult;
+
+          // Build messages for streaming response (AI summarizes the result)
+          streamMessages = [
+            ...messages,
+            {
+              role: "assistant" as const,
+              content: null,
+              tool_calls: [syntheticToolCall],
+            },
+            ...toolResult.toolMessages,
+          ];
+
+          // Stream the AI's response about the generated recipe
+          const hasSuccessfulCustomRecipe = !!customRecipeResult?.recipe &&
+            customRecipeResult?.safetyFlags?.error !== true;
+
+          const streamHeartbeatId = setInterval(() => {
+            send({ type: "heartbeat" });
+          }, HEARTBEAT_INTERVAL_MS);
+          let heartbeatCleared = false;
+
+          let finalText: string;
+          const streamStart = performance.now();
+          const streamFilter = new StreamingToolCallFilter(
+            (text) => send({ type: "content", content: text }),
+            DISABLE_STREAMING_FILTER,
+          );
+          try {
+            const streamResult = await callAIStream(
+              streamMessages,
+              (token) => {
+                if (!heartbeatCleared) {
+                  clearInterval(streamHeartbeatId);
+                  heartbeatCleared = true;
+                }
+                streamFilter.push(token);
+              },
+              signal,
+              costContext,
+            );
+            finalText = streamResult.content;
+            streamFilter.end();
+
+            fireUsageLog(
+              usageContext,
+              "response_stream",
+              "success",
+              streamStart,
+              streamResult,
+              { request_type: "recipe_response" },
+            );
+          } catch (error) {
+            streamFilter.abort();
+            fireUsageLog(
+              usageContext,
+              "response_stream",
+              "error",
+              streamStart,
+              undefined,
+              { request_type: "recipe_response" },
+            );
+            throw error;
+          } finally {
+            if (!heartbeatCleared) clearInterval(streamHeartbeatId);
+          }
+          timings.stream_ms = Math.round(performance.now() - phaseStart);
+          phaseStart = performance.now();
+
+          finalText = stripToolCallText(finalText);
+          send({ type: "stream_complete" });
+
+          const actions = buildActions(userContext.language, undefined);
+          const response = await finalizeResponse(
+            supabase,
+            sessionId,
+            message,
+            finalText,
+            userContext,
+            recipes,
+            customRecipeResult,
+            actions.length > 0 ? actions : undefined,
+          );
+          timings.finalize_ms = Math.round(performance.now() - phaseStart);
+          timings.total_ms = Math.round(performance.now() - startTime);
+
+          log.info("Request complete", {
+            type: "recipe_gen_confirmed",
+            ...timings,
+          });
+
+          send({ type: "done", response });
+          clearStreamTimeout();
+          safeClose();
+          return;
+        }
 
         let selectedModel = "unknown";
         const llmCallStart = performance.now();
@@ -659,6 +824,87 @@ function handleStreamingRequest(
 
         if (signal.aborted) {
           log.info("Request aborted by client (after first LLM call)");
+          clearStreamTimeout();
+          safeClose();
+          return;
+        }
+
+        // ── Intercept generate_custom_recipe ──
+        // When the AI decides to create a recipe, don't execute the tool.
+        // Instead, send a confirmation chip and let the user decide.
+        const recipeGenToolCall = assistantMessage.tool_calls?.find(
+          (tc) => tc.function.name === "generate_custom_recipe",
+        );
+        if (recipeGenToolCall) {
+          log.info(
+            "Intercepted generate_custom_recipe — sending confirmation chip",
+          );
+          let toolArgs: Record<string, unknown>;
+          try {
+            toolArgs = JSON.parse(recipeGenToolCall.function.arguments);
+          } catch {
+            toolArgs = {};
+          }
+
+          // Use the AI's own text — it's already in the user's language.
+          // Fall back to the recipe description from the tool args (also localized by the AI).
+          const confirmationText = assistantMessage.content?.trim() ||
+            (toolArgs.recipeDescription as string) ||
+            "";
+
+          // Stream the confirmation text word-by-word for natural feel
+          const words = confirmationText.split(/(\s+)/);
+          for (const word of words) {
+            send({ type: "content", content: word });
+          }
+
+          send({ type: "stream_complete" });
+
+          // Execute any OTHER tool calls that came alongside (e.g. search_recipes)
+          const otherToolCalls = assistantMessage.tool_calls!.filter(
+            (tc) => tc.function.name !== "generate_custom_recipe",
+          );
+          if (otherToolCalls.length > 0) {
+            const otherResult = await executeToolCalls(
+              supabase,
+              otherToolCalls,
+              userContext,
+              log,
+              usageContext,
+              undefined,
+              costContext,
+            );
+            recipes = otherResult.recipes;
+            recipesSourceTool = otherResult.recipesSourceTool;
+            appActionResult = otherResult.appActionResult;
+          }
+
+          const chip = buildRecipeConfirmationChip(toolArgs);
+          const actions = buildActions(
+            userContext.language,
+            appActionResult,
+          );
+
+          const response = await finalizeResponse(
+            supabase,
+            sessionId,
+            message,
+            confirmationText,
+            userContext,
+            recipes,
+            undefined,
+            actions.length > 0 ? actions : undefined,
+            [chip],
+          );
+
+          timings.total_ms = Math.round(performance.now() - startTime);
+          log.info("Request complete (recipe intercepted)", {
+            type: "recipe_intercepted",
+            model: selectedModel,
+            ...timings,
+          });
+
+          send({ type: "done", response });
           clearStreamTimeout();
           safeClose();
           return;
@@ -809,13 +1055,6 @@ function handleStreamingRequest(
         }
 
         const actions = buildActions(userContext.language, appActionResult);
-        const suggestions = buildSuggestions(
-          message,
-          finalText,
-          !!recipes?.length,
-          !!customRecipeResult?.recipe,
-          userContext.locale,
-        );
 
         const response = await finalizeResponse(
           supabase,
@@ -826,7 +1065,6 @@ function handleStreamingRequest(
           recipes,
           customRecipeResult,
           actions.length > 0 ? actions : undefined,
-          suggestions.length > 0 ? suggestions : undefined,
         );
         timings.finalize_ms = Math.round(performance.now() - phaseStart);
         timings.total_ms = Math.round(performance.now() - startTime);

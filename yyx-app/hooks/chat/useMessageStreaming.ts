@@ -134,7 +134,7 @@ export function useMessageStreaming({
         });
     }, [setMessages]);
 
-    const handleSendMessage = useCallback(async (messageText: string) => {
+    const handleSendMessage = useCallback(async (messageText: string, options?: { silent?: boolean; confirmedToolCall?: { name: string; arguments: Record<string, unknown> } }) => {
         if (!messageText.trim() || !user || isLoading) return;
 
         onResumeSessionClear();
@@ -156,17 +156,31 @@ export function useMessageStreaming({
 
         const assistantMessageId = `assistant-${Date.now()}`;
 
-        setMessages(prev => {
-            const assistantMessage: ChatMessage = {
-                id: assistantMessageId,
-                role: 'assistant',
-                content: '',
-                createdAt: new Date(),
-            };
-            const nextMessages = [...prev, userMessage, assistantMessage];
-            assistantIndexRef.current = nextMessages.length - 1;
-            return nextMessages;
-        });
+        if (options?.silent) {
+            setMessages(prev => {
+                const assistantMessage: ChatMessage = {
+                    id: assistantMessageId,
+                    role: 'assistant',
+                    content: '',
+                    createdAt: new Date(),
+                };
+                const nextMessages = [...prev, assistantMessage];
+                assistantIndexRef.current = nextMessages.length - 1;
+                return nextMessages;
+            });
+        } else {
+            setMessages(prev => {
+                const assistantMessage: ChatMessage = {
+                    id: assistantMessageId,
+                    role: 'assistant',
+                    content: '',
+                    createdAt: new Date(),
+                };
+                const nextMessages = [...prev, userMessage, assistantMessage];
+                assistantIndexRef.current = nextMessages.length - 1;
+                return nextMessages;
+            });
+        }
         setInputText('');
         setIsLoading(true);
         setIsStreaming(false);
@@ -321,7 +335,10 @@ export function useMessageStreaming({
                     hasRecipeInCurrentStreamRef.current = false;
                     completedSuccessfully = true;
                 },
-                cookingContext ? { cookingContext } : undefined, // options
+                {
+                    ...(cookingContext ? { cookingContext } : {}),
+                    ...(options?.confirmedToolCall ? { confirmedToolCall: options.confirmedToolCall } : {}),
+                }, // options
                 onBudgetWarning,
             );
 
@@ -354,9 +371,9 @@ export function useMessageStreaming({
             // Handle budget exceeded — notify parent, don't show as generic error
             if (error instanceof BudgetExceededError) {
                 onBudgetExceeded?.(error);
-                // Remove both optimistic messages in one atomic update.
+                // Remove optimistic messages in one atomic update.
                 setMessages(prev =>
-                    prev.filter(m => m.id !== assistantMessageId && m.id !== userMessage.id),
+                    prev.filter(m => m.id !== assistantMessageId && (options?.silent || m.id !== userMessage.id)),
                 );
                 return;
             }
