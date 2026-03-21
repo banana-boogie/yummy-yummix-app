@@ -350,8 +350,9 @@ export function ChatScreen({
 
     const handleSuggestionPress = useCallback((suggestion: Suggestion) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        const confirmedToolCall = suggestion.metadata
-            ? { name: 'generate_custom_recipe', arguments: suggestion.metadata }
+        const { toolName, ...toolArgs } = suggestion.metadata ?? {};
+        const confirmedToolCall = toolName && typeof toolName === 'string'
+            ? { name: toolName, arguments: toolArgs }
             : undefined;
         handleSendMessage(suggestion.message, { silent: true, confirmedToolCall });
     }, [handleSendMessage]);

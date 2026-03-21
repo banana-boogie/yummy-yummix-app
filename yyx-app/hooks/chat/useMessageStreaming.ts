@@ -156,31 +156,19 @@ export function useMessageStreaming({
 
         const assistantMessageId = `assistant-${Date.now()}`;
 
-        if (options?.silent) {
-            setMessages(prev => {
-                const assistantMessage: ChatMessage = {
-                    id: assistantMessageId,
-                    role: 'assistant',
-                    content: '',
-                    createdAt: new Date(),
-                };
-                const nextMessages = [...prev, assistantMessage];
-                assistantIndexRef.current = nextMessages.length - 1;
-                return nextMessages;
-            });
-        } else {
-            setMessages(prev => {
-                const assistantMessage: ChatMessage = {
-                    id: assistantMessageId,
-                    role: 'assistant',
-                    content: '',
-                    createdAt: new Date(),
-                };
-                const nextMessages = [...prev, userMessage, assistantMessage];
-                assistantIndexRef.current = nextMessages.length - 1;
-                return nextMessages;
-            });
-        }
+        setMessages(prev => {
+            const assistantMessage: ChatMessage = {
+                id: assistantMessageId,
+                role: 'assistant',
+                content: '',
+                createdAt: new Date(),
+            };
+            const nextMessages = options?.silent
+                ? [...prev, assistantMessage]
+                : [...prev, userMessage, assistantMessage];
+            assistantIndexRef.current = nextMessages.length - 1;
+            return nextMessages;
+        });
         setInputText('');
         setIsLoading(true);
         setIsStreaming(false);

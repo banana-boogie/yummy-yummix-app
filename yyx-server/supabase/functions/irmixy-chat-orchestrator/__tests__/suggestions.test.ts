@@ -9,6 +9,7 @@ Deno.test("buildRecipeConfirmationChip — uses recipeDescription as label", () 
   assertStringIncludes(chip.label, "Ice cream");
   assertEquals(chip.metadata?.recipeDescription, "ice cream");
   assertEquals(chip.metadata?.ingredients, ["milk", "sugar"]);
+  assertEquals(chip.metadata?.toolName, "generate_custom_recipe");
 });
 
 Deno.test("buildRecipeConfirmationChip — message is human-readable", () => {
@@ -40,12 +41,12 @@ Deno.test("buildRecipeConfirmationChip — truncates ingredients to 3", () => {
   assertEquals(chip.label.includes("d"), false);
 });
 
-Deno.test("buildRecipeConfirmationChip — metadata contains full tool args", () => {
+Deno.test("buildRecipeConfirmationChip — metadata contains tool args and toolName", () => {
   const args = {
     recipeDescription: "pasta",
     ingredients: ["tomato"],
     portions: 4,
   };
   const chip = buildRecipeConfirmationChip(args);
-  assertEquals(chip.metadata, args);
+  assertEquals(chip.metadata, { ...args, toolName: "generate_custom_recipe" });
 });

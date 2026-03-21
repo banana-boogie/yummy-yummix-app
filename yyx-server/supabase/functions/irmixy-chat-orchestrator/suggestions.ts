@@ -38,7 +38,7 @@ export function buildRecipeConfirmationChip(
     label,
     message,
     type: "recipe_generation",
-    metadata: toolArgs,
+    metadata: { ...toolArgs, toolName: "generate_custom_recipe" },
   };
 }
 

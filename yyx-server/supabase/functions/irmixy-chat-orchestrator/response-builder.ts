@@ -31,9 +31,12 @@ export async function finalizeResponse(
   recipes: RecipeCard[] | undefined,
   customRecipeResult: GenerateRecipeResult | undefined,
   actions?: Action[],
-  suggestions?: Array<
-    { label: string; message: string; type?: "recipe_generation" | "default" }
-  >,
+  suggestions?: Array<{
+    label: string;
+    message: string;
+    type?: "recipe_generation" | "default";
+    metadata?: Record<string, unknown>;
+  }>,
 ): Promise<IrmixyResponse> {
   const irmixyResponse: IrmixyResponse = {
     version: "1.0",

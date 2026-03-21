@@ -473,6 +473,83 @@ function getToolStatus(toolName: string): string {
 }
 
 /**
+ * Stream the AI's response via SSE with heartbeat, tool-call filtering, and usage logging.
+ * Shared by both the normal flow and the confirmed recipe fast path.
+ */
+async function streamAIResponse(opts: {
+  streamMessages: ChatMessage[];
+  send: (data: Record<string, unknown>) => void;
+  signal: AbortSignal;
+  costContext?: CostContext;
+  usageContext: AIUsageLogContext;
+  requestType: string;
+}): Promise<string> {
+  const {
+    streamMessages,
+    send,
+    signal,
+    costContext,
+    usageContext,
+    requestType,
+  } = opts;
+
+  const heartbeatId = setInterval(() => {
+    send({ type: "heartbeat" });
+  }, HEARTBEAT_INTERVAL_MS);
+  let heartbeatCleared = false;
+
+  const streamStart = performance.now();
+  const streamFilter = new StreamingToolCallFilter(
+    (text) => send({ type: "content", content: text }),
+    DISABLE_STREAMING_FILTER,
+  );
+
+  let finalText: string;
+  try {
+    const streamResult = await callAIStream(
+      streamMessages,
+      (token) => {
+        if (!heartbeatCleared) {
+          clearInterval(heartbeatId);
+          heartbeatCleared = true;
+        }
+        streamFilter.push(token);
+      },
+      signal,
+      costContext,
+    );
+    finalText = streamResult.content;
+    streamFilter.end();
+
+    fireUsageLog(
+      usageContext,
+      "response_stream",
+      "success",
+      streamStart,
+      streamResult,
+      { request_type: requestType },
+    );
+  } catch (error) {
+    streamFilter.abort();
+    fireUsageLog(
+      usageContext,
+      "response_stream",
+      "error",
+      streamStart,
+      undefined,
+      { request_type: requestType },
+    );
+    throw error;
+  } finally {
+    if (!heartbeatCleared) clearInterval(heartbeatId);
+  }
+
+  finalText = stripToolCallText(finalText);
+  send({ type: "stream_complete" });
+  return finalText;
+}
+
+/**
  * Handle streaming request with SSE.
  */
 function handleStreamingRequest(
@@ -656,64 +733,16 @@ function handleStreamingRequest(
             ...toolResult.toolMessages,
           ];
 
-          // Stream the AI's response about the generated recipe
-          const hasSuccessfulCustomRecipe = !!customRecipeResult?.recipe &&
-            customRecipeResult?.safetyFlags?.error !== true;
-
-          const streamHeartbeatId = setInterval(() => {
-            send({ type: "heartbeat" });
-          }, HEARTBEAT_INTERVAL_MS);
-          let heartbeatCleared = false;
-
-          let finalText: string;
-          const streamStart = performance.now();
-          const streamFilter = new StreamingToolCallFilter(
-            (text) => send({ type: "content", content: text }),
-            DISABLE_STREAMING_FILTER,
-          );
-          try {
-            const streamResult = await callAIStream(
-              streamMessages,
-              (token) => {
-                if (!heartbeatCleared) {
-                  clearInterval(streamHeartbeatId);
-                  heartbeatCleared = true;
-                }
-                streamFilter.push(token);
-              },
-              signal,
-              costContext,
-            );
-            finalText = streamResult.content;
-            streamFilter.end();
-
-            fireUsageLog(
-              usageContext,
-              "response_stream",
-              "success",
-              streamStart,
-              streamResult,
-              { request_type: "recipe_response" },
-            );
-          } catch (error) {
-            streamFilter.abort();
-            fireUsageLog(
-              usageContext,
-              "response_stream",
-              "error",
-              streamStart,
-              undefined,
-              { request_type: "recipe_response" },
-            );
-            throw error;
-          } finally {
-            if (!heartbeatCleared) clearInterval(streamHeartbeatId);
-          }
+          const finalText = await streamAIResponse({
+            streamMessages,
+            send,
+            signal,
+            costContext,
+            usageContext,
+            requestType: "recipe_response",
+          });
           timings.stream_ms = Math.round(performance.now() - phaseStart);
           phaseStart = performance.now();
-
-          finalText = stripToolCallText(finalText);
-          send({ type: "stream_complete" });
 
           const actions = buildActions(userContext.language, undefined);
           const response = await finalizeResponse(
@@ -853,37 +882,20 @@ function handleStreamingRequest(
             "";
 
           // Stream the confirmation text word-by-word for natural feel
-          const words = confirmationText.split(/(\s+)/);
-          for (const word of words) {
-            send({ type: "content", content: word });
+          if (confirmationText) {
+            const words = confirmationText.split(/(\s+)/);
+            for (const word of words) {
+              send({ type: "content", content: word });
+            }
           }
 
           send({ type: "stream_complete" });
 
-          // Execute any OTHER tool calls that came alongside (e.g. search_recipes)
-          const otherToolCalls = assistantMessage.tool_calls!.filter(
-            (tc) => tc.function.name !== "generate_custom_recipe",
-          );
-          if (otherToolCalls.length > 0) {
-            const otherResult = await executeToolCalls(
-              supabase,
-              otherToolCalls,
-              userContext,
-              log,
-              usageContext,
-              undefined,
-              costContext,
-            );
-            recipes = otherResult.recipes;
-            recipesSourceTool = otherResult.recipesSourceTool;
-            appActionResult = otherResult.appActionResult;
-          }
+          // Don't execute other tool calls during interception — this is a
+          // "stop and confirm" moment. Mixing in search results (e.g. tinga
+          // showing up alongside a "create mole" chip) is confusing.
 
           const chip = buildRecipeConfirmationChip(toolArgs);
-          const actions = buildActions(
-            userContext.language,
-            appActionResult,
-          );
 
           const response = await finalizeResponse(
             supabase,
@@ -891,9 +903,9 @@ function handleStreamingRequest(
             message,
             confirmationText,
             userContext,
-            recipes,
             undefined,
-            actions.length > 0 ? actions : undefined,
+            undefined,
+            undefined,
             [chip],
           );
 
@@ -977,74 +989,22 @@ function handleStreamingRequest(
         const hasSuccessfulCustomRecipe = !!customRecipeResult?.recipe &&
           customRecipeResult?.safetyFlags?.error !== true;
 
-        // Keep stream alive while waiting for the AI provider to start responding
-        const streamHeartbeatId = setInterval(() => {
-          send({ type: "heartbeat" });
-        }, HEARTBEAT_INTERVAL_MS);
-        let heartbeatCleared = false;
+        const requestType = hasSuccessfulCustomRecipe
+          ? "recipe_response"
+          : recipes?.length
+          ? "retrieval_response"
+          : "chat_response";
 
-        // Stream AI response — text first, then tool results arrive in the done event.
-        let finalText: string;
-        const streamStart = performance.now();
-        const streamFilter = new StreamingToolCallFilter(
-          (text) => send({ type: "content", content: text }),
-          DISABLE_STREAMING_FILTER,
-        );
-        try {
-          const streamResult = await callAIStream(
-            streamMessages,
-            (token) => {
-              // First token arrived — stop heartbeat, real data is flowing
-              if (!heartbeatCleared) {
-                clearInterval(streamHeartbeatId);
-                heartbeatCleared = true;
-              }
-              streamFilter.push(token);
-            },
-            signal,
-            costContext,
-          );
-          finalText = streamResult.content;
-          streamFilter.end();
-
-          fireUsageLog(
-            usageContext,
-            "response_stream",
-            "success",
-            streamStart,
-            streamResult,
-            {
-              request_type: hasSuccessfulCustomRecipe
-                ? "recipe_response"
-                : recipes?.length
-                ? "retrieval_response"
-                : "chat_response",
-            },
-          );
-        } catch (error) {
-          streamFilter.abort();
-          fireUsageLog(
-            usageContext,
-            "response_stream",
-            "error",
-            streamStart,
-            undefined,
-            {
-              request_type: "chat_response",
-            },
-          );
-          throw error;
-        } finally {
-          if (!heartbeatCleared) clearInterval(streamHeartbeatId);
-        }
+        const finalText = await streamAIResponse({
+          streamMessages,
+          send,
+          signal,
+          costContext,
+          usageContext,
+          requestType,
+        });
         timings.stream_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
-
-        // Strip any residual tool-call text that leaked into the streamed response
-        finalText = stripToolCallText(finalText);
-
-        // Signal that streaming is complete - frontend can enable input now
-        send({ type: "stream_complete" });
 
         if (signal.aborted) {
           log.info("Request aborted by client (after streaming)");

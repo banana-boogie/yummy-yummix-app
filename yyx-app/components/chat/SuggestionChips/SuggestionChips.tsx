@@ -28,10 +28,9 @@ export const SuggestionChips = memo(function SuggestionChips({
                         activeOpacity={0.7}
                         className={
                             isRecipeGeneration
-                                ? 'flex-row items-center bg-primary-medium px-md py-md rounded-xl shadow-sm'
-                                : 'flex-row items-center bg-primary-lightest px-md py-md rounded-xl border border-border-default'
+                                ? 'flex-row items-center bg-primary-medium px-md py-md rounded-xl shadow-sm min-h-[52px]'
+                                : 'flex-row items-center bg-primary-lightest px-md py-md rounded-xl border border-border-default min-h-[52px]'
                         }
-                        style={{ minHeight: 52 }}
                     >
                         {isRecipeGeneration && (
                             <View className="w-9 h-9 rounded-full bg-white/20 items-center justify-center mr-sm">
@@ -48,7 +47,6 @@ export const SuggestionChips = memo(function SuggestionChips({
                                     ? 'text-base text-white font-subheading flex-1'
                                     : 'text-base text-text-default font-body flex-1'
                             }
-                            style={{ fontSize: 16 }}
                         >
                             {suggestion.label}
                         </Text>
@@ -56,7 +54,7 @@ export const SuggestionChips = memo(function SuggestionChips({
                             name="chevron-right"
                             size={20}
                             color={isRecipeGeneration ? COLORS.neutral.white : COLORS.text.secondary}
-                            style={{ marginLeft: 8 }}
+                            className="ml-xs"
                         />
                     </TouchableOpacity>
                 );
