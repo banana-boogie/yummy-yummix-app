@@ -5,9 +5,10 @@ import { CookingGuideHeader } from "@/components/cooking-guide/CookingGuideHeade
 import { RecipeStepContent } from "@/components/cooking-guide/RecipeStepContent";
 import { AskIrmixyButton } from "@/components/cooking-guide/AskIrmixyButton";
 import { IrmixyCookingModal } from "@/components/cooking-guide/IrmixyCookingModal";
+import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import { Text } from "@/components/common/Text";
 import i18n from "@/i18n";
-import React, { useMemo, useEffect, useState } from "react";
+import React, { useMemo, useEffect } from "react";
 import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideStepNavigationButtons';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
@@ -15,21 +16,14 @@ import { eventService } from '@/services/eventService';
 import { useCookingSession } from '@/contexts/CookingSessionContext';
 import { COLORS } from '@/constants/design-tokens';
 
+
 const contentContainerStyle = { paddingHorizontal: 0 } as const;
 
 export default function CookingStep() {
     const { id, step: stepParam } = useLocalSearchParams();
     const { recipe } = useRecipe(id as string);
-    const {
-        updateStep,
-        irmixyChatSessionId,
-        setIrmixyChatSessionId,
-        irmixyChatMessages,
-        setIrmixyChatMessages,
-        irmixyVoiceTranscriptMessages,
-        setIrmixyVoiceTranscriptMessages,
-    } = useCookingSession();
-    const [showIrmixyModal, setShowIrmixyModal] = useState(false);
+    const { updateStep } = useCookingSession();
+    const irmixy = useIrmixyHelperChat();
 
     const currentStepNumber = Number(stepParam);
     const steps = recipe?.steps;
@@ -81,7 +75,7 @@ export default function CookingStep() {
         <View>
             <View className="items-center pb-sm pt-xs">
                 <AskIrmixyButton
-                    onPress={() => setShowIrmixyModal(true)}
+                    onPress={irmixy.open}
                     animate={currentStepNumber === 1}
                     showHelpText={currentStepNumber === 1}
                 />
@@ -125,8 +119,8 @@ export default function CookingStep() {
             </PageLayout>
 
             <IrmixyCookingModal
-                visible={showIrmixyModal}
-                onClose={() => setShowIrmixyModal(false)}
+                visible={irmixy.isVisible}
+                onClose={irmixy.close}
                 recipeContext={{
                     type: 'cooking',
                     recipeId: id as string,
@@ -135,12 +129,7 @@ export default function CookingStep() {
                     totalSteps,
                     stepInstructions: currentStep?.instruction,
                 }}
-                externalSessionId={irmixyChatSessionId}
-                onExternalSessionIdChange={setIrmixyChatSessionId}
-                externalMessages={irmixyChatMessages}
-                onExternalMessagesChange={setIrmixyChatMessages}
-                externalVoiceTranscriptMessages={irmixyVoiceTranscriptMessages}
-                onExternalVoiceTranscriptMessagesChange={setIrmixyVoiceTranscriptMessages}
+                {...irmixy.sessionProps}
             />
         </View>
     );

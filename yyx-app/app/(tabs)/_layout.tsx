@@ -154,13 +154,19 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
     );
   };
 
-  const handleTabPress = useCallback((tabName: string, isActive: boolean) => {
+  const handleTabPress = useCallback((tabName: string, tabIndex: number, isActive: boolean) => {
     if (isActive) {
-      // Do nothing — the screen's own tabPress listener handles scroll-to-top
+      // If on a nested screen (e.g. recipe detail), pop to tab root
+      const nestedState = state.routes[tabIndex]?.state;
+      if (nestedState && nestedState.index != null && nestedState.index > 0) {
+        navigation.navigate(tabName);
+        return;
+      }
+      // At root — the screen's own tabPress listener handles scroll-to-top
       return;
     }
     navigation.navigate(tabName);
-  }, [navigation]);
+  }, [navigation, state]);
 
   // Don't show tab bar on mobile web or when it should be hidden based on route
   if ((isWeb && isPhone) || !showTabBar) return null;
@@ -187,7 +193,7 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
             <TouchableOpacity
               key={tab.name}
               className="items-center justify-center py-xxs"
-              onPress={() => handleTabPress(tab.name, isActive)}
+              onPress={() => handleTabPress(tab.name, state.routes.findIndex(r => r.name === tab.name), isActive)}
               activeOpacity={0.7}
               style={{ minWidth: SPACING.xxl }}
             >

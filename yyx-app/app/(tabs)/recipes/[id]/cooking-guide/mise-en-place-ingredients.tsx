@@ -2,6 +2,7 @@ import { View } from 'react-native';
 import { useState, useEffect } from 'react';
 import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
 import { AskIrmixyButton } from '@/components/cooking-guide/AskIrmixyButton';
+import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import * as Haptics from 'expo-haptics';
 import i18n from '@/i18n';
 import { useRecipe } from '@/hooks/useRecipe';
@@ -15,7 +16,6 @@ import { PageLayout } from '@/components/layouts/PageLayout';
 import { MiseEnPlaceIngredient } from '@/components/cooking-guide/MiseEnPlaceIngredient';
 import { Text } from '@/components/common/Text';
 import { LAYOUT, COLORS } from '@/constants/design-tokens';
-import { useCookingSession } from '@/contexts/CookingSessionContext';
 
 // Define the ingredient type
 type CheckableIngredient = RecipeIngredient & { checked: boolean };
@@ -27,16 +27,8 @@ export default function IngredientsStep() {
   const { id } = useLocalSearchParams();
   const { recipe } = useRecipe(id as string);
   const [ingredients, setIngredients] = useState<CheckableIngredient[]>([]);
-  const [showIrmixyModal, setShowIrmixyModal] = useState(false);
   const { isMobile } = useDevice();
-  const {
-    irmixyChatSessionId,
-    setIrmixyChatSessionId,
-    irmixyChatMessages,
-    setIrmixyChatMessages,
-    irmixyVoiceTranscriptMessages,
-    setIrmixyVoiceTranscriptMessages,
-  } = useCookingSession();
+  const irmixy = useIrmixyHelperChat();
 
   // Calculate number of columns based on screen size
   const numColumns = 2;
@@ -81,7 +73,7 @@ export default function IngredientsStep() {
         footer={
           <View>
             <View className="items-center pb-sm pt-xs">
-              <AskIrmixyButton onPress={() => setShowIrmixyModal(true)} animate={true} showHelpText={true} />
+              <AskIrmixyButton onPress={irmixy.open} animate={true} showHelpText={true} />
             </View>
             <View className="mx-lg mb-xs">
               <View className="h-[1px] bg-border-default opacity-30" />
@@ -135,8 +127,8 @@ export default function IngredientsStep() {
 
       </PageLayout>
       <IrmixyCookingModal
-        visible={showIrmixyModal}
-        onClose={() => setShowIrmixyModal(false)}
+        visible={irmixy.isVisible}
+        onClose={irmixy.close}
         recipeContext={{
           type: 'cooking',
           recipeId: id as string,
@@ -147,12 +139,7 @@ export default function IngredientsStep() {
             amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
           }))
         }}
-        externalSessionId={irmixyChatSessionId}
-        onExternalSessionIdChange={setIrmixyChatSessionId}
-        externalMessages={irmixyChatMessages}
-        onExternalMessagesChange={setIrmixyChatMessages}
-        externalVoiceTranscriptMessages={irmixyVoiceTranscriptMessages}
-        onExternalVoiceTranscriptMessagesChange={setIrmixyVoiceTranscriptMessages}
+        {...irmixy.sessionProps}
       />
     </View>
   );

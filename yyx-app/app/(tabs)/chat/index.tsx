@@ -102,9 +102,9 @@ export default function ChatPage() {
                                 <MaterialCommunityIcons
                                     name={mode === 'text' ? 'microphone' : 'keyboard'}
                                     size={20}
-                                    color={COLORS.text.secondary}
+                                    color={COLORS.primary.darkest}
                                 />
-                                <Text className="text-text-secondary text-sm font-medium">
+                                <Text className="text-primary-darkest text-sm font-medium">
                                     {mode === 'text'
                                         ? i18n.t('chat.modeLabel.voice')
                                         : i18n.t('chat.modeLabel.text')}

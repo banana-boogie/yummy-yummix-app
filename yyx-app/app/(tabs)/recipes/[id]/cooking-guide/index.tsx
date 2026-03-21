@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from 'expo-image'; // used for checkbox-checked.png
 import { useLocalSearchParams, router } from 'expo-router';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
@@ -11,32 +11,22 @@ import { PageLayout } from '@/components/layouts/PageLayout';
 import { useDevice } from '@/hooks/useDevice';
 import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
 import { AskIrmixyButton } from '@/components/cooking-guide/AskIrmixyButton';
-import { useCookingSession } from '@/contexts/CookingSessionContext';
+import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import i18n from '@/i18n';
 import { eventService } from '@/services/eventService';
 import { COLORS } from '@/constants/design-tokens';
 
 import * as Haptics from 'expo-haptics';
-import { useState } from 'react';
 
-const contentContainerStyle = { paddingHorizontal: 0, paddingBottom: 180 } as const;
+const contentContainerStyle = { paddingHorizontal: 0 } as const;
 
 export default function CookingGuide() {
   const { id } = useLocalSearchParams();
   const { recipe } = useRecipe(id as string);
   const { isPhone } = useDevice();
-  const [showIrmixyModal, setShowIrmixyModal] = useState(false);
-  const {
-    irmixyChatSessionId,
-    setIrmixyChatSessionId,
-    irmixyChatMessages,
-    setIrmixyChatMessages,
-    irmixyVoiceTranscriptMessages,
-    setIrmixyVoiceTranscriptMessages,
-  } = useCookingSession();
+  const irmixy = useIrmixyHelperChat();
 
-  // Responsive sizes: keep mobile original, make desktop larger
-  const chefSize = isPhone ? { width: 165, height: 270 } : { width: 180, height: 270 };
+  // Responsive sizes
   const checkboxSize = isPhone ? 32 : 40;
   const buttonSize = isPhone ? 'large' : 'medium';
 
@@ -59,17 +49,6 @@ export default function CookingGuide() {
         contentContainerStyle={contentContainerStyle}
         contentPaddingHorizontal={0}
         scrollEnabled={true}
-        footer={
-          <View className="w-full max-w-[800px] self-center relative h-0" pointerEvents="none">
-            <Image
-              source={require('@/assets/images/irmixy-avatar/irmixy-cooking.png')}
-              className="absolute bottom-[-50px] right-0"
-              style={{ width: chefSize.width, height: chefSize.height }}
-              contentFit="contain"
-              cachePolicy="memory-disk"
-            />
-          </View>
-        }
       >
         <CookingGuideHeader
           showTitle={false}
@@ -120,7 +99,7 @@ export default function CookingGuide() {
             </View>
 
             <View className="items-center pb-sm pt-xs">
-              <AskIrmixyButton onPress={() => setShowIrmixyModal(true)} animate={true} />
+              <AskIrmixyButton onPress={irmixy.open} animate={true} />
             </View>
             <View className="mx-lg mb-xs">
               <View className="h-[1px] bg-border-default opacity-30" />
@@ -138,19 +117,14 @@ export default function CookingGuide() {
         </View>
       </PageLayout>
       <IrmixyCookingModal
-        visible={showIrmixyModal}
-        onClose={() => setShowIrmixyModal(false)}
+        visible={irmixy.isVisible}
+        onClose={irmixy.close}
         recipeContext={{
           type: 'recipe',
           recipeId: id as string,
           recipeTitle: recipe?.name,
         }}
-        externalSessionId={irmixyChatSessionId}
-        onExternalSessionIdChange={setIrmixyChatSessionId}
-        externalMessages={irmixyChatMessages}
-        onExternalMessagesChange={setIrmixyChatMessages}
-        externalVoiceTranscriptMessages={irmixyVoiceTranscriptMessages}
-        onExternalVoiceTranscriptMessagesChange={setIrmixyVoiceTranscriptMessages}
+        {...irmixy.sessionProps}
       />
     </View>
   );

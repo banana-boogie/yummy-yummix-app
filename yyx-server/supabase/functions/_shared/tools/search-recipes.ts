@@ -187,16 +187,25 @@ export async function searchRecipes(
         method: hybridResult.method,
         count: hybridResult.recipes.length,
       });
+
+      // Filter out recipes already shown in this session
+      const hybridCards = filterAlreadyShown(
+        hybridResult.recipes,
+        userContext.conversationHistory,
+      );
+
       // Annotate recipes with allergen warnings instead of filtering
-      if (userContext.dietaryRestrictions.length > 0) {
-        const recipeIds = hybridResult.recipes.map((r) => r.recipeId);
+      if (
+        userContext.dietaryRestrictions.length > 0 && hybridCards.length > 0
+      ) {
+        const recipeIds = hybridCards.map((r) => r.recipeId);
         const ingredientLookupResult = await fetchRecipesWithIngredients(
           supabase,
           recipeIds,
         );
         const annotation = await annotateAllergenWarnings(
           supabase,
-          hybridResult.recipes,
+          hybridCards,
           ingredientLookupResult.recipes,
           userContext.dietaryRestrictions,
           userContext.locale,
@@ -210,7 +219,7 @@ export async function searchRecipes(
         });
         return annotation.cards;
       }
-      return hybridResult.recipes;
+      return hybridCards;
     }
 
     // All degradation reasons (embedding_failure, no_semantic_candidates, low_confidence)
@@ -371,10 +380,61 @@ export async function searchRecipes(
     );
   }
 
+  // Filter out recipes already shown in this session
+  recipeCards = filterAlreadyShown(
+    recipeCards,
+    userContext.conversationHistory,
+  );
+
   // Apply final limit after all filtering and scoring
   const finalResults = recipeCards.slice(0, params.limit || 10);
   console.log("[search] Final results", { count: finalResults.length });
   return finalResults;
+}
+
+// ============================================================
+// Deduplication — filter recipes already shown in the session
+// ============================================================
+
+/**
+ * Extract recipe IDs already shown in this conversation from message metadata.
+ * Exported for testing.
+ */
+export function getAlreadyShownRecipeIds(
+  conversationHistory: UserContext["conversationHistory"],
+): Set<string> {
+  const ids = new Set<string>();
+  for (const msg of conversationHistory) {
+    const recipes = msg.metadata?.recipes;
+    if (Array.isArray(recipes)) {
+      for (const r of recipes) {
+        if (r?.recipeId) ids.add(r.recipeId);
+      }
+    }
+  }
+  return ids;
+}
+
+/**
+ * Remove recipes that were already shown to the user in the current session.
+ */
+function filterAlreadyShown(
+  results: RecipeCard[],
+  conversationHistory: UserContext["conversationHistory"],
+): RecipeCard[] {
+  const shown = getAlreadyShownRecipeIds(conversationHistory);
+  if (shown.size === 0) return results;
+  const filtered = results.filter((r) => !shown.has(r.recipeId));
+  if (filtered.length < results.length) {
+    console.log("[search] Dedup filtered out", {
+      before: results.length,
+      after: filtered.length,
+      removedIds: results
+        .filter((r) => shown.has(r.recipeId))
+        .map((r) => r.recipeId),
+    });
+  }
+  return filtered;
 }
 
 // ============================================================

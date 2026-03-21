@@ -1,5 +1,5 @@
 import { View, Platform, StatusBar, Animated, TouchableOpacity } from 'react-native';
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Head from 'expo-router/head';
 
@@ -26,6 +26,7 @@ import { RecipeKitchenTool } from '@/types/recipe.types';
 import { ShareButton } from '@/components/common/ShareButton';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
+import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import { Image as ExpoImage } from 'expo-image';
 import logger from '@/services/logger';
 
@@ -33,7 +34,7 @@ import logger from '@/services/logger';
 const RecipeDetail: React.FC = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const [showIrmixyModal, setShowIrmixyModal] = useState(false);
+  const irmixy = useIrmixyHelperChat();
 
   // Validate ID early to prevent unnecessary API calls
   useEffect(() => {
@@ -187,7 +188,7 @@ const RecipeDetail: React.FC = () => {
           </Animated.ScrollView>
         </PageLayout>
         <TouchableOpacity
-          onPress={() => setShowIrmixyModal(true)}
+          onPress={irmixy.open}
           className="absolute bottom-6 right-6 rounded-full shadow-lg"
           style={{ zIndex: 100 }}
           accessibilityLabel={i18n.t('recipes.cookingGuide.navigation.askIrmixy')}
@@ -202,8 +203,8 @@ const RecipeDetail: React.FC = () => {
           />
         </TouchableOpacity>
         <IrmixyCookingModal
-          visible={showIrmixyModal}
-          onClose={() => setShowIrmixyModal(false)}
+          visible={irmixy.isVisible}
+          onClose={irmixy.close}
           recipeContext={{
             type: 'recipe',
             recipeId: recipe.id,
@@ -213,6 +214,7 @@ const RecipeDetail: React.FC = () => {
               amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
             }))
           }}
+          {...irmixy.sessionProps}
         />
       </View>
     </>

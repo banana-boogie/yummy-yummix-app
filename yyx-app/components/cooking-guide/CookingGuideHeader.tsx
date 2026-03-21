@@ -61,10 +61,7 @@ export function CookingGuideHeader({
             )}
 
             {showImage && (
-                <View
-                    className="w-full"
-                    style={{ paddingTop: insets.top }}
-                >
+                <View className="w-full">
                     <View className="w-full h-[120px] lg:h-[250px]">
                         <SafeImage
                             source={pictureUrl}
@@ -89,7 +86,7 @@ export function CookingGuideHeader({
                         <View
                             className="absolute left-md right-md lg:left-lg lg:right-lg flex-row justify-between items-center z-1"
                             style={{
-                                top: isLarge ? 16 : 10,
+                                top: insets.top + (isLarge ? 16 : 10),
                             }}
                         >
                             {showBackButton && (
