@@ -66,7 +66,7 @@ Deno.test("buildSystemPrompt uses warm allergen language (non-blocking)", () => 
   const prompt = buildSystemPrompt(createUserContext());
 
   assertStringIncludes(prompt, "allergens briefly and warmly");
-  assertStringIncludes(prompt, "Don't block recipes or ask for confirmation");
+  assertStringIncludes(prompt, "Don't block recipes or require confirmation");
 });
 
 Deno.test("buildSystemPrompt includes scope guardrails", () => {
@@ -118,7 +118,7 @@ Deno.test("buildSystemPrompt separates communication and tool sections", () => {
 
   assertStringIncludes(prompt, "COMMUNICATION:");
   assertStringIncludes(prompt, "TOOLS");
-  // No old monolithic RULES section (standalone header, not part of "TOOLS — CRITICAL RULES:")
+  // No old monolithic RULES section (standalone header, not part of "TOOLS:")
   assertEquals(prompt.includes("\nRULES:\n"), false);
 });
 
@@ -150,7 +150,7 @@ Deno.test("buildSystemPrompt routes modifications to modify_recipe", () => {
   const prompt = buildSystemPrompt(createUserContext());
 
   assertStringIncludes(prompt, "modify_recipe");
-  assertStringIncludes(prompt, "change a recipe that Irmixy created");
+  assertStringIncludes(prompt, "tweak a recipe Irmixy already created");
 });
 
 Deno.test("buildSystemPrompt includes FORMATTING section", () => {
@@ -255,7 +255,7 @@ Deno.test("buildSystemPrompt includes generate_custom_recipe guidance", () => {
 
   // Rule 10: use for recipe creation, answer info questions in text
   assertStringIncludes(prompt, "generate_custom_recipe");
-  assertStringIncludes(prompt, "answered directly in text");
+  assertStringIncludes(prompt, "answer directly in text");
 });
 
 Deno.test("buildSystemPrompt cooking helper mode works without stepInstructions", () => {
