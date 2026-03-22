@@ -678,9 +678,9 @@ COOKING MODES (set thermomixMode when applicable):
     }
 - "dough": Kneading mode, max 500g flour. For bread, pasta, pizza dough.
 - "turbo": Brief pulse at max speed. For crushing ice, quick grind.
-- "high_temperature": 120-160°C, max 10min per step. For browning, searing, caramelizing. Blade ROTATES — unsuitable for delicate formed items.${
+- "high_temperature" (displayed as "Browning" / "Dorar" on the device): 120-160°C, max 10min per step. Browning, searing, caramelizing. Blade ROTATES — unsuitable for delicate formed items. This mode has NO speed setting — always set thermomixSpeed to null.${
       isTM7
-        ? " TM7 has two intensity levels: gentle and intense."
+        ? ' TM7: two intensity levels — "gentle" (vegetables, onions, garlic, delicate browning) and "intense" (searing meats, deep caramelization).'
         : " (TM6: Guided Cooking only)"
     }
 ${
@@ -1543,10 +1543,22 @@ export function validateThermomixSteps(
       }
     }
 
-    // Pair completion: time + speed must appear together
+    // High temperature (browning) mode has NO speed — force null
+    if (validated.thermomixMode === "high_temperature") {
+      if (validated.thermomixSpeed != null) {
+        console.warn(
+          `Step ${step.order}: high_temperature mode has no speed setting. Forcing speed to null.`,
+        );
+        validated.thermomixSpeed = undefined;
+      }
+    }
+
+    // Pair completion: time + speed must appear together (skip for high_temperature which has no speed)
     const hasTime = validated.thermomixTime != null;
     const hasSpeed = validated.thermomixSpeed != null;
-    if (hasTime && !hasSpeed) {
+    if (validated.thermomixMode === "high_temperature") {
+      // high_temperature only needs time, no speed
+    } else if (hasTime && !hasSpeed) {
       console.warn(
         `Step ${step.order}: thermomixTime set without thermomixSpeed. Filling speed with "1" (gentle default).`,
       );

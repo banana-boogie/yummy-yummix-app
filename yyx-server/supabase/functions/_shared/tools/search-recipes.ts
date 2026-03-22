@@ -277,17 +277,26 @@ export async function searchRecipes(
   let results = (data || []) as unknown as RecipeSearchResult[];
 
   // Post-filter by query text across all translation names (word-start matching)
+  // Uses AND logic for individual word terms: "miso soup" requires BOTH "miso" AND "soup".
+  // The full multi-word phrase is an alternative match (OR with AND-terms).
   if (params.query) {
     const queryTerms = getSearchTerms(params.query);
     if (queryTerms.length > 0) {
+      const individualTerms = queryTerms.filter((t) => !t.includes(" "));
+      const fullPhrase = queryTerms.find((t) => t.includes(" "));
       results = results.filter((recipe) => {
         const allNames = (recipe.recipe_translations || [])
           .map((t) => t.name)
           .filter(Boolean)
           .map((n) => n!.toLowerCase());
-        return queryTerms.some((term) =>
-          allNames.some((name) => wordStartMatch(name, term))
-        );
+        const phraseMatch = fullPhrase
+          ? allNames.some((name) => wordStartMatch(name, fullPhrase))
+          : false;
+        const allTermsMatch = individualTerms.length > 0 &&
+          individualTerms.every((term) =>
+            allNames.some((name) => wordStartMatch(name, term))
+          );
+        return phraseMatch || allTermsMatch;
       });
     }
   }

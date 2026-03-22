@@ -250,4 +250,20 @@ export const ChatMessageItem = memo(function ChatMessageItem({
             )}
         </View>
     );
+}, (prev, next) => {
+    // Custom comparator: skip re-render for non-last messages when props haven't changed
+    if (prev.item.id !== next.item.id) return false;
+    if (prev.item.content !== next.item.content) return false;
+    if (prev.item.recipes !== next.item.recipes) return false;
+    if (prev.item.customRecipe !== next.item.customRecipe) return false;
+    if (prev.item.actions !== next.item.actions) return false;
+    if (prev.item.suggestions !== next.item.suggestions) return false;
+    if (prev.item.savedRecipeId !== next.item.savedRecipeId) return false;
+    if (prev.item.safetyFlags !== next.item.safetyFlags) return false;
+    if (prev.isLastMessage !== next.isLastMessage) return false;
+    if (prev.isLoading !== next.isLoading) return false;
+    if (prev.isRecipeGenerating !== next.isRecipeGenerating) return false;
+    if (prev.currentStatus !== next.currentStatus) return false;
+    if (prev.statusText !== next.statusText) return false;
+    return true;
 });

@@ -10,7 +10,6 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import {
     View,
     Modal,
-    KeyboardAvoidingView,
     Platform,
     TouchableOpacity,
 } from 'react-native';
@@ -114,11 +113,7 @@ export function IrmixyCookingModal({
             presentationStyle="pageSheet"
             onRequestClose={handleClose}
         >
-            <KeyboardAvoidingView
-                className="flex-1 bg-background-default"
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={0}
-            >
+            <View className="flex-1 bg-background-default">
                 {/* Header */}
                 <View
                     className="flex-row items-center justify-between border-b border-border-default bg-background-default"
@@ -220,7 +215,7 @@ export function IrmixyCookingModal({
                         />
                     )}
                 </View>
-            </KeyboardAvoidingView>
+            </View>
         </Modal>
     );
 }

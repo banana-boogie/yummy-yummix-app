@@ -77,7 +77,7 @@ Cooking modes:
 - Sous Vide: 40-85°C, up to 12 hours. Requires vacuum bags + blade cover.
 - Fermentation: 37-71°C, up to 12 hours. For yogurt, cheese, dough proofing. Available on BOTH TM6 and TM7.
 - Dough: kneading mode, max 500g flour, 2-5 min.
-- High Temperature / Browning: TM7 has two intensity levels — gentle and intense. Temperature + time. Blade ROTATES in this mode — unsuitable for delicate formed items. TM6 = available in Guided Cooking only (above 120°C).
+- High Temperature / Browning (displayed as "Browning" / "Dorar" on the device): TM7 has two intensity levels — "gentle" (vegetables, onions, garlic, delicate browning) and "intense" (searing meats, deep caramelization). Temperature + time. This mode has NO speed setting. Blade ROTATES — unsuitable for delicate formed items. TM6 = available in Guided Cooking only (above 120°C).
 - Steaming: Varoma + accessories. TM6 = manual Varoma. TM7 = dedicated steaming mode.${openCooking}
 ${tm5Note}
 Safety rules:
@@ -191,8 +191,7 @@ Suggest recipes appropriate for this meal type.`;
       : "";
     cookingHelperSection = `\n\nCOOKING HELPER MODE:
 You are helping the user cook "${cookingContext.recipeTitle}". They are on ${cookingContext.currentStep}.${stepInstr}
-- Do NOT generate new recipes. If asked, suggest finishing cooking first and using the main chat.
-- Help with: technique questions, substitutions, timing, troubleshooting, Thermomix settings.
+- Help with: technique questions, substitutions, timing, troubleshooting, Thermomix settings, and recipe creation if asked.
 - Prefer shorter answers — the user may be cooking hands-on — but keep your usual warm personality.`;
   }
 

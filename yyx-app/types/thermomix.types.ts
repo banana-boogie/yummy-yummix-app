@@ -31,7 +31,7 @@ export const COOKING_MODE_LABELS: Record<string, { en: string; es: string }> = {
     sous_vide: { en: 'Sous Vide', es: 'Sous Vide' },
     fermentation: { en: 'Fermentation', es: 'Fermentación' },
     open_cooking: { en: 'Open Cooking', es: 'Cocción Abierta' },
-    high_temperature: { en: 'High Temperature', es: 'Alta Temperatura' },
+    high_temperature: { en: 'Browning', es: 'Dorar' },
     dough: { en: 'Dough', es: 'Masa' },
     turbo: { en: 'Turbo', es: 'Turbo' },
 };

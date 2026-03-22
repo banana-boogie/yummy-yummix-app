@@ -42,8 +42,9 @@ export function detectTextToolCall(content: string): string | null {
   if (lower.includes("[modified recipe:")) return "modify_recipe";
   if (lower.includes("[generated recipe:")) return "generate_custom_recipe";
 
-  // Detect XML-format tool call syntax (<function_calls> / <invoke name="...">)
+  // Detect XML-format tool call syntax (<function_calls> / <invoke name="..."> / <tool>)
   if (content.includes("<function_calls>")) return TOOL_NAMES[0];
+  if (/<tool[\s>]/.test(content)) return TOOL_NAMES[0];
   for (const name of TOOL_NAMES) {
     if (content.includes(`<invoke name="${name}"`)) return name;
   }
@@ -58,6 +59,10 @@ const TOOL_RETURNED_REGEX = /\n?The tool returned:[\s\S]*$/;
 const XML_FUNCTION_CALLS_REGEX = /<function_calls>[\s\S]*?<\/function_calls>/g;
 // Fallback: strip unclosed <function_calls> blocks (stream cut off before closing tag)
 const XML_FUNCTION_CALLS_UNCLOSED_REGEX = /<function_calls>[\s\S]*$/;
+// Regex to strip <tool>...</tool> blocks (another XML tool call format)
+const XML_TOOL_REGEX = /<tool[\s>][\s\S]*?<\/tool>/g;
+// Fallback: strip unclosed <tool> blocks
+const XML_TOOL_UNCLOSED_REGEX = /<tool[\s>][\s\S]*$/;
 
 /** Strip residual tool-call text from a final assistant message. */
 export function stripToolCallText(text: string): string {
@@ -66,7 +71,9 @@ export function stripToolCallText(text: string): string {
     .replace(TOOL_CALL_TAIL_REGEX, "")
     .replace(TOOL_RETURNED_REGEX, "")
     .replace(XML_FUNCTION_CALLS_REGEX, "")
-    .replace(XML_FUNCTION_CALLS_UNCLOSED_REGEX, "");
+    .replace(XML_FUNCTION_CALLS_UNCLOSED_REGEX, "")
+    .replace(XML_TOOL_REGEX, "")
+    .replace(XML_TOOL_UNCLOSED_REGEX, "");
   return result.trim();
 }
 
@@ -92,6 +99,7 @@ export class StreamingToolCallFilter {
   // Patterns that confirm a tool call leak (check against accumulated buffer)
   private static readonly SUPPRESS_PATTERNS = [
     /<tool_calls>/,
+    /<tool[\s>]/,
     /<function_calls>/,
     /<invoke\s/,
     /<parameter\s/,
@@ -210,7 +218,7 @@ export class StreamingToolCallFilter {
 
   private shouldStartBuffering(token: string): boolean {
     const trimmed = token.trimStart();
-    if (trimmed.startsWith("<")) return true; // XML-style <tool_calls>
+    if (trimmed.startsWith("<") && /^<[a-zA-Z]/.test(trimmed)) return true; // XML-style <tool_calls>, <tool>, etc.
 
     // Only buffer `{` at stream start or after a newline — avoids false positives
     // on legitimate `{` mid-sentence (e.g., "Use {ingredient} for best results")

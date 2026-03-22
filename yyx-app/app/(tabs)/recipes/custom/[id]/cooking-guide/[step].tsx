@@ -87,7 +87,6 @@ export default function CustomCookingStep() {
                 <AskIrmixyButton
                     onPress={irmixy.open}
                     animate={currentStepNumber === 1}
-                    showHelpText={currentStepNumber === 1}
                 />
             </View>
             <View className="mx-lg mb-xs">

@@ -224,3 +224,37 @@ Deno.test("StreamingToolCallFilter: suppresses space-separated tool call after t
 
   assertEquals(output, ["Let me search for that."]);
 });
+
+// ============================================================
+// <tool>...</tool> XML pattern (Issue 2)
+// ============================================================
+
+Deno.test("detectTextToolCall: detects <tool> XML syntax", () => {
+  const content =
+    "<tool>generate_custom_recipe <ingredients>chicken, rice</ingredients></tool>";
+  assertEquals(detectTextToolCall(content), "search_recipes");
+});
+
+Deno.test("stripToolCallText: strips <tool>...</tool> blocks", () => {
+  const text =
+    "Let me create that recipe for you.\n<tool>generate_custom_recipe <ingredients>chicken</ingredients></tool>";
+  assertEquals(stripToolCallText(text), "Let me create that recipe for you.");
+});
+
+Deno.test("stripToolCallText: strips unclosed <tool> block", () => {
+  const text = "Here you go!\n<tool>generate_custom_recipe <ingredients>";
+  assertEquals(stripToolCallText(text), "Here you go!");
+});
+
+Deno.test("StreamingToolCallFilter: suppresses <tool> XML pattern", () => {
+  const output: string[] = [];
+  const filter = new StreamingToolCallFilter((text) => output.push(text));
+
+  filter.push("Sure! ");
+  filter.push("<tool>");
+  filter.push("generate_custom_recipe");
+  filter.push("</tool>");
+  filter.end();
+
+  assertEquals(output.join(""), "Sure! ");
+});

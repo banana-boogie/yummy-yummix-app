@@ -66,19 +66,10 @@ export default function CookingGuide() {
         <View className="px-md">
           <MessageBubble className="mt-xxs">
             <View className="items-center mb-md">
-              <Text preset="h1" className="text-center text-lg">
-                {i18n.t('recipes.cookingGuide.intro.greeting')}
-              </Text>
-            </View>
-
-            <View className="items-center mb-md">
               <Text preset="body" className="text-center text-md">
                 {i18n.t('recipes.cookingGuide.intro.miseEnPlace.one')}
                 <Text preset="body" className="text-center text-md font-bold">
                   {i18n.t('recipes.cookingGuide.intro.miseEnPlace.two')}
-                </Text>
-                <Text preset="body" className="text-center text-md">
-                  {i18n.t('recipes.cookingGuide.intro.miseEnPlace.three')}
                 </Text>
               </Text>
             </View>
@@ -99,7 +90,7 @@ export default function CookingGuide() {
             </View>
 
             <View className="items-center pb-sm pt-xs">
-              <AskIrmixyButton onPress={irmixy.open} animate={true} />
+              <AskIrmixyButton onPress={irmixy.open} />
             </View>
             <View className="mx-lg mb-xs">
               <View className="h-[1px] bg-border-default opacity-30" />

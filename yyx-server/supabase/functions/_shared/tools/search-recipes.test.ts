@@ -553,6 +553,99 @@ Deno.test("getAlreadyShownRecipeIds skips null/undefined entries in recipes arra
   assertEquals(ids.has("aaa"), true);
 });
 
+Deno.test("searchRecipes multi-word query uses AND logic — 'miso soup' excludes 'Green Soup'", async () => {
+  const supabase = createMockSupabase({
+    searchRecipesData: [
+      {
+        id: "recipe-miso",
+        recipe_translations: [
+          { locale: "en", name: "Miso Soup" },
+          { locale: "es", name: "Sopa de Miso" },
+        ],
+        image_url: null,
+        total_time: 15,
+        difficulty: "easy",
+        portions: 2,
+        recipe_to_tag: [],
+      },
+      {
+        id: "recipe-green",
+        recipe_translations: [
+          { locale: "en", name: "Green Soup" },
+          { locale: "es", name: "Sopa Verde" },
+        ],
+        image_url: null,
+        total_time: 25,
+        difficulty: "easy",
+        portions: 4,
+        recipe_to_tag: [],
+      },
+      {
+        id: "recipe-broccoli",
+        recipe_translations: [
+          { locale: "en", name: "Broccoli Soup" },
+          { locale: "es", name: "Sopa de Brócoli" },
+        ],
+        image_url: null,
+        total_time: 30,
+        difficulty: "easy",
+        portions: 4,
+        recipe_to_tag: [],
+      },
+    ],
+    matchingTagsData: [],
+    recipeTagJoinsData: [],
+  });
+
+  const result = await searchRecipes(
+    supabase,
+    { query: "miso soup", limit: 10 },
+    createUserContext("en"),
+  );
+
+  // AND logic: individual terms "miso" AND "soup" must both match.
+  // "Miso Soup" matches both. "Green Soup" only matches "soup". "Broccoli Soup" only matches "soup".
+  assertEquals(result.length, 1);
+  assertEquals(result[0].name, "Miso Soup");
+});
+
+Deno.test("searchRecipes single-word query 'soup' still returns all soups", async () => {
+  const supabase = createMockSupabase({
+    searchRecipesData: [
+      {
+        id: "recipe-miso",
+        recipe_translations: [{ locale: "en", name: "Miso Soup" }],
+        image_url: null,
+        total_time: 15,
+        difficulty: "easy",
+        portions: 2,
+        recipe_to_tag: [],
+      },
+      {
+        id: "recipe-green",
+        recipe_translations: [{ locale: "en", name: "Green Soup" }],
+        image_url: null,
+        total_time: 25,
+        difficulty: "easy",
+        portions: 4,
+        recipe_to_tag: [],
+      },
+    ],
+    matchingTagsData: [],
+    recipeTagJoinsData: [],
+  });
+
+  const result = await searchRecipes(
+    supabase,
+    { query: "soup", limit: 10 },
+    createUserContext("en"),
+  );
+
+  // Single word "soup" — getSearchTerms returns ["soup"], which is both the full phrase
+  // and the only individual term. Both recipes match.
+  assertEquals(result.length, 2);
+});
+
 Deno.test("searchRecipes filters out already-shown recipes", async () => {
   const supabase = createMockSupabase({
     searchRecipesData: [

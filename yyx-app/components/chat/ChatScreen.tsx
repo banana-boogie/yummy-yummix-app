@@ -256,22 +256,18 @@ export function ChatScreen({
         return userProfile?.name ? raw.replace('{{name}}', userProfile.name) : raw;
     }, [greetingIndex, greetingList, userProfile?.name]);
 
-    // --- Inject initial greeting as an assistant chat bubble ---
-    const initialGreetingInjectedRef = useRef(false);
-    useEffect(() => {
-        if (initialGreeting && !initialGreetingInjectedRef.current && messages.length === 0) {
-            initialGreetingInjectedRef.current = true;
-            const greetingMessage: ChatMessage = {
-                id: `initial-greeting-${Date.now()}`,
-                role: 'assistant',
+    // --- Compute effective messages with initial greeting (synchronous — no flash of empty state) ---
+    const effectiveMessages = useMemo(() => {
+        if (initialGreeting && messages.length === 0) {
+            return [{
+                id: 'initial-greeting',
+                role: 'assistant' as const,
                 content: initialGreeting,
                 createdAt: new Date(),
-            };
-            setMessages([greetingMessage]);
+            }];
         }
-    // Only run once on mount when initialGreeting is provided
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [initialGreeting]);
+        return messages;
+    }, [messages, initialGreeting]);
 
     // --- Effects ---
 
@@ -335,10 +331,10 @@ export function ChatScreen({
         resetStreamingState();
     }, [resetStreamingState]);
 
-    const lastMessageId = messages.length > 0 ? messages[messages.length - 1]?.id : null;
+    const lastMessageId = effectiveMessages.length > 0 ? effectiveMessages[effectiveMessages.length - 1]?.id : null;
     const statusText = useMemo(() => getStatusText(), [getStatusText]);
 
-    const latestMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    const latestMessage = effectiveMessages.length > 0 ? effectiveMessages[effectiveMessages.length - 1] : null;
     const showRecipeTracker = isRecipeGenerating && !latestMessage?.customRecipe;
 
     // Show suggestion chips only on the last assistant message, and only when not loading
@@ -401,7 +397,7 @@ export function ChatScreen({
           <View className="flex-1 w-full self-center max-w-[500px] md:max-w-[700px] lg:max-w-[800px]">
             <FlatList
                 ref={flatListRef}
-                data={messages}
+                data={effectiveMessages}
                 renderItem={renderMessage}
                 keyExtractor={keyExtractor}
                 contentContainerStyle={CHAT_CONTENT_STYLE}

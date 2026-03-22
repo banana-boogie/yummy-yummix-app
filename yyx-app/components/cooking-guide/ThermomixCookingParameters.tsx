@@ -63,13 +63,13 @@ export function ThermomixCookingParameters({
               style={{ width: iconSize, height: iconSize, marginHorizontal: -8 }}
             />
             <View className="absolute flex-row items-center justify-center gap-[1px]">
-              <Text className="text-2xl font-medium">
+              <Text className="text-lg font-medium">
                 {minutes}
               </Text>
-              <Text className="text-2xl font-medium">
+              <Text className="text-lg font-medium">
                 :
               </Text>
-              <Text className="text-2xl font-medium">
+              <Text className="text-lg font-medium">
                 {seconds}
               </Text>
             </View>
@@ -90,7 +90,7 @@ export function ThermomixCookingParameters({
               style={{ width: iconSize, height: iconSize, marginHorizontal: -8 }}
             />
             {shouldShowSpeedText && (
-              <Text className="absolute text-2xl font-medium">
+              <Text className="absolute text-lg font-medium">
                 {formatSpeedText(speed)}
               </Text>
             )}

@@ -25,23 +25,15 @@ describe('AskIrmixyButton', () => {
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  it('shows "Ask Irmixy" text when animate is true', () => {
-    render(<AskIrmixyButton onPress={jest.fn()} animate={true} />);
-
-    expect(screen.getByText('Ask Irmixy')).toBeTruthy();
-  });
-
-  it('renders without text visible when animate is false', () => {
-    render(<AskIrmixyButton onPress={jest.fn()} animate={false} />);
-
-    // Text element exists but has opacity 0 (animated value starts at 0)
-    // The button should still be pressable
-    fireEvent.press(screen.getByLabelText('Ask Irmixy'));
-  });
-
-  it('defaults animate to true', () => {
+  it('shows "Irmixy" label', () => {
     render(<AskIrmixyButton onPress={jest.fn()} />);
 
-    expect(screen.getByText('Ask Irmixy')).toBeTruthy();
+    expect(screen.getByText('Irmixy')).toBeTruthy();
+  });
+
+  it('renders avatar image', () => {
+    const { toJSON } = render(<AskIrmixyButton onPress={jest.fn()} />);
+    const tree = JSON.stringify(toJSON());
+    expect(tree).toContain('Image');
   });
 });

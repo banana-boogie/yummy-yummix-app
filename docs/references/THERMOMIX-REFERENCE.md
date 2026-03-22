@@ -257,7 +257,7 @@ Named cooking modes that set specific parameter combinations automatically. The 
 | **Sous Vide** | `sous_vide` | No | Guided only | Yes | Precise temp hold, no stirring | Proteins, vegetables |
 | **Fermentation** | `fermentation` | No | No | Yes | Low temp hold (30-45°C), extended time | Yogurt, dough proofing, tempeh |
 | **Open Cooking** | `open_cooking` | No | No | Yes | Lid-free, up to 100°C, Spoon/Speed 1 | Risotto, sautéing, monitoring |
-| **High Temperature** | `high_temperature` | No | Guided only | Yes (manual) | 120-160°C, max 10min per step | Browning, searing, caramelizing |
+| **High Temperature** (displayed as "Browning" / "Dorar") | `high_temperature` | No | Guided only | Yes (manual) | 120-160°C, max 10min per step, NO speed setting | Browning, searing, caramelizing |
 | **Dough** | `dough` | Yes | Yes | Yes | Kneading mode, max 500g flour | Bread, pasta, pizza dough |
 | **Turbo** | `turbo` | Yes | Yes | Yes | Brief pulse at max speed | Crushing ice, quick grind |
 

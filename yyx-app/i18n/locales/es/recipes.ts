@@ -62,11 +62,9 @@ export const recipes = {
     subtitle: "Mise en place",
     start: "¡Cocinar hoy!",
     intro: {
-      greeting: "¡Qué rica receta vamos a cocinar hoy!",
       miseEnPlace: {
-        one: "Lo primero es hacer nuestro",
+        one: "Hagamos nuestro",
         two: "\nmise en place\n",
-        three: "preparando todos los ingredientes que vamos a necesitar.",
       },
       checkboxSteps: {
         checkmark: "Dale palomita ",

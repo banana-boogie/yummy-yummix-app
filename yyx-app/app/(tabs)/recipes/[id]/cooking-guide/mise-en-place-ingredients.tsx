@@ -73,7 +73,7 @@ export default function IngredientsStep() {
         footer={
           <View>
             <View className="items-center pb-sm pt-xs">
-              <AskIrmixyButton onPress={irmixy.open} animate={true} showHelpText={true} />
+              <AskIrmixyButton onPress={irmixy.open} />
             </View>
             <View className="mx-lg mb-xs">
               <View className="h-[1px] bg-border-default opacity-30" />
