@@ -1029,18 +1029,18 @@ function handleStreamingRequest(
         timings.total_ms = Math.round(performance.now() - startTime);
 
         // Performance timing log
-        const requestType = hasSuccessfulCustomRecipe
+        const perfType = hasSuccessfulCustomRecipe
           ? "recipe_gen"
           : recipes?.length
           ? "recipe_search"
           : "chat";
         log.info("Request complete", {
-          type: requestType,
+          type: perfType,
           model: selectedModel,
           ...timings,
         });
         log.info("PERF_SUMMARY", {
-          type: requestType,
+          type: perfType,
           model: selectedModel,
           ...timings,
         });
