@@ -895,7 +895,10 @@ function handleStreamingRequest(
           // "stop and confirm" moment. Mixing in search results (e.g. tinga
           // showing up alongside a "create mole" chip) is confusing.
 
-          const chip = buildRecipeConfirmationChip(toolArgs);
+          const chip = buildRecipeConfirmationChip(
+            toolArgs,
+            userContext.language,
+          );
 
           const response = await finalizeResponse(
             supabase,

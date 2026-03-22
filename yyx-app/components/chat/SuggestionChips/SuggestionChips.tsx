@@ -28,7 +28,7 @@ export const SuggestionChips = memo(function SuggestionChips({
                         activeOpacity={0.7}
                         className={
                             isRecipeGeneration
-                                ? 'flex-row items-center bg-primary-medium px-md py-md rounded-xl shadow-sm min-h-[52px]'
+                                ? 'flex-row items-center bg-status-success px-md py-md rounded-xl shadow-sm min-h-[52px]'
                                 : 'flex-row items-center bg-primary-lightest px-md py-md rounded-xl border border-border-default min-h-[52px]'
                         }
                     >
@@ -44,14 +44,15 @@ export const SuggestionChips = memo(function SuggestionChips({
                         <Text
                             className={
                                 isRecipeGeneration
-                                    ? 'text-base text-white font-subheading flex-1'
+                                    ? 'text-base text-white font-subheading font-semibold flex-1'
                                     : 'text-base text-text-default font-body flex-1'
                             }
+                            numberOfLines={isRecipeGeneration ? 2 : 1}
                         >
                             {suggestion.label}
                         </Text>
                         <MaterialCommunityIcons
-                            name="chevron-right"
+                            name={isRecipeGeneration ? 'arrow-right' : 'chevron-right'}
                             size={20}
                             color={isRecipeGeneration ? COLORS.neutral.white : COLORS.text.secondary}
                             className="ml-xs"

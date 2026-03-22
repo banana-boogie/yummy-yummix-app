@@ -12,24 +12,34 @@ import type { IrmixyResponse } from "../_shared/irmixy-schemas.ts";
 
 type Suggestion = NonNullable<IrmixyResponse["suggestions"]>[number];
 
+/** Action prefix for the confirmation chip label, keyed by base language. */
+const CHIP_PREFIX: Record<string, string> = {
+  es: "Toca para crear",
+  en: "Tap to create",
+};
+
 /**
  * Build a confirmation chip from intercepted generate_custom_recipe tool args.
  *
- * - `label`: AI-generated description (already localized), shown to the user
+ * - `label`: action prefix + recipe description — tells the user what tapping does
  * - `message`: human-readable text sent as the user's chat message on tap
  * - `metadata`: the original tool args, sent back via the request body's `confirmedToolCall` field
  */
 export function buildRecipeConfirmationChip(
   toolArgs: Record<string, unknown>,
+  language: "en" | "es" = "es",
 ): Suggestion {
   const description = toolArgs.recipeDescription as string | undefined;
   const ingredients = toolArgs.ingredients as string[] | undefined;
+  const prefix = CHIP_PREFIX[language] ?? CHIP_PREFIX["en"];
 
-  const label = description
-    ? `🍳 ${capitalize(description)}`
+  const recipeName = description
+    ? capitalize(description)
     : ingredients?.length
-    ? `🍳 ${ingredients.slice(0, 3).join(", ")}`
-    : "🍳";
+    ? ingredients.slice(0, 3).join(", ")
+    : undefined;
+
+  const label = recipeName ? `${prefix}: ${recipeName}` : prefix;
 
   // Human-readable message — this is what appears in chat history
   const message = description ?? ingredients?.slice(0, 3).join(", ") ?? "";
