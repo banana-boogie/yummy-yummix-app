@@ -218,7 +218,10 @@ export class StreamingToolCallFilter {
 
   private shouldStartBuffering(token: string): boolean {
     const trimmed = token.trimStart();
-    if (trimmed.startsWith("<") && /^<[a-zA-Z]/.test(trimmed)) return true; // XML-style <tool_calls>, <tool>, etc.
+    // XML-style <tool_calls>, <tool>, etc. Only buffer when `<` is followed by a letter.
+    // Known limitation: if `<` arrives at the end of one token and the letter at the start
+    // of the next, buffering won't trigger. Low risk — providers rarely split tokens there.
+    if (trimmed.startsWith("<") && /^<[a-zA-Z]/.test(trimmed)) return true;
 
     // Only buffer `{` at stream start or after a newline — avoids false positives
     // on legitimate `{` mid-sentence (e.g., "Use {ingredient} for best results")

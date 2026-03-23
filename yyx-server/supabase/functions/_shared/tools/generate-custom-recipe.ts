@@ -673,9 +673,8 @@ COOKING MODES (set thermomixMode when applicable):
       isTM7 ? "" : " (TM6: available)"
     }
 - "rice_cooker": Automatic temp/speed/time for rice and grains.
-- "sous_vide": Precise temp hold, no stirring. For proteins, vegetables.${
-      isTM7 ? "" : " (TM6: Guided Cooking only)"
-    }
+- "sous_vide": Precise temp hold, no stirring. For proteins, vegetables.
+- "fermentation": Low temp hold (30-45°C), extended time. For yogurt, dough proofing, tempeh. Available on both TM6 and TM7.
 - "dough": Kneading mode, max 500g flour. For bread, pasta, pizza dough.
 - "turbo": Brief pulse at max speed. For crushing ice, quick grind.
 - "high_temperature" (displayed as "Browning" / "Dorar" on the device): 120-160°C, max 10min per step. Browning, searing, caramelizing. Blade ROTATES — unsuitable for delicate formed items. This mode has NO speed setting — always set thermomixSpeed to null.${
@@ -685,8 +684,7 @@ COOKING MODES (set thermomixMode when applicable):
     }
 ${
       isTM7
-        ? `- "fermentation": Low temp hold (30-45°C), extended time. For yogurt, dough proofing, tempeh. (TM7 only)
-- "open_cooking": No blade rotation. Temperature + time only. Stir manually with spatula. Lid is unlocked. Up to 100°C. A dedicated cooking mode — NOT manual cooking with lid open. (TM7 only)`
+        ? `- "open_cooking": No blade rotation. Temperature + time only. Stir manually with spatula. Lid is unlocked. Up to 100°C. A dedicated cooking mode — NOT manual cooking with lid open. (TM7 only)`
         : ""
     }
 

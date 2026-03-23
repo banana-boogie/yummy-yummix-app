@@ -254,8 +254,8 @@ Named cooking modes that set specific parameter combinations automatically. The 
 |------|------|-----|-----|-----|------------|----------|
 | **Slow Cook** | `slow_cook` | No | Yes | Yes | Reverse, Speed 1, blade cover, 70-100°C, up to 12h | Stews, braises, casseroles |
 | **Rice Cooker** | `rice_cooker` | No | Yes | Yes | Automatic temp/speed/time | Rice, grains |
-| **Sous Vide** | `sous_vide` | No | Guided only | Yes | Precise temp hold, no stirring | Proteins, vegetables |
-| **Fermentation** | `fermentation` | No | No | Yes | Low temp hold (30-45°C), extended time | Yogurt, dough proofing, tempeh |
+| **Sous Vide** | `sous_vide` | No | Yes | Yes | Precise temp hold, no stirring | Proteins, vegetables |
+| **Fermentation** | `fermentation` | No | Yes | Yes | Low temp hold (30-45°C), extended time | Yogurt, dough proofing, tempeh |
 | **Open Cooking** | `open_cooking` | No | No | Yes | Lid-free, up to 100°C, Spoon/Speed 1 | Risotto, sautéing, monitoring |
 | **High Temperature** (displayed as "Browning" / "Dorar") | `high_temperature` | No | Guided only | Yes (manual) | 120-160°C, max 10min per step, NO speed setting | Browning, searing, caramelizing |
 | **Dough** | `dough` | Yes | Yes | Yes | Kneading mode, max 500g flour | Bread, pasta, pizza dough |
@@ -265,7 +265,7 @@ Named cooking modes that set specific parameter combinations automatically. The 
 
 - Use a **named mode** when the Thermomix has a dedicated program for the technique — the user selects the mode from the screen.
 - Use **manual mode** (no mode set) for standard cooking with time/speed/temp — the user sets parameters individually.
-- Some modes on TM6 are only available via **Guided Cooking** (sous vide, high temperature). On TM7 they're available as manual modes.
+- On TM6, **high temperature** is only available via **Guided Cooking**. On TM7 it's available as a manual mode.
 
 ---
 
@@ -289,9 +289,10 @@ The Thermomix TM7 (released 2024) adds several capabilities not available on TM5
 - Best results with small quantities (100-250g per batch)
 - Combine with Open Cooking for visual monitoring of browning progress
 
-### Fermentation Mode
+### Fermentation Mode (also on TM6)
 - Built-in fermentation function for yogurt, dough proofing, tempeh, etc.
 - Maintains precise low temperatures over extended periods
+- Available on both TM6 and TM7 (not TM7-exclusive)
 
 ### Other TM7 Improvements
 - 10-inch touchscreen (larger and more responsive than TM6)
@@ -333,8 +334,8 @@ The Thermomix TM7 (released 2024) adds several capabilities not available on TM5
 | **Open Cooking** | No | No | Yes (up to 100°C, lid-free) |
 | **Cutter accessory** | Cutter Disc | Cutter Disc | Cutter+ |
 | **Butterfly whisk** | Yes (max speed 4) | Yes (max speed 4) | Yes (max speed 4) |
-| **Sous vide** | No | Yes (Guided Cooking) | Yes (manual) |
-| **Fermentation** | No | No | Yes (built-in) |
+| **Sous vide** | No | Yes | Yes |
+| **Fermentation** | No | Yes | Yes |
 | **High temp (Guided)** | No | Up to 160°C | N/A (manual goes to 160°C) |
 | **Screen** | Small monochrome | 6.8" touchscreen | 10" touchscreen |
 | **Bowl capacity** | 2.2L | 2.2L | 2.2L |
