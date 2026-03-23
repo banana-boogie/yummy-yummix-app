@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, Image } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { TextInput } from '@/components/form/TextInput';
-import { ThermomixSettings, ThermomixTemperature, ThermomixCookingMode, VALID_TEMPERATURES, VALID_SPEEDS, THERMOMIX_COOKING_MODES, COOKING_MODE_LABELS, ThermomixSpeedValue, ThermomixSpeed, ThermomixSpeedRange } from '@/types/thermomix.types';
+import { ThermomixSettings, ThermomixTemperature, ThermomixCookingMode, VALID_TEMPERATURES, VALID_SPEEDS, THERMOMIX_COOKING_MODES, COOKING_MODE_LABELS, COOKING_MODES_BY_MODEL, ThermomixSpeedValue, ThermomixSpeed, ThermomixSpeedRange } from '@/types/thermomix.types';
 import { COLORS } from '@/constants/design-tokens';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 
@@ -288,23 +288,27 @@ export const ThermomixInput: React.FC<ThermomixInputFormProps> = ({
       <View className="mb-lg flex-col gap-xs">
         <Text preset="subheading" className="mb-xs text-text-secondary">Time</Text>
         <View className="flex-row gap-md">
-          <TextInput
-            value={settings.time !== undefined && settings.time !== null ? Math.floor(settings.time / 60).toString() : '0'}
-            onChangeText={handleMinutesChange}
-            keyboardType="numeric"
-            numericOnly={true}
-            className="border-border-default rounded-sm max-w-[150px]"
-            label="Minutes"
-          />
+          <View className="flex-1">
+            <TextInput
+              value={settings.time !== undefined && settings.time !== null ? Math.floor(settings.time / 60).toString() : '0'}
+              onChangeText={handleMinutesChange}
+              keyboardType="numeric"
+              numericOnly={true}
+              className="border-border-default rounded-sm"
+              label="Minutes"
+            />
+          </View>
 
-          <TextInput
-            value={settings.time !== undefined && settings.time !== null ? (settings.time % 60).toString() : '0'}
-            onChangeText={handleSecondsChange}
-            keyboardType="numeric"
-            numericOnly={true}
-            className="border-border-default rounded-sm max-w-[150px]"
-            label="Seconds"
-          />
+          <View className="flex-1">
+            <TextInput
+              value={settings.time !== undefined && settings.time !== null ? (settings.time % 60).toString() : '0'}
+              onChangeText={handleSecondsChange}
+              keyboardType="numeric"
+              numericOnly={true}
+              className="border-border-default rounded-sm"
+              label="Seconds"
+            />
+          </View>
         </View>
       </View>
 
@@ -582,17 +586,27 @@ export const ThermomixInput: React.FC<ThermomixInputFormProps> = ({
           >
             <Text preset="body" className={!settings.mode ? 'font-bold' : ''}>Manual</Text>
           </TouchableOpacity>
-          {THERMOMIX_COOKING_MODES.map((mode) => (
-            <TouchableOpacity
-              key={mode}
-              className={`px-md py-sm rounded-md border border-border-default ${settings.mode === mode ? 'bg-primary-default' : 'bg-background-secondary'}`}
-              onPress={() => updateParent({ ...settings, mode: mode as ThermomixCookingMode })}
-            >
-              <Text preset="body" className={settings.mode === mode ? 'font-bold' : ''}>
-                {COOKING_MODE_LABELS[mode]?.en ?? mode}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {THERMOMIX_COOKING_MODES.map((mode) => {
+            // On TM6, high_temperature and sous_vide are Guided Cooking only (not manual mode)
+            const tm6GuidedOnly = ['high_temperature', 'sous_vide'];
+            const onTM6Manual = COOKING_MODES_BY_MODEL.TM6.includes(mode) && !tm6GuidedOnly.includes(mode);
+            const onTM7 = COOKING_MODES_BY_MODEL.TM7.includes(mode);
+            const modelNote = (onTM7 && !onTM6Manual) ? 'TM7' : (onTM6Manual && !onTM7) ? 'TM6' : null;
+            return (
+              <TouchableOpacity
+                key={mode}
+                className={`px-md py-sm rounded-md border border-border-default ${settings.mode === mode ? 'bg-primary-default' : 'bg-background-secondary'}`}
+                onPress={() => updateParent({ ...settings, mode: mode as ThermomixCookingMode })}
+              >
+                <Text preset="body" className={settings.mode === mode ? 'font-bold' : ''}>
+                  {COOKING_MODE_LABELS[mode]?.en ?? mode}
+                </Text>
+                {modelNote && (
+                  <Text preset="caption" className="text-text-secondary text-xs">{modelNote} only</Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
     </View>

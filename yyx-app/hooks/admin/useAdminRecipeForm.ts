@@ -377,5 +377,6 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
     handlePublish,
     handleResumeSavedRecipe,
     handleStartNewRecipe,
+    setCurrentStep,
   };
 } 

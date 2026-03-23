@@ -66,7 +66,7 @@ export function SelectInput({
     return (
       <View className={containerClassName} style={containerStyle}>
         {label ? (
-          <Text className="text-xs text-text-default ml-xxs font-semibold">
+          <Text className="text-sm text-text-default ml-xxs font-semibold">
             {label} {required ? '*' : ''}
           </Text>
         ) : null}

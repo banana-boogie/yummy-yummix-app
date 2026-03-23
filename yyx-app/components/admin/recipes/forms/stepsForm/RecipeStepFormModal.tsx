@@ -418,8 +418,8 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
                               </TouchableOpacity>
 
                               {isSelected ? (
-                                <View className={`w-full sm:w-auto sm:flex-1 flex-row items-center justify-end p-sm sm:border-l border-border-default sm:pl-sm sm:ml-sm ${isSmallScreen ? 'border-t mt-xs pt-md' : ''}`}>
-                                  <View className="flex-1 mr-xs">
+                                <View className={`w-full sm:w-auto sm:flex-1 flex-row items-start justify-end p-sm sm:border-l border-border-default sm:pl-sm sm:ml-sm ${isSmallScreen ? 'border-t mt-xs pt-md' : ''}`}>
+                                  <View className="w-[80px] mr-sm shrink-0">
                                     <TextInput
                                       value={selectedIngredient?.quantity?.toString() || ''}
                                       onChangeText={(text) => handleIngredientQuantityChange(ri.ingredientId, text)}
@@ -429,7 +429,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
                                       label={tForm('admin.recipes.form.ingredientsInfo.quantity')}
                                     />
                                   </View>
-                                  <View className="flex-[2] mb-xs">
+                                  <View className="flex-1 min-w-0">
                                     <SelectInput
                                       label={tForm('admin.recipes.form.ingredientsInfo.measurementUnit')}
                                       value={selectedIngredient?.measurementUnit?.id || ''}

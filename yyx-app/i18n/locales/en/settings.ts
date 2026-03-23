@@ -102,5 +102,10 @@ export const measurementUnits = {
       namePlural: "whole",
       symbol: "",
     },
+    scoop: {
+      name: "scoop",
+      namePlural: "scoops",
+      symbol: "scoop",
+    },
   },
 };
