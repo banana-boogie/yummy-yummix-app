@@ -39,7 +39,7 @@ export const COOKING_MODE_LABELS: Record<string, { en: string; es: string }> = {
 /** Modes available per Thermomix model. */
 export const COOKING_MODES_BY_MODEL: Record<ThermomixModel, readonly string[]> = {
     TM5: [],
-    TM6: ['slow_cook', 'rice_cooker', 'sous_vide', 'fermentation', 'high_temperature', 'dough', 'turbo'],
+    TM6: ['slow_cook', 'rice_cooker', 'sous_vide', 'high_temperature', 'dough', 'turbo'],
     TM7: ['slow_cook', 'rice_cooker', 'sous_vide', 'fermentation', 'open_cooking', 'high_temperature', 'dough', 'turbo'],
 };
 
