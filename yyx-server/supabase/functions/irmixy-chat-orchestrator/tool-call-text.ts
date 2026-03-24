@@ -42,11 +42,13 @@ export function detectTextToolCall(content: string): string | null {
   if (lower.includes("[modified recipe:")) return "modify_recipe";
   if (lower.includes("[generated recipe:")) return "generate_custom_recipe";
 
-  // Detect XML-format tool call syntax (<function_calls> / <invoke name="..."> / <tool>)
+  // Detect XML-format tool call syntax (<function_calls> / <function_call> / <invoke name="..."> / <tool>)
   if (content.includes("<function_calls>")) return TOOL_NAMES[0];
+  if (/<function_call[\s>]/.test(content)) return TOOL_NAMES[0];
   if (/<tool[\s>]/.test(content)) return TOOL_NAMES[0];
   for (const name of TOOL_NAMES) {
     if (content.includes(`<invoke name="${name}"`)) return name;
+    if (content.includes(`name="${name}"`)) return name;
   }
 
   return null;
@@ -59,6 +61,9 @@ const TOOL_RETURNED_REGEX = /\n?The tool returned:[\s\S]*$/;
 const XML_FUNCTION_CALLS_REGEX = /<function_calls>[\s\S]*?<\/function_calls>/g;
 // Fallback: strip unclosed <function_calls> blocks (stream cut off before closing tag)
 const XML_FUNCTION_CALLS_UNCLOSED_REGEX = /<function_calls>[\s\S]*$/;
+// Regex to strip XML <function_call ...>...</function_call> blocks (alternate format)
+const XML_FUNCTION_CALL_REGEX = /<function_call[\s>][\s\S]*?<\/function_call>/g;
+const XML_FUNCTION_CALL_UNCLOSED_REGEX = /<function_call[\s>][\s\S]*$/;
 // Regex to strip <tool>...</tool> blocks (another XML tool call format)
 const XML_TOOL_REGEX = /<tool[\s>][\s\S]*?<\/tool>/g;
 // Fallback: strip unclosed <tool> blocks
@@ -72,6 +77,8 @@ export function stripToolCallText(text: string): string {
     .replace(TOOL_RETURNED_REGEX, "")
     .replace(XML_FUNCTION_CALLS_REGEX, "")
     .replace(XML_FUNCTION_CALLS_UNCLOSED_REGEX, "")
+    .replace(XML_FUNCTION_CALL_REGEX, "")
+    .replace(XML_FUNCTION_CALL_UNCLOSED_REGEX, "")
     .replace(XML_TOOL_REGEX, "")
     .replace(XML_TOOL_UNCLOSED_REGEX, "");
   return result.trim();
@@ -101,6 +108,7 @@ export class StreamingToolCallFilter {
     /<tool_calls>/,
     /<tool[\s>]/,
     /<function_calls>/,
+    /<function_call[\s>]/,
     /<invoke\s/,
     /<parameter\s/,
     /\ncall:\w+\{/,
