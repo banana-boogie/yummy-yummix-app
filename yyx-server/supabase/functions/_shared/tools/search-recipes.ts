@@ -98,9 +98,9 @@ export const searchRecipesTool = {
   function: {
     name: "search_recipes",
     description:
-      "Search the recipe database for existing recipes based on user criteria. " +
-      "ALWAYS use this first when the user mentions a specific dish name or asks for known recipes. " +
-      "Use this when the user wants to find recipes from the database (not create custom ones). " +
+      "Search the recipe database. THIS TOOL MUST BE CALLED FIRST before generate_custom_recipe. " +
+      "Always search before generating — the catalog may already have what the user wants. " +
+      "Use whenever the user mentions ANY food, dish, ingredient, or food category. " +
       "Returns recipe cards that match the filters. Recipes containing user allergens are " +
       "returned with warning labels rather than being excluded.",
     parameters: {
@@ -390,6 +390,7 @@ export async function searchRecipes(
   }
 
   // Filter out recipes already shown in this session
+  const preDedupCount = recipeCards.length;
   recipeCards = filterAlreadyShown(
     recipeCards,
     userContext.conversationHistory,
@@ -397,7 +398,23 @@ export async function searchRecipes(
 
   // Apply final limit after all filtering and scoring
   const finalResults = recipeCards.slice(0, params.limit || 10);
-  console.log("[search] Final results", { count: finalResults.length });
+  console.log("[search] Final results", {
+    count: finalResults.length,
+    preDedupCount,
+  });
+
+  // When dedup filters ALL results, tell the AI why so it can call generate_custom_recipe.
+  // Returns an object instead of RecipeCard[] — safe because the result is JSON.stringify'd
+  // into the tool message by the orchestrator.
+  if (finalResults.length === 0 && preDedupCount > 0) {
+    return {
+      results: [],
+      allFilteredByDedup: true,
+      message:
+        `${preDedupCount} recipe(s) matched "${params.query}" but were already shown. The user wants something new — call generate_custom_recipe.`,
+    } as unknown as RecipeCard[];
+  }
+
   return finalResults;
 }
 

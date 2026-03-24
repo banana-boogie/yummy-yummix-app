@@ -65,8 +65,8 @@ Deno.test("buildSystemPrompt includes tool rules with search-first strategy", ()
 Deno.test("buildSystemPrompt uses warm allergen language (non-blocking)", () => {
   const prompt = buildSystemPrompt(createUserContext());
 
-  assertStringIncludes(prompt, "allergens briefly and warmly");
-  assertStringIncludes(prompt, "Don't block recipes or require confirmation");
+  assertStringIncludes(prompt, "Silently respect allergen restrictions");
+  assertStringIncludes(prompt, "Only address allergens if the user asks");
 });
 
 Deno.test("buildSystemPrompt includes scope guardrails", () => {

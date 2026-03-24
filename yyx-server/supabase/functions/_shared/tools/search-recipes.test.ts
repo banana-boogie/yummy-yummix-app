@@ -11,7 +11,6 @@ import {
   RESTRICTION_LABELS,
   searchRecipes,
 } from "./search-recipes.ts";
-
 type MockResult = { data: unknown; error: unknown };
 
 function createMockSupabase(config: {
