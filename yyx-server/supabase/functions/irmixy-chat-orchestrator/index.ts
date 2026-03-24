@@ -758,15 +758,20 @@ function handleStreamingRequest(
         }
 
         // ── Streaming tool loop ──
-        // Single streaming call with tool support. Text streams immediately.
-        // When the AI calls a tool, we execute it and feed results back.
+        // Single streaming call with tool support. Text from tool-calling
+        // iterations is suppressed (not streamed to user). Only the final
+        // iteration (no tool calls) streams text to the user. This matches
+        // the old behavior and avoids persisting narration text.
         let selectedModel = "unknown";
         let loopMessages = [...messages];
         let finalText = "";
         let intercepted = false;
+        // Whether we've entered a tool-calling iteration (suppresses text streaming)
+        let isToolIteration = false;
+        let iteration = 0;
 
         for (
-          let iteration = 0;
+          ;
           iteration < MAX_TOOL_LOOP_ITERATIONS;
           iteration++
         ) {
@@ -794,7 +799,10 @@ function handleStreamingRequest(
                   clearInterval(heartbeatId);
                   heartbeatCleared = true;
                 }
-                send({ type: "content", content: token });
+                // Only stream text to user on the final (non-tool) iteration
+                if (!isToolIteration) {
+                  send({ type: "content", content: token });
+                }
               },
               signal,
               costContext,
@@ -815,7 +823,6 @@ function handleStreamingRequest(
           }
 
           selectedModel = streamResult.model;
-          finalText += streamResult.content;
 
           fireUsageLog(
             usageContext,
@@ -831,8 +838,9 @@ function handleStreamingRequest(
             },
           );
 
-          // No tool calls → done streaming
+          // No tool calls → this was the final iteration, text was streamed
           if (!streamResult.toolCalls?.length) {
+            finalText = streamResult.content;
             break;
           }
 
@@ -840,6 +848,10 @@ function handleStreamingRequest(
             performance.now() - phaseStart,
           );
           phaseStart = performance.now();
+
+          // From now on, suppress text streaming for subsequent iterations
+          // until the final response (which won't have tool calls)
+          isToolIteration = true;
 
           // ── Intercept generate_custom_recipe ──
           const recipeGenToolCall = streamResult.toolCalls.find(
@@ -953,9 +965,13 @@ function handleStreamingRequest(
             ...toolResult.toolMessages,
           ];
 
-          // Reset finalText — the next iteration will produce the final response
-          finalText = "";
           send({ type: "status", status: "thinking" });
+        }
+
+        if (iteration >= MAX_TOOL_LOOP_ITERATIONS && !intercepted) {
+          log.warn("Tool loop reached max iterations", {
+            maxIterations: MAX_TOOL_LOOP_ITERATIONS,
+          });
         }
 
         if (intercepted) return;

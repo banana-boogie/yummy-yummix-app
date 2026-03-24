@@ -88,16 +88,29 @@ export function translateMessages(
   const systemMessages: string[] = [];
   const contents: GeminiContent[] = [];
 
+  // Build a map from tool_call_id → function name for Gemini's functionResponse
+  // (Gemini requires the function name, not the call ID)
+  const toolCallIdToName = new Map<string, string>();
+  for (const msg of messages) {
+    if (msg.role === "assistant" && msg.tool_calls) {
+      for (const tc of msg.tool_calls) {
+        toolCallIdToName.set(tc.id, tc.name);
+      }
+    }
+  }
+
   for (const msg of messages) {
     if (msg.role === "system") {
       systemMessages.push(msg.content);
     } else if (msg.role === "tool") {
-      // Tool result → Gemini functionResponse
+      // Tool result → Gemini functionResponse (requires function name, not call ID)
+      const functionName = toolCallIdToName.get(msg.tool_call_id) ||
+        msg.tool_call_id;
       contents.push({
         role: "user",
         parts: [{
           functionResponse: {
-            name: msg.tool_call_id, // Best we can do — Gemini uses name, not ID
+            name: functionName,
             response: (() => {
               try {
                 return JSON.parse(msg.content);
