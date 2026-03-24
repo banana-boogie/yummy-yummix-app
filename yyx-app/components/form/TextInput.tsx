@@ -103,7 +103,7 @@ export function TextInput({
 
         <RNTextInput
           className={`
-            mx-sm bg-background-default flex-1 p-md text-text-default text-base
+            mx-sm flex-1 p-md text-text-default text-base
             ${leftIcon ? 'pl-xs' : ''}
             ${suffix ? 'pr-0' : ''}
             ${inputClassName}

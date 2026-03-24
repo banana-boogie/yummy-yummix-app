@@ -6,6 +6,10 @@ jest.mock('expo-image', () => ({
   Image: 'Image',
 }));
 
+jest.mock('@expo/vector-icons', () => ({
+  Ionicons: 'Ionicons',
+}));
+
 describe('AskIrmixyButton', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -25,10 +29,10 @@ describe('AskIrmixyButton', () => {
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  it('shows "Irmixy" label', () => {
+  it('does not show text label (avatar is self-explanatory)', () => {
     render(<AskIrmixyButton onPress={jest.fn()} />);
 
-    expect(screen.getByText('Irmixy')).toBeTruthy();
+    expect(screen.queryByText('Irmixy')).toBeNull();
   });
 
   it('renders avatar image', () => {

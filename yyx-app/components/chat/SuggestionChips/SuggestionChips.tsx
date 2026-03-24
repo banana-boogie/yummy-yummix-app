@@ -28,23 +28,23 @@ export const SuggestionChips = memo(function SuggestionChips({
                         activeOpacity={0.7}
                         className={
                             isRecipeGeneration
-                                ? 'flex-row items-center bg-status-success px-md py-md rounded-xl shadow-sm min-h-[52px]'
+                                ? 'flex-row items-center bg-primary-default px-md py-md rounded-xl shadow-sm min-h-[52px]'
                                 : 'flex-row items-center bg-primary-lightest px-md py-md rounded-xl border border-border-default min-h-[52px]'
                         }
                     >
                         {isRecipeGeneration && (
-                            <View className="w-9 h-9 rounded-full bg-white/20 items-center justify-center mr-sm">
+                            <View className="w-9 h-9 rounded-full bg-primary-medium/30 items-center justify-center mr-sm">
                                 <MaterialCommunityIcons
                                     name="chef-hat"
                                     size={20}
-                                    color={COLORS.neutral.white}
+                                    color={COLORS.primary.darkest}
                                 />
                             </View>
                         )}
                         <Text
                             className={
                                 isRecipeGeneration
-                                    ? 'text-base text-white font-subheading font-semibold flex-1'
+                                    ? 'text-base text-text-default font-subheading font-semibold flex-1'
                                     : 'text-base text-text-default font-body flex-1'
                             }
                             numberOfLines={isRecipeGeneration ? 2 : 1}
@@ -54,7 +54,7 @@ export const SuggestionChips = memo(function SuggestionChips({
                         <MaterialCommunityIcons
                             name={isRecipeGeneration ? 'arrow-right' : 'chevron-right'}
                             size={20}
-                            color={isRecipeGeneration ? COLORS.neutral.white : COLORS.text.secondary}
+                            color={isRecipeGeneration ? COLORS.primary.darkest : COLORS.text.secondary}
                             className="ml-xs"
                         />
                     </TouchableOpacity>
