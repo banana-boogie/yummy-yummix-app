@@ -13,7 +13,9 @@ import {
   AICompletionRequest,
   AICompletionResponse,
   AIMessage,
+  AIStreamChunk,
   AITool,
+  AIToolCall,
 } from "../types.ts";
 
 const GEMINI_BASE_URL =
@@ -89,9 +91,42 @@ export function translateMessages(
   for (const msg of messages) {
     if (msg.role === "system") {
       systemMessages.push(msg.content);
+    } else if (msg.role === "tool") {
+      // Tool result → Gemini functionResponse
+      contents.push({
+        role: "user",
+        parts: [{
+          functionResponse: {
+            name: msg.tool_call_id, // Best we can do — Gemini uses name, not ID
+            response: (() => {
+              try {
+                return JSON.parse(msg.content);
+              } catch {
+                return { result: msg.content };
+              }
+            })(),
+          },
+        }],
+      });
+    } else if (msg.role === "assistant") {
+      const parts: GeminiPart[] = [];
+      if (msg.content) parts.push({ text: msg.content });
+      if (msg.tool_calls) {
+        for (const tc of msg.tool_calls) {
+          parts.push({
+            functionCall: {
+              name: tc.name,
+              args: tc.arguments,
+            },
+          });
+        }
+      }
+      if (parts.length > 0) {
+        contents.push({ role: "model", parts });
+      }
     } else {
       contents.push({
-        role: msg.role === "assistant" ? "model" : "user",
+        role: "user",
         parts: [{ text: msg.content }],
       });
     }
@@ -586,6 +621,192 @@ export async function callGeminiStream(
       total_ms: Math.round(performance.now() - startedAt),
       input_tokens: capturedUsage.inputTokens,
       output_tokens: capturedUsage.outputTokens,
+    });
+  }
+
+  return {
+    stream: generateStream(),
+    usage: () => usagePromise,
+  };
+}
+
+// =============================================================================
+// Streaming Chat Completions with Tool Calls
+// =============================================================================
+
+/** Result from Gemini streaming with tools */
+export interface GeminiToolStreamResult {
+  stream: AsyncGenerator<AIStreamChunk, void, unknown>;
+  usage: () => Promise<GeminiStreamUsage>;
+}
+
+/**
+ * Call Google Gemini's streamGenerateContent API with tool call support.
+ * Text parts stream immediately. Tool calls (complete in Gemini) are yielded
+ * as a single chunk once all parts are processed.
+ */
+export async function callGeminiStreamWithTools(
+  request: AICompletionRequest,
+  model: string,
+  apiKey: string,
+): Promise<GeminiToolStreamResult> {
+  const startedAt = performance.now();
+
+  const { contents, systemInstruction } = translateMessages(request.messages);
+
+  const geminiRequest: GeminiRequest = { contents };
+
+  if (systemInstruction) {
+    geminiRequest.systemInstruction = systemInstruction;
+  }
+
+  const generationConfig: Record<string, unknown> = {};
+
+  if (request.maxTokens) {
+    generationConfig.maxOutputTokens = request.maxTokens;
+  }
+
+  if (request.temperature !== undefined) {
+    generationConfig.temperature = request.temperature;
+  }
+
+  const thinkingConfig = mapReasoningToThinking(request.reasoningEffort, model);
+  if (thinkingConfig) {
+    Object.assign(generationConfig, thinkingConfig);
+  }
+
+  if (Object.keys(generationConfig).length > 0) {
+    geminiRequest.generationConfig = generationConfig;
+  }
+
+  // Add tools if specified
+  if (request.tools && request.tools.length > 0) {
+    geminiRequest.tools = [
+      {
+        functionDeclarations: request.tools.map((tool: AITool) => ({
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.parameters,
+        })),
+      },
+    ];
+
+    const toolConfig = translateToolChoice(request.toolChoice);
+    if (toolConfig) {
+      geminiRequest.toolConfig = toolConfig;
+    }
+  }
+
+  const url = `${GEMINI_BASE_URL}/${model}:streamGenerateContent?alt=sse`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey,
+    },
+    body: JSON.stringify(geminiRequest),
+    signal: request.signal,
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error("[ai-gateway:google] StreamWithTools request failed", {
+      model,
+      status: response.status,
+      duration_ms: Math.round(performance.now() - startedAt),
+    });
+    throw new Error(`Gemini API error (${response.status}): ${errorBody}`);
+  }
+
+  console.log("[ai-gateway:google] StreamWithTools connected", {
+    model,
+    connect_ms: Math.round(performance.now() - startedAt),
+  });
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("No response body");
+
+  let resolveUsage: (usage: GeminiStreamUsage) => void;
+  const usagePromise = new Promise<GeminiStreamUsage>((resolve) => {
+    resolveUsage = resolve;
+  });
+
+  async function* generateStream(): AsyncGenerator<
+    AIStreamChunk,
+    void,
+    unknown
+  > {
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let capturedUsage: GeminiStreamUsage = { inputTokens: 0, outputTokens: 0 };
+    const accumulatedToolCalls: AIToolCall[] = [];
+
+    try {
+      while (true) {
+        if (request.signal?.aborted) break;
+
+        const { done, value } = await reader!.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data: ")) continue;
+
+          try {
+            const json = JSON.parse(trimmed.slice(6));
+
+            if (json.usageMetadata) {
+              capturedUsage = {
+                inputTokens: json.usageMetadata.promptTokenCount ?? 0,
+                outputTokens: json.usageMetadata.candidatesTokenCount ?? 0,
+              };
+            }
+
+            const parts = json.candidates?.[0]?.content?.parts;
+            if (parts) {
+              for (const part of parts) {
+                if (part.text && !part.thought) {
+                  yield { type: "text", text: part.text };
+                }
+                if (part.functionCall) {
+                  accumulatedToolCalls.push({
+                    id: `gemini-tc-${
+                      crypto.randomUUID().slice(0, 8)
+                    }-${accumulatedToolCalls.length}`,
+                    name: part.functionCall.name,
+                    arguments: part.functionCall.args || {},
+                  });
+                }
+              }
+            }
+          } catch {
+            console.warn(
+              "[ai-gateway:google] Skipped malformed SSE chunk (tools)",
+              { data: trimmed.slice(6, 200) },
+            );
+          }
+        }
+      }
+    } finally {
+      reader!.releaseLock();
+      resolveUsage!(capturedUsage);
+    }
+
+    // Yield accumulated tool calls as a single chunk
+    if (accumulatedToolCalls.length > 0) {
+      yield { type: "tool_calls", toolCalls: accumulatedToolCalls };
+    }
+
+    console.log("[ai-gateway:google] StreamWithTools completed", {
+      model,
+      total_ms: Math.round(performance.now() - startedAt),
+      input_tokens: capturedUsage.inputTokens,
+      output_tokens: capturedUsage.outputTokens,
+      tool_calls: accumulatedToolCalls.length,
     });
   }
 

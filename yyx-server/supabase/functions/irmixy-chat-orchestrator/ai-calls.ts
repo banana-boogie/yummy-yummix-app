@@ -5,10 +5,18 @@
  */
 
 import type { AITool, CostContext } from "../_shared/ai-gateway/index.ts";
-import { chat, chatStream } from "../_shared/ai-gateway/index.ts";
+import {
+  chat,
+  chatStream,
+  chatStreamWithTools,
+} from "../_shared/ai-gateway/index.ts";
+import type { AIToolCall } from "../_shared/ai-gateway/types.ts";
 import { getRegisteredAiTools } from "../_shared/tools/tool-registry.ts";
-import { normalizeMessagesForAi } from "./message-normalizer.ts";
-import type { ChatMessage } from "./types.ts";
+import {
+  normalizeMessagesForAi,
+  normalizeMessagesForToolLoop,
+} from "./message-normalizer.ts";
+import type { ChatMessage, ToolCall } from "./types.ts";
 
 export interface CallAIResult {
   choices: Array<{ message: ChatMessage }>;
@@ -111,6 +119,71 @@ export async function callAIStream(
   return {
     content: fullContent,
     costUsd: usageData.costUsd,
+    usage: {
+      inputTokens: usageData.inputTokens,
+      outputTokens: usageData.outputTokens,
+    },
+    model: usageData.model,
+  };
+}
+
+export interface CallAIStreamWithToolsResult {
+  content: string;
+  toolCalls?: ToolCall[];
+  usage: { inputTokens: number; outputTokens: number };
+  model: string;
+}
+
+/**
+ * Stream AI response with tool call support.
+ * Text tokens are emitted via onTextToken. Tool calls are returned in the result.
+ * Uses native tool messages (not text summaries) to keep the model grounded.
+ */
+export async function callAIStreamWithTools(
+  messages: ChatMessage[],
+  onTextToken: (token: string) => void,
+  signal?: AbortSignal,
+  costContext?: CostContext,
+): Promise<CallAIStreamWithToolsResult> {
+  const aiMessages = normalizeMessagesForToolLoop(messages);
+  const tools: AITool[] = getRegisteredAiTools();
+
+  const result = await chatStreamWithTools({
+    usageType: "text",
+    messages: aiMessages,
+    tools,
+    toolChoice: "auto",
+    signal,
+    costContext,
+  });
+
+  let fullContent = "";
+  let toolCalls: ToolCall[] | undefined;
+
+  for await (const chunk of result.stream) {
+    if (signal?.aborted) break;
+
+    if (chunk.type === "text") {
+      fullContent += chunk.text;
+      onTextToken(chunk.text);
+    } else if (chunk.type === "tool_calls") {
+      // Convert AIToolCall[] to orchestrator ToolCall[] format
+      toolCalls = chunk.toolCalls.map((tc: AIToolCall) => ({
+        id: tc.id,
+        type: "function" as const,
+        function: {
+          name: tc.name,
+          arguments: JSON.stringify(tc.arguments),
+        },
+      }));
+    }
+  }
+
+  const usageData = await result.usage();
+
+  return {
+    content: fullContent,
+    toolCalls,
     usage: {
       inputTokens: usageData.inputTokens,
       outputTokens: usageData.outputTokens,

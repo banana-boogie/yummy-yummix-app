@@ -86,10 +86,16 @@ export function translateMessagesForAnthropic(
   for (const msg of messages) {
     if (msg.role === "system") {
       systemParts.push(msg.content);
+    } else if (msg.role === "tool") {
+      // Tool results in Anthropic format go as user messages with tool_result blocks
+      anthropicMessages.push({
+        role: "user",
+        content: msg.content,
+      });
     } else {
       anthropicMessages.push({
         role: msg.role as "user" | "assistant",
-        content: msg.content,
+        content: msg.content || "",
       });
     }
   }

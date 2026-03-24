@@ -1,6 +1,13 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { normalizeMessagesForAi } from "../message-normalizer.ts";
+import type { AIMessage } from "../../_shared/ai-gateway/types.ts";
 import type { ChatMessage } from "../types.ts";
+
+/** Helper to get content as string (asserts non-null) */
+function contentOf(msg: AIMessage): string {
+  if (msg.role === "tool") return msg.content;
+  return (msg.content ?? "") as string;
+}
 
 Deno.test("normalizeMessagesForAi folds tool results into assistant context with summary", () => {
   const input: ChatMessage[] = [
@@ -35,16 +42,16 @@ Deno.test("normalizeMessagesForAi folds tool results into assistant context with
   assertEquals(result.length, 4);
   assertEquals(result[2].role, "assistant");
   assertEquals(
-    result[2].content.includes("Found 1 recipe(s)"),
+    contentOf(result[2]).includes("Found 1 recipe(s)"),
     true,
   );
   // Should include recipe names so AI can evaluate relevance
   assertEquals(
-    result[2].content.includes("Pasta Carbonara"),
+    contentOf(result[2]).includes("Pasta Carbonara"),
     true,
   );
   assertEquals(
-    result[2].content.includes("Results are shown to the user"),
+    contentOf(result[2]).includes("Results are shown to the user"),
     true,
   );
 });
@@ -83,11 +90,11 @@ Deno.test("normalizeMessagesForAi includes allergen warnings from search tool re
   assertEquals(result.length, 3);
   // Allergen warnings must still reach the AI (safety-critical)
   assertEquals(
-    result[2].content.includes("Contains milk (dairy)"),
+    contentOf(result[2]).includes("Contains milk (dairy)"),
     true,
   );
   assertEquals(
-    result[2].content.includes(
+    contentOf(result[2]).includes(
       "Allergen verification is temporarily unavailable.",
     ),
     true,
@@ -105,7 +112,7 @@ Deno.test("normalizeMessagesForAi summarizes standalone tool message", () => {
   assertEquals(result.length, 2);
   assertEquals(result[1].role, "assistant");
   // Small JSON objects pass through as-is (under 300 char limit)
-  assertEquals(result[1].content, 'The tool returned: {"ok":true}');
+  assertEquals(contentOf(result[1]), 'The tool returned: {"ok":true}');
 });
 
 Deno.test("normalizeMessagesForAi summarizes custom recipe result", () => {
@@ -136,15 +143,15 @@ Deno.test("normalizeMessagesForAi summarizes custom recipe result", () => {
 
   assertEquals(result.length, 2);
   assertEquals(
-    result[1].content.includes('Recipe "Chicken Stir Fry"'),
+    contentOf(result[1]).includes('Recipe "Chicken Stir Fry"'),
     true,
   );
   assertEquals(
-    result[1].content.includes("displayed to the user"),
+    contentOf(result[1]).includes("displayed to the user"),
     true,
   );
   assertEquals(
-    result[1].content.includes("Do not list ingredients"),
+    contentOf(result[1]).includes("Do not list ingredients"),
     true,
   );
 });
@@ -179,13 +186,13 @@ Deno.test("normalizeMessagesForAi summarizes large unknown JSON objects by listi
 
   assertEquals(result.length, 2);
   assertEquals(
-    result[1].content.includes(
+    contentOf(result[1]).includes(
       "Tool returned object with keys: id, status, data, metadata, extra",
     ),
     true,
   );
   // Should NOT contain raw JSON
-  assertEquals(result[1].content.includes('"nested"'), false);
+  assertEquals(contentOf(result[1]).includes('"nested"'), false);
 });
 
 Deno.test("normalizeMessagesForAi preserves non-tool messages", () => {
