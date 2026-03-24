@@ -195,6 +195,7 @@ Custom PostgreSQL functions for RPC calls are documented in `docs/DATABASE_FUNCT
 - `upsert_cooking_session_progress(...)` — Upsert active cooking progress
 - `match_recipe_embeddings(...)` — Vector similarity search for recipes
 - `update_ai_voice_usage()` — Track AI voice minutes
+- `admin_set_membership_tier(target_user_id, new_tier)` — Change user membership (free/premium). Admin-only from app; also works from Dashboard SQL Editor
 
 See `docs/DATABASE_FUNCTIONS.md` for full details on all functions.
 
