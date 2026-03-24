@@ -243,7 +243,7 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
               </View>
 
               {/* Quantity & Measurement Unit */}
-              <FormRow>
+              <FormRow row>
                 <FormGroup required>
                   <TextInput
                     label={i18n.t('admin.recipes.form.ingredientsInfo.quantity')}

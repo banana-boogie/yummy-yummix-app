@@ -32,6 +32,7 @@ jest.mock('@/hooks/admin/useActiveLocales', () => ({
 
 jest.mock('@/i18n', () => ({
   t: (key: string) => key,
+  locale: 'es',
 }));
 
 jest.mock('@expo/vector-icons', () => ({
