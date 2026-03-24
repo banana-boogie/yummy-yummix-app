@@ -110,6 +110,8 @@ export function stripToolCallText(text: string): string {
 export class StreamingToolCallFilter {
   private buffer = "";
   private buffering = false;
+  /** When true, suppression is confirmed — buffer is discarded at end(). */
+  private confirmed = false;
   private charsFlushed = 0;
   private readonly onFlush: (text: string) => void;
   private readonly disabled: boolean;
@@ -163,9 +165,12 @@ export class StreamingToolCallFilter {
     if (this.buffering) {
       this.buffer += token;
 
-      // Check if buffer matches a known tool-call pattern -> suppress
+      // Already confirmed as a tool call leak — keep consuming silently
+      if (this.confirmed) return;
+
+      // Check if buffer matches a known tool-call pattern -> confirm
       if (this.matchesSuppressPattern()) {
-        // Confirmed tool call — keep buffering to consume remaining content
+        this.confirmed = true;
         return;
       }
 
@@ -228,11 +233,12 @@ export class StreamingToolCallFilter {
       this.onFlush(this.pendingPhrase);
       this.pendingPhrase = "";
     }
-    if (this.buffer && !this.matchesSuppressPattern()) {
+    if (this.buffer && !this.confirmed && !this.matchesSuppressPattern()) {
       this.onFlush(this.buffer);
     }
     this.buffer = "";
     this.buffering = false;
+    this.confirmed = false;
     this.charsFlushed = 0;
   }
 
@@ -240,6 +246,7 @@ export class StreamingToolCallFilter {
   abort(): void {
     this.buffer = "";
     this.buffering = false;
+    this.confirmed = false;
     this.pendingPhrase = "";
     this.charsFlushed = 0;
   }
@@ -247,8 +254,6 @@ export class StreamingToolCallFilter {
   private shouldStartBuffering(token: string): boolean {
     const trimmed = token.trimStart();
     // XML-style <tool_calls>, <tool>, etc. Only buffer when `<` is followed by a letter.
-    // Known limitation: if `<` arrives at the end of one token and the letter at the start
-    // of the next, buffering won't trigger. Low risk — providers rarely split tokens there.
     if (trimmed.startsWith("<") && /^<[a-zA-Z]/.test(trimmed)) return true;
 
     // Only buffer `{` at stream start or after a newline — avoids false positives
@@ -259,18 +264,27 @@ export class StreamingToolCallFilter {
       if (isStreamStart || afterNewline) return true;
     }
 
-    // Check if token starts with a tool name
+    // Tool name at start of token — this is NEVER legitimate chat text.
+    // Confirm immediately: any format after the name (JSON, XML, plain text
+    // args) is a tool call leak. No need to pattern-match the format.
     for (const name of TOOL_NAMES) {
       if (trimmed.startsWith(name) || token.includes(`call:${name}`)) {
+        this.confirmed = true;
         return true;
       }
     }
 
     // Newline followed by "call:" pattern
-    if (token.includes("\ncall:")) return true;
+    if (token.includes("\ncall:")) {
+      this.confirmed = true;
+      return true;
+    }
 
     // "The tool returned:" — parroted tool result summary
-    if (trimmed.startsWith("The tool returned:")) return true;
+    if (trimmed.startsWith("The tool returned:")) {
+      this.confirmed = true;
+      return true;
+    }
 
     return false;
   }
