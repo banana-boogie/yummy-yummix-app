@@ -71,6 +71,11 @@ export function IrmixyCookingModal({
     const voiceTranscriptMessages = externalVoiceTranscriptMessages ?? localVoiceTranscriptMessages;
     const setVoiceTranscriptMessages = onExternalVoiceTranscriptMessagesChange ?? setLocalVoiceTranscriptMessages;
 
+    // Measure the header + toggle area height for KAV offset.
+    // KAV inside a pageSheet modal needs to know the exact height of
+    // content above it to calculate keyboard overlap correctly.
+    const [headerAreaHeight, setHeaderAreaHeight] = useState(0);
+
     // When modal closes while in voice mode, switch to text to trigger
     // VoiceChatScreen unmount — its internal useFocusEffect cleanup stops the WebRTC session.
     const prevVisibleRef = useRef(visible);
@@ -114,86 +119,89 @@ export function IrmixyCookingModal({
             onRequestClose={handleClose}
         >
             <View className="flex-1 bg-background-default">
-                {/* Header */}
-                <View
-                    className="flex-row items-center justify-between border-b border-border-default bg-background-default"
-                    style={{
-                        paddingTop: insets.top + SPACING.xs,
-                        paddingBottom: SPACING.md,
-                        paddingHorizontal: SPACING.md,
-                    }}
-                >
-                    <View className="flex-row items-center flex-1">
-                        <Image
-                            source={require('@/assets/images/irmixy-avatar/irmixy-face.png')}
-                            style={{ width: 32, height: 32, borderRadius: 16 }}
-                            contentFit="cover"
-                            cachePolicy="memory-disk"
-                        />
-                        <View className="ml-sm flex-1">
-                            <Text className="font-semibold text-text-primary">
-                                {i18n.t('chat.title')}
-                            </Text>
-                            <Text className="text-sm text-text-secondary" numberOfLines={1}>
-                                {isMiseEnPlace
-                                    ? i18n.t('chat.cookingModal.contextHintMiseEnPlace', {
-                                        recipeName: recipeContext.recipeTitle ?? '',
-                                    })
-                                    : i18n.t('chat.cookingModal.contextHint', {
-                                        recipeName: recipeContext.recipeTitle ?? '',
-                                        step: recipeContext.currentStep ?? '?',
-                                        total: recipeContext.totalSteps ?? '?',
-                                    })}
-                            </Text>
-                        </View>
-                    </View>
-
-                    {/* Close button (only) */}
-                    <TouchableOpacity
-                        onPress={handleClose}
-                        className="w-10 h-10 items-center justify-center"
-                        accessibilityLabel={i18n.t('common.close')}
-                        accessibilityRole="button"
+                {/* Header + toggle — measured for KAV offset */}
+                <View onLayout={(e) => setHeaderAreaHeight(e.nativeEvent.layout.height)}>
+                    {/* Header */}
+                    <View
+                        className="flex-row items-center justify-between border-b border-border-default bg-background-default"
+                        style={{
+                            paddingTop: insets.top + SPACING.xs,
+                            paddingBottom: SPACING.md,
+                            paddingHorizontal: SPACING.md,
+                        }}
                     >
-                        <MaterialCommunityIcons
-                            name="close"
-                            size={24}
-                            color={COLORS.text.secondary}
-                        />
-                    </TouchableOpacity>
-                </View>
+                        <View className="flex-row items-center flex-1">
+                            <Image
+                                source={require('@/assets/images/irmixy-avatar/irmixy-face.png')}
+                                style={{ width: 32, height: 32, borderRadius: 16 }}
+                                contentFit="cover"
+                                cachePolicy="memory-disk"
+                            />
+                            <View className="ml-sm flex-1">
+                                <Text className="font-semibold text-text-primary">
+                                    {i18n.t('chat.title')}
+                                </Text>
+                                <Text className="text-sm text-text-secondary" numberOfLines={1}>
+                                    {isMiseEnPlace
+                                        ? i18n.t('chat.cookingModal.contextHintMiseEnPlace', {
+                                            recipeName: recipeContext.recipeTitle ?? '',
+                                        })
+                                        : i18n.t('chat.cookingModal.contextHint', {
+                                            recipeName: recipeContext.recipeTitle ?? '',
+                                            step: recipeContext.currentStep ?? '?',
+                                            total: recipeContext.totalSteps ?? '?',
+                                        })}
+                                </Text>
+                            </View>
+                        </View>
 
-                {/* Voice/Text mode toggle bar (native only) */}
-                {isNative && (
-                    <View className="flex-row items-center justify-center py-xs px-md bg-primary-lightest">
+                        {/* Close button (only) */}
                         <TouchableOpacity
-                            onPress={toggleMode}
-                            className="flex-row items-center gap-xs bg-background-default rounded-full px-lg py-xs shadow-sm"
-                            accessibilityLabel={
-                                mode === 'text'
-                                    ? i18n.t('chat.cookingModal.switchToVoice')
-                                    : i18n.t('chat.cookingModal.switchToText')
-                            }
+                            onPress={handleClose}
+                            className="w-10 h-10 items-center justify-center"
+                            accessibilityLabel={i18n.t('common.close')}
                             accessibilityRole="button"
-                            style={{ minHeight: 44 }}
                         >
                             <MaterialCommunityIcons
-                                name={mode === 'text' ? 'microphone' : 'keyboard'}
+                                name="close"
                                 size={24}
-                                color={COLORS.primary.darkest}
+                                color={COLORS.text.secondary}
                             />
-                            <Text preset="bodySmall" className="text-primary-darkest font-semibold">
-                                {mode === 'text'
-                                    ? i18n.t('chat.cookingModal.switchToVoice')
-                                    : i18n.t('chat.cookingModal.switchToText')
-                                }
-                            </Text>
                         </TouchableOpacity>
                     </View>
-                )}
 
-                {/* Chat content */}
-                <View className="flex-1" style={{ paddingBottom: Math.max(insets.bottom, SPACING.sm) }}>
+                    {/* Voice/Text mode toggle bar (native only) */}
+                    {isNative && (
+                        <View className="flex-row items-center justify-center py-xs px-md bg-primary-lightest">
+                            <TouchableOpacity
+                                onPress={toggleMode}
+                                className="flex-row items-center gap-xs bg-background-default rounded-full px-lg py-xs shadow-sm"
+                                accessibilityLabel={
+                                    mode === 'text'
+                                        ? i18n.t('chat.cookingModal.switchToVoice')
+                                        : i18n.t('chat.cookingModal.switchToText')
+                                }
+                                accessibilityRole="button"
+                                style={{ minHeight: 44 }}
+                            >
+                                <MaterialCommunityIcons
+                                    name={mode === 'text' ? 'microphone' : 'keyboard'}
+                                    size={24}
+                                    color={COLORS.primary.darkest}
+                                />
+                                <Text preset="bodySmall" className="text-primary-darkest font-semibold">
+                                    {mode === 'text'
+                                        ? i18n.t('chat.cookingModal.switchToVoice')
+                                        : i18n.t('chat.cookingModal.switchToText')
+                                    }
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </View>
+
+                {/* Chat content — KAV offset is measured dynamically from header area */}
+                <View className="flex-1">
                     {mode === 'voice' ? (
                         <VoiceChatScreen
                             sessionId={sessionId}
@@ -212,7 +220,7 @@ export function IrmixyCookingModal({
                             disableResume
                             initialGreeting={i18n.t('chat.cookingModal.greeting', { recipeName: recipeContext.recipeTitle ?? '' })}
                             onNavigateAway={handleClose}
-                            keyboardVerticalOffset={100}
+                            keyboardVerticalOffset={headerAreaHeight + insets.bottom}
                         />
                     )}
                 </View>
