@@ -266,6 +266,7 @@ function transformStep(
         recipeSection: null,
         thermomix: buildThermomixSettings(step),
         tip: step.tip || null,
+        timerSeconds: step.timerSeconds ?? null,
         ingredients: stepIngredients,
     };
 }

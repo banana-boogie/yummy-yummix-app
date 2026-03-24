@@ -754,6 +754,8 @@ function handleStreamingRequest(
             recipes,
             customRecipeResult,
             actions.length > 0 ? actions : undefined,
+            undefined,
+            { skipUserMessage: true },
           );
           timings.finalize_ms = Math.round(performance.now() - phaseStart);
           timings.total_ms = Math.round(performance.now() - startTime);
@@ -875,19 +877,9 @@ function handleStreamingRequest(
             toolArgs = {};
           }
 
-          // Use the AI's own text — it's already in the user's language.
-          // Fall back to the recipe description from the tool args (also localized by the AI).
-          const confirmationText = assistantMessage.content?.trim() ||
-            (toolArgs.recipeDescription as string) ||
-            "";
-
-          // Stream the confirmation text word-by-word for natural feel
-          if (confirmationText) {
-            const words = confirmationText.split(/(\s+)/);
-            for (const word of words) {
-              send({ type: "content", content: word });
-            }
-          }
+          // Don't stream the AI's conversational text — the confirmation chip
+          // already shows the recipe description. Streaming text like "I'll create
+          // a miso soup!" is redundant and clutters the UI.
 
           send({ type: "stream_complete" });
 
@@ -904,7 +896,7 @@ function handleStreamingRequest(
             supabase,
             sessionId,
             message,
-            confirmationText,
+            "",
             userContext,
             undefined,
             undefined,

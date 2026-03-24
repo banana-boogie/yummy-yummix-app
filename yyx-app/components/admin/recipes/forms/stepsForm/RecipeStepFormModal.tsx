@@ -507,6 +507,33 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
               />
             </FormRow>
 
+            {/* Timer (seconds) — only when no Thermomix time is set */}
+            {!formData.thermomixTime && (
+              <>
+                <View className="mt-lg mb-sm">
+                  <Text preset="subheading" fontWeight="600">
+                    {tForm('admin.recipes.form.stepsInfo.timerSeconds', { defaultValue: 'Timer (seconds)' })}
+                  </Text>
+                  <Text preset="caption" className="mt-[2px] text-text-SECONDARY">
+                    {tForm('admin.recipes.form.stepsInfo.timerSecondsHelperText', { defaultValue: 'Optional countdown timer for non-Thermomix steps (e.g. 300 = 5 min)' })}
+                  </Text>
+                </View>
+                <FormRow column>
+                  <FormGroup label={tForm('admin.recipes.form.stepsInfo.timerSeconds', { defaultValue: 'Timer (seconds)' })}>
+                    <TextInput
+                      value={formData.timerSeconds?.toString() ?? ''}
+                      onChangeText={(text) => {
+                        const parsed = text ? parseInt(text, 10) : null;
+                        handleChange('timerSeconds', Number.isNaN(parsed) ? null : parsed);
+                      }}
+                      keyboardType="number-pad"
+                      numericOnly={true}
+                    />
+                  </FormGroup>
+                </FormRow>
+              </>
+            )}
+
             {/* Tip - single language */}
             <View className="mt-lg mb-sm">
               <Text preset="subheading" fontWeight="600">

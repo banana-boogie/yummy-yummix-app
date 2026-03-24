@@ -147,6 +147,7 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
           instruction: formatInstruction(instruction, thermomix, measurementSystem),
           recipeSection: stepTranslation?.recipe_section ?? null,
           tip,
+          timerSeconds: (recipeStep as any).timer_seconds ?? null,
           ingredients,
           thermomix
         };

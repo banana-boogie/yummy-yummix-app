@@ -68,6 +68,7 @@ export const GeneratedRecipeSchema = z.object({
     thermomixTemp: z.string().nullish(), // Allow null, undefined, or string
     thermomixSpeed: z.string().nullish(), // Allow null, undefined, or string
     thermomixMode: z.string().nullish(), // Cooking mode (e.g. "slow_cook", "rice_cooker")
+    timerSeconds: z.number().int().nullish(), // Non-Thermomix step timer duration in seconds
     tip: z.string().nullish(), // Optional practical cooking tip for this step
   })),
   totalTime: z.number().int().nonnegative(), // Allow 0 for recipes with unknown time

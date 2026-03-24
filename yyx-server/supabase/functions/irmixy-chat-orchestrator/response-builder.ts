@@ -37,6 +37,7 @@ export async function finalizeResponse(
     type?: "recipe_generation" | "default";
     metadata?: Record<string, unknown>;
   }>,
+  options?: { skipUserMessage?: boolean },
 ): Promise<IrmixyResponse> {
   const irmixyResponse: IrmixyResponse = {
     version: "1.0",
@@ -60,6 +61,7 @@ export async function finalizeResponse(
       sessionId,
       message,
       irmixyResponse,
+      options?.skipUserMessage ? { skipUserMessage: true } : undefined,
     );
   }
 

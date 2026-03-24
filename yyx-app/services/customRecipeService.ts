@@ -49,6 +49,7 @@ interface DbStepRow {
     thermomix_speed: string | null;
     thermomix_temperature: string | null;
     thermomix_mode: string | null;
+    timer_seconds: number | null;
     tip: string | null;
     ingredients: DbStepIngredientRow[];
 }
@@ -145,6 +146,7 @@ export const customRecipeService = {
                 thermomix_speed: step.thermomixSpeed || null,
                 thermomix_temperature: step.thermomixTemp || null,
                 thermomix_mode: step.thermomixMode || null,
+                timer_seconds: step.timerSeconds || null,
                 tip: step.tip || null,
             }));
 
@@ -301,7 +303,7 @@ export const customRecipeService = {
             .select(`
                 id, step_order, instruction,
                 thermomix_time, thermomix_speed, thermomix_temperature, thermomix_mode,
-                tip,
+                timer_seconds, tip,
                 ingredients:user_recipe_step_ingredients (
                     display_order,
                     ingredient:user_recipe_ingredients (
@@ -362,6 +364,7 @@ export const customRecipeService = {
                 thermomixSpeed: step.thermomix_speed || undefined,
                 thermomixTemp: step.thermomix_temperature || undefined,
                 thermomixMode: step.thermomix_mode || undefined,
+                timerSeconds: step.timer_seconds || undefined,
                 tip: step.tip || undefined,
             };
         });

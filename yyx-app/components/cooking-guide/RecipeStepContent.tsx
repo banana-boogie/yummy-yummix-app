@@ -126,7 +126,9 @@ export function RecipeStepContent({ step, className = '', style }: RecipeStepCon
                     className="mt-[-4px]"
                 />
             ) : null}
-            {!step.thermomix?.time && <RestTimer instruction={step.instruction} />}
+            {!step.thermomix?.time && (
+                <RestTimer instruction={step.instruction} durationSeconds={step.timerSeconds} />
+            )}
             {step.tip ? (
                 <View className="bg-primary-lightest rounded-sm p-sm mt-sm mx-md">
                     <Text preset="body" className="text-text-secondary">

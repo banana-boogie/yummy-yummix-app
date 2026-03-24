@@ -4,7 +4,7 @@
  * Detects "let sit/rest/cool/stand" instructions in recipe steps,
  * extracts the duration, and offers a countdown timer.
  * Centered card-style design with large timer text for kitchen visibility.
- * Plays audio notification on completion alongside haptic feedback.
+ * Fires local notification with system sound on completion alongside haptic feedback.
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Pressable } from 'react-native';
@@ -12,11 +12,13 @@ import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import * as Haptics from 'expo-haptics';
-import { createAudioPlayer } from 'expo-audio';
+import notificationService from '@/services/notifications/NotificationService';
 import i18n from '@/i18n';
 
 interface RestTimerProps {
     instruction: string;
+    /** Explicit duration in seconds — bypasses keyword detection when provided. */
+    durationSeconds?: number | null;
 }
 
 // Rest/wait keywords in English and Spanish
@@ -64,28 +66,24 @@ function formatTime(seconds: number): string {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-/** Play a completion chime when the timer finishes */
-async function playCompletionSound(): Promise<void> {
-    try {
-        const player = createAudioPlayer(
-            require('@/assets/sounds/timer-complete.mp3')
-        );
-        player.play();
-    } catch {
-        // Audio file may not exist yet — fail silently
-    }
+/** Fire a local notification with system sound when the timer finishes.
+ *  Works in foreground and background — banner + sound even with phone locked. */
+async function fireTimerNotification(): Promise<void> {
+    await notificationService.fireTimerNotification(
+        i18n.t('recipes.cookingGuide.timerDone'),
+    );
 }
 
-export function RestTimer({ instruction }: RestTimerProps) {
-    const totalSeconds = detectRestTime(instruction);
+export function RestTimer({ instruction, durationSeconds }: RestTimerProps) {
+    const totalSeconds = durationSeconds ?? detectRestTime(instruction);
     const [remainingSeconds, setRemainingSeconds] = useState(totalSeconds ?? 0);
     const [isRunning, setIsRunning] = useState(false);
     const [isComplete, setIsComplete] = useState(false);
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Reset when instruction changes
+    // Reset when instruction or explicit duration changes
     useEffect(() => {
-        const newTotal = detectRestTime(instruction);
+        const newTotal = durationSeconds ?? detectRestTime(instruction);
         setRemainingSeconds(newTotal ?? 0);
         setIsRunning(false);
         setIsComplete(false);
@@ -93,7 +91,7 @@ export function RestTimer({ instruction }: RestTimerProps) {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
         }
-    }, [instruction]);
+    }, [instruction, durationSeconds]);
 
     useEffect(() => {
         if (!isRunning) return;
@@ -113,7 +111,7 @@ export function RestTimer({ instruction }: RestTimerProps) {
             setIsRunning(false);
             setIsComplete(true);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            playCompletionSound();
+            fireTimerNotification();
         }
     }, [remainingSeconds, isRunning]);
 

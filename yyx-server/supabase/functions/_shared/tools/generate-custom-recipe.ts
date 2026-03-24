@@ -334,6 +334,14 @@ export function buildRecipeJsonSchema(
     );
   }
 
+  // Timer field — for non-Thermomix steps with a specific duration
+  stepProperties.timerSeconds = {
+    type: ["integer", "null"],
+    description:
+      "Duration in seconds for non-Thermomix steps that have a specific time duration. Thermomix steps use thermomixTime instead — never set both. Examples: let dough rise 30 min → 1800, marinate 15 min → 900.",
+  };
+  stepRequired.push("timerSeconds");
+
   // Tips field — always included regardless of equipment
   stepProperties.tip = {
     type: ["string", "null"],
@@ -708,6 +716,7 @@ CRITICAL RULES:
 - When a step uses a mixture from a previous step, reference it as "the [name] mixture" in instructions. In ingredientsUsed, list only NEW ingredients added in this step — not the components of an already-combined mixture.
 
 Skip Thermomix for: plating, garnishing, oven/grill tasks, manual shaping — leave all four params null.
+For non-Thermomix steps that have a specific time duration (e.g. resting, marinating, oven baking), set timerSeconds instead of thermomixTime. Never set both on the same step.
 
 PHYSICAL CONSTRAINTS (bowl = 2.2 liters):
 - Total volume of ingredients + liquid must not exceed 2.2L. For hot foods (soups, stews), keep under 1.8L.
@@ -794,7 +803,7 @@ Add a practical tip to steps where it genuinely helps. Good tips:
 - Substitution ideas ("No crema? Use Greek yogurt")
 Keep tips short (1-2 sentences). Not every step needs a tip — only where it adds value. Set to null for simple steps.
 
-OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Include "kitchenTools" — kitchen tools and accessories that would be helpful for this recipe. Not just required tools, but things that make the cooking experience easier — like a waste bowl for peels and trimmings. Think like a seasoned home cook setting up their station. Use this structure:
+OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Set "timerSeconds" for steps with a specific duration (resting, baking, marinating) — it powers a countdown timer in the app. Include "kitchenTools" — kitchen tools and accessories that would be helpful for this recipe. Not just required tools, but things that make the cooking experience easier — like a waste bowl for peels and trimmings. Think like a seasoned home cook setting up their station. Use this structure:
 {"schemaVersion":"1.0","suggestedName":"...","description":"A brief 1-2 sentence description of the dish","measurementSystem":"${userContext.measurementSystem}","locale":"${userContext.locale}","ingredients":[{"name":"...","quantity":1,"unit":"..."}],"steps":[{"order":1,"instruction":"...","ingredientsUsed":["..."]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":[],"kitchenTools":[{"name":"...","notes":"..."}]}`;
 }
 

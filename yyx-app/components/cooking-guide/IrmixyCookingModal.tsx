@@ -212,6 +212,7 @@ export function IrmixyCookingModal({
                             disableResume
                             initialGreeting={i18n.t('chat.cookingModal.greeting', { recipeName: recipeContext.recipeTitle ?? '' })}
                             onNavigateAway={handleClose}
+                            keyboardVerticalOffset={100}
                         />
                     )}
                 </View>

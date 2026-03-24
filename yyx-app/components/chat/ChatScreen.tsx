@@ -60,6 +60,8 @@ interface Props {
     initialGreeting?: string;
     /** Called before navigating away (e.g. "Start Cooking" inside a modal) */
     onNavigateAway?: () => void;
+    /** Override the keyboard avoiding offset (e.g. when embedded in a modal with its own header) */
+    keyboardVerticalOffset?: number;
 }
 
 const keyExtractor = (item: ChatMessage) => item.id;
@@ -76,6 +78,7 @@ export function ChatScreen({
     disableResume,
     initialGreeting,
     onNavigateAway,
+    keyboardVerticalOffset,
 }: Props) {
     const { user } = useAuth();
     const { locale } = useLanguage();
@@ -105,6 +108,9 @@ export function ChatScreen({
 
     // Shared ref between scroll and streaming hooks
     const hasRecipeInCurrentStreamRef = useRef(false);
+
+    // Track message IDs whose recipe_generation chips have been consumed (pressed)
+    const consumedChipMessageIds = useRef(new Set<string>());
 
     // --- Scroll hook (called first — provides refs to streaming hook) ---
     const {
@@ -350,12 +356,27 @@ export function ChatScreen({
         const confirmedToolCall = toolName && typeof toolName === 'string'
             ? { name: toolName, arguments: toolArgs }
             : undefined;
+
+        // Mark the source message's chip as consumed so it disappears
+        if (suggestion.type === 'recipe_generation' && latestMessage) {
+            consumedChipMessageIds.current.add(latestMessage.id);
+        }
+
         handleSendMessage(suggestion.message, { silent: true, confirmedToolCall });
-    }, [handleSendMessage]);
+    }, [handleSendMessage, latestMessage]);
 
     const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
         const isLast = item.id === lastMessageId;
-        const showSuggestions = isLast && item.role === 'assistant' && lastAssistantSuggestions && lastAssistantSuggestions.length > 0;
+
+        // Recipe generation chips persist on their message (they're action buttons the user needs to tap).
+        // They stay visible even while a new response is loading — only hide when recipe generation starts.
+        // Regular suggestion chips only show on the last assistant message when not loading.
+        const recipeGenChips = item.role === 'assistant' && item.suggestions?.filter(s => s.type === 'recipe_generation');
+        const showRecipeGenChips = !isRecipeGenerating && recipeGenChips && recipeGenChips.length > 0
+            && !consumedChipMessageIds.current.has(item.id);
+        const showSuggestions = isLast && item.role === 'assistant' && lastAssistantSuggestions && lastAssistantSuggestions.length > 0
+            && !lastAssistantSuggestions.some(s => s.type === 'recipe_generation');
+
         return (
             <>
                 <ChatMessageItem
@@ -370,6 +391,12 @@ export function ChatScreen({
                     onStartCooking={handleStartCooking}
                     onActionPress={handleActionPress}
                 />
+                {showRecipeGenChips && (
+                    <SuggestionChips
+                        suggestions={recipeGenChips!}
+                        onPress={handleSuggestionPress}
+                    />
+                )}
                 {showSuggestions && (
                     <SuggestionChips
                         suggestions={lastAssistantSuggestions!}
@@ -392,7 +419,7 @@ export function ChatScreen({
         <KeyboardAvoidingView
             className="flex-1 bg-background-default"
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={insets.top + 60}
+            keyboardVerticalOffset={keyboardVerticalOffset ?? (insets.top + 60)}
         >
           <View className="flex-1 w-full self-center max-w-[500px] md:max-w-[700px] lg:max-w-[800px]">
             <FlatList
