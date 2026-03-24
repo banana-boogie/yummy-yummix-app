@@ -42,13 +42,19 @@ export function detectTextToolCall(content: string): string | null {
   if (lower.includes("[modified recipe:")) return "modify_recipe";
   if (lower.includes("[generated recipe:")) return "generate_custom_recipe";
 
-  // Detect XML-format tool call syntax (<function_calls> / <function_call> / <invoke name="..."> / <tool>)
+  // Detect XML-format tool call syntax — covers many variants:
+  // <function_calls>, <function_call name=...>, <tool>, <invoke name="...">,
+  // and <tool_name> (AI using the tool name itself as XML tag)
   if (content.includes("<function_calls>")) return TOOL_NAMES[0];
   if (/<function_call[\s>]/.test(content)) return TOOL_NAMES[0];
   if (/<tool[\s>]/.test(content)) return TOOL_NAMES[0];
   for (const name of TOOL_NAMES) {
     if (content.includes(`<invoke name="${name}"`)) return name;
     if (content.includes(`name="${name}"`)) return name;
+    // AI using tool name as XML tag: <generate_custom_recipe>, <search_recipes>, etc.
+    if (content.includes(`<${name}>`) || content.includes(`<${name} `)) {
+      return name;
+    }
   }
 
   return null;
@@ -68,6 +74,14 @@ const XML_FUNCTION_CALL_UNCLOSED_REGEX = /<function_call[\s>][\s\S]*$/;
 const XML_TOOL_REGEX = /<tool[\s>][\s\S]*?<\/tool>/g;
 // Fallback: strip unclosed <tool> blocks
 const XML_TOOL_UNCLOSED_REGEX = /<tool[\s>][\s\S]*$/;
+// Regex to strip <tool_name>...</tool_name> blocks (AI using tool name as XML tag)
+const XML_TOOL_NAME_REGEX = new RegExp(
+  `<(?:${TOOL_PATTERN})[\\s>][\\s\\S]*?</(?:${TOOL_PATTERN})>`,
+  "g",
+);
+const XML_TOOL_NAME_UNCLOSED_REGEX = new RegExp(
+  `<(?:${TOOL_PATTERN})[\\s>][\\s\\S]*$`,
+);
 
 /** Strip residual tool-call text from a final assistant message. */
 export function stripToolCallText(text: string): string {
@@ -80,7 +94,9 @@ export function stripToolCallText(text: string): string {
     .replace(XML_FUNCTION_CALL_REGEX, "")
     .replace(XML_FUNCTION_CALL_UNCLOSED_REGEX, "")
     .replace(XML_TOOL_REGEX, "")
-    .replace(XML_TOOL_UNCLOSED_REGEX, "");
+    .replace(XML_TOOL_UNCLOSED_REGEX, "")
+    .replace(XML_TOOL_NAME_REGEX, "")
+    .replace(XML_TOOL_NAME_UNCLOSED_REGEX, "");
   return result.trim();
 }
 
@@ -122,10 +138,14 @@ export class StreamingToolCallFilter {
     /\{"query":/,
     /The tool returned:/,
     new RegExp(`^\\n?(?:${TOOL_PATTERN})\\s+\\w`),
+    // AI using tool name as XML tag: <generate_custom_recipe>, <search_recipes>, etc.
+    new RegExp(`<(?:${TOOL_PATTERN})[\\s>]`),
   ];
 
-  // Max buffer size before we flush as false positive
-  // Increased to 500 to handle multi-line XML tool call blocks
+  // Max buffer size before we flush as false positive (unconfirmed buffers only).
+  // Once a suppress pattern matches, the buffer stays in suppression mode
+  // regardless of size — this limit only applies to ambiguous `<` tokens
+  // that don't match any known pattern.
   private static readonly MAX_BUFFER = 500;
 
   constructor(onFlush: (text: string) => void, disabled = false) {
