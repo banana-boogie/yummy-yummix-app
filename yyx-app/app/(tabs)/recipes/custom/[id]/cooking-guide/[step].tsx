@@ -20,7 +20,7 @@ import { useCookingSession } from '@/contexts/CookingSessionContext';
 export default function CustomCookingStep() {
     const { id, step: stepParam, from } = useLocalSearchParams<{ id: string; step: string; from?: string }>();
     const { recipe } = useCustomRecipe(id as string);
-    const { updateStep } = useCookingSession();
+    const { updateStep, clearCookingSession } = useCookingSession();
     const isChatFlow = isFromChat(from);
     const irmixy = useIrmixyHelperChat();
 
@@ -53,6 +53,7 @@ export default function CustomCookingStep() {
             if (recipe?.id && recipe?.name) {
                 eventService.logCookComplete(recipe.id, recipe.name, 'user_recipes');
             }
+            clearCookingSession();
             if (isChatFlow) {
                 router.replace('/(tabs)/chat');
             } else {

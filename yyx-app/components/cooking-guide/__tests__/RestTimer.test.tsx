@@ -5,13 +5,28 @@
  */
 
 import React from 'react';
-import { renderWithProviders, screen, fireEvent } from '@/test/utils/render';
+import { renderWithProviders, screen, fireEvent, act } from '@/test/utils/render';
 import { detectRestTime, RestTimer } from '../RestTimer';
+
+import notificationService from '@/services/notifications/NotificationService';
 
 // Mock @expo/vector-icons (not globally mocked in jest.setup)
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'Ionicons',
 }));
+
+jest.mock('@/services/notifications/NotificationService', () => ({
+  __esModule: true,
+  default: {
+    fireTimerNotification: jest.fn().mockResolvedValue(undefined),
+    scheduleTimerNotification: jest.fn().mockResolvedValue('notif-123'),
+    cancelNotification: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
+const mockSchedule = notificationService.scheduleTimerNotification as jest.Mock;
+const mockCancel = notificationService.cancelNotification as jest.Mock;
+const mockFire = notificationService.fireTimerNotification as jest.Mock;
 
 describe('detectRestTime', () => {
   // ============================================================
@@ -98,6 +113,11 @@ describe('detectRestTime', () => {
 describe('RestTimer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   // ============================================================
@@ -145,5 +165,103 @@ describe('RestTimer', () => {
 
     // 7200 seconds = 120 minutes = "120:00"
     expect(screen.getByText('120:00')).toBeTruthy();
+  });
+
+  // ============================================================
+  // NOTIFICATION LIFECYCLE
+  // ============================================================
+
+  it('schedules a background notification when timer starts', async () => {
+    renderWithProviders(
+      <RestTimer instruction="Let rest for 5 minutes" />
+    );
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Start'));
+    });
+
+    expect(mockSchedule).toHaveBeenCalledWith(
+      expect.any(String),
+      300, // 5 minutes in seconds
+    );
+  });
+
+  it('cancels the scheduled notification when timer is paused', async () => {
+    renderWithProviders(
+      <RestTimer instruction="Let rest for 5 minutes" />
+    );
+
+    // Start
+    await act(async () => {
+      fireEvent.press(screen.getByText('Start'));
+    });
+
+    mockCancel.mockClear();
+
+    // Pause
+    await act(async () => {
+      fireEvent.press(screen.getByText('Pause'));
+    });
+
+    expect(mockCancel).toHaveBeenCalledWith('notif-123');
+  });
+
+  it('does not cancel notification on reset after completion (already cleared)', async () => {
+    renderWithProviders(
+      <RestTimer durationSeconds={2} instruction="Let rest for 2 seconds" />
+    );
+
+    // Start
+    await act(async () => {
+      fireEvent.press(screen.getByText('Start'));
+    });
+
+    // Tick to completion — notification ref is cleared on completion
+    await act(async () => {
+      jest.advanceTimersByTime(2000);
+    });
+
+    mockCancel.mockClear();
+
+    // Reset — no cancel needed since the ref was already null
+    await act(async () => {
+      fireEvent.press(screen.getByText('Reset'));
+    });
+
+    expect(mockCancel).not.toHaveBeenCalled();
+  });
+
+  it('cancels the scheduled notification on unmount', async () => {
+    const { unmount } = renderWithProviders(
+      <RestTimer instruction="Let rest for 5 minutes" />
+    );
+
+    // Start the timer
+    await act(async () => {
+      fireEvent.press(screen.getByText('Start'));
+    });
+
+    mockCancel.mockClear();
+
+    // Unmount
+    unmount();
+
+    expect(mockCancel).toHaveBeenCalledWith('notif-123');
+  });
+
+  it('fires immediate notification on foreground completion', async () => {
+    renderWithProviders(
+      <RestTimer durationSeconds={1} instruction="Let rest for 1 second" />
+    );
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Start'));
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(1000);
+    });
+
+    expect(mockFire).toHaveBeenCalledWith(expect.any(String));
   });
 });

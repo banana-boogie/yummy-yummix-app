@@ -21,7 +21,7 @@ const contentContainerStyle = { paddingHorizontal: 0 } as const;
 export default function CookingStep() {
     const { id, step: stepParam } = useLocalSearchParams();
     const { recipe } = useRecipe(id as string);
-    const { updateStep } = useCookingSession();
+    const { updateStep, clearCookingSession } = useCookingSession();
     const irmixy = useIrmixyHelperChat();
 
     const currentStepNumber = Number(stepParam);
@@ -53,6 +53,7 @@ export default function CookingStep() {
             if (recipe?.id && recipe?.name) {
                 eventService.logCookComplete(recipe.id, recipe.name);
             }
+            clearCookingSession();
             router.replace('/(tabs)/recipes');
         }
     }), [id, currentStepNumber, recipe?.id, recipe?.name]);

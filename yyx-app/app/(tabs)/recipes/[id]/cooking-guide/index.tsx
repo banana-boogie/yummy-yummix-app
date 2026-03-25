@@ -14,6 +14,7 @@ import { AskIrmixyButton } from '@/components/cooking-guide/AskIrmixyButton';
 import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import i18n from '@/i18n';
 import { eventService } from '@/services/eventService';
+import { useCookingSession } from '@/contexts/CookingSessionContext';
 import { COLORS } from '@/constants/design-tokens';
 
 import * as Haptics from 'expo-haptics';
@@ -24,6 +25,7 @@ export default function CookingGuide() {
   const { id } = useLocalSearchParams();
   const { recipe } = useRecipe(id as string);
   const { isPhone } = useDevice();
+  const { startCookingSession } = useCookingSession();
   const irmixy = useIrmixyHelperChat();
 
   // Responsive sizes
@@ -36,6 +38,18 @@ export default function CookingGuide() {
     // Track cook start event
     if (recipe?.id && recipe?.name) {
       eventService.logCookStart(recipe.id, recipe.name);
+    }
+
+    // Bootstrap the cooking session so the return-to-cooking banner
+    // and Irmixy helper context stay active across tab navigation.
+    if (recipe) {
+      startCookingSession({
+        recipeId: recipe.id,
+        recipeName: recipe.name ?? '',
+        currentStep: 0,
+        totalSteps: recipe.steps?.length ?? 0,
+        isCustom: false,
+      });
     }
 
     router.push(`/(tabs)/recipes/${id}/cooking-guide/mise-en-place-ingredients`);

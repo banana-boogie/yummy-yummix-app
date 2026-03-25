@@ -4,7 +4,11 @@
  * Detects "let sit/rest/cool/stand" instructions in recipe steps,
  * extracts the duration, and offers a countdown timer.
  * Centered card-style design with large timer text for kitchen visibility.
- * Fires local notification with system sound on completion alongside haptic feedback.
+ *
+ * Notification strategy:
+ * - On start: schedules a future notification so it fires even when backgrounded.
+ * - On pause/reset/unmount: cancels the scheduled notification.
+ * - On completion (foreground): fires an immediate notification for in-app banner + haptic.
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Pressable } from 'react-native';
@@ -66,20 +70,33 @@ function formatTime(seconds: number): string {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-/** Fire a local notification with system sound when the timer finishes.
- *  Works in foreground and background — banner + sound even with phone locked. */
-async function fireTimerNotification(): Promise<void> {
-    await notificationService.fireTimerNotification(
-        i18n.t('recipes.cookingGuide.timerDone'),
-    );
-}
-
 export function RestTimer({ instruction, durationSeconds }: RestTimerProps) {
     const totalSeconds = durationSeconds ?? detectRestTime(instruction);
     const [remainingSeconds, setRemainingSeconds] = useState(totalSeconds ?? 0);
     const [isRunning, setIsRunning] = useState(false);
     const [isComplete, setIsComplete] = useState(false);
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
+    const scheduledNotificationRef = useRef<string | null>(null);
+
+    /** Cancel any pending scheduled notification. */
+    const cancelScheduledNotification = useCallback(async () => {
+        if (scheduledNotificationRef.current) {
+            await notificationService.cancelNotification(scheduledNotificationRef.current);
+            scheduledNotificationRef.current = null;
+        }
+    }, []);
+
+    /** Schedule a notification for `seconds` from now. */
+    const scheduleNotification = useCallback(async (seconds: number) => {
+        await cancelScheduledNotification();
+        if (seconds > 0) {
+            const id = await notificationService.scheduleTimerNotification(
+                i18n.t('recipes.cookingGuide.timerDone'),
+                seconds,
+            );
+            scheduledNotificationRef.current = id;
+        }
+    }, [cancelScheduledNotification]);
 
     // Reset when instruction or explicit duration changes
     useEffect(() => {
@@ -91,7 +108,15 @@ export function RestTimer({ instruction, durationSeconds }: RestTimerProps) {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
         }
-    }, [instruction, durationSeconds]);
+        cancelScheduledNotification();
+    }, [instruction, durationSeconds, cancelScheduledNotification]);
+
+    // Cancel notification on unmount
+    useEffect(() => {
+        return () => {
+            cancelScheduledNotification();
+        };
+    }, [cancelScheduledNotification]);
 
     useEffect(() => {
         if (!isRunning) return;
@@ -111,7 +136,12 @@ export function RestTimer({ instruction, durationSeconds }: RestTimerProps) {
             setIsRunning(false);
             setIsComplete(true);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            fireTimerNotification();
+            // Fire immediate notification for foreground in-app banner.
+            // The scheduled background notification already fired or will fire momentarily.
+            notificationService.fireTimerNotification(
+                i18n.t('recipes.cookingGuide.timerDone'),
+            );
+            scheduledNotificationRef.current = null;
         }
     }, [remainingSeconds, isRunning]);
 
@@ -122,10 +152,17 @@ export function RestTimer({ instruction, durationSeconds }: RestTimerProps) {
             setRemainingSeconds(totalSeconds ?? 0);
             setIsComplete(false);
             setIsRunning(false);
+            cancelScheduledNotification();
+        } else if (isRunning) {
+            // Pause — cancel the scheduled notification
+            setIsRunning(false);
+            cancelScheduledNotification();
         } else {
-            setIsRunning(prev => !prev);
+            // Start — schedule notification for remaining duration
+            setIsRunning(true);
+            scheduleNotification(remainingSeconds);
         }
-    }, [isComplete, totalSeconds]);
+    }, [isComplete, isRunning, totalSeconds, remainingSeconds, cancelScheduledNotification, scheduleNotification]);
 
     if (!totalSeconds) return null;
 
