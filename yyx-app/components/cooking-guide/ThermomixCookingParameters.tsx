@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Image, StyleProp, ViewStyle } from 'react-native';
+import { View, StyleProp, ViewStyle } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from '@/components/common/Text';
 import { ThermomixSpeed, ThermomixTemperature, ThermomixTemperatureUnit, ThermomixIsBladeReversed, ThermomixTime, ThermomixCookingMode, COOKING_MODE_LABELS } from '@/types/thermomix.types';
 import { getTemperatureImage, getSpeedImage, getTimeImage, formatSpeedText } from '@/utils/thermomix/assetUtils';

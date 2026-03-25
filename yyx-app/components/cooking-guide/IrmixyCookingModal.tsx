@@ -86,10 +86,6 @@ export function IrmixyCookingModal({
         prevVisibleRef.current = visible;
     }, [visible, mode]);
 
-    const handleClose = useCallback(() => {
-        onClose();
-    }, [onClose]);
-
     const toggleMode = useCallback(() => {
         setMode((m) => (m === 'text' ? 'voice' : 'text'));
     }, []);
@@ -116,7 +112,7 @@ export function IrmixyCookingModal({
             visible={visible}
             animationType="slide"
             presentationStyle="pageSheet"
-            onRequestClose={handleClose}
+            onRequestClose={onClose}
         >
             <View className="flex-1 bg-background-default">
                 {/* Header + toggle — measured for KAV offset */}
@@ -138,7 +134,7 @@ export function IrmixyCookingModal({
                                 cachePolicy="memory-disk"
                             />
                             <View className="ml-sm flex-1">
-                                <Text className="font-semibold text-text-primary">
+                                <Text className="font-semibold text-text-default">
                                     {i18n.t('chat.title')}
                                 </Text>
                                 <Text className="text-sm text-text-secondary" numberOfLines={1}>
@@ -157,7 +153,7 @@ export function IrmixyCookingModal({
 
                         {/* Close button (only) */}
                         <TouchableOpacity
-                            onPress={handleClose}
+                            onPress={onClose}
                             className="w-10 h-10 items-center justify-center"
                             accessibilityLabel={i18n.t('common.close')}
                             accessibilityRole="button"
@@ -219,7 +215,7 @@ export function IrmixyCookingModal({
                             cookingContext={cookingContext}
                             disableResume
                             initialGreeting={i18n.t('chat.cookingModal.greeting', { recipeName: recipeContext.recipeTitle ?? '' })}
-                            onNavigateAway={handleClose}
+                            onNavigateAway={onClose}
                             keyboardVerticalOffset={headerAreaHeight + insets.bottom}
                         />
                     )}

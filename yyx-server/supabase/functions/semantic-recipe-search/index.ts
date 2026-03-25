@@ -39,9 +39,13 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Missing SUPABASE_URL or SUPABASE_ANON_KEY");
+    }
 
     const supabase = createClient(supabaseUrl, supabaseKey, {
       global: { headers: { Authorization: req.headers.get("Authorization")! } },
@@ -57,7 +61,7 @@ Deno.serve(async (req: Request) => {
     const result = await searchRecipesHybrid(
       supabase,
       query.trim(),
-      { limit: limit || 10 },
+      { limit: Math.min(limit || 10, 20) },
       {
         locale: locale || "en",
         localeChain,

@@ -775,6 +775,10 @@ function handleStreamingRequest(
           iteration < MAX_TOOL_LOOP_ITERATIONS;
           iteration++
         ) {
+          // Reset each iteration: assume this is the final one (text streams).
+          // If tool calls are detected below, we set it back to true.
+          isToolIteration = false;
+
           if (signal.aborted) {
             log.info("Request aborted by client (tool loop)");
             clearStreamTimeout();

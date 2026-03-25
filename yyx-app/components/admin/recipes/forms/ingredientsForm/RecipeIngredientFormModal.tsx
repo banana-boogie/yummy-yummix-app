@@ -208,7 +208,7 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
                 {i18n.t('admin.recipes.form.ingredientsInfo.addTitle')}
               </Text>
               <TouchableOpacity onPress={onClose} className="p-xs">
-                <Ionicons name="close" size={24} className="text-text-SECONDARY" />
+                <Ionicons name="close" size={24} className="text-text-secondary" />
               </TouchableOpacity>
             </View>
 
@@ -345,7 +345,7 @@ export const RecipeIngredientFormModal: React.FC<RecipeIngredientFormModalProps>
               </FormGroup>
             </ScrollView>
 
-            <View className="flex-row justify-between border-t border-border-DEFAULT p-md">
+            <View className="flex-row justify-between border-t border-border-default p-md">
               <Button
                 label={i18n.t('common.cancel')}
                 onPress={onClose}

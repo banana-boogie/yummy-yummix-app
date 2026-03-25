@@ -550,7 +550,6 @@ export async function callOpenAICompatibleStreamWithTools(
       }
     } finally {
       reader!.releaseLock();
-      resolveUsage!(capturedUsage);
     }
 
     // Yield accumulated tool calls as a single chunk
@@ -573,6 +572,10 @@ export async function callOpenAICompatibleStreamWithTools(
       output_tokens: capturedUsage.outputTokens,
       tool_calls: toolCallAccumulator.size,
     });
+
+    // Resolve usage AFTER all yields complete so consumers can safely
+    // call usage() once the stream is fully consumed.
+    resolveUsage!(capturedUsage);
   }
 
   return {

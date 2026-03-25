@@ -18,7 +18,7 @@ import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
 import { ChatResumeBar } from '@/components/chat/ChatResumeBar';
 import { ChatInputBar } from '@/components/chat/ChatInputBar';
 import { SuggestionChips } from '@/components/chat/SuggestionChips';
-import { SPACING } from '@/constants/design-tokens';
+import { SPACING , COLORS } from '@/constants/design-tokens';
 import { useMessageStreaming } from '@/hooks/chat/useMessageStreaming';
 import { useSmartScroll } from '@/hooks/chat/useSmartScroll';
 import { useResumeSession } from '@/hooks/chat/useResumeSession';
@@ -459,7 +459,7 @@ export function ChatScreen({
                 ListEmptyComponent={
                     <View className="flex-1 justify-center items-center">
                         <View className="mb-md mx-lg bg-primary-lightest rounded-xl px-md py-sm" style={{ maxWidth: 300 }}>
-                            <Text className="text-text-primary text-center text-base">
+                            <Text className="text-text-default text-center text-base">
                                 {emptyStateGreeting ?? currentGreeting}
                             </Text>
                         </View>
@@ -479,7 +479,7 @@ export function ChatScreen({
                     className="absolute right-4 bottom-40 z-50 bg-primary-default rounded-full p-3 shadow-lg"
                     style={{ elevation: 4 }}
                 >
-                    <MaterialCommunityIcons name="chevron-double-down" size={24} color="white" />
+                    <MaterialCommunityIcons name="chevron-double-down" size={24} color={COLORS.neutral.white} />
                 </TouchableOpacity>
             )}
 

@@ -137,8 +137,7 @@ export function RestTimer({ instruction, durationSeconds }: RestTimerProps) {
                 color={isComplete ? COLORS.status.success : COLORS.primary.medium}
             />
             <Text
-                className={`font-subheading font-light mt-xs ${isComplete ? 'text-status-success' : 'text-text-default'}`}
-                style={{ fontSize: 48, lineHeight: 56 }}
+                className={`font-subheading font-light mt-xs text-5xl ${isComplete ? 'text-status-success' : 'text-text-default'}`}
             >
                 {isComplete
                     ? i18n.t('recipes.cookingGuide.timerDone')

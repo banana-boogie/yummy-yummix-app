@@ -806,7 +806,6 @@ export async function callGeminiStreamWithTools(
       }
     } finally {
       reader!.releaseLock();
-      resolveUsage!(capturedUsage);
     }
 
     // Yield accumulated tool calls as a single chunk
@@ -821,6 +820,10 @@ export async function callGeminiStreamWithTools(
       output_tokens: capturedUsage.outputTokens,
       tool_calls: accumulatedToolCalls.length,
     });
+
+    // Resolve usage AFTER all yields complete so consumers can safely
+    // call usage() once the stream is fully consumed.
+    resolveUsage!(capturedUsage);
   }
 
   return {
