@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Animated, FlatList, View, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
-import { useScrollToTop } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useRecipes } from '@/hooks/useRecipes';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { SPACING } from '@/constants/design-tokens';
@@ -100,9 +100,19 @@ const Recipes = () => {
     }
   }, [animateHeader]);
 
-  // Scroll-to-top on tab re-press (React Navigation built-in)
+  // Scroll-to-top on tab re-press (manual listener — useScrollToTop doesn't
+  // work reliably with Expo Router's file-based routing + custom tab bar)
   const listRef = useRef<FlatList>(null);
-  useScrollToTop(listRef);
+  const navigation = useNavigation();
+  const parentNavigation = navigation.getParent();
+  useEffect(() => {
+    if (!parentNavigation) return;
+    const unsubscribe = parentNavigation.addListener('tabPress', () => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+      animateHeader(true);
+    });
+    return unsubscribe;
+  }, [parentNavigation, animateHeader]);
 
   const displayName = userProfile?.name || '';
 

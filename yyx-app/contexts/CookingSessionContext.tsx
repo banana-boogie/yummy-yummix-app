@@ -19,6 +19,8 @@ interface CookingSessionContextType {
   /** Irmixy voice transcript messages — persists across step navigation (ref-backed, no re-render) */
   irmixyVoiceTranscriptMessages: ChatMessage[];
   setIrmixyVoiceTranscriptMessages: (messages: ChatMessage[]) => void;
+  /** Reset all Irmixy chat state — call when switching recipes to prevent session leaking */
+  resetChat: () => void;
 }
 
 const noop = () => {};
@@ -30,6 +32,7 @@ const CookingSessionContext = createContext<CookingSessionContextType>({
   setIrmixyChatMessages: noop,
   irmixyVoiceTranscriptMessages: [],
   setIrmixyVoiceTranscriptMessages: noop,
+  resetChat: noop,
 });
 
 export function CookingSessionProvider({ children }: { children: ReactNode }) {
@@ -48,6 +51,12 @@ export function CookingSessionProvider({ children }: { children: ReactNode }) {
     voiceTranscriptMessagesRef.current = messages;
   }, []);
 
+  const resetChat = useCallback(() => {
+    setIrmixyChatSessionId(null);
+    chatMessagesRef.current = [];
+    voiceTranscriptMessagesRef.current = [];
+  }, []);
+
   // Only re-render consumers when session ID changes (not on every message update)
   const value = useMemo<CookingSessionContextType>(
     () => ({
@@ -57,8 +66,9 @@ export function CookingSessionProvider({ children }: { children: ReactNode }) {
       setIrmixyChatMessages: setChatMessages,
       get irmixyVoiceTranscriptMessages() { return voiceTranscriptMessagesRef.current; },
       setIrmixyVoiceTranscriptMessages: setVoiceTranscriptMessages,
+      resetChat,
     }),
-    [irmixyChatSessionId, setChatMessages, setVoiceTranscriptMessages],
+    [irmixyChatSessionId, setChatMessages, setVoiceTranscriptMessages, resetChat],
   );
 
   return (

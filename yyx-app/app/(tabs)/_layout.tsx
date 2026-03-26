@@ -164,7 +164,7 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
         return;
       }
       // At root — emit tabPress so screen listeners (e.g. scroll-to-top) fire
-      navigation.emit({ type: 'tabPress', target: state.routes[tabIndex].key });
+      navigation.emit({ type: 'tabPress' });
       return;
     }
     navigation.navigate(tabName);

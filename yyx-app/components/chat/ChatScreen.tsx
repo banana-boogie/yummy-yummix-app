@@ -62,6 +62,8 @@ interface Props {
     onNavigateAway?: () => void;
     /** Override the keyboard avoiding offset (e.g. when embedded in a modal with its own header) */
     keyboardVerticalOffset?: number;
+    /** Minimum bottom inset for ChatInputBar (e.g. when safe area reports 0 inside a pageSheet modal) */
+    minBottomInset?: number;
 }
 
 const keyExtractor = (item: ChatMessage) => item.id;
@@ -79,6 +81,7 @@ export function ChatScreen({
     initialGreeting,
     onNavigateAway,
     keyboardVerticalOffset,
+    minBottomInset,
 }: Props) {
     const { user } = useAuth();
     const { locale } = useLanguage();
@@ -490,7 +493,7 @@ export function ChatScreen({
                 handleSend={handleSend}
                 handleStop={handleStop}
                 pulseAnim={pulseAnim}
-                bottomInset={insets.bottom}
+                bottomInset={Math.max(insets.bottom, minBottomInset ?? 0)}
                 disabled={isBudgetExceeded}
                 disabledMessage={isBudgetExceeded ? i18n.t('chat.budget.upgradeHint') : undefined}
             />
