@@ -1,26 +1,6 @@
-import {
-  assertEquals,
-  assertExists,
-} from "https://deno.land/std@0.192.0/testing/asserts.ts";
-import { callAI, callAIStream } from "../ai-calls.ts";
+import { assertEquals } from "https://deno.land/std@0.192.0/testing/asserts.ts";
+import { callAI } from "../ai-calls.ts";
 import type { ChatMessage } from "../types.ts";
-
-function buildSseResponse(lines: string[]): Response {
-  const body = lines.join("\n") + "\n\n";
-  const encoder = new TextEncoder();
-
-  const stream = new ReadableStream({
-    start(controller) {
-      controller.enqueue(encoder.encode(body));
-      controller.close();
-    },
-  });
-
-  return new Response(stream, {
-    status: 200,
-    headers: { "Content-Type": "text/event-stream" },
-  });
-}
 
 function baseMessages(): ChatMessage[] {
   return [
@@ -67,91 +47,6 @@ Deno.test("callAI returns usage and model alongside choices", async () => {
     assertEquals(result.usage.inputTokens, 12);
     assertEquals(result.usage.outputTokens, 7);
     assertEquals(result.model, "gpt-4o-mini-2024-07-18");
-  } finally {
-    globalThis.fetch = previousFetch;
-    if (previousKey) Deno.env.set("OPENAI_API_KEY", previousKey);
-    else Deno.env.delete("OPENAI_API_KEY");
-    if (previousTextModel) Deno.env.set("AI_TEXT_MODEL", previousTextModel);
-    else Deno.env.delete("AI_TEXT_MODEL");
-  }
-});
-
-Deno.test("callAIStream returns content, usage and model when usage chunk is present", async () => {
-  const previousFetch = globalThis.fetch;
-  const previousKey = Deno.env.get("OPENAI_API_KEY");
-  const previousTextModel = Deno.env.get("AI_TEXT_MODEL");
-
-  Deno.env.set("OPENAI_API_KEY", "test-key");
-  Deno.env.set("AI_TEXT_MODEL", "openai:gpt-4o-mini");
-
-  globalThis.fetch = async (_input, init) => {
-    const requestBody = JSON.parse(
-      String((init as { body?: unknown } | undefined)?.body),
-    );
-
-    if (requestBody.stream) {
-      return buildSseResponse([
-        'data: {"id":"chatcmpl_1","model":"gpt-4o-mini","choices":[{"delta":{"content":"Hi"}}]}',
-        'data: {"id":"chatcmpl_1","model":"gpt-4o-mini","choices":[{"delta":{"content":" there"}}]}',
-        'data: {"id":"chatcmpl_1","model":"gpt-4o-mini","choices":[],"usage":{"prompt_tokens":20,"completion_tokens":9}}',
-        "data: [DONE]",
-      ]);
-    }
-
-    return new Response("Unexpected non-stream call", { status: 500 });
-  };
-
-  try {
-    let streamed = "";
-    const result = await callAIStream(baseMessages(), (token) => {
-      streamed += token;
-    });
-
-    assertEquals(streamed, "Hi there");
-    assertEquals(result.content, "Hi there");
-    assertExists(result.usage);
-    assertEquals(result.usage.inputTokens, 20);
-    assertEquals(result.usage.outputTokens, 9);
-    assertEquals(result.model, "gpt-4o-mini");
-  } finally {
-    globalThis.fetch = previousFetch;
-    if (previousKey) Deno.env.set("OPENAI_API_KEY", previousKey);
-    else Deno.env.delete("OPENAI_API_KEY");
-    if (previousTextModel) Deno.env.set("AI_TEXT_MODEL", previousTextModel);
-    else Deno.env.delete("AI_TEXT_MODEL");
-  }
-});
-
-Deno.test("callAIStream returns zero usage when usage chunk is missing", async () => {
-  const previousFetch = globalThis.fetch;
-  const previousKey = Deno.env.get("OPENAI_API_KEY");
-  const previousTextModel = Deno.env.get("AI_TEXT_MODEL");
-
-  Deno.env.set("OPENAI_API_KEY", "test-key");
-  Deno.env.set("AI_TEXT_MODEL", "openai:gpt-4o-mini");
-
-  globalThis.fetch = async (_input, init) => {
-    const requestBody = JSON.parse(
-      String((init as { body?: unknown } | undefined)?.body),
-    );
-
-    if (requestBody.stream) {
-      return buildSseResponse([
-        'data: {"id":"chatcmpl_2","model":"gpt-4o-mini","choices":[{"delta":{"content":"Hola"}}]}',
-        "data: [DONE]",
-      ]);
-    }
-
-    return new Response("Unexpected non-stream call", { status: 500 });
-  };
-
-  try {
-    const result = await callAIStream(baseMessages(), () => undefined);
-
-    assertEquals(result.content, "Hola");
-    assertEquals(result.usage.inputTokens, 0);
-    assertEquals(result.usage.outputTokens, 0);
-    assertEquals(result.model, "gpt-4o-mini");
   } finally {
     globalThis.fetch = previousFetch;
     if (previousKey) Deno.env.set("OPENAI_API_KEY", previousKey);

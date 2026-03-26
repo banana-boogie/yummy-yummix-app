@@ -5,11 +5,7 @@
  */
 
 import type { AITool, CostContext } from "../_shared/ai-gateway/index.ts";
-import {
-  chat,
-  chatStream,
-  chatStreamWithTools,
-} from "../_shared/ai-gateway/index.ts";
+import { chat, chatStreamWithTools } from "../_shared/ai-gateway/index.ts";
 import type { AIToolCall } from "../_shared/ai-gateway/types.ts";
 import { getRegisteredAiTools } from "../_shared/tools/tool-registry.ts";
 import {
@@ -23,13 +19,6 @@ export interface CallAIResult {
   model: string;
   costUsd: number;
   usage: { inputTokens: number; outputTokens: number };
-}
-
-export interface CallAIStreamResult {
-  content: string;
-  costUsd: number;
-  usage: { inputTokens: number; outputTokens: number };
-  model: string;
 }
 
 type AIToolChoice = "auto" | "required" | {
@@ -84,46 +73,6 @@ export async function callAI(
         })),
       },
     }],
-  };
-}
-
-/**
- * Call AI Gateway with streaming.
- * Streams tokens via callback and returns full content + cost/usage.
- */
-export async function callAIStream(
-  messages: ChatMessage[],
-  onToken: (token: string) => void,
-  signal?: AbortSignal,
-  costContext?: CostContext,
-): Promise<CallAIStreamResult> {
-  const aiMessages = normalizeMessagesForAi(messages);
-  const result = await chatStream({
-    usageType: "text",
-    messages: aiMessages,
-    signal,
-    costContext,
-  });
-
-  let fullContent = "";
-
-  for await (const chunk of result.stream) {
-    if (signal?.aborted) break;
-    fullContent += chunk;
-    onToken(chunk);
-  }
-
-  // Await deferred usage (triggers cost recording if costContext was provided)
-  const usageData = await result.usage();
-
-  return {
-    content: fullContent,
-    costUsd: usageData.costUsd,
-    usage: {
-      inputTokens: usageData.inputTokens,
-      outputTokens: usageData.outputTokens,
-    },
-    model: usageData.model,
   };
 }
 
