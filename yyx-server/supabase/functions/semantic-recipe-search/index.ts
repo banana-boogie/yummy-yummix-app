@@ -14,10 +14,6 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { unauthorizedResponse, validateAuth } from "../_shared/auth.ts";
 import { searchRecipesHybrid } from "../_shared/rag/hybrid-search.ts";
 import { buildLocaleChain } from "../_shared/locale-utils.ts";
-import {
-  BudgetCheckUnavailableError,
-  checkTextBudget,
-} from "../_shared/ai-budget/index.ts";
 import type { CostContext } from "../_shared/ai-gateway/types.ts";
 
 Deno.serve(async (req: Request) => {
@@ -44,28 +40,6 @@ Deno.serve(async (req: Request) => {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
-      );
-    }
-
-    // Budget gate — reject if user has exceeded their AI budget.
-    // Embedding costs are negligible (~$0.00001/query) but this prevents
-    // an unmetered endpoint from being abused.
-    try {
-      const budget = await checkTextBudget(user.id);
-      if (!budget.allowed) {
-        return new Response(
-          JSON.stringify({ error: "Budget exceeded" }),
-          {
-            status: 429,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
-      }
-    } catch (err) {
-      // If budget check is unavailable, allow the request (fail-open for search)
-      if (!(err instanceof BudgetCheckUnavailableError)) throw err;
-      console.warn(
-        "[semantic-recipe-search] Budget check unavailable, allowing request",
       );
     }
 
