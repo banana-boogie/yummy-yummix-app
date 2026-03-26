@@ -40,13 +40,13 @@ describe('useIrmixyHelperChat', () => {
   });
 
   it('returns isVisible as false initially', () => {
-    const { result } = renderHook(() => useIrmixyHelperChat());
+    const { result } = renderHook(() => useIrmixyHelperChat('recipe-1'));
 
     expect(result.current.isVisible).toBe(false);
   });
 
   it('sets isVisible to true when open is called', () => {
-    const { result } = renderHook(() => useIrmixyHelperChat());
+    const { result } = renderHook(() => useIrmixyHelperChat('recipe-1'));
 
     act(() => {
       result.current.open();
@@ -56,7 +56,7 @@ describe('useIrmixyHelperChat', () => {
   });
 
   it('sets isVisible to false when close is called', () => {
-    const { result } = renderHook(() => useIrmixyHelperChat());
+    const { result } = renderHook(() => useIrmixyHelperChat('recipe-1'));
 
     act(() => {
       result.current.open();
@@ -70,7 +70,7 @@ describe('useIrmixyHelperChat', () => {
   });
 
   it('exposes sessionProps with context values', () => {
-    const { result } = renderHook(() => useIrmixyHelperChat());
+    const { result } = renderHook(() => useIrmixyHelperChat('recipe-1'));
 
     expect(result.current.sessionProps.externalSessionId).toBe('test-session-123');
     expect(result.current.sessionProps.onExternalSessionIdChange).toBe(mockSetIrmixyChatSessionId);
@@ -80,12 +80,22 @@ describe('useIrmixyHelperChat', () => {
     expect(result.current.sessionProps.onExternalVoiceTranscriptMessagesChange).toBe(mockSetIrmixyVoiceTranscriptMessages);
   });
 
-  it('calls resetChat on unmount to clear session state', () => {
-    const { unmount } = renderHook(() => useIrmixyHelperChat());
+  it('does NOT reset chat on unmount (session persists across step navigation)', () => {
+    const { unmount } = renderHook(() => useIrmixyHelperChat('recipe-1'));
+
+    unmount();
+
+    expect(mockResetChat).not.toHaveBeenCalled();
+  });
+
+  it('resets chat when recipeId changes', () => {
+    let recipeId = 'recipe-1';
+    const { rerender } = renderHook(() => useIrmixyHelperChat(recipeId));
 
     expect(mockResetChat).not.toHaveBeenCalled();
 
-    unmount();
+    recipeId = 'recipe-2';
+    rerender({});
 
     expect(mockResetChat).toHaveBeenCalledTimes(1);
   });

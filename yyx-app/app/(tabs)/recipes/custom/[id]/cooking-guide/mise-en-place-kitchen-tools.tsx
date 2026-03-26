@@ -32,7 +32,7 @@ export default function CustomKitchenToolsStep() {
     const { recipe } = useCustomRecipe(id as string);
     const [kitchenTools, setKitchenTools] = useState<CheckableKitchenTool[]>([]);
     const { isMobile } = useDevice();
-    const irmixy = useIrmixyHelperChat();
+    const irmixy = useIrmixyHelperChat(id);
 
     // Calculate number of columns based on screen size
     const numColumns = 2;

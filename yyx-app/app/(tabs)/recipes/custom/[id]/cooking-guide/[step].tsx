@@ -19,7 +19,7 @@ export default function CustomCookingStep() {
     const { id, step: stepParam, from } = useLocalSearchParams<{ id: string; step: string; from?: string }>();
     const { recipe } = useCustomRecipe(id as string);
     const isChatFlow = isFromChat(from);
-    const irmixy = useIrmixyHelperChat();
+    const irmixy = useIrmixyHelperChat(id);
 
     const currentStepNumber = Number(stepParam);
     const steps = recipe?.steps;

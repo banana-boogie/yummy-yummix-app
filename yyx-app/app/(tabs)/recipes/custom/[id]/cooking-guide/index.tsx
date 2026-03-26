@@ -25,7 +25,7 @@ export default function CustomCookingGuide() {
   const { isPhone } = useDevice();
   const navigation = useNavigation();
   const isChatFlow = isFromChat(from);
-  const irmixy = useIrmixyHelperChat();
+  const irmixy = useIrmixyHelperChat(id);
 
   const handleBackPress = () => {
     if (isChatFlow && !navigation.canGoBack()) {

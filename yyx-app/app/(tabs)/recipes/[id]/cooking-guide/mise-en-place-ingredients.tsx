@@ -28,7 +28,7 @@ export default function IngredientsStep() {
   const { recipe } = useRecipe(id as string);
   const [ingredients, setIngredients] = useState<CheckableIngredient[]>([]);
   const { isMobile } = useDevice();
-  const irmixy = useIrmixyHelperChat();
+  const irmixy = useIrmixyHelperChat(id as string);
 
   // Calculate number of columns based on screen size
   const numColumns = 2;

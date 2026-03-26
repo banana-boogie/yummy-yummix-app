@@ -31,7 +31,7 @@ export default function KitchenToolsStep() {
     const { recipe } = useRecipe(id as string);
     const [kitchenTools, setKitchenTools] = useState<CheckableKitchenTool[]>([]);
     const { isMobile } = useDevice();
-    const irmixy = useIrmixyHelperChat();
+    const irmixy = useIrmixyHelperChat(id as string);
 
     const numColumns = 2;
 

@@ -24,7 +24,7 @@ export default function CookingGuide() {
   const { id } = useLocalSearchParams();
   const { recipe } = useRecipe(id as string);
   const { isPhone } = useDevice();
-  const irmixy = useIrmixyHelperChat();
+  const irmixy = useIrmixyHelperChat(id as string);
 
   // Responsive sizes
   const checkboxSize = isPhone ? 32 : 40;

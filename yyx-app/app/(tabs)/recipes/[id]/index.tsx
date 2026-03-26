@@ -34,7 +34,7 @@ import logger from '@/services/logger';
 const RecipeDetail: React.FC = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const irmixy = useIrmixyHelperChat();
+  const irmixy = useIrmixyHelperChat(id as string);
 
   // Validate ID early to prevent unnecessary API calls
   useEffect(() => {

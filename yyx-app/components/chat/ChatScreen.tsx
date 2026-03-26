@@ -101,15 +101,34 @@ export function ChatScreen({
     const messagesRef = useRef<ChatMessage[]>(messages);
     messagesRef.current = messages;
 
+    // Track whether the last message update originated internally (streaming, user send)
+    // to avoid infinite loops when syncing external→internal.
+    const internalWriteRef = useRef(false);
+
     const setMessages = useCallback((update: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
         const newMessages = typeof update === 'function' ? update(messagesRef.current) : update;
         // Sync ref immediately so rapid successive calls (e.g. stream chunk flushes)
         // read the latest state even before React re-renders.
         messagesRef.current = newMessages;
+        internalWriteRef.current = true;
         setInternalMessages(newMessages);
         // Also sync to external store for persistence (e.g. across step navigation)
         onMessagesChange?.(newMessages);
     }, [onMessagesChange]);
+
+    // Sync parent-driven message changes (session selection, New Chat) into internal state.
+    // Skips when the change originated from our own setMessages to avoid loops.
+    useEffect(() => {
+        if (internalWriteRef.current) {
+            internalWriteRef.current = false;
+            return;
+        }
+        const incoming = externalMessages ?? [];
+        if (incoming !== internalMessages) {
+            messagesRef.current = incoming;
+            setInternalMessages(incoming);
+        }
+    }, [externalMessages]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
     const [resumeDismissed, setResumeDismissed] = useState(false);

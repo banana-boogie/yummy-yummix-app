@@ -29,7 +29,7 @@ export default function CustomIngredientsStep() {
   const { recipe } = useCustomRecipe(id as string);
   const [ingredients, setIngredients] = useState<CheckableIngredient[]>([]);
   const { isMobile } = useDevice();
-  const irmixy = useIrmixyHelperChat();
+  const irmixy = useIrmixyHelperChat(id);
 
   const numColumns = 2;
 

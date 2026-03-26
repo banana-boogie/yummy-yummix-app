@@ -20,7 +20,7 @@ const contentContainerStyle = { paddingHorizontal: 0 } as const;
 export default function CookingStep() {
     const { id, step: stepParam } = useLocalSearchParams();
     const { recipe } = useRecipe(id as string);
-    const irmixy = useIrmixyHelperChat();
+    const irmixy = useIrmixyHelperChat(id as string);
 
     const currentStepNumber = Number(stepParam);
     const steps = recipe?.steps;
