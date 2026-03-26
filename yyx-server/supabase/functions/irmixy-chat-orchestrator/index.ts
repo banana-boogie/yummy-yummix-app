@@ -647,21 +647,35 @@ function handleStreamingRequest(
 
           // No tool calls → this was the final iteration, flush buffered text
           if (!streamResult.toolCalls?.length) {
-            for (const chunk of iterationTextBuffer) {
-              send({ type: "content", content: chunk });
+            // Skip streaming post-tool summary when a recipe was already
+            // generated — the intro text + recipe card IS the response.
+            if (!customRecipeResult) {
+              for (const chunk of iterationTextBuffer) {
+                send({ type: "content", content: chunk });
+              }
             }
             finalText = streamResult.content;
             break;
           }
-          // Tool iteration — discard buffered text (narration like "Let me search...")
+          // Execute tool calls
+          const toolName = streamResult.toolCalls[0].function.name;
+
+          // For recipe generation/modification, flush the model's intro text
+          // (e.g. "Let me create that for you!") so the user sees it before
+          // the progress bar. For other tools (search), discard narration.
+          const isRecipeTool = toolName === "generate_custom_recipe" ||
+            toolName === "modify_recipe";
+          if (isRecipeTool && iterationTextBuffer.length > 0) {
+            for (const chunk of iterationTextBuffer) {
+              send({ type: "content", content: chunk });
+            }
+            finalText = streamResult.content;
+          }
 
           timings[`llm_iter${iteration}_ms`] = Math.round(
             performance.now() - phaseStart,
           );
           phaseStart = performance.now();
-
-          // Execute tool calls
-          const toolName = streamResult.toolCalls[0].function.name;
           send({ type: "status", status: getToolStatus(toolName) });
 
           const onPartialRecipe: PartialRecipeCallback = (partialRecipe) => {
@@ -700,6 +714,10 @@ function handleStreamingRequest(
           }
           if (toolResult.customRecipeResult) {
             customRecipeResult = toolResult.customRecipeResult;
+            // Custom recipe supersedes earlier search results — the model
+            // decided the search didn't match and generated a new recipe.
+            recipes = undefined;
+            recipesSourceTool = undefined;
           }
           if (toolResult.appActionResult) {
             appActionResult = toolResult.appActionResult;
@@ -723,7 +741,12 @@ function handleStreamingRequest(
             ...toolResult.toolMessages,
           ];
 
-          send({ type: "status", status: "thinking" });
+          // After recipe generation, don't show "thinking" — the user already
+          // sees the recipe card. The final iteration runs silently to produce
+          // the text message that accompanies the recipe.
+          if (!customRecipeResult) {
+            send({ type: "status", status: "thinking" });
+          }
         }
 
         if (iteration >= MAX_TOOL_LOOP_ITERATIONS) {

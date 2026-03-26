@@ -22,6 +22,8 @@ export interface ToolCall {
     name: string;
     arguments: string;
   };
+  /** Provider-specific metadata (e.g. Gemini thought signatures) */
+  metadata?: Record<string, unknown>;
 }
 
 export interface RequestContext {

@@ -236,7 +236,6 @@ export function IrmixyCookingModal({
               messages={messages}
               onMessagesChange={setMessages}
               cookingContext={cookingContext}
-              disableResume
               initialGreeting={i18n.t("chat.cookingModal.greeting", {
                 recipeName: recipeContext.recipeTitle ?? "",
               })}

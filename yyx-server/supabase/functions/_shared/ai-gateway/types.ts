@@ -81,6 +81,8 @@ export interface AIToolCall {
   id: string;
   name: string;
   arguments: Record<string, unknown>;
+  /** Provider-specific metadata (e.g. Gemini thought signatures) */
+  metadata?: Record<string, unknown>;
 }
 
 export interface AIProviderConfig {

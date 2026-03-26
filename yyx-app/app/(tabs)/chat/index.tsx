@@ -41,10 +41,6 @@ export default function ChatPage() {
         }).catch(() => {});
     }, []);
 
-    // Session ID is persisted to AsyncStorage for the resume bar,
-    // but NOT restored on mount — users always start with a fresh chat.
-    // The ChatResumeBar prompts to continue the previous session.
-
     // Wrapper that persists sessionId alongside state
     const updateSessionId = useCallback((newSessionId: string) => {
         setSessionId(newSessionId);

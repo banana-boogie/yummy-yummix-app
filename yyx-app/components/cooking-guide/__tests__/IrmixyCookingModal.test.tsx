@@ -42,7 +42,6 @@ jest.mock('@/components/chat/ChatScreen', () => ({
     return (
       <View testID="chat-screen">
         <Text>{String(props.initialGreeting ?? '')}</Text>
-        {props.disableResume && <Text testID="resume-disabled">resume-disabled</Text>}
       </View>
     );
   },
@@ -123,11 +122,6 @@ describe('IrmixyCookingModal', () => {
       expect(screen.getByText('How can I help with your recipe?')).toBeTruthy();
     });
 
-    it('passes disableResume to ChatScreen', () => {
-      render(<IrmixyCookingModal {...defaultProps} />);
-
-      expect(screen.getByTestId('resume-disabled')).toBeTruthy();
-    });
   });
 
   // ============================================================

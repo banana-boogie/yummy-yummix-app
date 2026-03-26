@@ -59,6 +59,7 @@ export async function callAIStreamWithTools(
           name: tc.name,
           arguments: JSON.stringify(tc.arguments),
         },
+        ...(tc.metadata ? { metadata: tc.metadata } : {}),
       }));
     }
   }
