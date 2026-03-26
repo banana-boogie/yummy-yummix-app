@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useCookingSession } from '@/contexts/CookingSessionContext';
 
 /**
@@ -6,31 +6,29 @@ import { useCookingSession } from '@/contexts/CookingSessionContext';
  * Use this on any screen that shows IrmixyCookingModal to get a single
  * source of truth for modal state and session carryover.
  *
- * Resets chat state when the recipe ID changes so switching recipes starts
- * fresh, but navigating between steps of the same recipe preserves the session.
+ * Claims the cooking session for the given recipeId. If a different recipe
+ * previously owned the session, it resets automatically. This works across
+ * mount boundaries because the provider persists even when screens remount.
  */
 export function useIrmixyHelperChat(recipeId?: string) {
   const [isVisible, setIsVisible] = useState(false);
   const {
+    claimForRecipe,
     irmixyChatSessionId,
     setIrmixyChatSessionId,
     irmixyChatMessages,
     setIrmixyChatMessages,
     irmixyVoiceTranscriptMessages,
     setIrmixyVoiceTranscriptMessages,
-    resetChat,
   } = useCookingSession();
 
-  // Reset chat when the recipe changes (not on every screen unmount).
-  // This preserves the session across step-to-step navigation within the
-  // same recipe while ensuring a fresh session for a new recipe.
-  const prevRecipeIdRef = useRef(recipeId);
+  // Claim the session for this recipe on mount and when recipeId changes.
+  // The provider handles reset if a different recipe previously owned it.
   useEffect(() => {
-    if (prevRecipeIdRef.current && recipeId && prevRecipeIdRef.current !== recipeId) {
-      resetChat();
+    if (recipeId) {
+      claimForRecipe(recipeId);
     }
-    prevRecipeIdRef.current = recipeId;
-  }, [recipeId, resetChat]);
+  }, [recipeId, claimForRecipe]);
 
   return {
     isVisible,

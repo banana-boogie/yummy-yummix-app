@@ -56,4 +56,46 @@ describe('CookingSessionContext', () => {
       expect(result.current.irmixyVoiceTranscriptMessages[0].content).toBe('Test');
     });
   });
+
+  describe('claimForRecipe', () => {
+    it('same recipe keeps session', () => {
+      const { result } = renderHook(() => useCookingSession(), { wrapper });
+
+      act(() => {
+        result.current.setIrmixyChatSessionId('session-1');
+        result.current.setIrmixyChatMessages([
+          { id: 'msg-1', role: 'assistant' as const, content: 'Hello', createdAt: new Date() },
+        ]);
+        result.current.claimForRecipe('recipe-A');
+      });
+
+      // Claim again for the same recipe — session should persist
+      act(() => {
+        result.current.claimForRecipe('recipe-A');
+      });
+
+      expect(result.current.irmixyChatSessionId).toBe('session-1');
+      expect(result.current.irmixyChatMessages).toHaveLength(1);
+    });
+
+    it('different recipe resets session', () => {
+      const { result } = renderHook(() => useCookingSession(), { wrapper });
+
+      act(() => {
+        result.current.setIrmixyChatSessionId('session-1');
+        result.current.setIrmixyChatMessages([
+          { id: 'msg-1', role: 'assistant' as const, content: 'Hello', createdAt: new Date() },
+        ]);
+        result.current.claimForRecipe('recipe-A');
+      });
+
+      // Claim for a different recipe — should reset
+      act(() => {
+        result.current.claimForRecipe('recipe-B');
+      });
+
+      expect(result.current.irmixyChatSessionId).toBeNull();
+      expect(result.current.irmixyChatMessages).toEqual([]);
+    });
+  });
 });

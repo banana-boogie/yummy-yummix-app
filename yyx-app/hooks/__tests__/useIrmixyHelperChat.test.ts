@@ -13,20 +13,22 @@ import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 // MOCKS
 // ============================================================
 
-const mockResetChat = jest.fn();
+const mockClaimForRecipe = jest.fn();
 const mockSetIrmixyChatSessionId = jest.fn();
 const mockSetIrmixyChatMessages = jest.fn();
 const mockSetIrmixyVoiceTranscriptMessages = jest.fn();
 
 jest.mock('@/contexts/CookingSessionContext', () => ({
   useCookingSession: () => ({
+    activeRecipeId: null,
+    claimForRecipe: mockClaimForRecipe,
     irmixyChatSessionId: 'test-session-123',
     setIrmixyChatSessionId: mockSetIrmixyChatSessionId,
     irmixyChatMessages: [],
     setIrmixyChatMessages: mockSetIrmixyChatMessages,
     irmixyVoiceTranscriptMessages: [],
     setIrmixyVoiceTranscriptMessages: mockSetIrmixyVoiceTranscriptMessages,
-    resetChat: mockResetChat,
+    resetChat: jest.fn(),
   }),
 }));
 
@@ -40,13 +42,19 @@ describe('useIrmixyHelperChat', () => {
   });
 
   it('returns isVisible as false initially', () => {
-    const { result } = renderHook(() => useIrmixyHelperChat('recipe-1'));
+    const { result } = renderHook(
+      ({ id }) => useIrmixyHelperChat(id),
+      { initialProps: { id: 'recipe-1' } },
+    );
 
     expect(result.current.isVisible).toBe(false);
   });
 
   it('sets isVisible to true when open is called', () => {
-    const { result } = renderHook(() => useIrmixyHelperChat('recipe-1'));
+    const { result } = renderHook(
+      ({ id }) => useIrmixyHelperChat(id),
+      { initialProps: { id: 'recipe-1' } },
+    );
 
     act(() => {
       result.current.open();
@@ -56,7 +64,10 @@ describe('useIrmixyHelperChat', () => {
   });
 
   it('sets isVisible to false when close is called', () => {
-    const { result } = renderHook(() => useIrmixyHelperChat('recipe-1'));
+    const { result } = renderHook(
+      ({ id }) => useIrmixyHelperChat(id),
+      { initialProps: { id: 'recipe-1' } },
+    );
 
     act(() => {
       result.current.open();
@@ -70,7 +81,10 @@ describe('useIrmixyHelperChat', () => {
   });
 
   it('exposes sessionProps with context values', () => {
-    const { result } = renderHook(() => useIrmixyHelperChat('recipe-1'));
+    const { result } = renderHook(
+      ({ id }) => useIrmixyHelperChat(id),
+      { initialProps: { id: 'recipe-1' } },
+    );
 
     expect(result.current.sessionProps.externalSessionId).toBe('test-session-123');
     expect(result.current.sessionProps.onExternalSessionIdChange).toBe(mockSetIrmixyChatSessionId);
@@ -80,23 +94,35 @@ describe('useIrmixyHelperChat', () => {
     expect(result.current.sessionProps.onExternalVoiceTranscriptMessagesChange).toBe(mockSetIrmixyVoiceTranscriptMessages);
   });
 
-  it('does NOT reset chat on unmount (session persists across step navigation)', () => {
-    const { unmount } = renderHook(() => useIrmixyHelperChat('recipe-1'));
+  it('claims session for recipe on mount', () => {
+    renderHook(
+      ({ id }) => useIrmixyHelperChat(id),
+      { initialProps: { id: 'recipe-1' } },
+    );
 
-    unmount();
-
-    expect(mockResetChat).not.toHaveBeenCalled();
+    expect(mockClaimForRecipe).toHaveBeenCalledWith('recipe-1');
   });
 
-  it('resets chat when recipeId changes', () => {
-    let recipeId = 'recipe-1';
-    const { rerender } = renderHook(() => useIrmixyHelperChat(recipeId));
+  it('claims session for new recipe when recipeId changes', () => {
+    const { rerender } = renderHook(
+      ({ id }) => useIrmixyHelperChat(id),
+      { initialProps: { id: 'recipe-1' } },
+    );
 
-    expect(mockResetChat).not.toHaveBeenCalled();
+    expect(mockClaimForRecipe).toHaveBeenCalledWith('recipe-1');
+    mockClaimForRecipe.mockClear();
 
-    recipeId = 'recipe-2';
-    rerender({});
+    rerender({ id: 'recipe-2' });
 
-    expect(mockResetChat).toHaveBeenCalledTimes(1);
+    expect(mockClaimForRecipe).toHaveBeenCalledWith('recipe-2');
+  });
+
+  it('does not claim when recipeId is undefined', () => {
+    renderHook(
+      ({ id }) => useIrmixyHelperChat(id),
+      { initialProps: { id: undefined as string | undefined } },
+    );
+
+    expect(mockClaimForRecipe).not.toHaveBeenCalled();
   });
 });

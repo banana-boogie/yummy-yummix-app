@@ -118,17 +118,22 @@ export function ChatScreen({
 
     // Sync parent-driven message changes (session selection, New Chat) into internal state.
     // Skips when the change originated from our own setMessages to avoid loops.
+    // Uses length + last-ID check instead of referential equality to avoid unnecessary
+    // re-renders when the parent creates a new array with identical content.
     useEffect(() => {
         if (internalWriteRef.current) {
             internalWriteRef.current = false;
             return;
         }
         const incoming = externalMessages ?? [];
-        if (incoming !== internalMessages) {
+        const current = messagesRef.current;
+        const changed = incoming.length !== current.length
+            || incoming[incoming.length - 1]?.id !== current[current.length - 1]?.id;
+        if (changed) {
             messagesRef.current = incoming;
             setInternalMessages(incoming);
         }
-    }, [externalMessages]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [externalMessages]);  
 
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
     const [resumeDismissed, setResumeDismissed] = useState(false);
@@ -288,13 +293,14 @@ export function ChatScreen({
     }, [greetingIndex, greetingList, userProfile?.name]);
 
     // --- Compute effective messages with initial greeting (synchronous — no flash of empty state) ---
+    const greetingDateRef = useRef(new Date());
     const effectiveMessages = useMemo(() => {
         if (initialGreeting && messages.length === 0) {
             return [{
                 id: 'initial-greeting',
                 role: 'assistant' as const,
                 content: initialGreeting,
-                createdAt: new Date(),
+                createdAt: greetingDateRef.current,
             }];
         }
         return messages;

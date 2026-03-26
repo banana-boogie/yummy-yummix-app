@@ -10,6 +10,10 @@ import React, { createContext, useContext, useState, useRef, useCallback, useMem
 import type { ChatMessage } from '@/services/chatService';
 
 interface CookingSessionContextType {
+  /** Which recipe currently owns the Irmixy session — used to detect recipe changes across mount boundaries */
+  activeRecipeId: string | null;
+  /** Claim the session for a recipe, resetting if a different recipe previously owned it */
+  claimForRecipe: (recipeId: string) => void;
   /** Irmixy chat session ID — persists across step navigation */
   irmixyChatSessionId: string | null;
   setIrmixyChatSessionId: (id: string | null) => void;
@@ -26,6 +30,8 @@ interface CookingSessionContextType {
 const noop = () => {};
 
 const CookingSessionContext = createContext<CookingSessionContextType>({
+  activeRecipeId: null,
+  claimForRecipe: noop,
   irmixyChatSessionId: null,
   setIrmixyChatSessionId: noop,
   irmixyChatMessages: [],
@@ -37,6 +43,7 @@ const CookingSessionContext = createContext<CookingSessionContextType>({
 
 export function CookingSessionProvider({ children }: { children: ReactNode }) {
   const [irmixyChatSessionId, setIrmixyChatSessionId] = useState<string | null>(null);
+  const activeRecipeIdRef = useRef<string | null>(null);
 
   // Use refs for messages to avoid re-rendering all consumers on every stream token.
   // The ChatScreen handles its own rendering; the context just stores for persistence.
@@ -55,11 +62,26 @@ export function CookingSessionProvider({ children }: { children: ReactNode }) {
     setIrmixyChatSessionId(null);
     chatMessagesRef.current = [];
     voiceTranscriptMessagesRef.current = [];
+    activeRecipeIdRef.current = null;
+  }, []);
+
+  // Claim the session for a recipe. If a different recipe previously owned it, reset first.
+  // This lives in the provider (which persists across screen mounts) so it detects
+  // recipe-to-recipe navigation even when hook instances unmount and remount.
+  const claimForRecipe = useCallback((recipeId: string) => {
+    if (activeRecipeIdRef.current && activeRecipeIdRef.current !== recipeId) {
+      setIrmixyChatSessionId(null);
+      chatMessagesRef.current = [];
+      voiceTranscriptMessagesRef.current = [];
+    }
+    activeRecipeIdRef.current = recipeId;
   }, []);
 
   // Only re-render consumers when session ID changes (not on every message update)
   const value = useMemo<CookingSessionContextType>(
     () => ({
+      get activeRecipeId() { return activeRecipeIdRef.current; },
+      claimForRecipe,
       irmixyChatSessionId,
       setIrmixyChatSessionId,
       get irmixyChatMessages() { return chatMessagesRef.current; },
@@ -68,7 +90,7 @@ export function CookingSessionProvider({ children }: { children: ReactNode }) {
       setIrmixyVoiceTranscriptMessages: setVoiceTranscriptMessages,
       resetChat,
     }),
-    [irmixyChatSessionId, setChatMessages, setVoiceTranscriptMessages, resetChat],
+    [irmixyChatSessionId, claimForRecipe, setChatMessages, setVoiceTranscriptMessages, resetChat],
   );
 
   return (
