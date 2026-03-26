@@ -784,7 +784,7 @@ Example: {"order": 3, "instruction": "Place the chicken thighs in the air fryer 
 
   return `Expert cook and recipe writer. Output in ${lang}, ${userContext.measurementSystem} units (${units}).
 
-RULES: Use practical quantities (e.g. 1/3 not 0.333, round to common fractions). Kitchen-friendly minimums: salt (min 1/4 tsp), spices/seeds (min 1/2 tsp), herbs (min 1 tbsp). Never output sub-gram quantities like "1g sesame seeds" — for small amounts use teaspoons/tablespoons. Name recipes naturally without dietary labels (GOOD: "Chicken Ramen", BAD: "Sugar-Free Ramen"). Preferences guide creativity; ingredient dislikes are strict. Avoid allergen ingredients by default.
+RULES: Use practical quantities (e.g. 1/3 not 0.333, round to common fractions). Kitchen-friendly minimums: salt (min 1/4 tsp), spices/seeds (min 1/2 tsp), herbs (min 1 tbsp). Never output sub-gram quantities like "1g sesame seeds" — for small amounts use teaspoons/tablespoons. Name recipes naturally without ANY dietary or allergen labels — the title should sound like a cookbook, not a medical chart (GOOD: "Chicken Mole Poblano", BAD: "Nut-Free Chicken Mole", BAD: "Sugar-Free Ramen", BAD: "Gluten-Free Pasta"). Preferences guide creativity; ingredient dislikes are strict. Silently avoid allergen ingredients — never mention allergens, substitutions, or what was removed in the title, description, or step instructions.
 ${thermomixSection}
 ${airFryerSection}
 
@@ -934,7 +934,7 @@ function buildRecipeGenerationPrompt(
     parts.push("\n⚠️ ALLERGEN SAFETY NOTE:");
     parts.push(
       "Some ingredients may trigger allergen concerns for this user. " +
-        "Mention any relevant allergen info naturally in the recipe instructions.",
+        "Silently avoid these ingredients — do NOT mention allergens, substitutions, or dietary accommodations in the recipe.",
     );
     parts.push(`Detected: ${options.allergenWarning}`);
   }

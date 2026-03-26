@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/common/Text';
 import { IrmixyAvatar } from '@/components/chat/IrmixyAvatar';
 import { TypingDots } from '@/components/chat/TypingIndicator';
-import { SearchingAnimation } from '@/components/chat/SearchingAnimation';
+
 import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
 
 import { ChatInputBar } from '@/components/chat/ChatInputBar';
@@ -424,13 +424,8 @@ export function ChatScreen({
                 </TouchableOpacity>
             )}
 
-            {/* Prominent centered animation for recipe search */}
-            {isLoading && !showRecipeTracker && currentStatus === 'searching' && (
-                <SearchingAnimation />
-            )}
-
-            {/* Inline status indicator for other statuses (hidden during search + recipe tracker) */}
-            {isLoading && !showRecipeTracker && currentStatus !== 'searching' && (
+            {/* Inline status indicator (hidden during recipe tracker) */}
+            {isLoading && !showRecipeTracker && (
                 <View className="px-md py-sm">
                     <View className="flex-row items-center">
                         <IrmixyAvatar state={currentStatus ?? 'thinking'} size={40} />
