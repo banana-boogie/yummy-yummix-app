@@ -32,6 +32,16 @@ export const recipes = {
     askIrmixy: "Ask Irmixy",
     kitchenTools: "Kitchen Tools",
     servings: "servings",
+    cookingMode: {
+      slow_cook: "Slow Cook",
+      rice_cooker: "Rice Cooker",
+      sous_vide: "Sous Vide",
+      fermentation: "Fermentation",
+      open_cooking: "Open Cooking",
+      high_temperature: "Browning",
+      dough: "Dough",
+      turbo: "Turbo",
+    },
   },
   detail: {
     ingredients: {

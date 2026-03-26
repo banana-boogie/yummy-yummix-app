@@ -24,18 +24,6 @@ export const THERMOMIX_COOKING_MODES = [
     'turbo',
 ] as const;
 
-/** Human-readable labels keyed by mode value. */
-export const COOKING_MODE_LABELS: Record<string, { en: string; es: string }> = {
-    slow_cook: { en: 'Slow Cook', es: 'Cocción Lenta' },
-    rice_cooker: { en: 'Rice Cooker', es: 'Arrocera' },
-    sous_vide: { en: 'Sous Vide', es: 'Sous Vide' },
-    fermentation: { en: 'Fermentation', es: 'Fermentación' },
-    open_cooking: { en: 'Open Cooking', es: 'Cocción Abierta' },
-    high_temperature: { en: 'Browning', es: 'Dorar' },
-    dough: { en: 'Dough', es: 'Masa' },
-    turbo: { en: 'Turbo', es: 'Turbo' },
-};
-
 /** Modes available per Thermomix model. */
 export const COOKING_MODES_BY_MODEL: Record<ThermomixModel, readonly string[]> = {
     TM5: [],

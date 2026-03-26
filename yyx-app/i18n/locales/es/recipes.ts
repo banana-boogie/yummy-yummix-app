@@ -32,6 +32,16 @@ export const recipes = {
     askIrmixy: "Pregunta a Irmixy",
     kitchenTools: "Utensilios de Cocina",
     servings: "porciones",
+    cookingMode: {
+      slow_cook: "Cocción Lenta",
+      rice_cooker: "Arrocera",
+      sous_vide: "Sous Vide",
+      fermentation: "Fermentación",
+      open_cooking: "Cocción Abierta",
+      high_temperature: "Dorar",
+      dough: "Masa",
+      turbo: "Turbo",
+    },
   },
   detail: {
     ingredients: {

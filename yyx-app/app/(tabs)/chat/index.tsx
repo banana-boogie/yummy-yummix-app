@@ -23,7 +23,7 @@ const STORAGE_KEY_CHAT_MODE = 'lastChatMode';
 
 type ChatMode = 'text' | 'voice';
 
-const DEFAULT_MODE: ChatMode = Platform.OS === 'web' ? 'text' : 'text';
+const DEFAULT_MODE: ChatMode = 'text';
 
 export default function ChatPage() {
     const [mode, setMode] = useState<ChatMode>(DEFAULT_MODE);

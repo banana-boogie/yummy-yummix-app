@@ -5,7 +5,8 @@
  * followed by other equipment options.
  */
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, Pressable, StyleProp, ViewStyle, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { View, ScrollView, Pressable, StyleProp, ViewStyle, KeyboardAvoidingView, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from '@/components/common/Text';
 import { COLORS } from '@/constants/design-tokens';
 import { useOnboarding } from '@/contexts/OnboardingContext';
@@ -146,7 +147,7 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
             <Image
               source={EQUIPMENT_CONFIG.thermomix.icon}
               style={{ width: 48, height: 48 }}
-              resizeMode="contain"
+              contentFit="contain"
               className="mr-md"
             />
             <View className="flex-1">
@@ -228,7 +229,7 @@ export function EquipmentStep({ className = '', style }: EquipmentStepProps) {
                     <Image
                       source={config.icon}
                       style={{ width: 36, height: 36 }}
-                      resizeMode="contain"
+                      contentFit="contain"
                       className="mr-md"
                     />
                     <Text className="flex-1">

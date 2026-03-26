@@ -172,7 +172,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                         activeOpacity={0.7}
                         className="max-w-[80%] p-sm rounded-lg self-end bg-primary-default"
                     >
-                        <Text className="text-base leading-relaxed text-white" style={{ fontSize: 18, lineHeight: 26 }}>
+                        <Text className="text-white" style={{ fontSize: 18, lineHeight: 26 }}>
                             {item.content}
                         </Text>
                     </TouchableOpacity>
@@ -194,7 +194,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                                     {displayContent}
                                 </Markdown>
                             ) : (
-                                <Text className="text-base leading-relaxed text-text-default" style={{ fontSize: 18, lineHeight: 26 }}>
+                                <Text className="text-text-default" style={{ fontSize: 18, lineHeight: 26 }}>
                                     {displayContent}
                                 </Text>
                             )}

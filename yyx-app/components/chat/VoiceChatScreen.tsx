@@ -11,8 +11,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
-import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/common/Text';
 import { IrmixyAvatar, AvatarState } from './IrmixyAvatar';
 import { VoiceButton } from './VoiceButton';
@@ -21,13 +19,13 @@ import { RecipeProgressTracker } from './RecipeProgressTracker';
 import { VoiceToolLoader } from './VoiceToolLoader';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { useAuth } from '@/contexts/AuthContext';
-import { customRecipeService } from '@/services/customRecipeService';
+import { saveAndGetCookingPath } from '@/utils/chat/startCooking';
 import type { QuotaInfo, RecipeContext, VoiceStatus } from '@/services/voice/types';
 import type { ChatMessage, IrmixyStatus } from '@/services/chatService';
 import type { Action, GeneratedRecipe } from '@/types/irmixy';
 import i18n from '@/i18n';
 import logger from '@/services/logger';
-import { getChatCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
+import { copyMessageToClipboard } from '@/utils/chat/copyMessage';
 import {
     executeAction,
     resolveActionContext,
@@ -232,18 +230,7 @@ export function VoiceChatScreen({
 
     const handleCopyMessage = useCallback(async (content: string) => {
         try {
-            await Clipboard.setStringAsync(content);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            if (Platform.OS === 'ios') {
-                Alert.alert(
-                    i18n.t('common.copied'),
-                    i18n.t('chat.messageCopied'),
-                    [{ text: i18n.t('common.ok') }],
-                    { userInterfaceStyle: 'automatic' },
-                );
-            } else {
-                Alert.alert(i18n.t('common.copied'), i18n.t('chat.messageCopied'));
-            }
+            await copyMessageToClipboard(content);
         } catch (copyError) {
             if (__DEV__) logger.error('[VoiceChatScreen] Failed to copy message:', copyError);
         }
@@ -256,18 +243,13 @@ export function VoiceChatScreen({
         savedRecipeId?: string,
     ) => {
         try {
-            let recipeId = savedRecipeId;
-            if (!recipeId) {
-                const { userRecipeId } = await customRecipeService.save(recipe, finalName);
-                recipeId = userRecipeId;
-                if (recipeId) {
-                    updateMessage(messageId, { savedRecipeId: recipeId });
-                }
+            const result = await saveAndGetCookingPath(recipe, finalName, savedRecipeId);
+
+            if (result.wasNewlySaved) {
+                updateMessage(messageId, { savedRecipeId: result.recipeId });
             }
 
-            if (recipeId) {
-                router.push(getChatCustomCookingGuidePath(recipeId));
-            }
+            router.push(result.path);
         } catch (startCookingError) {
             logger.error('[VoiceChatScreen] Start cooking error:', startCookingError);
             Alert.alert(i18n.t('common.errors.title'), i18n.t('common.errors.generic'));

@@ -2,11 +2,11 @@ import React from 'react';
 import { View, StyleProp, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from '@/components/common/Text';
-import { ThermomixSpeed, ThermomixTemperature, ThermomixTemperatureUnit, ThermomixIsBladeReversed, ThermomixTime, ThermomixCookingMode, COOKING_MODE_LABELS } from '@/types/thermomix.types';
+import { ThermomixSpeed, ThermomixTemperature, ThermomixTemperatureUnit, ThermomixIsBladeReversed, ThermomixTime, ThermomixCookingMode } from '@/types/thermomix.types';
 import { getTemperatureImage, getSpeedImage, getTimeImage, formatSpeedText } from '@/utils/thermomix/assetUtils';
 import { formatTime } from '@/utils/thermomix/formatters';
 import { useDevice } from '@/hooks/useDevice';
-import { useLanguage } from '@/contexts/LanguageContext';
+import i18n from '@/i18n';
 
 interface ThermomixCookingParametersProps {
   time?: ThermomixTime;     // time in seconds
@@ -33,7 +33,6 @@ export function ThermomixCookingParameters({
   style
 }: ThermomixCookingParametersProps) {
   const { isPhone } = useDevice();
-  const { language } = useLanguage();
 
   // Responsive icon size: keep mobile original (135), make desktop larger (200)
   const iconSize = isPhone ? 135 : 200;
@@ -48,10 +47,10 @@ export function ThermomixCookingParameters({
 
   return (
     <View className={`items-center ${className}`} style={style}>
-      {mode && COOKING_MODE_LABELS[mode] && (
+      {mode && (
         <View className="bg-primary-medium/20 rounded-lg px-sm py-xxs mb-xs">
           <Text preset="body" className="text-text-default font-medium">
-            {COOKING_MODE_LABELS[mode][language] ?? COOKING_MODE_LABELS[mode].es}
+            {i18n.t(`recipes.common.cookingMode.${mode}`)}
           </Text>
         </View>
       )}

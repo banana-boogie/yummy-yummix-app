@@ -17,6 +17,7 @@ import {
     getChatCustomCookingGuidePath,
     getChatRecipeDetailPath
 } from '@/utils/navigation/recipeRoutes';
+import { getDifficultyColorClass, getDifficultyLabel } from '@/utils/recipes/difficulty';
 
 const HERO_IMAGE_HEIGHT = 140;
 
@@ -40,19 +41,6 @@ export const ChatRecipeCard = memo(function ChatRecipeCard({ recipe }: ChatRecip
                 ? getChatCustomCookingGuidePath(recipe.recipeId)
                 : getChatRecipeDetailPath(recipe.recipeId)
         );
-    };
-
-    const getDifficultyColor = (difficulty: string) => {
-        switch (difficulty) {
-            case 'easy': return 'text-status-success';
-            case 'medium': return 'text-yellow-600';
-            case 'hard': return 'text-status-error';
-            default: return 'text-text-secondary';
-        }
-    };
-
-    const getDifficultyLabel = (difficulty: string) => {
-        return i18n.t(`recipes.common.difficulty.${difficulty}`);
     };
 
     return (
@@ -98,7 +86,7 @@ export const ChatRecipeCard = memo(function ChatRecipeCard({ recipe }: ChatRecip
                     <Text className="text-text-secondary text-sm">&middot;</Text>
 
                     {/* Difficulty */}
-                    <Text className={`text-sm font-medium ${getDifficultyColor(recipe.difficulty)}`}>
+                    <Text className={`text-sm font-medium ${getDifficultyColorClass(recipe.difficulty)}`}>
                         {getDifficultyLabel(recipe.difficulty)}
                     </Text>
 

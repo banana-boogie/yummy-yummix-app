@@ -400,13 +400,6 @@ export async function callAnthropicStream(
     body.temperature = request.temperature;
   }
 
-  // Tools in streaming mode
-  if (request.tools && request.tools.length > 0) {
-    body.tools = translateToolsForAnthropic(request.tools);
-    const choice = translateToolChoiceForAnthropic(request.toolChoice);
-    if (choice) body.tool_choice = choice;
-  }
-
   const response = await fetch(ANTHROPIC_MESSAGES_URL, {
     method: "POST",
     headers: getAnthropicHeaders(apiKey),

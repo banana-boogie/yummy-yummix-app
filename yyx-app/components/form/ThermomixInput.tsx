@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, Image } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { TextInput } from '@/components/form/TextInput';
-import { ThermomixSettings, ThermomixTemperature, ThermomixCookingMode, VALID_TEMPERATURES, VALID_SPEEDS, THERMOMIX_COOKING_MODES, COOKING_MODE_LABELS, COOKING_MODES_BY_MODEL, ThermomixSpeedValue, ThermomixSpeed, ThermomixSpeedRange } from '@/types/thermomix.types';
+import { ThermomixSettings, ThermomixTemperature, ThermomixCookingMode, VALID_TEMPERATURES, VALID_SPEEDS, THERMOMIX_COOKING_MODES, COOKING_MODES_BY_MODEL, ThermomixSpeedValue, ThermomixSpeed, ThermomixSpeedRange } from '@/types/thermomix.types';
+import i18n from '@/i18n';
 import { COLORS } from '@/constants/design-tokens';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 
@@ -599,7 +600,7 @@ export const ThermomixInput: React.FC<ThermomixInputFormProps> = ({
                 onPress={() => updateParent({ ...settings, mode: mode as ThermomixCookingMode })}
               >
                 <Text preset="body" className={settings.mode === mode ? 'font-bold' : ''}>
-                  {COOKING_MODE_LABELS[mode]?.en ?? mode}
+                  {i18n.t(`recipes.common.cookingMode.${mode}`)}
                 </Text>
                 {modelNote && (
                   <Text preset="caption" className="text-text-secondary text-xs">{modelNote} only</Text>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, Modal, TouchableOpacity, Pressable, Keyboard, Image } from 'react-native';
+import { View, ScrollView, Modal, TouchableOpacity, Pressable, Keyboard } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -133,7 +134,7 @@ export function EquipmentModal({
                   <Image
                     source={EQUIPMENT_CONFIG.thermomix.icon}
                     style={{ width: 48, height: 48 }}
-                    resizeMode="contain"
+                    contentFit="contain"
                     className="mr-md"
                   />
                   <View className="flex-1">
@@ -214,7 +215,7 @@ export function EquipmentModal({
                         <Image
                           source={config.icon}
                           style={{ width: 36, height: 36 }}
-                          resizeMode="contain"
+                          contentFit="contain"
                           className="mr-md"
                         />
                         <Text className="flex-1">

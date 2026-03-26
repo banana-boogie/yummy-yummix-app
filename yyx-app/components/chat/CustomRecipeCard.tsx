@@ -15,6 +15,7 @@ import { SafeImage } from '@/components/common';
 import type { GeneratedRecipe, SafetyFlags } from '@/types/irmixy';
 import i18n from '@/i18n';
 import { COLORS } from '@/constants/design-tokens';
+import { getDifficultyColor, getDifficultyLabel } from '@/utils/recipes/difficulty';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -98,19 +99,6 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
             </View>
         </Button>
     );
-
-    const getDifficultyColor = (difficulty: string) => {
-        switch (difficulty) {
-            case 'easy': return COLORS.status.success;
-            case 'medium': return COLORS.status.medium;
-            case 'hard': return COLORS.status.error;
-            default: return COLORS.grey.medium;
-        }
-    };
-
-    const getDifficultyLabel = (difficulty: string) => {
-        return i18n.t(`recipes.common.difficulty.${difficulty}`);
-    };
 
     // Show first 5 ingredients or all if expanded
     const displayIngredients = showAllIngredients
