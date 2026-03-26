@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { View, TouchableOpacity, Platform } from 'react-native';
 import { Image } from 'expo-image';
-import { Tabs, Redirect, usePathname, Link } from 'expo-router';
+import { Tabs, Redirect, usePathname, Link, router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { VoiceSessionProvider } from '@/contexts/VoiceSessionContext';
 import { CookingSessionProvider } from '@/contexts/CookingSessionContext';
@@ -155,11 +155,12 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
   };
 
   const handleTabPress = useCallback((tabName: string, tabIndex: number, isActive: boolean) => {
+    const tab = TAB_CONFIG[tabIndex];
     if (isActive) {
-      // If on a nested screen (e.g. recipe detail), pop to tab root
+      // If on a nested screen (e.g. recipe detail), navigate to tab root
       const nestedState = state.routes[tabIndex]?.state;
       if (nestedState && nestedState.index != null && nestedState.index > 0) {
-        navigation.navigate(tabName);
+        router.navigate(tab.href);
         return;
       }
       // At root — emit tabPress so screen listeners (e.g. scroll-to-top) fire

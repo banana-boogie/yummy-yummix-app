@@ -35,7 +35,7 @@ jest.mock('expo-router', () => {
 });
 
 jest.mock('@/contexts/CookingSessionContext', () => ({
-  useCookingSession: () => ({ activeCookingSession: null, clearCookingSession: jest.fn() }),
+  useCookingSession: () => ({ irmixyChatSessionId: null, irmixyChatMessages: [], irmixyVoiceTranscriptMessages: [] }),
   CookingSessionProvider: ({ children }: { children: any }) => children,
 }));
 

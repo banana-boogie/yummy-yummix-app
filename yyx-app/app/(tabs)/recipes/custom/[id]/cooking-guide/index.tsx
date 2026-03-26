@@ -19,15 +19,12 @@ import { AskIrmixyButton } from '@/components/cooking-guide/AskIrmixyButton';
 import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import { getCustomCookingGuidePath, isFromChat } from '@/utils/navigation/recipeRoutes';
 import { eventService } from '@/services/eventService';
-import { useCookingSession } from '@/contexts/CookingSessionContext';
-
 export default function CustomCookingGuide() {
   const { id, session, from } = useLocalSearchParams<{ id: string; session?: string; from?: string }>();
   const { recipe, loading, error } = useCustomRecipe(id as string);
   const { isPhone } = useDevice();
   const navigation = useNavigation();
   const isChatFlow = isFromChat(from);
-  const { startCookingSession } = useCookingSession();
   const irmixy = useIrmixyHelperChat();
 
   const handleBackPress = () => {
@@ -46,17 +43,6 @@ export default function CustomCookingGuide() {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     if (recipe?.id && recipe?.name) {
       eventService.logCookStart(recipe.id, recipe.name, 'user_recipes');
-    }
-
-    if (recipe) {
-      startCookingSession({
-        recipeId: recipe.id,
-        recipeName: recipe.name ?? '',
-        currentStep: 0,
-        totalSteps: recipe.steps?.length ?? 0,
-        isCustom: true,
-        from,
-      });
     }
 
     router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-ingredients'));

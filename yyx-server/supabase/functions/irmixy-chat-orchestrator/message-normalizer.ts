@@ -61,6 +61,11 @@ function summarizeToolContent(content: string): string {
       return `Recipe "${parsed.recipe.suggestedName}" is ready and displayed to the user as an interactive card. Do not list ingredients, steps, or parameters — just confirm briefly.`;
     }
 
+    // Dedup result — pass through the human-readable guidance
+    if (parsed?.allFilteredByDedup === true && parsed?.message) {
+      return String(parsed.message);
+    }
+
     // Retrieval result (saved recipes)
     if (parsed?.recipes && Array.isArray(parsed.recipes)) {
       return `Found ${parsed.recipes.length} saved recipe(s). The user can see them.`;

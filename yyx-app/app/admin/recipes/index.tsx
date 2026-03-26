@@ -33,7 +33,7 @@ export default function RecipesAdminPage() {
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [publishAction, setPublishAction] = useState<'publish' | 'unpublish'>('publish');
   const [recipeToPublish, setRecipeToPublish] = useState<AdminRecipe | null>(null);
-  const [displayLocale, setDisplayLocale] = useState('es');
+  const [displayLocale, setDisplayLocale] = useState(i18n.locale);
 
   useEffect(() => {
     fetchRecipes();

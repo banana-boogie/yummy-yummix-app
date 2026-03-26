@@ -26,7 +26,7 @@ export default function IngredientsAdminPage() {
     handleDeleteIngredient,
   } = useIngredients();
 
-  const [displayLocale, setDisplayLocale] = useState('es');
+  const [displayLocale, setDisplayLocale] = useState(i18n.locale);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<AdminIngredient | null>(null);
 

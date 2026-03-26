@@ -435,21 +435,6 @@ describe('useMessageStreaming', () => {
       expect(callArgs[8]).toEqual(expect.objectContaining({ cookingContext }));
     });
 
-    it('passes confirmedToolCall in options when provided', async () => {
-      const params = createDefaultParams();
-      setupMockSendMessage({ autoResolve: true });
-
-      const { result } = renderHook(() => useMessageStreaming(params));
-
-      const confirmedToolCall = { name: 'generate_custom_recipe', arguments: { description: 'pasta' } };
-      await act(async () => {
-        result.current.handleSendMessage('Make pasta', { confirmedToolCall });
-        jest.runAllTimers();
-      });
-
-      const callArgs = mockSendMessageImpl.mock.calls[0];
-      expect(callArgs[8]).toEqual(expect.objectContaining({ confirmedToolCall }));
-    });
   });
 
   // ============================================================

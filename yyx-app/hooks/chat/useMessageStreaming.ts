@@ -134,7 +134,7 @@ export function useMessageStreaming({
         });
     }, [setMessages]);
 
-    const handleSendMessage = useCallback(async (messageText: string, options?: { silent?: boolean; confirmedToolCall?: { name: string; arguments: Record<string, unknown> } }) => {
+    const handleSendMessage = useCallback(async (messageText: string, options?: { silent?: boolean }) => {
         if (!messageText.trim() || !user || isLoading) return;
 
         onResumeSessionClear();
@@ -325,7 +325,6 @@ export function useMessageStreaming({
                 },
                 {
                     ...(cookingContext ? { cookingContext } : {}),
-                    ...(options?.confirmedToolCall ? { confirmedToolCall: options.confirmedToolCall } : {}),
                 }, // options
                 onBudgetWarning,
             );

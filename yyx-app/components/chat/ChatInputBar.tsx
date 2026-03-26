@@ -138,7 +138,7 @@ export function ChatInputBar({
             className="border-t border-border-default bg-background-default"
             style={{
                 paddingTop: SPACING.sm,
-                paddingBottom: bottomInset > 0 ? 0 : SPACING.sm,
+                paddingBottom: bottomInset > 0 ? 0 : SPACING.lg,
                 marginBottom: bottomInset > 0 ? SPACING.md : 0,
             }}
         >

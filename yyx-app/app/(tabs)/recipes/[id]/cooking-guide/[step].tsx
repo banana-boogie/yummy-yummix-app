@@ -8,12 +8,11 @@ import { IrmixyCookingModal } from "@/components/cooking-guide/IrmixyCookingModa
 import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import { Text } from "@/components/common/Text";
 import i18n from "@/i18n";
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo } from "react";
 import { StepNavigationButtons } from '@/components/cooking-guide/CookingGuideStepNavigationButtons';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
 import { eventService } from '@/services/eventService';
-import { useCookingSession } from '@/contexts/CookingSessionContext';
 import { COLORS } from '@/constants/design-tokens';
 
 const contentContainerStyle = { paddingHorizontal: 0 } as const;
@@ -21,7 +20,6 @@ const contentContainerStyle = { paddingHorizontal: 0 } as const;
 export default function CookingStep() {
     const { id, step: stepParam } = useLocalSearchParams();
     const { recipe } = useRecipe(id as string);
-    const { updateStep, clearCookingSession } = useCookingSession();
     const irmixy = useIrmixyHelperChat();
 
     const currentStepNumber = Number(stepParam);
@@ -29,13 +27,6 @@ export default function CookingStep() {
     const currentStep = steps?.[currentStepNumber - 1];
     const totalSteps = steps?.length || 0;
     const isLastStep = currentStepNumber === totalSteps;
-
-    // Keep CookingSessionContext in sync when the step changes
-    useEffect(() => {
-        if (recipe?.name && totalSteps > 0) {
-            updateStep(currentStepNumber);
-        }
-    }, [currentStepNumber, recipe?.name, totalSteps, updateStep]);
 
     const handleNavigation = useMemo(() => ({
         back: () => {
@@ -53,7 +44,6 @@ export default function CookingStep() {
             if (recipe?.id && recipe?.name) {
                 eventService.logCookComplete(recipe.id, recipe.name);
             }
-            clearCookingSession();
             router.replace('/(tabs)/recipes');
         }
     }), [id, currentStepNumber, recipe?.id, recipe?.name]);

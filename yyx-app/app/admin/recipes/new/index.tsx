@@ -29,7 +29,7 @@ import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/share
 export default function NewRecipePage() {
   const router = useRouter();
   const [showAlert, setShowAlert] = useState(false);
-  const [displayLocale, setDisplayLocale] = useState('es');
+  const [displayLocale, setDisplayLocale] = useState(i18n.locale);
   const [alertMessage, setAlertMessage] = useState('');
   const [alertSuccess, setAlertSuccess] = useState(false);
 

@@ -86,20 +86,26 @@ export function ChatScreen({
     const queryClient = useQueryClient();
     const insets = useSafeAreaInsets();
 
-    // --- Message state (lifted or local) ---
-    const [internalMessages, setInternalMessages] = useState<ChatMessage[]>([]);
-    const messages = externalMessages ?? internalMessages;
+    // --- Message state ---
+    // Always use internal state for rendering. When onMessagesChange is provided,
+    // also sync to external store (e.g. context ref) for persistence.
+    // Initialize from externalMessages if provided.
+    const [internalMessages, setInternalMessages] = useState<ChatMessage[]>(
+        () => externalMessages ?? [],
+    );
+    const messages = internalMessages;
 
     const messagesRef = useRef<ChatMessage[]>(messages);
     messagesRef.current = messages;
 
     const setMessages = useCallback((update: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
         const newMessages = typeof update === 'function' ? update(messagesRef.current) : update;
-        if (onMessagesChange) {
-            onMessagesChange(newMessages);
-        } else {
-            setInternalMessages(newMessages);
-        }
+        // Sync ref immediately so rapid successive calls (e.g. stream chunk flushes)
+        // read the latest state even before React re-renders.
+        messagesRef.current = newMessages;
+        setInternalMessages(newMessages);
+        // Also sync to external store for persistence (e.g. across step navigation)
+        onMessagesChange?.(newMessages);
     }, [onMessagesChange]);
 
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
@@ -108,9 +114,6 @@ export function ChatScreen({
 
     // Shared ref between scroll and streaming hooks
     const hasRecipeInCurrentStreamRef = useRef(false);
-
-    // Track message IDs whose recipe_generation chips have been consumed (pressed)
-    const consumedChipMessageIds = useRef(new Set<string>());
 
     // --- Scroll hook (called first — provides refs to streaming hook) ---
     const {
@@ -352,30 +355,13 @@ export function ChatScreen({
 
     const handleSuggestionPress = useCallback((suggestion: Suggestion) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        const { toolName, ...toolArgs } = suggestion.metadata ?? {};
-        const confirmedToolCall = toolName && typeof toolName === 'string'
-            ? { name: toolName, arguments: toolArgs }
-            : undefined;
-
-        // Mark the source message's chip as consumed so it disappears
-        if (suggestion.type === 'recipe_generation' && latestMessage) {
-            consumedChipMessageIds.current.add(latestMessage.id);
-        }
-
-        handleSendMessage(suggestion.message, { silent: true, confirmedToolCall });
-    }, [handleSendMessage, latestMessage]);
+        handleSendMessage(suggestion.message, { silent: true });
+    }, [handleSendMessage]);
 
     const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
         const isLast = item.id === lastMessageId;
 
-        // Recipe generation chips persist on their message (they're action buttons the user needs to tap).
-        // They stay visible even while a new response is loading — only hide when recipe generation starts.
-        // Regular suggestion chips only show on the last assistant message when not loading.
-        const recipeGenChips = item.role === 'assistant' && item.suggestions?.filter(s => s.type === 'recipe_generation');
-        const showRecipeGenChips = !isRecipeGenerating && recipeGenChips && recipeGenChips.length > 0
-            && !consumedChipMessageIds.current.has(item.id);
-        const showSuggestions = isLast && item.role === 'assistant' && lastAssistantSuggestions && lastAssistantSuggestions.length > 0
-            && !lastAssistantSuggestions.some(s => s.type === 'recipe_generation');
+        const showSuggestions = isLast && item.role === 'assistant' && lastAssistantSuggestions && lastAssistantSuggestions.length > 0;
 
         return (
             <>
@@ -391,12 +377,6 @@ export function ChatScreen({
                     onStartCooking={handleStartCooking}
                     onActionPress={handleActionPress}
                 />
-                {showRecipeGenChips && (
-                    <SuggestionChips
-                        suggestions={recipeGenChips!}
-                        onPress={handleSuggestionPress}
-                    />
-                )}
                 {showSuggestions && (
                     <SuggestionChips
                         suggestions={lastAssistantSuggestions!}

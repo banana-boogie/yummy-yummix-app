@@ -6,6 +6,7 @@ export const common = {
   ok: "OK",
   save: "Save",
   saved: "Saved",
+  saving: "Saving...",
   back: "Back",
   close: "Close",
   remove: "Remove",

@@ -215,10 +215,8 @@ export async function generateCustomRecipe(
 
   // Validate Thermomix parameters if present
   recipe.steps = validateThermomixSteps(recipe.steps);
-
-  // Check Thermomix usage if user has Thermomix
   const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
-  validateThermomixUsage(recipe, isThermomixUser);
+
   timings.thermomix_validation_ms = Math.round(performance.now() - phaseStart);
   phaseStart = performance.now();
 
@@ -1378,46 +1376,6 @@ export async function enrichKitchenTools(
       name: t.name,
       notes: t.notes || undefined,
     }));
-  }
-}
-
-/**
- * Validate that Thermomix-enabled recipes include proper parameters
- */
-export function validateThermomixUsage(
-  recipe: GeneratedRecipe,
-  hasThermomix: boolean,
-): void {
-  if (!hasThermomix) return;
-
-  const thermomixSteps = recipe.steps.filter(
-    (step) =>
-      step.thermomixTime || step.thermomixTemp || step.thermomixSpeed ||
-      step.thermomixMode,
-  );
-
-  const totalSteps = recipe.steps.length;
-  const thermomixPercentage = (thermomixSteps.length / totalSteps) * 100;
-
-  console.log("[Thermomix Validation]", {
-    totalSteps,
-    thermomixSteps: thermomixSteps.length,
-    percentage: thermomixPercentage.toFixed(1) + "%",
-  });
-
-  if (thermomixSteps.length === 0) {
-    console.warn(
-      "[Thermomix Validation] WARNING: User has Thermomix but NO steps use it!",
-      {
-        recipeName: recipe.suggestedName,
-        recommendation: "AI may not be following system prompt",
-      },
-    );
-  } else if (thermomixPercentage < 30) {
-    console.warn("[Thermomix Validation] Low Thermomix usage:", {
-      recipeName: recipe.suggestedName,
-      percentage: thermomixPercentage.toFixed(1) + "%",
-    });
   }
 }
 

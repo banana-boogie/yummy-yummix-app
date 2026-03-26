@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Animated, FlatList, View, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useScrollToTop } from '@react-navigation/native';
 import { useRecipes } from '@/hooks/useRecipes';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { SPACING } from '@/constants/design-tokens';
@@ -100,21 +100,9 @@ const Recipes = () => {
     }
   }, [animateHeader]);
 
-  // J3: Scroll-to-top on tab re-press
+  // Scroll-to-top on tab re-press (React Navigation built-in)
   const listRef = useRef<FlatList>(null);
-  const navigation = useNavigation();
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('tabPress', (e: { preventDefault: () => void }) => {
-      if (navigation.isFocused()) {
-        e.preventDefault();
-        listRef.current?.scrollToOffset({ offset: 0, animated: true });
-        // Show header if it was hidden
-        animateHeader(true);
-      }
-    });
-    return unsubscribe;
-  }, [navigation, animateHeader]);
+  useScrollToTop(listRef);
 
   const displayName = userProfile?.name || '';
 

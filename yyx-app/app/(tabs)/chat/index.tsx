@@ -13,7 +13,6 @@ import { Stack } from 'expo-router';
 import { ChatScreen } from '@/components/chat/ChatScreen';
 import { VoiceChatScreen } from '@/components/chat/VoiceChatScreen';
 import { ChatSessionsMenu } from '@/components/chat/ChatSessionsMenu';
-import { ReturnToCookingBanner } from '@/components/chat/ReturnToCookingBanner';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import { ChatMessage } from '@/services/chatService';
@@ -113,7 +112,6 @@ export default function ChatPage() {
                         ) : undefined,
                 }}
             />
-            <ReturnToCookingBanner />
             {mode === 'voice' ? (
                 <VoiceChatScreen
                     sessionId={sessionId}

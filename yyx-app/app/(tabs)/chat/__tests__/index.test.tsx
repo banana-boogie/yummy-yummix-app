@@ -51,7 +51,7 @@ jest.mock('@/components/chat/ChatSessionsMenu', () => ({
 }));
 
 jest.mock('@/contexts/CookingSessionContext', () => ({
-  useCookingSession: () => ({ activeCookingSession: null, clearCookingSession: jest.fn() }),
+  useCookingSession: () => ({ irmixyChatSessionId: null, irmixyChatMessages: [], irmixyVoiceTranscriptMessages: [] }),
   CookingSessionProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 describe('chat route web defaults', () => {

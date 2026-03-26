@@ -37,11 +37,10 @@ import { ensureSessionId } from "./session.ts";
 import { detectMealContext } from "./meal-context.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import type { CookingContext } from "./system-prompt.ts";
-import { callAIStream, callAIStreamWithTools } from "./ai-calls.ts";
+import { callAIStreamWithTools } from "./ai-calls.ts";
 import { errorResponse, finalizeResponse } from "./response-builder.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
 import { buildActions } from "./action-builder.ts";
-import { buildRecipeConfirmationChip } from "./suggestions.ts";
 import {
   BudgetCheckUnavailableError,
   checkTextBudget,
@@ -117,10 +116,6 @@ serve(async (req) => {
           currentStep: string;
           stepInstructions?: string;
         };
-        confirmedToolCall?: {
-          name: string;
-          arguments: Record<string, unknown>;
-        };
       }
       | null = null;
     try {
@@ -148,18 +143,9 @@ serve(async (req) => {
       }
       : undefined;
 
-    // Extract confirmed tool call from suggestion chip metadata
-    const confirmedToolCall = body?.confirmedToolCall &&
-        typeof body.confirmedToolCall.name === "string" &&
-        body.confirmedToolCall.arguments &&
-        typeof body.confirmedToolCall.arguments === "object"
-      ? body.confirmedToolCall
-      : undefined;
-
     log.info("Request received", {
       hasSessionId: !!sessionId,
       messageLength: message.length,
-      hasConfirmedToolCall: !!confirmedToolCall,
     });
 
     // Validate request
@@ -283,7 +269,6 @@ serve(async (req) => {
       costContext,
       budget.warningData,
       cookingContext,
-      confirmedToolCall,
     );
   } catch (error) {
     log.error("Orchestrator error", error);
@@ -467,76 +452,6 @@ function getToolStatus(toolName: string): string {
 }
 
 /**
- * Stream the AI's text-only response via SSE with heartbeat and usage logging.
- * Used by the confirmed recipe fast path (no tool calling needed).
- */
-async function streamAIResponse(opts: {
-  streamMessages: ChatMessage[];
-  send: (data: Record<string, unknown>) => void;
-  signal: AbortSignal;
-  costContext?: CostContext;
-  usageContext: AIUsageLogContext;
-  requestType: string;
-}): Promise<string> {
-  const {
-    streamMessages,
-    send,
-    signal,
-    costContext,
-    usageContext,
-    requestType,
-  } = opts;
-
-  const heartbeatId = setInterval(() => {
-    send({ type: "heartbeat" });
-  }, HEARTBEAT_INTERVAL_MS);
-  let heartbeatCleared = false;
-
-  const streamStart = performance.now();
-
-  let finalText: string;
-  try {
-    const streamResult = await callAIStream(
-      streamMessages,
-      (token) => {
-        if (!heartbeatCleared) {
-          clearInterval(heartbeatId);
-          heartbeatCleared = true;
-        }
-        send({ type: "content", content: token });
-      },
-      signal,
-      costContext,
-    );
-    finalText = streamResult.content;
-
-    fireUsageLog(
-      usageContext,
-      "response_stream",
-      "success",
-      streamStart,
-      streamResult,
-      { request_type: requestType },
-    );
-  } catch (error) {
-    fireUsageLog(
-      usageContext,
-      "response_stream",
-      "error",
-      streamStart,
-      undefined,
-      { request_type: requestType },
-    );
-    throw error;
-  } finally {
-    if (!heartbeatCleared) clearInterval(heartbeatId);
-  }
-
-  send({ type: "stream_complete" });
-  return finalText;
-}
-
-/**
  * Handle streaming request with SSE.
  */
 function handleStreamingRequest(
@@ -550,7 +465,6 @@ function handleStreamingRequest(
   costContext?: CostContext,
   budgetWarning?: { usedUsd: number; budgetUsd: number },
   cookingContext?: CookingContext,
-  confirmedToolCall?: { name: string; arguments: Record<string, unknown> },
 ): Response {
   const encoder = new TextEncoder();
 
@@ -630,14 +544,6 @@ function handleStreamingRequest(
         }
         send({ type: "status", status: "thinking" });
 
-        // ── Confirmed recipe fast path ──
-        // When user taps a confirmation chip, the frontend sends the tool args
-        // via the confirmedToolCall field in the request body.
-        const confirmedRecipeArgs =
-          confirmedToolCall?.name === "generate_custom_recipe"
-            ? confirmedToolCall.arguments
-            : null;
-
         const { userContext, messages } = await buildRequestContext(
           supabase,
           userId,
@@ -661,102 +567,6 @@ function handleStreamingRequest(
           functionName: "irmixy-chat-orchestrator",
         };
 
-        // ── Confirmed recipe: execute tool directly, then stream response ──
-        if (confirmedRecipeArgs) {
-          log.info("Confirmed recipe generation — executing directly", {
-            description: confirmedRecipeArgs.recipeDescription,
-          });
-
-          send({ type: "status", status: "cooking_it_up" });
-
-          const syntheticToolCall: ToolCall = {
-            id: `call_${crypto.randomUUID()}`,
-            type: "function",
-            function: {
-              name: "generate_custom_recipe",
-              arguments: JSON.stringify(confirmedRecipeArgs),
-            },
-          };
-
-          const onPartialRecipe: PartialRecipeCallback = (partialRecipe) => {
-            send({ type: "recipe_partial", recipe: partialRecipe });
-            send({ type: "status", status: "enriching" });
-          };
-
-          const heartbeatId = setInterval(() => {
-            send({ type: "heartbeat" });
-          }, HEARTBEAT_INTERVAL_MS);
-
-          let toolResult: ToolExecutionResult;
-          try {
-            toolResult = await executeToolCalls(
-              supabase,
-              [syntheticToolCall],
-              userContext,
-              log,
-              usageContext,
-              onPartialRecipe,
-              costContext,
-            );
-          } finally {
-            clearInterval(heartbeatId);
-            send({ type: "status", status: "thinking" });
-          }
-          timings.tool_exec_ms = Math.round(performance.now() - phaseStart);
-          phaseStart = performance.now();
-
-          recipes = toolResult.recipes;
-          customRecipeResult = toolResult.customRecipeResult;
-
-          // Build messages for streaming response (AI summarizes the result)
-          const streamMessages = [
-            ...messages,
-            {
-              role: "assistant" as const,
-              content: null,
-              tool_calls: [syntheticToolCall],
-            },
-            ...toolResult.toolMessages,
-          ];
-
-          const finalText = await streamAIResponse({
-            streamMessages,
-            send,
-            signal,
-            costContext,
-            usageContext,
-            requestType: "recipe_response",
-          });
-          timings.stream_ms = Math.round(performance.now() - phaseStart);
-          phaseStart = performance.now();
-
-          const actions = buildActions(userContext.language, undefined);
-          const response = await finalizeResponse(
-            supabase,
-            sessionId,
-            message,
-            finalText,
-            userContext,
-            recipes,
-            customRecipeResult,
-            actions.length > 0 ? actions : undefined,
-            undefined,
-            { skipUserMessage: true },
-          );
-          timings.finalize_ms = Math.round(performance.now() - phaseStart);
-          timings.total_ms = Math.round(performance.now() - startTime);
-
-          log.info("Request complete", {
-            type: "recipe_gen_confirmed",
-            ...timings,
-          });
-
-          send({ type: "done", response });
-          clearStreamTimeout();
-          safeClose();
-          return;
-        }
-
         // ── Streaming tool loop ──
         // Single streaming call with tool support. Text from tool-calling
         // iterations is suppressed (not streamed to user). Only the final
@@ -765,7 +575,6 @@ function handleStreamingRequest(
         let selectedModel = "unknown";
         let loopMessages = [...messages];
         let finalText = "";
-        let intercepted = false;
         // Whether we've entered a tool-calling iteration (suppresses text streaming)
         let isToolIteration = false;
         let iteration = 0;
@@ -857,55 +666,6 @@ function handleStreamingRequest(
           // until the final response (which won't have tool calls)
           isToolIteration = true;
 
-          // ── Intercept generate_custom_recipe ──
-          const recipeGenToolCall = streamResult.toolCalls.find(
-            (tc) => tc.function.name === "generate_custom_recipe",
-          );
-          if (recipeGenToolCall) {
-            log.info(
-              "Intercepted generate_custom_recipe — sending confirmation chip",
-            );
-            let toolArgs: Record<string, unknown>;
-            try {
-              toolArgs = JSON.parse(recipeGenToolCall.function.arguments);
-            } catch {
-              toolArgs = {};
-            }
-
-            send({ type: "stream_complete" });
-
-            const chip = buildRecipeConfirmationChip(
-              toolArgs,
-              userContext.language,
-            );
-
-            const response = await finalizeResponse(
-              supabase,
-              sessionId,
-              message,
-              finalText,
-              userContext,
-              recipes,
-              undefined,
-              undefined,
-              [chip],
-            );
-
-            timings.total_ms = Math.round(performance.now() - startTime);
-            log.info("Request complete (recipe intercepted)", {
-              type: "recipe_intercepted",
-              model: selectedModel,
-              iteration,
-              ...timings,
-            });
-
-            send({ type: "done", response });
-            clearStreamTimeout();
-            safeClose();
-            intercepted = true;
-            break;
-          }
-
           // Execute tool calls
           const toolName = streamResult.toolCalls[0].function.name;
           send({ type: "status", status: getToolStatus(toolName) });
@@ -972,13 +732,11 @@ function handleStreamingRequest(
           send({ type: "status", status: "thinking" });
         }
 
-        if (iteration >= MAX_TOOL_LOOP_ITERATIONS && !intercepted) {
+        if (iteration >= MAX_TOOL_LOOP_ITERATIONS) {
           log.warn("Tool loop reached max iterations", {
             maxIterations: MAX_TOOL_LOOP_ITERATIONS,
           });
         }
-
-        if (intercepted) return;
 
         send({ type: "stream_complete" });
         timings.stream_ms = Math.round(performance.now() - phaseStart);

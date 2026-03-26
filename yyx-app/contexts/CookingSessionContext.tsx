@@ -1,37 +1,22 @@
 /**
- * Persists active cooking session state across tab navigation.
- * When a user is in the cooking guide and switches to Irmixy chat,
- * this context remembers where they were so they can return.
+ * Persists Irmixy chat state (session ID, messages, voice transcripts)
+ * across cooking step navigation so conversations carry over.
  *
- * Also persists Irmixy chat state (session ID, messages, voice transcripts)
- * so conversations carry over when navigating between cooking steps.
+ * Messages use refs (not state) to avoid re-rendering all context consumers
+ * on every stream token. The ChatScreen manages its own render cycle via
+ * the onMessagesChange prop — the context is only for persistence.
  */
-import React, { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useRef, useCallback, useMemo, type ReactNode } from 'react';
 import type { ChatMessage } from '@/services/chatService';
 
-export interface CookingSession {
-  recipeId: string;
-  recipeName: string;
-  currentStep: number;
-  totalSteps: number;
-  /** Whether this is a custom (AI-generated) recipe */
-  isCustom: boolean;
-  /** Optional 'from' param for custom recipe navigation */
-  from?: string;
-}
-
 interface CookingSessionContextType {
-  activeCookingSession: CookingSession | null;
-  startCookingSession: (session: CookingSession) => void;
-  updateStep: (step: number) => void;
-  clearCookingSession: () => void;
   /** Irmixy chat session ID — persists across step navigation */
   irmixyChatSessionId: string | null;
   setIrmixyChatSessionId: (id: string | null) => void;
-  /** Irmixy text chat messages — persists across step navigation */
+  /** Irmixy text chat messages — persists across step navigation (ref-backed, no re-render) */
   irmixyChatMessages: ChatMessage[];
   setIrmixyChatMessages: (messages: ChatMessage[]) => void;
-  /** Irmixy voice transcript messages — persists across step navigation */
+  /** Irmixy voice transcript messages — persists across step navigation (ref-backed, no re-render) */
   irmixyVoiceTranscriptMessages: ChatMessage[];
   setIrmixyVoiceTranscriptMessages: (messages: ChatMessage[]) => void;
 }
@@ -39,10 +24,6 @@ interface CookingSessionContextType {
 const noop = () => {};
 
 const CookingSessionContext = createContext<CookingSessionContextType>({
-  activeCookingSession: null,
-  startCookingSession: noop,
-  updateStep: noop,
-  clearCookingSession: noop,
   irmixyChatSessionId: null,
   setIrmixyChatSessionId: noop,
   irmixyChatMessages: [],
@@ -52,41 +33,32 @@ const CookingSessionContext = createContext<CookingSessionContextType>({
 });
 
 export function CookingSessionProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<CookingSession | null>(null);
   const [irmixyChatSessionId, setIrmixyChatSessionId] = useState<string | null>(null);
-  const [irmixyChatMessages, setIrmixyChatMessages] = useState<ChatMessage[]>([]);
-  const [irmixyVoiceTranscriptMessages, setIrmixyVoiceTranscriptMessages] = useState<ChatMessage[]>([]);
 
-  const startCookingSession = useCallback((newSession: CookingSession) => {
-    setSession(newSession);
+  // Use refs for messages to avoid re-rendering all consumers on every stream token.
+  // The ChatScreen handles its own rendering; the context just stores for persistence.
+  const chatMessagesRef = useRef<ChatMessage[]>([]);
+  const voiceTranscriptMessagesRef = useRef<ChatMessage[]>([]);
+
+  const setChatMessages = useCallback((messages: ChatMessage[]) => {
+    chatMessagesRef.current = messages;
   }, []);
 
-  const updateStep = useCallback((step: number) => {
-    setSession((prev) => (prev ? { ...prev, currentStep: step } : null));
+  const setVoiceTranscriptMessages = useCallback((messages: ChatMessage[]) => {
+    voiceTranscriptMessagesRef.current = messages;
   }, []);
 
-  const clearCookingSession = useCallback(() => {
-    setSession(null);
-    setIrmixyChatSessionId(null);
-    setIrmixyChatMessages([]);
-    setIrmixyVoiceTranscriptMessages([]);
-  }, []);
-
+  // Only re-render consumers when session ID changes (not on every message update)
   const value = useMemo<CookingSessionContextType>(
     () => ({
-      activeCookingSession: session,
-      startCookingSession,
-      updateStep,
-      clearCookingSession,
       irmixyChatSessionId,
       setIrmixyChatSessionId,
-      irmixyChatMessages,
-      setIrmixyChatMessages,
-      irmixyVoiceTranscriptMessages,
-      setIrmixyVoiceTranscriptMessages,
+      get irmixyChatMessages() { return chatMessagesRef.current; },
+      setIrmixyChatMessages: setChatMessages,
+      get irmixyVoiceTranscriptMessages() { return voiceTranscriptMessagesRef.current; },
+      setIrmixyVoiceTranscriptMessages: setVoiceTranscriptMessages,
     }),
-    [session, startCookingSession, updateStep, clearCookingSession,
-     irmixyChatSessionId, irmixyChatMessages, irmixyVoiceTranscriptMessages],
+    [irmixyChatSessionId, setChatMessages, setVoiceTranscriptMessages],
   );
 
   return (

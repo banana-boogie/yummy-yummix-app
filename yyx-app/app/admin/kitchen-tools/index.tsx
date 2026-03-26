@@ -28,7 +28,7 @@ export default function KitchenToolsAdminPage() {
     handleDeleteKitchenTool,
   } = useKitchenTools();
 
-  const [displayLocale, setDisplayLocale] = useState('es');
+  const [displayLocale, setDisplayLocale] = useState(i18n.locale);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingKitchenTool, setEditingKitchenTool] = useState<AdminKitchenTool | null>(null);
 
