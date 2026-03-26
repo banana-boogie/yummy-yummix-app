@@ -136,14 +136,14 @@ export function RestTimer({ instruction, durationSeconds }: RestTimerProps) {
             setIsRunning(false);
             setIsComplete(true);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            // Fire immediate notification for foreground in-app banner.
-            // The scheduled background notification already fired or will fire momentarily.
+            // Cancel the scheduled background notification before firing an immediate one
+            // to prevent double-notification when the timer completes in the foreground.
+            cancelScheduledNotification();
             notificationService.fireTimerNotification(
                 i18n.t('recipes.cookingGuide.timerDone'),
             );
-            scheduledNotificationRef.current = null;
         }
-    }, [remainingSeconds, isRunning]);
+    }, [remainingSeconds, isRunning, cancelScheduledNotification]);
 
     const handleStartPause = useCallback(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

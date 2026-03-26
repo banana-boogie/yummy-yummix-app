@@ -575,8 +575,6 @@ function handleStreamingRequest(
         let selectedModel = "unknown";
         let loopMessages = [...messages];
         let finalText = "";
-        // Whether we've entered a tool-calling iteration (suppresses text streaming)
-        let isToolIteration = false;
         let iteration = 0;
 
         for (
@@ -584,9 +582,7 @@ function handleStreamingRequest(
           iteration < MAX_TOOL_LOOP_ITERATIONS;
           iteration++
         ) {
-          // Reset each iteration: assume this is the final one (text streams).
-          // If tool calls are detected below, we set it back to true.
-          isToolIteration = false;
+          const iterationTextBuffer: string[] = [];
 
           if (signal.aborted) {
             log.info("Request aborted by client (tool loop)");
@@ -612,10 +608,8 @@ function handleStreamingRequest(
                   clearInterval(heartbeatId);
                   heartbeatCleared = true;
                 }
-                // Only stream text to user on the final (non-tool) iteration
-                if (!isToolIteration) {
-                  send({ type: "content", content: token });
-                }
+                // Buffer text — only flushed if this iteration has no tool calls
+                iterationTextBuffer.push(token);
               },
               signal,
               costContext,
@@ -651,20 +645,20 @@ function handleStreamingRequest(
             },
           );
 
-          // No tool calls → this was the final iteration, text was streamed
+          // No tool calls → this was the final iteration, flush buffered text
           if (!streamResult.toolCalls?.length) {
+            for (const chunk of iterationTextBuffer) {
+              send({ type: "content", content: chunk });
+            }
             finalText = streamResult.content;
             break;
           }
+          // Tool iteration — discard buffered text (narration like "Let me search...")
 
           timings[`llm_iter${iteration}_ms`] = Math.round(
             performance.now() - phaseStart,
           );
           phaseStart = performance.now();
-
-          // From now on, suppress text streaming for subsequent iterations
-          // until the final response (which won't have tool calls)
-          isToolIteration = true;
 
           // Execute tool calls
           const toolName = streamResult.toolCalls[0].function.name;
