@@ -36,10 +36,10 @@ import { createLogger, generateRequestId, type Logger } from "./logger.ts";
 import { ensureSessionId } from "./session.ts";
 import { detectMealContext } from "./meal-context.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
-import { callAI, callAIStream } from "./ai-calls.ts";
+import type { CookingContext } from "./system-prompt.ts";
+import { callAIStreamWithTools } from "./ai-calls.ts";
 import { errorResponse, finalizeResponse } from "./response-builder.ts";
 import { logAIUsage } from "../_shared/usage-logger.ts";
-import { detectTextToolCall, stripToolCallText } from "./tool-call-text.ts";
 import { buildActions } from "./action-builder.ts";
 import {
   BudgetCheckUnavailableError,
@@ -54,6 +54,7 @@ import type { CostContext } from "../_shared/ai-gateway/types.ts";
 
 const STREAM_TIMEOUT_MS = 30_000;
 const HEARTBEAT_INTERVAL_MS = 15_000;
+const MAX_TOOL_LOOP_ITERATIONS = 5;
 
 /** Build and fire a usage log entry. Keeps orchestrator DRY. */
 function fireUsageLog(
@@ -107,7 +108,15 @@ serve(async (req) => {
 
   try {
     let body:
-      | { message: string; sessionId?: string }
+      | {
+        message: string;
+        sessionId?: string;
+        cookingContext?: {
+          recipeTitle: string;
+          currentStep: string;
+          stepInstructions?: string;
+        };
+      }
       | null = null;
     try {
       body = await req.json();
@@ -118,6 +127,20 @@ serve(async (req) => {
     const message = typeof body?.message === "string" ? body.message : "";
     const sessionId = typeof body?.sessionId === "string"
       ? body.sessionId
+      : undefined;
+
+    // Extract cooking context if provided
+    const cookingContext: CookingContext | undefined = body?.cookingContext &&
+        typeof body.cookingContext.recipeTitle === "string" &&
+        typeof body.cookingContext.currentStep === "string"
+      ? {
+        recipeTitle: sanitizeContent(body.cookingContext.recipeTitle),
+        currentStep: sanitizeContent(body.cookingContext.currentStep),
+        stepInstructions: typeof body.cookingContext.stepInstructions ===
+            "string"
+          ? sanitizeContent(body.cookingContext.stepInstructions)
+          : undefined,
+      }
       : undefined;
 
     log.info("Request received", {
@@ -245,6 +268,7 @@ serve(async (req) => {
       req.signal,
       costContext,
       budget.warningData,
+      cookingContext,
     );
   } catch (error) {
     log.error("Orchestrator error", error);
@@ -275,6 +299,7 @@ async function buildRequestContext(
   userId: string,
   sessionId: string | undefined,
   message: string,
+  cookingContext?: CookingContext,
 ): Promise<RequestContext> {
   const contextBuilder = createContextBuilder(supabase);
   const userContext = await contextBuilder.buildContext(userId, sessionId);
@@ -282,7 +307,11 @@ async function buildRequestContext(
   // Detect meal context from user message
   const mealContext = detectMealContext(message);
 
-  const systemPrompt = buildSystemPrompt(userContext, mealContext);
+  const systemPrompt = buildSystemPrompt(
+    userContext,
+    mealContext,
+    cookingContext,
+  );
 
   // Build message array from conversation history.
   // Tool result summaries are injected as system-role messages (not appended to
@@ -435,6 +464,7 @@ function handleStreamingRequest(
   reqSignal?: AbortSignal,
   costContext?: CostContext,
   budgetWarning?: { usedUsd: number; budgetUsd: number },
+  cookingContext?: CookingContext,
 ): Response {
   const encoder = new TextEncoder();
 
@@ -519,6 +549,7 @@ function handleStreamingRequest(
           userId,
           sessionId,
           message,
+          cookingContext,
         );
         timings.context_build_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
@@ -529,7 +560,6 @@ function handleStreamingRequest(
         let appActionResult:
           | import("../_shared/tools/app-action.ts").AppActionResult
           | undefined;
-        let streamMessages = messages;
         const usageContext: AIUsageLogContext = {
           userId,
           sessionId,
@@ -537,110 +567,109 @@ function handleStreamingRequest(
           functionName: "irmixy-chat-orchestrator",
         };
 
+        // ── Streaming tool loop ──
+        // Single streaming call with tool support. Text from tool-calling
+        // iterations is suppressed (not streamed to user). Only the final
+        // iteration (no tool calls) streams text to the user. This matches
+        // the old behavior and avoids persisting narration text.
         let selectedModel = "unknown";
-        const llmCallStart = performance.now();
-        let firstResponse: Awaited<ReturnType<typeof callAI>>;
-        try {
-          firstResponse = await callAI(
-            messages,
-            true,
-            "auto",
-            signal,
-            costContext,
-          );
-        } catch (error) {
+        let loopMessages = [...messages];
+        let finalText = "";
+        let iteration = 0;
+
+        for (
+          ;
+          iteration < MAX_TOOL_LOOP_ITERATIONS;
+          iteration++
+        ) {
+          const iterationTextBuffer: string[] = [];
+
+          if (signal.aborted) {
+            log.info("Request aborted by client (tool loop)");
+            clearStreamTimeout();
+            safeClose();
+            return;
+          }
+
+          const llmCallStart = performance.now();
+          let streamResult: Awaited<
+            ReturnType<typeof callAIStreamWithTools>
+          >;
+          let heartbeatCleared = false;
+          const heartbeatId = setInterval(() => {
+            send({ type: "heartbeat" });
+          }, HEARTBEAT_INTERVAL_MS);
+
+          try {
+            streamResult = await callAIStreamWithTools(
+              loopMessages,
+              (token) => {
+                if (!heartbeatCleared) {
+                  clearInterval(heartbeatId);
+                  heartbeatCleared = true;
+                }
+                // Buffer text — only flushed if this iteration has no tool calls
+                iterationTextBuffer.push(token);
+              },
+              signal,
+              costContext,
+            );
+          } catch (error) {
+            clearInterval(heartbeatId);
+            fireUsageLog(
+              usageContext,
+              "tool_decision",
+              "error",
+              llmCallStart,
+              undefined,
+              { request_type: "tool_loop", iteration },
+            );
+            throw error;
+          } finally {
+            if (!heartbeatCleared) clearInterval(heartbeatId);
+          }
+
+          selectedModel = streamResult.model;
+
           fireUsageLog(
             usageContext,
-            "tool_decision",
-            "error",
+            iteration === 0 ? "tool_decision" : "response_stream",
+            "success",
             llmCallStart,
-            undefined,
+            streamResult,
             {
-              request_type: "tool_decision",
+              request_type: "tool_loop",
+              iteration,
+              has_tool_calls: !!streamResult.toolCalls?.length,
+              tool_names: streamResult.toolCalls?.map((tc) => tc.function.name),
             },
           );
-          throw error;
-        }
-        selectedModel = firstResponse.model;
-        timings.llm_call_ms = Math.round(performance.now() - phaseStart);
-        phaseStart = performance.now();
-        const assistantMessage = firstResponse.choices[0].message;
-        const detectedTool = assistantMessage.content
-          ? detectTextToolCall(assistantMessage.content)
-          : null;
 
-        // Gemini sometimes outputs tool-call syntax as plain text instead of
-        // structured function calls. Detect this and retry with forced tool calling.
-        let effectiveResponse = firstResponse;
-        if (
-          !assistantMessage.tool_calls?.length &&
-          detectedTool
-        ) {
-          log.warn(
-            "Detected tool call in text, retrying with specific tool choice",
-            {
-              detectedTool,
-            },
+          // No tool calls → this was the final iteration, flush buffered text
+          if (!streamResult.toolCalls?.length) {
+            for (const chunk of iterationTextBuffer) {
+              send({ type: "content", content: chunk });
+            }
+            finalText = streamResult.content;
+            break;
+          }
+          // Tool iteration — discard buffered text (narration like "Let me search...")
+
+          timings[`llm_iter${iteration}_ms`] = Math.round(
+            performance.now() - phaseStart,
           );
-          // Keep SSE alive before the retry call. `send(...)` resets stream timeout.
-          send({ type: "status", status: "thinking" });
-          const retryResponse = await callAI(
-            messages,
-            true,
-            { type: "function", function: { name: detectedTool } },
-            signal,
-            costContext,
-          );
-          selectedModel = retryResponse.model;
-          effectiveResponse = retryResponse;
-          Object.assign(assistantMessage, retryResponse.choices[0].message);
-          timings.llm_retry_ms = Math.round(performance.now() - phaseStart);
           phaseStart = performance.now();
-        }
 
-        log.info("AI response", {
-          hasToolCalls: !!assistantMessage.tool_calls?.length,
-          toolNames: assistantMessage.tool_calls?.map((tc) => tc.function.name),
-        });
-
-        fireUsageLog(
-          usageContext,
-          "tool_decision",
-          "success",
-          llmCallStart,
-          effectiveResponse,
-          {
-            request_type: "tool_decision",
-            tool_names: assistantMessage.tool_calls?.map((tc) =>
-              tc.function.name
-            ),
-            has_tool_calls: !!assistantMessage.tool_calls?.length,
-            forced_tool_use: !!detectedTool,
-          },
-        );
-
-        if (signal.aborted) {
-          log.info("Request aborted by client (after first LLM call)");
-          clearStreamTimeout();
-          safeClose();
-          return;
-        }
-
-        if (
-          assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0
-        ) {
-          const toolName = assistantMessage.tool_calls[0].function.name;
-
+          // Execute tool calls
+          const toolName = streamResult.toolCalls[0].function.name;
           send({ type: "status", status: getToolStatus(toolName) });
 
-          // Two-phase SSE: emit partial recipe before enrichment for perceived latency
           const onPartialRecipe: PartialRecipeCallback = (partialRecipe) => {
             send({ type: "recipe_partial", recipe: partialRecipe });
             send({ type: "status", status: "enriching" });
           };
 
-          // Keep stream alive during long tool execution (recipe gen can take 45s+)
-          const heartbeatId = setInterval(() => {
+          const toolHeartbeatId = setInterval(() => {
             send({ type: "heartbeat" });
           }, HEARTBEAT_INTERVAL_MS);
 
@@ -648,7 +677,7 @@ function handleStreamingRequest(
           try {
             toolResult = await executeToolCalls(
               supabase,
-              assistantMessage.tool_calls,
+              streamResult.toolCalls,
               userContext,
               log,
               usageContext,
@@ -656,105 +685,56 @@ function handleStreamingRequest(
               costContext,
             );
           } finally {
-            clearInterval(heartbeatId);
-            // Reset stream timeout for the streaming phase that follows
-            send({ type: "status", status: "thinking" });
+            clearInterval(toolHeartbeatId);
           }
-          timings.tool_exec_ms = Math.round(performance.now() - phaseStart);
+
+          timings[`tool_exec_iter${iteration}_ms`] = Math.round(
+            performance.now() - phaseStart,
+          );
           phaseStart = performance.now();
-          recipes = toolResult.recipes;
-          recipesSourceTool = toolResult.recipesSourceTool;
-          customRecipeResult = toolResult.customRecipeResult;
-          appActionResult = toolResult.appActionResult;
+
+          // Accumulate results
+          if (toolResult.recipes) {
+            recipes = toolResult.recipes;
+            recipesSourceTool = toolResult.recipesSourceTool;
+          }
+          if (toolResult.customRecipeResult) {
+            customRecipeResult = toolResult.customRecipeResult;
+          }
+          if (toolResult.appActionResult) {
+            appActionResult = toolResult.appActionResult;
+          }
 
           log.info("Tool execution result", {
-            hasRecipes: !!recipes?.length,
-            hasCustomRecipe: !!customRecipeResult?.recipe,
-            hasAppAction: !!appActionResult,
-            recipesSourceTool: recipesSourceTool ?? null,
+            iteration,
+            hasRecipes: !!toolResult.recipes?.length,
+            hasCustomRecipe: !!toolResult.customRecipeResult?.recipe,
+            hasAppAction: !!toolResult.appActionResult,
           });
 
-          // Drop the assistant's narration text (e.g. "Calling search_recipes...")
-          // so the streaming call doesn't echo or continue that style.
-          streamMessages = [...messages, {
-            role: "assistant" as const,
-            content: null,
-            tool_calls: assistantMessage.tool_calls,
-          }, ...toolResult.toolMessages];
-        }
-
-        if (signal.aborted) {
-          log.info("Request aborted by client (after tool execution)");
-          clearStreamTimeout();
-          safeClose();
-          return;
-        }
-
-        const hasSuccessfulCustomRecipe = !!customRecipeResult?.recipe &&
-          customRecipeResult?.safetyFlags?.error !== true;
-
-        // Keep stream alive while waiting for the AI provider to start responding
-        const streamHeartbeatId = setInterval(() => {
-          send({ type: "heartbeat" });
-        }, HEARTBEAT_INTERVAL_MS);
-        let heartbeatCleared = false;
-
-        // Stream AI response — text first, then tool results arrive in the done event.
-        let finalText: string;
-        const streamStart = performance.now();
-        try {
-          const streamResult = await callAIStream(
-            streamMessages,
-            (token) => {
-              // First token arrived — stop heartbeat, real data is flowing
-              if (!heartbeatCleared) {
-                clearInterval(streamHeartbeatId);
-                heartbeatCleared = true;
-              }
-              send({ type: "content", content: token });
-            },
-            signal,
-            costContext,
-          );
-          finalText = streamResult.content;
-
-          fireUsageLog(
-            usageContext,
-            "response_stream",
-            "success",
-            streamStart,
-            streamResult,
+          // Append assistant + tool results to message history for next iteration
+          loopMessages = [
+            ...loopMessages,
             {
-              request_type: hasSuccessfulCustomRecipe
-                ? "recipe_response"
-                : recipes?.length
-                ? "retrieval_response"
-                : "chat_response",
+              role: "assistant" as const,
+              content: streamResult.content || null,
+              tool_calls: streamResult.toolCalls,
             },
-          );
-        } catch (error) {
-          fireUsageLog(
-            usageContext,
-            "response_stream",
-            "error",
-            streamStart,
-            undefined,
-            {
-              request_type: "chat_response",
-            },
-          );
-          throw error;
-        } finally {
-          if (!heartbeatCleared) clearInterval(streamHeartbeatId);
+            ...toolResult.toolMessages,
+          ];
+
+          send({ type: "status", status: "thinking" });
         }
+
+        if (iteration >= MAX_TOOL_LOOP_ITERATIONS) {
+          log.warn("Tool loop reached max iterations", {
+            maxIterations: MAX_TOOL_LOOP_ITERATIONS,
+          });
+        }
+
+        send({ type: "stream_complete" });
         timings.stream_ms = Math.round(performance.now() - phaseStart);
         phaseStart = performance.now();
-
-        // Strip any residual tool-call text that leaked into the streamed response
-        finalText = stripToolCallText(finalText);
-
-        // Signal that streaming is complete - frontend can enable input now
-        send({ type: "stream_complete" });
 
         if (signal.aborted) {
           log.info("Request aborted by client (after streaming)");
@@ -762,6 +742,9 @@ function handleStreamingRequest(
           safeClose();
           return;
         }
+
+        const hasSuccessfulCustomRecipe = !!customRecipeResult?.recipe &&
+          customRecipeResult?.safetyFlags?.error !== true;
 
         const actions = buildActions(userContext.language, appActionResult);
 
@@ -778,19 +761,18 @@ function handleStreamingRequest(
         timings.finalize_ms = Math.round(performance.now() - phaseStart);
         timings.total_ms = Math.round(performance.now() - startTime);
 
-        // Performance timing log
-        const requestType = hasSuccessfulCustomRecipe
+        const perfType = hasSuccessfulCustomRecipe
           ? "recipe_gen"
           : recipes?.length
           ? "recipe_search"
           : "chat";
         log.info("Request complete", {
-          type: requestType,
+          type: perfType,
           model: selectedModel,
           ...timings,
         });
         log.info("PERF_SUMMARY", {
-          type: requestType,
+          type: perfType,
           model: selectedModel,
           ...timings,
         });

@@ -14,3 +14,4 @@ export { LanguageBadge } from './LanguageBadge';
 export { Switch } from './Switch';
 export { Divider } from './Divider';
 export { ErrorMessage } from './ErrorMessage';
+export { SafeImage } from './SafeImage';

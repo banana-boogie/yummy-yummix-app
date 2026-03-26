@@ -70,8 +70,7 @@ yyx-server/supabase/functions/
 │   ├── response-builder.ts           # Response formatting + persistence
 │   ├── recipe-intent.ts              # High recipe intent detection
 │   ├── meal-context.ts               # Meal type extraction
-│   ├── modification.ts               # Recipe modification detection
-│   └── suggestions.ts                # Template suggestion chips
+│   └── modification.ts               # Recipe modification detection
 └── irmixy-voice-orchestrator/        # Voice sessions
     └── index.ts                      # Session bootstrap, quota, tool execution
 ```

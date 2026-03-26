@@ -11,11 +11,11 @@ import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Image } from 'expo-image';
+import { SafeImage } from '@/components/common';
 import type { GeneratedRecipe, SafetyFlags } from '@/types/irmixy';
 import i18n from '@/i18n';
 import { COLORS } from '@/constants/design-tokens';
-import { PLACEHOLDER_IMAGES } from '@/constants/placeholders';
+import { getDifficultyColor, getDifficultyLabel } from '@/utils/recipes/difficulty';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -50,11 +50,6 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
 
     const handleStartCooking = useCallback(async () => {
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-        if (__DEV__) {
-            console.log('[CustomRecipeCard] Start cooking - recipe name:', recipeName, 'savedRecipeId:', savedRecipeId);
-        }
-
         setIsStartingCooking(true);
         try {
             await onStartCooking(recipe, recipeName, messageId, savedRecipeId);
@@ -104,19 +99,6 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
             </View>
         </Button>
     );
-
-    const getDifficultyColor = (difficulty: string) => {
-        switch (difficulty) {
-            case 'easy': return COLORS.status.success;
-            case 'medium': return COLORS.status.medium;
-            case 'hard': return COLORS.status.error;
-            default: return COLORS.grey.medium;
-        }
-    };
-
-    const getDifficultyLabel = (difficulty: string) => {
-        return i18n.t(`recipes.common.difficulty.${difficulty}`);
-    };
 
     // Show first 5 ingredients or all if expanded
     const displayIngredients = showAllIngredients
@@ -211,7 +193,7 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                         size={14}
                         color={COLORS.grey.medium_dark}
                     />
-                    <Text className="text-text-secondary text-xs ml-xs">
+                    <Text className="text-text-secondary text-sm ml-xs">
                         {i18n.t('chat.aiGeneratedRecipe')}
                     </Text>
                     <MaterialCommunityIcons
@@ -223,7 +205,7 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                 </TouchableOpacity>
                 {showDisclaimer && (
                     <View className="mt-xs bg-background-secondary rounded-md p-sm">
-                        <Text className="text-text-secondary text-xs leading-relaxed">
+                        <Text className="text-text-secondary text-sm leading-relaxed">
                             {i18n.t('chat.aiGeneratedDisclaimer')}
                         </Text>
                     </View>
@@ -314,13 +296,11 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                                     className="flex-col items-center gap-xs"
                                     accessibilityElementsHidden={true}
                                 >
-                                    <Image
-                                        source={ingredient.imageUrl ? { uri: ingredient.imageUrl } : PLACEHOLDER_IMAGES.ingredient}
+                                    <SafeImage
+                                        source={ingredient.imageUrl}
+                                        placeholder="ingredient"
                                         className="w-14 h-14 rounded-full bg-background-tertiary"
                                         contentFit="cover"
-                                        onError={() => {
-                                            if (__DEV__) console.warn(`Failed to load image for ingredient: ${ingredient.name}`);
-                                        }}
                                     />
                                     <View className="bg-background-secondary px-sm py-xs rounded-full">
                                         <Text className="text-text-primary text-base">
@@ -425,13 +405,12 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                                         key={index}
                                         className="flex-row items-center bg-primary-lightest rounded-lg px-sm py-xs"
                                     >
-                                        {item.imageUrl && (
-                                            <Image
-                                                source={{ uri: item.imageUrl }}
-                                                style={{ width: 24, height: 24, borderRadius: 4 }}
-                                                contentFit="cover"
-                                            />
-                                        )}
+                                        <SafeImage
+                                            source={item.imageUrl}
+                                            placeholder="kitchenTool"
+                                            style={{ width: 24, height: 24, borderRadius: 4 }}
+                                            contentFit="cover"
+                                        />
                                         <Text className="text-text-primary text-sm ml-xs">
                                             {item.name}
                                         </Text>

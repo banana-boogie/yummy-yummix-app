@@ -99,7 +99,7 @@ function parseSpeed(speedStr?: string): { speed: ThermomixSpeed; isReversed: boo
  * Returns undefined if no thermomix parameters are present.
  */
 function buildThermomixSettings(step: GeneratedStep): ThermomixSettings | undefined {
-    const hasAnyThermomixField = step.thermomixTime || step.thermomixTemp || step.thermomixSpeed;
+    const hasAnyThermomixField = step.thermomixTime || step.thermomixTemp || step.thermomixSpeed || step.thermomixMode;
     if (!hasAnyThermomixField) {
         return undefined;
     }
@@ -113,6 +113,7 @@ function buildThermomixSettings(step: GeneratedStep): ThermomixSettings | undefi
         temperatureUnit: parsedTemp?.unit ?? 'C',
         speed: parsedSpeed?.speed ?? null,
         isBladeReversed: parsedSpeed?.isReversed ?? false,
+        mode: (step.thermomixMode as ThermomixSettings['mode']) ?? null,
     };
 }
 
@@ -265,6 +266,7 @@ function transformStep(
         recipeSection: null,
         thermomix: buildThermomixSettings(step),
         tip: step.tip || null,
+        timerSeconds: step.timerSeconds ?? null,
         ingredients: stepIngredients,
     };
 }

@@ -10,13 +10,13 @@
 export const EQUIPMENT_CONFIG = {
   thermomix: {
     id: 'thermomix',
-    icon: '🤖', // TODO: Replace with custom SVG/PNG icon from designer
+    icon: require('@/assets/images/equipment/thermomix.png'),
     models: ['TM5', 'TM6', 'TM7'] as const,
     hasModels: true,
   },
   air_fryer: {
     id: 'air_fryer',
-    icon: '🍟', // TODO: Replace with custom SVG/PNG icon from designer
+    icon: require('@/assets/images/equipment/air-fryer.png'),
     models: [] as const,
     hasModels: false,
   },

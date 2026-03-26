@@ -15,8 +15,11 @@ import {
   AICompletionResponse,
   AIEmbeddingRequest,
   AIEmbeddingResponse,
+  AIStreamChunk,
   AIStreamResult,
+  AIToolStreamResult,
   CostContext,
+  StreamUsageData,
 } from "./types.ts";
 import { getProviderConfig } from "./router.ts";
 import { calculateCost } from "./pricing.ts";
@@ -24,10 +27,19 @@ import {
   callOpenAI,
   callOpenAIEmbedding,
   callOpenAIStream,
+  callOpenAIStreamWithTools,
 } from "./providers/openai.ts";
-import { callGemini, callGeminiStream } from "./providers/google.ts";
+import {
+  callGemini,
+  callGeminiStream,
+  callGeminiStreamWithTools,
+} from "./providers/google.ts";
 import { callAnthropic, callAnthropicStream } from "./providers/anthropic.ts";
-import { callXAI, callXAIStream } from "./providers/xai.ts";
+import {
+  callXAI,
+  callXAIStream,
+  callXAIStreamWithTools,
+} from "./providers/xai.ts";
 
 /**
  * Fire-and-forget cost recording. Imported lazily to avoid circular deps.
@@ -171,6 +183,79 @@ export async function chatStream(
       );
 
       // Auto-record if cost context provided
+      if (request.costContext) {
+        autoRecordCost(
+          request.costContext,
+          model,
+          request.usageType,
+          usage.inputTokens,
+          usage.outputTokens,
+          costUsd,
+        );
+      }
+
+      return {
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        costUsd,
+        model,
+      };
+    },
+  };
+}
+
+/**
+ * Make an AI chat request with streaming + tool call support.
+ * Returns an AIToolStreamResult with typed chunks (text or tool_calls) + deferred usage.
+ */
+export async function chatStreamWithTools(
+  request: AICompletionRequest,
+): Promise<AIToolStreamResult> {
+  const config = getProviderConfig(request.usageType);
+  const model = request.model ?? config.model;
+  const apiKey = Deno.env.get(config.apiKeyEnvVar);
+
+  if (!apiKey) {
+    throw new Error(`Missing API key: ${config.apiKeyEnvVar}`);
+  }
+
+  let providerResult: {
+    stream: AsyncGenerator<AIStreamChunk, void, unknown>;
+    usage: () => Promise<{ inputTokens: number; outputTokens: number }>;
+  };
+
+  switch (config.provider) {
+    case "openai":
+      providerResult = await callOpenAIStreamWithTools(request, model, apiKey);
+      break;
+
+    case "anthropic":
+      throw new Error(
+        "Anthropic streaming with tools not implemented — not needed for current routing",
+      );
+
+    case "google":
+      providerResult = await callGeminiStreamWithTools(request, model, apiKey);
+      break;
+
+    case "xai":
+      providerResult = await callXAIStreamWithTools(request, model, apiKey);
+      break;
+
+    default:
+      throw new Error(`Unknown provider: ${config.provider}`);
+  }
+
+  return {
+    stream: providerResult.stream,
+    usage: async () => {
+      const usage = await providerResult.usage();
+      const costUsd = calculateCost(
+        model,
+        usage.inputTokens,
+        usage.outputTokens,
+      );
+
       if (request.costContext) {
         autoRecordCost(
           request.costContext,

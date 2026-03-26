@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Text } from '@/components/common/Text';
 import { Image } from 'expo-image';
+import { SafeImage } from '@/components/common';
 import * as Haptics from 'expo-haptics';
 import { COLORS } from '@/constants/design-tokens';
 
@@ -62,8 +63,9 @@ export const MiseEnPlaceKitchenTool = React.memo(function MiseEnPlaceKitchenTool
       <Animated.View className="flex-col items-center" style={animatedStyles}>
         {/* Image with checkbox overlay */}
         <View className="relative mb-sm">
-          <Image
+          <SafeImage
             source={item.pictureUrl}
+            placeholder="kitchenTool"
             className="w-[80px] h-[80px]"
             contentFit="contain"
             cachePolicy="memory-disk"

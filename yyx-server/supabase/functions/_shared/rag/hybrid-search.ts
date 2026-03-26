@@ -9,7 +9,9 @@
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { RecipeCard, UserContext } from "../irmixy-schemas.ts";
 import { embed } from "../ai-gateway/index.ts";
+import type { CostContext } from "../ai-gateway/types.ts";
 import { pickTranslation } from "../locale-utils.ts";
+import { wordStartMatch } from "../text-utils.ts";
 
 // ============================================================
 // Query Embedding Cache (per-instance, best-effort)
@@ -90,7 +92,7 @@ const METADATA_WEIGHT = 0.10;
 const PERSONALIZATION_WEIGHT = 0.15;
 
 // Thresholds
-const INCLUDE_THRESHOLD = 0.42;
+const INCLUDE_THRESHOLD = 0.35;
 
 // ============================================================
 // Embedding
@@ -100,14 +102,21 @@ const INCLUDE_THRESHOLD = 0.42;
  * Generate an embedding for a search query via the AI Gateway.
  * Results are cached per-instance for 10 minutes (best-effort).
  */
-export async function embedQuery(query: string): Promise<number[]> {
+export async function embedQuery(
+  query: string,
+  costContext?: CostContext,
+): Promise<number[]> {
   const cacheKey = query.toLowerCase().trim();
   const cached = embeddingCache.get(cacheKey);
   if (cached && cached.expires > Date.now()) {
     return cached.embedding;
   }
 
-  const response = await embed({ usageType: "embedding", text: query });
+  const response = await embed({
+    usageType: "embedding",
+    text: query,
+    costContext,
+  });
   const embedding = response.embedding;
 
   // Cache with LRU eviction
@@ -168,15 +177,15 @@ function computeLexicalScore(
 
   let rawScore = 0;
 
-  // Name matching
+  // Name matching (word-start to avoid "ice" matching "rice")
   if (nameLower === queryLower) {
     rawScore += 100;
-  } else if (nameLower.includes(queryLower)) {
+  } else if (wordStartMatch(nameLower, queryLower)) {
     rawScore += 50;
   }
 
   for (const keyword of keywords) {
-    if (nameLower.includes(keyword)) rawScore += 10;
+    if (wordStartMatch(nameLower, keyword)) rawScore += 10;
   }
 
   // Tag matching
@@ -273,12 +282,13 @@ export async function searchRecipesHybrid(
   filters: HybridSearchFilters,
   userContext: UserContext,
   semanticSupabase: SupabaseClient = supabase,
+  costContext?: CostContext,
 ): Promise<HybridSearchResult> {
   // Try to generate query embedding with graceful fallback
   let queryEmbedding: number[] | null = null;
   const embedStart = performance.now();
   try {
-    queryEmbedding = await embedQuery(query);
+    queryEmbedding = await embedQuery(query, costContext);
     console.log("[hybrid-search] Embedding generated", {
       queryLength: query.length,
       hasQuery: query.length > 0,

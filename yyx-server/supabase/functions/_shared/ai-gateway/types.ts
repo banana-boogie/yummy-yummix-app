@@ -17,10 +17,10 @@ export type AIUsageType =
 
 export type AIProvider = "openai" | "anthropic" | "google" | "xai";
 
-export interface AIMessage {
-  role: "system" | "user" | "assistant";
-  content: string;
-}
+export type AIMessage =
+  | { role: "system" | "user"; content: string }
+  | { role: "assistant"; content: string | null; tool_calls?: AIToolCall[] }
+  | { role: "tool"; content: string; tool_call_id: string };
 
 /** Context for automatic cost recording (fire-and-forget) */
 export interface CostContext {
@@ -116,6 +116,17 @@ export interface StreamUsageData {
 /** Result from chatStream — provides stream + deferred usage */
 export interface AIStreamResult {
   stream: AsyncGenerator<string, void, unknown>;
+  usage: () => Promise<StreamUsageData>;
+}
+
+/** A chunk from a streaming-with-tools response */
+export type AIStreamChunk =
+  | { type: "text"; text: string }
+  | { type: "tool_calls"; toolCalls: AIToolCall[] };
+
+/** Result from chatStreamWithTools — provides typed stream + deferred usage */
+export interface AIToolStreamResult {
+  stream: AsyncGenerator<AIStreamChunk, void, unknown>;
   usage: () => Promise<StreamUsageData>;
 }
 

@@ -29,7 +29,7 @@ import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/share
 export default function NewRecipePage() {
   const router = useRouter();
   const [showAlert, setShowAlert] = useState(false);
-  const [displayLocale, setDisplayLocale] = useState('es');
+  const [displayLocale, setDisplayLocale] = useState(i18n.locale);
   const [alertMessage, setAlertMessage] = useState('');
   const [alertSuccess, setAlertSuccess] = useState(false);
 
@@ -48,6 +48,7 @@ export default function NewRecipePage() {
     handlePublish,
     handleResumeSavedRecipe,
     handleStartNewRecipe,
+    setCurrentStep,
   } = useAdminRecipeForm({
     onPublishSuccess: () => {
       setAlertSuccess(true);
@@ -114,7 +115,7 @@ export default function NewRecipePage() {
             {/* Header Section */}
             {showNavElements && (
               <View className="w-full px-md pb-md">
-                <RecipeProgressIndicator currentStep={currentStep} />
+                <RecipeProgressIndicator currentStep={currentStep} onStepClick={setCurrentStep} clickable={true} />
                 {currentStep !== CreateRecipeStep.INITIAL_SETUP && currentStep !== CreateRecipeStep.BASIC_INFO && currentStep !== CreateRecipeStep.TRANSLATIONS && (
                   <View className="mt-md">
                     <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />

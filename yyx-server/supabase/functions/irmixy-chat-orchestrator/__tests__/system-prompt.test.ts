@@ -10,7 +10,10 @@ import {
   assertStringIncludes,
 } from "https://deno.land/std@0.192.0/testing/asserts.ts";
 import type { UserContext } from "../../_shared/irmixy-schemas.ts";
-import { buildSystemPrompt } from "../system-prompt.ts";
+import {
+  buildSystemPrompt,
+  buildThermomixChatReference,
+} from "../system-prompt.ts";
 
 function createUserContext(overrides: Partial<UserContext> = {}): UserContext {
   return {
@@ -62,8 +65,8 @@ Deno.test("buildSystemPrompt includes tool rules with search-first strategy", ()
 Deno.test("buildSystemPrompt uses warm allergen language (non-blocking)", () => {
   const prompt = buildSystemPrompt(createUserContext());
 
-  assertStringIncludes(prompt, "allergens briefly and warmly");
-  assertStringIncludes(prompt, "Don't block recipes or ask for confirmation");
+  assertStringIncludes(prompt, "Silently respect allergen restrictions");
+  assertStringIncludes(prompt, "Only address allergens if the user asks");
 });
 
 Deno.test("buildSystemPrompt includes scope guardrails", () => {
@@ -115,7 +118,7 @@ Deno.test("buildSystemPrompt separates communication and tool sections", () => {
 
   assertStringIncludes(prompt, "COMMUNICATION:");
   assertStringIncludes(prompt, "TOOLS");
-  // No old monolithic RULES section (standalone header, not part of "TOOLS — CRITICAL RULES:")
+  // No old monolithic RULES section (standalone header, not part of "TOOLS:")
   assertEquals(prompt.includes("\nRULES:\n"), false);
 });
 
@@ -147,5 +150,126 @@ Deno.test("buildSystemPrompt routes modifications to modify_recipe", () => {
   const prompt = buildSystemPrompt(createUserContext());
 
   assertStringIncludes(prompt, "modify_recipe");
-  assertStringIncludes(prompt, "change a recipe that Irmixy created");
+  assertStringIncludes(prompt, "tweak a recipe Irmixy already created");
+});
+
+Deno.test("buildSystemPrompt includes FORMATTING section", () => {
+  const prompt = buildSystemPrompt(createUserContext());
+  assertStringIncludes(prompt, "FORMATTING:");
+  assertStringIncludes(prompt, "**bold**");
+});
+
+Deno.test("buildSystemPrompt includes scannable communication rule", () => {
+  const prompt = buildSystemPrompt(createUserContext());
+  assertStringIncludes(prompt, "scannable");
+});
+
+Deno.test("buildSystemPrompt with Thermomix includes quick reference", () => {
+  const prompt = buildSystemPrompt(
+    createUserContext({ kitchenEquipment: ["thermomix_TM6"] }),
+  );
+  assertStringIncludes(prompt, "THERMOMIX QUICK REFERENCE");
+  assertStringIncludes(prompt, "Varoma is a STEAM MODE");
+});
+
+Deno.test("buildSystemPrompt without Thermomix excludes quick reference", () => {
+  const prompt = buildSystemPrompt(
+    createUserContext({ kitchenEquipment: [] }),
+  );
+  assertEquals(prompt.includes("THERMOMIX QUICK REFERENCE"), false);
+});
+
+Deno.test("buildSystemPrompt with TM7 includes Open Cooking", () => {
+  const prompt = buildSystemPrompt(
+    createUserContext({ kitchenEquipment: ["thermomix_TM7"] }),
+  );
+  assertStringIncludes(prompt, "Open Cooking (TM7 only)");
+});
+
+Deno.test("buildSystemPrompt with TM6 excludes Open Cooking", () => {
+  const prompt = buildSystemPrompt(
+    createUserContext({ kitchenEquipment: ["thermomix_TM6"] }),
+  );
+  assertEquals(prompt.includes("Open Cooking (TM7 only)"), false);
+});
+
+// ============================================================
+// Workstream A1: Thermomix cooking mode corrections
+// ============================================================
+
+Deno.test("buildThermomixChatReference browning section mentions blade ROTATES", () => {
+  const ref = buildThermomixChatReference(["TM7"]);
+  assertStringIncludes(ref, "Blade ROTATES");
+});
+
+Deno.test("buildThermomixChatReference Open Cooking says no blade rotation", () => {
+  const ref = buildThermomixChatReference(["TM7"]);
+  assertStringIncludes(ref, "No blade rotation");
+  assertStringIncludes(ref, "dedicated cooking mode");
+});
+
+Deno.test("buildThermomixChatReference includes delicate items warning", () => {
+  const ref = buildThermomixChatReference(["TM6"]);
+  assertStringIncludes(ref, "Delicate formed items");
+  assertStringIncludes(ref, "NEVER brown in the Thermomix bowl");
+  assertStringIncludes(ref, "blade rotation destroys them");
+});
+
+Deno.test("buildThermomixChatReference includes conversational tone instruction", () => {
+  const ref = buildThermomixChatReference(["TM6"]);
+  assertStringIncludes(ref, "write conversationally");
+  assertStringIncludes(ref, "never copy it verbatim");
+});
+
+// ============================================================
+// Workstream A3: Cooking helper mode
+// ============================================================
+
+Deno.test("buildSystemPrompt includes cooking helper mode when cookingContext provided", () => {
+  const prompt = buildSystemPrompt(
+    createUserContext(),
+    undefined,
+    {
+      recipeTitle: "Chicken Soup",
+      currentStep: "Step 3",
+      stepInstructions: "Add the vegetables and simmer for 20 minutes.",
+    },
+  );
+
+  assertStringIncludes(prompt, "COOKING HELPER MODE:");
+  assertStringIncludes(prompt, '"Chicken Soup"');
+  assertStringIncludes(prompt, "Step 3");
+  assertStringIncludes(prompt, "Add the vegetables and simmer for 20 minutes.");
+  assertStringIncludes(prompt, "recipe creation if asked");
+  assertStringIncludes(prompt, "shorter answers");
+});
+
+Deno.test("buildSystemPrompt excludes cooking helper mode when no cookingContext", () => {
+  const prompt = buildSystemPrompt(createUserContext());
+
+  assertEquals(prompt.includes("COOKING HELPER MODE"), false);
+});
+
+Deno.test("buildSystemPrompt includes generate_custom_recipe guidance", () => {
+  const prompt = buildSystemPrompt(createUserContext());
+
+  // Rule 10: use for recipe creation, answer info questions in text
+  assertStringIncludes(prompt, "generate_custom_recipe");
+  assertStringIncludes(prompt, "answer directly in text");
+});
+
+Deno.test("buildSystemPrompt cooking helper mode works without stepInstructions", () => {
+  const prompt = buildSystemPrompt(
+    createUserContext(),
+    undefined,
+    {
+      recipeTitle: "Pasta Carbonara",
+      currentStep: "Step 1",
+    },
+  );
+
+  assertStringIncludes(prompt, "COOKING HELPER MODE:");
+  assertStringIncludes(prompt, '"Pasta Carbonara"');
+  assertStringIncludes(prompt, "Step 1");
+  assertEquals(prompt.includes("Current step instructions:"), false);
 });

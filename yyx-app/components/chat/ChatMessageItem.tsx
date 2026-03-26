@@ -13,7 +13,10 @@ import {
     Action,
 } from '@/services/chatService';
 import Markdown from '@ronradtke/react-native-markdown-display';
-import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '@/constants/design-tokens';
+import { COLORS, FONTS, FONT_SIZES, SPACING, BORDER_RADIUS } from '@/constants/design-tokens';
+
+const CHAT_FONT_SIZE = FONT_SIZES.md; // 18
+const CHAT_LINE_HEIGHT = 26;
 
 // ============================================================
 // Helpers
@@ -38,8 +41,8 @@ function hasMarkdownSyntax(content: string): boolean {
 export const markdownStyles = {
     body: {
         color: COLORS.text.default,
-        fontSize: 16,
-        lineHeight: 24,
+        fontSize: CHAT_FONT_SIZE,
+        lineHeight: CHAT_LINE_HEIGHT,
     },
     heading1: {
         fontFamily: FONTS.HEADING,
@@ -68,7 +71,7 @@ export const markdownStyles = {
     paragraph: {
         marginTop: 0,
         marginBottom: SPACING.sm,
-        lineHeight: 22,
+        lineHeight: CHAT_LINE_HEIGHT,
     },
     strong: {
         fontWeight: '700' as const,
@@ -172,7 +175,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                         activeOpacity={0.7}
                         className="max-w-[80%] p-sm rounded-lg self-end bg-primary-default"
                     >
-                        <Text className="text-base leading-relaxed text-white">
+                        <Text className="text-white" style={{ fontSize: CHAT_FONT_SIZE, lineHeight: CHAT_LINE_HEIGHT }}>
                             {item.content}
                         </Text>
                     </TouchableOpacity>
@@ -194,7 +197,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                                     {displayContent}
                                 </Markdown>
                             ) : (
-                                <Text className="text-base leading-relaxed text-text-default">
+                                <Text className="text-text-default" style={{ fontSize: CHAT_FONT_SIZE, lineHeight: CHAT_LINE_HEIGHT }}>
                                     {displayContent}
                                 </Text>
                             )}
@@ -250,4 +253,23 @@ export const ChatMessageItem = memo(function ChatMessageItem({
             )}
         </View>
     );
+}, (prev, next) => {
+    // Custom comparator: skip re-render for non-last messages when props haven't changed
+    if (prev.item.id !== next.item.id) return false;
+    if (prev.item.content !== next.item.content) return false;
+    if (prev.item.recipes !== next.item.recipes) return false;
+    if (prev.item.customRecipe !== next.item.customRecipe) return false;
+    if (prev.item.actions !== next.item.actions) return false;
+    if (prev.item.savedRecipeId !== next.item.savedRecipeId) return false;
+    if (prev.item.safetyFlags !== next.item.safetyFlags) return false;
+    if (prev.isLastMessage !== next.isLastMessage) return false;
+    if (prev.isLoading !== next.isLoading) return false;
+    if (prev.isRecipeGenerating !== next.isRecipeGenerating) return false;
+    if (prev.currentStatus !== next.currentStatus) return false;
+    if (prev.statusText !== next.statusText) return false;
+    if (prev.showAvatar !== next.showAvatar) return false;
+    if (prev.onCopyMessage !== next.onCopyMessage) return false;
+    if (prev.onStartCooking !== next.onStartCooking) return false;
+    if (prev.onActionPress !== next.onActionPress) return false;
+    return true;
 });

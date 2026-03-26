@@ -39,8 +39,8 @@ export default function EditRecipePage() {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [currentStep, setCurrentStep] = useState<CreateRecipeStep>(CreateRecipeStep.BASIC_INFO);
-  const [authoringLocale, setAuthoringLocale] = useState('es');
-  const [displayLocale, setDisplayLocale] = useState('es');
+  const [authoringLocale, setAuthoringLocale] = useState(i18n.locale);
+  const [displayLocale, setDisplayLocale] = useState(i18n.locale);
 
   const { validateRecipe } = useRecipeValidation();
   const { getNextButtonLabel } = useRecipeNavigation(recipe, currentStep);

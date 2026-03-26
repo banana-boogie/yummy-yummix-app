@@ -28,8 +28,20 @@ export const recipes = {
     },
     emptyState: "No recipes found",
     noRecipesFound: "No recipes found",
+    noResultsIrmixyPrompt: "Can't find what you're looking for? I can help!",
+    askIrmixy: "Ask Irmixy",
     kitchenTools: "Kitchen Tools",
     servings: "servings",
+    cookingMode: {
+      slow_cook: "Slow Cook",
+      rice_cooker: "Rice Cooker",
+      sous_vide: "Sous Vide",
+      fermentation: "Fermentation",
+      open_cooking: "Open Cooking",
+      browning: "Browning",
+      dough: "Dough",
+      turbo: "Turbo",
+    },
   },
   detail: {
     ingredients: {
@@ -59,11 +71,9 @@ export const recipes = {
     subtitle: "Mise en place",
     start: "Cook now!",
     intro: {
-      greeting: "Let's cook something delicious today!",
       miseEnPlace: {
-        one: "First, let's do our ",
+        one: "Let's do our",
         two: "\nmise en place\n",
-        three: "by preparing all the ingredients we'll need.",
       },
       checkboxSteps: {
         checkmark: "Check off",
@@ -76,6 +86,11 @@ export const recipes = {
       finish: "Finish",
       next: "Next",
       back: "Back",
+      askIrmixy: "Ask Irmixy",
+      exitCookingGuide: "Exit cooking guide",
+      exit: "Exit",
+      needHelp: "Need help?",
+      irmixyLabel: "Irmixy",
     },
     miseEnPlace: {
       ingredients: {
@@ -85,6 +100,10 @@ export const recipes = {
         heading: "Kitchen Tools",
       },
     },
+    timerStart: "Start",
+    timerPause: "Pause",
+    timerReset: "Reset",
+    timerDone: "Time's up!",
   },
   share: {
     message: "Check out this recipe on YummyYummix!",

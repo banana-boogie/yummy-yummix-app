@@ -68,7 +68,7 @@ export function CuisineModal({
               {i18n.t('profile.personalData.cuisinePreferences')}
             </Text>
 
-            <Text preset="bodySmall" className="text-text-secondary text-center mb-md">
+            <Text preset="body" className="text-text-secondary text-center mb-md">
               {i18n.t('profile.personalData.cuisineSubtitle')}
             </Text>
 

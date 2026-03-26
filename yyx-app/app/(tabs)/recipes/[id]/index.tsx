@@ -1,4 +1,4 @@
-import { View, Platform, StatusBar, Animated } from 'react-native';
+import { View, Platform, StatusBar, Animated, TouchableOpacity } from 'react-native';
 import React, { useRef, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Head from 'expo-router/head';
@@ -25,13 +25,17 @@ import { ResponsiveColumnLayout, MainColumn, SideColumn } from '@/components/lay
 import { RecipeKitchenTool } from '@/types/recipe.types';
 import { ShareButton } from '@/components/common/ShareButton';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
+import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
+import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
+import { Image as ExpoImage } from 'expo-image';
+// eslint-disable-next-line import/no-named-as-default
 import logger from '@/services/logger';
 
 
 const RecipeDetail: React.FC = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const irmixy = useIrmixyHelperChat(id as string);
 
   // Validate ID early to prevent unnecessary API calls
   useEffect(() => {
@@ -184,7 +188,24 @@ const RecipeDetail: React.FC = () => {
             </View>
           </Animated.ScrollView>
         </PageLayout>
-        <VoiceAssistantButton
+        <TouchableOpacity
+          onPress={irmixy.open}
+          className="absolute bottom-6 right-6 rounded-full shadow-lg"
+          style={{ zIndex: 100 }}
+          accessibilityLabel={i18n.t('recipes.cookingGuide.navigation.askIrmixy')}
+          accessibilityRole="button"
+          activeOpacity={0.7}
+        >
+          <ExpoImage
+            source={require('@/assets/images/irmixy-avatar/irmixy-face.png')}
+            style={{ width: 56, height: 56, borderRadius: 28 }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
+        </TouchableOpacity>
+        <IrmixyCookingModal
+          visible={irmixy.isVisible}
+          onClose={irmixy.close}
           recipeContext={{
             type: 'recipe',
             recipeId: recipe.id,
@@ -194,6 +215,7 @@ const RecipeDetail: React.FC = () => {
               amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
             }))
           }}
+          {...irmixy.sessionProps}
         />
       </View>
     </>

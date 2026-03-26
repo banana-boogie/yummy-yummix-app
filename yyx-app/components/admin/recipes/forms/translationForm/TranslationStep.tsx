@@ -457,6 +457,7 @@ function TranslationReview({
                       onUpdateRecipe({ ingredients: updatedIngs });
                     }}
                     isMobile={isMobile}
+                    multiline
                   />
                 ) : null}
               </View>
@@ -493,6 +494,7 @@ function TranslationReview({
                     onUpdateRecipe({ kitchenTools: updatedItems });
                   }}
                   isMobile={isMobile}
+                  multiline
                 />
               </View>
             );

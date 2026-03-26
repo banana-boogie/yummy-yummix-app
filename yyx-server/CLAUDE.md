@@ -45,6 +45,7 @@ Located in `supabase/functions/`:
 - **irmixy-chat-orchestrator/** - Main AI routing and conversation management (modularized: types, logger, session, meal-context, suggestions, modification, system-prompt, ai-calls, history, response-builder)
 - **irmixy-voice-orchestrator/** - OpenAI Realtime session bootstrap + quota checks + secure voice tool execution
 - **get-nutritional-facts/** - AI-powered nutrition data lookup (per 100g macros)
+- **semantic-recipe-search/** - Lightweight semantic (vector) search endpoint for Explore tab fallback
 - **parse-recipe-markdown/** - Recipe parsing utilities
 - **_shared/** - Shared utilities (CORS, auth, AI gateway)
 
@@ -194,6 +195,7 @@ Custom PostgreSQL functions for RPC calls are documented in `docs/DATABASE_FUNCT
 - `upsert_cooking_session_progress(...)` — Upsert active cooking progress
 - `match_recipe_embeddings(...)` — Vector similarity search for recipes
 - `update_ai_voice_usage()` — Track AI voice minutes
+- `admin_set_membership_tier(target_user_id, new_tier)` — Change user membership (free/premium). Admin-only from app; also works from Dashboard SQL Editor
 
 See `docs/DATABASE_FUNCTIONS.md` for full details on all functions.
 

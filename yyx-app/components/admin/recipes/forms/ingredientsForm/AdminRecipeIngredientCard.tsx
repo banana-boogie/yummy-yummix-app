@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity } from 'react-native';
-import { Image } from 'expo-image';
-import { Text } from '@/components/common/Text';
+import { Text, SafeImage } from '@/components/common';
 import { AdminRecipeIngredient, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/i18n';
@@ -43,8 +42,9 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
         <View className={`${isMobile ? 'flex-col' : 'flex-row items-center'} ${isMobile ? 'p-xs' : 'p-sm'} border-b border-border-DEFAULT`}>
           {/* Ingredient info */}
           <View className="flex-row items-center flex-1">
-            <Image
+            <SafeImage
               source={recipeIngredient.ingredient.pictureUrl}
+              placeholder="ingredient"
               className={isMobile ? 'w-8 h-8 rounded-sm mr-xs' : 'w-10 h-10 rounded-sm mr-sm'}
               contentFit="contain"
             />

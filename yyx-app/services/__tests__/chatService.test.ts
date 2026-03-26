@@ -196,7 +196,7 @@ describe('chatService', () => {
       expect(result[0].title).toBe('Recent Chat');
       expect(result[1].title).toBe('Older Chat');
       expect(mockChain.order).toHaveBeenCalledWith('created_at', { ascending: false });
-      expect(mockChain.limit).toHaveBeenCalledWith(5);
+      expect(mockChain.limit).toHaveBeenCalledWith(10);
     });
 
     it('uses default title for sessions without title', async () => {

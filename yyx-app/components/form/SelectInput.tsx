@@ -66,11 +66,11 @@ export function SelectInput({
     return (
       <View className={containerClassName} style={containerStyle}>
         {label ? (
-          <Text className="text-xs text-text-default ml-xxs font-semibold">
+          <Text className="text-text-default text-sm font-semibold pl-xxs mb-xxs">
             {label} {required ? '*' : ''}
           </Text>
         ) : null}
-        <View className="flex-row items-center justify-between rounded-md bg-background-secondary overflow-hidden p-sm border-1.5 border-border-default relative">
+        <View className="flex-row items-center justify-between rounded-md bg-background-default overflow-hidden min-h-[56px] px-md border-[1.5px] border-border-default relative">
           <select
             value={value}
             onChange={(e) => onValueChange(e.target.value)}

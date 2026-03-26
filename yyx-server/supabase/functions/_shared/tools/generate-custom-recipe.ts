@@ -24,7 +24,12 @@ import {
 import { buildSafetyReminders, checkRecipeSafety } from "../food-safety.ts";
 import { chat } from "../ai-gateway/index.ts";
 import type { CostContext } from "../ai-gateway/types.ts";
-import { hasAirFryer, hasThermomix } from "../equipment-utils.ts";
+import {
+  getThermomixModel,
+  hasAirFryer,
+  hasThermomix,
+  VALID_THERMOMIX_MODES,
+} from "../equipment-utils.ts";
 import {
   buildLocaleChain,
   getBaseLanguage,
@@ -42,9 +47,10 @@ export const generateCustomRecipeTool = {
   function: {
     name: "generate_custom_recipe",
     description:
-      "Generate a custom recipe. ONLY call this when the user explicitly asks you to create/make a recipe " +
-      "or agrees to you making one. Never call this for discovery or vague cravings — use search_recipes instead. " +
-      "The user must have provided SPECIFIC details: a dish name (e.g. 'banana bread') or ingredients (e.g. 'chicken and rice'). " +
+      "Generate a custom recipe when the user wants a specific dish that isn't in the database, " +
+      "or when they ask you to make/create a recipe. Also use this when search_recipes returned " +
+      "results that don't match what the user wanted. " +
+      "The user must have provided SPECIFIC details: a dish name (e.g. 'mole') or ingredients (e.g. 'chicken and rice'). " +
       "If the user is vague ('make me something', 'I don't know'), ask them what they want first — do NOT call this tool. " +
       "Use their ingredients as the foundation and add complementary ones creatively (seasonings, herbs, pantry staples). " +
       "Never contradict the user's intent (e.g. dessert must be a dessert).",
@@ -209,10 +215,8 @@ export async function generateCustomRecipe(
 
   // Validate Thermomix parameters if present
   recipe.steps = validateThermomixSteps(recipe.steps);
-
-  // Check Thermomix usage if user has Thermomix
   const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
-  validateThermomixUsage(recipe, isThermomixUser);
+
   timings.thermomix_validation_ms = Math.round(performance.now() - phaseStart);
   phaseStart = performance.now();
 
@@ -247,30 +251,31 @@ export async function generateCustomRecipe(
   }
 
   // Run post-recipe enrichment and validation in parallel
-  const [enrichedIngredients, kitchenTools, safetyCheck] = await Promise.all([
-    enrichIngredientsWithImages(
-      recipe.ingredients,
-      supabase,
-      userContext.locale,
-    ),
-    getRelevantKitchenTools(
-      supabase,
-      recipe,
-      userContext.locale,
-      isThermomixUser,
-    ),
-    checkRecipeSafety(
-      supabase,
-      recipe.ingredients,
-      recipe.totalTime,
-      userContext.measurementSystem,
-      userContext.locale,
-    ),
-  ]);
+  const [enrichedIngredients, enrichedKitchenTools, safetyCheck] = await Promise
+    .all([
+      enrichIngredientsWithImages(
+        recipe.ingredients,
+        supabase,
+        userContext.locale,
+      ),
+      enrichKitchenTools(
+        supabase,
+        recipe,
+        userContext.locale,
+        isThermomixUser,
+      ),
+      checkRecipeSafety(
+        supabase,
+        recipe.ingredients,
+        recipe.totalTime,
+        userContext.measurementSystem,
+        userContext.locale,
+      ),
+    ]);
   timings.enrichment_ms = Math.round(performance.now() - phaseStart);
 
   recipe.ingredients = enrichedIngredients;
-  recipe.kitchenTools = kitchenTools;
+  recipe.kitchenTools = enrichedKitchenTools;
 
   timings.total_ms = Math.round(performance.now() - totalStart);
   console.log("[GenerateRecipe Timings]", JSON.stringify(timings));
@@ -318,8 +323,22 @@ export function buildRecipeJsonSchema(
     stepProperties.thermomixTime = { type: ["integer", "null"] };
     stepProperties.thermomixTemp = { type: ["string", "null"] };
     stepProperties.thermomixSpeed = { type: ["string", "null"] };
-    stepRequired.push("thermomixTime", "thermomixTemp", "thermomixSpeed");
+    stepProperties.thermomixMode = { type: ["string", "null"] };
+    stepRequired.push(
+      "thermomixTime",
+      "thermomixTemp",
+      "thermomixSpeed",
+      "thermomixMode",
+    );
   }
+
+  // Timer field — for non-Thermomix steps with a specific duration
+  stepProperties.timerSeconds = {
+    type: ["integer", "null"],
+    description:
+      "Duration in seconds for non-Thermomix steps that have a specific time duration. Thermomix steps use thermomixTime instead — never set both. Examples: let dough rise 30 min → 1800, marinate 15 min → 900.",
+  };
+  stepRequired.push("timerSeconds");
 
   // Tips field — always included regardless of equipment
   stepProperties.tip = {
@@ -601,6 +620,9 @@ export function getSystemPrompt(userContext: UserContext): string {
 
   const isThermomixUser = hasThermomix(userContext.kitchenEquipment);
   const isAirFryerUser = hasAirFryer(userContext.kitchenEquipment);
+  const thermomixModel = isThermomixUser
+    ? getThermomixModel(userContext.kitchenEquipment)
+    : null;
 
   if (
     !isThermomixUser && !isAirFryerUser &&
@@ -612,16 +634,61 @@ export function getSystemPrompt(userContext: UserContext): string {
     );
   }
 
+  // Build model-aware temperature guide
+  const isTM7 = thermomixModel === "TM7";
+  const maxManualTemp = isTM7 ? "160°C" : "120°C";
+  const modelLabel = thermomixModel ?? "TM6";
+
+  const temperatureGuide = isTM7
+    ? `TEMPERATURE GUIDE (TM7 — manual up to 160°C):
+- 37-50°C: Melting chocolate/butter, warming
+- 60-90°C: Simmering sauces, custards, béchamel
+- 90-100°C: Boiling, cooking rice/pasta, soups, stews
+- 100-120°C: Sautéing, caramelizing, light browning
+- 120-160°C: Higher-heat browning, searing, deep caramelization
+- Varoma: Steam cooking (needs 500ml+ water in bowl, speed 2)`
+    : `TEMPERATURE GUIDE (${modelLabel} — manual up to 120°C):
+- 37-50°C: Melting chocolate/butter, warming
+- 60-90°C: Simmering sauces, custards, béchamel
+- 90-100°C: Boiling, cooking rice/pasta, soups, stews
+- 100-120°C: Sautéing, caramelizing, browning
+- Varoma: Steam cooking (needs 500ml+ water in bowl, speed 2)`;
+
+  const openCookingNote = isTM7
+    ? `\nOPEN COOKING (TM7 only): No blade rotation. Temperature + time only. Stir manually with spatula. Lid is unlocked. Up to 100°C. This is a dedicated cooking mode — NOT manual cooking with the lid open.`
+    : "";
+
+  const cutterNote = isTM7
+    ? `- Cutter+ accessory: Speed 4 only, max 28oz. For uniform slicing/grating of firm vegetables and hard cheese.`
+    : `- Cutter disc accessory: Speed 4 only, max 28oz. For uniform slicing/grating of firm vegetables and hard cheese.`;
+
   const thermomixSection = isThermomixUser
     ? `
 
-## THERMOMIX USAGE (User owns Thermomix — you are an expert Thermomix cook)
+## THERMOMIX USAGE (User has a Thermomix ${modelLabel} — you are an expert Thermomix cook)
 
-Choose optimal time, speed, and temperature for each step based on the technique.
+Choose optimal time, speed, temperature, and cooking mode for each step based on the technique.
 
 PARAMETERS:
 - **thermomixTime** (seconds) and **thermomixSpeed** ("1"-"10", "Spoon", or "Reverse") are a REQUIRED PAIR — if you set one, you MUST set both.
-- **thermomixTemp** ("37°C"-"120°C" or "Varoma") is OPTIONAL — only when the step needs heat. Null = no heat (chopping, blending, kneading).
+- **thermomixTemp** ("37°C"-"${maxManualTemp}" or "Varoma") is OPTIONAL — only when the step needs heat. Null = no heat (chopping, blending, kneading).
+- **thermomixMode** is OPTIONAL — set it when the step uses a named cooking mode. Null = manual mode (the default).
+
+COOKING MODES (set thermomixMode when applicable):
+- "slow_cook": Reverse, Speed 1, blade cover, 70-100°C, up to 12h. For stews, braises, casseroles.${
+      isTM7 ? "" : " (TM6: available)"
+    }
+- "rice_cooker": Automatic temp/speed/time for rice and grains.
+- "sous_vide": Precise temp hold, no stirring. For proteins, vegetables.
+- "fermentation": Low temp hold (30-45°C), extended time. For yogurt, dough proofing, tempeh. Available on both TM6 and TM7.
+- "dough": Kneading mode, max 500g flour. For bread, pasta, pizza dough.
+- "turbo": Brief pulse at max speed. For crushing ice, quick grind.
+${
+      isTM7
+        ? `- "browning": 120-160°C, max 10min per step. NO speed setting — always set thermomixSpeed to null. Cannot be combined with open_cooking (lid must be closed). Two intensity levels — "gentle" (vegetables, onions, garlic, delicate browning) and "intense" (searing meats, deep caramelization). (TM7 only)
+- "open_cooking": No blade rotation. Temperature + time only. Stir manually with spatula. Lid is unlocked. Up to 100°C. A dedicated cooking mode — NOT manual cooking with lid open. Cannot be combined with browning. (TM7 only)`
+        : ""
+    }
 
 SPEED GUIDE:
 - Spoon/1-2: Gentle stirring, simmering, slow cooking (cooking speeds)
@@ -630,21 +697,22 @@ SPEED GUIDE:
 - 7-10: Pureeing, grinding, blending, smoothies
 - REVERSE: Use when cooking ingredients that must stay intact (stews, sautéing, pasta). Blunt edge stirs without cutting. Combine with Spoon/1-2.
 
-TEMPERATURE GUIDE:
-- 37-50°C: Melting chocolate/butter, warming
-- 60-90°C: Simmering sauces, custards, béchamel
-- 90-100°C: Boiling, cooking rice/pasta, soups, stews
-- 100-120°C: Sautéing, caramelizing, browning
-- Varoma: Steam cooking (needs 500ml+ water in bowl, speed 2)
-
+${temperatureGuide}
+${openCookingNote}
 CRITICAL RULES:
 - Above 60°C: max speed 6. Never use high speeds with hot food.
 - Chopping is SECONDS (3-10 sec), not minutes. Start short, check.
-- Sautéing always uses Reverse (e.g. 120°C / Reverse / Speed 1 / 5-10 min).
+- Sautéing always uses Reverse (e.g. ${
+      isTM7 ? "140°C" : "120°C"
+    } / Reverse / Speed 1 / 5-10 min).
+- Browning/searing: 100-250g per batch, blade rotates in this mode. For larger quantities (>250g), recommend using a pan or skillet instead.
+- Delicate formed items (meatballs, dumplings, stuffed pasta): NEVER brown in the Thermomix bowl. Blade rotation destroys them. Pan-fry or oven-bake instead.
+- When a step uses a mixture from a previous step, reference it as "the [name] mixture" in instructions. In ingredientsUsed, list only NEW ingredients added in this step — not the components of an already-combined mixture.
 
-Skip Thermomix for: plating, garnishing, oven/grill tasks, manual shaping — leave all three params null.
+Skip Thermomix for: plating, garnishing, oven/grill tasks, manual shaping — leave all four params null.
+For non-Thermomix steps that have a specific time duration (e.g. resting, marinating, oven baking), set timerSeconds instead of thermomixTime. Never set both on the same step.
 
-PHYSICAL CONSTRAINTS (TM6 bowl = 2.2 liters):
+PHYSICAL CONSTRAINTS (bowl = 2.2 liters):
 - Total volume of ingredients + liquid must not exceed 2.2L. For hot foods (soups, stews), keep under 1.8L.
 - Dough: max 500g flour per batch.
 - Browning/searing: 100-250g per batch. Multiple batches for larger quantities.
@@ -652,13 +720,15 @@ PHYSICAL CONSTRAINTS (TM6 bowl = 2.2 liters):
 - Above 95°C: replace measuring cup with simmering basket.
 - Speed 7+: measuring cup MUST be in place.
 - Butterfly whisk: max speed 4.
+${cutterNote}
 - If the recipe exceeds bowl capacity, instruct to cook in batches and note it in a tip.
 
 Examples:
-- Sauté: {"order": 2, "instruction": "Sauté onions", "ingredientsUsed": ["onion"], "thermomixTime": 300, "thermomixTemp": "100°C", "thermomixSpeed": "Reverse", "tip": "The onion is ready when translucent, about 3-4 minutes."}
-- Chop: {"order": 1, "instruction": "Chop vegetables", "ingredientsUsed": ["carrot"], "thermomixTime": 5, "thermomixTemp": null, "thermomixSpeed": "5", "tip": "Start with 3-second pulses and check — you can always chop more."}
-- Steam: {"order": 3, "instruction": "Steam vegetables in Varoma", "ingredientsUsed": ["broccoli", "zucchini"], "thermomixTime": 1200, "thermomixTemp": "Varoma", "thermomixSpeed": "2", "tip": null}
-- Non-Thermomix: {"order": 5, "instruction": "Plate and garnish", "ingredientsUsed": ["parsley"], "thermomixTime": null, "thermomixTemp": null, "thermomixSpeed": null, "tip": null}`
+- Sauté: {"order": 2, "instruction": "Sauté onions", "ingredientsUsed": ["onion"], "thermomixTime": 300, "thermomixTemp": "100°C", "thermomixSpeed": "Reverse", "thermomixMode": null, "tip": "The onion is ready when translucent, about 3-4 minutes."}
+- Chop: {"order": 1, "instruction": "Chop vegetables", "ingredientsUsed": ["carrot"], "thermomixTime": 5, "thermomixTemp": null, "thermomixSpeed": "5", "thermomixMode": null, "tip": "Start with 3-second pulses and check — you can always chop more."}
+- Steam: {"order": 3, "instruction": "Steam vegetables in Varoma", "ingredientsUsed": ["broccoli", "zucchini"], "thermomixTime": 1200, "thermomixTemp": "Varoma", "thermomixSpeed": "2", "thermomixMode": null, "tip": null}
+- Slow Cook: {"order": 2, "instruction": "Slow cook the stew", "ingredientsUsed": ["beef", "potato"], "thermomixTime": 7200, "thermomixTemp": "90°C", "thermomixSpeed": "Reverse", "thermomixMode": "slow_cook", "tip": "Check after 1 hour — add water if needed."}
+- Non-Thermomix: {"order": 5, "instruction": "Plate and garnish", "ingredientsUsed": ["parsley"], "thermomixTime": null, "thermomixTemp": null, "thermomixSpeed": null, "thermomixMode": null, "tip": null}`
     : "";
 
   const airFryerSection = isAirFryerUser
@@ -714,7 +784,7 @@ Example: {"order": 3, "instruction": "Place the chicken thighs in the air fryer 
 
   return `Expert cook and recipe writer. Output in ${lang}, ${userContext.measurementSystem} units (${units}).
 
-RULES: Use practical quantities (e.g. 1/3 not 0.333, round to common fractions). Name recipes naturally without dietary labels (GOOD: "Chicken Ramen", BAD: "Sugar-Free Ramen"). Preferences guide creativity; ingredient dislikes are strict. Avoid allergen ingredients by default.
+RULES: Use practical quantities (e.g. 1/3 not 0.333, round to common fractions). Kitchen-friendly minimums: salt (min 1/4 tsp), spices/seeds (min 1/2 tsp), herbs (min 1 tbsp). Never output sub-gram quantities like "1g sesame seeds" — for small amounts use teaspoons/tablespoons. Name recipes naturally without dietary labels (GOOD: "Chicken Ramen", BAD: "Sugar-Free Ramen"). Preferences guide creativity; ingredient dislikes are strict. Avoid allergen ingredients by default.
 ${thermomixSection}
 ${airFryerSection}
 
@@ -727,7 +797,7 @@ Add a practical tip to steps where it genuinely helps. Good tips:
 - Substitution ideas ("No crema? Use Greek yogurt")
 Keep tips short (1-2 sentences). Not every step needs a tip — only where it adds value. Set to null for simple steps.
 
-OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Include "kitchenTools" — kitchen tools and accessories that would be helpful for this recipe. Not just required tools, but things that make the cooking experience easier — like a waste bowl for peels and trimmings. Think like a seasoned home cook setting up their station. Use this structure:
+OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Set "timerSeconds" for steps with a specific duration (resting, baking, marinating) — it powers a countdown timer in the app. Include "kitchenTools" — kitchen tools and accessories that would be helpful for this recipe. Not just required tools, but things that make the cooking experience easier — like a waste bowl for peels and trimmings. Think like a seasoned home cook setting up their station. Use this structure:
 {"schemaVersion":"1.0","suggestedName":"...","description":"A brief 1-2 sentence description of the dish","measurementSystem":"${userContext.measurementSystem}","locale":"${userContext.locale}","ingredients":[{"name":"...","quantity":1,"unit":"..."}],"steps":[{"order":1,"instruction":"...","ingredientsUsed":["..."]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":[],"kitchenTools":[{"name":"...","notes":"..."}]}`;
 }
 
@@ -1055,8 +1125,8 @@ export async function enrichIngredientsWithImages(
 }
 
 /**
- * Get relevant kitchen tools for a recipe based on recipe context.
- * Matches items based on cooking techniques and equipment used.
+ * Kitchen tool enrichment: uses LLM output as primary source, enriches with
+ * DB data (images, translated names), and gap-fills Thermomix accessories.
  */
 interface KitchenToolTranslationRow {
   locale: string;
@@ -1073,172 +1143,235 @@ const KITCHEN_TOOLS_CACHE_TTL_MS = 5 * 60 * 1000;
 let kitchenToolsCache: KitchenToolRow[] | null = null;
 let kitchenToolsCacheTimestamp = 0;
 
-export async function getRelevantKitchenTools(
+/** Clear the kitchen tools cache (exported for testing). */
+export function clearKitchenToolsCache(): void {
+  kitchenToolsCache = null;
+  kitchenToolsCacheTimestamp = 0;
+}
+
+/**
+ * Fetch all kitchen tools from the database, with in-memory caching.
+ */
+async function fetchKitchenToolsFromDB(
+  supabase: SupabaseClient,
+): Promise<KitchenToolRow[] | null> {
+  let allItems = kitchenToolsCache;
+  const cacheAge = Date.now() - kitchenToolsCacheTimestamp;
+
+  if (!allItems || cacheAge > KITCHEN_TOOLS_CACHE_TTL_MS) {
+    const { data, error } = await supabase
+      .from("kitchen_tools")
+      .select(`id, kitchen_tool_translations ( locale, name ), image_url`)
+      .limit(50);
+
+    if (error || !data || data.length === 0) {
+      console.warn(
+        "[Kitchen Tools] Failed to fetch or no items available:",
+        error?.message,
+      );
+      return null;
+    }
+
+    allItems = data as unknown as KitchenToolRow[];
+    kitchenToolsCache = allItems;
+    kitchenToolsCacheTimestamp = Date.now();
+  }
+
+  return allItems;
+}
+
+/**
+ * Fuzzy-match an LLM tool name against a DB kitchen tool's translations.
+ * Returns true if either name contains the other (case-insensitive), or if
+ * they share a significant word (length > 2).
+ */
+export function fuzzyMatchToolName(
+  llmName: string,
+  dbTranslations: KitchenToolTranslationRow[],
+): boolean {
+  const llmLower = llmName.toLowerCase().trim();
+
+  for (const t of dbTranslations) {
+    if (!t.name) continue;
+    const dbLower = t.name.toLowerCase().trim();
+
+    // Substring match in either direction
+    if (dbLower.includes(llmLower) || llmLower.includes(dbLower)) {
+      return true;
+    }
+
+    // Word overlap: if LLM name shares any significant word with DB name
+    const llmWords = llmLower.split(/\s+/).filter((w) => w.length > 2);
+    const dbWords = dbLower.split(/\s+/).filter((w) => w.length > 2);
+    for (const lw of llmWords) {
+      for (const dw of dbWords) {
+        if (lw === dw || dw.includes(lw) || lw.includes(dw)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Enrich LLM-generated kitchen tools with DB data (imageUrl, translated names)
+ * and gap-fill Thermomix-specific accessories the LLM may not know about.
+ *
+ * The LLM output is treated as the primary source of truth for tool selection.
+ * This function only adds images, corrects names to DB translations, and
+ * appends Thermomix accessories (Varoma, butterfly whisk) when relevant.
+ */
+export async function enrichKitchenTools(
   supabase: SupabaseClient,
   recipe: GeneratedRecipe,
   locale: string,
   hasThermomix: boolean,
 ): Promise<Array<{ name: string; imageUrl?: string; notes?: string }>> {
   try {
-    // Query kitchen tools from database (cached)
-    let allItems = kitchenToolsCache;
-    const cacheAge = Date.now() - kitchenToolsCacheTimestamp;
+    const llmTools = recipe.kitchenTools || [];
+    const dbTools = await fetchKitchenToolsFromDB(supabase);
 
-    if (!allItems || cacheAge > KITCHEN_TOOLS_CACHE_TTL_MS) {
-      const { data, error } = await supabase
-        .from("kitchen_tools")
-        .select(`id, kitchen_tool_translations ( locale, name ), image_url`)
-        .limit(50);
+    // If DB is unavailable, return LLM tools as-is (they still have names + notes)
+    if (!dbTools || dbTools.length === 0) {
+      console.warn(
+        "[Kitchen Tools] No DB tools available, using LLM output as-is",
+      );
+      return llmTools.map((t) => ({
+        name: t.name,
+        notes: t.notes || undefined,
+      }));
+    }
 
-      if (error || !data || data.length === 0) {
-        console.warn(
-          "[Kitchen Tools] Failed to fetch or no items available:",
-          error?.message,
+    const localeChain = buildLocaleChain(locale);
+
+    // 1. Enrich each LLM tool by matching against DB for imageUrl and translated name
+    const enrichedTools: Array<{
+      name: string;
+      imageUrl?: string;
+      notes?: string;
+    }> = llmTools.map((llmTool) => {
+      // Find best DB match via fuzzy matching
+      const dbMatch = dbTools.find((dbTool) =>
+        fuzzyMatchToolName(
+          llmTool.name,
+          dbTool.kitchen_tool_translations || [],
+        )
+      );
+
+      if (dbMatch) {
+        // Use locale-appropriate translated name from DB
+        const translation = pickTranslation(
+          dbMatch.kitchen_tool_translations || [],
+          localeChain,
         );
-        return [];
+        return {
+          name: translation?.name || llmTool.name,
+          imageUrl: dbMatch.image_url || undefined,
+          notes: llmTool.notes || undefined,
+        };
       }
 
-      allItems = data as unknown as KitchenToolRow[];
-      kitchenToolsCache = allItems;
-      kitchenToolsCacheTimestamp = Date.now();
-    }
+      // No DB match — keep LLM tool as-is (no image available)
+      return {
+        name: llmTool.name,
+        notes: llmTool.notes || undefined,
+      };
+    });
 
-    if (!allItems) {
-      return [];
-    }
+    // 2. Gap-fill: add Thermomix accessories if relevant and not already present
+    if (hasThermomix) {
+      const recipeText = (
+        recipe.suggestedName +
+        " " +
+        recipe.steps.map((s) => s.instruction).join(" ")
+      ).toLowerCase();
 
-    // Define keywords for matching items to recipe context
-    const recipeText = (
-      recipe.suggestedName +
-      " " +
-      recipe.steps.map((s) => s.instruction).join(" ")
-    ).toLowerCase();
+      const existingNamesLower = new Set(
+        enrichedTools.map((t) => t.name.toLowerCase()),
+      );
 
-    // Keywords that suggest specific kitchen tools
-    const itemKeywords: Record<string, string[]> = {
-      "spatula": ["stir", "flip", "fold", "mix", "mezclar", "revolver"],
-      "whisk": ["whisk", "beat", "whip", "batir"],
-      "tongs": ["flip", "turn", "grill", "voltear", "asar"],
-      "thermometer": [
-        "temperature",
-        "internal",
-        "meat",
-        "temperatura",
-        "carne",
-      ],
-      "timer": ["minutes", "timer", "cook for", "minutos", "cocinar por"],
-      "cutting board": ["chop", "dice", "slice", "cut", "picar", "cortar"],
-      "knife": ["chop", "dice", "slice", "cut", "mince", "picar", "cortar"],
-      "bowl": ["mix", "combine", "toss", "mezclar", "combinar"],
-      "pan": ["sauté", "fry", "cook", "saltear", "freír"],
-      "pot": ["boil", "simmer", "stew", "hervir", "cocinar a fuego lento"],
-      "baking sheet": ["bake", "roast", "oven", "hornear", "asar"],
-      "varoma": ["steam", "varoma", "vapor"],
-      "butterfly": ["butterfly", "mariposa", "whip", "cream"],
-    };
-
-    // Score each item based on keyword matches
-    const scoredItems = allItems.map((item) => {
-      // Combine all translation names for matching
-      const allTransNames = (item.kitchen_tool_translations || [])
-        .map((t) => t.name)
-        .filter(Boolean)
-        .join(" ");
-      const itemName = allTransNames.toLowerCase();
-      let score = 0;
-
-      // Check if item name keywords appear in recipe
-      for (const [itemType, keywords] of Object.entries(itemKeywords)) {
-        if (itemName.includes(itemType.toLowerCase())) {
-          for (const keyword of keywords) {
-            if (recipeText.includes(keyword)) {
-              score += 1;
-            }
+      // Check for Varoma (steaming)
+      const usesVaroma = recipeText.includes("steam") ||
+        recipeText.includes("varoma") || recipeText.includes("vapor") ||
+        recipeText.includes("al vapor");
+      if (usesVaroma) {
+        const varomaDb = dbTools.find((dbTool) => {
+          const names = (dbTool.kitchen_tool_translations || [])
+            .map((t) => t.name?.toLowerCase() || "")
+            .join(" ");
+          return names.includes("varoma");
+        });
+        if (varomaDb) {
+          const translation = pickTranslation(
+            varomaDb.kitchen_tool_translations || [],
+            localeChain,
+          );
+          const varomaName = translation?.name || "Varoma";
+          if (!existingNamesLower.has(varomaName.toLowerCase())) {
+            enrichedTools.push({
+              name: varomaName,
+              imageUrl: varomaDb.image_url || undefined,
+            });
+            existingNamesLower.add(varomaName.toLowerCase());
           }
         }
       }
 
-      // Boost Thermomix accessories if user has Thermomix
-      if (
-        hasThermomix &&
-        (itemName.includes("varoma") || itemName.includes("butterfly") ||
-          itemName.includes("mariposa"))
-      ) {
-        const usesVaroma = recipeText.includes("steam") ||
-          recipeText.includes("varoma") || recipeText.includes("vapor");
-        const usesButterfly = recipeText.includes("whip") ||
-          recipeText.includes("cream") || recipeText.includes("batir");
-        if (usesVaroma || usesButterfly) {
-          score += 3;
+      // Check for butterfly whisk (whipping/creaming)
+      const usesButterfly = recipeText.includes("whip") ||
+        recipeText.includes("cream") || recipeText.includes("batir") ||
+        recipeText.includes("montar") || recipeText.includes("butterfly") ||
+        recipeText.includes("mariposa");
+      if (usesButterfly) {
+        const butterflyDb = dbTools.find((dbTool) => {
+          const names = (dbTool.kitchen_tool_translations || [])
+            .map((t) => t.name?.toLowerCase() || "")
+            .join(" ");
+          return names.includes("butterfly") || names.includes("mariposa");
+        });
+        if (butterflyDb) {
+          const translation = pickTranslation(
+            butterflyDb.kitchen_tool_translations || [],
+            localeChain,
+          );
+          const butterflyName = translation?.name || "Butterfly Whisk";
+          if (!existingNamesLower.has(butterflyName.toLowerCase())) {
+            enrichedTools.push({
+              name: butterflyName,
+              imageUrl: butterflyDb.image_url || undefined,
+            });
+            existingNamesLower.add(butterflyName.toLowerCase());
+          }
         }
       }
+    }
 
-      return { item, score };
+    // 3. Deduplicate by name (case-insensitive), keeping the first occurrence
+    const seen = new Set<string>();
+    const deduped = enrichedTools.filter((tool) => {
+      const key = tool.name.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
 
-    // Sort by score and take top 3-5 items with score > 0
-    const relevantItems = scoredItems
-      .filter((si) => si.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 4)
-      .map((si) => {
-        const localeChain = buildLocaleChain(locale);
-        const match = pickTranslation(
-          si.item.kitchen_tool_translations || [],
-          localeChain,
-        );
-        return {
-          name: match?.name || "Unknown",
-          imageUrl: si.item.image_url || undefined,
-        };
-      });
+    // 4. Sanity cap at 8 tools
+    const result = deduped.slice(0, 8);
 
     console.log(
-      "[Kitchen Tools] Found relevant items:",
-      relevantItems.map((i) => i.name),
+      "[Kitchen Tools] Enriched tools:",
+      result.map((t) => t.name),
     );
-    return relevantItems;
+    return result;
   } catch (error) {
-    console.error("[Kitchen Tools] Error fetching kitchen tools:", error);
-    return [];
-  }
-}
-
-/**
- * Validate that Thermomix-enabled recipes include proper parameters
- */
-export function validateThermomixUsage(
-  recipe: GeneratedRecipe,
-  hasThermomix: boolean,
-): void {
-  if (!hasThermomix) return;
-
-  const thermomixSteps = recipe.steps.filter(
-    (step) => step.thermomixTime || step.thermomixTemp || step.thermomixSpeed,
-  );
-
-  const totalSteps = recipe.steps.length;
-  const thermomixPercentage = (thermomixSteps.length / totalSteps) * 100;
-
-  console.log("[Thermomix Validation]", {
-    totalSteps,
-    thermomixSteps: thermomixSteps.length,
-    percentage: thermomixPercentage.toFixed(1) + "%",
-  });
-
-  if (thermomixSteps.length === 0) {
-    console.warn(
-      "[Thermomix Validation] WARNING: User has Thermomix but NO steps use it!",
-      {
-        recipeName: recipe.suggestedName,
-        recommendation: "AI may not be following system prompt",
-      },
-    );
-  } else if (thermomixPercentage < 30) {
-    console.warn("[Thermomix Validation] Low Thermomix usage:", {
-      recipeName: recipe.suggestedName,
-      percentage: thermomixPercentage.toFixed(1) + "%",
-    });
+    console.error("[Kitchen Tools] Error enriching kitchen tools:", error);
+    // Fallback: return LLM tools without enrichment
+    return (recipe.kitchenTools || []).map((t) => ({
+      name: t.name,
+      notes: t.notes || undefined,
+    }));
   }
 }
 
@@ -1294,6 +1427,7 @@ export function validateThermomixSteps(
     thermomixTime?: number | null;
     thermomixTemp?: string | null;
     thermomixSpeed?: string | null;
+    thermomixMode?: string | null;
     tip?: string | null;
   }>,
 ): Array<{
@@ -1302,6 +1436,7 @@ export function validateThermomixSteps(
   thermomixTime?: number | null;
   thermomixTemp?: string | null;
   thermomixSpeed?: string | null;
+  thermomixMode?: string | null;
   tip?: string | null;
 }> {
   return steps.map((step) => {
@@ -1309,7 +1444,8 @@ export function validateThermomixSteps(
     if (
       step.thermomixTime == null &&
       step.thermomixTemp == null &&
-      step.thermomixSpeed == null
+      step.thermomixSpeed == null &&
+      step.thermomixMode == null
     ) {
       return step;
     }
@@ -1354,10 +1490,36 @@ export function validateThermomixSteps(
       }
     }
 
-    // Pair completion: time + speed must appear together
+    // Validate cooking mode (must be a known mode string)
+    if (step.thermomixMode != null) {
+      if (
+        !(VALID_THERMOMIX_MODES as readonly string[]).includes(
+          step.thermomixMode,
+        )
+      ) {
+        console.warn(
+          `Invalid Thermomix mode for step ${step.order}: ${step.thermomixMode}. Removing.`,
+        );
+        validated.thermomixMode = undefined;
+      }
+    }
+
+    // High temperature (browning) mode has NO speed — force null
+    if (validated.thermomixMode === "browning") {
+      if (validated.thermomixSpeed != null) {
+        console.warn(
+          `Step ${step.order}: browning mode has no speed setting. Forcing speed to null.`,
+        );
+        validated.thermomixSpeed = undefined;
+      }
+    }
+
+    // Pair completion: time + speed must appear together (skip for browning which has no speed)
     const hasTime = validated.thermomixTime != null;
     const hasSpeed = validated.thermomixSpeed != null;
-    if (hasTime && !hasSpeed) {
+    if (validated.thermomixMode === "browning") {
+      // browning only needs time, no speed
+    } else if (hasTime && !hasSpeed) {
       console.warn(
         `Step ${step.order}: thermomixTime set without thermomixSpeed. Filling speed with "1" (gentle default).`,
       );
@@ -1371,25 +1533,4 @@ export function validateThermomixSteps(
 
     return validated;
   });
-}
-
-/**
- * Create an empty recipe for error cases.
- */
-function createEmptyRecipe(userContext: UserContext): GeneratedRecipe {
-  const baseLang = getBaseLanguage(userContext.locale);
-  return {
-    schemaVersion: "1.0",
-    suggestedName: baseLang === "es"
-      ? "Receta no disponible"
-      : "Recipe unavailable",
-    measurementSystem: userContext.measurementSystem,
-    locale: userContext.locale,
-    ingredients: [],
-    steps: [],
-    totalTime: 0,
-    difficulty: "easy",
-    portions: 4,
-    tags: [],
-  };
 }

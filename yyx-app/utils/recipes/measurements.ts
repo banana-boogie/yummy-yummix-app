@@ -135,6 +135,8 @@ export function formatMeasurement(
 
   // Helper to get correct unit display based on quantity
   const getUnitDisplay = (u: MeasurementUnit, qty: number): string => {
+    // Generic count-based units ("unit", "whole") should not display a symbol
+    if (u.id === 'unit' || u.id === 'whole') return '';
     // Use plural for quantities that are not exactly 1
     if (qty !== 1 && u.symbolPlural && u.symbolPlural.trim() !== '') {
       return u.symbolPlural;

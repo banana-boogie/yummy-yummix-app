@@ -33,6 +33,7 @@ export function detectGoodbye(transcript: string): boolean {
 export class InactivityTimer {
   private timeoutId: NodeJS.Timeout | null = null;
   private readonly timeoutMs: number;
+  private paused = false;
 
   constructor(timeoutMs: number = 10000) {
     this.timeoutMs = timeoutMs;
@@ -48,6 +49,32 @@ export class InactivityTimer {
   }
 
   /**
+   * Pause the timer (e.g., during tool execution).
+   * Restarts with full duration on resume since tool execution >> remaining time.
+   */
+  pause(): void {
+    if (this.paused || !this.timeoutId) return;
+    this.paused = true;
+    clearTimeout(this.timeoutId);
+    this.timeoutId = null;
+  }
+
+  /**
+   * Resume the timer after a pause (e.g., after tool result + AI audio done).
+   * Restarts with full timeout duration since the user needs fresh time to respond.
+   */
+  resume(callback: () => void): void {
+    if (!this.paused) return;
+    this.paused = false;
+    this.timeoutId = setTimeout(callback, this.timeoutMs);
+  }
+
+  /** Whether the timer is currently paused */
+  isPaused(): boolean {
+    return this.paused;
+  }
+
+  /**
    * Clear the timer without triggering callback
    */
   clear(): void {
@@ -55,5 +82,6 @@ export class InactivityTimer {
       clearTimeout(this.timeoutId);
       this.timeoutId = null;
     }
+    this.paused = false;
   }
 }

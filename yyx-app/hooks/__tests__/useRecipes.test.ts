@@ -40,6 +40,12 @@ jest.mock('@/contexts/LanguageContext', () => ({
   }),
 }));
 
+// Mock semanticRecipeSearch
+const mockSemanticRecipeSearch = jest.fn();
+jest.mock('@/services/recipeService', () => ({
+  semanticRecipeSearch: (...args: any[]) => mockSemanticRecipeSearch(...args),
+}));
+
 describe('useRecipes', () => {
   const mockRecipes = recipeFactory.createList(10);
   const mockFetchNextPage = jest.fn();
@@ -404,6 +410,82 @@ describe('useRecipes', () => {
       // Should have all recipes from both pages
       expect(result.current.recipes[0]).toEqual(mockRecipes[0]);
       expect(result.current.recipes[9]).toEqual(mockRecipes[9]);
+    });
+  });
+
+  // ============================================================
+  // SEMANTIC SEARCH FALLBACK TESTS
+  // ============================================================
+
+  describe('semantic search fallback', () => {
+    it('does not call semantic search when primary results >= 3', async () => {
+      // Create recipes whose names contain "pasta" so local filtering retains them
+      const pastaRecipes = [
+        recipeFactory.create({ name: 'Pasta Carbonara' }),
+        recipeFactory.create({ name: 'Pasta Bolognese' }),
+        recipeFactory.create({ name: 'Pasta Primavera' }),
+        recipeFactory.create({ name: 'Pasta Alfredo' }),
+      ];
+
+      mockUseRecipesInfiniteQuery.mockReturnValue({
+        data: {
+          pages: [{ data: pastaRecipes, nextCursor: null, hasMore: false }],
+        },
+        isLoading: false,
+        isFetchingNextPage: false,
+        error: null,
+        hasNextPage: false,
+        fetchNextPage: mockFetchNextPage,
+        refetch: mockRefetch,
+      });
+
+      const { result } = renderHook(() => useRecipes());
+
+      // Set a search term long enough to trigger semantic search (> 3 chars)
+      // but matching enough primary results to skip it
+      act(() => {
+        result.current.setSearch('pasta');
+      });
+
+      // Wait for debounce + semantic fallback timer
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Semantic search should NOT be called because primary results >= 3
+      expect(mockSemanticRecipeSearch).not.toHaveBeenCalled();
+    });
+
+    it('empty semantic results do not change the recipe list', async () => {
+      // Create 2 recipes with names that match the search term so local filter keeps them
+      const twoRecipes = [
+        recipeFactory.create({ name: 'Chocolate Fondant Cake' }),
+        recipeFactory.create({ name: 'Chocolate Fondant Lava' }),
+      ];
+      mockSemanticRecipeSearch.mockResolvedValue([]);
+
+      mockUseRecipesInfiniteQuery.mockReturnValue({
+        data: {
+          pages: [{ data: twoRecipes, nextCursor: null, hasMore: false }],
+        },
+        isLoading: false,
+        isFetchingNextPage: false,
+        error: null,
+        hasNextPage: false,
+        fetchNextPage: mockFetchNextPage,
+        refetch: mockRefetch,
+      });
+
+      const { result } = renderHook(() => useRecipes());
+
+      // Set a search term long enough to trigger semantic search
+      act(() => {
+        result.current.setSearch('chocolate fondant');
+      });
+
+      // Wait for debounce + semantic fallback timer
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Recipes should still be the original 2 — no additions from empty semantic results
+      expect(result.current.recipes).toHaveLength(2);
     });
   });
 });

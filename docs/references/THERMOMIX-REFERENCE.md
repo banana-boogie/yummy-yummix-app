@@ -1,4 +1,4 @@
-# Thermomix TM6/TM5 Cooking Reference
+# Thermomix Cooking Reference (TM5 / TM6 / TM7)
 
 Comprehensive reference for Thermomix parameters, compiled from official Vorwerk/Cookidoo documentation and verified community sources.
 
@@ -57,7 +57,8 @@ Rotates blade counter-clockwise so the **blunt edge** leads instead of the sharp
 
 ### Range
 
-- **Manual mode**: 37°C to 120°C (adjustable in 1° increments)
+- **TM5/TM6 Manual mode**: 37°C to 120°C (adjustable in 1° increments)
+- **TM7 Manual mode**: 37°C to 160°C (adjustable in 1° increments — extended range)
 - **High Temperature mode** (TM6 only): Up to 160°C, Guided Cooking recipes only (not manual)
 - **No temperature (null/cold)**: Chopping, grinding, blending, kneading — any task without heat
 
@@ -92,6 +93,7 @@ Rotates blade counter-clockwise so the **blunt edge** leads instead of the sharp
 
 ### Timer Limits
 
+- **TM7**: Up to 12 hours (same as TM6)
 - **TM6**: Up to 12 hours
 - **TM5**: Up to 99 minutes per step
 - **High Temperature mode**: Max 10 minutes per step (safety)
@@ -242,6 +244,108 @@ Rotates blade counter-clockwise so the **blunt edge** leads instead of the sharp
 - **Browning/searing**: 100-250g per batch
 - **Slow cooking meat**: Max 800g
 
+---
+
+## Cooking Modes
+
+Named cooking modes that set specific parameter combinations automatically. The user selects the mode on their Thermomix screen.
+
+| Mode | Code | TM5 | TM6 | TM7 | Parameters | Best For |
+|------|------|-----|-----|-----|------------|----------|
+| **Slow Cook** | `slow_cook` | No | Yes | Yes | Reverse, Speed 1, blade cover, 70-100°C, up to 12h | Stews, braises, casseroles |
+| **Rice Cooker** | `rice_cooker` | No | Yes | Yes | Automatic temp/speed/time | Rice, grains |
+| **Sous Vide** | `sous_vide` | No | Yes | Yes | Precise temp hold, no stirring | Proteins, vegetables |
+| **Fermentation** | `fermentation` | No | Yes | Yes | Low temp hold (30-45°C), extended time | Yogurt, dough proofing, tempeh |
+| **Open Cooking** | `open_cooking` | No | No | Yes | Lid-free, up to 100°C, temperature only — users stir manually with spatula | Risotto, sautéing, monitoring |
+| **Browning** (Gentle / Intense) | `browning` | No | No | Yes (TM7 only) | 120-160°C, max 10min per step, NO speed setting. Gentle: vegetables, onions, delicate browning. Intense: searing meats, deep caramelization. Cannot be combined with Open Cooking — lid must be closed. | Browning, searing, caramelizing |
+| ~~High Temperature~~ | `high_temperature` | No | Guided only | — | _TM6 Guided Cooking only. Superseded by `browning` on TM7. Do not use for recipe generation._ | — |
+| **Dough** | `dough` | Yes | Yes | Yes | Kneading mode, max 500g flour | Bread, pasta, pizza dough |
+| **Turbo** | `turbo` | Yes | Yes | Yes | Brief pulse at max speed | Crushing ice, quick grind |
+
+### When to Use a Mode vs Manual
+
+- Use a **named mode** when the Thermomix has a dedicated program for the technique — the user selects the mode from the screen.
+- Use **manual mode** (no mode set) for standard cooking with time/speed/temp — the user sets parameters individually.
+- On TM6, **high temperature** is only available via **Guided Cooking** (not for recipe generation). On TM7, use **browning** mode (gentle or intense) instead.
+- **Browning cannot be combined with Open Cooking** — the lid must be closed for browning.
+
+---
+
+## TM7-Specific Features
+
+The Thermomix TM7 (released 2024) adds several capabilities not available on TM5/TM6:
+
+### Open Cooking Mode
+- Cook **without the lid** at temperatures up to 100°C
+- Lid does not lock until **Speed 2** — at Spoon or Speed 1, the lid sits freely
+- Enables manual stirring, adding ingredients on the fly, and visual monitoring
+- Great for risottos, sauteing, and any technique where you want to watch and intervene
+
+### Extended Temperature Range
+- Manual temperature up to **160°C** (vs 120°C on TM5/TM6)
+- Enables proper browning, searing, and caramelization directly in the bowl
+- No need for Guided Cooking mode to access high temperatures
+
+### Browning Mode (TM7 Only)
+- Two intensity levels: **Gentle** (vegetables, onions, garlic, delicate browning) and **Intense** (searing meats, deep caramelization)
+- Temperatures up to 160°C, max 10 minutes per step
+- Best results with small quantities (100-250g per batch)
+- **Cannot be combined with Open Cooking** — lid must be closed for browning
+- No speed setting — blade does not rotate in browning mode
+
+### Fermentation Mode (also on TM6)
+- Built-in fermentation function for yogurt, dough proofing, tempeh, etc.
+- Maintains precise low temperatures over extended periods
+- Available on both TM6 and TM7 (not TM7-exclusive)
+
+### Other TM7 Improvements
+- 10-inch touchscreen (larger and more responsive than TM6)
+- Quieter motor
+- Same 2.2L bowl capacity and blade system as TM6
+
+---
+
+## Cutter Disc / Cutter+
+
+### TM5/TM6: Cutter Disc
+- Accessory disc that sits on top of the blade inside the bowl
+- Used for **uniform slicing and grating** of firm foods
+- **Speed 4 only** — do not use at other speeds
+- Maximum fill: **28 oz (approximately 800g)** — do not overfill
+- Suitable foods: firm vegetables (carrots, zucchini, potatoes, beets), hard cheese, chocolate
+- NOT suitable for: soft foods (tomatoes, bananas, bread), meat, leafy greens, very hard items (frozen food, nuts)
+
+### TM7: Cutter+
+- Redesigned accessory with improved cutting geometry
+- Same usage rules: **Speed 4 only**, max 28 oz
+- Enhanced grating results and easier cleaning
+- Compatible only with TM7 bowl
+
+### Maintenance
+- Hand wash immediately after use — food residue hardens quickly
+- Do not put in dishwasher (blade edges dull)
+- Store separately from the bowl to protect cutting edges
+
+---
+
+## Model Comparison Table
+
+| Feature | TM5 | TM6 | TM7 |
+|---------|-----|-----|-----|
+| **Timer** | Up to 99 min | Up to 12 hours | Up to 12 hours |
+| **Temp range (manual)** | 37-120°C | 37-120°C | 37-160°C |
+| **Browning (manual)** | Up to 120°C | Up to 120°C | Up to 160°C |
+| **Open Cooking** | No | No | Yes (up to 100°C, lid-free) |
+| **Cutter accessory** | Cutter Disc | Cutter Disc | Cutter+ |
+| **Butterfly whisk** | Yes (max speed 4) | Yes (max speed 4) | Yes (max speed 4) |
+| **Sous vide** | No | Yes | Yes |
+| **Fermentation** | No | Yes | Yes |
+| **High temp (Guided)** | No | Up to 160°C | N/A (manual goes to 160°C) |
+| **Screen** | Small monochrome | 6.8" touchscreen | 10" touchscreen |
+| **Bowl capacity** | 2.2L | 2.2L | 2.2L |
+
+---
+
 ### Steps That Should NOT Use Thermomix
 
 - Deep frying / air frying
@@ -250,7 +354,7 @@ Rotates blade counter-clockwise so the **blunt edge** leads instead of the sharp
 - Making popcorn
 - High-heat dry frying
 - Pressure cooking
-- Large-batch browning (small surface area)
+- Large-batch browning (>250g per batch — use a pan or skillet for larger quantities)
 - Plating, garnishing
 - Oven/grill tasks
 - Manual shaping
@@ -267,8 +371,9 @@ Rotates blade counter-clockwise so the **blunt edge** leads instead of the sharp
 ## Sources
 
 - Vorwerk official support articles (blade speeds, Varoma, temperature settings, safety, reverse mode, butterfly whisk, blade cover)
+- Vorwerk TM7 product page and launch materials (open cooking, extended temp range, fermentation, Cutter+)
 - Cookidoo foundation articles (TM6 modes, dough mode, blend/turbo, high temperature, rice cooker, slow cook)
 - Alyce Alexandra (Varoma explained, beginners guide)
-- Thermojo (manual cooking, high heat sautéing)
+- Thermojo (manual cooking, high heat sautéing, TM7 review and comparison)
 - ThermoFun (Varoma tips)
-- Community references (nut butter methods, pasta cooking, béchamel, chocolate melting)
+- Community references (nut butter methods, pasta cooking, béchamel, chocolate melting, TM7 early adopter feedback)

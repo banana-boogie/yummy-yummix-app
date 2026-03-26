@@ -28,7 +28,7 @@ export default function AdminTags() {
   const [isNewTag, setIsNewTag] = useState(false);
   const [newCategoryModalVisible, setNewCategoryModalVisible] = useState(false);
   const [newCategory, setNewCategory] = useState('');
-  const [displayLocale, setDisplayLocale] = useState('es');
+  const [displayLocale, setDisplayLocale] = useState(i18n.locale);
 
   useEffect(() => {
     fetchTags();

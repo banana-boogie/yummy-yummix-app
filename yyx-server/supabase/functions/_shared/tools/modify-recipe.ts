@@ -23,13 +23,12 @@ import {
   buildRecipeJsonSchema,
   checkIngredientsForAllergens,
   enrichIngredientsWithImages,
+  enrichKitchenTools,
   GenerateRecipeResult,
-  getRelevantKitchenTools,
   getSystemPrompt,
   parseAndValidateGeneratedRecipe,
   PartialRecipeCallback,
   validateThermomixSteps,
-  validateThermomixUsage,
 } from "./generate-custom-recipe.ts";
 import { checkRecipeSafety } from "../food-safety.ts";
 import { chat } from "../ai-gateway/index.ts";
@@ -274,7 +273,6 @@ export async function modifyRecipe(
 
   // Validate Thermomix parameters
   recipe.steps = validateThermomixSteps(recipe.steps);
-  validateThermomixUsage(recipe, isThermomixUser);
   timings.thermomix_validation_ms = Math.round(performance.now() - phaseStart);
   phaseStart = performance.now();
 
@@ -295,7 +293,7 @@ export async function modifyRecipe(
         supabase,
         userContext.locale,
       ),
-      getRelevantKitchenTools(
+      enrichKitchenTools(
         supabase,
         recipe,
         userContext.locale,

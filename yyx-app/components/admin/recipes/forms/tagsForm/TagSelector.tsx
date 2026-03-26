@@ -13,6 +13,8 @@ import { MultiSelect } from '@/components/form/MultiSelect';
 import { AlertModal } from '@/components/common/AlertModal';
 import { Text } from '@/components/common/Text';
 import { useDevice } from '@/hooks/useDevice';
+import { COLORS } from '@/constants/design-tokens';
+import { TagEditModal } from '@/components/admin/tags/TagEditModal';
 import logger from '@/services/logger';
 
 // Local filters interface with categories
@@ -53,6 +55,7 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
   const [error, setError] = useState<string | null>(null);
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
+  const [createTagModalVisible, setCreateTagModalVisible] = useState(false);
 
   // Fetch tags and categories on mount only
   useEffect(() => {
@@ -204,9 +207,18 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
       </View>
 
       {/* Available tags */}
-      <Text preset="subheading" className="mb-sm">
-        {i18n.t('admin.recipes.form.tagsInfo.availableTags')}
-      </Text>
+      <View className="flex-row items-center justify-between mb-sm">
+        <Text preset="subheading">
+          {i18n.t('admin.recipes.form.tagsInfo.availableTags')}
+        </Text>
+        <TouchableOpacity
+          onPress={() => setCreateTagModalVisible(true)}
+          className="flex-row items-center gap-xs bg-primary-lightest px-md py-xs rounded-lg border border-border-default"
+        >
+          <Ionicons name="add-circle-outline" size={18} color={COLORS.primary.darkest} />
+          <Text preset="bodySmall" className="text-primary-darkest font-medium">Create Tag</Text>
+        </TouchableOpacity>
+      </View>
 
 
       {/* Filters */}
@@ -354,6 +366,17 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
         message={alertMessage}
         onConfirm={() => setShowAlert(false)}
         confirmText="OK"
+      />
+
+      <TagEditModal
+        visible={createTagModalVisible}
+        isNew={true}
+        onClose={() => setCreateTagModalVisible(false)}
+        onSave={(tag) => {
+          setCreateTagModalVisible(false);
+          // Add the new tag to the local list so it's immediately available
+          setAllTags(prev => [tag, ...prev]);
+        }}
       />
     </View>
   );

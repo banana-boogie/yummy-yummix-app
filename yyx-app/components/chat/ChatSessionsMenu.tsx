@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, TouchableOpacity, Modal, Pressable, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, Modal, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { loadChatSessions, loadChatHistory } from '@/services/chatService';
@@ -119,11 +119,14 @@ export function ChatSessionsMenu({
             {/* Hamburger Button */}
             <TouchableOpacity
                 onPress={handleOpen}
-                className="w-10 h-10 items-center justify-center rounded-full bg-background-secondary ml-md"
+                className="flex-row items-center gap-xs px-sm py-xs"
                 accessibilityLabel={i18n.t('chat.sessions.menuLabel')}
                 accessibilityRole="button"
             >
-                <MaterialCommunityIcons name="menu" size={24} color={COLORS.text.default} />
+                <MaterialCommunityIcons name="clock-outline" size={20} color={COLORS.text.secondary} />
+                <Text className="text-text-secondary text-sm font-medium">
+                    {i18n.t('chat.sessions.historyLabel')}
+                </Text>
             </TouchableOpacity>
 
             {/* Sessions Modal */}
@@ -146,7 +149,11 @@ export function ChatSessionsMenu({
                             <Text className="text-lg font-semibold text-text-primary">
                                 {i18n.t('chat.sessions.title')}
                             </Text>
-                            <TouchableOpacity onPress={handleClose}>
+                            <TouchableOpacity
+                                onPress={handleClose}
+                                className="w-11 h-11 items-center justify-center"
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
                                 <MaterialCommunityIcons name="close" size={24} color={COLORS.grey.medium} />
                             </TouchableOpacity>
                         </View>
@@ -174,7 +181,7 @@ export function ChatSessionsMenu({
                                 </Text>
                             </View>
                         ) : (
-                            <View className="max-h-80">
+                            <ScrollView>
                                 {sessions.map((session) => (
                                     <TouchableOpacity
                                         key={session.id}
@@ -196,7 +203,7 @@ export function ChatSessionsMenu({
                                             >
                                                 {session.title}
                                             </Text>
-                                            <Text className="text-text-tertiary text-xs">
+                                            <Text className="text-text-tertiary text-sm">
                                                 {formatDate(session.createdAt)}
                                             </Text>
                                         </View>
@@ -208,7 +215,7 @@ export function ChatSessionsMenu({
                                         )}
                                     </TouchableOpacity>
                                 ))}
-                            </View>
+                            </ScrollView>
                         )}
                     </Pressable>
                 </Pressable>

@@ -38,6 +38,8 @@ export interface GeneratedStep {
   thermomixTime?: number;
   thermomixTemp?: string;
   thermomixSpeed?: string;
+  thermomixMode?: string;
+  timerSeconds?: number | null;
   tip?: string | null;
 }
 
@@ -68,6 +70,13 @@ export interface SafetyFlags {
   error?: boolean;
 }
 
+export interface Suggestion {
+  label: string;
+  message: string;
+  type?: 'recipe_generation' | 'default';
+  metadata?: Record<string, unknown>;
+}
+
 export interface IrmixyResponse {
   version: '1.0';
   message: string;
@@ -77,6 +86,7 @@ export interface IrmixyResponse {
   customRecipe?: GeneratedRecipe;
   isAIGenerated?: boolean;
   actions?: Action[];
+  suggestions?: Suggestion[];
   memoryUsed?: string[];
   safetyFlags?: SafetyFlags;
 }
@@ -88,3 +98,10 @@ export type IrmixyStatus =
   | 'cooking_it_up'
   | 'enriching'
   | null;
+
+/** Structured cooking context sent as a separate field (not prepended to user message) */
+export interface CookingContext {
+  recipeTitle: string;
+  currentStep: string;
+  stepInstructions?: string;
+}

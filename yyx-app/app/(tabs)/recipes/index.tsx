@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Animated, View } from 'react-native';
+import { Animated, FlatList, View, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useRecipes } from '@/hooks/useRecipes';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { SPACING } from '@/constants/design-tokens';
@@ -42,36 +43,82 @@ const Recipes = () => {
     }
   }, [searchQuery]);
 
-  // Collapsible header logic
+  // Collapsible header: "scroll up to reveal" behavior
+  // Uses JS-driven scroll tracking instead of Animated.diffClamp (which crashes
+  // when recreated) to detect scroll direction and animate the header.
   const [headerHeight, setHeaderHeight] = useState(180);
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const headerTranslateY = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
+  const accumulatedDelta = useRef(0);
+  const isHeaderVisible = useRef(true);
+  const activeAnimRef = useRef<Animated.CompositeAnimation | null>(null);
 
-  const clampedScrollY = scrollY.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-    extrapolateLeft: 'clamp',
-  });
+  const animateHeader = useCallback((show: boolean) => {
+    // Don't re-trigger if already in the target state
+    if (isHeaderVisible.current === show) return;
+    isHeaderVisible.current = show;
 
-  const diffClamp = Animated.diffClamp(clampedScrollY, 0, headerHeight);
+    activeAnimRef.current?.stop();
+    const anim = Animated.spring(headerTranslateY, {
+      toValue: show ? 0 : -headerHeight,
+      useNativeDriver: true,
+      stiffness: 200,
+      damping: 25,
+      mass: 0.8,
+    });
+    activeAnimRef.current = anim;
+    anim.start(() => { activeAnimRef.current = null; });
+  }, [headerTranslateY, headerHeight]);
 
-  const translateY = diffClamp.interpolate({
-    inputRange: [0, headerHeight],
-    outputRange: [0, -headerHeight],
-  });
+  const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const currentY = event.nativeEvent.contentOffset.y;
+    const delta = currentY - lastScrollY.current;
+    lastScrollY.current = currentY;
+
+    // At the top of the list, always show the header
+    if (currentY <= 0) {
+      accumulatedDelta.current = 0;
+      animateHeader(true);
+      return;
+    }
+
+    // Accumulate scroll delta in the current direction
+    if ((delta > 0 && accumulatedDelta.current < 0) || (delta < 0 && accumulatedDelta.current > 0)) {
+      accumulatedDelta.current = 0; // Direction changed, reset
+    }
+    accumulatedDelta.current += delta;
+
+    // Require a minimum scroll distance before committing to hide/show
+    const threshold = 20;
+
+    if (accumulatedDelta.current > threshold) {
+      animateHeader(false);
+      accumulatedDelta.current = 0;
+    } else if (accumulatedDelta.current < -threshold) {
+      animateHeader(true);
+      accumulatedDelta.current = 0;
+    }
+  }, [animateHeader]);
+
+  // Scroll-to-top on tab re-press (manual listener — useScrollToTop doesn't
+  // work reliably with Expo Router's file-based routing + custom tab bar)
+  const listRef = useRef<FlatList>(null);
+  const navigation = useNavigation();
+  const parentNavigation = navigation.getParent();
+  useEffect(() => {
+    if (!parentNavigation) return;
+    const unsubscribe = parentNavigation.addListener('tabPress', () => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+      animateHeader(true);
+    });
+    return unsubscribe;
+  }, [parentNavigation, animateHeader]);
 
   const displayName = userProfile?.name || '';
 
-  const onScroll = useMemo(
-    () => Animated.event(
-      [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-      { useNativeDriver: true }
-    ),
-    [scrollY]
-  );
-
   // Keep search bar visible whenever search is active.
   const isSearching = searchQuery.trim().length > 0;
-  const headerTranslateY = isSearching ? 0 : translateY;
+  const animatedTranslateY = isSearching ? 0 : headerTranslateY;
 
   // Build recipe sections for the sectioned feed
   const sections = useMemo((): RecipeSection[] => {
@@ -112,7 +159,7 @@ const Recipes = () => {
     <PageLayout contentPaddingHorizontal={0} disableMaxWidth={true}>
       <Animated.View
         style={{
-          transform: [{ translateY: headerTranslateY }],
+          transform: [{ translateY: animatedTranslateY }],
           position: 'absolute',
           top: 0,
           left: 0,
@@ -153,6 +200,7 @@ const Recipes = () => {
         ) : (
           /* Default: sectioned feed */
           <RecipeSectionList
+            ref={listRef}
             sections={sections}
             loading={loading}
             initialLoading={initialLoading}

@@ -43,17 +43,16 @@ jest.mock('@/components/navigation/HamburgerMenu', () => ({
   HamburgerMenu: () => null,
 }));
 
-// Mock VoiceAssistantButton
-jest.mock('@/components/common/VoiceAssistantButton', () => ({
-  VoiceAssistantButton: ({ recipeContext }: { recipeContext?: any }) => {
-    const { View, Text } = require('react-native');
-    return (
-      <View testID="voice-assistant-button">
-        <Text>Voice Assistant</Text>
-      </View>
-    );
+// Mock i18n
+jest.mock('@/i18n', () => ({
+  t: (key: string) => {
+    const translations: Record<string, string> = {
+      'recipes.cookingGuide.navigation.exitCookingGuide': 'Exit cooking guide',
+    };
+    return translations[key] || key;
   },
 }));
+
 
 describe('CookingGuideHeader', () => {
   beforeEach(() => {
@@ -153,40 +152,29 @@ describe('CookingGuideHeader', () => {
   });
 
   // ============================================================
-  // VOICE ASSISTANT BUTTON TESTS
+  // EXIT BUTTON TESTS
   // ============================================================
 
-  describe('voice assistant button', () => {
-    it('renders VoiceAssistantButton when recipeContext is provided', () => {
-      const recipeContext = {
-        recipeId: 'recipe-123',
-        recipeName: 'Test Recipe',
-        currentStep: 1,
-        totalSteps: 5,
-      };
+  describe('exit button', () => {
+    it('shows exit button when onExitPress is provided', () => {
+      render(<CookingGuideHeader title="Recipe" onExitPress={jest.fn()} />);
 
-      render(<CookingGuideHeader title="Recipe" recipeContext={recipeContext} />);
-
-      expect(screen.getByTestId('voice-assistant-button')).toBeTruthy();
+      expect(screen.getByLabelText('Exit cooking guide')).toBeTruthy();
     });
 
-    it('does not render VoiceAssistantButton when recipeContext is not provided', () => {
+    it('does not show exit button when onExitPress is not provided', () => {
       render(<CookingGuideHeader title="Recipe" />);
 
-      expect(screen.queryByTestId('voice-assistant-button')).toBeNull();
+      expect(screen.queryByLabelText('Exit cooking guide')).toBeNull();
     });
 
-    it('renders VoiceAssistantButton inline with title', () => {
-      const recipeContext = {
-        recipeId: 'recipe-123',
-        recipeName: 'Test Recipe',
-      };
+    it('calls onExitPress when exit button is pressed', () => {
+      const onExitPress = jest.fn();
+      render(<CookingGuideHeader title="Recipe" onExitPress={onExitPress} />);
 
-      render(<CookingGuideHeader title="Recipe" recipeContext={recipeContext} />);
+      fireEvent.press(screen.getByLabelText('Exit cooking guide'));
 
-      // Both title and voice button should be present
-      expect(screen.getByText('Recipe')).toBeTruthy();
-      expect(screen.getByTestId('voice-assistant-button')).toBeTruthy();
+      expect(onExitPress).toHaveBeenCalledTimes(1);
     });
   });
 

@@ -31,6 +31,13 @@ export async function finalizeResponse(
   recipes: RecipeCard[] | undefined,
   customRecipeResult: GenerateRecipeResult | undefined,
   actions?: Action[],
+  suggestions?: Array<{
+    label: string;
+    message: string;
+    type?: "recipe_generation" | "default";
+    metadata?: Record<string, unknown>;
+  }>,
+  options?: { skipUserMessage?: boolean },
 ): Promise<IrmixyResponse> {
   const irmixyResponse: IrmixyResponse = {
     version: "1.0",
@@ -42,6 +49,9 @@ export async function finalizeResponse(
     isAIGenerated: customRecipeResult?.recipe ? true : undefined,
     safetyFlags: customRecipeResult?.safetyFlags,
     actions: actions && actions.length > 0 ? actions : undefined,
+    suggestions: suggestions && suggestions.length > 0
+      ? suggestions
+      : undefined,
   };
 
   validateSchema(IrmixyResponseSchema, irmixyResponse);
@@ -51,6 +61,7 @@ export async function finalizeResponse(
       sessionId,
       message,
       irmixyResponse,
+      options?.skipUserMessage ? { skipUserMessage: true } : undefined,
     );
   }
 

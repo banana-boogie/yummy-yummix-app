@@ -14,11 +14,18 @@ import { ChatScreen } from '../ChatScreen';
 // Mock i18n
 jest.mock('@/i18n', () => ({
   t: (key: string, _params?: Record<string, unknown>) => {
+    if (key === 'chat.greetingCycling.withName') {
+      return ['Hi {{name}}, what are we cooking today?'];
+    }
+    if (key === 'chat.greetingCycling.withoutName') {
+      return ['Hi, what are we cooking today?'];
+    }
     const translations: Record<string, string> = {
       'chat.greeting': "Hi! I'm Irmixy, your AI sous chef. How can I help?",
       'chat.inputPlaceholder': 'Ask Irmixy...',
       'chat.budget.warningTitle': 'Heads up!',
       'chat.budget.warningDetailed': "You've been cooking up a storm!",
+      'chat.budget.warmWarning': "Just a heads up — you've used most of your Irmixy time for this month.",
       'chat.budget.exceededTitle': 'Irmixy limit reached',
       'chat.budget.exceededMessage': "You've reached your monthly Irmixy limit.",
       'chat.budget.upgradeHint': 'Irmixy limit reached — resets next month',
@@ -47,7 +54,29 @@ jest.mock('@/contexts/AuthContext', () => ({
 }));
 
 jest.mock('@/contexts/LanguageContext', () => ({
-  useLanguage: () => ({ language: 'en' }),
+  useLanguage: () => ({ language: 'en', locale: 'en' }),
+}));
+
+jest.mock('@/contexts/UserProfileContext', () => ({
+  useUserProfile: () => ({ userProfile: { name: 'TestUser' }, loading: false, error: null }),
+}));
+
+jest.mock('@/i18n/locales/en/chat', () => ({
+  chat: {
+    greetingCycling: {
+      withName: ['Hi {{name}}, what are we cooking today?'],
+      withoutName: ['Hi, what are we cooking today?'],
+    },
+  },
+}));
+
+jest.mock('@/i18n/locales/es/chat', () => ({
+  chat: {
+    greetingCycling: {
+      withName: ['Hola {{name}}, ¿qué cocinamos hoy?'],
+      withoutName: ['¡Hola! ¿Qué cocinamos hoy?'],
+    },
+  },
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -155,7 +184,7 @@ describe('ChatScreen budget UI', () => {
     });
   }
 
-  it('shows warm budget warning alert with no dollar amounts', async () => {
+  it('injects warm Irmixy chat message on budget warning instead of Alert', async () => {
     render(<ChatScreen />);
     await sendAMessage();
 
@@ -165,10 +194,16 @@ describe('ChatScreen budget UI', () => {
       capturedOnBudgetWarning!({ usedUsd: 0.085, budgetUsd: 0.10 });
     });
 
-    expect(alertSpy).toHaveBeenCalledWith(
+    // Should NOT show a system Alert
+    expect(alertSpy).not.toHaveBeenCalledWith(
       'Heads up!',
-      "You've been cooking up a storm!",
+      expect.anything(),
     );
+
+    // Should inject a warm Irmixy message into the chat
+    await waitFor(() => {
+      expect(screen.getByText("Just a heads up — you've used most of your Irmixy time for this month.")).toBeTruthy();
+    });
   });
 
   it('shows exceeded alert and disables input when budget is exceeded', async () => {

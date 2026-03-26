@@ -16,13 +16,16 @@ export async function saveMessageToHistory(
   sessionId: string,
   userMessage: string,
   assistantResponse: IrmixyResponse,
+  options?: { skipUserMessage?: boolean },
 ): Promise<void> {
-  // Save user message
-  await supabase.from("user_chat_messages").insert({
-    session_id: sessionId,
-    role: "user",
-    content: userMessage,
-  });
+  // Save user message (skip for confirmed tool calls — the user didn't type this)
+  if (!options?.skipUserMessage) {
+    await supabase.from("user_chat_messages").insert({
+      session_id: sessionId,
+      role: "user",
+      content: userMessage,
+    });
+  }
 
   // Save assistant response with recipes/customRecipe if present
   const toolCallsData: Record<string, unknown> = {};

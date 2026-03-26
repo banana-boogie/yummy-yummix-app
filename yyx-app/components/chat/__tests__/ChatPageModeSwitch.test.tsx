@@ -30,8 +30,14 @@ jest.mock('expo-router', () => {
         );
       },
     },
+    useRouter: () => ({ push: jest.fn(), navigate: jest.fn(), back: jest.fn() }),
   };
 });
+
+jest.mock('@/contexts/CookingSessionContext', () => ({
+  useCookingSession: () => ({ irmixyChatSessionId: null, irmixyChatMessages: [], irmixyVoiceTranscriptMessages: [] }),
+  CookingSessionProvider: ({ children }: { children: any }) => children,
+}));
 
 jest.mock('@/components/chat/ChatSessionsMenu', () => ({
   ChatSessionsMenu: () => {

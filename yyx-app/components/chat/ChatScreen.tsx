@@ -13,9 +13,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/common/Text';
 import { IrmixyAvatar } from '@/components/chat/IrmixyAvatar';
 import { TypingDots } from '@/components/chat/TypingIndicator';
+import { SearchingAnimation } from '@/components/chat/SearchingAnimation';
 import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
 import { ChatResumeBar } from '@/components/chat/ChatResumeBar';
 import { ChatInputBar } from '@/components/chat/ChatInputBar';
+import { SPACING , COLORS } from '@/constants/design-tokens';
 import { useMessageStreaming } from '@/hooks/chat/useMessageStreaming';
 import { useSmartScroll } from '@/hooks/chat/useSmartScroll';
 import { useResumeSession } from '@/hooks/chat/useResumeSession';
@@ -26,15 +28,19 @@ import {
 } from '@/services/actions/actionRegistry';
 import type { Action, IrmixyResponse } from '@/types/irmixy';
 import { isRecipeToolStatus } from '@/services/chatService';
-import type { BudgetWarningPayload, ChatMessage, IrmixyStatus } from '@/services/chatService';
+import type { BudgetWarningPayload, ChatMessage } from '@/services/chatService';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useUserProfile } from '@/contexts/UserProfileContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import i18n from '@/i18n';
+import { chat as chatEn } from '@/i18n/locales/en/chat';
+import { chat as chatEs } from '@/i18n/locales/es/chat';
 
 const SCROLL_DELAY_MS = 100;
+const CHAT_CONTENT_STYLE = { padding: SPACING.md, flexGrow: 1 };
 
 interface Props {
     sessionId?: string | null;
@@ -43,6 +49,20 @@ interface Props {
     onMessagesChange?: (messages: ChatMessage[]) => void;
     onOpenSessionsMenu?: () => void;
     newChatSignal?: number;
+    /** Structured cooking context — sent as a separate field to the backend */
+    cookingContext?: import('@/types/irmixy').CookingContext;
+    /** Override the cycling greeting shown in the empty state */
+    emptyStateGreeting?: string;
+    /** When true, skip resume session lookup (e.g. cooking modal) */
+    disableResume?: boolean;
+    /** Injected as the first assistant message (renders as a chat bubble from Irmixy) */
+    initialGreeting?: string;
+    /** Called before navigating away (e.g. "Start Cooking" inside a modal) */
+    onNavigateAway?: () => void;
+    /** Override the keyboard avoiding offset (e.g. when embedded in a modal with its own header) */
+    keyboardVerticalOffset?: number;
+    /** Minimum bottom inset for ChatInputBar (e.g. when safe area reports 0 inside a pageSheet modal) */
+    minBottomInset?: number;
 }
 
 const keyExtractor = (item: ChatMessage) => item.id;
@@ -54,27 +74,65 @@ export function ChatScreen({
     onMessagesChange,
     onOpenSessionsMenu,
     newChatSignal,
+    cookingContext,
+    emptyStateGreeting,
+    disableResume,
+    initialGreeting,
+    onNavigateAway,
+    keyboardVerticalOffset,
+    minBottomInset,
 }: Props) {
     const { user } = useAuth();
     const { locale } = useLanguage();
+    const { userProfile } = useUserProfile();
     const queryClient = useQueryClient();
     const insets = useSafeAreaInsets();
 
-    // --- Message state (lifted or local) ---
-    const [internalMessages, setInternalMessages] = useState<ChatMessage[]>([]);
-    const messages = externalMessages ?? internalMessages;
+    // --- Message state ---
+    // Always use internal state for rendering. When onMessagesChange is provided,
+    // also sync to external store (e.g. context ref) for persistence.
+    // Initialize from externalMessages if provided.
+    const [internalMessages, setInternalMessages] = useState<ChatMessage[]>(
+        () => externalMessages ?? [],
+    );
+    const messages = internalMessages;
 
     const messagesRef = useRef<ChatMessage[]>(messages);
     messagesRef.current = messages;
 
+    // Track whether the last message update originated internally (streaming, user send)
+    // to avoid infinite loops when syncing external→internal.
+    const internalWriteRef = useRef(false);
+
     const setMessages = useCallback((update: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
         const newMessages = typeof update === 'function' ? update(messagesRef.current) : update;
-        if (onMessagesChange) {
-            onMessagesChange(newMessages);
-        } else {
-            setInternalMessages(newMessages);
-        }
+        // Sync ref immediately so rapid successive calls (e.g. stream chunk flushes)
+        // read the latest state even before React re-renders.
+        messagesRef.current = newMessages;
+        internalWriteRef.current = true;
+        setInternalMessages(newMessages);
+        // Also sync to external store for persistence (e.g. across step navigation)
+        onMessagesChange?.(newMessages);
     }, [onMessagesChange]);
+
+    // Sync parent-driven message changes (session selection, New Chat) into internal state.
+    // Skips when the change originated from our own setMessages to avoid loops.
+    // Uses length + last-ID check instead of referential equality to avoid unnecessary
+    // re-renders when the parent creates a new array with identical content.
+    useEffect(() => {
+        if (internalWriteRef.current) {
+            internalWriteRef.current = false;
+            return;
+        }
+        const incoming = externalMessages ?? [];
+        const current = messagesRef.current;
+        const changed = incoming.length !== current.length
+            || incoming[incoming.length - 1]?.id !== current[current.length - 1]?.id;
+        if (changed) {
+            messagesRef.current = incoming;
+            setInternalMessages(incoming);
+        }
+    }, [externalMessages]);  
 
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
     const [resumeDismissed, setResumeDismissed] = useState(false);
@@ -114,6 +172,7 @@ export function ChatScreen({
         onSessionCreated,
         resumeDismissed,
         setResumeDismissed,
+        disableResume,
     });
 
     const onResumeSessionClear = useCallback(() => {
@@ -129,11 +188,16 @@ export function ChatScreen({
     const handleBudgetWarning = useCallback((_warning: BudgetWarningPayload) => {
         if (budgetWarningShownRef.current) return;
         budgetWarningShownRef.current = true;
-        Alert.alert(
-            i18n.t('chat.budget.warningTitle'),
-            i18n.t('chat.budget.warningDetailed'),
-        );
-    }, []);
+
+        // Inject a warm Irmixy chat message instead of a system Alert
+        const warningMessage: ChatMessage = {
+            id: `budget-warning-${Date.now()}`,
+            role: 'assistant',
+            content: i18n.t('chat.budget.warmWarning'),
+            createdAt: new Date(),
+        };
+        setMessages((prev) => [...prev, warningMessage]);
+    }, [setMessages]);
 
     const handleBudgetExceeded = useCallback(() => {
         setIsBudgetExceeded(true);
@@ -176,6 +240,7 @@ export function ChatScreen({
         onResumeSessionClear,
         onBudgetWarning: handleBudgetWarning,
         onBudgetExceeded: handleBudgetExceeded,
+        cookingContext,
         onActionsReceived: useCallback((actions: Action[], response: IrmixyResponse) => {
             const autoActions = actions.filter((a) => a.autoExecute);
             if (autoActions.length === 0) return;
@@ -203,7 +268,41 @@ export function ChatScreen({
         setMessages,
         queryClient,
         getMessages: useCallback(() => messagesRef.current, []),
+        onNavigateAway,
     });
+
+    // --- Cycling greeting for empty state ---
+    // Access greeting arrays directly (i18n-js doesn't support returnObjects)
+    const greetingLocale = locale.startsWith('es') ? chatEs : chatEn;
+    const greetingKey = userProfile?.name ? 'withName' : 'withoutName';
+    const greetingList = greetingLocale.greetingCycling[greetingKey];
+    const [greetingIndex, setGreetingIndex] = useState(() => Math.floor(Math.random() * greetingList.length));
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setGreetingIndex((prev) => (prev + 1) % greetingList.length);
+        }, 6000);
+        return () => clearInterval(interval);
+    }, [greetingList.length]);
+
+    const currentGreeting = useMemo(() => {
+        const raw = greetingList[greetingIndex] || i18n.t('chat.greeting');
+        return userProfile?.name ? raw.replace('{{name}}', userProfile.name) : raw;
+    }, [greetingIndex, greetingList, userProfile?.name]);
+
+    // --- Compute effective messages with initial greeting (synchronous — no flash of empty state) ---
+    const greetingDateRef = useRef(new Date());
+    const effectiveMessages = useMemo(() => {
+        if (initialGreeting && messages.length === 0) {
+            return [{
+                id: 'initial-greeting',
+                role: 'assistant' as const,
+                content: initialGreeting,
+                createdAt: greetingDateRef.current,
+            }];
+        }
+        return messages;
+    }, [messages, initialGreeting]);
 
     // --- Effects ---
 
@@ -214,6 +313,7 @@ export function ChatScreen({
             resetStreamingState();
             setCurrentSessionId(nextSessionId);
             setIsBudgetExceeded(false);
+            budgetWarningShownRef.current = false;
             if (nextSessionId) {
                 setResumeSession(null);
             }
@@ -230,6 +330,7 @@ export function ChatScreen({
             setResumeSession(null);
             setResumeDismissed(true);
             setIsBudgetExceeded(false);
+            budgetWarningShownRef.current = false;
         }
         prevNewChatSignalRef.current = newChatSignal;
     }, [newChatSignal, setResumeSession]);
@@ -267,14 +368,15 @@ export function ChatScreen({
         resetStreamingState();
     }, [resetStreamingState]);
 
-    const lastMessageId = messages.length > 0 ? messages[messages.length - 1]?.id : null;
+    const lastMessageId = effectiveMessages.length > 0 ? effectiveMessages[effectiveMessages.length - 1]?.id : null;
     const statusText = useMemo(() => getStatusText(), [getStatusText]);
 
-    const latestMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    const latestMessage = effectiveMessages.length > 0 ? effectiveMessages[effectiveMessages.length - 1] : null;
     const showRecipeTracker = isRecipeGenerating && !latestMessage?.customRecipe;
 
     const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
         const isLast = item.id === lastMessageId;
+
         return (
             <ChatMessageItem
                 item={item}
@@ -303,15 +405,15 @@ export function ChatScreen({
         <KeyboardAvoidingView
             className="flex-1 bg-background-default"
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={insets.top + 60}
+            keyboardVerticalOffset={keyboardVerticalOffset ?? (insets.top + 60)}
         >
           <View className="flex-1 w-full self-center max-w-[500px] md:max-w-[700px] lg:max-w-[800px]">
             <FlatList
                 ref={flatListRef}
-                data={messages}
+                data={effectiveMessages}
                 renderItem={renderMessage}
                 keyExtractor={keyExtractor}
-                contentContainerStyle={{ padding: 16, flexGrow: 1 }}
+                contentContainerStyle={CHAT_CONTENT_STYLE}
                 ListHeaderComponent={
                     resumeSession && !resumeDismissed && messages.length === 0 && !currentSessionId ? (
                         <ChatResumeBar
@@ -326,11 +428,10 @@ export function ChatScreen({
                 onScroll={handleScroll}
                 scrollEventThrottle={200}
                 removeClippedSubviews={Platform.OS !== 'web'}
-                maxToRenderPerBatch={3}
+                maxToRenderPerBatch={8}
                 updateCellsBatchingPeriod={50}
-                windowSize={5}
-                initialNumToRender={8}
-                getItemLayout={undefined}
+                windowSize={7}
+                initialNumToRender={10}
                 onScrollToIndexFailed={(info) => {
                     setTimeout(() => {
                         flatListRef.current?.scrollToIndex({
@@ -341,15 +442,17 @@ export function ChatScreen({
                     }, 100);
                 }}
                 ListEmptyComponent={
-                    <View className="flex-1 justify-center items-center pt-xxxl">
+                    <View className="flex-1 justify-center items-center">
+                        <View className="mb-md mx-lg bg-primary-lightest rounded-xl px-md py-sm" style={{ maxWidth: 300 }}>
+                            <Text className="text-text-default text-center text-base">
+                                {emptyStateGreeting ?? currentGreeting}
+                            </Text>
+                        </View>
                         <Image
                             source={require('@/assets/images/irmixy-avatar/irmixy-with-book.png')}
-                            style={{ width: 120, height: 120 }}
+                            style={{ width: 240, height: 240 }}
                             contentFit="contain"
                         />
-                        <Text className="text-text-secondary text-center mt-md px-xl">
-                            {i18n.t('chat.greeting')}
-                        </Text>
                     </View>
                 }
             />
@@ -361,12 +464,17 @@ export function ChatScreen({
                     className="absolute right-4 bottom-40 z-50 bg-primary-default rounded-full p-3 shadow-lg"
                     style={{ elevation: 4 }}
                 >
-                    <MaterialCommunityIcons name="chevron-double-down" size={24} color="white" />
+                    <MaterialCommunityIcons name="chevron-double-down" size={24} color={COLORS.neutral.white} />
                 </TouchableOpacity>
             )}
 
-            {/* Status indicator with avatar (hidden when recipe tracker is visible) */}
-            {isLoading && !showRecipeTracker && (
+            {/* Prominent centered animation for recipe search */}
+            {isLoading && !showRecipeTracker && currentStatus === 'searching' && (
+                <SearchingAnimation />
+            )}
+
+            {/* Inline status indicator for other statuses (hidden during search + recipe tracker) */}
+            {isLoading && !showRecipeTracker && currentStatus !== 'searching' && (
                 <View className="px-md py-sm">
                     <View className="flex-row items-center">
                         <IrmixyAvatar state={currentStatus ?? 'thinking'} size={40} />
@@ -387,7 +495,7 @@ export function ChatScreen({
                 handleSend={handleSend}
                 handleStop={handleStop}
                 pulseAnim={pulseAnim}
-                bottomInset={insets.bottom}
+                bottomInset={Math.max(insets.bottom, minBottomInset ?? 0)}
                 disabled={isBudgetExceeded}
                 disabledMessage={isBudgetExceeded ? i18n.t('chat.budget.upgradeHint') : undefined}
             />
