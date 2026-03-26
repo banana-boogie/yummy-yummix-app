@@ -4,6 +4,7 @@ import {
   assertExists,
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { clearAllergenCache } from "../allergen-filter.ts";
+import type { RecipeCard } from "../irmixy-schemas.ts";
 import {
   filterByAllKeywords,
   formatRestrictionLabel,
@@ -11,7 +12,17 @@ import {
   RESTRICTION_LABELS,
   searchRecipes,
 } from "./search-recipes.ts";
+import type { SearchRecipeResult } from "./search-recipes.ts";
 type MockResult = { data: unknown; error: unknown };
+
+/** Narrow SearchRecipeResult to RecipeCard[] — fails the test if it's a DedupFilteredResult. */
+function asRecipeCards(result: SearchRecipeResult): RecipeCard[] {
+  assert(
+    Array.isArray(result),
+    "Expected RecipeCard[] but got DedupFilteredResult",
+  );
+  return result;
+}
 
 function createMockSupabase(config: {
   searchRecipesData: unknown[];
@@ -165,10 +176,12 @@ Deno.test("searchRecipes adds verification warning when ingredient lookup fails"
     ingredientLookupError: { message: "db unavailable" },
   });
 
-  const result = await searchRecipes(
-    supabase,
-    { maxTime: 30, limit: 5 },
-    createUserContext("en", ["dairy"]),
+  const result = asRecipeCards(
+    await searchRecipes(
+      supabase,
+      { maxTime: 30, limit: 5 },
+      createUserContext("en", ["dairy"]),
+    ),
   );
 
   assertEquals(result.length, 1);
@@ -201,10 +214,12 @@ Deno.test("searchRecipes adds verification warning when allergen map is empty", 
     allergenGroupsData: [],
   });
 
-  const result = await searchRecipes(
-    supabase,
-    { maxTime: 30, limit: 5 },
-    createUserContext("es", ["dairy"]),
+  const result = asRecipeCards(
+    await searchRecipes(
+      supabase,
+      { maxTime: 30, limit: 5 },
+      createUserContext("es", ["dairy"]),
+    ),
   );
 
   assertEquals(result.length, 1);
@@ -247,10 +262,12 @@ Deno.test("searchRecipes post-filters by query text across translations", async 
     recipeTagJoinsData: [],
   });
 
-  const result = await searchRecipes(
-    supabase,
-    { query: "tinga", limit: 5 },
-    createUserContext("en"),
+  const result = asRecipeCards(
+    await searchRecipes(
+      supabase,
+      { query: "tinga", limit: 5 },
+      createUserContext("en"),
+    ),
   );
 
   // Post-filtering should only keep the recipe whose translation names contain "tinga"
@@ -324,10 +341,12 @@ Deno.test("searchRecipes query mode keeps near-over-time matches and ranks them 
     ],
   });
 
-  const result = await searchRecipes(
-    supabase,
-    { query: "pasta", maxTime: 30, limit: 5 },
-    createUserContext("en"),
+  const result = asRecipeCards(
+    await searchRecipes(
+      supabase,
+      { query: "pasta", maxTime: 30, limit: 5 },
+      createUserContext("en"),
+    ),
   );
 
   // Query searches should broaden candidates and rank by proximity.
@@ -596,10 +615,12 @@ Deno.test("searchRecipes multi-word query uses AND logic — 'miso soup' exclude
     recipeTagJoinsData: [],
   });
 
-  const result = await searchRecipes(
-    supabase,
-    { query: "miso soup", limit: 10 },
-    createUserContext("en"),
+  const result = asRecipeCards(
+    await searchRecipes(
+      supabase,
+      { query: "miso soup", limit: 10 },
+      createUserContext("en"),
+    ),
   );
 
   // AND logic: individual terms "miso" AND "soup" must both match.
@@ -634,10 +655,12 @@ Deno.test("searchRecipes single-word query 'soup' still returns all soups", asyn
     recipeTagJoinsData: [],
   });
 
-  const result = await searchRecipes(
-    supabase,
-    { query: "soup", limit: 10 },
-    createUserContext("en"),
+  const result = asRecipeCards(
+    await searchRecipes(
+      supabase,
+      { query: "soup", limit: 10 },
+      createUserContext("en"),
+    ),
   );
 
   // Single word "soup" — getSearchTerms returns ["soup"], which is both the full phrase
@@ -679,10 +702,12 @@ Deno.test("searchRecipes filters out already-shown recipes", async () => {
   ];
 
   // Filter-only search — both recipes returned by mock, dedup removes recipe-1
-  const result = await searchRecipes(
-    supabase,
-    { maxTime: 60, limit: 5 },
-    ctx,
+  const result = asRecipeCards(
+    await searchRecipes(
+      supabase,
+      { maxTime: 60, limit: 5 },
+      ctx,
+    ),
   );
 
   assertEquals(result.length, 1);

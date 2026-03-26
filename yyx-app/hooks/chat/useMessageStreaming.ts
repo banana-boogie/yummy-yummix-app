@@ -67,7 +67,6 @@ export function useMessageStreaming({
 
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [isStreaming, setIsStreaming] = useState(false);
     const [isRecipeGenerating, setIsRecipeGenerating] = useState(false);
     const [currentStatus, setCurrentStatus] = useState<IrmixyStatus>(null);
 
@@ -82,7 +81,7 @@ export function useMessageStreaming({
         assistantIndexRef.current = null;
         streamRequestIdRef.current += 1;
         setIsLoading(false);
-        setIsStreaming(false);
+
         setIsRecipeGenerating(false);
         setCurrentStatus(null);
     }, []);
@@ -171,7 +170,7 @@ export function useMessageStreaming({
         });
         setInputText('');
         setIsLoading(true);
-        setIsStreaming(false);
+
         setCurrentStatus('thinking');
 
         isNearBottomRef.current = true;
@@ -207,7 +206,7 @@ export function useMessageStreaming({
                 // onChunk — positional arg 3
                 (chunk) => {
                     if (!isActiveRequest()) return;
-                    setIsStreaming(true);
+
                     chunkBufferRef.current += chunk;
                     if (!chunkTimerRef.current) {
                         chunkTimerRef.current = setTimeout(() => {
@@ -236,7 +235,7 @@ export function useMessageStreaming({
                 () => {
                     if (!isActiveRequest()) return;
                     setIsLoading(false);
-                    setIsStreaming(false);
+            
                 },
                 // onPartialRecipe
                 (partialRecipe) => {
@@ -317,7 +316,7 @@ export function useMessageStreaming({
                     }
 
                     setIsLoading(false);
-                    setIsStreaming(false);
+            
                     setIsRecipeGenerating(false);
                     setCurrentStatus(null);
                     hasRecipeInCurrentStreamRef.current = false;
@@ -394,7 +393,7 @@ export function useMessageStreaming({
         } finally {
             if (isActiveRequest() && !completedSuccessfully) {
                 setIsLoading(false);
-                setIsStreaming(false);
+        
                 setIsRecipeGenerating(false);
                 setCurrentStatus(null);
             }
@@ -429,7 +428,6 @@ export function useMessageStreaming({
         inputText,
         setInputText,
         isLoading,
-        isStreaming,
         isRecipeGenerating,
         currentStatus,
         handleSend,

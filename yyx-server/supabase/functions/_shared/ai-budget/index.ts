@@ -87,7 +87,9 @@ async function ensureTierCache(): Promise<void> {
 
     if (error) {
       console.error("[ai-budget] Failed to load tiers:", error.message);
-      return;
+      throw new BudgetCheckUnavailableError(
+        "Failed to load tiers: " + error.message,
+      );
     }
 
     tierCache.clear();
@@ -102,6 +104,9 @@ async function ensureTierCache(): Promise<void> {
     console.log(`[ai-budget] Loaded ${tierCache.size} membership tiers`);
   } catch (err) {
     console.error("[ai-budget] Tier cache load error:", err);
+    throw new BudgetCheckUnavailableError(
+      "Tier cache error: " + (err instanceof Error ? err.message : String(err)),
+    );
   }
 }
 

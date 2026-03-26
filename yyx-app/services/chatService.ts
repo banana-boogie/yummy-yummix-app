@@ -47,6 +47,21 @@ export const isRecipeToolStatus = (status: IrmixyStatus): boolean =>
 // Re-export types for convenience
 export type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, Action, Suggestion, CookingContext };
 
+interface ChatMessageRow {
+    id: string;
+    role: string;
+    content: string;
+    created_at: string;
+    tool_calls: string | Record<string, unknown> | null;
+}
+
+interface ChatSessionRow {
+    id: string;
+    title: string | null;
+    created_at: string;
+    source: string | null;
+}
+
 // Constants
 const MAX_MESSAGE_LENGTH = 2000;
 const STREAM_TIMEOUT_MS = 60000; // 60 seconds
@@ -305,7 +320,7 @@ export function sendMessage(
         let hasReceivedData = false;
 
         // Retry loop with exponential backoff
-        while (retryCount <= MAX_RETRIES) {
+        while (retryCount < MAX_RETRIES) {
             // Reset for each retry
             connectionError = null;
             hasReceivedData = false;
@@ -516,18 +531,20 @@ export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]>
 
     if (error) throw error;
 
-    return (data || []).map((msg: any) => {
-        let toolCalls: any = msg.tool_calls;
-        if (typeof toolCalls === 'string') {
+    return (data || []).map((msg: ChatMessageRow) => {
+        let toolCalls: Record<string, unknown> | null = null;
+        if (typeof msg.tool_calls === 'string') {
             try {
-                toolCalls = JSON.parse(toolCalls);
+                toolCalls = JSON.parse(msg.tool_calls);
             } catch {
                 toolCalls = null;
             }
+        } else {
+            toolCalls = msg.tool_calls;
         }
         const message: ChatMessage = {
             id: msg.id,
-            role: msg.role,
+            role: msg.role as ChatMessage['role'],
             content: msg.content,
             createdAt: new Date(msg.created_at),
         };
@@ -535,16 +552,16 @@ export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]>
         // Parse recipes and customRecipe from tool_calls if present (assistant messages)
         if (msg.role === 'assistant' && toolCalls) {
             if (toolCalls.recipes) {
-                message.recipes = toolCalls.recipes;
+                message.recipes = toolCalls.recipes as RecipeCard[];
             }
             if (toolCalls.customRecipe) {
-                message.customRecipe = toolCalls.customRecipe;
+                message.customRecipe = toolCalls.customRecipe as GeneratedRecipe;
             }
             if (toolCalls.safetyFlags) {
-                message.safetyFlags = toolCalls.safetyFlags;
+                message.safetyFlags = toolCalls.safetyFlags as SafetyFlags;
             }
             if (toolCalls.actions) {
-                message.actions = toolCalls.actions;
+                message.actions = toolCalls.actions as Action[];
             }
         }
 
@@ -573,7 +590,7 @@ export async function loadChatSessions(): Promise<
 
     if (error) throw error;
 
-    return (data || []).map((session: any) => ({
+    return (data || []).map((session: ChatSessionRow) => ({
         id: session.id,
         title: session.title || i18n.t('chat.newChatTitle'),
         createdAt: new Date(session.created_at),

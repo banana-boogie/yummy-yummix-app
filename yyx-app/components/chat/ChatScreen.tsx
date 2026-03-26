@@ -290,6 +290,7 @@ export function ChatScreen({
             resetStreamingState();
             setCurrentSessionId(nextSessionId);
             setIsBudgetExceeded(false);
+            budgetWarningShownRef.current = false;
             if (nextSessionId) {
                 setResumeSession(null);
             }
@@ -306,6 +307,7 @@ export function ChatScreen({
             setResumeSession(null);
             setResumeDismissed(true);
             setIsBudgetExceeded(false);
+            budgetWarningShownRef.current = false;
         }
         prevNewChatSignalRef.current = newChatSignal;
     }, [newChatSignal, setResumeSession]);
@@ -429,7 +431,6 @@ export function ChatScreen({
                 updateCellsBatchingPeriod={50}
                 windowSize={7}
                 initialNumToRender={10}
-                getItemLayout={undefined}
                 onScrollToIndexFailed={(info) => {
                     setTimeout(() => {
                         flatListRef.current?.scrollToIndex({

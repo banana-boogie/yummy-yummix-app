@@ -13,6 +13,107 @@ import i18n from '@/i18n';
 const ICON_SIZE = 20;
 const BUTTON_SIZE = 40;
 
+interface ActionButtonAreaProps {
+    isLoading: boolean;
+    isListening: boolean;
+    hasText: boolean;
+    isNative: boolean;
+    handleMicPress: () => void;
+    handleSend: () => void;
+    handleStop?: () => void;
+    pulseAnim: Animated.Value;
+    disabled?: boolean;
+}
+
+const ActionButtonArea = React.memo(function ActionButtonArea({
+    isLoading,
+    isListening,
+    hasText,
+    isNative,
+    handleMicPress,
+    handleSend,
+    handleStop,
+    pulseAnim,
+    disabled,
+}: ActionButtonAreaProps) {
+    if (isLoading && !isListening && handleStop) {
+        return (
+            <TouchableOpacity
+                testID="stop-button"
+                className="rounded-full justify-center items-center bg-status-error"
+                style={{ width: BUTTON_SIZE, height: BUTTON_SIZE, marginLeft: SPACING.xs }}
+                onPress={handleStop}
+                accessibilityLabel={i18n.t('chat.stopGenerating')}
+                accessibilityRole="button"
+            >
+                <MaterialCommunityIcons name="stop" size={ICON_SIZE} color={COLORS.neutral.white} />
+            </TouchableOpacity>
+        );
+    }
+
+    if (isListening) {
+        return (
+            <Animated.View style={{ opacity: pulseAnim }}>
+                <TouchableOpacity
+                    testID="stop-listening-button"
+                    className="rounded-full justify-center items-center bg-status-error"
+                    style={{ width: BUTTON_SIZE, height: BUTTON_SIZE, marginLeft: SPACING.xs }}
+                    onPress={handleMicPress}
+                    accessibilityLabel={i18n.t('chat.voice.stopRecording')}
+                    accessibilityRole="button"
+                >
+                    <MaterialCommunityIcons name="stop" size={ICON_SIZE} color={COLORS.neutral.white} />
+                </TouchableOpacity>
+            </Animated.View>
+        );
+    }
+
+    if (hasText) {
+        return (
+            <TouchableOpacity
+                testID="send-button"
+                className="rounded-full justify-center items-center bg-primary-darkest"
+                style={{ width: BUTTON_SIZE, height: BUTTON_SIZE, marginLeft: SPACING.xs }}
+                onPress={handleSend}
+                disabled={disabled}
+                accessibilityLabel={i18n.t('chat.sendButton')}
+                accessibilityRole="button"
+            >
+                <MaterialCommunityIcons name="send" size={ICON_SIZE} color={COLORS.neutral.white} />
+            </TouchableOpacity>
+        );
+    }
+
+    if (isNative) {
+        return (
+            <TouchableOpacity
+                testID="mic-button"
+                className="rounded-full justify-center items-center bg-background-secondary"
+                style={{ width: BUTTON_SIZE, height: BUTTON_SIZE, marginLeft: SPACING.xs }}
+                onPress={disabled ? undefined : handleMicPress}
+                disabled={disabled}
+                accessibilityLabel={i18n.t('chat.voice.tapToSpeak')}
+                accessibilityRole="button"
+            >
+                <MaterialCommunityIcons name="microphone" size={ICON_SIZE} color={COLORS.text.secondary} />
+            </TouchableOpacity>
+        );
+    }
+
+    return (
+        <TouchableOpacity
+            testID="send-button"
+            className="rounded-full justify-center items-center bg-grey-medium"
+            style={{ width: BUTTON_SIZE, height: BUTTON_SIZE, marginLeft: SPACING.xs }}
+            disabled
+            accessibilityLabel={i18n.t('chat.sendButton')}
+            accessibilityRole="button"
+        >
+            <MaterialCommunityIcons name="send" size={ICON_SIZE} color={COLORS.neutral.white} />
+        </TouchableOpacity>
+    );
+});
+
 interface ChatInputBarProps {
     inputText: string;
     setInputText: (text: string) => void;
@@ -43,96 +144,6 @@ export function ChatInputBar({
     const hasText = inputText.trim().length > 0;
     const isNative = Platform.OS !== 'web';
 
-    // Determine action button state:
-    // 1. Loading (AI responding) → stop button
-    // 2. Listening (speech-to-text active) → stop button (pulsing red)
-    // 3. Has text → send button
-    // 4. Empty + native → mic button
-    // 5. Empty + web → disabled send button
-    const renderActionButton = () => {
-        if (isLoading && !isListening && handleStop) {
-            // State: AI is responding — show stop button
-            return (
-                <TouchableOpacity
-                    testID="stop-button"
-                    className="rounded-full justify-center items-center bg-status-error"
-                    style={{ width: BUTTON_SIZE, height: BUTTON_SIZE, marginLeft: SPACING.xs }}
-                    onPress={handleStop}
-                    accessibilityLabel={i18n.t('chat.stopGenerating')}
-                    accessibilityRole="button"
-                >
-                    <MaterialCommunityIcons name="stop" size={ICON_SIZE} color={COLORS.neutral.white} />
-                </TouchableOpacity>
-            );
-        }
-
-        if (isListening) {
-            // State: speech-to-text active — show pulsing stop button
-            return (
-                <Animated.View style={{ opacity: pulseAnim }}>
-                    <TouchableOpacity
-                        testID="stop-listening-button"
-                        className="rounded-full justify-center items-center bg-status-error"
-                        style={{ width: BUTTON_SIZE, height: BUTTON_SIZE, marginLeft: SPACING.xs }}
-                        onPress={handleMicPress}
-                        accessibilityLabel={i18n.t('chat.voice.stopRecording')}
-                        accessibilityRole="button"
-                    >
-                        <MaterialCommunityIcons name="stop" size={ICON_SIZE} color={COLORS.neutral.white} />
-                    </TouchableOpacity>
-                </Animated.View>
-            );
-        }
-
-        if (hasText) {
-            // State: has text — show send button
-            return (
-                <TouchableOpacity
-                    testID="send-button"
-                    className="rounded-full justify-center items-center bg-primary-darkest"
-                    style={{ width: BUTTON_SIZE, height: BUTTON_SIZE, marginLeft: SPACING.xs }}
-                    onPress={handleSend}
-                    disabled={disabled}
-                    accessibilityLabel={i18n.t('chat.sendButton')}
-                    accessibilityRole="button"
-                >
-                    <MaterialCommunityIcons name="send" size={ICON_SIZE} color={COLORS.neutral.white} />
-                </TouchableOpacity>
-            );
-        }
-
-        if (isNative) {
-            // State: empty input on native — show mic button
-            return (
-                <TouchableOpacity
-                    testID="mic-button"
-                    className="rounded-full justify-center items-center bg-background-secondary"
-                    style={{ width: BUTTON_SIZE, height: BUTTON_SIZE, marginLeft: SPACING.xs }}
-                    onPress={disabled ? undefined : handleMicPress}
-                    disabled={disabled}
-                    accessibilityLabel={i18n.t('chat.voice.tapToSpeak')}
-                    accessibilityRole="button"
-                >
-                    <MaterialCommunityIcons name="microphone" size={ICON_SIZE} color={COLORS.text.secondary} />
-                </TouchableOpacity>
-            );
-        }
-
-        // State: empty input on web — disabled send button
-        return (
-            <TouchableOpacity
-                testID="send-button"
-                className="rounded-full justify-center items-center bg-grey-medium"
-                style={{ width: BUTTON_SIZE, height: BUTTON_SIZE, marginLeft: SPACING.xs }}
-                disabled
-                accessibilityLabel={i18n.t('chat.sendButton')}
-                accessibilityRole="button"
-            >
-                <MaterialCommunityIcons name="send" size={ICON_SIZE} color={COLORS.neutral.white} />
-            </TouchableOpacity>
-        );
-    };
-
     return (
         <View
             className="border-t border-border-default bg-background-default"
@@ -156,7 +167,17 @@ export function ChatInputBar({
                     maxLength={2000}
                     editable={!isLoading && !disabled}
                 />
-                {renderActionButton()}
+                <ActionButtonArea
+                    isLoading={isLoading}
+                    isListening={isListening}
+                    hasText={hasText}
+                    isNative={isNative}
+                    handleMicPress={handleMicPress}
+                    handleSend={handleSend}
+                    handleStop={handleStop}
+                    pulseAnim={pulseAnim}
+                    disabled={disabled}
+                />
             </View>
         </View>
     );

@@ -28,6 +28,18 @@ import { getBaseLanguage, pickTranslation } from "../locale-utils.ts";
 import { wordStartMatch } from "../text-utils.ts";
 
 // ============================================================
+// Result types
+// ============================================================
+
+export interface DedupFilteredResult {
+  results: [];
+  allFilteredByDedup: true;
+  message: string;
+}
+
+export type SearchRecipeResult = RecipeCard[] | DedupFilteredResult;
+
+// ============================================================
 // Types for Supabase query results
 // ============================================================
 
@@ -152,7 +164,7 @@ export async function searchRecipes(
   supabase: SupabaseClient,
   rawParams: unknown,
   userContext: UserContext,
-): Promise<RecipeCard[]> {
+): Promise<SearchRecipeResult> {
   // Validate and sanitize params
   const params = validateSearchRecipesParams(rawParams);
 
@@ -412,7 +424,7 @@ export async function searchRecipes(
       allFilteredByDedup: true,
       message:
         `${preDedupCount} recipe(s) matched "${params.query}" but were already shown. The user wants something new — call generate_custom_recipe.`,
-    } as unknown as RecipeCard[];
+    };
   }
 
   return finalResults;

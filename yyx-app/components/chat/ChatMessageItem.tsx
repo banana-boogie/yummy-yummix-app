@@ -265,5 +265,9 @@ export const ChatMessageItem = memo(function ChatMessageItem({
     if (prev.isRecipeGenerating !== next.isRecipeGenerating) return false;
     if (prev.currentStatus !== next.currentStatus) return false;
     if (prev.statusText !== next.statusText) return false;
+    if (prev.showAvatar !== next.showAvatar) return false;
+    if (prev.onCopyMessage !== next.onCopyMessage) return false;
+    if (prev.onStartCooking !== next.onStartCooking) return false;
+    if (prev.onActionPress !== next.onActionPress) return false;
     return true;
 });

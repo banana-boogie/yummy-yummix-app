@@ -548,34 +548,31 @@ export async function callOpenAICompatibleStreamWithTools(
           }
         }
       }
+
+      // Yield accumulated tool calls as a single chunk
+      if (toolCallAccumulator.size > 0) {
+        const toolCalls: AIToolCall[] = [];
+        for (const [, tc] of toolCallAccumulator) {
+          toolCalls.push({
+            id: tc.id,
+            name: tc.name,
+            arguments: safeParseToolArguments(tc.arguments, config.logPrefix),
+          });
+        }
+        yield { type: "tool_calls", toolCalls };
+      }
+
+      console.log(`${config.logPrefix} StreamWithTools completed`, {
+        model,
+        total_ms: Math.round(performance.now() - startedAt),
+        input_tokens: capturedUsage.inputTokens,
+        output_tokens: capturedUsage.outputTokens,
+        tool_calls: toolCallAccumulator.size,
+      });
     } finally {
       reader!.releaseLock();
+      resolveUsage!(capturedUsage);
     }
-
-    // Yield accumulated tool calls as a single chunk
-    if (toolCallAccumulator.size > 0) {
-      const toolCalls: AIToolCall[] = [];
-      for (const [, tc] of toolCallAccumulator) {
-        toolCalls.push({
-          id: tc.id,
-          name: tc.name,
-          arguments: safeParseToolArguments(tc.arguments, config.logPrefix),
-        });
-      }
-      yield { type: "tool_calls", toolCalls };
-    }
-
-    console.log(`${config.logPrefix} StreamWithTools completed`, {
-      model,
-      total_ms: Math.round(performance.now() - startedAt),
-      input_tokens: capturedUsage.inputTokens,
-      output_tokens: capturedUsage.outputTokens,
-      tool_calls: toolCallAccumulator.size,
-    });
-
-    // Resolve usage AFTER all yields complete so consumers can safely
-    // call usage() once the stream is fully consumed.
-    resolveUsage!(capturedUsage);
   }
 
   return {

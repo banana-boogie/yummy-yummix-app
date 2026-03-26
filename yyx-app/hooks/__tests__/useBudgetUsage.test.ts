@@ -143,7 +143,7 @@ describe('useBudgetUsage', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.error).toBe('Failed to load usage');
+      expect(result.current.error).toBe('budget_load_error');
       expect(result.current.usage).toBeNull();
     });
   });

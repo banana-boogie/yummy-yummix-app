@@ -804,26 +804,22 @@ export async function callGeminiStreamWithTools(
           }
         }
       }
+      // Yield accumulated tool calls as a single chunk
+      if (accumulatedToolCalls.length > 0) {
+        yield { type: "tool_calls", toolCalls: accumulatedToolCalls };
+      }
+
+      console.log("[ai-gateway:google] StreamWithTools completed", {
+        model,
+        total_ms: Math.round(performance.now() - startedAt),
+        input_tokens: capturedUsage.inputTokens,
+        output_tokens: capturedUsage.outputTokens,
+        tool_calls: accumulatedToolCalls.length,
+      });
     } finally {
       reader!.releaseLock();
+      resolveUsage!(capturedUsage);
     }
-
-    // Yield accumulated tool calls as a single chunk
-    if (accumulatedToolCalls.length > 0) {
-      yield { type: "tool_calls", toolCalls: accumulatedToolCalls };
-    }
-
-    console.log("[ai-gateway:google] StreamWithTools completed", {
-      model,
-      total_ms: Math.round(performance.now() - startedAt),
-      input_tokens: capturedUsage.inputTokens,
-      output_tokens: capturedUsage.outputTokens,
-      tool_calls: accumulatedToolCalls.length,
-    });
-
-    // Resolve usage AFTER all yields complete so consumers can safely
-    // call usage() once the stream is fully consumed.
-    resolveUsage!(capturedUsage);
   }
 
   return {

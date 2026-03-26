@@ -40,7 +40,7 @@ export function useBudgetUsage(): UseBudgetUsageResult {
       } catch (err) {
         logger.error('[useBudgetUsage] Error:', err);
         if (!cancelled) {
-          setError('Failed to load usage');
+          setError('budget_load_error');
         }
       } finally {
         if (!cancelled) {

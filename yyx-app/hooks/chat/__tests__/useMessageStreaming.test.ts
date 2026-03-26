@@ -201,7 +201,6 @@ describe('useMessageStreaming', () => {
 
       expect(result.current.inputText).toBe('');
       expect(result.current.isLoading).toBe(false);
-      expect(result.current.isStreaming).toBe(false);
       expect(result.current.isRecipeGenerating).toBe(false);
       expect(result.current.currentStatus).toBeNull();
     });
@@ -340,7 +339,6 @@ describe('useMessageStreaming', () => {
 
       expect(result.current.isLoading).toBe(true);
       expect(result.current.currentStatus).toBe('thinking');
-      expect(result.current.isStreaming).toBe(false);
     });
 
     it('processes streamed chunks and completes', async () => {
@@ -367,7 +365,6 @@ describe('useMessageStreaming', () => {
       });
 
       expect(result.current.isLoading).toBe(false);
-      expect(result.current.isStreaming).toBe(false);
       expect(result.current.currentStatus).toBeNull();
     });
 
@@ -604,7 +601,6 @@ describe('useMessageStreaming', () => {
       });
 
       expect(result.current.isLoading).toBe(false);
-      expect(result.current.isStreaming).toBe(false);
     });
 
     it('resets all streaming state in finally block on error', async () => {
@@ -621,7 +617,6 @@ describe('useMessageStreaming', () => {
       });
 
       expect(result.current.isLoading).toBe(false);
-      expect(result.current.isStreaming).toBe(false);
       expect(result.current.isRecipeGenerating).toBe(false);
       expect(result.current.currentStatus).toBeNull();
     });
@@ -750,7 +745,6 @@ describe('useMessageStreaming', () => {
       });
 
       expect(result.current.isLoading).toBe(false);
-      expect(result.current.isStreaming).toBe(false);
       expect(result.current.currentStatus).toBeNull();
     });
 
@@ -853,7 +847,6 @@ describe('useMessageStreaming', () => {
       });
 
       expect(result.current.isLoading).toBe(false);
-      expect(result.current.isStreaming).toBe(false);
       expect(result.current.isRecipeGenerating).toBe(false);
       expect(result.current.currentStatus).toBeNull();
       expect(mockCancel).toHaveBeenCalled();
