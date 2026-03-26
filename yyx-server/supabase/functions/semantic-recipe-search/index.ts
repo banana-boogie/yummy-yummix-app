@@ -18,6 +18,7 @@ import {
   BudgetCheckUnavailableError,
   checkTextBudget,
 } from "../_shared/ai-budget/index.ts";
+import type { CostContext } from "../_shared/ai-gateway/types.ts";
 
 Deno.serve(async (req: Request) => {
   // Handle CORS preflight
@@ -74,6 +75,11 @@ Deno.serve(async (req: Request) => {
 
     const localeChain = buildLocaleChain(locale || "en");
 
+    const costContext: CostContext = {
+      userId: user.id,
+      edgeFunction: "semantic-recipe-search",
+    };
+
     const result = await searchRecipesHybrid(
       supabase,
       query.trim(),
@@ -86,6 +92,7 @@ Deno.serve(async (req: Request) => {
         cuisinePreferences: [],
       },
       semanticSupabase,
+      costContext,
     );
 
     return new Response(
