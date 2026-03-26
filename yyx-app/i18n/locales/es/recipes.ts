@@ -38,7 +38,7 @@ export const recipes = {
       sous_vide: "Sous Vide",
       fermentation: "Fermentación",
       open_cooking: "Cocción Abierta",
-      high_temperature: "Dorar",
+      browning: "Dorar",
       dough: "Masa",
       turbo: "Turbo",
     },

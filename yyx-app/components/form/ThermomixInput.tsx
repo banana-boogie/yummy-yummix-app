@@ -588,8 +588,8 @@ export const ThermomixInput: React.FC<ThermomixInputFormProps> = ({
             <Text preset="body" className={!settings.mode ? 'font-bold' : ''}>Manual</Text>
           </TouchableOpacity>
           {THERMOMIX_COOKING_MODES.map((mode) => {
-            // On TM6, high_temperature and sous_vide are Guided Cooking only (not manual mode)
-            const tm6GuidedOnly = ['high_temperature'];
+            // On TM6, browning is not available (was "high_temperature" in Guided Cooking only)
+            const tm6GuidedOnly: string[] = [];
             const onTM6Manual = COOKING_MODES_BY_MODEL.TM6.includes(mode) && !tm6GuidedOnly.includes(mode);
             const onTM7 = COOKING_MODES_BY_MODEL.TM7.includes(mode);
             const modelNote = (onTM7 && !onTM6Manual) ? 'TM7' : (onTM6Manual && !onTM7) ? 'TM6' : null;

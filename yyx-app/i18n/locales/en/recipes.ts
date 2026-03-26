@@ -38,7 +38,7 @@ export const recipes = {
       sous_vide: "Sous Vide",
       fermentation: "Fermentation",
       open_cooking: "Open Cooking",
-      high_temperature: "Browning",
+      browning: "Browning",
       dough: "Dough",
       turbo: "Turbo",
     },

@@ -28,6 +28,7 @@ import { normalizeDietAndCuisinePreferences } from '@/utils/preferencesNormaliza
 import { EquipmentModal } from '@/components/profile/EquipmentModal';
 import { parseEquipmentString, formatEquipmentForStorage } from '@/constants/equipment';
 import type { KitchenEquipment } from '@/types/onboarding';
+// eslint-disable-next-line import/no-named-as-default
 import logger from '@/services/logger';
 
 const BIO_MAX_LENGTH = 140;

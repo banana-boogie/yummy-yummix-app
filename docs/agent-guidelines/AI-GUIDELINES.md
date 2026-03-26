@@ -70,8 +70,7 @@ yyx-server/supabase/functions/
 │   ├── response-builder.ts           # Response formatting + persistence
 │   ├── recipe-intent.ts              # High recipe intent detection
 │   ├── meal-context.ts               # Meal type extraction
-│   ├── modification.ts               # Recipe modification detection
-│   └── suggestions.ts                # buildRecipeConfirmationChip (only chip builder)
+│   └── modification.ts               # Recipe modification detection
 └── irmixy-voice-orchestrator/        # Voice sessions
     └── index.ts                      # Session bootstrap, quota, tool execution
 ```
@@ -252,25 +251,6 @@ AI returns tool_call → execute-tool.ts validates + dispatches
   → Result shaped for frontend
   → AI receives result and generates final response
 ```
-
-### Recipe Generation Interception Pattern
-
-`generate_custom_recipe` is **intercepted before execution** in the chat orchestrator — it is never passed to `execute-tool.ts` directly. This gives the user a confirmation step before an expensive generation runs.
-
-**How it works:**
-
-1. The AI always has all tools available — no regex-based tool exclusion
-2. When the AI calls `generate_custom_recipe`, the orchestrator **intercepts** the tool call and does NOT execute it
-3. The orchestrator streams back the AI's conversational text alongside a confirmation chip built from the intercepted tool args
-4. The chip label is the `recipeDescription` field from the tool args — already written in the user's language by the AI, so no hardcoded strings are needed
-5. The chip's `message` field embeds the tool args JSON with a `@@GENERATE_RECIPE@@` prefix
-6. When the user taps the chip, the orchestrator detects the `@@GENERATE_RECIPE@@` prefix, skips the first LLM call entirely, and executes `generate_custom_recipe` directly with the embedded args
-7. `modify_recipe` is NOT intercepted — recipe modifications execute immediately
-
-**Key invariants:**
-- `buildRecipeConfirmationChip` in `suggestions.ts` is the only chip builder for recipe generation; `buildSuggestions` was removed
-- The chip label and confirmation text always come from the AI's own output — never from hardcoded language strings
-- The `@@GENERATE_RECIPE@@` prefix is the round-trip signal; the orchestrator detects it in the incoming user message to skip the LLM and go straight to tool execution
 
 ### The `app_action` Tool
 

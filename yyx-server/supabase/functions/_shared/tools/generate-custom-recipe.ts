@@ -683,14 +683,10 @@ COOKING MODES (set thermomixMode when applicable):
 - "fermentation": Low temp hold (30-45°C), extended time. For yogurt, dough proofing, tempeh. Available on both TM6 and TM7.
 - "dough": Kneading mode, max 500g flour. For bread, pasta, pizza dough.
 - "turbo": Brief pulse at max speed. For crushing ice, quick grind.
-- "high_temperature" (displayed as "Browning" / "Dorar" on the device): 120-160°C, max 10min per step. Browning, searing, caramelizing. Blade ROTATES — unsuitable for delicate formed items. This mode has NO speed setting — always set thermomixSpeed to null.${
-      isTM7
-        ? ' TM7: two intensity levels — "gentle" (vegetables, onions, garlic, delicate browning) and "intense" (searing meats, deep caramelization).'
-        : " (TM6: Guided Cooking only)"
-    }
 ${
       isTM7
-        ? `- "open_cooking": No blade rotation. Temperature + time only. Stir manually with spatula. Lid is unlocked. Up to 100°C. A dedicated cooking mode — NOT manual cooking with lid open. (TM7 only)`
+        ? `- "browning": 120-160°C, max 10min per step. NO speed setting — always set thermomixSpeed to null. Cannot be combined with open_cooking (lid must be closed). Two intensity levels — "gentle" (vegetables, onions, garlic, delicate browning) and "intense" (searing meats, deep caramelization). (TM7 only)
+- "open_cooking": No blade rotation. Temperature + time only. Stir manually with spatula. Lid is unlocked. Up to 100°C. A dedicated cooking mode — NOT manual cooking with lid open. Cannot be combined with browning. (TM7 only)`
         : ""
     }
 
@@ -1509,20 +1505,20 @@ export function validateThermomixSteps(
     }
 
     // High temperature (browning) mode has NO speed — force null
-    if (validated.thermomixMode === "high_temperature") {
+    if (validated.thermomixMode === "browning") {
       if (validated.thermomixSpeed != null) {
         console.warn(
-          `Step ${step.order}: high_temperature mode has no speed setting. Forcing speed to null.`,
+          `Step ${step.order}: browning mode has no speed setting. Forcing speed to null.`,
         );
         validated.thermomixSpeed = undefined;
       }
     }
 
-    // Pair completion: time + speed must appear together (skip for high_temperature which has no speed)
+    // Pair completion: time + speed must appear together (skip for browning which has no speed)
     const hasTime = validated.thermomixTime != null;
     const hasSpeed = validated.thermomixSpeed != null;
-    if (validated.thermomixMode === "high_temperature") {
-      // high_temperature only needs time, no speed
+    if (validated.thermomixMode === "browning") {
+      // browning only needs time, no speed
     } else if (hasTime && !hasSpeed) {
       console.warn(
         `Step ${step.order}: thermomixTime set without thermomixSpeed. Filling speed with "1" (gentle default).`,

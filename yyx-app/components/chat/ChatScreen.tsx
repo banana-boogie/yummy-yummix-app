@@ -17,7 +17,6 @@ import { SearchingAnimation } from '@/components/chat/SearchingAnimation';
 import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
 import { ChatResumeBar } from '@/components/chat/ChatResumeBar';
 import { ChatInputBar } from '@/components/chat/ChatInputBar';
-import { SuggestionChips } from '@/components/chat/SuggestionChips';
 import { SPACING , COLORS } from '@/constants/design-tokens';
 import { useMessageStreaming } from '@/hooks/chat/useMessageStreaming';
 import { useSmartScroll } from '@/hooks/chat/useSmartScroll';
@@ -27,9 +26,9 @@ import {
     executeAction,
     type ActionContext,
 } from '@/services/actions/actionRegistry';
-import type { Action, IrmixyResponse, Suggestion } from '@/types/irmixy';
+import type { Action, IrmixyResponse } from '@/types/irmixy';
 import { isRecipeToolStatus } from '@/services/chatService';
-import type { BudgetWarningPayload, ChatMessage, IrmixyStatus } from '@/services/chatService';
+import type { BudgetWarningPayload, ChatMessage } from '@/services/chatService';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -223,7 +222,6 @@ export function ChatScreen({
         isRecipeGenerating,
         currentStatus,
         handleSend,
-        handleSendMessage,
         resetStreamingState,
     } = useMessageStreaming({
         user,
@@ -376,46 +374,24 @@ export function ChatScreen({
     const latestMessage = effectiveMessages.length > 0 ? effectiveMessages[effectiveMessages.length - 1] : null;
     const showRecipeTracker = isRecipeGenerating && !latestMessage?.customRecipe;
 
-    // Show suggestion chips only on the last assistant message, and only when not loading
-    const lastAssistantSuggestions = useMemo(() => {
-        if (isLoading) return undefined;
-        if (!latestMessage || latestMessage.role !== 'assistant') return undefined;
-        return latestMessage.suggestions;
-    }, [isLoading, latestMessage]);
-
-    const handleSuggestionPress = useCallback((suggestion: Suggestion) => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        handleSendMessage(suggestion.message, { silent: true });
-    }, [handleSendMessage]);
-
     const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
         const isLast = item.id === lastMessageId;
 
-        const showSuggestions = isLast && item.role === 'assistant' && lastAssistantSuggestions && lastAssistantSuggestions.length > 0;
-
         return (
-            <>
-                <ChatMessageItem
-                    item={item}
-                    isLastMessage={isLast}
-                    isLoading={isLast ? isLoading : false}
-                    isRecipeGenerating={isLast ? isRecipeGenerating : false}
-                    currentStatus={isLast ? currentStatus : null}
-                    statusText={isLast ? statusText : ''}
-                    showAvatar
-                    onCopyMessage={handleCopyMessage}
-                    onStartCooking={handleStartCooking}
-                    onActionPress={handleActionPress}
-                />
-                {showSuggestions && (
-                    <SuggestionChips
-                        suggestions={lastAssistantSuggestions!}
-                        onPress={handleSuggestionPress}
-                    />
-                )}
-            </>
+            <ChatMessageItem
+                item={item}
+                isLastMessage={isLast}
+                isLoading={isLast ? isLoading : false}
+                isRecipeGenerating={isLast ? isRecipeGenerating : false}
+                currentStatus={isLast ? currentStatus : null}
+                statusText={isLast ? statusText : ''}
+                showAvatar
+                onCopyMessage={handleCopyMessage}
+                onStartCooking={handleStartCooking}
+                onActionPress={handleActionPress}
+            />
         );
-    }, [lastMessageId, isLoading, isRecipeGenerating, currentStatus, statusText, handleCopyMessage, handleStartCooking, handleActionPress, lastAssistantSuggestions, handleSuggestionPress]);
+    }, [lastMessageId, isLoading, isRecipeGenerating, currentStatus, statusText, handleCopyMessage, handleStartCooking, handleActionPress]);
 
     if (!user) {
         return (

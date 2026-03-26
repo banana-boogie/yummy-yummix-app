@@ -60,7 +60,7 @@ export default function CookingGuide() {
 
         <CookingGuidePageHeader
           title={recipe?.name || ''}
-          subtitle="Mise en place"
+          subtitle={i18n.t('recipes.cookingGuide.subtitle')}
         />
 
         <View className="px-md">

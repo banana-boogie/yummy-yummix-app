@@ -69,7 +69,7 @@ export default function CustomCookingStep() {
                 }
             }}
         />
-    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation, isChatFlow, router, id]);
+    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation, isChatFlow, id]);
 
     const footer = useMemo(() => (
         <View>
@@ -91,7 +91,7 @@ export default function CustomCookingStep() {
                 finishText={i18n.t('recipes.cookingGuide.navigation.finish')}
             />
         </View>
-    ), [handleNavigation, isLastStep]);
+    ), [handleNavigation, isLastStep, currentStepNumber, irmixy.open]);
 
     if (!steps || !currentStep) return null;
 

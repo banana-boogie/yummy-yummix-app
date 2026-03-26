@@ -61,7 +61,7 @@ export const VALID_THERMOMIX_MODES = [
   "sous_vide",
   "fermentation",
   "open_cooking",
-  "high_temperature",
+  "browning",
   "dough",
   "turbo",
 ] as const;

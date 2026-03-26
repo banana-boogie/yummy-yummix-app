@@ -13,7 +13,10 @@ import {
     Action,
 } from '@/services/chatService';
 import Markdown from '@ronradtke/react-native-markdown-display';
-import { COLORS, FONTS, SPACING, BORDER_RADIUS } from '@/constants/design-tokens';
+import { COLORS, FONTS, FONT_SIZES, SPACING, BORDER_RADIUS } from '@/constants/design-tokens';
+
+const CHAT_FONT_SIZE = FONT_SIZES.md; // 18
+const CHAT_LINE_HEIGHT = 26;
 
 // ============================================================
 // Helpers
@@ -38,8 +41,8 @@ function hasMarkdownSyntax(content: string): boolean {
 export const markdownStyles = {
     body: {
         color: COLORS.text.default,
-        fontSize: 18,
-        lineHeight: 24,
+        fontSize: CHAT_FONT_SIZE,
+        lineHeight: CHAT_LINE_HEIGHT,
     },
     heading1: {
         fontFamily: FONTS.HEADING,
@@ -68,7 +71,7 @@ export const markdownStyles = {
     paragraph: {
         marginTop: 0,
         marginBottom: SPACING.sm,
-        lineHeight: 26,
+        lineHeight: CHAT_LINE_HEIGHT,
     },
     strong: {
         fontWeight: '700' as const,
@@ -172,7 +175,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                         activeOpacity={0.7}
                         className="max-w-[80%] p-sm rounded-lg self-end bg-primary-default"
                     >
-                        <Text className="text-white" style={{ fontSize: 18, lineHeight: 26 }}>
+                        <Text className="text-white" style={{ fontSize: CHAT_FONT_SIZE, lineHeight: CHAT_LINE_HEIGHT }}>
                             {item.content}
                         </Text>
                     </TouchableOpacity>
@@ -194,7 +197,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                                     {displayContent}
                                 </Markdown>
                             ) : (
-                                <Text className="text-text-default" style={{ fontSize: 18, lineHeight: 26 }}>
+                                <Text className="text-text-default" style={{ fontSize: CHAT_FONT_SIZE, lineHeight: CHAT_LINE_HEIGHT }}>
                                     {displayContent}
                                 </Text>
                             )}
@@ -257,7 +260,6 @@ export const ChatMessageItem = memo(function ChatMessageItem({
     if (prev.item.recipes !== next.item.recipes) return false;
     if (prev.item.customRecipe !== next.item.customRecipe) return false;
     if (prev.item.actions !== next.item.actions) return false;
-    if (prev.item.suggestions !== next.item.suggestions) return false;
     if (prev.item.savedRecipeId !== next.item.savedRecipeId) return false;
     if (prev.item.safetyFlags !== next.item.safetyFlags) return false;
     if (prev.isLastMessage !== next.isLastMessage) return false;

@@ -59,7 +59,7 @@ export default function CookingStep() {
             onBackPress={handleNavigation.back}
             onExitPress={() => router.replace(`/(tabs)/recipes/${id}`)}
         />
-    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation, router, id]);
+    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation, id]);
 
     const footer = useMemo(() => (
         <View>
@@ -81,7 +81,7 @@ export default function CookingStep() {
                 finishText={i18n.t('recipes.cookingGuide.navigation.finish')}
             />
         </View>
-    ), [handleNavigation, isLastStep]);
+    ), [handleNavigation, isLastStep, currentStepNumber, irmixy.open]);
 
     if (!steps || !currentStep) return null;
 

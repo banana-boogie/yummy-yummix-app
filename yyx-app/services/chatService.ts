@@ -10,7 +10,7 @@
 
 import { supabase } from '@/lib/supabase';
 import EventSource from 'react-native-sse';
-import type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, Action, Suggestion, CookingContext } from '@/types/irmixy';
+import type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, Action, CookingContext } from '@/types/irmixy';
 import i18n from '@/i18n';
 
 export interface ChatMessage {
@@ -23,7 +23,6 @@ export interface ChatMessage {
     customRecipe?: GeneratedRecipe;
     safetyFlags?: SafetyFlags;
     actions?: Action[];
-    suggestions?: Suggestion[];
     // Error state flag for styling error messages
     hasError?: boolean;
     // ID of the saved custom recipe (to avoid duplicate saves)
@@ -45,7 +44,7 @@ export const isRecipeToolStatus = (status: IrmixyStatus): boolean =>
     status === 'cooking_it_up' || status === 'generating';
 
 // Re-export types for convenience
-export type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, Action, Suggestion, CookingContext };
+export type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, Action, CookingContext };
 
 interface ChatMessageRow {
     id: string;

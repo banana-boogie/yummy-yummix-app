@@ -8,7 +8,7 @@ export type ThermomixCookingMode =
     | 'sous_vide'
     | 'fermentation'
     | 'open_cooking'    // TM7 only
-    | 'high_temperature'
+    | 'browning'        // TM7 only (gentle / intense)
     | 'dough'
     | 'turbo'
     | null;
@@ -19,7 +19,7 @@ export const THERMOMIX_COOKING_MODES = [
     'sous_vide',
     'fermentation',
     'open_cooking',
-    'high_temperature',
+    'browning',
     'dough',
     'turbo',
 ] as const;
@@ -27,8 +27,8 @@ export const THERMOMIX_COOKING_MODES = [
 /** Modes available per Thermomix model. */
 export const COOKING_MODES_BY_MODEL: Record<ThermomixModel, readonly string[]> = {
     TM5: [],
-    TM6: ['slow_cook', 'rice_cooker', 'sous_vide', 'fermentation', 'high_temperature', 'dough', 'turbo'],
-    TM7: ['slow_cook', 'rice_cooker', 'sous_vide', 'fermentation', 'open_cooking', 'high_temperature', 'dough', 'turbo'],
+    TM6: ['slow_cook', 'rice_cooker', 'sous_vide', 'fermentation', 'dough', 'turbo'],
+    TM7: ['slow_cook', 'rice_cooker', 'sous_vide', 'fermentation', 'open_cooking', 'browning', 'dough', 'turbo'],
 };
 
 export interface ThermomixSettings {

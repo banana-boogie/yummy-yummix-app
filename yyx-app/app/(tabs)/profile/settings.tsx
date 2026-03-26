@@ -14,6 +14,7 @@ import { DangerButton } from '@/components/common/DangerButton';
 import { StatusModal } from '@/components/common/StatusModal';
 import { HeaderWithBack } from '@/components/common/HeaderWithBack';
 import { PageLayout } from '@/components/layouts/PageLayout';
+// eslint-disable-next-line import/no-named-as-default
 import logger from '@/services/logger';
 
 export default function Settings() {

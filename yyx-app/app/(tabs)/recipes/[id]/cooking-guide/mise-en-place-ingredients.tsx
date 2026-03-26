@@ -15,7 +15,7 @@ import { useDevice } from '@/hooks/useDevice';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { MiseEnPlaceIngredient } from '@/components/cooking-guide/MiseEnPlaceIngredient';
 import { Text } from '@/components/common/Text';
-import { LAYOUT, COLORS } from '@/constants/design-tokens';
+import { LAYOUT } from '@/constants/design-tokens';
 
 // Define the ingredient type
 type CheckableIngredient = RecipeIngredient & { checked: boolean };

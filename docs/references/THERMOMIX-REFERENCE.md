@@ -256,8 +256,9 @@ Named cooking modes that set specific parameter combinations automatically. The 
 | **Rice Cooker** | `rice_cooker` | No | Yes | Yes | Automatic temp/speed/time | Rice, grains |
 | **Sous Vide** | `sous_vide` | No | Yes | Yes | Precise temp hold, no stirring | Proteins, vegetables |
 | **Fermentation** | `fermentation` | No | Yes | Yes | Low temp hold (30-45°C), extended time | Yogurt, dough proofing, tempeh |
-| **Open Cooking** | `open_cooking` | No | No | Yes | Lid-free, up to 100°C, Spoon/Speed 1 | Risotto, sautéing, monitoring |
-| **High Temperature** (displayed as "Browning" / "Dorar") | `high_temperature` | No | Guided only | Yes (manual) | 120-160°C, max 10min per step, NO speed setting | Browning, searing, caramelizing |
+| **Open Cooking** | `open_cooking` | No | No | Yes | Lid-free, up to 100°C, temperature only — users stir manually with spatula | Risotto, sautéing, monitoring |
+| **Browning** (Gentle / Intense) | `browning` | No | No | Yes (TM7 only) | 120-160°C, max 10min per step, NO speed setting. Gentle: vegetables, onions, delicate browning. Intense: searing meats, deep caramelization. Cannot be combined with Open Cooking — lid must be closed. | Browning, searing, caramelizing |
+| ~~High Temperature~~ | `high_temperature` | No | Guided only | — | _TM6 Guided Cooking only. Superseded by `browning` on TM7. Do not use for recipe generation._ | — |
 | **Dough** | `dough` | Yes | Yes | Yes | Kneading mode, max 500g flour | Bread, pasta, pizza dough |
 | **Turbo** | `turbo` | Yes | Yes | Yes | Brief pulse at max speed | Crushing ice, quick grind |
 
@@ -265,7 +266,8 @@ Named cooking modes that set specific parameter combinations automatically. The 
 
 - Use a **named mode** when the Thermomix has a dedicated program for the technique — the user selects the mode from the screen.
 - Use **manual mode** (no mode set) for standard cooking with time/speed/temp — the user sets parameters individually.
-- On TM6, **high temperature** is only available via **Guided Cooking**. On TM7 it's available as a manual mode.
+- On TM6, **high temperature** is only available via **Guided Cooking** (not for recipe generation). On TM7, use **browning** mode (gentle or intense) instead.
+- **Browning cannot be combined with Open Cooking** — the lid must be closed for browning.
 
 ---
 
@@ -284,10 +286,12 @@ The Thermomix TM7 (released 2024) adds several capabilities not available on TM5
 - Enables proper browning, searing, and caramelization directly in the bowl
 - No need for Guided Cooking mode to access high temperatures
 
-### Browning / Searing
-- Manual browning at temperatures up to 160°C
+### Browning Mode (TM7 Only)
+- Two intensity levels: **Gentle** (vegetables, onions, garlic, delicate browning) and **Intense** (searing meats, deep caramelization)
+- Temperatures up to 160°C, max 10 minutes per step
 - Best results with small quantities (100-250g per batch)
-- Combine with Open Cooking for visual monitoring of browning progress
+- **Cannot be combined with Open Cooking** — lid must be closed for browning
+- No speed setting — blade does not rotate in browning mode
 
 ### Fermentation Mode (also on TM6)
 - Built-in fermentation function for yogurt, dough proofing, tempeh, etc.

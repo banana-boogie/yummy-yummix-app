@@ -28,6 +28,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
 import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import { Image as ExpoImage } from 'expo-image';
+// eslint-disable-next-line import/no-named-as-default
 import logger from '@/services/logger';
 
 
