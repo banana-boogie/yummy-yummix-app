@@ -132,6 +132,9 @@ export function ChatScreen({
     }, [externalMessages]);  
 
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
+    // Track session IDs created by this ChatScreen instance to avoid
+    // resetting the stream when the ID round-trips through a parent context.
+    const ownSessionIdRef = useRef<string | null>(null);
     const prevNewChatSignalRef = useRef<number | undefined>(newChatSignal);
 
     // Shared ref between scroll and streaming hooks
@@ -201,7 +204,10 @@ export function ChatScreen({
         messagesRef,
         currentSessionId,
         setCurrentSessionId,
-        onSessionCreated,
+        onSessionCreated: useCallback((sessionId: string) => {
+            ownSessionIdRef.current = sessionId;
+            onSessionCreated?.(sessionId);
+        }, [onSessionCreated]),
         stopAndGuard,
         scrollToEndThrottled,
         isNearBottomRef,
@@ -276,10 +282,11 @@ export function ChatScreen({
 
     // --- Effects ---
 
-    // Sync currentSessionId when parent changes it
+    // Sync currentSessionId when parent changes it (e.g. session selection).
+    // Skip when the ID was created by this instance (round-trip through context).
     useEffect(() => {
         const nextSessionId = initialSessionId ?? null;
-        if (nextSessionId !== currentSessionId) {
+        if (nextSessionId !== currentSessionId && nextSessionId !== ownSessionIdRef.current) {
             resetStreamingState();
             setCurrentSessionId(nextSessionId);
             setIsBudgetExceeded(false);

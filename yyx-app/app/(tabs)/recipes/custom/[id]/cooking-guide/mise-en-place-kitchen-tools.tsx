@@ -78,7 +78,7 @@ export default function CustomKitchenToolsStep() {
                         </View>
                         <StepNavigationButtons
                             onBack={() => router.back()}
-                            onNext={() => router.push(getCustomCookingGuidePath(id as string, from, '1'))}
+                            onNext={() => router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-ingredients'))}
                             backText={i18n.t('recipes.cookingGuide.navigation.back')}
                             nextText={i18n.t('recipes.cookingGuide.navigation.next')}
                         />

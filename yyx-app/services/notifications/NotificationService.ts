@@ -11,7 +11,8 @@ import type { NotificationService } from './types';
 // Without this, iOS silently swallows notifications delivered while the app is active.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
