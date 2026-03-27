@@ -85,7 +85,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               color: COLORS.text.default,
               fontFamily: 'Montserrat',
             },
-            Platform.OS === 'web' ? { outlineWidth: 0 } as never : {},
+            Platform.OS === 'web' ? { outlineStyle: 'none' } as never : {},
           ]}
         />
         {inputValue.length > 0 && (

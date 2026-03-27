@@ -121,6 +121,9 @@ export class AdminKitchenToolsService extends BaseService {
         .upsert(dbTranslations, { onConflict: 'kitchen_tool_id,locale' });
 
       if (translationError) {
+        if (translationError.message?.includes('unique constraint') || translationError.code === '23505') {
+          throw new Error('A kitchen tool with this name already exists. Please use a different name.');
+        }
         throw new Error(`Failed to upsert kitchen tool translations: ${translationError.message}`);
       }
     }
@@ -199,6 +202,9 @@ export class AdminKitchenToolsService extends BaseService {
         .insert(dbTranslations);
 
       if (translationError) {
+        if (translationError.message?.includes('unique constraint') || translationError.code === '23505') {
+          throw new Error('A kitchen tool with this name already exists. Please use a different name.');
+        }
         throw new Error(`Failed to insert kitchen tool translations: ${translationError.message}`);
       }
     }

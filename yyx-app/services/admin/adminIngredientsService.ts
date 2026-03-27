@@ -188,6 +188,9 @@ export class AdminIngredientsService extends BaseService {
         .upsert(dbTranslations, { onConflict: 'ingredient_id,locale' });
 
       if (translationError) {
+        if (translationError.message?.includes('unique constraint') || translationError.code === '23505') {
+          throw new Error('An ingredient with this name already exists. Please use a different name.');
+        }
         throw new Error(`Failed to upsert ingredient translations: ${translationError.message}`);
       }
     }
@@ -251,6 +254,9 @@ export class AdminIngredientsService extends BaseService {
         .insert(dbTranslations);
 
       if (translationError) {
+        if (translationError.message?.includes('unique constraint') || translationError.code === '23505') {
+          throw new Error('An ingredient with this name already exists. Please use a different name.');
+        }
         throw new Error(`Failed to insert ingredient translations: ${translationError.message}`);
       }
     }
