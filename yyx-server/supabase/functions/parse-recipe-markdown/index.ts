@@ -4,7 +4,6 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { chat } from "../_shared/ai-gateway/index.ts";
 import {
   forbiddenResponse,
-  hasRole,
   unauthorizedResponse,
   validateAuth,
 } from "../_shared/auth.ts";
@@ -590,7 +589,22 @@ serve(async (req: Request) => {
     );
   }
 
-  if (!hasRole(user, "admin")) {
+  // Check admin status from database (single source of truth: user_profiles.is_admin)
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const { createClient } = await import(
+    "https://esm.sh/@supabase/supabase-js@2"
+  );
+  const supabase = createClient(supabaseUrl, supabaseKey, {
+    global: { headers: { Authorization: authHeader! } },
+  });
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile?.is_admin) {
     console.warn(`[${requestId}] User ${user.id} attempted admin-only action`);
     return forbiddenResponse("Admin access required", corsHeaders);
   }
