@@ -19,6 +19,7 @@ export interface EntityTranslation {
 
 export interface AdminRecipeTranslation extends EntityTranslation {
   name: string;
+  description?: string;
   tipsAndTricks?: string;
 }
 

@@ -28,7 +28,8 @@ class AdminRecipeService extends BaseService {
         translations:recipe_translations (
           locale,
           name,
-          tips_and_tricks
+          tips_and_tricks,
+          description
         )
       `)
       .order('created_at', { ascending: false });
@@ -64,7 +65,8 @@ class AdminRecipeService extends BaseService {
         translations:recipe_translations (
           locale,
           name,
-          tips_and_tricks
+          tips_and_tricks,
+          description
         ),
         kitchen_tools:recipe_kitchen_tools(
           *,
@@ -218,6 +220,7 @@ class AdminRecipeService extends BaseService {
           recipe_id: recipeId.id,
           locale: t.locale,
           name: t.name,
+          description: t.description || null,
           tips_and_tricks: t.tipsAndTricks || null,
         }));
 
@@ -292,6 +295,7 @@ class AdminRecipeService extends BaseService {
         recipe_id: id,
         locale: t.locale,
         name: t.name,
+        description: t.description || null,
         tips_and_tricks: t.tipsAndTricks || null,
       }));
 
@@ -728,6 +732,7 @@ class AdminRecipeService extends BaseService {
         translations: (recipe.translations || []).map((t: any) => ({
           locale: t.locale,
           name: t.name || '',
+          description: t.description || undefined,
           tipsAndTricks: t.tips_and_tricks || t.tipsAndTricks || undefined,
         })),
         ingredients: [],
@@ -755,6 +760,7 @@ class AdminRecipeService extends BaseService {
       translations: (recipe.translations || []).map((t: any) => ({
         locale: t.locale,
         name: t.name || '',
+        description: t.description || undefined,
         tipsAndTricks: t.tips_and_tricks || t.tipsAndTricks || undefined,
       })),
     };

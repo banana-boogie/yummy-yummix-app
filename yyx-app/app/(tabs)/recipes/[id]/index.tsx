@@ -134,6 +134,12 @@ const RecipeDetail: React.FC = () => {
                 {recipe.name}
               </Text>
 
+              {recipe.description ? (
+                <Text className="text-text-secondary text-base mb-md">
+                  {recipe.description}
+                </Text>
+              ) : null}
+
               <RecipeInfo
                 totalTime={recipe.totalTime}
                 prepTime={recipe.prepTime}

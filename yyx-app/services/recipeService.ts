@@ -23,7 +23,8 @@ const getRecipeListQuery = () => {
     translations:recipe_translations (
       locale,
       name,
-      tips_and_tricks
+      tips_and_tricks,
+      description
     ),
     ingredients:recipe_ingredients (
       quantity,
@@ -60,7 +61,8 @@ const getRecipeDetailQuery = () => {
     translations:recipe_translations (
       locale,
       name,
-      tips_and_tricks
+      tips_and_tricks,
+      description
     ),
     steps:recipe_steps!inner (
       id,

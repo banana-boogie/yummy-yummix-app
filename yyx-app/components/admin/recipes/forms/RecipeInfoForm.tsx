@@ -103,6 +103,23 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors, authoringLocale
         </FormGroup>
       </FormRow>
 
+      {/* Description - single language */}
+      <FormRow>
+        <FormGroup
+          label={tForm('admin.recipes.form.basicInfo.description', { defaultValue: 'Description' })}
+        >
+          <TextInput
+            value={getTranslationField(authoringLocale, 'description')}
+            onChangeText={(text) => setTranslationField(authoringLocale, 'description', text)}
+            multiline
+            numberOfLines={3}
+            className="min-h-[80px] p-md"
+            style={{ textAlignVertical: 'top' }}
+            placeholder={tForm('admin.recipes.form.basicInfo.descriptionPlaceholder', { defaultValue: 'A short description of the recipe...' })}
+          />
+        </FormGroup>
+      </FormRow>
+
       {/* Image container gets its own full-width row to prevent layout issues */}
       <View className="mb-md w-full">
         <FormGroup
