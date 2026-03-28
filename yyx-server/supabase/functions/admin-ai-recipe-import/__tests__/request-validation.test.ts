@@ -1,7 +1,7 @@
 /**
- * Parse Recipe Markdown Request Validation Tests
+ * Admin AI Recipe Import — Request Validation Tests
  *
- * Tests for request validation in the parse-recipe-markdown edge function:
+ * Tests for request validation in the admin-ai-recipe-import edge function:
  * - Input validation
  * - JSON schema structure
  * - Error response formatting

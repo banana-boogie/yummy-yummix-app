@@ -58,7 +58,7 @@ yyx-server/supabase/functions/
 │   └── action-builder.ts             # Converts tool results to Action objects
 ├── irmixy-voice-orchestrator/        # Voice sessions (WebRTC, quota)
 ├── get-nutritional-facts/            # USDA API integration
-├── parse-recipe-markdown/            # Recipe parsing
+├── admin-ai-recipe-import/           # Admin AI-powered recipe import
 ├── translate-content/                # Admin auto-translate: translates entity fields between locales via AI Gateway
 ├── backfill-embeddings/              # Vector embedding generation
 └── send-delete-account-feedback/     # Account deletion handler

@@ -2,7 +2,7 @@
  * Recipe Parser
  *
  * Parses bilingual recipe markdown using OpenAI gpt-4.1-mini with structured output.
- * Uses the same JSON schema as the parse-recipe-markdown edge function.
+ * Uses the same JSON schema as the admin-ai-recipe-import edge function.
  */
 
 import { Logger } from './logger.ts';

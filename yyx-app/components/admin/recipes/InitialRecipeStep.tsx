@@ -44,7 +44,7 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
     const { locales: allLocales } = useActiveLocales(true);
     const filteredLocales = allLocales.filter(l => l.code !== 'es-MX');
     const { translating, progress, translateAll } = useRecipeTranslation();
-    // The parse-recipe-markdown edge function generates 'en' + 'es' by default.
+    // The admin-ai-recipe-import edge function generates 'en' + 'es' by default.
     // Additional locales (e.g. es-ES) are translated via translate-content after parsing.
     const PARSE_GENERATED_LOCALES = ['en', 'es'];
     const [selectedLocales, setSelectedLocales] = useState<Record<string, boolean>>({
@@ -99,7 +99,7 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
             const { recipe: parsedRecipe, missingIngredients, missingTags, missingKitchenTools } = await parseRecipeMarkdown(markdownText);
 
             // Determine which additional locales need translation
-            // parse-recipe-markdown generates 'en' + 'es'. Any other selected locale needs translate-content.
+            // admin-ai-recipe-import generates 'en' + 'es'. Any other selected locale needs translate-content.
             const additionalLocales = Object.entries(selectedLocales)
                 .filter(([code, checked]) => checked && !PARSE_GENERATED_LOCALES.includes(code))
                 .map(([code]) => code);

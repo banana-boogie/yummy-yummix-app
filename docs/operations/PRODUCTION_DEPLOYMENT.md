@@ -136,7 +136,7 @@ cd yyx-server
 npm run deploy irmixy-chat-orchestrator
 npm run deploy irmixy-voice-orchestrator
 npm run deploy get-nutritional-facts
-npm run deploy parse-recipe-markdown
+npm run deploy admin-ai-recipe-import
 ```
 
 Why this matters:

@@ -195,7 +195,7 @@ export const parseRecipeMarkdown = async (markdown: string): Promise<ParseRecipe
       adminKitchenToolsService.getAllKitchenTools()
     ]);
 
-    const { data: responseData, error } = await supabase.functions.invoke('parse-recipe-markdown', {
+    const { data: responseData, error } = await supabase.functions.invoke('admin-ai-recipe-import', {
       body: { markdown },
     });
 

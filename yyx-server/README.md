@@ -40,7 +40,7 @@ yyx-server/
 │   │   ├── irmixy-chat-orchestrator/
 │   │   ├── irmixy-voice-orchestrator/
 │   │   ├── get-nutritional-facts/
-│   │   ├── parse-recipe-markdown/
+│   │   ├── admin-ai-recipe-import/
 │   │   └── _shared/        # Shared utilities
 │   └── migrations/         # Database migrations
 ├── scripts/                # Backup scripts
