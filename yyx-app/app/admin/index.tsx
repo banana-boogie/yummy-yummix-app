@@ -16,8 +16,9 @@ import logger from '@/services/logger';
 // Navigation helpers
 // =============================================================================
 
-function navTo(router: ReturnType<typeof useRouter>, route: string) {
-  if (Platform.OS === 'web') {
+/** Navigate in same tab, or new tab if cmd/ctrl-clicked on web */
+function navTo(router: ReturnType<typeof useRouter>, route: string, e?: { metaKey?: boolean; ctrlKey?: boolean }) {
+  if (Platform.OS === 'web' && (e?.metaKey || e?.ctrlKey)) {
     window.open(route, '_blank');
   } else {
     router.push(route as any);
@@ -84,10 +85,34 @@ export default function AdminDashboard() {
 
   return (
     <AdminLayout title="Dashboard">
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 24, maxWidth: 900 }}>
+      <ScrollView className="flex-1" contentContainerStyle={{ padding: 32, maxWidth: 900 }}>
 
-        {/* Section A: Pipeline Progress */}
-        <View className="mb-xl">
+        {/* Section A: Manage (navigation grid) */}
+        <Text preset="h3" className="text-text-default mb-md">Manage</Text>
+        <View className="flex-row flex-wrap gap-md mb-xxl">
+          {[
+            { icon: 'analytics-outline', label: 'Analytics', route: '/admin/analytics' },
+            { icon: 'medkit-outline', label: 'Content Health', route: '/admin/content-health' },
+            { icon: 'leaf-outline', label: 'Ingredients', route: '/admin/ingredients' },
+            { icon: 'build-outline', label: 'Kitchen Tools', route: '/admin/kitchen-tools' },
+            { icon: 'restaurant-outline', label: 'Recipes', route: '/admin/recipes' },
+            { icon: 'pricetag-outline', label: 'Tags', route: '/admin/tags' },
+            { icon: 'people-outline', label: 'User Recipes', route: '/admin/user-recipes' },
+          ].map((item) => (
+            <Pressable
+              key={item.route}
+              className="bg-primary-lightest rounded-md p-md items-center"
+              style={{ minWidth: 110, width: '22%' }}
+              onPress={(e) => navTo(router, item.route, e as any)}
+            >
+              <Ionicons name={item.icon as any} size={24} color={COLORS.text.secondary} />
+              <Text preset="bodySmall" className="text-text-default mt-xs text-center">{item.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {/* Section B: Pipeline Progress */}
+        <View className="mb-xxl">
           <View className="flex-row justify-between items-center mb-xs">
             <Text preset="h3" className="text-text-default">Publishing Progress</Text>
             <Text preset="caption" className="text-text-secondary">
@@ -100,42 +125,42 @@ export default function AdminDashboard() {
               style={{ width: `${Math.max(publishPercent, 1)}%` }}
             />
           </View>
-          <Pressable onPress={() => navTo(router, '/admin/recipes')}>
-            <Text preset="bodySmall" className="text-text-secondary mt-xs">
+          <Pressable onPress={(e) => navTo(router, '/admin/recipes', e as any)}>
+            <Text preset="bodySmall" className="text-text-secondary mt-sm">
               {draftCount} drafts to review →
             </Text>
           </Pressable>
         </View>
 
-        {/* Section B: Content Blockers */}
+        {/* Section C: Content Blockers */}
         {healthSummary && (
-          <View className="flex-row gap-sm mb-xl flex-wrap">
+          <View className="flex-row gap-md mb-xxl flex-wrap">
             <BlockerCard
               icon="language-outline"
               count={healthSummary.missingTranslations.total}
               label="Need translations"
               color={COLORS.status.warning}
-              onPress={() => navTo(router, '/admin/content-health')}
+              onPress={(e) => navTo(router, '/admin/content-health', e as any)}
             />
             <BlockerCard
               icon="image-outline"
               count={healthSummary.missingImages.total}
               label="Need images"
               color={COLORS.status.error}
-              onPress={() => navTo(router, '/admin/content-health')}
+              onPress={(e) => navTo(router, '/admin/content-health', e as any)}
             />
             <BlockerCard
               icon="nutrition-outline"
               count={healthSummary.missingNutrition.total}
               label="Need nutrition"
               color={COLORS.status.warning}
-              onPress={() => navTo(router, '/admin/content-health')}
+              onPress={(e) => navTo(router, '/admin/content-health', e as any)}
             />
           </View>
         )}
 
-        {/* Section C: Primary Action */}
-        <View className="mb-xl">
+        {/* Section D: Primary Action */}
+        <View className="mb-xxl">
           <Button
             variant="primary"
             size="large"
@@ -146,12 +171,12 @@ export default function AdminDashboard() {
           </Button>
         </View>
 
-        {/* Section D: Recent Recipes */}
+        {/* Section E: Recent Recipes */}
         {recentRecipes.length > 0 && (
-          <View className="mb-xl">
-            <View className="flex-row justify-between items-center mb-sm">
+          <View className="mb-xxl">
+            <View className="flex-row justify-between items-center mb-md">
               <Text preset="h3" className="text-text-default">Recent Recipes</Text>
-              <Pressable onPress={() => navTo(router, '/admin/recipes')}>
+              <Pressable onPress={(e) => navTo(router, '/admin/recipes', e as any)}>
                 <Text preset="bodySmall" className="text-primary-darkest">View all →</Text>
               </Pressable>
             </View>
@@ -162,8 +187,8 @@ export default function AdminDashboard() {
               return (
                 <Pressable
                   key={recipe.id}
-                  className="bg-white rounded-md p-md shadow-sm mb-xs flex-row items-center"
-                  onPress={() => navTo(router, `/admin/recipes/${recipe.id}`)}
+                  className="bg-white rounded-md p-md shadow-sm mb-sm flex-row items-center"
+                  onPress={(e) => navTo(router, `/admin/recipes/${recipe.id}`, e as any)}
                 >
                   <View className="flex-1">
                     <Text preset="body" className="text-text-default" numberOfLines={1}>{name}</Text>
@@ -171,7 +196,7 @@ export default function AdminDashboard() {
                       Updated {timeAgo(updatedAt)}
                     </Text>
                   </View>
-                  <View className="flex-row items-center gap-xs">
+                  <View className="flex-row items-center gap-sm">
                     {!recipe.pictureUrl && (
                       <Ionicons name="image-outline" size={16} color={COLORS.status.error} />
                     )}
@@ -187,30 +212,6 @@ export default function AdminDashboard() {
           </View>
         )}
 
-        {/* Section E: Catalog Navigation */}
-        <Text preset="h3" className="text-text-default mb-sm">Manage</Text>
-        <View className="flex-row flex-wrap gap-sm">
-          {[
-            { icon: 'restaurant-outline', label: 'Recipes', route: '/admin/recipes' },
-            { icon: 'leaf-outline', label: 'Ingredients', route: '/admin/ingredients' },
-            { icon: 'build-outline', label: 'Kitchen Tools', route: '/admin/kitchen-tools' },
-            { icon: 'pricetag-outline', label: 'Tags', route: '/admin/tags' },
-            { icon: 'analytics-outline', label: 'Analytics', route: '/admin/analytics' },
-            { icon: 'medkit-outline', label: 'Content Health', route: '/admin/content-health' },
-            { icon: 'people-outline', label: 'User Recipes', route: '/admin/user-recipes' },
-          ].map((item) => (
-            <Pressable
-              key={item.route}
-              className="bg-primary-lightest rounded-md p-md items-center"
-              style={{ minWidth: 100, width: '30%' }}
-              onPress={() => navTo(router, item.route)}
-            >
-              <Ionicons name={item.icon as any} size={24} color={COLORS.text.secondary} />
-              <Text preset="bodySmall" className="text-text-default mt-xs text-center">{item.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-
       </ScrollView>
     </AdminLayout>
   );
@@ -225,13 +226,13 @@ function BlockerCard({ icon, count, label, color, onPress }: {
   count: number;
   label: string;
   color: string;
-  onPress: () => void;
+  onPress: (e: any) => void;
 }) {
   const resolved = count === 0;
   return (
     <Pressable
-      className="bg-white rounded-md p-md shadow-sm flex-1"
-      style={{ minWidth: 120 }}
+      className="bg-white rounded-md p-lg shadow-sm flex-1"
+      style={{ minWidth: 130 }}
       onPress={onPress}
     >
       <Ionicons
@@ -241,12 +242,12 @@ function BlockerCard({ icon, count, label, color, onPress }: {
       />
       <Text
         preset="h3"
-        className="mt-xs"
+        className="mt-sm"
         style={{ color: resolved ? COLORS.status.success : color }}
       >
         {count}
       </Text>
-      <Text preset="caption" className="text-text-secondary">{label}</Text>
+      <Text preset="caption" className="text-text-secondary mt-xxs">{label}</Text>
     </Pressable>
   );
 }
