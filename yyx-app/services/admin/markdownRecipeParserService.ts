@@ -196,7 +196,7 @@ export const parseRecipeMarkdown = async (markdown: string): Promise<ParseRecipe
     ]);
 
     const { data: responseData, error } = await supabase.functions.invoke('admin-ai-recipe-import', {
-      body: { markdown },
+      body: { content: markdown },
     });
 
     if (error) {

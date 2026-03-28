@@ -1,3 +1,11 @@
+/**
+ * Admin AI Recipe Import
+ *
+ * Accepts recipe text in any format (markdown, plain text, HTML, copy-paste)
+ * and any language. Uses AI to parse into structured JSON with translations
+ * for en, es (Mexican Spanish), and es-ES (Spain Spanish).
+ */
+
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -8,572 +16,453 @@ import {
   validateAuth,
 } from "../_shared/auth.ts";
 
-const jsonSchema = {
-  "name": "recipe",
-  "schema": {
-    "type": "object",
-    "properties": {
-      "translations": {
-        "type": "array",
-        "description":
-          "Locale-keyed translations for the recipe name and tips.",
-        "items": {
-          "type": "object",
-          "properties": {
-            "locale": {
-              "type": "string",
-              "description": "Locale code, e.g. 'en' or 'es'.",
-            },
-            "name": {
-              "type": "string",
-              "description": "Recipe name in this locale.",
-            },
-            "tipsAndTricks": {
-              "type": "string",
-              "description": "Tips section in this locale.",
-            },
-          },
-          "required": ["locale", "name", "tipsAndTricks"],
-          "additionalProperties": false,
-        },
-      },
-      "totalTime": {
-        "type": "number",
-        "description": "Total time required to make the recipe.",
-      },
-      "prepTime": {
-        "type": "number",
-        "description": "Preparation time needed before cooking.",
-      },
-      "difficulty": {
-        "type": "string",
-        "description": "Difficulty level of the recipe in English",
-        "enum": ["easy", "medium", "hard"],
-      },
-      "portions": {
-        "type": "number",
-        "description": "Number of portions the recipe makes.",
-      },
-      "kitchenTools": {
-        "type": "array",
-        "description":
-          "List of the kitchen tools for the recipe found in the Utensilios y herramientas útiles or Useful tools and utensils section.",
-        "items": {
-          "type": "object",
-          "properties": {
-            "translations": {
-              "type": "array",
-              "description": "Locale-keyed translations for this kitchen tool.",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "locale": {
-                    "type": "string",
-                    "description": "Locale code, e.g. 'en' or 'es'.",
-                  },
-                  "name": {
-                    "type": "string",
-                    "description": "Kitchen tool name in this locale.",
-                  },
-                  "notes": {
-                    "type": "string",
-                    "description":
-                      "Additional notes or tips about the kitchen tool in this locale.",
-                  },
-                },
-                "required": ["locale", "name", "notes"],
-                "additionalProperties": false,
-              },
-            },
-            "displayOrder": {
-              "type": "number",
-              "description":
-                "1-based index indicating the order of the kitchen tool.",
-            },
-          },
-          "required": [
-            "translations",
-            "displayOrder",
-          ],
-          "additionalProperties": false,
-        },
-      },
-      "ingredients": {
-        "type": "array",
-        "description": "List of the ingredients required for the recipe.",
-        "items": {
-          "type": "object",
-          "properties": {
-            "ingredient": {
-              "type": "object",
-              "description": "Ingredient details",
-              "properties": {
-                "translations": {
-                  "type": "array",
-                  "description":
-                    "Locale-keyed translations for this ingredient.",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "locale": {
-                        "type": "string",
-                        "description": "Locale code, e.g. 'en' or 'es'.",
-                      },
-                      "name": {
-                        "type": "string",
-                        "description":
-                          "Only the ingredient name in this locale, no quantities, no adjectives, no descriptions, or notes.",
-                      },
-                      "pluralName": {
-                        "type": "string",
-                        "description":
-                          "Only the plural ingredient name in this locale, no quantities, no adjectives, no descriptions, or notes.",
-                      },
-                    },
-                    "required": ["locale", "name", "pluralName"],
-                    "additionalProperties": false,
-                  },
-                },
-              },
-              "required": ["translations"],
-              "additionalProperties": false,
-            },
-            "quantity": {
-              "type": "number",
-              "description": "Quantity of the ingredient.",
-            },
-            "measurementUnitID": {
-              "type": "string",
-              "description": "The measurement unit of the ingredient if any.",
-              "enum": [
-                "clove",
-                "cup",
-                "g",
-                "kg",
-                "l",
-                "lb",
-                "leaf",
-                "ml",
-                "oz",
-                "piece",
-                "pinch",
-                "slice",
-                "sprig",
-                "taste",
-                "tbsp",
-                "tsp",
-                "unit",
-              ],
-              "default": "unit",
-            },
-            "translations": {
-              "type": "array",
-              "description":
-                "Locale-keyed translations for ingredient notes, tips, and section.",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "locale": {
-                    "type": "string",
-                    "description": "Locale code, e.g. 'en' or 'es'.",
-                  },
-                  "notes": {
-                    "type": "string",
-                    "description":
-                      "Any additional preparation notes in this locale.",
-                  },
-                  "tip": {
-                    "type": "string",
-                    "description":
-                      "Any tip included in the ingredient in this locale.",
-                  },
-                  "recipeSection": {
-                    "type": "string",
-                    "description":
-                      "If the recipe has multiple components or meals made, the title of section if one is found, otherwise use 'Main' for English or 'Principal' for Spanish.",
-                  },
-                },
-                "required": ["locale", "notes", "tip", "recipeSection"],
-                "additionalProperties": false,
-              },
-            },
-            "displayOrder": {
-              "type": "number",
-              "description":
-                "1-based index indicating the order of the ingredient.",
-            },
-          },
-          "required": [
-            "quantity",
-            "measurementUnitID",
-            "ingredient",
-            "translations",
-            "displayOrder",
-          ],
-          "additionalProperties": false,
-        },
-      },
-      "steps": {
-        "type": "array",
-        "description": "List of steps.",
-        "items": {
-          "type": "object",
-          "properties": {
-            "order": {
-              "type": "number",
-              "description":
-                "1-based index indicating the order of the instruction.",
-            },
-            "translations": {
-              "type": "array",
-              "description":
-                "Locale-keyed translations for instruction, tip, and section.",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "locale": {
-                    "type": "string",
-                    "description": "Locale code, e.g. 'en' or 'es'.",
-                  },
-                  "instruction": {
-                    "type": "string",
-                    "description": "Full instruction text in this locale.",
-                  },
-                  "tip": {
-                    "type": "string",
-                    "description":
-                      "Tip for this recipe step if one exists in this locale.",
-                  },
-                  "recipeSection": {
-                    "type": "string",
-                    "description":
-                      "If the recipe has multiple components or meals made, the title of section if one is found, otherwise use 'Main' for English or 'Principal' for Spanish.",
-                  },
-                },
-                "required": [
-                  "locale",
-                  "instruction",
-                  "tip",
-                  "recipeSection",
-                ],
-                "additionalProperties": false,
-              },
-            },
-            "thermomixTime": {
-              "type": ["number", "null"],
-              "description":
-                "Time in seconds, extracted from thermomix patterns in the instruction text.",
-            },
-            "thermomixTemperature": {
-              "type": ["number", "string", "null"],
-              "description":
-                "Temperature section extracted from thermomix patterns. If no temperature is found, return null.",
-              "enum": [
-                37,
-                40,
-                45,
-                50,
-                55,
-                60,
-                65,
-                70,
-                75,
-                80,
-                85,
-                90,
-                95,
-                98,
-                100,
-                105,
-                110,
-                115,
-                120,
-                "Varoma",
-                130,
-                140,
-                150,
-                160,
-                170,
-                175,
-                185,
-                195,
-                200,
-                205,
-                212,
-                220,
-                230,
-                240,
-                250,
-                null,
-              ],
-            },
-            "thermomixTemperatureUnit": {
-              "type": ["number", "null"],
-              "description":
-                "Temperature unit in C or F, if it exists, null otherwise",
-            },
-            "thermomixSpeed": {
-              "type": ["object", "null"],
-              "description":
-                "Speed section extracted from thermomix patterns. Can be a single value or a range.",
-              "properties": {
-                "type": {
-                  "type": "string",
-                  "enum": ["single", "range"],
-                  "description":
-                    "Type of speed, either 'single' or 'range'. Single is only when there is one speed. Range when there are two speeds, generally formatted {number}-{number}, example: 3-5",
-                },
-                "value": {
-                  "type": ["number", "string", "null"],
-                  "enum": [
-                    "spoon",
-                    0.5,
-                    1,
-                    1.5,
-                    2,
-                    2.5,
-                    3,
-                    3.5,
-                    4,
-                    4.5,
-                    5,
-                    5.5,
-                    6,
-                    6.5,
-                    7,
-                    7.5,
-                    8,
-                    8.5,
-                    9,
-                    9.5,
-                    10,
-                    null,
-                  ],
-                  "description":
-                    "Speed value, a single value that only exists if the type is 'single', otherwise it is null.",
-                },
-                "start": {
-                  "type": ["number", "string", "null"],
-                  "enum": [
-                    "spoon",
-                    0.5,
-                    1,
-                    1.5,
-                    2,
-                    2.5,
-                    3,
-                    3.5,
-                    4,
-                    4.5,
-                    5,
-                    5.5,
-                    6,
-                    6.5,
-                    7,
-                    7.5,
-                    8,
-                    8.5,
-                    9,
-                    9.5,
-                    10,
-                    null,
-                  ],
-                  "description":
-                    "Start value, only exists if the type is 'range', otherwise it is null.",
-                },
-                "end": {
-                  "type": ["number", "string", "null"],
-                  "enum": [
-                    "spoon",
-                    0.5,
-                    1,
-                    1.5,
-                    2,
-                    2.5,
-                    3,
-                    3.5,
-                    4,
-                    4.5,
-                    5,
-                    5.5,
-                    6,
-                    6.5,
-                    7,
-                    7.5,
-                    8,
-                    8.5,
-                    9,
-                    9.5,
-                    10,
-                    null,
-                  ],
-                  "description":
-                    "End value, only exists if the type is 'range', otherwise it is null.",
-                },
-              },
-              "required": ["type", "value", "start", "end"],
-              "additionalProperties": false,
-            },
-            "thermomixIsBladeReversed": {
-              "type": ["boolean", "null"],
-              "description":
-                "Reverse blade section extracted from thermomix patterns.",
-            },
-            "ingredients": {
-              "type": "array",
-              "description":
-                "List of information that is related to the ingredients used in this step.",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "ingredient": {
-                    "type": "object",
-                    "description": "Ingredient details",
-                    "properties": {
-                      "translations": {
-                        "type": "array",
-                        "description":
-                          "Locale-keyed translations for this ingredient.",
-                        "items": {
-                          "type": "object",
-                          "properties": {
-                            "locale": {
-                              "type": "string",
-                              "description": "Locale code, e.g. 'en' or 'es'.",
-                            },
-                            "name": {
-                              "type": "string",
-                              "description":
-                                "Only the ingredient name in this locale, no quantities, no adjectives, no descriptions, or notes.",
-                            },
-                            "pluralName": {
-                              "type": "string",
-                              "description":
-                                "Only the plural ingredient name in this locale, no quantities, no adjectives, no descriptions, or notes.",
-                            },
-                          },
-                          "required": ["locale", "name", "pluralName"],
-                          "additionalProperties": false,
-                        },
-                      },
-                    },
-                    "required": [
-                      "translations",
-                    ],
-                    "additionalProperties": false,
-                  },
-                  "quantity": {
-                    "type": "number",
-                    "description": "Quantity of the ingredient.",
-                  },
-                  "measurementUnitID": {
-                    "type": "string",
-                    "description":
-                      "The measurement unit of the ingredient if any.",
-                    "enum": [
-                      "clove",
-                      "cup",
-                      "g",
-                      "kg",
-                      "l",
-                      "lb",
-                      "leaf",
-                      "ml",
-                      "oz",
-                      "piece",
-                      "pinch",
-                      "slice",
-                      "sprig",
-                      "taste",
-                      "tbsp",
-                      "tsp",
-                      "unit",
-                    ],
-                    "default": "unit",
-                  },
-                  "displayOrder": {
-                    "type": "number",
-                    "description":
-                      "1-based index indicating the order of the ingredient as it appears in the instruction text.",
-                  },
-                },
-                "required": [
-                  "ingredient",
-                  "quantity",
-                  "measurementUnitID",
-                  "displayOrder",
-                ],
-                "additionalProperties": false,
-              },
-            },
-          },
-          "required": [
-            "order",
-            "translations",
-            "thermomixTime",
-            "thermomixTemperature",
-            "thermomixTemperatureUnit",
-            "thermomixSpeed",
-            "thermomixIsBladeReversed",
-            "ingredients",
-          ],
-          "additionalProperties": false,
-        },
-      },
-      "tags": {
-        "type": "array",
-        "description":
-          "List of all tags from both English and Spanish sections.",
-        "items": {
-          "type": "string",
-          "description":
-            "Tags can be prefixed with a #, remove the # from the tag name.",
-        },
-      },
-    },
-    "required": [
-      "translations",
-      "totalTime",
-      "prepTime",
-      "difficulty",
-      "portions",
-      "kitchenTools",
-      "ingredients",
-      "steps",
-      "tags",
-    ],
-    "additionalProperties": false,
-  },
-  "strict": true,
-};
+// =============================================================================
+// System Prompt
+// =============================================================================
 
-const systemPrompt = `
-You are a recipe parser specializing in converting Markdown recipes into structured JSON data.
+const systemPrompt =
+  `You are a recipe parser for a cooking app. You convert recipe text into structured JSON.
 
-You will receive data about a recipe, the recipe comes in two languages English and Spanish.
-In the Spanish section of the recipe, it is structured into different parts: Ingredientes, Procedimiento, Tips, Utensilios y herramientas útiles, Tags.
-In the English section of the recipe, it is structured into different parts: Ingredients, Instructions (a.k.a. steps), Tips, Useful tools and utensils, Tags.
+INPUT: Recipe text in any format (markdown, plain text, HTML, copy-paste from websites) and any language.
 
-For Thermomix instructions, extract the Thermomix parameters from patterns like "(40 sec/reverse blades/speed 3)" or "(45 sec/speed 3)".
+OUTPUT: Structured recipe JSON with translations for exactly 3 locales:
+- "en" — English
+- "es" — Mexican Spanish (use Mexican vocabulary: jitomate, elote, chícharo, ejote, cacahuates)
+- "es-ES" — Spain Spanish (use Spain vocabulary: tomate, maíz, guisantes, judías verdes, cacahuetes)
 
-DO NOT make up any information.
-DO NOT include any information that is not found in the recipe.
-DO NOT include ingredients that are not found in the recipe.
-DO NOT include kitchen tools that are not found in the recipe.
-DO NOT include tags that are not found in the recipe.
-DO NOT include tips that are not found in the recipe.
-DO NOT include steps that are not found in the recipe.
+LANGUAGE HANDLING:
+- Auto-detect the input language.
+- Translate all text fields into all 3 locales. The input language gives you the source — translate the other two.
+- For es vs es-ES: adapt regional vocabulary, not just copy. "Jitomate" (es) → "Tomate" (es-ES). "Cacahuates" (es) → "Cacahuetes" (es-ES).
 
+THERMOMIX PARAMETERS:
+- Extract from patterns like "(40 sec/reverse blades/speed 3)", "(10 min/90°C/speed 2)", "Varoma/speed 1/15 min".
+- thermomixTime: always in seconds (convert minutes to seconds).
+- thermomixMode: detect cooking modes — slow_cook, rice_cooker, sous_vide, fermentation, open_cooking, browning (TM7 only), steaming, dough, turbo. null if no mode.
+- thermomixIsBladeReversed: true if "reverse", "giro inverso", "sentido inverso" mentioned.
+
+TIMER EXTRACTION:
+- For non-Thermomix steps with explicit durations ("bake for 20 minutes", "let rest 10 min"), extract timerSeconds.
+- Convert to seconds. "20 minutes" → 1200. "1 hour" → 3600.
+
+OPTIONAL INGREDIENTS:
+- Detect "optional", "opcional", "to taste", "al gusto" — set optional: true.
+
+RECIPE SECTIONS:
+- If the recipe has multiple components (e.g., "For the sauce", "For the filling"), use the section title in recipeSection.
+- Default: "Main" for en, "Principal" for es/es-ES.
+
+DESCRIPTION:
+- Write a short, appetizing description (1-2 sentences) for each locale. Capture the essence of the dish.
+
+RULES:
+- DO NOT invent ingredients, steps, tools, or tags not present in the source text.
+- DO NOT add Thermomix parameters unless the source text contains them.
+- Quantities are numeric (use 0.5 not "1/2", use 0.25 not "1/4").
+- If information is missing (e.g., no prep time given), use reasonable estimates based on the recipe.
+- Tags should be lowercase, no # prefix.
 `;
 
+// =============================================================================
+// JSON Schema
+// =============================================================================
+
+const speedEnum = [
+  "spoon",
+  0.5,
+  1,
+  1.5,
+  2,
+  2.5,
+  3,
+  3.5,
+  4,
+  4.5,
+  5,
+  5.5,
+  6,
+  6.5,
+  7,
+  7.5,
+  8,
+  8.5,
+  9,
+  9.5,
+  10,
+  null,
+];
+
+const measurementUnitEnum = [
+  "clove",
+  "cup",
+  "g",
+  "kg",
+  "l",
+  "lb",
+  "leaf",
+  "ml",
+  "oz",
+  "piece",
+  "pinch",
+  "slice",
+  "sprig",
+  "taste",
+  "tbsp",
+  "tsp",
+  "unit",
+];
+
+const temperatureEnum = [
+  37,
+  40,
+  45,
+  50,
+  55,
+  60,
+  65,
+  70,
+  75,
+  80,
+  85,
+  90,
+  95,
+  98,
+  100,
+  105,
+  110,
+  115,
+  120,
+  "Varoma",
+  130,
+  140,
+  150,
+  160,
+  170,
+  175,
+  185,
+  195,
+  200,
+  205,
+  212,
+  220,
+  230,
+  240,
+  250,
+  null,
+];
+
+const thermomixModeEnum = [
+  "slow_cook",
+  "rice_cooker",
+  "sous_vide",
+  "fermentation",
+  "open_cooking",
+  "browning",
+  "steaming",
+  "dough",
+  "turbo",
+  null,
+];
+
+const localeTranslationItems = (fields: Record<string, unknown>[]) => ({
+  type: "array",
+  description: "Translations for locales: en, es (Mexico), es-ES (Spain).",
+  items: {
+    type: "object",
+    properties: {
+      locale: {
+        type: "string",
+        description: "Locale code: 'en', 'es', or 'es-ES'.",
+      },
+      ...Object.fromEntries(fields.map((f) => [f.name, f.schema])),
+    },
+    required: ["locale", ...fields.map((f) => f.name as string)],
+    additionalProperties: false,
+  },
+});
+
+const ingredientTranslationSchema = localeTranslationItems([
+  {
+    name: "name",
+    schema: {
+      type: "string",
+      description: "Ingredient name only — no quantities or adjectives.",
+    },
+  },
+  {
+    name: "pluralName",
+    schema: {
+      type: "string",
+      description: "Plural ingredient name only.",
+    },
+  },
+]);
+
+const jsonSchema = {
+  type: "object",
+  properties: {
+    translations: localeTranslationItems([
+      {
+        name: "name",
+        schema: { type: "string", description: "Recipe name." },
+      },
+      {
+        name: "description",
+        schema: {
+          type: "string",
+          description: "Short appetizing description (1-2 sentences).",
+        },
+      },
+      {
+        name: "tipsAndTricks",
+        schema: {
+          type: "string",
+          description: "Tips and tricks section. Empty string if none.",
+        },
+      },
+    ]),
+    totalTime: {
+      type: "number",
+      description: "Total time in minutes.",
+    },
+    prepTime: {
+      type: "number",
+      description: "Preparation time in minutes.",
+    },
+    difficulty: {
+      type: "string",
+      enum: ["easy", "medium", "hard"],
+    },
+    portions: {
+      type: "number",
+      description: "Number of servings.",
+    },
+    kitchenTools: {
+      type: "array",
+      description: "Kitchen tools needed.",
+      items: {
+        type: "object",
+        properties: {
+          translations: localeTranslationItems([
+            {
+              name: "name",
+              schema: { type: "string", description: "Tool name." },
+            },
+            {
+              name: "notes",
+              schema: {
+                type: "string",
+                description: "Notes about the tool. Empty string if none.",
+              },
+            },
+          ]),
+          displayOrder: { type: "number", description: "1-based order." },
+        },
+        required: ["translations", "displayOrder"],
+        additionalProperties: false,
+      },
+    },
+    ingredients: {
+      type: "array",
+      description: "Ingredients list.",
+      items: {
+        type: "object",
+        properties: {
+          ingredient: {
+            type: "object",
+            properties: {
+              translations: ingredientTranslationSchema,
+            },
+            required: ["translations"],
+            additionalProperties: false,
+          },
+          quantity: { type: "number", description: "Numeric quantity." },
+          measurementUnitID: {
+            type: "string",
+            enum: measurementUnitEnum,
+            default: "unit",
+          },
+          optional: {
+            type: "boolean",
+            description: "True if marked optional, 'al gusto', or 'to taste'.",
+          },
+          translations: localeTranslationItems([
+            {
+              name: "notes",
+              schema: {
+                type: "string",
+                description: "Preparation notes. Empty string if none.",
+              },
+            },
+            {
+              name: "tip",
+              schema: {
+                type: "string",
+                description: "Ingredient tip. Empty string if none.",
+              },
+            },
+            {
+              name: "recipeSection",
+              schema: {
+                type: "string",
+                description:
+                  "Section title. 'Main'/'Principal'/'Principal' for en/es/es-ES if no sections.",
+              },
+            },
+          ]),
+          displayOrder: { type: "number", description: "1-based order." },
+        },
+        required: [
+          "quantity",
+          "measurementUnitID",
+          "optional",
+          "ingredient",
+          "translations",
+          "displayOrder",
+        ],
+        additionalProperties: false,
+      },
+    },
+    steps: {
+      type: "array",
+      description: "Cooking steps.",
+      items: {
+        type: "object",
+        properties: {
+          order: { type: "number", description: "1-based step order." },
+          translations: localeTranslationItems([
+            {
+              name: "instruction",
+              schema: { type: "string", description: "Full instruction." },
+            },
+            {
+              name: "tip",
+              schema: {
+                type: "string",
+                description: "Step tip. Empty string if none.",
+              },
+            },
+            {
+              name: "recipeSection",
+              schema: {
+                type: "string",
+                description:
+                  "Section title. 'Main'/'Principal'/'Principal' for en/es/es-ES if no sections.",
+              },
+            },
+          ]),
+          thermomixTime: {
+            type: ["number", "null"],
+            description: "Time in seconds. null if not a Thermomix step.",
+          },
+          thermomixTemperature: {
+            type: ["number", "string", "null"],
+            enum: temperatureEnum,
+          },
+          thermomixTemperatureUnit: {
+            type: ["number", "null"],
+            description: "Temperature unit in C or F. null if no temperature.",
+          },
+          thermomixSpeed: {
+            type: ["object", "null"],
+            properties: {
+              type: { type: "string", enum: ["single", "range"] },
+              value: { type: ["number", "string", "null"], enum: speedEnum },
+              start: { type: ["number", "string", "null"], enum: speedEnum },
+              end: { type: ["number", "string", "null"], enum: speedEnum },
+            },
+            required: ["type", "value", "start", "end"],
+            additionalProperties: false,
+          },
+          thermomixIsBladeReversed: {
+            type: ["boolean", "null"],
+          },
+          thermomixMode: {
+            type: ["string", "null"],
+            enum: thermomixModeEnum,
+            description: "Thermomix cooking mode if applicable.",
+          },
+          timerSeconds: {
+            type: ["number", "null"],
+            description:
+              "Timer for non-Thermomix steps in seconds. null if no explicit duration.",
+          },
+          ingredients: {
+            type: "array",
+            description: "Ingredients used in this step.",
+            items: {
+              type: "object",
+              properties: {
+                ingredient: {
+                  type: "object",
+                  properties: {
+                    translations: ingredientTranslationSchema,
+                  },
+                  required: ["translations"],
+                  additionalProperties: false,
+                },
+                quantity: { type: "number" },
+                measurementUnitID: {
+                  type: "string",
+                  enum: measurementUnitEnum,
+                  default: "unit",
+                },
+                displayOrder: { type: "number" },
+              },
+              required: [
+                "ingredient",
+                "quantity",
+                "measurementUnitID",
+                "displayOrder",
+              ],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: [
+          "order",
+          "translations",
+          "thermomixTime",
+          "thermomixTemperature",
+          "thermomixTemperatureUnit",
+          "thermomixSpeed",
+          "thermomixIsBladeReversed",
+          "thermomixMode",
+          "timerSeconds",
+          "ingredients",
+        ],
+        additionalProperties: false,
+      },
+    },
+    tags: {
+      type: "array",
+      description: "Recipe tags, lowercase, no # prefix.",
+      items: { type: "string" },
+    },
+  },
+  required: [
+    "translations",
+    "totalTime",
+    "prepTime",
+    "difficulty",
+    "portions",
+    "kitchenTools",
+    "ingredients",
+    "steps",
+    "tags",
+  ],
+  additionalProperties: false,
+};
+
+// =============================================================================
+// Handler
+// =============================================================================
+
 serve(async (req: Request) => {
-  const requestId = crypto.randomUUID(); // Generate unique ID for request tracing
+  const requestId = crypto.randomUUID();
   const startTime = performance.now();
 
-  console.info(`[${requestId}] New request received: ${req.method} ${req.url}`);
-
   if (req.method === "OPTIONS") {
-    console.info(`[${requestId}] Handling OPTIONS request`);
     return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
@@ -589,7 +478,7 @@ serve(async (req: Request) => {
     );
   }
 
-  // Check admin status from database (single source of truth: user_profiles.is_admin)
+  // Check admin status from database
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const { createClient } = await import(
@@ -612,15 +501,12 @@ serve(async (req: Request) => {
   console.info(`[${requestId}] Authenticated admin user: ${user.id}`);
 
   try {
-    const { markdown } = await req.json();
-    console.info(
-      `[${requestId}] Received markdown of length: ${markdown?.length || 0}`,
-    );
+    const body = await req.json();
+    const content = body.content;
 
-    if (!markdown) {
-      console.warn(`[${requestId}] Missing markdown content`);
+    if (!content) {
       return new Response(
-        JSON.stringify({ error: "Markdown content is required" }),
+        JSON.stringify({ error: "Recipe content is required" }),
         {
           status: 400,
           headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -628,27 +514,29 @@ serve(async (req: Request) => {
       );
     }
 
-    console.info(`[${requestId}] Calling AI gateway...`);
+    console.info(
+      `[${requestId}] Received content of length: ${content.length}`,
+    );
+
     const response = await chat({
       usageType: "parsing",
+      model: "gpt-4.1-mini",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: markdown },
+        { role: "user", content },
       ],
       temperature: 1,
-      maxTokens: 10000,
+      maxTokens: 16000,
       responseFormat: {
         type: "json_schema",
-        schema: jsonSchema.schema,
+        schema: jsonSchema,
       },
     });
 
-    const content = response.content || null;
+    const result = response.content || null;
 
-    if (!content) {
-      console.error(
-        `[${requestId}] Missing content from AI response`,
-      );
+    if (!result) {
+      console.error(`[${requestId}] Missing content from AI response`);
       return new Response(
         JSON.stringify({ error: "Failed to get a response from AI" }),
         {
@@ -660,27 +548,22 @@ serve(async (req: Request) => {
 
     const processingTime = performance.now() - startTime;
     console.info(
-      `[${requestId}] Successfully processed request in ${
-        processingTime.toFixed(2)
-      }ms`,
+      `[${requestId}] Processed in ${
+        processingTime.toFixed(0)
+      }ms | model: ${response.model} | tokens: ${response.usage.inputTokens}in/${response.usage.outputTokens}out | cost: $${
+        response.costUsd.toFixed(4)
+      }`,
     );
 
     return new Response(
-      JSON.stringify(content),
+      JSON.stringify(result),
       { headers: { "Content-Type": "application/json", ...corsHeaders } },
     );
   } catch (error) {
     const errorMessage = error instanceof Error
       ? error.message
       : "Unknown error";
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    const errorCause = error instanceof Error ? error.cause : undefined;
-
-    console.error(`[${requestId}] Error processing request:`, {
-      message: errorMessage,
-      stack: errorStack,
-      cause: errorCause,
-    });
+    console.error(`[${requestId}] Error:`, errorMessage);
     return new Response(
       JSON.stringify({ error: errorMessage }),
       {
