@@ -115,7 +115,7 @@ export default function AdminDashboard() {
           <Pressable
             className="rounded-lg p-md items-center justify-center border-2 border-dashed border-primary-medium"
             style={({ pressed }: any) => [
-              { minWidth: 110, width: '22%', opacity: pressed ? 0.7 : 1 },
+              { minWidth: 110, width: '22%', height: 100, opacity: pressed ? 0.7 : 1 },
               Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
             ]}
             onPress={(e) => navTo(router, '/admin/recipes/new', e as any)}
@@ -203,7 +203,7 @@ export default function AdminDashboard() {
               return (
                 <Pressable
                   key={recipe.id}
-                  className="bg-white rounded-md p-md mb-sm flex-row items-center"
+                  className="bg-white rounded-md mb-sm flex-row items-center overflow-hidden"
                   style={({ pressed }: any) => [
                     { shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } },
                     pressed ? { opacity: 0.7 } : {},
@@ -211,20 +211,30 @@ export default function AdminDashboard() {
                   ]}
                   onPress={(e) => navTo(router, `/admin/recipes/${recipe.id}`, e as any)}
                 >
-                  <View className="flex-1">
-                    <Text preset="body" className="text-text-default" numberOfLines={1}>{name}</Text>
-                    <Text preset="caption" className="text-text-secondary">
-                      Updated {timeAgo(updatedAt)}
-                    </Text>
-                  </View>
-                  <View className="flex-row items-center gap-sm">
-                    {!recipe.pictureUrl && (
-                      <Ionicons name="image-outline" size={16} color={COLORS.status.error} />
-                    )}
-                    <View className={`px-sm py-xxs rounded-full ${recipe.isPublished ? 'bg-status-success' : 'bg-grey-light'}`}>
-                      <Text preset="caption" className={recipe.isPublished ? 'text-white' : 'text-text-secondary'}>
-                        {recipe.isPublished ? 'Live' : 'Draft'}
+                  {/* Status dot bar on left */}
+                  <View
+                    style={{
+                      width: 4,
+                      alignSelf: 'stretch',
+                      backgroundColor: recipe.isPublished ? COLORS.status.success : COLORS.grey.medium,
+                    }}
+                  />
+                  <View className="flex-1 flex-row items-center p-md">
+                    <View className="flex-1">
+                      <Text preset="body" className="text-text-default" numberOfLines={1}>{name}</Text>
+                      <Text preset="caption" className="text-text-secondary">
+                        Updated {timeAgo(updatedAt)}
                       </Text>
+                    </View>
+                    <View className="flex-row items-center gap-sm">
+                      {!recipe.pictureUrl && (
+                        <Ionicons name="image-outline" size={16} color={COLORS.status.error} />
+                      )}
+                      <View className={`px-sm py-xxs rounded-full ${recipe.isPublished ? 'bg-status-success' : 'bg-grey-light'}`}>
+                        <Text preset="caption" className={recipe.isPublished ? 'text-white' : 'text-text-secondary'}>
+                          {recipe.isPublished ? 'Live' : 'Draft'}
+                        </Text>
+                      </View>
                     </View>
                   </View>
                 </Pressable>
@@ -250,16 +260,18 @@ function ManageCard({ icon, label, desc, onPress }: {
 }) {
   return (
     <Pressable
-      className="bg-primary-lightest rounded-lg p-md"
+      className="bg-primary-lightest rounded-lg p-md justify-between"
       style={({ pressed }: any) => [
-        { minWidth: 110, width: '22%', opacity: pressed ? 0.7 : 1 },
+        { minWidth: 110, width: '22%', height: 100, opacity: pressed ? 0.7 : 1 },
         Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
       ]}
       onPress={onPress}
     >
       <Ionicons name={icon as any} size={22} color={COLORS.text.secondary} />
-      <Text preset="bodySmall" className="text-text-default mt-sm font-semibold">{label}</Text>
-      <Text preset="caption" className="text-text-secondary mt-xxs">{desc}</Text>
+      <View>
+        <Text preset="bodySmall" className="text-text-default font-semibold">{label}</Text>
+        <Text preset="caption" className="text-text-secondary mt-xxs">{desc}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -272,40 +284,42 @@ function BlockerCard({ icon, count, label, color, onPress }: {
   onPress: (e: any) => void;
 }) {
   const resolved = count === 0;
-  const borderColor = resolved ? COLORS.status.success : color;
+  const accentColor = resolved ? COLORS.status.success : color;
 
   return (
     <Pressable
-      className="bg-white rounded-lg p-lg flex-1"
+      className="bg-white rounded-lg flex-1 flex-row overflow-hidden"
       style={({ pressed }: any) => [
         {
           minWidth: 140,
-          borderLeftWidth: 4,
-          borderLeftColor: borderColor,
           shadowColor: '#000',
-          shadowOpacity: 0.05,
-          shadowRadius: 4,
-          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.06,
+          shadowRadius: 6,
+          shadowOffset: { width: 0, height: 2 },
           opacity: pressed ? 0.7 : 1,
         },
         Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
       ]}
       onPress={onPress}
     >
-      <View className="flex-row items-center gap-sm">
-        <Ionicons
-          name={resolved ? 'checkmark-circle' : (icon as any)}
-          size={20}
-          color={resolved ? COLORS.status.success : color}
-        />
-        <Text
-          preset="h2"
-          style={{ color: resolved ? COLORS.status.success : color }}
-        >
-          {count}
-        </Text>
+      {/* Left accent bar */}
+      <View style={{ width: 5, alignSelf: 'stretch', backgroundColor: accentColor }} />
+      <View className="p-lg flex-1">
+        <View className="flex-row items-center gap-sm">
+          <Ionicons
+            name={resolved ? 'checkmark-circle' : (icon as any)}
+            size={20}
+            color={accentColor}
+          />
+          <Text
+            preset="h2"
+            style={{ color: accentColor }}
+          >
+            {count}
+          </Text>
+        </View>
+        <Text preset="bodySmall" className="text-text-secondary mt-sm">{label}</Text>
       </View>
-      <Text preset="bodySmall" className="text-text-secondary mt-sm">{label}</Text>
     </Pressable>
   );
 }
