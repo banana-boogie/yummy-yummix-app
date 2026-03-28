@@ -107,15 +107,15 @@ export default function IngredientsAdminPage() {
             className="flex-row items-center bg-primary-dark px-md py-sm rounded-lg self-start sm:self-auto"
             onPress={handleOpenCreateModal}
           >
-            <Ionicons name="add" size={24} color={COLORS.neutral.WHITE} />
-            <Text color={COLORS.neutral.WHITE} className="ml-sm font-bold">New Ingredient</Text>
+            <Ionicons name="add" size={24} color={COLORS.neutral.white} />
+            <Text color={COLORS.neutral.white} className="ml-sm font-bold">New Ingredient</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {loading ? (
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color={COLORS.primary.DARKEST} />
+          <ActivityIndicator size="large" color={COLORS.primary.darkest} />
         </View>
       ) : (
         <FlatList
@@ -134,7 +134,7 @@ export default function IngredientsAdminPage() {
           ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
           ListEmptyComponent={
             <View className="items-center justify-center p-xl">
-              <Ionicons name="leaf-outline" size={48} color={COLORS.grey.MEDIUM} />
+              <Ionicons name="leaf-outline" size={48} color={COLORS.grey.medium} />
               <Text className="mt-md text-base" color={COLORS.text.secondary}>No ingredients found</Text>
             </View>
           }

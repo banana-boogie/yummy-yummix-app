@@ -108,7 +108,7 @@ export function AdminHeader({ title, showBackButton = false, maxWidth = 1000 }: 
                 onPress={() => router.back()}
                 className="min-w-[24px]"
               >
-                <Ionicons name="arrow-back" size={24} color={COLORS.neutral.WHITE} />
+                <Ionicons name="arrow-back" size={24} color={COLORS.neutral.white} />
               </TouchableOpacity>
             ) : (
               <View className="min-w-[24px]" />
@@ -118,7 +118,7 @@ export function AdminHeader({ title, showBackButton = false, maxWidth = 1000 }: 
               className="p-xs min-w-[24px]"
               onPress={() => setMenuVisible(true)}
             >
-              <Ionicons name="menu" size={24} color={COLORS.neutral.WHITE} />
+              <Ionicons name="menu" size={24} color={COLORS.neutral.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -148,7 +148,7 @@ export function AdminHeader({ title, showBackButton = false, maxWidth = 1000 }: 
                     setMenuVisible(false);
                   }}
                 >
-                  <Ionicons name={item.icon as any} size={24} color={COLORS.primary.DARKEST} />
+                  <Ionicons name={item.icon as any} size={24} color={COLORS.primary.darkest} />
                   <Text className="ml-md text-base text-text-default">{i18n.t(item.titleKey)}</Text>
                 </TouchableOpacity>
               ))}

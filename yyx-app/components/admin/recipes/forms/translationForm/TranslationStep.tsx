@@ -210,7 +210,7 @@ export function TranslationStep({ recipe, authoringLocale, onUpdateRecipe }: Tra
             size="large"
             onPress={handleTranslateAll}
             disabled={targetLocales.length === 0 || fieldCounts.total === 0}
-            icon={<Ionicons name="language" size={20} color={COLORS.neutral.WHITE} />}
+            icon={<Ionicons name="language" size={20} color={COLORS.neutral.white} />}
             className="self-center"
           >
             {i18n.t('admin.translate.translateAll')}

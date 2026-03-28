@@ -32,7 +32,7 @@ export function IngredientCard({ ingredient, displayLocale, onEdit, onDelete }: 
           />
         ) : (
           <View className="w-[80px] h-[80px] rounded-lg bg-background-DARK justify-center items-center">
-            <Ionicons name="image-outline" size={30} color={COLORS.grey.MEDIUM} />
+            <Ionicons name="image-outline" size={30} color={COLORS.grey.medium} />
           </View>
         )}
       </View>
@@ -48,7 +48,7 @@ export function IngredientCard({ ingredient, displayLocale, onEdit, onDelete }: 
         {pluralName ? (
           <Text
             preset="body"
-            className="text-text-SECONDARY"
+            className="text-text-secondary"
           >
             {i18n.t('admin.ingredients.pluralName', { defaultValue: 'Plural' })}: {pluralName}
           </Text>
@@ -62,15 +62,15 @@ export function IngredientCard({ ingredient, displayLocale, onEdit, onDelete }: 
           accessibilityRole="button"
           onPress={() => onEdit(ingredient)}
         >
-          <Ionicons name="create-outline" size={20} color={COLORS.neutral.WHITE} />
+          <Ionicons name="create-outline" size={20} color={COLORS.neutral.white} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          className="bg-status-ERROR p-sm rounded-md"
+          className="bg-status-error p-sm rounded-md"
           accessibilityRole="button"
           onPress={() => onDelete(ingredient)}
         >
-          <Ionicons name="trash-outline" size={20} color={COLORS.neutral.WHITE} />
+          <Ionicons name="trash-outline" size={20} color={COLORS.neutral.white} />
         </TouchableOpacity>
       </View>
     </View>

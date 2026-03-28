@@ -40,11 +40,11 @@ export function AvailableItemsSection({
         return (
             <TouchableOpacity
                 key={item.id}
-                className={`flex-row items-center p-sm bg-background-DEFAULT rounded-md mb-xs shadow-md ${isAdded ? 'opacity-70' : ''}`}
+                className={`flex-row items-center p-sm bg-background-default rounded-md mb-xs shadow-md ${isAdded ? 'opacity-70' : ''}`}
                 onPress={() => !isAdded && onAddItem(item)}
                 disabled={isAdded}
             >
-                <View className="w-10 h-10 rounded-sm overflow-hidden bg-background-SECONDARY mr-sm justify-center items-center">
+                <View className="w-10 h-10 rounded-sm overflow-hidden bg-background-secondary mr-sm justify-center items-center">
                     {item.pictureUrl ? (
                         <Image
                             source={item.pictureUrl}
@@ -55,7 +55,7 @@ export function AvailableItemsSection({
                         />
                     ) : (
                         <View className="w-full h-full justify-center items-center">
-                            <Ionicons name="image-outline" size={20} color={COLORS.text.SECONDARY} />
+                            <Ionicons name="image-outline" size={20} color={COLORS.text.secondary} />
                         </View>
                     )}
                 </View>
@@ -65,9 +65,9 @@ export function AvailableItemsSection({
                 </View>
 
                 {isAdded ? (
-                    <Ionicons name="checkmark-circle" size={24} color={COLORS.primary.DARKEST} />
+                    <Ionicons name="checkmark-circle" size={24} color={COLORS.primary.darkest} />
                 ) : (
-                    <Ionicons name="add-circle-outline" size={24} color={COLORS.primary.DARKEST} />
+                    <Ionicons name="add-circle-outline" size={24} color={COLORS.primary.darkest} />
                 )}
             </TouchableOpacity>
         );

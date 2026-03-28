@@ -178,9 +178,9 @@ export default function RecipesAdminPage() {
             <Ionicons
               name={item.isPublished ? "checkmark-circle" : "time"}
               size={16}
-              color={item.isPublished ? COLORS.status.SUCCESS : COLORS.status.WARNING}
+              color={item.isPublished ? COLORS.status.success : COLORS.status.warning}
             />
-            <Text preset="caption" className="ml-xs" color={item.isPublished ? COLORS.status.SUCCESS : COLORS.status.WARNING}>
+            <Text preset="caption" className="ml-xs" color={item.isPublished ? COLORS.status.success : COLORS.status.warning}>
               {item.isPublished ? i18n.t('admin.recipes.list.published') : i18n.t('admin.recipes.list.draft')}
             </Text>
           </View>
@@ -190,8 +190,8 @@ export default function RecipesAdminPage() {
             <Switch
               value={item.isPublished}
               onValueChange={() => handleTogglePublished(item)}
-              trackColor={{ false: COLORS.grey.MEDIUM, true: COLORS.status.SUCCESS }}
-              thumbColor={COLORS.neutral.WHITE}
+              trackColor={{ false: COLORS.grey.medium, true: COLORS.status.success }}
+              thumbColor={COLORS.neutral.white}
             />
           </View>
 
@@ -224,8 +224,8 @@ export default function RecipesAdminPage() {
             className="flex-row items-center bg-primary-default px-md py-sm rounded-lg shadow-md"
             onPress={() => router.push('/admin/recipes/new')}
           >
-            <Ionicons name="add" size={24} color={COLORS.neutral.WHITE} />
-            <Text color={COLORS.neutral.WHITE} className="ml-sm font-bold">{i18n.t('admin.recipes.list.createButton')}</Text>
+            <Ionicons name="add" size={24} color={COLORS.neutral.white} />
+            <Text color={COLORS.neutral.white} className="ml-sm font-bold">{i18n.t('admin.recipes.list.createButton')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -234,24 +234,24 @@ export default function RecipesAdminPage() {
             <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
           </View>
           <View className="flex-row items-center px-md rounded-lg mb-sm">
-            <Ionicons name="search" size={20} color={COLORS.grey.MEDIUM} />
+            <Ionicons name="search" size={20} color={COLORS.grey.medium} />
             <TextInput
               className="flex-1 py-md px-sm text-text-default"
               placeholder={i18n.t('admin.recipes.list.search')}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholderTextColor={COLORS.grey.MEDIUM}
+              placeholderTextColor={COLORS.grey.medium}
             />
           </View>
 
           <View className="mb-sm">
             <View className="flex-row items-center flex-wrap mb-sm">
-              <Text className="mr-sm text-text-SECONDARY font-bold">{`${i18n.t('admin.recipes.status')}:`}</Text>
+              <Text className="mr-sm text-text-secondary font-bold">{`${i18n.t('admin.recipes.status')}:`}</Text>
               <TouchableOpacity
                 className={`px-md py-sm rounded-sm mr-sm mb-sm ${filters.published === 'all' ? 'bg-primary-default' : ''}`}
                 onPress={() => setFilters({ ...filters, published: 'all' })}
               >
-                <Text className={filters.published === 'all' ? 'text-white' : 'text-text-SECONDARY'}>
+                <Text className={filters.published === 'all' ? 'text-white' : 'text-text-secondary'}>
                   {i18n.t('admin.recipes.list.filters.all')}
                 </Text>
               </TouchableOpacity>
@@ -259,7 +259,7 @@ export default function RecipesAdminPage() {
                 className={`px-md py-sm rounded-sm mr-sm mb-sm ${filters.published === 'published' ? 'bg-primary-default' : ''}`}
                 onPress={() => setFilters({ ...filters, published: 'published' })}
               >
-                <Text className={filters.published === 'published' ? 'text-white' : 'text-text-SECONDARY'}>
+                <Text className={filters.published === 'published' ? 'text-white' : 'text-text-secondary'}>
                   {i18n.t('admin.recipes.list.filters.published')}
                 </Text>
               </TouchableOpacity>
@@ -267,27 +267,27 @@ export default function RecipesAdminPage() {
                 className={`px-md py-sm rounded-sm mr-sm mb-sm ${filters.published === 'draft' ? 'bg-primary-default' : ''}`}
                 onPress={() => setFilters({ ...filters, published: 'draft' })}
               >
-                <Text className={filters.published === 'draft' ? 'text-white' : 'text-text-SECONDARY'}>
+                <Text className={filters.published === 'draft' ? 'text-white' : 'text-text-secondary'}>
                   {i18n.t('admin.recipes.list.filters.drafts')}
                 </Text>
               </TouchableOpacity>
             </View>
 
             <View className="flex-row items-center flex-wrap mb-sm">
-              <Text className="mr-sm text-text-SECONDARY font-bold">{`${i18n.t('admin.recipes.list.sortBy')}:`}</Text>
+              <Text className="mr-sm text-text-secondary font-bold">{`${i18n.t('admin.recipes.list.sortBy')}:`}</Text>
               <TouchableOpacity
                 className={`px-md py-sm rounded-sm mr-sm mb-sm ${sortBy === 'name' ? 'bg-primary-default' : ''}`}
                 onPress={() => handleSortChange('name')}
               >
                 <View className="flex-row items-center">
-                  <Text className={sortBy === 'name' ? 'text-white' : 'text-text-SECONDARY'}>
+                  <Text className={sortBy === 'name' ? 'text-white' : 'text-text-secondary'}>
                     {i18n.t('admin.recipes.list.sortOptions.name')}
                   </Text>
                   {sortBy === 'name' && (
                     <Ionicons
                       name={sortDirection === 'asc' ? 'arrow-up' : 'arrow-down'}
                       size={14}
-                      color={COLORS.neutral.WHITE}
+                      color={COLORS.neutral.white}
                       className="ml-xs"
                     />
                   )}
@@ -298,14 +298,14 @@ export default function RecipesAdminPage() {
                 onPress={() => handleSortChange('isPublished')}
               >
                 <View className="flex-row items-center">
-                  <Text className={sortBy === 'isPublished' ? 'text-white' : 'text-text-SECONDARY'}>
+                  <Text className={sortBy === 'isPublished' ? 'text-white' : 'text-text-secondary'}>
                     {i18n.t('admin.recipes.list.sortOptions.status')}
                   </Text>
                   {sortBy === 'isPublished' && (
                     <Ionicons
                       name={sortDirection === 'asc' ? 'arrow-up' : 'arrow-down'}
                       size={14}
-                      color={COLORS.neutral.WHITE}
+                      color={COLORS.neutral.white}
                       className="ml-xs"
                     />
                   )}
@@ -316,14 +316,14 @@ export default function RecipesAdminPage() {
                 onPress={() => handleSortChange('dateAdded')}
               >
                 <View className="flex-row items-center">
-                  <Text className={sortBy === 'dateAdded' ? 'text-white' : 'text-text-SECONDARY'}>
+                  <Text className={sortBy === 'dateAdded' ? 'text-white' : 'text-text-secondary'}>
                     {i18n.t('admin.recipes.list.sortOptions.dateAdded')}
                   </Text>
                   {sortBy === 'dateAdded' && (
                     <Ionicons
                       name={sortDirection === 'asc' ? 'arrow-up' : 'arrow-down'}
                       size={14}
-                      color={COLORS.neutral.WHITE}
+                      color={COLORS.neutral.white}
                       className="ml-xs"
                     />
                   )}
@@ -334,14 +334,14 @@ export default function RecipesAdminPage() {
                 onPress={() => handleSortChange('dateUpdated')}
               >
                 <View className="flex-row items-center">
-                  <Text className={sortBy === 'dateUpdated' ? 'text-white' : 'text-text-SECONDARY'}>
+                  <Text className={sortBy === 'dateUpdated' ? 'text-white' : 'text-text-secondary'}>
                     {i18n.t('admin.recipes.list.sortOptions.dateUpdated')}
                   </Text>
                   {sortBy === 'dateUpdated' && (
                     <Ionicons
                       name={sortDirection === 'asc' ? 'arrow-up' : 'arrow-down'}
                       size={14}
-                      color={COLORS.neutral.WHITE}
+                      color={COLORS.neutral.white}
                       className="ml-xs"
                     />
                   )}
@@ -353,7 +353,7 @@ export default function RecipesAdminPage() {
 
         {loading ? (
           <View className="flex-1 justify-center items-center">
-            <ActivityIndicator size="large" color={COLORS.primary.DARKEST} />
+            <ActivityIndicator size="large" color={COLORS.primary.darkest} />
           </View>
         ) : (
           <FlatList
@@ -365,8 +365,8 @@ export default function RecipesAdminPage() {
             scrollEnabled={false}
             ListEmptyComponent={
               <View className="items-center justify-center p-xl">
-                <Ionicons name="restaurant-outline" size={48} color={COLORS.grey.MEDIUM} />
-                <Text className="mt-md text-text-SECONDARY text-base">{i18n.t('admin.recipes.list.noRecipes')}</Text>
+                <Ionicons name="restaurant-outline" size={48} color={COLORS.grey.medium} />
+                <Text className="mt-md text-text-secondary text-base">{i18n.t('admin.recipes.list.noRecipes')}</Text>
               </View>
             }
           />

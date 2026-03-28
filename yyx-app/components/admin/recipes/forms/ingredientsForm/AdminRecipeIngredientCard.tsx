@@ -36,10 +36,10 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
   const tip = getTranslatedField(recipeIngredient.translations, displayLocale, 'tip');
 
   return (
-    <View className={`border border-border-DEFAULT rounded-md overflow-hidden mb-md bg-background-DEFAULT ${isMobile ? 'p-xs' : 'p-sm'}`}>
+    <View className={`border border-border-default rounded-md overflow-hidden mb-md bg-background-default ${isMobile ? 'p-xs' : 'p-sm'}`}>
       <View className="flex-1">
         {/* Header row - Name and Actions */}
-        <View className={`${isMobile ? 'flex-col' : 'flex-row items-center'} ${isMobile ? 'p-xs' : 'p-sm'} border-b border-border-DEFAULT`}>
+        <View className={`${isMobile ? 'flex-col' : 'flex-row items-center'} ${isMobile ? 'p-xs' : 'p-sm'} border-b border-border-default`}>
           {/* Ingredient info */}
           <View className="flex-row items-center flex-1">
             <SafeImage
@@ -58,12 +58,12 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
             <View className={`flex-row items-center ${isMobile ? 'mt-sm justify-end' : ''}`}>
               <TouchableOpacity
                 onPress={onEditPress}
-                className={`${isMobile ? 'p-xxs mr-xs' : 'p-xs mr-xs'} rounded-sm border border-primary-LIGHT`}
+                className={`${isMobile ? 'p-xxs mr-xs' : 'p-xs mr-xs'} rounded-sm border border-primary-light`}
               >
-                <Ionicons name="pencil" size={isMobile ? 16 : 20} className="text-primary-DEFAULT" />
+                <Ionicons name="pencil" size={isMobile ? 16 : 20} className="text-primary-default" />
               </TouchableOpacity>
               <TouchableOpacity onPress={onDeletePress} className={`${isMobile ? 'p-xxs mr-xs' : 'p-xs mr-xs'}`}>
-                <Ionicons name="trash" size={isMobile ? 16 : 20} className="text-status-ERROR" />
+                <Ionicons name="trash" size={isMobile ? 16 : 20} className="text-status-error" />
               </TouchableOpacity>
               <View className="flex-row items-center">
                 <TouchableOpacity
@@ -74,7 +74,7 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
                   <Ionicons
                     name="chevron-up"
                     size={isMobile ? 16 : 20}
-                    className={isFirst ? 'text-text-SECONDARY' : 'text-text-DEFAULT'}
+                    className={isFirst ? 'text-text-secondary' : 'text-text-default'}
                   />
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -85,7 +85,7 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
                   <Ionicons
                     name="chevron-down"
                     size={isMobile ? 16 : 20}
-                    className="text-text-SECONDARY"
+                    className="text-text-secondary"
                   />
                 </TouchableOpacity>
               </View>
@@ -94,13 +94,13 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
         </View>
 
         {/* Quantity & Measurement */}
-        <View className="p-sm border-b border-border-DEFAULT">
+        <View className="p-sm border-b border-border-default">
           <Text preset="subheading" className="mb-sm">{i18n.t('admin.recipes.form.ingredientsInfo.quantityTitle')}</Text>
           <View className="flex-row items-center">
             <Text className="font-medium">
               {formatIngredientQuantity(recipeIngredient.quantity, recipeIngredient.measurementUnit?.id)} {getTranslatedField(recipeIngredient.measurementUnit?.translations, displayLocale, 'symbol')}
               {recipeIngredient.optional ? (
-                <Text className="text-xs text-text-SECONDARY italic">
+                <Text className="text-xs text-text-secondary italic">
                   {' '}({i18n.t('recipes.detail.ingredients.optional')})
                 </Text>
               ) : null}
@@ -115,7 +115,7 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
               <Text preset="subheading" className="mb-sm">
                 {i18n.t('admin.recipes.form.ingredientsInfo.notesTitle')}
               </Text>
-              <Text className="flex-1 text-xs text-text-SECONDARY">
+              <Text className="flex-1 text-xs text-text-secondary">
                 {notes}
               </Text>
             </View>
@@ -127,7 +127,7 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
               <Text preset="subheading" className="mb-sm">
                 {i18n.t('admin.recipes.form.ingredientsInfo.tipTitle')}
               </Text>
-              <Text className="flex-1 text-xs text-text-SECONDARY">
+              <Text className="flex-1 text-xs text-text-secondary">
                 {tip}
               </Text>
             </View>

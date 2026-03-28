@@ -35,7 +35,7 @@ export function SelectedItemsSection({
 
     return (
         <View>
-            <View className="flex-row justify-between items-center p-sm bg-background-SECONDARY rounded-md mb-sm">
+            <View className="flex-row justify-between items-center p-sm bg-background-secondary rounded-md mb-sm">
                 <Text preset="subheading">
                     {i18n.t('admin.recipes.form.kitchenToolsInfo.selectedHeader')}
                 </Text>
@@ -47,14 +47,14 @@ export function SelectedItemsSection({
             </View>
 
             {items.length === 0 ? (
-                <View className={`p-lg items-center justify-center bg-background-SECONDARY rounded-md ${isCompact ? 'min-h-[120px]' : 'min-h-[400px]'}`}>
+                <View className={`p-lg items-center justify-center bg-background-secondary rounded-md ${isCompact ? 'min-h-[120px]' : 'min-h-[400px]'}`}>
                     <Ionicons name="information-circle-outline" size={32} color={COLORS.text.secondary} />
                     <Text className="mt-sm text-center" color={COLORS.text.secondary}>
                         {i18n.t('admin.recipes.form.kitchenToolsInfo.noSelectedItems')}
                     </Text>
                 </View>
             ) : (
-                <View className={`p-xs bg-background-SECONDARY rounded-md ${isCompact ? '' : 'min-h-[400px]'}`}>
+                <View className={`p-xs bg-background-secondary rounded-md ${isCompact ? '' : 'min-h-[400px]'}`}>
                     {items.map((recipeKitchenTool, index) => (
                         <AdminRecipeKitchenToolCard
                             key={recipeKitchenTool.id}

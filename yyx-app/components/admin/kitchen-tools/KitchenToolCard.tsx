@@ -29,8 +29,8 @@ export function KitchenToolCard({ kitchenTool, displayLocale, onEdit, onDelete }
             contentFit="cover"
           />
         ) : (
-          <View className="w-full h-full justify-center items-center bg-background-SECONDARY">
-            <Ionicons name="image-outline" size={isPhone ? 24 : 40} color={COLORS.grey.MEDIUM} />
+          <View className="w-full h-full justify-center items-center bg-background-secondary">
+            <Ionicons name="image-outline" size={isPhone ? 24 : 40} color={COLORS.grey.medium} />
           </View>
         )}
       </View>

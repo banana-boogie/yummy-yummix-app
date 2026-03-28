@@ -34,7 +34,7 @@ export const AdminRecipeKitchenToolsList: React.FC<AdminRecipeKitchenToolsListPr
 
       <ScrollView
         showsVerticalScrollIndicator={true}
-        className="flex-1 rounded-md bg-background-SECONDARY"
+        className="flex-1 rounded-md bg-background-secondary"
         contentContainerStyle={{ padding: 8, paddingBottom: 16 }}
       >
         {sortedKitchenTools.length > 0 ? (

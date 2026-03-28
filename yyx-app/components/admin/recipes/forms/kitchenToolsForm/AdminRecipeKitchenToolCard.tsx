@@ -38,9 +38,9 @@ export function AdminRecipeKitchenToolCard({
   const isReadonly = variant === 'readonly' || hideActions;
 
   return (
-    <View className={`bg-background-DEFAULT rounded-md border border-border-DEFAULT mb-md shadow-md ${isReadonly ? 'shadow-md' : ''}`}>
+    <View className={`bg-background-default rounded-md border border-border-default mb-md shadow-md ${isReadonly ? 'shadow-md' : ''}`}>
       <View className={`flex-row items-center ${isMobile ? 'p-sm' : 'p-md'}`}>
-        <View className={`${isMobile ? 'w-[40px] h-[40px]' : 'w-[50px] h-[50px]'} rounded-sm overflow-hidden bg-background-SECONDARY justify-center items-center mr-sm`}>
+        <View className={`${isMobile ? 'w-[40px] h-[40px]' : 'w-[50px] h-[50px]'} rounded-sm overflow-hidden bg-background-secondary justify-center items-center mr-sm`}>
           <SafeImage
             source={recipeKitchenTool.kitchenTool?.pictureUrl}
             placeholder="kitchenTool"
@@ -65,7 +65,7 @@ export function AdminRecipeKitchenToolCard({
                 onPress={() => onMoveUp(recipeKitchenTool)}
                 aria-label="Move up"
               >
-                <Ionicons name="chevron-up" size={18} className="text-text-SECONDARY" />
+                <Ionicons name="chevron-up" size={18} className="text-text-secondary" />
               </TouchableOpacity>
             )}
 
@@ -75,7 +75,7 @@ export function AdminRecipeKitchenToolCard({
                 onPress={() => onMoveDown(recipeKitchenTool)}
                 aria-label="Move down"
               >
-                <Ionicons name="chevron-down" size={18} className="text-text-SECONDARY" />
+                <Ionicons name="chevron-down" size={18} className="text-text-secondary" />
               </TouchableOpacity>
             )}
 
@@ -85,7 +85,7 @@ export function AdminRecipeKitchenToolCard({
                 onPress={() => onEdit(recipeKitchenTool)}
                 aria-label="Edit"
               >
-                <Ionicons name="pencil" size={18} className="text-text-SECONDARY" />
+                <Ionicons name="pencil" size={18} className="text-text-secondary" />
               </TouchableOpacity>
             )}
 
@@ -95,7 +95,7 @@ export function AdminRecipeKitchenToolCard({
                 onPress={() => onDelete(recipeKitchenTool)}
                 aria-label="Delete"
               >
-                <Ionicons name="trash-outline" size={18} className="text-primary-DEFAULT" />
+                <Ionicons name="trash-outline" size={18} className="text-primary-default" />
               </TouchableOpacity>
             )}
           </View>
@@ -110,7 +110,7 @@ export function AdminRecipeKitchenToolCard({
               <Divider thickness={0.3} opacity={0.2} />
             </>
           )}
-          <Text className="text-xs text-text-SECONDARY mt-xs">{notes}</Text>
+          <Text className="text-xs text-text-secondary mt-xs">{notes}</Text>
         </View>
       )}
     </View>

@@ -296,7 +296,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
 
   const renderSearchIngredientCard = ({ item }: { item: AdminIngredient }) => (
     <TouchableOpacity
-      className="flex-row items-center p-sm border border-border-DEFAULT rounded-md mb-md bg-background-DEFAULT"
+      className="flex-row items-center p-sm border border-border-default rounded-md mb-md bg-background-default"
       onPress={() => handleAddRecipeIngredient(item)}
     >
       <Image
@@ -309,7 +309,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
       <View className="flex-1">
         <Text className="text-sm mb-0 self-center">{getTranslatedField(item.translations, displayLocale || authoringLocale, 'name')}</Text>
       </View>
-      <Ionicons name="add-circle-outline" size={24} className="text-primary-DEFAULT" />
+      <Ionicons name="add-circle-outline" size={24} className="text-primary-default" />
     </TouchableOpacity>
   );
 
@@ -337,7 +337,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
 
     return (
       <View className="px-sm mb-md" key={`section-${title}`}>
-        <View className="flex-row justify-between items-center mb-sm pb-xs border-b border-border-DEFAULT">
+        <View className="flex-row justify-between items-center mb-sm pb-xs border-b border-border-default">
           {shouldDisplayRecipeSection(title) ? (
             <Text preset="subheading" className="font-semibold flex-1">
               {title}
@@ -347,7 +347,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
           {isWeb && (
             <View className="flex-row items-center gap-xs">
               <TouchableOpacity
-                className={`p-1 rounded-sm bg-background-DEFAULT shadow-sm ${sectionIndex === 0 ? 'opacity-50' : ''}`}
+                className={`p-1 rounded-sm bg-background-default shadow-sm ${sectionIndex === 0 ? 'opacity-50' : ''}`}
                 onPress={() => handleMoveSectionUp(title)}
                 disabled={sectionIndex === 0}
                 hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
@@ -355,11 +355,11 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                 <Ionicons
                   name="chevron-up"
                   size={20}
-                  className={sectionIndex === 0 ? 'text-text-SECONDARY' : 'text-primary-DEFAULT'}
+                  className={sectionIndex === 0 ? 'text-text-secondary' : 'text-primary-default'}
                 />
               </TouchableOpacity>
               <TouchableOpacity
-                className={`p-1 rounded-sm bg-background-DEFAULT shadow-sm ${sectionIndex === sortedSections.length - 1 ? 'opacity-50' : ''}`}
+                className={`p-1 rounded-sm bg-background-default shadow-sm ${sectionIndex === sortedSections.length - 1 ? 'opacity-50' : ''}`}
                 onPress={() => handleMoveSectionDown(title)}
                 disabled={sectionIndex === sortedSections.length - 1}
                 hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
@@ -367,7 +367,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                 <Ionicons
                   name="chevron-down"
                   size={20}
-                  className={sectionIndex === sortedSections.length - 1 ? 'text-text-SECONDARY' : 'text-primary-DEFAULT'}
+                  className={sectionIndex === sortedSections.length - 1 ? 'text-text-secondary' : 'text-primary-default'}
                 />
               </TouchableOpacity>
             </View>
@@ -389,7 +389,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
   return (
     <FormSection title={tForm('admin.recipes.form.ingredientsInfo.title')} maxWidth={1000} className="mb-md">
       {errors.ingredients ? (
-        <Text preset="caption" className="text-status-ERROR mb-sm">
+        <Text preset="caption" className="text-status-error mb-sm">
           {errors.ingredients}
         </Text>
       ) : null}
@@ -419,7 +419,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
 
             {/* Selected Ingredients (FIRST on mobile) */}
             <View className="mb-lg">
-              <View className="flex-row justify-between items-center pb-xs border-b border-border-DEFAULT mb-sm">
+              <View className="flex-row justify-between items-center pb-xs border-b border-border-default mb-sm">
                 <Text preset="subheading" className="font-semibold">
                   {tForm('admin.recipes.form.ingredientsInfo.selectedIngredients')}
                 </Text>
@@ -427,7 +427,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                   {recipe.ingredients.length} {tForm('admin.recipes.form.ingredientsInfo.itemsSelected')}
                 </Text>
               </View>
-              <View className="rounded-md bg-background-SECONDARY overflow-hidden">
+              <View className="rounded-md bg-background-secondary overflow-hidden">
                 {recipe.ingredients.length === 0 ? (
                   <View className="justify-center items-center p-lg min-h-[120px]">
                     <Ionicons name="basket-outline" size={32} color={COLORS.text.secondary} />
@@ -455,7 +455,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
               <Text preset="subheading" className="mb-sm">
                 {tForm('admin.recipes.form.ingredientsInfo.availableIngredients', { defaultValue: 'Available Ingredients' })}
               </Text>
-              <View className="rounded-md bg-background-SECONDARY overflow-hidden">
+              <View className="rounded-md bg-background-secondary overflow-hidden">
                 {loading ? (
                   <View className="justify-center items-center p-lg">
                     <ActivityIndicator size="large" color={COLORS.primary.default} />
@@ -498,7 +498,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                   className="w-full"
                 />
               </View>
-              <View className="flex-[2.5] flex-row justify-between items-center pb-xs border-b border-border-DEFAULT">
+              <View className="flex-[2.5] flex-row justify-between items-center pb-xs border-b border-border-default">
                 <Text preset="subheading" className="font-semibold">
                   {tForm('admin.recipes.form.ingredientsInfo.selectedIngredients')}
                 </Text>
@@ -511,7 +511,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
             </View>
 
             <View className="flex-1 min-h-[400px] flex-row gap-lg">
-              <ScrollView className="flex-[1.2] rounded-md bg-background-SECONDARY" style={rightColHeight ? { maxHeight: rightColHeight } : undefined}>
+              <ScrollView className="flex-[1.2] rounded-md bg-background-secondary" style={rightColHeight ? { maxHeight: rightColHeight } : undefined}>
                 {loading ? (
                   <View className="flex-1 justify-center items-center p-lg">
                     <ActivityIndicator size="large" color={COLORS.primary.default} />
@@ -541,7 +541,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                 )}
               </ScrollView>
 
-              <View className="flex-[2.5] rounded-md bg-background-SECONDARY overflow-hidden" onLayout={(e) => setRightColHeight(e.nativeEvent.layout.height)}>
+              <View className="flex-[2.5] rounded-md bg-background-secondary overflow-hidden" onLayout={(e) => setRightColHeight(e.nativeEvent.layout.height)}>
                 {recipe.ingredients.length === 0 ? (
                   <View className="flex-1 justify-center items-center p-lg min-h-[200px]">
                     <Ionicons name="basket-outline" size={32} color={COLORS.text.secondary} />

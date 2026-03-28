@@ -238,7 +238,7 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
                 </Text>
 
                 {selectedCategories.length === 0 ? (
-                  <View className="p-lg bg-background-SECONDARY rounded-md items-center">
+                  <View className="p-lg bg-background-secondary rounded-md items-center">
                     <Text className="text-text-secondary">
                       {i18n.t('admin.tags.noSelectedCategories')}
                     </Text>
@@ -263,7 +263,7 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
                   placeholder={i18n.t('admin.tags.searchCategories')}
                   value={categorySearch}
                   onChangeText={setCategorySearch}
-                  leftIcon={<Ionicons name="search" size={20} color={COLORS.grey.MEDIUM} />}
+                  leftIcon={<Ionicons name="search" size={20} color={COLORS.grey.medium} />}
                 />
               </View>
 
@@ -274,7 +274,7 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
                 </Text>
 
                 {filteredCategories.length === 0 ? (
-                  <View className="p-lg bg-background-SECONDARY rounded-md items-center">
+                  <View className="p-lg bg-background-secondary rounded-md items-center">
                     <Text className="text-text-secondary">
                       {i18n.t('admin.tags.noCategoriesFound')}
                     </Text>
@@ -291,9 +291,9 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
                         >
                           <View className="mr-sm">
                             {isSelected ? (
-                              <Ionicons name="checkbox" size={24} color={COLORS.primary.DARKEST} />
+                              <Ionicons name="checkbox" size={24} color={COLORS.primary.darkest} />
                             ) : (
-                              <Ionicons name="square-outline" size={24} color={COLORS.grey.MEDIUM} />
+                              <Ionicons name="square-outline" size={24} color={COLORS.grey.medium} />
                             )}
                           </View>
                           <Text className={`text-text-default ${isSelected ? 'font-bold' : ''}`}>

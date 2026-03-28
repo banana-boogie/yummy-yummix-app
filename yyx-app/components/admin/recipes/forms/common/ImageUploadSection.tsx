@@ -65,8 +65,8 @@ export function ImageUploadSection({
                 disabled={uploading}
               >
                 <View className="flex-row items-center justify-center gap-xs">
-                  <Ionicons name="camera" size={16} color={COLORS.neutral.WHITE} />
-                  <Text preset="caption" color={COLORS.neutral.WHITE}>
+                  <Ionicons name="camera" size={16} color={COLORS.neutral.white} />
+                  <Text preset="caption" color={COLORS.neutral.white}>
                     {i18n.t('admin.common.changeImage')}
                   </Text>
                 </View>
@@ -74,24 +74,24 @@ export function ImageUploadSection({
             </View>
           ) : (
             <TouchableOpacity
-              className="w-40 h-40 rounded-md bg-primary-LIGHT justify-center items-center border-[2px] border-primary-MEDIUM border-dashed"
+              className="w-40 h-40 rounded-md bg-primary-light justify-center items-center border-[2px] border-primary-medium border-dashed"
               onPress={handlePickImage}
               disabled={uploading}
             >
               {uploading ? (
-                <ActivityIndicator size="small" color={COLORS.neutral.WHITE} />
+                <ActivityIndicator size="small" color={COLORS.neutral.white} />
               ) : (
                 <>
                   <View className="relative mb-xs">
-                    <Ionicons name="image-outline" size={24} color={COLORS.neutral.WHITE} />
+                    <Ionicons name="image-outline" size={24} color={COLORS.neutral.white} />
                     <Ionicons
                       name="add-circle"
                       size={16}
-                      color={COLORS.neutral.WHITE}
+                      color={COLORS.neutral.white}
                       className="absolute -bottom-1 -right-1"
                     />
                   </View>
-                  <Text preset="body" color={COLORS.neutral.WHITE} fontWeight="600">
+                  <Text preset="body" color={COLORS.neutral.white} fontWeight="600">
                     {i18n.t('admin.common.uploadImage')}
                   </Text>
                 </>

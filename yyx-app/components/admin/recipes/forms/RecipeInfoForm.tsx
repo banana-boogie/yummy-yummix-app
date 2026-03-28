@@ -131,7 +131,7 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors, authoringLocale
             <View className="mb-sm items-center">
               <Image
                 source={recipe.pictureUrl}
-                className="w-full h-[250px] mb-md bg-background-SECONDARY rounded-lg"
+                className="w-full h-[250px] mb-md bg-background-secondary rounded-lg"
                 contentFit="contain"
                 transition={300}
                 cachePolicy="memory-disk"
@@ -152,7 +152,7 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors, authoringLocale
               label={i18n.t('admin.recipes.form.basicInfo.uploadImage')}
               variant="primary"
               size="medium"
-              icon={<Ionicons name="cloud-upload-outline" size={24} color={COLORS.neutral.WHITE} />}
+              icon={<Ionicons name="cloud-upload-outline" size={24} color={COLORS.neutral.white} />}
             />
           )}
         </FormGroup>

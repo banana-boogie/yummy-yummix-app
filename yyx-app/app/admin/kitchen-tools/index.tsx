@@ -106,7 +106,7 @@ export default function KitchenToolsAdminPage() {
           />
           <Button
             onPress={handleOpenCreateModal}
-            icon={<Ionicons name="add" size={24} color={COLORS.neutral.WHITE} />}
+            icon={<Ionicons name="add" size={24} color={COLORS.neutral.white} />}
             label={i18n.t('admin.kitchenTools.createNew')}
           />
         </View>
@@ -114,7 +114,7 @@ export default function KitchenToolsAdminPage() {
 
       {loading ? (
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color={COLORS.primary.DARKEST} />
+          <ActivityIndicator size="large" color={COLORS.primary.darkest} />
         </View>
       ) : (
         <FlatList
@@ -133,7 +133,7 @@ export default function KitchenToolsAdminPage() {
           ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
           ListEmptyComponent={
             <View className="items-center justify-center p-xl">
-              <Ionicons name="cube-outline" size={48} color={COLORS.grey.MEDIUM} />
+              <Ionicons name="cube-outline" size={48} color={COLORS.grey.medium} />
               <Text preset="body" color={COLORS.text.secondary}>
                 {i18n.t('admin.kitchenTools.noItemsFound')}
               </Text>

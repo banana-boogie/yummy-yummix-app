@@ -162,7 +162,7 @@ export function IngredientForm({
                 confirmText={i18n.t('common.ok')}
             />
 
-            <View className="flex-row justify-between items-center px-md mb-md border-b border-border-DEFAULT pb-xs">
+            <View className="flex-row justify-between items-center px-md mb-md border-b border-border-default pb-xs">
                 <Text preset="h1" className="font-bold mb-0">
                     {ingredient ? i18n.t('admin.ingredients.editTitle') : i18n.t('admin.ingredients.createTitle')}
                 </Text>
@@ -171,7 +171,7 @@ export function IngredientForm({
                     onPress={onCancel}
                     disabled={saving}
                 >
-                    <Ionicons name="close" size={24} color={COLORS.grey.MEDIUM} />
+                    <Ionicons name="close" size={24} color={COLORS.grey.medium} />
                 </TouchableOpacity>
             </View>
 
