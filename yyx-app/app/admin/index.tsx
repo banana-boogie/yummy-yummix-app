@@ -8,7 +8,6 @@ import { adminContentHealthService, ContentHealthSummary } from '@/services/admi
 import { AdminRecipe, pickTranslation } from '@/types/recipe.admin.types';
 import { useRouter } from 'expo-router';
 import { Text } from '@/components/common/Text';
-import { Button } from '@/components/common/Button';
 import i18n from '@/i18n';
 import logger from '@/services/logger';
 
@@ -16,7 +15,6 @@ import logger from '@/services/logger';
 // Navigation helpers
 // =============================================================================
 
-/** Navigate in same tab, or new tab if cmd/ctrl-clicked on web */
 function navTo(router: ReturnType<typeof useRouter>, route: string, e?: { metaKey?: boolean; ctrlKey?: boolean }) {
   if (Platform.OS === 'web' && (e?.metaKey || e?.ctrlKey)) {
     window.open(route, '_blank');
@@ -34,6 +32,20 @@ function timeAgo(dateStr: string): string {
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
 }
+
+// =============================================================================
+// Manage grid items
+// =============================================================================
+
+const manageItems = [
+  { icon: 'analytics-outline', label: 'Analytics', desc: 'Usage & engagement', route: '/admin/analytics' },
+  { icon: 'medkit-outline', label: 'Content Health', desc: 'Audit missing data', route: '/admin/content-health' },
+  { icon: 'leaf-outline', label: 'Ingredients', desc: 'Ingredient library', route: '/admin/ingredients' },
+  { icon: 'build-outline', label: 'Kitchen Tools', desc: 'Equipment library', route: '/admin/kitchen-tools' },
+  { icon: 'restaurant-outline', label: 'Recipes', desc: 'Manage catalog', route: '/admin/recipes' },
+  { icon: 'pricetag-outline', label: 'Tags', desc: 'Recipe categories', route: '/admin/tags' },
+  { icon: 'people-outline', label: 'User Recipes', desc: 'AI-generated recipes', route: '/admin/user-recipes' },
+];
 
 // =============================================================================
 // Dashboard
@@ -87,96 +99,100 @@ export default function AdminDashboard() {
     <AdminLayout title="Dashboard">
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 32, maxWidth: 900 }}>
 
-        {/* Section A: Manage (navigation grid) */}
+        {/* Section A: Manage */}
         <Text preset="h3" className="text-text-default mb-md">Manage</Text>
         <View className="flex-row flex-wrap gap-md mb-xxl">
-          {[
-            { icon: 'analytics-outline', label: 'Analytics', route: '/admin/analytics' },
-            { icon: 'medkit-outline', label: 'Content Health', route: '/admin/content-health' },
-            { icon: 'leaf-outline', label: 'Ingredients', route: '/admin/ingredients' },
-            { icon: 'build-outline', label: 'Kitchen Tools', route: '/admin/kitchen-tools' },
-            { icon: 'restaurant-outline', label: 'Recipes', route: '/admin/recipes' },
-            { icon: 'pricetag-outline', label: 'Tags', route: '/admin/tags' },
-            { icon: 'people-outline', label: 'User Recipes', route: '/admin/user-recipes' },
-          ].map((item) => (
-            <Pressable
+          {manageItems.map((item) => (
+            <ManageCard
               key={item.route}
-              className="bg-primary-lightest rounded-md p-md items-center"
-              style={{ minWidth: 110, width: '22%' }}
+              icon={item.icon}
+              label={item.label}
+              desc={item.desc}
               onPress={(e) => navTo(router, item.route, e as any)}
-            >
-              <Ionicons name={item.icon as any} size={24} color={COLORS.text.secondary} />
-              <Text preset="bodySmall" className="text-text-default mt-xs text-center">{item.label}</Text>
-            </Pressable>
+            />
           ))}
+          {/* Create recipe card — visually distinct */}
+          <Pressable
+            className="rounded-lg p-md items-center justify-center border-2 border-dashed border-primary-medium"
+            style={({ pressed }: any) => [
+              { minWidth: 110, width: '22%', opacity: pressed ? 0.7 : 1 },
+              Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
+            ]}
+            onPress={(e) => navTo(router, '/admin/recipes/new', e as any)}
+          >
+            <Ionicons name="add-circle-outline" size={24} color={COLORS.primary.darkest} />
+            <Text preset="bodySmall" className="text-primary-darkest mt-xs text-center font-semibold">New Recipe</Text>
+          </Pressable>
         </View>
 
         {/* Section B: Pipeline Progress */}
         <View className="mb-xxl">
-          <View className="flex-row justify-between items-center mb-xs">
+          <View className="flex-row justify-between items-center mb-sm">
             <Text preset="h3" className="text-text-default">Publishing Progress</Text>
-            <Text preset="caption" className="text-text-secondary">
-              {publishedCount} of {totalCount}
+            <Text preset="body" className="text-text-default font-semibold">
+              {publishPercent}%
             </Text>
           </View>
-          <View className="bg-grey-light rounded-full h-[12px] overflow-hidden">
+          <View className="bg-grey-light rounded-full h-[14px] overflow-hidden">
             <View
               className="bg-status-success h-full rounded-full"
-              style={{ width: `${Math.max(publishPercent, 1)}%` }}
+              style={{ width: `${Math.max(publishPercent, 2)}%`, minWidth: 8 }}
             />
           </View>
-          <Pressable onPress={(e) => navTo(router, '/admin/recipes', e as any)}>
-            <Text preset="bodySmall" className="text-text-secondary mt-sm">
-              {draftCount} drafts to review →
+          <View className="flex-row justify-between items-center mt-sm">
+            <Pressable
+              onPress={(e) => navTo(router, '/admin/recipes', e as any)}
+              style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+            >
+              <Text preset="bodySmall" className="text-text-secondary">
+                {draftCount} drafts to review →
+              </Text>
+            </Pressable>
+            <Text preset="caption" className="text-text-secondary">
+              {publishedCount} published · {totalCount} total
             </Text>
-          </Pressable>
+          </View>
         </View>
 
         {/* Section C: Content Blockers */}
         {healthSummary && (
-          <View className="flex-row gap-md mb-xxl flex-wrap">
-            <BlockerCard
-              icon="language-outline"
-              count={healthSummary.missingTranslations.total}
-              label="Need translations"
-              color={COLORS.status.warning}
-              onPress={(e) => navTo(router, '/admin/content-health', e as any)}
-            />
-            <BlockerCard
-              icon="image-outline"
-              count={healthSummary.missingImages.total}
-              label="Need images"
-              color={COLORS.status.error}
-              onPress={(e) => navTo(router, '/admin/content-health', e as any)}
-            />
-            <BlockerCard
-              icon="nutrition-outline"
-              count={healthSummary.missingNutrition.total}
-              label="Need nutrition"
-              color={COLORS.status.warning}
-              onPress={(e) => navTo(router, '/admin/content-health', e as any)}
-            />
+          <View className="mb-xxl">
+            <Text preset="h3" className="text-text-default mb-md">Content Issues</Text>
+            <View className="flex-row gap-md flex-wrap">
+              <BlockerCard
+                icon="language-outline"
+                count={healthSummary.missingTranslations.total}
+                label="Need translations"
+                color={COLORS.status.warning}
+                onPress={(e) => navTo(router, '/admin/content-health', e as any)}
+              />
+              <BlockerCard
+                icon="image-outline"
+                count={healthSummary.missingImages.total}
+                label="Need images"
+                color={COLORS.status.error}
+                onPress={(e) => navTo(router, '/admin/content-health', e as any)}
+              />
+              <BlockerCard
+                icon="nutrition-outline"
+                count={healthSummary.missingNutrition.total}
+                label="Need nutrition"
+                color={COLORS.status.warning}
+                onPress={(e) => navTo(router, '/admin/content-health', e as any)}
+              />
+            </View>
           </View>
         )}
 
-        {/* Section D: Primary Action */}
-        <View className="mb-xxl">
-          <Button
-            variant="primary"
-            size="large"
-            icon={<Ionicons name="add-circle-outline" size={22} color={COLORS.neutral.white} />}
-            onPress={() => navTo(router, '/admin/recipes/new')}
-          >
-            Create New Recipe
-          </Button>
-        </View>
-
-        {/* Section E: Recent Recipes */}
+        {/* Section D: Recent Recipes */}
         {recentRecipes.length > 0 && (
           <View className="mb-xxl">
             <View className="flex-row justify-between items-center mb-md">
               <Text preset="h3" className="text-text-default">Recent Recipes</Text>
-              <Pressable onPress={(e) => navTo(router, '/admin/recipes', e as any)}>
+              <Pressable
+                onPress={(e) => navTo(router, '/admin/recipes', e as any)}
+                style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+              >
                 <Text preset="bodySmall" className="text-primary-darkest">View all →</Text>
               </Pressable>
             </View>
@@ -187,7 +203,12 @@ export default function AdminDashboard() {
               return (
                 <Pressable
                   key={recipe.id}
-                  className="bg-white rounded-md p-md shadow-sm mb-sm flex-row items-center"
+                  className="bg-white rounded-md p-md mb-sm flex-row items-center"
+                  style={({ pressed }: any) => [
+                    { shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } },
+                    pressed ? { opacity: 0.7 } : {},
+                    Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
+                  ]}
                   onPress={(e) => navTo(router, `/admin/recipes/${recipe.id}`, e as any)}
                 >
                   <View className="flex-1">
@@ -221,6 +242,28 @@ export default function AdminDashboard() {
 // Subcomponents
 // =============================================================================
 
+function ManageCard({ icon, label, desc, onPress }: {
+  icon: string;
+  label: string;
+  desc: string;
+  onPress: (e: any) => void;
+}) {
+  return (
+    <Pressable
+      className="bg-primary-lightest rounded-lg p-md"
+      style={({ pressed }: any) => [
+        { minWidth: 110, width: '22%', opacity: pressed ? 0.7 : 1 },
+        Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
+      ]}
+      onPress={onPress}
+    >
+      <Ionicons name={icon as any} size={22} color={COLORS.text.secondary} />
+      <Text preset="bodySmall" className="text-text-default mt-sm font-semibold">{label}</Text>
+      <Text preset="caption" className="text-text-secondary mt-xxs">{desc}</Text>
+    </Pressable>
+  );
+}
+
 function BlockerCard({ icon, count, label, color, onPress }: {
   icon: string;
   count: number;
@@ -229,25 +272,40 @@ function BlockerCard({ icon, count, label, color, onPress }: {
   onPress: (e: any) => void;
 }) {
   const resolved = count === 0;
+  const borderColor = resolved ? COLORS.status.success : color;
+
   return (
     <Pressable
-      className="bg-white rounded-md p-lg shadow-sm flex-1"
-      style={{ minWidth: 130 }}
+      className="bg-white rounded-lg p-lg flex-1"
+      style={({ pressed }: any) => [
+        {
+          minWidth: 140,
+          borderLeftWidth: 4,
+          borderLeftColor: borderColor,
+          shadowColor: '#000',
+          shadowOpacity: 0.05,
+          shadowRadius: 4,
+          shadowOffset: { width: 0, height: 1 },
+          opacity: pressed ? 0.7 : 1,
+        },
+        Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
+      ]}
       onPress={onPress}
     >
-      <Ionicons
-        name={resolved ? 'checkmark-circle' : (icon as any)}
-        size={20}
-        color={resolved ? COLORS.status.success : color}
-      />
-      <Text
-        preset="h3"
-        className="mt-sm"
-        style={{ color: resolved ? COLORS.status.success : color }}
-      >
-        {count}
-      </Text>
-      <Text preset="caption" className="text-text-secondary mt-xxs">{label}</Text>
+      <View className="flex-row items-center gap-sm">
+        <Ionicons
+          name={resolved ? 'checkmark-circle' : (icon as any)}
+          size={20}
+          color={resolved ? COLORS.status.success : color}
+        />
+        <Text
+          preset="h2"
+          style={{ color: resolved ? COLORS.status.success : color }}
+        >
+          {count}
+        </Text>
+      </View>
+      <Text preset="bodySmall" className="text-text-secondary mt-sm">{label}</Text>
     </Pressable>
   );
 }
