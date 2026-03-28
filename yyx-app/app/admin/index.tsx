@@ -125,6 +125,9 @@ export default function AdminDashboard() {
           </Pressable>
         </View>
 
+        {/* Divider */}
+        <View className="h-[1px] bg-border-default mb-xxl" />
+
         {/* Section B: Pipeline Progress */}
         <View className="mb-xxl">
           <View className="flex-row justify-between items-center mb-sm">
@@ -153,6 +156,9 @@ export default function AdminDashboard() {
             </Text>
           </View>
         </View>
+
+        {/* Divider */}
+        <View className="h-[1px] bg-border-default mb-xxl" />
 
         {/* Section C: Content Blockers */}
         {healthSummary && (
@@ -183,6 +189,9 @@ export default function AdminDashboard() {
             </View>
           </View>
         )}
+
+        {/* Divider */}
+        <View className="h-[1px] bg-border-default mb-xxl" />
 
         {/* Section D: Recent Recipes */}
         {recentRecipes.length > 0 && (
