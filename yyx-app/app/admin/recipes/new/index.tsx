@@ -111,6 +111,7 @@ export default function NewRecipePage() {
             className="flex-1"
             contentContainerStyle={{ padding: 24, flexGrow: 1 }}
             keyboardShouldPersistTaps="handled"
+            scrollEnabled={currentStep !== CreateRecipeStep.KITCHEN_TOOLS && currentStep !== CreateRecipeStep.INGREDIENTS}
           >
             {/* Header Section */}
             {showNavElements && (

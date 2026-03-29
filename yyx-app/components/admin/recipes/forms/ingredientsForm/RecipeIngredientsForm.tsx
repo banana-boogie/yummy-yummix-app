@@ -514,7 +514,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                 />
               </View>
               <View style={{ flex: 3, justifyContent: 'flex-end' }}>
-                <View className="flex-row justify-between items-center pb-sm">
+                <View className="flex-row justify-between items-center">
                   <Text preset="bodySmall" className="text-text-secondary font-medium">
                     {tForm('admin.recipes.form.ingredientsInfo.selectedIngredients')}
                   </Text>

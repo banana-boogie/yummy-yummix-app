@@ -278,7 +278,7 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                             />
                         </View>
                         <View style={{ flex: 3, justifyContent: 'flex-end' }}>
-                            <View className="flex-row justify-between items-center pb-sm">
+                            <View className="flex-row justify-between items-center">
                                 <Text preset="bodySmall" className="text-text-secondary font-medium">
                                     {i18n.t('admin.recipes.form.kitchenToolsInfo.selectedHeader')}
                                 </Text>
