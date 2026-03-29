@@ -91,7 +91,7 @@ function AdminSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: (
           style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
           className="p-xs"
         >
-          <Ionicons name={collapsed ? 'menu' : 'chevron-back'} size={18} color={COLORS.text.secondary} />
+          <Ionicons name={collapsed ? 'chevron-forward' : 'chevron-back'} size={16} color={COLORS.text.secondary} />
         </Pressable>
       </View>
 
@@ -134,7 +134,7 @@ function SidebarItem({ icon, label, active, collapsed, onPress }: {
   const bgColor = active
     ? COLORS.primary.lightest
     : hovered
-      ? COLORS.grey.light
+      ? COLORS.primary.default
       : 'transparent';
 
   return (

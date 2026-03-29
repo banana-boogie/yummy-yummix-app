@@ -140,8 +140,8 @@ export function TranslationsSection({
 
       {/* Locale inputs */}
       {locales.map(locale => (
-        <View key={locale.code} className="mb-sm">
-          <Text preset="bodySmall" className="mb-xxs font-semibold">{locale.displayName}</Text>
+        <View key={locale.code}>
+          <Text preset="body" className="font-semibold">{locale.displayName}</Text>
           <FormRow>
             <FormGroup
               label={i18n.t('admin.ingredients.name', { defaultValue: 'Name' })}

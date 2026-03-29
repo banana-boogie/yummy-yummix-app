@@ -28,7 +28,7 @@ export function FormGroup({
     : children;
 
   return (
-    <View className={`flex-1 mb-md ${className}`} style={style}>
+    <View className={`flex-1 ${className}`} style={style}>
       {label ? (
         <Text className="text-xs text-text-default mb-xxs">
           {label} {required ? '*' : null}
