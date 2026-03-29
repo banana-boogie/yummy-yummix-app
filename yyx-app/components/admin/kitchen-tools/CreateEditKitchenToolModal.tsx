@@ -6,7 +6,6 @@ import { AdminKitchenTool } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
 import { AlertModal } from '@/components/common/AlertModal';
-import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import { useDevice } from '@/hooks/useDevice';
@@ -80,13 +79,13 @@ export function CreateEditKitchenToolModal({
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             className="bg-white rounded-xl w-full"
             style={{
-              maxWidth: isPhone ? '100%' : 600,
+              maxWidth: isPhone ? '100%' : 700,
               maxHeight: isPhone ? '95%' : '85%',
               padding: isPhone ? 16 : 24,
             }}
           >
-            {/* Header: close button */}
-            <View className="flex-row justify-end mb-sm">
+            {/* Close button */}
+            <View className="flex-row justify-end mb-xs">
               <Pressable
                 onPress={onClose}
                 className="p-xs"
@@ -108,24 +107,10 @@ export function CreateEditKitchenToolModal({
                 kitchenTool={kitchenTool}
                 onSave={handleSaveKitchenTool}
                 onCancel={onClose}
+                onDelete={isEditing && onDelete ? () => setShowDeleteConfirm(true) : undefined}
                 saving={saving}
               />
             </ScrollView>
-
-            {/* Delete — bottom of modal, outside scroll */}
-            {isEditing && onDelete && (
-              <View className="pt-md mt-sm border-t border-border-default">
-                <Pressable
-                  onPress={() => setShowDeleteConfirm(true)}
-                  disabled={saving}
-                  style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
-                >
-                  <Text preset="bodySmall" className="text-status-error">
-                    {i18n.t('common.delete')}
-                  </Text>
-                </Pressable>
-              </View>
-            )}
           </KeyboardAvoidingView>
         </View>
       </Modal>

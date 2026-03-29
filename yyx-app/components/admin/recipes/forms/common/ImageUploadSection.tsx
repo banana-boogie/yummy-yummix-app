@@ -83,15 +83,15 @@ export function ImageUploadSection({
               ) : (
                 <>
                   <View className="relative mb-xs">
-                    <Ionicons name="image-outline" size={24} color={COLORS.neutral.white} />
+                    <Ionicons name="image-outline" size={24} color={COLORS.text.secondary} />
                     <Ionicons
                       name="add-circle"
                       size={16}
-                      color={COLORS.neutral.white}
+                      color={COLORS.text.secondary}
                       className="absolute -bottom-1 -right-1"
                     />
                   </View>
-                  <Text preset="body" color={COLORS.neutral.white} fontWeight="600">
+                  <Text preset="bodySmall" className="text-text-secondary font-semibold">
                     {i18n.t('admin.common.uploadImage')}
                   </Text>
                 </>

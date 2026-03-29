@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { View, Platform, Pressable } from 'react-native';
 
 import { Text } from '@/components/common/Text';
 import { TextInput } from '@/components/form/TextInput';
 import { Button } from '@/components/common/Button';
-import { AdminKitchenTool, AdminKitchenToolTranslation, pickTranslation } from '@/types/recipe.admin.types';
+import { AdminKitchenTool, pickTranslation } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { FormGroup } from '@/components/form/FormGroup';
 import { ImageUploadSection } from '@/components/admin/recipes/forms/common/ImageUploadSection';
@@ -16,6 +16,7 @@ interface KitchenToolFormProps {
     kitchenTool?: AdminKitchenTool;
     onSave: (data: AdminKitchenTool) => Promise<void>;
     onCancel: () => void;
+    onDelete?: () => void;
     saving: boolean;
 }
 
@@ -23,6 +24,7 @@ export function KitchenToolForm({
     kitchenTool,
     onSave,
     onCancel,
+    onDelete,
     saving,
 }: KitchenToolFormProps) {
     const { locales } = useAdminLocales();
@@ -145,68 +147,89 @@ export function KitchenToolForm({
 
     return (
         <View className="flex-1 justify-between">
-            {/* Scrollable content */}
+            {/* Form content */}
             <View>
-                <ImageUploadSection
-                    imageUrl={formData.pictureUrl}
-                    onImageSelected={(fileObject) => setFormData({ ...formData, pictureUrl: fileObject })}
-                    error={errors['pictureUrl']}
-                    required={true}
-                />
+                {/* Image — compact, left-aligned */}
+                <View className="flex-row items-start mb-md">
+                    <ImageUploadSection
+                        imageUrl={formData.pictureUrl}
+                        onImageSelected={(fileObject) => setFormData({ ...formData, pictureUrl: fileObject })}
+                        error={errors['pictureUrl']}
+                        required={true}
+                    />
+                </View>
 
-                <View className="mt-md">
-                    {locales.map(locale => (
-                        <FormGroup
-                            key={locale.code}
-                            error={errors[`name_${locale.code}`]}
-                            className="mb-md"
-                        >
-                            <TextInput
-                                value={getTranslationName(locale.code)}
-                                onChangeText={(text) => setTranslationName(locale.code, text)}
-                                placeholder={locale.code.startsWith('es')
-                                    ? i18n.t('admin.kitchenTools.form.nameEsPlaceholder')
-                                    : i18n.t('admin.kitchenTools.form.nameEnPlaceholder')}
-                                label={locale.displayName}
-                            />
-                        </FormGroup>
-                    ))}
-                    <Button
-                        onPress={handleAutoTranslate}
-                        loading={translating}
-                        disabled={translating}
-                        variant="outline"
-                        size="small"
+                {/* Translation inputs — full width */}
+                {locales.map(locale => (
+                    <FormGroup
+                        key={locale.code}
+                        error={errors[`name_${locale.code}`]}
+                        className="mb-sm"
                     >
+                        <TextInput
+                            value={getTranslationName(locale.code)}
+                            onChangeText={(text) => setTranslationName(locale.code, text)}
+                            placeholder={locale.code.startsWith('es')
+                                ? i18n.t('admin.kitchenTools.form.nameEsPlaceholder')
+                                : i18n.t('admin.kitchenTools.form.nameEnPlaceholder')}
+                            label={locale.displayName}
+                        />
+                    </FormGroup>
+                ))}
+
+                {/* Auto-translate pill */}
+                <Pressable
+                    onPress={handleAutoTranslate}
+                    disabled={translating}
+                    className="self-start px-md py-xs rounded-full bg-grey-light border border-border-default mt-xs mb-sm"
+                    style={({ pressed }: any) => [
+                        { opacity: pressed ? 0.7 : 1 },
+                        Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
+                    ]}
+                >
+                    <Text preset="caption" className="text-text-default font-semibold">
                         {translating
                             ? i18n.t('admin.translate.translating')
                             : i18n.t('admin.translate.autoTranslate')
                         }
-                    </Button>
-                    {translateError ? (
-                        <Text preset="bodySmall" className="text-status-error mt-sm">{translateError}</Text>
-                    ) : null}
-                </View>
+                    </Text>
+                </Pressable>
+                {translateError ? (
+                    <Text preset="caption" className="text-status-error mb-sm">{translateError}</Text>
+                ) : null}
             </View>
 
-            {/* Sticky footer — always visible */}
-            <View className="flex-row justify-end gap-sm pt-lg mt-lg border-t border-border-default">
-                <Button
-                    onPress={onCancel}
-                    disabled={saving}
-                    variant="secondary"
-                    size="small"
-                >
-                    {i18n.t('common.cancel')}
-                </Button>
-                <Button
-                    onPress={handleSubmit}
-                    disabled={saving}
-                    loading={saving}
-                    size="small"
-                >
-                    {i18n.t('common.save')}
-                </Button>
+            {/* Footer: Delete left, Cancel + Save right */}
+            <View className="flex-row items-center justify-between pt-lg mt-lg border-t border-border-default pb-sm">
+                {onDelete ? (
+                    <Pressable
+                        onPress={onDelete}
+                        disabled={saving}
+                        style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+                    >
+                        <Text preset="bodySmall" className="text-status-error">
+                            {i18n.t('common.delete')}
+                        </Text>
+                    </Pressable>
+                ) : <View />}
+                <View className="flex-row gap-sm">
+                    <Button
+                        onPress={onCancel}
+                        disabled={saving}
+                        variant="secondary"
+                        size="small"
+                    >
+                        {i18n.t('common.cancel')}
+                    </Button>
+                    <Button
+                        onPress={handleSubmit}
+                        disabled={saving}
+                        loading={saving}
+                        size="small"
+                    >
+                        {i18n.t('common.save')}
+                    </Button>
+                </View>
             </View>
         </View>
     );
