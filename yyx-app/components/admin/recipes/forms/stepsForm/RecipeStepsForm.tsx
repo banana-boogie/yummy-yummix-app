@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { v4 as generateUUID } from 'uuid'
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '@/constants/design-tokens';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { AdminRecipe, AdminRecipeSteps } from '@/types/recipe.admin.types';

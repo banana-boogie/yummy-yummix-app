@@ -297,6 +297,7 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                             gap: 16,
                             flex: 1,
                             minHeight: 400,
+                            height: 0,
                         }}
                     >
                         {/* Left: available items (40%) */}
@@ -305,6 +306,7 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                                 flex: 2,
                                 overflow: 'auto' as any,
                                 borderRadius: 8,
+                                height: '100%',
                             }}
                         >
                             <AvailableItemsSection
@@ -324,6 +326,7 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                                 overflow: 'auto' as any,
                                 backgroundColor: COLORS.background.secondary,
                                 borderRadius: 8,
+                                height: '100%',
                                 padding: 12,
                             }}
                         >

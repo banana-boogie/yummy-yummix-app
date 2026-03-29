@@ -533,6 +533,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                 gap: 16,
                 flex: 1,
                 minHeight: 400,
+                height: 0,
               }}
             >
               {/* Left: available items (40%) */}
@@ -543,6 +544,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                   borderRadius: 8,
                   backgroundColor: COLORS.background.secondary,
                   padding: 12,
+                  height: '100%',
                 }}
               >
                 {loading ? (
@@ -578,6 +580,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                   backgroundColor: COLORS.background.secondary,
                   borderRadius: 8,
                   padding: 12,
+                  height: '100%',
                 }}
               >
                 {recipe.ingredients.length === 0 ? (
