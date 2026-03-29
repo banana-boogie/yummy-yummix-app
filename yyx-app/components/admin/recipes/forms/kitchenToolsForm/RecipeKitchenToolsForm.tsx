@@ -261,23 +261,21 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                         }}
                     >
                         <View style={{ flex: 2 }}>
-                            <View className="flex-row items-center gap-sm" style={{ marginBottom: -12 }}>
-                                <View style={{ flex: 1 }}>
-                                    <SearchBar
-                                        searchQuery={searchQuery}
-                                        setSearchQuery={setSearchQuery}
-                                        placeholder={i18n.t('admin.recipes.form.kitchenToolsInfo.searchPlaceholder')}
-                                    />
-                                </View>
-                                <TouchableOpacity
-                                    onPress={handleCreateNewKitchenTool}
-                                    className="flex-row items-center gap-xxs"
-                                >
-                                    <Ionicons name="add" size={14} color={COLORS.text.secondary} />
-                                    <Text preset="caption" className="text-text-secondary">
-                                        {i18n.t('admin.recipes.form.kitchenToolsInfo.createNew')}
-                                    </Text>
-                                </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={handleCreateNewKitchenTool}
+                                className="flex-row items-center gap-xxs mb-xs"
+                            >
+                                <Ionicons name="add" size={14} color={COLORS.text.secondary} />
+                                <Text preset="caption" className="text-text-secondary">
+                                    {i18n.t('admin.recipes.form.kitchenToolsInfo.createNew')}
+                                </Text>
+                            </TouchableOpacity>
+                            <View style={{ marginBottom: -12 }}>
+                                <SearchBar
+                                    searchQuery={searchQuery}
+                                    setSearchQuery={setSearchQuery}
+                                    placeholder={i18n.t('admin.recipes.form.kitchenToolsInfo.searchPlaceholder')}
+                                />
                             </View>
                         </View>
                         <View style={{ flex: 3 }}>
