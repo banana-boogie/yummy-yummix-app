@@ -393,14 +393,6 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
         </Text>
       ) : null}
 
-      <Button
-        variant="outline"
-        size="small"
-        onPress={() => setNewIngredientModalVisible(true)}
-        className="self-start mb-md"
-      >
-        {i18n.t('admin.ingredients.createTitle')}
-      </Button>
 
       <View className="w-full flex-col flex-1">
         {/* Mobile Layout */}
@@ -486,31 +478,73 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
             </View>
           </View>
         ) : (
-          /* Desktop Layout */
-          <>
-            <View className="flex-row gap-xl mb-md">
-              <View className="flex-[1.2]">
+          /* ===== DESKTOP LAYOUT: CSS flexbox two-column ===== */
+          <View
+            style={{
+              display: 'flex' as any,
+              flexDirection: 'column' as any,
+              flex: 1,
+              minHeight: 0,
+            }}
+          >
+            {/* Header row: search left, label right — aligned */}
+            <View
+              style={{
+                display: 'flex' as any,
+                flexDirection: 'row' as any,
+                gap: 16,
+                marginBottom: 12,
+              }}
+            >
+              <View style={{ flex: 2 }}>
+                <TouchableOpacity
+                  onPress={() => setNewIngredientModalVisible(true)}
+                  className="flex-row items-center gap-xxs mb-xs"
+                >
+                  <Ionicons name="add" size={14} color={COLORS.text.secondary} />
+                  <Text preset="caption" className="text-text-secondary">
+                    {i18n.t('admin.ingredients.createTitle')}
+                  </Text>
+                </TouchableOpacity>
                 <SearchBar
                   placeholder={tForm('admin.recipes.form.ingredientsInfo.searchPlaceholder')}
                   searchQuery={searchQuery}
                   setSearchQuery={setSearchQuery}
-                  className="w-full"
+                  className="mb-0"
                 />
               </View>
-              <View className="flex-[2.5] flex-row justify-between items-center pb-xs border-b border-border-default">
-                <Text preset="subheading" className="font-semibold">
-                  {tForm('admin.recipes.form.ingredientsInfo.selectedIngredients')}
-                </Text>
-                <View className="flex-row items-center">
-                  <Text preset="caption" color={COLORS.text.secondary}>
+              <View style={{ flex: 3, justifyContent: 'flex-end' }}>
+                <View className="flex-row justify-between items-center pb-sm">
+                  <Text preset="bodySmall" className="text-text-secondary font-medium">
+                    {tForm('admin.recipes.form.ingredientsInfo.selectedIngredients')}
+                  </Text>
+                  <Text preset="caption" className="text-text-secondary">
                     {recipe.ingredients.length} {tForm('admin.recipes.form.ingredientsInfo.itemsSelected')}
                   </Text>
                 </View>
               </View>
             </View>
 
-            <View className="flex-1 min-h-[400px] flex-row gap-lg">
-              <ScrollView className="flex-[1.2] rounded-md bg-background-secondary" style={rightColHeight ? { maxHeight: rightColHeight } : undefined}>
+            {/* Two columns — both scroll independently */}
+            <View
+              style={{
+                display: 'flex' as any,
+                flexDirection: 'row' as any,
+                gap: 16,
+                flex: 1,
+                minHeight: 400,
+              }}
+            >
+              {/* Left: available items (40%) */}
+              <View
+                style={{
+                  flex: 2,
+                  overflow: 'auto' as any,
+                  borderRadius: 8,
+                  backgroundColor: COLORS.background.secondary,
+                  padding: 12,
+                }}
+              >
                 {loading ? (
                   <View className="flex-1 justify-center items-center p-lg">
                     <ActivityIndicator size="large" color={COLORS.primary.default} />
@@ -518,31 +552,36 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                       {i18n.t('common.loading')}
                     </Text>
                   </View>
+                ) : filteredIngredients.length > 0 ? (
+                  filteredIngredients.map(item => (
+                    <React.Fragment key={item.id}>
+                      {renderSearchIngredientCard({ item })}
+                    </React.Fragment>
+                  ))
                 ) : (
-                  <View style={{ padding: 12 }}>
-                    {filteredIngredients.length > 0 ? (
-                      filteredIngredients.map(item => (
-                        <React.Fragment key={item.id}>
-                          {renderSearchIngredientCard({ item })}
-                        </React.Fragment>
-                      ))
-                    ) : (
-                      <View className="flex-1 justify-center items-center p-lg min-h-[200px]">
-                        <Ionicons name="information-circle-outline" size={32} color={COLORS.text.secondary} />
-                        <Text className="mt-sm text-center" color={COLORS.text.secondary}>
-                          {searchQuery
-                            ? tForm('admin.recipes.form.ingredientsInfo.noSearchResults')
-                            : tForm('admin.recipes.form.ingredientsInfo.noIngredients')}
-                        </Text>
-                      </View>
-                    )}
+                  <View className="flex-1 justify-center items-center p-lg">
+                    <Ionicons name="information-circle-outline" size={32} color={COLORS.text.secondary} />
+                    <Text className="mt-sm text-center" color={COLORS.text.secondary}>
+                      {searchQuery
+                        ? tForm('admin.recipes.form.ingredientsInfo.noSearchResults')
+                        : tForm('admin.recipes.form.ingredientsInfo.noIngredients')}
+                    </Text>
                   </View>
                 )}
-              </ScrollView>
+              </View>
 
-              <View className="flex-[2.5] rounded-md bg-background-secondary overflow-hidden" onLayout={(e) => setRightColHeight(e.nativeEvent.layout.height)}>
+              {/* Right: selected items (60%) */}
+              <View
+                style={{
+                  flex: 3,
+                  overflow: 'auto' as any,
+                  backgroundColor: COLORS.background.secondary,
+                  borderRadius: 8,
+                  padding: 12,
+                }}
+              >
                 {recipe.ingredients.length === 0 ? (
-                  <View className="flex-1 justify-center items-center p-lg min-h-[200px]">
+                  <View className="flex-1 items-center justify-center">
                     <Ionicons name="basket-outline" size={32} color={COLORS.text.secondary} />
                     <Text className="mt-sm text-center" color={COLORS.text.secondary}>
                       {tForm('admin.recipes.form.ingredientsInfo.noIngredientsSelected')}
@@ -552,17 +591,15 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                     </Text>
                   </View>
                 ) : (
-                  <View style={{ padding: 12 }}>
-                    {sortedSections.map((item, index) => (
-                      <React.Fragment key={`section-${item[0]}`}>
-                        {renderRecipeSection(item[0], item[1], index)}
-                      </React.Fragment>
-                    ))}
-                  </View>
+                  sortedSections.map((item, index) => (
+                    <React.Fragment key={`section-${item[0]}`}>
+                      {renderRecipeSection(item[0], item[1], index)}
+                    </React.Fragment>
+                  ))
                 )}
               </View>
             </View>
-          </>
+          </View>
         )}
       </View>
 
