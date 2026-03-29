@@ -270,16 +270,15 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                                     {i18n.t('admin.recipes.form.kitchenToolsInfo.createNew')}
                                 </Text>
                             </TouchableOpacity>
-                            <View style={{ marginBottom: -12 }}>
-                                <SearchBar
-                                    searchQuery={searchQuery}
-                                    setSearchQuery={setSearchQuery}
-                                    placeholder={i18n.t('admin.recipes.form.kitchenToolsInfo.searchPlaceholder')}
-                                />
-                            </View>
+                            <SearchBar
+                                searchQuery={searchQuery}
+                                setSearchQuery={setSearchQuery}
+                                placeholder={i18n.t('admin.recipes.form.kitchenToolsInfo.searchPlaceholder')}
+                                className="mb-0"
+                            />
                         </View>
-                        <View style={{ flex: 3 }}>
-                            <View className="flex-row justify-between items-center">
+                        <View style={{ flex: 3, justifyContent: 'flex-end' }}>
+                            <View className="flex-row justify-between items-center pb-sm">
                                 <Text preset="bodySmall" className="text-text-secondary font-medium">
                                     {i18n.t('admin.recipes.form.kitchenToolsInfo.selectedHeader')}
                                 </Text>
