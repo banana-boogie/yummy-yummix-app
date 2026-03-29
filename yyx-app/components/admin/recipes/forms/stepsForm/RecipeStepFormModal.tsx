@@ -304,7 +304,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
           <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
             <View className="flex-row justify-between flex-wrap items-baseline">
               <View className="mt-lg mb-sm">
-                <Text preset="h1">
+                <Text preset="bodySmall" className="text-text-secondary font-medium">
                   {tForm('admin.recipes.form.stepsInfo.instruction')}
                 </Text>
               </View>
@@ -361,7 +361,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
             {recipeIngredients.length > 0 ? (
               <FormRow column style={{ gap: 0 }}>
                 <View className="mt-lg mb-sm">
-                  <Text preset="subheading" fontWeight="600">
+                  <Text preset="bodySmall" className="text-text-secondary font-medium">
                     {tForm('admin.recipes.form.stepsInfo.stepIngredients')}
                   </Text>
                   <Text preset="caption" className="mt-[2px] text-text-secondary">
@@ -472,7 +472,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
 
             {/* Thermomix Parameters */}
             <View className="mt-lg mb-sm">
-              <Text preset="subheading" fontWeight="600">
+              <Text preset="bodySmall" className="text-text-secondary font-medium">
                 {tForm('admin.recipes.form.stepsInfo.thermomixParameters')}
               </Text>
               <Text preset="caption" className="mt-[2px] text-text-secondary">
@@ -511,7 +511,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
             {!formData.thermomixTime && (
               <>
                 <View className="mt-lg mb-sm">
-                  <Text preset="subheading" fontWeight="600">
+                  <Text preset="bodySmall" className="text-text-secondary font-medium">
                     {tForm('admin.recipes.form.stepsInfo.timerSeconds', { defaultValue: 'Timer (seconds)' })}
                   </Text>
                   <Text preset="caption" className="mt-[2px] text-text-secondary">
@@ -536,7 +536,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
 
             {/* Tip - single language */}
             <View className="mt-lg mb-sm">
-              <Text preset="subheading" fontWeight="600">
+              <Text preset="bodySmall" className="text-text-secondary font-medium">
                 {tForm('admin.recipes.form.stepsInfo.tipTitle')}
               </Text>
             </View>
@@ -554,7 +554,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
 
             {/* Recipe Section - single language */}
             <View className="mt-lg mb-sm">
-              <Text preset="subheading" fontWeight="600">
+              <Text preset="bodySmall" className="text-text-secondary font-medium">
                 {tForm('admin.recipes.form.stepsInfo.recipeSection')}
               </Text>
             </View>

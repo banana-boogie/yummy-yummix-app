@@ -6,7 +6,6 @@ import { AlertModal } from '@/components/common/AlertModal';
 import { TextInput } from '@/components/form/TextInput';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
-import { FormSection } from '@/components/form/FormSection';
 import { useActiveLocales, ActiveLocale } from '@/hooks/admin/useActiveLocales';
 import { useRecipeTranslation } from '@/hooks/admin/useRecipeTranslation';
 import { ExtendedRecipe } from '@/hooks/admin/useAdminRecipeForm';
@@ -140,7 +139,7 @@ export function TranslationStep({ recipe, authoringLocale, onUpdateRecipe }: Tra
   // Pre-translation / translating view
   if (state === 'ready' || state === 'translating') {
     return (
-      <FormSection title={i18n.t('admin.translate.translationStep')}>
+      <View className="mt-lg w-full" style={{ maxWidth: 800 }}>
         {/* Summary card */}
         <View className="bg-primary-lightest rounded-lg p-lg mb-lg">
           <View className="flex-row items-center gap-sm mb-md">
@@ -233,13 +232,13 @@ export function TranslationStep({ recipe, authoringLocale, onUpdateRecipe }: Tra
           confirmText={i18n.t('admin.translate.skipEnglish')}
           cancelText={i18n.t('admin.translate.keepEnglish')}
         />
-      </FormSection>
+      </View>
     );
   }
 
   // Post-translation review view
   return (
-    <FormSection title={i18n.t('admin.translate.translationStep')}>
+    <View className="mt-lg w-full" style={{ maxWidth: 800 }}>
       {/* Success banner */}
       <View className="flex-row items-center gap-sm bg-status-success/10 p-md rounded-lg mb-lg">
         <Ionicons name="checkmark-circle" size={24} color={COLORS.status.success} />
@@ -294,7 +293,7 @@ export function TranslationStep({ recipe, authoringLocale, onUpdateRecipe }: Tra
           isMobile={isMobile}
         />
       ) : null}
-    </FormSection>
+    </View>
   );
 }
 

@@ -1,8 +1,7 @@
 import React from 'react';
-import i18n from '@/i18n';
+import { View } from 'react-native';
 import { AdminRecipe } from '@/types/recipe.admin.types';
 import { TagSelector, RecipeTagOption } from '@/components/admin/recipes/forms/tagsForm/TagSelector';
-import { FormSection } from '@/components/form/FormSection';
 
 interface TagsFormProps {
   recipe: Partial<AdminRecipe>;
@@ -14,12 +13,12 @@ interface TagsFormProps {
 export function TagsForm({ recipe, onUpdateRecipe, errors, displayLocale = 'es' }: TagsFormProps) {
 
   return (
-    <FormSection title={i18n.t('admin.recipes.form.tagsInfo.title')}>
+    <View className="mt-lg w-full" style={{ maxWidth: 800 }}>
       <TagSelector
         selectedTags={recipe.tags as RecipeTagOption[] || []}
         onTagsChange={(tags) => onUpdateRecipe({ tags })}
         displayLocale={displayLocale}
       />
-    </FormSection>
+    </View>
   );
 } 

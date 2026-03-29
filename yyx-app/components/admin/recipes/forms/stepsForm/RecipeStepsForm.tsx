@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { v4 as generateUUID } from 'uuid'
 import { Ionicons } from '@expo/vector-icons';
-import { FormSection } from '@/components/form/FormSection';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { AdminRecipe, AdminRecipeSteps } from '@/types/recipe.admin.types';
@@ -178,7 +177,7 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
   }, [sortedSteps]);
 
   return (
-    <FormSection title={tForm('admin.recipes.form.stepsInfo.title')} maxWidth={1000} className="mb-md">
+    <View className="mt-lg w-full mb-md" style={{ maxWidth: 1000 }}>
       {errors.steps ? (
         <Text preset="caption" className="text-status-error mb-sm">
           {errors.steps}
@@ -249,7 +248,7 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
           authoringLocale={authoringLocale}
         />
       ) : null}
-    </FormSection>
+    </View>
   );
 }
 

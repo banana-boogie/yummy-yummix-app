@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import i18n from '@/i18n';
 import { AdminRecipeIngredientCard } from '@/components/admin/recipes/forms/ingredientsForm/AdminRecipeIngredientCard';
 import { adminIngredientsService } from '@/services/admin/adminIngredientsService';
-import { FormSection } from '@/components/form/FormSection';
 import { adminRecipeService } from '@/services/admin/adminRecipeService';
 import { RecipeIngredientFormModal } from './RecipeIngredientFormModal';
 import { SearchBar } from '@/components/common/SearchBar';
@@ -387,7 +386,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
   };
 
   return (
-    <FormSection title={tForm('admin.recipes.form.ingredientsInfo.title')} maxWidth={1000} className="mb-md">
+    <View className="mt-lg w-full mb-md" style={{ maxWidth: 1000 }}>
       {errors.ingredients ? (
         <Text preset="caption" className="text-status-error mb-sm">
           {errors.ingredients}
@@ -598,7 +597,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
         onConfirm={() => setShowErrorAlert(false)}
         confirmText={i18n.t('common.ok')}
       />
-    </FormSection>
+    </View>
   );
 }
 

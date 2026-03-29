@@ -3,7 +3,7 @@ import { View, ScrollView, ActivityIndicator } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { AdminRecipe, AdminRecipeKitchenTool, AdminKitchenTool, getTranslatedField } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
-import { FormSection } from '@/components/form/FormSection';
+import { ErrorMessage } from '@/components/common';
 import { adminKitchenToolsService } from '@/services/admin/adminKitchenToolsService';
 import { SearchBar } from '@/components/common/SearchBar';
 import { Button } from '@/components/common/Button';
@@ -184,10 +184,12 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
     }, [recipe.kitchenTools]);
 
     return (
-        <FormSection
-            title={i18n.t('admin.recipes.form.kitchenToolsInfo.title')}
-            error={errors.kitchenTools}
-        >
+        <View className="mt-lg w-full" style={{ maxWidth: 800 }}>
+            {errors.kitchenTools ? (
+                <View className="mb-sm">
+                    <ErrorMessage message={errors.kitchenTools} />
+                </View>
+            ) : null}
             {isMobile ? (
                 /* ===== MOBILE LAYOUT: Stacked, Selected first ===== */
                 <View className="flex-col">
@@ -314,6 +316,6 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                 onConfirm={() => setShowErrorAlert(false)}
                 confirmText={i18n.t('common.ok')}
             />
-        </FormSection>
+        </View>
     );
 }
