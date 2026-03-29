@@ -129,7 +129,7 @@ export default function NewRecipePage() {
 
         {/* Footer Section - Fixed at bottom */}
         {showNavElements && (
-          <View className="px-lg pt-md pb-lg bg-background-default border-t border-border-default">
+          <View className="px-lg pt-sm pb-md bg-background-default border-t border-grey-light">
             <View className="w-full">
               <NavButtons
                 onNext={currentStep < CreateRecipeStep.REVIEW ? handleNextStep : handlePublish}

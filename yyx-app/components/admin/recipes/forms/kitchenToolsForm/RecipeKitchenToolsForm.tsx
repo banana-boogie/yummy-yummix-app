@@ -243,9 +243,9 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
             ) : (
                 /* ===== DESKTOP LAYOUT: Two columns, Available first ===== */
                 <>
-                    {/* Header Row — search + create */}
-                    <View className="flex-row items-center gap-md mb-md">
-                        <View style={{ flex: 1, maxWidth: 300, marginBottom: -16 }}>
+                    {/* Search + create link */}
+                    <View className="mb-md">
+                        <View style={{ maxWidth: 350, marginBottom: -12 }}>
                             <SearchBar
                                 searchQuery={searchQuery}
                                 setSearchQuery={setSearchQuery}
@@ -254,17 +254,19 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                         </View>
                         <TouchableOpacity
                             onPress={handleCreateNewKitchenTool}
-                            className="flex-row items-center gap-xxs px-md py-sm border border-border-default rounded-full"
+                            className="flex-row items-center gap-xxs mt-xs"
                         >
-                            <Ionicons name="add" size={16} color={COLORS.text.default} />
-                            <Text preset="bodySmall" className="text-text-default">New</Text>
+                            <Ionicons name="add" size={14} color={COLORS.text.secondary} />
+                            <Text preset="caption" className="text-text-secondary">
+                                {i18n.t('admin.recipes.form.kitchenToolsInfo.createNew')}
+                            </Text>
                         </TouchableOpacity>
                     </View>
 
                     {/* Content Row */}
-                    <View className="flex-row flex-wrap" style={{ minHeight: 400 }}>
+                    <View className="flex-row items-start gap-md" style={{ minHeight: 400 }}>
                         {/* Left Column - Available Items */}
-                        <ScrollView style={{ flex: 1, marginRight: 16, ...(rightColHeight ? { maxHeight: rightColHeight } : {}) }}>
+                        <ScrollView style={{ flex: 1, ...(rightColHeight ? { maxHeight: rightColHeight } : {}) }}>
                             <AvailableItemsSection
                                 items={filteredKitchenTools}
                                 loading={loading}
@@ -276,7 +278,7 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                         </ScrollView>
 
                         {/* Right Column - Selected Items */}
-                        <View className="flex-[1.8]" onLayout={(e) => setRightColHeight(e.nativeEvent.layout.height)}>
+                        <View className="flex-[1.5]" onLayout={(e) => setRightColHeight(e.nativeEvent.layout.height)}>
                             <SelectedItemsSection
                                 items={sortedRecipeKitchenTools}
                                 displayLocale={displayLocale || authoringLocale}
