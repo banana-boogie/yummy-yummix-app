@@ -35,8 +35,8 @@ export function SelectedItemsSection({
 
     return (
         <View>
-            <View className="flex-row justify-between items-center p-sm bg-background-secondary rounded-md mb-sm">
-                <Text preset="subheading">
+            <View className="flex-row justify-between items-center mb-sm">
+                <Text preset="bodySmall" className="text-text-secondary font-medium">
                     {i18n.t('admin.recipes.form.kitchenToolsInfo.selectedHeader')}
                 </Text>
                 <Text preset="caption" color={COLORS.text.secondary}>

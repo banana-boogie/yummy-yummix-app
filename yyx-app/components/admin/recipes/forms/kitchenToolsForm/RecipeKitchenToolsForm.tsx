@@ -242,26 +242,21 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
             ) : (
                 /* ===== DESKTOP LAYOUT: Two columns, Available first ===== */
                 <>
-                    {/* Header Row */}
-                    <View className="flex-row items-center gap-md mb-md">
-                        <View className="flex-1">
-                            <Button
-                                label={i18n.t('admin.recipes.form.kitchenToolsInfo.createNew')}
-                                variant="outline"
-                                size="small"
-                                onPress={handleCreateNewKitchenTool}
-                                className="mb-sm max-w-[150px]"
-                            />
+                    {/* Header Row — search + create inline */}
+                    <View className="flex-row items-center gap-sm mb-md" style={{ maxWidth: '40%' }}>
+                        <View className="flex-1" style={{ marginBottom: -16 }}>
                             <SearchBar
                                 searchQuery={searchQuery}
                                 setSearchQuery={setSearchQuery}
                                 placeholder={i18n.t('admin.recipes.form.kitchenToolsInfo.searchPlaceholder')}
-                                className="w-full mr-sm"
                             />
                         </View>
-
-                        {/* Empty space to maintain alignment with right column */}
-                        <View className="flex-[1.8]" />
+                        <Button
+                            label={i18n.t('admin.recipes.form.kitchenToolsInfo.createNew')}
+                            variant="outline"
+                            size="small"
+                            onPress={handleCreateNewKitchenTool}
+                        />
                     </View>
 
                     {/* Content Row */}

@@ -65,9 +65,9 @@ export function AvailableItemsSection({
                 </View>
 
                 {isAdded ? (
-                    <Ionicons name="checkmark-circle" size={24} color={COLORS.primary.darkest} />
+                    <Ionicons name="checkmark-circle" size={22} color={COLORS.status.success} />
                 ) : (
-                    <Ionicons name="add-circle-outline" size={24} color={COLORS.primary.darkest} />
+                    <Ionicons name="add-circle-outline" size={22} color={COLORS.text.secondary} />
                 )}
             </TouchableOpacity>
         );
