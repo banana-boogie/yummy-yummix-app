@@ -1,89 +1,136 @@
-import React, { useState } from 'react';
-import { Stack, useRouter } from 'expo-router';
+import React from 'react';
+import { Stack, useRouter, usePathname } from 'expo-router';
 import Head from 'expo-router/head';
 import { AdminRoute } from '@/components/admin/AdminRoute';
-import { View, TouchableOpacity, ScrollView, Modal } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, TouchableOpacity, Platform, Pressable } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import { MaxWidthConfig } from '@/components/layouts/PageLayout';
+import { useDevice } from '@/hooks/useDevice';
 import i18n from '@/i18n';
 
+// Navigation items — alphabetical, Back to App separate
+const navItems = [
+  { titleKey: 'admin.common.analytics', icon: 'stats-chart-outline', route: '/admin/analytics' },
+  { titleKey: 'admin.common.contentHealth', icon: 'medkit-outline', route: '/admin/content-health' },
+  { titleKey: 'admin.common.dashboard', icon: 'grid-outline', route: '/admin' },
+  { titleKey: 'admin.common.ingredients', icon: 'leaf-outline', route: '/admin/ingredients' },
+  { titleKey: 'admin.common.kitchenTools', icon: 'build-outline', route: '/admin/kitchen-tools' },
+  { titleKey: 'admin.common.recipes', icon: 'restaurant-outline', route: '/admin/recipes' },
+  { titleKey: 'admin.common.tags', icon: 'pricetag-outline', route: '/admin/tags' },
+  { titleKey: 'admin.userRecipes.title', icon: 'people-outline', route: '/admin/user-recipes' },
+];
+
 export default function AdminLayout() {
+  const { isPhone } = useDevice();
+  const isDesktop = Platform.OS === 'web' && !isPhone;
+
   return (
     <AdminRoute>
       <Head>
         <title>{i18n.t('admin.common.adminPanelTitle')}</title>
       </Head>
 
-      <Stack screenOptions={{
-        headerShown: false,
-      }}>
-        <Stack.Screen
-          name="index"
-          options={{
-            title: i18n.t('admin.common.adminDashboard')
-          }}
-        />
-        <Stack.Screen
-          name="recipes"
-          options={{
-            title: i18n.t('admin.common.manageRecipes')
-          }}
-        />
-        <Stack.Screen
-          name="ingredients"
-          options={{
-            title: i18n.t('admin.common.manageIngredients')
-          }}
-        />
-        <Stack.Screen
-          name="tags"
-          options={{
-            title: i18n.t('admin.common.manageTags')
-          }}
-        />
-        <Stack.Screen
-          name="kitchen-tools"
-          options={{
-            title: i18n.t('admin.common.manageKitchenTools')
-          }}
-        />
-        <Stack.Screen
-          name="analytics"
-          options={{
-            title: i18n.t('admin.common.analytics')
-          }}
-        />
-        <Stack.Screen
-          name="user-recipes"
-          options={{
-            title: i18n.t('admin.userRecipes.title')
-          }}
-        />
-        <Stack.Screen
-          name="content-health"
-          options={{
-            title: i18n.t('admin.common.contentHealth')
-          }}
-        />
-      </Stack>
+      {isDesktop ? (
+        <View className="flex-1 flex-row">
+          <AdminSidebar />
+          <View className="flex-1">
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="recipes" />
+              <Stack.Screen name="ingredients" />
+              <Stack.Screen name="tags" />
+              <Stack.Screen name="kitchen-tools" />
+              <Stack.Screen name="analytics" />
+              <Stack.Screen name="user-recipes" />
+              <Stack.Screen name="content-health" />
+            </Stack>
+          </View>
+        </View>
+      ) : (
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="recipes" />
+          <Stack.Screen name="ingredients" />
+          <Stack.Screen name="tags" />
+          <Stack.Screen name="kitchen-tools" />
+          <Stack.Screen name="analytics" />
+          <Stack.Screen name="user-recipes" />
+          <Stack.Screen name="content-health" />
+        </Stack>
+      )}
     </AdminRoute>
   );
 }
 
-// Navigation items for admin panel
-const navItems = [
-  { titleKey: 'admin.common.dashboard', icon: 'grid-outline', route: '/admin' as const },
-  { titleKey: 'admin.common.analytics', icon: 'stats-chart-outline', route: '/admin/analytics' as const },
-  { titleKey: 'admin.common.recipes', icon: 'restaurant-outline', route: '/admin/recipes' as const },
-  { titleKey: 'admin.common.ingredients', icon: 'leaf-outline', route: '/admin/ingredients' as const },
-  { titleKey: 'admin.common.tags', icon: 'pricetags-outline', route: '/admin/tags' as const },
-  { titleKey: 'admin.common.kitchenTools', icon: 'cube-outline', route: '/admin/kitchen-tools' as const },
-  { titleKey: 'admin.common.contentHealth', icon: 'medkit-outline', route: '/admin/content-health' as const },
-  { titleKey: 'admin.common.backToApp', icon: 'exit-outline', route: '/' as const },
-];
+// =============================================================================
+// Desktop Sidebar
+// =============================================================================
+
+function AdminSidebar() {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const isActive = (route: string) => {
+    if (route === '/admin') return pathname === '/admin';
+    return pathname.startsWith(route);
+  };
+
+  return (
+    <View
+      className="bg-white border-r border-border-default"
+      style={{ width: 220, paddingTop: 16, paddingBottom: 16 }}
+    >
+      {/* Logo / title */}
+      <View className="px-lg mb-lg">
+        <Text preset="h3" className="text-text-default">Admin</Text>
+      </View>
+
+      {/* Back to App */}
+      <Pressable
+        onPress={() => router.push('/')}
+        className="flex-row items-center gap-sm px-lg py-sm mb-sm"
+        style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+      >
+        <Ionicons name="arrow-back-outline" size={18} color={COLORS.text.secondary} />
+        <Text preset="bodySmall" className="text-text-secondary">Back to App</Text>
+      </Pressable>
+
+      {/* Divider */}
+      <View className="h-[1px] bg-border-default mx-lg mb-sm" />
+
+      {/* Nav items */}
+      {navItems.map(item => {
+        const active = isActive(item.route);
+        return (
+          <Pressable
+            key={item.route}
+            onPress={() => router.push(item.route as any)}
+            className={`flex-row items-center gap-sm px-lg py-sm ${active ? 'bg-primary-lightest' : ''}`}
+            style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+          >
+            <Ionicons
+              name={item.icon as any}
+              size={18}
+              color={active ? COLORS.primary.darkest : COLORS.text.secondary}
+            />
+            <Text
+              preset="bodySmall"
+              className={active ? 'text-primary-darkest font-semibold' : 'text-text-secondary'}
+            >
+              {i18n.t(item.titleKey)}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+// =============================================================================
+// AdminHeader — used by AdminLayout component on each page
+// =============================================================================
 
 export function AdminHeader({ title, showBackButton = false, maxWidth = 1000 }: {
   title: string;
@@ -91,71 +138,53 @@ export function AdminHeader({ title, showBackButton = false, maxWidth = 1000 }: 
   maxWidth?: number | MaxWidthConfig;
 }) {
   const router = useRouter();
-  const [menuVisible, setMenuVisible] = useState(false);
+  const { isPhone } = useDevice();
+  const isDesktop = Platform.OS === 'web' && !isPhone;
 
-  // Convert maxWidth to number if it's an object
   const resolvedMaxWidth = typeof maxWidth === 'object' ?
     maxWidth.largeScreen || maxWidth.mediumScreen || maxWidth.smallScreen || 1000 :
     maxWidth;
 
-  return (
-    <SafeAreaView className="bg-primary-default" edges={['top']}>
-      <View className="bg-primary-default py-sm">
-        <View className="w-full self-center" style={{ maxWidth: resolvedMaxWidth }}>
-          <View className="flex-row items-center justify-between px-lg">
-            {showBackButton ? (
+  // Desktop: simple title bar (sidebar handles navigation)
+  if (isDesktop) {
+    return (
+      <View className="bg-white border-b border-border-default py-md">
+        <View className="w-full self-center px-lg" style={{ maxWidth: resolvedMaxWidth }}>
+          <View className="flex-row items-center">
+            {showBackButton && (
               <TouchableOpacity
                 onPress={() => router.back()}
-                className="min-w-[24px]"
+                className="mr-md"
               >
-                <Ionicons name="arrow-back" size={24} color={COLORS.neutral.white} />
+                <Ionicons name="arrow-back" size={20} color={COLORS.text.default} />
               </TouchableOpacity>
-            ) : (
-              <View className="min-w-[24px]" />
             )}
-            <Text preset="h1" className="flex-1 text-white" align="center">{title}</Text>
-            <TouchableOpacity
-              className="p-xs min-w-[24px]"
-              onPress={() => setMenuVisible(true)}
-            >
-              <Ionicons name="menu" size={24} color={COLORS.neutral.white} />
-            </TouchableOpacity>
+            <Text preset="h2" className="text-text-default">{title}</Text>
           </View>
         </View>
       </View>
+    );
+  }
 
-      <Modal
-        visible={menuVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setMenuVisible(false)}
-      >
-        <View className="flex-1 bg-black/50 justify-center items-center">
-          <View className="bg-white rounded-[10px] w-[80%] max-w-[400px] overflow-hidden">
-            <View className="flex-row justify-between items-center p-md border-b border-border-default">
-              <Text className="text-lg font-bold text-text-default">{i18n.t('admin.common.adminMenu')}</Text>
-              <TouchableOpacity onPress={() => setMenuVisible(false)}>
-                <Ionicons name="close" size={24} color={COLORS.text.default} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView className="max-h-[400px]">
-              {navItems.map((item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  className="flex-row items-center p-md border-b border-border-default"
-                  onPress={() => {
-                    router.push(item.route);
-                    setMenuVisible(false);
-                  }}
-                >
-                  <Ionicons name={item.icon as any} size={24} color={COLORS.primary.darkest} />
-                  <Text className="ml-md text-base text-text-default">{i18n.t(item.titleKey)}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+  // Mobile: peach header with back + hamburger (keep existing mobile pattern)
+  return (
+    <View className="bg-primary-default py-sm">
+      <View className="w-full self-center" style={{ maxWidth: resolvedMaxWidth }}>
+        <View className="flex-row items-center justify-between px-lg">
+          {showBackButton ? (
+            <TouchableOpacity
+              onPress={() => router.back()}
+              className="min-w-[24px]"
+            >
+              <Ionicons name="arrow-back" size={24} color={COLORS.neutral.white} />
+            </TouchableOpacity>
+          ) : (
+            <View className="min-w-[24px]" />
+          )}
+          <Text preset="h1" className="flex-1 text-white" align="center">{title}</Text>
+          <View className="min-w-[24px]" />
         </View>
-      </Modal>
-    </SafeAreaView>
+      </View>
+    </View>
   );
 }
