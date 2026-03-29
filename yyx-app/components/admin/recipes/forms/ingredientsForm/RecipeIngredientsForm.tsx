@@ -386,7 +386,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
   };
 
   return (
-    <View className="mt-lg w-full mb-md" style={{ maxWidth: 1000 }}>
+    <View className="mt-lg w-full mb-md">
       {errors.ingredients ? (
         <Text preset="caption" className="text-status-error mb-sm">
           {errors.ingredients}

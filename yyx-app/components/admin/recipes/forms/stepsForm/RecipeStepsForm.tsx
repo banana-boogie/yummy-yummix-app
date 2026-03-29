@@ -177,7 +177,7 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
   }, [sortedSteps]);
 
   return (
-    <View className="mt-lg w-full mb-md" style={{ maxWidth: 1000 }}>
+    <View className="mt-lg w-full mb-md">
       {errors.steps ? (
         <Text preset="caption" className="text-status-error mb-sm">
           {errors.steps}

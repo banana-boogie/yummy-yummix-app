@@ -117,7 +117,7 @@ export default function NewRecipePage() {
               <View className="w-full px-md pb-md">
                 <RecipeProgressIndicator currentStep={currentStep} onStepClick={setCurrentStep} clickable={true} />
                 {currentStep !== CreateRecipeStep.INITIAL_SETUP && currentStep !== CreateRecipeStep.BASIC_INFO && currentStep !== CreateRecipeStep.TRANSLATIONS && (
-                  <View className="mt-md">
+                  <View className="mt-md bg-grey-light rounded-lg px-md py-sm">
                     <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
                   </View>
                 )}
@@ -129,8 +129,8 @@ export default function NewRecipePage() {
 
         {/* Footer Section - Fixed at bottom */}
         {showNavElements && (
-          <View className="px-lg pt-md pb-xl bg-background-default items-center shadow-md">
-            <View className="w-full" style={{ maxWidth: FORM_MAX_WIDTH }}>
+          <View className="px-lg pt-md pb-xl bg-background-default shadow-md">
+            <View className="w-full">
               <NavButtons
                 onNext={currentStep < CreateRecipeStep.REVIEW ? handleNextStep : handlePublish}
                 onPrev={handlePrevStep}

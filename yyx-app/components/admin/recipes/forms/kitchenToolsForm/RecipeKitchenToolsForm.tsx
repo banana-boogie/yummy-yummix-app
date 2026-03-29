@@ -184,7 +184,7 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
     }, [recipe.kitchenTools]);
 
     return (
-        <View className="mt-lg w-full" style={{ maxWidth: 800 }}>
+        <View className="mt-lg w-full">
             {errors.kitchenTools ? (
                 <View className="mb-sm">
                     <ErrorMessage message={errors.kitchenTools} />
@@ -242,9 +242,9 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
             ) : (
                 /* ===== DESKTOP LAYOUT: Two columns, Available first ===== */
                 <>
-                    {/* Header Row — search + create inline */}
-                    <View className="flex-row items-center gap-sm mb-md" style={{ maxWidth: '40%' }}>
-                        <View className="flex-1" style={{ marginBottom: -16 }}>
+                    {/* Header Row — search + create */}
+                    <View className="flex-row items-center gap-md mb-md">
+                        <View style={{ flex: 1, maxWidth: 300, marginBottom: -16 }}>
                             <SearchBar
                                 searchQuery={searchQuery}
                                 setSearchQuery={setSearchQuery}
