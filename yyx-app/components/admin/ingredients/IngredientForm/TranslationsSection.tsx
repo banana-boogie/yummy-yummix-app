@@ -115,33 +115,36 @@ export function TranslationsSection({
   }
 
   return (
-    <FormSection title={i18n.t('admin.ingredients.translations')}>
-      {/* Auto-translate — above translations */}
-      <Pressable
-        onPress={handleAutoTranslate}
-        disabled={translating}
-        className="self-start flex-row items-center gap-xxs px-md py-xs rounded-full border border-border-default mb-md"
-        style={({ pressed }: any) => [
-            { opacity: pressed || translating ? 0.5 : 1 },
-            Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
-        ]}
-      >
-        <Ionicons name="language-outline" size={14} color={COLORS.primary.medium} />
-        <Text preset="caption" className="text-text-default">
-          {translating
-            ? i18n.t('admin.translate.translating')
-            : i18n.t('admin.translate.autoTranslate')
-          }
-        </Text>
-      </Pressable>
+    <View className="mt-md">
+      {/* Header: quiet label + auto-translate inline */}
+      <View className="flex-row items-center justify-between mb-md">
+        <Text preset="bodySmall" className="text-text-secondary font-medium">Translations</Text>
+        <Pressable
+          onPress={handleAutoTranslate}
+          disabled={translating}
+          className="flex-row items-center gap-xxs px-md py-xs rounded-full border border-border-default"
+          style={({ pressed }: any) => [
+              { opacity: pressed || translating ? 0.5 : 1 },
+              Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
+          ]}
+        >
+          <Ionicons name="language-outline" size={14} color={COLORS.primary.medium} />
+          <Text preset="caption" className="text-text-default">
+            {translating
+              ? i18n.t('admin.translate.translating')
+              : i18n.t('admin.translate.autoTranslate')
+            }
+          </Text>
+        </Pressable>
+      </View>
       {translateError ? (
         <Text preset="caption" className="text-status-error mb-sm">{translateError}</Text>
       ) : null}
 
       {/* Locale inputs */}
       {locales.map(locale => (
-        <View key={locale.code}>
-          <Text preset="body" className="font-semibold">{locale.displayName}</Text>
+        <View key={locale.code} className="mb-lg">
+          <Text preset="bodySmall" className="text-text-default mb-xxs">{locale.displayName}</Text>
           <FormRow>
             <FormGroup
               label={i18n.t('admin.ingredients.name', { defaultValue: 'Name' })}
@@ -171,6 +174,6 @@ export function TranslationsSection({
           </FormRow>
         </View>
       ))}
-    </FormSection>
+    </View>
   );
 }

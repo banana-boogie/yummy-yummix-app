@@ -99,37 +99,44 @@ export function NutritionalFactsSection({
   const [showTooltip, setShowTooltip] = useState(false);
 
   return (
-    <FormSection title={i18n.t('admin.ingredients.nutritionalFacts.title')} titleStyle={{ marginBottom: 0 }}>
-      {/* Info tooltip replaces verbose instruction text */}
-      <View className="flex-row items-center mb-sm">
+    <View className="mt-lg">
+      {/* Header: quiet label + auto-detect inline */}
+      <View className="flex-row items-center justify-between mb-md">
+        <View className="flex-row items-center gap-xxs">
+          <Text preset="bodySmall" className="text-text-secondary font-medium">
+            {i18n.t('admin.ingredients.nutritionalFacts.title')}
+          </Text>
+          <Pressable
+            onPress={() => setShowTooltip(prev => !prev)}
+            style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+          >
+            <Ionicons name="information-circle-outline" size={16} color={COLORS.text.secondary} />
+          </Pressable>
+        </View>
         <Pressable
-          onPress={() => setShowTooltip(prev => !prev)}
-          className="flex-row items-center gap-xxs"
-          style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+          onPress={fetchNutritionalFacts}
+          disabled={isLoading}
+          className="flex-row items-center gap-xxs px-md py-xs rounded-full border border-border-default"
+          style={({ pressed }: any) => [
+            { opacity: pressed || isLoading ? 0.5 : 1 },
+            Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
+          ]}
         >
-          <Ionicons name="information-circle-outline" size={18} color={COLORS.text.secondary} />
-          <Text preset="caption" className="text-text-secondary">
-            {i18n.t('admin.ingredients.nutritionalFacts.subtitle')}
+          <Ionicons name="sparkles-outline" size={14} color={COLORS.primary.medium} />
+          <Text preset="caption" className="text-text-default">
+            {isLoading
+              ? i18n.t('common.loading')
+              : i18n.t('admin.ingredients.nutritionalFacts.autoFillButton')}
           </Text>
         </Pressable>
       </View>
       {showTooltip && (
         <View className="bg-grey-light rounded-sm px-sm py-xs mb-sm">
           <Text preset="caption" className="text-text-secondary">
-            {i18n.t('admin.ingredients.nutritionalFacts.roundingRules')}
+            {i18n.t('admin.ingredients.nutritionalFacts.subtitle')} — {i18n.t('admin.ingredients.nutritionalFacts.roundingRules')}
           </Text>
         </View>
       )}
-
-      <Button
-        onPress={fetchNutritionalFacts}
-        loading={isLoading}
-        disabled={isLoading}
-        variant="primary"
-        size="small"
-        className="mb-md self-start"
-        label={i18n.t('admin.ingredients.nutritionalFacts.autoFillButton')}
-      />
 
       {error && (
         <ErrorMessage message={error} />
@@ -196,6 +203,6 @@ export function NutritionalFactsSection({
           />
         </FormGroup>
       </View>
-    </FormSection>
+    </View>
   );
 }
