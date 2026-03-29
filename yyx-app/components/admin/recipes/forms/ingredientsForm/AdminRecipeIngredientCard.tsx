@@ -63,7 +63,7 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
                 <Ionicons name="pencil" size={isMobile ? 16 : 20} className="text-primary-default" />
               </TouchableOpacity>
               <TouchableOpacity onPress={onDeletePress} className={`${isMobile ? 'p-xxs mr-xs' : 'p-xs mr-xs'}`}>
-                <Ionicons name="trash" size={isMobile ? 16 : 20} className="text-status-error" />
+                <Ionicons name="trash-outline" size={isMobile ? 16 : 20} className="text-text-secondary" />
               </TouchableOpacity>
               <View className="flex-row items-center">
                 <TouchableOpacity

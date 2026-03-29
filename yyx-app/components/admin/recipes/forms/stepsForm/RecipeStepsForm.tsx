@@ -158,7 +158,7 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
               className={`${isMobile ? 'p-xxs' : 'p-1'} rounded-sm bg-background-default`}
               onPress={() => handleDeleteStep(itemId)}
             >
-              <Ionicons name="trash-outline" size={isMobile ? 16 : 20} className="text-status-error" />
+              <Ionicons name="trash-outline" size={isMobile ? 16 : 20} className="text-text-secondary" />
             </TouchableOpacity>
           </View>
         </View>
