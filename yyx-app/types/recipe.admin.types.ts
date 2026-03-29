@@ -154,14 +154,14 @@ export function pickTranslation<T extends { locale: string }>(
   translations: T[] | undefined | null,
   locale: string,
 ): T | undefined {
-  if (!translations) return undefined;
+  if (!translations || !locale || typeof locale !== 'string') return undefined;
   // Exact match first
-  const exact = translations.find(t => t.locale === locale);
+  const exact = translations.find(t => typeof t.locale === 'string' && t.locale === locale);
   if (exact) return exact;
   // Fall back to base language (e.g., es-ES → es)
   if (locale.includes('-')) {
     const base = locale.split('-')[0];
-    return translations.find(t => t.locale === base);
+    return translations.find(t => typeof t.locale === 'string' && t.locale === base);
   }
   return undefined;
 }
