@@ -162,8 +162,8 @@ export function KitchenToolForm({
                 </View>
 
                 {/* Translations */}
-                <View className="flex-row items-center justify-between mb-sm">
-                    <Text preset="body" className="text-text-default font-semibold">Translations</Text>
+                <View className="flex-row items-center justify-between mb-md">
+                    <Text preset="bodySmall" className="text-text-secondary font-medium">Translations</Text>
                     <Pressable
                         onPress={handleAutoTranslate}
                         disabled={translating}
@@ -187,20 +187,18 @@ export function KitchenToolForm({
                 ) : null}
 
                 {locales.map(locale => (
-                    <FormGroup
-                        key={locale.code}
-                        error={errors[`name_${locale.code}`]}
-                        className="mb-sm"
-                    >
-                        <TextInput
-                            value={getTranslationName(locale.code)}
-                            onChangeText={(text) => setTranslationName(locale.code, text)}
-                            placeholder={locale.code.startsWith('es')
-                                ? i18n.t('admin.kitchenTools.form.nameEsPlaceholder')
-                                : i18n.t('admin.kitchenTools.form.nameEnPlaceholder')}
-                            label={locale.displayName}
-                        />
-                    </FormGroup>
+                    <View key={locale.code} className="mb-lg">
+                        <Text preset="bodySmall" className="text-text-default mb-xs">{locale.displayName}</Text>
+                        <FormGroup error={errors[`name_${locale.code}`]}>
+                            <TextInput
+                                value={getTranslationName(locale.code)}
+                                onChangeText={(text) => setTranslationName(locale.code, text)}
+                                placeholder={locale.code.startsWith('es')
+                                    ? i18n.t('admin.kitchenTools.form.nameEsPlaceholder')
+                                    : i18n.t('admin.kitchenTools.form.nameEnPlaceholder')}
+                            />
+                        </FormGroup>
+                    </View>
                 ))}
 
             </View>
