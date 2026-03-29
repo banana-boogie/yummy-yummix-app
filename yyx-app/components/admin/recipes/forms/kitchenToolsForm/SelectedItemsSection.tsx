@@ -34,7 +34,7 @@ export function SelectedItemsSection({
     const isCompact = variant === 'compact';
 
     return (
-        <View>
+        <View className="flex-1">
             <View className="flex-row justify-between items-center mb-sm">
                 <Text preset="bodySmall" className="text-text-secondary font-medium">
                     {i18n.t('admin.recipes.form.kitchenToolsInfo.selectedHeader')}
@@ -47,7 +47,7 @@ export function SelectedItemsSection({
             </View>
 
             {items.length === 0 ? (
-                <View className={`p-lg items-center justify-center bg-background-secondary rounded-md ${isCompact ? 'min-h-[120px]' : 'min-h-[400px]'}`}>
+                <View className={`p-lg items-center justify-center bg-background-secondary rounded-md flex-1 ${isCompact ? 'min-h-[120px]' : ''}`}>
                     <Ionicons name="information-circle-outline" size={32} color={COLORS.text.secondary} />
                     <Text className="mt-sm text-center" color={COLORS.text.secondary}>
                         {i18n.t('admin.recipes.form.kitchenToolsInfo.noSelectedItems')}

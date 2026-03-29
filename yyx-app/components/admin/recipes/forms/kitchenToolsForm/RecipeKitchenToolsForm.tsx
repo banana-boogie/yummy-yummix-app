@@ -242,43 +242,44 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                 </View>
             ) : (
                 /* ===== DESKTOP LAYOUT: Two columns, Available first ===== */
+                /* ===== DESKTOP LAYOUT ===== */
                 <>
-                    {/* Search + create above columns */}
-                    <View className="flex-row items-center gap-md mb-md">
-                        <View style={{ flex: 1, maxWidth: 400, marginBottom: -16 }}>
-                            <SearchBar
-                                searchQuery={searchQuery}
-                                setSearchQuery={setSearchQuery}
-                                placeholder={i18n.t('admin.recipes.form.kitchenToolsInfo.searchPlaceholder')}
-                            />
+                    {/* Create new link */}
+                    <TouchableOpacity
+                        onPress={handleCreateNewKitchenTool}
+                        className="flex-row items-center gap-xxs mb-sm"
+                    >
+                        <Ionicons name="add" size={14} color={COLORS.text.secondary} />
+                        <Text preset="caption" className="text-text-secondary">
+                            {i18n.t('admin.recipes.form.kitchenToolsInfo.createNew')}
+                        </Text>
+                    </TouchableOpacity>
+
+                    {/* Two columns */}
+                    <View className="flex-row gap-md flex-1">
+                        {/* Left Column — search + scrollable available items */}
+                        <View style={{ flex: 1 }}>
+                            <View style={{ marginBottom: -8 }}>
+                                <SearchBar
+                                    searchQuery={searchQuery}
+                                    setSearchQuery={setSearchQuery}
+                                    placeholder={i18n.t('admin.recipes.form.kitchenToolsInfo.searchPlaceholder')}
+                                />
+                            </View>
+                            <ScrollView style={{ maxHeight: 500 }}>
+                                <AvailableItemsSection
+                                    items={filteredKitchenTools}
+                                    loading={loading}
+                                    searchQuery={searchQuery}
+                                    selectedItemIds={selectedItemIds}
+                                    onAddItem={handleAddRecipeKitchenTool}
+                                    displayLocale={displayLocale || authoringLocale}
+                                />
+                            </ScrollView>
                         </View>
-                        <TouchableOpacity
-                            onPress={handleCreateNewKitchenTool}
-                            className="flex-row items-center gap-xxs"
-                        >
-                            <Ionicons name="add" size={14} color={COLORS.text.secondary} />
-                            <Text preset="caption" className="text-text-secondary">
-                                {i18n.t('admin.recipes.form.kitchenToolsInfo.createNew')}
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
 
-                    {/* Two columns — aligned at top, stretch to fill */}
-                    <View className="flex-row items-stretch gap-md flex-1">
-                        {/* Left Column - Available Items */}
-                        <ScrollView style={{ flex: 1 }}>
-                            <AvailableItemsSection
-                                items={filteredKitchenTools}
-                                loading={loading}
-                                searchQuery={searchQuery}
-                                selectedItemIds={selectedItemIds}
-                                onAddItem={handleAddRecipeKitchenTool}
-                                displayLocale={displayLocale || authoringLocale}
-                            />
-                        </ScrollView>
-
-                        {/* Right Column - Selected Items */}
-                        <View className="flex-[1.5]">
+                        {/* Right Column — selected items, fills height */}
+                        <View style={{ flex: 1.5, minHeight: 400 }}>
                             <SelectedItemsSection
                                 items={sortedRecipeKitchenTools}
                                 displayLocale={displayLocale || authoringLocale}
