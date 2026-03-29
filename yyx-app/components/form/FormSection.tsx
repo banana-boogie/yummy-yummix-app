@@ -14,10 +14,16 @@ interface FormSectionProps {
   error?: string;
   maxWidth?: number;
   titleStyle?: TextStyle;
-  className?: string; // Add className support
+  className?: string;
   style?: StyleProp<ViewStyle>;
 }
 
+/**
+ * FormSection — structural container for form groups.
+ *
+ * Owns: internal structure (title bar, description, error).
+ * Does NOT own: spacing between siblings — parent controls that via className or gap.
+ */
 export function FormSection({
   title,
   children,
@@ -30,26 +36,23 @@ export function FormSection({
 }: FormSectionProps) {
   return (
     <View
-      className={`mb-lg rounded-sm w-full ${className}`}
-      style={[{ maxWidth, backgroundColor: 'transparent', paddingHorizontal: SPACING.md, borderWidth: 0 }, style]}
+      className={`w-full ${className}`}
+      style={[{ maxWidth }, style]}
     >
       {title ? (
-        <>
-          <View className="border-t border-grey-default mb-md" />
-          <View style={{ borderLeftWidth: 3, borderLeftColor: COLORS.primary.medium, paddingLeft: SPACING.sm }} className="mb-md">
-            <Text preset="subheading" style={[{ fontSize: FONT_SIZES['2xl'] }, titleStyle]}>
-              {title}
-            </Text>
-          </View>
-        </>
+        <View style={{ borderLeftWidth: 3, borderLeftColor: COLORS.primary.medium, paddingLeft: SPACING.sm }} className="mb-sm">
+          <Text preset="subheading" style={[{ fontSize: FONT_SIZES['2xl'] }, titleStyle]}>
+            {title}
+          </Text>
+        </View>
       ) : null}
       {description ? (
-        <Text preset="body" className="mb-md">
+        <Text preset="body" className="mb-sm">
           {description}
         </Text>
       ) : null}
       {error ? (
-        <View className="mb-md">
+        <View className="mb-sm">
           <ErrorMessage message={error} />
         </View>
       ) : null}
