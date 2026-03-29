@@ -74,18 +74,19 @@ export function CreateEditKitchenToolModal({
       >
         <View
           className="flex-1 justify-center items-center bg-black/50"
-          style={{ padding: isPhone ? 8 : 16 }}
+          style={{ padding: isPhone ? 8 : 24 }}
         >
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            className={`bg-white rounded-xl w-full ${isPhone ? 'p-sm' : 'p-lg'}`}
+            className="bg-white rounded-xl w-full"
             style={{
-              maxWidth: isPhone ? '100%' : 800,
-              maxHeight: isPhone ? '95%' : '90%',
+              maxWidth: isPhone ? '100%' : 600,
+              maxHeight: isPhone ? '95%' : '85%',
+              padding: isPhone ? 16 : 24,
             }}
           >
-            {/* Close button */}
-            <View className="flex-row justify-end mb-xs">
+            {/* Header: close button */}
+            <View className="flex-row justify-end mb-sm">
               <Pressable
                 onPress={onClose}
                 className="p-xs"
@@ -95,36 +96,36 @@ export function CreateEditKitchenToolModal({
               </Pressable>
             </View>
 
+            {generalError ? (
+              <ErrorMessage message={generalError} />
+            ) : null}
+
             <ScrollView
               showsVerticalScrollIndicator={true}
               contentContainerStyle={{ flexGrow: 1 }}
             >
-              {generalError ? (
-                <ErrorMessage message={generalError} />
-              ) : null}
-
               <KitchenToolForm
                 kitchenTool={kitchenTool}
                 onSave={handleSaveKitchenTool}
                 onCancel={onClose}
                 saving={saving}
               />
-
-              {/* Delete — only in edit mode */}
-              {isEditing && onDelete && (
-                <View className="mt-lg pt-lg border-t border-border-default">
-                  <Pressable
-                    onPress={() => setShowDeleteConfirm(true)}
-                    disabled={saving}
-                    style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
-                  >
-                    <Text preset="bodySmall" className="text-status-error">
-                      {i18n.t('common.delete')}
-                    </Text>
-                  </Pressable>
-                </View>
-              )}
             </ScrollView>
+
+            {/* Delete — bottom of modal, outside scroll */}
+            {isEditing && onDelete && (
+              <View className="pt-md mt-sm border-t border-border-default">
+                <Pressable
+                  onPress={() => setShowDeleteConfirm(true)}
+                  disabled={saving}
+                  style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+                >
+                  <Text preset="bodySmall" className="text-status-error">
+                    {i18n.t('common.delete')}
+                  </Text>
+                </Pressable>
+              </View>
+            )}
           </KeyboardAvoidingView>
         </View>
       </Modal>

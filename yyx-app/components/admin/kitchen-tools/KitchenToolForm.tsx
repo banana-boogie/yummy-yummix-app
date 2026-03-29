@@ -6,9 +6,7 @@ import { TextInput } from '@/components/form/TextInput';
 import { Button } from '@/components/common/Button';
 import { AdminKitchenTool, AdminKitchenToolTranslation, pickTranslation } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
-import { FormSection } from '@/components/form/FormSection';
 import { FormGroup } from '@/components/form/FormGroup';
-import { FormRow } from '@/components/form/FormRow';
 import { ImageUploadSection } from '@/components/admin/recipes/forms/common/ImageUploadSection';
 import { useAdminLocales } from '@/hooks/admin/useAdminLocales';
 import { translateContent } from '@/services/admin/adminTranslateService';
@@ -119,10 +117,8 @@ export function KitchenToolForm({
     };
 
     const handleSubmit = async () => {
-        // Reset errors
         const newErrors: Record<string, string> = {};
 
-        // Validate: require at least es and en
         const esName = getTranslationName('es');
         const enName = getTranslationName('en');
         if (!enName.trim()) {
@@ -148,70 +144,70 @@ export function KitchenToolForm({
     };
 
     return (
-        <View className="flex-1">
-            <Text preset="h1" className="mb-lg">
-                {kitchenTool ? i18n.t('admin.kitchenTools.form.editTitle') : i18n.t('admin.kitchenTools.form.createTitle')}
-            </Text>
+        <View className="flex-1 justify-between">
+            {/* Scrollable content */}
+            <View>
+                <ImageUploadSection
+                    imageUrl={formData.pictureUrl}
+                    onImageSelected={(fileObject) => setFormData({ ...formData, pictureUrl: fileObject })}
+                    error={errors['pictureUrl']}
+                    required={true}
+                />
 
-            <ImageUploadSection
-                title={i18n.t('admin.kitchenTools.form.imageTitle')}
-                imageUrl={formData.pictureUrl}
-                onImageSelected={(fileObject) => setFormData({ ...formData, pictureUrl: fileObject })}
-                error={errors['pictureUrl']}
-                required={true}
-            />
-
-            <FormSection title={i18n.t('admin.kitchenTools.form.detailsTitle')} titleStyle={{ marginBottom: 8 }}>
-                {locales.map(locale => (
-                    <FormGroup
-                        key={locale.code}
-                        error={errors[`name_${locale.code}`]}
-                        className="mb-lg"
+                <View className="mt-md">
+                    {locales.map(locale => (
+                        <FormGroup
+                            key={locale.code}
+                            error={errors[`name_${locale.code}`]}
+                            className="mb-md"
+                        >
+                            <TextInput
+                                value={getTranslationName(locale.code)}
+                                onChangeText={(text) => setTranslationName(locale.code, text)}
+                                placeholder={locale.code.startsWith('es')
+                                    ? i18n.t('admin.kitchenTools.form.nameEsPlaceholder')
+                                    : i18n.t('admin.kitchenTools.form.nameEnPlaceholder')}
+                                label={locale.displayName}
+                            />
+                        </FormGroup>
+                    ))}
+                    <Button
+                        onPress={handleAutoTranslate}
+                        loading={translating}
+                        disabled={translating}
+                        variant="outline"
+                        size="small"
                     >
-                        <TextInput
-                            value={getTranslationName(locale.code)}
-                            onChangeText={(text) => setTranslationName(locale.code, text)}
-                            placeholder={locale.code.startsWith('es')
-                                ? i18n.t('admin.kitchenTools.form.nameEsPlaceholder')
-                                : i18n.t('admin.kitchenTools.form.nameEnPlaceholder')}
-                            label={locale.displayName}
-                        />
-                    </FormGroup>
-                ))}
-                <Button
-                    onPress={handleAutoTranslate}
-                    loading={translating}
-                    disabled={translating}
-                    variant="outline"
-                    size="small"
-                >
-                    {translating
-                        ? i18n.t('admin.translate.translating')
-                        : i18n.t('admin.translate.autoTranslate')
-                    }
-                </Button>
-                {translateError ? (
-                    <Text preset="bodySmall" className="text-status-error mt-sm">{translateError}</Text>
-                ) : null}
-            </FormSection>
+                        {translating
+                            ? i18n.t('admin.translate.translating')
+                            : i18n.t('admin.translate.autoTranslate')
+                        }
+                    </Button>
+                    {translateError ? (
+                        <Text preset="bodySmall" className="text-status-error mt-sm">{translateError}</Text>
+                    ) : null}
+                </View>
+            </View>
 
-            <FormRow className="justify-end">
+            {/* Sticky footer — always visible */}
+            <View className="flex-row justify-end gap-sm pt-lg mt-lg border-t border-border-default">
                 <Button
                     onPress={onCancel}
                     disabled={saving}
                     variant="secondary"
+                    size="small"
                 >
                     {i18n.t('common.cancel')}
                 </Button>
-
                 <Button
                     onPress={handleSubmit}
                     disabled={saving}
                     loading={saving}
+                    size="small"
                 >
                     {i18n.t('common.save')}
                 </Button>
-            </FormRow>
+            </View>
         </View>
     );
 }
