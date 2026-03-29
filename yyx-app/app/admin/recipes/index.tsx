@@ -168,7 +168,12 @@ export default function RecipesAdminPage() {
           )}
         </Text>
 
-        {/* Filter + sort + locale in one bar */}
+        {/* Locale toggle */}
+        <View className="flex-row items-center bg-grey-light rounded-lg px-md py-sm mb-md">
+          <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+        </View>
+
+        {/* Filter + sort */}
         <View className="flex-row items-center bg-grey-light rounded-lg px-md py-sm mb-md flex-wrap gap-xs">
           {/* Status filter */}
           {statusPills.map(pill => (
@@ -213,12 +218,6 @@ export default function RecipesAdminPage() {
               )}
             </Pressable>
           ))}
-
-        </View>
-
-        {/* Locale toggle */}
-        <View className="flex-row items-center bg-grey-light rounded-lg px-md py-sm mb-md">
-          <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
         </View>
 
         {/* Search + New */}
