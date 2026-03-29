@@ -108,7 +108,11 @@ function AdminSidebar() {
             key={item.route}
             onPress={() => router.push(item.route as any)}
             className={`flex-row items-center gap-sm px-lg py-sm ${active ? 'bg-primary-lightest' : ''}`}
-            style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+            style={({ pressed, hovered }: any) => [
+              Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
+              !active && hovered ? { backgroundColor: COLORS.grey.light } : {},
+              pressed ? { opacity: 0.7 } : {},
+            ]}
           >
             <Ionicons
               name={item.icon as any}
@@ -145,25 +149,9 @@ export function AdminHeader({ title, showBackButton = false, maxWidth = 1000 }: 
     maxWidth.largeScreen || maxWidth.mediumScreen || maxWidth.smallScreen || 1000 :
     maxWidth;
 
-  // Desktop: simple title bar (sidebar handles navigation)
+  // Desktop: no header — sidebar handles navigation
   if (isDesktop) {
-    return (
-      <View className="bg-white border-b border-border-default py-md">
-        <View className="w-full self-center px-lg" style={{ maxWidth: resolvedMaxWidth }}>
-          <View className="flex-row items-center">
-            {showBackButton && (
-              <TouchableOpacity
-                onPress={() => router.back()}
-                className="mr-md"
-              >
-                <Ionicons name="arrow-back" size={20} color={COLORS.text.default} />
-              </TouchableOpacity>
-            )}
-            <Text preset="h2" className="text-text-default">{title}</Text>
-          </View>
-        </View>
-      </View>
-    );
+    return null;
   }
 
   // Mobile: peach header with back + hamburger (keep existing mobile pattern)

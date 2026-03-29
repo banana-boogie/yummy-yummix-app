@@ -178,7 +178,7 @@ export const admin = {
     issueCount: "{{count}} issues",
   },
   userRecipes: {
-    title: "User Recipe",
+    title: "User Recipes",
     createdBy: "by {{name}}",
     prepTime: "{{minutes}} min prep",
     totalTime: "{{minutes}} min total",
