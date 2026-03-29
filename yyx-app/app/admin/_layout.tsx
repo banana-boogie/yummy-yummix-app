@@ -25,6 +25,7 @@ const navItems = [
 export default function AdminLayout() {
   const { isPhone } = useDevice();
   const isDesktop = Platform.OS === 'web' && !isPhone;
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
 
   return (
     <AdminRoute>
@@ -34,7 +35,7 @@ export default function AdminLayout() {
 
       {isDesktop ? (
         <View className="flex-1 flex-row">
-          <AdminSidebar />
+          <AdminSidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(prev => !prev)} />
           <View className="flex-1">
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="index" />
@@ -68,7 +69,7 @@ export default function AdminLayout() {
 // Desktop Sidebar
 // =============================================================================
 
-function AdminSidebar() {
+function AdminSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -80,55 +81,87 @@ function AdminSidebar() {
   return (
     <View
       className="bg-white border-r border-border-default"
-      style={{ width: 220, paddingTop: 16, paddingBottom: 16 }}
+      style={{ width: collapsed ? 56 : 220, paddingTop: 16, paddingBottom: 16 }}
     >
-      {/* Logo / title */}
-      <View className="px-lg mb-lg">
-        <Text preset="h3" className="text-text-default">Admin</Text>
+      {/* Toggle + title */}
+      <View className={`flex-row items-center ${collapsed ? 'justify-center' : 'justify-between px-lg'} mb-lg`}>
+        {!collapsed && <Text preset="h3" className="text-text-default">Admin</Text>}
+        <Pressable
+          onPress={onToggle}
+          style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+          className="p-xs"
+        >
+          <Ionicons name={collapsed ? 'menu' : 'chevron-back'} size={18} color={COLORS.text.secondary} />
+        </Pressable>
       </View>
 
       {/* Back to App */}
-      <Pressable
+      <SidebarItem
+        icon="home-outline"
+        label="Back to App"
+        active={false}
+        collapsed={collapsed}
         onPress={() => router.push('/')}
-        className="flex-row items-center gap-sm px-lg py-sm mb-sm"
-        style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
-      >
-        <Ionicons name="arrow-back-outline" size={18} color={COLORS.text.secondary} />
-        <Text preset="bodySmall" className="text-text-secondary">Back to App</Text>
-      </Pressable>
+      />
 
       {/* Divider */}
-      <View className="h-[1px] bg-border-default mx-lg mb-sm" />
+      <View className={`h-[1px] bg-border-default ${collapsed ? 'mx-sm' : 'mx-lg'} mb-sm mt-sm`} />
 
       {/* Nav items */}
-      {navItems.map(item => {
-        const active = isActive(item.route);
-        return (
-          <Pressable
-            key={item.route}
-            onPress={() => router.push(item.route as any)}
-            className={`flex-row items-center gap-sm px-lg py-sm ${active ? 'bg-primary-lightest' : ''}`}
-            style={({ pressed, hovered }: any) => [
-              Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
-              !active && hovered ? { backgroundColor: COLORS.grey.light } : {},
-              pressed ? { opacity: 0.7 } : {},
-            ]}
-          >
-            <Ionicons
-              name={item.icon as any}
-              size={18}
-              color={active ? COLORS.primary.darkest : COLORS.text.secondary}
-            />
-            <Text
-              preset="bodySmall"
-              className={active ? 'text-primary-darkest font-semibold' : 'text-text-secondary'}
-            >
-              {i18n.t(item.titleKey)}
-            </Text>
-          </Pressable>
-        );
-      })}
+      {navItems.map(item => (
+        <SidebarItem
+          key={item.route}
+          icon={item.icon}
+          label={i18n.t(item.titleKey)}
+          active={isActive(item.route)}
+          collapsed={collapsed}
+          onPress={() => router.push(item.route as any)}
+        />
+      ))}
     </View>
+  );
+}
+
+function SidebarItem({ icon, label, active, collapsed, onPress }: {
+  icon: string;
+  label: string;
+  active: boolean;
+  collapsed: boolean;
+  onPress: () => void;
+}) {
+  const [hovered, setHovered] = React.useState(false);
+
+  const bgColor = active
+    ? COLORS.primary.lightest
+    : hovered
+      ? COLORS.grey.light
+      : 'transparent';
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      className={`flex-row items-center ${collapsed ? 'justify-center px-sm' : 'gap-sm px-lg'} py-sm`}
+      style={[
+        { backgroundColor: bgColor },
+        Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
+      ]}
+    >
+      <Ionicons
+        name={icon as any}
+        size={18}
+        color={active ? COLORS.primary.darkest : COLORS.text.secondary}
+      />
+      {!collapsed && (
+        <Text
+          preset="bodySmall"
+          className={active ? 'text-primary-darkest font-semibold' : 'text-text-secondary'}
+        >
+          {label}
+        </Text>
+      )}
+    </Pressable>
   );
 }
 
