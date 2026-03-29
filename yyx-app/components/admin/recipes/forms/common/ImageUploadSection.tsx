@@ -49,7 +49,7 @@ export function ImageUploadSection({
     setUploading(false);
   };
 
-  // Size: square images use w-40 h-40, wide images use full width
+  // Size: square images use w-40 h-40, wide images use constrained height
   const isWide = aspectRatio > 1.2;
 
   return (
@@ -61,7 +61,7 @@ export function ImageUploadSection({
         {imageUrl ? (
           <View
             className={`relative rounded-md overflow-hidden ${isWide ? 'w-full' : 'w-40 h-40'}`}
-            style={isWide ? { aspectRatio } : undefined}
+            style={isWide ? { height: 180 } : undefined}
           >
             <Image
               source={imageUrl}
@@ -86,7 +86,7 @@ export function ImageUploadSection({
         ) : (
           <TouchableOpacity
             className={`rounded-md bg-primary-light justify-center items-center border-[2px] border-primary-medium border-dashed ${isWide ? 'w-full' : 'w-40 h-40'}`}
-            style={isWide ? { aspectRatio } : undefined}
+            style={isWide ? { height: 180 } : undefined}
             onPress={handlePickImage}
             disabled={uploading}
           >

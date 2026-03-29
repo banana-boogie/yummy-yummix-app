@@ -17,7 +17,7 @@ export function FormRow({ children, className = '', style, row, column = false }
 
     return (
         <View
-            className={`${directionClass} gap-md ${className}`}
+            className={`${directionClass} gap-md mb-md ${className}`}
             style={style}
         >
             {children}
