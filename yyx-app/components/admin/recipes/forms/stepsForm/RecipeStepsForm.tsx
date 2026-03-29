@@ -184,16 +184,15 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
         </Text>
       ) : null}
 
-      <View className="flex-row justify-end mb-sm">
-        <Button
-          variant="outline"
-          size="small"
-          onPress={handleAddStep}
-          className="self-start mb-sm"
-        >
+      <TouchableOpacity
+        onPress={handleAddStep}
+        className="flex-row items-center gap-xxs mb-md"
+      >
+        <Ionicons name="add" size={14} color={COLORS.text.secondary} />
+        <Text preset="caption" className="text-text-secondary">
           {tForm('admin.recipes.form.stepsInfo.addStep')}
-        </Button>
-      </View>
+        </Text>
+      </TouchableOpacity>
 
       {/* Steps list */}
       {sortedSteps.length === 0 ? (
