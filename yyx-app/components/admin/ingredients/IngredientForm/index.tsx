@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { View, ScrollView, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '@/constants/design-tokens';
-import { AdminIngredient, AdminIngredientTranslation, pickTranslation , NutritionalFacts } from '@/types/recipe.admin.types';
+import { View, Platform, Pressable } from 'react-native';
+import { AdminIngredient, pickTranslation, NutritionalFacts } from '@/types/recipe.admin.types';
 import { ImageUploadSection } from '@/components/admin/recipes/forms/common/ImageUploadSection';
 import { TranslationsSection } from '@/components/admin/ingredients/IngredientForm/TranslationsSection';
 import { NutritionalFactsSection } from '@/components/admin/ingredients/IngredientForm/NutritionalFactsSection';
@@ -12,13 +10,12 @@ import { AlertModal } from '@/components/common/AlertModal';
 import i18n from '@/i18n';
 import logger from '@/services/logger';
 
-const scrollContentStyle = { padding: 24, gap: 32 } as const;
-
 interface IngredientFormProps {
     ingredient?: AdminIngredient;
     onSave: (data: AdminIngredient) => Promise<void>;
     onCancel: () => void;
     saving: boolean;
+    onDelete?: () => void;
 }
 
 interface ValidationErrors {
@@ -34,6 +31,7 @@ export function IngredientForm({
     onSave,
     onCancel,
     saving,
+    onDelete,
 }: IngredientFormProps) {
     const [showSuccessAlert, setShowSuccessAlert] = useState(false);
     const [showErrorAlert, setShowErrorAlert] = useState(false);
@@ -141,6 +139,8 @@ export function IngredientForm({
         pickTranslation(formData.translations, 'es')?.name?.trim() ||
         '';
 
+    const isEditing = !!ingredient?.id;
+
     return (
         <View className="flex-1">
             <AlertModal
@@ -162,63 +162,63 @@ export function IngredientForm({
                 confirmText={i18n.t('common.ok')}
             />
 
-            <View className="flex-row justify-between items-center px-md mb-md border-b border-border-default pb-xs">
-                <Text preset="h1" className="font-bold mb-0">
-                    {ingredient ? i18n.t('admin.ingredients.editTitle') : i18n.t('admin.ingredients.createTitle')}
-                </Text>
-                <TouchableOpacity
-                    className="p-xs rounded-full"
+            {/* Title */}
+            <Text preset="h3" className="px-md mb-lg">
+                {ingredient ? i18n.t('admin.ingredients.editTitle') : i18n.t('admin.ingredients.createTitle')}
+            </Text>
+
+            <ImageUploadSection
+                title={i18n.t('admin.ingredients.image')}
+                imageUrl={formData.pictureUrl}
+                onImageSelected={(file) => setFormData({ ...formData, pictureUrl: file })}
+                error={validationErrors.pictureUrl as string}
+                required={true}
+            />
+
+            <TranslationsSection
+                translations={formData.translations}
+                errors={validationErrors as Record<string, string>}
+                onChange={(translations) => setFormData({ ...formData, translations })}
+                required={true}
+            />
+
+            <NutritionalFactsSection
+                nutritionalFacts={formData.nutritionalFacts}
+                onChange={(facts: NutritionalFacts) => setFormData({ ...formData, nutritionalFacts: facts })}
+                errors={validationErrors.nutritionalFacts as { [key: string]: string }}
+                required={true}
+                ingredientName={ingredientDisplayName}
+            />
+
+            <View className="flex-row justify-end gap-md mt-md px-md">
+                <Button
                     onPress={onCancel}
+                    label={i18n.t('common.cancel')}
+                    variant="outline"
                     disabled={saving}
-                >
-                    <Ionicons name="close" size={24} color={COLORS.grey.medium} />
-                </TouchableOpacity>
+                />
+                <Button
+                    onPress={handleSubmit}
+                    label={i18n.t('common.save')}
+                    loading={saving}
+                    disabled={saving}
+                />
             </View>
 
-            <ScrollView
-                className="flex-1"
-                contentContainerStyle={scrollContentStyle}
-                showsVerticalScrollIndicator={false}
-            >
-
-                <ImageUploadSection
-                    title={i18n.t('admin.ingredients.image')}
-                    imageUrl={formData.pictureUrl}
-                    onImageSelected={(file) => setFormData({ ...formData, pictureUrl: file })}
-                    error={validationErrors.pictureUrl as string}
-                    required={true}
-                />
-
-                <TranslationsSection
-                    translations={formData.translations}
-                    errors={validationErrors as Record<string, string>}
-                    onChange={(translations) => setFormData({ ...formData, translations })}
-                    required={true}
-                />
-
-                <NutritionalFactsSection
-                    nutritionalFacts={formData.nutritionalFacts}
-                    onChange={(facts: NutritionalFacts) => setFormData({ ...formData, nutritionalFacts: facts })}
-                    errors={validationErrors.nutritionalFacts as { [key: string]: string }}
-                    required={true}
-                    ingredientName={ingredientDisplayName}
-                />
-
-                <View className="flex-row justify-end gap-md mt-md">
-                    <Button
-                        onPress={onCancel}
-                        label={i18n.t('common.cancel')}
-                        variant="outline"
+            {/* Delete — only in edit mode */}
+            {isEditing && onDelete && (
+                <View className="mt-lg pt-lg border-t border-border-default mx-md">
+                    <Pressable
+                        onPress={onDelete}
                         disabled={saving}
-                    />
-                    <Button
-                        onPress={handleSubmit}
-                        label={i18n.t('common.save')}
-                        loading={saving}
-                        disabled={saving}
-                    />
+                        style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+                    >
+                        <Text preset="bodySmall" className="text-status-error">
+                            {i18n.t('common.delete')}
+                        </Text>
+                    </Pressable>
                 </View>
-            </ScrollView>
+            )}
         </View>
     );
 }

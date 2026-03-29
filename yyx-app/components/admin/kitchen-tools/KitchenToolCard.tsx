@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Pressable, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { AdminKitchenTool, getTranslatedField } from '@/types/recipe.admin.types';
@@ -28,6 +28,12 @@ function NoImagePlaceholder() {
 export function KitchenToolCard({ kitchenTool, displayLocale, onPress }: KitchenToolCardProps) {
   const name = getTranslatedField(kitchenTool.translations, displayLocale, 'name') || '—';
   const [imageError, setImageError] = useState(false);
+
+  // Reset error state when URL changes (e.g. after uploading a new image)
+  useEffect(() => {
+    setImageError(false);
+  }, [kitchenTool.pictureUrl]);
+
   const showImage = hasValidImage(kitchenTool.pictureUrl) && !imageError;
 
   return (

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { View, Pressable, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { FormSection } from '@/components/form/FormSection';
 import { FormGroup } from '@/components/form/FormGroup';
 import { TextInput } from '@/components/form/TextInput';
@@ -95,14 +96,30 @@ export function NutritionalFactsSection({
     }
   };
 
+  const [showTooltip, setShowTooltip] = useState(false);
+
   return (
     <FormSection title={i18n.t('admin.ingredients.nutritionalFacts.title')} titleStyle={{ marginBottom: 4 }}>
-      <Text preset="caption" color={COLORS.text.secondary} className="mb-xs">
-        {i18n.t('admin.ingredients.nutritionalFacts.subtitle')}
-      </Text>
-      <Text preset="caption" color={COLORS.text.secondary} className="mb-sm">
-        {i18n.t('admin.ingredients.nutritionalFacts.roundingRules')}
-      </Text>
+      {/* Info tooltip replaces verbose instruction text */}
+      <View className="flex-row items-center mb-sm">
+        <Pressable
+          onPress={() => setShowTooltip(prev => !prev)}
+          className="flex-row items-center gap-xxs"
+          style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+        >
+          <Ionicons name="information-circle-outline" size={18} color={COLORS.text.secondary} />
+          <Text preset="caption" className="text-text-secondary">
+            {i18n.t('admin.ingredients.nutritionalFacts.subtitle')}
+          </Text>
+        </Pressable>
+      </View>
+      {showTooltip && (
+        <View className="bg-grey-light rounded-sm px-sm py-xs mb-sm">
+          <Text preset="caption" className="text-text-secondary">
+            {i18n.t('admin.ingredients.nutritionalFacts.roundingRules')}
+          </Text>
+        </View>
+      )}
 
       <Button
         onPress={fetchNutritionalFacts}
