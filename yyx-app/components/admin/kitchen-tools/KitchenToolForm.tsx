@@ -8,6 +8,8 @@ import { AdminKitchenTool, pickTranslation } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { FormGroup } from '@/components/form/FormGroup';
 import { ImageUploadSection } from '@/components/admin/recipes/forms/common/ImageUploadSection';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '@/constants/design-tokens';
 import { useAdminLocales } from '@/hooks/admin/useAdminLocales';
 import { translateContent } from '@/services/admin/adminTranslateService';
 import logger from '@/services/logger';
@@ -177,17 +179,18 @@ export function KitchenToolForm({
                     </FormGroup>
                 ))}
 
-                {/* Auto-translate pill */}
+                {/* Auto-translate */}
                 <Pressable
                     onPress={handleAutoTranslate}
                     disabled={translating}
-                    className="self-start px-md py-xs rounded-full bg-grey-light border border-border-default mt-xs mb-sm"
+                    className="self-start flex-row items-center gap-xxs px-md py-xs rounded-full border border-border-default mt-xs mb-sm"
                     style={({ pressed }: any) => [
-                        { opacity: pressed ? 0.7 : 1 },
+                        { opacity: pressed || translating ? 0.5 : 1 },
                         Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
                     ]}
                 >
-                    <Text preset="caption" className="text-text-default font-semibold">
+                    <Ionicons name="language-outline" size={14} color={COLORS.primary.medium} />
+                    <Text preset="caption" className="text-text-default">
                         {translating
                             ? i18n.t('admin.translate.translating')
                             : i18n.t('admin.translate.autoTranslate')

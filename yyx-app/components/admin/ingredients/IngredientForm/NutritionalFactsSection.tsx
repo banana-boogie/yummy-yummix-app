@@ -99,7 +99,7 @@ export function NutritionalFactsSection({
   const [showTooltip, setShowTooltip] = useState(false);
 
   return (
-    <FormSection title={i18n.t('admin.ingredients.nutritionalFacts.title')} titleStyle={{ marginBottom: 4 }}>
+    <FormSection title={i18n.t('admin.ingredients.nutritionalFacts.title')} titleStyle={{ marginBottom: 0 }}>
       {/* Info tooltip replaces verbose instruction text */}
       <View className="flex-row items-center mb-sm">
         <Pressable

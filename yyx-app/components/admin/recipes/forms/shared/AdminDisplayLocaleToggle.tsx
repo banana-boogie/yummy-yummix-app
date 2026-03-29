@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity, Platform } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { useAdminLocales } from '@/hooks/admin/useAdminLocales';
 
@@ -25,6 +25,7 @@ export function AdminDisplayLocaleToggle({ value, onChange }: AdminDisplayLocale
             key={locale.code}
             onPress={() => onChange(locale.code)}
             className={`px-sm py-xxs rounded-full ${isSelected ? 'bg-primary-default' : ''}`}
+            style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
           >
             <Text
               preset="caption"

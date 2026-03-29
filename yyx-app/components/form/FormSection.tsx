@@ -35,8 +35,8 @@ export function FormSection({
     >
       {title ? (
         <>
-          <View className="border-t border-grey-default mb-lg" />
-          <View style={{ borderLeftWidth: 3, borderLeftColor: COLORS.primary.medium, paddingLeft: SPACING.sm }} className="mb-xl">
+          <View className="border-t border-grey-default mb-md" />
+          <View style={{ borderLeftWidth: 3, borderLeftColor: COLORS.primary.medium, paddingLeft: SPACING.sm }} className="mb-md">
             <Text preset="subheading" style={[{ fontSize: FONT_SIZES['2xl'] }, titleStyle]}>
               {title}
             </Text>

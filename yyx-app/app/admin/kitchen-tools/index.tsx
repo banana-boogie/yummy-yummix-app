@@ -110,8 +110,11 @@ export default function KitchenToolsAdminPage() {
       {/* Toolbar */}
       <View className="px-lg pt-md pb-md bg-white">
         {/* Stats */}
-        <Text preset="caption" className="text-text-secondary mb-md">
-          {totalCount} items{needsImageCount > 0 ? ` · ${needsImageCount} need images` : ''}
+        <Text preset="body" className="text-text-default font-semibold mb-md">
+          {totalCount} kitchen tools
+          {needsImageCount > 0 && (
+            <Text preset="body" style={{ color: COLORS.status.warning }}> · {needsImageCount} need images</Text>
+          )}
         </Text>
 
         {/* Search + New */}

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Pressable, Platform } from 'react-native';
 import { FormGroup } from '@/components/form/FormGroup';
 import { TextInput } from '@/components/form/TextInput';
-import { Button } from '@/components/common/Button';
 import { Text } from '@/components/common/Text';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 import { FormSection } from '@/components/form/FormSection';
 import { FormRow } from '@/components/form/FormRow';
@@ -115,9 +116,32 @@ export function TranslationsSection({
 
   return (
     <FormSection title={i18n.t('admin.ingredients.translations')}>
+      {/* Auto-translate — above translations */}
+      <Pressable
+        onPress={handleAutoTranslate}
+        disabled={translating}
+        className="self-start flex-row items-center gap-xxs px-md py-xs rounded-full border border-border-default mb-md"
+        style={({ pressed }: any) => [
+            { opacity: pressed || translating ? 0.5 : 1 },
+            Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
+        ]}
+      >
+        <Ionicons name="language-outline" size={14} color={COLORS.primary.medium} />
+        <Text preset="caption" className="text-text-default">
+          {translating
+            ? i18n.t('admin.translate.translating')
+            : i18n.t('admin.translate.autoTranslate')
+          }
+        </Text>
+      </Pressable>
+      {translateError ? (
+        <Text preset="caption" className="text-status-error mb-sm">{translateError}</Text>
+      ) : null}
+
+      {/* Locale inputs */}
       {locales.map(locale => (
-        <View key={locale.code} className="mb-lg">
-          <Text preset="subheading" className="mb-sm">{locale.displayName}</Text>
+        <View key={locale.code} className="mb-sm">
+          <Text preset="bodySmall" className="mb-xxs font-semibold">{locale.displayName}</Text>
           <FormRow>
             <FormGroup
               label={i18n.t('admin.ingredients.name', { defaultValue: 'Name' })}
@@ -147,21 +171,6 @@ export function TranslationsSection({
           </FormRow>
         </View>
       ))}
-      <Button
-        onPress={handleAutoTranslate}
-        loading={translating}
-        disabled={translating}
-        variant="outline"
-        size="small"
-      >
-        {translating
-          ? i18n.t('admin.translate.translating')
-          : i18n.t('admin.translate.autoTranslate')
-        }
-      </Button>
-      {translateError ? (
-        <Text preset="bodySmall" className="text-status-error mt-sm">{translateError}</Text>
-      ) : null}
     </FormSection>
   );
 }

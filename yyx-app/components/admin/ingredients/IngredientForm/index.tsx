@@ -7,6 +7,8 @@ import { NutritionalFactsSection } from '@/components/admin/ingredients/Ingredie
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { AlertModal } from '@/components/common/AlertModal';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 import logger from '@/services/logger';
 
@@ -57,7 +59,6 @@ export function IngredientForm({
     const validateForm = (data: Partial<AdminIngredient>): ValidationErrors => {
         const errors: ValidationErrors = {};
 
-        // Validate that at least es and en have names
         const translations = data.translations || [];
         const esT = pickTranslation(translations, 'es');
         const enT = pickTranslation(translations, 'en');
@@ -67,12 +68,10 @@ export function IngredientForm({
         if (!enT?.pluralName) errors['pluralName_en'] = i18n.t('validation.required');
         if (!esT?.pluralName) errors['pluralName_es'] = i18n.t('validation.required');
 
-        // PICTURE VALIDATION
         if (!data.pictureUrl) {
             errors.pictureUrl = i18n.t('validation.required');
         }
 
-        // NUTRITIONAL FACTS VALIDATION
         const nutritionalFields = ['calories', 'protein', 'fat', 'carbohydrates'] as const;
         const maxValues = { calories: 1000, protein: 100, fat: 100, carbohydrates: 100 };
 
@@ -109,7 +108,6 @@ export function IngredientForm({
         return errors;
     };
 
-
     const handleSubmit = async () => {
         try {
             const errors = validateForm(formData);
@@ -130,10 +128,9 @@ export function IngredientForm({
 
     const handleSuccessConfirm = () => {
         setShowSuccessAlert(false);
-        onCancel(); // Close the modal
+        onCancel();
     };
 
-    // Get a display name for the nutritional facts lookup — prefer English (best training data)
     const ingredientDisplayName =
         pickTranslation(formData.translations, 'en')?.name?.trim() ||
         pickTranslation(formData.translations, 'es')?.name?.trim() ||
@@ -142,7 +139,7 @@ export function IngredientForm({
     const isEditing = !!ingredient?.id;
 
     return (
-        <View className="flex-1">
+        <View className="flex-1 justify-between">
             <AlertModal
                 visible={showSuccessAlert}
                 title={i18n.t('admin.ingredients.success.title')}
@@ -162,52 +159,34 @@ export function IngredientForm({
                 confirmText={i18n.t('common.ok')}
             />
 
-            {/* Title */}
-            <Text preset="h3" className="px-md mb-lg">
-                {ingredient ? i18n.t('admin.ingredients.editTitle') : i18n.t('admin.ingredients.createTitle')}
-            </Text>
-
-            <ImageUploadSection
-                title={i18n.t('admin.ingredients.image')}
-                imageUrl={formData.pictureUrl}
-                onImageSelected={(file) => setFormData({ ...formData, pictureUrl: file })}
-                error={validationErrors.pictureUrl as string}
-                required={true}
-            />
-
-            <TranslationsSection
-                translations={formData.translations}
-                errors={validationErrors as Record<string, string>}
-                onChange={(translations) => setFormData({ ...formData, translations })}
-                required={true}
-            />
-
-            <NutritionalFactsSection
-                nutritionalFacts={formData.nutritionalFacts}
-                onChange={(facts: NutritionalFacts) => setFormData({ ...formData, nutritionalFacts: facts })}
-                errors={validationErrors.nutritionalFacts as { [key: string]: string }}
-                required={true}
-                ingredientName={ingredientDisplayName}
-            />
-
-            <View className="flex-row justify-end gap-md mt-md px-md">
-                <Button
-                    onPress={onCancel}
-                    label={i18n.t('common.cancel')}
-                    variant="outline"
-                    disabled={saving}
+            {/* Form content */}
+            <View>
+                <ImageUploadSection
+                    imageUrl={formData.pictureUrl}
+                    onImageSelected={(file) => setFormData({ ...formData, pictureUrl: file })}
+                    error={validationErrors.pictureUrl as string}
+                    required={true}
                 />
-                <Button
-                    onPress={handleSubmit}
-                    label={i18n.t('common.save')}
-                    loading={saving}
-                    disabled={saving}
+
+                <TranslationsSection
+                    translations={formData.translations}
+                    errors={validationErrors as Record<string, string>}
+                    onChange={(translations) => setFormData({ ...formData, translations })}
+                    required={true}
+                />
+
+                <NutritionalFactsSection
+                    nutritionalFacts={formData.nutritionalFacts}
+                    onChange={(facts: NutritionalFacts) => setFormData({ ...formData, nutritionalFacts: facts })}
+                    errors={validationErrors.nutritionalFacts as { [key: string]: string }}
+                    required={true}
+                    ingredientName={ingredientDisplayName}
                 />
             </View>
 
-            {/* Delete — only in edit mode */}
-            {isEditing && onDelete && (
-                <View className="mt-lg pt-lg border-t border-border-default mx-md">
+            {/* Footer: Delete left, Cancel + Save right */}
+            <View className="flex-row items-center justify-between pt-lg mt-lg border-t border-border-default pb-sm">
+                {isEditing && onDelete ? (
                     <Pressable
                         onPress={onDelete}
                         disabled={saving}
@@ -217,8 +196,26 @@ export function IngredientForm({
                             {i18n.t('common.delete')}
                         </Text>
                     </Pressable>
+                ) : <View />}
+                <View className="flex-row gap-sm">
+                    <Button
+                        onPress={onCancel}
+                        disabled={saving}
+                        variant="secondary"
+                        size="small"
+                    >
+                        {i18n.t('common.cancel')}
+                    </Button>
+                    <Button
+                        onPress={handleSubmit}
+                        disabled={saving}
+                        loading={saving}
+                        size="small"
+                    >
+                        {i18n.t('common.save')}
+                    </Button>
                 </View>
-            )}
+            </View>
         </View>
     );
 }

@@ -116,8 +116,8 @@ export default function IngredientsAdminPage() {
   const filterPills: { key: IngredientFilter; label: string }[] = [
     { key: 'all', label: 'All' },
     { key: 'has_image', label: 'Has Image' },
-    { key: 'needs_image', label: `Needs Image (${needsImageCount})` },
-    { key: 'needs_nutrition', label: `Needs Nutrition (${needsNutritionCount})` },
+    { key: 'needs_image', label: `No Image (${needsImageCount})` },
+    { key: 'needs_nutrition', label: `No Nutrition (${needsNutritionCount})` },
   ];
 
   // Build stats caption
@@ -130,13 +130,19 @@ export default function IngredientsAdminPage() {
       {/* Toolbar */}
       <View className="px-lg pt-md pb-md bg-white">
         {/* Stats */}
-        <Text preset="caption" className="text-text-secondary mb-md">
-          {statParts.join(' \u00B7 ')}
+        <Text preset="body" className="text-text-default font-semibold mb-md">
+          {totalCount} ingredients
+          {needsImageCount > 0 && (
+            <Text preset="body" style={{ color: COLORS.status.warning }}> · {needsImageCount} need images</Text>
+          )}
+          {needsNutritionCount > 0 && (
+            <Text preset="body" style={{ color: COLORS.status.warning }}> · {needsNutritionCount} need nutrition</Text>
+          )}
         </Text>
 
-        {/* Toolbar bar: filters + locale in one contained row */}
+        {/* Filter pills + locale toggle in one bar */}
         <View className="flex-row items-center justify-between bg-grey-light rounded-lg px-md py-sm mb-md">
-          <View className="flex-row items-center gap-xs flex-wrap">
+          <View className="flex-row items-center gap-xs">
             {filterPills.map(pill => (
               <Pressable
                 key={pill.key}
@@ -158,7 +164,6 @@ export default function IngredientsAdminPage() {
             ))}
           </View>
 
-          {/* Separator */}
           <View className="w-[1px] h-[18px] bg-grey-medium mx-sm" />
 
           <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
