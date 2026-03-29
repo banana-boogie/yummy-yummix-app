@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, ActivityIndicator, FlatList } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, ActivityIndicator, FlatList, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { COLORS } from '@/constants/design-tokens';
@@ -8,19 +8,24 @@ import { KitchenToolCard } from '@/components/admin/kitchen-tools/KitchenToolCar
 import { useKitchenTools } from '@/hooks/admin/useKitchenTools';
 import { AlertModal } from '@/components/common/AlertModal';
 import { SearchBar } from '@/components/common/SearchBar';
-import { AdminKitchenTool, getTranslatedField } from '@/types/recipe.admin.types';
+import { AdminKitchenTool } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { CreateEditKitchenToolModal } from '@/components/admin/kitchen-tools/CreateEditKitchenToolModal';
 import { Button } from '@/components/common/Button';
 import { Text } from '@/components/common/Text';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
+import { useDevice } from '@/hooks/useDevice';
 import logger from '@/services/logger';
+
+type ImageFilter = 'all' | 'has_image' | 'needs_image';
 
 export default function KitchenToolsAdminPage() {
   const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const { isPhone } = useDevice();
   const {
     filteredKitchenTools,
     setFilteredKitchenTools,
+    kitchenTools,
     setKitchenTools,
     loading,
     searchQuery,
@@ -31,8 +36,11 @@ export default function KitchenToolsAdminPage() {
   const [displayLocale, setDisplayLocale] = useState(i18n.locale);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingKitchenTool, setEditingKitchenTool] = useState<AdminKitchenTool | null>(null);
+  const [imageFilter, setImageFilter] = useState<ImageFilter>('all');
+  const [showErrorAlert, setShowErrorAlert] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  // Auto-open edit modal when navigating with ?edit=<id> (e.g. from content health dashboard)
+  // Auto-open edit modal when navigating with ?edit=<id>
   useEffect(() => {
     if (edit && !loading && filteredKitchenTools.length > 0) {
       const target = filteredKitchenTools.find(kt => kt.id === edit);
@@ -42,10 +50,17 @@ export default function KitchenToolsAdminPage() {
       }
     }
   }, [edit, loading, filteredKitchenTools]);
-  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
-  const [selectedKitchenTool, setSelectedKitchenTool] = useState<AdminKitchenTool | null>(null);
-  const [showErrorAlert, setShowErrorAlert] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+
+  // Apply image filter on top of search-filtered results
+  const displayItems = useMemo(() => {
+    if (imageFilter === 'all') return filteredKitchenTools;
+    if (imageFilter === 'has_image') return filteredKitchenTools.filter(t => !!t.pictureUrl && typeof t.pictureUrl === 'string');
+    return filteredKitchenTools.filter(t => !t.pictureUrl || typeof t.pictureUrl !== 'string');
+  }, [filteredKitchenTools, imageFilter]);
+
+  // Stats
+  const totalCount = kitchenTools.length;
+  const needsImageCount = kitchenTools.filter(t => !t.pictureUrl || typeof t.pictureUrl !== 'string').length;
 
   const handleOpenEditModal = (kitchenTool: AdminKitchenTool) => {
     setEditingKitchenTool(kitchenTool);
@@ -57,23 +72,13 @@ export default function KitchenToolsAdminPage() {
     setModalVisible(true);
   };
 
-  const handleDeleteConfirmation = (kitchenTool: AdminKitchenTool) => {
-    setSelectedKitchenTool(kitchenTool);
-    setShowDeleteAlert(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!selectedKitchenTool) return;
-
+  const handleDelete = async (kitchenTool: AdminKitchenTool) => {
     try {
-      await handleDeleteKitchenTool(selectedKitchenTool);
+      await handleDeleteKitchenTool(kitchenTool);
     } catch (error) {
       logger.error('Error deleting kitchen tool:', error);
       setErrorMessage(i18n.t('admin.kitchenTools.errors.deleteFailed'));
       setShowErrorAlert(true);
-    } finally {
-      setShowDeleteAlert(false);
-      setSelectedKitchenTool(null);
     }
   };
 
@@ -87,54 +92,96 @@ export default function KitchenToolsAdminPage() {
       ));
     } else {
       setFilteredKitchenTools(prev => [kitchenTool, ...prev]);
+      setKitchenTools(prev => [kitchenTool, ...prev]);
     }
     setModalVisible(false);
   };
 
+  const numColumns = isPhone ? 2 : 5;
+
+  const filterPills: { key: ImageFilter; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'has_image', label: 'Has Image' },
+    { key: 'needs_image', label: `Needs Image (${needsImageCount})` },
+  ];
+
   return (
     <AdminLayout title={i18n.t('admin.kitchenTools.title')} showBackButton={true}>
-      <View className="p-md" style={{ backgroundColor: '#ffffff' }}>
-        <View className="mb-md">
-          <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
-        </View>
-        <View className="flex-col sm:flex-row sm:items-center gap-md">
-          <SearchBar
-            className="flex-none sm:flex-1"
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            placeholder={i18n.t('admin.kitchenTools.searchPlaceholder')}
-          />
+      {/* Toolbar */}
+      <View className="px-lg pt-md pb-sm bg-white">
+        {/* Stats */}
+        <Text preset="bodySmall" className="text-text-secondary mb-md">
+          {totalCount} kitchen tools{needsImageCount > 0 ? ` · ${needsImageCount} need images` : ''}
+        </Text>
+
+        {/* Search + New */}
+        <View className="flex-row items-center gap-md mb-sm">
+          <View className="flex-1">
+            <SearchBar
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              placeholder={i18n.t('admin.kitchenTools.searchPlaceholder')}
+              className="mb-0"
+            />
+          </View>
           <Button
             onPress={handleOpenCreateModal}
-            icon={<Ionicons name="add" size={24} color={COLORS.neutral.white} />}
-            label={i18n.t('admin.kitchenTools.createNew')}
-          />
+            icon={<Ionicons name="add" size={20} color={COLORS.neutral.white} />}
+            size="small"
+          >
+            New
+          </Button>
+        </View>
+
+        {/* Locale toggle + Filter pills */}
+        <View className="flex-row items-center justify-between">
+          <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+          <View className="flex-row gap-xs">
+            {filterPills.map(pill => (
+              <Text
+                key={pill.key}
+                preset="caption"
+                className={`px-sm py-xxs rounded-full ${
+                  imageFilter === pill.key
+                    ? 'bg-primary-default text-text-default'
+                    : 'bg-grey-light text-text-secondary'
+                }`}
+                onPress={() => setImageFilter(pill.key)}
+                style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+              >
+                {pill.label}
+              </Text>
+            ))}
+          </View>
         </View>
       </View>
 
+      {/* Grid */}
       {loading ? (
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color={COLORS.primary.darkest} />
         </View>
       ) : (
         <FlatList
-          data={filteredKitchenTools}
+          key={`grid-${numColumns}`}
+          data={displayItems}
           extraData={displayLocale}
+          numColumns={numColumns}
           renderItem={({ item }) => (
-            <KitchenToolCard
-              kitchenTool={item}
-              displayLocale={displayLocale}
-              onEdit={handleOpenEditModal}
-              onDelete={handleDeleteConfirmation}
-            />
+            <View style={{ flex: 1 / numColumns, padding: 6 }}>
+              <KitchenToolCard
+                kitchenTool={item}
+                displayLocale={displayLocale}
+                onPress={handleOpenEditModal}
+              />
+            </View>
           )}
           keyExtractor={item => item.id}
-          contentContainerStyle={{ padding: 16, paddingTop: 24 }}
-          ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+          contentContainerStyle={{ padding: 10 }}
           ListEmptyComponent={
             <View className="items-center justify-center p-xl">
               <Ionicons name="cube-outline" size={48} color={COLORS.grey.medium} />
-              <Text preset="body" color={COLORS.text.secondary}>
+              <Text preset="body" className="text-text-secondary mt-sm">
                 {i18n.t('admin.kitchenTools.noItemsFound')}
               </Text>
             </View>
@@ -142,27 +189,13 @@ export default function KitchenToolsAdminPage() {
         />
       )}
 
-      {/* KitchenTool Edit/Create Modal */}
+      {/* Edit/Create Modal */}
       <CreateEditKitchenToolModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         kitchenTool={editingKitchenTool as AdminKitchenTool}
         onSuccess={handleSuccessfullySavedKitchenTool}
-      />
-
-      <AlertModal
-        visible={showDeleteAlert}
-        title={i18n.t('admin.kitchenTools.confirmDeletion.title')}
-        message={i18n.t('admin.kitchenTools.confirmDeletion.message', {
-          name: getTranslatedField(selectedKitchenTool?.translations, displayLocale, 'name'),
-        })}
-        onConfirm={handleConfirmDelete}
-        onCancel={() => {
-          setShowDeleteAlert(false);
-          setSelectedKitchenTool(null);
-        }}
-        confirmText={i18n.t('common.delete')}
-        isDestructive={true}
+        onDelete={handleDelete}
       />
 
       <AlertModal

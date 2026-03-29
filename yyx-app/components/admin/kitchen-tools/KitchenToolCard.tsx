@@ -1,63 +1,58 @@
 import React from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import { View, Pressable, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { AdminKitchenTool, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import { Text } from '@/components/common/Text';
-import { useDevice } from '@/hooks/useDevice';
 
 interface KitchenToolCardProps {
   kitchenTool: AdminKitchenTool;
   displayLocale: string;
-  onEdit: (kitchenTool: AdminKitchenTool) => void;
-  onDelete: (kitchenTool: AdminKitchenTool) => void;
+  onPress: (kitchenTool: AdminKitchenTool) => void;
 }
 
-export function KitchenToolCard({ kitchenTool, displayLocale, onEdit, onDelete }: KitchenToolCardProps) {
-  const { isPhone } = useDevice();
+export function KitchenToolCard({ kitchenTool, displayLocale, onPress }: KitchenToolCardProps) {
   const name = getTranslatedField(kitchenTool.translations, displayLocale, 'name') || '—';
+  const hasImage = !!kitchenTool.pictureUrl && typeof kitchenTool.pictureUrl === 'string';
 
   return (
-    <View className="flex-row bg-white rounded-sm mb-md p-md shadow-md items-center">
-      {/* Image */}
-      <View className={`${isPhone ? 'w-[50px] h-[50px]' : 'w-[60px] h-[60px]'} rounded-xs overflow-hidden mr-md`}>
-        {kitchenTool.pictureUrl ? (
+    <Pressable
+      className="bg-white rounded-lg overflow-hidden"
+      style={({ pressed }: any) => [
+        {
+          shadowColor: '#000',
+          shadowOpacity: 0.06,
+          shadowRadius: 4,
+          shadowOffset: { width: 0, height: 2 },
+          opacity: pressed ? 0.7 : 1,
+        },
+        Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
+      ]}
+      onPress={() => onPress(kitchenTool)}
+    >
+      {/* Image area */}
+      <View className="w-full aspect-square">
+        {hasImage ? (
           <Image
             source={{ uri: kitchenTool.pictureUrl }}
             className="w-full h-full"
             contentFit="cover"
           />
         ) : (
-          <View className="w-full h-full justify-center items-center bg-background-secondary">
-            <Ionicons name="image-outline" size={isPhone ? 24 : 40} color={COLORS.grey.medium} />
+          <View className="w-full h-full justify-center items-center bg-grey-light border-2 border-dashed border-grey-medium rounded-t-lg">
+            <Ionicons name="camera-outline" size={28} color={COLORS.grey.medium} />
+            <Text preset="caption" className="text-text-secondary mt-xs">No image</Text>
           </View>
         )}
       </View>
 
       {/* Name */}
-      <View className="flex-1 justify-center mr-sm">
-        <Text preset="body" numberOfLines={1}>{name}</Text>
+      <View className="p-sm">
+        <Text preset="bodySmall" className="text-text-default text-center" numberOfLines={2}>
+          {name}
+        </Text>
       </View>
-
-      {/* Actions */}
-      <View className="flex-row items-center gap-xs">
-        <TouchableOpacity
-          className="p-sm"
-          accessibilityRole="button"
-          onPress={() => onEdit(kitchenTool)}
-        >
-          <Ionicons name="create-outline" size={isPhone ? 20 : 22} color={COLORS.text.default} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          className="p-sm"
-          accessibilityRole="button"
-          onPress={() => onDelete(kitchenTool)}
-        >
-          <Ionicons name="trash-outline" size={isPhone ? 20 : 22} color={COLORS.status.error} />
-        </TouchableOpacity>
-      </View>
-    </View>
+    </Pressable>
   );
 }
