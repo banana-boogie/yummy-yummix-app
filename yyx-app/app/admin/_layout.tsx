@@ -91,7 +91,7 @@ function AdminSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: (
           style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
           className="p-xs"
         >
-          <Ionicons name={collapsed ? 'chevron-forward' : 'chevron-back'} size={16} color={COLORS.text.secondary} />
+          <Ionicons name={collapsed ? 'play-forward-outline' : 'play-back-outline'} size={16} color={COLORS.text.secondary} />
         </Pressable>
       </View>
 

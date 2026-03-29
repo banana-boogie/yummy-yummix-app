@@ -161,7 +161,31 @@ export function KitchenToolForm({
                     />
                 </View>
 
-                {/* Translation inputs — full width */}
+                {/* Translations */}
+                <View className="flex-row items-center justify-between mb-sm">
+                    <Text preset="body" className="text-text-default font-semibold">Translations</Text>
+                    <Pressable
+                        onPress={handleAutoTranslate}
+                        disabled={translating}
+                        className="flex-row items-center gap-xxs px-md py-xs rounded-full border border-border-default"
+                        style={({ pressed }: any) => [
+                            { opacity: pressed || translating ? 0.5 : 1 },
+                            Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
+                        ]}
+                    >
+                        <Ionicons name="language-outline" size={14} color={COLORS.primary.medium} />
+                        <Text preset="caption" className="text-text-default">
+                            {translating
+                                ? i18n.t('admin.translate.translating')
+                                : i18n.t('admin.translate.autoTranslate')
+                            }
+                        </Text>
+                    </Pressable>
+                </View>
+                {translateError ? (
+                    <Text preset="caption" className="text-status-error mb-sm">{translateError}</Text>
+                ) : null}
+
                 {locales.map(locale => (
                     <FormGroup
                         key={locale.code}
@@ -179,27 +203,6 @@ export function KitchenToolForm({
                     </FormGroup>
                 ))}
 
-                {/* Auto-translate */}
-                <Pressable
-                    onPress={handleAutoTranslate}
-                    disabled={translating}
-                    className="self-start flex-row items-center gap-xxs px-md py-xs rounded-full border border-border-default mt-xs mb-sm"
-                    style={({ pressed }: any) => [
-                        { opacity: pressed || translating ? 0.5 : 1 },
-                        Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
-                    ]}
-                >
-                    <Ionicons name="language-outline" size={14} color={COLORS.primary.medium} />
-                    <Text preset="caption" className="text-text-default">
-                        {translating
-                            ? i18n.t('admin.translate.translating')
-                            : i18n.t('admin.translate.autoTranslate')
-                        }
-                    </Text>
-                </Pressable>
-                {translateError ? (
-                    <Text preset="caption" className="text-status-error mb-sm">{translateError}</Text>
-                ) : null}
             </View>
 
             {/* Footer: Delete left, Cancel + Save right */}
