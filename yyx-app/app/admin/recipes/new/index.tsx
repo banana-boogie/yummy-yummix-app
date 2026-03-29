@@ -109,7 +109,7 @@ export default function NewRecipePage() {
         >
           <ScrollView
             className="flex-1"
-            contentContainerStyle={{ padding: 24 }}
+            contentContainerStyle={{ padding: 24, flexGrow: 1 }}
             keyboardShouldPersistTaps="handled"
           >
             {/* Header Section */}
