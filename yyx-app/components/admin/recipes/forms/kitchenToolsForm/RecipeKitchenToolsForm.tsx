@@ -243,26 +243,30 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
             ) : (
                 /* ===== DESKTOP LAYOUT: Two columns, Available first ===== */
                 <>
-                    {/* Content Row — both columns start at the same level */}
-                    <View className="flex-row items-start gap-md flex-1">
-                        {/* Left Column - Search + Available Items */}
-                        <ScrollView style={{ flex: 1, ...(rightColHeight ? { maxHeight: rightColHeight } : {}) }}>
-                            <View className="mb-sm" style={{ marginBottom: -8 }}>
-                                <SearchBar
-                                    searchQuery={searchQuery}
-                                    setSearchQuery={setSearchQuery}
-                                    placeholder={i18n.t('admin.recipes.form.kitchenToolsInfo.searchPlaceholder')}
-                                />
-                            </View>
-                            <TouchableOpacity
-                                onPress={handleCreateNewKitchenTool}
-                                className="flex-row items-center gap-xxs mb-sm"
-                            >
-                                <Ionicons name="add" size={14} color={COLORS.text.secondary} />
-                                <Text preset="caption" className="text-text-secondary">
-                                    {i18n.t('admin.recipes.form.kitchenToolsInfo.createNew')}
-                                </Text>
-                            </TouchableOpacity>
+                    {/* Search + create above columns */}
+                    <View className="flex-row items-center gap-md mb-md">
+                        <View style={{ flex: 1, maxWidth: 400, marginBottom: -16 }}>
+                            <SearchBar
+                                searchQuery={searchQuery}
+                                setSearchQuery={setSearchQuery}
+                                placeholder={i18n.t('admin.recipes.form.kitchenToolsInfo.searchPlaceholder')}
+                            />
+                        </View>
+                        <TouchableOpacity
+                            onPress={handleCreateNewKitchenTool}
+                            className="flex-row items-center gap-xxs"
+                        >
+                            <Ionicons name="add" size={14} color={COLORS.text.secondary} />
+                            <Text preset="caption" className="text-text-secondary">
+                                {i18n.t('admin.recipes.form.kitchenToolsInfo.createNew')}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Two columns — aligned at top, stretch to fill */}
+                    <View className="flex-row items-stretch gap-md flex-1">
+                        {/* Left Column - Available Items */}
+                        <ScrollView style={{ flex: 1 }}>
                             <AvailableItemsSection
                                 items={filteredKitchenTools}
                                 loading={loading}
@@ -274,7 +278,7 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                         </ScrollView>
 
                         {/* Right Column - Selected Items */}
-                        <View className="flex-[1.5]" onLayout={(e) => setRightColHeight(e.nativeEvent.layout.height)}>
+                        <View className="flex-[1.5]">
                             <SelectedItemsSection
                                 items={sortedRecipeKitchenTools}
                                 displayLocale={displayLocale || authoringLocale}
