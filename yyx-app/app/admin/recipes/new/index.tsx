@@ -113,7 +113,7 @@ export default function NewRecipePage() {
               <View className="w-full px-md pb-md">
                 <RecipeProgressIndicator currentStep={currentStep} onStepClick={setCurrentStep} clickable={true} />
                 {currentStep !== CreateRecipeStep.INITIAL_SETUP && currentStep !== CreateRecipeStep.BASIC_INFO && currentStep !== CreateRecipeStep.TRANSLATIONS && (
-                  <View className="mt-md bg-grey-light rounded-lg px-md py-sm">
+                  <View className="mt-md">
                     <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
                   </View>
                 )}

@@ -164,8 +164,10 @@ export default function IngredientsAdminPage() {
             ))}
           </View>
 
-          <View className="w-[1px] h-[18px] bg-grey-medium mx-sm" />
+        </View>
 
+        {/* Display language */}
+        <View className="mb-md">
           <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
         </View>
 

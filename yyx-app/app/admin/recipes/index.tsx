@@ -169,7 +169,7 @@ export default function RecipesAdminPage() {
         </Text>
 
         {/* Locale toggle */}
-        <View className="flex-row items-center bg-grey-light rounded-lg px-md py-sm mb-md">
+        <View className="mb-md">
           <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
         </View>
 
