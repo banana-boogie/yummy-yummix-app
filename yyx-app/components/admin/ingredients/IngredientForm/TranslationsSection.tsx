@@ -115,9 +115,9 @@ export function TranslationsSection({
   }
 
   return (
-    <View className="mt-md">
-      {/* Header: quiet label + auto-translate inline */}
-      <View className="flex-row items-center justify-between mb-md">
+    <View className="mt-lg">
+      {/* Header + auto-translate */}
+      <View className="flex-row items-center justify-between mb-lg">
         <Text preset="bodySmall" className="text-text-secondary font-medium">Translations</Text>
         <Pressable
           onPress={handleAutoTranslate}
@@ -144,7 +144,7 @@ export function TranslationsSection({
       {/* Locale inputs */}
       {locales.map(locale => (
         <View key={locale.code} className="mb-lg">
-          <Text preset="bodySmall" className="text-text-default mb-xxs">{locale.displayName}</Text>
+          <Text preset="body" className="text-text-default mb-xs font-medium">{locale.displayName}</Text>
           <FormRow>
             <FormGroup
               label={i18n.t('admin.ingredients.name', { defaultValue: 'Name' })}
