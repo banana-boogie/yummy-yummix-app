@@ -139,7 +139,7 @@ export function TranslationStep({ recipe, authoringLocale, onUpdateRecipe }: Tra
   // Pre-translation / translating view
   if (state === 'ready' || state === 'translating') {
     return (
-      <View className="mt-lg w-full" style={{ maxWidth: 800 }}>
+      <View className="mt-lg w-full">
         {/* Summary card */}
         <View className="bg-primary-lightest rounded-lg p-lg mb-lg">
           <View className="flex-row items-center gap-sm mb-md">
