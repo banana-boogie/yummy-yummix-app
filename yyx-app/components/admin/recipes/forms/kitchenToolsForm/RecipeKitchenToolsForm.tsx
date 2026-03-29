@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, ScrollView, ActivityIndicator } from 'react-native';
+import { View, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/common/Text';
 import { AdminRecipe, AdminRecipeKitchenTool, AdminKitchenTool, getTranslatedField } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
@@ -251,12 +252,13 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                                 placeholder={i18n.t('admin.recipes.form.kitchenToolsInfo.searchPlaceholder')}
                             />
                         </View>
-                        <Button
-                            label={i18n.t('admin.recipes.form.kitchenToolsInfo.createNew')}
-                            variant="outline"
-                            size="small"
+                        <TouchableOpacity
                             onPress={handleCreateNewKitchenTool}
-                        />
+                            className="flex-row items-center gap-xxs px-md py-sm border border-border-default rounded-full"
+                        >
+                            <Ionicons name="add" size={16} color={COLORS.text.default} />
+                            <Text preset="bodySmall" className="text-text-default">New</Text>
+                        </TouchableOpacity>
                     </View>
 
                     {/* Content Row */}

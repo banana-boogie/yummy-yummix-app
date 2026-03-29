@@ -80,7 +80,7 @@ function AdminSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: (
 
   return (
     <View
-      className="bg-white border-r border-border-default"
+      className="bg-white border-r border-grey-default"
       style={{ width: collapsed ? 56 : 220, paddingTop: 16, paddingBottom: 16 }}
     >
       {/* Toggle + title */}

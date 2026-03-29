@@ -109,7 +109,7 @@ export default function NewRecipePage() {
         >
           <ScrollView
             className="flex-1"
-            contentContainerStyle={{ padding: 16, alignItems: 'center' }}
+            contentContainerStyle={{ padding: 24 }}
             keyboardShouldPersistTaps="handled"
           >
             {/* Header Section */}
@@ -129,7 +129,7 @@ export default function NewRecipePage() {
 
         {/* Footer Section - Fixed at bottom */}
         {showNavElements && (
-          <View className="px-lg pt-md pb-xl bg-background-default shadow-md">
+          <View className="px-lg pt-md pb-lg bg-background-default border-t border-border-default">
             <View className="w-full">
               <NavButtons
                 onNext={currentStep < CreateRecipeStep.REVIEW ? handleNextStep : handlePublish}
