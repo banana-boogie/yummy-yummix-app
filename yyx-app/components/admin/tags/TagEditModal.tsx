@@ -4,12 +4,12 @@ import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { TextInput } from '@/components/form/TextInput';
 import { FormSection } from '@/components/form/FormSection';
-import { FormRow } from '@/components/form/FormRow';
 import { FormGroup } from '@/components/form/FormGroup';
 import { AdminRecipeTag, AdminRecipeTagTranslation, pickTranslation } from '@/types/recipe.admin.types';
 import { COLORS } from '@/constants/design-tokens';
 import { adminRecipeTagService } from '@/services/admin/adminRecipeTagService';
 import { Ionicons } from '@expo/vector-icons';
+import { AutoTranslateButton } from '@/components/admin/shared';
 import i18n from '@/i18n';
 import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
 import { translateContent } from '@/services/admin/adminTranslateService';
@@ -215,18 +215,7 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
                   />
                 </FormGroup>
               ))}
-              <Button
-                onPress={handleAutoTranslate}
-                loading={translating}
-                disabled={translating}
-                variant="outline"
-                size="small"
-              >
-                {translating
-                  ? i18n.t('admin.translate.translating')
-                  : i18n.t('admin.translate.autoTranslate')
-                }
-              </Button>
+              <AutoTranslateButton onPress={handleAutoTranslate} loading={translating} />
             </FormSection>
 
             {/* Categories Section */}

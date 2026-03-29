@@ -8,8 +8,8 @@ import { AdminKitchenTool, pickTranslation } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { FormGroup } from '@/components/form/FormGroup';
 import { ImageUploadSection } from '@/components/admin/recipes/forms/common/ImageUploadSection';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '@/constants/design-tokens';
+import { AutoTranslateButton } from '@/components/admin/shared';
+
 import { useAdminLocales } from '@/hooks/admin/useAdminLocales';
 import { translateContent } from '@/services/admin/adminTranslateService';
 import logger from '@/services/logger';
@@ -164,27 +164,8 @@ export function KitchenToolForm({
                 {/* Translations */}
                 <View className="flex-row items-center justify-between mb-md">
                     <Text preset="bodySmall" className="text-text-secondary font-medium">Translations</Text>
-                    <Pressable
-                        onPress={handleAutoTranslate}
-                        disabled={translating}
-                        className="flex-row items-center gap-xxs px-md py-xs rounded-full border border-border-default"
-                        style={({ pressed }: any) => [
-                            { opacity: pressed || translating ? 0.5 : 1 },
-                            Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
-                        ]}
-                    >
-                        <Ionicons name="language-outline" size={14} color={COLORS.primary.medium} />
-                        <Text preset="caption" className="text-text-default">
-                            {translating
-                                ? i18n.t('admin.translate.translating')
-                                : i18n.t('admin.translate.autoTranslate')
-                            }
-                        </Text>
-                    </Pressable>
+                    <AutoTranslateButton onPress={handleAutoTranslate} loading={translating} error={translateError} />
                 </View>
-                {translateError ? (
-                    <Text preset="caption" className="text-status-error mb-sm">{translateError}</Text>
-                ) : null}
 
                 {locales.map(locale => (
                     <View key={locale.code} className="mb-lg">
