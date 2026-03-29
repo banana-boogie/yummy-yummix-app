@@ -75,10 +75,11 @@ export function CreateEditIngredientModal({
         >
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            className={`bg-white rounded-xl w-full ${isPhone ? 'p-sm' : 'p-lg'}`}
+            className="bg-white rounded-xl w-full"
             style={{
-              maxWidth: isPhone ? '100%' : 800,
+              maxWidth: isPhone ? '100%' : 700,
               maxHeight: isPhone ? '95%' : '90%',
+              padding: isPhone ? 16 : 24,
             }}
           >
             {/* Close button */}
@@ -92,14 +93,14 @@ export function CreateEditIngredientModal({
               </Pressable>
             </View>
 
+            {generalError ? (
+              <ErrorMessage message={generalError} />
+            ) : null}
+
             <ScrollView
               showsVerticalScrollIndicator={true}
-              contentContainerStyle={{ flexGrow: 1, paddingBottom: 24, gap: 16 }}
+              contentContainerStyle={{ flexGrow: 1 }}
             >
-              {generalError ? (
-                <ErrorMessage message={generalError} />
-              ) : null}
-
               <IngredientForm
                 ingredient={ingredient}
                 onSave={handleSaveIngredient}
