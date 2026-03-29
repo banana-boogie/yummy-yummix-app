@@ -249,53 +249,15 @@ export default function RecipesAdminPage() {
           data={filteredRecipes}
           extraData={displayLocale}
           keyExtractor={item => item.id}
-          contentContainerStyle={{ padding: 16 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8 }}
+          ItemSeparatorComponent={() => <View className="h-[1px] bg-border-default" />}
           renderItem={({ item }) => (
-            <Pressable
-              className="bg-white rounded-md mb-sm flex-row items-center overflow-hidden border border-border-default"
-              style={({ pressed }: any) => [
-                { opacity: pressed ? 0.7 : 1 },
-                Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
-              ]}
+            <RecipeRow
+              item={item}
+              displayLocale={displayLocale}
               onPress={() => router.push(`/admin/recipes/${item.id}`)}
-            >
-              {/* Status bar */}
-              <View
-                style={{
-                  width: 4,
-                  alignSelf: 'stretch',
-                  backgroundColor: item.isPublished ? COLORS.status.success : COLORS.grey.medium,
-                }}
-              />
-
-              {/* Image */}
-              <Image
-                source={item.pictureUrl ? { uri: item.pictureUrl } : require('@/assets/images/backgrounds/watercolour-circle.png')}
-                style={{ width: 56, height: 56, margin: 8, borderRadius: 8 }}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-              />
-
-              {/* Name + status */}
-              <View className="flex-1 py-sm pr-md">
-                <Text preset="body" className="text-text-default" numberOfLines={1}>
-                  {getTranslatedField(item.translations, displayLocale, 'name')}
-                </Text>
-                <Text preset="caption" className="text-text-secondary">
-                  {item.isPublished ? 'Published' : 'Draft'}
-                </Text>
-              </View>
-
-              {/* Publish toggle */}
-              <View className="pr-md">
-                <Switch
-                  value={item.isPublished}
-                  onValueChange={() => handleTogglePublished(item)}
-                  trackColor={{ false: COLORS.grey.medium, true: COLORS.status.success }}
-                  thumbColor={COLORS.neutral.white}
-                />
-              </View>
-            </Pressable>
+              onTogglePublish={() => handleTogglePublished(item)}
+            />
           )}
           ListEmptyComponent={
             <View className="items-center justify-center p-xl">
@@ -344,5 +306,62 @@ export default function RecipesAdminPage() {
         cancelText={i18n.t('common.cancel')}
       />
     </AdminLayout>
+  );
+}
+
+// =============================================================================
+// Compact recipe row
+// =============================================================================
+
+function RecipeRow({ item, displayLocale, onPress, onTogglePublish }: {
+  item: AdminRecipe;
+  displayLocale: string;
+  onPress: () => void;
+  onTogglePublish: () => void;
+}) {
+  const [hovered, setHovered] = React.useState(false);
+
+  return (
+    <Pressable
+      className="flex-row items-center py-sm"
+      onPress={onPress}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={[
+        { backgroundColor: hovered ? COLORS.grey.lightest : 'transparent' },
+        Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
+      ]}
+    >
+      {/* Status dot */}
+      <View
+        className="rounded-full mr-sm"
+        style={{
+          width: 8,
+          height: 8,
+          backgroundColor: item.isPublished ? COLORS.status.success : COLORS.grey.medium,
+        }}
+      />
+
+      {/* Image */}
+      <Image
+        source={item.pictureUrl ? { uri: item.pictureUrl } : require('@/assets/images/backgrounds/watercolour-circle.png')}
+        style={{ width: 40, height: 40, borderRadius: 6, marginRight: 12 }}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+      />
+
+      {/* Name */}
+      <Text preset="body" className="flex-1 text-text-default" numberOfLines={1}>
+        {getTranslatedField(item.translations, displayLocale, 'name')}
+      </Text>
+
+      {/* Publish toggle */}
+      <Switch
+        value={item.isPublished}
+        onValueChange={onTogglePublish}
+        trackColor={{ false: COLORS.grey.medium, true: COLORS.status.success }}
+        thumbColor={COLORS.neutral.white}
+      />
+    </Pressable>
   );
 }
