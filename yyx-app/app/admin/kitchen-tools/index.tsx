@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, ActivityIndicator, FlatList, Platform } from 'react-native';
+import { View, ActivityIndicator, FlatList, Platform, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { COLORS } from '@/constants/design-tokens';
@@ -11,13 +11,16 @@ import { SearchBar } from '@/components/common/SearchBar';
 import { AdminKitchenTool } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { CreateEditKitchenToolModal } from '@/components/admin/kitchen-tools/CreateEditKitchenToolModal';
-import { Button } from '@/components/common/Button';
 import { Text } from '@/components/common/Text';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
 import { useDevice } from '@/hooks/useDevice';
 import logger from '@/services/logger';
 
 type ImageFilter = 'all' | 'has_image' | 'needs_image';
+
+function hasValidImage(url: unknown): boolean {
+  return typeof url === 'string' && url.length > 0 && url.startsWith('http');
+}
 
 export default function KitchenToolsAdminPage() {
   const { edit } = useLocalSearchParams<{ edit?: string }>();
@@ -40,7 +43,6 @@ export default function KitchenToolsAdminPage() {
   const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Auto-open edit modal when navigating with ?edit=<id>
   useEffect(() => {
     if (edit && !loading && filteredKitchenTools.length > 0) {
       const target = filteredKitchenTools.find(kt => kt.id === edit);
@@ -51,16 +53,14 @@ export default function KitchenToolsAdminPage() {
     }
   }, [edit, loading, filteredKitchenTools]);
 
-  // Apply image filter on top of search-filtered results
   const displayItems = useMemo(() => {
     if (imageFilter === 'all') return filteredKitchenTools;
-    if (imageFilter === 'has_image') return filteredKitchenTools.filter(t => !!t.pictureUrl && typeof t.pictureUrl === 'string');
-    return filteredKitchenTools.filter(t => !t.pictureUrl || typeof t.pictureUrl !== 'string');
+    if (imageFilter === 'has_image') return filteredKitchenTools.filter(t => hasValidImage(t.pictureUrl));
+    return filteredKitchenTools.filter(t => !hasValidImage(t.pictureUrl));
   }, [filteredKitchenTools, imageFilter]);
 
-  // Stats
   const totalCount = kitchenTools.length;
-  const needsImageCount = kitchenTools.filter(t => !t.pictureUrl || typeof t.pictureUrl !== 'string').length;
+  const needsImageCount = kitchenTools.filter(t => !hasValidImage(t.pictureUrl)).length;
 
   const handleOpenEditModal = (kitchenTool: AdminKitchenTool) => {
     setEditingKitchenTool(kitchenTool);
@@ -97,7 +97,7 @@ export default function KitchenToolsAdminPage() {
     setModalVisible(false);
   };
 
-  const numColumns = isPhone ? 2 : 5;
+  const numColumns = isPhone ? 2 : 3;
 
   const filterPills: { key: ImageFilter; label: string }[] = [
     { key: 'all', label: 'All' },
@@ -108,51 +108,60 @@ export default function KitchenToolsAdminPage() {
   return (
     <AdminLayout title={i18n.t('admin.kitchenTools.title')} showBackButton={true}>
       {/* Toolbar */}
-      <View className="px-lg pt-md pb-sm bg-white">
+      <View className="px-lg pt-md pb-md bg-white">
         {/* Stats */}
-        <Text preset="bodySmall" className="text-text-secondary mb-md">
-          {totalCount} kitchen tools{needsImageCount > 0 ? ` · ${needsImageCount} need images` : ''}
+        <Text preset="caption" className="text-text-secondary mb-md">
+          {totalCount} items{needsImageCount > 0 ? ` · ${needsImageCount} need images` : ''}
         </Text>
 
         {/* Search + New */}
-        <View className="flex-row items-center gap-md mb-sm">
-          <View className="flex-1">
+        {/* Toolbar bar: filters + locale in one contained row */}
+        <View className="flex-row items-center justify-between bg-grey-light rounded-lg px-md py-sm mb-md">
+          <View className="flex-row items-center gap-xs">
+            {filterPills.map(pill => (
+              <Pressable
+                key={pill.key}
+                onPress={() => setImageFilter(pill.key)}
+                className={`px-sm py-xxs rounded-full ${
+                  imageFilter === pill.key
+                    ? 'bg-primary-default'
+                    : ''
+                }`}
+                style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+              >
+                <Text
+                  preset="caption"
+                  className={imageFilter === pill.key ? 'text-text-default font-semibold' : 'text-text-secondary'}
+                >
+                  {pill.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {/* Separator */}
+          <View className="w-[1px] h-[18px] bg-grey-medium mx-sm" />
+
+          <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+        </View>
+
+        {/* Search + New */}
+        <View className="flex-row items-center gap-sm">
+          <View className="flex-1" style={{ marginBottom: -16 }}>
             <SearchBar
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               placeholder={i18n.t('admin.kitchenTools.searchPlaceholder')}
-              className="mb-0"
             />
           </View>
-          <Button
+          <Pressable
             onPress={handleOpenCreateModal}
-            icon={<Ionicons name="add" size={20} color={COLORS.neutral.white} />}
-            size="small"
+            className="flex-row items-center gap-xxs px-lg py-md border border-border-default rounded-full"
+            style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
           >
-            New
-          </Button>
-        </View>
-
-        {/* Locale toggle + Filter pills */}
-        <View className="flex-row items-center justify-between">
-          <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
-          <View className="flex-row gap-xs">
-            {filterPills.map(pill => (
-              <Text
-                key={pill.key}
-                preset="caption"
-                className={`px-sm py-xxs rounded-full ${
-                  imageFilter === pill.key
-                    ? 'bg-primary-default text-text-default'
-                    : 'bg-grey-light text-text-secondary'
-                }`}
-                onPress={() => setImageFilter(pill.key)}
-                style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
-              >
-                {pill.label}
-              </Text>
-            ))}
-          </View>
+            <Ionicons name="add" size={16} color={COLORS.text.default} />
+            <Text preset="bodySmall" className="text-text-default">New</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -165,10 +174,10 @@ export default function KitchenToolsAdminPage() {
         <FlatList
           key={`grid-${numColumns}`}
           data={displayItems}
-          extraData={displayLocale}
+          extraData={`${displayLocale}-${imageFilter}`}
           numColumns={numColumns}
           renderItem={({ item }) => (
-            <View style={{ flex: 1 / numColumns, padding: 6 }}>
+            <View style={{ flex: 1 / numColumns, padding: 12 }}>
               <KitchenToolCard
                 kitchenTool={item}
                 displayLocale={displayLocale}
@@ -177,7 +186,7 @@ export default function KitchenToolsAdminPage() {
             </View>
           )}
           keyExtractor={item => item.id}
-          contentContainerStyle={{ padding: 10 }}
+          contentContainerStyle={{ padding: 12, paddingTop: 20 }}
           ListEmptyComponent={
             <View className="items-center justify-center p-xl">
               <Ionicons name="cube-outline" size={48} color={COLORS.grey.medium} />
@@ -189,7 +198,6 @@ export default function KitchenToolsAdminPage() {
         />
       )}
 
-      {/* Edit/Create Modal */}
       <CreateEditKitchenToolModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}

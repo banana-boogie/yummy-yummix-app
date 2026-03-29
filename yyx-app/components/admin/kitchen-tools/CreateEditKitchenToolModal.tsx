@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { Modal, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Modal, KeyboardAvoidingView, Platform, ScrollView, View, Pressable } from 'react-native';
 import { KitchenToolForm } from '@/components/admin/kitchen-tools/KitchenToolForm';
 import { adminKitchenToolsService } from '@/services/admin/adminKitchenToolsService';
 import { AdminKitchenTool } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
-import { Button } from '@/components/common/Button';
 import { AlertModal } from '@/components/common/AlertModal';
+import { Text } from '@/components/common/Text';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '@/constants/design-tokens';
 import { useDevice } from '@/hooks/useDevice';
 import logger from '@/services/logger';
 
@@ -52,10 +54,11 @@ export function CreateEditKitchenToolModal({
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (kitchenTool && onDelete) {
-      onDelete(kitchenTool);
+      setShowDeleteConfirm(false);
       onClose();
+      await onDelete(kitchenTool);
     }
   };
 
@@ -81,6 +84,17 @@ export function CreateEditKitchenToolModal({
               maxHeight: isPhone ? '95%' : '90%',
             }}
           >
+            {/* Close button */}
+            <View className="flex-row justify-end mb-xs">
+              <Pressable
+                onPress={onClose}
+                className="p-xs"
+                style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+              >
+                <Ionicons name="close" size={24} color={COLORS.text.secondary} />
+              </Pressable>
+            </View>
+
             <ScrollView
               showsVerticalScrollIndicator={true}
               contentContainerStyle={{ flexGrow: 1 }}
@@ -96,17 +110,18 @@ export function CreateEditKitchenToolModal({
                 saving={saving}
               />
 
-              {/* Delete button — only in edit mode */}
+              {/* Delete — only in edit mode */}
               {isEditing && onDelete && (
                 <View className="mt-lg pt-lg border-t border-border-default">
-                  <Button
-                    variant="outline"
-                    size="small"
+                  <Pressable
                     onPress={() => setShowDeleteConfirm(true)}
                     disabled={saving}
+                    style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
                   >
-                    {i18n.t('common.delete')}
-                  </Button>
+                    <Text preset="bodySmall" className="text-status-error">
+                      {i18n.t('common.delete')}
+                    </Text>
+                  </Pressable>
                 </View>
               )}
             </ScrollView>

@@ -68,7 +68,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           borderWidth: 1,
           borderColor: borderColor,
           paddingHorizontal: 16,
-          paddingVertical: Platform.OS === 'ios' ? 12 : 8,
+          paddingVertical: Platform.OS === 'ios' ? 12 : 12,
         }}
       >
         <Ionicons name="search" size={20} color={iconColor} />
