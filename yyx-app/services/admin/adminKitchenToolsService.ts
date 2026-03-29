@@ -128,7 +128,10 @@ export class AdminKitchenToolsService extends BaseService {
       }
     }
 
-    return item;
+    return {
+      ...item,
+      pictureUrl: itemData.image_url ?? item.pictureUrl,
+    };
   }
 
   async deleteKitchenTool(id: string): Promise<void> {
