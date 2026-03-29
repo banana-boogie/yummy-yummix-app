@@ -214,8 +214,10 @@ export default function RecipesAdminPage() {
             </Pressable>
           ))}
 
-          <View className="w-[1px] h-[18px] bg-grey-medium mx-xs" />
+        </View>
 
+        {/* Locale toggle */}
+        <View className="flex-row items-center bg-grey-light rounded-lg px-md py-sm mb-md">
           <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
         </View>
 
@@ -332,16 +334,6 @@ function RecipeRow({ item, displayLocale, onPress, onTogglePublish }: {
         Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
       ]}
     >
-      {/* Status dot */}
-      <View
-        className="rounded-full mr-sm"
-        style={{
-          width: 8,
-          height: 8,
-          backgroundColor: item.isPublished ? COLORS.status.success : COLORS.grey.medium,
-        }}
-      />
-
       {/* Image */}
       <Image
         source={item.pictureUrl ? { uri: item.pictureUrl } : require('@/assets/images/backgrounds/watercolour-circle.png')}
