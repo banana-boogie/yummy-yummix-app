@@ -139,7 +139,7 @@ export function IngredientForm({
     const isEditing = !!ingredient?.id;
 
     return (
-        <View className="flex-1 justify-between">
+        <View className="flex-1">
             <AlertModal
                 visible={showSuccessAlert}
                 title={i18n.t('admin.ingredients.success.title')}
@@ -159,33 +159,33 @@ export function IngredientForm({
                 confirmText={i18n.t('common.ok')}
             />
 
-            {/* Form content */}
-            <View>
-                <ImageUploadSection
-                    imageUrl={formData.pictureUrl}
-                    onImageSelected={(file) => setFormData({ ...formData, pictureUrl: file })}
-                    error={validationErrors.pictureUrl as string}
-                    required={true}
-                />
+            <ImageUploadSection
+                imageUrl={formData.pictureUrl}
+                onImageSelected={(file) => setFormData({ ...formData, pictureUrl: file })}
+                error={validationErrors.pictureUrl as string}
+                required={true}
+            />
 
-                <TranslationsSection
-                    translations={formData.translations}
-                    errors={validationErrors as Record<string, string>}
-                    onChange={(translations) => setFormData({ ...formData, translations })}
-                    required={true}
-                />
+            <TranslationsSection
+                translations={formData.translations}
+                errors={validationErrors as Record<string, string>}
+                onChange={(translations) => setFormData({ ...formData, translations })}
+                required={true}
+            />
 
-                <NutritionalFactsSection
-                    nutritionalFacts={formData.nutritionalFacts}
-                    onChange={(facts: NutritionalFacts) => setFormData({ ...formData, nutritionalFacts: facts })}
-                    errors={validationErrors.nutritionalFacts as { [key: string]: string }}
-                    required={true}
-                    ingredientName={ingredientDisplayName}
-                />
-            </View>
+            <NutritionalFactsSection
+                nutritionalFacts={formData.nutritionalFacts}
+                onChange={(facts: NutritionalFacts) => setFormData({ ...formData, nutritionalFacts: facts })}
+                errors={validationErrors.nutritionalFacts as { [key: string]: string }}
+                required={true}
+                ingredientName={ingredientDisplayName}
+            />
 
             {/* Footer: Delete left, Cancel + Save right */}
-            <View className="flex-row items-center justify-between pt-lg mt-lg border-t border-border-default pb-sm">
+            <View
+                className="flex-row items-center justify-between pt-lg mt-lg border-t border-border-default pb-sm bg-white"
+                style={Platform.OS === 'web' ? { position: 'sticky' as any, bottom: 0 } : {}}
+            >
                 {isEditing && onDelete ? (
                     <Pressable
                         onPress={onDelete}

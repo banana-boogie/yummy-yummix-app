@@ -78,7 +78,7 @@ export function CreateEditIngredientModal({
             className="bg-white rounded-xl w-full"
             style={{
               maxWidth: isPhone ? '100%' : 700,
-              maxHeight: isPhone ? '95%' : '90%',
+              maxHeight: isPhone ? '95%' : '95%',
               padding: isPhone ? 16 : 24,
             }}
           >
