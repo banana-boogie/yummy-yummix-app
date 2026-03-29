@@ -107,14 +107,9 @@ export default function NewRecipePage() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           className="flex-1"
         >
-          <ScrollView
-            className="flex-1"
-            contentContainerStyle={{ padding: 24, flexGrow: 1 }}
-            keyboardShouldPersistTaps="handled"
-            scrollEnabled={currentStep !== CreateRecipeStep.KITCHEN_TOOLS && currentStep !== CreateRecipeStep.INGREDIENTS}
-          >
-            {/* Header Section */}
-            {showNavElements && (
+          {(() => {
+            const isPickerStep = currentStep === CreateRecipeStep.KITCHEN_TOOLS || currentStep === CreateRecipeStep.INGREDIENTS;
+            const header = showNavElements ? (
               <View className="w-full px-md pb-md">
                 <RecipeProgressIndicator currentStep={currentStep} onStepClick={setCurrentStep} clickable={true} />
                 {currentStep !== CreateRecipeStep.INITIAL_SETUP && currentStep !== CreateRecipeStep.BASIC_INFO && currentStep !== CreateRecipeStep.TRANSLATIONS && (
@@ -123,9 +118,30 @@ export default function NewRecipePage() {
                   </View>
                 )}
               </View>
-            )}
-            {renderStepContent()}
-          </ScrollView>
+            ) : null;
+
+            if (isPickerStep) {
+              // Picker steps: no outer scroll — columns manage their own scrolling
+              return (
+                <View className="flex-1" style={{ padding: 24 }}>
+                  {header}
+                  {renderStepContent()}
+                </View>
+              );
+            }
+
+            // Other steps: scrollable
+            return (
+              <ScrollView
+                className="flex-1"
+                contentContainerStyle={{ padding: 24, flexGrow: 1 }}
+                keyboardShouldPersistTaps="handled"
+              >
+                {header}
+                {renderStepContent()}
+              </ScrollView>
+            );
+          })()}
         </KeyboardAvoidingView>
 
         {/* Footer Section - Fixed at bottom */}
