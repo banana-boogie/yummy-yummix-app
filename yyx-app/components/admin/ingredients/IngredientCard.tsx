@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Pressable, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { AdminIngredient, getTranslatedField } from '@/types/recipe.admin.types';
@@ -28,6 +28,11 @@ function NoImagePlaceholder() {
 export function IngredientCard({ ingredient, displayLocale, onPress }: IngredientCardProps) {
   const name = getTranslatedField(ingredient.translations, displayLocale, 'name') || '\u2014';
   const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [ingredient.pictureUrl]);
+
   const showImage = hasValidImage(ingredient.pictureUrl) && !imageError;
 
   return (

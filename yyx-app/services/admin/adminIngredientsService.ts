@@ -195,7 +195,10 @@ export class AdminIngredientsService extends BaseService {
       }
     }
 
-    return ingredient;
+    return {
+      ...ingredient,
+      pictureUrl: ingredientData.image_url ?? ingredient.pictureUrl,
+    };
   }
 
   async deleteIngredient(id: string): Promise<void> {
