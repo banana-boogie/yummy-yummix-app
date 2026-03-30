@@ -204,6 +204,21 @@ export function RecipeStepContent({
         </View>
       ) : null}
 
+      {/* Display timer for non-Thermomix steps */}
+      {recipeStep.timerSeconds && !recipeStep.thermomixTime ? (
+        <View className="my-md bg-background-secondary rounded-md p-sm">
+          <Text preset="caption" fontWeight="700" className="mb-xs text-text-secondary">
+            Timer
+          </Text>
+          <View className="flex-row items-center gap-[2px]">
+            <Ionicons name="timer-outline" size={16} className="text-text-secondary" />
+            <Text preset="caption">
+              {Math.floor(recipeStep.timerSeconds / 60)} min {recipeStep.timerSeconds % 60} sec
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
       {/* Display tips if present */}
       {tip ? (
         <View className="my-md bg-background-secondary rounded-md p-sm">

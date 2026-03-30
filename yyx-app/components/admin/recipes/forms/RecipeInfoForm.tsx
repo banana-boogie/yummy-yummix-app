@@ -60,9 +60,7 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors, authoringLocale
   ];
 
   return (
-    <View className="mt-lg w-full">
-      <AuthoringLanguagePicker value={authoringLocale} onChange={onAuthoringLocaleChange} />
-
+    <View className="w-full">
       {/* Name - single language */}
       <FormRow>
         <FormGroup

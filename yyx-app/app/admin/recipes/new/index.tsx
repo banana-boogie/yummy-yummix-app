@@ -112,9 +112,17 @@ export default function NewRecipePage() {
             const header = showNavElements ? (
               <View className="w-full px-md pb-md">
                 <RecipeProgressIndicator currentStep={currentStep} onStepClick={setCurrentStep} clickable={true} />
-                {currentStep !== CreateRecipeStep.INITIAL_SETUP && currentStep !== CreateRecipeStep.BASIC_INFO && currentStep !== CreateRecipeStep.TRANSLATIONS && (
+                {currentStep !== CreateRecipeStep.INITIAL_SETUP && currentStep !== CreateRecipeStep.TRANSLATIONS && (
                   <View className="mt-md">
-                    <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+                    <AdminDisplayLocaleToggle
+                      value={currentStep === CreateRecipeStep.BASIC_INFO ? authoringLocale : displayLocale}
+                      onChange={(locale) => {
+                        if (currentStep === CreateRecipeStep.BASIC_INFO) {
+                          setAuthoringLocale(locale);
+                        }
+                        setDisplayLocale(locale);
+                      }}
+                    />
                   </View>
                 )}
               </View>
