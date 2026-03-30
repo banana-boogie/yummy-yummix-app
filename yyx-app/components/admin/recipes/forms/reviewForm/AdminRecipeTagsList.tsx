@@ -17,7 +17,7 @@ export function RecipeTagsList({ tags, displayLocale = 'es' }: RecipeTagsListPro
         <View className="items-center justify-center p-md bg-background-secondary rounded-md min-h-[100px]">
           <Ionicons name="pricetags-outline" size={32} className="text-text-secondary" />
           <Text preset="body" className="mt-sm text-center text-text-secondary">
-            {i18n.t('admin.recipes.form.reviewInfo.noTags')}
+            {i18n.t('admin.recipes.form.tagsInfo.noTagsSelected', { defaultValue: 'No tags selected' })}
           </Text>
         </View>
       ) : (

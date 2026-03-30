@@ -13,7 +13,7 @@ interface TagsFormProps {
 export function TagsForm({ recipe, onUpdateRecipe, errors, displayLocale = 'es' }: TagsFormProps) {
 
   return (
-    <View className="mt-lg w-full" style={{ maxWidth: 800 }}>
+    <View className="mt-lg w-full">
       <TagSelector
         selectedTags={recipe.tags as RecipeTagOption[] || []}
         onTagsChange={(tags) => onUpdateRecipe({ tags })}

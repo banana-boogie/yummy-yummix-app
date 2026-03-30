@@ -174,7 +174,7 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
     <View className="flex-1">
       {/* Selected tags */}
       <View className="mb-md">
-        <Text preset="subheading" className="mt-lg mb-sm">
+        <Text preset="bodySmall" className="text-text-secondary font-medium mt-lg mb-sm">
           {i18n.t('admin.recipes.form.tagsInfo.selectedTags')}
         </Text>
 
@@ -208,15 +208,15 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
 
       {/* Available tags */}
       <View className="flex-row items-center justify-between mb-sm">
-        <Text preset="subheading">
+        <Text preset="bodySmall" className="text-text-secondary font-medium">
           {i18n.t('admin.recipes.form.tagsInfo.availableTags')}
         </Text>
         <TouchableOpacity
           onPress={() => setCreateTagModalVisible(true)}
-          className="flex-row items-center gap-xs bg-primary-lightest px-md py-xs rounded-lg border border-border-default"
+          className="flex-row items-center gap-xxs"
         >
-          <Ionicons name="add-circle-outline" size={18} color={COLORS.primary.darkest} />
-          <Text preset="bodySmall" className="text-primary-darkest font-medium">Create Tag</Text>
+          <Ionicons name="add" size={14} color={COLORS.text.secondary} />
+          <Text preset="caption" className="text-text-secondary">Create Tag</Text>
         </TouchableOpacity>
       </View>
 
