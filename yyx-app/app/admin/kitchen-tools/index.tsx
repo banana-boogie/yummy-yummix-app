@@ -108,7 +108,7 @@ export default function KitchenToolsAdminPage() {
   return (
     <AdminLayout title={i18n.t('admin.kitchenTools.title')} showBackButton={true}>
       {/* Toolbar */}
-      <View className="px-lg pt-md pb-md bg-white">
+      <View className="px-lg pt-xl pb-md bg-white">
         {/* Stats */}
         <Text preset="body" className="text-text-default font-semibold mb-md">
           {totalCount} kitchen tools

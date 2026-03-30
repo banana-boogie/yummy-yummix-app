@@ -158,7 +158,7 @@ export default function RecipesAdminPage() {
   return (
     <AdminLayout title={i18n.t('admin.common.manageRecipes')} showBackButton={true}>
       {/* Toolbar */}
-      <View className="px-lg pt-lg pb-md bg-white">
+      <View className="px-lg pt-xl pb-md bg-white">
         {/* Stats */}
         <Text preset="body" className="text-text-default font-semibold mb-md">
           {totalCount} recipes

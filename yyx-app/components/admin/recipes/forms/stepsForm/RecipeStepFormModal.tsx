@@ -554,7 +554,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
           </ScrollView>
 
           {/* Footer — always visible */}
-          <View className="flex-row justify-end gap-sm pt-md border-t border-border-default">
+          <View className="flex-row justify-end gap-sm pt-md pb-md pr-md border-t border-border-default">
             <Button
               label={i18n.t('admin.recipes.form.cancel')}
               onPress={onClose}

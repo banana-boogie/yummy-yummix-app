@@ -128,7 +128,7 @@ export default function IngredientsAdminPage() {
   return (
     <AdminLayout title={i18n.t('admin.ingredients.editTitle').replace('Edit ', 'Manage ')} showBackButton={true}>
       {/* Toolbar */}
-      <View className="px-lg pt-lg pb-lg bg-white">
+      <View className="px-lg pt-xl pb-lg bg-white">
         {/* Stats */}
         <Text preset="body" className="text-text-default font-semibold mb-md">
           {totalCount} ingredients
