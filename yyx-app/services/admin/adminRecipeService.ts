@@ -9,6 +9,7 @@ import { imageService } from '@/services/storage/imageService';
 import { BaseService } from '@/services/base/BaseService';
 import { RawStepIngredient } from '@/types/recipe.api.types';
 import { ThermomixSpeedSingle, ThermomixSpeedRange } from '@/types/thermomix.types';
+import { recipeCache } from '@/services/cache/recipeCache';
 import logger from '@/services/logger';
 
 class AdminRecipeService extends BaseService {
@@ -47,6 +48,7 @@ class AdminRecipeService extends BaseService {
     if (error) {
       throw new Error("Error toggling recipe published state: " + error.message);
     }
+    await recipeCache.clearCache();
   }
 
   async getRecipeById(id: string): Promise<AdminRecipe | null> {
@@ -249,6 +251,7 @@ class AdminRecipeService extends BaseService {
         await this.updateRecipeKitchenTools(recipeId.id, recipe.kitchenTools);
       }
 
+      await recipeCache.clearCache();
       return recipeId.id;
     } catch (error) {
       logger.error('Error in createRecipe:', error);
@@ -323,6 +326,9 @@ class AdminRecipeService extends BaseService {
     if (recipe.kitchenTools) {
       await this.updateRecipeKitchenTools(id, recipe.kitchenTools);
     }
+
+    // Invalidate user-facing cache so the updated recipe is visible immediately
+    await recipeCache.clearCache();
   }
 
   async updateRecipeIngredients(recipeId: string, recipeIngredients: AdminRecipeIngredient[]): Promise<void> {
@@ -706,6 +712,7 @@ class AdminRecipeService extends BaseService {
       if (error) {
         throw new Error(`Failed to delete recipe: ${error.message}`);
       }
+      await recipeCache.clearCache();
     } catch (error) {
       logger.error('Error in deleteRecipe:', error);
       throw error;
