@@ -3,8 +3,8 @@
  *
  * Tests single-locale display behavior:
  * - Shows name for the given displayLocale
- * - Shows plural name when available
  * - Falls back to '—' when translation is missing
+ * - Calls onPress when the card is pressed
  */
 
 import React from 'react';
@@ -34,17 +34,14 @@ const mockIngredient: AdminIngredient = {
   nutritionalFacts: { calories: 20, protein: 1.0, fat: 0.2, carbohydrates: 3.9 },
 };
 
-const mockHandlers = {
-  onEdit: jest.fn(),
-  onDelete: jest.fn(),
-};
+const mockOnPress = jest.fn();
 
 describe('IngredientCard', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('renders the Spanish name when displayLocale is es', () => {
     renderWithProviders(
-      <IngredientCard ingredient={mockIngredient} displayLocale="es" {...mockHandlers} />
+      <IngredientCard ingredient={mockIngredient} displayLocale="es" onPress={mockOnPress} />
     );
     expect(screen.getByText('Tomate')).toBeTruthy();
     expect(screen.queryByText('Tomato')).toBeNull();
@@ -52,17 +49,10 @@ describe('IngredientCard', () => {
 
   it('renders the English name when displayLocale is en', () => {
     renderWithProviders(
-      <IngredientCard ingredient={mockIngredient} displayLocale="en" {...mockHandlers} />
+      <IngredientCard ingredient={mockIngredient} displayLocale="en" onPress={mockOnPress} />
     );
     expect(screen.getByText('Tomato')).toBeTruthy();
     expect(screen.queryByText('Tomate')).toBeNull();
-  });
-
-  it('renders plural name when available', () => {
-    renderWithProviders(
-      <IngredientCard ingredient={mockIngredient} displayLocale="es" {...mockHandlers} />
-    );
-    expect(screen.getByText(/Tomates/)).toBeTruthy();
   });
 
   it('shows dash when translation is missing for locale', () => {
@@ -71,26 +61,17 @@ describe('IngredientCard', () => {
       translations: [{ locale: 'es', name: 'Tomate' }],
     };
     renderWithProviders(
-      <IngredientCard ingredient={noFrench} displayLocale="fr" {...mockHandlers} />
+      <IngredientCard ingredient={noFrench} displayLocale="fr" onPress={mockOnPress} />
     );
     expect(screen.getByText('—')).toBeTruthy();
   });
 
-  it('calls onEdit when edit button is pressed', () => {
+  it('calls onPress with the ingredient when the card is pressed', () => {
     renderWithProviders(
-      <IngredientCard ingredient={mockIngredient} displayLocale="es" {...mockHandlers} />
+      <IngredientCard ingredient={mockIngredient} displayLocale="es" onPress={mockOnPress} />
     );
-    const editButtons = screen.getAllByRole('button');
-    fireEvent.press(editButtons[0]);
-    expect(mockHandlers.onEdit).toHaveBeenCalledWith(mockIngredient);
-  });
-
-  it('calls onDelete when delete button is pressed', () => {
-    renderWithProviders(
-      <IngredientCard ingredient={mockIngredient} displayLocale="es" {...mockHandlers} />
-    );
-    const deleteButtons = screen.getAllByRole('button');
-    fireEvent.press(deleteButtons[1]);
-    expect(mockHandlers.onDelete).toHaveBeenCalledWith(mockIngredient);
+    fireEvent.press(screen.getByText('Tomate'));
+    expect(mockOnPress).toHaveBeenCalledTimes(1);
+    expect(mockOnPress).toHaveBeenCalledWith(mockIngredient);
   });
 });

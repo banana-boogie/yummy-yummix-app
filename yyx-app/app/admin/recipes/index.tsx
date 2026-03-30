@@ -143,16 +143,16 @@ export default function RecipesAdminPage() {
   const draftCount = totalCount - publishedCount;
 
   const statusPills: { key: StatusFilter; label: string }[] = [
-    { key: 'all', label: `All (${totalCount})` },
-    { key: 'published', label: `Published (${publishedCount})` },
-    { key: 'draft', label: `Draft (${draftCount})` },
+    { key: 'all', label: `${i18n.t('admin.filters.all')} (${totalCount})` },
+    { key: 'published', label: `${i18n.t('admin.filters.published')} (${publishedCount})` },
+    { key: 'draft', label: `${i18n.t('admin.filters.draft')} (${draftCount})` },
   ];
 
   const sortOptions: { key: SortField; label: string }[] = [
-    { key: 'dateUpdated', label: 'Updated' },
-    { key: 'dateAdded', label: 'Created' },
-    { key: 'name', label: 'Name' },
-    { key: 'isPublished', label: 'Status' },
+    { key: 'dateUpdated', label: i18n.t('admin.filters.sortUpdated') },
+    { key: 'dateAdded', label: i18n.t('admin.filters.sortCreated') },
+    { key: 'name', label: i18n.t('admin.filters.sortName') },
+    { key: 'isPublished', label: i18n.t('admin.filters.sortStatus') },
   ];
 
   return (
@@ -161,10 +161,10 @@ export default function RecipesAdminPage() {
       <View className="px-lg pt-xl pb-md bg-white">
         {/* Stats */}
         <Text preset="body" className="text-text-default font-semibold mb-md">
-          {totalCount} recipes
-          <Text preset="body" style={{ color: COLORS.status.success }}> · {publishedCount} published</Text>
+          {i18n.t('admin.recipes.list.stats.count', { count: totalCount })}
+          <Text preset="body" style={{ color: COLORS.status.success }}> · {i18n.t('admin.recipes.list.stats.published', { count: publishedCount })}</Text>
           {draftCount > 0 && (
-            <Text preset="body" style={{ color: COLORS.status.warning }}> · {draftCount} drafts</Text>
+            <Text preset="body" style={{ color: COLORS.status.warning }}> · {i18n.t('admin.recipes.list.stats.drafts', { count: draftCount })}</Text>
           )}
         </Text>
 
@@ -235,7 +235,7 @@ export default function RecipesAdminPage() {
             style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
           >
             <Ionicons name="add" size={16} color={COLORS.text.default} />
-            <Text preset="bodySmall" className="text-text-default">New</Text>
+            <Text preset="bodySmall" className="text-text-default">{i18n.t('admin.common.new')}</Text>
           </Pressable>
         </View>
       </View>

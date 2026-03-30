@@ -38,13 +38,13 @@ function timeAgo(dateStr: string): string {
 // =============================================================================
 
 const manageItems = [
-  { icon: 'analytics-outline', label: 'Analytics', desc: 'Usage & engagement', route: '/admin/analytics' },
-  { icon: 'medkit-outline', label: 'Content Health', desc: 'Audit missing data', route: '/admin/content-health' },
-  { icon: 'leaf-outline', label: 'Ingredients', desc: 'Ingredient library', route: '/admin/ingredients' },
-  { icon: 'build-outline', label: 'Kitchen Tools', desc: 'Equipment library', route: '/admin/kitchen-tools' },
-  { icon: 'restaurant-outline', label: 'Recipes', desc: 'Manage catalog', route: '/admin/recipes' },
-  { icon: 'pricetag-outline', label: 'Tags', desc: 'Recipe categories', route: '/admin/tags' },
-  { icon: 'people-outline', label: 'User Recipes', desc: 'AI-generated recipes', route: '/admin/user-recipes' },
+  { icon: 'analytics-outline', labelKey: 'admin.nav.analytics', descKey: 'admin.nav.analyticsDesc', route: '/admin/analytics' },
+  { icon: 'medkit-outline', labelKey: 'admin.nav.contentHealth', descKey: 'admin.nav.contentHealthDesc', route: '/admin/content-health' },
+  { icon: 'leaf-outline', labelKey: 'admin.nav.ingredients', descKey: 'admin.nav.ingredientsDesc', route: '/admin/ingredients' },
+  { icon: 'build-outline', labelKey: 'admin.nav.kitchenTools', descKey: 'admin.nav.kitchenToolsDesc', route: '/admin/kitchen-tools' },
+  { icon: 'restaurant-outline', labelKey: 'admin.nav.recipes', descKey: 'admin.nav.recipesDesc', route: '/admin/recipes' },
+  { icon: 'pricetag-outline', labelKey: 'admin.nav.tags', descKey: 'admin.nav.tagsDesc', route: '/admin/tags' },
+  { icon: 'people-outline', labelKey: 'admin.nav.userRecipes', descKey: 'admin.nav.userRecipesDesc', route: '/admin/user-recipes' },
 ];
 
 // =============================================================================
@@ -87,7 +87,7 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <AdminLayout title="Dashboard">
+      <AdminLayout title={i18n.t('admin.common.dashboard')}>
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color={COLORS.primary.darkest} />
         </View>
@@ -96,18 +96,18 @@ export default function AdminDashboard() {
   }
 
   return (
-    <AdminLayout title="Dashboard">
+    <AdminLayout title={i18n.t('admin.common.dashboard')}>
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 32, maxWidth: 900 }}>
 
         {/* Section A: Manage */}
-        <Text preset="h3" className="text-text-default mb-md">Manage</Text>
+        <Text preset="h3" className="text-text-default mb-md">{i18n.t('admin.dashboard.manage')}</Text>
         <View className="flex-row flex-wrap gap-md mb-xxl">
           {manageItems.map((item) => (
             <ManageCard
               key={item.route}
               icon={item.icon}
-              label={item.label}
-              desc={item.desc}
+              label={i18n.t(item.labelKey)}
+              desc={i18n.t(item.descKey)}
               onPress={(e) => navTo(router, item.route, e as any)}
             />
           ))}
@@ -121,7 +121,7 @@ export default function AdminDashboard() {
             onPress={(e) => navTo(router, '/admin/recipes/new', e as any)}
           >
             <Ionicons name="add-circle-outline" size={24} color={COLORS.primary.darkest} />
-            <Text preset="bodySmall" className="text-primary-darkest mt-xs text-center font-semibold">New Recipe</Text>
+            <Text preset="bodySmall" className="text-primary-darkest mt-xs text-center font-semibold">{i18n.t('admin.dashboard.newRecipe')}</Text>
           </Pressable>
         </View>
 
@@ -131,7 +131,7 @@ export default function AdminDashboard() {
         {/* Section B: Pipeline Progress */}
         <View className="mb-xxl">
           <View className="flex-row justify-between items-center mb-sm">
-            <Text preset="h3" className="text-text-default">Publishing Progress</Text>
+            <Text preset="h3" className="text-text-default">{i18n.t('admin.dashboard.publishingProgress')}</Text>
             <Text preset="body" className="text-text-default font-semibold">
               {publishPercent}%
             </Text>
@@ -148,11 +148,11 @@ export default function AdminDashboard() {
               style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
             >
               <Text preset="bodySmall" className="text-text-secondary">
-                {draftCount} drafts to review →
+                {i18n.t('admin.dashboard.draftsToReview', { count: draftCount })} →
               </Text>
             </Pressable>
             <Text preset="caption" className="text-text-secondary">
-              {publishedCount} published · {totalCount} total
+              {i18n.t('admin.dashboard.publishedTotal', { published: publishedCount, total: totalCount })}
             </Text>
           </View>
         </View>
@@ -163,26 +163,26 @@ export default function AdminDashboard() {
         {/* Section C: Content Blockers */}
         {healthSummary && (
           <View className="mb-xxl">
-            <Text preset="h3" className="text-text-default mb-md">Content Issues</Text>
+            <Text preset="h3" className="text-text-default mb-md">{i18n.t('admin.dashboard.contentIssues')}</Text>
             <View className="flex-row gap-md flex-wrap">
               <BlockerCard
                 icon="language-outline"
                 count={healthSummary.missingTranslations.total}
-                label="Need translations"
+                label={i18n.t('admin.dashboard.needTranslations')}
                 color={COLORS.status.warning}
                 onPress={(e) => navTo(router, '/admin/content-health', e as any)}
               />
               <BlockerCard
                 icon="image-outline"
                 count={healthSummary.missingImages.total}
-                label="Need images"
+                label={i18n.t('admin.dashboard.needImages')}
                 color={COLORS.status.error}
                 onPress={(e) => navTo(router, '/admin/content-health', e as any)}
               />
               <BlockerCard
                 icon="nutrition-outline"
                 count={healthSummary.missingNutrition.total}
-                label="Need nutrition"
+                label={i18n.t('admin.dashboard.needNutrition')}
                 color={COLORS.status.warning}
                 onPress={(e) => navTo(router, '/admin/content-health', e as any)}
               />
@@ -197,17 +197,17 @@ export default function AdminDashboard() {
         {recentRecipes.length > 0 && (
           <View className="mb-xxl">
             <View className="flex-row justify-between items-center mb-md">
-              <Text preset="h3" className="text-text-default">Recent Recipes</Text>
+              <Text preset="h3" className="text-text-default">{i18n.t('admin.dashboard.recentRecipes')}</Text>
               <Pressable
                 onPress={(e) => navTo(router, '/admin/recipes', e as any)}
                 style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
               >
-                <Text preset="bodySmall" className="text-primary-darkest">View all →</Text>
+                <Text preset="bodySmall" className="text-primary-darkest">{i18n.t('admin.dashboard.viewAll')} →</Text>
               </Pressable>
             </View>
             {recentRecipes.map((recipe) => {
               const t = pickTranslation(recipe.translations, i18n.locale);
-              const name = t?.name || 'Untitled';
+              const name = t?.name || i18n.t('admin.userRecipes.untitled');
               const updatedAt = recipe.updatedAt || recipe.createdAt;
               return (
                 <Pressable
@@ -232,7 +232,7 @@ export default function AdminDashboard() {
                     <View className="flex-1">
                       <Text preset="body" className="text-text-default" numberOfLines={1}>{name}</Text>
                       <Text preset="caption" className="text-text-secondary">
-                        Updated {timeAgo(updatedAt)}
+                        {i18n.t('admin.dashboard.updated', { time: timeAgo(updatedAt) })}
                       </Text>
                     </View>
                     <View className="flex-row items-center gap-sm">
@@ -241,7 +241,7 @@ export default function AdminDashboard() {
                       )}
                       <View className={`px-sm py-xxs rounded-full ${recipe.isPublished ? 'bg-status-success' : 'bg-grey-light'}`}>
                         <Text preset="caption" className={recipe.isPublished ? 'text-white' : 'text-text-secondary'}>
-                          {recipe.isPublished ? 'Live' : 'Draft'}
+                          {recipe.isPublished ? i18n.t('admin.dashboard.live') : i18n.t('admin.dashboard.draft')}
                         </Text>
                       </View>
                     </View>

@@ -351,7 +351,7 @@ class AdminRecipeService extends BaseService {
         quantity: parseFloat(String(recipeIngredient.quantity || '0')),
         measurementUnitId: recipeIngredient.measurementUnit?.id || null,
         optional: recipeIngredient.optional || false,
-        displayOrder: recipeIngredient.displayOrder || index,
+        displayOrder: index + 1,
       })
     );
 
@@ -372,7 +372,7 @@ class AdminRecipeService extends BaseService {
 
       const translations: any[] = [];
       recipeIngredients.forEach((recipeIngredient, index) => {
-        const displayOrder = recipeIngredient.displayOrder || index;
+        const displayOrder = index + 1;
         const rowId = orderToIdMap.get(displayOrder);
         if (!rowId) return;
 
@@ -548,7 +548,7 @@ class AdminRecipeService extends BaseService {
           ingredientId: recipeStepIngredient.ingredient?.id,
           measurementUnitId: recipeStepIngredient.measurementUnit?.id || null,
           quantity: parseFloat(String(recipeStepIngredient.quantity)),
-          displayOrder: recipeStepIngredient.displayOrder || index,
+          displayOrder: index + 1,
           optional: recipeStepIngredient.optional || false
         }) as RawStepIngredient;
 

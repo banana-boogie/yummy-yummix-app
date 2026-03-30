@@ -114,29 +114,29 @@ export default function IngredientsAdminPage() {
   const numColumns = isPhone ? 2 : 3;
 
   const filterPills: { key: IngredientFilter; label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'has_image', label: 'Has Image' },
-    { key: 'needs_image', label: `No Image (${needsImageCount})` },
-    { key: 'needs_nutrition', label: `No Nutrition (${needsNutritionCount})` },
+    { key: 'all', label: i18n.t('admin.filters.all') },
+    { key: 'has_image', label: i18n.t('admin.filters.hasImage') },
+    { key: 'needs_image', label: `${i18n.t('admin.filters.noImage')} (${needsImageCount})` },
+    { key: 'needs_nutrition', label: `${i18n.t('admin.filters.noNutrition')} (${needsNutritionCount})` },
   ];
 
   // Build stats caption
-  const statParts = [`${totalCount} ingredients`];
-  if (needsImageCount > 0) statParts.push(`${needsImageCount} need images`);
-  if (needsNutritionCount > 0) statParts.push(`${needsNutritionCount} need nutrition`);
+  const statParts = [i18n.t('admin.ingredients.stats.count', { count: totalCount })];
+  if (needsImageCount > 0) statParts.push(i18n.t('admin.ingredients.stats.needImages', { count: needsImageCount }));
+  if (needsNutritionCount > 0) statParts.push(i18n.t('admin.ingredients.stats.needNutrition', { count: needsNutritionCount }));
 
   return (
-    <AdminLayout title={i18n.t('admin.ingredients.editTitle').replace('Edit ', 'Manage ')} showBackButton={true}>
+    <AdminLayout title={i18n.t('admin.ingredients.manageTitle')} showBackButton={true}>
       {/* Toolbar */}
       <View className="px-lg pt-xl pb-lg bg-white">
         {/* Stats */}
         <Text preset="body" className="text-text-default font-semibold mb-md">
-          {totalCount} ingredients
+          {i18n.t('admin.ingredients.stats.count', { count: totalCount })}
           {needsImageCount > 0 && (
-            <Text preset="body" style={{ color: COLORS.status.warning }}> · {needsImageCount} need images</Text>
+            <Text preset="body" style={{ color: COLORS.status.warning }}> · {i18n.t('admin.ingredients.stats.needImages', { count: needsImageCount })}</Text>
           )}
           {needsNutritionCount > 0 && (
-            <Text preset="body" style={{ color: COLORS.status.warning }}> · {needsNutritionCount} need nutrition</Text>
+            <Text preset="body" style={{ color: COLORS.status.warning }}> · {i18n.t('admin.ingredients.stats.needNutrition', { count: needsNutritionCount })}</Text>
           )}
         </Text>
 
@@ -177,7 +177,7 @@ export default function IngredientsAdminPage() {
             <SearchBar
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
-              placeholder="Search ingredients..."
+              placeholder={i18n.t('admin.ingredients.searchPlaceholder')}
               className="mb-0"
             />
           </View>
@@ -187,7 +187,7 @@ export default function IngredientsAdminPage() {
             style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
           >
             <Ionicons name="add" size={16} color={COLORS.text.default} />
-            <Text preset="bodySmall" className="text-text-default">New</Text>
+            <Text preset="bodySmall" className="text-text-default">{i18n.t('admin.common.new')}</Text>
           </Pressable>
         </View>
       </View>
@@ -218,7 +218,7 @@ export default function IngredientsAdminPage() {
             <View className="items-center justify-center p-xl">
               <Ionicons name="leaf-outline" size={48} color={COLORS.grey.medium} />
               <Text preset="body" className="text-text-secondary mt-sm">
-                No ingredients found
+                {i18n.t('admin.ingredients.noIngredients')}
               </Text>
             </View>
           }

@@ -41,10 +41,10 @@ export default function UserRecipesPage() {
   }, []);
 
   return (
-    <AdminLayout title="User Recipes" showBackButton={true}>
+    <AdminLayout title={i18n.t('admin.userRecipes.listTitle')} showBackButton={true}>
       <View className="px-lg pt-md pb-md bg-white border-b border-border-default">
         <Text preset="caption" className="text-text-secondary">
-          {recipes.length} user recipes
+          {i18n.t('admin.userRecipes.count', { count: recipes.length })}
         </Text>
       </View>
 
@@ -68,7 +68,7 @@ export default function UserRecipesPage() {
             >
               <View className="flex-1">
                 <Text preset="body" className="text-text-default" numberOfLines={1}>
-                  {item.name || 'Untitled'}
+                  {item.name || i18n.t('admin.userRecipes.untitled')}
                 </Text>
                 <Text preset="caption" className="text-text-secondary">
                   {item.source} · {new Date(item.created_at).toLocaleDateString()}
@@ -78,7 +78,7 @@ export default function UserRecipesPage() {
           )}
           ListEmptyComponent={
             <View className="items-center justify-center p-xl">
-              <Text preset="body" className="text-text-secondary">No user recipes yet</Text>
+              <Text preset="body" className="text-text-secondary">{i18n.t('admin.userRecipes.empty')}</Text>
             </View>
           }
         />

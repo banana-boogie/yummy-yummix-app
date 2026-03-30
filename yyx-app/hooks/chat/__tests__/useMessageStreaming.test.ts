@@ -98,7 +98,6 @@ function createDefaultParams(overrides?: Partial<Parameters<typeof useMessageStr
     skipNextScrollToEndRef: { current: false },
     hasRecipeInCurrentStreamRef: { current: false },
     flatListRef: { current: null } as any,
-    onResumeSessionClear: jest.fn(),
     onBudgetWarning: jest.fn(),
     onBudgetExceeded: jest.fn(),
     ...overrides,
@@ -312,7 +311,7 @@ describe('useMessageStreaming', () => {
       expect(result.current.inputText).toBe('');
     });
 
-    it('calls stopAndGuard and onResumeSessionClear on send', async () => {
+    it('calls stopAndGuard on send', async () => {
       const params = createDefaultParams();
       setupMockSendMessage({ autoResolve: true });
 
@@ -324,7 +323,6 @@ describe('useMessageStreaming', () => {
       });
 
       expect(params.stopAndGuard).toHaveBeenCalled();
-      expect(params.onResumeSessionClear).toHaveBeenCalled();
     });
 
     it('sets loading and status to thinking on send', () => {

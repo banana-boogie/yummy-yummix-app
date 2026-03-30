@@ -257,6 +257,8 @@ export class AdminIngredientsService extends BaseService {
         .insert(dbTranslations);
 
       if (translationError) {
+        // Clean up orphaned ingredient row before throwing
+        await this.supabase.from('ingredients').delete().eq('id', inserted.id);
         if (translationError.message?.includes('unique constraint') || translationError.code === '23505') {
           throw new Error('An ingredient with this name already exists. Please use a different name.');
         }
@@ -265,7 +267,13 @@ export class AdminIngredientsService extends BaseService {
     }
 
     // Upsert nutrition if provided
-    await this.persistNutrition(inserted.id, ingredient.nutritionalFacts);
+    try {
+      await this.persistNutrition(inserted.id, ingredient.nutritionalFacts);
+    } catch (nutritionError) {
+      // Clean up orphaned ingredient row before throwing
+      await this.supabase.from('ingredients').delete().eq('id', inserted.id);
+      throw nutritionError;
+    }
 
     return {
       id: inserted.id,

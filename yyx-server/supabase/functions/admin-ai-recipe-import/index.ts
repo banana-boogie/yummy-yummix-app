@@ -515,6 +515,18 @@ serve(async (req: Request) => {
       );
     }
 
+    if (content.length > 100000) {
+      return new Response(
+        JSON.stringify({
+          error: "Recipe content is too long. Maximum 100,000 characters.",
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        },
+      );
+    }
+
     console.info(
       `[${requestId}] Received content of length: ${content.length}`,
     );

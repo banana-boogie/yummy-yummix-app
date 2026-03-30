@@ -100,9 +100,9 @@ export default function KitchenToolsAdminPage() {
   const numColumns = isPhone ? 2 : 3;
 
   const filterPills: { key: ImageFilter; label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'has_image', label: 'Has Image' },
-    { key: 'needs_image', label: `Needs Image (${needsImageCount})` },
+    { key: 'all', label: i18n.t('admin.filters.all') },
+    { key: 'has_image', label: i18n.t('admin.filters.hasImage') },
+    { key: 'needs_image', label: `${i18n.t('admin.filters.needsImage')} (${needsImageCount})` },
   ];
 
   return (
@@ -111,9 +111,9 @@ export default function KitchenToolsAdminPage() {
       <View className="px-lg pt-xl pb-md bg-white">
         {/* Stats */}
         <Text preset="body" className="text-text-default font-semibold mb-md">
-          {totalCount} kitchen tools
+          {i18n.t('admin.kitchenTools.stats.count', { count: totalCount })}
           {needsImageCount > 0 && (
-            <Text preset="body" style={{ color: COLORS.status.warning }}> · {needsImageCount} need images</Text>
+            <Text preset="body" style={{ color: COLORS.status.warning }}> · {i18n.t('admin.kitchenTools.stats.needImages', { count: needsImageCount })}</Text>
           )}
         </Text>
 
@@ -164,7 +164,7 @@ export default function KitchenToolsAdminPage() {
             style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
           >
             <Ionicons name="add" size={16} color={COLORS.text.default} />
-            <Text preset="bodySmall" className="text-text-default">New</Text>
+            <Text preset="bodySmall" className="text-text-default">{i18n.t('admin.common.new')}</Text>
           </Pressable>
         </View>
       </View>
