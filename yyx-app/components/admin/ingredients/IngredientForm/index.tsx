@@ -121,7 +121,8 @@ export function IngredientForm({
             setShowSuccessAlert(true);
         } catch (error) {
             logger.error('Error saving ingredient:', error);
-            setErrorMessage(i18n.t('admin.ingredients.errors.saveFailed', { defaultValue: 'Failed to save ingredient. Please try again.' }));
+            const msg = error instanceof Error ? error.message : '';
+            setErrorMessage(msg || i18n.t('admin.ingredients.errors.saveFailed', { defaultValue: 'Failed to save ingredient. Please try again.' }));
             setShowErrorAlert(true);
         }
     };

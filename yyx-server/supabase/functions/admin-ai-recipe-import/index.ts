@@ -360,8 +360,9 @@ const jsonSchema = {
             enum: temperatureEnum,
           },
           thermomixTemperatureUnit: {
-            type: ["number", "null"],
-            description: "Temperature unit in C or F. null if no temperature.",
+            type: ["string", "null"],
+            enum: ["C", "F", null],
+            description: "Temperature unit: C or F. null if no temperature.",
           },
           thermomixSpeed: {
             type: ["object", "null"],
@@ -565,7 +566,9 @@ serve(async (req: Request) => {
       : "Unknown error";
     console.error(`[${requestId}] Error:`, errorMessage);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({
+        error: "Failed to import recipe. Check server logs for details.",
+      }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },

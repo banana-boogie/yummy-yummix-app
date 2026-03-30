@@ -53,7 +53,7 @@ describe('AdminDisplayLocaleToggle', () => {
         <AdminDisplayLocaleToggle value="es" onChange={jest.fn()} />
       );
 
-      expect(screen.getByText('admin.common.displayLanguage')).toBeTruthy();
+      expect(screen.getByText('admin.translate.authoringLanguage')).toBeTruthy();
     });
   });
 

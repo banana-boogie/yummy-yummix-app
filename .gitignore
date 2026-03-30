@@ -75,3 +75,4 @@ apple-jwt.txt
 # Testing
 coverage/
 .claude/settings.local.json
+yyx-server/data-pipeline/missing-images.json
