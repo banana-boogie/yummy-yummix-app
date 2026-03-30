@@ -551,22 +551,23 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
               </FormGroup>
             </FormRow>
 
-            {/* Actions */}
-            <View className="flex-row justify-end gap-md mt-lg">
-              <Button
-                label={i18n.t('admin.recipes.form.cancel')}
-                onPress={onClose}
-                variant="outline"
-                className="min-w-[120px]"
-              />
-              <Button
-                label={i18n.t('admin.recipes.form.save')}
-                onPress={handleSubmit}
-                variant="primary"
-                className="min-w-[120px]"
-              />
-            </View>
           </ScrollView>
+
+          {/* Footer — always visible */}
+          <View className="flex-row justify-end gap-sm pt-md border-t border-border-default">
+            <Button
+              label={i18n.t('admin.recipes.form.cancel')}
+              onPress={onClose}
+              variant="outline"
+              size="small"
+            />
+            <Button
+              label={i18n.t('admin.recipes.form.save')}
+              onPress={handleSubmit}
+              variant="primary"
+              size="small"
+            />
+          </View>
         </View>
       </View>
     </Modal >
