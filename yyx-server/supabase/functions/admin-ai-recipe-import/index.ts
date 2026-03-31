@@ -61,6 +61,20 @@ RULES:
 - Quantities are numeric (use 0.5 not "1/2", use 0.25 not "1/4").
 - If information is missing (e.g., no prep time given), use reasonable estimates based on the recipe.
 - Tags should be lowercase, no # prefix.
+
+FORMATTING RULES:
+- No space between quantity and unit: "250g" not "250 g".
+- Abbreviations without periods: g, ml, kg (not g., ml., kg.).
+- Quantities in numbers: "2 eggs" not "two eggs".
+- One ingredient per line. If alternatives exist, add them as a tip.
+- List ingredients in the order they are used.
+- Specify ingredient state if necessary: "melted", "diced", "at room temperature" — put this in the notes field, NOT the ingredient name.
+- Steps use second person singular (tú in Spanish, "you" in English).
+- Thermomix parameters: time/temperature/speed separated by forward slashes.
+- Time abbreviations: sec, min. Temperature: °C. No periods.
+- ONE Thermomix instruction per step only. Split into two steps if needed.
+- Metric system: grams (g) and Celsius (°C).
+- Ingredient name field = base ingredient ONLY. No quantities, units, or prep adjectives. Put unit in measurementUnitID, prep state in notes.
 `;
 
 // =============================================================================

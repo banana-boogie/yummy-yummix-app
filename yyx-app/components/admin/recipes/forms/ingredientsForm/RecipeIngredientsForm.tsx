@@ -25,9 +25,10 @@ type IngredientsFormProps = {
   errors: Record<string, string>;
   authoringLocale?: string;
   displayLocale?: string;
+  missingIngredients?: any[];
 };
 
-export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es', displayLocale }: IngredientsFormProps) {
+export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es', displayLocale, missingIngredients }: IngredientsFormProps) {
   const tForm = (key: string, opts?: any) => i18n.t(key, { ...opts, locale: authoringLocale });
   const { isMobile } = useDevice();
   const [ingredients, setIngredients] = useState<AdminIngredient[]>([]);
@@ -393,6 +394,37 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
         </Text>
       ) : null}
 
+      {/* Missing ingredients from AI import */}
+      {missingIngredients && missingIngredients.length > 0 && (
+        <View className="mb-md p-md rounded-md border border-status-warning" style={{ backgroundColor: '#FFF8E1' }}>
+          <View className="flex-row items-center gap-xs mb-sm">
+            <Ionicons name="warning-outline" size={18} color={COLORS.status.warning} />
+            <Text preset="bodySmall" className="font-semibold" style={{ color: COLORS.status.warning }}>
+              {i18n.t('admin.recipes.form.ingredientsInfo.missingFromImport', { defaultValue: 'Missing from AI Import' })}
+              {' '}({missingIngredients.length})
+            </Text>
+          </View>
+          <Text preset="caption" className="text-text-secondary mb-sm">
+            {i18n.t('admin.recipes.form.ingredientsInfo.missingFromImportHint', { defaultValue: 'These ingredients were not found in the database. Create them or add manually.' })}
+          </Text>
+          {missingIngredients.map((item: any, idx: number) => {
+            const nameEn = item.ingredient?.translations?.find((t: any) => t.locale === 'en')?.name || '';
+            const nameEs = item.ingredient?.translations?.find((t: any) => t.locale === 'es')?.name || '';
+            const notes = item.translations?.find((t: any) => t.locale === 'en')?.notes || item.translations?.find((t: any) => t.locale === 'es')?.notes || '';
+            const tip = item.translations?.find((t: any) => t.locale === 'en')?.tip || item.translations?.find((t: any) => t.locale === 'es')?.tip || '';
+            return (
+              <View key={`missing-${idx}`} className="flex-row flex-wrap items-baseline gap-xs py-xs border-t border-border-default">
+                <Text preset="bodySmall" className="font-semibold">{nameEn || nameEs}</Text>
+                {nameEn && nameEs ? <Text preset="caption" className="text-text-secondary">/ {nameEs}</Text> : null}
+                <Text preset="caption" className="text-text-secondary">— {item.quantity} {item.measurementUnitID || 'unit'}</Text>
+                {notes ? <Text preset="caption" className="text-text-secondary italic">({notes})</Text> : null}
+                {tip ? <Text preset="caption" className="text-text-secondary italic">[tip: {tip}]</Text> : null}
+                {item.optional ? <Text preset="caption" style={{ color: COLORS.status.warning }}>(optional)</Text> : null}
+              </View>
+            );
+          })}
+        </View>
+      )}
 
       <View className="w-full flex-col flex-1">
         {/* Mobile Layout */}

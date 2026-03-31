@@ -76,9 +76,9 @@ export default function NewRecipePage() {
       case CreateRecipeStep.BASIC_INFO:
         return <RecipeInfoForm recipe={recipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} onAuthoringLocaleChange={setAuthoringLocale} />;
       case CreateRecipeStep.KITCHEN_TOOLS:
-        return <RecipeKitchenToolsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} />;
+        return <RecipeKitchenToolsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} missingKitchenTools={recipe._missingKitchenTools} />;
       case CreateRecipeStep.INGREDIENTS:
-        return <RecipeIngredientsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} />;
+        return <RecipeIngredientsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} missingIngredients={recipe._missingIngredients} />;
       case CreateRecipeStep.STEPS:
         return <StepsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} />;
       case CreateRecipeStep.TAGS:
@@ -183,7 +183,7 @@ export default function NewRecipePage() {
         onConfirm={() => {
           setShowAlert(false);
           if (alertSuccess) {
-            router.back();
+            router.replace('/admin/recipes');
           }
         }}
         confirmText={i18n.t('common.ok')}

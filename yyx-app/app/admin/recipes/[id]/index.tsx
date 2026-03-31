@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ScrollView, View, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS } from '@/constants/design-tokens';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { RecipeInfoForm } from '@/components/admin/recipes/forms/RecipeInfoForm';
@@ -27,6 +27,7 @@ import logger from '@/services/logger';
 
 export default function EditRecipePage() {
   const { id } = useLocalSearchParams();
+  const router = useRouter();
   const [recipe, setRecipe] = useState<Partial<AdminRecipe>>({
     ingredients: [],
     steps: [],
@@ -272,7 +273,7 @@ export default function EditRecipePage() {
           visible={showSuccessDialog}
           title={i18n.t('admin.recipes.form.saveSuccess.title')}
           message={i18n.t('admin.recipes.form.saveSuccess.message')}
-          onConfirm={() => setShowSuccessDialog(false)}
+          onConfirm={() => router.replace('/admin/recipes')}
           confirmText={i18n.t('common.ok')}
         />
 

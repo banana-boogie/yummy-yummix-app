@@ -126,7 +126,12 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
             }
 
             // Update the recipe state with parsed + translated data
-            onUpdateRecipe(finalRecipe);
+            // Store missing items on the recipe so they're available on related pages
+            onUpdateRecipe({
+                ...finalRecipe,
+                _missingIngredients: missingIngredients,
+                _missingKitchenTools: missingKitchenTools,
+            } as any);
 
             setParsingStatus({
                 loading: false,

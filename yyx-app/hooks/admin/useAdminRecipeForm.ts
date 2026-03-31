@@ -21,6 +21,8 @@ const STORAGE_KEYS = {
 export interface ExtendedRecipe extends Partial<AdminRecipe> {
   _imageFile?: any;
   _imageFileUri?: string;
+  _missingIngredients?: any[];
+  _missingKitchenTools?: any[];
 }
 
 // Initial recipe state - only the authoring locale's translation

@@ -25,9 +25,10 @@ type KitchenToolsFormProps = {
     errors: Record<string, string>;
     authoringLocale?: string;
     displayLocale?: string;
+    missingKitchenTools?: any[];
 };
 
-export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es', displayLocale }: KitchenToolsFormProps) {
+export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es', displayLocale, missingKitchenTools }: KitchenToolsFormProps) {
     const { isMobile } = useDevice();
     const [kitchenTools, setKitchenTools] = useState<AdminKitchenTool[]>([]);
     const [filteredKitchenTools, setFilteredKitchenTools] = useState<AdminKitchenTool[]>([]);
@@ -192,6 +193,35 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                     <ErrorMessage message={errors.kitchenTools} />
                 </View>
             ) : null}
+
+            {/* Missing kitchen tools from AI import */}
+            {missingKitchenTools && missingKitchenTools.length > 0 && (
+                <View className="mb-md p-md rounded-md border border-status-warning" style={{ backgroundColor: '#FFF8E1' }}>
+                    <View className="flex-row items-center gap-xs mb-sm">
+                        <Ionicons name="warning-outline" size={18} color={COLORS.status.warning} />
+                        <Text preset="bodySmall" className="font-semibold" style={{ color: COLORS.status.warning }}>
+                            {i18n.t('admin.recipes.form.kitchenToolsInfo.missingFromImport', { defaultValue: 'Missing from AI Import' })}
+                            {' '}({missingKitchenTools.length})
+                        </Text>
+                    </View>
+                    <Text preset="caption" className="text-text-secondary mb-sm">
+                        {i18n.t('admin.recipes.form.kitchenToolsInfo.missingFromImportHint', { defaultValue: 'These tools were not found in the database. Create them or add manually.' })}
+                    </Text>
+                    {missingKitchenTools.map((item: any, idx: number) => {
+                        const nameEn = item.translations?.find((t: any) => t.locale === 'en')?.name || '';
+                        const nameEs = item.translations?.find((t: any) => t.locale === 'es')?.name || '';
+                        const notes = item.translations?.find((t: any) => t.locale === 'en')?.notes || item.translations?.find((t: any) => t.locale === 'es')?.notes || '';
+                        return (
+                            <View key={`missing-tool-${idx}`} className="flex-row flex-wrap items-baseline gap-xs py-xs border-t border-border-default">
+                                <Text preset="bodySmall" className="font-semibold">{nameEn || nameEs}</Text>
+                                {nameEn && nameEs ? <Text preset="caption" className="text-text-secondary">/ {nameEs}</Text> : null}
+                                {notes ? <Text preset="caption" className="text-text-secondary italic">({notes})</Text> : null}
+                            </View>
+                        );
+                    })}
+                </View>
+            )}
+
             {isMobile ? (
                 /* ===== MOBILE LAYOUT: Stacked, Selected first ===== */
                 <View className="flex-col">

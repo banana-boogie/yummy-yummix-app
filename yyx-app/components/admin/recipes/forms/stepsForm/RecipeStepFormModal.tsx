@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Modal,
@@ -47,6 +47,8 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
   authoringLocale = 'es'
 }) => {
   const { isLarge: isLargeScreen, isSmall: isSmallScreen } = useDevice();
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollOffsetRef = useRef(0);
   // Form labels follow the authoring locale so the admin sees labels in the language they're editing
   const tForm = (key: string, opts?: any) => i18n.t(key, { ...opts, locale: authoringLocale });
   const [formData, setFormData] = useState<AdminRecipeSteps>(recipeStep);
@@ -211,6 +213,12 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
         return { ...prev, ingredients: [...currentIngredients, recipeIngredientCopy] };
       }
     });
+
+    // Restore scroll position after the re-sort moves selected items to top
+    const savedOffset = scrollOffsetRef.current;
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: savedOffset, animated: false });
+    });
   };
 
   const handleIngredientQuantityChange = (ingredientId: string, newQuantity: string) => {
@@ -301,7 +309,13 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+          <ScrollView
+            ref={scrollRef}
+            onScroll={(e) => { scrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
+            scrollEventThrottle={16}
+            className="flex-1"
+            contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          >
             <View className="flex-row justify-end flex-wrap items-baseline mt-md">
               <TouchableOpacity
                 className="flex-row items-center justify-start py-sm gap-xs"
