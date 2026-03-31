@@ -110,10 +110,10 @@ export default function NewRecipePage() {
           {(() => {
             const isPickerStep = currentStep === CreateRecipeStep.KITCHEN_TOOLS || currentStep === CreateRecipeStep.INGREDIENTS;
             const header = showNavElements ? (
-              <View className="w-full px-md pb-md">
+              <View className={`w-full px-md ${isPickerStep ? 'pb-xs' : 'pb-md'}`}>
                 <RecipeProgressIndicator currentStep={currentStep} onStepClick={setCurrentStep} clickable={true} />
                 {currentStep !== CreateRecipeStep.INITIAL_SETUP && currentStep !== CreateRecipeStep.TRANSLATIONS && (
-                  <View className="mt-md">
+                  <View className={isPickerStep ? 'mt-xs' : 'mt-md'}>
                     <AdminDisplayLocaleToggle
                       value={currentStep === CreateRecipeStep.BASIC_INFO ? authoringLocale : displayLocale}
                       onChange={(locale) => {
@@ -131,7 +131,7 @@ export default function NewRecipePage() {
             if (isPickerStep) {
               // Picker steps: no outer scroll — columns manage their own scrolling
               return (
-                <View className="flex-1" style={{ padding: 24 }}>
+                <View className="flex-1" style={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 0 }}>
                   {header}
                   {renderStepContent()}
                 </View>

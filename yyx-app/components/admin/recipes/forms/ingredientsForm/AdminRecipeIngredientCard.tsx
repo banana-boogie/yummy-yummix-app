@@ -40,7 +40,7 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
   // Desktop: compact single-row card
   if (!isMobile) {
     return (
-      <View className="flex-row items-center p-xs border border-border-default rounded-sm mb-xs bg-background-default gap-xs">
+      <View className="flex-row items-center p-sm border border-border-default rounded-sm mb-sm bg-background-default gap-xs">
         {/* Image */}
         <SafeImage
           source={recipeIngredient.ingredient.pictureUrl}

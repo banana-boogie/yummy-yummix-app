@@ -296,20 +296,20 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
 
   const renderSearchIngredientCard = ({ item }: { item: AdminIngredient }) => (
     <TouchableOpacity
-      className="flex-row items-center p-sm border border-border-default rounded-md mb-md bg-background-default"
+      className={`flex-row items-center border border-border-default bg-background-default ${isMobile ? 'p-sm rounded-md mb-md' : 'p-xs rounded-sm mb-xs'}`}
       onPress={() => handleAddRecipeIngredient(item)}
     >
       <Image
         source={item.pictureUrl}
-        className="w-16 h-16 rounded-sm overflow-hidden mr-xs"
+        className={`rounded-sm overflow-hidden mr-xs ${isMobile ? 'w-16 h-16' : 'w-8 h-8'}`}
         contentFit="cover"
         transition={300}
         cachePolicy="memory-disk"
       />
       <View className="flex-1">
-        <Text className="text-sm mb-0 self-center">{getTranslatedField(item.translations, displayLocale || authoringLocale, 'name')}</Text>
+        <Text preset={isMobile ? 'body' : 'bodySmall'}>{getTranslatedField(item.translations, displayLocale || authoringLocale, 'name')}</Text>
       </View>
-      <Ionicons name="add-circle-outline" size={24} className="text-primary-default" />
+      <Ionicons name="add-circle-outline" size={isMobile ? 24 : 18} className="text-primary-default" />
     </TouchableOpacity>
   );
 
@@ -387,7 +387,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
   };
 
   return (
-    <View className="mt-lg w-full mb-md flex-1">
+    <View className="mt-sm w-full mb-md flex-1">
       {errors.ingredients ? (
         <Text preset="caption" className="text-status-error mb-sm">
           {errors.ingredients}
