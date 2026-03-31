@@ -131,7 +131,7 @@ export default function NewRecipePage() {
             if (isPickerStep) {
               // Picker steps: no outer scroll — columns manage their own scrolling
               return (
-                <View className="flex-1" style={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 0 }}>
+                <View className="flex-1 px-lg pt-sm" style={Platform.OS === 'web' ? { height: 0 } as any : {}}>
                   {header}
                   {renderStepContent()}
                 </View>
