@@ -301,7 +301,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
     >
       <Image
         source={item.pictureUrl}
-        className={`rounded-sm overflow-hidden mr-xs ${isMobile ? 'w-16 h-16' : 'w-8 h-8'}`}
+        className={`rounded-sm overflow-hidden ${isMobile ? 'w-16 h-16 mr-xs' : 'w-8 h-8 mr-sm'}`}
         contentFit="cover"
         transition={300}
         cachePolicy="memory-disk"
@@ -387,7 +387,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
   };
 
   return (
-    <View className="mt-sm w-full mb-md flex-1">
+    <View className="mt-xs w-full flex-1">
       {errors.ingredients ? (
         <Text preset="caption" className="text-status-error mb-sm">
           {errors.ingredients}
@@ -528,7 +528,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                 marginBottom: 12,
               }}
             >
-              <View style={{ flex: 2 }}>
+              <View style={{ flex: 1 }}>
                 <TouchableOpacity
                   onPress={() => setNewIngredientModalVisible(true)}
                   className="flex-row items-center gap-xxs mb-xs"
@@ -568,10 +568,10 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                 height: 0,
               }}
             >
-              {/* Left: available items (40%) */}
+              {/* Left: available items (narrower) */}
               <View
                 style={{
-                  flex: 2,
+                  flex: 1,
                   overflow: 'auto' as any,
                   borderRadius: 8,
                   backgroundColor: COLORS.background.secondary,
