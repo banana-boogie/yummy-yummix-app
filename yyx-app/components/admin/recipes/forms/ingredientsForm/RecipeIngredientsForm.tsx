@@ -528,7 +528,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                 marginBottom: 12,
               }}
             >
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 3 }}>
                 <TouchableOpacity
                   onPress={() => setNewIngredientModalVisible(true)}
                   className="flex-row items-center gap-xxs mb-xs"
@@ -568,10 +568,10 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                 height: 0,
               }}
             >
-              {/* Left: available items (narrower) */}
+              {/* Left: available items (~30%) */}
               <View
                 style={{
-                  flex: 1,
+                  flex: 3,
                   overflow: 'auto' as any,
                   borderRadius: 8,
                   backgroundColor: COLORS.background.secondary,
@@ -604,10 +604,10 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                 )}
               </View>
 
-              {/* Right: selected items (60%) */}
+              {/* Right: selected items (~70%) */}
               <View
                 style={{
-                  flex: 3,
+                  flex: 7,
                   overflow: 'auto' as any,
                   backgroundColor: COLORS.background.secondary,
                   borderRadius: 8,
