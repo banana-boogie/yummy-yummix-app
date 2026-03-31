@@ -40,7 +40,7 @@ export function AvailableItemsSection({
         return (
             <TouchableOpacity
                 key={item.id}
-                className={`flex-row items-center p-sm bg-background-default rounded-md mb-xs shadow-md ${isAdded ? 'opacity-70' : ''}`}
+                className={`flex-row items-center border border-border-default bg-background-default p-sm rounded-md mb-sm ${isAdded ? 'opacity-50' : ''}`}
                 onPress={() => !isAdded && onAddItem(item)}
                 disabled={isAdded}
             >
@@ -55,19 +55,19 @@ export function AvailableItemsSection({
                         />
                     ) : (
                         <View className="w-full h-full justify-center items-center">
-                            <Ionicons name="image-outline" size={20} color={COLORS.text.secondary} />
+                            <Ionicons name="image-outline" size={18} color={COLORS.text.secondary} />
                         </View>
                     )}
                 </View>
 
                 <View className="flex-1">
-                    <Text className="font-medium">{getTranslatedField(item.translations, displayLocale, 'name')}</Text>
+                    <Text preset="bodySmall">{getTranslatedField(item.translations, displayLocale, 'name')}</Text>
                 </View>
 
                 {isAdded ? (
-                    <Ionicons name="checkmark-circle" size={22} color={COLORS.status.success} />
+                    <Ionicons name="checkmark-circle" size={20} color={COLORS.status.success} />
                 ) : (
-                    <Ionicons name="add-circle-outline" size={22} color={COLORS.text.secondary} />
+                    <Ionicons name="add-circle-outline" size={20} color={COLORS.text.secondary} />
                 )}
             </TouchableOpacity>
         );

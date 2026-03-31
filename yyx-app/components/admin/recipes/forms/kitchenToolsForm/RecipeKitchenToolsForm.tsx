@@ -187,7 +187,7 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
     }, [recipe.kitchenTools]);
 
     return (
-        <View className="mt-lg w-full flex-1">
+        <View className="mt-xs w-full flex-1">
             {errors.kitchenTools ? (
                 <View className="mb-sm">
                     <ErrorMessage message={errors.kitchenTools} />
@@ -272,24 +272,10 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                     </View>
                 </View>
             ) : (
-                /* ===== DESKTOP LAYOUT: Fixed two-column with CSS ===== */
-                <View
-                    style={{
-                        display: 'flex' as any,
-                        flexDirection: 'column' as any,
-                        flex: 1,
-                        minHeight: 0,
-                    }}
-                >
-                    {/* Header row: search left, label right — aligned */}
-                    <View
-                        style={{
-                            display: 'flex' as any,
-                            flexDirection: 'row' as any,
-                            gap: 16,
-                            marginBottom: 12,
-                        }}
-                    >
+                /* ===== DESKTOP LAYOUT: side-by-side, scrolls with page ===== */
+                <View className="flex-col">
+                    {/* Header row */}
+                    <View className="flex-row gap-md mb-sm">
                         <View style={{ flex: 2 }}>
                             <TouchableOpacity
                                 onPress={handleCreateNewKitchenTool}
@@ -307,7 +293,7 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                                 className="mb-0"
                             />
                         </View>
-                        <View style={{ flex: 3, justifyContent: 'center' }}>
+                        <View style={{ flex: 3 }} className="justify-center">
                             <View className="flex-row justify-between items-center">
                                 <Text preset="bodySmall" className="text-text-secondary font-medium">
                                     {i18n.t('admin.recipes.form.kitchenToolsInfo.selectedHeader')}
@@ -319,26 +305,10 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                         </View>
                     </View>
 
-                    {/* Two columns — both scroll independently, same height */}
-                    <View
-                        style={{
-                            display: 'flex' as any,
-                            flexDirection: 'row' as any,
-                            gap: 16,
-                            flex: 1,
-                            minHeight: 400,
-                            height: 0,
-                        }}
-                    >
-                        {/* Left: available items (40%) */}
-                        <View
-                            style={{
-                                flex: 2,
-                                overflow: 'auto' as any,
-                                borderRadius: 8,
-                                height: '100%',
-                            }}
-                        >
+                    {/* Two columns — scroll with page */}
+                    <View className="flex-row gap-md">
+                        {/* Left: available items (~30%) */}
+                        <View style={{ flex: 2 }} className="rounded-md">
                             <AvailableItemsSection
                                 items={filteredKitchenTools}
                                 loading={loading}
@@ -349,19 +319,10 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                             />
                         </View>
 
-                        {/* Right: selected items (60%) */}
-                        <View
-                            style={{
-                                flex: 3,
-                                overflow: 'auto' as any,
-                                backgroundColor: COLORS.background.secondary,
-                                borderRadius: 8,
-                                height: '100%',
-                                padding: 12,
-                            }}
-                        >
+                        {/* Right: selected items (~70%) */}
+                        <View style={{ flex: 3 }} className="bg-background-secondary rounded-md p-sm">
                             {sortedRecipeKitchenTools.length === 0 ? (
-                                <View className="flex-1 items-center justify-center">
+                                <View className="items-center justify-center p-lg">
                                     <Ionicons name="information-circle-outline" size={32} color={COLORS.text.secondary} />
                                     <Text className="mt-sm text-center" color={COLORS.text.secondary}>
                                         {i18n.t('admin.recipes.form.kitchenToolsInfo.noSelectedItems')}

@@ -387,7 +387,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
   };
 
   return (
-    <View className="mt-xs w-full flex-1">
+    <View className="mt-xs w-full">
       {errors.ingredients ? (
         <Text preset="caption" className="text-status-error mb-sm">
           {errors.ingredients}
@@ -510,24 +510,10 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
             </View>
           </View>
         ) : (
-          /* ===== DESKTOP LAYOUT: CSS flexbox two-column ===== */
-          <View
-            style={{
-              display: 'flex' as any,
-              flexDirection: 'column' as any,
-              flex: 1,
-              minHeight: 0,
-            }}
-          >
-            {/* Header row: search left, label right — aligned */}
-            <View
-              style={{
-                display: 'flex' as any,
-                flexDirection: 'row' as any,
-                gap: 16,
-                marginBottom: 12,
-              }}
-            >
+          /* ===== DESKTOP LAYOUT: side-by-side, scrolls with page ===== */
+          <View className="flex-col">
+            {/* Header row */}
+            <View className="flex-row gap-md mb-sm">
               <View style={{ flex: 3 }}>
                 <TouchableOpacity
                   onPress={() => setNewIngredientModalVisible(true)}
@@ -545,7 +531,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                   className="mb-0"
                 />
               </View>
-              <View style={{ flex: 3, justifyContent: 'center' }}>
+              <View style={{ flex: 7 }} className="justify-center">
                 <View className="flex-row justify-between items-center">
                   <Text preset="bodySmall" className="text-text-secondary font-medium">
                     {tForm('admin.recipes.form.ingredientsInfo.selectedIngredients')}
@@ -557,30 +543,12 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
               </View>
             </View>
 
-            {/* Two columns — both scroll independently */}
-            <View
-              style={{
-                display: 'flex' as any,
-                flexDirection: 'row' as any,
-                gap: 16,
-                flex: 1,
-                minHeight: 400,
-                height: 0,
-              }}
-            >
+            {/* Two columns — scroll with page */}
+            <View className="flex-row gap-md">
               {/* Left: available items (~30%) */}
-              <View
-                style={{
-                  flex: 3,
-                  overflow: 'auto' as any,
-                  borderRadius: 8,
-                  backgroundColor: COLORS.background.secondary,
-                  padding: 12,
-                  height: '100%',
-                }}
-              >
+              <View style={{ flex: 3 }} className="rounded-md bg-background-secondary p-sm">
                 {loading ? (
-                  <View className="flex-1 justify-center items-center p-lg">
+                  <View className="justify-center items-center p-lg">
                     <ActivityIndicator size="large" color={COLORS.primary.default} />
                     <Text className="mt-sm" color={COLORS.text.secondary}>
                       {i18n.t('common.loading')}
@@ -593,7 +561,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                     </React.Fragment>
                   ))
                 ) : (
-                  <View className="flex-1 justify-center items-center p-lg">
+                  <View className="justify-center items-center p-lg">
                     <Ionicons name="information-circle-outline" size={32} color={COLORS.text.secondary} />
                     <Text className="mt-sm text-center" color={COLORS.text.secondary}>
                       {searchQuery
@@ -605,18 +573,9 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
               </View>
 
               {/* Right: selected items (~70%) */}
-              <View
-                style={{
-                  flex: 7,
-                  overflow: 'auto' as any,
-                  backgroundColor: COLORS.background.secondary,
-                  borderRadius: 8,
-                  padding: 12,
-                  height: '100%',
-                }}
-              >
+              <View style={{ flex: 7 }} className="bg-background-secondary rounded-md p-sm">
                 {recipe.ingredients.length === 0 ? (
-                  <View className="flex-1 items-center justify-center">
+                  <View className="items-center justify-center p-lg">
                     <Ionicons name="basket-outline" size={32} color={COLORS.text.secondary} />
                     <Text className="mt-sm text-center" color={COLORS.text.secondary}>
                       {tForm('admin.recipes.form.ingredientsInfo.noIngredientsSelected')}

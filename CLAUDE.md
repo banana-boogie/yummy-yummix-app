@@ -786,6 +786,16 @@ fix(auth): resolve login timeout issue
 docs: update API documentation
 ```
 
+### Commit Workflow
+
+**Resolve first, then commit.** Do not commit after every small change. Iterate on the fix, verify it works, then commit once the issue is resolved.
+
+- Make edits and suggest the user test the change
+- If the fix doesn't work, iterate — do NOT commit broken or partial work
+- Once the issue is resolved, suggest committing (but wait for user confirmation)
+- Before moving on to the next issue, commit the resolved one
+- Group related fixes into a single meaningful commit
+
 <!-- END:shared/git-conventions -->
 
 ## AI Collaboration Prompts
