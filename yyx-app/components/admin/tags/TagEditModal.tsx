@@ -3,13 +3,12 @@ import { View, Modal, ScrollView, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { TextInput } from '@/components/form/TextInput';
-import { FormSection } from '@/components/form/FormSection';
-import { FormRow } from '@/components/form/FormRow';
 import { FormGroup } from '@/components/form/FormGroup';
 import { AdminRecipeTag, AdminRecipeTagTranslation, pickTranslation } from '@/types/recipe.admin.types';
 import { COLORS } from '@/constants/design-tokens';
 import { adminRecipeTagService } from '@/services/admin/adminRecipeTagService';
 import { Ionicons } from '@expo/vector-icons';
+import { AutoTranslateButton } from '@/components/admin/shared';
 import i18n from '@/i18n';
 import { useActiveLocales } from '@/hooks/admin/useActiveLocales';
 import { translateContent } from '@/services/admin/adminTranslateService';
@@ -201,7 +200,8 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
 
           <ScrollView className="p-lg">
             {/* Names Section - Dynamic locales */}
-            <FormSection title={i18n.t('admin.tags.basicInfo')} className="mb-xl">
+            <View className="mt-lg mb-xl">
+              <Text preset="bodySmall" className="text-text-secondary font-medium mb-sm">{i18n.t('admin.tags.basicInfo')}</Text>
               {locales.map(locale => (
                 <FormGroup
                   key={locale.code}
@@ -215,22 +215,12 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
                   />
                 </FormGroup>
               ))}
-              <Button
-                onPress={handleAutoTranslate}
-                loading={translating}
-                disabled={translating}
-                variant="outline"
-                size="small"
-              >
-                {translating
-                  ? i18n.t('admin.translate.translating')
-                  : i18n.t('admin.translate.autoTranslate')
-                }
-              </Button>
-            </FormSection>
+              <AutoTranslateButton onPress={handleAutoTranslate} loading={translating} />
+            </View>
 
             {/* Categories Section */}
-            <FormSection title={i18n.t('admin.tags.categories')} className="mb-xl">
+            <View className="mt-lg mb-xl">
+              <Text preset="bodySmall" className="text-text-secondary font-medium mb-sm">{i18n.t('admin.tags.categories')}</Text>
               {/* Selected Categories */}
               <View className="mb-lg">
                 <Text preset="subheading" className="mb-md">
@@ -238,7 +228,7 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
                 </Text>
 
                 {selectedCategories.length === 0 ? (
-                  <View className="p-lg bg-background-SECONDARY rounded-md items-center">
+                  <View className="p-lg bg-background-secondary rounded-md items-center">
                     <Text className="text-text-secondary">
                       {i18n.t('admin.tags.noSelectedCategories')}
                     </Text>
@@ -263,7 +253,7 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
                   placeholder={i18n.t('admin.tags.searchCategories')}
                   value={categorySearch}
                   onChangeText={setCategorySearch}
-                  leftIcon={<Ionicons name="search" size={20} color={COLORS.grey.MEDIUM} />}
+                  leftIcon={<Ionicons name="search" size={20} color={COLORS.grey.medium} />}
                 />
               </View>
 
@@ -274,7 +264,7 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
                 </Text>
 
                 {filteredCategories.length === 0 ? (
-                  <View className="p-lg bg-background-SECONDARY rounded-md items-center">
+                  <View className="p-lg bg-background-secondary rounded-md items-center">
                     <Text className="text-text-secondary">
                       {i18n.t('admin.tags.noCategoriesFound')}
                     </Text>
@@ -291,9 +281,9 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
                         >
                           <View className="mr-sm">
                             {isSelected ? (
-                              <Ionicons name="checkbox" size={24} color={COLORS.primary.DARKEST} />
+                              <Ionicons name="checkbox" size={24} color={COLORS.primary.darkest} />
                             ) : (
-                              <Ionicons name="square-outline" size={24} color={COLORS.grey.MEDIUM} />
+                              <Ionicons name="square-outline" size={24} color={COLORS.grey.medium} />
                             )}
                           </View>
                           <Text className={`text-text-default ${isSelected ? 'font-bold' : ''}`}>
@@ -305,7 +295,7 @@ export function TagEditModal({ visible, tag, isNew, onClose, onSave }: TagEditMo
                   </View>
                 )}
               </View>
-            </FormSection>
+            </View>
           </ScrollView>
 
           <View className="flex-row justify-end p-lg border-t border-border-default">

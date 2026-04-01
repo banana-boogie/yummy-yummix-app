@@ -27,6 +27,7 @@ export function normalizeMessagesForToolLoop(
               return {};
             }
           })(),
+          ...(tc.metadata ? { metadata: tc.metadata } : {}),
         }));
         aiMessages.push({
           role: "assistant",

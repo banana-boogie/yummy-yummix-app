@@ -122,12 +122,12 @@ export const RecipeKitchenToolFormModal: React.FC<RecipeKitchenToolFormModalProp
                   : i18n.t('admin.recipes.form.kitchenToolsInfo.addItem')}
               </Text>
               <TouchableOpacity onPress={onClose} className="p-xs">
-                <Ionicons name="close" size={24} className="text-text-SECONDARY" />
+                <Ionicons name="close" size={24} className="text-text-secondary" />
               </TouchableOpacity>
             </View>
 
             <ScrollView className="max-h-[500px] p-md">
-              <View className="flex-row items-center mb-md p-sm bg-background-SECONDARY rounded-md">
+              <View className="flex-row items-center mb-md p-sm bg-background-secondary rounded-md">
                 <View className="w-[60px] h-[60px] rounded-md overflow-hidden bg-background-default justify-center items-center mr-sm">
                   {formData.kitchenTool?.pictureUrl ? (
                     <Image
@@ -138,8 +138,8 @@ export const RecipeKitchenToolFormModal: React.FC<RecipeKitchenToolFormModalProp
                       cachePolicy="memory-disk"
                     />
                   ) : (
-                    <View className="w-full h-full justify-center items-center bg-background-SECONDARY">
-                      <Ionicons name="image-outline" size={32} className="text-text-SECONDARY" />
+                    <View className="w-full h-full justify-center items-center bg-background-secondary">
+                      <Ionicons name="image-outline" size={32} className="text-text-secondary" />
                     </View>
                   )}
                 </View>
@@ -148,14 +148,14 @@ export const RecipeKitchenToolFormModal: React.FC<RecipeKitchenToolFormModalProp
                   <Text preset="subheading" className="mb-1">
                     {kitchenToolNameEn}
                   </Text>
-                  <Text className="text-text-SECONDARY">
+                  <Text className="text-text-secondary">
                     {kitchenToolNameEs}
                   </Text>
                 </View>
               </View>
 
               {errors.duplicate && (
-                <Text className="text-xs text-status-ERROR mb-sm">
+                <Text className="text-xs text-status-error mb-sm">
                   {errors.duplicate}
                 </Text>
               )}

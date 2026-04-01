@@ -46,7 +46,7 @@ Located in `supabase/functions/`:
 - **irmixy-voice-orchestrator/** - OpenAI Realtime session bootstrap + quota checks + secure voice tool execution
 - **get-nutritional-facts/** - AI-powered nutrition data lookup (per 100g macros)
 - **semantic-recipe-search/** - Lightweight semantic (vector) search endpoint for Explore tab fallback
-- **parse-recipe-markdown/** - Recipe parsing utilities
+- **admin-ai-recipe-import/** - Admin AI-powered recipe import from markdown
 - **_shared/** - Shared utilities (CORS, auth, AI gateway)
 
 ### Deploying Functions

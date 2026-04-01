@@ -7,6 +7,17 @@
 import * as Notifications from 'expo-notifications';
 import type { NotificationService } from './types';
 
+// Allow notifications to display as banners with sound when the app is in the foreground.
+// Without this, iOS silently swallows notifications delivered while the app is active.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
 async function ensurePermission(): Promise<boolean> {
   const { status } = await Notifications.getPermissionsAsync();
   if (status === 'granted') return true;

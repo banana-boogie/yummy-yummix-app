@@ -74,16 +74,16 @@ export function RecipeStepContent({
       {/* Step instruction */}
       <View className="flex-col gap-sm mb-sm">
         {formattedStep !== undefined ? (
-          <View className="mb-xs border border-border-DEFAULT rounded-sm p-xs bg-background-DEFAULT">
+          <View className="mb-xs border border-border-default rounded-sm p-xs bg-background-default">
             {formattedStep ? (
               <View className="mt-xs">
                 {renderRecipeText(formattedStep, {
-                  textStyle: { color: COLORS.text.DEFAULT, marginBottom: 4 },
-                  boldStyle: { fontWeight: 'bold', color: COLORS.text.DEFAULT },
+                  textStyle: { color: COLORS.text.default, marginBottom: 4 },
+                  boldStyle: { fontWeight: 'bold', color: COLORS.text.default },
                 })}
               </View>
             ) : (
-              <Text className="italic text-text-SECONDARY mt-xs">
+              <Text className="italic text-text-secondary mt-xs">
                 {i18n.t('admin.recipes.form.stepsInfo.noStepText')}
               </Text>
             )}
@@ -93,7 +93,7 @@ export function RecipeStepContent({
 
       {/* Display ingredients used in this recipeStep if present */}
       {recipeStep.ingredients && recipeStep.ingredients.length > 0 ? (
-        <View className="mt-md mb-md bg-background-SECONDARY rounded-md p-md">
+        <View className="mt-md mb-md bg-background-secondary rounded-md p-md">
           <Text preset="caption" fontWeight="700" className="mb-sm">
             {i18n.t('admin.recipes.form.stepsInfo.stepIngredients')}
           </Text>
@@ -103,7 +103,7 @@ export function RecipeStepContent({
               {recipeStep.ingredients.map((recipeIngredient, index) => (
                 <View
                   key={`recipeIngredient-${recipeIngredient.id || index}`}
-                  className="bg-background-DEFAULT p-sm rounded-md border border-border-DEFAULT"
+                  className="bg-background-default p-sm rounded-md border border-border-default"
                 >
                   <View className="flex-row items-center mb-sm">
                     <Image
@@ -117,7 +117,7 @@ export function RecipeStepContent({
                       <Text fontWeight="700" className="text-base">{getTranslatedField(recipeIngredient.ingredient?.translations, displayLocale, 'name')}</Text>
                     </View>
                   </View>
-                  <View className="flex-row items-center pt-xs border-t border-border-DEFAULT">
+                  <View className="flex-row items-center pt-xs border-t border-border-default">
                     <Text className="text-sm">{recipeIngredient.quantity} {getTranslatedField(recipeIngredient.measurementUnit?.translations, displayLocale, 'symbol')}</Text>
                   </View>
                 </View>
@@ -127,7 +127,7 @@ export function RecipeStepContent({
             /* Desktop Layout - Wrapped horizontal cards */
             <View className="flex-row flex-wrap gap-md">
               {recipeStep.ingredients.map((recipeIngredient, index) => (
-                <View key={`recipeIngredient-${recipeIngredient.id || index}`} className="bg-background-DEFAULT p-sm rounded-sm border border-border-DEFAULT flex-row items-start gap-sm max-w-[320px]">
+                <View key={`recipeIngredient-${recipeIngredient.id || index}`} className="bg-background-default p-sm rounded-sm border border-border-default flex-row items-start gap-sm max-w-[320px]">
                   <Image
                     source={recipeIngredient.ingredient?.pictureUrl}
                     className="w-12 h-12 rounded-sm mt-[2px]"
@@ -141,7 +141,7 @@ export function RecipeStepContent({
                         <View className="flex-row items-center flex-wrap mr-sm">
                           <Text fontWeight="700">{getTranslatedField(recipeIngredient.ingredient?.translations, displayLocale, 'name')}</Text>
                         </View>
-                        <Text className="bg-background-SECONDARY px-[2px] rounded-xs text-xs text-text-SECONDARY ml-auto">
+                        <Text className="bg-background-secondary px-[2px] rounded-xs text-xs text-text-secondary ml-auto">
                           {recipeIngredient.quantity} {getTranslatedField(recipeIngredient.measurementUnit?.translations, displayLocale, 'symbol')}
                         </Text>
                       </View>
@@ -156,14 +156,14 @@ export function RecipeStepContent({
 
       {/* Display thermomix settings if present */}
       {recipeStep.thermomixTime || recipeStep.thermomixSpeed || recipeStep.thermomixTemperature ? (
-        <View className="my-md bg-background-SECONDARY rounded-md p-sm">
-          <Text preset="caption" fontWeight="700" className="mb-xs text-text-SECONDARY">
+        <View className="my-md bg-background-secondary rounded-md p-sm">
+          <Text preset="caption" fontWeight="700" className="mb-xs text-text-secondary">
             {i18n.t('admin.recipes.form.stepsInfo.thermomixParameters')}
           </Text>
           <View className="flex-row flex-wrap gap-sm">
             {recipeStep.thermomixTime ? (
               <View className="flex-row items-center gap-[2px]">
-                <Ionicons name="time-outline" size={16} className="text-text-SECONDARY" />
+                <Ionicons name="time-outline" size={16} className="text-text-secondary" />
                 <Text preset="caption" className="mb-0">
                   {i18n.t('recipes.detail.steps.parameters.time.minutes', { count: Number(minutes) })} {i18n.t('recipes.detail.steps.parameters.time.seconds', { count: Number(seconds) })}
                 </Text>
@@ -172,7 +172,7 @@ export function RecipeStepContent({
 
             {recipeStep.thermomixTemperature ? (
               <View className="flex-row items-center gap-[2px]">
-                <Ionicons name="thermometer-outline" size={16} className="text-text-SECONDARY" />
+                <Ionicons name="thermometer-outline" size={16} className="text-text-secondary" />
                 <Text preset="caption">
                   {formatTemperature(
                     recipeStep.thermomixTemperature,
@@ -185,7 +185,7 @@ export function RecipeStepContent({
 
             {recipeStep.thermomixSpeed ? (
               <View className="flex-row items-center gap-[2px]">
-                <Ionicons name="speedometer-outline" size={16} className="text-text-SECONDARY" />
+                <Ionicons name="speedometer-outline" size={16} className="text-text-secondary" />
                 <Text preset="caption" className="mb-0">
                   {renderSpeedText()}
                 </Text>
@@ -194,7 +194,7 @@ export function RecipeStepContent({
 
             {recipeStep.thermomixIsBladeReversed ? (
               <View className="flex-row items-center gap-[2px]">
-                <Ionicons name="sync-outline" size={16} className="text-text-SECONDARY" />
+                <Ionicons name="sync-outline" size={16} className="text-text-secondary" />
                 <Text preset="caption" className="mb-0">
                   {i18n.t('admin.recipes.form.stepsInfo.thermomixIsBladeReversed')}
                 </Text>
@@ -204,13 +204,28 @@ export function RecipeStepContent({
         </View>
       ) : null}
 
+      {/* Display timer for non-Thermomix steps */}
+      {recipeStep.timerSeconds && !recipeStep.thermomixTime ? (
+        <View className="my-md bg-background-secondary rounded-md p-sm">
+          <Text preset="caption" fontWeight="700" className="mb-xs text-text-secondary">
+            Timer
+          </Text>
+          <View className="flex-row items-center gap-[2px]">
+            <Ionicons name="timer-outline" size={16} className="text-text-secondary" />
+            <Text preset="caption">
+              {Math.floor(recipeStep.timerSeconds / 60)} min {recipeStep.timerSeconds % 60} sec
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
       {/* Display tips if present */}
       {tip ? (
-        <View className="my-md bg-background-SECONDARY rounded-md p-sm">
-          <Text preset="caption" fontWeight="700" className="mb-xs text-text-SECONDARY">
+        <View className="my-md bg-background-secondary rounded-md p-sm">
+          <Text preset="caption" fontWeight="700" className="mb-xs text-text-secondary">
             {i18n.t('admin.recipes.form.stepsInfo.tipTitle')}
           </Text>
-          <View className="flex-col p-md gap-sm rounded-md bg-background-DEFAULT">
+          <View className="flex-col p-md gap-sm rounded-md bg-background-default">
             <Text preset="caption">
               {tip}
             </Text>

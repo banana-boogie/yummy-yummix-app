@@ -136,9 +136,6 @@ export const chat = {
     resumePrompt: "Estabas cocinando {{recipeName}} — paso {{step}} de {{total}}. ¿Quieres retomar donde lo dejaste?",
     startOver: "Empezar de nuevo",
     startOverFailed: "No se pudo empezar de nuevo en este momento. Inténtalo otra vez.",
-    chatAbout: "Estabas hablando sobre '{{title}}'",
-    continue: "Continuar",
-    previousConversations: "Conversaciones anteriores",
   },
   // Fallback when no recipes found
   fallback: {

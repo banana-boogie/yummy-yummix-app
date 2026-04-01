@@ -246,7 +246,7 @@ export default function AdminTags() {
               placeholder={i18n.t('admin.tags.searchPlaceholder')}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              leftIcon={<Ionicons name="search" size={20} color={COLORS.grey.MEDIUM} />}
+              leftIcon={<Ionicons name="search" size={20} color={COLORS.grey.medium} />}
             />
           </View>
           <View className={`flex-row ${isPhone ? 'justify-between' : ''} gap-sm`}>
@@ -261,7 +261,7 @@ export default function AdminTags() {
               size="small"
               label={isPhone ? 'Tag' : i18n.t('admin.tags.addNew')}
               onPress={handleAddNewTag}
-              icon={<Ionicons name="add" size={18} color={COLORS.neutral.WHITE} />}
+              icon={<Ionicons name="add" size={18} color={COLORS.neutral.white} />}
             />
           </View>
         </View>
@@ -288,7 +288,7 @@ export default function AdminTags() {
           </View>
         ) : filteredTags.length === 0 ? (
           <View className="flex-1 justify-center items-center py-xxxl">
-            <Ionicons name="pricetags-outline" size={48} color={COLORS.grey.MEDIUM} />
+            <Ionicons name="pricetags-outline" size={48} color={COLORS.grey.medium} />
             <Text className="mt-md" color={COLORS.text.secondary}>{i18n.t('admin.tags.noTagsFound')}</Text>
           </View>
         ) : (

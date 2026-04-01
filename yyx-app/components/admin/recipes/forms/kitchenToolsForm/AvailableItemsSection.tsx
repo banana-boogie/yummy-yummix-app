@@ -40,11 +40,11 @@ export function AvailableItemsSection({
         return (
             <TouchableOpacity
                 key={item.id}
-                className={`flex-row items-center p-sm bg-background-DEFAULT rounded-md mb-xs shadow-md ${isAdded ? 'opacity-70' : ''}`}
+                className={`flex-row items-center border border-border-default bg-background-default p-sm rounded-md mb-sm ${isAdded ? 'opacity-50' : ''}`}
                 onPress={() => !isAdded && onAddItem(item)}
                 disabled={isAdded}
             >
-                <View className="w-10 h-10 rounded-sm overflow-hidden bg-background-SECONDARY mr-sm justify-center items-center">
+                <View className="w-10 h-10 rounded-sm overflow-hidden bg-background-secondary mr-sm justify-center items-center">
                     {item.pictureUrl ? (
                         <Image
                             source={item.pictureUrl}
@@ -55,19 +55,19 @@ export function AvailableItemsSection({
                         />
                     ) : (
                         <View className="w-full h-full justify-center items-center">
-                            <Ionicons name="image-outline" size={20} color={COLORS.text.SECONDARY} />
+                            <Ionicons name="image-outline" size={18} color={COLORS.text.secondary} />
                         </View>
                     )}
                 </View>
 
                 <View className="flex-1">
-                    <Text className="font-medium">{getTranslatedField(item.translations, displayLocale, 'name')}</Text>
+                    <Text preset="bodySmall">{getTranslatedField(item.translations, displayLocale, 'name')}</Text>
                 </View>
 
                 {isAdded ? (
-                    <Ionicons name="checkmark-circle" size={24} color={COLORS.primary.DARKEST} />
+                    <Ionicons name="checkmark-circle" size={20} color={COLORS.status.success} />
                 ) : (
-                    <Ionicons name="add-circle-outline" size={24} color={COLORS.primary.DARKEST} />
+                    <Ionicons name="add-circle-outline" size={20} color={COLORS.text.secondary} />
                 )}
             </TouchableOpacity>
         );

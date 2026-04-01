@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Session, User, AuthError } from '@supabase/supabase-js';
+import { Session, User } from '@supabase/supabase-js';
 import { AppState, Linking, Platform } from 'react-native';
 import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import { Storage } from '@/utils/storage';
 import { queryClient } from '@/lib/queryClient';
 import { userProfileKeys } from '@/lib/queryKeys';
 import logger from '@/services/logger';
+import { isValidUUID } from '@/utils/validation';
 
 type AuthContextType = {
   user: User | null;
@@ -22,6 +23,50 @@ type AuthContextType = {
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const isRouteGroupSegment = (segment: string) =>
+  segment.startsWith('(') && segment.endsWith(')');
+
+const getDeepLinkSegments = (parsedUrl: URL) => {
+  const pathSegments = parsedUrl.pathname
+    .split('/')
+    .filter(Boolean)
+    .filter((segment) => !isRouteGroupSegment(segment));
+
+  if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
+    return pathSegments;
+  }
+
+  const hostSegments = parsedUrl.hostname
+    ? [parsedUrl.hostname].filter((segment) => !isRouteGroupSegment(segment))
+    : [];
+
+  return [...hostSegments, ...pathSegments];
+};
+
+const extractRecipeIdFromDeepLink = (url: string): string | null => {
+  const parsedUrl = new URL(url);
+  const segments = getDeepLinkSegments(parsedUrl);
+
+  if (
+    segments[0] === 'api' &&
+    segments[1] === 'recipe-preview' &&
+    segments.length === 3 &&
+    isValidUUID(segments[2])
+  ) {
+    return segments[2];
+  }
+
+  if (
+    (segments[0] === 'recipe' || segments[0] === 'recipes') &&
+    segments.length === 2 &&
+    isValidUUID(segments[1])
+  ) {
+    return segments[1];
+  }
+
+  return null;
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -109,28 +154,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
 
-      const { pathname } = new URL(url);
-
-      // Handle recipe preview API links
-      if (pathname.includes('/api/recipe-preview/')) {
-        const segments = pathname.split('/');
-        const id = segments[segments.length - 1];
-
-        if (id) {
-          navigateToRecipe(id);
-          return true;
-        }
-      }
-
-      // Handle regular recipes deep links
-      if (pathname.includes('recipes')) {
-        const segments = pathname.split('/');
-        const id = segments[segments.length - 1];
-
-        if (id) {
-          navigateToRecipe(id);
-          return true;
-        }
+      const recipeId = extractRecipeIdFromDeepLink(url);
+      if (recipeId) {
+        navigateToRecipe(recipeId);
+        return true;
       }
 
       // Add more routes as needed
@@ -182,6 +209,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Handle non-auth deep links
   const handleNonAuthDeepLink = (url: string) => {
+    if (!extractRecipeIdFromDeepLink(url)) {
+      return;
+    }
+
     if (user) {
       // User is logged in, handle deep link immediately
       handleDeepLink(url);

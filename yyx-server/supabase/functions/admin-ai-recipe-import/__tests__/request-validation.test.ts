@@ -1,7 +1,7 @@
 /**
- * Parse Recipe Markdown Request Validation Tests
+ * Admin AI Recipe Import — Request Validation Tests
  *
- * Tests for request validation in the parse-recipe-markdown edge function:
+ * Tests for request validation in the admin-ai-recipe-import edge function:
  * - Input validation
  * - JSON schema structure
  * - Error response formatting
@@ -91,41 +91,41 @@ Deno.test("schema - measurement units enum has expected values", () => {
 // REQUEST VALIDATION TESTS
 // ============================================================
 
-Deno.test("request validation - markdown content is required", () => {
+Deno.test("request validation - content field is required", () => {
   // Empty body should fail validation
   const emptyBody = {};
-  const hasMarkdown = "markdown" in emptyBody;
-  assertEquals(hasMarkdown, false);
+  const hasContent = "content" in emptyBody;
+  assertEquals(hasContent, false);
 });
 
-Deno.test("request validation - empty markdown string is invalid", () => {
-  const body = { markdown: "" };
-  const isValid = Boolean(body.markdown && body.markdown.length > 0);
+Deno.test("request validation - empty content string is invalid", () => {
+  const body = { content: "" };
+  const isValid = Boolean(body.content && body.content.length > 0);
   assertEquals(isValid, false);
 });
 
-Deno.test("request validation - valid markdown passes", () => {
-  const body = { markdown: "# Recipe Name\n\nIngredients:\n- 1 cup flour" };
-  const isValid = Boolean(body.markdown && body.markdown.length > 0);
+Deno.test("request validation - valid content passes", () => {
+  const body = { content: "# Recipe Name\n\nIngredients:\n- 1 cup flour" };
+  const isValid = Boolean(body.content && body.content.length > 0);
   assertEquals(isValid, true);
 });
 
-Deno.test("request validation - null markdown is invalid", () => {
-  const body: { markdown: string | null } = { markdown: null };
-  const isValid = Boolean(body.markdown && typeof body.markdown === "string");
+Deno.test("request validation - null content is invalid", () => {
+  const body: { content: string | null } = { content: null };
+  const isValid = Boolean(body.content && typeof body.content === "string");
   assertEquals(isValid, false);
 });
 
-Deno.test("request validation - undefined markdown is invalid", () => {
-  const body: { markdown: string | undefined } = { markdown: undefined };
-  const isValid = Boolean(body.markdown && typeof body.markdown === "string");
+Deno.test("request validation - undefined content is invalid", () => {
+  const body: { content: string | undefined } = { content: undefined };
+  const isValid = Boolean(body.content && typeof body.content === "string");
   assertEquals(isValid, false);
 });
 
-Deno.test("request validation - number as markdown is invalid", () => {
-  const body: { markdown: unknown } = { markdown: 12345 };
-  const isValid = typeof body.markdown === "string" &&
-    (body.markdown as string).length > 0;
+Deno.test("request validation - number as content is invalid", () => {
+  const body: { content: unknown } = { content: 12345 };
+  const isValid = typeof body.content === "string" &&
+    (body.content as string).length > 0;
   assertEquals(isValid, false);
 });
 
@@ -134,24 +134,44 @@ Deno.test("request validation - number as markdown is invalid", () => {
 // ============================================================
 
 Deno.test("response format - error response includes error field", () => {
-  const errorResponse = { error: "Markdown content is required" };
+  const errorResponse = { error: "Recipe content is required" };
   assertExists(errorResponse.error);
   assertEquals(typeof errorResponse.error, "string");
 });
 
-Deno.test("response format - success response returns JSON string", () => {
-  // OpenAI returns a JSON string that gets passed through
+Deno.test("response format - success response returns JSON with 3 locales", () => {
+  // AI returns structured JSON with translations for en, es, and es-ES
   const mockParsedRecipe = JSON.stringify({
     translations: [
-      { locale: "en", name: "Test Recipe", tipsAndTricks: "" },
-      { locale: "es", name: "Receta de Prueba", tipsAndTricks: "" },
+      {
+        locale: "en",
+        name: "Test Recipe",
+        description: "A delicious test recipe.",
+        tipsAndTricks: "",
+      },
+      {
+        locale: "es",
+        name: "Receta de Prueba",
+        description: "Una deliciosa receta de prueba.",
+        tipsAndTricks: "",
+      },
+      {
+        locale: "es-ES",
+        name: "Receta de Prueba",
+        description: "Una deliciosa receta de prueba.",
+        tipsAndTricks: "",
+      },
     ],
     difficulty: "easy",
   });
 
   const parsed = JSON.parse(mockParsedRecipe);
   assertExists(parsed.translations);
-  assertEquals(parsed.translations.length, 2);
+  assertEquals(parsed.translations.length, 3);
+  assertEquals(parsed.translations[0].locale, "en");
+  assertEquals(parsed.translations[1].locale, "es");
+  assertEquals(parsed.translations[2].locale, "es-ES");
+  assertEquals(typeof parsed.translations[0].description, "string");
   assertEquals(parsed.difficulty, "easy");
 });
 
@@ -166,12 +186,15 @@ Deno.test("ingredient schema - requires quantity and ingredient object", () => {
       translations: [
         { locale: "en", name: "Flour", pluralName: "Flour" },
         { locale: "es", name: "Harina", pluralName: "Harina" },
+        { locale: "es-ES", name: "Harina", pluralName: "Harina" },
       ],
     },
     measurementUnitID: "g",
+    optional: false,
     translations: [
       { locale: "en", notes: "", tip: "", recipeSection: "Main" },
       { locale: "es", notes: "", tip: "", recipeSection: "Principal" },
+      { locale: "es-ES", notes: "", tip: "", recipeSection: "Principal" },
     ],
     displayOrder: 1,
   };
@@ -179,7 +202,7 @@ Deno.test("ingredient schema - requires quantity and ingredient object", () => {
   assertEquals(typeof validIngredient.quantity, "number");
   assertExists(validIngredient.ingredient);
   assertExists(validIngredient.ingredient.translations);
-  assertEquals(validIngredient.ingredient.translations.length, 2);
+  assertEquals(validIngredient.ingredient.translations.length, 3);
 });
 
 Deno.test("ingredient schema - measurement unit is optional", () => {
@@ -194,6 +217,7 @@ Deno.test("ingredient schema - measurement unit is optional", () => {
       translations: [
         { locale: "en", name: "Eggs", pluralName: "Eggs" },
         { locale: "es", name: "Huevos", pluralName: "Huevos" },
+        { locale: "es-ES", name: "Huevos", pluralName: "Huevos" },
       ],
     },
     displayOrder: 1,
@@ -201,6 +225,43 @@ Deno.test("ingredient schema - measurement unit is optional", () => {
 
   // measurementUnitID can default to "unit"
   assertEquals(ingredientWithoutUnit.measurementUnitID, undefined);
+});
+
+Deno.test("ingredient schema - optional field marks optional ingredients", () => {
+  const optionalIngredient = {
+    quantity: 1,
+    ingredient: {
+      translations: [
+        { locale: "en", name: "Parsley", pluralName: "Parsley" },
+        { locale: "es", name: "Perejil", pluralName: "Perejil" },
+        { locale: "es-ES", name: "Perejil", pluralName: "Perejil" },
+      ],
+    },
+    measurementUnitID: "sprig",
+    optional: true,
+    translations: [
+      { locale: "en", notes: "for garnish", tip: "", recipeSection: "Main" },
+      {
+        locale: "es",
+        notes: "para decorar",
+        tip: "",
+        recipeSection: "Principal",
+      },
+      {
+        locale: "es-ES",
+        notes: "para decorar",
+        tip: "",
+        recipeSection: "Principal",
+      },
+    ],
+    displayOrder: 3,
+  };
+
+  assertEquals(optionalIngredient.optional, true);
+  assertEquals(typeof optionalIngredient.optional, "boolean");
+
+  const requiredIngredient = { ...optionalIngredient, optional: false };
+  assertEquals(requiredIngredient.optional, false);
 });
 
 // ============================================================
@@ -223,18 +284,26 @@ Deno.test("step schema - requires order and translations", () => {
         tip: "",
         recipeSection: "Principal",
       },
+      {
+        locale: "es-ES",
+        instruction: "Mezcla la harina con agua",
+        tip: "",
+        recipeSection: "Principal",
+      },
     ],
     thermomixTime: 30,
     thermomixTemperature: null,
     thermomixTemperatureUnit: null,
     thermomixSpeed: { type: "single", value: 4, start: null, end: null },
     thermomixIsBladeReversed: false,
+    thermomixMode: null,
+    timerSeconds: null,
     ingredients: [],
   };
 
   assertEquals(typeof validStep.order, "number");
   assertExists(validStep.translations);
-  assertEquals(validStep.translations.length, 2);
+  assertEquals(validStep.translations.length, 3);
 });
 
 Deno.test("step schema - Thermomix fields can be null", () => {
@@ -253,17 +322,27 @@ Deno.test("step schema - Thermomix fields can be null", () => {
         tip: "",
         recipeSection: "Principal",
       },
+      {
+        locale: "es-ES",
+        instruction: "Precalienta el horno",
+        tip: "",
+        recipeSection: "Principal",
+      },
     ],
     thermomixTime: null,
     thermomixTemperature: null,
     thermomixTemperatureUnit: null,
     thermomixSpeed: null,
     thermomixIsBladeReversed: null,
+    thermomixMode: null,
+    timerSeconds: null,
     ingredients: [],
   };
 
   assertEquals(stepWithoutThermomix.thermomixTime, null);
   assertEquals(stepWithoutThermomix.thermomixSpeed, null);
+  assertEquals(stepWithoutThermomix.thermomixMode, null);
+  assertEquals(stepWithoutThermomix.timerSeconds, null);
 });
 
 Deno.test("step schema - Thermomix speed can be single value", () => {
@@ -322,6 +401,49 @@ Deno.test("step schema - Thermomix speed can be spoon", () => {
   assertEquals(speed.value, "spoon");
 });
 
+Deno.test("step schema - thermomixMode accepts valid enum values", () => {
+  const validModes = [
+    "slow_cook",
+    "rice_cooker",
+    "sous_vide",
+    "fermentation",
+    "open_cooking",
+    "browning",
+    "steaming",
+    "dough",
+    "turbo",
+    null,
+  ];
+
+  validModes.forEach((mode) => {
+    const step = { thermomixMode: mode };
+    assertEquals(
+      validModes.includes(step.thermomixMode),
+      true,
+      `Expected thermomixMode ${mode} to be valid`,
+    );
+  });
+});
+
+Deno.test("step schema - timerSeconds is number or null", () => {
+  // Non-Thermomix step with explicit duration
+  const stepWithTimer = {
+    order: 2,
+    timerSeconds: 1200, // 20 minutes
+    thermomixTime: null,
+  };
+  assertEquals(typeof stepWithTimer.timerSeconds, "number");
+  assertEquals(stepWithTimer.timerSeconds, 1200);
+
+  // Step with no explicit duration
+  const stepWithoutTimer = {
+    order: 3,
+    timerSeconds: null,
+    thermomixTime: null,
+  };
+  assertEquals(stepWithoutTimer.timerSeconds, null);
+});
+
 // ============================================================
 // KITCHEN TOOLS SCHEMA TESTS
 // ============================================================
@@ -335,12 +457,17 @@ Deno.test("kitchen tools schema - includes name and display order", () => {
         name: "Tazón para mezclar",
         notes: "Preferiblemente grande",
       },
+      {
+        locale: "es-ES",
+        name: "Bol para mezclar",
+        notes: "Preferiblemente grande",
+      },
     ],
     displayOrder: 1,
   };
 
   assertExists(kitchenTool.translations);
-  assertEquals(kitchenTool.translations.length, 2);
+  assertEquals(kitchenTool.translations.length, 3);
   assertEquals(typeof kitchenTool.displayOrder, "number");
 });
 
@@ -364,10 +491,10 @@ Deno.test("tags schema - empty tags array is valid", () => {
 });
 
 // ============================================================
-// MARKDOWN INPUT FORMAT TESTS
+// INPUT FORMAT TESTS
 // ============================================================
 
-Deno.test("markdown input - bilingual format detection", () => {
+Deno.test("input format - accepts any format including multilingual content", () => {
   const bilingualMarkdown = `
 # English Recipe Name
 
@@ -395,7 +522,7 @@ Deno.test("markdown input - bilingual format detection", () => {
   assertEquals(hasSpanishSection, true);
 });
 
-Deno.test("markdown input - Thermomix instruction pattern detection", () => {
+Deno.test("input format - Thermomix instruction pattern detection", () => {
   const thermomixMarkdown = `
 1. Add flour (30 sec/speed 4)
 2. Mix with water (2 min/Varoma/speed 3)
@@ -411,7 +538,7 @@ Deno.test("markdown input - Thermomix instruction pattern detection", () => {
   assertEquals(hasVaromaPattern, true);
 });
 
-Deno.test("markdown input - hashtag removal from tags", () => {
+Deno.test("input format - hashtag removal from tags", () => {
   const tagWithHash = "#vegetarian";
   const cleanedTag = tagWithHash.replace(/^#/, "");
 
@@ -423,7 +550,7 @@ Deno.test("markdown input - hashtag removal from tags", () => {
 // ============================================================
 
 Deno.test("createMockRequest - creates POST request with body", () => {
-  const body = { markdown: "# Test Recipe" };
+  const body = { content: "# Test Recipe" };
   const request = createMockRequest(body);
 
   assertEquals(request.method, "POST");

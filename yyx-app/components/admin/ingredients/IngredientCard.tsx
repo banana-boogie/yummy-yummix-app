@@ -1,78 +1,69 @@
-import React from 'react';
-import { View, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Pressable, Platform } from 'react-native';
 import { Image } from 'expo-image';
+import { AdminIngredient, getTranslatedField } from '@/types/recipe.admin.types';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
-import { AdminIngredient, getTranslatedField } from '@/types/recipe.admin.types';
 import { Text } from '@/components/common/Text';
-import i18n from '@/i18n';
 
 interface IngredientCardProps {
   ingredient: AdminIngredient;
   displayLocale: string;
-  onEdit: (ingredient: AdminIngredient) => void;
-  onDelete: (ingredient: AdminIngredient) => void;
+  onPress: (ingredient: AdminIngredient) => void;
 }
 
-export function IngredientCard({ ingredient, displayLocale, onEdit, onDelete }: IngredientCardProps) {
-  const name = getTranslatedField(ingredient.translations, displayLocale, 'name') || '—';
-  const pluralName = getTranslatedField(ingredient.translations, displayLocale, 'pluralName');
+function hasValidImage(url: unknown): url is string {
+  return typeof url === 'string' && url.length > 0 && url.startsWith('http');
+}
+
+function NoImagePlaceholder() {
+  return (
+    <View className="w-full h-full justify-center items-center bg-grey-light border-2 border-dashed border-grey-medium">
+      <Ionicons name="camera-outline" size={28} color={COLORS.grey.medium} />
+      <Text preset="caption" className="text-text-secondary mt-xs">No image</Text>
+    </View>
+  );
+}
+
+export function IngredientCard({ ingredient, displayLocale, onPress }: IngredientCardProps) {
+  const name = getTranslatedField(ingredient.translations, displayLocale, 'name') || '\u2014';
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [ingredient.pictureUrl]);
+
+  const showImage = hasValidImage(ingredient.pictureUrl) && !imageError;
 
   return (
-    <View className="bg-white rounded-xl p-md mb-md shadow-lg flex-row items-center gap-md">
-      {/* Left side with image */}
-      <View className="items-center">
-        {ingredient.pictureUrl ? (
+    <Pressable
+      className="bg-white rounded-lg overflow-hidden border border-border-default"
+      style={({ pressed }: any) => [
+        { opacity: pressed ? 0.7 : 1 },
+        Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
+      ]}
+      onPress={() => onPress(ingredient)}
+    >
+      {/* Image area */}
+      <View className="w-full aspect-square">
+        {showImage ? (
           <Image
-            source={ingredient.pictureUrl}
-            className="w-[80px] h-[80px] rounded-lg"
+            source={{ uri: ingredient.pictureUrl as string }}
+            className="w-full h-full"
             contentFit="cover"
-            transition={300}
-            cachePolicy="memory-disk"
+            onError={() => setImageError(true)}
           />
         ) : (
-          <View className="w-[80px] h-[80px] rounded-lg bg-background-DARK justify-center items-center">
-            <Ionicons name="image-outline" size={30} color={COLORS.grey.MEDIUM} />
-          </View>
+          <NoImagePlaceholder />
         )}
       </View>
 
-      {/* Middle section with name */}
-      <View className="flex-1 gap-xxs">
-        <Text
-          preset="subheading"
-          className="font-semibold"
-        >
+      {/* Name */}
+      <View className="px-sm py-md border-t border-border-default">
+        <Text preset="bodySmall" className="text-text-default text-center" numberOfLines={2}>
           {name}
         </Text>
-        {pluralName ? (
-          <Text
-            preset="body"
-            className="text-text-SECONDARY"
-          >
-            {i18n.t('admin.ingredients.pluralName', { defaultValue: 'Plural' })}: {pluralName}
-          </Text>
-        ) : null}
       </View>
-
-      {/* Right section with actions */}
-      <View className="gap-sm">
-        <TouchableOpacity
-          className="bg-primary-DARK p-sm rounded-md"
-          accessibilityRole="button"
-          onPress={() => onEdit(ingredient)}
-        >
-          <Ionicons name="create-outline" size={20} color={COLORS.neutral.WHITE} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          className="bg-status-ERROR p-sm rounded-md"
-          accessibilityRole="button"
-          onPress={() => onDelete(ingredient)}
-        >
-          <Ionicons name="trash-outline" size={20} color={COLORS.neutral.WHITE} />
-        </TouchableOpacity>
-      </View>
-    </View>
+    </Pressable>
   );
 }

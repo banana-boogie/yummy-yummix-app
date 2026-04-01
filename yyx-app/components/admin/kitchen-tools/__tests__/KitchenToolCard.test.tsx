@@ -4,6 +4,7 @@
  * Tests single-locale display behavior:
  * - Shows name for the given displayLocale
  * - Falls back to '—' when translation is missing
+ * - Calls onPress when the card is pressed
  */
 
 import React from 'react';
@@ -24,17 +25,14 @@ const mockKitchenTool: AdminKitchenTool = {
   pictureUrl: 'https://example.com/spatula.jpg',
 };
 
-const mockHandlers = {
-  onEdit: jest.fn(),
-  onDelete: jest.fn(),
-};
+const mockOnPress = jest.fn();
 
 describe('KitchenToolCard', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('renders the Spanish name when displayLocale is es', () => {
     renderWithProviders(
-      <KitchenToolCard kitchenTool={mockKitchenTool} displayLocale="es" {...mockHandlers} />
+      <KitchenToolCard kitchenTool={mockKitchenTool} displayLocale="es" onPress={mockOnPress} />
     );
     expect(screen.getByText('Espátula')).toBeTruthy();
     expect(screen.queryByText('Spatula')).toBeNull();
@@ -42,7 +40,7 @@ describe('KitchenToolCard', () => {
 
   it('renders the English name when displayLocale is en', () => {
     renderWithProviders(
-      <KitchenToolCard kitchenTool={mockKitchenTool} displayLocale="en" {...mockHandlers} />
+      <KitchenToolCard kitchenTool={mockKitchenTool} displayLocale="en" onPress={mockOnPress} />
     );
     expect(screen.getByText('Spatula')).toBeTruthy();
     expect(screen.queryByText('Espátula')).toBeNull();
@@ -54,26 +52,17 @@ describe('KitchenToolCard', () => {
       translations: [{ locale: 'es', name: 'Espátula' }],
     };
     renderWithProviders(
-      <KitchenToolCard kitchenTool={noFrench} displayLocale="fr" {...mockHandlers} />
+      <KitchenToolCard kitchenTool={noFrench} displayLocale="fr" onPress={mockOnPress} />
     );
     expect(screen.getByText('—')).toBeTruthy();
   });
 
-  it('calls onEdit when edit button is pressed', () => {
+  it('calls onPress with the kitchen tool when the card is pressed', () => {
     renderWithProviders(
-      <KitchenToolCard kitchenTool={mockKitchenTool} displayLocale="es" {...mockHandlers} />
+      <KitchenToolCard kitchenTool={mockKitchenTool} displayLocale="es" onPress={mockOnPress} />
     );
-    const buttons = screen.getAllByRole('button');
-    fireEvent.press(buttons[0]);
-    expect(mockHandlers.onEdit).toHaveBeenCalledWith(mockKitchenTool);
-  });
-
-  it('calls onDelete when delete button is pressed', () => {
-    renderWithProviders(
-      <KitchenToolCard kitchenTool={mockKitchenTool} displayLocale="es" {...mockHandlers} />
-    );
-    const buttons = screen.getAllByRole('button');
-    fireEvent.press(buttons[1]);
-    expect(mockHandlers.onDelete).toHaveBeenCalledWith(mockKitchenTool);
+    fireEvent.press(screen.getByText('Espátula'));
+    expect(mockOnPress).toHaveBeenCalledTimes(1);
+    expect(mockOnPress).toHaveBeenCalledWith(mockKitchenTool);
   });
 });

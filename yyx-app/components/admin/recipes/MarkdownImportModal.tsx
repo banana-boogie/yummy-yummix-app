@@ -72,8 +72,8 @@ export function MarkdownImportModal({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1 justify-center items-center bg-black/50 p-md"
       >
-        <View className="bg-background-DEFAULT rounded-md w-full max-w-[800px] max-h-[90%] shadow-md">
-          <View className="p-lg border-b border-border-DEFAULT">
+        <View className="bg-background-default rounded-md w-full max-w-[800px] max-h-[90%] shadow-md">
+          <View className="p-lg border-b border-border-default">
             <Text preset="h1">{i18n.t('admin.recipes.form.initialSetup.populateRecipe')}</Text>
           </View>
 
@@ -84,18 +84,18 @@ export function MarkdownImportModal({
               value={markdownText}
               onChangeText={onChangeText}
               placeholder={i18n.t('admin.recipes.form.initialSetup.pasteHere')}
-              className="w-full h-[200px] p-sm border border-border-DEFAULT rounded-sm"
+              className="w-full h-[200px] p-sm border border-border-default rounded-sm"
               style={{ textAlignVertical: 'top' }}
             />
 
             {error && (
-              <View className="mt-md p-sm bg-status-ERROR rounded-sm">
+              <View className="mt-md p-sm bg-status-error rounded-sm">
                 <Text className="color-white font-bold">{error}</Text>
               </View>
             )}
 
             {(missingIngredients.length > 0 || missingTags.length > 0) && (
-              <View className="mt-md p-sm bg-status-ERROR rounded-sm">
+              <View className="mt-md p-sm bg-status-error rounded-sm">
                 {missingIngredients.length > 0 && (
                   <View className="mb-md">
                     <Text className="font-bold mb-sm text-white">{i18n.t('admin.recipes.form.initialSetup.missingIngredients')}</Text>
@@ -108,7 +108,7 @@ export function MarkdownImportModal({
                           size="small"
                           onPress={() => handleCreateIngredient(ingredient)}
                           className="ml-sm bg-white border-white"
-                          textClassName="text-status-ERROR"
+                          textClassName="text-status-error"
                         />
                       </View>
                     ))}
@@ -127,7 +127,7 @@ export function MarkdownImportModal({
                           size="small"
                           onPress={() => handleCreateTag(tag)}
                           className="ml-sm bg-white border-white"
-                          textClassName="text-status-ERROR"
+                          textClassName="text-status-error"
                         />
                       </View>
                     ))}
@@ -137,7 +137,7 @@ export function MarkdownImportModal({
             )}
           </ScrollView>
 
-          <View className="flex-row justify-end p-lg border-t border-border-DEFAULT">
+          <View className="flex-row justify-end p-lg border-t border-border-default">
             <Button
               label={i18n.t('common.cancel')}
               onPress={onClose}

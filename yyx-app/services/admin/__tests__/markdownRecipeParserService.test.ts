@@ -215,8 +215,8 @@ describe('MarkdownRecipeParserService', () => {
 
       await parseRecipeMarkdown(markdown);
 
-      expect(mockInvoke).toHaveBeenCalledWith('parse-recipe-markdown', {
-        body: { markdown },
+      expect(mockInvoke).toHaveBeenCalledWith('admin-ai-recipe-import', {
+        body: { content: markdown },
       });
     });
 

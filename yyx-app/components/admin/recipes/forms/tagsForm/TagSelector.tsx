@@ -174,12 +174,12 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
     <View className="flex-1">
       {/* Selected tags */}
       <View className="mb-md">
-        <Text preset="subheading" className="mt-lg mb-sm">
+        <Text preset="bodySmall" className="text-text-secondary font-medium mt-lg mb-sm">
           {i18n.t('admin.recipes.form.tagsInfo.selectedTags')}
         </Text>
 
         {selectedTags.length === 0 ? (
-          <Text className="text-center text-text-SECONDARY italic p-md">
+          <Text className="text-center text-text-secondary italic p-md">
             {i18n.t('admin.recipes.form.tagsInfo.noTagsSelected')}
           </Text>
         ) : (
@@ -208,15 +208,15 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
 
       {/* Available tags */}
       <View className="flex-row items-center justify-between mb-sm">
-        <Text preset="subheading">
+        <Text preset="bodySmall" className="text-text-secondary font-medium">
           {i18n.t('admin.recipes.form.tagsInfo.availableTags')}
         </Text>
         <TouchableOpacity
           onPress={() => setCreateTagModalVisible(true)}
-          className="flex-row items-center gap-xs bg-primary-lightest px-md py-xs rounded-lg border border-border-default"
+          className="flex-row items-center gap-xxs"
         >
-          <Ionicons name="add-circle-outline" size={18} color={COLORS.primary.darkest} />
-          <Text preset="bodySmall" className="text-primary-darkest font-medium">Create Tag</Text>
+          <Ionicons name="add" size={14} color={COLORS.text.secondary} />
+          <Text preset="caption" className="text-text-secondary">Create Tag</Text>
         </TouchableOpacity>
       </View>
 
@@ -228,7 +228,7 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
             value={filters.searchQuery}
             onChangeText={handleSearchChange}
             placeholder={i18n.t('admin.recipes.form.tagsInfo.searchTags')}
-            leftIcon={<Ionicons name="search" size={20} className="text-text-SECONDARY" />}
+            leftIcon={<Ionicons name="search" size={20} className="text-text-secondary" />}
             containerStyle={{ marginBottom: 0 }}
           />
         </View>
@@ -248,24 +248,24 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
           </View>
 
           <TouchableOpacity
-            className="p-sm bg-background-SECONDARY rounded-md"
+            className="p-sm bg-background-secondary rounded-md"
             onPress={toggleSortDirection}
           >
             <Ionicons
               name={filters.sortDirection === 'asc' ? 'arrow-up' : 'arrow-down'}
               size={20}
-              className="text-text-DEFAULT"
+              className="text-text-default"
             />
           </TouchableOpacity>
         </View>
 
         {hasActiveFilters ? (
           <TouchableOpacity
-            className="flex-row items-center self-start mt-xs p-xs bg-background-SECONDARY rounded-lg"
+            className="flex-row items-center self-start mt-xs p-xs bg-background-secondary rounded-lg"
             onPress={clearFilters}
           >
-            <Ionicons name="close-circle" size={16} className="text-text-SECONDARY" />
-            <Text className="ml-xxs text-text-SECONDARY text-sm">
+            <Ionicons name="close-circle" size={16} className="text-text-secondary" />
+            <Text className="ml-xxs text-text-secondary text-sm">
               {i18n.t('admin.recipes.form.tagsInfo.clearFilters')}
             </Text>
           </TouchableOpacity>
@@ -273,18 +273,18 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" className="my-xl text-primary-DEFAULT" />
+        <ActivityIndicator size="large" className="my-xl text-primary-default" />
       ) : error ? (
-        <Text className="text-center text-primary-DEFAULT italic p-md">{error}</Text>
+        <Text className="text-center text-primary-default italic p-md">{error}</Text>
       ) : (
-        <View className="bg-background-DEFAULT rounded-lg overflow-hidden border border-border-DEFAULT">
+        <View className="bg-background-default rounded-lg overflow-hidden border border-border-default">
           {!isMobile && (
-            <View className="flex-row bg-background-SECONDARY py-md px-lg border-b border-border-DEFAULT">
+            <View className="flex-row bg-background-secondary py-md px-lg border-b border-border-default">
               <View className="flex-[0.5]" />
-              <Text className="flex-[3] text-text-SECONDARY font-bold text-sm">
+              <Text className="flex-[3] text-text-secondary font-bold text-sm">
                 {i18n.t('admin.tags.name')}
               </Text>
-              <Text className="flex-[3] text-text-SECONDARY font-bold text-sm">
+              <Text className="flex-[3] text-text-secondary font-bold text-sm">
                 {i18n.t('admin.tags.categories')}
               </Text>
             </View>
@@ -295,7 +295,7 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
             return (
               <TouchableOpacity
                 key={tag.id}
-                className={`border-b border-border-DEFAULT ${isSelected ? 'bg-primary-default' : 'bg-background-DEFAULT'}`}
+                className={`border-b border-border-default ${isSelected ? 'bg-primary-default' : 'bg-background-default'}`}
                 onPress={() => toggleTagSelection(tag)}
               >
                 {isMobile ? (
@@ -307,7 +307,7 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
                           <Ionicons name="checkmark" size={14} className="text-primary-dark" />
                         </View>
                       ) : (
-                        <View className="w-6 h-6 rounded-full border-2 border-border-DEFAULT bg-background-DEFAULT mr-sm" />
+                        <View className="w-6 h-6 rounded-full border-2 border-border-default bg-background-default mr-sm" />
                       )}
                       <View className="flex-1">
                         <Text className={`text-base font-bold ${isSelected ? 'text-text-default' : ''}`}>
@@ -320,7 +320,7 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
                         {tag.categories.map((cat, idx) => (
                           <View
                             key={idx}
-                            className={`px-xs py-xxs rounded-sm ${isSelected ? 'bg-white/30' : 'bg-background-SECONDARY'}`}
+                            className={`px-xs py-xxs rounded-sm ${isSelected ? 'bg-white/30' : 'bg-background-secondary'}`}
                           >
                             <Text className={`text-xs ${isSelected ? 'text-text-default' : 'text-text-secondary'}`}>
                               {cat}
@@ -335,11 +335,11 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
                   <View className="flex-row items-center py-md px-lg">
                     <View className="flex-[0.5] items-center">
                       {isSelected ? (
-                        <View className="w-6 h-6 rounded-full bg-background-DEFAULT border border-primary-DEFAULT items-center justify-center">
-                          <Ionicons name="checkmark" size={16} className="text-primary-DARK" />
+                        <View className="w-6 h-6 rounded-full bg-background-default border border-primary-default items-center justify-center">
+                          <Ionicons name="checkmark" size={16} className="text-primary-dark" />
                         </View>
                       ) : (
-                        <View className="w-6 h-6 rounded-full border border-border-DEFAULT" />
+                        <View className="w-6 h-6 rounded-full border border-border-default" />
                       )}
                     </View>
                     <Text className="flex-[3] px-xs text-base">{getTranslatedField(tag.translations, displayLocale, 'name')}</Text>
@@ -353,7 +353,7 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
           })}
 
           {filteredTags.length === 0 ? (
-            <Text className="text-center text-text-SECONDARY italic p-md">
+            <Text className="text-center text-text-secondary italic p-md">
               {i18n.t('admin.recipes.form.tagsInfo.noTagsFound')}
             </Text>
           ) : null}

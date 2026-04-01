@@ -28,6 +28,7 @@ const GEMINI_BASE_URL =
 interface GeminiPart {
   text?: string;
   thought?: boolean; // Gemini 3 thinking part — filter from output
+  thoughtSignature?: string; // Gemini 3 thought signature — must be preserved for tool round-trips
   functionCall?: { name: string; args: Record<string, unknown> };
   functionResponse?: { name: string; response: Record<string, unknown> };
 }
@@ -113,7 +114,14 @@ export function translateMessages(
             name: functionName,
             response: (() => {
               try {
-                return JSON.parse(msg.content);
+                const parsed = JSON.parse(msg.content);
+                // Gemini requires response to be a Struct (object), not an array.
+                // Wrap arrays so the protobuf serialization doesn't fail.
+                return Array.isArray(parsed)
+                  ? { items: parsed }
+                  : (typeof parsed === "object" && parsed !== null
+                    ? parsed
+                    : { result: parsed });
               } catch {
                 return { result: msg.content };
               }
@@ -126,12 +134,17 @@ export function translateMessages(
       if (msg.content) parts.push({ text: msg.content });
       if (msg.tool_calls) {
         for (const tc of msg.tool_calls) {
-          parts.push({
+          const part: GeminiPart = {
             functionCall: {
               name: tc.name,
               args: tc.arguments,
             },
-          });
+          };
+          // Preserve Gemini thought signatures for tool round-trips
+          if (tc.metadata?.thoughtSignature) {
+            part.thoughtSignature = tc.metadata.thoughtSignature as string;
+          }
+          parts.push(part);
         }
       }
       if (parts.length > 0) {
@@ -282,6 +295,9 @@ export function parseGeminiResponse(
       id: `gemini-tc-${crypto.randomUUID().slice(0, 8)}-${i}`,
       name: p.functionCall!.name,
       arguments: p.functionCall!.args || {},
+      ...(p.thoughtSignature
+        ? { metadata: { thoughtSignature: p.thoughtSignature } }
+        : {}),
     }))
     : undefined;
 
@@ -792,6 +808,11 @@ export async function callGeminiStreamWithTools(
                     }-${accumulatedToolCalls.length}`,
                     name: part.functionCall.name,
                     arguments: part.functionCall.args || {},
+                    ...(part.thoughtSignature
+                      ? {
+                        metadata: { thoughtSignature: part.thoughtSignature },
+                      }
+                      : {}),
                   });
                 }
               }

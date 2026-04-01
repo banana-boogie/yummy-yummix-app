@@ -20,7 +20,7 @@ import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import { getCustomCookingGuidePath, isFromChat } from '@/utils/navigation/recipeRoutes';
 import { eventService } from '@/services/eventService';
 export default function CustomCookingGuide() {
-  const { id, session, from } = useLocalSearchParams<{ id: string; session?: string; from?: string }>();
+  const { id, from } = useLocalSearchParams<{ id: string; session?: string; from?: string }>();
   const { recipe, loading, error } = useCustomRecipe(id as string);
   const { isPhone } = useDevice();
   const navigation = useNavigation();
@@ -45,7 +45,11 @@ export default function CustomCookingGuide() {
       eventService.logCookStart(recipe.id, recipe.name, 'user_recipes');
     }
 
-    router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-ingredients'));
+    if (recipe?.kitchenTools && recipe.kitchenTools.length > 0) {
+      router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-kitchen-tools'));
+    } else {
+      router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-ingredients'));
+    }
   };
 
   if (loading) {

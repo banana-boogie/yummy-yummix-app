@@ -1,24 +1,23 @@
 import React, { useState } from 'react';
-import { View, ScrollView, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '@/constants/design-tokens';
-import { AdminIngredient, AdminIngredientTranslation, pickTranslation , NutritionalFacts } from '@/types/recipe.admin.types';
+import { View, Platform, Pressable } from 'react-native';
+import { AdminIngredient, pickTranslation, NutritionalFacts } from '@/types/recipe.admin.types';
 import { ImageUploadSection } from '@/components/admin/recipes/forms/common/ImageUploadSection';
 import { TranslationsSection } from '@/components/admin/ingredients/IngredientForm/TranslationsSection';
 import { NutritionalFactsSection } from '@/components/admin/ingredients/IngredientForm/NutritionalFactsSection';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { AlertModal } from '@/components/common/AlertModal';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 import logger from '@/services/logger';
-
-const scrollContentStyle = { padding: 24, gap: 32 } as const;
 
 interface IngredientFormProps {
     ingredient?: AdminIngredient;
     onSave: (data: AdminIngredient) => Promise<void>;
     onCancel: () => void;
     saving: boolean;
+    onDelete?: () => void;
 }
 
 interface ValidationErrors {
@@ -34,6 +33,7 @@ export function IngredientForm({
     onSave,
     onCancel,
     saving,
+    onDelete,
 }: IngredientFormProps) {
     const [showSuccessAlert, setShowSuccessAlert] = useState(false);
     const [showErrorAlert, setShowErrorAlert] = useState(false);
@@ -59,7 +59,6 @@ export function IngredientForm({
     const validateForm = (data: Partial<AdminIngredient>): ValidationErrors => {
         const errors: ValidationErrors = {};
 
-        // Validate that at least es and en have names
         const translations = data.translations || [];
         const esT = pickTranslation(translations, 'es');
         const enT = pickTranslation(translations, 'en');
@@ -69,12 +68,10 @@ export function IngredientForm({
         if (!enT?.pluralName) errors['pluralName_en'] = i18n.t('validation.required');
         if (!esT?.pluralName) errors['pluralName_es'] = i18n.t('validation.required');
 
-        // PICTURE VALIDATION
         if (!data.pictureUrl) {
             errors.pictureUrl = i18n.t('validation.required');
         }
 
-        // NUTRITIONAL FACTS VALIDATION
         const nutritionalFields = ['calories', 'protein', 'fat', 'carbohydrates'] as const;
         const maxValues = { calories: 1000, protein: 100, fat: 100, carbohydrates: 100 };
 
@@ -111,7 +108,6 @@ export function IngredientForm({
         return errors;
     };
 
-
     const handleSubmit = async () => {
         try {
             const errors = validateForm(formData);
@@ -125,21 +121,23 @@ export function IngredientForm({
             setShowSuccessAlert(true);
         } catch (error) {
             logger.error('Error saving ingredient:', error);
-            setErrorMessage(i18n.t('admin.ingredients.errors.saveFailed', { defaultValue: 'Failed to save ingredient. Please try again.' }));
+            const msg = error instanceof Error ? error.message : '';
+            setErrorMessage(msg || i18n.t('admin.ingredients.errors.saveFailed', { defaultValue: 'Failed to save ingredient. Please try again.' }));
             setShowErrorAlert(true);
         }
     };
 
     const handleSuccessConfirm = () => {
         setShowSuccessAlert(false);
-        onCancel(); // Close the modal
+        onCancel();
     };
 
-    // Get a display name for the nutritional facts lookup — prefer English (best training data)
     const ingredientDisplayName =
         pickTranslation(formData.translations, 'en')?.name?.trim() ||
         pickTranslation(formData.translations, 'es')?.name?.trim() ||
         '';
+
+    const isEditing = !!ingredient?.id;
 
     return (
         <View className="flex-1">
@@ -162,63 +160,63 @@ export function IngredientForm({
                 confirmText={i18n.t('common.ok')}
             />
 
-            <View className="flex-row justify-between items-center px-md mb-md border-b border-border-DEFAULT pb-xs">
-                <Text preset="h1" className="font-bold mb-0">
-                    {ingredient ? i18n.t('admin.ingredients.editTitle') : i18n.t('admin.ingredients.createTitle')}
-                </Text>
-                <TouchableOpacity
-                    className="p-xs rounded-full"
-                    onPress={onCancel}
-                    disabled={saving}
-                >
-                    <Ionicons name="close" size={24} color={COLORS.grey.MEDIUM} />
-                </TouchableOpacity>
-            </View>
+            <ImageUploadSection
+                imageUrl={formData.pictureUrl}
+                onImageSelected={(file) => setFormData({ ...formData, pictureUrl: file })}
+                error={validationErrors.pictureUrl as string}
+                required={true}
+            />
 
-            <ScrollView
-                className="flex-1"
-                contentContainerStyle={scrollContentStyle}
-                showsVerticalScrollIndicator={false}
+            <TranslationsSection
+                translations={formData.translations}
+                errors={validationErrors as Record<string, string>}
+                onChange={(translations) => setFormData({ ...formData, translations })}
+                required={true}
+            />
+
+            <NutritionalFactsSection
+                nutritionalFacts={formData.nutritionalFacts}
+                onChange={(facts: NutritionalFacts) => setFormData({ ...formData, nutritionalFacts: facts })}
+                errors={validationErrors.nutritionalFacts as { [key: string]: string }}
+                required={true}
+                ingredientName={ingredientDisplayName}
+            />
+
+            {/* Footer: Delete left, Cancel + Save right */}
+            <View
+                className="flex-row items-center justify-between pt-lg mt-lg border-t border-border-default pb-sm bg-white"
+                style={Platform.OS === 'web' ? { position: 'sticky' as any, bottom: 0 } : {}}
             >
-
-                <ImageUploadSection
-                    title={i18n.t('admin.ingredients.image')}
-                    imageUrl={formData.pictureUrl}
-                    onImageSelected={(file) => setFormData({ ...formData, pictureUrl: file })}
-                    error={validationErrors.pictureUrl as string}
-                    required={true}
-                />
-
-                <TranslationsSection
-                    translations={formData.translations}
-                    errors={validationErrors as Record<string, string>}
-                    onChange={(translations) => setFormData({ ...formData, translations })}
-                    required={true}
-                />
-
-                <NutritionalFactsSection
-                    nutritionalFacts={formData.nutritionalFacts}
-                    onChange={(facts: NutritionalFacts) => setFormData({ ...formData, nutritionalFacts: facts })}
-                    errors={validationErrors.nutritionalFacts as { [key: string]: string }}
-                    required={true}
-                    ingredientName={ingredientDisplayName}
-                />
-
-                <View className="flex-row justify-end gap-md mt-md">
+                {isEditing && onDelete ? (
+                    <Pressable
+                        onPress={onDelete}
+                        disabled={saving}
+                        style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+                    >
+                        <Text preset="bodySmall" className="text-status-error">
+                            {i18n.t('common.delete')}
+                        </Text>
+                    </Pressable>
+                ) : <View />}
+                <View className="flex-row gap-sm">
                     <Button
                         onPress={onCancel}
-                        label={i18n.t('common.cancel')}
-                        variant="outline"
                         disabled={saving}
-                    />
+                        variant="secondary"
+                        size="small"
+                    >
+                        {i18n.t('common.cancel')}
+                    </Button>
                     <Button
                         onPress={handleSubmit}
-                        label={i18n.t('common.save')}
-                        loading={saving}
                         disabled={saving}
-                    />
+                        loading={saving}
+                        size="small"
+                    >
+                        {i18n.t('common.save')}
+                    </Button>
                 </View>
-            </ScrollView>
+            </View>
         </View>
     );
 }

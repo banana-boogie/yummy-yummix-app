@@ -13,14 +13,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/common/Text';
 import { IrmixyAvatar } from '@/components/chat/IrmixyAvatar';
 import { TypingDots } from '@/components/chat/TypingIndicator';
-import { SearchingAnimation } from '@/components/chat/SearchingAnimation';
+
 import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
-import { ChatResumeBar } from '@/components/chat/ChatResumeBar';
+
 import { ChatInputBar } from '@/components/chat/ChatInputBar';
 import { SPACING , COLORS } from '@/constants/design-tokens';
 import { useMessageStreaming } from '@/hooks/chat/useMessageStreaming';
 import { useSmartScroll } from '@/hooks/chat/useSmartScroll';
-import { useResumeSession } from '@/hooks/chat/useResumeSession';
+
 import { useChatMessageActions } from '@/hooks/chat/useChatMessageActions';
 import {
     executeAction,
@@ -53,8 +53,6 @@ interface Props {
     cookingContext?: import('@/types/irmixy').CookingContext;
     /** Override the cycling greeting shown in the empty state */
     emptyStateGreeting?: string;
-    /** When true, skip resume session lookup (e.g. cooking modal) */
-    disableResume?: boolean;
     /** Injected as the first assistant message (renders as a chat bubble from Irmixy) */
     initialGreeting?: string;
     /** Called before navigating away (e.g. "Start Cooking" inside a modal) */
@@ -76,7 +74,6 @@ export function ChatScreen({
     newChatSignal,
     cookingContext,
     emptyStateGreeting,
-    disableResume,
     initialGreeting,
     onNavigateAway,
     keyboardVerticalOffset,
@@ -135,7 +132,9 @@ export function ChatScreen({
     }, [externalMessages]);  
 
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
-    const [resumeDismissed, setResumeDismissed] = useState(false);
+    // Track session IDs created by this ChatScreen instance to avoid
+    // resetting the stream when the ID round-trips through a parent context.
+    const ownSessionIdRef = useRef<string | null>(null);
     const prevNewChatSignalRef = useRef<number | undefined>(newChatSignal);
 
     // Shared ref between scroll and streaming hooks
@@ -155,31 +154,6 @@ export function ChatScreen({
     } = useSmartScroll({
         hasRecipeInCurrentStreamRef,
     });
-
-    // --- Resume session hook ---
-    const {
-        resumeSession,
-        setResumeSession,
-        handleResumeContinue,
-        handleResumeDismiss,
-    } = useResumeSession({
-        user,
-        initialSessionId,
-        currentSessionId,
-        setCurrentSessionId,
-        messagesLength: messages.length,
-        setMessages,
-        onSessionCreated,
-        resumeDismissed,
-        setResumeDismissed,
-        disableResume,
-    });
-
-    const onResumeSessionClear = useCallback(() => {
-        if (resumeSession) {
-            setResumeSession(null);
-        }
-    }, [resumeSession, setResumeSession]);
 
     // --- Budget state ---
     const [isBudgetExceeded, setIsBudgetExceeded] = useState(false);
@@ -230,14 +204,16 @@ export function ChatScreen({
         messagesRef,
         currentSessionId,
         setCurrentSessionId,
-        onSessionCreated,
+        onSessionCreated: useCallback((sessionId: string) => {
+            ownSessionIdRef.current = sessionId;
+            onSessionCreated?.(sessionId);
+        }, [onSessionCreated]),
         stopAndGuard,
         scrollToEndThrottled,
         isNearBottomRef,
         skipNextScrollToEndRef,
         hasRecipeInCurrentStreamRef,
         flatListRef,
-        onResumeSessionClear,
         onBudgetWarning: handleBudgetWarning,
         onBudgetExceeded: handleBudgetExceeded,
         cookingContext,
@@ -306,34 +282,30 @@ export function ChatScreen({
 
     // --- Effects ---
 
-    // Sync currentSessionId when parent changes it
+    // Sync currentSessionId when parent changes it (e.g. session selection).
+    // Skip when the ID was created by this instance (round-trip through context).
     useEffect(() => {
         const nextSessionId = initialSessionId ?? null;
-        if (nextSessionId !== currentSessionId) {
+        if (nextSessionId !== currentSessionId && nextSessionId !== ownSessionIdRef.current) {
             resetStreamingState();
             setCurrentSessionId(nextSessionId);
             setIsBudgetExceeded(false);
             budgetWarningShownRef.current = false;
-            if (nextSessionId) {
-                setResumeSession(null);
-            }
         }
-    }, [initialSessionId, currentSessionId, resetStreamingState, setCurrentSessionId, setResumeSession]);
+    }, [initialSessionId, currentSessionId, resetStreamingState, setCurrentSessionId]);
 
-    // Hide resume prompt when parent explicitly starts a new chat
+    // Reset budget state when parent explicitly starts a new chat
     useEffect(() => {
         if (
             newChatSignal !== undefined &&
             prevNewChatSignalRef.current !== undefined &&
             newChatSignal !== prevNewChatSignalRef.current
         ) {
-            setResumeSession(null);
-            setResumeDismissed(true);
             setIsBudgetExceeded(false);
             budgetWarningShownRef.current = false;
         }
         prevNewChatSignalRef.current = newChatSignal;
-    }, [newChatSignal, setResumeSession]);
+    }, [newChatSignal]);
 
     // Scroll to bottom when recipe tracker appears
     useEffect(() => {
@@ -414,15 +386,6 @@ export function ChatScreen({
                 renderItem={renderMessage}
                 keyExtractor={keyExtractor}
                 contentContainerStyle={CHAT_CONTENT_STYLE}
-                ListHeaderComponent={
-                    resumeSession && !resumeDismissed && messages.length === 0 && !currentSessionId ? (
-                        <ChatResumeBar
-                            sessionTitle={resumeSession.title}
-                            onContinue={handleResumeContinue}
-                            onDismiss={handleResumeDismiss}
-                        />
-                    ) : null
-                }
                 onContentSizeChange={handleContentSizeChange}
                 onLayout={handleLayout}
                 onScroll={handleScroll}
@@ -468,13 +431,8 @@ export function ChatScreen({
                 </TouchableOpacity>
             )}
 
-            {/* Prominent centered animation for recipe search */}
-            {isLoading && !showRecipeTracker && currentStatus === 'searching' && (
-                <SearchingAnimation />
-            )}
-
-            {/* Inline status indicator for other statuses (hidden during search + recipe tracker) */}
-            {isLoading && !showRecipeTracker && currentStatus !== 'searching' && (
+            {/* Inline status indicator (hidden during recipe tracker) */}
+            {isLoading && !showRecipeTracker && (
                 <View className="px-md py-sm">
                     <View className="flex-row items-center">
                         <IrmixyAvatar state={currentStatus ?? 'thinking'} size={40} />

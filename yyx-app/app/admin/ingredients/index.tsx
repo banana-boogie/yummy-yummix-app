@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, ActivityIndicator, TouchableOpacity, FlatList } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, ActivityIndicator, FlatList, Platform, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { COLORS } from '@/constants/design-tokens';
@@ -8,18 +8,39 @@ import { IngredientCard } from '@/components/admin/ingredients/IngredientCard';
 import { useIngredients } from '@/hooks/admin/useIngredients';
 import { AlertModal } from '@/components/common/AlertModal';
 import { SearchBar } from '@/components/common/SearchBar';
-import { AdminIngredient, getTranslatedField } from '@/types/recipe.admin.types';
+import { AdminIngredient } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
 import { CreateEditIngredientModal } from '@/components/admin/ingredients/CreateEditIngredientModal';
 import { Text } from '@/components/common/Text';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
+import { useDevice } from '@/hooks/useDevice';
 import logger from '@/services/logger';
+
+type IngredientFilter = 'all' | 'has_image' | 'needs_image' | 'needs_nutrition';
+
+function hasValidImage(url: unknown): boolean {
+  return typeof url === 'string' && url.length > 0 && url.startsWith('http');
+}
+
+function hasNutrition(ingredient: AdminIngredient): boolean {
+  const facts = ingredient.nutritionalFacts;
+  if (!facts) return false;
+  return (
+    facts.calories !== undefined && facts.calories !== '' &&
+    facts.protein !== undefined && facts.protein !== '' &&
+    facts.fat !== undefined && facts.fat !== '' &&
+    facts.carbohydrates !== undefined && facts.carbohydrates !== ''
+  );
+}
 
 export default function IngredientsAdminPage() {
   const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const { isPhone } = useDevice();
   const {
     filteredIngredients,
     setFilteredIngredients,
+    ingredients,
+    setIngredients,
     loading,
     searchQuery,
     setSearchQuery,
@@ -29,25 +50,31 @@ export default function IngredientsAdminPage() {
   const [displayLocale, setDisplayLocale] = useState(i18n.locale);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<AdminIngredient | null>(null);
+  const [ingredientFilter, setIngredientFilter] = useState<IngredientFilter>('all');
+  const [showErrorAlert, setShowErrorAlert] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  // Auto-open edit modal when navigating with ?edit=<id> (e.g. from content health dashboard)
-  // Only run once when data first loads — not on every filter/search change
-  const [autoEditHandled, setAutoEditHandled] = useState(false);
+  // Auto-open edit modal when navigating with ?edit=<id>
   useEffect(() => {
-    if (edit && !loading && filteredIngredients.length > 0 && !autoEditHandled) {
+    if (edit && !loading && filteredIngredients.length > 0) {
       const target = filteredIngredients.find(ing => ing.id === edit);
       if (target) {
         setEditingIngredient(target);
         setModalVisible(true);
-        setAutoEditHandled(true);
       }
     }
-  }, [edit, loading, filteredIngredients, autoEditHandled]);
-  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
-  const [selectedIngredient, setSelectedIngredient] = useState<AdminIngredient | null>(null);
-  const [showErrorAlert, setShowErrorAlert] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+  }, [edit, loading, filteredIngredients]);
+
+  const displayItems = useMemo(() => {
+    if (ingredientFilter === 'all') return filteredIngredients;
+    if (ingredientFilter === 'has_image') return filteredIngredients.filter(t => hasValidImage(t.pictureUrl));
+    if (ingredientFilter === 'needs_image') return filteredIngredients.filter(t => !hasValidImage(t.pictureUrl));
+    return filteredIngredients.filter(t => !hasNutrition(t));
+  }, [filteredIngredients, ingredientFilter]);
+
+  const totalCount = ingredients.length;
+  const needsImageCount = ingredients.filter(t => !hasValidImage(t.pictureUrl)).length;
+  const needsNutritionCount = ingredients.filter(t => !hasNutrition(t)).length;
 
   const handleOpenEditModal = (ingredient: AdminIngredient) => {
     setEditingIngredient(ingredient);
@@ -59,115 +86,151 @@ export default function IngredientsAdminPage() {
     setModalVisible(true);
   };
 
-  const handleDeleteConfirmation = (ingredient: AdminIngredient) => {
-    setSelectedIngredient(ingredient);
-    setShowDeleteAlert(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!selectedIngredient) return;
-
+  const handleDelete = async (ingredient: AdminIngredient) => {
     try {
-      await handleDeleteIngredient(selectedIngredient);
+      await handleDeleteIngredient(ingredient);
     } catch (error) {
       logger.error('Error deleting ingredient:', error);
-      setErrorMessage('Failed to delete ingredient');
+      setErrorMessage(i18n.t('admin.ingredients.errors.saveFailed'));
       setShowErrorAlert(true);
-    } finally {
-      setShowDeleteAlert(false);
-      setSelectedIngredient(null);
     }
   };
 
   const handleSuccessfullySavedIngredient = (ingredient: AdminIngredient) => {
     if (editingIngredient && editingIngredient.id === ingredient.id) {
-      setEditingIngredient(ingredient);
       setFilteredIngredients(prev => prev.map(item =>
+        item.id === ingredient.id ? ingredient : item
+      ));
+      setIngredients(prev => prev.map(item =>
         item.id === ingredient.id ? ingredient : item
       ));
     } else {
       setFilteredIngredients(prev => [ingredient, ...prev]);
+      setIngredients(prev => [ingredient, ...prev]);
     }
+    setModalVisible(false);
   };
 
+  const numColumns = isPhone ? 2 : 3;
+
+  const filterPills: { key: IngredientFilter; label: string }[] = [
+    { key: 'all', label: i18n.t('admin.filters.all') },
+    { key: 'has_image', label: i18n.t('admin.filters.hasImage') },
+    { key: 'needs_image', label: `${i18n.t('admin.filters.noImage')} (${needsImageCount})` },
+    { key: 'needs_nutrition', label: `${i18n.t('admin.filters.noNutrition')} (${needsNutritionCount})` },
+  ];
+
+  // Build stats caption
+  const statParts = [i18n.t('admin.ingredients.stats.count', { count: totalCount })];
+  if (needsImageCount > 0) statParts.push(i18n.t('admin.ingredients.stats.needImages', { count: needsImageCount }));
+  if (needsNutritionCount > 0) statParts.push(i18n.t('admin.ingredients.stats.needNutrition', { count: needsNutritionCount }));
+
   return (
-    <AdminLayout title="Manage Ingredients" showBackButton={true}>
-      <View className="p-md" style={{ backgroundColor: '#ffffff' }}>
+    <AdminLayout title={i18n.t('admin.ingredients.manageTitle')} showBackButton={true}>
+      {/* Toolbar */}
+      <View className="px-lg pt-xl pb-lg bg-white">
+        {/* Stats */}
+        <Text preset="body" className="text-text-default font-semibold mb-md">
+          {i18n.t('admin.ingredients.stats.count', { count: totalCount })}
+          {needsImageCount > 0 && (
+            <Text preset="body" style={{ color: COLORS.status.warning }}> · {i18n.t('admin.ingredients.stats.needImages', { count: needsImageCount })}</Text>
+          )}
+          {needsNutritionCount > 0 && (
+            <Text preset="body" style={{ color: COLORS.status.warning }}> · {i18n.t('admin.ingredients.stats.needNutrition', { count: needsNutritionCount })}</Text>
+          )}
+        </Text>
+
+        {/* Filter pills + locale toggle in one bar */}
+        <View className="flex-row items-center justify-between bg-grey-light rounded-lg px-md py-sm mb-md">
+          <View className="flex-row items-center gap-xs">
+            {filterPills.map(pill => (
+              <Pressable
+                key={pill.key}
+                onPress={() => setIngredientFilter(pill.key)}
+                className={`px-sm py-xxs rounded-full ${
+                  ingredientFilter === pill.key
+                    ? 'bg-primary-default'
+                    : ''
+                }`}
+                style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+              >
+                <Text
+                  preset="caption"
+                  className={ingredientFilter === pill.key ? 'text-text-default font-semibold' : 'text-text-secondary'}
+                >
+                  {pill.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+        </View>
+
+        {/* Display language */}
         <View className="mb-md">
           <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
         </View>
-        <View className="flex-col sm:flex-row sm:items-center gap-md">
-          <SearchBar
-            className="flex-none sm:flex-1"
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            placeholder="Search ingredients..."
-          />
-          <TouchableOpacity
-            className="flex-row items-center bg-primary-dark px-md py-sm rounded-lg self-start sm:self-auto"
+
+        {/* Search + New */}
+        <View className="flex-row items-center gap-sm">
+          <View className="flex-1 -mb-md">
+            <SearchBar
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              placeholder={i18n.t('admin.ingredients.searchPlaceholder')}
+              className="mb-0"
+            />
+          </View>
+          <Pressable
             onPress={handleOpenCreateModal}
+            className="flex-row items-center gap-xxs px-lg py-md border border-border-default rounded-full"
+            style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
           >
-            <Ionicons name="add" size={24} color={COLORS.neutral.WHITE} />
-            <Text color={COLORS.neutral.WHITE} className="ml-sm font-bold">New Ingredient</Text>
-          </TouchableOpacity>
+            <Ionicons name="add" size={16} color={COLORS.text.default} />
+            <Text preset="bodySmall" className="text-text-default">{i18n.t('admin.common.new')}</Text>
+          </Pressable>
         </View>
       </View>
 
+      {/* Grid */}
       {loading ? (
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color={COLORS.primary.DARKEST} />
+          <ActivityIndicator size="large" color={COLORS.primary.darkest} />
         </View>
       ) : (
         <FlatList
-          data={filteredIngredients}
-          extraData={displayLocale}
+          key={`grid-${numColumns}`}
+          data={displayItems}
+          extraData={`${displayLocale}-${ingredientFilter}`}
+          numColumns={numColumns}
           renderItem={({ item }) => (
-            <IngredientCard
-              ingredient={item}
-              displayLocale={displayLocale}
-              onEdit={handleOpenEditModal}
-              onDelete={handleDeleteConfirmation}
-            />
+            <View className="p-sm" style={{ flex: 1 / numColumns }}>
+              <IngredientCard
+                ingredient={item}
+                displayLocale={displayLocale}
+                onPress={handleOpenEditModal}
+              />
+            </View>
           )}
           keyExtractor={item => item.id}
-          contentContainerStyle={{ padding: 16, paddingTop: 24 }}
-          ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+          contentContainerStyle={{ padding: 12, paddingTop: 20 }}
           ListEmptyComponent={
             <View className="items-center justify-center p-xl">
-              <Ionicons name="leaf-outline" size={48} color={COLORS.grey.MEDIUM} />
-              <Text className="mt-md text-base" color={COLORS.text.secondary}>No ingredients found</Text>
+              <Ionicons name="leaf-outline" size={48} color={COLORS.grey.medium} />
+              <Text preset="body" className="text-text-secondary mt-sm">
+                {i18n.t('admin.ingredients.noIngredients')}
+              </Text>
             </View>
           }
         />
       )}
 
-      {/* Ingredient Edit/Create Modal */}
       <CreateEditIngredientModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         ingredient={editingIngredient as AdminIngredient}
         onSuccess={handleSuccessfullySavedIngredient}
-      />
-
-      <AlertModal
-        visible={showDeleteAlert}
-        title={i18n.t('admin.ingredients.confirmDeletion.title')}
-        message={`${i18n.t('admin.ingredients.confirmDeletion.message')} ${getTranslatedField(selectedIngredient?.translations, displayLocale, 'name')}`}
-        onConfirm={handleConfirmDelete}
-        onCancel={() => {
-          setShowDeleteAlert(false);
-          setSelectedIngredient(null);
-        }}
-        confirmText={i18n.t('common.delete')}
-        isDestructive={true}
-      />
-
-      <AlertModal
-        visible={showSuccessAlert}
-        title={i18n.t('admin.ingredients.success.title')}
-        message={i18n.t('admin.ingredients.success.message')}
-        onConfirm={() => setShowSuccessAlert(false)}
-        confirmText={i18n.t('common.ok')}
+        onDelete={handleDelete}
       />
 
       <AlertModal

@@ -32,7 +32,7 @@ export function RecipeStepsList({ recipeSteps, displayLocale = 'es' }: RecipeSte
           </View>
           {steps.map((recipeStep, index) => (
             <View key={`${recipeStep.id}-${index}`} className="bg-background-default rounded-md overflow-hidden mb-xl shadow-md">
-              <View className="flex-row items-center bg-background-SECONDARY py-xs px-sm border-b border-border-default">
+              <View className="flex-row items-center bg-background-secondary py-xs px-sm border-b border-border-default">
                 <View className="bg-primary-default w-7 h-7 rounded-full items-center justify-center mr-sm">
                   <Text preset="body" fontWeight="700" color="#FFFFFF" className="pt-[2px]">
                     {recipeStep.order}

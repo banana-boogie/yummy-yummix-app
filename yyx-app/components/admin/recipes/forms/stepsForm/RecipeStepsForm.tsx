@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, TouchableOpacity } from 'react-native';
 import { v4 as generateUUID } from 'uuid'
 import { Ionicons } from '@expo/vector-icons';
-import { FormSection } from '@/components/form/FormSection';
+import { COLORS } from '@/constants/design-tokens';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { AdminRecipe, AdminRecipeSteps } from '@/types/recipe.admin.types';
@@ -123,9 +123,9 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
     const itemId = item.id || `temp-${Date.now()}-${index}`;
 
     return (
-      <View key={itemId} className={`bg-background-DEFAULT rounded-md overflow-hidden border border-border-DEFAULT mb-md shadow-md`}>
-        <View className={`flex-row items-center justify-between bg-background-SECONDARY ${isMobile ? 'py-xxs px-xs' : 'py-xs px-sm'} border-b border-border-DEFAULT`}>
-          <View className={`bg-primary-DEFAULT ${isMobile ? 'w-6 h-6' : 'w-7 h-7'} rounded-full items-center justify-center pt-[2px]`}>
+      <View key={itemId} className={`bg-background-default rounded-md overflow-hidden border border-border-default mb-md shadow-md`}>
+        <View className={`flex-row items-center justify-between bg-background-secondary ${isMobile ? 'py-xxs px-xs' : 'py-xs px-sm'} border-b border-border-default`}>
+          <View className={`bg-primary-default ${isMobile ? 'w-6 h-6' : 'w-7 h-7'} rounded-full items-center justify-center pt-[2px]`}>
             <Text preset="body" className={`text-text-INVERSE ${isMobile ? 'text-xs' : 'text-sm'}`}>
               {item.order}
             </Text>
@@ -133,33 +133,33 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
 
           <View className={`flex-row ${isMobile ? 'gap-xs' : 'gap-sm'}`}>
             <TouchableOpacity
-              className={`${isMobile ? 'p-xxs' : 'p-1'} rounded-sm bg-background-DEFAULT ${index === 0 ? 'opacity-50' : ''}`}
+              className={`${isMobile ? 'p-xxs' : 'p-1'} rounded-sm bg-background-default ${index === 0 ? 'opacity-50' : ''}`}
               onPress={() => handleMoveStepUp(itemId)}
               disabled={index === 0}
             >
-              <Ionicons name="chevron-up" size={isMobile ? 16 : 20} className={index === 0 ? 'text-text-SECONDARY' : 'text-primary-DEFAULT'} />
+              <Ionicons name="chevron-up" size={isMobile ? 16 : 20} className={index === 0 ? 'text-text-secondary' : 'text-primary-default'} />
             </TouchableOpacity>
 
             <TouchableOpacity
-              className={`${isMobile ? 'p-xxs' : 'p-1'} rounded-sm bg-background-DEFAULT ${index === sortedSteps.length - 1 ? 'opacity-50' : ''}`}
+              className={`${isMobile ? 'p-xxs' : 'p-1'} rounded-sm bg-background-default ${index === sortedSteps.length - 1 ? 'opacity-50' : ''}`}
               onPress={() => handleMoveStepDown(itemId)}
               disabled={index === sortedSteps.length - 1}
             >
-              <Ionicons name="chevron-down" size={isMobile ? 16 : 20} className={index === sortedSteps.length - 1 ? 'text-text-SECONDARY' : 'text-primary-DEFAULT'} />
+              <Ionicons name="chevron-down" size={isMobile ? 16 : 20} className={index === sortedSteps.length - 1 ? 'text-text-secondary' : 'text-primary-default'} />
             </TouchableOpacity>
 
             <TouchableOpacity
-              className={`${isMobile ? 'p-xxs' : 'p-1'} rounded-sm bg-background-DEFAULT`}
+              className={`${isMobile ? 'p-xxs' : 'p-1'} rounded-sm bg-background-default`}
               onPress={() => handleEditStep(item)}
             >
               <Ionicons name="pencil" size={isMobile ? 16 : 20} className="text-primary-DARK" />
             </TouchableOpacity>
 
             <TouchableOpacity
-              className={`${isMobile ? 'p-xxs' : 'p-1'} rounded-sm bg-background-DEFAULT`}
+              className={`${isMobile ? 'p-xxs' : 'p-1'} rounded-sm bg-background-default`}
               onPress={() => handleDeleteStep(itemId)}
             >
-              <Ionicons name="trash-outline" size={isMobile ? 16 : 20} className="text-status-ERROR" />
+              <Ionicons name="trash-outline" size={isMobile ? 16 : 20} className="text-text-secondary" />
             </TouchableOpacity>
           </View>
         </View>
@@ -178,32 +178,31 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
   }, [sortedSteps]);
 
   return (
-    <FormSection title={tForm('admin.recipes.form.stepsInfo.title')} maxWidth={1000} className="mb-md">
+    <View className="mt-lg w-full mb-md">
       {errors.steps ? (
-        <Text preset="caption" className="text-status-ERROR mb-sm">
+        <Text preset="caption" className="text-status-error mb-sm">
           {errors.steps}
         </Text>
       ) : null}
 
-      <View className="flex-row justify-end mb-sm">
-        <Button
-          variant="outline"
-          size="small"
-          onPress={handleAddStep}
-          className="self-start mb-sm"
-        >
+      <TouchableOpacity
+        onPress={handleAddStep}
+        className="flex-row items-center gap-xxs mb-md"
+      >
+        <Ionicons name="add" size={14} color={COLORS.text.secondary} />
+        <Text preset="caption" className="text-text-secondary">
           {tForm('admin.recipes.form.stepsInfo.addStep')}
-        </Button>
-      </View>
+        </Text>
+      </TouchableOpacity>
 
       {/* Steps list */}
       {sortedSteps.length === 0 ? (
-        <View className="flex-1 justify-center items-center p-lg bg-background-SECONDARY rounded-md min-h-[200px]">
-          <Ionicons name="list-outline" size={32} className="text-text-SECONDARY" />
+        <View className="flex-1 justify-center items-center p-lg bg-background-secondary rounded-md min-h-[200px]">
+          <Ionicons name="list-outline" size={32} className="text-text-secondary" />
           <Text preset="body" className="mt-sm text-center">
             {tForm('admin.recipes.form.stepsInfo.noSteps')}
           </Text>
-          <Text preset="caption" className="text-text-SECONDARY mt-xs text-center">
+          <Text preset="caption" className="text-text-secondary mt-xs text-center">
             {tForm('admin.recipes.form.stepsInfo.addStepPrompt')}
           </Text>
         </View>
@@ -213,7 +212,7 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
             const sectionName = authoringLocale.startsWith('es') ? sectionEs : sectionEn;
             return (
             <View key={sectionKey} className="mb-lg">
-              <View className="mb-md pb-xs border-b border-border-DEFAULT">
+              <View className="mb-md pb-xs border-b border-border-default">
                 <Text preset="subheading" className="mb-[2px]">
                   {sectionName}
                 </Text>
@@ -249,7 +248,7 @@ export function StepsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'e
           authoringLocale={authoringLocale}
         />
       ) : null}
-    </FormSection>
+    </View>
   );
 }
 

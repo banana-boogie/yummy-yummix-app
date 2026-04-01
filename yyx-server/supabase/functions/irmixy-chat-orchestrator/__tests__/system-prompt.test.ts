@@ -66,7 +66,10 @@ Deno.test("buildSystemPrompt uses warm allergen language (non-blocking)", () => 
   const prompt = buildSystemPrompt(createUserContext());
 
   assertStringIncludes(prompt, "Silently respect allergen restrictions");
-  assertStringIncludes(prompt, "Only address allergens if the user asks");
+  assertStringIncludes(
+    prompt,
+    "Only address allergens if the user explicitly asks",
+  );
 });
 
 Deno.test("buildSystemPrompt includes scope guardrails", () => {

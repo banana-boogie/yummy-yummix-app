@@ -28,26 +28,17 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
 import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import { Image as ExpoImage } from 'expo-image';
-// eslint-disable-next-line import/no-named-as-default
-import logger from '@/services/logger';
+ 
 
 
 const RecipeDetail: React.FC = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const irmixy = useIrmixyHelperChat(id as string);
-
-  // Validate ID early to prevent unnecessary API calls
-  useEffect(() => {
-    if (id && !isValidUUID(id as string)) {
-      logger.warn(`Invalid recipe ID format: ${id}, redirecting to recipes page`);
-      // Using replace instead of push to avoid adding to history stack
-      router.replace('/(tabs)/recipes');
-    }
-  }, [id, router]);
-
-  // Only proceed with recipe fetch if we have a valid UUID
-  const validId = id && isValidUUID(id as string) ? id as string : '';
+  // Only proceed with valid UUID. Don't redirect on invalid IDs — on web,
+  // Expo Router may mount this component alongside admin routes during refresh.
+  // Redirecting would hijack navigation away from the correct screen.
+  const validId = id && isValidUUID(id as string) ? (id as string) : '';
+  const irmixy = useIrmixyHelperChat(validId);
   const { recipe, loading, error } = useRecipe(validId);
 
   // Track recipe view when recipe loads successfully
@@ -133,6 +124,12 @@ const RecipeDetail: React.FC = () => {
               <Text preset="h1" className="mb-xs">
                 {recipe.name}
               </Text>
+
+              {recipe.description ? (
+                <Text className="text-text-secondary text-base mb-md">
+                  {recipe.description}
+                </Text>
+              ) : null}
 
               <RecipeInfo
                 totalTime={recipe.totalTime}
