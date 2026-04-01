@@ -11,6 +11,7 @@ import { ReviewForm } from '@/components/admin/recipes/forms/reviewForm/ReviewFo
 import { RecipeKitchenToolsForm } from '@/components/admin/recipes/forms/kitchenToolsForm/RecipeKitchenToolsForm';
 import { AdminRecipe, getTranslatedField } from '@/types/recipe.admin.types';
 import { adminRecipeService } from '@/services/admin/adminRecipeService';
+import { friendlySaveError } from '@/hooks/admin/useAdminRecipeForm';
 import { Text } from '@/components/common/Text';
 import { AlertModal } from '@/components/common/AlertModal';
 import { FormErrors } from '@/components/form/FormErrors';
@@ -102,7 +103,8 @@ export default function EditRecipePage() {
       await loadRecipe();
     } catch (error) {
       logger.error('Error saving recipe:', error);
-      setErrors({ save: i18n.t('admin.recipes.form.errors.saveFailed') });
+      const msg = error instanceof Error ? error.message : '';
+      setErrors({ save: friendlySaveError(msg) });
       setShowErrorDialog(true);
     } finally {
       setSaving(false);
@@ -281,7 +283,7 @@ export default function EditRecipePage() {
         <AlertModal
           visible={showErrorDialog}
           title={i18n.t('admin.recipes.form.saveError.title')}
-          message={i18n.t('admin.recipes.form.saveError.message')}
+          message={errors.save || i18n.t('admin.recipes.form.saveError.message')}
           onConfirm={() => setShowErrorDialog(false)}
           confirmText={i18n.t('common.ok')}
         />
