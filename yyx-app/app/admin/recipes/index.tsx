@@ -132,7 +132,7 @@ export default function RecipesAdminPage() {
       setRecipeToDelete(null);
     } catch (error) {
       logger.error('Error deleting recipe:', error);
-      setDeleteError(error instanceof Error ? error.message : 'Delete failed');
+      setDeleteError(error instanceof Error ? error.message : i18n.t('common.errors.default'));
       setShowErrorAlert(true);
     }
   };

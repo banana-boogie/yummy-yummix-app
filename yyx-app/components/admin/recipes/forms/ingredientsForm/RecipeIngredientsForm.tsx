@@ -396,7 +396,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
 
       {/* Missing ingredients from AI import */}
       {missingIngredients && missingIngredients.length > 0 && (
-        <View className="mb-md p-md rounded-md border border-status-warning" style={{ backgroundColor: '#FFF8E1' }}>
+        <View className="mb-md p-md rounded-md border border-status-warning bg-status-warning-light">
           <View className="flex-row items-center gap-xs mb-sm">
             <Ionicons name="warning-outline" size={18} color={COLORS.status.warning} />
             <Text preset="bodySmall" className="font-semibold" style={{ color: COLORS.status.warning }}>
