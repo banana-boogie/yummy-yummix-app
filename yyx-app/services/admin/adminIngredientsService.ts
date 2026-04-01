@@ -257,8 +257,11 @@ export class AdminIngredientsService extends BaseService {
         .insert(dbTranslations);
 
       if (translationError) {
-        // Clean up orphaned ingredient row before throwing
+        // Clean up orphaned ingredient row and uploaded image before throwing
         await this.supabase.from('ingredients').delete().eq('id', inserted.id);
+        if (ingredientData.image_url) {
+          try { await this.deleteImage(ingredientData.image_url); } catch { /* best effort */ }
+        }
         if (translationError.message?.includes('unique constraint') || translationError.code === '23505') {
           throw new Error('An ingredient with this name already exists. Please use a different name.');
         }
@@ -270,8 +273,11 @@ export class AdminIngredientsService extends BaseService {
     try {
       await this.persistNutrition(inserted.id, ingredient.nutritionalFacts);
     } catch (nutritionError) {
-      // Clean up orphaned ingredient row before throwing
+      // Clean up orphaned ingredient row and uploaded image before throwing
       await this.supabase.from('ingredients').delete().eq('id', inserted.id);
+      if (ingredientData.image_url) {
+        try { await this.deleteImage(ingredientData.image_url); } catch { /* best effort */ }
+      }
       throw nutritionError;
     }
 

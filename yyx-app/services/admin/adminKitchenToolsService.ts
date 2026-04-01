@@ -205,8 +205,11 @@ export class AdminKitchenToolsService extends BaseService {
         .insert(dbTranslations);
 
       if (translationError) {
-        // Clean up orphaned kitchen tool row before throwing
+        // Clean up orphaned kitchen tool row and uploaded image before throwing
         await this.supabase.from('kitchen_tools').delete().eq('id', inserted.id);
+        if (itemData.image_url) {
+          try { await this.deleteImage(itemData.image_url); } catch { /* best effort */ }
+        }
         if (translationError.message?.includes('unique constraint') || translationError.code === '23505') {
           throw new Error('A kitchen tool with this name already exists. Please use a different name.');
         }
