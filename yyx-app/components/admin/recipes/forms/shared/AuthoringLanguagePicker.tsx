@@ -7,7 +7,7 @@ import { useActiveLocales, ActiveLocale } from '@/hooks/admin/useActiveLocales';
 import i18n from '@/i18n';
 
 const STORAGE_KEY = 'admin_authoring_locale';
-const DEFAULT_LOCALE = 'es';
+const DEFAULT_LOCALE = i18n.locale;
 
 interface AuthoringLanguagePickerProps {
   value: string;

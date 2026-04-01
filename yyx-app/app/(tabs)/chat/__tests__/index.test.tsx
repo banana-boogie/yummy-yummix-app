@@ -20,6 +20,7 @@ jest.mock('expo-router', () => ({
       return null;
     },
   },
+  useRouter: () => ({ push: jest.fn(), navigate: jest.fn(), back: jest.fn() }),
 }));
 
 jest.mock('@/i18n', () => ({
@@ -47,6 +48,11 @@ jest.mock('@/components/chat/VoiceChatScreen', () => ({
 
 jest.mock('@/components/chat/ChatSessionsMenu', () => ({
   ChatSessionsMenu: () => null,
+}));
+
+jest.mock('@/contexts/CookingSessionContext', () => ({
+  useCookingSession: () => ({ irmixyChatSessionId: null, irmixyChatMessages: [], irmixyVoiceTranscriptMessages: [] }),
+  CookingSessionProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 describe('chat route web defaults', () => {
   const originalPlatform = Platform.OS;

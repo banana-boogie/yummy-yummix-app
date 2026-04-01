@@ -1,4 +1,4 @@
-import { View, Platform, StatusBar, Animated } from 'react-native';
+import { View, Platform, StatusBar, Animated, TouchableOpacity } from 'react-native';
 import React, { useRef, useEffect, useCallback } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Head from 'expo-router/head';
@@ -25,9 +25,12 @@ import { useDevice } from '@/hooks/useDevice';
 import { ResponsiveColumnLayout, MainColumn, SideColumn } from '@/components/layouts/ResponsiveColumnLayout';
 import { RecipeKitchenTool } from '@/types/recipe.types';
 import { ShareButton } from '@/components/common/ShareButton';
-import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
-import logger from '@/services/logger';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
+import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
+import { Image as ExpoImage } from 'expo-image';
+// eslint-disable-next-line import/no-named-as-default
+import logger from '@/services/logger';
 import { RatingDistribution, RatingDistributionSkeleton, StarRating, StarRatingInput } from '@/components/rating';
 import { useRecipeRating } from '@/hooks/useRecipeRating';
 import { recipeCompletionService } from '@/services/recipeCompletionService';
@@ -36,21 +39,19 @@ import { RATING_REQUIRES_COMPLETION_ERROR } from '@/services/ratingService';
 const RecipeDetail: React.FC = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const irmixy = useIrmixyHelperChat(id as string);
 
   // Validate ID early to prevent unnecessary API calls
   useEffect(() => {
     if (id && !isValidUUID(id as string)) {
       logger.warn(`Invalid recipe ID format: ${id}, redirecting to recipes page`);
-      // Using replace instead of push to avoid adding to history stack
       router.replace('/(tabs)/recipes');
     }
   }, [id, router]);
 
-  // Only proceed with recipe fetch if we have a valid UUID
   const validId = id && isValidUUID(id as string) ? (id as string) : '';
   const { recipe, loading, error } = useRecipe(validId);
 
-  // Fetch rating distribution and user rating
   const {
     ratingDistribution,
     totalRatings,
@@ -70,10 +71,9 @@ const RecipeDetail: React.FC = () => {
     queryKey: ['recipe-completion-status', validId, isLoggedIn],
     queryFn: () => recipeCompletionService.hasCompletedRecipe(validId),
     enabled: isLoggedIn && !!validId,
-    staleTime: 1000 * 60, // 1 minute
+    staleTime: 1000 * 60,
   });
 
-  // Track recipe view when recipe loads successfully
   useEffect(() => {
     if (recipe?.id && recipe?.name) {
       eventService.logRecipeView(recipe.id, recipe.name);
@@ -94,18 +94,14 @@ const RecipeDetail: React.FC = () => {
   const { isMedium } = useDevice();
   const { language: currentLanguage } = useLanguage();
 
-  // Handle back navigation for web and native
   const handleBackPress = () => {
     if (Platform.OS === 'web') {
       window.history.back();
     } else {
-      // Always use router.back() — preserves the previous screen's state
-      // (including chat session when opened from chat via top-level /recipe/[id] route)
       router.back();
     }
   };
 
-  // Setup scroll listener
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
     { useNativeDriver: false }
@@ -114,7 +110,6 @@ const RecipeDetail: React.FC = () => {
   const getShareUrl = () => {
     if (!recipe) return '';
     const baseUrl = Platform.OS === 'web' ? window.location.origin : 'https://app.yummyyummix.com';
-
     return `${baseUrl}/api/recipe-preview/${recipe.id}?lang=${currentLanguage}`;
   };
 
@@ -153,7 +148,6 @@ const RecipeDetail: React.FC = () => {
             showsVerticalScrollIndicator={true}
             bounces={true}
           >
-            {/* Recipe image header - constrained to same max-width as content for alignment */}
             <View className="w-full max-w-[500px] md:max-w-[700px] lg:max-w-[900px] self-center">
               <RecipeImageHeader
                 pictureUrl={recipe.pictureUrl}
@@ -162,9 +156,7 @@ const RecipeDetail: React.FC = () => {
               />
             </View>
 
-            {/* Container for the content to limit width on large screens */}
             <View className="w-full max-w-[500px] md:max-w-[700px] lg:max-w-[900px] self-center px-md">
-              {/* Title and Info Section */}
               <Text preset="h1" className="mb-xs">
                 {recipe.name}
               </Text>
@@ -220,7 +212,6 @@ const RecipeDetail: React.FC = () => {
                 </View>
               </View>
 
-              {/* Content Section */}
               <ResponsiveColumnLayout>
                 <SideColumn className={`pr-md ${isMedium ? 'flex-[1.3]' : 'flex-1'}`}>
                   <RecipeIngredients
@@ -255,8 +246,24 @@ const RecipeDetail: React.FC = () => {
             </View>
           </Animated.ScrollView>
         </PageLayout>
-
-        <VoiceAssistantButton
+        <TouchableOpacity
+          onPress={irmixy.open}
+          className="absolute bottom-6 right-6 rounded-full shadow-lg"
+          style={{ zIndex: 100 }}
+          accessibilityLabel={i18n.t('recipes.cookingGuide.navigation.askIrmixy')}
+          accessibilityRole="button"
+          activeOpacity={0.7}
+        >
+          <ExpoImage
+            source={require('@/assets/images/irmixy-avatar/irmixy-face.png')}
+            style={{ width: 56, height: 56, borderRadius: 28 }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
+        </TouchableOpacity>
+        <IrmixyCookingModal
+          visible={irmixy.isVisible}
+          onClose={irmixy.close}
           recipeContext={{
             type: 'recipe',
             recipeId: recipe.id,
@@ -266,6 +273,7 @@ const RecipeDetail: React.FC = () => {
               amount: `${ing.formattedQuantity} ${ing.formattedUnit}`,
             })),
           }}
+          {...irmixy.sessionProps}
         />
       </View>
     </>

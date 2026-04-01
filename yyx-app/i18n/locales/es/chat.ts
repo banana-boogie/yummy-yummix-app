@@ -2,6 +2,20 @@ export const chat = {
   title: "Irmixy",
   greeting:
     "¡Hola! Soy Irmixy. ¡Pregúntame lo que quieras sobre cocina!",
+  greetingCycling: {
+    withName: [
+      "Hola {{name}}, ¿qué cocinamos hoy?",
+      "Hola {{name}}, dime qué se te antoja",
+      "Hola {{name}}, ¿necesitas ayuda para encontrar una receta?",
+      "Hola {{name}}, ¿lista para cocinar algo delicioso?",
+    ],
+    withoutName: [
+      "¡Hola! ¿Qué cocinamos hoy?",
+      "¡Hola! Dime qué se te antoja",
+      "¡Hola! ¿Necesitas ayuda para encontrar una receta?",
+      "¡Hola! ¿Lista para cocinar algo delicioso?",
+    ],
+  },
   inputPlaceholder: "Pregunta a Irmixy...",
   sendButton: "Enviar",
   stopGenerating: "Detener generación",
@@ -68,12 +82,30 @@ export const chat = {
     exceededTitle: "Límite de Irmixy alcanzado",
     exceededMessage: "Llegaste a tu límite mensual de Irmixy. No te preocupes, se renueva al inicio del próximo mes.",
     upgradeHint: "Límite de Irmixy alcanzado — se renueva el próximo mes",
+    warmWarning: "Solo quiero avisarte que ya usaste la mayor parte de tu tiempo con Irmixy este mes. Sigo aquí para ti, solo te aviso. Se renueva al inicio del próximo mes.",
   },
-  suggestions: {},
+  returnToCooking: "Volver a cocinar",
+  returnToCookingStep: "Paso {{step}} de {{recipeName}}",
+  suggestions: {
+    generate: "Crear una receta personalizada de {{recipeName}}",
+  },
   messageCopied: "Mensaje copiado al portapapeles",
   cancelledRequest: "Solicitud cancelada",
+  cookingModal: {
+    greeting: "Hola! Veo que estás preparando {{recipeName}}. ¿En qué te ayudo?",
+    contextHint: "Cocinando {{recipeName}} — paso {{step}} de {{total}}",
+    contextHintMiseEnPlace: "Cocinando {{recipeName}} — Mise en place",
+    switchToVoice: "Cambiar a voz",
+    switchToText: "Cambiar a texto",
+  },
+  modeLabel: {
+    voice: "Voz",
+    text: "Texto",
+  },
   sessions: {
     menuLabel: "Menú de sesiones de chat",
+    chatsLabel: "Chats",
+    historyLabel: "Historial",
     title: "Sesiones de Chat",
     newChat: "Nuevo Chat",
     noSessions: "No hay conversaciones anteriores",

@@ -128,9 +128,11 @@ export const profile = {
     diet: "Dieta",
     allergies: "Alergias",
     cuisine: "Cocina",
+    equipment: "Equipo de Cocina",
     noDiet: "Sin preferencias de dieta",
     noAllergies: "Sin alergias configuradas",
     noCuisine: "Sin preferencias de cocina",
+    noEquipment: "Sin equipo de cocina configurado",
     edit: "Editar",
   },
 };

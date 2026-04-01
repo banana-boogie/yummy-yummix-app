@@ -66,9 +66,9 @@ interface UseAdminRecipeFormReturn {
 }
 
 export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdminRecipeFormProps): UseAdminRecipeFormReturn {
-  const [authoringLocale, setAuthoringLocaleState] = useState('es');
+  const [authoringLocale, setAuthoringLocaleState] = useState(i18n.locale);
   const [currentStep, setCurrentStep] = useState<CreateRecipeStep>(CreateRecipeStep.INITIAL_SETUP);
-  const [recipe, setRecipe] = useState<ExtendedRecipe>(createInitialRecipeState('es'));
+  const [recipe, setRecipe] = useState<ExtendedRecipe>(createInitialRecipeState(i18n.locale));
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoaded, setIsLoaded] = useState(false);
@@ -377,5 +377,6 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
     handlePublish,
     handleResumeSavedRecipe,
     handleStartNewRecipe,
+    setCurrentStep,
   };
 } 

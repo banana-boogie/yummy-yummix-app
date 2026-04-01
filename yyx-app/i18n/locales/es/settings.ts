@@ -18,6 +18,10 @@ export const settings = {
   voiceProviderPremium: "Premium",
   voiceProviderStandardDesc: "HearThinkSpeak - Económico",
   voiceProviderPremiumDesc: "OpenAI Realtime - Respuesta más rápida",
+  irmixyUsage: "Uso de Irmixy",
+  irmixyUsageLabel: "Uso mensual",
+  irmixyUsagePct: "{{percent}}% usado",
+  irmixyUsageReset: "Se renueva al inicio de cada mes",
 };
 
 export const header = {
@@ -97,6 +101,11 @@ export const measurementUnits = {
       name: "entero",
       namePlural: "enteros",
       symbol: "",
+    },
+    scoop: {
+      name: "scoop",
+      namePlural: "scoops",
+      symbol: "scoop",
     },
   },
 };

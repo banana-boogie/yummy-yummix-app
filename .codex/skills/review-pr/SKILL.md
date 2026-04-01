@@ -25,10 +25,9 @@ Read `docs/agent-guidelines/REVIEW-CRITERIA.md` for canonical definitions of:
 - Review categories (9 categories with full checklists)
 - Severity levels (Critical / Warning / Suggestion)
 - Recommendation logic (PR context: APPROVE / COMMENT / REQUEST CHANGES)
-- Report sections
 
 Read `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md` for canonical definitions of:
-- Output section order and purposes
+- Two-tier output format (human summary + AI handoff)
 - Finding format (including options/tradeoffs for Critical findings)
 - Next Steps prompt contract
 
@@ -108,13 +107,8 @@ git log --oneline "origin/$BASE_BRANCH..origin/$HEAD_BRANCH"
 ## Severity and Depth Rules
 
 - Every finding must include: file path, line reference (when possible), concrete recommendation.
-- `Critical` findings must include 2-3 options with tradeoffs:
-  - effort
-  - risk
-  - impact on other code
-  - maintenance burden
+- `Critical` findings must include 2-3 options with tradeoffs (effort, risk, impact, maintenance burden). Put the recommended option first.
 - `Warning` findings that materially affect merge risk should also include options/tradeoffs.
-- For optioned findings, put the recommended option first and explain why.
 - `Suggestion` findings can stay concise without option matrix.
 
 ## Review Rules
@@ -129,90 +123,40 @@ git log --oneline "origin/$BASE_BRANCH..origin/$HEAD_BRANCH"
 
 ## Output Format
 
-Use this structure:
+The report has **two sections**: a short human-readable summary, and a detailed Next Steps prompt for the implementing AI. **Keep the human section short and scannable. Put all the detail in Next Steps.**
 
 ````markdown
 ## PR Review: #<number> - <title>
 
-**Author:** <author>
-**Branch:** <head> -> <base>
-**Scope:** <areas touched>
+**Branch:** <head> -> <base> | <file count> files | +<additions> -<deletions>
 
 ### CI Status
 - Merge Gate: <pass/fail/pending>
 - App CI: <pass/fail/pending/skipped>
 - Server CI: <pass/fail/pending/skipped>
-- PR Checks: <pass/fail/pending>
+
+### Verdict
+
+**<APPROVE / COMMENT / REQUEST CHANGES>** — <critical count> critical, <warning count> warnings, <suggestion count> suggestions
 
 ### Highlights
+
 - <specific pattern worth keeping>
-- <specific pattern worth keeping>
 
-### Findings
-#### Architecture & Design
-- [Warning] `path/to/file.ts:42` - <finding>
-  - Recommendation: <specific recommendation>
+### Issues
 
-#### Correctness
-- [Critical] `path/to/file.ts:88` - <finding>
-  - Recommendation: <specific recommendation>
-  - Options:
-    1. **A (Recommended)** <option> - Effort: <S/M/L>, Risk: <...>, Impact: <...>, Maintenance: <...>
-    2. **B** <option> - Effort: <...>, Risk: <...>, Impact: <...>, Maintenance: <...>
-    3. **C** <option> - Effort: <...>, Risk: <...>, Impact: <...>, Maintenance: <...>
+**Must fix**
+- [Critical] `file:line` — one-sentence description
+- [Warning] `file:line` — one-sentence description
 
-#### Security
-- [Critical] `path/to/file.sql:12` - <finding>
-  - Recommendation: <specific recommendation>
-  - Options:
-    1. **A (Recommended)** <option> - Effort: <S/M/L>, Risk: <...>, Impact: <...>, Maintenance: <...>
-    2. **B** <option> - Effort: <...>, Risk: <...>, Impact: <...>, Maintenance: <...>
+**Nice to have**
+- [Suggestion] `file:line` — one-sentence description
 
-#### Performance
-- [Warning] `path/to/file.tsx:131` - <finding>
-  - Recommendation: <specific recommendation>
-
-#### Code Quality
-- [Warning] `path/to/file.ts:60` - <finding>
-  - Recommendation: <specific recommendation>
-
-#### Testing
-- [Warning] `path/to/file.test.ts:1` - <gap>
-  - Recommendation: <specific recommendation>
-
-#### i18n
-- [Warning] `path/to/file.tsx:15` - <finding>
-  - Recommendation: <specific recommendation>
-
-#### PR Hygiene
-- [Suggestion] <finding>
-  - Recommendation: <specific recommendation>
-
-#### Documentation
-- [Suggestion] `path/to/file.md:18` - <finding>
-  - Recommendation: <specific recommendation>
-
-### Summary
-- Critical: <count>
-- Warning: <count>
-- Suggestion: <count>
-
-**Recommendation:** <APPROVE | COMMENT | REQUEST CHANGES>
-
-### Recommendations
-
-| Rank | Recommendation | Impact | Effort | Rationale |
-|------|----------------|--------|--------|-----------|
-| 1 | <high-value improvement outside Findings> | High | Low | <reason> |
-| 2 | <opportunity the PR opens up> | Medium | Medium | <reason> |
-
-Do NOT repeat issues already listed in Findings. These are opportunities related to the PR that the author may have missed.
-
-### Potential Misses
-- <what may have been missed and why it is uncertain>
-- <what to validate manually or with targeted tests>
+---
 
 ### Next Steps
+
+> Copy-paste the prompt below to the implementing AI.
 
 ```text
 You are the implementation agent for PR #<number>.
@@ -221,20 +165,29 @@ You are the implementation agent for PR #<number>.
 
 ### Critical
 - [Critical] `file:line` — description
+  - Recommendation: <specific recommendation>
+  - Options:
+    1. **A (Recommended)** <option> - Effort: S/M/L, Risk: <...>, Impact: <...>
+    2. **B** <option> - Effort: S/M/L, Risk: <...>, Impact: <...>
 
 ### Warning
 - [Warning] `file:line` — description
+  - Recommendation: <specific recommendation>
 
 ## Suggestions — Implement If Worthwhile
 
-### Suggestion
-- [Suggestion] `file:line` — description
+- [Suggestion] `file:line` — description. Recommendation: <what to do>
 
 ## Recommendations — Implement If Worthwhile
 
 | Rank | Recommendation | Impact | Effort |
 |------|----------------|--------|--------|
-| 1 | ... | High | Low |
+| 1 | <high-value improvement outside Findings> | High | Low |
+
+## Potential Misses
+
+Areas the review couldn't fully evaluate:
+- <what was uncertain and why>
 
 ## Workflow
 

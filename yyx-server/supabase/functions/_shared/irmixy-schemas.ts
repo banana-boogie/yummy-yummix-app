@@ -69,6 +69,8 @@ export const GeneratedRecipeSchema = z.object({
     thermomixTime: z.number().nullish(), // Allow null, undefined, or number
     thermomixTemp: z.string().nullish(), // Allow null, undefined, or string
     thermomixSpeed: z.string().nullish(), // Allow null, undefined, or string
+    thermomixMode: z.string().nullish(), // Cooking mode (e.g. "slow_cook", "rice_cooker")
+    timerSeconds: z.number().int().nullish(), // Non-Thermomix step timer duration in seconds
     tip: z.string().nullish(), // Optional practical cooking tip for this step
   })),
   totalTime: z.number().int().nonnegative(), // Allow 0 for recipes with unknown time
@@ -97,6 +99,16 @@ export const IrmixyResponseSchema = z.object({
   actions: z.array(ActionSchema).optional(),
   memoryUsed: z.array(z.string()).optional(),
   safetyFlags: SafetyFlagsSchema.optional(),
+  suggestions: z
+    .array(
+      z.object({
+        label: z.string(),
+        message: z.string(),
+        type: z.enum(["recipe_generation", "default"]).optional(),
+        metadata: z.record(z.unknown()).optional(),
+      }),
+    )
+    .optional(),
 });
 
 // ============================================================
@@ -105,6 +117,7 @@ export const IrmixyResponseSchema = z.object({
 
 export type RecipeCard = z.infer<typeof RecipeCardSchema>;
 export type Action = z.infer<typeof ActionSchema>;
+export type KitchenTool = z.infer<typeof KitchenToolSchema>;
 export type GeneratedRecipe = z.infer<typeof GeneratedRecipeSchema>;
 export type SafetyFlags = z.infer<typeof SafetyFlagsSchema>;
 export type IrmixyResponse = z.infer<typeof IrmixyResponseSchema>;

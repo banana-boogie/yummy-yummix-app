@@ -10,6 +10,7 @@ import { Text } from '@/components/common/Text';
 import { RecipeIngredient } from '@/types/recipe.types';
 import { getIngredientName } from '@/utils/recipes/ingredients';
 import { Image } from 'expo-image';
+import { SafeImage } from '@/components/common';
 import { COLORS } from '@/constants/design-tokens';
 
 // Use the same type definition as in the original file
@@ -59,8 +60,9 @@ export const MiseEnPlaceIngredient = React.memo(function MiseEnPlaceIngredient({
       <Animated.View className="flex-col items-center" style={animatedStyles}>
         {/* Image with checkbox overlay */}
         <View className="relative mb-sm">
-          <Image
+          <SafeImage
             source={ingredient.pictureUrl}
+            placeholder="ingredient"
             className="w-[80px] h-[80px]"
             contentFit="contain"
             cachePolicy="memory-disk"

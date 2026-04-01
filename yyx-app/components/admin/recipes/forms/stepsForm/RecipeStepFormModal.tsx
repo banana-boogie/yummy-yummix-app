@@ -418,8 +418,8 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
                               </TouchableOpacity>
 
                               {isSelected ? (
-                                <View className={`w-full sm:w-auto sm:flex-1 flex-row items-center justify-end p-sm sm:border-l border-border-default sm:pl-sm sm:ml-sm ${isSmallScreen ? 'border-t mt-xs pt-md' : ''}`}>
-                                  <View className="flex-1 mr-xs">
+                                <View className={`w-full sm:w-auto sm:flex-1 flex-row items-start justify-end p-sm sm:border-l border-border-default sm:pl-sm sm:ml-sm ${isSmallScreen ? 'border-t mt-xs pt-md' : ''}`}>
+                                  <View className="w-[80px] mr-sm shrink-0">
                                     <TextInput
                                       value={selectedIngredient?.quantity?.toString() || ''}
                                       onChangeText={(text) => handleIngredientQuantityChange(ri.ingredientId, text)}
@@ -429,7 +429,7 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
                                       label={tForm('admin.recipes.form.ingredientsInfo.quantity')}
                                     />
                                   </View>
-                                  <View className="flex-[2] mb-xs">
+                                  <View className="flex-1 min-w-0">
                                     <SelectInput
                                       label={tForm('admin.recipes.form.ingredientsInfo.measurementUnit')}
                                       value={selectedIngredient?.measurementUnit?.id || ''}
@@ -487,7 +487,8 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
                   temperature: formData.thermomixTemperature || null,
                   temperatureUnit: formData.thermomixTemperatureUnit || null,
                   speed: getThermomixSpeedObject(formData),
-                  isBladeReversed: formData.thermomixIsBladeReversed || null
+                  isBladeReversed: formData.thermomixIsBladeReversed || null,
+                  mode: (formData.thermomixMode as ThermomixSettings['mode']) || null
                 }}
                 onChange={(settings: Partial<ThermomixSettings>) => {
                   setFormData(prev => {
@@ -498,12 +499,40 @@ const StepFormModal: React.FC<StepFormModalProps> = ({
                       thermomixTemperature: settings.temperature,
                       thermomixTemperatureUnit: settings.temperatureUnit,
                       thermomixSpeed,
-                      thermomixIsBladeReversed: settings.isBladeReversed
+                      thermomixIsBladeReversed: settings.isBladeReversed,
+                      thermomixMode: settings.mode || null
                     };
                   });
                 }}
               />
             </FormRow>
+
+            {/* Timer (seconds) — only when no Thermomix time is set */}
+            {!formData.thermomixTime && (
+              <>
+                <View className="mt-lg mb-sm">
+                  <Text preset="subheading" fontWeight="600">
+                    {tForm('admin.recipes.form.stepsInfo.timerSeconds', { defaultValue: 'Timer (seconds)' })}
+                  </Text>
+                  <Text preset="caption" className="mt-[2px] text-text-SECONDARY">
+                    {tForm('admin.recipes.form.stepsInfo.timerSecondsHelperText', { defaultValue: 'Optional countdown timer for non-Thermomix steps (e.g. 300 = 5 min)' })}
+                  </Text>
+                </View>
+                <FormRow column>
+                  <FormGroup label={tForm('admin.recipes.form.stepsInfo.timerSeconds', { defaultValue: 'Timer (seconds)' })}>
+                    <TextInput
+                      value={formData.timerSeconds?.toString() ?? ''}
+                      onChangeText={(text) => {
+                        const parsed = text ? parseInt(text, 10) : null;
+                        handleChange('timerSeconds', Number.isNaN(parsed) ? null : parsed);
+                      }}
+                      keyboardType="number-pad"
+                      numericOnly={true}
+                    />
+                  </FormGroup>
+                </FormRow>
+              </>
+            )}
 
             {/* Tip - single language */}
             <View className="mt-lg mb-sm">

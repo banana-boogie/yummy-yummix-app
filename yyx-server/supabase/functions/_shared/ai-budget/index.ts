@@ -52,6 +52,7 @@ export interface CostRecord {
 interface TierLimits {
   monthlyTextBudgetUsd: number;
   monthlyVoiceMinutes: number;
+  graceBufferPct: number;
 }
 
 export class BudgetCheckUnavailableError extends Error {
@@ -80,11 +81,15 @@ async function ensureTierCache(): Promise<void> {
     const supabase = createServiceClient();
     const { data, error } = await supabase
       .from("ai_membership_tiers")
-      .select("tier, monthly_text_budget_usd, monthly_voice_minutes");
+      .select(
+        "tier, monthly_text_budget_usd, monthly_voice_minutes, grace_buffer_pct",
+      );
 
     if (error) {
       console.error("[ai-budget] Failed to load tiers:", error.message);
-      return;
+      throw new BudgetCheckUnavailableError(
+        "Failed to load tiers: " + error.message,
+      );
     }
 
     tierCache.clear();
@@ -92,12 +97,16 @@ async function ensureTierCache(): Promise<void> {
       tierCache.set(row.tier, {
         monthlyTextBudgetUsd: Number(row.monthly_text_budget_usd),
         monthlyVoiceMinutes: Number(row.monthly_voice_minutes),
+        graceBufferPct: Number(row.grace_buffer_pct ?? 0.10),
       });
     }
     tierCacheLoadedAt = Date.now();
     console.log(`[ai-budget] Loaded ${tierCache.size} membership tiers`);
   } catch (err) {
     console.error("[ai-budget] Tier cache load error:", err);
+    throw new BudgetCheckUnavailableError(
+      "Tier cache error: " + (err instanceof Error ? err.message : String(err)),
+    );
   }
 }
 
@@ -116,7 +125,11 @@ function getTierLimits(tier: string): TierLimits {
   console.warn(
     "[ai-budget] No tier data in cache, using hardcoded free defaults",
   );
-  return { monthlyTextBudgetUsd: 0.10, monthlyVoiceMinutes: 5 };
+  return {
+    monthlyTextBudgetUsd: 0.10,
+    monthlyVoiceMinutes: 5,
+    graceBufferPct: 0.10,
+  };
 }
 
 // ============================================================
@@ -269,7 +282,12 @@ export function _clearTierCache(): void {
 /** Exported for testing */
 export function _setTierCacheForTesting(
   tiers: Array<
-    { tier: string; monthlyTextBudgetUsd: number; monthlyVoiceMinutes: number }
+    {
+      tier: string;
+      monthlyTextBudgetUsd: number;
+      monthlyVoiceMinutes: number;
+      graceBufferPct?: number;
+    }
   >,
 ): void {
   tierCache.clear();
@@ -277,6 +295,7 @@ export function _setTierCacheForTesting(
     tierCache.set(t.tier, {
       monthlyTextBudgetUsd: t.monthlyTextBudgetUsd,
       monthlyVoiceMinutes: t.monthlyVoiceMinutes,
+      graceBufferPct: t.graceBufferPct ?? 0.10,
     });
   }
   tierCacheLoadedAt = Date.now();
@@ -291,23 +310,43 @@ export function _computeTextBudgetResult(
   usedUsd: number,
 ): BudgetStatus {
   const limits = getTierLimits(tier);
-  const remainingUsd = Math.max(0, limits.monthlyTextBudgetUsd - usedUsd);
-  const allowed = usedUsd < limits.monthlyTextBudgetUsd;
+  const budgetUsd = limits.monthlyTextBudgetUsd;
+  // Grace buffer silently extends the hard cutoff (invisible to the user)
+  const effectiveLimit = budgetUsd * (1 + limits.graceBufferPct);
+  const remainingUsd = Math.max(0, budgetUsd - usedUsd);
+  const allowed = usedUsd < effectiveLimit;
 
   const result: BudgetStatus = {
     allowed,
     remainingUsd,
     usedUsd,
-    budgetUsd: limits.monthlyTextBudgetUsd,
+    budgetUsd,
     tier,
   };
 
-  if (allowed && usedUsd >= limits.monthlyTextBudgetUsd * WARNING_THRESHOLD) {
+  // Warning fires at 80% of the *advertised* budget (not the grace limit)
+  if (allowed && usedUsd >= budgetUsd * WARNING_THRESHOLD) {
     result.warning = "budget_warning";
     result.warningData = {
       usedUsd,
-      budgetUsd: limits.monthlyTextBudgetUsd,
+      budgetUsd,
     };
+  }
+
+  // 9B: Internal alert when budget is exceeded (after grace)
+  if (!allowed) {
+    console.warn(
+      "[ai-budget] budget_limit_reached",
+      JSON.stringify({
+        event: "budget_limit_reached",
+        type: "text",
+        tier,
+        usedUsd,
+        budgetUsd,
+        effectiveLimit,
+        graceBufferPct: limits.graceBufferPct,
+      }),
+    );
   }
 
   return result;
@@ -322,28 +361,43 @@ export function _computeVoiceBudgetResult(
   usedMinutes: number,
 ): VoiceBudgetStatus {
   const limits = getTierLimits(tier);
-  const remainingMinutes = Math.max(
-    0,
-    limits.monthlyVoiceMinutes - usedMinutes,
-  );
-  const allowed = usedMinutes < limits.monthlyVoiceMinutes;
+  const limitMinutes = limits.monthlyVoiceMinutes;
+  // Grace buffer silently extends the hard cutoff (invisible to the user)
+  const effectiveLimit = limitMinutes * (1 + limits.graceBufferPct);
+  const remainingMinutes = Math.max(0, limitMinutes - usedMinutes);
+  const allowed = usedMinutes < effectiveLimit;
 
   const result: VoiceBudgetStatus = {
     allowed,
     remainingMinutes,
     usedMinutes,
-    limitMinutes: limits.monthlyVoiceMinutes,
+    limitMinutes,
     tier,
   };
 
-  if (
-    allowed && usedMinutes >= limits.monthlyVoiceMinutes * WARNING_THRESHOLD
-  ) {
+  // Warning fires at 80% of the *advertised* limit (not the grace limit)
+  if (allowed && usedMinutes >= limitMinutes * WARNING_THRESHOLD) {
     result.warning = "voice_budget_warning";
     result.warningData = {
       usedMinutes,
-      limitMinutes: limits.monthlyVoiceMinutes,
+      limitMinutes,
     };
+  }
+
+  // 9B: Internal alert when budget is exceeded (after grace)
+  if (!allowed) {
+    console.warn(
+      "[ai-budget] budget_limit_reached",
+      JSON.stringify({
+        event: "budget_limit_reached",
+        type: "voice",
+        tier,
+        usedMinutes,
+        limitMinutes,
+        effectiveLimit,
+        graceBufferPct: limits.graceBufferPct,
+      }),
+    );
   }
 
   return result;

@@ -25,6 +25,19 @@ import { normalizeIngredient } from "../ingredient-normalization.ts";
 import { searchRecipesHybrid } from "../rag/hybrid-search.ts";
 import { validateSearchRecipesParams } from "./tool-validators.ts";
 import { getBaseLanguage, pickTranslation } from "../locale-utils.ts";
+import { wordStartMatch } from "../text-utils.ts";
+
+// ============================================================
+// Result types
+// ============================================================
+
+export interface DedupFilteredResult {
+  results: [];
+  allFilteredByDedup: true;
+  message: string;
+}
+
+export type SearchRecipeResult = RecipeCard[] | DedupFilteredResult;
 
 // ============================================================
 // Types for Supabase query results
@@ -99,9 +112,9 @@ export const searchRecipesTool = {
   function: {
     name: "search_recipes",
     description:
-      "Search the recipe database for existing recipes based on user criteria. " +
-      "ALWAYS use this first when the user mentions a specific dish name or asks for known recipes. " +
-      "Use this when the user wants to find recipes from the database (not create custom ones). " +
+      "Search the recipe database. THIS TOOL MUST BE CALLED FIRST before generate_custom_recipe. " +
+      "Always search before generating — the catalog may already have what the user wants. " +
+      "Use whenever the user mentions ANY food, dish, ingredient, or food category. " +
       "Returns recipe cards that match the filters. Recipes containing user allergens are " +
       "returned with warning labels rather than being excluded.",
     parameters: {
@@ -153,7 +166,7 @@ export async function searchRecipes(
   supabase: SupabaseClient,
   rawParams: unknown,
   userContext: UserContext,
-): Promise<RecipeCard[]> {
+): Promise<SearchRecipeResult> {
   // Validate and sanitize params
   const params = validateSearchRecipesParams(rawParams);
 
@@ -188,16 +201,25 @@ export async function searchRecipes(
         method: hybridResult.method,
         count: hybridResult.recipes.length,
       });
+
+      // Filter out recipes already shown in this session
+      const hybridCards = filterAlreadyShown(
+        hybridResult.recipes,
+        userContext.conversationHistory,
+      );
+
       // Annotate recipes with allergen warnings instead of filtering
-      if (userContext.dietaryRestrictions.length > 0) {
-        const recipeIds = hybridResult.recipes.map((r) => r.recipeId);
+      if (
+        userContext.dietaryRestrictions.length > 0 && hybridCards.length > 0
+      ) {
+        const recipeIds = hybridCards.map((r) => r.recipeId);
         const ingredientLookupResult = await fetchRecipesWithIngredients(
           supabase,
           recipeIds,
         );
         const annotation = await annotateAllergenWarnings(
           supabase,
-          hybridResult.recipes,
+          hybridCards,
           ingredientLookupResult.recipes,
           userContext.dietaryRestrictions,
           userContext.locale,
@@ -211,7 +233,7 @@ export async function searchRecipes(
         });
         return annotation.cards;
       }
-      return hybridResult.recipes;
+      return hybridCards;
     }
 
     // All degradation reasons (embedding_failure, no_semantic_candidates, low_confidence)
@@ -270,18 +292,27 @@ export async function searchRecipes(
 
   let results = (data || []) as unknown as RecipeSearchResult[];
 
-  // Post-filter by query text across all translation names
+  // Post-filter by query text across all translation names (word-start matching)
+  // Uses AND logic for individual word terms: "miso soup" requires BOTH "miso" AND "soup".
+  // The full multi-word phrase is an alternative match (OR with AND-terms).
   if (params.query) {
     const queryTerms = getSearchTerms(params.query);
     if (queryTerms.length > 0) {
+      const individualTerms = queryTerms.filter((t) => !t.includes(" "));
+      const fullPhrase = queryTerms.find((t) => t.includes(" "));
       results = results.filter((recipe) => {
         const allNames = (recipe.recipe_translations || [])
           .map((t) => t.name)
           .filter(Boolean)
           .map((n) => n!.toLowerCase());
-        return queryTerms.some((term) =>
-          allNames.some((name) => name.includes(term))
-        );
+        const phraseMatch = fullPhrase
+          ? allNames.some((name) => wordStartMatch(name, fullPhrase))
+          : false;
+        const allTermsMatch = individualTerms.length > 0 &&
+          individualTerms.every((term) =>
+            allNames.some((name) => wordStartMatch(name, term))
+          );
+        return phraseMatch || allTermsMatch;
       });
     }
   }
@@ -376,10 +407,78 @@ export async function searchRecipes(
     );
   }
 
+  // Filter out recipes already shown in this session
+  const preDedupCount = recipeCards.length;
+  recipeCards = filterAlreadyShown(
+    recipeCards,
+    userContext.conversationHistory,
+  );
+
   // Apply final limit after all filtering and scoring
   const finalResults = recipeCards.slice(0, params.limit || 10);
-  console.log("[search] Final results", { count: finalResults.length });
+  console.log("[search] Final results", {
+    count: finalResults.length,
+    preDedupCount,
+  });
+
+  // When dedup filters ALL results, tell the AI why so it can call generate_custom_recipe.
+  // Returns an object instead of RecipeCard[] — safe because the result is JSON.stringify'd
+  // into the tool message by the orchestrator.
+  if (finalResults.length === 0 && preDedupCount > 0) {
+    return {
+      results: [],
+      allFilteredByDedup: true,
+      message:
+        `${preDedupCount} recipe(s) matched "${params.query}" but were already shown. The user wants something new — call generate_custom_recipe.`,
+    };
+  }
+
   return finalResults;
+}
+
+// ============================================================
+// Deduplication — filter recipes already shown in the session
+// ============================================================
+
+/**
+ * Extract recipe IDs already shown in this conversation from message metadata.
+ * Exported for testing.
+ */
+export function getAlreadyShownRecipeIds(
+  conversationHistory: UserContext["conversationHistory"],
+): Set<string> {
+  const ids = new Set<string>();
+  for (const msg of conversationHistory) {
+    const recipes = msg.metadata?.recipes;
+    if (Array.isArray(recipes)) {
+      for (const r of recipes) {
+        if (r?.recipeId) ids.add(r.recipeId);
+      }
+    }
+  }
+  return ids;
+}
+
+/**
+ * Remove recipes that were already shown to the user in the current session.
+ */
+function filterAlreadyShown(
+  results: RecipeCard[],
+  conversationHistory: UserContext["conversationHistory"],
+): RecipeCard[] {
+  const shown = getAlreadyShownRecipeIds(conversationHistory);
+  if (shown.size === 0) return results;
+  const filtered = results.filter((r) => !shown.has(r.recipeId));
+  if (filtered.length < results.length) {
+    console.log("[search] Dedup filtered out", {
+      before: results.length,
+      after: filtered.length,
+      removedIds: results
+        .filter((r) => shown.has(r.recipeId))
+        .map((r) => r.recipeId),
+    });
+  }
+  return filtered;
 }
 
 // ============================================================
@@ -580,13 +679,13 @@ function scoreByQuery(
     // Exact name match
     if (name === queryLower) {
       score += 100;
-    } else if (name.includes(queryLower)) {
+    } else if (wordStartMatch(name, queryLower)) {
       score += 50;
     }
 
     // Keyword matches in name
     for (const keyword of keywords) {
-      if (name.includes(keyword)) score += 10;
+      if (wordStartMatch(name, keyword)) score += 10;
     }
 
     // Tag matches
@@ -614,6 +713,17 @@ function scoreByQuery(
       } else if (isAdjacentDifficulty(original.difficulty, difficulty)) {
         score += 10;
       }
+    }
+
+    // Soft difficulty signal — easier recipes get a slight boost when no explicit filter
+    // (target audience prefers approachable recipes)
+    if (!difficulty) {
+      const difficultyBoost: Record<string, number> = {
+        easy: 5,
+        medium: 2,
+        hard: 0,
+      };
+      score += difficultyBoost[original.difficulty] ?? 0;
     }
 
     if (maxTime) {

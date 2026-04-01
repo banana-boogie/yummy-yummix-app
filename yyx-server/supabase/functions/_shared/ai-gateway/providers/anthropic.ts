@@ -86,10 +86,16 @@ export function translateMessagesForAnthropic(
   for (const msg of messages) {
     if (msg.role === "system") {
       systemParts.push(msg.content);
+    } else if (msg.role === "tool") {
+      // Tool results in Anthropic format go as user messages with tool_result blocks
+      anthropicMessages.push({
+        role: "user",
+        content: msg.content,
+      });
     } else {
       anthropicMessages.push({
         role: msg.role as "user" | "assistant",
-        content: msg.content,
+        content: msg.content || "",
       });
     }
   }
@@ -392,13 +398,6 @@ export async function callAnthropicStream(
     if (thinking) body.thinking = thinking;
   } else if (request.temperature !== undefined) {
     body.temperature = request.temperature;
-  }
-
-  // Tools in streaming mode
-  if (request.tools && request.tools.length > 0) {
-    body.tools = translateToolsForAnthropic(request.tools);
-    const choice = translateToolChoiceForAnthropic(request.toolChoice);
-    if (choice) body.tool_choice = choice;
   }
 
   const response = await fetch(ANTHROPIC_MESSAGES_URL, {

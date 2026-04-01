@@ -1,14 +1,14 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { View, Platform, KeyboardAvoidingView, ActivityIndicator } from 'react-native';
 
 import i18n from '@/i18n';
+import { Text } from '@/components/common/Text';
 import { TextInput } from '@/components/form/TextInput';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useMeasurement } from '@/contexts/MeasurementContext';
 import { useProfileImage } from '@/hooks/useProfileImage';
 
 import ImageUpload from '@/components/profile/ImageUpload';
-import { Button } from '@/components/common/Button';
 import { DietaryRestrictionsModal } from '@/components/profile/DietaryRestrictionsModal';
 import { DietModal } from '@/components/profile/DietModal';
 import { CuisineModal } from '@/components/profile/CuisineModal';
@@ -25,10 +25,17 @@ import { Gender, ActivityLevel } from '@/types/user';
 import { DietaryRestriction, DietType, CuisinePreference } from '@/types/dietary';
 import { COLORS } from '@/constants/design-tokens';
 import { normalizeDietAndCuisinePreferences } from '@/utils/preferencesNormalization';
+import { EquipmentModal } from '@/components/profile/EquipmentModal';
+import { parseEquipmentString, formatEquipmentForStorage } from '@/constants/equipment';
+import type { KitchenEquipment } from '@/types/onboarding';
+// eslint-disable-next-line import/no-named-as-default
 import logger from '@/services/logger';
 
 const BIO_MAX_LENGTH = 140;
 const NAME_MAX_LENGTH = 30;
+const AUTOSAVE_DELAY_MS = 1500;
+
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 interface FormData {
   gender: string;
@@ -54,16 +61,19 @@ export default function EditProfile() {
   const [bioLength, setBioLength] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Save/error state
+  // Auto-save state
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const savedIndicatorTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const initialLoadRef = useRef(true);
 
   // Modal state
   const [showDietaryModal, setShowDietaryModal] = useState(false);
   const [showDietModal, setShowDietModal] = useState(false);
   const [showCuisineModal, setShowCuisineModal] = useState(false);
+  const [showEquipmentModal, setShowEquipmentModal] = useState(false);
 
   // Validation state
   const [heightError, setHeightError] = useState<string | undefined>();
@@ -137,49 +147,93 @@ export default function EditProfile() {
         otherAllergy: userProfile.otherAllergy || [],
       });
       setIsLoading(false);
+      // Mark initial load complete after a tick so the first useEffect doesn't trigger auto-save
+      setTimeout(() => { initialLoadRef.current = false; }, 0);
     }
   }, [userProfile, getDefaultDate]);
 
-  // --- Handlers ---
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (savedIndicatorTimerRef.current) clearTimeout(savedIndicatorTimerRef.current);
+    };
+  }, []);
 
-  const handleSave = async () => {
+  // --- Auto-save logic ---
+
+  const performSave = useCallback(async (
+    currentName: string,
+    currentBio: string,
+    currentFormData: FormData,
+  ) => {
+    if (hasValidationErrors) return;
     try {
-      setIsSaving(true);
+      setSaveStatus('saving');
       setSaveError(null);
       const normalizedPreferences = normalizeDietAndCuisinePreferences(
-        formData.dietTypes,
-        formData.cuisinePreferences
+        currentFormData.dietTypes,
+        currentFormData.cuisinePreferences
       );
 
-      const birthDate = new Date(formData.birthDate);
+      const birthDate = new Date(currentFormData.birthDate);
       birthDate.setMinutes(birthDate.getMinutes() - birthDate.getTimezoneOffset());
 
       await updateUserProfile({
-        name,
-        biography: bio,
-        gender: formData.gender ? (formData.gender as Gender) : undefined,
+        name: currentName,
+        biography: currentBio,
+        gender: currentFormData.gender ? (currentFormData.gender as Gender) : undefined,
         birthDate: birthDate.toISOString().split('T')[0],
-        height: formData.height ? parseFloat(formData.height) : undefined,
-        weight: formData.weight ? parseFloat(formData.weight) : undefined,
-        activityLevel: formData.activityLevel ? (formData.activityLevel as ActivityLevel) : undefined,
-        dietaryRestrictions: formData.dietaryRestrictions,
+        height: currentFormData.height ? parseFloat(currentFormData.height) : undefined,
+        weight: currentFormData.weight ? parseFloat(currentFormData.weight) : undefined,
+        activityLevel: currentFormData.activityLevel ? (currentFormData.activityLevel as ActivityLevel) : undefined,
+        dietaryRestrictions: currentFormData.dietaryRestrictions,
         dietTypes: normalizedPreferences.dietTypes,
         cuisinePreferences: normalizedPreferences.cuisinePreferences,
-        otherDiet: formData.otherDiet,
-        otherAllergy: formData.otherAllergy,
+        otherDiet: currentFormData.otherDiet,
+        otherAllergy: currentFormData.otherAllergy,
       });
-      setShowSuccessModal(true);
-      setTimeout(() => {
-        setShowSuccessModal(false);
-      }, 2000);
+      setSaveStatus('saved');
+      if (savedIndicatorTimerRef.current) clearTimeout(savedIndicatorTimerRef.current);
+      savedIndicatorTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error) {
-      logger.error('Error updating profile:', error);
+      logger.error('Error auto-saving profile:', error);
+      setSaveStatus('error');
       setSaveError(i18n.t('common.errors.default'));
       setShowErrorModal(true);
-    } finally {
-      setIsSaving(false);
     }
-  };
+  }, [updateUserProfile, hasValidationErrors]);
+
+  // Debounced auto-save for text fields (name, bio)
+  const scheduleDebouncedSave = useCallback(() => {
+    if (initialLoadRef.current || isLoading) return;
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      performSave(name, bio, formData);
+    }, AUTOSAVE_DELAY_MS);
+  }, [name, bio, formData, performSave, isLoading]);
+
+  // Trigger debounced save when name or bio changes
+  useEffect(() => {
+    scheduleDebouncedSave();
+  }, [name, bio]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Immediate save when select/picker fields change
+  const handleFormDataChange = useCallback((updater: (prev: FormData) => FormData) => {
+    setFormData(prev => {
+      const next = updater(prev);
+      // Schedule immediate save with updated formData
+      if (!initialLoadRef.current) {
+        // Cancel any pending debounced save
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        // Use setTimeout(0) to ensure state has settled
+        setTimeout(() => performSave(name, bio, next), 0);
+      }
+      return next;
+    });
+  }, [name, bio, performSave]);
+
+  // --- Handlers ---
 
   const handleImageUpload = async (url: string) => {
     try {
@@ -222,17 +276,19 @@ export default function EditProfile() {
     closeModal: () => void,
   ) => {
     try {
-      setIsSaving(true);
+      setSaveStatus('saving');
       setSaveError(null);
       await updateUserProfile(updates);
       setFormData(prev => ({ ...prev, ...formUpdates }));
       closeModal();
+      setSaveStatus('saved');
+      if (savedIndicatorTimerRef.current) clearTimeout(savedIndicatorTimerRef.current);
+      savedIndicatorTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error) {
       logger.error('Error updating preferences:', error);
+      setSaveStatus('error');
       setSaveError(i18n.t('common.errors.default'));
       setShowErrorModal(true);
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -271,6 +327,28 @@ export default function EditProfile() {
       () => setShowCuisineModal(false),
     );
 
+  const handleEquipmentUpdate = async (equipment: KitchenEquipment[]) => {
+    try {
+      setSaveStatus('saving');
+      setSaveError(null);
+      const formattedEquipment = [...new Set(
+        equipment.map(eq => formatEquipmentForStorage(eq.type, eq.model))
+      )];
+      await updateUserProfile({
+        kitchen_equipment: formattedEquipment,
+      } as any);
+      setShowEquipmentModal(false);
+      setSaveStatus('saved');
+      if (savedIndicatorTimerRef.current) clearTimeout(savedIndicatorTimerRef.current);
+      savedIndicatorTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (error) {
+      logger.error('Error updating equipment:', error);
+      setSaveStatus('error');
+      setSaveError(i18n.t('common.errors.default'));
+      setShowErrorModal(true);
+    }
+  };
+
   // --- Display name mappers ---
 
   const dietDisplayNames = formData.dietTypes
@@ -284,6 +362,25 @@ export default function EditProfile() {
   const cuisineDisplayNames = formData.cuisinePreferences.map(
     slug => i18n.t(`onboarding.steps.cuisines.options.${slug}`)
   );
+
+  // Parse stored equipment strings back to KitchenEquipment[]
+  const currentEquipment: KitchenEquipment[] = useMemo(() =>
+    (userProfile?.kitchenEquipment ?? []).map(parseEquipmentString),
+    [userProfile?.kitchenEquipment]
+  );
+
+  const equipmentDisplayNames = currentEquipment.map(eq => {
+    const name = i18n.t(`onboarding.steps.equipment.${eq.type}.name`);
+    return eq.model ? `${name} (${eq.model})` : name;
+  });
+
+  // --- Save status indicator ---
+
+  const saveStatusLabel = saveStatus === 'saving'
+    ? i18n.t('common.saving')
+    : saveStatus === 'saved'
+      ? i18n.t('common.saved')
+      : null;
 
   // --- Render ---
 
@@ -364,6 +461,12 @@ export default function EditProfile() {
                 onEdit={() => setShowCuisineModal(true)}
                 emptyText={i18n.t('profile.summaries.noCuisine')}
               />
+              <PreferenceSummary
+                label={i18n.t('profile.summaries.equipment')}
+                selected={equipmentDisplayNames}
+                onEdit={() => setShowEquipmentModal(true)}
+                emptyText={i18n.t('profile.summaries.noEquipment')}
+              />
             </View>
           </FormSection>
 
@@ -373,7 +476,7 @@ export default function EditProfile() {
               <SelectInput
                 label={i18n.t('profile.personalData.gender')}
                 value={formData.gender}
-                onValueChange={(value: string) => setFormData(prev => ({ ...prev, gender: value }))}
+                onValueChange={(value: string) => handleFormDataChange(prev => ({ ...prev, gender: value }))}
                 options={genderOptions}
                 placeholder={i18n.t('profile.personalData.gender')}
               />
@@ -381,14 +484,14 @@ export default function EditProfile() {
               <DatePicker
                 label={i18n.t('profile.personalData.birthDate')}
                 value={formData.birthDate}
-                onChange={(date) => setFormData(prev => ({ ...prev, birthDate: date }))}
+                onChange={(date) => handleFormDataChange(prev => ({ ...prev, birthDate: date }))}
                 maximumDate={new Date()}
               />
 
               <HeightInput
                 label={i18n.t('profile.personalData.height')}
                 value={formData.height}
-                onChangeValue={(value) => setFormData(prev => ({ ...prev, height: value }))}
+                onChangeValue={(value) => handleFormDataChange(prev => ({ ...prev, height: value }))}
                 measurementSystem={measurementSystem}
                 error={heightError}
                 onErrorChange={setHeightError}
@@ -397,7 +500,7 @@ export default function EditProfile() {
               <WeightInput
                 label={i18n.t('profile.personalData.weight')}
                 value={formData.weight}
-                onChangeValue={(value) => setFormData(prev => ({ ...prev, weight: value }))}
+                onChangeValue={(value) => handleFormDataChange(prev => ({ ...prev, weight: value }))}
                 measurementSystem={measurementSystem}
                 error={weightError}
                 onErrorChange={setWeightError}
@@ -406,24 +509,21 @@ export default function EditProfile() {
               <SelectInput
                 label={i18n.t('profile.personalData.activityLevel')}
                 value={formData.activityLevel}
-                onValueChange={(value: string) => setFormData(prev => ({ ...prev, activityLevel: value }))}
+                onValueChange={(value: string) => handleFormDataChange(prev => ({ ...prev, activityLevel: value }))}
                 options={activityLevelOptions}
                 placeholder={i18n.t('profile.personalData.activityLevel')}
               />
             </View>
           </FormSection>
 
-          {/* Save Button */}
-          <View className="mt-lg mb-xl">
-            <Button
-              label={i18n.t('common.save')}
-              onPress={handleSave}
-              className="py-md"
-              textClassName="text-base"
-              loading={isSaving}
-              disabled={isSaving || hasValidationErrors}
-            />
-          </View>
+          {/* Auto-save status indicator */}
+          {saveStatusLabel && (
+            <View className="items-center pb-lg">
+              <Text preset="caption" className="text-text-secondary">
+                {saveStatusLabel}
+              </Text>
+            </View>
+          )}
         </View>
       </KeyboardAvoidingView>
 
@@ -452,11 +552,11 @@ export default function EditProfile() {
         onSave={handleCuisineUpdate}
       />
 
-      <StatusModal
-        visible={showSuccessModal}
-        onClose={() => setShowSuccessModal(false)}
-        type="success"
-        message={i18n.t('common.saved')}
+      <EquipmentModal
+        visible={showEquipmentModal}
+        onClose={() => setShowEquipmentModal(false)}
+        currentEquipment={currentEquipment}
+        onSave={handleEquipmentUpdate}
       />
 
       <StatusModal

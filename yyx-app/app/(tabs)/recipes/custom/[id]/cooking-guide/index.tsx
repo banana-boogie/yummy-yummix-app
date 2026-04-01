@@ -14,15 +14,18 @@ import i18n from '@/i18n';
 
 import { COLORS } from '@/constants/design-tokens';
 import * as Haptics from 'expo-haptics';
+import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
+import { AskIrmixyButton } from '@/components/cooking-guide/AskIrmixyButton';
+import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import { getCustomCookingGuidePath, isFromChat } from '@/utils/navigation/recipeRoutes';
 import { eventService } from '@/services/eventService';
-
 export default function CustomCookingGuide() {
   const { id, session, from } = useLocalSearchParams<{ id: string; session?: string; from?: string }>();
   const { recipe, loading, error } = useCustomRecipe(id as string);
   const { isPhone } = useDevice();
   const navigation = useNavigation();
   const isChatFlow = isFromChat(from);
+  const irmixy = useIrmixyHelperChat(id);
 
   const handleBackPress = () => {
     if (isChatFlow && !navigation.canGoBack()) {
@@ -32,13 +35,7 @@ export default function CustomCookingGuide() {
     }
   };
 
-  // Debug: log recipe ID and session to trace navigation issues
-  if (__DEV__) {
-    console.log('[CookingGuide] Rendering with id:', id, 'session:', session, 'recipe:', recipe?.name);
-  }
-
-  // Responsive sizes: keep mobile original, make desktop larger
-  const chefSize = isPhone ? { width: 165, height: 270 } : { width: 180, height: 270 };
+  // Responsive sizes
   const checkboxSize = isPhone ? 32 : 40;
   const buttonSize = isPhone ? 'large' : 'medium';
 
@@ -47,6 +44,7 @@ export default function CustomCookingGuide() {
     if (recipe?.id && recipe?.name) {
       eventService.logCookStart(recipe.id, recipe.name, 'user_recipes');
     }
+
     router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-ingredients'));
   };
 
@@ -79,19 +77,9 @@ export default function CustomCookingGuide() {
       <PageLayout
         backgroundColor={COLORS.grey.light}
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 180 }}
+        contentContainerStyle={{ paddingHorizontal: 0 }}
         contentPaddingHorizontal={0}
         scrollEnabled={true}
-        footer={
-          <View className="w-full max-w-[800px] self-center relative h-0" pointerEvents="none">
-            <Image
-              source={require('@/assets/images/irmixy-avatar/irmixy-cooking.png')}
-              className="absolute bottom-[-50px] right-0"
-              style={{ width: chefSize.width, height: chefSize.height }}
-              contentFit="contain"
-            />
-          </View>
-        }
       >
         <CookingGuideHeader
           showTitle={false}
@@ -100,34 +88,27 @@ export default function CustomCookingGuide() {
           onBackPress={handleBackPress}
           pictureUrl={recipe?.pictureUrl}
           isCustomRecipe={true}
+          onExitPress={() => {
+            if (isChatFlow) {
+              router.replace('/(tabs)/chat');
+            } else {
+              router.replace(`/(tabs)/recipes/custom/${id}`);
+            }
+          }}
         />
 
         <CookingGuidePageHeader
           title={recipe?.name || ''}
           subtitle={i18n.t('chat.miseEnPlace')}
-          recipeContext={{
-            type: 'custom',
-            recipeId: id as string,
-            recipeTitle: recipe?.name
-          }}
         />
 
         <View className="px-md">
           <MessageBubble className="mt-xxs">
             <View className="items-center mb-md">
-              <Text preset="h1" className="text-center text-lg">
-                {i18n.t('recipes.cookingGuide.intro.greeting')}
-              </Text>
-            </View>
-
-            <View className="items-center mb-md">
               <Text preset="body" className="text-center text-md">
                 {i18n.t('recipes.cookingGuide.intro.miseEnPlace.one')}
                 <Text preset="body" className="text-center text-md font-bold">
                   {i18n.t('recipes.cookingGuide.intro.miseEnPlace.two')}
-                </Text>
-                <Text preset="body" className="text-center text-md">
-                  {i18n.t('recipes.cookingGuide.intro.miseEnPlace.three')}
                 </Text>
               </Text>
             </View>
@@ -147,6 +128,13 @@ export default function CustomCookingGuide() {
               </Text>
             </View>
 
+            <View className="items-center pb-sm pt-xs">
+              <AskIrmixyButton onPress={irmixy.open} />
+            </View>
+            <View className="mx-lg mb-xs">
+              <View className="h-[1px] bg-border-default opacity-30" />
+            </View>
+
             <Button
               variant='primary'
               size={buttonSize}
@@ -158,6 +146,16 @@ export default function CustomCookingGuide() {
           </MessageBubble>
         </View>
       </PageLayout>
+      <IrmixyCookingModal
+        visible={irmixy.isVisible}
+        onClose={irmixy.close}
+        recipeContext={{
+          type: 'custom',
+          recipeId: id as string,
+          recipeTitle: recipe?.name,
+        }}
+        {...irmixy.sessionProps}
+      />
     </View>
   );
 }

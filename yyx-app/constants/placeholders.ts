@@ -17,12 +17,18 @@ export const PLACEHOLDER_IMAGES = {
   ingredient: require('@/assets/placeholders/ingredient-placeholder.png'),
 
   /**
-   * Placeholder for recipe images
-   * Used in: Recipe cards, Cooking Guide headers
-   *
-   * TODO: Replace with actual recipe placeholder image
+   * Placeholder for recipe images — reuses ingredient placeholder.
+   * Recipe hero images collapse when missing rather than showing a placeholder.
    */
-  recipe: require('@/assets/placeholders/recipe-placeholder.png'),
+  recipe: require('@/assets/placeholders/ingredient-placeholder.png'),
+
+  /**
+   * Placeholder for kitchen tool images
+   * Used in: Kitchen tool cards, Cooking Guide mise en place
+   *
+   * TODO: Replace with actual kitchen tool placeholder image
+   */
+  kitchenTool: require('@/assets/placeholders/kitchen-tool-placeholder.png'),
 } as const;
 
 /**

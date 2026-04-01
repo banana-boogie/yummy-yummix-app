@@ -192,13 +192,11 @@ Thresholds are the same regardless of context; labels adapt to the review type.
 
 ## Report Sections
 
-Every review report should include these standardized sections (names are canonical). For full section definitions, finding format, and the Next Steps prompt contract, see [REVIEW-OUTPUT-SPEC.md](./REVIEW-OUTPUT-SPEC.md).
+Reports use a **two-tier format**: a short human-readable summary, then a detailed AI handoff prompt. For full section definitions and the Next Steps prompt contract, see [REVIEW-OUTPUT-SPEC.md](./REVIEW-OUTPUT-SPEC.md).
 
-1. **Highlights** — Good patterns, clean implementations, smart design choices. Balanced reviews are constructive.
-2. **Findings** — Grouped by the 9 review categories above, each tagged with a severity level.
-3. **Summary** — Severity counts and overall recommendation:
-   - PR context: APPROVE / COMMENT / REQUEST CHANGES
-   - Pre-PR context: READY FOR PR / QUICK FIXES THEN PR / NEEDS WORK
-4. **Recommendations** — High-value improvements related to the changes but outside what was flagged in Findings. Do NOT repeat Findings. Ranked by impact vs effort.
-5. **Potential Misses** — Areas the review couldn't fully evaluate (runtime behavior, accessibility, integration effects, large diffs).
-6. **Next Steps** — Self-contained prompt where Critical/High/Warning findings are required fixes and Suggestions/Recommendations are "implement if worthwhile", without requiring the implementation agent to read the full review.
+1. **Header** — PR/branch metadata (two lines max)
+2. **CI Status** — Pass/fail for CI checks (PR reviews only)
+3. **Verdict** — One-line recommendation with severity counts
+4. **Highlights** — Good patterns worth acknowledging
+5. **Issues** — Flat list of findings grouped by severity (not category)
+6. **Next Steps** — Self-contained prompt for the implementing AI with full detail (category grouping, options/tradeoffs, recommendations, potential misses)

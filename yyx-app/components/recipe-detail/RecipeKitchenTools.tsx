@@ -1,6 +1,6 @@
 import { View, StyleProp, ViewStyle } from 'react-native';
 import { Text } from '@/components/common/Text';
-import { Image } from 'expo-image';
+import { SafeImage } from '@/components/common';
 import i18n from '@/i18n';
 import { SectionHeading } from '@/components/recipe-detail/SectionHeading';
 import { RecipeKitchenTool } from '@/types/recipe.types';
@@ -24,8 +24,9 @@ export const RecipeKitchenTools: React.FC<RecipeKitchenToolsProps> = ({
       <View className="flex-row justify-between flex-wrap gap-lg px-md lg:px-0">
         {kitchenTools.map((item) => (
           <View key={item.id} className="items-center w-[45%]">
-            <Image
+            <SafeImage
               source={item.pictureUrl}
+              placeholder="kitchenTool"
               className="w-[100px] h-[100px]"
               contentFit="contain"
               cachePolicy="memory-disk"

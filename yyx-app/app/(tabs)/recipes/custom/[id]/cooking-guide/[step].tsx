@@ -3,6 +3,9 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useCustomRecipe } from "@/hooks/useCustomRecipe";
 import { CookingGuideHeader } from "@/components/cooking-guide/CookingGuideHeader";
 import { RecipeStepContent } from "@/components/cooking-guide/RecipeStepContent";
+import { AskIrmixyButton } from "@/components/cooking-guide/AskIrmixyButton";
+import { IrmixyCookingModal } from "@/components/cooking-guide/IrmixyCookingModal";
+import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import { Text } from "@/components/common/Text";
 import i18n from "@/i18n";
 import React, { useMemo } from "react";
@@ -12,11 +15,11 @@ import { shouldDisplayRecipeSection } from '@/utils/recipes';
 import { COLORS } from '@/constants/design-tokens';
 import { getCustomCookingGuidePath, isFromChat } from '@/utils/navigation/recipeRoutes';
 import { eventService } from '@/services/eventService';
-
 export default function CustomCookingStep() {
     const { id, step: stepParam, from } = useLocalSearchParams<{ id: string; step: string; from?: string }>();
     const { recipe } = useCustomRecipe(id as string);
     const isChatFlow = isFromChat(from);
+    const irmixy = useIrmixyHelperChat(id);
 
     const currentStepNumber = Number(stepParam);
     const steps = recipe?.steps;
@@ -48,19 +51,6 @@ export default function CustomCookingStep() {
         }
     }), [id, currentStepNumber, from, recipe?.id, recipe?.name, isChatFlow]);
 
-    const recipeContext = useMemo(() => ({
-        type: 'custom' as const,
-        recipeId: id as string,
-        recipeTitle: recipe?.name ?? '',
-        currentStep: currentStepNumber,
-        totalSteps,
-        stepInstructions: currentStep?.instruction ?? '',
-        ingredients: currentStep?.ingredients?.map(ing => ({
-            name: ing.name,
-            amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
-        }))
-    }), [id, recipe?.name, currentStepNumber, totalSteps, currentStep]);
-
     const header = useMemo(() => (
         <CookingGuideHeader
             title={i18n.t('recipes.cookingGuide.navigation.step', {
@@ -71,20 +61,37 @@ export default function CustomCookingStep() {
             pictureUrl={recipe?.pictureUrl}
             isCustomRecipe={true}
             onBackPress={handleNavigation.back}
-            recipeContext={recipeContext}
+            onExitPress={() => {
+                if (isChatFlow) {
+                    router.replace('/(tabs)/chat');
+                } else {
+                    router.replace(`/(tabs)/recipes/custom/${id}`);
+                }
+            }}
         />
-    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation, recipeContext]);
+    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation, isChatFlow, id]);
 
     const footer = useMemo(() => (
-        <StepNavigationButtons
-            onBack={handleNavigation.back}
-            onNext={isLastStep ? handleNavigation.finish : handleNavigation.next}
-            backText={i18n.t('recipes.cookingGuide.navigation.back')}
-            nextText={i18n.t('recipes.cookingGuide.navigation.next')}
-            isLastStep={isLastStep}
-            finishText={i18n.t('recipes.cookingGuide.navigation.finish')}
-        />
-    ), [handleNavigation, isLastStep]);
+        <View>
+            <View className="items-center pb-sm pt-xs">
+                <AskIrmixyButton
+                    onPress={irmixy.open}
+                    animate={currentStepNumber === 1}
+                />
+            </View>
+            <View className="mx-lg mb-xs">
+                <View className="h-[1px] bg-border-default opacity-30" />
+            </View>
+            <StepNavigationButtons
+                onBack={handleNavigation.back}
+                onNext={isLastStep ? handleNavigation.finish : handleNavigation.next}
+                backText={i18n.t('recipes.cookingGuide.navigation.back')}
+                nextText={i18n.t('recipes.cookingGuide.navigation.next')}
+                isLastStep={isLastStep}
+                finishText={i18n.t('recipes.cookingGuide.navigation.finish')}
+            />
+        </View>
+    ), [handleNavigation, isLastStep, currentStepNumber, irmixy.open]);
 
     if (!steps || !currentStep) return null;
 
@@ -109,6 +116,20 @@ export default function CustomCookingStep() {
                     <RecipeStepContent step={currentStep} />
                 </View>
             </PageLayout>
+
+            <IrmixyCookingModal
+                visible={irmixy.isVisible}
+                onClose={irmixy.close}
+                recipeContext={{
+                    type: 'cooking',
+                    recipeId: id as string,
+                    recipeTitle: recipe?.name ?? '',
+                    currentStep: currentStepNumber,
+                    totalSteps,
+                    stepInstructions: currentStep?.instruction,
+                }}
+                {...irmixy.sessionProps}
+            />
         </View>
     );
 }

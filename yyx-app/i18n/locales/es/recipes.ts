@@ -29,8 +29,20 @@ export const recipes = {
     },
     emptyState: "No se encontraron recetas",
     noRecipesFound: "No se encontraron recetas",
+    noResultsIrmixyPrompt: "¿No encuentras lo que buscas? ¡Te puedo ayudar!",
+    askIrmixy: "Pregunta a Irmixy",
     kitchenTools: "Utensilios de Cocina",
     servings: "porciones",
+    cookingMode: {
+      slow_cook: "Cocción Lenta",
+      rice_cooker: "Arrocera",
+      sous_vide: "Sous Vide",
+      fermentation: "Fermentación",
+      open_cooking: "Cocción Abierta",
+      browning: "Dorar",
+      dough: "Masa",
+      turbo: "Turbo",
+    },
   },
   detail: {
     ingredients: {
@@ -61,11 +73,9 @@ export const recipes = {
     subtitle: "Mise en place",
     start: "¡Cocinar hoy!",
     intro: {
-      greeting: "¡Qué rica receta vamos a cocinar hoy!",
       miseEnPlace: {
-        one: "Lo primero es hacer nuestro",
+        one: "Hagamos nuestro",
         two: "\nmise en place\n",
-        three: "preparando todos los ingredientes que vamos a necesitar.",
       },
       checkboxSteps: {
         checkmark: "Dale palomita ",
@@ -78,6 +88,11 @@ export const recipes = {
       finish: "¡Terminar!",
       next: "Siguiente",
       back: "Atrás",
+      askIrmixy: "Preguntarle a Irmixy",
+      exitCookingGuide: "Salir de la guía de cocina",
+      exit: "Salir",
+      needHelp: "¿Necesitas ayuda?",
+      irmixyLabel: "Irmixy",
     },
     miseEnPlace: {
       ingredients: {
@@ -87,6 +102,10 @@ export const recipes = {
         heading: "Utensilios de Cocina",
       },
     },
+    timerStart: "Iniciar",
+    timerPause: "Pausar",
+    timerReset: "Reiniciar",
+    timerDone: "¡Tiempo!",
   },
   rating: {
     howWasIt: "¿Qué te pareció?",

@@ -1,5 +1,8 @@
 import { View } from 'react-native';
 import { useState, useEffect } from 'react';
+import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
+import { AskIrmixyButton } from '@/components/cooking-guide/AskIrmixyButton';
+import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import * as Haptics from 'expo-haptics';
 import i18n from '@/i18n';
 import { useRecipe } from '@/hooks/useRecipe';
@@ -28,6 +31,7 @@ export default function KitchenToolsStep() {
     const { recipe } = useRecipe(id as string);
     const [kitchenTools, setKitchenTools] = useState<CheckableKitchenTool[]>([]);
     const { isMobile } = useDevice();
+    const irmixy = useIrmixyHelperChat(id as string);
 
     const numColumns = 2;
 
@@ -58,27 +62,30 @@ export default function KitchenToolsStep() {
                 scrollEnabled={true}
                 contentPaddingHorizontal={0}
                 footer={
-                    <StepNavigationButtons
-                        onBack={() => router.back()}
-                        onNext={() => router.push(`/(tabs)/recipes/${id}/cooking-guide/1`)}
-                        backText={i18n.t('recipes.cookingGuide.navigation.back')}
-                        nextText={i18n.t('recipes.cookingGuide.navigation.next')}
-                    />
+                    <View>
+                        <View className="items-center pb-sm pt-xs">
+                            <AskIrmixyButton onPress={irmixy.open} animate={false} />
+                        </View>
+                        <View className="mx-lg mb-xs">
+                            <View className="h-[1px] bg-border-default opacity-30" />
+                        </View>
+                        <StepNavigationButtons
+                            onBack={() => router.back()}
+                            onNext={() => router.push(`/(tabs)/recipes/${id}/cooking-guide/1`)}
+                            backText={i18n.t('recipes.cookingGuide.navigation.back')}
+                            nextText={i18n.t('recipes.cookingGuide.navigation.next')}
+                        />
+                    </View>
                 }
             >
                 <CookingGuideHeader
                     showTitle={false}
                     pictureUrl={recipe?.pictureUrl}
+                    onExitPress={() => router.replace(`/(tabs)/recipes/${id}`)}
                 />
 
                 <CookingGuidePageHeader
                     title={recipe?.name || ''}
-                    recipeContext={{
-                        type: 'prep',
-                        recipeId: id as string,
-                        recipeTitle: recipe?.name || '',
-                        kitchenTools: kitchenTools.map(item => item.name)
-                    }}
                 />
 
                 {/* Content wrapper - centered on desktop with max-width */}
@@ -108,6 +115,17 @@ export default function KitchenToolsStep() {
                     </View>
                 </View>
             </PageLayout>
+            <IrmixyCookingModal
+                visible={irmixy.isVisible}
+                onClose={irmixy.close}
+                recipeContext={{
+                    type: 'prep',
+                    recipeId: id as string,
+                    recipeTitle: recipe?.name || '',
+                    kitchenTools: kitchenTools.map(item => item.name)
+                }}
+                {...irmixy.sessionProps}
+            />
         </View>
     );
 }

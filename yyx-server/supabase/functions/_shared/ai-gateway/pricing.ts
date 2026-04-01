@@ -50,6 +50,14 @@ function getModelPricing(
   const exact = MODEL_PRICING[model];
   if (exact) return exact;
 
+  // OpenAI response models include date suffixes (e.g. "gpt-4.1-2025-04-14")
+  // that won't match our pricing table — strip and retry before falling back.
+  const withoutDate = model.replace(/-\d{4}-\d{2}-\d{2}$/, "");
+  if (withoutDate !== model) {
+    const dateless = MODEL_PRICING[withoutDate];
+    if (dateless) return dateless;
+  }
+
   // Unknown model — fall back to most expensive
   let mostExpensive = { inputPricePerMillion: 0, outputPricePerMillion: 0 };
   let highestCost = 0;

@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, Image, StyleProp, ViewStyle } from 'react-native';
+import { View, StyleProp, ViewStyle } from 'react-native';
+import { Image } from 'expo-image';
 import { Text } from '@/components/common/Text';
-import { ThermomixSpeed, ThermomixTemperature, ThermomixTemperatureUnit, ThermomixIsBladeReversed, ThermomixTime } from '@/types/thermomix.types';
+import { ThermomixSpeed, ThermomixTemperature, ThermomixTemperatureUnit, ThermomixIsBladeReversed, ThermomixTime, ThermomixCookingMode } from '@/types/thermomix.types';
 import { getTemperatureImage, getSpeedImage, getTimeImage, formatSpeedText } from '@/utils/thermomix/assetUtils';
 import { formatTime } from '@/utils/thermomix/formatters';
 import { useDevice } from '@/hooks/useDevice';
+import i18n from '@/i18n';
 
 interface ThermomixCookingParametersProps {
   time?: ThermomixTime;     // time in seconds
@@ -12,6 +14,7 @@ interface ThermomixCookingParametersProps {
   temperatureUnit?: ThermomixTemperatureUnit;
   speed?: ThermomixSpeed;
   isBladeReversed?: ThermomixIsBladeReversed;  // Whether to show reversed blade speed images
+  mode?: ThermomixCookingMode;
   className?: string; // Add className
   style?: StyleProp<ViewStyle>;
 }
@@ -25,6 +28,7 @@ export function ThermomixCookingParameters({
   temperatureUnit = 'C',
   speed,
   isBladeReversed = false,
+  mode,
   className = '',
   style
 }: ThermomixCookingParametersProps) {
@@ -42,23 +46,30 @@ export function ThermomixCookingParameters({
   const { minutes, seconds } = time ? formatTime(time) : { minutes: '--', seconds: '--' };
 
   return (
-    <View className={`flex-row justify-center ${className}`} style={style}>
+    <View className={`items-center ${className}`} style={style}>
+      {mode && (
+        <View className="bg-primary-medium/20 rounded-lg px-sm py-xxs mb-xs">
+          <Text preset="body" className="text-text-default font-medium">
+            {i18n.t(`recipes.common.cookingMode.${mode}`)}
+          </Text>
+        </View>
+      )}
       {shouldShowCircles && (
-        <>
+        <View className="flex-row justify-center">
           {/* Time Circle */}
           <View className="relative items-center justify-center">
             <Image
               source={getTimeImage()}
               style={{ width: iconSize, height: iconSize, marginHorizontal: -8 }}
             />
-            <View className="absolute flex-row items-center justify-center gap-[1px]">
-              <Text className="text-2xl font-medium">
+            <View className="absolute flex-row items-center justify-center gap-[1px] pb-1">
+              <Text className="text-xl font-medium">
                 {minutes}
               </Text>
-              <Text className="text-2xl font-medium">
+              <Text className="text-xl font-medium">
                 :
               </Text>
-              <Text className="text-2xl font-medium">
+              <Text className="text-xl font-medium">
                 {seconds}
               </Text>
             </View>
@@ -79,12 +90,12 @@ export function ThermomixCookingParameters({
               style={{ width: iconSize, height: iconSize, marginHorizontal: -8 }}
             />
             {shouldShowSpeedText && (
-              <Text className="absolute text-2xl font-medium">
+              <Text className="absolute text-xl font-medium">
                 {formatSpeedText(speed)}
               </Text>
             )}
           </View>
-        </>
+        </View>
       )}
     </View>
   );

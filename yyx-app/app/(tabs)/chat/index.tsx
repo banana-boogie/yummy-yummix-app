@@ -7,6 +7,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, TouchableOpacity, Platform } from 'react-native';
+import { Text } from '@/components/common/Text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack } from 'expo-router';
 import { ChatScreen } from '@/components/chat/ChatScreen';
@@ -22,7 +23,7 @@ const STORAGE_KEY_CHAT_MODE = 'lastChatMode';
 
 type ChatMode = 'text' | 'voice';
 
-const DEFAULT_MODE: ChatMode = Platform.OS === 'web' ? 'text' : 'text';
+const DEFAULT_MODE: ChatMode = 'text';
 
 export default function ChatPage() {
     const [mode, setMode] = useState<ChatMode>(DEFAULT_MODE);
@@ -94,14 +95,19 @@ export default function ChatPage() {
                         Platform.OS !== 'web' ? (
                             <TouchableOpacity
                                 onPress={toggleMode}
-                                className="mr-md w-10 h-10 rounded-full border-2 border-primary-darkest items-center justify-center"
+                                className="flex-row items-center gap-xs px-sm py-xs"
                                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                             >
                                 <MaterialCommunityIcons
                                     name={mode === 'text' ? 'microphone' : 'keyboard'}
-                                    size={22}
+                                    size={20}
                                     color={COLORS.primary.darkest}
                                 />
+                                <Text className="text-primary-darkest text-sm font-medium">
+                                    {mode === 'text'
+                                        ? i18n.t('chat.modeLabel.voice')
+                                        : i18n.t('chat.modeLabel.text')}
+                                </Text>
                             </TouchableOpacity>
                         ) : undefined,
                 }}

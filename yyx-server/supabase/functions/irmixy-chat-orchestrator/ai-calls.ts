@@ -5,112 +5,69 @@
  */
 
 import type { AITool, CostContext } from "../_shared/ai-gateway/index.ts";
-import { chat, chatStream } from "../_shared/ai-gateway/index.ts";
+import { chatStreamWithTools } from "../_shared/ai-gateway/index.ts";
+import type { AIToolCall } from "../_shared/ai-gateway/types.ts";
 import { getRegisteredAiTools } from "../_shared/tools/tool-registry.ts";
-import { normalizeMessagesForAi } from "./message-normalizer.ts";
-import type { ChatMessage } from "./types.ts";
+import { normalizeMessagesForToolLoop } from "./message-normalizer.ts";
+import type { ChatMessage, ToolCall } from "./types.ts";
 
-export interface CallAIResult {
-  choices: Array<{ message: ChatMessage }>;
-  model: string;
-  costUsd: number;
-  usage: { inputTokens: number; outputTokens: number };
-}
-
-export interface CallAIStreamResult {
+export interface CallAIStreamWithToolsResult {
   content: string;
-  costUsd: number;
+  toolCalls?: ToolCall[];
   usage: { inputTokens: number; outputTokens: number };
   model: string;
 }
-
-type AIToolChoice = "auto" | "required" | {
-  type: "function";
-  function: { name: string };
-};
 
 /**
- * Call AI via the AI Gateway.
- * Supports tools and tool choice control.
- * @param toolChoice - "auto" (default), "required", or specific function
+ * Stream AI response with tool call support.
+ * Text tokens are emitted via onTextToken. Tool calls are returned in the result.
+ * Uses native tool messages (not text summaries) to keep the model grounded.
  */
-export async function callAI(
+export async function callAIStreamWithTools(
   messages: ChatMessage[],
-  includeTools: boolean = true,
-  toolChoice: AIToolChoice = "auto",
+  onTextToken: (token: string) => void,
   signal?: AbortSignal,
   costContext?: CostContext,
-): Promise<CallAIResult> {
-  const aiMessages = normalizeMessagesForAi(messages);
+): Promise<CallAIStreamWithToolsResult> {
+  const aiMessages = normalizeMessagesForToolLoop(messages);
+  const tools: AITool[] = getRegisteredAiTools();
 
-  // Convert tools to AI Gateway format
-  const tools: AITool[] | undefined = includeTools
-    ? getRegisteredAiTools()
-    : undefined;
-
-  const response = await chat({
+  const result = await chatStreamWithTools({
     usageType: "text",
     messages: aiMessages,
     tools,
-    toolChoice: includeTools ? toolChoice : undefined,
-    signal,
-    costContext,
-  });
-
-  // Convert back to OpenAI response format for compatibility
-  return {
-    model: response.model,
-    costUsd: response.costUsd,
-    usage: response.usage,
-    choices: [{
-      message: {
-        role: "assistant",
-        content: response.content,
-        tool_calls: response.toolCalls?.map((tc) => ({
-          id: tc.id,
-          type: "function" as const,
-          function: {
-            name: tc.name,
-            arguments: JSON.stringify(tc.arguments),
-          },
-        })),
-      },
-    }],
-  };
-}
-
-/**
- * Call AI Gateway with streaming.
- * Streams tokens via callback and returns full content + cost/usage.
- */
-export async function callAIStream(
-  messages: ChatMessage[],
-  onToken: (token: string) => void,
-  signal?: AbortSignal,
-  costContext?: CostContext,
-): Promise<CallAIStreamResult> {
-  const aiMessages = normalizeMessagesForAi(messages);
-  const result = await chatStream({
-    usageType: "text",
-    messages: aiMessages,
+    toolChoice: "auto",
     signal,
     costContext,
   });
 
   let fullContent = "";
+  let toolCalls: ToolCall[] | undefined;
 
   for await (const chunk of result.stream) {
     if (signal?.aborted) break;
-    fullContent += chunk;
-    onToken(chunk);
+
+    if (chunk.type === "text") {
+      fullContent += chunk.text;
+      onTextToken(chunk.text);
+    } else if (chunk.type === "tool_calls") {
+      // Convert AIToolCall[] to orchestrator ToolCall[] format
+      toolCalls = chunk.toolCalls.map((tc: AIToolCall) => ({
+        id: tc.id,
+        type: "function" as const,
+        function: {
+          name: tc.name,
+          arguments: JSON.stringify(tc.arguments),
+        },
+      }));
+    }
   }
 
-  // Await deferred usage (triggers cost recording if costContext was provided)
   const usageData = await result.usage();
 
   return {
     content: fullContent,
-    costUsd: usageData.costUsd,
+    toolCalls,
     usage: {
       inputTokens: usageData.inputTokens,
       outputTokens: usageData.outputTokens,

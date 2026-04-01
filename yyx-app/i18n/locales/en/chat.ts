@@ -2,6 +2,20 @@ export const chat = {
   title: "Irmixy",
   greeting:
     "Hi! I'm Irmixy. Ask me anything about cooking!",
+  greetingCycling: {
+    withName: [
+      "Hi {{name}}, what are we cooking today?",
+      "Hi {{name}}, tell me what you're craving",
+      "Hi {{name}}, need help finding a recipe?",
+      "Hi {{name}}, ready to cook something delicious?",
+    ],
+    withoutName: [
+      "Hi, what are we cooking today?",
+      "Hi, tell me what you're craving",
+      "Hi, need help finding a recipe?",
+      "Hi, ready to cook something delicious?",
+    ],
+  },
   inputPlaceholder: "Ask Irmixy...",
   sendButton: "Send",
   stopGenerating: "Stop generating",
@@ -68,12 +82,30 @@ export const chat = {
     exceededTitle: "Irmixy limit reached",
     exceededMessage: "You've reached your monthly Irmixy limit. Don't worry — it resets at the start of next month!",
     upgradeHint: "Irmixy limit reached — resets next month",
+    warmWarning: "Just a heads up — you've used most of your Irmixy time for this month. I'm still here for you, just letting you know! It resets at the start of next month.",
   },
-  suggestions: {},
+  returnToCooking: "Return to cooking",
+  returnToCookingStep: "Step {{step}} of {{recipeName}}",
+  suggestions: {
+    generate: "Create a custom {{recipeName}} recipe",
+  },
   messageCopied: "Message copied to clipboard",
   cancelledRequest: "Request cancelled",
+  cookingModal: {
+    greeting: "Hi! I see you're making {{recipeName}}. How can I help?",
+    contextHint: "Cooking {{recipeName}} — step {{step}} of {{total}}",
+    contextHintMiseEnPlace: "Cooking {{recipeName}} — Mise en place",
+    switchToVoice: "Switch to voice",
+    switchToText: "Switch to text",
+  },
+  modeLabel: {
+    voice: "Voice",
+    text: "Text",
+  },
   sessions: {
     menuLabel: "Chat sessions menu",
+    chatsLabel: "Chats",
+    historyLabel: "History",
     title: "Chat Sessions",
     newChat: "New Chat",
     noSessions: "No previous conversations",

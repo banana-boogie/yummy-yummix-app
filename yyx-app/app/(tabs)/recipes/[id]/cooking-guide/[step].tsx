@@ -3,6 +3,9 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useRecipe } from "@/hooks/useRecipe";
 import { CookingGuideHeader } from "@/components/cooking-guide/CookingGuideHeader";
 import { RecipeStepContent } from "@/components/cooking-guide/RecipeStepContent";
+import { AskIrmixyButton } from "@/components/cooking-guide/AskIrmixyButton";
+import { IrmixyCookingModal } from "@/components/cooking-guide/IrmixyCookingModal";
+import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import { Text } from "@/components/common/Text";
 import i18n from "@/i18n";
 import React, { useMemo, useState } from "react";
@@ -22,6 +25,7 @@ export default function CookingStep() {
     const { recipe } = useRecipe(id as string);
     const { user } = useAuth();
     const [showRatingModal, setShowRatingModal] = useState(false);
+    const irmixy = useIrmixyHelperChat(id as string);
 
     const currentStepNumber = Number(stepParam);
     const steps = recipe?.steps;
@@ -58,19 +62,6 @@ export default function CookingStep() {
         }
     }), [id, currentStepNumber, recipe?.id, recipe?.name]);
 
-    const recipeContext = useMemo(() => ({
-        type: 'cooking' as const,
-        recipeId: id as string,
-        recipeTitle: recipe?.name ?? '',
-        currentStep: currentStepNumber,
-        totalSteps,
-        stepInstructions: currentStep?.instruction ?? '',
-        ingredients: currentStep?.ingredients?.map(ing => ({
-            name: ing.name,
-            amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
-        }))
-    }), [id, recipe?.name, currentStepNumber, totalSteps, currentStep]);
-
     const handleRatingModalClose = () => {
         setShowRatingModal(false);
         router.replace('/(tabs)/recipes');
@@ -85,20 +76,31 @@ export default function CookingStep() {
             showSubtitle={false}
             pictureUrl={recipe?.pictureUrl}
             onBackPress={handleNavigation.back}
-            recipeContext={recipeContext}
+            onExitPress={() => router.replace(`/(tabs)/recipes/${id}`)}
         />
-    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation, recipeContext]);
+    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation, id]);
 
     const footer = useMemo(() => (
-        <StepNavigationButtons
-            onBack={handleNavigation.back}
-            onNext={isLastStep ? handleNavigation.finish : handleNavigation.next}
-            backText={i18n.t('recipes.cookingGuide.navigation.back')}
-            nextText={i18n.t('recipes.cookingGuide.navigation.next')}
-            isLastStep={isLastStep}
-            finishText={i18n.t('recipes.cookingGuide.navigation.finish')}
-        />
-    ), [handleNavigation, isLastStep]);
+        <View>
+            <View className="items-center pb-sm pt-xs">
+                <AskIrmixyButton
+                    onPress={irmixy.open}
+                    animate={currentStepNumber === 1}
+                />
+            </View>
+            <View className="mx-lg mb-xs">
+                <View className="h-[1px] bg-border-default opacity-30" />
+            </View>
+            <StepNavigationButtons
+                onBack={handleNavigation.back}
+                onNext={isLastStep ? handleNavigation.finish : handleNavigation.next}
+                backText={i18n.t('recipes.cookingGuide.navigation.back')}
+                nextText={i18n.t('recipes.cookingGuide.navigation.next')}
+                isLastStep={isLastStep}
+                finishText={i18n.t('recipes.cookingGuide.navigation.finish')}
+            />
+        </View>
+    ), [handleNavigation, isLastStep, currentStepNumber, irmixy.open]);
 
     if (!steps || !currentStep) return null;
 
@@ -130,6 +132,20 @@ export default function CookingStep() {
                     recipeName={recipe.name}
                 />
             </PageLayout>
+
+            <IrmixyCookingModal
+                visible={irmixy.isVisible}
+                onClose={irmixy.close}
+                recipeContext={{
+                    type: 'cooking',
+                    recipeId: id as string,
+                    recipeTitle: recipe?.name ?? '',
+                    currentStep: currentStepNumber,
+                    totalSteps,
+                    stepInstructions: currentStep?.instruction,
+                }}
+                {...irmixy.sessionProps}
+            />
         </View>
     );
 }

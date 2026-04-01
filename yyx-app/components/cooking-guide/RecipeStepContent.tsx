@@ -5,8 +5,9 @@ import { renderRecipeText } from "@/components/recipe-detail/RenderRecipeText";
 import { MessageBubble } from '@/components/cooking-guide/MessageBubble';
 import { ThermomixCookingParameters } from '@/components/cooking-guide/ThermomixCookingParameters';
 import { RecipeStep } from '@/types/recipe.types';
-import { Image } from 'expo-image';
+import { SafeImage } from '@/components/common';
 import { getIngredientName } from '@/utils/recipes/ingredients';
+import { RestTimer } from '@/components/cooking-guide/RestTimer';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import * as Haptics from 'expo-haptics';
@@ -39,8 +40,6 @@ export function RecipeStepContent({ step, className = '', style }: RecipeStepCon
         return (
             <View className="flex-row justify-center items-center flex-wrap gap-lg lg:gap-xl my-sm">
                 {step.ingredients.map((ingredient) => {
-                    if (!ingredient?.pictureUrl) return null;
-
                     const isChecked = checkedIngredients.has(ingredient.id);
 
                     return (
@@ -62,8 +61,9 @@ export function RecipeStepContent({ step, className = '', style }: RecipeStepCon
                                         opacity: 0.5
                                     }}
                                 />
-                                <Image
+                                <SafeImage
                                     source={ingredient.pictureUrl}
+                                    placeholder="ingredient"
                                     className="w-[70px] h-[70px] lg:w-[100px] lg:h-[100px] rounded-[30px]"
                                     contentFit="contain"
                                     cachePolicy="memory-disk"
@@ -91,7 +91,7 @@ export function RecipeStepContent({ step, className = '', style }: RecipeStepCon
                             </View>
                             <Text
                                 preset="handwritten"
-                                className="text-[14px] text-grey-medium_dark text-center"
+                                className="text-[16px] text-grey-medium_dark text-center"
                                 style={{ opacity: isChecked ? 0.5 : 1 }}
                             >
                                 {getIngredientName(ingredient)}
@@ -111,7 +111,7 @@ export function RecipeStepContent({ step, className = '', style }: RecipeStepCon
         >
             {renderRecipeText(step.instruction, {
                 textStyle: { textAlign: 'center', fontSize: 24, lineHeight: 32, marginBottom: 16, paddingHorizontal: 8 },
-                boldStyle: { color: '#FF9A99', fontSize: 24, lineHeight: 32 },
+                boldStyle: { color: COLORS.primary.dark, fontSize: 24, lineHeight: 32 },
                 bulletStyle: { marginBottom: 4, paddingLeft: 24, textAlign: 'left' }
             }, step.ingredients)}
             {renderIngredientImages()}
@@ -122,12 +122,16 @@ export function RecipeStepContent({ step, className = '', style }: RecipeStepCon
                     temperatureUnit={step.thermomix?.temperatureUnit}
                     isBladeReversed={step.thermomix?.isBladeReversed}
                     speed={step.thermomix?.speed}
+                    mode={step.thermomix?.mode}
                     className="mt-[-4px]"
                 />
             ) : null}
+            {!step.thermomix?.time && (
+                <RestTimer instruction={step.instruction} durationSeconds={step.timerSeconds} />
+            )}
             {step.tip ? (
-                <View className="bg-[#FAF3E8] rounded-sm p-sm mt-sm mx-md">
-                    <Text preset="bodySmall" className="text-text-secondary">
+                <View className="bg-primary-lightest rounded-sm p-sm mt-sm mx-md">
+                    <Text preset="body" className="text-text-secondary">
                         {step.tip}
                     </Text>
                 </View>

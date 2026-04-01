@@ -18,7 +18,7 @@ yyx-app/
 │   ├── onboarding/         # Onboarding flow
 │   └── _layout.tsx         # Root layout
 ├── components/             # Reusable UI components
-│   ├── common/             # Core shared: Text, Button, SearchBar, Switch, AlertModal, ErrorMessage, CheckboxButton, Divider, GradientHeader, HeaderWithBack, LanguageBadge, ShareButton, StatusModal, SelectableCard, DangerButton, VoiceAssistantButton
+│   ├── common/             # Core shared: Text, Button, SearchBar, Switch, AlertModal, ErrorMessage, CheckboxButton, Divider, GradientHeader, HeaderWithBack, LanguageBadge, ShareButton, StatusModal, SelectableCard, DangerButton, SafeImage
 │   ├── layouts/            # PageLayout, ResponsiveLayout
 │   ├── chat/               # Chat-specific components (RecipeProgressTracker, ChatScreen, VoiceChatScreen, etc.)
 │   ├── recipe/             # Recipe cards, lists
@@ -278,6 +278,38 @@ Platform prefixes in NativeWind:
 <View className="native:p-lg" />          // Only on native
 <View className="flex-col md:flex-row" /> // Responsive breakpoint
 ```
+
+---
+
+## Native Capabilities
+
+### Haptics
+Use `expo-haptics` for tactile feedback on user interactions:
+```tsx
+import * as Haptics from 'expo-haptics';
+Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);    // Button taps
+Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);   // Significant actions
+Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); // Completion events
+```
+
+### Local Notifications
+Use `expo-notifications` for alerts with system sound — works in foreground and background:
+```tsx
+import * as Notifications from 'expo-notifications';
+
+// Request permission (do this once, early in the app lifecycle)
+const { status } = await Notifications.requestPermissionsAsync();
+
+// Fire immediate notification with system sound
+await Notifications.scheduleNotificationAsync({
+  content: { title: 'Timer done!', sound: 'default' },
+  trigger: null, // null = immediate
+});
+```
+
+**Current usage:** Cooking guide `RestTimer` fires a local notification when the countdown completes.
+
+**Note:** Requires a dev build (not available in Expo Go). The same `expo-notifications` module handles remote push notifications — when adding server-sent notifications later, the permission and setup infrastructure is already in place.
 
 ---
 

@@ -63,6 +63,7 @@ export function Text({
   // To allow className to win over the preset, we only add the preset weight if no font-weight class is present.
   const hasInlinedWeight = className?.match(/\bfont-(thin|extralight|light|normal|medium|semibold|bold|extrabold|black)\b/);
   const hasInlinedSize = className?.match(/\btext-(xs|sm|base|md|lg|xl|2xl|3xl|4xl|5xl|6xl|\[.*?\])\b/);
+  const hasInlinedColor = className?.match(/\btext-(status|text|primary|neutral|background|border|grey)-/);
 
   // Determine the weight and size: props win, then className, then preset.
   const finalFontSize = fontSize || (hasInlinedSize ? undefined : basePresetStyle.fontSize);
@@ -71,7 +72,7 @@ export function Text({
   // Create a clean base style from the preset
   const baseStyle: TextStyle = {
     fontFamily: basePresetStyle.fontFamily,
-    color: color || basePresetStyle.color,
+    color: color || (hasInlinedColor ? undefined : basePresetStyle.color),
   };
 
   // Only add these to the style object if we have a value. 

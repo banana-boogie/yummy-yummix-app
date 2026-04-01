@@ -182,11 +182,11 @@ Thresholds are the same regardless of context; labels adapt to the review type.
 
 ## Report Sections
 
-Every review report should include these standardized sections (names are canonical):
+Reports use a **two-tier format**: a short human-readable summary, then a detailed AI handoff prompt. For full section definitions, see `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md`.
 
-1. **Highlights** — Good patterns, clean implementations, smart design choices. Balanced reviews are constructive.
-2. **Findings** — Grouped by the 8 review categories above, each tagged with a severity level.
-3. **Suggestions & Improvements** — Concrete ideas ranked by impact-to-effort ratio. Each includes impact (high/med/low) and effort (high/med/low).
-4. **Recommendations** — Actionable improvements beyond findings: robustness, missing edge cases, patterns to adopt.
-5. **Blind Spots** — Areas the review couldn't fully evaluate (runtime behavior, accessibility, integration effects, large diffs).
-6. **Next Steps** — Self-contained prompt for an AI coding agent to act on findings without reading the full review.
+1. **Header** — PR/branch metadata (two lines max)
+2. **CI Status** — Pass/fail for CI checks (PR reviews only)
+3. **Verdict** — One-line recommendation with severity counts
+4. **Highlights** — Good patterns worth acknowledging
+5. **Issues** — Flat list of findings grouped by severity (not category)
+6. **Next Steps** — Self-contained prompt for the implementing AI with full detail (category grouping, options/tradeoffs, recommendations, potential misses)

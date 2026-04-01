@@ -7,13 +7,14 @@ import {
     BudgetWarningPayload,
     sendMessage,
     BudgetExceededError,
+    isRecipeToolStatus,
 } from '@/services/chatService';
+import type { CookingContext } from '@/types/irmixy';
 import i18n from '@/i18n';
-
-import { isRecipeToolStatus } from '@/services/chatService';
 
 const CHUNK_BATCH_MS = 50;
 const SCROLL_DELAY_MS = 100;
+const LOADING_TIMEOUT_MS = 60_000; // Force-reset isLoading after 60s (hung SSE recovery)
 
 interface UseMessageStreamingParams {
     user: User | null;
@@ -32,6 +33,8 @@ interface UseMessageStreamingParams {
     onResumeSessionClear: () => void;
     onBudgetWarning?: (warning: BudgetWarningPayload) => void;
     onBudgetExceeded?: (error: BudgetExceededError) => void;
+    /** Structured cooking context — sent as a separate field in the request body */
+    cookingContext?: CookingContext;
     onActionsReceived?: (actions: import('@/types/irmixy').Action[], response: import('@/types/irmixy').IrmixyResponse) => void;
 }
 
@@ -52,6 +55,7 @@ export function useMessageStreaming({
     onResumeSessionClear,
     onBudgetWarning,
     onBudgetExceeded,
+    cookingContext,
     onActionsReceived,
 }: UseMessageStreamingParams) {
     const isMountedRef = useRef(true);
@@ -63,7 +67,6 @@ export function useMessageStreaming({
 
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [isStreaming, setIsStreaming] = useState(false);
     const [isRecipeGenerating, setIsRecipeGenerating] = useState(false);
     const [currentStatus, setCurrentStatus] = useState<IrmixyStatus>(null);
 
@@ -78,7 +81,7 @@ export function useMessageStreaming({
         assistantIndexRef.current = null;
         streamRequestIdRef.current += 1;
         setIsLoading(false);
-        setIsStreaming(false);
+
         setIsRecipeGenerating(false);
         setCurrentStatus(null);
     }, []);
@@ -94,6 +97,16 @@ export function useMessageStreaming({
             }
         };
     }, []);
+
+    // Safety net: force-reset loading state if SSE connection hangs
+    useEffect(() => {
+        if (!isLoading) return;
+        const timeoutId = setTimeout(() => {
+            if (__DEV__) console.warn('[Chat] Loading timeout — force-resetting after 60s');
+            resetStreamingState();
+        }, LOADING_TIMEOUT_MS);
+        return () => clearTimeout(timeoutId);
+    }, [isLoading, resetStreamingState]);
 
     /**
      * Helper to find and update the assistant message by ID.
@@ -120,7 +133,7 @@ export function useMessageStreaming({
         });
     }, [setMessages]);
 
-    const handleSendMessage = useCallback(async (messageText: string) => {
+    const handleSendMessage = useCallback(async (messageText: string, options?: { silent?: boolean }) => {
         if (!messageText.trim() || !user || isLoading) return;
 
         onResumeSessionClear();
@@ -149,13 +162,15 @@ export function useMessageStreaming({
                 content: '',
                 createdAt: new Date(),
             };
-            const nextMessages = [...prev, userMessage, assistantMessage];
+            const nextMessages = options?.silent
+                ? [...prev, assistantMessage]
+                : [...prev, userMessage, assistantMessage];
             assistantIndexRef.current = nextMessages.length - 1;
             return nextMessages;
         });
         setInputText('');
         setIsLoading(true);
-        setIsStreaming(false);
+
         setCurrentStatus('thinking');
 
         isNearBottomRef.current = true;
@@ -191,7 +206,7 @@ export function useMessageStreaming({
                 // onChunk — positional arg 3
                 (chunk) => {
                     if (!isActiveRequest()) return;
-                    setIsStreaming(true);
+
                     chunkBufferRef.current += chunk;
                     if (!chunkTimerRef.current) {
                         chunkTimerRef.current = setTimeout(() => {
@@ -220,19 +235,11 @@ export function useMessageStreaming({
                 () => {
                     if (!isActiveRequest()) return;
                     setIsLoading(false);
-                    setIsStreaming(false);
+            
                 },
                 // onPartialRecipe
                 (partialRecipe) => {
                     if (!isActiveRequest()) return;
-
-                    if (__DEV__) {
-                        console.log('[ChatScreen] onPartialRecipe received:', {
-                            recipeName: partialRecipe.suggestedName,
-                            hasIngredients: !!partialRecipe.ingredients?.length,
-                            hasSteps: !!partialRecipe.steps?.length,
-                        });
-                    }
 
                     hasRecipeInCurrentStreamRef.current = true;
 
@@ -256,18 +263,6 @@ export function useMessageStreaming({
                 (response) => {
                     if (!isActiveRequest()) return;
 
-                    if (__DEV__) {
-                        console.log('[ChatScreen] onComplete received:', {
-                            hasMessage: !!response.message,
-                            messagePreview: response.message?.substring(0, 50),
-                            hasCustomRecipe: !!response.customRecipe,
-                            customRecipeName: response.customRecipe?.suggestedName,
-                            hasRecipes: !!response.recipes?.length,
-                            hasActions: !!response.actions?.length,
-                            safetyFlags: response.safetyFlags,
-                        });
-                    }
-
                     if (chunkTimerRef.current) {
                         clearTimeout(chunkTimerRef.current);
                         chunkTimerRef.current = null;
@@ -290,16 +285,6 @@ export function useMessageStreaming({
                         }
                         if (response.customRecipe && response.message) {
                             finalContent = response.message;
-                        }
-
-                        if (__DEV__) {
-                            console.log('[ChatScreen] Updated message:', {
-                                messageId: msg.id,
-                                hasCustomRecipe: !!response.customRecipe || !!msg.customRecipe,
-                                recipeName: response.customRecipe?.suggestedName ?? msg.customRecipe?.suggestedName,
-                                hasBufferedContent: !!bufferedContent,
-                                usedResponseMessage: !!((!finalContent || finalContent === response.message) && response.message),
-                            });
                         }
 
                         return {
@@ -330,13 +315,15 @@ export function useMessageStreaming({
                     }
 
                     setIsLoading(false);
-                    setIsStreaming(false);
+            
                     setIsRecipeGenerating(false);
                     setCurrentStatus(null);
                     hasRecipeInCurrentStreamRef.current = false;
                     completedSuccessfully = true;
                 },
-                undefined, // options
+                {
+                    ...(cookingContext ? { cookingContext } : {}),
+                }, // options
                 onBudgetWarning,
             );
 
@@ -369,9 +356,9 @@ export function useMessageStreaming({
             // Handle budget exceeded — notify parent, don't show as generic error
             if (error instanceof BudgetExceededError) {
                 onBudgetExceeded?.(error);
-                // Remove both optimistic messages in one atomic update.
+                // Remove optimistic messages in one atomic update.
                 setMessages(prev =>
-                    prev.filter(m => m.id !== assistantMessageId && m.id !== userMessage.id),
+                    prev.filter(m => m.id !== assistantMessageId && (options?.silent || m.id !== userMessage.id)),
                 );
                 return;
             }
@@ -405,13 +392,14 @@ export function useMessageStreaming({
         } finally {
             if (isActiveRequest() && !completedSuccessfully) {
                 setIsLoading(false);
-                setIsStreaming(false);
+        
                 setIsRecipeGenerating(false);
                 setCurrentStatus(null);
             }
             streamCancelRef.current = null;
         }
     }, [
+        cookingContext,
         currentSessionId,
         isLoading,
         onSessionCreated,
@@ -439,10 +427,10 @@ export function useMessageStreaming({
         inputText,
         setInputText,
         isLoading,
-        isStreaming,
         isRecipeGenerating,
         currentStatus,
         handleSend,
+        handleSendMessage,
         resetStreamingState,
     };
 }

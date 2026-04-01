@@ -32,4 +32,5 @@ export interface UserProfile {
   updatedAt: string;
   otherAllergy?: string[];
   otherDiet?: string[];
+  kitchenEquipment?: string[];
 }

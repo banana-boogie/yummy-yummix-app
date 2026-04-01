@@ -9,8 +9,10 @@ import { AICompletionRequest, AICompletionResponse } from "../types.ts";
 import {
   callOpenAICompatible,
   callOpenAICompatibleStream,
+  callOpenAICompatibleStreamWithTools,
   type OpenAICompatibleConfig,
   type OpenAICompatibleStreamResult,
+  type OpenAICompatibleToolStreamResult,
 } from "./openai-compatible.ts";
 
 const XAI_CHAT_URL = "https://api.x.ai/v1/chat/completions";
@@ -46,4 +48,19 @@ export async function callXAIStream(
   apiKey: string,
 ): Promise<XAIStreamResult> {
   return callOpenAICompatibleStream(XAI_CONFIG, request, model, apiKey);
+}
+
+export type XAIToolStreamResult = OpenAICompatibleToolStreamResult;
+
+export async function callXAIStreamWithTools(
+  request: AICompletionRequest,
+  model: string,
+  apiKey: string,
+): Promise<XAIToolStreamResult> {
+  return callOpenAICompatibleStreamWithTools(
+    XAI_CONFIG,
+    request,
+    model,
+    apiKey,
+  );
 }

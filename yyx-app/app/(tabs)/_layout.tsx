@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, TouchableOpacity, Platform } from 'react-native';
 import { Image } from 'expo-image';
-import { Tabs, Redirect, usePathname, Link } from 'expo-router';
+import { Tabs, Redirect, usePathname, Link, router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { VoiceSessionProvider } from '@/contexts/VoiceSessionContext';
+import { CookingSessionProvider } from '@/contexts/CookingSessionContext';
 import { useDevice } from '@/hooks/useDevice';
 import { useTabBarVisibility } from '@/hooks/useTabBarVisibility';
 import { COLORS, LAYOUT, SPACING } from '@/constants/design-tokens';
@@ -20,7 +21,7 @@ type TabConfigItem = {
 };
 
 const TAB_CONFIG: TabConfigItem[] = [
-  { name: 'recipes', icon: 'sparkles-outline', iconActive: 'sparkles', href: '/recipes' },
+  { name: 'recipes', icon: 'compass-outline', iconActive: 'compass', href: '/recipes' },
   { name: 'chat', image: require('@/assets/images/irmixy-avatar/irmixy-face.png'), href: '/chat' },
   { name: 'profile', icon: 'person-outline', iconActive: 'person', href: '/profile' },
 ];
@@ -33,6 +34,7 @@ export default function TabLayout() {
   if (!user) return <Redirect href="/auth/signup" />;
 
   return (
+    <CookingSessionProvider>
     <VoiceSessionProvider>
       <View className="flex-1 flex-row">
         {isLarge && <Sidebar />}
@@ -55,6 +57,7 @@ export default function TabLayout() {
         </Tabs>
       </View>
     </VoiceSessionProvider>
+    </CookingSessionProvider>
   );
 }
 
@@ -151,6 +154,22 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
     );
   };
 
+  const handleTabPress = useCallback((tabName: string, tabIndex: number, isActive: boolean) => {
+    const tab = TAB_CONFIG[tabIndex];
+    if (isActive) {
+      // If on a nested screen (e.g. recipe detail), navigate to tab root
+      const nestedState = state.routes[tabIndex]?.state;
+      if (nestedState && nestedState.index != null && nestedState.index > 0) {
+        router.navigate(tab.href);
+        return;
+      }
+      // At root — emit tabPress so screen listeners (e.g. scroll-to-top) fire
+      navigation.emit({ type: 'tabPress' });
+      return;
+    }
+    navigation.navigate(tabName);
+  }, [navigation, state]);
+
   // Don't show tab bar on mobile web or when it should be hidden based on route
   if ((isWeb && isPhone) || !showTabBar) return null;
 
@@ -168,7 +187,7 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
       }}
     >
       <View className="flex-row items-center justify-around px-lg">
-        {TAB_CONFIG.map((tab) => {
+        {TAB_CONFIG.map((tab, tabIndex) => {
           const isActive = activeRouteName === tab.name;
           const iconSize = tab.image ? (isActive ? 34 : 32) : (isActive ? 26 : 24);
 
@@ -176,7 +195,7 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
             <TouchableOpacity
               key={tab.name}
               className="items-center justify-center py-xxs"
-              onPress={() => navigation.navigate(tab.name)}
+              onPress={() => handleTabPress(tab.name, tabIndex, isActive)}
               activeOpacity={0.7}
               style={{ minWidth: SPACING.xxl }}
             >

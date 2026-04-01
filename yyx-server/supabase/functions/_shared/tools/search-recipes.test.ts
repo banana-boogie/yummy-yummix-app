@@ -4,14 +4,25 @@ import {
   assertExists,
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { clearAllergenCache } from "../allergen-filter.ts";
+import type { RecipeCard } from "../irmixy-schemas.ts";
 import {
   filterByAllKeywords,
   formatRestrictionLabel,
+  getAlreadyShownRecipeIds,
   RESTRICTION_LABELS,
   searchRecipes,
 } from "./search-recipes.ts";
-
+import type { SearchRecipeResult } from "./search-recipes.ts";
 type MockResult = { data: unknown; error: unknown };
+
+/** Narrow SearchRecipeResult to RecipeCard[] — fails the test if it's a DedupFilteredResult. */
+function asRecipeCards(result: SearchRecipeResult): RecipeCard[] {
+  assert(
+    Array.isArray(result),
+    "Expected RecipeCard[] but got DedupFilteredResult",
+  );
+  return result;
+}
 
 function createMockSupabase(config: {
   searchRecipesData: unknown[];
@@ -137,7 +148,9 @@ function createUserContext(
     ingredientDislikes: [],
     skillLevel: null,
     householdSize: null,
-    conversationHistory: [],
+    conversationHistory: [] as Array<
+      { role: string; content: string; metadata?: any; toolSummary?: string }
+    >,
     dietTypes: [],
     customAllergies: [],
     kitchenEquipment: [],
@@ -163,10 +176,12 @@ Deno.test("searchRecipes adds verification warning when ingredient lookup fails"
     ingredientLookupError: { message: "db unavailable" },
   });
 
-  const result = await searchRecipes(
-    supabase,
-    { maxTime: 30, limit: 5 },
-    createUserContext("en", ["dairy"]),
+  const result = asRecipeCards(
+    await searchRecipes(
+      supabase,
+      { maxTime: 30, limit: 5 },
+      createUserContext("en", ["dairy"]),
+    ),
   );
 
   assertEquals(result.length, 1);
@@ -199,10 +214,12 @@ Deno.test("searchRecipes adds verification warning when allergen map is empty", 
     allergenGroupsData: [],
   });
 
-  const result = await searchRecipes(
-    supabase,
-    { maxTime: 30, limit: 5 },
-    createUserContext("es", ["dairy"]),
+  const result = asRecipeCards(
+    await searchRecipes(
+      supabase,
+      { maxTime: 30, limit: 5 },
+      createUserContext("es", ["dairy"]),
+    ),
   );
 
   assertEquals(result.length, 1);
@@ -245,10 +262,12 @@ Deno.test("searchRecipes post-filters by query text across translations", async 
     recipeTagJoinsData: [],
   });
 
-  const result = await searchRecipes(
-    supabase,
-    { query: "tinga", limit: 5 },
-    createUserContext("en"),
+  const result = asRecipeCards(
+    await searchRecipes(
+      supabase,
+      { query: "tinga", limit: 5 },
+      createUserContext("en"),
+    ),
   );
 
   // Post-filtering should only keep the recipe whose translation names contain "tinga"
@@ -322,10 +341,12 @@ Deno.test("searchRecipes query mode keeps near-over-time matches and ranks them 
     ],
   });
 
-  const result = await searchRecipes(
-    supabase,
-    { query: "pasta", maxTime: 30, limit: 5 },
-    createUserContext("en"),
+  const result = asRecipeCards(
+    await searchRecipes(
+      supabase,
+      { query: "pasta", maxTime: 30, limit: 5 },
+      createUserContext("en"),
+    ),
   );
 
   // Query searches should broaden candidates and rank by proximity.
@@ -473,4 +494,224 @@ Deno.test("filterByAllKeywords - partial tag match works", () => {
   ];
   const result = filterByAllKeywords(recipes, "chicken pasta");
   assertEquals(result.length, 1);
+});
+
+// ============================================================
+// getAlreadyShownRecipeIds — session deduplication
+// ============================================================
+
+Deno.test("getAlreadyShownRecipeIds returns empty set for empty history", () => {
+  const ids = getAlreadyShownRecipeIds([]);
+  assertEquals(ids.size, 0);
+});
+
+Deno.test("getAlreadyShownRecipeIds extracts recipe IDs from metadata", () => {
+  const history = [
+    {
+      role: "assistant",
+      content: "Here are some recipes",
+      metadata: {
+        recipes: [
+          { recipeId: "aaa", name: "Tinga" },
+          { recipeId: "bbb", name: "Pasta" },
+        ],
+      },
+    },
+    { role: "user", content: "I don't like those" },
+    {
+      role: "assistant",
+      content: "Here are more",
+      metadata: {
+        recipes: [{ recipeId: "ccc", name: "Mole" }],
+      },
+    },
+  ];
+  const ids = getAlreadyShownRecipeIds(history);
+  assertEquals(ids.size, 3);
+  assertEquals(ids.has("aaa"), true);
+  assertEquals(ids.has("bbb"), true);
+  assertEquals(ids.has("ccc"), true);
+});
+
+Deno.test("getAlreadyShownRecipeIds ignores messages without recipe metadata", () => {
+  const history = [
+    { role: "assistant", content: "Hello!", metadata: {} },
+    { role: "user", content: "Hi" },
+    { role: "assistant", content: "No recipes here" },
+  ];
+  const ids = getAlreadyShownRecipeIds(history);
+  assertEquals(ids.size, 0);
+});
+
+Deno.test("getAlreadyShownRecipeIds deduplicates across messages", () => {
+  const history = [
+    {
+      role: "assistant",
+      content: "First",
+      metadata: { recipes: [{ recipeId: "aaa" }] },
+    },
+    {
+      role: "assistant",
+      content: "Second",
+      metadata: { recipes: [{ recipeId: "aaa" }, { recipeId: "bbb" }] },
+    },
+  ];
+  const ids = getAlreadyShownRecipeIds(history);
+  assertEquals(ids.size, 2);
+});
+
+Deno.test("getAlreadyShownRecipeIds skips null/undefined entries in recipes array", () => {
+  const history = [
+    {
+      role: "assistant",
+      content: "Test",
+      metadata: { recipes: [null, undefined, { recipeId: "aaa" }, {}] },
+    },
+  ];
+  const ids = getAlreadyShownRecipeIds(history);
+  assertEquals(ids.size, 1);
+  assertEquals(ids.has("aaa"), true);
+});
+
+Deno.test("searchRecipes multi-word query uses AND logic — 'miso soup' excludes 'Green Soup'", async () => {
+  const supabase = createMockSupabase({
+    searchRecipesData: [
+      {
+        id: "recipe-miso",
+        recipe_translations: [
+          { locale: "en", name: "Miso Soup" },
+          { locale: "es", name: "Sopa de Miso" },
+        ],
+        image_url: null,
+        total_time: 15,
+        difficulty: "easy",
+        portions: 2,
+        recipe_to_tag: [],
+      },
+      {
+        id: "recipe-green",
+        recipe_translations: [
+          { locale: "en", name: "Green Soup" },
+          { locale: "es", name: "Sopa Verde" },
+        ],
+        image_url: null,
+        total_time: 25,
+        difficulty: "easy",
+        portions: 4,
+        recipe_to_tag: [],
+      },
+      {
+        id: "recipe-broccoli",
+        recipe_translations: [
+          { locale: "en", name: "Broccoli Soup" },
+          { locale: "es", name: "Sopa de Brócoli" },
+        ],
+        image_url: null,
+        total_time: 30,
+        difficulty: "easy",
+        portions: 4,
+        recipe_to_tag: [],
+      },
+    ],
+    matchingTagsData: [],
+    recipeTagJoinsData: [],
+  });
+
+  const result = asRecipeCards(
+    await searchRecipes(
+      supabase,
+      { query: "miso soup", limit: 10 },
+      createUserContext("en"),
+    ),
+  );
+
+  // AND logic: individual terms "miso" AND "soup" must both match.
+  // "Miso Soup" matches both. "Green Soup" only matches "soup". "Broccoli Soup" only matches "soup".
+  assertEquals(result.length, 1);
+  assertEquals(result[0].name, "Miso Soup");
+});
+
+Deno.test("searchRecipes single-word query 'soup' still returns all soups", async () => {
+  const supabase = createMockSupabase({
+    searchRecipesData: [
+      {
+        id: "recipe-miso",
+        recipe_translations: [{ locale: "en", name: "Miso Soup" }],
+        image_url: null,
+        total_time: 15,
+        difficulty: "easy",
+        portions: 2,
+        recipe_to_tag: [],
+      },
+      {
+        id: "recipe-green",
+        recipe_translations: [{ locale: "en", name: "Green Soup" }],
+        image_url: null,
+        total_time: 25,
+        difficulty: "easy",
+        portions: 4,
+        recipe_to_tag: [],
+      },
+    ],
+    matchingTagsData: [],
+    recipeTagJoinsData: [],
+  });
+
+  const result = asRecipeCards(
+    await searchRecipes(
+      supabase,
+      { query: "soup", limit: 10 },
+      createUserContext("en"),
+    ),
+  );
+
+  // Single word "soup" — getSearchTerms returns ["soup"], which is both the full phrase
+  // and the only individual term. Both recipes match.
+  assertEquals(result.length, 2);
+});
+
+Deno.test("searchRecipes filters out already-shown recipes", async () => {
+  const supabase = createMockSupabase({
+    searchRecipesData: [
+      {
+        id: "recipe-1",
+        recipe_translations: [{ locale: "en", name: "Tinga" }],
+        image_url: null,
+        total_time: 25,
+        difficulty: "easy",
+        portions: 2,
+        recipe_to_tag: [],
+      },
+      {
+        id: "recipe-2",
+        recipe_translations: [{ locale: "en", name: "Mole" }],
+        image_url: null,
+        total_time: 45,
+        difficulty: "easy",
+        portions: 4,
+        recipe_to_tag: [],
+      },
+    ],
+  });
+
+  const ctx = createUserContext("en");
+  ctx.conversationHistory = [
+    {
+      role: "assistant",
+      content: "Here's tinga",
+      metadata: { recipes: [{ recipeId: "recipe-1" }] },
+    },
+  ];
+
+  // Filter-only search — both recipes returned by mock, dedup removes recipe-1
+  const result = asRecipeCards(
+    await searchRecipes(
+      supabase,
+      { maxTime: 60, limit: 5 },
+      ctx,
+    ),
+  );
+
+  assertEquals(result.length, 1);
+  assertEquals(result[0].recipeId, "recipe-2");
 });

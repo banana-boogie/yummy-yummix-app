@@ -17,8 +17,10 @@ import {
 import {
   callOpenAICompatible,
   callOpenAICompatibleStream,
+  callOpenAICompatibleStreamWithTools,
   type OpenAICompatibleConfig,
   type OpenAICompatibleStreamResult,
+  type OpenAICompatibleToolStreamResult,
 } from "./openai-compatible.ts";
 
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
@@ -55,6 +57,21 @@ export async function callOpenAIStream(
   apiKey: string,
 ): Promise<OpenAIStreamResult> {
   return callOpenAICompatibleStream(OPENAI_CONFIG, request, model, apiKey);
+}
+
+export type OpenAIToolStreamResult = OpenAICompatibleToolStreamResult;
+
+export async function callOpenAIStreamWithTools(
+  request: AICompletionRequest,
+  model: string,
+  apiKey: string,
+): Promise<OpenAIToolStreamResult> {
+  return callOpenAICompatibleStreamWithTools(
+    OPENAI_CONFIG,
+    request,
+    model,
+    apiKey,
+  );
 }
 
 // =============================================================================

@@ -10,7 +10,7 @@
 
 import { supabase } from '@/lib/supabase';
 import EventSource from 'react-native-sse';
-import type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, Action } from '@/types/irmixy';
+import type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, Action, CookingContext } from '@/types/irmixy';
 import i18n from '@/i18n';
 
 export interface ChatMessage {
@@ -44,7 +44,22 @@ export const isRecipeToolStatus = (status: IrmixyStatus): boolean =>
     status === 'cooking_it_up' || status === 'generating';
 
 // Re-export types for convenience
-export type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, Action };
+export type { IrmixyResponse, IrmixyStatus, RecipeCard, GeneratedRecipe, SafetyFlags, Action, CookingContext };
+
+interface ChatMessageRow {
+    id: string;
+    role: string;
+    content: string;
+    created_at: string;
+    tool_calls: string | Record<string, unknown> | null;
+}
+
+interface ChatSessionRow {
+    id: string;
+    title: string | null;
+    created_at: string;
+    source: string | null;
+}
 
 // Constants
 const MAX_MESSAGE_LENGTH = 2000;
@@ -93,7 +108,8 @@ export interface StreamHandle {
 }
 
 export interface SendMessageOptions {
-    // Reserved for future options
+    /** Structured cooking context — backend injects into system prompt */
+    cookingContext?: CookingContext;
 }
 
 export type SSERouteAction = 'continue' | 'resolve' | 'reject';
@@ -236,12 +252,6 @@ export function routeSSEMessage(
             return { action: 'continue' };
 
         case 'recipe_partial':
-            if (__DEV__) {
-                console.log('[SSE] recipe_partial event received:', {
-                    hasRecipe: !!data.recipe,
-                    recipeName: (data.recipe as any)?.suggestedName,
-                });
-            }
             try {
                 if (data.recipe) {
                     callbacks.onPartialRecipe?.(data.recipe as GeneratedRecipe);
@@ -252,14 +262,6 @@ export function routeSSEMessage(
             return { action: 'continue' };
 
         case 'done':
-            if (__DEV__) {
-                console.log('[SSE] done event received:', {
-                    hasResponse: !!data.response,
-                    responseKeys: data.response ? Object.keys(data.response as object) : [],
-                    hasCustomRecipe: !!(data.response as any)?.customRecipe,
-                    customRecipeName: (data.response as any)?.customRecipe?.suggestedName,
-                });
-            }
             try {
                 if (data.response) {
                     callbacks.onComplete?.(data.response as IrmixyResponse);
@@ -317,7 +319,7 @@ export function sendMessage(
         let hasReceivedData = false;
 
         // Retry loop with exponential backoff
-        while (retryCount <= MAX_RETRIES) {
+        while (retryCount < MAX_RETRIES) {
             // Reset for each retry
             connectionError = null;
             hasReceivedData = false;
@@ -371,6 +373,7 @@ export function sendMessage(
                     const requestBody: Record<string, unknown> = {
                         message,
                         sessionId,
+                        ...(options?.cookingContext ? { cookingContext: options.cookingContext } : {}),
                     };
 
                     // Create EventSource with POST method and body
@@ -411,11 +414,6 @@ export function sendMessage(
                         try {
                             const json = JSON.parse(event.data);
 
-                            // Debug: log important SSE events
-                            if (__DEV__ && (json.type === 'done' || json.type === 'recipe_partial')) {
-                                console.log('[SSE] Raw message:', JSON.stringify(json).substring(0, 500));
-                            }
-
                             const routeResult = routeSSEMessage(json, {
                                 onChunk,
                                 onSessionId,
@@ -447,7 +445,6 @@ export function sendMessage(
                     });
 
                     es.addEventListener('error', (event: any) => {
-                        if (__DEV__) console.error('[SSE] Connection error:', event, 'hasReceivedData:', hasReceivedData);
                         es?.close();
 
                         const budgetError = parseBudgetExceededErrorFromSSEEvent(event);
@@ -457,6 +454,7 @@ export function sendMessage(
                             return;
                         }
 
+                        if (__DEV__) console.error('[SSE] Connection error:', event, 'hasReceivedData:', hasReceivedData);
                         connectionError = new Error(event.message || 'SSE connection failed');
                         rejectConnection(connectionError);
                     });
@@ -532,18 +530,20 @@ export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]>
 
     if (error) throw error;
 
-    return (data || []).map((msg: any) => {
-        let toolCalls: any = msg.tool_calls;
-        if (typeof toolCalls === 'string') {
+    return (data || []).map((msg: ChatMessageRow) => {
+        let toolCalls: Record<string, unknown> | null = null;
+        if (typeof msg.tool_calls === 'string') {
             try {
-                toolCalls = JSON.parse(toolCalls);
+                toolCalls = JSON.parse(msg.tool_calls);
             } catch {
                 toolCalls = null;
             }
+        } else {
+            toolCalls = msg.tool_calls;
         }
         const message: ChatMessage = {
             id: msg.id,
-            role: msg.role,
+            role: msg.role as ChatMessage['role'],
             content: msg.content,
             createdAt: new Date(msg.created_at),
         };
@@ -551,16 +551,16 @@ export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]>
         // Parse recipes and customRecipe from tool_calls if present (assistant messages)
         if (msg.role === 'assistant' && toolCalls) {
             if (toolCalls.recipes) {
-                message.recipes = toolCalls.recipes;
+                message.recipes = toolCalls.recipes as RecipeCard[];
             }
             if (toolCalls.customRecipe) {
-                message.customRecipe = toolCalls.customRecipe;
+                message.customRecipe = toolCalls.customRecipe as GeneratedRecipe;
             }
             if (toolCalls.safetyFlags) {
-                message.safetyFlags = toolCalls.safetyFlags;
+                message.safetyFlags = toolCalls.safetyFlags as SafetyFlags;
             }
             if (toolCalls.actions) {
-                message.actions = toolCalls.actions;
+                message.actions = toolCalls.actions as Action[];
             }
         }
 
@@ -585,11 +585,11 @@ export async function loadChatSessions(): Promise<
         .select('id, title, created_at, source')
         .eq('user_id', userData.user.id)
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(10);
 
     if (error) throw error;
 
-    return (data || []).map((session: any) => ({
+    return (data || []).map((session: ChatSessionRow) => ({
         id: session.id,
         title: session.title || i18n.t('chat.newChatTitle'),
         createdAt: new Date(session.created_at),

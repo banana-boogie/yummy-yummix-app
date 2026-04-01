@@ -26,6 +26,7 @@ Custom PostgreSQL functions available via Supabase RPC.
 | `upsert_cooking_session_progress(recipe_id, recipe_type, recipe_name, current_step, total_steps)` | Upsert active cooking progress per user+recipe | Cooking guide progress + resume prompt |
 | `get_cooked_recipes(p_language, p_query, p_after, p_before, p_limit)` | Retrieve user's cooked recipe history with optional search and date range | Cooked recipes tool |
 | `match_recipe_embeddings(query_embedding, match_threshold, match_count)` | Vector similarity search for published recipes | Hybrid recipe search tool |
+| `admin_set_membership_tier(target_user_id, new_tier)` | Change a user's membership tier (free/premium) | Admin dashboard, SQL Editor |
 
 ## Function Details
 
@@ -136,6 +137,35 @@ Retrieve the current user's cooked recipe history, optionally filtered by search
 - Deduplicates by recipe: if cooked multiple times, returns only the most recent
 - When `p_query` is provided, results are sorted by `match_score DESC`, then `cooked_at DESC`
 - When `p_query` is null, results are sorted by `cooked_at DESC` only
+
+### `admin_set_membership_tier(target_user_id, new_tier)`
+
+Change a user's membership tier. Admin-only when called from the app; also callable from Dashboard SQL Editor (no auth context).
+
+**Parameters:**
+- `target_user_id` (uuid): The user whose tier to change
+- `new_tier` (text): New tier value — must exist in `ai_membership_tiers` table (currently `'free'` or `'premium'`)
+
+**Returns:** void
+
+**Example:**
+```sql
+-- From Dashboard SQL Editor
+SELECT admin_set_membership_tier('a1b2c3d4-...', 'premium');
+
+-- From app (admin users only)
+await supabase.rpc('admin_set_membership_tier', {
+  target_user_id: userId,
+  new_tier: 'premium',
+});
+```
+
+**Security/Behavior:**
+- `SECURITY DEFINER` — bypasses the `prevent_client_membership_tier_update` trigger
+- When `auth.uid()` is set (app context), caller must have `is_admin = true` in `user_profiles`
+- When `auth.uid()` is null (Dashboard SQL Editor), allows through — Dashboard access is already protected by project credentials
+- Validates tier against `ai_membership_tiers` table
+- Granted to `authenticated` role (admin check is inside the function)
 
 ---
 

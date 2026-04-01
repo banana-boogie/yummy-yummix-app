@@ -45,11 +45,11 @@ Group the changed files from the diff into these areas:
 
 Read the following project standards files for context:
 - `docs/agent-guidelines/REVIEW-CRITERIA.md` (canonical review criteria, categories, severity, and recommendation logic)
-- `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md` (canonical output sections, finding format, and Next Steps prompt contract)
+- `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md` (canonical output format — two-tier: human summary + AI handoff)
 - `CLAUDE.md` (architecture and key conventions)
 - `docs/operations/TESTING.md` (test patterns and conventions)
 
-### Step 4: Review Criteria
+### Step 4: Full Internal Review
 
 Evaluate the PR against each of the 9 categories defined in `docs/agent-guidelines/REVIEW-CRITERIA.md`:
 
@@ -65,126 +65,57 @@ Evaluate the PR against each of the 9 categories defined in `docs/agent-guidelin
 
 Apply the **Engineering Preferences** from that document throughout. Use the **Severity Levels** (Critical / Warning / Suggestion) and **Recommendation Logic** (PR context column) defined there.
 
-**Finding format** — Follow the format defined in `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md`:
-- Every finding: severity tag, file path, line number (when possible), concrete description, specific recommendation.
-- Critical findings: include 2-3 options with effort/risk/impact/maintenance tradeoffs. Recommended option first.
+For every finding, capture internally:
+- Severity tag, file path, line number (when possible), concrete description, specific recommendation.
+- Critical findings: 2-3 options with effort/risk/impact/maintenance tradeoffs.
 - Warning findings that affect merge risk: also include options/tradeoffs.
-- Suggestion findings: concise, no option matrix needed.
 
-**Documentation check:** Flag when the PR introduces or changes patterns that are documented in `CLAUDE.md`, `docs/agent-guidelines/`, or `docs/architecture/` but the docs weren't updated to match. Look for: new edge functions not listed, changed conventions, new components not added to directory maps, renamed files/directories with stale doc references. Severity: Suggestion for minor gaps, Warning for misleading docs.
+Also prepare:
+- **Highlights** — Good patterns, clean implementations, smart design choices.
+- **Recommendations** — High-value improvements related to the PR but outside Findings. Do NOT repeat findings.
+- **Potential Misses** — Areas the review couldn't fully evaluate.
 
-### Step 4b: Prepare Additional Sections
-
-After completing the review criteria evaluation, prepare material for these additional report sections:
-
-**Highlights** — Acknowledge good patterns, clean implementations, or smart design choices in the PR. Good reviews are balanced — calling out what's done well provides useful context and encourages good practices. Examples: good use of existing utilities, clean separation of concerns, thorough error handling, well-structured commits.
-
-**Recommendations** — High-value improvements **related to the PR but outside what was flagged in Findings**. These are opportunities the author may have missed, not a restatement of issues already found. Think about: adjacent code that could benefit from similar treatment, patterns elsewhere in the codebase worth adopting, opportunities this change opens up, missing tests for related (not just changed) code, documentation that would help future developers. **Do NOT repeat issues already listed in Findings.** Rank by impact vs effort. Format as a table with Rank, Recommendation, Impact, Effort, and Rationale columns.
-
-**Potential Misses** — Areas this review may have missed or couldn't fully evaluate. Think about: Files you couldn't read, runtime behavior you can't verify from a diff, integration concerns, UX flows, accessibility, areas where the diff was too large to review thoroughly, transitive dependencies.
-
-**Next Steps** — A self-contained prompt for an implementation agent, following the contract in `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md`. The prompt must:
-1. List **every** finding from the review (all Critical, Warning, and Suggestion) with severity, file:line, and description
-2. List Recommendations worth implementing
-3. Instruct the agent to: read relevant files, create an implementation plan addressing all Critical/Warning findings plus selected Suggestions/Recommendations, implement the plan, run tests/validation
-4. Be fully self-contained — executable without reading this review
+**Documentation check:** Flag when the PR introduces or changes patterns that are documented in `CLAUDE.md`, `docs/agent-guidelines/`, or `docs/architecture/` but the docs weren't updated to match.
 
 ### Step 5: Output the Report
 
-Format findings as a structured report following `docs/agent-guidelines/REVIEW-OUTPUT-SPEC.md`:
+The report has **two sections**: a short human-readable summary, and a detailed Next Steps prompt for the implementing AI.
+
+**Keep the human section short and scannable. Put all the detail in Next Steps.**
 
 ````markdown
 ## PR Review: #<number> — <title>
 
-**Author:** <author>
-**Branch:** <head> → <base>
-**Changes:** <file count> files | +<additions> -<deletions> (<areas touched>)
-
----
+**Branch:** <head> → <base> | <file count> files | +<additions> -<deletions>
 
 ### CI Status
+- Merge Gate: <pass/fail/pending>
+- App CI: <pass/fail/pending/skipped>
+- Server CI: <pass/fail/pending/skipped>
 
-| Check | Status |
-|-------|--------|
-| Merge Gate | <pass/fail/pending> |
-| App CI (Lint & TypeCheck) | <pass/fail/pending/skipped> |
-| App CI (Test) | <pass/fail/pending/skipped> |
-| Server CI (Format) | <pass/fail/pending/skipped> |
-| Server CI (Unit Tests) | <pass/fail/pending/skipped> |
-| PR Checks | <pass/fail/pending> |
+### Verdict
 
----
+**<APPROVE / COMMENT / REQUEST CHANGES>** — <critical count> critical, <warning count> warnings, <suggestion count> suggestions
 
 ### Highlights
 
 - <good pattern acknowledged>
+- <good pattern acknowledged>
 
----
+### Issues
 
-### Findings
+**Must fix**
+- [Critical] `file:line` — one-sentence description
+- [Warning] `file:line` — one-sentence description
 
-#### Architecture & Design
-- [severity] `file:line` — description
-  - Recommendation: <specific recommendation>
-  - Options: (Critical/merge-risk Warning only)
-    1. **A (Recommended)** ... — Effort: S/M/L, Risk: ..., Impact: ..., Maintenance: ...
-    2. **B** ... — Effort: ..., Risk: ..., Impact: ..., Maintenance: ...
-
-#### Correctness
-- [severity] `file:line` — description
-
-#### Security
-- [severity] `file:line` — description
-
-#### Performance
-- [severity] `file:line` — description
-
-#### Code Quality
-- [severity] `file:line` — description
-
-#### Testing
-- [severity] `file:line` — description
-
-#### i18n
-- [severity] `file:line` — description
-
-#### PR Hygiene
-- [severity] description
-
-#### Documentation
-- [severity] `file:line` — description
-
-(Use *No issues found.* if a category is clean.)
-
----
-
-### Summary
-
-**Critical:** <count> — Must fix before merge
-**Warning:** <count> — Should fix
-**Suggestion:** <count> — Nice to have
-
-**Recommendation:** <APPROVE / COMMENT / REQUEST CHANGES>
-
----
-
-### Recommendations
-
-| Rank | Recommendation | Impact | Effort | Rationale |
-|------|----------------|--------|--------|-----------|
-| 1 | <high-value improvement outside Findings> | High | Low | <reason> |
-| 2 | <opportunity the PR opens up> | Medium | Medium | <reason> |
-
----
-
-### Potential Misses
-
-Areas this review may have missed or couldn't fully evaluate:
-- <what may have been missed and why it is uncertain>
+**Nice to have**
+- [Suggestion] `file:line` — one-sentence description
 
 ---
 
 ### Next Steps
+
+> Copy-paste the prompt below to the implementing AI.
 
 ```text
 You are the implementation agent for PR #<number>.
@@ -193,20 +124,29 @@ You are the implementation agent for PR #<number>.
 
 ### Critical
 - [Critical] `file:line` — description
+  - Recommendation: <specific recommendation>
+  - Options:
+    1. **A (Recommended)** <option> — Effort: S/M/L, Risk: <...>, Impact: <...>
+    2. **B** <option> — Effort: S/M/L, Risk: <...>, Impact: <...>
 
 ### Warning
 - [Warning] `file:line` — description
+  - Recommendation: <specific recommendation>
 
 ## Suggestions — Implement If Worthwhile
 
-### Suggestion
-- [Suggestion] `file:line` — description
+- [Suggestion] `file:line` — description. Recommendation: <what to do>
 
 ## Recommendations — Implement If Worthwhile
 
 | Rank | Recommendation | Impact | Effort |
 |------|----------------|--------|--------|
-| 1 | ... | High | Low |
+| 1 | <high-value improvement outside Findings> | High | Low |
+
+## Potential Misses
+
+Areas the review couldn't fully evaluate:
+- <what was uncertain and why>
 
 ## Workflow
 

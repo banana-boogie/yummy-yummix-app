@@ -1,5 +1,8 @@
 import { View } from 'react-native';
 import { useState, useEffect } from 'react';
+import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
+import { AskIrmixyButton } from '@/components/cooking-guide/AskIrmixyButton';
+import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import * as Haptics from 'expo-haptics';
 import i18n from '@/i18n';
 import { useCustomRecipe } from '@/hooks/useCustomRecipe';
@@ -26,6 +29,7 @@ export default function CustomIngredientsStep() {
   const { recipe } = useCustomRecipe(id as string);
   const [ingredients, setIngredients] = useState<CheckableIngredient[]>([]);
   const { isMobile } = useDevice();
+  const irmixy = useIrmixyHelperChat(id);
 
   const numColumns = 2;
 
@@ -71,32 +75,37 @@ export default function CustomIngredientsStep() {
         scrollEnabled={true}
         contentPaddingHorizontal={0}
         footer={
-          <StepNavigationButtons
-            onBack={() => router.back()}
-            onNext={handleNext}
-            backText={i18n.t('recipes.cookingGuide.navigation.back')}
-            nextText={i18n.t('recipes.cookingGuide.navigation.next')}
-          />
+          <View>
+            <View className="items-center pb-sm pt-xs">
+              <AskIrmixyButton onPress={irmixy.open} />
+            </View>
+            <View className="mx-lg mb-xs">
+              <View className="h-[1px] bg-border-default opacity-30" />
+            </View>
+            <StepNavigationButtons
+              onBack={() => router.back()}
+              onNext={handleNext}
+              backText={i18n.t('recipes.cookingGuide.navigation.back')}
+              nextText={i18n.t('recipes.cookingGuide.navigation.next')}
+            />
+          </View>
         }
       >
         <CookingGuideHeader
           showTitle={false}
           pictureUrl={recipe?.pictureUrl}
           isCustomRecipe={true}
+          onExitPress={() => {
+            if (from === 'chat') {
+              router.replace('/(tabs)/chat');
+            } else {
+              router.replace(`/(tabs)/recipes/custom/${id}`);
+            }
+          }}
         />
 
         <CookingGuidePageHeader
           title={recipe?.name || ''}
-          recipeContext={{
-            type: 'custom',
-            recipeId: id as string,
-            recipeTitle: recipe?.name,
-            stepInstructions: i18n.t('chat.prepareIngredients'),
-            ingredients: ingredients.map(ing => ({
-              name: ing.name,
-              amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
-            }))
-          }}
         />
 
         {/* Content wrapper - centered on desktop with max-width */}
@@ -128,6 +137,21 @@ export default function CustomIngredientsStep() {
         </View>
 
       </PageLayout>
+      <IrmixyCookingModal
+        visible={irmixy.isVisible}
+        onClose={irmixy.close}
+        recipeContext={{
+          type: 'custom',
+          recipeId: id as string,
+          recipeTitle: recipe?.name,
+          stepInstructions: i18n.t('chat.prepareIngredients'),
+          ingredients: ingredients.map(ing => ({
+            name: ing.name,
+            amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
+          }))
+        }}
+        {...irmixy.sessionProps}
+      />
     </View>
   );
 }

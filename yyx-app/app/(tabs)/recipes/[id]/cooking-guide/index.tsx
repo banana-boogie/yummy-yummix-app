@@ -9,21 +9,24 @@ import { CookingGuidePageHeader } from '@/components/cooking-guide/CookingGuideP
 import { MessageBubble } from '@/components/cooking-guide/MessageBubble';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import { useDevice } from '@/hooks/useDevice';
+import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
+import { AskIrmixyButton } from '@/components/cooking-guide/AskIrmixyButton';
+import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import i18n from '@/i18n';
 import { eventService } from '@/services/eventService';
 import { COLORS } from '@/constants/design-tokens';
 
 import * as Haptics from 'expo-haptics';
 
-const contentContainerStyle = { paddingHorizontal: 0, paddingBottom: 180 } as const;
+const contentContainerStyle = { paddingHorizontal: 0 } as const;
 
 export default function CookingGuide() {
   const { id } = useLocalSearchParams();
   const { recipe } = useRecipe(id as string);
   const { isPhone } = useDevice();
+  const irmixy = useIrmixyHelperChat(id as string);
 
-  // Responsive sizes: keep mobile original, make desktop larger
-  const chefSize = isPhone ? { width: 165, height: 270 } : { width: 180, height: 270 };
+  // Responsive sizes
   const checkboxSize = isPhone ? 32 : 40;
   const buttonSize = isPhone ? 'large' : 'medium';
 
@@ -46,70 +49,51 @@ export default function CookingGuide() {
         contentContainerStyle={contentContainerStyle}
         contentPaddingHorizontal={0}
         scrollEnabled={true}
-        footer={
-          <View className="w-full max-w-[800px] self-center relative h-0" pointerEvents="none">
-            <Image
-              source={require('@/assets/images/irmixy-avatar/irmixy-cooking.png')}
-              className="absolute bottom-[-50px] right-0"
-              style={{ width: chefSize.width, height: chefSize.height }}
-              contentFit="contain"
-              cachePolicy="memory-disk"
-            />
-          </View>
-        }
       >
         <CookingGuideHeader
           showTitle={false}
           showSubtitle={false}
           showBackButton={true}
           pictureUrl={recipe?.pictureUrl}
+          onExitPress={() => router.replace(`/(tabs)/recipes/${id}`)}
         />
 
         <CookingGuidePageHeader
           title={recipe?.name || ''}
           subtitle={i18n.t('recipes.cookingGuide.subtitle')}
-          recipeContext={{
-            type: 'recipe',
-            recipeId: id as string,
-            recipeTitle: recipe?.name
-          }}
         />
 
         <View className="px-md">
           <MessageBubble className="mt-xxs">
-            <View className="items-center mb-md">
-              <Text preset="h1" className="text-center text-lg">
-                {i18n.t('recipes.cookingGuide.intro.greeting')}
-              </Text>
-            </View>
-
             <View className="items-center mb-md">
               <Text preset="body" className="text-center text-md">
                 {i18n.t('recipes.cookingGuide.intro.miseEnPlace.one')}
                 <Text preset="body" className="text-center text-md font-bold">
                   {i18n.t('recipes.cookingGuide.intro.miseEnPlace.two')}
                 </Text>
-                <Text preset="body" className="text-center text-md">
-                  {i18n.t('recipes.cookingGuide.intro.miseEnPlace.three')}
-                </Text>
               </Text>
             </View>
 
-            <View className="flex-row flex-wrap items-center justify-center mb-md">
-              <Text preset="body" className="text-center text-md mb-0">
+            <View className="items-center mb-md gap-xs">
+              <Text preset="body" className="text-center text-md">
                 {i18n.t('recipes.cookingGuide.intro.checkboxSteps.checkmark')}
               </Text>
-              <View className="items-center justify-center mx-xs absolute">
-                <Image
-                  source={require('@/assets/images/icons/checkbox-checked.png')}
-                  style={{ width: checkboxSize, height: checkboxSize, top: -5 }}
-                  contentFit="contain"
-                  cachePolicy="memory-disk"
-                />
-              </View>
-              <Text preset="body" className="text-center text-md mb-0">
+              <Image
+                source={require('@/assets/images/icons/checkbox-checked.png')}
+                style={{ width: checkboxSize, height: checkboxSize }}
+                contentFit="contain"
+                cachePolicy="memory-disk"
+              />
+              <Text preset="body" className="text-center text-md">
                 {i18n.t('recipes.cookingGuide.intro.checkboxSteps.steps')}
               </Text>
+            </View>
+
+            <View className="items-center pb-sm pt-xs">
+              <AskIrmixyButton onPress={irmixy.open} />
+            </View>
+            <View className="mx-lg mb-xs">
+              <View className="h-[1px] bg-border-default opacity-30" />
             </View>
 
             <Button
@@ -123,6 +107,16 @@ export default function CookingGuide() {
           </MessageBubble>
         </View>
       </PageLayout>
+      <IrmixyCookingModal
+        visible={irmixy.isVisible}
+        onClose={irmixy.close}
+        recipeContext={{
+          type: 'recipe',
+          recipeId: id as string,
+          recipeTitle: recipe?.name,
+        }}
+        {...irmixy.sessionProps}
+      />
     </View>
   );
 }

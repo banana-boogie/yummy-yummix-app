@@ -1,15 +1,15 @@
 import React from 'react';
-import { View, StyleProp, ViewStyle, StatusBar } from 'react-native';
+import { View, StyleProp, ViewStyle, StatusBar, TouchableOpacity } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text } from '@/components/common/Text';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BackButton } from '@/components/navigation/BackButton';
 import { HamburgerMenu } from '@/components/navigation/HamburgerMenu';
 import { FONTS, TextPreset, COLORS, SPACING } from '@/constants/design-tokens';
-import { Image } from 'expo-image';
+import { SafeImage } from '@/components/common';
 import { useDevice } from '@/hooks/useDevice';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { VoiceAssistantButton } from '@/components/common/VoiceAssistantButton';
-import type { RecipeContext } from '@/services/voice/types';
+import i18n from '@/i18n';
 
 interface CookingGuideHeaderProps {
     title?: string;
@@ -23,10 +23,10 @@ interface CookingGuideHeaderProps {
     style?: StyleProp<ViewStyle>;
     showBackButton?: boolean;
     onBackPress?: () => void;
-    /** Optional recipe context to show VoiceAssistantButton next to title */
-    recipeContext?: RecipeContext;
     /** Flag to indicate custom recipe without image */
     isCustomRecipe?: boolean;
+    /** When provided, renders an X (exit) button in the header */
+    onExitPress?: () => void;
 }
 
 export function CookingGuideHeader({
@@ -41,8 +41,8 @@ export function CookingGuideHeader({
     onBackPress,
     className = '',
     style,
-    recipeContext,
     isCustomRecipe = false,
+    onExitPress,
 }: CookingGuideHeaderProps) {
     const { isLarge, isWeb, isPhone } = useDevice();
     const isWebMobile = isWeb && isPhone;
@@ -61,13 +61,10 @@ export function CookingGuideHeader({
             )}
 
             {showImage && (
-                <View
-                    className="w-full"
-                    style={{ paddingTop: insets.top }}
-                >
+                <View className="w-full">
                     <View className="w-full h-[120px] lg:h-[250px]">
-                        <Image
-                            source={{ uri: pictureUrl }}
+                        <SafeImage
+                            source={pictureUrl}
                             className="w-full h-full"
                             contentFit="cover"
                             transition={300}
@@ -89,13 +86,28 @@ export function CookingGuideHeader({
                         <View
                             className="absolute left-md right-md lg:left-lg lg:right-lg flex-row justify-between items-center z-1"
                             style={{
-                                top: isLarge ? 16 : 10,
+                                top: insets.top + (isLarge ? 16 : 10),
                             }}
                         >
                             {showBackButton && (
                                 <BackButton onPress={onBackPress} className="bg-white/60" />
                             )}
-                            {isWebMobile && <HamburgerMenu style={{ marginLeft: 'auto' }} />}
+                            <View className="flex-row items-center" style={{ marginLeft: 'auto' }}>
+                                {onExitPress && (
+                                    <TouchableOpacity
+                                        onPress={onExitPress}
+                                        className="flex-row items-center rounded-full bg-white/60 px-sm py-xs gap-xxs"
+                                        accessibilityLabel={i18n.t('recipes.cookingGuide.navigation.exitCookingGuide')}
+                                        accessibilityRole="button"
+                                    >
+                                        <MaterialCommunityIcons name="close" size={18} color={COLORS.text.default} />
+                                        <Text className="text-text-default text-sm font-medium">
+                                            {i18n.t('recipes.cookingGuide.navigation.exit')}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                                {isWebMobile && <HamburgerMenu style={{ marginLeft: 8 }} />}
+                            </View>
                         </View>
                     </View>
                 </View>
@@ -105,7 +117,23 @@ export function CookingGuideHeader({
                 className="px-sm mt-md mb-xxs lg:mb-sm lg:max-w-[1000px] lg:self-center lg:w-full"
                 style={{ position: 'relative' }}
             >
-                {!showImage && showBackButton && <BackButton onPress={onBackPress} className="mb-sm bg-black/5" />}
+                <View className="flex-row justify-between items-center">
+                    {!showImage && showBackButton && <BackButton onPress={onBackPress} className="mb-sm bg-black/5" />}
+                    {!showImage && onExitPress && (
+                        <TouchableOpacity
+                            onPress={onExitPress}
+                            className="flex-row items-center rounded-full bg-black/5 px-sm py-xs gap-xxs mb-sm"
+                            accessibilityLabel={i18n.t('recipes.cookingGuide.navigation.exitCookingGuide')}
+                            accessibilityRole="button"
+                            style={{ marginLeft: 'auto' }}
+                        >
+                            <MaterialCommunityIcons name="close" size={18} color={COLORS.text.default} />
+                            <Text className="text-text-default text-sm font-medium">
+                                {i18n.t('recipes.cookingGuide.navigation.exit')}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
 
                 {/* Title */}
                 {showTitle && title !== undefined ? (
@@ -122,15 +150,6 @@ export function CookingGuideHeader({
                     null
                 }
 
-                {recipeContext && (
-                    <View style={{ position: 'absolute', bottom: SPACING.xs, right: SPACING.xs, zIndex: 50 }}>
-                        <VoiceAssistantButton
-                            position="inline"
-                            size="small"
-                            recipeContext={recipeContext}
-                        />
-                    </View>
-                )}
             </View>
         </View>
     );

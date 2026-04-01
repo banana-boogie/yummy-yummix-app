@@ -1,9 +1,12 @@
 // screens/RecipeList.tsx
 import React, { useMemo, useCallback } from 'react';
 import { View, Animated, StyleProp, ViewStyle, ActivityIndicator, NativeSyntheticEvent, NativeScrollEvent, useWindowDimensions } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 
 import { RecipeCard } from '@/components/recipe/RecipeCard';
 import { Text } from '@/components/common/Text';
+import { Button } from '@/components/common/Button';
 import { COLORS, SPACING } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 import { Recipe } from '@/types/recipe.types';
@@ -45,9 +48,10 @@ export const RecipeList: React.FC<RecipeListProps> = ({
   className = '',
   style,
   onScroll,
-  contentContainerStyle
+  contentContainerStyle,
 }) => {
   const { isPhone } = useDevice();
+  const router = useRouter();
   const { width: screenWidth } = useWindowDimensions();
 
   // Determine number of columns based on screen size
@@ -79,8 +83,28 @@ export const RecipeList: React.FC<RecipeListProps> = ({
     if (error) {
       return <Text className="text-center mt-xl text-lg text-text-secondary">{i18n.t('recipes.common.error')}</Text>;
     }
-    return <Text className="text-center mt-xl text-lg text-text-secondary">{i18n.t('recipes.common.noRecipesFound')}</Text>;
-  }, [initialLoading, error]);
+    return (
+      <View className="items-center justify-center pt-[64px]">
+        <Image
+          source={require('@/assets/images/irmixy-avatar/irmixy-face.png')}
+          style={{ width: 80, height: 80, borderRadius: 40 }}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+        />
+        <Text className="text-center mt-md text-base text-text-secondary px-lg">
+          {i18n.t('recipes.common.noResultsIrmixyPrompt')}
+        </Text>
+        <View className="mt-md">
+          <Button
+            variant="primary"
+            size="small"
+            onPress={() => router.navigate('/(tabs)/chat' as any)}
+            label={i18n.t('recipes.common.askIrmixy')}
+          />
+        </View>
+      </View>
+    );
+  }, [initialLoading, error, router]);
 
   // Render footer with loading indicator when loading more
   const renderFooter = useCallback(() => {

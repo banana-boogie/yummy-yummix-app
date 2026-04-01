@@ -1,7 +1,9 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Recipe } from '@/types/recipe.types';
 import { useRecipesInfiniteQuery, flattenRecipePages } from './useRecipeQuery';
 import { useDebounce } from './useDebounce';
+import { semanticRecipeSearch } from '@/services/recipeService';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 // Types to match existing API
 type RecipeFilters = {
@@ -28,11 +30,18 @@ const normalize = (value: string) =>
  *
  * This is the backward-compatible wrapper that maintains the same API
  * but now uses TanStack Query's useInfiniteQuery internally.
+ * When primary results are < 3 and query is > 3 chars, fires semantic
+ * search as a fallback after a 500ms debounce.
  */
 export const useRecipes = (initialFilters: RecipeFilters = { isPublished: true }): RecipesResult => {
   const [filters, setFilters] = useState<RecipeFilters>(initialFilters);
   const [searchInput, setSearchInput] = useState<string>('');
   const debouncedSearchTerm = useDebounce(searchInput.trim(), 300);
+  const { language } = useLanguage();
+
+  // Semantic search fallback state
+  const [semanticResults, setSemanticResults] = useState<Recipe[]>([]);
+  const primaryCountRef = useRef(0);
 
   const {
     data,
@@ -48,7 +57,7 @@ export const useRecipes = (initialFilters: RecipeFilters = { isPublished: true }
   });
 
   // Flatten all pages and apply instant local filtering while debounced search catches up.
-  const recipes = useMemo(() => {
+  const primaryRecipes = useMemo(() => {
     const flattened = flattenRecipePages(data);
     const term = searchInput.trim();
     if (!term) return flattened;
@@ -66,6 +75,59 @@ export const useRecipes = (initialFilters: RecipeFilters = { isPublished: true }
       return searchTerms.every((token) => searchableText.includes(token));
     });
   }, [data, searchInput]);
+
+  // Track primary count in a ref to avoid unstable dependency
+  primaryCountRef.current = primaryRecipes.length;
+
+  // Fire semantic search fallback when primary results < 3 and query > 3 chars
+  useEffect(() => {
+    let isCancelled = false;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+
+    const term = debouncedSearchTerm;
+    if (!term || term.length <= 3 || isLoading) {
+      setSemanticResults([]);
+      return;
+    }
+
+    timerId = setTimeout(async () => {
+      // Check primary count at execution time (via ref) to avoid dependency instability
+      if (primaryCountRef.current >= 3 || isCancelled) return;
+
+      try {
+        const results = await semanticRecipeSearch(term, language, 10);
+        if (isCancelled) return;
+        // Convert semantic results to Recipe-like objects for merging
+        const asRecipes: Recipe[] = results.map((r) => ({
+          id: r.recipeId,
+          name: r.name,
+          pictureUrl: r.imageUrl,
+          totalTime: r.totalTime,
+          difficulty: r.difficulty as Recipe['difficulty'],
+          portions: r.portions,
+          ingredients: [],
+          tags: [],
+          steps: [],
+        }));
+        setSemanticResults(asRecipes);
+      } catch {
+        if (!isCancelled) setSemanticResults([]);
+      }
+    }, 500);
+
+    return () => {
+      isCancelled = true;
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [debouncedSearchTerm, isLoading, language]);
+
+  // Merge primary + semantic, deduplicating by ID
+  const recipes = useMemo(() => {
+    if (semanticResults.length === 0) return primaryRecipes;
+    const existingIds = new Set(primaryRecipes.map(r => r.id));
+    const newFromSemantic = semanticResults.filter(r => !existingIds.has(r.id));
+    return [...primaryRecipes, ...newFromSemantic];
+  }, [primaryRecipes, semanticResults]);
 
   // Load more recipes (next page)
   const loadMore = useCallback(async () => {

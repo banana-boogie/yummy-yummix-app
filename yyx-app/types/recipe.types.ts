@@ -61,6 +61,8 @@ export interface RecipeStep {
   recipeSection: string | null;
   thermomix?: ThermomixSettings;
   tip?: string | null;
+  /** Explicit timer duration in seconds for non-Thermomix steps. */
+  timerSeconds?: number | null;
   ingredients: RecipeStepIngredient[];
 }
 

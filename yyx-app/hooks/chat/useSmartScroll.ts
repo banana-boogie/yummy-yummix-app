@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { FlatList } from 'react-native';
+import { FlatList, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 
 const SCROLL_THROTTLE_MS = 100;
 const SCROLL_THRESHOLD = 100;
@@ -57,7 +57,7 @@ export function useSmartScroll({
         }
     }, [hasRecipeInCurrentStreamRef]);
 
-    const handleScroll = useCallback((event: any) => {
+    const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
         const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
 

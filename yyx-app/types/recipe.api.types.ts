@@ -127,6 +127,8 @@ export interface RawRecipeStep {
   thermomix_temperature: ThermomixTemperature | null;
   thermomix_temperature_unit: ThermomixTemperatureUnit | null;
   thermomix_is_blade_reversed: boolean | null;
+  thermomix_mode?: string | null;
+  timer_seconds?: number | null;
   step_ingredients?: RawStepIngredient[];
   translations: RecipeStepTranslation[];
 }

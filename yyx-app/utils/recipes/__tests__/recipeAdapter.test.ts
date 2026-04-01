@@ -392,6 +392,7 @@ describe('recipeAdapter', () => {
         temperatureUnit: 'C',
         speed: { type: 'single', value: 5 },
         isBladeReversed: false,
+        mode: null,
       });
     });
 
@@ -415,6 +416,7 @@ describe('recipeAdapter', () => {
         temperatureUnit: 'C',
         speed: { type: 'single', value: 5 },
         isBladeReversed: false,
+        mode: null,
       });
     });
 
@@ -439,6 +441,7 @@ describe('recipeAdapter', () => {
         temperatureUnit: 'C',
         speed: { type: 'single', value: 1 },
         isBladeReversed: false,
+        mode: null,
       });
     });
 
@@ -462,6 +465,7 @@ describe('recipeAdapter', () => {
         temperatureUnit: 'C',
         speed: { type: 'single', value: 'spoon' },
         isBladeReversed: false,
+        mode: null,
       });
     });
 
@@ -485,6 +489,7 @@ describe('recipeAdapter', () => {
         temperatureUnit: 'C',
         speed: { type: 'single', value: null },
         isBladeReversed: true,
+        mode: null,
       });
     });
 

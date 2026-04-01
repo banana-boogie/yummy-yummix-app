@@ -135,7 +135,8 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
             speed: speed,
             temperature: temperature,
             temperatureUnit: measurementSystem === 'imperial' ? 'F' : 'C',
-            isBladeReversed: recipeStep.thermomix_is_blade_reversed || null
+            isBladeReversed: recipeStep.thermomix_is_blade_reversed || null,
+            mode: recipeStep.thermomix_mode || null,
           };
         }
 
@@ -148,6 +149,7 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
           instruction: formatInstruction(instruction, thermomix, measurementSystem),
           recipeSection: stepTranslation?.recipe_section ?? null,
           tip,
+          timerSeconds: (recipeStep as any).timer_seconds ?? null,
           ingredients,
           thermomix
         };
