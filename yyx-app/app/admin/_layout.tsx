@@ -80,8 +80,8 @@ function AdminSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: (
 
   return (
     <View
-      className="bg-white border-r border-grey-default"
-      style={{ width: collapsed ? 56 : 220, paddingTop: 16, paddingBottom: 16 }}
+      className="bg-white border-r border-grey-default py-md"
+      style={{ width: collapsed ? 56 : 220 }}
     >
       {/* Toggle + title */}
       <View className={`flex-row items-center ${collapsed ? 'justify-center' : 'justify-between px-lg'} mb-lg`}>
@@ -98,7 +98,7 @@ function AdminSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: (
       {/* Back to App */}
       <SidebarItem
         icon="home-outline"
-        label="Back to App"
+        label={i18n.t('admin.common.backToApp', { defaultValue: 'Back to App' })}
         active={false}
         collapsed={collapsed}
         onPress={() => router.push('/')}

@@ -173,7 +173,7 @@ export default function IngredientsAdminPage() {
 
         {/* Search + New */}
         <View className="flex-row items-center gap-sm">
-          <View className="flex-1" style={{ marginBottom: -16 }}>
+          <View className="flex-1 -mb-md">
             <SearchBar
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
@@ -204,7 +204,7 @@ export default function IngredientsAdminPage() {
           extraData={`${displayLocale}-${ingredientFilter}`}
           numColumns={numColumns}
           renderItem={({ item }) => (
-            <View style={{ flex: 1 / numColumns, padding: 12 }}>
+            <View className="p-sm" style={{ flex: 1 / numColumns }}>
               <IngredientCard
                 ingredient={item}
                 displayLocale={displayLocale}

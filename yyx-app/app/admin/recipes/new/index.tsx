@@ -132,7 +132,7 @@ export default function NewRecipePage() {
               return (
                 <ScrollView
                   className="flex-1"
-                  contentContainerStyle={{ padding: 24, flexGrow: 1 }}
+                  contentContainerClassName="p-lg flex-grow"
                   keyboardShouldPersistTaps="handled"
                 >
                   {header}
@@ -145,7 +145,7 @@ export default function NewRecipePage() {
             return (
               <ScrollView
                 className="flex-1"
-                contentContainerStyle={{ padding: 24, flexGrow: 1 }}
+                contentContainerClassName="p-lg flex-grow"
                 keyboardShouldPersistTaps="handled"
               >
                 {header}

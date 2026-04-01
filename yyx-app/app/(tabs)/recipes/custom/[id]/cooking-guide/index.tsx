@@ -20,7 +20,7 @@ import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import { getCustomCookingGuidePath, isFromChat } from '@/utils/navigation/recipeRoutes';
 import { eventService } from '@/services/eventService';
 export default function CustomCookingGuide() {
-  const { id, session, from } = useLocalSearchParams<{ id: string; session?: string; from?: string }>();
+  const { id, from } = useLocalSearchParams<{ id: string; session?: string; from?: string }>();
   const { recipe, loading, error } = useCustomRecipe(id as string);
   const { isPhone } = useDevice();
   const navigation = useNavigation();

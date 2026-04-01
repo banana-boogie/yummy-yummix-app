@@ -299,7 +299,7 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                                     {i18n.t('admin.recipes.form.kitchenToolsInfo.selectedHeader')}
                                 </Text>
                                 <Text preset="caption" className="text-text-secondary">
-                                    {sortedRecipeKitchenTools.length} items
+                                    {sortedRecipeKitchenTools.length} {i18n.t('admin.recipes.form.kitchenToolsInfo.itemsSelected', { defaultValue: 'items' })}
                                 </Text>
                             </View>
                         </View>

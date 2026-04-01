@@ -222,7 +222,7 @@ export default function RecipesAdminPage() {
 
         {/* Search + New */}
         <View className="flex-row items-center gap-sm">
-          <View className="flex-1" style={{ marginBottom: -16 }}>
+          <View className="flex-1 -mb-md">
             <SearchBar
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
@@ -250,7 +250,7 @@ export default function RecipesAdminPage() {
           data={filteredRecipes}
           extraData={displayLocale}
           keyExtractor={item => item.id}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8 }}
+          contentContainerClassName="px-md pt-xs"
           ItemSeparatorComponent={() => <View className="h-[1px] bg-border-default" />}
           renderItem={({ item }) => (
             <RecipeRow
