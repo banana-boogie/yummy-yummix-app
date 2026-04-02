@@ -1460,9 +1460,15 @@ Deno.test("enrichKitchenTools caps at 8 tools", async () => {
     },
   ]);
 
+  // Steps must mention each tool name so the step-validation keeps them
   const recipe = {
     suggestedName: "Test Recipe",
-    steps: [{ order: 1, instruction: "Cook" }],
+    steps: [{
+      order: 1,
+      instruction: Array.from({ length: 10 }, (_, i) => `Tool ${i + 1}`).join(
+        ", ",
+      ),
+    }],
     kitchenTools: Array.from({ length: 10 }, (_, i) => ({
       name: `Tool ${i + 1}`,
     })),
@@ -1496,4 +1502,125 @@ Deno.test("enrichKitchenTools uses locale-appropriate translated name from DB", 
 
   assertEquals(result.length, 1);
   assertEquals(result[0].name, "Espátula");
+});
+
+// ============================================================
+// enrichKitchenTools Pre-processing Tests
+// ============================================================
+
+Deno.test("enrichKitchenTools normalizes snake_case names to Title Case", async () => {
+  clearKitchenToolsCache();
+  // Need at least one DB tool so the main enrichment path is exercised
+  const supabase = createKitchenToolsMockSupabase([
+    {
+      id: "99",
+      image_url: null,
+      kitchen_tool_translations: [{ locale: "en", name: "Placeholder" }],
+    },
+  ]);
+
+  const recipe = {
+    suggestedName: "Test Recipe",
+    steps: [{ order: 1, instruction: "Place on the baking sheet" }],
+    kitchenTools: [{ name: "baking_sheet", notes: null }],
+  } as any;
+
+  const result = await enrichKitchenTools(supabase, recipe, "en", false);
+
+  assertEquals(result.length, 1);
+  assertEquals(result[0].name, "Baking Sheet");
+});
+
+Deno.test("enrichKitchenTools splits 'X or Y' and picks DB match", async () => {
+  clearKitchenToolsCache();
+  const supabase = createKitchenToolsMockSupabase([
+    {
+      id: "1",
+      image_url: "https://example.com/whisk.jpg",
+      kitchen_tool_translations: [{ locale: "en", name: "Whisk" }],
+    },
+  ]);
+
+  const recipe = {
+    suggestedName: "Test Recipe",
+    steps: [{ order: 1, instruction: "Whisk the eggs" }],
+    kitchenTools: [{ name: "Fork or Whisk", notes: "for beating" }],
+  } as any;
+
+  const result = await enrichKitchenTools(supabase, recipe, "en", false);
+
+  assertEquals(result.length, 1);
+  assertEquals(result[0].name, "Whisk");
+  assertEquals(result[0].notes, "for beating");
+  assertEquals(result[0].imageUrl, "https://example.com/whisk.jpg");
+});
+
+Deno.test("enrichKitchenTools drops 'X or Y' when neither side matches DB", async () => {
+  clearKitchenToolsCache();
+  // Need at least one DB tool so the main enrichment path is exercised
+  const supabase = createKitchenToolsMockSupabase([
+    {
+      id: "99",
+      image_url: null,
+      kitchen_tool_translations: [{ locale: "en", name: "Placeholder" }],
+    },
+  ]);
+
+  const recipe = {
+    suggestedName: "Test Recipe",
+    steps: [{ order: 1, instruction: "Cook the food" }],
+    kitchenTools: [{ name: "Gizmo or Gadget", notes: null }],
+  } as any;
+
+  const result = await enrichKitchenTools(supabase, recipe, "en", false);
+
+  assertEquals(result.length, 0);
+});
+
+Deno.test("enrichKitchenTools drops tools not in DB and not mentioned in steps", async () => {
+  clearKitchenToolsCache();
+  const supabase = createKitchenToolsMockSupabase([
+    {
+      id: "1",
+      image_url: null,
+      kitchen_tool_translations: [{ locale: "en", name: "Spatula" }],
+    },
+  ]);
+
+  const recipe = {
+    suggestedName: "Test Recipe",
+    steps: [{ order: 1, instruction: "Stir with a spatula" }],
+    kitchenTools: [
+      { name: "Spatula", notes: null },
+      { name: "Random Phantom Tool", notes: null },
+    ],
+  } as any;
+
+  const result = await enrichKitchenTools(supabase, recipe, "en", false);
+
+  assertEquals(result.length, 1);
+  assertEquals(result[0].name, "Spatula");
+});
+
+Deno.test("enrichKitchenTools keeps tools not in DB but mentioned in steps", async () => {
+  clearKitchenToolsCache();
+  // Need at least one DB tool so the main enrichment path is exercised
+  const supabase = createKitchenToolsMockSupabase([
+    {
+      id: "99",
+      image_url: null,
+      kitchen_tool_translations: [{ locale: "en", name: "Placeholder" }],
+    },
+  ]);
+
+  const recipe = {
+    suggestedName: "Test Recipe",
+    steps: [{ order: 1, instruction: "Place the pizza stone in the oven" }],
+    kitchenTools: [{ name: "Pizza Stone", notes: null }],
+  } as any;
+
+  const result = await enrichKitchenTools(supabase, recipe, "en", false);
+
+  assertEquals(result.length, 1);
+  assertEquals(result[0].name, "Pizza Stone");
 });

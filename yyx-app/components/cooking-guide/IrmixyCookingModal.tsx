@@ -26,6 +26,30 @@ import type { CookingContext } from "@/types/irmixy";
 import { COLORS, SPACING } from "@/constants/design-tokens";
 import i18n from "@/i18n";
 
+const MAX_STEPS_CONTEXT_LENGTH = 3000;
+
+/**
+ * Format all recipe steps into a numbered string for AI context.
+ * Includes Thermomix params when present. Truncates at MAX_STEPS_CONTEXT_LENGTH.
+ */
+function formatStepsForContext(
+  steps: { order: number; instruction: string; thermomixTime?: number | null; thermomixSpeed?: string | null }[],
+): string {
+  const lines: string[] = [];
+  for (const step of steps) {
+    const params: string[] = [];
+    if (step.thermomixTime) params.push(`${step.thermomixTime} min`);
+    if (step.thermomixSpeed) params.push(`speed ${step.thermomixSpeed}`);
+    const paramStr = params.length > 0 ? ` (${params.join("/")})` : "";
+    lines.push(`${step.order}. ${step.instruction}${paramStr}`);
+  }
+  const result = lines.join("\n");
+  if (result.length > MAX_STEPS_CONTEXT_LENGTH) {
+    return result.slice(0, MAX_STEPS_CONTEXT_LENGTH) + "...";
+  }
+  return result;
+}
+
 type CookingChatMode = "text" | "voice";
 
 interface IrmixyCookingModalProps {
@@ -105,8 +129,21 @@ export function IrmixyCookingModal({
   const isMiseEnPlace = recipeContext.currentStep == null;
 
   // Build structured cooking context for the backend system prompt
-  const cookingContext: CookingContext = useMemo(
-    () => ({
+  const cookingContext: CookingContext = useMemo(() => {
+    // Format ingredients as a comma-separated string: "250g flour, 2 eggs, 100ml milk"
+    const ingredientsStr = recipeContext.ingredients
+      ?.map((i) => `${i.amount} ${i.name}`.trim())
+      .join(", ");
+
+    // Format kitchen tools as a comma-separated string
+    const toolsStr = recipeContext.kitchenTools?.join(", ");
+
+    // Format all steps as a numbered list with Thermomix params
+    const allStepsStr = recipeContext.allSteps
+      ? formatStepsForContext(recipeContext.allSteps)
+      : undefined;
+
+    return {
       recipeTitle: recipeContext.recipeTitle ?? "",
       currentStep: isMiseEnPlace
         ? "Mise en place"
@@ -114,15 +151,28 @@ export function IrmixyCookingModal({
       ...(recipeContext.stepInstructions
         ? { stepInstructions: recipeContext.stepInstructions }
         : {}),
-    }),
-    [
-      recipeContext.recipeTitle,
-      recipeContext.currentStep,
-      recipeContext.totalSteps,
-      recipeContext.stepInstructions,
-      isMiseEnPlace,
-    ],
-  );
+      ...(ingredientsStr ? { ingredients: ingredientsStr } : {}),
+      ...(toolsStr ? { kitchenTools: toolsStr } : {}),
+      ...(allStepsStr ? { allSteps: allStepsStr } : {}),
+      ...(recipeContext.portions != null
+        ? { servings: String(recipeContext.portions) }
+        : {}),
+      ...(recipeContext.totalTime != null
+        ? { totalTime: `${recipeContext.totalTime} min` }
+        : {}),
+    };
+  }, [
+    recipeContext.recipeTitle,
+    recipeContext.currentStep,
+    recipeContext.totalSteps,
+    recipeContext.stepInstructions,
+    recipeContext.ingredients,
+    recipeContext.kitchenTools,
+    recipeContext.allSteps,
+    recipeContext.portions,
+    recipeContext.totalTime,
+    isMiseEnPlace,
+  ]);
 
   const isNative = Platform.OS !== "web";
 

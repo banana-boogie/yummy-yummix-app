@@ -39,6 +39,12 @@ export interface RecipeContext {
     stepInstructions?: string;
     ingredients?: { name: string; amount: string }[];
     kitchenTools?: string[];
+    /** All recipe steps for full context in cooking helper */
+    allSteps?: { order: number; instruction: string; thermomixTime?: number | null; thermomixSpeed?: string | null }[];
+    /** Number of servings */
+    portions?: number;
+    /** Total cooking time in minutes */
+    totalTime?: number;
 }
 
 // Conversation context

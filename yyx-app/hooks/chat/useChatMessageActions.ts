@@ -21,6 +21,8 @@ interface UseChatMessageActionsParams {
     getMessages: () => ChatMessage[];
     /** Called before navigating away (e.g. dismiss a modal before pushing a route) */
     onNavigateAway?: () => void;
+    /** Current chat session ID — threaded to cooking guide so it can return to this session */
+    chatSessionId?: string | null;
 }
 
 export function useChatMessageActions({
@@ -28,6 +30,7 @@ export function useChatMessageActions({
     queryClient,
     getMessages,
     onNavigateAway,
+    chatSessionId,
 }: UseChatMessageActionsParams) {
     const handleCopyMessage = useCallback(async (content: string) => {
         try {
@@ -44,7 +47,7 @@ export function useChatMessageActions({
         savedRecipeId?: string
     ) => {
         try {
-            const result = await saveAndGetCookingPath(recipe, finalName, savedRecipeId);
+            const result = await saveAndGetCookingPath(recipe, finalName, savedRecipeId, chatSessionId);
 
             if (result.wasNewlySaved) {
                 setMessages(prev => prev.map(msg =>
@@ -66,7 +69,7 @@ export function useChatMessageActions({
                 [{ text: i18n.t('common.ok') }]
             );
         }
-    }, [queryClient, setMessages, onNavigateAway]);
+    }, [queryClient, setMessages, onNavigateAway, chatSessionId]);
 
     const handleActionPress = useCallback((action: Action, messageId: string) => {
         const messages = getMessages();

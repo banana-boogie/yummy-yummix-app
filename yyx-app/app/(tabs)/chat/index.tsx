@@ -5,17 +5,17 @@
  * Messages state is lifted here as a single source of truth for both modes.
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, TouchableOpacity, Platform } from 'react-native';
 import { Text } from '@/components/common/Text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Stack } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { ChatScreen } from '@/components/chat/ChatScreen';
 import { VoiceChatScreen } from '@/components/chat/VoiceChatScreen';
 import { ChatSessionsMenu } from '@/components/chat/ChatSessionsMenu';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
-import { ChatMessage } from '@/services/chatService';
+import { ChatMessage, loadChatHistory, getLastSessionWithMessages } from '@/services/chatService';
 import i18n from '@/i18n';
 
 const STORAGE_KEY_SESSION_ID = 'lastChatSessionId';
@@ -26,12 +26,14 @@ type ChatMode = 'text' | 'voice';
 const DEFAULT_MODE: ChatMode = 'text';
 
 export default function ChatPage() {
+    const { session: sessionParam } = useLocalSearchParams<{ session?: string }>();
     const [mode, setMode] = useState<ChatMode>(DEFAULT_MODE);
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [voiceTranscriptMessages, setVoiceTranscriptMessages] = useState<ChatMessage[]>([]);
     const [sessionsMenuOpenSignal, setSessionsMenuOpenSignal] = useState(0);
     const [newChatSignal, setNewChatSignal] = useState(0);
+    const sessionRestoredRef = useRef(false);
 
     // Restore last-used chat mode on mount
     useEffect(() => {
@@ -40,6 +42,68 @@ export default function ChatPage() {
             if (stored === 'text' || stored === 'voice') setMode(stored);
         }).catch(() => {});
     }, []);
+
+    // Restore previous chat session on mount
+    // Priority: 1) route param  2) AsyncStorage  3) last session with messages  4) fresh
+    useEffect(() => {
+        if (sessionRestoredRef.current) return;
+        sessionRestoredRef.current = true;
+
+        (async () => {
+            // 1. Route param (e.g. from cooking guide exit)
+            const paramId = typeof sessionParam === 'string' ? sessionParam : undefined;
+            if (paramId) {
+                try {
+                    const history = await loadChatHistory(paramId);
+                    setSessionId(paramId);
+                    setMessages(history);
+                    setVoiceTranscriptMessages(history);
+                    AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, paramId).catch(() => {});
+                    return;
+                } catch {
+                    // Session may have been deleted — fall through
+                }
+            }
+
+            // 2. AsyncStorage persisted session
+            try {
+                const storedId = await AsyncStorage.getItem(STORAGE_KEY_SESSION_ID);
+                if (storedId) {
+                    try {
+                        const history = await loadChatHistory(storedId);
+                        if (history.length > 0) {
+                            setSessionId(storedId);
+                            setMessages(history);
+                            setVoiceTranscriptMessages(history);
+                            return;
+                        }
+                    } catch {
+                        // Stored session no longer exists — fall through
+                        AsyncStorage.removeItem(STORAGE_KEY_SESSION_ID).catch(() => {});
+                    }
+                }
+            } catch {
+                // AsyncStorage error — fall through
+            }
+
+            // 3. Last session with messages (database query)
+            try {
+                const lastSession = await getLastSessionWithMessages();
+                if (lastSession) {
+                    const history = await loadChatHistory(lastSession.sessionId);
+                    setSessionId(lastSession.sessionId);
+                    setMessages(history);
+                    setVoiceTranscriptMessages(history);
+                    AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, lastSession.sessionId).catch(() => {});
+                    return;
+                }
+            } catch {
+                // Database error — fall through
+            }
+
+            // 4. No previous session found — start fresh (default state)
+        })();
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Wrapper that persists sessionId alongside state
     const updateSessionId = useCallback((newSessionId: string) => {

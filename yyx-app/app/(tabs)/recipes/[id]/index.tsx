@@ -28,6 +28,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
 import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import { Image as ExpoImage } from 'expo-image';
+import { formatSpeedText } from '@/utils/thermomix/assetUtils';
  
 
 
@@ -210,7 +211,16 @@ const RecipeDetail: React.FC = () => {
             ingredients: recipe.ingredients?.map(ing => ({
               name: ing.name,
               amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
-            }))
+            })),
+            kitchenTools: recipe.kitchenTools?.map((t) => t.name),
+            allSteps: recipe.steps?.map((s) => ({
+              order: s.order,
+              instruction: s.instruction,
+              thermomixTime: s.thermomix?.time,
+              thermomixSpeed: s.thermomix?.speed ? formatSpeedText(s.thermomix.speed) : null,
+            })),
+            portions: recipe.portions,
+            totalTime: recipe.totalTime ?? undefined,
           }}
           {...irmixy.sessionProps}
         />

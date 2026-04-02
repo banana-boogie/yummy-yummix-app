@@ -104,6 +104,11 @@ export interface CookingContext {
   recipeTitle: string;
   currentStep: string;
   stepInstructions?: string;
+  ingredients?: string;
+  kitchenTools?: string;
+  allSteps?: string;
+  servings?: string;
+  totalTime?: string;
 }
 
 /**
@@ -208,9 +213,27 @@ Suggest recipes appropriate for this meal type.`;
     const stepInstr = cookingContext.stepInstructions
       ? `\nCurrent step instructions: ${cookingContext.stepInstructions}`
       : "";
+    const ingredientsList = cookingContext.ingredients
+      ? `\nIngredients: ${cookingContext.ingredients}`
+      : "";
+    const allStepsList = cookingContext.allSteps
+      ? `\nAll steps:\n${cookingContext.allSteps}`
+      : "";
+    const toolsList = cookingContext.kitchenTools
+      ? `\nKitchen tools: ${cookingContext.kitchenTools}`
+      : "";
+    const servingsInfo = cookingContext.servings
+      ? `\nServings: ${cookingContext.servings}`
+      : "";
+    const totalTimeInfo = cookingContext.totalTime
+      ? `\nTotal time: ${cookingContext.totalTime}`
+      : "";
     cookingHelperSection = `\n\nCOOKING HELPER MODE:
-You are helping the user cook "${cookingContext.recipeTitle}". They are on ${cookingContext.currentStep}.${stepInstr}
-- Help with: technique questions, substitutions, timing, troubleshooting, Thermomix settings, and recipe creation if asked.
+You are helping the user cook "${cookingContext.recipeTitle}". They are on ${cookingContext.currentStep}.${stepInstr}${ingredientsList}${allStepsList}${toolsList}${servingsInfo}${totalTimeInfo}
+
+You know this recipe completely — ingredients, steps, tools. Answer questions using this context.
+Do NOT search for recipes or generate new ones — the user is mid-cook.
+- Help with: technique questions, substitutions, timing, troubleshooting, Thermomix settings.
 - Prefer shorter answers — the user may be cooking hands-on — but keep your usual warm personality.`;
   }
 

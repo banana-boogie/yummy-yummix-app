@@ -16,6 +16,7 @@ import { PageLayout } from '@/components/layouts/PageLayout';
 import { MiseEnPlaceIngredient } from '@/components/cooking-guide/MiseEnPlaceIngredient';
 import { Text } from '@/components/common/Text';
 import { LAYOUT } from '@/constants/design-tokens';
+import { formatSpeedText } from '@/utils/thermomix/assetUtils';
 
 // Define the ingredient type
 type CheckableIngredient = RecipeIngredient & { checked: boolean };
@@ -131,7 +132,16 @@ export default function IngredientsStep() {
           ingredients: ingredients.map(ing => ({
             name: ing.name,
             amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
-          }))
+          })),
+          kitchenTools: recipe?.kitchenTools?.map((t) => t.name),
+          allSteps: recipe?.steps?.map((s) => ({
+            order: s.order,
+            instruction: s.instruction,
+            thermomixTime: s.thermomix?.time,
+            thermomixSpeed: s.thermomix?.speed ? formatSpeedText(s.thermomix.speed) : null,
+          })),
+          portions: recipe?.portions,
+          totalTime: recipe?.totalTime ?? undefined,
         }}
         {...irmixy.sessionProps}
       />

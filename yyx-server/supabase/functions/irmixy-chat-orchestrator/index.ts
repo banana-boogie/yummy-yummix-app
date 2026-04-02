@@ -115,6 +115,11 @@ serve(async (req) => {
           recipeTitle: string;
           currentStep: string;
           stepInstructions?: string;
+          ingredients?: string;
+          kitchenTools?: string;
+          allSteps?: string;
+          servings?: string;
+          totalTime?: string;
         };
       }
       | null = null;
@@ -139,6 +144,21 @@ serve(async (req) => {
         stepInstructions: typeof body.cookingContext.stepInstructions ===
             "string"
           ? sanitizeContent(body.cookingContext.stepInstructions)
+          : undefined,
+        ingredients: typeof body.cookingContext.ingredients === "string"
+          ? sanitizeContent(body.cookingContext.ingredients)
+          : undefined,
+        kitchenTools: typeof body.cookingContext.kitchenTools === "string"
+          ? sanitizeContent(body.cookingContext.kitchenTools)
+          : undefined,
+        allSteps: typeof body.cookingContext.allSteps === "string"
+          ? sanitizeContent(body.cookingContext.allSteps)
+          : undefined,
+        servings: typeof body.cookingContext.servings === "string"
+          ? sanitizeContent(body.cookingContext.servings)
+          : undefined,
+        totalTime: typeof body.cookingContext.totalTime === "string"
+          ? sanitizeContent(body.cookingContext.totalTime)
           : undefined,
       }
       : undefined;

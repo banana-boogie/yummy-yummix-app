@@ -245,6 +245,7 @@ export function ChatScreen({
         queryClient,
         getMessages: useCallback(() => messagesRef.current, []),
         onNavigateAway,
+        chatSessionId: currentSessionId,
     });
 
     // --- Cycling greeting for empty state ---

@@ -797,7 +797,15 @@ Add a practical tip to steps where it genuinely helps. Good tips:
 - Substitution ideas ("No crema? Use Greek yogurt")
 Keep tips short (1-2 sentences). Not every step needs a tip — only where it adds value. Set to null for simple steps.
 
-OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Set "timerSeconds" for steps with a specific duration (resting, baking, marinating) — it powers a countdown timer in the app. Include "kitchenTools" — kitchen tools and accessories that would be helpful for this recipe. Not just required tools, but things that make the cooking experience easier — like a waste bowl for peels and trimmings. Think like a seasoned home cook setting up their station. Use this structure:
+OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Set "timerSeconds" for steps with a specific duration (resting, baking, marinating) — it powers a countdown timer in the app. Include "kitchenTools" — kitchen tools and accessories that would be helpful for this recipe. Not just required tools, but things that make the cooking experience easier — like a waste bowl for peels and trimmings. Think like a seasoned home cook setting up their station.
+
+Kitchen tool rules:
+- Title case names: "Air Fryer" not "air_fryer". No underscores or snake_case.
+- ONE tool per entry. Never combine tools with "or" — pick the primary one.
+- Only list tools actually used in the recipe steps. If a step uses a tool, it must appear in kitchenTools. If a tool is in kitchenTools, at least one step must reference it.
+- Use common names: "Spatula", "Mixing Bowl", "Baking Sheet", not branded or overly specific names.
+
+Use this structure:
 {"schemaVersion":"1.0","suggestedName":"...","description":"A brief 1-2 sentence description of the dish","measurementSystem":"${userContext.measurementSystem}","locale":"${userContext.locale}","ingredients":[{"name":"...","quantity":1,"unit":"..."}],"steps":[{"order":1,"instruction":"...","ingredientsUsed":["..."]}],"totalTime":30,"difficulty":"easy","portions":4,"tags":[],"kitchenTools":[{"name":"...","notes":"..."}]}`;
 }
 
@@ -1246,12 +1254,56 @@ export async function enrichKitchenTools(
 
     const localeChain = buildLocaleChain(locale);
 
-    // 1. Enrich each LLM tool by matching against DB for imageUrl and translated name
+    // Build searchable recipe text for step-validation later
+    const recipeStepsText = recipe.steps
+      .map((s) => s.instruction)
+      .join(" ")
+      .toLowerCase();
+
+    // 0. Pre-process: normalize names, split "X or Y" entries
+    const preprocessed: Array<{ name: string; notes?: string | null }> = [];
+    for (const llmTool of llmTools) {
+      // Normalize: replace underscores with spaces, then title case
+      const normalized = llmTool.name
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+
+      // Handle "X or Y" entries: try each side against DB, use whichever matches
+      if (/\bor\b/i.test(normalized)) {
+        const sides = normalized.split(/\s+or\s+/i).map((s) => s.trim());
+        let matched = false;
+        for (const side of sides) {
+          const sideMatch = dbTools.find((dbTool) =>
+            fuzzyMatchToolName(
+              side,
+              dbTool.kitchen_tool_translations || [],
+            )
+          );
+          if (sideMatch) {
+            preprocessed.push({ name: side, notes: llmTool.notes });
+            matched = true;
+            break;
+          }
+        }
+        // If neither side matches DB, drop the entry entirely
+        if (!matched) {
+          console.log(
+            `[Kitchen Tools] Dropped "or" entry with no DB match: "${llmTool.name}"`,
+          );
+        }
+      } else {
+        preprocessed.push({ name: normalized, notes: llmTool.notes });
+      }
+    }
+
+    // 1. Enrich each preprocessed tool by matching against DB for imageUrl and translated name
     const enrichedTools: Array<{
       name: string;
       imageUrl?: string;
       notes?: string;
-    }> = llmTools.map((llmTool) => {
+      _dbMatched?: boolean;
+    }> = [];
+    for (const llmTool of preprocessed) {
       // Find best DB match via fuzzy matching
       const dbMatch = dbTools.find((dbTool) =>
         fuzzyMatchToolName(
@@ -1266,19 +1318,35 @@ export async function enrichKitchenTools(
           dbMatch.kitchen_tool_translations || [],
           localeChain,
         );
-        return {
+        enrichedTools.push({
           name: translation?.name || llmTool.name,
           imageUrl: dbMatch.image_url || undefined,
           notes: llmTool.notes || undefined,
-        };
+          _dbMatched: true,
+        });
+      } else {
+        // No DB match — check if any step actually mentions this tool
+        const mentionedInSteps = recipeStepsText.includes(
+          llmTool.name.toLowerCase(),
+        );
+        if (mentionedInSteps) {
+          // Keep it — steps reference it, likely a catalog gap
+          enrichedTools.push({
+            name: llmTool.name,
+            notes: llmTool.notes || undefined,
+            _dbMatched: false,
+          });
+          console.log(
+            `[Kitchen Tools] Catalog gap candidate (in steps, no DB match): "${llmTool.name}"`,
+          );
+        } else {
+          // Not in DB and not in steps — drop it
+          console.log(
+            `[Kitchen Tools] Dropped (no DB match, not in steps): "${llmTool.name}"`,
+          );
+        }
       }
-
-      // No DB match — keep LLM tool as-is (no image available)
-      return {
-        name: llmTool.name,
-        notes: llmTool.notes || undefined,
-      };
-    });
+    }
 
     // 2. Gap-fill: add Thermomix accessories if relevant and not already present
     if (hasThermomix) {
@@ -1357,8 +1425,8 @@ export async function enrichKitchenTools(
       return true;
     });
 
-    // 4. Sanity cap at 8 tools
-    const result = deduped.slice(0, 8);
+    // 4. Sanity cap at 8 tools, strip internal metadata
+    const result = deduped.slice(0, 8).map(({ _dbMatched, ...tool }) => tool);
 
     console.log(
       "[Kitchen Tools] Enriched tools:",

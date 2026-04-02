@@ -104,4 +104,9 @@ export interface CookingContext {
   recipeTitle: string;
   currentStep: string;
   stepInstructions?: string;
+  ingredients?: string;
+  kitchenTools?: string;
+  allSteps?: string;
+  servings?: string;
+  totalTime?: string;
 }

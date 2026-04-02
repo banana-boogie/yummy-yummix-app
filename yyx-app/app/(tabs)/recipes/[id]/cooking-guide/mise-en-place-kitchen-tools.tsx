@@ -15,6 +15,7 @@ import { PageLayout } from '@/components/layouts/PageLayout';
 import { MiseEnPlaceKitchenTool } from '@/components/cooking-guide/MiseEnPlaceKitchenTool';
 import { Text } from '@/components/common/Text';
 import { LAYOUT } from '@/constants/design-tokens';
+import { formatSpeedText } from '@/utils/thermomix/assetUtils';
 
 type CheckableKitchenTool = {
     id: string;
@@ -122,7 +123,19 @@ export default function KitchenToolsStep() {
                     type: 'prep',
                     recipeId: id as string,
                     recipeTitle: recipe?.name || '',
-                    kitchenTools: kitchenTools.map(item => item.name)
+                    kitchenTools: kitchenTools.map(item => item.name),
+                    ingredients: recipe?.ingredients?.map((i) => ({
+                        name: i.name,
+                        amount: `${i.formattedQuantity} ${i.formattedUnit}`.trim(),
+                    })),
+                    allSteps: recipe?.steps?.map((s) => ({
+                        order: s.order,
+                        instruction: s.instruction,
+                        thermomixTime: s.thermomix?.time,
+                        thermomixSpeed: s.thermomix?.speed ? formatSpeedText(s.thermomix.speed) : null,
+                    })),
+                    portions: recipe?.portions,
+                    totalTime: recipe?.totalTime ?? undefined,
                 }}
                 {...irmixy.sessionProps}
             />

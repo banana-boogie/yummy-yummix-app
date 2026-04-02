@@ -243,7 +243,7 @@ Deno.test("buildSystemPrompt includes cooking helper mode when cookingContext pr
   assertStringIncludes(prompt, '"Chicken Soup"');
   assertStringIncludes(prompt, "Step 3");
   assertStringIncludes(prompt, "Add the vegetables and simmer for 20 minutes.");
-  assertStringIncludes(prompt, "recipe creation if asked");
+  assertStringIncludes(prompt, "Do NOT search for recipes");
   assertStringIncludes(prompt, "shorter answers");
 });
 
