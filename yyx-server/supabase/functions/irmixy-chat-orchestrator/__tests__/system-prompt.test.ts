@@ -52,11 +52,11 @@ Deno.test("buildSystemPrompt includes meal context section when detected", () =>
   assertStringIncludes(prompt, "Time constraint: quick");
 });
 
-Deno.test("buildSystemPrompt includes tool rules with search-first strategy", () => {
+Deno.test("buildSystemPrompt includes tool rules with recipe search and generation", () => {
   const prompt = buildSystemPrompt(createUserContext());
 
   assertStringIncludes(prompt, "TOOLS");
-  assertStringIncludes(prompt, "Search first");
+  assertStringIncludes(prompt, "Recipe search");
   assertStringIncludes(prompt, "search_recipes");
   assertStringIncludes(prompt, "generate_custom_recipe");
   assertStringIncludes(prompt, "modify_recipe");

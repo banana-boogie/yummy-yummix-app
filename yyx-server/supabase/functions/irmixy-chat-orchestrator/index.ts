@@ -567,6 +567,30 @@ function handleStreamingRequest(
           functionName: "irmixy-chat-orchestrator",
         };
 
+        // ── Tool gating ──
+        // Compute which tools to exclude based on conversation context.
+        // Cooking helper: text-only (no tools).
+        // General chat: exclude modify_recipe if no recipe exists in session.
+        const excludeTools: string[] = [];
+        if (cookingContext) {
+          // Helper mode: no tools at all — answer from recipe context only
+          excludeTools.push(
+            "search_recipes",
+            "generate_custom_recipe",
+            "modify_recipe",
+            "retrieve_cooked_recipes",
+            "app_action",
+          );
+        } else {
+          // General chat: block modify_recipe unless a recipe exists in this session
+          const hasRecipeInHistory = messages.some(
+            (m) => m.role === "assistant" && m.metadata?.customRecipe,
+          );
+          if (!hasRecipeInHistory) {
+            excludeTools.push("modify_recipe");
+          }
+        }
+
         // ── Streaming tool loop ──
         // Single streaming call with tool support. Text from tool-calling
         // iterations is suppressed (not streamed to user). Only the final
@@ -606,6 +630,7 @@ function handleStreamingRequest(
               (token) => {
                 if (!heartbeatCleared) {
                   clearInterval(heartbeatId);
+
                   heartbeatCleared = true;
                 }
                 // Buffer text — only flushed if this iteration has no tool calls
@@ -613,6 +638,7 @@ function handleStreamingRequest(
               },
               signal,
               costContext,
+              excludeTools,
             );
           } catch (error) {
             clearInterval(heartbeatId);
@@ -741,9 +767,13 @@ function handleStreamingRequest(
             ...toolResult.toolMessages,
           ];
 
-          // After recipe generation, don't show "thinking" — the user already
-          // sees the recipe card. The final iteration runs silently to produce
-          // the text message that accompanies the recipe.
+          // After successful recipe generation/modification, the intro text +
+          // recipe card IS the complete response. Skip the second LLM pass —
+          // it's unnecessary, adds ~2-3s latency, and causes text replacement.
+          if (customRecipeResult) {
+            break;
+          }
+
           if (!customRecipeResult) {
             send({ type: "status", status: "thinking" });
           }

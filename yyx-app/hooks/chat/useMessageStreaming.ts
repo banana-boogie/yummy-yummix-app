@@ -279,10 +279,10 @@ export function useMessageStreaming({
                         if (!finalContent && response.message) {
                             finalContent = response.message;
                         }
-                        // For custom recipes, use response.message (the model's
-                        // text about the recipe). Both text and recipe card are
-                        // set in this single update so they render together.
-                        if (response.customRecipe && response.message) {
+                        // For custom recipes, only use response.message if no
+                        // content was streamed. The streamed intro text (from the
+                        // first LLM iteration) should be preserved, not overwritten.
+                        if (response.customRecipe && response.message && !finalContent) {
                             finalContent = response.message;
                         }
 
