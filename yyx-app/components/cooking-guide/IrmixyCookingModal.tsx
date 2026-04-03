@@ -32,13 +32,22 @@ const MAX_STEPS_CONTEXT_LENGTH = 3000;
  * Format all recipe steps into a numbered string for AI context.
  * Includes Thermomix params when present. Truncates at MAX_STEPS_CONTEXT_LENGTH.
  */
+function formatDuration(seconds: number): string {
+  if (seconds >= 60) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return secs > 0 ? `${mins} min ${secs} sec` : `${mins} min`;
+  }
+  return `${seconds} sec`;
+}
+
 function formatStepsForContext(
   steps: { order: number; instruction: string; thermomixTime?: number | null; thermomixSpeed?: string | null }[],
 ): string {
   const lines: string[] = [];
   for (const step of steps) {
     const params: string[] = [];
-    if (step.thermomixTime) params.push(`${step.thermomixTime} min`);
+    if (step.thermomixTime) params.push(formatDuration(step.thermomixTime));
     if (step.thermomixSpeed) params.push(`speed ${step.thermomixSpeed}`);
     const paramStr = params.length > 0 ? ` (${params.join("/")})` : "";
     lines.push(`${step.order}. ${step.instruction}${paramStr}`);

@@ -488,9 +488,14 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
         const stepList = recipeContext.allSteps
           .map(s => {
             let line = `${s.order}. ${s.instruction}`;
-            if (s.thermomixTime) line += ` (${s.thermomixTime}s`;
-            if (s.thermomixTime && s.thermomixSpeed) line += `/${s.thermomixSpeed}`;
-            if (s.thermomixTime) line += ')';
+            if (s.thermomixTime) {
+              const tmTime = s.thermomixTime >= 60
+                ? `${Math.floor(s.thermomixTime / 60)} min${s.thermomixTime % 60 > 0 ? ` ${s.thermomixTime % 60} sec` : ''}`
+                : `${s.thermomixTime} sec`;
+              line += ` (${tmTime}`;
+              if (s.thermomixSpeed) line += `/${s.thermomixSpeed}`;
+              line += ')';
+            }
             return line;
           })
           .join('\n');

@@ -18,6 +18,7 @@ interface ChatSession {
     id: string;
     title: string;
     createdAt: Date;
+    lastOpenedAt?: Date;
 }
 
 interface ChatSessionsMenuProps {
@@ -205,7 +206,7 @@ export function ChatSessionsMenu({
                                                 {session.title}
                                             </Text>
                                             <Text className="text-text-tertiary text-sm">
-                                                {formatDate(session.createdAt)}
+                                                {formatDate(session.lastOpenedAt ?? session.createdAt)}
                                             </Text>
                                         </View>
                                         {loadingSessionId === session.id && (

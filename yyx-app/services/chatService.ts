@@ -582,17 +582,18 @@ export async function loadChatSessions(): Promise<
 
     const { data, error } = await supabase
         .from('ai_chat_sessions')
-        .select('id, title, created_at, source')
+        .select('id, title, created_at, last_opened_at, source')
         .eq('user_id', userData.user.id)
         .order('last_opened_at', { ascending: false })
         .limit(10);
 
     if (error) throw error;
 
-    return (data || []).map((session: ChatSessionRow) => ({
+    return (data || []).map((session: any) => ({
         id: session.id,
         title: session.title || i18n.t('chat.newChatTitle'),
         createdAt: new Date(session.created_at),
+        lastOpenedAt: session.last_opened_at ? new Date(session.last_opened_at) : new Date(session.created_at),
         source: session.source as 'text' | 'voice' | undefined,
     }));
 }
