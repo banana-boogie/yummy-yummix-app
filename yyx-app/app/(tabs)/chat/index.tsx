@@ -120,6 +120,7 @@ export default function ChatPage() {
             setMessages(history);
             setVoiceTranscriptMessages(history);
             AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, paramId).catch(() => {});
+            touchChatSession(paramId).catch(() => {});
         }).catch(() => {
             // Session may have been deleted — ignore
         });

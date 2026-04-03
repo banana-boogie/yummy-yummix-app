@@ -805,7 +805,7 @@ Keep tips short (1-2 sentences). Not every step needs a tip — only where it ad
 - No nested numbering, no inline mini-lists with semicolons, no "then…then…then" chains.
 - If a manual action happens after a timed interval (e.g., flip after searing), split into a separate step with its own timerSeconds.
 
-OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Set "timerSeconds" for steps with a specific duration (resting, baking, marinating) — it powers a countdown timer in the app. Include "kitchenTools" — kitchen tools and accessories that would be helpful for this recipe. Not just required tools, but things that make the cooking experience easier — like a waste bowl for peels and trimmings. Think like a seasoned home cook setting up their station.
+OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Set "timerSeconds" for any non-Thermomix step with a specific time duration — it powers a countdown timer in the app. Include "kitchenTools" — kitchen tools and accessories that would be helpful for this recipe. Not just required tools, but things that make the cooking experience easier — like a waste bowl for peels and trimmings. Think like a seasoned home cook setting up their station.
 
 Kitchen tool rules:
 - Title case names: "Air Fryer" not "air_fryer". No underscores or snake_case.
