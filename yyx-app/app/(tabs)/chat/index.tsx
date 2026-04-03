@@ -105,6 +105,23 @@ export default function ChatPage() {
         restoreSession();
     }, [restoreSession]);
 
+    // Override session when route param changes (e.g. returning from cooking guide
+    // to an already-mounted chat tab)
+    useEffect(() => {
+        const paramId = typeof sessionParam === 'string' ? sessionParam : undefined;
+        if (!paramId || !sessionRestoredRef.current) return;
+        // Only override if it's a different session than current
+        if (paramId === sessionId) return;
+        loadChatHistory(paramId).then((history) => {
+            setSessionId(paramId);
+            setMessages(history);
+            setVoiceTranscriptMessages(history);
+            AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, paramId).catch(() => {});
+        }).catch(() => {
+            // Session may have been deleted — ignore
+        });
+    }, [sessionParam]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // Wrapper that persists sessionId alongside state
     const updateSessionId = useCallback((newSessionId: string) => {
         setSessionId(newSessionId);
