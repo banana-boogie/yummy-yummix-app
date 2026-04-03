@@ -15,7 +15,7 @@ import { VoiceChatScreen } from '@/components/chat/VoiceChatScreen';
 import { ChatSessionsMenu } from '@/components/chat/ChatSessionsMenu';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
-import { ChatMessage, loadChatHistory, getLastSessionWithMessages } from '@/services/chatService';
+import { ChatMessage, loadChatHistory, getLastSessionWithMessages, touchChatSession } from '@/services/chatService';
 import i18n from '@/i18n';
 
 const STORAGE_KEY_SESSION_ID = 'lastChatSessionId';
@@ -55,6 +55,7 @@ export default function ChatPage() {
                 setMessages(history);
                 setVoiceTranscriptMessages(history);
                 AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, paramId).catch(() => {});
+                touchChatSession(paramId).catch(() => {});
                 return;
             } catch {
                 // Session may have been deleted — fall through
@@ -71,6 +72,7 @@ export default function ChatPage() {
                         setSessionId(storedId);
                         setMessages(history);
                         setVoiceTranscriptMessages(history);
+                        touchChatSession(storedId).catch(() => {});
                         return;
                     }
                 } catch {
@@ -90,6 +92,7 @@ export default function ChatPage() {
                 setMessages(history);
                 setVoiceTranscriptMessages(history);
                 AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, lastSession.sessionId).catch(() => {});
+                touchChatSession(lastSession.sessionId).catch(() => {});
                 return;
             }
         } catch {
@@ -126,6 +129,7 @@ export default function ChatPage() {
     const updateSessionId = useCallback((newSessionId: string) => {
         setSessionId(newSessionId);
         AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, newSessionId).catch(() => {});
+        touchChatSession(newSessionId).catch(() => {});
     }, []);
 
     const toggleMode = useCallback(() => {
