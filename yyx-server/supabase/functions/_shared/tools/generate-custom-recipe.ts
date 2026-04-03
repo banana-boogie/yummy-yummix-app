@@ -710,7 +710,7 @@ CRITICAL RULES:
 - When a step uses a mixture from a previous step, reference it as "the [name] mixture" in instructions. In ingredientsUsed, list only NEW ingredients added in this step — not the components of an already-combined mixture.
 
 Skip Thermomix for: plating, garnishing, oven/grill tasks, manual shaping — leave all four params null.
-For non-Thermomix steps that have a specific time duration (e.g. resting, marinating, oven baking), set timerSeconds instead of thermomixTime. Never set both on the same step.
+Set timerSeconds for ANY non-Thermomix step with a specific time duration: searing, frying, grilling, simmering, roasting, baking, oven time, air-fryer time, reducing, steeping, cooling, resting, marinating, chilling. If the step says "sear for 3 minutes", set timerSeconds: 180. If a manual action happens after a timed interval (e.g., flip after searing), split it into a separate step. Never set both timerSeconds and thermomixTime on the same step.
 
 PHYSICAL CONSTRAINTS (bowl = 2.2 liters):
 - Total volume of ingredients + liquid must not exceed 2.2L. For hot foods (soups, stews), keep under 1.8L.
@@ -796,6 +796,14 @@ Add a practical tip to steps where it genuinely helps. Good tips:
 - Equipment tips ("Use butterfly whisk for lighter textures")
 - Substitution ideas ("No crema? Use Greek yogurt")
 Keep tips short (1-2 sentences). Not every step needs a tip — only where it adds value. Set to null for simple steps.
+
+## STEP READABILITY
+- Each step should contain ONE primary action. The user reads one step at a time on their phone while cooking — they can't hold 3 actions in memory.
+- Maximum 2 short sentences per step.
+- If a step requires multiple distinct actions (e.g., season AND rest AND preheat), split them into separate steps.
+- If a step contains "meanwhile" or a later manual action after waiting, split it into separate steps.
+- No nested numbering, no inline mini-lists with semicolons, no "then…then…then" chains.
+- If a manual action happens after a timed interval (e.g., flip after searing), split into a separate step with its own timerSeconds.
 
 OUTPUT: Return ONLY valid JSON (no markdown, no code fences). Each step needs "ingredientsUsed" matching ingredient names exactly. Set "timerSeconds" for steps with a specific duration (resting, baking, marinating) — it powers a countdown timer in the app. Include "kitchenTools" — kitchen tools and accessories that would be helpful for this recipe. Not just required tools, but things that make the cooking experience easier — like a waste bowl for peels and trimmings. Think like a seasoned home cook setting up their station.
 
