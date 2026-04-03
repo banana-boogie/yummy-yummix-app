@@ -45,65 +45,65 @@ export default function ChatPage() {
 
     // Restore previous chat session on mount
     // Priority: 1) route param  2) AsyncStorage  3) last session with messages  4) fresh
+    const restoreSession = useCallback(async () => {
+        // 1. Route param (e.g. from cooking guide exit)
+        const paramId = typeof sessionParam === 'string' ? sessionParam : undefined;
+        if (paramId) {
+            try {
+                const history = await loadChatHistory(paramId);
+                setSessionId(paramId);
+                setMessages(history);
+                setVoiceTranscriptMessages(history);
+                AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, paramId).catch(() => {});
+                return;
+            } catch {
+                // Session may have been deleted — fall through
+            }
+        }
+
+        // 2. AsyncStorage persisted session
+        try {
+            const storedId = await AsyncStorage.getItem(STORAGE_KEY_SESSION_ID);
+            if (storedId) {
+                try {
+                    const history = await loadChatHistory(storedId);
+                    if (history.length > 0) {
+                        setSessionId(storedId);
+                        setMessages(history);
+                        setVoiceTranscriptMessages(history);
+                        return;
+                    }
+                } catch {
+                    AsyncStorage.removeItem(STORAGE_KEY_SESSION_ID).catch(() => {});
+                }
+            }
+        } catch {
+            // AsyncStorage error — fall through
+        }
+
+        // 3. Last session with messages (database query)
+        try {
+            const lastSession = await getLastSessionWithMessages();
+            if (lastSession) {
+                const history = await loadChatHistory(lastSession.sessionId);
+                setSessionId(lastSession.sessionId);
+                setMessages(history);
+                setVoiceTranscriptMessages(history);
+                AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, lastSession.sessionId).catch(() => {});
+                return;
+            }
+        } catch {
+            // Database error — fall through
+        }
+
+        // 4. No previous session found — start fresh (default state)
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
     useEffect(() => {
         if (sessionRestoredRef.current) return;
         sessionRestoredRef.current = true;
-
-        (async () => {
-            // 1. Route param (e.g. from cooking guide exit)
-            const paramId = typeof sessionParam === 'string' ? sessionParam : undefined;
-            if (paramId) {
-                try {
-                    const history = await loadChatHistory(paramId);
-                    setSessionId(paramId);
-                    setMessages(history);
-                    setVoiceTranscriptMessages(history);
-                    AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, paramId).catch(() => {});
-                    return;
-                } catch {
-                    // Session may have been deleted — fall through
-                }
-            }
-
-            // 2. AsyncStorage persisted session
-            try {
-                const storedId = await AsyncStorage.getItem(STORAGE_KEY_SESSION_ID);
-                if (storedId) {
-                    try {
-                        const history = await loadChatHistory(storedId);
-                        if (history.length > 0) {
-                            setSessionId(storedId);
-                            setMessages(history);
-                            setVoiceTranscriptMessages(history);
-                            return;
-                        }
-                    } catch {
-                        // Stored session no longer exists — fall through
-                        AsyncStorage.removeItem(STORAGE_KEY_SESSION_ID).catch(() => {});
-                    }
-                }
-            } catch {
-                // AsyncStorage error — fall through
-            }
-
-            // 3. Last session with messages (database query)
-            try {
-                const lastSession = await getLastSessionWithMessages();
-                if (lastSession) {
-                    const history = await loadChatHistory(lastSession.sessionId);
-                    setSessionId(lastSession.sessionId);
-                    setMessages(history);
-                    setVoiceTranscriptMessages(history);
-                    AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, lastSession.sessionId).catch(() => {});
-                    return;
-                }
-            } catch {
-                // Database error — fall through
-            }
-
-            // 4. No previous session found — start fresh (default state)
-        })();
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+        restoreSession();
+    }, [restoreSession]);
 
     // Wrapper that persists sessionId alongside state
     const updateSessionId = useCallback((newSessionId: string) => {

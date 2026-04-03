@@ -172,6 +172,10 @@ export function getToolRegistration(
   return TOOL_REGISTRY[toolName];
 }
 
+export function getRegisteredToolNames(): string[] {
+  return Object.keys(TOOL_REGISTRY);
+}
+
 export function getRegisteredAiTools(exclude?: string[]): AITool[] {
   const entries = Object.entries(TOOL_REGISTRY);
   if (!exclude || exclude.length === 0) {

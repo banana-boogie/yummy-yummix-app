@@ -24,6 +24,7 @@ import type {
 import { ToolValidationError } from "../_shared/tools/tool-validators.ts";
 import { executeTool } from "../_shared/tools/execute-tool.ts";
 import { shapeToolResponse } from "../_shared/tools/shape-tool-response.ts";
+import { getRegisteredToolNames } from "../_shared/tools/tool-registry.ts";
 // Module imports
 import type {
   ChatMessage,
@@ -588,19 +589,12 @@ function handleStreamingRequest(
         };
 
         // ── Tool gating ──
-        // Compute which tools to exclude based on conversation context.
-        // Cooking helper: text-only (no tools).
+        // Cooking helper: text-only (exclude ALL tools — new tools auto-excluded).
         // General chat: exclude modify_recipe if no recipe exists in session.
-        const excludeTools: string[] = [];
+        let excludeTools: string[] = [];
         if (cookingContext) {
           // Helper mode: no tools at all — answer from recipe context only
-          excludeTools.push(
-            "search_recipes",
-            "generate_custom_recipe",
-            "modify_recipe",
-            "retrieve_cooked_recipes",
-            "app_action",
-          );
+          excludeTools = getRegisteredToolNames();
         } else {
           // General chat: block modify_recipe unless a recipe exists in this session
           const hasRecipeInHistory = messages.some(
