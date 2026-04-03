@@ -307,7 +307,7 @@ await Notifications.scheduleNotificationAsync({
 });
 ```
 
-**Current usage:** Cooking guide `RestTimer` fires a local notification when the countdown completes.
+**Current usage:** Cooking guide `KitchenTimer` fires a local notification when the countdown completes.
 
 **Note:** Requires a dev build (not available in Expo Go). The same `expo-notifications` module handles remote push notifications — when adding server-sent notifications later, the permission and setup infrastructure is already in place.
 

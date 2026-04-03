@@ -1,5 +1,5 @@
 /**
- * RestTimer Component
+ * KitchenTimer Component
  *
  * Detects "let sit/rest/cool/stand" instructions in recipe steps,
  * extracts the duration, and offers a countdown timer.
@@ -19,7 +19,7 @@ import * as Haptics from 'expo-haptics';
 import notificationService from '@/services/notifications/NotificationService';
 import i18n from '@/i18n';
 
-interface RestTimerProps {
+interface KitchenTimerProps {
     instruction: string;
     /** Explicit duration in seconds — bypasses keyword detection when provided. */
     durationSeconds?: number | null;
@@ -42,10 +42,11 @@ const TIME_PATTERNS = [
 ];
 
 /**
- * Detect rest instruction and extract duration in seconds.
+ * Legacy keyword-based timer detection fallback.
+ * Detects rest instruction and extracts duration in seconds.
  * Returns null if no rest detected or no time found.
  */
-export function detectRestTime(instruction: string): number | null {
+export function detectLegacyStepTimer(instruction: string): number | null {
     const lower = instruction.toLowerCase();
 
     const hasRestKeyword = REST_KEYWORDS.some(kw => lower.includes(kw));
@@ -70,8 +71,8 @@ function formatTime(seconds: number): string {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-export function RestTimer({ instruction, durationSeconds }: RestTimerProps) {
-    const totalSeconds = durationSeconds ?? detectRestTime(instruction);
+export function KitchenTimer({ instruction, durationSeconds }: KitchenTimerProps) {
+    const totalSeconds = durationSeconds ?? detectLegacyStepTimer(instruction);
     const [remainingSeconds, setRemainingSeconds] = useState(totalSeconds ?? 0);
     const [isRunning, setIsRunning] = useState(false);
     const [isComplete, setIsComplete] = useState(false);
@@ -100,7 +101,7 @@ export function RestTimer({ instruction, durationSeconds }: RestTimerProps) {
 
     // Reset when instruction or explicit duration changes
     useEffect(() => {
-        const newTotal = durationSeconds ?? detectRestTime(instruction);
+        const newTotal = durationSeconds ?? detectLegacyStepTimer(instruction);
         setRemainingSeconds(newTotal ?? 0);
         setIsRunning(false);
         setIsComplete(false);
@@ -168,6 +169,9 @@ export function RestTimer({ instruction, durationSeconds }: RestTimerProps) {
 
     return (
         <View className="bg-primary-lightest rounded-xl p-lg items-center w-full shadow-sm mt-md">
+            <Text preset="caption" className="text-text-secondary mb-xs">
+                {i18n.t('recipes.cookingGuide.kitchenTimer')}
+            </Text>
             <Ionicons
                 name={isComplete ? 'checkmark-circle' : 'timer-outline'}
                 size={32}

@@ -7,7 +7,7 @@ import { ThermomixCookingParameters } from '@/components/cooking-guide/Thermomix
 import { RecipeStep } from '@/types/recipe.types';
 import { SafeImage } from '@/components/common';
 import { getIngredientName } from '@/utils/recipes/ingredients';
-import { RestTimer } from '@/components/cooking-guide/RestTimer';
+import { KitchenTimer } from '@/components/cooking-guide/KitchenTimer';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import * as Haptics from 'expo-haptics';
@@ -127,7 +127,7 @@ export function RecipeStepContent({ step, className = '', style }: RecipeStepCon
                 />
             ) : null}
             {!step.thermomix?.time && (
-                <RestTimer instruction={step.instruction} durationSeconds={step.timerSeconds} />
+                <KitchenTimer instruction={step.instruction} durationSeconds={step.timerSeconds} />
             )}
             {step.tip ? (
                 <View className="bg-primary-lightest rounded-sm p-sm mt-sm mx-md">

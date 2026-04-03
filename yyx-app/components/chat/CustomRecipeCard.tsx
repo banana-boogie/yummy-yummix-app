@@ -16,6 +16,7 @@ import type { GeneratedRecipe, SafetyFlags } from '@/types/irmixy';
 import i18n from '@/i18n';
 import { COLORS } from '@/constants/design-tokens';
 import { getDifficultyColor, getDifficultyLabel } from '@/utils/recipes/difficulty';
+import { renderRecipeText } from '@/components/recipe-detail/RenderRecipeText';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -355,9 +356,12 @@ export const CustomRecipeCard = memo(function CustomRecipeCard({
                                             {step.order}
                                         </Text>
                                     </View>
-                                    <Text className="flex-1 text-text-primary text-base leading-relaxed">
-                                        {step.instruction}
-                                    </Text>
+                                    <View className="flex-1">
+                                        {renderRecipeText(step.instruction, {
+                                            textStyle: { fontSize: 16, lineHeight: 24 },
+                                            boldStyle: { fontSize: 16, lineHeight: 24 },
+                                        })}
+                                    </View>
                                 </View>
                             ))}
                         </View>
