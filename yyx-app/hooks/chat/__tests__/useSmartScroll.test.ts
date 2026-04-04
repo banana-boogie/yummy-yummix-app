@@ -428,6 +428,36 @@ describe('useSmartScroll', () => {
 
       expect(mockScrollToOffset).not.toHaveBeenCalled();
     });
+
+    it('restore mode ends after the hard cap timeout', () => {
+      jest.useFakeTimers();
+      const params = createDefaultParams();
+      const { result } = renderHook(() => useSmartScroll(params));
+
+      const mockScrollToOffset = jest.fn();
+      const mockScrollToEnd = jest.fn();
+      (result.current.flatListRef as any).current = {
+        scrollToOffset: mockScrollToOffset,
+        scrollToEnd: mockScrollToEnd,
+      };
+
+      act(() => {
+        result.current.beginRestoreScroll();
+        result.current.handleContentSizeChange(375, 500);
+      });
+
+      mockScrollToOffset.mockClear();
+
+      act(() => {
+        jest.advanceTimersByTime(2001);
+      });
+
+      act(() => {
+        result.current.handleContentSizeChange(375, 900);
+      });
+
+      expect(mockScrollToOffset).not.toHaveBeenCalled();
+    });
   });
 
   // ============================================================

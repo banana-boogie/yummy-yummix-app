@@ -11,6 +11,15 @@ interface UseSmartScrollParams {
     hasRecipeInCurrentStreamRef: React.MutableRefObject<boolean>;
 }
 
+type RestoreScrollState = {
+    active: boolean;
+    startedAt: number;
+    lastHeight: number;
+    stablePasses: number;
+    stableTimer: ReturnType<typeof setTimeout> | null;
+    hardCapTimer: ReturnType<typeof setTimeout> | null;
+};
+
 export function useSmartScroll({
     hasRecipeInCurrentStreamRef,
 }: UseSmartScrollParams) {
@@ -20,43 +29,48 @@ export function useSmartScroll({
     const skipNextScrollToEndRef = useRef(false);
     const prevContentHeightRef = useRef(0);
     const [showScrollButton, setShowScrollButton] = useState(false);
-    const restoreActiveRef = useRef(false);
-    const restoreStartedAtRef = useRef(0);
-    const restoreLastHeightRef = useRef(0);
-    const restoreLastGrowthAtRef = useRef(0);
-    const restoreStablePassesRef = useRef(0);
-    const restoreStableTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const restoreHardCapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const restoreStateRef = useRef<RestoreScrollState>({
+        active: false,
+        startedAt: 0,
+        lastHeight: 0,
+        stablePasses: 0,
+        stableTimer: null,
+        hardCapTimer: null,
+    });
 
     const cancelRestoreScroll = useCallback(() => {
-        restoreActiveRef.current = false;
-        restoreStartedAtRef.current = 0;
-        restoreLastHeightRef.current = 0;
-        restoreLastGrowthAtRef.current = 0;
-        restoreStablePassesRef.current = 0;
-        if (restoreStableTimerRef.current) {
-            clearTimeout(restoreStableTimerRef.current);
-            restoreStableTimerRef.current = null;
+        const restore = restoreStateRef.current;
+        if (restore.stableTimer) {
+            clearTimeout(restore.stableTimer);
         }
-        if (restoreHardCapTimerRef.current) {
-            clearTimeout(restoreHardCapTimerRef.current);
-            restoreHardCapTimerRef.current = null;
+        if (restore.hardCapTimer) {
+            clearTimeout(restore.hardCapTimer);
         }
+        restoreStateRef.current = {
+            active: false,
+            startedAt: 0,
+            lastHeight: 0,
+            stablePasses: 0,
+            stableTimer: null,
+            hardCapTimer: null,
+        };
     }, []);
 
     const beginRestoreScroll = useCallback(() => {
         cancelRestoreScroll();
         const now = Date.now();
-        restoreActiveRef.current = true;
-        restoreStartedAtRef.current = now;
-        restoreLastGrowthAtRef.current = now;
-        restoreStablePassesRef.current = 0;
+        restoreStateRef.current = {
+            active: true,
+            startedAt: now,
+            lastHeight: 0,
+            stablePasses: 0,
+            stableTimer: null,
+            hardCapTimer: setTimeout(() => {
+                cancelRestoreScroll();
+            }, RESTORE_SCROLL_HARD_CAP_MS),
+        };
         isNearBottomRef.current = true;
         setShowScrollButton(false);
-
-        restoreHardCapTimerRef.current = setTimeout(() => {
-            cancelRestoreScroll();
-        }, RESTORE_SCROLL_HARD_CAP_MS);
     }, [cancelRestoreScroll]);
 
     useEffect(() => {
@@ -80,34 +94,33 @@ export function useSmartScroll({
      * This is the reliable moment to scroll — content is already rendered.
      */
     const handleContentSizeChange = useCallback((_width: number, height: number) => {
-        if (restoreActiveRef.current) {
-            const now = Date.now();
-            const grew = height > restoreLastHeightRef.current;
-            const unchanged = height === restoreLastHeightRef.current;
-
-            restoreLastHeightRef.current = height;
+        const restore = restoreStateRef.current;
+        if (restore.active) {
+            const grew = height > restore.lastHeight;
+            const unchanged = height === restore.lastHeight;
 
             flatListRef.current?.scrollToOffset({ offset: height, animated: false });
 
-            if (restoreStableTimerRef.current) {
-                clearTimeout(restoreStableTimerRef.current);
+            if (restore.stableTimer) {
+                clearTimeout(restore.stableTimer);
             }
-            restoreStableTimerRef.current = setTimeout(() => {
+            restore.stableTimer = setTimeout(() => {
                 cancelRestoreScroll();
             }, RESTORE_SCROLL_STABLE_DEBOUNCE_MS);
 
             if (grew) {
-                restoreLastGrowthAtRef.current = now;
-                restoreStablePassesRef.current = 0;
+                restore.lastHeight = height;
+                restore.stablePasses = 0;
             } else if (unchanged) {
-                restoreStablePassesRef.current += 1;
-                if (
-                    restoreStablePassesRef.current >= RESTORE_SCROLL_STABLE_PASSES ||
-                    now - restoreLastGrowthAtRef.current >= RESTORE_SCROLL_STABLE_DEBOUNCE_MS ||
-                    now - restoreStartedAtRef.current >= RESTORE_SCROLL_HARD_CAP_MS
-                ) {
+                restore.stablePasses += 1;
+                if (restore.stablePasses >= RESTORE_SCROLL_STABLE_PASSES) {
                     cancelRestoreScroll();
                 }
+            } else {
+                // Content can shrink during virtualization/layout reconciliation.
+                // Treat that as "still changing" but not stable.
+                restore.lastHeight = height;
+                restore.stablePasses = 0;
             }
             return;
         }
@@ -124,7 +137,7 @@ export function useSmartScroll({
         if (!isNearBottomRef.current) return;
 
         flatListRef.current?.scrollToEnd({ animated: false });
-    }, [hasRecipeInCurrentStreamRef]);
+    }, [cancelRestoreScroll, hasRecipeInCurrentStreamRef]);
 
     /**
      * Fires when the FlatList layout changes (e.g. keyboard open/close).
@@ -140,7 +153,7 @@ export function useSmartScroll({
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
         const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
 
-        if (restoreActiveRef.current && distanceFromBottom > SCROLL_THRESHOLD) {
+        if (restoreStateRef.current.active && distanceFromBottom > SCROLL_THRESHOLD) {
             cancelRestoreScroll();
         }
 
