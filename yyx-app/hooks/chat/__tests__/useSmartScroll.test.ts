@@ -51,6 +51,10 @@ describe('useSmartScroll', () => {
     jest.clearAllMocks();
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   // ============================================================
   // INITIAL STATE
   // ============================================================
@@ -327,6 +331,103 @@ describe('useSmartScroll', () => {
       expect(mockScrollToEnd).not.toHaveBeenCalled();
       expect(result.current.skipNextScrollToEndRef.current).toBe(false);
     });
+
+    it('force-scrolls with scrollToOffset during restore mode', () => {
+      jest.useFakeTimers();
+      const params = createDefaultParams();
+      const { result } = renderHook(() => useSmartScroll(params));
+
+      const mockScrollToOffset = jest.fn();
+      const mockScrollToEnd = jest.fn();
+      (result.current.flatListRef as any).current = {
+        scrollToOffset: mockScrollToOffset,
+        scrollToEnd: mockScrollToEnd,
+      };
+
+      act(() => {
+        result.current.beginRestoreScroll();
+        result.current.handleContentSizeChange(375, 500);
+        result.current.handleContentSizeChange(375, 800);
+      });
+
+      expect(mockScrollToOffset).toHaveBeenLastCalledWith({ offset: 800, animated: false });
+    });
+
+    it('restore mode bypasses normal bailouts', () => {
+      jest.useFakeTimers();
+      const params = createDefaultParams();
+      params.hasRecipeInCurrentStreamRef.current = true;
+      const { result } = renderHook(() => useSmartScroll(params));
+
+      const mockScrollToOffset = jest.fn();
+      (result.current.flatListRef as any).current = { scrollToOffset: mockScrollToOffset };
+
+      result.current.skipNextScrollToEndRef.current = true;
+      result.current.isNearBottomRef.current = false;
+
+      act(() => {
+        result.current.beginRestoreScroll();
+        result.current.handleContentSizeChange(375, 700);
+      });
+
+      expect(mockScrollToOffset).toHaveBeenCalledWith({ offset: 700, animated: false });
+    });
+
+    it('restore mode ends after content is stable for the debounce window', () => {
+      jest.useFakeTimers();
+      const params = createDefaultParams();
+      const { result } = renderHook(() => useSmartScroll(params));
+
+      const mockScrollToOffset = jest.fn();
+      const mockScrollToEnd = jest.fn();
+      (result.current.flatListRef as any).current = {
+        scrollToOffset: mockScrollToOffset,
+        scrollToEnd: mockScrollToEnd,
+      };
+
+      act(() => {
+        jest.setSystemTime(1000);
+        result.current.beginRestoreScroll();
+        result.current.handleContentSizeChange(375, 500);
+        jest.advanceTimersByTime(151);
+      });
+
+      mockScrollToOffset.mockClear();
+
+      act(() => {
+        result.current.handleContentSizeChange(375, 800);
+      });
+
+      expect(mockScrollToOffset).not.toHaveBeenCalled();
+    });
+
+    it('restore mode ends after two stable passes', () => {
+      jest.useFakeTimers();
+      const params = createDefaultParams();
+      const { result } = renderHook(() => useSmartScroll(params));
+
+      const mockScrollToOffset = jest.fn();
+      const mockScrollToEnd = jest.fn();
+      (result.current.flatListRef as any).current = {
+        scrollToOffset: mockScrollToOffset,
+        scrollToEnd: mockScrollToEnd,
+      };
+
+      act(() => {
+        result.current.beginRestoreScroll();
+        result.current.handleContentSizeChange(375, 500);
+        result.current.handleContentSizeChange(375, 500);
+        result.current.handleContentSizeChange(375, 500);
+      });
+
+      mockScrollToOffset.mockClear();
+
+      act(() => {
+        result.current.handleContentSizeChange(375, 800);
+      });
+
+      expect(mockScrollToOffset).not.toHaveBeenCalled();
+    });
   });
 
   // ============================================================
@@ -482,6 +583,55 @@ describe('useSmartScroll', () => {
         result.current.scrollToEndThrottled(false);
       });
       expect(mockScrollToEnd).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('restore mode', () => {
+    it('beginRestoreScroll resets isNearBottomRef and hides the scroll button', () => {
+      jest.useFakeTimers();
+      const params = createDefaultParams();
+      const { result } = renderHook(() => useSmartScroll(params));
+
+      act(() => {
+        result.current.handleScroll(
+          createScrollEvent({ contentOffsetY: 100, contentHeight: 1000, layoutHeight: 500 }),
+        );
+      });
+
+      expect(result.current.isNearBottomRef.current).toBe(false);
+      expect(result.current.showScrollButton).toBe(true);
+
+      act(() => {
+        result.current.beginRestoreScroll();
+      });
+
+      expect(result.current.isNearBottomRef.current).toBe(true);
+      expect(result.current.showScrollButton).toBe(false);
+    });
+
+    it('user scrolling away from bottom cancels restore mode', () => {
+      jest.useFakeTimers();
+      const params = createDefaultParams();
+      const { result } = renderHook(() => useSmartScroll(params));
+
+      const mockScrollToOffset = jest.fn();
+      (result.current.flatListRef as any).current = { scrollToOffset: mockScrollToOffset };
+
+      act(() => {
+        result.current.beginRestoreScroll();
+        result.current.handleContentSizeChange(375, 500);
+        result.current.handleScroll(
+          createScrollEvent({ contentOffsetY: 100, contentHeight: 1000, layoutHeight: 500 }),
+        );
+      });
+
+      mockScrollToOffset.mockClear();
+
+      act(() => {
+        result.current.handleContentSizeChange(375, 800);
+      });
+
+      expect(mockScrollToOffset).not.toHaveBeenCalled();
     });
   });
 });

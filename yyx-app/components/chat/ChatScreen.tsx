@@ -112,25 +112,6 @@ export function ChatScreen({
         onMessagesChange?.(newMessages);
     }, [onMessagesChange]);
 
-    // Sync parent-driven message changes (session selection, New Chat) into internal state.
-    // Skips when the change originated from our own setMessages to avoid loops.
-    // Uses length + last-ID check instead of referential equality to avoid unnecessary
-    // re-renders when the parent creates a new array with identical content.
-    useEffect(() => {
-        if (internalWriteRef.current) {
-            internalWriteRef.current = false;
-            return;
-        }
-        const incoming = externalMessages ?? [];
-        const current = messagesRef.current;
-        const changed = incoming.length !== current.length
-            || incoming[incoming.length - 1]?.id !== current[current.length - 1]?.id;
-        if (changed) {
-            messagesRef.current = incoming;
-            setInternalMessages(incoming);
-        }
-    }, [externalMessages]);  
-
     const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId ?? null);
     // Track session IDs created by this ChatScreen instance to avoid
     // resetting the stream when the ID round-trips through a parent context.
@@ -151,9 +132,35 @@ export function ChatScreen({
         handleScrollToEnd,
         isNearBottomRef,
         skipNextScrollToEndRef,
+        beginRestoreScroll,
+        cancelRestoreScroll,
     } = useSmartScroll({
         hasRecipeInCurrentStreamRef,
     });
+
+    // Sync parent-driven message changes (session selection, New Chat) into internal state.
+    // Skips when the change originated from our own setMessages to avoid loops.
+    // Uses length + last-ID check instead of referential equality to avoid unnecessary
+    // re-renders when the parent creates a new array with identical content.
+    useEffect(() => {
+        if (internalWriteRef.current) {
+            internalWriteRef.current = false;
+            return;
+        }
+        const incoming = externalMessages ?? [];
+        const current = messagesRef.current;
+        const changed = incoming.length !== current.length
+            || incoming[incoming.length - 1]?.id !== current[current.length - 1]?.id;
+        if (changed) {
+            if (incoming.length > 0) {
+                beginRestoreScroll();
+            } else {
+                cancelRestoreScroll();
+            }
+            messagesRef.current = incoming;
+            setInternalMessages(incoming);
+        }
+    }, [externalMessages, beginRestoreScroll, cancelRestoreScroll]);
 
     // --- Budget state ---
     const [isBudgetExceeded, setIsBudgetExceeded] = useState(false);

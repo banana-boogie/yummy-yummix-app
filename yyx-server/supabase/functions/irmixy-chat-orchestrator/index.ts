@@ -57,6 +57,12 @@ const STREAM_TIMEOUT_MS = 30_000;
 const HEARTBEAT_INTERVAL_MS = 15_000;
 const MAX_TOOL_LOOP_ITERATIONS = 5;
 
+/** Strip LLM-hallucinated tool XML markup (e.g. `<tool>generate_custom_recipe</tool>`) from streamed text. */
+const TOOL_XML_RE = /<\/?tool[^>]*>/gi;
+function stripToolMarkup(text: string): string {
+  return text.replace(TOOL_XML_RE, "").trim();
+}
+
 /** Build and fire a usage log entry. Keeps orchestrator DRY. */
 function fireUsageLog(
   ctx: AIUsageLogContext,
@@ -691,10 +697,11 @@ function handleStreamingRequest(
             // generated — the intro text + recipe card IS the response.
             if (!customRecipeResult) {
               for (const chunk of iterationTextBuffer) {
-                send({ type: "content", content: chunk });
+                const cleaned = stripToolMarkup(chunk);
+                if (cleaned) send({ type: "content", content: cleaned });
               }
             }
-            finalText = streamResult.content;
+            finalText = stripToolMarkup(streamResult.content);
             break;
           }
           // Execute tool calls
@@ -707,9 +714,10 @@ function handleStreamingRequest(
             toolName === "modify_recipe";
           if (isRecipeTool && iterationTextBuffer.length > 0) {
             for (const chunk of iterationTextBuffer) {
-              send({ type: "content", content: chunk });
+              const cleaned = stripToolMarkup(chunk);
+              if (cleaned) send({ type: "content", content: cleaned });
             }
-            finalText = streamResult.content;
+            finalText = stripToolMarkup(streamResult.content);
           }
 
           timings[`llm_iter${iteration}_ms`] = Math.round(

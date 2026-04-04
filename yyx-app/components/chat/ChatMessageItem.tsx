@@ -27,6 +27,11 @@ function stripMarkdownImages(content: string): string {
     return content.replace(/!\[.*?\]\(.*?\)\s*/g, '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+/** Strip LLM-hallucinated tool XML (e.g. `<tool>generate_custom_recipe</tool>`) from displayed text. */
+function stripToolMarkup(content: string): string {
+    return content.replace(/<\/?tool[^>]*>/gi, '').trim();
+}
+
 /** Detect whether content contains markdown syntax worth parsing.
  *  Plain text (e.g. voice transcripts) can skip the expensive Markdown renderer. */
 const MARKDOWN_PATTERN = /[#*_`~>|]|\[.+\]\(|^\s*[-+]\s/m;
@@ -161,9 +166,11 @@ export const ChatMessageItem = memo(function ChatMessageItem({
 
     // Strip markdown images only when recipe visuals are rendered as cards.
     // If there are no cards, keep markdown images in the message bubble.
-    const displayContent = !isUser
-        ? (hasRecipeVisualData ? stripMarkdownImages(item.content) : item.content)
-        : item.content;
+    // Always strip LLM-hallucinated tool XML from assistant messages.
+    const rawContent = !isUser ? stripToolMarkup(item.content) : item.content;
+    const displayContent = !isUser && hasRecipeVisualData
+        ? stripMarkdownImages(rawContent)
+        : rawContent;
 
     return (
         <View className="mb-sm">

@@ -15,7 +15,7 @@ import { VoiceChatScreen } from '@/components/chat/VoiceChatScreen';
 import { ChatSessionsMenu } from '@/components/chat/ChatSessionsMenu';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
-import { ChatMessage, loadChatHistory, getLastSessionWithMessages, touchChatSession } from '@/services/chatService';
+import { ChatMessage, loadChatHistory, touchChatSession } from '@/services/chatService';
 import i18n from '@/i18n';
 
 const STORAGE_KEY_SESSION_ID = 'lastChatSessionId';
@@ -43,70 +43,24 @@ export default function ChatPage() {
         }).catch(() => {});
     }, []);
 
-    // Restore previous chat session on mount
-    // Priority: 1) route param  2) AsyncStorage  3) last session with messages  4) fresh
-    const restoreSession = useCallback(async () => {
-        // 1. Route param (e.g. from cooking guide exit)
+    // Always start fresh on mount. Previous chats accessible via history button.
+    // Only restore a specific session when explicitly requested via route param
+    // (e.g., returning from cooking guide).
+    useEffect(() => {
+        if (sessionRestoredRef.current) return;
+        sessionRestoredRef.current = true;
+
         const paramId = typeof sessionParam === 'string' ? sessionParam : undefined;
         if (paramId) {
-            try {
-                const history = await loadChatHistory(paramId);
+            loadChatHistory(paramId).then((history) => {
                 setSessionId(paramId);
                 setMessages(history);
                 setVoiceTranscriptMessages(history);
                 AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, paramId).catch(() => {});
                 touchChatSession(paramId).catch(() => {});
-                return;
-            } catch {
-                // Session may have been deleted — fall through
-            }
+            }).catch(() => {});
         }
-
-        // 2. AsyncStorage persisted session
-        try {
-            const storedId = await AsyncStorage.getItem(STORAGE_KEY_SESSION_ID);
-            if (storedId) {
-                try {
-                    const history = await loadChatHistory(storedId);
-                    if (history.length > 0) {
-                        setSessionId(storedId);
-                        setMessages(history);
-                        setVoiceTranscriptMessages(history);
-                        touchChatSession(storedId).catch(() => {});
-                        return;
-                    }
-                } catch {
-                    AsyncStorage.removeItem(STORAGE_KEY_SESSION_ID).catch(() => {});
-                }
-            }
-        } catch {
-            // AsyncStorage error — fall through
-        }
-
-        // 3. Last session with messages (database query)
-        try {
-            const lastSession = await getLastSessionWithMessages();
-            if (lastSession) {
-                const history = await loadChatHistory(lastSession.sessionId);
-                setSessionId(lastSession.sessionId);
-                setMessages(history);
-                setVoiceTranscriptMessages(history);
-                AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, lastSession.sessionId).catch(() => {});
-                touchChatSession(lastSession.sessionId).catch(() => {});
-                return;
-            }
-        } catch {
-            // Database error — fall through
-        }
-
-        // 4. No previous session found — start fresh (default state)
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-    useEffect(() => {
-        if (sessionRestoredRef.current) return;
-        sessionRestoredRef.current = true;
-        restoreSession();
-    }, [restoreSession]);
 
     // Override session when route param changes (e.g. returning from cooking guide
     // to an already-mounted chat tab)
