@@ -269,30 +269,43 @@ export function ChatScreen({
 
     // --- Compute effective messages with initial greeting (synchronous — no flash of empty state) ---
     const greetingDateRef = useRef(new Date());
-    const effectiveMessages = useMemo(() => {
-        if (initialGreeting && messages.length === 0) {
-            return [{
+    // Seed the initial greeting as a real message so it persists alongside
+    // user messages instead of disappearing when the first message is sent.
+    const greetingSeededRef = useRef(false);
+    useEffect(() => {
+        if (initialGreeting && messages.length === 0 && !greetingSeededRef.current) {
+            greetingSeededRef.current = true;
+            setMessages([{
                 id: 'initial-greeting',
                 role: 'assistant' as const,
                 content: initialGreeting,
                 createdAt: greetingDateRef.current,
-            }];
+            }]);
         }
-        return messages;
-    }, [messages, initialGreeting]);
+    }, [initialGreeting]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const effectiveMessages = messages;
 
     // --- Effects ---
 
     // Sync currentSessionId when parent changes it (e.g. session selection).
-    // Skip when the ID was created by this instance (round-trip through context).
+    // Only reset when the parent provides a DIFFERENT non-null session.
+    // Skip when: parent is null (session not yet propagated), or the ID
+    // was created by this instance (round-trip through context).
     useEffect(() => {
         const nextSessionId = initialSessionId ?? null;
-        if (nextSessionId !== currentSessionId && nextSessionId !== ownSessionIdRef.current) {
-            resetStreamingState();
-            setCurrentSessionId(nextSessionId);
-            setIsBudgetExceeded(false);
-            budgetWarningShownRef.current = false;
-        }
+        // Don't reset if parent hasn't provided a session yet — our internal
+        // session creation is authoritative until the parent catches up.
+        if (!nextSessionId) return;
+        // Don't reset if this is the same session we created
+        if (nextSessionId === ownSessionIdRef.current) return;
+        // Don't reset if already on this session
+        if (nextSessionId === currentSessionId) return;
+        // Parent switched to a genuinely different session — reset and sync
+        resetStreamingState();
+        setCurrentSessionId(nextSessionId);
+        setIsBudgetExceeded(false);
+        budgetWarningShownRef.current = false;
     }, [initialSessionId, currentSessionId, resetStreamingState, setCurrentSessionId]);
 
     // Reset budget state when parent explicitly starts a new chat
