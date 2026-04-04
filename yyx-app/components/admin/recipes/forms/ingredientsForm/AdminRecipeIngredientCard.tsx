@@ -17,6 +17,8 @@ interface AdminRecipeIngredientCardProps {
   onMoveDownPress?: () => void;
   isFirst?: boolean;
   isLast?: boolean;
+  /** Optional drag handle element — when provided, replaces up/down arrows on desktop */
+  dragHandle?: React.ReactNode;
 }
 
 export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps> = ({
@@ -28,7 +30,8 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
   onMoveDownPress,
   isFirst = false,
   isLast = false,
-  hideActions = false
+  hideActions = false,
+  dragHandle,
 }) => {
   const { isMobile } = useDevice();
   const ingredientName = getTranslatedField(recipeIngredient.ingredient?.translations, displayLocale, 'name');
@@ -41,6 +44,9 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
   if (!isMobile) {
     return (
       <View className="flex-row items-center p-sm border border-border-default rounded-sm mb-sm bg-background-default gap-xs">
+        {/* Drag handle (when provided) */}
+        {dragHandle ? dragHandle : null}
+
         {/* Image */}
         <SafeImage
           source={recipeIngredient.ingredient.pictureUrl}
@@ -83,12 +89,16 @@ export const AdminRecipeIngredientCard: React.FC<AdminRecipeIngredientCardProps>
             <TouchableOpacity onPress={onDeletePress} className="p-xxs">
               <Ionicons name="trash-outline" size={14} className="text-text-secondary" />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => onMoveUpPress?.()} disabled={isFirst} className={`p-xxs ${isFirst ? 'opacity-30' : ''}`}>
-              <Ionicons name="chevron-up" size={14} className={isFirst ? 'text-grey-medium' : 'text-text-default'} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => onMoveDownPress?.()} disabled={isLast} className={`p-xxs ${isLast ? 'opacity-30' : ''}`}>
-              <Ionicons name="chevron-down" size={14} className={isLast ? 'text-grey-medium' : 'text-text-default'} />
-            </TouchableOpacity>
+            {!dragHandle ? (
+              <>
+                <TouchableOpacity onPress={() => onMoveUpPress?.()} disabled={isFirst} className={`p-xxs ${isFirst ? 'opacity-30' : ''}`}>
+                  <Ionicons name="chevron-up" size={14} className={isFirst ? 'text-grey-medium' : 'text-text-default'} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => onMoveDownPress?.()} disabled={isLast} className={`p-xxs ${isLast ? 'opacity-30' : ''}`}>
+                  <Ionicons name="chevron-down" size={14} className={isLast ? 'text-grey-medium' : 'text-text-default'} />
+                </TouchableOpacity>
+              </>
+            ) : null}
           </View>
         ) : null}
       </View>
