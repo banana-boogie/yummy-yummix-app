@@ -343,8 +343,10 @@ class AdminRecipeService extends BaseService {
 
     if (recipeIngredients.length === 0) return;
 
-    // Insert only non-translatable fields
-    const recipeIngredientsToInsert = recipeIngredients.map((recipeIngredient, index) =>
+    // Sort by displayOrder before persisting so drag-and-drop order survives save/reload.
+    // The array position is used as the persisted order, so it must match displayOrder.
+    const sortedIngredients = [...recipeIngredients].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    const recipeIngredientsToInsert = sortedIngredients.map((recipeIngredient, index) =>
       this.transformRequest({
         recipeId,
         ingredientId: recipeIngredient.ingredientId,
@@ -371,7 +373,7 @@ class AdminRecipeService extends BaseService {
       );
 
       const translations: any[] = [];
-      recipeIngredients.forEach((recipeIngredient, index) => {
+      sortedIngredients.forEach((recipeIngredient, index) => {
         const displayOrder = index + 1;
         const rowId = orderToIdMap.get(displayOrder);
         if (!rowId) return;
