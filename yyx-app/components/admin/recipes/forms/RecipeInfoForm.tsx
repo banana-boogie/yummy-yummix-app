@@ -11,7 +11,6 @@ import { SelectInput, SelectOption } from '@/components/form/SelectInput';
 import { AlertModal } from '@/components/common/AlertModal';
 import { Text } from '@/components/common/Text';
 import { ImageUploadSection } from '@/components/admin/recipes/forms/common/ImageUploadSection';
-import { AuthoringLanguagePicker } from './shared/AuthoringLanguagePicker';
 import logger from '@/services/logger';
 
 // Interface for recipe with image file

@@ -247,9 +247,17 @@ export default function EditRecipePage() {
               onStepClick={handleStepClick}
               clickable={true}
             />
-            {currentStep !== CreateRecipeStep.BASIC_INFO && currentStep !== CreateRecipeStep.TRANSLATIONS && (
+            {currentStep !== CreateRecipeStep.TRANSLATIONS && (
               <View className="mt-md">
-                <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+                <AdminDisplayLocaleToggle
+                  value={currentStep === CreateRecipeStep.BASIC_INFO ? authoringLocale : displayLocale}
+                  onChange={(locale) => {
+                    if (currentStep === CreateRecipeStep.BASIC_INFO) {
+                      handleAuthoringLocaleChange(locale);
+                    }
+                    setDisplayLocale(locale);
+                  }}
+                />
               </View>
             )}
           </View>
