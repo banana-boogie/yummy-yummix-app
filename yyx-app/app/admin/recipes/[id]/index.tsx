@@ -24,7 +24,6 @@ import { useDevice } from '@/hooks/useDevice';
 import { TranslationStep } from '@/components/admin/recipes/forms/translationForm/TranslationStep';
 import { loadAuthoringLocale, saveAuthoringLocale } from '@/components/admin/recipes/forms/shared/AuthoringLanguagePicker';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
-import logger from '@/services/logger';
 
 export default function EditRecipePage() {
   const { id } = useLocalSearchParams();

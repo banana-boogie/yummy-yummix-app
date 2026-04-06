@@ -16,7 +16,7 @@ import { MiseEnPlaceKitchenTool } from '@/components/cooking-guide/MiseEnPlaceKi
 import { Text } from '@/components/common/Text';
 import { LAYOUT } from '@/constants/design-tokens';
 import { getCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
-import { formatSpeedText } from '@/utils/thermomix/assetUtils';
+import { buildRecipeContext } from '@/utils/recipeContext';
 
 type CheckableKitchenTool = {
     id: string;
@@ -136,24 +136,13 @@ export default function CustomKitchenToolsStep() {
             <IrmixyCookingModal
                 visible={irmixy.isVisible}
                 onClose={irmixy.close}
-                recipeContext={{
+                recipeContext={buildRecipeContext(recipe, {
                     type: 'custom',
                     recipeId: id as string,
-                    recipeTitle: recipe?.name || '',
-                    kitchenTools: kitchenTools.map(item => item.name),
-                    ingredients: recipe?.ingredients?.map((i) => ({
-                        name: i.name,
-                        amount: `${i.formattedQuantity} ${i.formattedUnit}`.trim(),
-                    })),
-                    allSteps: recipe?.steps?.map((s) => ({
-                        order: s.order,
-                        instruction: s.instruction,
-                        thermomixTime: s.thermomix?.time,
-                        thermomixSpeed: s.thermomix?.speed ? formatSpeedText(s.thermomix.speed) : null,
-                    })),
-                    portions: recipe?.portions,
-                    totalTime: recipe?.totalTime ?? undefined,
-                }}
+                    overrides: {
+                        kitchenTools: kitchenTools.map(item => item.name),
+                    },
+                })}
                 {...irmixy.sessionProps}
             />
         </View>

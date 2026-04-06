@@ -19,7 +19,7 @@ import { AskIrmixyButton } from '@/components/cooking-guide/AskIrmixyButton';
 import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import { getCustomCookingGuidePath, isFromChat } from '@/utils/navigation/recipeRoutes';
 import { eventService } from '@/services/eventService';
-import { formatSpeedText } from '@/utils/thermomix/assetUtils';
+import { buildRecipeContext } from '@/utils/recipeContext';
 export default function CustomCookingGuide() {
   const { id, from, session } = useLocalSearchParams<{ id: string; session?: string; from?: string }>();
   const { recipe, loading, error } = useCustomRecipe(id as string);
@@ -158,24 +158,7 @@ export default function CustomCookingGuide() {
       <IrmixyCookingModal
         visible={irmixy.isVisible}
         onClose={irmixy.close}
-        recipeContext={{
-          type: 'custom',
-          recipeId: id as string,
-          recipeTitle: recipe?.name,
-          ingredients: recipe?.ingredients?.map((i) => ({
-            name: i.name,
-            amount: `${i.formattedQuantity} ${i.formattedUnit}`.trim(),
-          })),
-          kitchenTools: recipe?.kitchenTools?.map((t) => t.name),
-          allSteps: recipe?.steps?.map((s) => ({
-            order: s.order,
-            instruction: s.instruction,
-            thermomixTime: s.thermomix?.time,
-            thermomixSpeed: s.thermomix?.speed ? formatSpeedText(s.thermomix.speed) : null,
-          })),
-          portions: recipe?.portions,
-          totalTime: recipe?.totalTime ?? undefined,
-        }}
+        recipeContext={buildRecipeContext(recipe, { type: 'custom', recipeId: id as string })}
         {...irmixy.sessionProps}
       />
     </View>

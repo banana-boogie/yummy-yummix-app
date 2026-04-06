@@ -15,7 +15,7 @@ import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import i18n from '@/i18n';
 import { eventService } from '@/services/eventService';
 import { COLORS } from '@/constants/design-tokens';
-import { formatSpeedText } from '@/utils/thermomix/assetUtils';
+import { buildRecipeContext } from '@/utils/recipeContext';
 
 import * as Haptics from 'expo-haptics';
 
@@ -115,24 +115,7 @@ export default function CookingGuide() {
       <IrmixyCookingModal
         visible={irmixy.isVisible}
         onClose={irmixy.close}
-        recipeContext={{
-          type: 'recipe',
-          recipeId: id as string,
-          recipeTitle: recipe?.name,
-          ingredients: recipe?.ingredients?.map((i) => ({
-            name: i.name,
-            amount: `${i.formattedQuantity} ${i.formattedUnit}`.trim(),
-          })),
-          kitchenTools: recipe?.kitchenTools?.map((t) => t.name),
-          allSteps: recipe?.steps?.map((s) => ({
-            order: s.order,
-            instruction: s.instruction,
-            thermomixTime: s.thermomix?.time,
-            thermomixSpeed: s.thermomix?.speed ? formatSpeedText(s.thermomix.speed) : null,
-          })),
-          portions: recipe?.portions,
-          totalTime: recipe?.totalTime ?? undefined,
-        }}
+        recipeContext={buildRecipeContext(recipe, { type: 'recipe', recipeId: id as string })}
         {...irmixy.sessionProps}
       />
     </View>

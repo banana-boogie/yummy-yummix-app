@@ -1,12 +1,12 @@
 /**
  * KitchenTimer Component Tests
  *
- * Tests for the detectLegacyStepTimer pure function and the KitchenTimer countdown component.
+ * Tests for the KitchenTimer countdown component.
  */
 
 import React from 'react';
 import { renderWithProviders, screen, fireEvent, act } from '@/test/utils/render';
-import { detectLegacyStepTimer, KitchenTimer } from '../KitchenTimer';
+import { KitchenTimer } from '../KitchenTimer';
 
 import notificationService from '@/services/notifications/NotificationService';
 
@@ -28,88 +28,6 @@ const mockSchedule = notificationService.scheduleTimerNotification as jest.Mock;
 const mockCancel = notificationService.cancelNotification as jest.Mock;
 const mockFire = notificationService.fireTimerNotification as jest.Mock;
 
-describe('detectLegacyStepTimer', () => {
-  // ============================================================
-  // NULL CASES — no rest keyword or no time
-  // ============================================================
-
-  it('returns null when instruction has no rest keyword', () => {
-    const result = detectLegacyStepTimer('Chop the onions');
-
-    expect(result).toBeNull();
-  });
-
-  it('returns null when rest keyword is present but no time value', () => {
-    const result = detectLegacyStepTimer('Let rest until firm');
-
-    expect(result).toBeNull();
-  });
-
-  it('returns null for completely unrelated instruction', () => {
-    const result = detectLegacyStepTimer('Stir continuously over medium heat');
-
-    expect(result).toBeNull();
-  });
-
-  // ============================================================
-  // ENGLISH — minutes
-  // ============================================================
-
-  it('detects "let rest for 5 minutes" and returns 300 seconds', () => {
-    const result = detectLegacyStepTimer('Let rest for 5 minutes');
-
-    expect(result).toBe(300);
-  });
-
-  it('detects "let sit for 10 minutes" and returns 600 seconds', () => {
-    const result = detectLegacyStepTimer('Let sit for 10 minutes');
-
-    expect(result).toBe(600);
-  });
-
-  it('detects "set aside for 15 min" and returns 900 seconds', () => {
-    const result = detectLegacyStepTimer('Set aside for 15 min');
-
-    expect(result).toBe(900);
-  });
-
-  // ============================================================
-  // ENGLISH — hours
-  // ============================================================
-
-  it('detects "let cool for 2 hours" and returns 7200 seconds', () => {
-    const result = detectLegacyStepTimer('Let cool for 2 hours');
-
-    expect(result).toBe(7200);
-  });
-
-  // ============================================================
-  // ENGLISH — seconds
-  // ============================================================
-
-  it('detects "wait for 30 seconds" and returns 30', () => {
-    const result = detectLegacyStepTimer('Wait for 30 seconds');
-
-    expect(result).toBe(30);
-  });
-
-  // ============================================================
-  // SPANISH
-  // ============================================================
-
-  it('detects "dejar reposar por 30 minutos" and returns 1800 seconds', () => {
-    const result = detectLegacyStepTimer('Dejar reposar por 30 minutos');
-
-    expect(result).toBe(1800);
-  });
-
-  it('detects "dejar enfriar por 15 minutos" and returns 900 seconds', () => {
-    const result = detectLegacyStepTimer('Dejar enfriar por 15 minutos');
-
-    expect(result).toBe(900);
-  });
-});
-
 describe('KitchenTimer', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -124,17 +42,25 @@ describe('KitchenTimer', () => {
   // RENDERING
   // ============================================================
 
-  it('does not render when instruction has no rest keyword', () => {
+  it('does not render when durationSeconds is not provided', () => {
     const { toJSON } = renderWithProviders(
-      <KitchenTimer instruction="Chop the onions finely" />
+      <KitchenTimer />
     );
 
     expect(toJSON()).toBeNull();
   });
 
-  it('renders timer with Start button when rest keyword is detected', () => {
+  it('does not render when durationSeconds is null', () => {
+    const { toJSON } = renderWithProviders(
+      <KitchenTimer durationSeconds={null} />
+    );
+
+    expect(toJSON()).toBeNull();
+  });
+
+  it('renders timer with Start button when durationSeconds is provided', () => {
     renderWithProviders(
-      <KitchenTimer instruction="Let rest for 5 minutes before serving" />
+      <KitchenTimer durationSeconds={300} />
     );
 
     expect(screen.getByText('Start')).toBeTruthy();
@@ -142,15 +68,15 @@ describe('KitchenTimer', () => {
 
   it('shows the Kitchen Timer label', () => {
     renderWithProviders(
-      <KitchenTimer instruction="Let rest for 5 minutes before serving" />
+      <KitchenTimer durationSeconds={300} />
     );
 
     expect(screen.getByText('Kitchen Timer')).toBeTruthy();
   });
 
-  it('shows correct initial time display for 5 minutes', () => {
+  it('shows correct initial time display for 5 minutes (300s)', () => {
     renderWithProviders(
-      <KitchenTimer instruction="Let rest for 5 minutes before serving" />
+      <KitchenTimer durationSeconds={300} />
     );
 
     expect(screen.getByText('5:00')).toBeTruthy();
@@ -158,20 +84,17 @@ describe('KitchenTimer', () => {
 
   it('shows correct initial time display for 90 seconds (1:30)', () => {
     renderWithProviders(
-      <KitchenTimer instruction="Let sit for 90 seconds" />
+      <KitchenTimer durationSeconds={90} />
     );
 
-    // 90 seconds does not match — the regex captures "90" with "seconds" pattern
-    // 90 seconds = 1 min 30 sec
     expect(screen.getByText('1:30')).toBeTruthy();
   });
 
-  it('shows correct initial time display for 2 hours', () => {
+  it('shows correct initial time display for 2 hours (7200s)', () => {
     renderWithProviders(
-      <KitchenTimer instruction="Let cool for 2 hours in the fridge" />
+      <KitchenTimer durationSeconds={7200} />
     );
 
-    // 7200 seconds = 120 minutes = "120:00"
     expect(screen.getByText('120:00')).toBeTruthy();
   });
 
@@ -181,7 +104,7 @@ describe('KitchenTimer', () => {
 
   it('schedules a background notification when timer starts', async () => {
     renderWithProviders(
-      <KitchenTimer instruction="Let rest for 5 minutes" />
+      <KitchenTimer durationSeconds={300} />
     );
 
     await act(async () => {
@@ -190,13 +113,13 @@ describe('KitchenTimer', () => {
 
     expect(mockSchedule).toHaveBeenCalledWith(
       expect.any(String),
-      300, // 5 minutes in seconds
+      300,
     );
   });
 
   it('cancels the scheduled notification when timer is paused', async () => {
     renderWithProviders(
-      <KitchenTimer instruction="Let rest for 5 minutes" />
+      <KitchenTimer durationSeconds={300} />
     );
 
     // Start
@@ -216,7 +139,7 @@ describe('KitchenTimer', () => {
 
   it('does not cancel notification on reset after completion (already cleared)', async () => {
     renderWithProviders(
-      <KitchenTimer durationSeconds={2} instruction="Let rest for 2 seconds" />
+      <KitchenTimer durationSeconds={2} />
     );
 
     // Start
@@ -224,14 +147,14 @@ describe('KitchenTimer', () => {
       fireEvent.press(screen.getByText('Start'));
     });
 
-    // Tick to completion — notification ref is cleared on completion
+    // Tick to completion
     await act(async () => {
       jest.advanceTimersByTime(2000);
     });
 
     mockCancel.mockClear();
 
-    // Reset — no cancel needed since the ref was already null
+    // Reset
     await act(async () => {
       fireEvent.press(screen.getByText('Reset'));
     });
@@ -241,7 +164,7 @@ describe('KitchenTimer', () => {
 
   it('cancels the scheduled notification on unmount', async () => {
     const { unmount } = renderWithProviders(
-      <KitchenTimer instruction="Let rest for 5 minutes" />
+      <KitchenTimer durationSeconds={300} />
     );
 
     // Start the timer
@@ -259,7 +182,7 @@ describe('KitchenTimer', () => {
 
   it('fires immediate notification on foreground completion', async () => {
     renderWithProviders(
-      <KitchenTimer durationSeconds={1} instruction="Let rest for 1 second" />
+      <KitchenTimer durationSeconds={1} />
     );
 
     await act(async () => {

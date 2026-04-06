@@ -14,7 +14,7 @@ import { PageLayout } from '@/components/layouts/PageLayout';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
 import { eventService } from '@/services/eventService';
 import { COLORS } from '@/constants/design-tokens';
-import { formatSpeedText } from '@/utils/thermomix/assetUtils';
+import { buildRecipeContext } from '@/utils/recipeContext';
 
 const contentContainerStyle = { paddingHorizontal: 0 } as const;
 
@@ -111,27 +111,15 @@ export default function CookingStep() {
             <IrmixyCookingModal
                 visible={irmixy.isVisible}
                 onClose={irmixy.close}
-                recipeContext={{
+                recipeContext={buildRecipeContext(recipe, {
                     type: 'cooking',
                     recipeId: id as string,
-                    recipeTitle: recipe?.name ?? '',
-                    currentStep: currentStepNumber,
-                    totalSteps,
-                    stepInstructions: currentStep?.instruction,
-                    ingredients: recipe?.ingredients?.map((i) => ({
-                        name: i.name,
-                        amount: `${i.formattedQuantity} ${i.formattedUnit}`.trim(),
-                    })),
-                    kitchenTools: recipe?.kitchenTools?.map((t) => t.name),
-                    allSteps: recipe?.steps?.map((s) => ({
-                        order: s.order,
-                        instruction: s.instruction,
-                        thermomixTime: s.thermomix?.time,
-                        thermomixSpeed: s.thermomix?.speed ? formatSpeedText(s.thermomix.speed) : null,
-                    })),
-                    portions: recipe?.portions,
-                    totalTime: recipe?.totalTime ?? undefined,
-                }}
+                    overrides: {
+                        currentStep: currentStepNumber,
+                        totalSteps,
+                        stepInstructions: currentStep?.instruction,
+                    },
+                })}
                 {...irmixy.sessionProps}
             />
         </View>

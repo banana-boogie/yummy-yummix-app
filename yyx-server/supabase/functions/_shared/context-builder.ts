@@ -230,7 +230,6 @@ const TOOL_SUMMARIZERS: Record<string, ToolResultSummarizer> = {
     // Add key recipe attributes for richer follow-up context
     if (Array.isArray(recipe.ingredients)) {
       const names = recipe.ingredients
-        .slice(0, 10)
         .map((i: Record<string, unknown>) =>
           typeof i?.name === "string" ? sanitizeContent(i.name).trim() : ""
         )

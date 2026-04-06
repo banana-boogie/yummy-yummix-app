@@ -127,7 +127,7 @@ export function RecipeStepContent({ step, className = '', style }: RecipeStepCon
                 />
             ) : null}
             {!step.thermomix?.time && (
-                <KitchenTimer instruction={step.instruction} durationSeconds={step.timerSeconds} />
+                <KitchenTimer durationSeconds={step.timerSeconds} />
             )}
             {step.tip ? (
                 <View className="bg-primary-lightest rounded-sm p-sm mt-sm mx-md">

@@ -17,7 +17,7 @@ import { MiseEnPlaceIngredient } from '@/components/cooking-guide/MiseEnPlaceIng
 import { Text } from '@/components/common/Text';
 import { LAYOUT } from '@/constants/design-tokens';
 import { getCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
-import { formatSpeedText } from '@/utils/thermomix/assetUtils';
+import { buildRecipeContext } from '@/utils/recipeContext';
 
 // Define the ingredient type
 type CheckableIngredient = RecipeIngredient & { checked: boolean };
@@ -139,25 +139,17 @@ export default function CustomIngredientsStep() {
       <IrmixyCookingModal
         visible={irmixy.isVisible}
         onClose={irmixy.close}
-        recipeContext={{
+        recipeContext={buildRecipeContext(recipe, {
           type: 'custom',
           recipeId: id as string,
-          recipeTitle: recipe?.name,
-          stepInstructions: i18n.t('chat.prepareIngredients'),
-          ingredients: ingredients.map(ing => ({
-            name: ing.name,
-            amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
-          })),
-          kitchenTools: recipe?.kitchenTools?.map((t) => t.name),
-          allSteps: recipe?.steps?.map((s) => ({
-            order: s.order,
-            instruction: s.instruction,
-            thermomixTime: s.thermomix?.time,
-            thermomixSpeed: s.thermomix?.speed ? formatSpeedText(s.thermomix.speed) : null,
-          })),
-          portions: recipe?.portions,
-          totalTime: recipe?.totalTime ?? undefined,
-        }}
+          overrides: {
+            stepInstructions: i18n.t('chat.prepareIngredients'),
+            ingredients: ingredients.map(ing => ({
+              name: ing.name,
+              amount: `${ing.formattedQuantity} ${ing.formattedUnit}`.trim(),
+            })),
+          },
+        })}
         {...irmixy.sessionProps}
       />
     </View>

@@ -15,15 +15,15 @@ import { shouldDisplayRecipeSection } from '@/utils/recipes';
 import { COLORS } from '@/constants/design-tokens';
 import { getCustomCookingGuidePath, isFromChat } from '@/utils/navigation/recipeRoutes';
 import { eventService } from '@/services/eventService';
-import { formatSpeedText } from '@/utils/thermomix/assetUtils';
+import { buildRecipeContext } from '@/utils/recipeContext';
 export default function CustomCookingStep() {
     const { id, step: stepParam, from, session } = useLocalSearchParams<{ id: string; step: string; from?: string; session?: string }>();
     const { recipe } = useCustomRecipe(id as string);
     const isChatFlow = isFromChat(from);
     const irmixy = useIrmixyHelperChat(id);
-    const chatRoute = session
+    const chatRoute = useMemo(() => session
         ? { pathname: '/(tabs)/chat' as const, params: { session: String(session) } }
-        : '/(tabs)/chat' as const;
+        : '/(tabs)/chat' as const, [session]);
 
     const currentStepNumber = Number(stepParam);
     const steps = recipe?.steps;
@@ -53,7 +53,7 @@ export default function CustomCookingStep() {
                 router.replace('/(tabs)/recipes');
             }
         }
-    }), [id, currentStepNumber, from, recipe?.id, recipe?.name, isChatFlow, chatRoute]);
+    }), [id, currentStepNumber, from, session, recipe?.id, recipe?.name, isChatFlow, chatRoute]);
 
     const header = useMemo(() => (
         <CookingGuideHeader
@@ -73,7 +73,7 @@ export default function CustomCookingStep() {
                 }
             }}
         />
-    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation, isChatFlow, id]);
+    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation, isChatFlow, chatRoute, id]);
 
     const footer = useMemo(() => (
         <View>
@@ -124,27 +124,15 @@ export default function CustomCookingStep() {
             <IrmixyCookingModal
                 visible={irmixy.isVisible}
                 onClose={irmixy.close}
-                recipeContext={{
+                recipeContext={buildRecipeContext(recipe, {
                     type: 'cooking',
                     recipeId: id as string,
-                    recipeTitle: recipe?.name ?? '',
-                    currentStep: currentStepNumber,
-                    totalSteps,
-                    stepInstructions: currentStep?.instruction,
-                    ingredients: recipe?.ingredients?.map((i) => ({
-                        name: i.name,
-                        amount: `${i.formattedQuantity} ${i.formattedUnit}`.trim(),
-                    })),
-                    kitchenTools: recipe?.kitchenTools?.map((t) => t.name),
-                    allSteps: recipe?.steps?.map((s) => ({
-                        order: s.order,
-                        instruction: s.instruction,
-                        thermomixTime: s.thermomix?.time,
-                        thermomixSpeed: s.thermomix?.speed ? formatSpeedText(s.thermomix.speed) : null,
-                    })),
-                    portions: recipe?.portions,
-                    totalTime: recipe?.totalTime ?? undefined,
-                }}
+                    overrides: {
+                        currentStep: currentStepNumber,
+                        totalSteps,
+                        stepInstructions: currentStep?.instruction,
+                    },
+                })}
                 {...irmixy.sessionProps}
             />
         </View>
