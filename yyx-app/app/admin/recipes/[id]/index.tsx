@@ -24,7 +24,6 @@ import { useDevice } from '@/hooks/useDevice';
 import { TranslationStep } from '@/components/admin/recipes/forms/translationForm/TranslationStep';
 import { loadAuthoringLocale, saveAuthoringLocale } from '@/components/admin/recipes/forms/shared/AuthoringLanguagePicker';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
-import logger from '@/services/logger';
 
 export default function EditRecipePage() {
   const { id } = useLocalSearchParams();
@@ -247,9 +246,17 @@ export default function EditRecipePage() {
               onStepClick={handleStepClick}
               clickable={true}
             />
-            {currentStep !== CreateRecipeStep.BASIC_INFO && currentStep !== CreateRecipeStep.TRANSLATIONS && (
+            {currentStep !== CreateRecipeStep.TRANSLATIONS && (
               <View className="mt-md">
-                <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+                <AdminDisplayLocaleToggle
+                  value={currentStep === CreateRecipeStep.BASIC_INFO ? authoringLocale : displayLocale}
+                  onChange={(locale) => {
+                    if (currentStep === CreateRecipeStep.BASIC_INFO) {
+                      handleAuthoringLocaleChange(locale);
+                    }
+                    setDisplayLocale(locale);
+                  }}
+                />
               </View>
             )}
           </View>

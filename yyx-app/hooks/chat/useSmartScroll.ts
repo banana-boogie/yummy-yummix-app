@@ -1,12 +1,24 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { FlatList, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 
 const SCROLL_THROTTLE_MS = 100;
 const SCROLL_THRESHOLD = 100;
+const RESTORE_SCROLL_STABLE_DEBOUNCE_MS = 150;
+const RESTORE_SCROLL_STABLE_PASSES = 2;
+const RESTORE_SCROLL_HARD_CAP_MS = 2000;
 
 interface UseSmartScrollParams {
     hasRecipeInCurrentStreamRef: React.MutableRefObject<boolean>;
 }
+
+type RestoreScrollState = {
+    active: boolean;
+    startedAt: number;
+    lastHeight: number;
+    stablePasses: number;
+    stableTimer: ReturnType<typeof setTimeout> | null;
+    hardCapTimer: ReturnType<typeof setTimeout> | null;
+};
 
 export function useSmartScroll({
     hasRecipeInCurrentStreamRef,
@@ -17,6 +29,55 @@ export function useSmartScroll({
     const skipNextScrollToEndRef = useRef(false);
     const prevContentHeightRef = useRef(0);
     const [showScrollButton, setShowScrollButton] = useState(false);
+    const restoreStateRef = useRef<RestoreScrollState>({
+        active: false,
+        startedAt: 0,
+        lastHeight: 0,
+        stablePasses: 0,
+        stableTimer: null,
+        hardCapTimer: null,
+    });
+
+    const cancelRestoreScroll = useCallback(() => {
+        const restore = restoreStateRef.current;
+        if (restore.stableTimer) {
+            clearTimeout(restore.stableTimer);
+        }
+        if (restore.hardCapTimer) {
+            clearTimeout(restore.hardCapTimer);
+        }
+        restoreStateRef.current = {
+            active: false,
+            startedAt: 0,
+            lastHeight: 0,
+            stablePasses: 0,
+            stableTimer: null,
+            hardCapTimer: null,
+        };
+    }, []);
+
+    const beginRestoreScroll = useCallback(() => {
+        cancelRestoreScroll();
+        const now = Date.now();
+        restoreStateRef.current = {
+            active: true,
+            startedAt: now,
+            lastHeight: 0,
+            stablePasses: 0,
+            stableTimer: null,
+            hardCapTimer: setTimeout(() => {
+                cancelRestoreScroll();
+            }, RESTORE_SCROLL_HARD_CAP_MS),
+        };
+        isNearBottomRef.current = true;
+        setShowScrollButton(false);
+    }, [cancelRestoreScroll]);
+
+    useEffect(() => {
+        return () => {
+            cancelRestoreScroll();
+        };
+    }, [cancelRestoreScroll]);
 
     const scrollToEndThrottled = useCallback((animated: boolean) => {
         if (!isNearBottomRef.current && !animated) return;
@@ -33,6 +94,37 @@ export function useSmartScroll({
      * This is the reliable moment to scroll — content is already rendered.
      */
     const handleContentSizeChange = useCallback((_width: number, height: number) => {
+        const restore = restoreStateRef.current;
+        if (restore.active) {
+            const grew = height > restore.lastHeight;
+            const unchanged = height === restore.lastHeight;
+
+            flatListRef.current?.scrollToOffset({ offset: height, animated: false });
+
+            if (restore.stableTimer) {
+                clearTimeout(restore.stableTimer);
+            }
+            restore.stableTimer = setTimeout(() => {
+                cancelRestoreScroll();
+            }, RESTORE_SCROLL_STABLE_DEBOUNCE_MS);
+
+            if (grew) {
+                restore.lastHeight = height;
+                restore.stablePasses = 0;
+            } else if (unchanged) {
+                restore.stablePasses += 1;
+                if (restore.stablePasses >= RESTORE_SCROLL_STABLE_PASSES) {
+                    cancelRestoreScroll();
+                }
+            } else {
+                // Content can shrink during virtualization/layout reconciliation.
+                // Treat that as "still changing" but not stable.
+                restore.lastHeight = height;
+                restore.stablePasses = 0;
+            }
+            return;
+        }
+
         const grew = height > prevContentHeightRef.current;
         prevContentHeightRef.current = height;
 
@@ -45,7 +137,7 @@ export function useSmartScroll({
         if (!isNearBottomRef.current) return;
 
         flatListRef.current?.scrollToEnd({ animated: false });
-    }, [hasRecipeInCurrentStreamRef]);
+    }, [cancelRestoreScroll, hasRecipeInCurrentStreamRef]);
 
     /**
      * Fires when the FlatList layout changes (e.g. keyboard open/close).
@@ -61,11 +153,15 @@ export function useSmartScroll({
         const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
         const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
 
+        if (restoreStateRef.current.active && distanceFromBottom > SCROLL_THRESHOLD) {
+            cancelRestoreScroll();
+        }
+
         const isNearBottom = distanceFromBottom <= SCROLL_THRESHOLD;
         isNearBottomRef.current = isNearBottom;
 
         setShowScrollButton(!isNearBottom && contentSize.height > layoutMeasurement.height);
-    }, []);
+    }, [cancelRestoreScroll]);
 
     const handleScrollToEnd = useCallback(() => {
         isNearBottomRef.current = true;
@@ -83,5 +179,7 @@ export function useSmartScroll({
         handleScrollToEnd,
         isNearBottomRef,
         skipNextScrollToEndRef,
+        beginRestoreScroll,
+        cancelRestoreScroll,
     };
 }

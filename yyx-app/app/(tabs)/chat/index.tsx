@@ -5,17 +5,17 @@
  * Messages state is lifted here as a single source of truth for both modes.
  */
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, TouchableOpacity, Platform } from 'react-native';
 import { Text } from '@/components/common/Text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Stack } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { ChatScreen } from '@/components/chat/ChatScreen';
 import { VoiceChatScreen } from '@/components/chat/VoiceChatScreen';
 import { ChatSessionsMenu } from '@/components/chat/ChatSessionsMenu';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
-import { ChatMessage } from '@/services/chatService';
+import { ChatMessage, loadChatHistory, touchChatSession } from '@/services/chatService';
 import i18n from '@/i18n';
 
 const STORAGE_KEY_SESSION_ID = 'lastChatSessionId';
@@ -26,12 +26,14 @@ type ChatMode = 'text' | 'voice';
 const DEFAULT_MODE: ChatMode = 'text';
 
 export default function ChatPage() {
+    const { session: sessionParam } = useLocalSearchParams<{ session?: string }>();
     const [mode, setMode] = useState<ChatMode>(DEFAULT_MODE);
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [voiceTranscriptMessages, setVoiceTranscriptMessages] = useState<ChatMessage[]>([]);
     const [sessionsMenuOpenSignal, setSessionsMenuOpenSignal] = useState(0);
     const [newChatSignal, setNewChatSignal] = useState(0);
+    const sessionRestoredRef = useRef(false);
 
     // Restore last-used chat mode on mount
     useEffect(() => {
@@ -41,10 +43,48 @@ export default function ChatPage() {
         }).catch(() => {});
     }, []);
 
+    // Always start fresh on mount. Previous chats accessible via history button.
+    // Only restore a specific session when explicitly requested via route param
+    // (e.g., returning from cooking guide).
+    useEffect(() => {
+        if (sessionRestoredRef.current) return;
+        sessionRestoredRef.current = true;
+
+        const paramId = typeof sessionParam === 'string' ? sessionParam : undefined;
+        if (paramId) {
+            loadChatHistory(paramId).then((history) => {
+                setSessionId(paramId);
+                setMessages(history);
+                setVoiceTranscriptMessages(history);
+                AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, paramId).catch(() => {});
+                touchChatSession(paramId).catch(() => {});
+            }).catch(() => {});
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Override session when route param changes (e.g. returning from cooking guide
+    // to an already-mounted chat tab)
+    useEffect(() => {
+        const paramId = typeof sessionParam === 'string' ? sessionParam : undefined;
+        if (!paramId || !sessionRestoredRef.current) return;
+        // Only override if it's a different session than current
+        if (paramId === sessionId) return;
+        loadChatHistory(paramId).then((history) => {
+            setSessionId(paramId);
+            setMessages(history);
+            setVoiceTranscriptMessages(history);
+            AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, paramId).catch(() => {});
+            touchChatSession(paramId).catch(() => {});
+        }).catch(() => {
+            // Session may have been deleted — ignore
+        });
+    }, [sessionParam]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // Wrapper that persists sessionId alongside state
     const updateSessionId = useCallback((newSessionId: string) => {
         setSessionId(newSessionId);
         AsyncStorage.setItem(STORAGE_KEY_SESSION_ID, newSessionId).catch(() => {});
+        touchChatSession(newSessionId).catch(() => {});
     }, []);
 
     const toggleMode = useCallback(() => {

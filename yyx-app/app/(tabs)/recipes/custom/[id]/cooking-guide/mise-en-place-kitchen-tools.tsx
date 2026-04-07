@@ -16,6 +16,7 @@ import { MiseEnPlaceKitchenTool } from '@/components/cooking-guide/MiseEnPlaceKi
 import { Text } from '@/components/common/Text';
 import { LAYOUT } from '@/constants/design-tokens';
 import { getCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
+import { buildRecipeContext } from '@/utils/recipeContext';
 
 type CheckableKitchenTool = {
     id: string;
@@ -28,11 +29,14 @@ type CheckableKitchenTool = {
  * Kitchen tools prep screen for custom recipe cooking guide
  */
 export default function CustomKitchenToolsStep() {
-    const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
+    const { id, from, session } = useLocalSearchParams<{ id: string; from?: string; session?: string }>();
     const { recipe } = useCustomRecipe(id as string);
     const [kitchenTools, setKitchenTools] = useState<CheckableKitchenTool[]>([]);
     const { isMobile } = useDevice();
     const irmixy = useIrmixyHelperChat(id);
+    const chatRoute = session
+        ? { pathname: '/(tabs)/chat' as const, params: { session: String(session) } }
+        : '/(tabs)/chat' as const;
 
     // Calculate number of columns based on screen size
     const numColumns = 2;
@@ -78,7 +82,7 @@ export default function CustomKitchenToolsStep() {
                         </View>
                         <StepNavigationButtons
                             onBack={() => router.back()}
-                            onNext={() => router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-ingredients'))}
+                            onNext={() => router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-ingredients', session))}
                             backText={i18n.t('recipes.cookingGuide.navigation.back')}
                             nextText={i18n.t('recipes.cookingGuide.navigation.next')}
                         />
@@ -91,7 +95,7 @@ export default function CustomKitchenToolsStep() {
                     isCustomRecipe={true}
                     onExitPress={() => {
                         if (from === 'chat') {
-                            router.replace('/(tabs)/chat');
+                            router.replace(chatRoute);
                         } else {
                             router.replace(`/(tabs)/recipes/custom/${id}`);
                         }
@@ -132,12 +136,13 @@ export default function CustomKitchenToolsStep() {
             <IrmixyCookingModal
                 visible={irmixy.isVisible}
                 onClose={irmixy.close}
-                recipeContext={{
+                recipeContext={buildRecipeContext(recipe, {
                     type: 'custom',
                     recipeId: id as string,
-                    recipeTitle: recipe?.name || '',
-                    kitchenTools: kitchenTools.map(item => item.name)
-                }}
+                    overrides: {
+                        kitchenTools: kitchenTools.map(item => item.name),
+                    },
+                })}
                 {...irmixy.sessionProps}
             />
         </View>

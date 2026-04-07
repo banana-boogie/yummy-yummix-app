@@ -101,6 +101,7 @@ export const recipes = {
         heading: "Utensilios de Cocina",
       },
     },
+    kitchenTimer: "Temporizador",
     timerStart: "Iniciar",
     timerPause: "Pausar",
     timerReset: "Reiniciar",

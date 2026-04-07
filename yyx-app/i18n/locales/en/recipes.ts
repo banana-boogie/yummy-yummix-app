@@ -100,6 +100,7 @@ export const recipes = {
         heading: "Kitchen Tools",
       },
     },
+    kitchenTimer: "Kitchen Timer",
     timerStart: "Start",
     timerPause: "Pause",
     timerReset: "Reset",

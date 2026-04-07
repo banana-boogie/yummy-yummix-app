@@ -17,6 +17,7 @@ import { MiseEnPlaceIngredient } from '@/components/cooking-guide/MiseEnPlaceIng
 import { Text } from '@/components/common/Text';
 import { LAYOUT } from '@/constants/design-tokens';
 import { getCustomCookingGuidePath } from '@/utils/navigation/recipeRoutes';
+import { buildRecipeContext } from '@/utils/recipeContext';
 
 // Define the ingredient type
 type CheckableIngredient = RecipeIngredient & { checked: boolean };
@@ -25,11 +26,14 @@ type CheckableIngredient = RecipeIngredient & { checked: boolean };
  * Mise en place screen for custom recipe cooking guide - Ingredients Prep
  */
 export default function CustomIngredientsStep() {
-  const { id, from } = useLocalSearchParams<{ id: string; from?: string }>();
+  const { id, from, session } = useLocalSearchParams<{ id: string; from?: string; session?: string }>();
   const { recipe } = useCustomRecipe(id as string);
   const [ingredients, setIngredients] = useState<CheckableIngredient[]>([]);
   const { isMobile } = useDevice();
   const irmixy = useIrmixyHelperChat(id);
+  const chatRoute = session
+    ? { pathname: '/(tabs)/chat' as const, params: { session: String(session) } }
+    : '/(tabs)/chat' as const;
 
   const numColumns = 2;
 
@@ -61,7 +65,7 @@ export default function CustomIngredientsStep() {
   };
 
   const handleNext = () => {
-    router.push(getCustomCookingGuidePath(id as string, from, '1'));
+    router.push(getCustomCookingGuidePath(id as string, from, '1', session));
   };
 
   return (
@@ -92,7 +96,7 @@ export default function CustomIngredientsStep() {
           isCustomRecipe={true}
           onExitPress={() => {
             if (from === 'chat') {
-              router.replace('/(tabs)/chat');
+              router.replace(chatRoute);
             } else {
               router.replace(`/(tabs)/recipes/custom/${id}`);
             }
@@ -135,16 +139,17 @@ export default function CustomIngredientsStep() {
       <IrmixyCookingModal
         visible={irmixy.isVisible}
         onClose={irmixy.close}
-        recipeContext={{
+        recipeContext={buildRecipeContext(recipe, {
           type: 'custom',
           recipeId: id as string,
-          recipeTitle: recipe?.name,
-          stepInstructions: i18n.t('chat.prepareIngredients'),
-          ingredients: ingredients.map(ing => ({
-            name: ing.name,
-            amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
-          }))
-        }}
+          overrides: {
+            stepInstructions: i18n.t('chat.prepareIngredients'),
+            ingredients: ingredients.map(ing => ({
+              name: ing.name,
+              amount: `${ing.formattedQuantity} ${ing.formattedUnit}`.trim(),
+            })),
+          },
+        })}
         {...irmixy.sessionProps}
       />
     </View>

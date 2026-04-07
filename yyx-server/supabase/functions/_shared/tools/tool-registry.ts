@@ -172,8 +172,18 @@ export function getToolRegistration(
   return TOOL_REGISTRY[toolName];
 }
 
-export function getRegisteredAiTools(): AITool[] {
-  return Object.values(TOOL_REGISTRY).map((tool) => tool.aiTool);
+export function getRegisteredToolNames(): string[] {
+  return Object.keys(TOOL_REGISTRY);
+}
+
+export function getRegisteredAiTools(exclude?: string[]): AITool[] {
+  const entries = Object.entries(TOOL_REGISTRY);
+  if (!exclude || exclude.length === 0) {
+    return entries.map(([, tool]) => tool.aiTool);
+  }
+  return entries
+    .filter(([name]) => !exclude.includes(name))
+    .map(([, tool]) => tool.aiTool);
 }
 
 export function getAllowedVoiceToolNames(): string[] {

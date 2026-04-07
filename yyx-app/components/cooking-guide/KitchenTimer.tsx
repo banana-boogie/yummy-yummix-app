@@ -1,8 +1,7 @@
 /**
- * RestTimer Component
+ * KitchenTimer Component
  *
- * Detects "let sit/rest/cool/stand" instructions in recipe steps,
- * extracts the duration, and offers a countdown timer.
+ * Renders a countdown timer for recipe steps that have an explicit timerSeconds value.
  * Centered card-style design with large timer text for kitchen visibility.
  *
  * Notification strategy:
@@ -19,49 +18,9 @@ import * as Haptics from 'expo-haptics';
 import notificationService from '@/services/notifications/NotificationService';
 import i18n from '@/i18n';
 
-interface RestTimerProps {
-    instruction: string;
-    /** Explicit duration in seconds — bypasses keyword detection when provided. */
+interface KitchenTimerProps {
+    /** Explicit duration in seconds. Timer only renders when this is provided. */
     durationSeconds?: number | null;
-}
-
-// Rest/wait keywords in English and Spanish
-const REST_KEYWORDS = [
-    'let sit', 'let rest', 'let cool', 'let stand', 'set aside',
-    'allow to rest', 'allow to cool', 'rest for', 'cool for', 'stand for',
-    'wait for', 'let it sit', 'let it rest', 'let it cool',
-    'dejar reposar', 'dejar enfriar', 'dejar descansar', 'dejar asentar',
-    'reposar por', 'enfriar por', 'descansar por', 'esperar',
-];
-
-// Patterns to extract time: "5 minutes", "30 min", "1 hour", "2 horas", etc.
-const TIME_PATTERNS = [
-    /(\d+)\s*(?:minutes?|mins?|minutos?)/i,
-    /(\d+)\s*(?:hours?|hrs?|horas?)/i,
-    /(\d+)\s*(?:seconds?|secs?|segundos?)/i,
-];
-
-/**
- * Detect rest instruction and extract duration in seconds.
- * Returns null if no rest detected or no time found.
- */
-export function detectRestTime(instruction: string): number | null {
-    const lower = instruction.toLowerCase();
-
-    const hasRestKeyword = REST_KEYWORDS.some(kw => lower.includes(kw));
-    if (!hasRestKeyword) return null;
-
-    for (const pattern of TIME_PATTERNS) {
-        const match = lower.match(pattern);
-        if (match) {
-            const value = parseInt(match[1], 10);
-            if (pattern.source.includes('hour')) return value * 3600;
-            if (pattern.source.includes('second')) return value;
-            return value * 60; // minutes
-        }
-    }
-
-    return null;
 }
 
 function formatTime(seconds: number): string {
@@ -70,8 +29,8 @@ function formatTime(seconds: number): string {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-export function RestTimer({ instruction, durationSeconds }: RestTimerProps) {
-    const totalSeconds = durationSeconds ?? detectRestTime(instruction);
+export function KitchenTimer({ durationSeconds }: KitchenTimerProps) {
+    const totalSeconds = durationSeconds ?? null;
     const [remainingSeconds, setRemainingSeconds] = useState(totalSeconds ?? 0);
     const [isRunning, setIsRunning] = useState(false);
     const [isComplete, setIsComplete] = useState(false);
@@ -98,10 +57,9 @@ export function RestTimer({ instruction, durationSeconds }: RestTimerProps) {
         }
     }, [cancelScheduledNotification]);
 
-    // Reset when instruction or explicit duration changes
+    // Reset when duration changes
     useEffect(() => {
-        const newTotal = durationSeconds ?? detectRestTime(instruction);
-        setRemainingSeconds(newTotal ?? 0);
+        setRemainingSeconds(durationSeconds ?? 0);
         setIsRunning(false);
         setIsComplete(false);
         if (intervalRef.current) {
@@ -109,7 +67,7 @@ export function RestTimer({ instruction, durationSeconds }: RestTimerProps) {
             intervalRef.current = null;
         }
         cancelScheduledNotification();
-    }, [instruction, durationSeconds, cancelScheduledNotification]);
+    }, [durationSeconds, cancelScheduledNotification]);
 
     // Cancel notification on unmount
     useEffect(() => {
@@ -168,6 +126,9 @@ export function RestTimer({ instruction, durationSeconds }: RestTimerProps) {
 
     return (
         <View className="bg-primary-lightest rounded-xl p-lg items-center w-full shadow-sm mt-md">
+            <Text preset="caption" className="text-text-secondary mb-xs">
+                {i18n.t('recipes.cookingGuide.kitchenTimer')}
+            </Text>
             <Ionicons
                 name={isComplete ? 'checkmark-circle' : 'timer-outline'}
                 size={32}
@@ -183,8 +144,7 @@ export function RestTimer({ instruction, durationSeconds }: RestTimerProps) {
             </Text>
             <Pressable
                 onPress={handleStartPause}
-                className="bg-primary-medium rounded-full px-xl py-sm mt-sm"
-                style={{ minWidth: 120, minHeight: 44 }}
+                className="bg-primary-medium rounded-full px-xl py-sm mt-sm min-w-[120px] min-h-[44px]"
             >
                 <Text preset="body" className="text-white font-semibold text-center">
                     {isComplete

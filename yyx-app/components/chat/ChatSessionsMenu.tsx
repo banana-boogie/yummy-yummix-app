@@ -8,7 +8,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { View, TouchableOpacity, Modal, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { Text } from '@/components/common/Text';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { loadChatSessions, loadChatHistory } from '@/services/chatService';
+import { loadChatSessions, loadChatHistory, touchChatSession } from '@/services/chatService';
 import { COLORS } from '@/constants/design-tokens';
 import i18n from '@/i18n';
 import * as Haptics from 'expo-haptics';
@@ -18,6 +18,7 @@ interface ChatSession {
     id: string;
     title: string;
     createdAt: Date;
+    lastOpenedAt?: Date;
 }
 
 interface ChatSessionsMenuProps {
@@ -96,6 +97,7 @@ export function ChatSessionsMenu({
             const messages = await loadChatHistory(session.id);
             setIsOpen(false);
             onSelectSession(session.id, messages);
+            touchChatSession(session.id).catch(() => {});
         } catch (err) {
             if (__DEV__) console.error('Failed to load session:', err);
         } finally {
@@ -204,7 +206,7 @@ export function ChatSessionsMenu({
                                                 {session.title}
                                             </Text>
                                             <Text className="text-text-tertiary text-sm">
-                                                {formatDate(session.createdAt)}
+                                                {formatDate(session.lastOpenedAt ?? session.createdAt)}
                                             </Text>
                                         </View>
                                         {loadingSessionId === session.id && (

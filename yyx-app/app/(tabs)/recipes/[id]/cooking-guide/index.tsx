@@ -15,6 +15,7 @@ import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import i18n from '@/i18n';
 import { eventService } from '@/services/eventService';
 import { COLORS } from '@/constants/design-tokens';
+import { buildRecipeContext } from '@/utils/recipeContext';
 
 import * as Haptics from 'expo-haptics';
 
@@ -114,11 +115,7 @@ export default function CookingGuide() {
       <IrmixyCookingModal
         visible={irmixy.isVisible}
         onClose={irmixy.close}
-        recipeContext={{
-          type: 'recipe',
-          recipeId: id as string,
-          recipeTitle: recipe?.name,
-        }}
+        recipeContext={buildRecipeContext(recipe, { type: 'recipe', recipeId: id as string })}
         {...irmixy.sessionProps}
       />
     </View>

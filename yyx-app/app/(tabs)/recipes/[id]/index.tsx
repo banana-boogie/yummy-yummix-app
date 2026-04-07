@@ -28,7 +28,8 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
 import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import { Image as ExpoImage } from 'expo-image';
- 
+import { buildRecipeContext } from '@/utils/recipeContext';
+
 
 
 const RecipeDetail: React.FC = () => {
@@ -203,15 +204,7 @@ const RecipeDetail: React.FC = () => {
         <IrmixyCookingModal
           visible={irmixy.isVisible}
           onClose={irmixy.close}
-          recipeContext={{
-            type: 'recipe',
-            recipeId: recipe.id,
-            recipeTitle: recipe.name,
-            ingredients: recipe.ingredients?.map(ing => ({
-              name: ing.name,
-              amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
-            }))
-          }}
+          recipeContext={buildRecipeContext(recipe, { type: 'recipe', recipeId: id as string })}
           {...irmixy.sessionProps}
         />
       </View>

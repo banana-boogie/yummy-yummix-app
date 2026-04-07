@@ -14,6 +14,7 @@ import { PageLayout } from '@/components/layouts/PageLayout';
 import { shouldDisplayRecipeSection } from '@/utils/recipes';
 import { eventService } from '@/services/eventService';
 import { COLORS } from '@/constants/design-tokens';
+import { buildRecipeContext } from '@/utils/recipeContext';
 
 const contentContainerStyle = { paddingHorizontal: 0 } as const;
 
@@ -110,14 +111,15 @@ export default function CookingStep() {
             <IrmixyCookingModal
                 visible={irmixy.isVisible}
                 onClose={irmixy.close}
-                recipeContext={{
+                recipeContext={buildRecipeContext(recipe, {
                     type: 'cooking',
                     recipeId: id as string,
-                    recipeTitle: recipe?.name ?? '',
-                    currentStep: currentStepNumber,
-                    totalSteps,
-                    stepInstructions: currentStep?.instruction,
-                }}
+                    overrides: {
+                        currentStep: currentStepNumber,
+                        totalSteps,
+                        stepInstructions: currentStep?.instruction,
+                    },
+                })}
                 {...irmixy.sessionProps}
             />
         </View>

@@ -19,6 +19,7 @@ export async function saveAndGetCookingPath(
     recipe: GeneratedRecipe,
     finalName: string,
     savedRecipeId?: string,
+    chatSessionId?: string | null,
 ): Promise<StartCookingResult> {
     let recipeId = savedRecipeId;
     let wasNewlySaved = false;
@@ -31,7 +32,7 @@ export async function saveAndGetCookingPath(
 
     return {
         recipeId: recipeId!,
-        path: getChatCustomCookingGuidePath(recipeId!),
+        path: getChatCustomCookingGuidePath(recipeId!, chatSessionId),
         wasNewlySaved,
     };
 }

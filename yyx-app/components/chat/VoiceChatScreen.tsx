@@ -243,7 +243,7 @@ export function VoiceChatScreen({
         savedRecipeId?: string,
     ) => {
         try {
-            const result = await saveAndGetCookingPath(recipe, finalName, savedRecipeId);
+            const result = await saveAndGetCookingPath(recipe, finalName, savedRecipeId, initialSessionId);
 
             if (result.wasNewlySaved) {
                 updateMessage(messageId, { savedRecipeId: result.recipeId });

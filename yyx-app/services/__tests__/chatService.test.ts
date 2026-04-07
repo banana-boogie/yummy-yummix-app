@@ -195,7 +195,7 @@ describe('chatService', () => {
       expect(result).toHaveLength(2);
       expect(result[0].title).toBe('Recent Chat');
       expect(result[1].title).toBe('Older Chat');
-      expect(mockChain.order).toHaveBeenCalledWith('created_at', { ascending: false });
+      expect(mockChain.order).toHaveBeenCalledWith('last_opened_at', { ascending: false });
       expect(mockChain.limit).toHaveBeenCalledWith(10);
     });
 

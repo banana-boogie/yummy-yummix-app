@@ -52,11 +52,11 @@ Deno.test("buildSystemPrompt includes meal context section when detected", () =>
   assertStringIncludes(prompt, "Time constraint: quick");
 });
 
-Deno.test("buildSystemPrompt includes tool rules with search-first strategy", () => {
+Deno.test("buildSystemPrompt includes tool rules with recipe search and generation", () => {
   const prompt = buildSystemPrompt(createUserContext());
 
   assertStringIncludes(prompt, "TOOLS");
-  assertStringIncludes(prompt, "Search first");
+  assertStringIncludes(prompt, "Recipe search");
   assertStringIncludes(prompt, "search_recipes");
   assertStringIncludes(prompt, "generate_custom_recipe");
   assertStringIncludes(prompt, "modify_recipe");
@@ -243,7 +243,7 @@ Deno.test("buildSystemPrompt includes cooking helper mode when cookingContext pr
   assertStringIncludes(prompt, '"Chicken Soup"');
   assertStringIncludes(prompt, "Step 3");
   assertStringIncludes(prompt, "Add the vegetables and simmer for 20 minutes.");
-  assertStringIncludes(prompt, "recipe creation if asked");
+  assertStringIncludes(prompt, "Do NOT search for recipes");
   assertStringIncludes(prompt, "shorter answers");
 });
 

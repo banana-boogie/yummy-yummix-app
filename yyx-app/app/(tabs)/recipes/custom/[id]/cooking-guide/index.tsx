@@ -19,17 +19,22 @@ import { AskIrmixyButton } from '@/components/cooking-guide/AskIrmixyButton';
 import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import { getCustomCookingGuidePath, isFromChat } from '@/utils/navigation/recipeRoutes';
 import { eventService } from '@/services/eventService';
+import { buildRecipeContext } from '@/utils/recipeContext';
 export default function CustomCookingGuide() {
-  const { id, from } = useLocalSearchParams<{ id: string; session?: string; from?: string }>();
+  const { id, from, session } = useLocalSearchParams<{ id: string; session?: string; from?: string }>();
   const { recipe, loading, error } = useCustomRecipe(id as string);
   const { isPhone } = useDevice();
   const navigation = useNavigation();
   const isChatFlow = isFromChat(from);
   const irmixy = useIrmixyHelperChat(id);
 
+  const chatRoute = session
+    ? { pathname: '/(tabs)/chat' as const, params: { session: String(session) } }
+    : '/(tabs)/chat' as const;
+
   const handleBackPress = () => {
     if (isChatFlow && !navigation.canGoBack()) {
-      router.replace('/(tabs)/chat');
+      router.replace(chatRoute);
     } else {
       router.back();
     }
@@ -46,9 +51,9 @@ export default function CustomCookingGuide() {
     }
 
     if (recipe?.kitchenTools && recipe.kitchenTools.length > 0) {
-      router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-kitchen-tools'));
+      router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-kitchen-tools', session));
     } else {
-      router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-ingredients'));
+      router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-ingredients', session));
     }
   };
 
@@ -94,7 +99,7 @@ export default function CustomCookingGuide() {
           isCustomRecipe={true}
           onExitPress={() => {
             if (isChatFlow) {
-              router.replace('/(tabs)/chat');
+              router.replace(chatRoute);
             } else {
               router.replace(`/(tabs)/recipes/custom/${id}`);
             }
@@ -153,11 +158,7 @@ export default function CustomCookingGuide() {
       <IrmixyCookingModal
         visible={irmixy.isVisible}
         onClose={irmixy.close}
-        recipeContext={{
-          type: 'custom',
-          recipeId: id as string,
-          recipeTitle: recipe?.name,
-        }}
+        recipeContext={buildRecipeContext(recipe, { type: 'custom', recipeId: id as string })}
         {...irmixy.sessionProps}
       />
     </View>

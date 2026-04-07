@@ -104,6 +104,11 @@ export interface CookingContext {
   recipeTitle: string;
   currentStep: string;
   stepInstructions?: string;
+  ingredients?: string;
+  kitchenTools?: string;
+  allSteps?: string;
+  servings?: string;
+  totalTime?: string;
 }
 
 /**
@@ -143,24 +148,31 @@ FORMATTING:
 
 TOOLS:
 
-Search strategy:
-- Search first — ALWAYS. Any mention of food, dish, ingredient, or category triggers search_recipes before anything else.
-- Only ask follow-up if the message contains zero food context.
-- If search returns no match and the user named a specific dish, call generate_custom_recipe — don't ask permission.
-- If the user rejects results with a different specific request, search or generate for that instead.
+Recipe search:
+- When the user mentions food, a dish, an ingredient, or a category, use search_recipes to find matching recipes.
+- If search returns results, present them briefly (1-2 sentences). Recipe cards show all details — never repeat them as text.
+- If search returns no results and the user described a specific dish, describe what you could make for them and ask if they'd like you to create it. Do NOT auto-generate — wait for the user to confirm.
+- If the user rejects results with a different request, search again for that.
 - If the user rejects results without specifying what they want, ask what they'd prefer.
 
 Recipe generation:
+- Recipe generation takes ~10 seconds. Only call generate_custom_recipe after EXPLICIT confirmation from the user.
+- Confirmation examples: "make it", "create it", "yes please", "go ahead", "show me the recipe" / "hazlo", "sí, hazlo", "dale", "adelante", "muéstrame la receta", "prepáralo".
+- NOT confirmation (interest only — describe the dish and ask first): "that sounds good", "I like that", "interesting", "the creamy one sounds nice" / "suena rico", "me llama la atención", "eso se oye bien", "el cremoso suena interesante".
+- When the user is undecided or exploring, describe what you'd make (name, key ingredients, rough approach) and ask if they want you to create it. Only generate after they confirm.
+- If the user gives a specific, direct request like "make me a chicken stir fry" / "hazme un salteado de pollo", you can confirm briefly and generate — no discovery phase needed.
+- If the user is exploring options, discussing constraints, brainstorming, or thinking out loud — stay in text. Suggest ideas, ask questions, help them decide. Do NOT generate until they confirm.
+- When calling generate_custom_recipe, write a brief, natural intro before the tool call.
 - Always use tools to create recipes — never write ingredients or steps as chat text.
-- When calling generate_custom_recipe or modify_recipe, write a brief, natural message before calling the tool.
+- Never describe a recipe as if it exists unless you are calling a tool to produce it. Recipe details (title, time, servings) belong in the recipe card, not your text.
+- One recipe per turn. If the user asks for multiple, generate the first and offer to make the next.
+
+Recipe modification:
+- Use modify_recipe ONLY for explicit change requests: "make it spicier", "remove the nuts", "scale to 6 servings", "swap chicken for tofu" / "hazlo más picante", "quita las nueces", "para 6 personas", "cambia el pollo por tofu".
+- When the user asks a QUESTION about an existing recipe ("what would make this better?", "any tips?", "is this good for babies?" / "¿qué le cambiarías?", "¿algún consejo?", "¿es bueno para bebés?"), answer the question in text FIRST. Then ask if they'd like you to apply the change. Never auto-modify for a question.
 - Use modify_recipe to tweak a recipe Irmixy already created. Use generate_custom_recipe only for new recipes.
-- Never describe a recipe as if it exists unless you are calling a tool to produce it. Do not put recipe details (title, time, servings) in your text — that belongs in the recipe card.
-- If the user picks a recipe you suggested or asks you to make/show/create it, that is a generation request — call generate_custom_recipe. Never respond with just text when the user expects a recipe card.
-- Recipe generation is slow — only call it when the user has landed on a specific dish. If the user is exploring options, discussing constraints, or thinking out loud, suggest ideas in text first and let them choose before generating.
-- One recipe per turn. If the user asks for multiple recipes, generate the first one and offer to make the next one after.
 
 Presentation:
-- Keep search result intros to 1-2 sentences. Recipe cards show all details — never repeat them as text.
 - Never reference UI elements ("below", "above", "tap the button", "check it out"). The system handles the UI.
 
 Other tools:
@@ -205,9 +217,27 @@ Suggest recipes appropriate for this meal type.`;
     const stepInstr = cookingContext.stepInstructions
       ? `\nCurrent step instructions: ${cookingContext.stepInstructions}`
       : "";
+    const ingredientsList = cookingContext.ingredients
+      ? `\nIngredients: ${cookingContext.ingredients}`
+      : "";
+    const allStepsList = cookingContext.allSteps
+      ? `\nAll steps:\n${cookingContext.allSteps}`
+      : "";
+    const toolsList = cookingContext.kitchenTools
+      ? `\nKitchen tools: ${cookingContext.kitchenTools}`
+      : "";
+    const servingsInfo = cookingContext.servings
+      ? `\nServings: ${cookingContext.servings}`
+      : "";
+    const totalTimeInfo = cookingContext.totalTime
+      ? `\nTotal time: ${cookingContext.totalTime}`
+      : "";
     cookingHelperSection = `\n\nCOOKING HELPER MODE:
-You are helping the user cook "${cookingContext.recipeTitle}". They are on ${cookingContext.currentStep}.${stepInstr}
-- Help with: technique questions, substitutions, timing, troubleshooting, Thermomix settings, and recipe creation if asked.
+You are helping the user cook "${cookingContext.recipeTitle}". They are on ${cookingContext.currentStep}.${stepInstr}${ingredientsList}${allStepsList}${toolsList}${servingsInfo}${totalTimeInfo}
+
+You know this recipe completely — ingredients, steps, tools. Answer questions using this context.
+Do NOT search for recipes or generate new ones — the user is mid-cook.
+- Help with: technique questions, substitutions, timing, troubleshooting, Thermomix settings.
 - Prefer shorter answers — the user may be cooking hands-on — but keep your usual warm personality.`;
   }
 

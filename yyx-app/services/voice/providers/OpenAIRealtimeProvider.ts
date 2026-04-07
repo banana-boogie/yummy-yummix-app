@@ -471,13 +471,49 @@ export class OpenAIRealtimeProvider implements VoiceAssistantProvider {
     let instructions = this.serverInstructions || "";
 
     if (recipeContext?.recipeTitle) {
-      instructions += `\n\nCurrent Cooking Context:\n- Recipe: ${recipeContext.recipeTitle}`;
+      instructions += `\n\nCOOKING HELPER MODE:\nYou are helping the user cook "${recipeContext.recipeTitle}".`;
       if (recipeContext.currentStep && recipeContext.totalSteps) {
-        instructions += `\n- Step ${recipeContext.currentStep} of ${recipeContext.totalSteps}`;
+        instructions += `\nThey are on step ${recipeContext.currentStep} of ${recipeContext.totalSteps}.`;
       }
       if (recipeContext.stepInstructions) {
-        instructions += `\n- Current instruction: ${recipeContext.stepInstructions}`;
+        instructions += `\nCurrent instruction: ${recipeContext.stepInstructions}`;
       }
+      if (recipeContext.ingredients?.length) {
+        const ingredientList = recipeContext.ingredients
+          .map(i => `${i.amount} ${i.name}`.trim())
+          .join(", ");
+        instructions += `\nIngredients: ${ingredientList}`;
+      }
+      if (recipeContext.allSteps?.length) {
+        const stepList = recipeContext.allSteps
+          .map(s => {
+            let line = `${s.order}. ${s.instruction}`;
+            if (s.thermomixTime) {
+              const tmTime = s.thermomixTime >= 60
+                ? `${Math.floor(s.thermomixTime / 60)} min${s.thermomixTime % 60 > 0 ? ` ${s.thermomixTime % 60} sec` : ''}`
+                : `${s.thermomixTime} sec`;
+              line += ` (${tmTime}`;
+              if (s.thermomixSpeed) line += `/${s.thermomixSpeed}`;
+              line += ')';
+            }
+            return line;
+          })
+          .join('\n');
+        // Cap at 3000 chars to keep voice context bounded
+        const bounded = stepList.length > 3000 ? stepList.slice(0, 3000) + '...' : stepList;
+        instructions += `\nAll steps:\n${bounded}`;
+      }
+      if (recipeContext.kitchenTools?.length) {
+        instructions += `\nKitchen tools: ${recipeContext.kitchenTools.join(", ")}`;
+      }
+      if (recipeContext.portions) {
+        instructions += `\nServings: ${recipeContext.portions}`;
+      }
+      if (recipeContext.totalTime) {
+        instructions += `\nTotal time: ${recipeContext.totalTime} min`;
+      }
+      instructions += `\n\nYou know this recipe completely. Answer questions using this context. Do NOT search for recipes — the user is mid-cook.`;
+      instructions += `\nKeep answers short — the user is cooking hands-on.`;
     }
 
     return instructions;

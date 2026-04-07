@@ -18,6 +18,7 @@ import { shouldDisplayRecipeSection } from '@/utils/recipes';
 import { COLORS } from '@/constants/design-tokens';
 import { useDevice } from '@/hooks/useDevice';
 import logger from '@/services/logger';
+import { SortableIngredientList } from '@/components/admin/recipes/forms/ingredientsForm/SortableIngredientList';
 
 type IngredientsFormProps = {
   recipe: AdminRecipe;
@@ -123,7 +124,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
         { locale: 'es', recipeSection: 'Principal' },
         { locale: 'en', recipeSection: 'Main' },
       ],
-      displayOrder: recipe.ingredients ? recipe.ingredients.length : 1,
+      displayOrder: recipe.ingredients ? recipe.ingredients.length + 1 : 1,
     };
 
     setSelectedRecipeIngredient(newRecipeIngredient);
@@ -142,7 +143,7 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
 
     const reorderedIngredients = updatedIngredients.map((ing, index) => ({
       ...ing,
-      displayOrder: index
+      displayOrder: index + 1
     }));
 
     const updatedSteps = (recipe.steps || []).map(instruction => {
@@ -287,6 +288,33 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
     });
 
     onUpdateRecipe({ ingredients: updatedIngredients });
+  };
+
+  const handleReorderSection = useCallback((sectionName: string, reorderedIngredients: AdminRecipeIngredient[]) => {
+    // Find the minimum displayOrder currently used by this section
+    const sectionIngredients = groupedIngredients[sectionName] || [];
+    const minOrder = Math.min(...sectionIngredients.map(ing => ing.displayOrder || 0));
+
+    // Assign new displayOrder values starting from the section's current minimum
+    const reorderedWithOrder = reorderedIngredients.map((ing, index) => ({
+      ...ing,
+      displayOrder: minOrder + index,
+    }));
+
+    // Merge back: replace this section's ingredients in the full list
+    const sectionIngredientIds = new Set(sectionIngredients.map(ing => ing.id));
+    const otherIngredients = recipe.ingredients.filter(ing => !sectionIngredientIds.has(ing.id));
+    const mergedIngredients = [...otherIngredients, ...reorderedWithOrder];
+
+    onUpdateRecipe({ ingredients: mergedIngredients });
+  }, [recipe.ingredients, groupedIngredients, onUpdateRecipe]);
+
+  const handleMoveSectionDirection = (sectionName: string, direction: 'up' | 'down') => {
+    if (direction === 'up') {
+      handleMoveSectionUp(sectionName);
+    } else {
+      handleMoveSectionDown(sectionName);
+    }
   };
 
   const handleOnCreateIngredientSuccess = async (ingredient: AdminIngredient) => {
@@ -585,11 +613,14 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
                     </Text>
                   </View>
                 ) : (
-                  sortedSections.map((item, index) => (
-                    <React.Fragment key={`section-${item[0]}`}>
-                      {renderRecipeSection(item[0], item[1], index)}
-                    </React.Fragment>
-                  ))
+                  <SortableIngredientList
+                    sections={sortedSections}
+                    displayLocale={displayLocale || authoringLocale}
+                    onReorder={handleReorderSection}
+                    onEdit={handleEditRecipeIngredient}
+                    onDelete={handleDeleteRecipeIngredient}
+                    onMoveSection={handleMoveSectionDirection}
+                  />
                 )}
               </View>
             </View>
