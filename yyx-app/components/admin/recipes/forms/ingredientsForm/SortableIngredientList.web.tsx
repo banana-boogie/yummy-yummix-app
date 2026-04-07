@@ -4,7 +4,6 @@ import {
   DndContext,
   closestCenter,
   DragEndEvent,
-  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -89,8 +88,7 @@ export function SortableIngredientList({
   onMoveSection,
 }: SortableIngredientListProps) {
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor)
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
   const handleDragEnd = useCallback(

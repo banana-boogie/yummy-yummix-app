@@ -57,6 +57,27 @@ export interface ToolLoopParams {
 }
 
 /**
+ * Determine which tools to exclude based on conversation mode and history.
+ *
+ * - Helper mode: exclude all tools (text-only, answer from recipe context)
+ * - General chat: exclude modify_recipe unless a recipe exists in session history
+ */
+export function resolveExcludedTools(
+  conversationHistory: Array<
+    { role: string; content: string; metadata?: Record<string, unknown> }
+  >,
+  cookingContext: unknown | undefined,
+): string[] {
+  if (cookingContext) {
+    return getRegisteredToolNames();
+  }
+  const hasRecipeInHistory = conversationHistory.some(
+    (m) => m.role === "assistant" && m.metadata?.customRecipe,
+  );
+  return hasRecipeInHistory ? [] : ["modify_recipe"];
+}
+
+/**
  * Run the streaming tool loop.
  *
  * Each iteration calls the LLM. If the LLM returns tool calls, they are
@@ -89,22 +110,10 @@ export async function runToolLoop(
   };
 
   // Tool gating
-  let excludeTools: string[] = [];
-  if (cookingContext) {
-    // Cooking helper mode: no tools — answer from recipe context only
-    excludeTools = getRegisteredToolNames();
-  } else {
-    // General chat: block modify_recipe unless a recipe exists in this session
-    const hasRecipeInHistory = messages.some(
-      (m) =>
-        m.role === "assistant" &&
-        (m as ChatMessage & { metadata?: { customRecipe?: unknown } }).metadata
-          ?.customRecipe,
-    );
-    if (!hasRecipeInHistory) {
-      excludeTools.push("modify_recipe");
-    }
-  }
+  const excludeTools = resolveExcludedTools(
+    userContext.conversationHistory,
+    cookingContext,
+  );
 
   const timings: Record<string, number> = {};
   let phaseStart = performance.now();
@@ -285,9 +294,7 @@ export async function runToolLoop(
       break;
     }
 
-    if (!customRecipeResult) {
-      stream.send({ type: "status", status: "thinking" });
-    }
+    stream.send({ type: "status", status: "thinking" });
   }
 
   if (iteration >= MAX_TOOL_LOOP_ITERATIONS) {

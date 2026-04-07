@@ -144,8 +144,7 @@ export function KitchenTimer({ durationSeconds }: KitchenTimerProps) {
             </Text>
             <Pressable
                 onPress={handleStartPause}
-                className="bg-primary-medium rounded-full px-xl py-sm mt-sm"
-                style={{ minWidth: 120, minHeight: 44 }}
+                className="bg-primary-medium rounded-full px-xl py-sm mt-sm min-w-[120px] min-h-[44px]"
             >
                 <Text preset="body" className="text-white font-semibold text-center">
                     {isComplete

@@ -397,6 +397,49 @@ describe('AdminRecipeService', () => {
         adminRecipeService.updateRecipeIngredients('recipe-1', [])
       ).rejects.toThrow('Failed to delete existing recipeIngredients: Delete failed');
     });
+
+    it('sorts ingredients by displayOrder before inserting (regression)', async () => {
+      // Track insert calls to verify order
+      const insertedData: any[] = [];
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'recipe_ingredients') {
+          return {
+            delete: () => ({
+              eq: jest.fn().mockResolvedValue({ error: null }),
+            }),
+            insert: (data: any) => {
+              insertedData.push(...data);
+              return {
+                select: jest.fn().mockResolvedValue({
+                  data: data.map((d: any, i: number) => ({ id: `id-${i}`, display_order: i + 1 })),
+                  error: null,
+                }),
+              };
+            },
+          };
+        }
+        return mockChain;
+      });
+
+      // Pass ingredients with out-of-order displayOrder values
+      // This simulates a drag-and-drop reorder where array position ≠ displayOrder
+      await adminRecipeService.updateRecipeIngredients('recipe-1', [
+        { ingredientId: 'ing-a', quantity: '100', displayOrder: 3, optional: false, measurementUnit: { id: 'u1' } },
+        { ingredientId: 'ing-b', quantity: '200', displayOrder: 1, optional: false, measurementUnit: { id: 'u1' } },
+        { ingredientId: 'ing-c', quantity: '50', displayOrder: 2, optional: false, measurementUnit: { id: 'u1' } },
+      ] as any);
+
+      // Should be sorted by displayOrder: b(1), c(2), a(3)
+      expect(insertedData).toHaveLength(3);
+      expect(insertedData[0].ingredient_id).toBe('ing-b');
+      expect(insertedData[1].ingredient_id).toBe('ing-c');
+      expect(insertedData[2].ingredient_id).toBe('ing-a');
+
+      // Display orders should be renumbered 1-based contiguously
+      expect(insertedData[0].display_order).toBe(1);
+      expect(insertedData[1].display_order).toBe(2);
+      expect(insertedData[2].display_order).toBe(3);
+    });
   });
 
   describe('updateRecipeTags', () => {

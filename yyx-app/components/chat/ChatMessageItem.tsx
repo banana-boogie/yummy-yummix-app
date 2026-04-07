@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { View, TouchableOpacity, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from '@/components/common/Text';
+import { stripToolMarkup } from '@/utils/textUtils';
 import { ActionButton } from '@/components/common/ActionButton';
 import { ChatRecipeCard } from '@/components/chat/ChatRecipeCard';
 import { CustomRecipeCard } from '@/components/chat/CustomRecipeCard';
@@ -27,10 +28,6 @@ function stripMarkdownImages(content: string): string {
     return content.replace(/!\[.*?\]\(.*?\)\s*/g, '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
-/** Strip LLM-hallucinated tool XML (e.g. `<tool>generate_custom_recipe</tool>`) from displayed text. */
-function stripToolMarkup(content: string): string {
-    return content.replace(/<\/?tool[^>]*>/gi, '').trim();
-}
 
 /** Detect whether content contains markdown syntax worth parsing.
  *  Plain text (e.g. voice transcripts) can skip the expensive Markdown renderer. */
