@@ -7,7 +7,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import 'react-native-reanimated';
 import '../global.css';
 import { useFonts } from '@/hooks/useFonts';
-import { NavigationGuard } from '@/components/navigation/NavigationGuard';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { MeasurementProvider } from '@/contexts/MeasurementContext';
@@ -74,15 +73,13 @@ export default function RootLayout() {
             <title>YummyYummix</title>
             <meta name="viewport" content="width=device-width, initial-scale=1" />
           </Head>
-          <NavigationGuard>
-            <Stack>
-              <Stack.Screen name="index" options={{ headerShown: false, title: '' }} />
-              <Stack.Screen name="auth" options={{ headerShown: false, title: '' }} />
-              <Stack.Screen name="admin" options={{ headerShown: false, title: '' }} />
-              <Stack.Screen name="recipe" options={{ headerShown: false, title: '' }} />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false, title: '' }} />
-            </Stack>
-          </NavigationGuard>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="auth" />
+            <Stack.Screen name="admin" />
+            <Stack.Screen name="recipe" />
+            <Stack.Screen name="(tabs)" />
+          </Stack>
         </InnerProviders>
       </LanguageProvider>
     </SafeAreaProvider>

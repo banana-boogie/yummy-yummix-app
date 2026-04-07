@@ -1,21 +1,16 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import { TextInput } from '@/components/form/TextInput';
-import { COLORS } from '@/constants/design-tokens';
-import { Ionicons } from '@expo/vector-icons';
-import { pickImage } from '@/utils/imageUtils';
 import i18n from '@/i18n';
 import { AdminRecipe, AdminRecipeTranslation, pickTranslation } from '@/types/recipe.admin.types';
 import { RecipeDifficulty } from '@/types/recipe.types';
-import { FormSection } from '@/components/form/FormSection';
+
 import { FormGroup } from '@/components/form/FormGroup';
 import { FormRow } from '@/components/form/FormRow';
 import { SelectInput, SelectOption } from '@/components/form/SelectInput';
-import { Button } from '@/components/common/Button';
 import { AlertModal } from '@/components/common/AlertModal';
 import { Text } from '@/components/common/Text';
-import { Image } from 'expo-image';
-import { AuthoringLanguagePicker } from './shared/AuthoringLanguagePicker';
+import { ImageUploadSection } from '@/components/admin/recipes/forms/common/ImageUploadSection';
 import logger from '@/services/logger';
 
 // Interface for recipe with image file
@@ -34,7 +29,6 @@ interface RecipeInfoFormProps {
 export function RecipeInfoForm({ recipe, onUpdateRecipe, errors, authoringLocale, onAuthoringLocaleChange }: RecipeInfoFormProps) {
   // Form labels follow the authoring locale so the admin sees labels in the language they're editing
   const tForm = (key: string, opts?: any) => i18n.t(key, { ...opts, locale: authoringLocale });
-  const [uploading, setUploading] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
 
   const translations = recipe.translations || [];
@@ -57,27 +51,6 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors, authoringLocale
     onUpdateRecipe({ translations: updated });
   };
 
-  const handlePickImage = async () => {
-    setUploading(true);
-
-    await pickImage({
-      aspect: [16, 9],
-      width: 1200,
-      onSuccess: ({ fileObject }) => {
-        onUpdateRecipe({
-          pictureUrl: fileObject,
-          _imageFile: fileObject
-        });
-      },
-      onError: (error) => {
-        logger.error('Error picking image:', error);
-        setShowAlert(true);
-      }
-    });
-
-    setUploading(false);
-  };
-
   // Define difficulty options for the SelectInput
   const difficultyOptions: SelectOption[] = [
     { label: i18n.t('recipes.common.difficulty.easy'), value: RecipeDifficulty.EASY },
@@ -86,9 +59,7 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors, authoringLocale
   ];
 
   return (
-    <FormSection title={tForm('admin.recipes.form.basicInfo.title')}>
-      <AuthoringLanguagePicker value={authoringLocale} onChange={onAuthoringLocaleChange} />
-
+    <View className="w-full">
       {/* Name - single language */}
       <FormRow>
         <FormGroup
@@ -103,42 +74,37 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors, authoringLocale
         </FormGroup>
       </FormRow>
 
-      {/* Image container gets its own full-width row to prevent layout issues */}
-      <View className="mb-md w-full">
+      {/* Description - single language */}
+      <FormRow>
         <FormGroup
-          label={tForm('admin.recipes.form.basicInfo.recipeImage')}
-          required
-          error={errors.pictureUrl}
+          label={tForm('admin.recipes.form.basicInfo.description', { defaultValue: 'Description' })}
         >
-          {recipe.pictureUrl ? (
-            <View className="mb-sm items-center">
-              <Image
-                source={recipe.pictureUrl}
-                className="w-full h-[250px] mb-md bg-background-SECONDARY rounded-lg"
-                contentFit="contain"
-                transition={300}
-                cachePolicy="memory-disk"
-              />
-              <Button
-                onPress={handlePickImage}
-                disabled={uploading}
-                label={i18n.t('admin.recipes.form.basicInfo.changeImage')}
-                variant="primary"
-                size="medium"
-              />
-            </View>
-          ) : (
-            <Button
-              onPress={handlePickImage}
-              disabled={uploading}
-              loading={uploading}
-              label={i18n.t('admin.recipes.form.basicInfo.uploadImage')}
-              variant="primary"
-              size="medium"
-              icon={<Ionicons name="cloud-upload-outline" size={24} color={COLORS.neutral.WHITE} />}
-            />
-          )}
+          <TextInput
+            value={getTranslationField(authoringLocale, 'description')}
+            onChangeText={(text) => setTranslationField(authoringLocale, 'description', text)}
+            multiline
+            numberOfLines={3}
+            className="min-h-[80px] p-md"
+            style={{ textAlignVertical: 'top' }}
+            placeholder={tForm('admin.recipes.form.basicInfo.descriptionPlaceholder', { defaultValue: 'A short description of the recipe...' })}
+          />
         </FormGroup>
+      </FormRow>
+
+      {/* Recipe image — 16:9 aspect ratio */}
+      <View className="mb-md w-full">
+        <ImageUploadSection
+          imageUrl={recipe.pictureUrl}
+          onImageSelected={(fileObject) => {
+            onUpdateRecipe({
+              pictureUrl: fileObject,
+              _imageFile: fileObject
+            });
+          }}
+          error={errors.pictureUrl}
+          required={true}
+          aspectRatio={16 / 9}
+        />
       </View>
 
       <FormRow>
@@ -217,6 +183,6 @@ export function RecipeInfoForm({ recipe, onUpdateRecipe, errors, authoringLocale
         onConfirm={() => setShowAlert(false)}
         confirmText="OK"
       />
-    </FormSection>
+    </View>
   );
 }

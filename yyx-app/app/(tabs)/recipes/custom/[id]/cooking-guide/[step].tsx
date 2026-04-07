@@ -15,11 +15,15 @@ import { shouldDisplayRecipeSection } from '@/utils/recipes';
 import { COLORS } from '@/constants/design-tokens';
 import { getCustomCookingGuidePath, isFromChat } from '@/utils/navigation/recipeRoutes';
 import { eventService } from '@/services/eventService';
+import { buildRecipeContext } from '@/utils/recipeContext';
 export default function CustomCookingStep() {
-    const { id, step: stepParam, from } = useLocalSearchParams<{ id: string; step: string; from?: string }>();
+    const { id, step: stepParam, from, session } = useLocalSearchParams<{ id: string; step: string; from?: string; session?: string }>();
     const { recipe } = useCustomRecipe(id as string);
     const isChatFlow = isFromChat(from);
     const irmixy = useIrmixyHelperChat(id);
+    const chatRoute = useMemo(() => session
+        ? { pathname: '/(tabs)/chat' as const, params: { session: String(session) } }
+        : '/(tabs)/chat' as const, [session]);
 
     const currentStepNumber = Number(stepParam);
     const steps = recipe?.steps;
@@ -31,25 +35,25 @@ export default function CustomCookingStep() {
         back: () => {
             const previousStep = currentStepNumber - 1;
             if (previousStep >= 1) {
-                router.replace(getCustomCookingGuidePath(id as string, from, String(previousStep)));
+                router.replace(getCustomCookingGuidePath(id as string, from, String(previousStep), session));
             } else {
                 router.back();
             }
         },
         next: () => {
-            router.replace(getCustomCookingGuidePath(id as string, from, String(currentStepNumber + 1)));
+            router.replace(getCustomCookingGuidePath(id as string, from, String(currentStepNumber + 1), session));
         },
         finish: () => {
             if (recipe?.id && recipe?.name) {
                 eventService.logCookComplete(recipe.id, recipe.name, 'user_recipes');
             }
             if (isChatFlow) {
-                router.replace('/(tabs)/chat');
+                router.replace(chatRoute);
             } else {
                 router.replace('/(tabs)/recipes');
             }
         }
-    }), [id, currentStepNumber, from, recipe?.id, recipe?.name, isChatFlow]);
+    }), [id, currentStepNumber, from, session, recipe?.id, recipe?.name, isChatFlow, chatRoute]);
 
     const header = useMemo(() => (
         <CookingGuideHeader
@@ -63,13 +67,13 @@ export default function CustomCookingStep() {
             onBackPress={handleNavigation.back}
             onExitPress={() => {
                 if (isChatFlow) {
-                    router.replace('/(tabs)/chat');
+                    router.replace(chatRoute);
                 } else {
                     router.replace(`/(tabs)/recipes/custom/${id}`);
                 }
             }}
         />
-    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation, isChatFlow, id]);
+    ), [currentStepNumber, totalSteps, recipe?.pictureUrl, handleNavigation, isChatFlow, chatRoute, id]);
 
     const footer = useMemo(() => (
         <View>
@@ -120,14 +124,15 @@ export default function CustomCookingStep() {
             <IrmixyCookingModal
                 visible={irmixy.isVisible}
                 onClose={irmixy.close}
-                recipeContext={{
+                recipeContext={buildRecipeContext(recipe, {
                     type: 'cooking',
                     recipeId: id as string,
-                    recipeTitle: recipe?.name ?? '',
-                    currentStep: currentStepNumber,
-                    totalSteps,
-                    stepInstructions: currentStep?.instruction,
-                }}
+                    overrides: {
+                        currentStep: currentStepNumber,
+                        totalSteps,
+                        stepInstructions: currentStep?.instruction,
+                    },
+                })}
                 {...irmixy.sessionProps}
             />
         </View>

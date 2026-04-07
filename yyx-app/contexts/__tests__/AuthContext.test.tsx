@@ -9,11 +9,11 @@
  * - Pending deep link storage and processing
  */
 
-import React from 'react';
 import { renderHook, waitFor, act } from '@testing-library/react-native';
 import { Linking, AppState } from 'react-native';
+import * as QueryParams from 'expo-auth-session/build/QueryParams';
 import { AuthProvider, useAuth } from '../AuthContext';
-import { getMockSupabaseClient, createMockSession, createMockSupabaseUser } from '@/test/mocks/supabase';
+import { getMockSupabaseClient, createMockSession } from '@/test/mocks/supabase';
 import { userFactory } from '@/test/factories';
 import { Storage } from '@/utils/storage';
 
@@ -64,6 +64,9 @@ jest.mock('expo-auth-session/build/QueryParams', () => ({
     return { params: {}, errorCode: null };
   }),
 }));
+
+const VALID_RECIPE_ID = '123e4567-e89b-12d3-a456-426614174000';
+const SECOND_VALID_RECIPE_ID = '223e4567-e89b-12d3-a456-426614174001';
 
 describe('AuthContext', () => {
   let mockSupabase: ReturnType<typeof getMockSupabaseClient>;
@@ -341,8 +344,7 @@ describe('AuthContext', () => {
       });
 
       // Mock getQueryParams to return no access_token
-      const QueryParams = require('expo-auth-session/build/QueryParams');
-      QueryParams.getQueryParams.mockReturnValueOnce({
+      (QueryParams.getQueryParams as jest.Mock).mockReturnValueOnce({
         params: {},
         errorCode: null,
       });
@@ -374,7 +376,7 @@ describe('AuthContext', () => {
       let handled: boolean = false;
       await act(async () => {
         handled = result.current.handleDeepLink(
-          'https://yummyyummix.app/api/recipe-preview/recipe-123'
+          `https://yummyyummix.app/api/recipe-preview/${VALID_RECIPE_ID}`
         );
       });
 
@@ -384,7 +386,7 @@ describe('AuthContext', () => {
       await waitFor(() => {
         expect(mockRouterReplace).toHaveBeenCalledWith({
           pathname: '/(tabs)/recipes/[id]',
-          params: { id: 'recipe-123' },
+          params: { id: VALID_RECIPE_ID },
         });
       }, { timeout: 500 });
     });
@@ -401,7 +403,7 @@ describe('AuthContext', () => {
       let handled: boolean = false;
       await act(async () => {
         handled = result.current.handleDeepLink(
-          'https://yummyyummix.app/recipes/recipe-456'
+          `https://yummyyummix.app/recipes/${SECOND_VALID_RECIPE_ID}`
         );
       });
 
@@ -410,9 +412,75 @@ describe('AuthContext', () => {
       await waitFor(() => {
         expect(mockRouterReplace).toHaveBeenCalledWith({
           pathname: '/(tabs)/recipes/[id]',
-          params: { id: 'recipe-456' },
+          params: { id: SECOND_VALID_RECIPE_ID },
         });
       }, { timeout: 500 });
+    });
+
+    it('handles recipe deep links that include a route group in the path', async () => {
+      const { result } = renderHook(() => useAuth(), {
+        wrapper: AuthProvider,
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      let handled: boolean = false;
+      await act(async () => {
+        handled = result.current.handleDeepLink(
+          `https://app.yummyyummix.com/(tabs)/recipes/${VALID_RECIPE_ID}`
+        );
+      });
+
+      expect(handled).toBe(true);
+
+      await waitFor(() => {
+        expect(mockRouterReplace).toHaveBeenCalledWith({
+          pathname: '/(tabs)/recipes/[id]',
+          params: { id: VALID_RECIPE_ID },
+        });
+      }, { timeout: 500 });
+    });
+
+    it('does not treat admin recipe list URLs as recipe deep links', async () => {
+      const { result } = renderHook(() => useAuth(), {
+        wrapper: AuthProvider,
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      let handled: boolean = false;
+      await act(async () => {
+        handled = result.current.handleDeepLink(
+          'https://app.yummyyummix.com/admin/recipes'
+        );
+      });
+
+      expect(handled).toBe(false);
+      expect(mockRouterReplace).not.toHaveBeenCalled();
+    });
+
+    it('does not treat admin user-recipes URLs as recipe deep links', async () => {
+      const { result } = renderHook(() => useAuth(), {
+        wrapper: AuthProvider,
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      let handled: boolean = false;
+      await act(async () => {
+        handled = result.current.handleDeepLink(
+          'https://app.yummyyummix.com/admin/user-recipes'
+        );
+      });
+
+      expect(handled).toBe(false);
+      expect(mockRouterReplace).not.toHaveBeenCalled();
     });
 
     it('skips auth callback URLs', async () => {
@@ -509,7 +577,7 @@ describe('AuthContext', () => {
       // Simulate deep link arrival
       if (deepLinkHandler) {
         await act(async () => {
-          deepLinkHandler({ url: 'https://yummyyummix.app/recipes/recipe-123' });
+          deepLinkHandler({ url: `https://yummyyummix.app/recipes/${VALID_RECIPE_ID}` });
         });
       }
 
@@ -517,9 +585,34 @@ describe('AuthContext', () => {
       await waitFor(() => {
         expect(Storage.setItem).toHaveBeenCalledWith(
           'pendingDeepLink',
-          'https://yummyyummix.app/recipes/recipe-123'
+          `https://yummyyummix.app/recipes/${VALID_RECIPE_ID}`
         );
       });
+    });
+
+    it('does not store unrelated initial URLs when user is not logged in', async () => {
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: { session: null },
+        error: null,
+      });
+      (Linking.getInitialURL as jest.Mock).mockResolvedValue(
+        'https://app.yummyyummix.com/admin/recipes'
+      );
+
+      const { result } = renderHook(() => useAuth(), {
+        wrapper: AuthProvider,
+      });
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(Storage.setItem).not.toHaveBeenCalled();
+      expect(mockRouterReplace).not.toHaveBeenCalled();
     });
 
     it('checks for pending deep link on mount', async () => {
@@ -541,7 +634,9 @@ describe('AuthContext', () => {
     });
 
     it('returns true when pending deep link exists', async () => {
-      (Storage.getItem as jest.Mock).mockResolvedValue('https://yummyyummix.app/recipes/123');
+      (Storage.getItem as jest.Mock).mockResolvedValue(
+        `https://yummyyummix.app/recipes/${VALID_RECIPE_ID}`
+      );
 
       const { result } = renderHook(() => useAuth(), {
         wrapper: AuthProvider,

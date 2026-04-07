@@ -422,7 +422,8 @@ See `generate-custom-recipe.ts` for Thermomix system prompt section.
 ### Edge Functions (`yyx-server/supabase/functions/`)
 - **`_shared/`** - Shared utilities (CORS, auth, AI gateway)
 - **`irmixy-chat-orchestrator/`**, **`irmixy-voice-orchestrator/`** - AI endpoints
-- **`get-nutritional-facts/`**, **`parse-recipe-markdown/`** - Recipe utilities
+- **`get-nutritional-facts/`** - Nutrition data lookup
+- **`admin-ai-recipe-import/`** - Admin AI-powered recipe import from markdown
 
 ### Platform-Specific Providers
 

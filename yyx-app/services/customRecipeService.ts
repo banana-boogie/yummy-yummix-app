@@ -90,6 +90,7 @@ export const customRecipeService = {
             .insert({
                 user_id: userData.user.id,
                 name: name,
+                description: recipe.description || null,
                 total_time: recipe.totalTime,
                 difficulty: recipe.difficulty,
                 portions: recipe.portions,
@@ -273,7 +274,7 @@ export const customRecipeService = {
         const { data: recipeData, error: recipeError } = await supabase
             .from('user_recipes')
             .select(`
-                id, name, source, created_at, schema_version,
+                id, name, description, source, created_at, schema_version,
                 total_time, difficulty, portions, measurement_system, language,
                 recipe_data
             `)
@@ -378,6 +379,7 @@ export const customRecipeService = {
         const generatedRecipe: GeneratedRecipe = {
             schemaVersion: '1.0',
             suggestedName: recipeData.name,
+            description: recipeData.description || undefined,
             measurementSystem: recipeData.measurement_system as 'imperial' | 'metric' || 'metric',
             locale: recipeData.language || 'en',
             ingredients,

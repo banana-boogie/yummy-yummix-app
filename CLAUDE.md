@@ -419,7 +419,8 @@ See `generate-custom-recipe.ts` for Thermomix system prompt section.
 ### Edge Functions (`yyx-server/supabase/functions/`)
 - **`_shared/`** - Shared utilities (CORS, auth, AI gateway)
 - **`irmixy-chat-orchestrator/`**, **`irmixy-voice-orchestrator/`** - AI endpoints
-- **`get-nutritional-facts/`**, **`parse-recipe-markdown/`** - Recipe utilities
+- **`get-nutritional-facts/`** - Nutrition data lookup
+- **`admin-ai-recipe-import/`** - Admin AI-powered recipe import from markdown
 
 ### Platform-Specific Providers
 
@@ -784,6 +785,16 @@ feat(recipe): add search by ingredients
 fix(auth): resolve login timeout issue
 docs: update API documentation
 ```
+
+### Commit Workflow
+
+**Resolve first, then commit.** Do not commit after every small change. Iterate on the fix, verify it works, then commit once the issue is resolved.
+
+- Make edits and suggest the user test the change
+- If the fix doesn't work, iterate — do NOT commit broken or partial work
+- Once the issue is resolved, suggest committing (but wait for user confirmation)
+- Before moving on to the next issue, commit the resolved one
+- Group related fixes into a single meaningful commit
 
 <!-- END:shared/git-conventions -->
 

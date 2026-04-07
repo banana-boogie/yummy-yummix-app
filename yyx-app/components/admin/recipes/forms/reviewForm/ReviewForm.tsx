@@ -35,7 +35,7 @@ export function ReviewForm({ recipe, displayLocale = 'es', onUpdateRecipe }: Rev
         <Text preset="h1" className="mb-md">{getTranslatedField(recipe.translations, displayLocale, 'name')}</Text>
 
         {recipe.pictureUrl ? (
-          <View className="w-full h-[200px] rounded-lg mb-md overflow-hidden bg-background-SECONDARY">
+          <View className="w-full h-[200px] rounded-lg mb-md overflow-hidden bg-background-secondary">
             <Image
               source={recipe.pictureUrl}
               className="w-full h-full"

@@ -66,7 +66,7 @@ Deno.test("summarizeHistoryToolResults - single search result", () => {
   );
 });
 
-Deno.test("summarizeHistoryToolResults - generated recipe with full attributes shows only name", () => {
+Deno.test("summarizeHistoryToolResults - generated recipe with full attributes includes ingredients and metadata", () => {
   const result = summarizeHistoryToolResults({
     customRecipe: {
       suggestedName: "Healthy Green Bowl",
@@ -82,11 +82,11 @@ Deno.test("summarizeHistoryToolResults - generated recipe with full attributes s
   });
   assertEquals(
     result,
-    '(System: recipe "Healthy Green Bowl" was generated via tool and shown to user in recipe card)',
+    '(System: recipe "Healthy Green Bowl" | ingredients: spinach, avocado, quinoa | easy | 25 min | 2 portions was generated via tool and shown to user in recipe card)',
   );
 });
 
-Deno.test("summarizeHistoryToolResults - generated recipe shows only name regardless of fields", () => {
+Deno.test("summarizeHistoryToolResults - generated recipe includes available attributes", () => {
   const result = summarizeHistoryToolResults({
     customRecipe: {
       suggestedName: "Test Recipe",
@@ -97,9 +97,10 @@ Deno.test("summarizeHistoryToolResults - generated recipe shows only name regard
       totalTime: 30,
     },
   });
+  // "flour" has no .name field so it's skipped; only "sugar" appears
   assertEquals(
     result,
-    '(System: recipe "Test Recipe" was generated via tool and shown to user in recipe card)',
+    '(System: recipe "Test Recipe" | ingredients: sugar | 30 min was generated via tool and shown to user in recipe card)',
   );
 });
 
@@ -128,7 +129,7 @@ Deno.test("summarizeHistoryToolResults - both search results and generated recip
   });
   assertEquals(
     result,
-    '(System: showed 1 recipe card(s) to user — Pasta Salad, 15 min, easy, 4 portions) (System: recipe "Custom Pasta" was generated via tool and shown to user in recipe card)',
+    '(System: showed 1 recipe card(s) to user — Pasta Salad, 15 min, easy, 4 portions) (System: recipe "Custom Pasta" | ingredients: pasta, tomato | 20 min was generated via tool and shown to user in recipe card)',
   );
 });
 
@@ -171,7 +172,7 @@ Deno.test("summarizeHistoryToolResults - recipe with empty ingredients array", (
   });
   assertEquals(
     result,
-    '(System: recipe "Empty Recipe" was generated via tool and shown to user in recipe card)',
+    '(System: recipe "Empty Recipe" | 10 min was generated via tool and shown to user in recipe card)',
   );
 });
 

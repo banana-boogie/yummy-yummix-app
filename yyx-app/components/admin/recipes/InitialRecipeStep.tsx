@@ -44,7 +44,7 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
     const { locales: allLocales } = useActiveLocales(true);
     const filteredLocales = allLocales.filter(l => l.code !== 'es-MX');
     const { translating, progress, translateAll } = useRecipeTranslation();
-    // The parse-recipe-markdown edge function generates 'en' + 'es' by default.
+    // The admin-ai-recipe-import edge function generates 'en' + 'es' by default.
     // Additional locales (e.g. es-ES) are translated via translate-content after parsing.
     const PARSE_GENERATED_LOCALES = ['en', 'es'];
     const [selectedLocales, setSelectedLocales] = useState<Record<string, boolean>>({
@@ -99,7 +99,7 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
             const { recipe: parsedRecipe, missingIngredients, missingTags, missingKitchenTools } = await parseRecipeMarkdown(markdownText);
 
             // Determine which additional locales need translation
-            // parse-recipe-markdown generates 'en' + 'es'. Any other selected locale needs translate-content.
+            // admin-ai-recipe-import generates 'en' + 'es'. Any other selected locale needs translate-content.
             const additionalLocales = Object.entries(selectedLocales)
                 .filter(([code, checked]) => checked && !PARSE_GENERATED_LOCALES.includes(code))
                 .map(([code]) => code);
@@ -126,7 +126,12 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
             }
 
             // Update the recipe state with parsed + translated data
-            onUpdateRecipe(finalRecipe);
+            // Store missing items on the recipe so they're available on related pages
+            onUpdateRecipe({
+                ...finalRecipe,
+                _missingIngredients: missingIngredients,
+                _missingKitchenTools: missingKitchenTools,
+            } as any);
 
             setParsingStatus({
                 loading: false,
@@ -313,14 +318,14 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                         <Button
                             label={i18n.t('admin.recipes.create.populateWithAI')}
                             variant="primary"
-                            icon={<Ionicons name="color-wand-outline" size={24} color={COLORS.neutral.WHITE} className="mr-xs" />}
+                            icon={<Ionicons name="color-wand-outline" size={24} color={COLORS.neutral.white} className="mr-xs" />}
                             onPress={() => setShowMarkdownImport(true)}
                             className="w-full max-w-[400px] mb-lg"
                         />
 
                         <Button
                             label={i18n.t('admin.recipes.create.startFromScratch')}
-                            icon={<Ionicons name="create-outline" size={24} color={COLORS.text.DEFAULT} className="mr-xxs" />}
+                            icon={<Ionicons name="create-outline" size={24} color={COLORS.text.default} className="mr-xxs" />}
                             variant="outline"
                             onPress={handleNextStep}
                             className="w-full max-w-[400px] mb-lg"
@@ -328,7 +333,7 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
 
                         <Button
                             label={i18n.t('admin.recipes.form.initialSetup.continueRecipe')}
-                            icon={<Ionicons name="arrow-forward-outline" size={24} color={COLORS.text.DEFAULT} className="mr-xxs" />}
+                            icon={<Ionicons name="arrow-forward-outline" size={24} color={COLORS.text.default} className="mr-xxs" />}
                             variant="outline"
                             onPress={handleNextStep}
                             className="w-full max-w-[400px] mb-lg"
@@ -345,7 +350,7 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                     <ScrollView className="max-h-[500px] mb-md">
                         {/* Locale checkboxes */}
                         {!importSuccessful && (
-                            <View className="mb-md p-sm bg-background-SECONDARY rounded-md">
+                            <View className="mb-md p-sm bg-background-secondary rounded-md">
                                 <Text preset="bodySmall" className="mb-xs font-semibold">
                                     {i18n.t('admin.translate.targetLanguages')}
                                 </Text>
@@ -366,13 +371,13 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
 
                         {/* Translation progress */}
                         {translating && progress && (
-                            <View className="mb-md p-sm bg-primary-LIGHT rounded-md border border-primary-MEDIUM">
+                            <View className="mb-md p-sm bg-primary-light rounded-md border border-primary-medium">
                                 <Text preset="bodySmall" className="mb-xs">
                                     {i18n.t('admin.translate.translating', { defaultValue: 'Translating...' })} {progress.current}/{progress.total}
                                 </Text>
-                                <View className="h-2 bg-background-DEFAULT rounded-full overflow-hidden">
+                                <View className="h-2 bg-background-default rounded-full overflow-hidden">
                                     <View
-                                        className="h-full bg-primary-DEFAULT rounded-full"
+                                        className="h-full bg-primary-default rounded-full"
                                         style={{ width: `${(progress.current / progress.total) * 100}%` }}
                                     />
                                 </View>
@@ -394,24 +399,24 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                                 />
                                 {parsingStatus.loading && (
                                     <View className="absolute inset-0 bg-white/80 justify-center items-center rounded">
-                                        <ActivityIndicator size="large" color={COLORS.primary.DARKEST} />
+                                        <ActivityIndicator size="large" color={COLORS.primary.darkest} />
                                     </View>
                                 )}
                             </View>
                         )}
 
                         {parsingStatus.error && (
-                            <View className="mt-md p-sm bg-status-ERROR rounded">
+                            <View className="mt-md p-sm bg-status-error rounded">
                                 <Text className="color-white">{parsingStatus.error}</Text>
                             </View>
                         )}
 
                         {(parsingStatus.missingIngredients?.length || parsingStatus.missingTags?.length || parsingStatus.missingKitchenTools?.length) ? (
-                            <View className="mt-md p-md bg-primary-LIGHT rounded border border-primary-MEDIUM">
+                            <View className="mt-md p-md bg-primary-light rounded border border-primary-medium">
                                 {parsingStatus.missingIngredients && parsingStatus.missingIngredients?.length > 0 ? (
-                                    <View className="mb-md bg-background-DEFAULT rounded overflow-hidden border border-border-DEFAULT">
-                                        <View className="flex-row justify-between items-center p-sm bg-background-SECONDARY border-b border-border-DEFAULT">
-                                            <Text className="font-bold text-text-DEFAULT flex-1">
+                                    <View className="mb-md bg-background-default rounded overflow-hidden border border-border-default">
+                                        <View className="flex-row justify-between items-center p-sm bg-background-secondary border-b border-border-default">
+                                            <Text className="font-bold text-text-default flex-1">
                                                 {i18n.t('admin.recipes.form.initialSetup.missingIngredients')}
                                             </Text>
                                             <Button
@@ -442,9 +447,9 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                                 ) : null}
 
                                 {parsingStatus.missingTags && parsingStatus.missingTags.length > 0 ? (
-                                    <View className="mb-md bg-background-DEFAULT rounded overflow-hidden border border-border-DEFAULT">
-                                        <View className="flex-row justify-between items-center p-sm bg-background-SECONDARY border-b border-border-DEFAULT">
-                                            <Text className="font-bold text-text-DEFAULT flex-1">
+                                    <View className="mb-md bg-background-default rounded overflow-hidden border border-border-default">
+                                        <View className="flex-row justify-between items-center p-sm bg-background-secondary border-b border-border-default">
+                                            <Text className="font-bold text-text-default flex-1">
                                                 {i18n.t('admin.recipes.form.initialSetup.missingTags')}
                                             </Text>
                                             <Button
@@ -475,9 +480,9 @@ export function InitialRecipeStep({ onUpdateRecipe, handleNextStep, recipe }: In
                                 ) : null}
 
                                 {parsingStatus.missingKitchenTools && parsingStatus.missingKitchenTools.length > 0 ? (
-                                    <View className="mb-md bg-background-DEFAULT rounded overflow-hidden border border-border-DEFAULT">
-                                        <View className="flex-row justify-between items-center p-sm bg-background-SECONDARY border-b border-border-DEFAULT">
-                                            <Text className="font-bold text-text-DEFAULT flex-1">
+                                    <View className="mb-md bg-background-default rounded overflow-hidden border border-border-default">
+                                        <View className="flex-row justify-between items-center p-sm bg-background-secondary border-b border-border-default">
+                                            <Text className="font-bold text-text-default flex-1">
                                                 {i18n.t('admin.recipes.form.initialSetup.missingKitchenTools')}
                                             </Text>
                                             <Button

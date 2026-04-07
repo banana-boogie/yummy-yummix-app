@@ -6,6 +6,7 @@ import logger from '@/services/logger';
 
 interface UseIngredientsReturn {
   ingredients: AdminIngredient[];
+  setIngredients: Dispatch<SetStateAction<AdminIngredient[]>>;
   filteredIngredients: AdminIngredient[];
   setFilteredIngredients: Dispatch<SetStateAction<AdminIngredient[]>>;
   loading: boolean;
@@ -80,6 +81,7 @@ export function useIngredients(): UseIngredientsReturn {
 
   return {
     ingredients,
+    setIngredients,
     filteredIngredients,
     setFilteredIngredients,
     loading,

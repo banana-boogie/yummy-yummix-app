@@ -76,9 +76,9 @@ export default function NewRecipePage() {
       case CreateRecipeStep.BASIC_INFO:
         return <RecipeInfoForm recipe={recipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} onAuthoringLocaleChange={setAuthoringLocale} />;
       case CreateRecipeStep.KITCHEN_TOOLS:
-        return <RecipeKitchenToolsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} />;
+        return <RecipeKitchenToolsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} missingKitchenTools={recipe._missingKitchenTools} />;
       case CreateRecipeStep.INGREDIENTS:
-        return <RecipeIngredientsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} />;
+        return <RecipeIngredientsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} missingIngredients={recipe._missingIngredients} />;
       case CreateRecipeStep.STEPS:
         return <StepsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} />;
       case CreateRecipeStep.TAGS:
@@ -107,30 +107,58 @@ export default function NewRecipePage() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           className="flex-1"
         >
-          <ScrollView
-            className="flex-1"
-            contentContainerStyle={{ padding: 16, alignItems: 'center' }}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* Header Section */}
-            {showNavElements && (
-              <View className="w-full px-md pb-md">
+          {(() => {
+            const isPickerStep = currentStep === CreateRecipeStep.KITCHEN_TOOLS || currentStep === CreateRecipeStep.INGREDIENTS;
+            const header = showNavElements ? (
+              <View className={`w-full px-md ${isPickerStep ? 'pb-xs' : 'pb-md'}`}>
                 <RecipeProgressIndicator currentStep={currentStep} onStepClick={setCurrentStep} clickable={true} />
-                {currentStep !== CreateRecipeStep.INITIAL_SETUP && currentStep !== CreateRecipeStep.BASIC_INFO && currentStep !== CreateRecipeStep.TRANSLATIONS && (
-                  <View className="mt-md">
-                    <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+                {currentStep !== CreateRecipeStep.INITIAL_SETUP && currentStep !== CreateRecipeStep.TRANSLATIONS && (
+                  <View className={isPickerStep ? 'mt-xs' : 'mt-md'}>
+                    <AdminDisplayLocaleToggle
+                      value={currentStep === CreateRecipeStep.BASIC_INFO ? authoringLocale : displayLocale}
+                      onChange={(locale) => {
+                        if (currentStep === CreateRecipeStep.BASIC_INFO) {
+                          setAuthoringLocale(locale);
+                        }
+                        setDisplayLocale(locale);
+                      }}
+                    />
                   </View>
                 )}
               </View>
-            )}
-            {renderStepContent()}
-          </ScrollView>
+            ) : null;
+
+            if (isPickerStep) {
+              return (
+                <ScrollView
+                  className="flex-1"
+                  contentContainerClassName="p-lg flex-grow"
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {header}
+                  {renderStepContent()}
+                </ScrollView>
+              );
+            }
+
+            // Other steps: scrollable
+            return (
+              <ScrollView
+                className="flex-1"
+                contentContainerClassName="p-lg flex-grow"
+                keyboardShouldPersistTaps="handled"
+              >
+                {header}
+                {renderStepContent()}
+              </ScrollView>
+            );
+          })()}
         </KeyboardAvoidingView>
 
         {/* Footer Section - Fixed at bottom */}
         {showNavElements && (
-          <View className="px-lg pt-md pb-xl bg-background-default items-center shadow-md">
-            <View className="w-full" style={{ maxWidth: FORM_MAX_WIDTH }}>
+          <View className="px-lg pt-sm pb-md bg-background-default border-t border-grey-light">
+            <View className="w-full">
               <NavButtons
                 onNext={currentStep < CreateRecipeStep.REVIEW ? handleNextStep : handlePublish}
                 onPrev={handlePrevStep}
@@ -158,7 +186,7 @@ export default function NewRecipePage() {
         onConfirm={() => {
           setShowAlert(false);
           if (alertSuccess) {
-            router.back();
+            router.replace('/admin/recipes');
           }
         }}
         confirmText={i18n.t('common.ok')}

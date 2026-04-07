@@ -222,11 +222,35 @@ const TOOL_SUMMARIZERS: Record<string, ToolResultSummarizer> = {
   customRecipe: (data) => {
     if (!data || typeof data !== "object") return null;
     const recipe = data as Record<string, unknown>;
+    const parts: string[] = [];
     if (typeof recipe.suggestedName === "string") {
-      const safeSuggestedName = sanitizeContent(recipe.suggestedName).trim();
-      if (safeSuggestedName) {
-        return `(System: recipe "${safeSuggestedName}" was generated via tool and shown to user in recipe card)`;
-      }
+      const safeName = sanitizeContent(recipe.suggestedName).trim();
+      if (safeName) parts.push(`"${safeName}"`);
+    }
+    // Add key recipe attributes for richer follow-up context
+    if (Array.isArray(recipe.ingredients)) {
+      const names = recipe.ingredients
+        .map((i: Record<string, unknown>) =>
+          typeof i?.name === "string" ? sanitizeContent(i.name).trim() : ""
+        )
+        .filter(Boolean);
+      if (names.length > 0) parts.push(`ingredients: ${names.join(", ")}`);
+    }
+    if (typeof recipe.difficulty === "string") {
+      const safeDifficulty = sanitizeContent(recipe.difficulty).trim();
+      if (safeDifficulty) parts.push(safeDifficulty);
+    }
+    if (typeof recipe.totalTime === "number" && isFinite(recipe.totalTime)) {
+      parts.push(`${recipe.totalTime} min`);
+    }
+    if (typeof recipe.portions === "number" && isFinite(recipe.portions)) {
+      parts.push(`${recipe.portions} portions`);
+    }
+
+    if (parts.length > 0) {
+      return `(System: recipe ${
+        parts.join(" | ")
+      } was generated via tool and shown to user in recipe card)`;
     }
     return "(System: a recipe was generated via tool and shown to user in recipe card)";
   },

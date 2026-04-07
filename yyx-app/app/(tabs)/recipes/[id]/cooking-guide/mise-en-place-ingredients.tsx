@@ -16,6 +16,7 @@ import { PageLayout } from '@/components/layouts/PageLayout';
 import { MiseEnPlaceIngredient } from '@/components/cooking-guide/MiseEnPlaceIngredient';
 import { Text } from '@/components/common/Text';
 import { LAYOUT } from '@/constants/design-tokens';
+import { buildRecipeContext } from '@/utils/recipeContext';
 
 // Define the ingredient type
 type CheckableIngredient = RecipeIngredient & { checked: boolean };
@@ -56,13 +57,7 @@ export default function IngredientsStep() {
   };
 
   const handleNext = () => {
-    // If kitchen tools exist, go to kitchen-tools prep page
-    if (recipe?.kitchenTools && recipe.kitchenTools.length > 0) {
-      router.push(`/(tabs)/recipes/${id}/cooking-guide/mise-en-place-kitchen-tools`);
-    } else {
-      // Otherwise go straight to cooking steps
-      router.push(`/(tabs)/recipes/${id}/cooking-guide/1`);
-    }
+    router.push(`/(tabs)/recipes/${id}/cooking-guide/1`);
   };
 
   return (
@@ -129,16 +124,17 @@ export default function IngredientsStep() {
       <IrmixyCookingModal
         visible={irmixy.isVisible}
         onClose={irmixy.close}
-        recipeContext={{
+        recipeContext={buildRecipeContext(recipe, {
           type: 'cooking',
           recipeId: id as string,
-          recipeTitle: recipe?.name,
-          stepInstructions: i18n.t('chat.prepareIngredients'),
-          ingredients: ingredients.map(ing => ({
-            name: ing.name,
-            amount: `${ing.formattedQuantity} ${ing.formattedUnit}`
-          }))
-        }}
+          overrides: {
+            stepInstructions: i18n.t('chat.prepareIngredients'),
+            ingredients: ingredients.map(ing => ({
+              name: ing.name,
+              amount: `${ing.formattedQuantity} ${ing.formattedUnit}`.trim(),
+            })),
+          },
+        })}
         {...irmixy.sessionProps}
       />
     </View>

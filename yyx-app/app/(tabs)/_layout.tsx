@@ -1,8 +1,7 @@
 import React, { useCallback } from 'react';
 import { View, TouchableOpacity, Platform } from 'react-native';
 import { Image } from 'expo-image';
-import { Tabs, Redirect, usePathname, Link, router } from 'expo-router';
-import { useAuth } from '@/contexts/AuthContext';
+import { Tabs, usePathname, Link, router } from 'expo-router';
 import { VoiceSessionProvider } from '@/contexts/VoiceSessionContext';
 import { CookingSessionProvider } from '@/contexts/CookingSessionContext';
 import { useDevice } from '@/hooks/useDevice';
@@ -27,11 +26,11 @@ const TAB_CONFIG: TabConfigItem[] = [
 ];
 
 export default function TabLayout() {
-  const { user, loading } = useAuth();
   const { isLarge } = useDevice();
 
-  if (loading) return null;
-  if (!user) return <Redirect href="/auth/signup" />;
+  // No auth checks here. Never return null or <Redirect> from a layout —
+  // it unmounts the navigator and Expo Router re-resolves URLs incorrectly.
+  // Auth is handled by index.tsx (redirects to /auth/signup if not logged in).
 
   return (
     <CookingSessionProvider>

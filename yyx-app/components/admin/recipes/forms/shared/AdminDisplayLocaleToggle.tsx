@@ -12,7 +12,6 @@ interface AdminDisplayLocaleToggleProps {
 
 export function AdminDisplayLocaleToggle({ value, onChange }: AdminDisplayLocaleToggleProps) {
   const { locales: adminLocales } = useAdminLocales();
-  // English first for admin display toggle
   const locales = [...adminLocales].sort((a, b) => {
     if (a.code === 'en') return -1;
     if (b.code === 'en') return 1;
@@ -21,9 +20,9 @@ export function AdminDisplayLocaleToggle({ value, onChange }: AdminDisplayLocale
 
   return (
     <View className="flex-row items-center gap-sm p-sm bg-primary-lightest rounded-lg border border-primary-light">
-      <Ionicons name="eye-outline" size={18} className="text-text-secondary" />
+      <Ionicons name="language-outline" size={18} className="text-text-secondary" />
       <Text preset="bodySmall" className="text-text-secondary">
-        {i18n.t('admin.common.displayLanguage')}
+        {i18n.t('admin.translate.authoringLanguage', { defaultValue: 'Writing in' })}
       </Text>
       <View className="flex-row gap-xs ml-auto">
         {locales.map(locale => {

@@ -21,6 +21,7 @@ jest.mock('expo-router', () => ({
     },
   },
   useRouter: () => ({ push: jest.fn(), navigate: jest.fn(), back: jest.fn() }),
+  useLocalSearchParams: () => ({}),
 }));
 
 jest.mock('@/i18n', () => ({

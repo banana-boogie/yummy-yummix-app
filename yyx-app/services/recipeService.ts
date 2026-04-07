@@ -23,7 +23,8 @@ const getRecipeListQuery = () => {
     translations:recipe_translations (
       locale,
       name,
-      tips_and_tricks
+      tips_and_tricks,
+      description
     ),
     average_rating,
     rating_count,
@@ -62,7 +63,8 @@ const getRecipeDetailQuery = () => {
     translations:recipe_translations (
       locale,
       name,
-      tips_and_tricks
+      tips_and_tricks,
+      description
     ),
     average_rating,
     rating_count,

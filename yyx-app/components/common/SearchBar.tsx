@@ -68,7 +68,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           borderWidth: 1,
           borderColor: borderColor,
           paddingHorizontal: 16,
-          paddingVertical: Platform.OS === 'ios' ? 12 : 8,
+          paddingVertical: Platform.OS === 'ios' ? 12 : 12,
         }}
       >
         <Ionicons name="search" size={20} color={iconColor} />
@@ -85,7 +85,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               color: COLORS.text.default,
               fontFamily: 'Montserrat',
             },
-            Platform.OS === 'web' ? { outlineWidth: 0 } as never : {},
+            Platform.OS === 'web' ? { outlineStyle: 'none' } as never : {},
           ]}
         />
         {inputValue.length > 0 && (

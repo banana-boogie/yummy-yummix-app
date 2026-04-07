@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ScrollView, View, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS } from '@/constants/design-tokens';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { RecipeInfoForm } from '@/components/admin/recipes/forms/RecipeInfoForm';
@@ -11,6 +11,7 @@ import { ReviewForm } from '@/components/admin/recipes/forms/reviewForm/ReviewFo
 import { RecipeKitchenToolsForm } from '@/components/admin/recipes/forms/kitchenToolsForm/RecipeKitchenToolsForm';
 import { AdminRecipe, getTranslatedField } from '@/types/recipe.admin.types';
 import { adminRecipeService } from '@/services/admin/adminRecipeService';
+import { friendlySaveError } from '@/hooks/admin/useAdminRecipeForm';
 import { Text } from '@/components/common/Text';
 import { AlertModal } from '@/components/common/AlertModal';
 import { FormErrors } from '@/components/form/FormErrors';
@@ -23,10 +24,10 @@ import { useDevice } from '@/hooks/useDevice';
 import { TranslationStep } from '@/components/admin/recipes/forms/translationForm/TranslationStep';
 import { loadAuthoringLocale, saveAuthoringLocale } from '@/components/admin/recipes/forms/shared/AuthoringLanguagePicker';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
-import logger from '@/services/logger';
 
 export default function EditRecipePage() {
   const { id } = useLocalSearchParams();
+  const router = useRouter();
   const [recipe, setRecipe] = useState<Partial<AdminRecipe>>({
     ingredients: [],
     steps: [],
@@ -101,7 +102,8 @@ export default function EditRecipePage() {
       await loadRecipe();
     } catch (error) {
       logger.error('Error saving recipe:', error);
-      setErrors({ save: i18n.t('admin.recipes.form.errors.saveFailed') });
+      const msg = error instanceof Error ? error.message : '';
+      setErrors({ save: friendlySaveError(msg) });
       setShowErrorDialog(true);
     } finally {
       setSaving(false);
@@ -244,9 +246,17 @@ export default function EditRecipePage() {
               onStepClick={handleStepClick}
               clickable={true}
             />
-            {currentStep !== CreateRecipeStep.BASIC_INFO && currentStep !== CreateRecipeStep.TRANSLATIONS && (
+            {currentStep !== CreateRecipeStep.TRANSLATIONS && (
               <View className="mt-md">
-                <AdminDisplayLocaleToggle value={displayLocale} onChange={setDisplayLocale} />
+                <AdminDisplayLocaleToggle
+                  value={currentStep === CreateRecipeStep.BASIC_INFO ? authoringLocale : displayLocale}
+                  onChange={(locale) => {
+                    if (currentStep === CreateRecipeStep.BASIC_INFO) {
+                      handleAuthoringLocaleChange(locale);
+                    }
+                    setDisplayLocale(locale);
+                  }}
+                />
               </View>
             )}
           </View>
@@ -272,7 +282,7 @@ export default function EditRecipePage() {
           visible={showSuccessDialog}
           title={i18n.t('admin.recipes.form.saveSuccess.title')}
           message={i18n.t('admin.recipes.form.saveSuccess.message')}
-          onConfirm={() => setShowSuccessDialog(false)}
+          onConfirm={() => router.replace('/admin/recipes')}
           confirmText={i18n.t('common.ok')}
         />
 
@@ -280,7 +290,7 @@ export default function EditRecipePage() {
         <AlertModal
           visible={showErrorDialog}
           title={i18n.t('admin.recipes.form.saveError.title')}
-          message={i18n.t('admin.recipes.form.saveError.message')}
+          message={errors.save || i18n.t('admin.recipes.form.saveError.message')}
           onConfirm={() => setShowErrorDialog(false)}
           confirmText={i18n.t('common.ok')}
         />

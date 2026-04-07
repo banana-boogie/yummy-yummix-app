@@ -60,6 +60,7 @@ const shadow = {
 const status = {
     success: '#78A97A', // GREEN
     warning: '#FFA000', // ORANGE
+    warningLight: '#FFF8E1', // LIGHT YELLOW (warning backgrounds)
     error: primary.darkest, // RED
     medium: '#ca8a04', // YELLOW-600 (difficulty medium)
 };

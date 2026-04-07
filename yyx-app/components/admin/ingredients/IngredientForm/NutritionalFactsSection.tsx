@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { View, Pressable, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { FormSection } from '@/components/form/FormSection';
 import { FormGroup } from '@/components/form/FormGroup';
 import { TextInput } from '@/components/form/TextInput';
@@ -95,24 +96,47 @@ export function NutritionalFactsSection({
     }
   };
 
-  return (
-    <FormSection title={i18n.t('admin.ingredients.nutritionalFacts.title')} titleStyle={{ marginBottom: 4 }}>
-      <Text preset="caption" color={COLORS.text.secondary} className="mb-xs">
-        {i18n.t('admin.ingredients.nutritionalFacts.subtitle')}
-      </Text>
-      <Text preset="caption" color={COLORS.text.secondary} className="mb-sm">
-        {i18n.t('admin.ingredients.nutritionalFacts.roundingRules')}
-      </Text>
+  const [showTooltip, setShowTooltip] = useState(false);
 
-      <Button
-        onPress={fetchNutritionalFacts}
-        loading={isLoading}
-        disabled={isLoading}
-        variant="primary"
-        size="small"
-        className="mb-md self-start"
-        label={i18n.t('admin.ingredients.nutritionalFacts.autoFillButton')}
-      />
+  return (
+    <View className="mt-lg">
+      {/* Header: quiet label + auto-detect inline */}
+      <View className="flex-row items-center justify-between mb-md">
+        <View className="flex-row items-center gap-xxs">
+          <Text preset="bodySmall" className="text-text-secondary font-medium">
+            {i18n.t('admin.ingredients.nutritionalFacts.title')}
+          </Text>
+          <Pressable
+            onPress={() => setShowTooltip(prev => !prev)}
+            style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+          >
+            <Ionicons name="information-circle-outline" size={16} color={COLORS.text.secondary} />
+          </Pressable>
+        </View>
+        <Pressable
+          onPress={fetchNutritionalFacts}
+          disabled={isLoading}
+          className="flex-row items-center gap-xxs px-md py-xs rounded-full border border-border-default"
+          style={({ pressed }: any) => [
+            { opacity: pressed || isLoading ? 0.5 : 1 },
+            Platform.OS === 'web' ? { cursor: 'pointer' } as any : {},
+          ]}
+        >
+          <Ionicons name="sparkles-outline" size={14} color={COLORS.primary.medium} />
+          <Text preset="caption" className="text-text-default">
+            {isLoading
+              ? i18n.t('common.loading')
+              : i18n.t('admin.ingredients.nutritionalFacts.autoFillButton')}
+          </Text>
+        </Pressable>
+      </View>
+      {showTooltip && (
+        <View className="bg-grey-light rounded-sm px-sm py-xs mb-sm">
+          <Text preset="caption" className="text-text-secondary">
+            {i18n.t('admin.ingredients.nutritionalFacts.subtitle')} — {i18n.t('admin.ingredients.nutritionalFacts.roundingRules')}
+          </Text>
+        </View>
+      )}
 
       {error && (
         <ErrorMessage message={error} />
@@ -179,6 +203,6 @@ export function NutritionalFactsSection({
           />
         </FormGroup>
       </View>
-    </FormSection>
+    </View>
   );
 }

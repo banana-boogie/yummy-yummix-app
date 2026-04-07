@@ -9,6 +9,7 @@ import { imageService } from '@/services/storage/imageService';
 import { BaseService } from '@/services/base/BaseService';
 import { RawStepIngredient } from '@/types/recipe.api.types';
 import { ThermomixSpeedSingle, ThermomixSpeedRange } from '@/types/thermomix.types';
+import { recipeCache } from '@/services/cache/recipeCache';
 import logger from '@/services/logger';
 
 class AdminRecipeService extends BaseService {
@@ -28,7 +29,8 @@ class AdminRecipeService extends BaseService {
         translations:recipe_translations (
           locale,
           name,
-          tips_and_tricks
+          tips_and_tricks,
+          description
         )
       `)
       .order('created_at', { ascending: false });
@@ -46,6 +48,7 @@ class AdminRecipeService extends BaseService {
     if (error) {
       throw new Error("Error toggling recipe published state: " + error.message);
     }
+    await recipeCache.clearCache();
   }
 
   async getRecipeById(id: string): Promise<AdminRecipe | null> {
@@ -64,7 +67,8 @@ class AdminRecipeService extends BaseService {
         translations:recipe_translations (
           locale,
           name,
-          tips_and_tricks
+          tips_and_tricks,
+          description
         ),
         kitchen_tools:recipe_kitchen_tools(
           *,
@@ -218,6 +222,7 @@ class AdminRecipeService extends BaseService {
           recipe_id: recipeId.id,
           locale: t.locale,
           name: t.name,
+          description: t.description || null,
           tips_and_tricks: t.tipsAndTricks || null,
         }));
 
@@ -246,6 +251,7 @@ class AdminRecipeService extends BaseService {
         await this.updateRecipeKitchenTools(recipeId.id, recipe.kitchenTools);
       }
 
+      await recipeCache.clearCache();
       return recipeId.id;
     } catch (error) {
       logger.error('Error in createRecipe:', error);
@@ -292,6 +298,7 @@ class AdminRecipeService extends BaseService {
         recipe_id: id,
         locale: t.locale,
         name: t.name,
+        description: t.description || null,
         tips_and_tricks: t.tipsAndTricks || null,
       }));
 
@@ -319,6 +326,9 @@ class AdminRecipeService extends BaseService {
     if (recipe.kitchenTools) {
       await this.updateRecipeKitchenTools(id, recipe.kitchenTools);
     }
+
+    // Invalidate user-facing cache so the updated recipe is visible immediately
+    await recipeCache.clearCache();
   }
 
   async updateRecipeIngredients(recipeId: string, recipeIngredients: AdminRecipeIngredient[]): Promise<void> {
@@ -333,15 +343,17 @@ class AdminRecipeService extends BaseService {
 
     if (recipeIngredients.length === 0) return;
 
-    // Insert only non-translatable fields
-    const recipeIngredientsToInsert = recipeIngredients.map((recipeIngredient, index) =>
+    // Sort by displayOrder before persisting so drag-and-drop order survives save/reload.
+    // The array position is used as the persisted order, so it must match displayOrder.
+    const sortedIngredients = [...recipeIngredients].sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0));
+    const recipeIngredientsToInsert = sortedIngredients.map((recipeIngredient, index) =>
       this.transformRequest({
         recipeId,
         ingredientId: recipeIngredient.ingredientId,
         quantity: parseFloat(String(recipeIngredient.quantity || '0')),
         measurementUnitId: recipeIngredient.measurementUnit?.id || null,
         optional: recipeIngredient.optional || false,
-        displayOrder: recipeIngredient.displayOrder || index,
+        displayOrder: index + 1,
       })
     );
 
@@ -361,8 +373,8 @@ class AdminRecipeService extends BaseService {
       );
 
       const translations: any[] = [];
-      recipeIngredients.forEach((recipeIngredient, index) => {
-        const displayOrder = recipeIngredient.displayOrder || index;
+      sortedIngredients.forEach((recipeIngredient, index) => {
+        const displayOrder = index + 1;
         const rowId = orderToIdMap.get(displayOrder);
         if (!rowId) return;
 
@@ -538,7 +550,7 @@ class AdminRecipeService extends BaseService {
           ingredientId: recipeStepIngredient.ingredient?.id,
           measurementUnitId: recipeStepIngredient.measurementUnit?.id || null,
           quantity: parseFloat(String(recipeStepIngredient.quantity)),
-          displayOrder: recipeStepIngredient.displayOrder || index,
+          displayOrder: index + 1,
           optional: recipeStepIngredient.optional || false
         }) as RawStepIngredient;
 
@@ -702,6 +714,7 @@ class AdminRecipeService extends BaseService {
       if (error) {
         throw new Error(`Failed to delete recipe: ${error.message}`);
       }
+      await recipeCache.clearCache();
     } catch (error) {
       logger.error('Error in deleteRecipe:', error);
       throw error;
@@ -728,6 +741,7 @@ class AdminRecipeService extends BaseService {
         translations: (recipe.translations || []).map((t: any) => ({
           locale: t.locale,
           name: t.name || '',
+          description: t.description || undefined,
           tipsAndTricks: t.tips_and_tricks || t.tipsAndTricks || undefined,
         })),
         ingredients: [],
@@ -755,6 +769,7 @@ class AdminRecipeService extends BaseService {
       translations: (recipe.translations || []).map((t: any) => ({
         locale: t.locale,
         name: t.name || '',
+        description: t.description || undefined,
         tipsAndTricks: t.tips_and_tricks || t.tipsAndTricks || undefined,
       })),
     };

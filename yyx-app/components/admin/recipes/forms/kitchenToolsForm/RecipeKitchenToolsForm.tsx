@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, ScrollView, ActivityIndicator } from 'react-native';
+import { View, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/common/Text';
 import { AdminRecipe, AdminRecipeKitchenTool, AdminKitchenTool, getTranslatedField } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
-import { FormSection } from '@/components/form/FormSection';
+import { ErrorMessage } from '@/components/common';
 import { adminKitchenToolsService } from '@/services/admin/adminKitchenToolsService';
 import { SearchBar } from '@/components/common/SearchBar';
 import { Button } from '@/components/common/Button';
@@ -16,6 +17,7 @@ import { useDevice } from '@/hooks/useDevice';
 import logger from '@/services/logger';
 import { SelectedItemsSection } from './SelectedItemsSection';
 import { AvailableItemsSection } from './AvailableItemsSection';
+import { AdminRecipeKitchenToolCard } from './AdminRecipeKitchenToolCard';
 
 type KitchenToolsFormProps = {
     recipe: AdminRecipe;
@@ -23,9 +25,10 @@ type KitchenToolsFormProps = {
     errors: Record<string, string>;
     authoringLocale?: string;
     displayLocale?: string;
+    missingKitchenTools?: any[];
 };
 
-export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es', displayLocale }: KitchenToolsFormProps) {
+export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authoringLocale = 'es', displayLocale, missingKitchenTools }: KitchenToolsFormProps) {
     const { isMobile } = useDevice();
     const [kitchenTools, setKitchenTools] = useState<AdminKitchenTool[]>([]);
     const [filteredKitchenTools, setFilteredKitchenTools] = useState<AdminKitchenTool[]>([]);
@@ -184,10 +187,41 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
     }, [recipe.kitchenTools]);
 
     return (
-        <FormSection
-            title={i18n.t('admin.recipes.form.kitchenToolsInfo.title')}
-            error={errors.kitchenTools}
-        >
+        <View className="mt-xs w-full flex-1">
+            {errors.kitchenTools ? (
+                <View className="mb-sm">
+                    <ErrorMessage message={errors.kitchenTools} />
+                </View>
+            ) : null}
+
+            {/* Missing kitchen tools from AI import */}
+            {missingKitchenTools && missingKitchenTools.length > 0 && (
+                <View className="mb-md p-md rounded-md border border-status-warning bg-status-warning-light">
+                    <View className="flex-row items-center gap-xs mb-sm">
+                        <Ionicons name="warning-outline" size={18} color={COLORS.status.warning} />
+                        <Text preset="bodySmall" className="font-semibold" style={{ color: COLORS.status.warning }}>
+                            {i18n.t('admin.recipes.form.kitchenToolsInfo.missingFromImport', { defaultValue: 'Missing from AI Import' })}
+                            {' '}({missingKitchenTools.length})
+                        </Text>
+                    </View>
+                    <Text preset="caption" className="text-text-secondary mb-sm">
+                        {i18n.t('admin.recipes.form.kitchenToolsInfo.missingFromImportHint', { defaultValue: 'These tools were not found in the database. Create them or add manually.' })}
+                    </Text>
+                    {missingKitchenTools.map((item: any, idx: number) => {
+                        const nameEn = item.translations?.find((t: any) => t.locale === 'en')?.name || '';
+                        const nameEs = item.translations?.find((t: any) => t.locale === 'es')?.name || '';
+                        const notes = item.translations?.find((t: any) => t.locale === 'en')?.notes || item.translations?.find((t: any) => t.locale === 'es')?.notes || '';
+                        return (
+                            <View key={`missing-tool-${idx}`} className="flex-row flex-wrap items-baseline gap-xs py-xs border-t border-border-default">
+                                <Text preset="bodySmall" className="font-semibold">{nameEn || nameEs}</Text>
+                                {nameEn && nameEs ? <Text preset="caption" className="text-text-secondary">/ {nameEs}</Text> : null}
+                                {notes ? <Text preset="caption" className="text-text-secondary italic">({notes})</Text> : null}
+                            </View>
+                        );
+                    })}
+                </View>
+            )}
+
             {isMobile ? (
                 /* ===== MOBILE LAYOUT: Stacked, Selected first ===== */
                 <View className="flex-col">
@@ -238,34 +272,43 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                     </View>
                 </View>
             ) : (
-                /* ===== DESKTOP LAYOUT: Two columns, Available first ===== */
-                <>
-                    {/* Header Row */}
-                    <View className="flex-row items-center gap-md mb-md">
-                        <View className="flex-1">
-                            <Button
-                                label={i18n.t('admin.recipes.form.kitchenToolsInfo.createNew')}
-                                variant="outline"
-                                size="small"
+                /* ===== DESKTOP LAYOUT: side-by-side, scrolls with page ===== */
+                <View className="flex-col">
+                    {/* Header row */}
+                    <View className="flex-row gap-md mb-sm">
+                        <View style={{ flex: 2 }}>
+                            <TouchableOpacity
                                 onPress={handleCreateNewKitchenTool}
-                                className="mb-sm max-w-[150px]"
-                            />
+                                className="flex-row items-center gap-xxs mb-xs"
+                            >
+                                <Ionicons name="add" size={14} color={COLORS.text.secondary} />
+                                <Text preset="caption" className="text-text-secondary">
+                                    {i18n.t('admin.recipes.form.kitchenToolsInfo.createNew')}
+                                </Text>
+                            </TouchableOpacity>
                             <SearchBar
                                 searchQuery={searchQuery}
                                 setSearchQuery={setSearchQuery}
                                 placeholder={i18n.t('admin.recipes.form.kitchenToolsInfo.searchPlaceholder')}
-                                className="w-full mr-sm"
+                                className="mb-0"
                             />
                         </View>
-
-                        {/* Empty space to maintain alignment with right column */}
-                        <View className="flex-[1.8]" />
+                        <View style={{ flex: 3 }} className="justify-center">
+                            <View className="flex-row justify-between items-center">
+                                <Text preset="bodySmall" className="text-text-secondary font-medium">
+                                    {i18n.t('admin.recipes.form.kitchenToolsInfo.selectedHeader')}
+                                </Text>
+                                <Text preset="caption" className="text-text-secondary">
+                                    {sortedRecipeKitchenTools.length} {i18n.t('admin.recipes.form.kitchenToolsInfo.itemsSelected', { defaultValue: 'items' })}
+                                </Text>
+                            </View>
+                        </View>
                     </View>
 
-                    {/* Content Row */}
-                    <View className="flex-row flex-wrap" style={{ minHeight: 400 }}>
-                        {/* Left Column - Available Items */}
-                        <ScrollView style={{ flex: 1, marginRight: 16, ...(rightColHeight ? { maxHeight: rightColHeight } : {}) }}>
+                    {/* Two columns — scroll with page */}
+                    <View className="flex-row gap-md">
+                        {/* Left: available items (~30%) */}
+                        <View style={{ flex: 2 }} className="rounded-md">
                             <AvailableItemsSection
                                 items={filteredKitchenTools}
                                 loading={loading}
@@ -274,21 +317,33 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                                 onAddItem={handleAddRecipeKitchenTool}
                                 displayLocale={displayLocale || authoringLocale}
                             />
-                        </ScrollView>
+                        </View>
 
-                        {/* Right Column - Selected Items */}
-                        <View className="flex-[1.8]" onLayout={(e) => setRightColHeight(e.nativeEvent.layout.height)}>
-                            <SelectedItemsSection
-                                items={sortedRecipeKitchenTools}
-                                displayLocale={displayLocale || authoringLocale}
-                                onEdit={handleEditRecipeKitchenTool}
-                                onDelete={handleDeleteRecipeKitchenTool}
-                                onMoveUp={handleMoveKitchenToolUp}
-                                onMoveDown={handleMoveKitchenToolDown}
-                            />
+                        {/* Right: selected items (~70%) */}
+                        <View style={{ flex: 3 }} className="bg-background-secondary rounded-md p-sm">
+                            {sortedRecipeKitchenTools.length === 0 ? (
+                                <View className="items-center justify-center p-lg">
+                                    <Ionicons name="information-circle-outline" size={32} color={COLORS.text.secondary} />
+                                    <Text className="mt-sm text-center" color={COLORS.text.secondary}>
+                                        {i18n.t('admin.recipes.form.kitchenToolsInfo.noSelectedItems')}
+                                    </Text>
+                                </View>
+                            ) : (
+                                sortedRecipeKitchenTools.map(item => (
+                                    <AdminRecipeKitchenToolCard
+                                        key={item.id}
+                                        recipeKitchenTool={item}
+                                        displayLocale={displayLocale || authoringLocale}
+                                        onEdit={() => handleEditRecipeKitchenTool(item)}
+                                        onDelete={() => handleDeleteRecipeKitchenTool(item)}
+                                        onMoveUp={() => handleMoveKitchenToolUp(item)}
+                                        onMoveDown={() => handleMoveKitchenToolDown(item)}
+                                    />
+                                ))
+                            )}
                         </View>
                     </View>
-                </>
+                </View>
             )}
 
             {/* Modals */}
@@ -314,6 +369,6 @@ export function RecipeKitchenToolsForm({ recipe, onUpdateRecipe, errors, authori
                 onConfirm={() => setShowErrorAlert(false)}
                 confirmText={i18n.t('common.ok')}
             />
-        </FormSection>
+        </View>
     );
 }

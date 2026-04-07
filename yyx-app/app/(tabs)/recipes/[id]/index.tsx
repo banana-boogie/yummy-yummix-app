@@ -29,7 +29,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { IrmixyCookingModal } from '@/components/cooking-guide/IrmixyCookingModal';
 import { useIrmixyHelperChat } from '@/hooks/useIrmixyHelperChat';
 import { Image as ExpoImage } from 'expo-image';
-// eslint-disable-next-line import/no-named-as-default
+import { buildRecipeContext } from '@/utils/recipeContext';
 import logger from '@/services/logger';
 import { RatingDistribution, RatingDistributionSkeleton, StarRating, StarRatingInput } from '@/components/rating';
 import { useRecipeRating } from '@/hooks/useRecipeRating';
@@ -39,17 +39,11 @@ import { RATING_REQUIRES_COMPLETION_ERROR } from '@/services/ratingService';
 const RecipeDetail: React.FC = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const irmixy = useIrmixyHelperChat(id as string);
-
-  // Validate ID early to prevent unnecessary API calls
-  useEffect(() => {
-    if (id && !isValidUUID(id as string)) {
-      logger.warn(`Invalid recipe ID format: ${id}, redirecting to recipes page`);
-      router.replace('/(tabs)/recipes');
-    }
-  }, [id, router]);
-
+  // Only proceed with valid UUID. Don't redirect on invalid IDs — on web,
+  // Expo Router may mount this component alongside admin routes during refresh.
+  // Redirecting would hijack navigation away from the correct screen.
   const validId = id && isValidUUID(id as string) ? (id as string) : '';
+  const irmixy = useIrmixyHelperChat(validId);
   const { recipe, loading, error } = useRecipe(validId);
 
   const {
@@ -161,6 +155,12 @@ const RecipeDetail: React.FC = () => {
                 {recipe.name}
               </Text>
 
+              {recipe.description ? (
+                <Text className="text-text-secondary text-base mb-md">
+                  {recipe.description}
+                </Text>
+              ) : null}
+
               <RecipeInfo
                 totalTime={recipe.totalTime}
                 prepTime={recipe.prepTime}
@@ -264,15 +264,7 @@ const RecipeDetail: React.FC = () => {
         <IrmixyCookingModal
           visible={irmixy.isVisible}
           onClose={irmixy.close}
-          recipeContext={{
-            type: 'recipe',
-            recipeId: recipe.id,
-            recipeTitle: recipe.name,
-            ingredients: recipe.ingredients?.map((ing) => ({
-              name: ing.name,
-              amount: `${ing.formattedQuantity} ${ing.formattedUnit}`,
-            })),
-          }}
+          recipeContext={buildRecipeContext(recipe, { type: 'recipe', recipeId: id as string })}
           {...irmixy.sessionProps}
         />
       </View>

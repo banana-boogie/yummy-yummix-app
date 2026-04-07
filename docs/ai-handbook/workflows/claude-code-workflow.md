@@ -257,7 +257,7 @@ Send multiple independent tasks to the cloud simultaneously:
 
 ```
 & Add skeleton loading states to the recipe list screen
-& Write integration tests for the parse-recipe-markdown edge function
+& Write integration tests for the admin-ai-recipe-import edge function
 & Migrate the UserProfile context to use React Query
 ```
 

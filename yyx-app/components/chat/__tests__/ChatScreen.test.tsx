@@ -15,9 +15,6 @@ import { createMockRecipeCardList } from '@/test/mocks/chat';
 // Mock all dependencies before importing ChatScreen
 jest.mock('@/i18n', () => ({
   t: (key: string, params?: Record<string, unknown>) => {
-    if (key === 'chat.resume.chatAbout') {
-      return `You were chatting about '${params?.title}'`;
-    }
     // Return arrays for cycling greeting keys
     if (key === 'chat.greetingCycling.withName') {
       return ['Hi {{name}}, what are we cooking today?'];
@@ -35,8 +32,6 @@ jest.mock('@/i18n', () => ({
       'chat.generating': 'Creating response',
       'chat.error.default': 'Something went wrong. Please try again.',
       'chat.title': 'Irmixy',
-      'chat.resume.previousConversations': 'Previous conversations',
-      'chat.resume.continue': 'Continue',
       'common.copied': 'Copied',
       'common.ok': 'OK',
       'common.cancel': 'Cancel',
@@ -112,8 +107,6 @@ const mockSendMessage = jest.fn().mockReturnValue({
   done: Promise.resolve(),
   cancel: jest.fn(),
 });
-const mockGetLastSessionWithMessages = jest.fn().mockResolvedValue(null);
-
 jest.mock('@/services/chatService', () => {
   // Define inside factory so it's available when jest.mock is hoisted
   class BudgetExceededError extends Error {
@@ -131,7 +124,6 @@ jest.mock('@/services/chatService', () => {
   return {
     loadChatHistory: (...args: any[]) => mockLoadChatHistory(...args),
     sendMessage: (...args: any[]) => mockSendMessage(...args),
-    getLastSessionWithMessages: (...args: any[]) => mockGetLastSessionWithMessages(...args),
     isRecipeToolStatus: (status: string) => status === 'cooking_it_up' || status === 'generating',
     BudgetExceededError,
   };
@@ -183,7 +175,6 @@ describe('ChatScreen', () => {
     jest.clearAllMocks();
     mockAuthUser = mockUser;
     mockLoadChatHistory.mockResolvedValue([]);
-    mockGetLastSessionWithMessages.mockResolvedValue(null);
   });
 
   // ============================================================
@@ -366,101 +357,6 @@ describe('ChatScreen', () => {
       render(<ChatScreen messages={externalMessages} />);
 
       expect(screen.getByText('External message content')).toBeTruthy();
-    });
-  });
-
-  // ============================================================
-  // RESUME BANNER TESTS
-  // ============================================================
-
-  describe('resume banner', () => {
-    it('shows resume banner when a recent titled session exists', async () => {
-      mockGetLastSessionWithMessages.mockResolvedValue({
-        sessionId: 'session-1',
-        title: 'Pasta Carbonara',
-        messageCount: 3,
-        lastMessageAt: new Date(),
-      });
-
-      render(<ChatScreen />);
-
-      await waitFor(() => {
-        expect(screen.getByText("You were chatting about 'Pasta Carbonara'")).toBeTruthy();
-      });
-    });
-
-    it('continues a resumable session and loads history', async () => {
-      const onSessionCreated = jest.fn();
-      mockGetLastSessionWithMessages.mockResolvedValue({
-        sessionId: 'session-1',
-        title: 'Pasta Carbonara',
-        messageCount: 3,
-        lastMessageAt: new Date(),
-      });
-      mockLoadChatHistory.mockResolvedValueOnce([
-        {
-          id: 'restored-1',
-          role: 'assistant',
-          content: 'Restored message',
-          createdAt: new Date(),
-        },
-      ]);
-
-      render(<ChatScreen onSessionCreated={onSessionCreated} />);
-
-      await waitFor(() => {
-        expect(screen.getByText("You were chatting about 'Pasta Carbonara'")).toBeTruthy();
-      });
-
-      fireEvent.press(screen.getByText('Continue'));
-
-      await waitFor(() => {
-        expect(mockLoadChatHistory).toHaveBeenCalledWith('session-1');
-        expect(onSessionCreated).toHaveBeenCalledWith('session-1');
-        expect(screen.getByText('Restored message')).toBeTruthy();
-      });
-    });
-
-    it('dismisses resume banner when close is pressed', async () => {
-      mockGetLastSessionWithMessages.mockResolvedValue({
-        sessionId: 'session-1',
-        title: 'Pasta Carbonara',
-        messageCount: 3,
-        lastMessageAt: new Date(),
-      });
-
-      render(<ChatScreen />);
-
-      await waitFor(() => {
-        expect(screen.getByText("You were chatting about 'Pasta Carbonara'")).toBeTruthy();
-      });
-
-      fireEvent.press(screen.getByLabelText('Cancel'));
-
-      await waitFor(() => {
-        expect(screen.queryByText("You were chatting about 'Pasta Carbonara'")).toBeNull();
-      });
-    });
-
-    it('hides resume banner when new chat signal changes', async () => {
-      mockGetLastSessionWithMessages.mockResolvedValue({
-        sessionId: 'session-1',
-        title: 'Pasta Carbonara',
-        messageCount: 3,
-        lastMessageAt: new Date(),
-      });
-
-      const { rerender } = render(<ChatScreen newChatSignal={0} />);
-
-      await waitFor(() => {
-        expect(screen.getByText("You were chatting about 'Pasta Carbonara'")).toBeTruthy();
-      });
-
-      rerender(<ChatScreen newChatSignal={1} />);
-
-      await waitFor(() => {
-        expect(screen.queryByText("You were chatting about 'Pasta Carbonara'")).toBeNull();
-      });
     });
   });
 

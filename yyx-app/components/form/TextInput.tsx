@@ -110,7 +110,7 @@ export function TextInput({
             ${className}
           `}
           style={[
-            Platform.OS === 'web' ? { outlineWidth: 0 } : {},
+            Platform.OS === 'web' ? { outlineStyle: 'none' as any } : {},
             inputStyle,
             style
           ]}

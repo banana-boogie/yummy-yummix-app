@@ -30,7 +30,6 @@ interface UseMessageStreamingParams {
     skipNextScrollToEndRef: React.MutableRefObject<boolean>;
     hasRecipeInCurrentStreamRef: React.MutableRefObject<boolean>;
     flatListRef: React.RefObject<FlatList>;
-    onResumeSessionClear: () => void;
     onBudgetWarning?: (warning: BudgetWarningPayload) => void;
     onBudgetExceeded?: (error: BudgetExceededError) => void;
     /** Structured cooking context — sent as a separate field in the request body */
@@ -52,7 +51,6 @@ export function useMessageStreaming({
     skipNextScrollToEndRef,
     hasRecipeInCurrentStreamRef,
     flatListRef,
-    onResumeSessionClear,
     onBudgetWarning,
     onBudgetExceeded,
     cookingContext,
@@ -135,8 +133,6 @@ export function useMessageStreaming({
 
     const handleSendMessage = useCallback(async (messageText: string, options?: { silent?: boolean }) => {
         if (!messageText.trim() || !user || isLoading) return;
-
-        onResumeSessionClear();
 
         streamRequestIdRef.current += 1;
         const requestId = streamRequestIdRef.current;
@@ -283,7 +279,10 @@ export function useMessageStreaming({
                         if (!finalContent && response.message) {
                             finalContent = response.message;
                         }
-                        if (response.customRecipe && response.message) {
+                        // For custom recipes, only use response.message if no
+                        // content was streamed. The streamed intro text (from the
+                        // first LLM iteration) should be preserved, not overwritten.
+                        if (response.customRecipe && response.message && !finalContent) {
                             finalContent = response.message;
                         }
 
@@ -403,7 +402,6 @@ export function useMessageStreaming({
         currentSessionId,
         isLoading,
         onSessionCreated,
-        onResumeSessionClear,
         onBudgetWarning,
         onBudgetExceeded,
         scrollToEndThrottled,

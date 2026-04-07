@@ -121,11 +121,17 @@ export class AdminKitchenToolsService extends BaseService {
         .upsert(dbTranslations, { onConflict: 'kitchen_tool_id,locale' });
 
       if (translationError) {
+        if (translationError.message?.includes('unique constraint') || translationError.code === '23505') {
+          throw new Error('A kitchen tool with this name already exists. Please use a different name.');
+        }
         throw new Error(`Failed to upsert kitchen tool translations: ${translationError.message}`);
       }
     }
 
-    return item;
+    return {
+      ...item,
+      pictureUrl: itemData.image_url ?? item.pictureUrl,
+    };
   }
 
   async deleteKitchenTool(id: string): Promise<void> {
@@ -199,6 +205,14 @@ export class AdminKitchenToolsService extends BaseService {
         .insert(dbTranslations);
 
       if (translationError) {
+        // Clean up orphaned kitchen tool row and uploaded image before throwing
+        await this.supabase.from('kitchen_tools').delete().eq('id', inserted.id);
+        if (itemData.image_url) {
+          try { await this.deleteImage(itemData.image_url); } catch { /* best effort */ }
+        }
+        if (translationError.message?.includes('unique constraint') || translationError.code === '23505') {
+          throw new Error('A kitchen tool with this name already exists. Please use a different name.');
+        }
         throw new Error(`Failed to insert kitchen tool translations: ${translationError.message}`);
       }
     }

@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { View, Platform, Pressable } from 'react-native';
 
 import { Text } from '@/components/common/Text';
 import { TextInput } from '@/components/form/TextInput';
 import { Button } from '@/components/common/Button';
-import { AdminKitchenTool, AdminKitchenToolTranslation, pickTranslation } from '@/types/recipe.admin.types';
+import { AdminKitchenTool, pickTranslation } from '@/types/recipe.admin.types';
 import i18n from '@/i18n';
-import { FormSection } from '@/components/form/FormSection';
 import { FormGroup } from '@/components/form/FormGroup';
-import { FormRow } from '@/components/form/FormRow';
 import { ImageUploadSection } from '@/components/admin/recipes/forms/common/ImageUploadSection';
+import { AutoTranslateButton } from '@/components/admin/shared';
+
 import { useAdminLocales } from '@/hooks/admin/useAdminLocales';
 import { translateContent } from '@/services/admin/adminTranslateService';
 import logger from '@/services/logger';
@@ -18,6 +18,7 @@ interface KitchenToolFormProps {
     kitchenTool?: AdminKitchenTool;
     onSave: (data: AdminKitchenTool) => Promise<void>;
     onCancel: () => void;
+    onDelete?: () => void;
     saving: boolean;
 }
 
@@ -25,6 +26,7 @@ export function KitchenToolForm({
     kitchenTool,
     onSave,
     onCancel,
+    onDelete,
     saving,
 }: KitchenToolFormProps) {
     const { locales } = useAdminLocales();
@@ -119,10 +121,8 @@ export function KitchenToolForm({
     };
 
     const handleSubmit = async () => {
-        // Reset errors
         const newErrors: Record<string, string> = {};
 
-        // Validate: require at least es and en
         const esName = getTranslationName('es');
         const enName = getTranslationName('en');
         if (!enName.trim()) {
@@ -148,70 +148,74 @@ export function KitchenToolForm({
     };
 
     return (
-        <View className="flex-1">
-            <Text preset="h1" className="mb-lg">
-                {kitchenTool ? i18n.t('admin.kitchenTools.form.editTitle') : i18n.t('admin.kitchenTools.form.createTitle')}
-            </Text>
+        <View className="flex-1 justify-between">
+            {/* Form content */}
+            <View>
+                {/* Image — compact, left-aligned */}
+                <View className="flex-row items-start mb-md">
+                    <ImageUploadSection
+                        imageUrl={formData.pictureUrl}
+                        onImageSelected={(fileObject) => setFormData({ ...formData, pictureUrl: fileObject })}
+                        error={errors['pictureUrl']}
+                        required={true}
+                    />
+                </View>
 
-            <ImageUploadSection
-                title={i18n.t('admin.kitchenTools.form.imageTitle')}
-                imageUrl={formData.pictureUrl}
-                onImageSelected={(fileObject) => setFormData({ ...formData, pictureUrl: fileObject })}
-                error={errors['pictureUrl']}
-                required={true}
-            />
+                {/* Translations */}
+                <View className="flex-row items-center justify-between mb-md">
+                    <Text preset="bodySmall" className="text-text-secondary font-medium">Translations</Text>
+                    <AutoTranslateButton onPress={handleAutoTranslate} loading={translating} error={translateError} />
+                </View>
 
-            <FormSection title={i18n.t('admin.kitchenTools.form.detailsTitle')} titleStyle={{ marginBottom: 8 }}>
                 {locales.map(locale => (
-                    <FormGroup
-                        key={locale.code}
-                        error={errors[`name_${locale.code}`]}
-                        className="mb-lg"
-                    >
-                        <TextInput
-                            value={getTranslationName(locale.code)}
-                            onChangeText={(text) => setTranslationName(locale.code, text)}
-                            placeholder={locale.code.startsWith('es')
-                                ? i18n.t('admin.kitchenTools.form.nameEsPlaceholder')
-                                : i18n.t('admin.kitchenTools.form.nameEnPlaceholder')}
-                            label={locale.displayName}
-                        />
-                    </FormGroup>
+                    <View key={locale.code} className="mb-lg">
+                        <Text preset="bodySmall" className="text-text-default mb-xs">{locale.displayName}</Text>
+                        <FormGroup error={errors[`name_${locale.code}`]}>
+                            <TextInput
+                                value={getTranslationName(locale.code)}
+                                onChangeText={(text) => setTranslationName(locale.code, text)}
+                                placeholder={locale.code.startsWith('es')
+                                    ? i18n.t('admin.kitchenTools.form.nameEsPlaceholder')
+                                    : i18n.t('admin.kitchenTools.form.nameEnPlaceholder')}
+                            />
+                        </FormGroup>
+                    </View>
                 ))}
-                <Button
-                    onPress={handleAutoTranslate}
-                    loading={translating}
-                    disabled={translating}
-                    variant="outline"
-                    size="small"
-                >
-                    {translating
-                        ? i18n.t('admin.translate.translating')
-                        : i18n.t('admin.translate.autoTranslate')
-                    }
-                </Button>
-                {translateError ? (
-                    <Text preset="bodySmall" className="text-status-error mt-sm">{translateError}</Text>
-                ) : null}
-            </FormSection>
 
-            <FormRow className="justify-end">
-                <Button
-                    onPress={onCancel}
-                    disabled={saving}
-                    variant="secondary"
-                >
-                    {i18n.t('common.cancel')}
-                </Button>
+            </View>
 
-                <Button
-                    onPress={handleSubmit}
-                    disabled={saving}
-                    loading={saving}
-                >
-                    {i18n.t('common.save')}
-                </Button>
-            </FormRow>
+            {/* Footer: Delete left, Cancel + Save right */}
+            <View className="flex-row items-center justify-between pt-lg mt-lg border-t border-border-default pb-sm">
+                {onDelete ? (
+                    <Pressable
+                        onPress={onDelete}
+                        disabled={saving}
+                        style={Platform.OS === 'web' ? { cursor: 'pointer' } as any : {}}
+                    >
+                        <Text preset="bodySmall" className="text-status-error">
+                            {i18n.t('common.delete')}
+                        </Text>
+                    </Pressable>
+                ) : <View />}
+                <View className="flex-row gap-sm">
+                    <Button
+                        onPress={onCancel}
+                        disabled={saving}
+                        variant="secondary"
+                        size="small"
+                    >
+                        {i18n.t('common.cancel')}
+                    </Button>
+                    <Button
+                        onPress={handleSubmit}
+                        disabled={saving}
+                        loading={saving}
+                        size="small"
+                    >
+                        {i18n.t('common.save')}
+                    </Button>
+                </View>
+            </View>
         </View>
     );
 }

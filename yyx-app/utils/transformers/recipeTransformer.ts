@@ -53,6 +53,7 @@ export function createRecipeTransformer(measurementSystem: 'metric' | 'imperial'
       return {
         id: raw.id,
         name: t?.name ?? '',
+        description: t?.description ?? undefined,
         pictureUrl: raw.image_url,
         difficulty: raw.difficulty,
         prepTime: raw.prep_time,

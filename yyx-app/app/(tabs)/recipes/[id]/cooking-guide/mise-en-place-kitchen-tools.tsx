@@ -15,6 +15,7 @@ import { PageLayout } from '@/components/layouts/PageLayout';
 import { MiseEnPlaceKitchenTool } from '@/components/cooking-guide/MiseEnPlaceKitchenTool';
 import { Text } from '@/components/common/Text';
 import { LAYOUT } from '@/constants/design-tokens';
+import { buildRecipeContext } from '@/utils/recipeContext';
 
 type CheckableKitchenTool = {
     id: string;
@@ -71,7 +72,7 @@ export default function KitchenToolsStep() {
                         </View>
                         <StepNavigationButtons
                             onBack={() => router.back()}
-                            onNext={() => router.push(`/(tabs)/recipes/${id}/cooking-guide/1`)}
+                            onNext={() => router.push(`/(tabs)/recipes/${id}/cooking-guide/mise-en-place-ingredients`)}
                             backText={i18n.t('recipes.cookingGuide.navigation.back')}
                             nextText={i18n.t('recipes.cookingGuide.navigation.next')}
                         />
@@ -118,12 +119,13 @@ export default function KitchenToolsStep() {
             <IrmixyCookingModal
                 visible={irmixy.isVisible}
                 onClose={irmixy.close}
-                recipeContext={{
+                recipeContext={buildRecipeContext(recipe, {
                     type: 'prep',
                     recipeId: id as string,
-                    recipeTitle: recipe?.name || '',
-                    kitchenTools: kitchenTools.map(item => item.name)
-                }}
+                    overrides: {
+                        kitchenTools: kitchenTools.map(item => item.name),
+                    },
+                })}
                 {...irmixy.sessionProps}
             />
         </View>

@@ -1,54 +1,61 @@
-import React, { ReactNode, useEffect } from 'react';
+import React, { ReactNode } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { useUserProfile } from '@/contexts/UserProfileContext';
-import { Redirect, Router, useRouter } from 'expo-router';
+import { Link } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
+import { Text } from '@/components/common/Text';
 import { COLORS } from '@/constants/design-tokens';
+import i18n from '@/i18n';
 
 interface AdminRouteProps {
   children: ReactNode;
 }
 
 /**
- * A helper function to navigate to a path safely.
- * This is necessary because the router is not always available when the component is mounted.
- * @param router The router object.
- * @param path The path to navigate to.
- */
-function safeNavigate(router: Router, path: string) {
-  setTimeout(() => {
-    router.replace(path as any);
-  }, 300);
-}
-
-/**
- * A component that protects routes by only allowing admin users to access them.
- * Non-admin users will be redirected to the home page.
+ * Content gate for admin routes. No redirects — just shows/hides content.
+ * Distinguishes unauthenticated users (shows login prompt) from
+ * authenticated non-admin users (shows access denied).
  */
 export function AdminRoute({ children }: AdminRouteProps) {
-  const { isAdmin, loading } = useUserProfile();
-  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const { isAdmin, loading: profileLoading } = useUserProfile();
 
-  useEffect(() => {
-    // If the user is not an admin and the profile has finished loading, redirect to home
-    if (!loading && !isAdmin) {
-      safeNavigate(router, '/');
-    }
-  }, [isAdmin, loading, router]);
-
-  // Show loading indicator while determining admin status
-  if (loading) {
+  if (authLoading || profileLoading) {
     return (
       <View className="flex-1 justify-center items-center">
-        <ActivityIndicator size="large" color={COLORS.primary.DARKEST} />
+        <ActivityIndicator size="large" color={COLORS.primary.darkest} />
       </View>
     );
   }
 
-  // If the user is an admin, render the children
-  if (isAdmin) {
-    return <>{children}</>;
+  if (!user) {
+    return (
+      <View className="flex-1 justify-center items-center p-lg">
+        <Text preset="h2" className="text-text-default mb-sm">
+          {i18n.t('admin.common.loginRequired', { defaultValue: 'Please Log In' })}
+        </Text>
+        <Text preset="body" className="text-text-secondary text-center mb-lg">
+          {i18n.t('admin.common.loginRequiredMessage', { defaultValue: 'You need to be logged in to access this page.' })}
+        </Text>
+        <Link href="/auth/signup" className="text-primary-dark font-semibold">
+          {i18n.t('admin.common.goToLogin', { defaultValue: 'Go to Login' })}
+        </Link>
+      </View>
+    );
   }
 
-  // By default, redirect to home
-  return <Redirect href="/" />;
+  if (!isAdmin) {
+    return (
+      <View className="flex-1 justify-center items-center p-lg">
+        <Text preset="h2" className="text-text-default mb-sm">
+          {i18n.t('admin.common.accessDenied', { defaultValue: 'Access Denied' })}
+        </Text>
+        <Text preset="body" className="text-text-secondary text-center">
+          {i18n.t('admin.common.accessDeniedMessage', { defaultValue: "You don't have permission to access this page." })}
+        </Text>
+      </View>
+    );
+  }
+
+  return <>{children}</>;
 }

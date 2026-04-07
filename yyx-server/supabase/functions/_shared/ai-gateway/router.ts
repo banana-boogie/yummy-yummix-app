@@ -29,9 +29,8 @@ const providerApiKeyMap: Record<AIProvider, string> = {
  */
 const defaultRoutingConfig: AIRoutingConfig = {
   // Chat completions (orchestrator tool calling + streaming)
-  // grok-4-1-fast-non-reasoning: 100% tool accuracy, 100% success rate, lowest cost ($0.0005/call)
-  // Switched from gemini-3-flash-preview (fabricated tool errors + raw JSON leaking to users)
-  // Fallback: gemini-3-flash-preview via AI_TEXT_MODEL env var
+  // grok-4-1-fast-non-reasoning: 100% tool accuracy, 100% success rate, lowest cost
+  // Google fallback: set AI_TEXT_MODEL=google:gemini-3-flash-preview (preview model, inconsistent latency)
   text: {
     provider: "xai",
     model: "grok-4-1-fast-non-reasoning",

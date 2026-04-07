@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { FormGroup } from '@/components/form/FormGroup';
 import { TextInput } from '@/components/form/TextInput';
-import { Button } from '@/components/common/Button';
 import { Text } from '@/components/common/Text';
+import { AutoTranslateButton } from '@/components/admin/shared';
 import i18n from '@/i18n';
 import { FormSection } from '@/components/form/FormSection';
 import { FormRow } from '@/components/form/FormRow';
@@ -114,10 +114,17 @@ export function TranslationsSection({
   }
 
   return (
-    <FormSection title={i18n.t('admin.ingredients.translations')}>
+    <View className="mt-lg">
+      {/* Header + auto-translate */}
+      <View className="flex-row items-center justify-between mb-lg">
+        <Text preset="bodySmall" className="text-text-secondary font-medium">Translations</Text>
+        <AutoTranslateButton onPress={handleAutoTranslate} loading={translating} error={translateError} />
+      </View>
+
+      {/* Locale inputs */}
       {locales.map(locale => (
         <View key={locale.code} className="mb-lg">
-          <Text preset="subheading" className="mb-sm">{locale.displayName}</Text>
+          <Text preset="body" className="text-text-default mb-xs font-medium">{locale.displayName}</Text>
           <FormRow>
             <FormGroup
               label={i18n.t('admin.ingredients.name', { defaultValue: 'Name' })}
@@ -147,21 +154,6 @@ export function TranslationsSection({
           </FormRow>
         </View>
       ))}
-      <Button
-        onPress={handleAutoTranslate}
-        loading={translating}
-        disabled={translating}
-        variant="outline"
-        size="small"
-      >
-        {translating
-          ? i18n.t('admin.translate.translating')
-          : i18n.t('admin.translate.autoTranslate')
-        }
-      </Button>
-      {translateError ? (
-        <Text preset="bodySmall" className="text-status-error mt-sm">{translateError}</Text>
-      ) : null}
-    </FormSection>
+    </View>
   );
 }

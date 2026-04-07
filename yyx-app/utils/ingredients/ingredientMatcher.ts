@@ -15,6 +15,23 @@ const DISTINCT_INGREDIENTS = [
 
 const PREP_PREFIXES = ['chopped ', 'diced ', 'sliced ', 'minced ', 'grated ', 'large ', 'freshly squeezed ', ' cloves ', 'fresh ', 'extra virgin '];
 
+const UNIT_SUFFIXES = [
+  // English
+  'sprig', 'sprigs', 'clove', 'cloves', 'leaf', 'leaves',
+  'slice', 'slices', 'piece', 'pieces', 'cube', 'cubes',
+  // Spanish
+  'ramita', 'ramitas', 'diente', 'dientes', 'hoja', 'hojas',
+  'rebanada', 'rebanadas', 'trozo', 'trozos', 'cubo', 'cubos', 'pizca',
+];
+
+const UNIT_OF_PREFIXES_EN = [
+  'sprig of ', 'clove of ', 'slice of ', 'piece of ', 'cube of ', 'leaf of ',
+];
+
+const UNIT_OF_PREFIXES_ES = [
+  'ramita de ', 'diente de ', 'hoja de ', 'rebanada de ', 'trozo de ', 'cubo de ', 'pizca de ',
+];
+
 // All translatable names for an ingredient, collected across locales
 interface IngredientNames {
   names: string[];
@@ -52,8 +69,30 @@ export class IngredientMatcher {
 
     if (this.ignorePrep) {
       // Remove prep method prefixes
-      const stripped1 = PREP_PREFIXES.reduce((str, prefix) => str.replace(prefix, ''), n1);
-      const stripped2 = PREP_PREFIXES.reduce((str, prefix) => str.replace(prefix, ''), n2);
+      let stripped1 = PREP_PREFIXES.reduce((str, prefix) => str.replace(prefix, ''), n1);
+      let stripped2 = PREP_PREFIXES.reduce((str, prefix) => str.replace(prefix, ''), n2);
+
+      // Strip trailing unit suffixes (e.g., "rosemary sprig" -> "rosemary")
+      for (const suffix of UNIT_SUFFIXES) {
+        if (stripped1.endsWith(` ${suffix}`)) {
+          stripped1 = stripped1.slice(0, -(suffix.length + 1)).trim();
+        }
+        if (stripped2.endsWith(` ${suffix}`)) {
+          stripped2 = stripped2.slice(0, -(suffix.length + 1)).trim();
+        }
+      }
+
+      // Strip leading "unit of" patterns (e.g., "sprig of rosemary" -> "rosemary")
+      const allUnitOfPrefixes = [...UNIT_OF_PREFIXES_EN, ...UNIT_OF_PREFIXES_ES];
+      for (const prefix of allUnitOfPrefixes) {
+        if (stripped1.startsWith(prefix)) {
+          stripped1 = stripped1.slice(prefix.length).trim();
+        }
+        if (stripped2.startsWith(prefix)) {
+          stripped2 = stripped2.slice(prefix.length).trim();
+        }
+      }
+
       return stripped1 === stripped2;
     }
 

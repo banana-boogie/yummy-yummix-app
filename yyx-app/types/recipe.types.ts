@@ -4,6 +4,7 @@ import { ThermomixSettings } from "./thermomix.types";
 export interface Recipe {
   id: string;
   name: string;
+  description?: string;
   pictureUrl?: string;
   difficulty: RecipeDifficulty;
   prepTime: number | null;

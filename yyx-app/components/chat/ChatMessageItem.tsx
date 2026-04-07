@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { View, TouchableOpacity, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from '@/components/common/Text';
+import { stripToolMarkup } from '@/utils/textUtils';
 import { ActionButton } from '@/components/common/ActionButton';
 import { ChatRecipeCard } from '@/components/chat/ChatRecipeCard';
 import { CustomRecipeCard } from '@/components/chat/CustomRecipeCard';
@@ -26,6 +27,7 @@ const CHAT_LINE_HEIGHT = 26;
 function stripMarkdownImages(content: string): string {
     return content.replace(/!\[.*?\]\(.*?\)\s*/g, '').replace(/\n{3,}/g, '\n\n').trim();
 }
+
 
 /** Detect whether content contains markdown syntax worth parsing.
  *  Plain text (e.g. voice transcripts) can skip the expensive Markdown renderer. */
@@ -161,9 +163,11 @@ export const ChatMessageItem = memo(function ChatMessageItem({
 
     // Strip markdown images only when recipe visuals are rendered as cards.
     // If there are no cards, keep markdown images in the message bubble.
-    const displayContent = !isUser
-        ? (hasRecipeVisualData ? stripMarkdownImages(item.content) : item.content)
-        : item.content;
+    // Always strip LLM-hallucinated tool XML from assistant messages.
+    const rawContent = !isUser ? stripToolMarkup(item.content) : item.content;
+    const displayContent = !isUser && hasRecipeVisualData
+        ? stripMarkdownImages(rawContent)
+        : rawContent;
 
     return (
         <View className="mb-sm">

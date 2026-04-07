@@ -28,9 +28,10 @@ export async function callAIStreamWithTools(
   onTextToken: (token: string) => void,
   signal?: AbortSignal,
   costContext?: CostContext,
+  excludeTools?: string[],
 ): Promise<CallAIStreamWithToolsResult> {
   const aiMessages = normalizeMessagesForToolLoop(messages);
-  const tools: AITool[] = getRegisteredAiTools();
+  const tools: AITool[] = getRegisteredAiTools(excludeTools);
 
   const result = await chatStreamWithTools({
     usageType: "text",
@@ -59,6 +60,7 @@ export async function callAIStreamWithTools(
           name: tc.name,
           arguments: JSON.stringify(tc.arguments),
         },
+        ...(tc.metadata ? { metadata: tc.metadata } : {}),
       }));
     }
   }
