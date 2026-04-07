@@ -565,7 +565,7 @@ Deno.test("generateCustomRecipe proceeds with warning when allergen system is un
   supabase.from = (table: string) => {
     if (table === "kitchen_tools") {
       return {
-        select: () => ({ limit: async () => ({ data: [], error: null }) }),
+        select: async () => ({ data: [], error: null }),
       };
     }
     return originalFrom(table);
@@ -685,9 +685,7 @@ Deno.test("generateCustomRecipe proceeds with allergen warning when allergen det
           return Promise.resolve({ data: [], error: null });
         }
         if (table === "kitchen_tools") {
-          return {
-            limit: async (_n: number) => ({ data: [], error: null }),
-          };
+          return Promise.resolve({ data: [], error: null });
         }
         return Promise.resolve({ data: [], error: null });
       },
@@ -1313,15 +1311,11 @@ function createKitchenToolsMockSupabase(
     from: (table: string) => {
       if (table === "kitchen_tools") {
         return {
-          select: () => ({
-            limit: () => Promise.resolve({ data: tools, error: null }),
-          }),
+          select: () => Promise.resolve({ data: tools, error: null }),
         };
       }
       return {
-        select: () => ({
-          limit: () => Promise.resolve({ data: [], error: null }),
-        }),
+        select: () => Promise.resolve({ data: [], error: null }),
       };
     },
   } as any;

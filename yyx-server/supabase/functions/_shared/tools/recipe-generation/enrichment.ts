@@ -127,8 +127,7 @@ async function fetchKitchenToolsFromDB(
   if (!allItems || cacheAge > KITCHEN_TOOLS_CACHE_TTL_MS) {
     const { data, error } = await supabase
       .from("kitchen_tools")
-      .select(`id, kitchen_tool_translations ( locale, name ), image_url`)
-      .limit(50);
+      .select(`id, kitchen_tool_translations ( locale, name ), image_url`);
 
     if (error || !data || data.length === 0) {
       console.warn(

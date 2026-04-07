@@ -7,13 +7,11 @@ export const generateCustomRecipeTool = {
   function: {
     name: "generate_custom_recipe",
     description:
-      "Generate a custom recipe when the user wants a specific dish that isn't in the database, " +
-      "or when they ask you to make/create a recipe. Also use this when search_recipes returned " +
-      "results that don't match what the user wanted. " +
+      "Generate a custom recipe. Call ONLY after the user has explicitly confirmed they want a recipe created " +
+      "(e.g. 'make it', 'go ahead', 'yes please'). " +
       "The user must have provided SPECIFIC details: a dish name (e.g. 'mole') or ingredients (e.g. 'chicken and rice'). " +
       "If the user is vague ('make me something', 'I don't know'), ask them what they want first — do NOT call this tool. " +
-      "Use their ingredients as the foundation and add complementary ones creatively (seasonings, herbs, pantry staples). " +
-      "Never contradict the user's intent (e.g. dessert must be a dessert).",
+      "Also use when search_recipes returned results that don't match and the user confirms they want a custom recipe.",
     parameters: {
       type: "object",
       properties: {
@@ -60,7 +58,7 @@ export const generateCustomRecipeTool = {
           type: "array",
           items: { type: "string" },
           description:
-            'Additional kitchen equipment for this recipe (e.g., ["thermomix", "air fryer"]). Supplements the user\'s general equipment preferences.',
+            'Kitchen tools and equipment for this recipe — both appliances and hand tools (e.g., ["thermomix", "air fryer", "whisk", "baking sheet", "mixing bowl"]). Supplements the user\'s general equipment preferences.',
         },
       },
       required: ["ingredients"],
