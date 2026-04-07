@@ -306,7 +306,7 @@ import { chat, chatStream } from '../_shared/ai-gateway/index.ts';
 
 // For structured output (always use JSON schema):
 const response = await chat({
-  usageType: 'text',  // or 'recipe_generation', 'parsing'
+  usageType: 'text',  // or 'recipe_generation', 'recipe_modification', 'parsing', 'embedding'
   messages: [
     { role: 'system', content: 'You are a helpful assistant' },
     { role: 'user', content: 'Hello!' },
@@ -386,8 +386,8 @@ Developer Code -> Gateway (OpenAI format) -> Provider (translates to native form
 
 This design:
 - Uses OpenAI format because it's the industry standard
-- Each provider handles translation (already implemented for OpenAI)
-- Adding new providers (Anthropic, Google) just requires a new translator
+- Each provider handles translation (implemented for OpenAI, xAI, Google Gemini, and Anthropic)
+- Adding new providers just requires a new translator in `providers/<name>.ts`
 - NOT OpenAI-specific - it's using OpenAI format as the **lingua franca**
 
 **When adding new providers:** Implement translation logic in `ai-gateway/providers/<provider>.ts`. The gateway interface stays the same.
@@ -585,7 +585,7 @@ Use `pickTranslation()` from `_shared/locale-utils.ts` to resolve the best match
 ```typescript
 import { buildLocaleChain, pickTranslation } from '../_shared/locale-utils.ts';
 
-// Build fallback chain: "es-MX" → ["es-MX", "es"] (within-family only, no cross-language)
+// Build fallback chain: "es-MX" → ["es-MX", "es"]
 const chain = buildLocaleChain(userLocale);
 
 // Pick the best available translation
@@ -665,11 +665,6 @@ const { data, error } = await supabase.from('recipes').select('*');
 ### Performance
 - Use `React.memo` for pure components
 - Use `expo-image` for optimized images
-
-### Dependencies
-- Prefer built-in/native solutions over third-party packages
-- Use existing project utilities before adding new dependencies
-- Only add a dependency when no built-in alternative exists and the package provides clear value
 
 <!-- END:shared/conventions -->
 
@@ -786,17 +781,106 @@ fix(auth): resolve login timeout issue
 docs: update API documentation
 ```
 
-### Commit Workflow
-
-**Resolve first, then commit.** Do not commit after every small change. Iterate on the fix, verify it works, then commit once the issue is resolved.
-
-- Make edits and suggest the user test the change
-- If the fix doesn't work, iterate — do NOT commit broken or partial work
-- Once the issue is resolved, suggest committing (but wait for user confirmation)
-- Before moving on to the next issue, commit the resolved one
-- Group related fixes into a single meaningful commit
-
 <!-- END:shared/git-conventions -->
+
+<!-- BEGIN:shared/workflow -->
+## Development Workflow
+
+### Collaborative Design-Build-Review Cycle
+
+For significant features, follow this cycle. Not every task needs the full cycle — use judgment on complexity.
+
+#### When to Use the Full Cycle
+- New features that affect the core product loop (meal planning, shopping list connection)
+- Architectural decisions (new edge functions, database schema, navigation changes)
+- UX flows that affect Lupita or Sofía directly
+- Anything where a wrong design decision would require significant rework
+
+#### When to Skip to Implementation
+- Bug fixes with clear cause and fix
+- Copy/i18n changes
+- Style/layout tweaks
+- Adding tests to existing code
+
+#### The Cycle
+
+**Phase 1: Design**
+1. Create a detailed plan for the task
+2. Pass the plan to Codex for review
+3. Use `/triage-review` on Claude to audit Codex's feedback and update the plan
+4. Iterate between Claude and Codex until both agree
+
+**Phase 2: Approval**
+5. Ian reviews the final plan and gives feedback
+6. Plan is updated based on Ian's feedback
+7. Plan is approved for implementation
+
+**Phase 3: Implementation**
+8. Claude implements the plan
+9. Claude reviews using `/review-changes` and corrects issues
+
+**Phase 4: Cross-Review**
+10. Codex reviews the changes using `review-changes {# of commits}`
+11. `/triage-review` on Claude produces a fix plan
+12. Plan is passed to Codex for review
+13. Codex passes feedback to Claude
+14. Claude implements fixes
+
+**Phase 5: Testing**
+15. Ian tests the implementation and gives feedback
+16. Minor issues: Claude fixes directly
+17. Major issues: full plan → implement → review cycle again
+
+**Phase 6: PR**
+18. Claude creates the PR
+19. Ian reviews the PR and gives feedback
+20. Claude addresses issues (minor: direct fix; major: collaborative plan)
+21. Repeat until PR is approved and merged
+
+### Git Strategy
+
+#### Branch Naming
+- Feature branches: `feature/description-in-kebab-case`
+- Bug fixes: `fix/issue-description`
+- Follow conventional commits in commit messages
+
+#### Worktrees
+The project uses git worktrees to work on multiple features in parallel. Each worktree is an isolated copy of the repo on a different branch.
+
+**Existing worktrees** (check `../` relative to the main repo for sibling directories):
+- `yummy-yummix-app` — main branch
+- Other worktrees may exist for feature branches
+
+**Creating a new worktree:**
+```bash
+# From the main repo directory
+git worktree add ../worktree-name -b feature/branch-name
+```
+
+**Rules:**
+- Each worktree works on one feature branch
+- Never push directly to main — always use PRs
+- Worktrees share the same git history — commits made in one are visible in others after fetch
+- Clean up worktrees after PRs are merged: `git worktree remove ../worktree-name`
+
+#### PR Workflow
+1. Work is done in a feature branch (via worktree or regular branch)
+2. PR is created against main
+3. PR goes through the review cycle (Phase 4-6 above)
+4. PR is merged after approval
+5. Worktree is cleaned up if applicable
+
+### Working with Product Kitchen
+
+The product strategy and implementation plans live in `../product-kitchen/` (a sibling directory, not part of this repo). Key files:
+
+- `../product-kitchen/PRODUCT_STRATEGY.md` — The north star product strategy
+- `../product-kitchen/combined-implementation-plan/` — Detailed implementation plans for each feature
+- `../product-kitchen/research/` — Research findings that inform the strategy
+
+When building features, reference the relevant implementation plan for design decisions, acceptance criteria, and architectural guidance. The plans are the source of truth for what to build and why.
+
+<!-- END:shared/workflow -->
 
 ## AI Collaboration Prompts
 

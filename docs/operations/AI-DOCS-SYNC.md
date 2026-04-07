@@ -34,6 +34,7 @@ npm run dev:docs-check   # Verify managed sections match canonical sources (exit
 | `shared/testing` | `docs/agent-guidelines/shared/testing.md` | Testing requirements, patterns, commands, pre-commit hooks |
 | `shared/git-conventions` | `docs/agent-guidelines/shared/git-conventions.md` | Branch naming, commit message format |
 | `shared/analytics` | `docs/agent-guidelines/shared/analytics.md` | Analytics philosophy and event tracking |
+| `shared/workflow` | `docs/agent-guidelines/shared/workflow.md` | Collaborative design-build-review cycle, git strategy, product kitchen reference |
 
 ## What's Canonical vs Platform-Specific
 
