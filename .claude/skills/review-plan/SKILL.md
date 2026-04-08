@@ -1,7 +1,6 @@
 ---
-name: yummyyummix:review-plan
+name: review-plan
 description: Review implementation plans for clarity, completeness, architecture fit, and feasibility before implementation. Use when asked to evaluate a plan file, pasted plan content, or review recent plans.
-disable-model-invocation: true
 ---
 
 # Plan Review Skill
@@ -86,7 +85,7 @@ The output is designed to be copy-pasted into the planning agent's chat as direc
 - [High] Section X — one-sentence description
 - [Warning] Section X — one-sentence description
 
-**Nice to have**
+**Recommended**
 - [Suggestion] Section X — one-sentence description
 
 ### Unverified Assumptions

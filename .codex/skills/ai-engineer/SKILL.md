@@ -1,5 +1,5 @@
 ---
-name: "yummyyummix:ai-engineer"
+name: "ai-engineer"
 description: "AI/ML engineer for YummyYummix. Builds and maintains the AI Gateway, tool system, RAG pipeline, orchestrators, and all AI-powered features."
 ---
 

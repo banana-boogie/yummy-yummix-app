@@ -1,8 +1,7 @@
 ---
-name: yummyyummix:build-feature
+name: build-feature
 description: Guided full-stack feature development with product thinking, domain exploration, architecture design, and implementation using YummyYummix guideline docs for domain expertise.
 argument-hint: Feature description
-disable-model-invocation: true
 ---
 
 # Build Feature Skill

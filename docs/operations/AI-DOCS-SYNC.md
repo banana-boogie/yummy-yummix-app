@@ -34,14 +34,26 @@ npm run dev:docs-check   # Verify managed sections match canonical sources (exit
 | `shared/testing` | `docs/agent-guidelines/shared/testing.md` | Testing requirements, patterns, commands, pre-commit hooks |
 | `shared/git-conventions` | `docs/agent-guidelines/shared/git-conventions.md` | Branch naming, commit message format |
 | `shared/analytics` | `docs/agent-guidelines/shared/analytics.md` | Analytics philosophy and event tracking |
+| `shared/workflow` | `docs/agent-guidelines/shared/workflow.md` | Collaborative design-build-review cycle, git strategy, product kitchen reference |
 
 ## What's Canonical vs Platform-Specific
 
 **Canonical (managed by sync):** Project knowledge that both platforms need — architecture, conventions, testing requirements, development setup.
 
 **Platform-specific (manual, outside markers):**
-- `CLAUDE.md`: Agent Team section (Claude Code agents/skills), AI Collaboration Prompts (plan mode)
+- `CLAUDE.md`: Agent Team section (Claude Code agents/skills), `Dependencies`, AI Collaboration Prompts (plan mode)
 - `AGENTS.md`: Core Principles (agent mindset), Code Quality Checklist, Common Test Patterns, File Locations, Troubleshooting
+
+Example placement:
+
+```markdown
+<!-- END:shared/conventions -->
+
+### Dependencies
+- Claude-only instruction here
+
+<!-- BEGIN:shared/testing -->
+```
 
 ## Adding a New Managed Block
 

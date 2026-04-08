@@ -1,5 +1,5 @@
 ---
-name: "yummyyummix:docs"
+name: "docs"
 description: "Documentation engineer for YummyYummix. Maintains architecture docs, agent guidelines, changelogs, and keeps project knowledge current after feature changes."
 ---
 

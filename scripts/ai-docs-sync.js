@@ -40,6 +40,7 @@ const KNOWN_BLOCKS = [
   'testing',
   'git-conventions',
   'analytics',
+  'workflow',
 ];
 
 // ---------------------------------------------------------------------------

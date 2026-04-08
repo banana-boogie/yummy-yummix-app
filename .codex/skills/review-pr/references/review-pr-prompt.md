@@ -3,13 +3,13 @@
 Use this prompt when invoking the skill directly:
 
 ```text
-Use $yummyyummix:review-pr to evaluate pull request <PR_NUMBER_OR_URL>.
+Use $review-pr to evaluate pull request <PR_NUMBER_OR_URL>.
 If no PR argument is provided, resolve the PR for the current branch and ask me to confirm before reviewing.
 If branch PR resolution fails due GitHub API/auth issues, retry once, then ask me for explicit PR number/URL (do not use stale previous-session PR context).
 
 Domain delegation:
-- Route changed files to specialized domain skills ($yummyyummix:frontend, $yummyyummix:backend, $yummyyummix:ai-engineer, $yummyyummix:database) for deeper review.
-- Always run $yummyyummix:code-reviewer on all files for cross-cutting concerns.
+- Route changed files to specialized domain skills ($frontend, $backend, $ai-engineer, $database) for deeper review.
+- Always run $code-reviewer on all files for cross-cutting concerns.
 
 Collection behavior:
 - Try `gh pr view`, `gh pr diff`, and `gh pr checks` first.
@@ -24,11 +24,11 @@ Output requirements:
 ## Example Invocation
 
 ```text
-Use $yummyyummix:review-pr to evaluate pull request #128 and prioritize security and test coverage findings.
+Use $review-pr to evaluate pull request #128 and prioritize security and test coverage findings.
 ```
 
 ```text
-Use $yummyyummix:review-pr.
+Use $review-pr.
 If a PR is linked to my current branch, ask me to confirm that PR before starting the review.
 If you cannot resolve the branch PR after retry, ask me for explicit PR number/URL.
 ```

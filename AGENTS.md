@@ -234,8 +234,9 @@ EXPO_PUBLIC_DEV_LOGIN_PASSWORD=devpassword123
 SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_ANON_KEY=eyJhbGc...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...  # Get from dashboard (NEVER via MCP)
-OPENAI_API_KEY=sk-proj-xxx
-USDA_API_KEY=xxx
+XAI_API_KEY=xai-...                   # For text/orchestrator (default provider)
+OPENAI_API_KEY=sk-proj-xxx            # For recipe_generation, recipe_modification, parsing, embedding
+GEMINI_API_KEY=AIza...                # Only needed if overriding defaults to Google
 ```
 
 ### MCP Security Note
@@ -316,7 +317,7 @@ import { chat, chatStream } from '../_shared/ai-gateway/index.ts';
 
 // For structured output (always use JSON schema):
 const response = await chat({
-  usageType: 'text',  // or 'recipe_generation', 'parsing'
+  usageType: 'text',  // or 'recipe_generation', 'recipe_modification', 'parsing', 'embedding'
   messages: [
     { role: 'system', content: 'You are a helpful assistant' },
     { role: 'user', content: 'Hello!' },
@@ -345,38 +346,45 @@ const response = await chat({
   },
 });
 
-// For streaming:
-for await (const chunk of chatStream({
+// For streaming (chatStream returns AIStreamResult — access .stream):
+const result = await chatStream({
   usageType: 'text',
   messages: [...],
   reasoningEffort: 'low',
-})) {
+});
+for await (const chunk of result.stream) {
   console.log(chunk);
 }
+// Optionally await usage/cost after the stream completes:
+const { inputTokens, outputTokens, costUsd } = await result.usage();
 ```
 
 #### Usage Types:
 
-| Type | Default Model | Config | Use Case | Cost |
-|------|--------------|--------|----------|------|
-| `text` | google/gemini-2.5-flash | thinking: minimal | Chat orchestrator (tool calling + streaming) | Low |
-| `recipe_generation` | google/gemini-2.5-flash | thinking: minimal | Recipe generation (structured JSON output) — quality critical | Low |
-| `recipe_modification` | google/gemini-2.5-flash | thinking: minimal | Recipe modification (transform existing JSON) | Low |
-| `parsing` | openai/gpt-4.1-nano | temperature: `1` | Admin parsing, nutritional data extraction | Very low |
-| `embedding` | openai/text-embedding-3-large | N/A | Vector search (3072 dimensions) | Low |
+| Type | Default Model | Provider | Use Case | Cost |
+|------|--------------|----------|----------|------|
+| `text` | grok-4-1-fast-non-reasoning | xai | Chat orchestrator (tool calling + streaming) | Low |
+| `recipe_generation` | gpt-4.1 | openai | Recipe generation (structured JSON output) — quality critical | Medium |
+| `recipe_modification` | gpt-4.1 | openai | Recipe modification (transform existing recipe JSON) | Medium |
+| `parsing` | gpt-4.1-nano | openai | Admin parsing, nutritional data extraction | Very low |
+| `embedding` | text-embedding-3-large | openai | Vector search (3072 dimensions) | Low |
+| `nutrition` | gpt-4.1-mini | openai | Nutritional facts lookup (per 100g macros) | Low |
+| `translation` | gpt-4.1-mini | openai | Content localization (admin auto-translate) | Low |
 
 #### Configuration:
 
 ```bash
 # Required API Keys (in .env or Supabase secrets)
-GEMINI_API_KEY=AIza...            # For text, recipe_generation, recipe_modification
-OPENAI_API_KEY=sk-proj-xxx        # For parsing, embedding
+XAI_API_KEY=xai-...               # For text (orchestrator)
+OPENAI_API_KEY=sk-proj-xxx        # For recipe_generation, recipe_modification, parsing, embedding
+# GEMINI_API_KEY and ANTHROPIC_API_KEY needed only if overriding defaults to those providers
 
-# Optional: Override default models (supports provider:model format)
-AI_TEXT_MODEL=openai:gpt-4.1-mini             # Switch to OpenAI
-AI_RECIPE_GENERATION_MODEL=gemini-2.5-flash   # Same provider, different model
-AI_RECIPE_MODIFICATION_MODEL=openai:gpt-5-mini # Switch provider entirely
-AI_PARSING_MODEL=gpt-5-nano                   # Same provider, different model
+# Optional: Override default models (supports provider:model or model-only format)
+AI_TEXT_MODEL=openai:gpt-4.1-mini             # Switch provider + model
+AI_RECIPE_GENERATION_MODEL=google:gemini-2.5-flash  # Switch to Google
+AI_RECIPE_MODIFICATION_MODEL=xai:grok-4-1-fast-non-reasoning  # Switch provider
+AI_PARSING_MODEL=gpt-4.1-mini                 # Same provider, different model
+AI_EMBEDDING_MODEL=text-embedding-3-small     # Same provider, different model
 ```
 
 #### Design Pattern:
@@ -389,8 +397,8 @@ Developer Code -> Gateway (OpenAI format) -> Provider (translates to native form
 
 This design:
 - Uses OpenAI format because it's the industry standard
-- Each provider handles translation (implemented for OpenAI and Google)
-- Adding new providers (Anthropic) just requires a new translator
+- Each provider handles translation (implemented for OpenAI, xAI, Google Gemini, and Anthropic)
+- Adding new providers just requires a new translator in `providers/<name>.ts`
 - NOT OpenAI-specific - it's using OpenAI format as the **lingua franca**
 
 **When adding new providers:** Implement translation logic in `ai-gateway/providers/<provider>.ts`. The gateway interface stays the same.
@@ -517,7 +525,8 @@ const { language, locale } = useLanguage();
 - `en` = base English content (US English — serves all English speakers)
 - `es` = base Spanish content (Mexican Spanish — serves all Spanish speakers)
 - Regional codes (e.g., `es-MX`, `es-ES`) are for **overrides only** — add them when you have region-specific content that differs from the base
-- Fallback chain: `es-MX` → `es` → `en` (via `resolve_locale()` RPC and `locales.parent_code`)
+- **No cross-language fallback.** `en` and `es` are separate user groups. A Spanish-language user must never fall back to English content, and vice versa.
+- Fallback chain (within-family only): `es-MX` → `es` (via `buildLocaleChain()` in `_shared/locale-utils.ts`)
 - **Never store base content under a regional code** — it breaks fallback for other regions
 
 **Reading translations (frontend services):**
@@ -528,6 +537,23 @@ const { data } = await supabase
   .select(`*, translations:recipe_translations(locale, name, tips_and_tricks)`)
   .eq('translations.locale', 'en');
 ```
+
+**Reading translations (Edge Functions / server-side):**
+
+Use `pickTranslation()` from `_shared/locale-utils.ts` to resolve the best match from an array of translation rows using a locale fallback chain. Build the chain first with `buildLocaleChain()`.
+
+```typescript
+import { buildLocaleChain, pickTranslation } from '../_shared/locale-utils.ts';
+
+// Build fallback chain: "es-MX" → ["es-MX", "es"]
+const chain = buildLocaleChain(userLocale);
+
+// Pick the best available translation
+const translation = pickTranslation(recipe.translations, chain);
+// Falls back through chain; returns undefined if no chain match (caller must handle)
+```
+
+The database-side equivalent is the `resolve_locale()` RPC, which walks the `locales.parent_code` tree to find the nearest ancestor with content for a given entity.
 
 **Writing translations (admin services):**
 ```tsx
@@ -716,6 +742,120 @@ docs: update API documentation
 ```
 
 <!-- END:shared/git-conventions -->
+
+<!-- BEGIN:shared/workflow -->
+## Development Workflow
+
+### Collaborative Design-Build-Review Cycle
+
+For significant features, follow this cycle. Not every task needs the full cycle — use judgment on complexity.
+
+#### When to Use the Full Cycle
+- New features that affect the core product loop (meal planning, shopping list connection)
+- Architectural decisions (new edge functions, database schema, navigation changes)
+- UX flows that affect Lupita or Sofía directly
+- Anything where a wrong design decision would require significant rework
+
+#### When to Skip to Implementation
+- Bug fixes with clear cause and fix
+- Copy/i18n changes
+- Style/layout tweaks
+- Adding tests to existing code
+
+**Tip:** For single-AI guided development, `/build-feature` (Claude) or `$build-feature` (Codex) provides a structured 7-phase workflow with built-in checkpoints.
+
+#### The Cycle
+
+**Phase 1: Design**
+1. Create a detailed plan for the task
+2. Ask another AI agent to review the plan using its plan-review skill (`$review-plan` in Codex, `/review-plan` in Claude)
+3. Revise the plan based on that feedback
+4. Iterate until the plan is strong enough to implement
+
+**Phase 2: Approval**
+5. A human reviews the final plan and gives feedback
+6. Plan is updated based on that feedback
+7. Plan is approved for implementation
+
+**Phase 3: Implementation**
+8. The implementing AI agent implements the plan
+9. The implementing AI agent self-reviews using its local-changes review skill (`$review-changes` in Codex, `/review-changes` in Claude) and corrects issues
+
+**Phase 4: Cross-Review**
+10. A second AI agent reviews the branch using its local-changes review skill
+11. Claude uses `/triage-review` on that external review to separate must-fix items from noise
+12. Claude creates a revised fix plan that combines the best findings from both AI reviews
+13. The implementing AI agent applies the revised plan
+14. Repeat if needed until the branch is ready for PR
+
+**Phase 5: Testing**
+15. A human tests the implementation and gives feedback
+16. Minor issues: the implementing AI agent fixes directly
+17. Major issues: full plan -> implement -> review cycle again
+
+**Phase 6: Documentation**
+18. The implementing AI agent syncs documentation (`/update-docs` in Claude, `$update-docs` in Codex)
+
+**Phase 7: PR**
+19. The implementing AI agent creates the PR
+20. Codex reviews the PR with `$review-pr <PR#>`
+21. Claude reviews the PR with `/review-pr <PR#>`
+22. Claude uses `/triage-review` on Codex's review, creates a revised plan that takes the best of both AI reviews, and implements the changes
+23. A human reviews the PR manually and gives feedback
+24. The implementing AI agent addresses that feedback; repeat until approved and merged
+
+### Git Strategy
+
+#### Branch Naming
+Follow the Git Conventions section for branch naming and commit message rules.
+
+#### Worktrees
+The project uses git worktrees to work on multiple features in parallel. Each worktree is an isolated copy of the repo on a different branch.
+
+**Existing worktrees** (check `../` relative to the main repo for sibling directories):
+- `yummy-yummix-app` — main branch
+- Other worktrees may exist for feature branches
+
+**Creating a new worktree:**
+```bash
+# From the main repo directory
+git worktree add ../worktree-name -b feature/branch-name
+```
+
+**Rules:**
+- Each worktree works on one feature branch
+- Never push directly to main — always use PRs
+- Worktrees share the same git history — commits made in one are visible in others after fetch
+- Clean up worktrees after PRs are merged: `git worktree remove ../worktree-name`
+
+#### PR Workflow
+1. Work is done in a feature branch (via worktree or regular branch)
+2. PR is created against main
+3. PR goes through the review cycle (Phase 4-6 above)
+4. PR is merged after approval
+5. Worktree is cleaned up if applicable
+
+### Commit Workflow
+
+**Resolve first, then commit.** Do not commit after every small change. Iterate on the fix, verify it works, then commit once the issue is resolved.
+
+- Make edits and suggest the user test the change
+- If the fix doesn't work, iterate — do NOT commit broken or partial work
+- Once the issue is resolved, suggest committing (but wait for user confirmation)
+- Before moving on to the next issue, commit the resolved one
+- Group related fixes into a single meaningful commit
+
+### Working with Product Kitchen
+
+The product strategy and implementation plans live in `../product-kitchen/` (a sibling directory, not part of this repo). Key files:
+
+- `../product-kitchen/PRODUCT_STRATEGY.md` — The north star product strategy
+- `../product-kitchen/combined-implementation-plan/` — Detailed implementation plans for each feature
+- `../product-kitchen/research/` — Research findings that inform the strategy
+
+When building features, reference the relevant implementation plan for design decisions, acceptance criteria, and architectural guidance. The plans are the source of truth for what to build and why.
+
+<!-- END:shared/workflow -->
 
 ---
 

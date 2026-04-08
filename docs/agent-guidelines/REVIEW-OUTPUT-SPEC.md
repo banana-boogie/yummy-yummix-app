@@ -49,9 +49,11 @@ Format:
 - [Critical] `file:line` — description (one sentence)
 - [Warning] `file:line` — description (one sentence)
 
-**Nice to have**
+**Recommended**
 - [Suggestion] `file:line` — description (one sentence)
 ```
+
+Only include suggestions you actively recommend. If it's not worth doing, don't list it.
 
 If there are zero findings in a severity group, omit that group. If there are zero findings total, write *No issues found.*
 
@@ -65,7 +67,9 @@ If there are no findings to act on, omit this section.
 
 ## Internal Review Process
 
-The reviewer still performs the full analysis internally (all 9 categories, severity assessment, options for critical findings, recommendations, potential misses). This work feeds into the report — the human section is a distillation, and the Next Steps prompt is a reorganization with full detail. **Don't skip the analysis, just don't dump all of it into the human-facing output.**
+The reviewer still performs the full analysis internally (all 9 categories, severity assessment, options for critical findings, potential misses). This work feeds into the report — the human section is a distillation, and the Next Steps prompt is a reorganization with full detail. **Don't skip the analysis, just don't dump all of it into the human-facing output.**
+
+For Suggestion-level findings: only include ones you actively recommend. If a suggestion isn't worth doing, omit it entirely. No "implement if worthwhile" hedging — take a clear position.
 
 ---
 
@@ -87,11 +91,10 @@ This detail goes into the Next Steps prompt, not the human summary.
 The Next Steps section must produce a **self-contained prompt** that an implementation agent can execute without reading the review report. The prompt must:
 
 1. List **Critical, High, and Warning** findings with full detail (severity, file:line, description, recommendation, options where applicable) under "Fix All"
-2. List **Suggestion** findings under "Implement If Worthwhile"
-3. List Recommendations (improvements outside findings) under "Implement If Worthwhile"
-4. Note any potential misses or areas the review couldn't fully evaluate
-5. Instruct the agent to: read relevant files, create an implementation plan, implement, run tests/validation
-6. Be fully self-contained — executable without reading the review
+2. List recommended improvements — only suggestions the reviewer actively recommends
+3. Note any potential misses or areas the review couldn't fully evaluate
+4. Instruct the agent to: read relevant files, create an implementation plan, implement, run tests/validation
+5. Be fully self-contained — executable without reading the review
 
 ### Template
 
@@ -115,15 +118,11 @@ You are the implementation agent for [PR #N / branch-name].
 - [Warning] `file:line` — description
   - Recommendation: <specific recommendation>
 
-## Suggestions — Implement If Worthwhile
+## Recommended Improvements
 
-- [Suggestion] `file:line` — description. Recommendation: <what to do>
+Only include suggestions the reviewer actively recommends. If it's not worth doing, don't list it.
 
-## Recommendations — Implement If Worthwhile
-
-| Rank | Recommendation | Impact | Effort |
-|------|----------------|--------|--------|
-| 1 | ... | High | Low |
+- `file:line` — description. Do: <specific action>
 
 ## Potential Misses
 
@@ -133,7 +132,7 @@ Areas the review couldn't fully evaluate:
 ## Workflow
 
 1. Read the relevant files to understand context.
-2. Create an implementation plan that addresses all Critical/High/Warning findings plus any Suggestions/Recommendations worth implementing.
+2. Create an implementation plan that addresses all findings and recommended improvements.
 3. Implement the plan.
 4. Run tests and validation for changed areas.
 5. Report what was done and flag any issues encountered.
@@ -145,9 +144,9 @@ Constraints:
 
 Key rules:
 - Critical/High/Warning findings are required fixes — include full detail and options.
-- Suggestions and Recommendations are listed separately and marked "implement if worthwhile."
+- Suggestions are either recommended (include with clear action) or not worth mentioning (omit entirely). No "if worthwhile" hedging.
 - The prompt never references the review report — it is the complete instruction set.
-- Potential misses and recommendations that were previously separate human-facing sections now live here.
+- Potential misses live in the Next Steps prompt, not the human-facing section.
 
 ---
 

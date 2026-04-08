@@ -1,5 +1,5 @@
 ---
-name: "yummyyummix:database"
+name: "database"
 description: "Database engineer for YummyYummix. Designs schemas, writes migrations, creates RLS policies, builds RPC functions, and optimizes query performance on Supabase (PostgreSQL)."
 ---
 

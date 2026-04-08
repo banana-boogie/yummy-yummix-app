@@ -1,5 +1,5 @@
 ---
-name: yummyyummix:triage-review
+name: triage-review
 description: Triage code review findings — agree/disagree on each, classify as must-fix/skip/optional, and produce a handoff prompt for the implementing AI
 argument-hint: Paste review findings, or leave blank to use the most recent /review-changes output
 disable-model-invocation: true
@@ -64,14 +64,14 @@ Review the findings, follow the next steps to implement and fix all of the chang
 
 - [Severity] `file:line` — <what to do, not what's wrong>
 
-## Optional — Implement If Worthwhile
+## Recommended Improvements
 
-- [Severity] `file:line` — <what to do>
+- `file:line` — <what to do>
 
 ## Workflow
 
 1. Read the relevant files to understand context.
-2. Implement all "Must Fix" items. For "Optional" items, use your judgment.
+2. Implement all "Must Fix" items and recommended improvements.
 3. Run tests to verify changes.
 4. Report what was done.
 
