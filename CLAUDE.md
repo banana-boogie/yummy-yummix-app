@@ -813,6 +813,8 @@ For significant features, follow this cycle. Not every task needs the full cycle
 
 #### The Cycle
 
+For full guided development, use `/build-feature` (Claude) or `$build-feature` (Codex). It covers discovery, exploration, design, implementation, review, and documentation with built-in checkpoints. The phases below describe the same process for manual orchestration.
+
 **Phase 1: Design**
 1. Create a detailed plan for the task
 2. Ask another AI agent to review the plan using its plan-review skill (`$review-plan` in Codex, `/review-plan` in Claude)
@@ -882,6 +884,16 @@ git worktree add ../worktree-name -b feature/branch-name
 4. PR is merged after approval
 5. Worktree is cleaned up if applicable
 
+### Commit Workflow
+
+**Resolve first, then commit.** Do not commit after every small change. Iterate on the fix, verify it works, then commit once the issue is resolved.
+
+- Make edits and suggest the user test the change
+- If the fix doesn't work, iterate — do NOT commit broken or partial work
+- Once the issue is resolved, suggest committing (but wait for user confirmation)
+- Before moving on to the next issue, commit the resolved one
+- Group related fixes into a single meaningful commit
+
 ### Working with Product Kitchen
 
 The product strategy and implementation plans live in `../product-kitchen/` (a sibling directory, not part of this repo). Key files:
@@ -893,16 +905,6 @@ The product strategy and implementation plans live in `../product-kitchen/` (a s
 When building features, reference the relevant implementation plan for design decisions, acceptance criteria, and architectural guidance. The plans are the source of truth for what to build and why.
 
 <!-- END:shared/workflow -->
-
-### Commit Workflow
-
-**Resolve first, then commit.** Do not commit after every small change. Iterate on the fix, verify it works, then commit once the issue is resolved.
-
-- Make edits and suggest the user test the change
-- If the fix doesn't work, iterate — do NOT commit broken or partial work
-- Once the issue is resolved, suggest committing (but wait for user confirmation)
-- Before moving on to the next issue, commit the resolved one
-- Group related fixes into a single meaningful commit
 
 ## AI Collaboration Prompts
 
