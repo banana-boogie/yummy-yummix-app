@@ -163,7 +163,7 @@ Tag each finding with one of:
 
 - **Critical** — Must fix. Bugs, security vulnerabilities (missing RLS, exposed secrets, injection), broken CI, missing tests for auth/security code, data loss risk.
 - **Warning** — Should fix. Performance issues (missing memoization, N+1 queries), missing tests for new features, convention violations that affect maintainability, missing error handling for likely edge cases, dead code that adds confusion.
-- **Suggestion** — Nice to have. Minor style preferences beyond what linters catch, optional performance optimizations, documentation improvements, code organization preferences.
+- **Suggestion** — Recommended improvement. Only include if you actively recommend it. Minor style preferences beyond what linters catch, performance optimizations, documentation improvements, code organization preferences.
 
 ---
 

@@ -1,13 +1,13 @@
 # PR Review Process
 
-How pull requests are reviewed in the YummyYummix project. This document covers the automated `/yummyyummix:review-pr` skill, all review criteria, and the manual review checklist.
+How pull requests are reviewed in the YummyYummix project. This document covers the automated `/review-pr` skill, all review criteria, and the manual review checklist.
 
 ---
 
 ## Quick Start
 
 ```
-/yummyyummix:review-pr 7
+/review-pr 7
 ```
 
 This runs the PR review skill, which gathers PR context via `gh` CLI, analyzes the diff against project standards, and produces a structured report.
@@ -18,7 +18,7 @@ This runs the PR review skill, which gathers PR context via `gh` CLI, analyzes t
 
 1. **Gathers context** — PR metadata, full diff, CI check status, and commit messages via `gh` CLI
 2. **Categorizes changes** — Groups files by area (frontend, backend, database, infrastructure, docs)
-3. **Reviews code** — Checks against all criteria below, delegating file-level analysis to the `yummyyummix:code-reviewer` sub-agent
+3. **Reviews code** — Checks against all criteria below, delegating file-level analysis to the `code-reviewer` subagent
 4. **Produces a report** — Structured findings tagged by severity with a merge recommendation
 
 ---
@@ -195,7 +195,7 @@ Should fix, ideally before merge. Examples:
 - Dead code that adds confusion
 
 ### Suggestion
-Nice to have. Examples:
+Recommended improvement. Only include if you actively recommend it. Examples:
 - Minor style preferences beyond what linters catch
 - Optional performance optimizations
 - Documentation improvements
@@ -373,8 +373,8 @@ For cases where a human wants to follow the same criteria without the skill:
 - [CLAUDE.md](../../../CLAUDE.md) — Development setup and key conventions
 - [AGENTS.md](../../../AGENTS.md) — AI agent guidelines and testing requirements
 - [TESTING.md](../../operations/TESTING.md) — Comprehensive testing documentation
-- `.claude/skills/review-pr/SKILL.md` — The `yummyyummix:review-pr` skill prompt (for debugging or updating the skill)
-- `.claude/skills/review-changes/SKILL.md` — The `yummyyummix:review-changes` skill prompt (pre-PR local commit review)
-- `.claude/agents/code-reviewer.md` — The `yummyyummix:code-reviewer` sub-agent prompt
+- `.claude/skills/review-pr/SKILL.md` — The `review-pr` skill prompt (for debugging or updating the skill)
+- `.claude/skills/review-changes/SKILL.md` — The `review-changes` skill prompt (pre-PR local commit review)
+- `.claude/agents/code-reviewer.md` — The `code-reviewer` subagent prompt
 
 ---

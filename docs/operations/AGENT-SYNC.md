@@ -71,7 +71,7 @@ version: "1"
 
 roles:
   - id: my-agent              # Kebab-case ID, becomes filename
-    name: "yummyyummix:my-agent"  # Full agent name
+    name: "my-agent"              # Simple name — Claude Code agents cannot use namespace prefixes
     description: "..."         # One-line description
     model_tier: high           # high → opus, standard → sonnet, fast → haiku
     mode: execute              # execute → full tools, review/strategy → read-only
@@ -89,7 +89,7 @@ roles:
     codex:                     # Optional: Codex UI metadata overrides
       display_name: "My Agent"
       short_description: "One-line chip label text"
-      default_prompt: "Use $yummyyummix:my-agent to ..."
+      default_prompt: "Use $my-agent to ..."
 ```
 
 ## CI Integration

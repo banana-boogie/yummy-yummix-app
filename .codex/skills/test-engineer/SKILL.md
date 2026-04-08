@@ -1,5 +1,5 @@
 ---
-name: "yummyyummix:test-engineer"
+name: "test-engineer"
 description: "Test engineer for YummyYummix. Creates comprehensive tests for frontend components, services, hooks, backend edge functions, and AI features across both Jest and Deno testing frameworks."
 ---
 

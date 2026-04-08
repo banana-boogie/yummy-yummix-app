@@ -1,5 +1,5 @@
 ---
-name: yummyyummix:designer
+name: designer
 description: UI/UX designer for YummyYummix. Designs interfaces grounded in the brand identity, target audience (Thermomix owners), and design system. Produces design specs for the frontend agent to implement.
 tools: Read, Glob, Grep, Edit, Write
 model: opus

@@ -476,25 +476,29 @@ Agent roles are defined in `docs/agent-guidelines/AGENT-ROLES.yaml` (single sour
 
 | Domain | Agent | When to Use |
 |--------|-------|-------------|
-| **Product** | `yummyyummix:product` | Brainstorming features, scoping MVPs, identifying highest-value work, writing user stories. Use before building to think about *what* to build. |
-| **Frontend** | `yummyyummix:frontend` | Building or modifying screens, components, services, hooks in `yyx-app/`. |
-| **Backend** | `yummyyummix:backend` | Building or modifying Edge Functions, shared utilities in `yyx-server/`. |
-| **AI** | `yummyyummix:ai-engineer` | Anything touching the AI Gateway, tool system, RAG, orchestrators, or AI-powered features. |
-| **Database** | `yummyyummix:database` | Schema design, migrations, RLS policies, RPC functions, query optimization. |
-| **Designer** | `yummyyummix:designer` | UI/UX design decisions, visual specs, component layout. Knows the target audience (Thermomix owners) and brand identity. |
-| **Testing** | `yummyyummix:test-engineer` | Dedicated test creation — improving coverage, writing regression tests, backfilling tests. |
-| **Docs** | `yummyyummix:docs` | Keeping documentation in sync after feature changes. |
-| **Code Review** | `yummyyummix:code-reviewer` | Cross-cutting code review for bugs, dead code, conventions, type safety. |
+| **Product** | `product` | Brainstorming features, scoping MVPs, identifying highest-value work, writing user stories. Use before building to think about *what* to build. |
+| **Frontend** | `frontend` | Building or modifying screens, components, services, hooks in `yyx-app/`. |
+| **Backend** | `backend` | Building or modifying Edge Functions, shared utilities in `yyx-server/`. |
+| **AI** | `ai-engineer` | Anything touching the AI Gateway, tool system, RAG, orchestrators, or AI-powered features. |
+| **Database** | `database` | Schema design, migrations, RLS policies, RPC functions, query optimization. |
+| **Designer** | `designer` | UI/UX design decisions, visual specs, component layout. Knows the target audience (Thermomix owners) and brand identity. |
+| **Testing** | `test-engineer` | Dedicated test creation — improving coverage, writing regression tests, backfilling tests. |
+| **Docs** | `docs` | Keeping documentation in sync after feature changes. |
+| **Code Review** | `code-reviewer` | Cross-cutting code review for bugs, dead code, conventions, type safety. |
 
 ### How to Use Agents
 
-Agents are invoked directly by the user (e.g., "ask the frontend agent to build this component"). They are **not** programmatically delegated from skills — custom agents can't be launched via the Task tool's `subagent_type`.
+Agents can be invoked two ways:
+- **By the user**: "ask the frontend agent to build this component"
+- **By Claude via the Agent tool**: `Agent({ subagent_type: "frontend", prompt: "..." })` — all 9 project agents are available as `subagent_type` values
 
-Skills use the same guideline docs that agents reference (`docs/agent-guidelines/*.md`) to get domain expertise inline. There's no magic in the agents beyond reading those docs.
+Skills use the same guideline docs that agents reference (`docs/agent-guidelines/*.md`) to get domain expertise inline.
 
 Domain agents write their own tests when building features. The test-engineer is for standalone testing tasks.
 
 ### Skills
+
+Skills can be invoked by the user (`/review-pr 7`) or by Claude via the Skill tool (`Skill({ skill: "review-pr", args: "7" })`).
 
 | Skill | Description |
 |-------|-------------|
@@ -668,6 +672,11 @@ const { data, error } = await supabase.from('recipes').select('*');
 
 <!-- END:shared/conventions -->
 
+### Dependencies
+- Prefer built-in/native solutions over third-party packages
+- Use existing project utilities before adding new dependencies
+- Only add a dependency when no built-in alternative exists and the package provides clear value
+
 <!-- BEGIN:shared/testing -->
 ## Testing
 
@@ -806,43 +815,46 @@ For significant features, follow this cycle. Not every task needs the full cycle
 
 **Phase 1: Design**
 1. Create a detailed plan for the task
-2. Pass the plan to Codex for review
-3. Use `/triage-review` on Claude to audit Codex's feedback and update the plan
-4. Iterate between Claude and Codex until both agree
+2. Ask another AI agent to review the plan using its plan-review skill (`$review-plan` in Codex, `/review-plan` in Claude)
+3. Revise the plan based on that feedback
+4. Iterate until the plan is strong enough to implement
 
 **Phase 2: Approval**
-5. Ian reviews the final plan and gives feedback
-6. Plan is updated based on Ian's feedback
+5. A human reviews the final plan and gives feedback
+6. Plan is updated based on that feedback
 7. Plan is approved for implementation
 
 **Phase 3: Implementation**
-8. Claude implements the plan
-9. Claude reviews using `/review-changes` and corrects issues
+8. The implementing AI agent implements the plan
+9. The implementing AI agent self-reviews using its local-changes review skill (`$review-changes` in Codex, `/review-changes` in Claude) and corrects issues
 
 **Phase 4: Cross-Review**
-10. Codex reviews the changes using `review-changes {# of commits}`
-11. `/triage-review` on Claude produces a fix plan
-12. Plan is passed to Codex for review
-13. Codex passes feedback to Claude
-14. Claude implements fixes
+10. A second AI agent reviews the branch using its local-changes review skill
+11. Claude uses `/triage-review` on that external review to separate must-fix items from noise
+12. Claude creates a revised fix plan that combines the best findings from both AI reviews
+13. The implementing AI agent applies the revised plan
+14. Repeat if needed until the branch is ready for PR
 
 **Phase 5: Testing**
-15. Ian tests the implementation and gives feedback
-16. Minor issues: Claude fixes directly
-17. Major issues: full plan → implement → review cycle again
+15. A human tests the implementation and gives feedback
+16. Minor issues: the implementing AI agent fixes directly
+17. Major issues: full plan -> implement -> review cycle again
 
-**Phase 6: PR**
-18. Claude creates the PR
-19. Ian reviews the PR and gives feedback
-20. Claude addresses issues (minor: direct fix; major: collaborative plan)
-21. Repeat until PR is approved and merged
+**Phase 6: Documentation**
+18. The implementing AI agent syncs documentation (`/update-docs` in Claude, `$update-docs` in Codex)
+
+**Phase 7: PR**
+19. The implementing AI agent creates the PR
+20. Codex reviews the PR with `$review-pr <PR#>`
+21. Claude reviews the PR with `/review-pr <PR#>`
+22. Claude uses `/triage-review` on Codex's review, creates a revised plan that takes the best of both AI reviews, and implements the changes
+23. A human reviews the PR manually and gives feedback
+24. The implementing AI agent addresses that feedback; repeat until approved and merged
 
 ### Git Strategy
 
 #### Branch Naming
-- Feature branches: `feature/description-in-kebab-case`
-- Bug fixes: `fix/issue-description`
-- Follow conventional commits in commit messages
+Follow the Git Conventions section for branch naming and commit message rules.
 
 #### Worktrees
 The project uses git worktrees to work on multiple features in parallel. Each worktree is an isolated copy of the repo on a different branch.
@@ -881,6 +893,16 @@ The product strategy and implementation plans live in `../product-kitchen/` (a s
 When building features, reference the relevant implementation plan for design decisions, acceptance criteria, and architectural guidance. The plans are the source of truth for what to build and why.
 
 <!-- END:shared/workflow -->
+
+### Commit Workflow
+
+**Resolve first, then commit.** Do not commit after every small change. Iterate on the fix, verify it works, then commit once the issue is resolved.
+
+- Make edits and suggest the user test the change
+- If the fix doesn't work, iterate — do NOT commit broken or partial work
+- Once the issue is resolved, suggest committing (but wait for user confirmation)
+- Before moving on to the next issue, commit the resolved one
+- Group related fixes into a single meaningful commit
 
 ## AI Collaboration Prompts
 

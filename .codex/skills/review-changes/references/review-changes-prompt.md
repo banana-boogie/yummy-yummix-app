@@ -3,7 +3,7 @@
 Use this prompt when invoking the skill directly:
 
 ```text
-Use $yummyyummix:review-changes to review my latest changes.
+Use $review-changes to review my latest changes.
 
 Scope:
 - If no explicit scope is provided, review unpushed commits plus uncommitted changes.
@@ -12,8 +12,8 @@ Scope:
   - <A..B> for an explicit commit range
 
 Domain delegation:
-- Route changed files to specialized domain skills ($yummyyummix:frontend, $yummyyummix:backend, $yummyyummix:ai-engineer, $yummyyummix:database) for deeper review.
-- Always run $yummyyummix:code-reviewer on all files for cross-cutting concerns.
+- Route changed files to specialized domain skills ($frontend, $backend, $ai-engineer, $database) for deeper review.
+- Always run $code-reviewer on all files for cross-cutting concerns.
 
 Output requirements:
 - Human-readable summary: Verdict (READY FOR PR/QUICK FIXES THEN PR/NEEDS WORK with severity counts), Highlights, flat Issues list by severity
@@ -24,13 +24,13 @@ Output requirements:
 ## Example Invocations
 
 ```text
-Use $yummyyummix:review-changes.
+Use $review-changes.
 ```
 
 ```text
-Use $yummyyummix:review-changes 3.
+Use $review-changes 3.
 ```
 
 ```text
-Use $yummyyummix:review-changes main..HEAD.
+Use $review-changes main..HEAD.
 ```

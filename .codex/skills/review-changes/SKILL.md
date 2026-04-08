@@ -1,5 +1,5 @@
 ---
-name: yummyyummix:review-changes
+name: review-changes
 description: Review latest local changes (recent commits and current working tree) for security, code quality, correctness, performance, design, testing, documentation, and i18n. Use when preparing to commit/push or when asked to review recent changes without a PR.
 ---
 
@@ -85,11 +85,11 @@ Untracked-file handling:
 
 Route changed files to specialized domain skills for deeper review. Invoke skills for domains with changed files:
 
-- **Frontend files** (`yyx-app/`) → `$yummyyummix:frontend` — review for convention violations (@/ imports, Text/Button from common, design tokens, FlashList, expo-image, i18n), performance issues, and component architecture.
-- **Backend files** (`yyx-server/` excluding AI/migrations) → `$yummyyummix:backend` — review for edge function patterns, auth handling, error leakage, SSE streaming issues, and Deno conventions.
-- **AI files** (`_shared/ai-gateway/`, `_shared/tools/`, `_shared/rag/`, orchestrators) → `$yummyyummix:ai-engineer` — review for gateway pattern violations, tool registry consistency, safety system gaps, and AI-specific issues.
-- **Database files** (`yyx-server/supabase/migrations/`) → `$yummyyummix:database` — review for missing RLS, naming convention violations, unsafe DDL, missing indexes, and rollback concerns.
-- **All files** → `$yummyyummix:code-reviewer` — cross-cutting: dead code, DRY violations, correctness bugs, type safety.
+- **Frontend files** (`yyx-app/`) → `$frontend` — review for convention violations (@/ imports, Text/Button from common, design tokens, FlashList, expo-image, i18n), performance issues, and component architecture.
+- **Backend files** (`yyx-server/` excluding AI/migrations) → `$backend` — review for edge function patterns, auth handling, error leakage, SSE streaming issues, and Deno conventions.
+- **AI files** (`_shared/ai-gateway/`, `_shared/tools/`, `_shared/rag/`, orchestrators) → `$ai-engineer` — review for gateway pattern violations, tool registry consistency, safety system gaps, and AI-specific issues.
+- **Database files** (`yyx-server/supabase/migrations/`) → `$database` — review for missing RLS, naming convention violations, unsafe DDL, missing indexes, and rollback concerns.
+- **All files** → `$code-reviewer` — cross-cutting: dead code, DRY violations, correctness bugs, type safety.
 
 Only invoke skills for domains that have changed files (except code-reviewer which always runs). Tell each skill it is in **review mode** — analysis only, no modifications. Pass the relevant file list and diff context.
 
@@ -157,7 +157,7 @@ The report has **two sections**: a short human-readable summary, and a detailed 
 - [Critical] `file:line` — one-sentence description
 - [Warning] `file:line` — one-sentence description
 
-**Nice to have**
+**Recommended**
 - [Suggestion] `file:line` — one-sentence description
 
 ---
@@ -182,15 +182,11 @@ You are the implementation agent for branch <branch-name>.
 - [Warning] `file:line` — description
   - Recommendation: <specific recommendation>
 
-## Suggestions — Implement If Worthwhile
+## Recommended Improvements
 
-- [Suggestion] `file:line` — description. Recommendation: <what to do>
+Only include suggestions the reviewer actively recommends. If it's not worth doing, don't list it.
 
-## Recommendations — Implement If Worthwhile
-
-| Rank | Recommendation | Impact | Effort |
-|------|----------------|--------|--------|
-| 1 | <high-value improvement outside Findings> | High | Low |
+- `file:line` — description. Do: <specific action>
 
 ## Potential Misses
 
@@ -200,7 +196,7 @@ Areas the review couldn't fully evaluate:
 ## Workflow
 
 1. Read the relevant files to understand context.
-2. Create an implementation plan that addresses all Critical/Warning findings plus any Suggestions/Recommendations worth implementing.
+2. Create an implementation plan that addresses all findings and recommended improvements.
 3. Implement the plan.
 4. Run tests and validation for changed areas.
 5. Report what was done and flag any issues encountered.

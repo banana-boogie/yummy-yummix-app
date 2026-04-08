@@ -1,4 +1,4 @@
 interface:
   display_name: "Triage Review"
   short_description: "Triage review findings — filter must-fix from skip/optional"
-  default_prompt: "Use $yummyyummix:triage-review to triage the review findings below and produce a handoff prompt for the implementing AI."
+  default_prompt: "Use $triage-review to triage the review findings below and produce a handoff prompt for the implementing AI."

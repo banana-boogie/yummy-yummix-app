@@ -41,8 +41,19 @@ npm run dev:docs-check   # Verify managed sections match canonical sources (exit
 **Canonical (managed by sync):** Project knowledge that both platforms need — architecture, conventions, testing requirements, development setup.
 
 **Platform-specific (manual, outside markers):**
-- `CLAUDE.md`: Agent Team section (Claude Code agents/skills), AI Collaboration Prompts (plan mode)
+- `CLAUDE.md`: Agent Team section (Claude Code agents/skills), `Dependencies`, `Commit Workflow`, AI Collaboration Prompts (plan mode)
 - `AGENTS.md`: Core Principles (agent mindset), Code Quality Checklist, Common Test Patterns, File Locations, Troubleshooting
+
+Example placement:
+
+```markdown
+<!-- END:shared/conventions -->
+
+### Dependencies
+- Claude-only instruction here
+
+<!-- BEGIN:shared/testing -->
+```
 
 ## Adding a New Managed Block
 

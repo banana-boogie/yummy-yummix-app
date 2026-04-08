@@ -1,7 +1,6 @@
 ---
-name: yummyyummix:review-changes
+name: review-changes
 description: Review local commits on the current branch for code quality, correctness, security, testing, and project conventions before opening a PR
-disable-model-invocation: true
 ---
 
 # Review Changes Skill
@@ -10,7 +9,7 @@ Review local commits on the current branch against YummyYummix project standards
 
 ## Instructions
 
-You are reviewing local commits for the YummyYummix codebase. This is a pre-PR self-review — same rigor as `yummyyummix:review-pr`, but oriented around "is this ready to become a PR?" Follow these steps exactly.
+You are reviewing local commits for the YummyYummix codebase. This is a pre-PR self-review — same rigor as `/review-pr`, but oriented around "is this ready to become a PR?" Follow these steps exactly.
 
 ### Step 0: Determine Commit Scope
 
@@ -97,8 +96,9 @@ For every finding, capture internally:
 
 Also prepare:
 - **Highlights** — Good patterns, clean implementations, smart design choices.
-- **Recommendations** — High-value improvements related to the changes but outside Findings. Do NOT repeat findings.
 - **Potential Misses** — Areas the review couldn't fully evaluate.
+
+For Suggestion-level findings: only include ones you actively recommend. If a suggestion isn't worth doing, omit it entirely.
 
 **Documentation check:** Flag when changes introduce or modify patterns that are documented in `CLAUDE.md`, `docs/agent-guidelines/`, or `docs/architecture/` but the docs weren't updated to match.
 
@@ -128,7 +128,7 @@ The report has **two sections**: a short human-readable summary, and a detailed 
 - [Critical] `file:line` — one-sentence description
 - [Warning] `file:line` — one-sentence description
 
-**Nice to have**
+**Recommended**
 - [Suggestion] `file:line` — one-sentence description
 
 ---
@@ -153,15 +153,11 @@ You are the implementation agent for branch <branch-name>.
 - [Warning] `file:line` — description
   - Recommendation: <specific recommendation>
 
-## Suggestions — Implement If Worthwhile
+## Recommended Improvements
 
-- [Suggestion] `file:line` — description. Recommendation: <what to do>
+Only include suggestions the reviewer actively recommends. If it's not worth doing, don't list it.
 
-## Recommendations — Implement If Worthwhile
-
-| Rank | Recommendation | Impact | Effort |
-|------|----------------|--------|--------|
-| 1 | <high-value improvement outside Findings> | High | Low |
+- `file:line` — description. Do: <specific action>
 
 ## Potential Misses
 
@@ -171,7 +167,7 @@ Areas the review couldn't fully evaluate:
 ## Workflow
 
 1. Read the relevant files to understand context.
-2. Create an implementation plan that addresses all Critical/Warning findings plus any Suggestions/Recommendations worth implementing.
+2. Create an implementation plan that addresses all findings and recommended improvements.
 3. Implement the plan.
 4. Run tests and validation for changed areas.
 5. Report what was done and flag any issues encountered.

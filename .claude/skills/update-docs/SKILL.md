@@ -1,7 +1,6 @@
 ---
-name: yummyyummix:update-docs
+name: update-docs
 description: Sync project documentation after feature changes by reading affected files and updating guideline docs, shared blocks, and running sync scripts.
-disable-model-invocation: true
 ---
 
 # Update Docs Skill

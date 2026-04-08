@@ -3,7 +3,7 @@
 Use this prompt when invoking the skill directly:
 
 ```text
-Use $yummyyummix:review-plan to review the plan at <FILE_PATH_OR_PASTE_CONTENT>.
+Use $review-plan to review the plan at <FILE_PATH_OR_PASTE_CONTENT>.
 If no plan argument is provided, scan docs/plans/ for recent plans and ask me to confirm before reviewing.
 
 Output requirements:
@@ -15,16 +15,16 @@ Output requirements:
 ## Example Invocations
 
 ```text
-Use $yummyyummix:review-plan docs/plans/irmixy-completion-plan.md.
+Use $review-plan docs/plans/irmixy-completion-plan.md.
 Verify all file references and check architecture fit against CLAUDE.md patterns.
 ```
 
 ```text
-Use $yummyyummix:review-plan.
+Use $review-plan.
 ```
 
 ```text
-Use $yummyyummix:review-plan to review the following plan:
+Use $review-plan to review the following plan:
 
 # My Plan
 ## Problem

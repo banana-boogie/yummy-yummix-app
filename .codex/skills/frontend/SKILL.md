@@ -1,5 +1,5 @@
 ---
-name: "yummyyummix:frontend"
+name: "frontend"
 description: "Frontend engineer for YummyYummix. Builds React Native (Expo) screens, components, services, hooks, and UI features with NativeWind styling."
 ---
 

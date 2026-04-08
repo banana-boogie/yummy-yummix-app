@@ -1,5 +1,5 @@
 ---
-name: yummyyummix:backend
+name: backend
 description: Backend engineer for YummyYummix. Builds Supabase Edge Functions, shared utilities, and server-side application logic in Deno/TypeScript.
 tools: Read, Glob, Grep, Edit, Write, Bash
 model: opus
