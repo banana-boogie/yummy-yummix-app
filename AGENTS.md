@@ -762,6 +762,8 @@ For significant features, follow this cycle. Not every task needs the full cycle
 - Style/layout tweaks
 - Adding tests to existing code
 
+**Tip:** For single-AI guided development, `/build-feature` (Claude) or `$build-feature` (Codex) provides a structured 7-phase workflow with built-in checkpoints.
+
 #### The Cycle
 
 **Phase 1: Design**
