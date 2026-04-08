@@ -813,7 +813,7 @@ For significant features, follow this cycle. Not every task needs the full cycle
 
 #### The Cycle
 
-For full guided development, use `/build-feature` (Claude) or `$build-feature` (Codex). It covers discovery, exploration, design, implementation, review, and documentation with built-in checkpoints. The phases below describe the same process for manual orchestration.
+Start with `/build-feature` (Claude) or `$build-feature` (Codex) for guided discovery, design, and implementation (Phases 1-3). Then follow Phases 4-7 below for cross-AI review, testing, and PR — these require human orchestration between platforms.
 
 **Phase 1: Design**
 1. Create a detailed plan for the task
