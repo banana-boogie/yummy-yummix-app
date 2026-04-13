@@ -9,8 +9,10 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { createUserClient } from "../_shared/supabase-client.ts";
 import { validateAuth } from "../_shared/auth.ts";
 import { normalizeMealTypes } from "./meal-types.ts";
+import { generatePlan } from "./plan-generator.ts";
 
 import {
+  type GeneratePlanPayload,
   type GeneratePlanResponse,
   type GenerateShoppingListResponse,
   type GetCurrentPlanResponse,
@@ -185,12 +187,13 @@ async function handleGetCurrentPlan(
 
 async function handleGeneratePlan(
   payload: Record<string, unknown>,
-  _userId: string,
-  _supabase: UserClient,
+  userId: string,
+  supabase: UserClient,
 ): Promise<Response> {
+  let typedPayload: GeneratePlanPayload;
   try {
-    requireString(payload, "weekStart");
-    parseDayIndexArray(payload.dayIndexes, "dayIndexes");
+    const weekStart = requireString(payload, "weekStart");
+    const dayIndexes = parseDayIndexArray(payload.dayIndexes, "dayIndexes");
 
     const rawMealTypes = payload.mealTypes;
     if (!Array.isArray(rawMealTypes) || rawMealTypes.length === 0) {
@@ -199,16 +202,53 @@ async function handleGeneratePlan(
     if (rawMealTypes.some((entry) => typeof entry !== "string")) {
       throw new Error("mealTypes entries must be strings");
     }
+    // Validate canonical mapping; we keep raw labels so comida displays as comida.
     normalizeMealTypes(rawMealTypes as string[]);
+
+    const busyDays = payload.busyDays !== undefined
+      ? parseDayIndexArray(payload.busyDays, "busyDays")
+      : undefined;
+
+    if (
+      payload.preferLeftoversForLunch !== undefined &&
+      typeof payload.preferLeftoversForLunch !== "boolean"
+    ) {
+      throw new Error("preferLeftoversForLunch must be a boolean");
+    }
+
+    if (
+      payload.replaceExisting !== undefined &&
+      typeof payload.replaceExisting !== "boolean"
+    ) {
+      throw new Error("replaceExisting must be a boolean");
+    }
+
+    typedPayload = {
+      weekStart,
+      dayIndexes,
+      mealTypes: rawMealTypes as string[],
+      busyDays,
+      preferLeftoversForLunch: payload.preferLeftoversForLunch as
+        | boolean
+        | undefined,
+      replaceExisting: payload.replaceExisting as boolean | undefined,
+    };
   } catch (error) {
     return errorResponse("INVALID_INPUT", (error as Error).message);
   }
 
-  const response: GeneratePlanResponse = {
-    plan: null,
-    isPartial: true,
-    missingSlots: [],
-    warnings: [stubWarning("generate_plan")],
+  const result = await generatePlan({
+    payload: typedPayload,
+    userId,
+    supabase: supabase as never,
+  });
+
+  const response: GeneratePlanResponse & { debugTrace: unknown } = {
+    plan: result.plan,
+    isPartial: result.isPartial,
+    missingSlots: result.missingSlots,
+    warnings: result.warnings,
+    debugTrace: result.debugTrace,
   };
   return jsonResponse(response);
 }

@@ -77,7 +77,12 @@ Deno.test("meal-planner rejects unknown actions with INVALID_INPUT", async () =>
   assertStringIncludes(body.error.message, "Unknown action");
 });
 
-Deno.test("generate_plan accepts comida and returns a typed stub", async () => {
+Deno.test("generate_plan accepts comida without raising INVALID_INPUT", async () => {
+  // generate_plan now runs the real orchestrator. With the stub supabase
+  // returned by mockDependencies it will fail at the first DB call and we
+  // expect the outer handler to wrap that as INTERNAL_ERROR (500). The key
+  // guarantee tested here is that `comida` passes validation — we should
+  // not see INVALID_INPUT.
   const req = createAuthenticatedRequest({
     action: "generate_plan",
     payload: {
@@ -89,11 +94,8 @@ Deno.test("generate_plan accepts comida and returns a typed stub", async () => {
   const response = await handleMealPlannerRequest(req, mockDependencies);
   const body = await response.json();
 
-  assertEquals(response.status, 200);
-  assertEquals(body.plan, null);
-  assertEquals(body.isPartial, true);
-  assertEquals(body.missingSlots, []);
-  assertEquals(body.warnings, ["STUB: generate_plan not yet implemented"]);
+  assertEquals(response.status, 500);
+  assertEquals(body.error.code, "INTERNAL_ERROR");
 });
 
 Deno.test("get_preferences returns the PR #1 default preference stub", async () => {

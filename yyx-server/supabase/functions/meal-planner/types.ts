@@ -99,6 +99,13 @@ export type SourceKind = typeof SOURCE_KINDS[number];
 export type PairingBasis = typeof PAIRING_BASES[number];
 export type MealPlanStatus = typeof MEAL_PLAN_STATUSES[number];
 
+export type NutritionGoal =
+  | "no_preference"
+  | "eat_healthier"
+  | "lose_weight"
+  | "more_protein"
+  | "less_sugar";
+
 // ============================================================
 // Error Codes
 // ============================================================
