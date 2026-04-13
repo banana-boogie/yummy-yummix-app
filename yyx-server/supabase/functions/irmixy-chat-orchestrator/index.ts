@@ -16,7 +16,12 @@ import type { CostContext } from "../_shared/ai-gateway/types.ts";
 import { SessionOwnershipError } from "./types.ts";
 import { createLogger, generateRequestId } from "./logger.ts";
 import { ensureSessionId } from "./session.ts";
-import { errorResponse, finalizeResponse } from "./response-builder.ts";
+import {
+  buildSuggestions,
+  errorResponse,
+  finalizeResponse,
+  type ResponseCategory,
+} from "./response-builder.ts";
 import { buildActions } from "./action-builder.ts";
 import { parseAndValidateRequest } from "./request-handler.ts";
 import { createSSEResponse } from "./sse-stream.ts";
@@ -87,7 +92,7 @@ serve(async (req) => {
       stream.send({ type: "status", status: "thinking" });
 
       // Build context (user profile, conversation history, system prompt)
-      const { userContext, messages } = await buildRequestContext(
+      const { userContext, messages, planContext } = await buildRequestContext(
         supabase,
         userId,
         sessionId,
@@ -130,6 +135,18 @@ serve(async (req) => {
         loopResult.appActionResult,
       );
 
+      // Pick response category for hard-coded follow-up chips.
+      // Chips are NOT LLM-generated — see response-builder.buildSuggestions.
+      const category: ResponseCategory =
+        loopResult.customRecipeResult?.recipe || loopResult.recipes?.length
+          ? "recipe"
+          : "general";
+      const suggestions = buildSuggestions(
+        category,
+        userContext.language,
+        planContext,
+      );
+
       const response = await finalizeResponse(
         supabase,
         sessionId,
@@ -139,6 +156,7 @@ serve(async (req) => {
         loopResult.recipes,
         loopResult.customRecipeResult,
         actions.length > 0 ? actions : undefined,
+        suggestions,
       );
       const finalizeMs = Math.round(performance.now() - phaseStart);
       const totalMs = Math.round(performance.now() - startTime);

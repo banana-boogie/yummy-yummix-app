@@ -23,6 +23,8 @@ export interface ChatMessage {
     customRecipe?: GeneratedRecipe;
     safetyFlags?: SafetyFlags;
     actions?: Action[];
+    /** Hard-coded follow-up chips provided by the backend (never LLM-generated). */
+    suggestions?: import('@/types/irmixy').Suggestion[];
     // Error state flag for styling error messages
     hasError?: boolean;
     // ID of the saved custom recipe (to avoid duplicate saves)

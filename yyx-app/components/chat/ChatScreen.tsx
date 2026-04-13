@@ -16,7 +16,8 @@ import { TypingDots } from '@/components/chat/TypingIndicator';
 
 import { ChatMessageItem } from '@/components/chat/ChatMessageItem';
 
-import { ChatInputBar } from '@/components/chat/ChatInputBar';
+import { ChatInputBar, type ChatInputBarHandle } from '@/components/chat/ChatInputBar';
+import { IrmixyHomeActions } from '@/components/chat/IrmixyHomeActions';
 import { SPACING , COLORS } from '@/constants/design-tokens';
 import { useMessageStreaming } from '@/hooks/chat/useMessageStreaming';
 import { useSmartScroll } from '@/hooks/chat/useSmartScroll';
@@ -84,6 +85,7 @@ export function ChatScreen({
     const { userProfile } = useUserProfile();
     const queryClient = useQueryClient();
     const insets = useSafeAreaInsets();
+    const inputBarRef = useRef<ChatInputBarHandle>(null);
 
     // --- Message state ---
     // Always use internal state for rendering. When onMessagesChange is provided,
@@ -203,6 +205,7 @@ export function ChatScreen({
         isRecipeGenerating,
         currentStatus,
         handleSend,
+        handleSendMessage,
         resetStreamingState,
     } = useMessageStreaming({
         user,
@@ -241,6 +244,21 @@ export function ChatScreen({
 
     // Wire speech recognition to streaming hook's setInputText
     setInputTextRef.current = setInputText;
+
+    // Home actions + suggestion chips: send a message immediately.
+    const handleHomeSend = useCallback((message: string) => {
+        handleSendMessage(message);
+    }, [handleSendMessage]);
+
+    // Home actions "focus_input" variant: focus the input, optionally hinting.
+    // Placeholder is dropped into setInputText as a seed only when the input
+    // is empty so we don't clobber something the user was typing.
+    const handleHomeFocusInput = useCallback((placeholder?: string) => {
+        if (placeholder && !inputText.trim()) {
+            setInputText(placeholder);
+        }
+        inputBarRef.current?.focus();
+    }, [inputText, setInputText]);
 
     // --- Message actions hook ---
     const {
@@ -382,9 +400,10 @@ export function ChatScreen({
                 onCopyMessage={handleCopyMessage}
                 onStartCooking={handleStartCooking}
                 onActionPress={handleActionPress}
+                onSuggestionPress={handleHomeSend}
             />
         );
-    }, [lastMessageId, isLoading, isRecipeGenerating, currentStatus, statusText, handleCopyMessage, handleStartCooking, handleActionPress]);
+    }, [lastMessageId, isLoading, isRecipeGenerating, currentStatus, statusText, handleCopyMessage, handleStartCooking, handleActionPress, handleHomeSend]);
 
     if (!user) {
         return (
@@ -434,9 +453,15 @@ export function ChatScreen({
                         </View>
                         <Image
                             source={require('@/assets/images/irmixy-avatar/irmixy-with-book.png')}
-                            style={{ width: 240, height: 240 }}
+                            style={{ width: 200, height: 200 }}
                             contentFit="contain"
                         />
+                        <View className="mt-md w-full">
+                            <IrmixyHomeActions
+                                onSendMessage={handleHomeSend}
+                                onFocusInput={handleHomeFocusInput}
+                            />
+                        </View>
                     </View>
                 }
             />
@@ -466,6 +491,7 @@ export function ChatScreen({
             )}
 
             <ChatInputBar
+                ref={inputBarRef}
                 inputText={inputText}
                 setInputText={setInputText}
                 isLoading={isLoading}

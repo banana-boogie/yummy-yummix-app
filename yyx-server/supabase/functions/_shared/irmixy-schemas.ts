@@ -36,6 +36,11 @@ export const ActionSchema = z.object({
     "set_timer",
     "resume_cooking",
     "share_recipe",
+    // Planner actions — registered so the client schema accepts them.
+    // Frontend wiring (navigation/add flow) lands in a follow-up PR; for now
+    // the client gracefully no-ops when it receives these.
+    "view_in_planner",
+    "add_to_shopping_list",
   ]),
   label: z.string(),
   payload: z.record(z.unknown()),

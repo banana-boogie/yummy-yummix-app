@@ -17,6 +17,7 @@ import {
   buildUserContextBlock,
 } from "../_shared/system-prompt-builder.ts";
 import { getLanguageName } from "../_shared/locale-utils.ts";
+import type { PlanContext } from "./plan-context.ts";
 
 /**
  * Build the Thermomix quick-reference block for chat.
@@ -118,6 +119,7 @@ export function buildSystemPrompt(
   userContext: UserContext,
   mealContext?: { mealType?: string; timePreference?: string },
   cookingContext?: CookingContext,
+  planContext?: PlanContext | null,
 ): string {
   const userContextBlock = buildUserContextBlock(userContext);
   const lang = getLanguageName(userContext.locale);
@@ -241,6 +243,27 @@ Do NOT search for recipes or generate new ones — the user is mid-cook.
 - Prefer shorter answers — the user may be cooking hands-on — but keep your usual warm personality.`;
   }
 
+  // Add terse meal plan context when the user has an active weekly plan.
+  // Kept short so the LLM can reference the next meal naturally without
+  // treating the block as instructions to quote verbatim.
+  let planContextSection = "";
+  if (planContext) {
+    const lines: string[] = [
+      `\n\nMEAL PLAN CONTEXT:`,
+      `The user has an active meal plan for the week starting ${planContext.weekStart}.`,
+    ];
+    if (planContext.nextMeal) {
+      const title = planContext.nextMeal.title ?? "an upcoming meal";
+      lines.push(
+        `Their next planned meal is ${planContext.nextMeal.mealType} on ${planContext.nextMeal.plannedDate}: ${title}.`,
+      );
+    }
+    lines.push(
+      `Reference the plan naturally when relevant. Do NOT modify the plan — planner edits are not yet wired up through chat.`,
+    );
+    planContextSection = lines.join("\n");
+  }
+
   return basePrompt + thermomixSection + mealContextSection +
-    cookingHelperSection;
+    cookingHelperSection + planContextSection;
 }
