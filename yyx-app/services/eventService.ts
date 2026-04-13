@@ -1,18 +1,12 @@
 import { supabase } from '@/lib/supabase';
 import { AppState, Platform } from 'react-native';
 import logger from '@/services/logger';
+import type { EventName, EventPayloadMap } from './analytics/eventTypes';
 
-type EventType =
-  | 'view_recipe'
-  | 'cook_start'
-  | 'cook_complete'
-  | 'search'
-  | 'recipe_generate'
-  | 'action_execute';
 type RecipeTable = 'recipes' | 'user_recipes';
 
 interface QueuedEvent {
-  eventType: EventType;
+  eventType: EventName;
   payload: Record<string, unknown>;
   timestamp: string;
 }
@@ -98,9 +92,25 @@ class EventService {
   }
 
   /**
+   * Strictly-typed event tracking entry point.
+   *
+   * Usage:
+   *   eventService.trackEvent('meal_plan_approved', { mealPlanId, weekStart, ... });
+   *
+   * TypeScript enforces that the payload matches the shape declared in
+   * `EventPayloadMap` for the given event name.
+   *
+   * NOTE: Call-sites for planner/shopping/explore/chat events are intentionally
+   * NOT wired up in this PR — feature PRs wire them in.
+   */
+  trackEvent<K extends EventName>(eventName: K, payload: EventPayloadMap[K]): void {
+    this.queueEvent(eventName, payload as unknown as Record<string, unknown>);
+  }
+
+  /**
    * Queue an event for batched sending.
    */
-  private queueEvent(eventType: EventType, payload: Record<string, unknown>): void {
+  private queueEvent(eventType: EventName, payload: Record<string, unknown>): void {
     if (!this.cachedUserId) {
       // Try to get user synchronously from cache, otherwise skip
       return;
@@ -261,5 +271,12 @@ class EventService {
 
 // Export singleton instance
 export const eventService = new EventService();
+
+export type {
+  EventName,
+  EventPayload,
+  EventPayloadMap,
+  AnalyticsEvent,
+} from './analytics/eventTypes';
 
 export default eventService;

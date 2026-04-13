@@ -246,6 +246,59 @@ describe('eventService', () => {
     expect(insertMock).not.toHaveBeenCalled();
   });
 
+  it('trackEvent queues typed planner events with camelCase payloads', async () => {
+    const insertMock = jest.fn().mockResolvedValue({ error: null });
+
+    jest.doMock('@/lib/supabase', () => ({
+      supabase: {
+        auth: {
+          getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
+          onAuthStateChange: jest.fn(() => ({
+            data: { subscription: { unsubscribe: jest.fn() } },
+          })),
+        },
+        from: jest.fn(() => ({
+          insert: insertMock,
+        })),
+      },
+    }));
+
+    jest.doMock('react-native', () => ({
+      AppState: {
+        addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+      },
+      Platform: { OS: 'ios' },
+    }));
+
+    const { eventService } = require('../eventService');
+    await flushPromises();
+
+    eventService.trackEvent('meal_plan_approved', {
+      mealPlanId: 'plan-1',
+      weekStart: '2026-04-13',
+      requestedDayIndexes: [0, 1, 2],
+      requestedMealTypes: ['dinner'],
+      generatedSlotCount: 3,
+      approvalDurationMs: 12000,
+      isFirstWeekPlan: true,
+      shoppingListId: null,
+    });
+
+    await eventService.flush();
+
+    expect(insertMock).toHaveBeenCalledTimes(1);
+    const [row] = insertMock.mock.calls[0][0];
+    expect(row.event_type).toBe('meal_plan_approved');
+    expect(row.payload).toEqual(
+      expect.objectContaining({
+        mealPlanId: 'plan-1',
+        weekStart: '2026-04-13',
+        generatedSlotCount: 3,
+        isFirstWeekPlan: true,
+      })
+    );
+  });
+
   it('cleans up subscriptions on destroy', async () => {
     const removeListenerMock = jest.fn();
     const insertMock = jest.fn().mockResolvedValue({ error: null });
