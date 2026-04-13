@@ -6,10 +6,7 @@ import {
   createAuthenticatedRequest,
   createMockRequest,
 } from "../_shared/test-helpers/mocks.ts";
-import {
-  DEFAULT_PREFERENCES,
-  handleMealPlannerRequest,
-} from "./index.ts";
+import { DEFAULT_PREFERENCES, handleMealPlannerRequest } from "./index.ts";
 import { MEAL_PLAN_ACTIONS, type MealPlanAction } from "./types.ts";
 
 const expectedActions: MealPlanAction[] = [
