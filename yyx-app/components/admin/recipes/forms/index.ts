@@ -4,3 +4,4 @@ export { StepsForm } from './stepsForm/RecipeStepsForm';
 export { TagsForm } from './tagsForm/TagsForm';
 export { ReviewForm } from './reviewForm/ReviewForm';
 export { RecipeKitchenToolsForm } from './kitchenToolsForm/RecipeKitchenToolsForm';
+export { MyWeekSetupForm } from './myWeekSetupForm/MyWeekSetupForm';

@@ -212,6 +212,16 @@ export const parseRecipeMarkdown = async (markdown: string): Promise<ParseRecipe
       prepTime: data.prepTime,
       difficulty: data.difficulty as RecipeDifficulty,
       portions: data.portions,
+      // Planner (My Week Setup) metadata — best-guess from AI, admin can override
+      plannerRole: data.plannerRole ?? null,
+      foodGroups: data.foodGroups ?? null,
+      isCompleteMeal: data.isCompleteMeal ?? null,
+      equipmentTags: data.equipmentTags ?? null,
+      cookingLevel: data.cookingLevel ?? null,
+      leftoversFriendly: data.leftoversFriendly ?? null,
+      batchFriendly: data.batchFriendly ?? null,
+      maxHouseholdSizeSupported: data.maxHouseholdSizeSupported ?? null,
+      requiresMultiBatchNote: data.requiresMultiBatchNote || null,
     };
     
     // Process ingredients

@@ -11,6 +11,10 @@ export const useRecipeNavigation = (recipe: Partial<AdminRecipe>, currentStep: C
     }
 
     if (currentStep === CreateRecipeStep.TAGS) {
+      return i18n.t('admin.recipes.form.myWeekSetup.title');
+    }
+
+    if (currentStep === CreateRecipeStep.MY_WEEK_SETUP) {
       return i18n.t('admin.translate.translationStep');
     }
 

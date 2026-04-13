@@ -20,7 +20,8 @@ import {
   StepsForm,
   TagsForm,
   ReviewForm,
-  RecipeKitchenToolsForm
+  RecipeKitchenToolsForm,
+  MyWeekSetupForm
 } from '@/components/admin/recipes/forms';
 import { TranslationStep } from '@/components/admin/recipes/forms/translationForm/TranslationStep';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
@@ -83,6 +84,8 @@ export default function NewRecipePage() {
         return <StepsForm recipe={recipe as AdminRecipe} onUpdateRecipe={updateRecipe} errors={errors} authoringLocale={authoringLocale} displayLocale={displayLocale} />;
       case CreateRecipeStep.TAGS:
         return <TagsForm recipe={recipe} onUpdateRecipe={updateRecipe} errors={errors} displayLocale={displayLocale} />;
+      case CreateRecipeStep.MY_WEEK_SETUP:
+        return <MyWeekSetupForm recipe={recipe} onUpdateRecipe={updateRecipe} displayLocale={displayLocale} />;
       case CreateRecipeStep.TRANSLATIONS:
         return <TranslationStep recipe={recipe} authoringLocale={authoringLocale} onUpdateRecipe={updateRecipe} />;
       case CreateRecipeStep.REVIEW:

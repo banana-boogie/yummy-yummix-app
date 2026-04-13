@@ -9,6 +9,7 @@ import { StepsForm } from '@/components/admin/recipes/forms/stepsForm/RecipeStep
 import { TagsForm } from '@/components/admin/recipes/forms/tagsForm/TagsForm';
 import { ReviewForm } from '@/components/admin/recipes/forms/reviewForm/ReviewForm';
 import { RecipeKitchenToolsForm } from '@/components/admin/recipes/forms/kitchenToolsForm/RecipeKitchenToolsForm';
+import { MyWeekSetupForm } from '@/components/admin/recipes/forms/myWeekSetupForm/MyWeekSetupForm';
 import { AdminRecipe, getTranslatedField } from '@/types/recipe.admin.types';
 import { adminRecipeService } from '@/services/admin/adminRecipeService';
 import { friendlySaveError } from '@/hooks/admin/useAdminRecipeForm';
@@ -174,6 +175,14 @@ export default function EditRecipePage() {
             recipe={recipe}
             onUpdateRecipe={handleUpdateRecipe}
             errors={errors}
+            displayLocale={displayLocale}
+          />
+        );
+      case CreateRecipeStep.MY_WEEK_SETUP:
+        return (
+          <MyWeekSetupForm
+            recipe={recipe}
+            onUpdateRecipe={handleUpdateRecipe}
             displayLocale={displayLocale}
           />
         );

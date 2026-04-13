@@ -64,6 +64,17 @@ class AdminRecipeService extends BaseService {
         is_published,
         created_at,
         updated_at,
+        planner_role,
+        food_groups,
+        is_complete_meal,
+        equipment_tags,
+        cooking_level,
+        leftovers_friendly,
+        batch_friendly,
+        max_household_size_supported,
+        requires_multi_batch_note,
+        verified_at,
+        verified_by,
         translations:recipe_translations (
           locale,
           name,
@@ -204,6 +215,17 @@ class AdminRecipeService extends BaseService {
         totalTime: recipe.totalTime,
         portions: recipe.portions,
         isPublished: recipe.isPublished,
+        plannerRole: recipe.plannerRole ?? null,
+        foodGroups: recipe.foodGroups ?? null,
+        isCompleteMeal: recipe.isCompleteMeal ?? null,
+        equipmentTags: recipe.equipmentTags ?? null,
+        cookingLevel: recipe.cookingLevel ?? null,
+        leftoversFriendly: recipe.leftoversFriendly ?? null,
+        batchFriendly: recipe.batchFriendly ?? null,
+        maxHouseholdSizeSupported: recipe.maxHouseholdSizeSupported ?? null,
+        requiresMultiBatchNote: recipe.requiresMultiBatchNote ?? null,
+        verifiedAt: recipe.verifiedAt ?? null,
+        verifiedBy: recipe.verifiedBy ?? null,
       });
 
       const { data: recipeId, error: recipeError } = await this.supabase
@@ -267,6 +289,17 @@ class AdminRecipeService extends BaseService {
     if (recipe.totalTime !== undefined) nonTranslatableFields.totalTime = recipe.totalTime;
     if (recipe.portions !== undefined) nonTranslatableFields.portions = recipe.portions;
     if (recipe.isPublished !== undefined) nonTranslatableFields.isPublished = recipe.isPublished;
+    if (recipe.plannerRole !== undefined) nonTranslatableFields.plannerRole = recipe.plannerRole;
+    if (recipe.foodGroups !== undefined) nonTranslatableFields.foodGroups = recipe.foodGroups;
+    if (recipe.isCompleteMeal !== undefined) nonTranslatableFields.isCompleteMeal = recipe.isCompleteMeal;
+    if (recipe.equipmentTags !== undefined) nonTranslatableFields.equipmentTags = recipe.equipmentTags;
+    if (recipe.cookingLevel !== undefined) nonTranslatableFields.cookingLevel = recipe.cookingLevel;
+    if (recipe.leftoversFriendly !== undefined) nonTranslatableFields.leftoversFriendly = recipe.leftoversFriendly;
+    if (recipe.batchFriendly !== undefined) nonTranslatableFields.batchFriendly = recipe.batchFriendly;
+    if (recipe.maxHouseholdSizeSupported !== undefined) nonTranslatableFields.maxHouseholdSizeSupported = recipe.maxHouseholdSizeSupported;
+    if (recipe.requiresMultiBatchNote !== undefined) nonTranslatableFields.requiresMultiBatchNote = recipe.requiresMultiBatchNote;
+    if (recipe.verifiedAt !== undefined) nonTranslatableFields.verifiedAt = recipe.verifiedAt;
+    if (recipe.verifiedBy !== undefined) nonTranslatableFields.verifiedBy = recipe.verifiedBy;
 
     if (recipe.pictureUrl && typeof recipe.pictureUrl === 'object') {
       const oldRecipe = await this.supabase
@@ -766,6 +799,17 @@ class AdminRecipeService extends BaseService {
       isPublished: recipe.isPublished ?? recipe.is_published,
       createdAt: recipe.createdAt ?? recipe.created_at,
       updatedAt: recipe.updatedAt ?? recipe.updated_at,
+      plannerRole: recipe.plannerRole ?? recipe.planner_role ?? null,
+      foodGroups: recipe.foodGroups ?? recipe.food_groups ?? null,
+      isCompleteMeal: recipe.isCompleteMeal ?? recipe.is_complete_meal ?? null,
+      equipmentTags: recipe.equipmentTags ?? recipe.equipment_tags ?? null,
+      cookingLevel: recipe.cookingLevel ?? recipe.cooking_level ?? null,
+      leftoversFriendly: recipe.leftoversFriendly ?? recipe.leftovers_friendly ?? null,
+      batchFriendly: recipe.batchFriendly ?? recipe.batch_friendly ?? null,
+      maxHouseholdSizeSupported: recipe.maxHouseholdSizeSupported ?? recipe.max_household_size_supported ?? null,
+      requiresMultiBatchNote: recipe.requiresMultiBatchNote ?? recipe.requires_multi_batch_note ?? null,
+      verifiedAt: recipe.verifiedAt ?? recipe.verified_at ?? null,
+      verifiedBy: recipe.verifiedBy ?? recipe.verified_by ?? null,
       translations: (recipe.translations || []).map((t: any) => ({
         locale: t.locale,
         name: t.name || '',

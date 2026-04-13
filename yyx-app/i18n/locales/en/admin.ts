@@ -469,6 +469,98 @@ export const admin = {
         allCategories: "All Categories",
         clearFilters: "Clear filters",
       },
+      myWeekSetup: {
+        title: "My Week Setup",
+        eligibility: {
+          ready: "Ready for My Week",
+          missingTitle: "Missing info",
+          need: "Need:",
+          missing: {
+            plannerRole: "recipe role",
+            foodGroups: "what's in it",
+            mealTypes: "meal types",
+          },
+        },
+        plannerRole: {
+          label: "Planner role",
+          placeholder: "Select a role",
+          tooltip:
+            "What role does this recipe play in a meal? A main dish is the star. A side dish accompanies it.",
+          main: "Main dish",
+          side: "Side dish",
+          dessert: "Dessert",
+          snack: "Snack",
+          condiment: "Condiment",
+        },
+        foodGroups: {
+          label: "What's in this recipe?",
+          placeholder: "Select all that apply",
+          tooltip:
+            "Check all that apply. Chicken pasta has both protein AND carbs. A salad has vegetables. This helps the planner build complete meals.",
+          protein: "Has protein",
+          carb: "Has carbs",
+          veg: "Has vegetables",
+          dessert: "Is a dessert",
+        },
+        isCompleteMeal: {
+          label: "Is this a complete meal?",
+          tooltip:
+            "Turn on if this recipe covers a full meal by itself — no sides needed.",
+        },
+        equipment: {
+          label: "Equipment needed",
+          placeholder: "Select equipment",
+          tooltip: "Which tools does the cook need? Select all that apply.",
+          thermomix: "Thermomix",
+          airFryer: "Air fryer",
+          oven: "Oven",
+          stovetop: "Stovetop",
+          none: "No equipment needed",
+        },
+        mealTypes: {
+          label: "Meal types",
+          placeholder: "Select meal types",
+          tooltip:
+            "When could someone eat this? Most main dishes work for both lunch and dinner.",
+          empty:
+            "No meal-type tags found. Create tags under a 'Meal Type' category to enable this.",
+        },
+        cookingLevel: {
+          label: "Who is this recipe for?",
+          placeholder: "Select a level",
+          tooltip: "The planner matches recipes to the cook's confidence level.",
+          beginner: "Beginner",
+          intermediate: "Intermediate",
+          experienced: "Experienced",
+        },
+        leftoversFriendly: {
+          label: "Makes good leftovers?",
+          tooltip:
+            "Turn on if there's usually food left over that can be used the next day.",
+        },
+        batchFriendly: {
+          label: "Can this recipe be doubled?",
+          tooltip:
+            "Can the cook make two batches easily? Turn off for recipes that are tricky to scale.",
+        },
+        maxHouseholdSize: {
+          label: "Maximum household size this can serve?",
+          tooltip:
+            "Optional. The biggest household this recipe can realistically serve in one batch. If blank, the planner uses portions as the limit.",
+        },
+        scalingNotes: {
+          label: "Scaling notes",
+          placeholder:
+            "e.g., 'Thermomix bowl fits one batch of 4 servings. For 6+ people, blend sauce in two batches.'",
+          tooltip: "Any notes about making more.",
+        },
+        verified: {
+          label: "YummyYummix Verified",
+          tooltip:
+            "Turn on if the YummyYummix team has actually cooked and tested this recipe.",
+          verifiedAt: "Verified on {{date}}",
+        },
+      },
       reviewInfo: {
         title: "Review",
         reviewHelperText: "Review your recipe before publishing",

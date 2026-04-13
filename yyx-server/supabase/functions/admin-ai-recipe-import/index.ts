@@ -75,6 +75,17 @@ FORMATTING RULES:
 - ONE Thermomix instruction per step only. Split into two steps if needed.
 - Metric system: grams (g) and Celsius (°C).
 - Ingredient name field = base ingredient ONLY. No quantities, units, or prep adjectives. Put unit in measurementUnitID, prep state in notes.
+
+MEAL PLANNER METADATA (best-guess from recipe text, admin will override):
+- plannerRole: one of "main", "side", "dessert", "snack", "condiment". Pick the single best fit. Do NOT use "beverage" — drinks belong in meal types, not planner_role.
+- foodGroups: array of "protein", "carb", "veg", "dessert". Include every group the recipe clearly contains. Chicken pasta = ["protein","carb"]. Salad = ["veg"]. Brownies = ["dessert"].
+- isCompleteMeal: true only if the dish by itself covers a full meal (e.g., hearty soup with protein + carb + veg). Otherwise false.
+- equipmentTags: array of "thermomix", "air_fryer", "oven", "stovetop", "none". Infer from the steps. Use "none" only if the recipe needs no cooking equipment.
+- cookingLevel: "beginner" for simple assembly/mixing, "intermediate" for standard home cooking techniques, "experienced" for advanced technique or timing.
+- leftoversFriendly: true if the dish reheats or keeps well the next day.
+- batchFriendly: true if it's reasonable to double the batch; false for tricky scales (soufflé, delicate sauces).
+- maxHouseholdSizeSupported: optional integer. Only set if the recipe notes a capacity limit (e.g., "fits one Thermomix bowl"). Otherwise null.
+- requiresMultiBatchNote: optional short note on scaling if the recipe implies batching. Otherwise empty string.
 `;
 
 // =============================================================================
@@ -454,6 +465,55 @@ const jsonSchema = {
       description: "Recipe tags, lowercase, no # prefix.",
       items: { type: "string" },
     },
+    plannerRole: {
+      type: ["string", "null"],
+      enum: ["main", "side", "dessert", "snack", "condiment", null],
+      description:
+        "Best-guess planner role. Do NOT use 'beverage' — drinks go in meal types.",
+    },
+    foodGroups: {
+      type: "array",
+      description: "Food groups present in the recipe.",
+      items: {
+        type: "string",
+        enum: ["protein", "carb", "veg", "dessert"],
+      },
+    },
+    isCompleteMeal: {
+      type: "boolean",
+      description:
+        "True if the recipe by itself covers a full meal (protein + carb + veg).",
+    },
+    equipmentTags: {
+      type: "array",
+      description: "Equipment needed to cook this recipe.",
+      items: {
+        type: "string",
+        enum: ["thermomix", "air_fryer", "oven", "stovetop", "none"],
+      },
+    },
+    cookingLevel: {
+      type: ["string", "null"],
+      enum: ["beginner", "intermediate", "experienced", null],
+      description: "Best-guess cook skill level required.",
+    },
+    leftoversFriendly: {
+      type: "boolean",
+      description: "True if the dish reheats well the next day.",
+    },
+    batchFriendly: {
+      type: "boolean",
+      description: "True if the recipe scales up easily (can be doubled).",
+    },
+    maxHouseholdSizeSupported: {
+      type: ["number", "null"],
+      description:
+        "Optional capacity limit (e.g., 'fits one Thermomix bowl'). null if not implied.",
+    },
+    requiresMultiBatchNote: {
+      type: "string",
+      description: "Short scaling note, or empty string if none.",
+    },
   },
   required: [
     "translations",
@@ -465,6 +525,15 @@ const jsonSchema = {
     "ingredients",
     "steps",
     "tags",
+    "plannerRole",
+    "foodGroups",
+    "isCompleteMeal",
+    "equipmentTags",
+    "cookingLevel",
+    "leftoversFriendly",
+    "batchFriendly",
+    "maxHouseholdSizeSupported",
+    "requiresMultiBatchNote",
   ],
   additionalProperties: false,
 };

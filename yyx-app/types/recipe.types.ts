@@ -18,7 +18,25 @@ export interface Recipe {
   isPublished: boolean;
   createdAt: string;
   updatedAt: string;
+  // Planner (My Week Setup) metadata
+  plannerRole?: PlannerRole | null;
+  foodGroups?: FoodGroup[] | null;
+  isCompleteMeal?: boolean | null;
+  equipmentTags?: EquipmentTag[] | null;
+  cookingLevel?: CookingLevel | null;
+  leftoversFriendly?: boolean | null;
+  batchFriendly?: boolean | null;
+  maxHouseholdSizeSupported?: number | null;
+  requiresMultiBatchNote?: string | null;
+  verifiedAt?: string | null;
+  verifiedBy?: string | null;
 }
+
+// Planner-related enums (stored as TEXT / TEXT[] in DB)
+export type PlannerRole = 'main' | 'side' | 'dessert' | 'snack' | 'condiment';
+export type FoodGroup = 'protein' | 'carb' | 'veg' | 'dessert';
+export type EquipmentTag = 'thermomix' | 'air_fryer' | 'oven' | 'stovetop' | 'none';
+export type CookingLevel = 'beginner' | 'intermediate' | 'experienced';
 
 // Enums
 export enum RecipeDifficulty {

@@ -474,6 +474,98 @@ export const admin = {
         allCategories: "Todas las Categorías",
         clearFilters: "Limpiar filtros",
       },
+      myWeekSetup: {
+        title: "Mi Semana",
+        eligibility: {
+          ready: "Lista para Mi Semana",
+          missingTitle: "Falta información",
+          need: "Falta:",
+          missing: {
+            plannerRole: "rol de la receta",
+            foodGroups: "qué contiene",
+            mealTypes: "tiempos de comida",
+          },
+        },
+        plannerRole: {
+          label: "Rol en la comida",
+          placeholder: "Selecciona un rol",
+          tooltip:
+            "¿Qué papel juega esta receta en una comida? Un plato fuerte es el protagonista. Una guarnición lo acompaña.",
+          main: "Plato fuerte",
+          side: "Guarnición",
+          dessert: "Postre",
+          snack: "Colación",
+          condiment: "Aderezo",
+        },
+        foodGroups: {
+          label: "¿Qué contiene esta receta?",
+          placeholder: "Selecciona todas las que apliquen",
+          tooltip:
+            "Marca todas las que apliquen. La pasta con pollo tiene proteína Y carbohidratos. Una ensalada tiene verduras. Esto ayuda al planificador a armar comidas completas.",
+          protein: "Tiene proteína",
+          carb: "Tiene carbohidratos",
+          veg: "Tiene verduras",
+          dessert: "Es un postre",
+        },
+        isCompleteMeal: {
+          label: "¿Es una comida completa?",
+          tooltip:
+            "Actívalo si esta receta cubre una comida completa por sí sola — sin necesidad de guarniciones.",
+        },
+        equipment: {
+          label: "Equipo necesario",
+          placeholder: "Selecciona el equipo",
+          tooltip: "¿Qué utensilios necesita la cocinera? Selecciona todos los que apliquen.",
+          thermomix: "Thermomix",
+          airFryer: "Freidora de aire",
+          oven: "Horno",
+          stovetop: "Estufa",
+          none: "No se necesita equipo",
+        },
+        mealTypes: {
+          label: "Tiempos de comida",
+          placeholder: "Selecciona los tiempos de comida",
+          tooltip:
+            "¿Cuándo se puede comer esto? La mayoría de los platos fuertes funcionan tanto para la comida como para la cena.",
+          empty:
+            "No se encontraron etiquetas de tiempo de comida. Crea etiquetas bajo la categoría 'Meal Type' para habilitar esto.",
+        },
+        cookingLevel: {
+          label: "¿Para quién es esta receta?",
+          placeholder: "Selecciona un nivel",
+          tooltip: "El planificador ajusta las recetas al nivel de confianza de quien cocina.",
+          beginner: "Principiante",
+          intermediate: "Intermedio",
+          experienced: "Con experiencia",
+        },
+        leftoversFriendly: {
+          label: "¿Genera buenos sobrantes?",
+          tooltip:
+            "Actívalo si suele sobrar comida que se pueda aprovechar al día siguiente.",
+        },
+        batchFriendly: {
+          label: "¿Se puede duplicar la receta?",
+          tooltip:
+            "¿Se pueden hacer dos tandas con facilidad? Desactívalo para recetas difíciles de escalar.",
+        },
+        maxHouseholdSize: {
+          label: "¿Tamaño máximo de hogar al que sirve?",
+          tooltip:
+            "Opcional. El hogar más grande al que esta receta puede servir realistamente en una sola tanda. Si se deja vacío, el planificador usará las porciones como límite.",
+        },
+        scalingNotes: {
+          label: "Notas para aumentar la receta",
+          placeholder:
+            "Ej.: 'El vaso de la Thermomix alcanza para una tanda de 4 porciones. Para 6 personas o más, licuar la salsa en dos tandas.'",
+          tooltip: "Cualquier nota sobre cómo hacer más cantidad.",
+        },
+        verified: {
+          label: "Verificado por YummyYummix",
+          tooltip:
+            "Actívalo si el equipo de YummyYummix ya cocinó y probó esta receta.",
+          verifiedAt: "Verificado el {{date}}",
+        },
+      },
       reviewInfo: {
         title: "Revisión",
         reviewHelperText: "Revisa tu receta antes de publicar",
