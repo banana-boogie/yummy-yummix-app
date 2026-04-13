@@ -156,7 +156,8 @@ CREATE TABLE public.meal_plan_slot_components (
             AND recipe_id IS NOT NULL
             AND source_component_id IS NULL)
         OR (source_kind = 'leftover'
-            AND source_component_id IS NOT NULL)
+            AND source_component_id IS NOT NULL
+            AND recipe_id IS NULL)
         OR (source_kind IN ('no_cook', 'custom')
             AND recipe_id IS NULL
             AND source_component_id IS NULL)
