@@ -30,8 +30,11 @@ export function FormGroup({
   return (
     <View className={`flex-1 ${className}`} style={style}>
       {label ? (
-        <Text className="text-base text-text-default mb-xs">
-          {label} {required ? '*' : null}
+        <Text className="text-base text-text-default font-semibold mb-xs">
+          {label}
+          {required ? (
+            <Text className="text-status-error"> *</Text>
+          ) : null}
         </Text>
       ) : null}
 

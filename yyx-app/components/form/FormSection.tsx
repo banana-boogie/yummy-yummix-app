@@ -16,6 +16,13 @@ interface FormSectionProps {
   titleStyle?: TextStyle;
   className?: string;
   style?: StyleProp<ViewStyle>;
+  /**
+   * Header visual treatment.
+   * - 'default': subheading title, 3px accent bar, compact spacing (existing behavior).
+   * - 'prominent': h3 title, 4px accent bar, bottom divider, generous spacing to content.
+   *   Use for admin wizard steps where section hierarchy should read more strongly.
+   */
+  headerVariant?: 'default' | 'prominent';
 }
 
 /**
@@ -32,16 +39,32 @@ export function FormSection({
   className = '',
   style,
   description,
-  error
+  error,
+  headerVariant = 'default',
 }: FormSectionProps) {
+  const isProminent = headerVariant === 'prominent';
   return (
     <View
       className={`w-full ${className}`}
       style={[{ maxWidth }, style]}
     >
       {title ? (
-        <View style={{ borderLeftWidth: 3, borderLeftColor: COLORS.primary.medium, paddingLeft: SPACING.sm }} className="mb-sm">
-          <Text preset="subheading" style={[{ fontSize: FONT_SIZES['2xl'] }, titleStyle]}>
+        <View
+          style={{
+            borderLeftWidth: isProminent ? 4 : 3,
+            borderLeftColor: COLORS.primary.medium,
+            paddingLeft: isProminent ? SPACING.md : SPACING.sm,
+          }}
+          className={
+            isProminent
+              ? 'mb-lg pb-sm border-b border-primary-default/60'
+              : 'mb-sm'
+          }
+        >
+          <Text
+            preset={isProminent ? 'h3' : 'subheading'}
+            style={[isProminent ? undefined : { fontSize: FONT_SIZES['2xl'] }, titleStyle]}
+          >
             {title}
           </Text>
         </View>

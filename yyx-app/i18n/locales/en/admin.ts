@@ -471,10 +471,19 @@ export const admin = {
       },
       myWeekSetup: {
         title: "My Week Setup",
+        sections: {
+          roleComposition: "Role & composition",
+          equipmentDifficulty: "Equipment & difficulty",
+          scaleLeftovers: "Scale & leftovers",
+          mealTypes: "Meal types",
+          verification: "Verification",
+        },
         eligibility: {
           ready: "Planner metadata complete",
           missingTitle: "Missing info",
           need: "Need:",
+          needHelper: "Complete these to make the recipe planner-eligible:",
+          jumpToField: "Jump to {{field}}",
           missing: {
             plannerRole: "recipe role",
             foodGroups: "what's in it",
@@ -526,6 +535,9 @@ export const admin = {
             "When could someone eat this? Most main dishes work for both lunch and dinner.",
           empty:
             "No meal-type tags found. Create tags under a 'Meal Type' category to enable this.",
+          emptyTitle: "No meal-type tags yet",
+          createCta: "Create a Meal Type tag",
+          loadError: "Couldn't load meal-type tags. Retry.",
         },
         cookingLevel: {
           label: "Who is this recipe for?",
@@ -557,10 +569,14 @@ export const admin = {
           tooltip: "Any notes about making more.",
         },
         verified: {
+          sectionEyebrow: "Final step",
           label: "YummyYummix Verified",
           tooltip:
             "Turn on if the YummyYummix team has actually cooked and tested this recipe.",
           verifiedAt: "Verified on {{date}}",
+          verifiedBy: " by {{who}}",
+          markVerifiedCta: "Mark verified",
+          unverifyCta: "Remove verification",
         },
       },
       reviewInfo: {

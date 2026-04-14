@@ -476,10 +476,19 @@ export const admin = {
       },
       myWeekSetup: {
         title: "Mi Semana",
+        sections: {
+          roleComposition: "Rol y composición",
+          equipmentDifficulty: "Equipo y dificultad",
+          scaleLeftovers: "Escala y sobras",
+          mealTypes: "Tipos de comida",
+          verification: "Verificación",
+        },
         eligibility: {
           ready: "Metadatos de Mi Semana completos",
           missingTitle: "Falta información",
           need: "Falta:",
+          needHelper: "Completa estos campos para que la receta sea elegible en el planificador:",
+          jumpToField: "Ir a {{field}}",
           missing: {
             plannerRole: "rol de la receta",
             foodGroups: "qué contiene",
@@ -531,6 +540,9 @@ export const admin = {
             "¿Cuándo se puede comer esto? La mayoría de los platos fuertes funcionan tanto para la comida como para la cena.",
           empty:
             "No se encontraron etiquetas de tiempo de comida. Crea etiquetas bajo la categoría 'Meal Type' para habilitar esto.",
+          emptyTitle: "Aún no hay etiquetas de tipo de comida",
+          createCta: "Crear etiqueta de tipo de comida",
+          loadError: "No se pudieron cargar las etiquetas. Reintentar.",
         },
         cookingLevel: {
           label: "¿Para quién es esta receta?",
@@ -562,10 +574,14 @@ export const admin = {
           tooltip: "Cualquier nota sobre cómo hacer más cantidad.",
         },
         verified: {
+          sectionEyebrow: "Paso final",
           label: "Verificado por YummyYummix",
           tooltip:
             "Actívalo si el equipo de YummyYummix ya cocinó y probó esta receta.",
           verifiedAt: "Verificado el {{date}}",
+          verifiedBy: " por {{who}}",
+          markVerifiedCta: "Marcar como verificada",
+          unverifyCta: "Quitar verificación",
         },
       },
       reviewInfo: {
