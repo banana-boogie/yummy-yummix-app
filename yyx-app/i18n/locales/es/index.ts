@@ -8,6 +8,7 @@ import { profile } from "./profile";
 import { admin } from "./admin";
 import { chat } from "./chat";
 import { planner } from "./planner";
+import { shoppingList } from "./shoppingList";
 
 export const es = {
   common,
@@ -22,4 +23,5 @@ export const es = {
   admin,
   chat,
   planner,
+  shoppingList,
 };
