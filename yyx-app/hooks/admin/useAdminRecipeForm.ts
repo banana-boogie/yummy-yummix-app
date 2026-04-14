@@ -14,8 +14,32 @@ import logger from '@/services/logger';
 // Storage keys
 const STORAGE_KEYS = {
   DRAFT_RECIPE: 'draft_recipe',
-  CURRENT_STEP: 'recipe_form_step'
+  CURRENT_STEP: 'recipe_form_step',
+  DRAFT_SCHEMA_VERSION: 'recipe_form_schema_version',
 };
+
+// Bump this when the step enum order changes so that older drafts get migrated.
+// v1 = pre-planner (TRANSLATIONS=6, REVIEW=7)
+// v2 = planner inserted (MY_WEEK_SETUP=6, TRANSLATIONS=7, REVIEW=8)
+const DRAFT_SCHEMA_VERSION = 2;
+
+/**
+ * Migrate a raw persisted step value (unknown schema version) to the current enum.
+ * For v1 → v2: TRANSLATIONS/REVIEW shifted by +1 because MY_WEEK_SETUP was inserted at 6.
+ */
+export function migrateDraftStep(rawStep: number, fromVersion: number): CreateRecipeStep {
+  const maxStep = CreateRecipeStep.REVIEW;
+  if (!Number.isFinite(rawStep) || rawStep < 0) return CreateRecipeStep.INITIAL_SETUP;
+
+  let step = rawStep;
+  if (fromVersion < 2) {
+    // Old: TRANSLATIONS=6, REVIEW=7 → New: TRANSLATIONS=7, REVIEW=8
+    if (step === 6 || step === 7) step = step + 1;
+  }
+
+  if (step > maxStep) return CreateRecipeStep.INITIAL_SETUP;
+  return step as CreateRecipeStep;
+}
 
 // Extended recipe type that includes the image file for upload
 export interface ExtendedRecipe extends Partial<AdminRecipe> {
@@ -149,6 +173,9 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         const savedRecipeStr = localStorage.getItem(STORAGE_KEYS.DRAFT_RECIPE);
         const savedStep = parseInt(localStorage.getItem(STORAGE_KEYS.CURRENT_STEP) || '0');
+        const savedVersion = parseInt(
+          localStorage.getItem(STORAGE_KEYS.DRAFT_SCHEMA_VERSION) || '1',
+        );
         let savedRecipe = null;
         if (savedRecipeStr) {
           savedRecipe = JSON.parse(savedRecipeStr);
@@ -156,29 +183,33 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
         }
 
         if (savedStep) {
+          const migrated = migrateDraftStep(savedStep, savedVersion);
           // Special case: recipe was saved at initial setup after populated with AI help.
           // We should start at step 1 in this case, otherwise the user would get stuck at step 0.
           const loadedNameEn = getTranslatedField(savedRecipe?.translations, 'en', 'name');
           const loadedNameEs = getTranslatedField(savedRecipe?.translations, 'es', 'name');
           if (savedRecipe && (loadedNameEn || loadedNameEs)) {
-            setCurrentStep(Math.max(savedStep, 1) as CreateRecipeStep);
+            setCurrentStep(Math.max(migrated, 1) as CreateRecipeStep);
           } else {
-            setCurrentStep(savedStep as CreateRecipeStep);
+            setCurrentStep(migrated);
           }
         }
-      } 
+      }
       // For mobile
       else {
         const savedRecipeStr = await AsyncStorage.getItem(STORAGE_KEYS.DRAFT_RECIPE);
         const savedStep = await AsyncStorage.getItem(STORAGE_KEYS.CURRENT_STEP);
-        
+        const savedVersion = parseInt(
+          (await AsyncStorage.getItem(STORAGE_KEYS.DRAFT_SCHEMA_VERSION)) || '1',
+        );
+
         if (savedRecipeStr) {
           const savedRecipe = JSON.parse(savedRecipeStr);
           restoreRecipeData(savedRecipe);
         }
-        
+
         if (savedStep) {
-          setCurrentStep(parseInt(savedStep) as CreateRecipeStep);
+          setCurrentStep(migrateDraftStep(parseInt(savedStep), savedVersion));
         }
       }
     } catch (error) {
@@ -228,11 +259,13 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         localStorage.setItem(STORAGE_KEYS.DRAFT_RECIPE, JSON.stringify(recipeToSave));
         localStorage.setItem(STORAGE_KEYS.CURRENT_STEP, currentStep.toString());
-      } 
+        localStorage.setItem(STORAGE_KEYS.DRAFT_SCHEMA_VERSION, DRAFT_SCHEMA_VERSION.toString());
+      }
       // For mobile
       else {
         await AsyncStorage.setItem(STORAGE_KEYS.DRAFT_RECIPE, JSON.stringify(recipeToSave));
         await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_STEP, currentStep.toString());
+        await AsyncStorage.setItem(STORAGE_KEYS.DRAFT_SCHEMA_VERSION, DRAFT_SCHEMA_VERSION.toString());
       }
     } catch (error) {
       logger.error('Error saving data:', error);
@@ -245,9 +278,11 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         localStorage.removeItem(STORAGE_KEYS.DRAFT_RECIPE);
         localStorage.removeItem(STORAGE_KEYS.CURRENT_STEP);
+        localStorage.removeItem(STORAGE_KEYS.DRAFT_SCHEMA_VERSION);
       } else {
         await AsyncStorage.removeItem(STORAGE_KEYS.DRAFT_RECIPE);
         await AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_STEP);
+        await AsyncStorage.removeItem(STORAGE_KEYS.DRAFT_SCHEMA_VERSION);
       }
     } catch (error) {
       logger.error('Error clearing saved data:', error);
