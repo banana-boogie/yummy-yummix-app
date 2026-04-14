@@ -1,14 +1,47 @@
 import { supabase } from '@/lib/supabase';
 import { AppState, Platform } from 'react-native';
 import logger from '@/services/logger';
-import type { EventName, EventPayloadMap } from './analytics/eventTypes';
+import type {
+  AnalyticsEnvelope,
+  AnalyticsEnvelopeInput,
+  AnalyticsEvent,
+  EventName,
+} from './analytics/eventTypes';
 
 type RecipeTable = 'recipes' | 'user_recipes';
 
 interface QueuedEvent {
   eventType: EventName;
   payload: Record<string, unknown>;
+  envelope: AnalyticsEnvelope;
   timestamp: string;
+}
+
+/**
+ * Default envelope used by legacy `logXxx` helpers and internal queuing.
+ *
+ * Legacy helpers pre-date the envelope contract and have no caller-supplied
+ * locale/sourceSurface. We default to empty strings so the types hold; feature
+ * PRs that migrate these call-sites to `trackEvent({...}, {...})` should
+ * supply real values.
+ */
+const LEGACY_ENVELOPE_INPUT: AnalyticsEnvelopeInput = {
+  locale: '',
+  sourceSurface: '',
+};
+
+function derivePlatform(): AnalyticsEnvelope['appPlatform'] {
+  if (Platform.OS === 'ios') return 'ios';
+  if (Platform.OS === 'android') return 'android';
+  return 'web';
+}
+
+function buildEnvelope(input: AnalyticsEnvelopeInput): AnalyticsEnvelope {
+  return {
+    locale: input.locale,
+    sourceSurface: input.sourceSurface,
+    appPlatform: derivePlatform(),
+  };
 }
 
 // Configuration
@@ -94,23 +127,42 @@ class EventService {
   /**
    * Strictly-typed event tracking entry point.
    *
-   * Usage:
-   *   eventService.trackEvent('meal_plan_approved', { mealPlanId, weekStart, ... });
+   * Accepts a discriminated `AnalyticsEvent` object (`{ name, payload }`) plus
+   * the caller-supplied envelope input (`{ locale, sourceSurface }`).
+   * `appPlatform` is derived automatically from `Platform.OS`.
    *
-   * TypeScript enforces that the payload matches the shape declared in
-   * `EventPayloadMap` for the given event name.
+   * Usage:
+   *   eventService.trackEvent(
+   *     { name: 'meal_plan_approved', payload: { mealPlanId, weekStart, ... } },
+   *     { locale: 'es-MX', sourceSurface: 'planner' },
+   *   );
+   *
+   * Why the discriminated-object shape: if the two arguments were separate
+   * (`name`, `payload`), a caller could widen `name` to `EventName` via a
+   * variable, collapsing the payload type to the union of all payloads and
+   * letting mismatched pairs compile. Forcing the caller to construct a
+   * single `AnalyticsEvent` first keeps the name/payload correlation under
+   * the discriminated union, so TypeScript rejects mismatches.
    *
    * NOTE: Call-sites for planner/shopping/explore/chat events are intentionally
    * NOT wired up in this PR — feature PRs wire them in.
    */
-  trackEvent<K extends EventName>(eventName: K, payload: EventPayloadMap[K]): void {
-    this.queueEvent(eventName, payload as unknown as Record<string, unknown>);
+  trackEvent(event: AnalyticsEvent, envelopeInput: AnalyticsEnvelopeInput): void {
+    this.queueEvent(
+      event.name,
+      event.payload as unknown as Record<string, unknown>,
+      buildEnvelope(envelopeInput),
+    );
   }
 
   /**
    * Queue an event for batched sending.
    */
-  private queueEvent(eventType: EventName, payload: Record<string, unknown>): void {
+  private queueEvent(
+    eventType: EventName,
+    payload: Record<string, unknown>,
+    envelope: AnalyticsEnvelope,
+  ): void {
     if (!this.cachedUserId) {
       // Try to get user synchronously from cache, otherwise skip
       return;
@@ -119,6 +171,7 @@ class EventService {
     this.queue.push({
       eventType,
       payload,
+      envelope,
       timestamp: new Date().toISOString(),
     });
 
@@ -144,7 +197,16 @@ class EventService {
       const rows = eventsToSend.map(event => ({
         user_id: this.cachedUserId,
         event_type: event.eventType,
-        payload: event.payload,
+        // TODO(analytics-envelope-migration): once the `user_events` table has
+        // dedicated `locale`, `app_platform`, and `source_surface` columns,
+        // persist `event.envelope` fields as top-level columns instead of
+        // flattening into `payload`. Tracked against Plan 06 (analytics
+        // backfill migration). For now, we flatten so the envelope data is
+        // still captured end-to-end without requiring a schema change.
+        payload: {
+          ...event.payload,
+          _envelope: event.envelope,
+        },
         created_at: event.timestamp,
       }));
 
@@ -168,10 +230,14 @@ class EventService {
    * Tracks discovery funnel.
    */
   logRecipeView(recipeId: string, recipeName: string): void {
-    this.queueEvent('view_recipe', {
-      recipe_id: recipeId,
-      recipe_name: recipeName,
-    });
+    this.queueEvent(
+      'view_recipe',
+      {
+        recipe_id: recipeId,
+        recipe_name: recipeName,
+      },
+      buildEnvelope(LEGACY_ENVELOPE_INPUT),
+    );
   }
 
   /**
@@ -183,11 +249,15 @@ class EventService {
     recipeName: string,
     recipeTable: RecipeTable = 'recipes',
   ): void {
-    this.queueEvent('cook_start', {
-      recipe_id: recipeId,
-      recipe_name: recipeName,
-      recipe_table: recipeTable,
-    });
+    this.queueEvent(
+      'cook_start',
+      {
+        recipe_id: recipeId,
+        recipe_name: recipeName,
+        recipe_table: recipeTable,
+      },
+      buildEnvelope(LEGACY_ENVELOPE_INPUT),
+    );
   }
 
   /**
@@ -199,11 +269,15 @@ class EventService {
     recipeName: string,
     recipeTable: RecipeTable = 'recipes',
   ): void {
-    this.queueEvent('cook_complete', {
-      recipe_id: recipeId,
-      recipe_name: recipeName,
-      recipe_table: recipeTable,
-    });
+    this.queueEvent(
+      'cook_complete',
+      {
+        recipe_id: recipeId,
+        recipe_name: recipeName,
+        recipe_table: recipeTable,
+      },
+      buildEnvelope(LEGACY_ENVELOPE_INPUT),
+    );
   }
 
   /**
@@ -215,17 +289,25 @@ class EventService {
     if (!query || query.trim().length === 0) {
       return;
     }
-    this.queueEvent('search', {
-      query: query.trim(),
-    });
+    this.queueEvent(
+      'search',
+      {
+        query: query.trim(),
+      },
+      buildEnvelope(LEGACY_ENVELOPE_INPUT),
+    );
   }
 
   logActionExecute(actionType: string, source: 'auto' | 'manual', path: 'text' | 'voice'): void {
-    this.queueEvent('action_execute', {
-      actionType,
-      source,
-      path,
-    });
+    this.queueEvent(
+      'action_execute',
+      {
+        actionType,
+        source,
+        path,
+      },
+      buildEnvelope(LEGACY_ENVELOPE_INPUT),
+    );
   }
 
   /**
@@ -236,11 +318,15 @@ class EventService {
     success: boolean,
     durationMs: number
   ): void {
-    this.queueEvent('recipe_generate', {
-      recipe_name: recipeName,
-      success,
-      duration_ms: Math.round(durationMs),
-    });
+    this.queueEvent(
+      'recipe_generate',
+      {
+        recipe_name: recipeName,
+        success,
+        duration_ms: Math.round(durationMs),
+      },
+      buildEnvelope(LEGACY_ENVELOPE_INPUT),
+    );
   }
 
   /**
@@ -277,6 +363,8 @@ export type {
   EventPayload,
   EventPayloadMap,
   AnalyticsEvent,
+  AnalyticsEnvelope,
+  AnalyticsEnvelopeInput,
 } from './analytics/eventTypes';
 
 export default eventService;
