@@ -40,7 +40,12 @@
 export interface AnalyticsEnvelope {
   locale: string;
   appPlatform: 'ios' | 'android' | 'web';
-  sourceSurface: string;
+  /**
+   * The UI surface that originated the event. `null` only for legacy `logXxx`
+   * helpers that pre-date the envelope contract; all new `trackEvent(...)`
+   * call-sites must pass a concrete `SourceSurface`.
+   */
+  sourceSurface: SourceSurface | null;
 }
 
 /**
@@ -53,7 +58,15 @@ export type AnalyticsEnvelopeInput = Omit<AnalyticsEnvelope, 'appPlatform'>;
 // Shared enums / literals
 // -----------------------------------------------------------------------------
 
-export type SourceSurface = 'week' | 'chat' | 'explore' | 'profile' | 'shopping';
+/**
+ * Canonical set of UI surfaces that may originate an analytics event.
+ *
+ * Source of truth: product-kitchen/repeat-what-works/plans/06-analytics-and-metrics.md
+ * (see the "common envelope" spec around line 115). If Plan 06 adds a new
+ * surface, extend this list — do NOT widen the type to `string`.
+ */
+export const SOURCE_SURFACES = ['week', 'chat', 'explore', 'profile', 'shopping'] as const;
+export type SourceSurface = (typeof SOURCE_SURFACES)[number];
 
 export type ShoppingSyncState = 'not_created' | 'current' | 'stale' | 'error';
 

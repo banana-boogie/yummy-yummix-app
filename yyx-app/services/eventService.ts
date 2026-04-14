@@ -27,7 +27,7 @@ interface QueuedEvent {
  */
 const LEGACY_ENVELOPE_INPUT: AnalyticsEnvelopeInput = {
   locale: '',
-  sourceSurface: '',
+  sourceSurface: null,
 };
 
 function derivePlatform(): AnalyticsEnvelope['appPlatform'] {

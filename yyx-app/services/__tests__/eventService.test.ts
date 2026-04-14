@@ -287,7 +287,7 @@ describe('eventService', () => {
           shoppingListId: null,
         },
       },
-      { locale: 'es-MX', sourceSurface: 'planner' },
+      { locale: 'es-MX', sourceSurface: 'week' },
     );
 
     await eventService.flush();
@@ -307,7 +307,7 @@ describe('eventService', () => {
     // migration adds top-level columns (see eventService.flush TODO).
     expect(row.payload._envelope).toEqual({
       locale: 'es-MX',
-      sourceSurface: 'planner',
+      sourceSurface: 'week',
       appPlatform: 'ios',
     });
   });
@@ -329,7 +329,7 @@ describe('eventService', () => {
     eventService.trackEvent(
       // @ts-expect-error — 'meal_plan_approved' requires MealPlanApprovedPayload
       { name: 'meal_plan_approved', payload: badPayload1 },
-      { locale: 'en', sourceSurface: 'planner' },
+      { locale: 'en', sourceSurface: 'week' },
     );
 
     // 2) Legacy event name paired with a planner payload.
@@ -345,7 +345,7 @@ describe('eventService', () => {
     eventService.trackEvent(
       // @ts-expect-error — 'view_recipe' requires LegacyRecipePayload
       { name: 'view_recipe', payload: badPayload2 },
-      { locale: 'en', sourceSurface: 'planner' },
+      { locale: 'en', sourceSurface: 'week' },
     );
   });
 
