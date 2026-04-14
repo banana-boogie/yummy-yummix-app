@@ -47,13 +47,11 @@ export function buildSuggestions(
 
   switch (category) {
     case "recipe":
+      // NOTE: "Add to my plan" chip is intentionally omitted until a planner
+      // mutation tool exists. See PR #45 review — chip would dead-end (system
+      // prompt forbids plan edits, no tool is registered). Prefer fewer live
+      // chips over dead-ends.
       return [
-        {
-          label: isEs ? "Añadir a mi plan" : "Add to my plan",
-          message: isEs
-            ? "Añade esta receta a mi plan"
-            : "Add this recipe to my plan",
-        },
         {
           label: isEs ? "Algo diferente" : "Something different",
           message: isEs
