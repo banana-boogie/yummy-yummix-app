@@ -7,7 +7,8 @@
  */
 
 import { renderHook, act } from '@testing-library/react-native';
-import { useAdminRecipeForm } from '../useAdminRecipeForm';
+import { useAdminRecipeForm, migrateDraftStep } from '../useAdminRecipeForm';
+import { CreateRecipeStep } from '@/components/admin/recipes/RecipeProgressIndicator';
 
 // ---- Mocks --------------------------------------------------------------
 
@@ -143,5 +144,32 @@ describe('useAdminRecipeForm — create flow persists My Week Setup', () => {
 
     expect(onPublishError).not.toHaveBeenCalled();
     expect(onPublishSuccess).toHaveBeenCalled();
+  });
+});
+
+describe('migrateDraftStep — draft schema migration', () => {
+  it('shifts v1 TRANSLATIONS (6) to v2 TRANSLATIONS (7)', () => {
+    expect(migrateDraftStep(6, 1)).toBe(CreateRecipeStep.TRANSLATIONS);
+  });
+
+  it('shifts v1 REVIEW (7) to v2 REVIEW (8)', () => {
+    expect(migrateDraftStep(7, 1)).toBe(CreateRecipeStep.REVIEW);
+  });
+
+  it('leaves unchanged steps alone on v1→v2 (step < 6)', () => {
+    expect(migrateDraftStep(0, 1)).toBe(CreateRecipeStep.INITIAL_SETUP);
+    expect(migrateDraftStep(5, 1)).toBe(CreateRecipeStep.TAGS);
+  });
+
+  it('does not shift when already on current version', () => {
+    expect(migrateDraftStep(6, 2)).toBe(CreateRecipeStep.MY_WEEK_SETUP);
+    expect(migrateDraftStep(7, 2)).toBe(CreateRecipeStep.TRANSLATIONS);
+    expect(migrateDraftStep(8, 2)).toBe(CreateRecipeStep.REVIEW);
+  });
+
+  it('clamps out-of-range step values back to INITIAL_SETUP', () => {
+    expect(migrateDraftStep(99, 1)).toBe(CreateRecipeStep.INITIAL_SETUP);
+    expect(migrateDraftStep(-1, 1)).toBe(CreateRecipeStep.INITIAL_SETUP);
+    expect(migrateDraftStep(Number.NaN, 1)).toBe(CreateRecipeStep.INITIAL_SETUP);
   });
 });

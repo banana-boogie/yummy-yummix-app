@@ -36,6 +36,36 @@ const expectedSchemaProperties = [
   "ingredients",
   "steps",
   "tags",
+  "plannerRole",
+  "foodGroups",
+  "isCompleteMeal",
+  "equipmentTags",
+  "cookingLevel",
+  "leftoversFriendly",
+  "batchFriendly",
+  "maxHouseholdSizeSupported",
+  "requiresMultiBatchNote",
+  "mealTypes",
+];
+
+const expectedPlannerRoleValues = [
+  "main",
+  "side",
+  "snack",
+  "dessert",
+  "beverage",
+  "condiment",
+];
+
+const expectedFoodGroupValues = ["protein", "carb", "veg", "snack", "dessert"];
+
+const expectedMealTypeValues = [
+  "breakfast",
+  "lunch",
+  "dinner",
+  "snack",
+  "dessert",
+  "beverage",
 ];
 
 const expectedDifficultyValues = ["easy", "medium", "hard"];
@@ -74,6 +104,55 @@ Deno.test("schema - difficulty enum has correct values", () => {
       isValid,
       true,
       `Expected difficulty value ${value} to be valid`,
+    );
+  });
+});
+
+Deno.test("schema - plannerRole enum matches DB CHECK constraint", () => {
+  // Must reconcile with recipes.planner_role CHECK constraint in the meal_plans migration.
+  const dbAllowed = [
+    "main",
+    "side",
+    "snack",
+    "dessert",
+    "beverage",
+    "condiment",
+  ];
+  dbAllowed.forEach((v) => {
+    assertEquals(
+      expectedPlannerRoleValues.includes(v),
+      true,
+      `Planner role ${v} must be in AI schema enum`,
+    );
+  });
+});
+
+Deno.test("schema - foodGroups enum matches DB CHECK constraint", () => {
+  // Must reconcile with recipes.food_groups CHECK constraint.
+  const dbAllowed = ["protein", "carb", "veg", "snack", "dessert"];
+  dbAllowed.forEach((v) => {
+    assertEquals(
+      expectedFoodGroupValues.includes(v),
+      true,
+      `Food group ${v} must be in AI schema enum`,
+    );
+  });
+});
+
+Deno.test("schema - mealTypes enum includes canonical values", () => {
+  const expected = [
+    "breakfast",
+    "lunch",
+    "dinner",
+    "snack",
+    "dessert",
+    "beverage",
+  ];
+  expected.forEach((v) => {
+    assertEquals(
+      expectedMealTypeValues.includes(v),
+      true,
+      `Meal type ${v} must be in AI schema enum`,
     );
   });
 });

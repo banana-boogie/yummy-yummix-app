@@ -356,6 +356,89 @@ describe('AdminRecipeService', () => {
 
       expect(mockFrom).toHaveBeenCalledWith('recipe_kitchen_tools');
     });
+
+    it('persists all My Week Setup planner metadata (snake_case) on insert', async () => {
+      mockChain = createChainableMock({ data: { id: 'new-id' }, error: null });
+      mockChain.eq = jest.fn().mockResolvedValue({ error: null });
+      mockFrom.mockImplementation(() => mockChain);
+
+      await adminRecipeService.createRecipe({
+        translations: [{ locale: 'en', name: 'Planner Recipe' }],
+        plannerRole: 'main',
+        foodGroups: ['protein', 'carb'],
+        isCompleteMeal: true,
+        equipmentTags: ['thermomix'],
+        cookingLevel: 'intermediate',
+        leftoversFriendly: true,
+        batchFriendly: false,
+        maxHouseholdSizeSupported: 6,
+        requiresMultiBatchNote: 'Scale in two batches.',
+        verifiedAt: '2026-04-13T00:00:00.000Z',
+        verifiedBy: 'user-1',
+      } as any);
+
+      expect(mockChain.insert).toHaveBeenCalled();
+      const insertedRows = mockChain.insert.mock.calls.find(
+        (call: any[]) => call[0] && (call[0].planner_role !== undefined || 'planner_role' in call[0])
+      );
+      expect(insertedRows).toBeDefined();
+      const row = insertedRows![0];
+      expect(row.planner_role).toBe('main');
+      expect(row.food_groups).toEqual(['protein', 'carb']);
+      expect(row.is_complete_meal).toBe(true);
+      expect(row.equipment_tags).toEqual(['thermomix']);
+      expect(row.cooking_level).toBe('intermediate');
+      expect(row.leftovers_friendly).toBe(true);
+      expect(row.batch_friendly).toBe(false);
+      expect(row.max_household_size_supported).toBe(6);
+      expect(row.requires_multi_batch_note).toBe('Scale in two batches.');
+      expect(row.verified_at).toBe('2026-04-13T00:00:00.000Z');
+      expect(row.verified_by).toBe('user-1');
+    });
+
+    it('getRecipeById returns planner metadata mapped to camelCase', async () => {
+      const fromDb = {
+        id: 'recipe-42',
+        difficulty: 'easy',
+        prep_time: 10,
+        total_time: 30,
+        portions: 4,
+        is_published: true,
+        planner_role: 'side',
+        food_groups: ['veg'],
+        is_complete_meal: false,
+        equipment_tags: ['oven'],
+        cooking_level: 'beginner',
+        leftovers_friendly: false,
+        batch_friendly: true,
+        max_household_size_supported: 4,
+        requires_multi_batch_note: null,
+        verified_at: '2026-04-01T12:00:00.000Z',
+        verified_by: 'admin-1',
+        translations: [{ locale: 'en', name: 'Side Salad', tips_and_tricks: null }],
+        ingredients: [],
+        steps: [],
+        tags: [],
+        kitchen_tools: [],
+      };
+      mockChain = createChainableMock({ data: fromDb, error: null });
+      mockFrom.mockImplementation(() => mockChain);
+
+      const result = await adminRecipeService.getRecipeById('recipe-42');
+
+      expect(result).toBeTruthy();
+      expect(result!.plannerRole).toBe('side');
+      expect(result!.foodGroups).toEqual(['veg']);
+      expect(result!.isCompleteMeal).toBe(false);
+      expect(result!.equipmentTags).toEqual(['oven']);
+      expect(result!.cookingLevel).toBe('beginner');
+      expect(result!.leftoversFriendly).toBe(false);
+      expect(result!.batchFriendly).toBe(true);
+      expect(result!.maxHouseholdSizeSupported).toBe(4);
+      expect(result!.requiresMultiBatchNote).toBeNull();
+      expect(result!.verifiedAt).toBe('2026-04-01T12:00:00.000Z');
+      expect(result!.verifiedBy).toBe('admin-1');
+    });
   });
 
   // ============================================================

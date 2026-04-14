@@ -388,6 +388,47 @@ describe('MarkdownRecipeParserService', () => {
       expect(tagIds?.length).toBe(uniqueTagIds.length);
     });
 
+    it('maps inferred mealTypes to existing Meal Type category tags', async () => {
+      // Extend mock tags with a Meal Type-categorized tag
+      mockGetAllTags.mockResolvedValue([
+        ...mockTags,
+        {
+          id: 'mt-breakfast',
+          translations: [
+            { locale: 'en', name: 'Breakfast' },
+            { locale: 'es', name: 'Desayuno' },
+          ],
+          categories: ['Meal Type'],
+        },
+        {
+          id: 'mt-lunch',
+          translations: [
+            { locale: 'en', name: 'Lunch' },
+            { locale: 'es', name: 'Almuerzo' },
+          ],
+          categories: ['mealtype'],
+        },
+      ]);
+
+      const parsedWithMealTypes = {
+        ...mockParsedRecipe,
+        tags: [],
+        mealTypes: ['breakfast', 'lunch', 'nonexistent'],
+      };
+      mockInvoke.mockResolvedValue({
+        data: JSON.stringify(parsedWithMealTypes),
+        error: null,
+      });
+
+      const result = await parseRecipeMarkdown('# Test');
+
+      const matchedIds = result.recipe.tags?.map((t) => t.id) || [];
+      expect(matchedIds).toContain('mt-breakfast');
+      expect(matchedIds).toContain('mt-lunch');
+      // Unmatched meal types are silently skipped (no invention of tags)
+      expect(matchedIds).not.toContain('nonexistent');
+    });
+
     it('matches tags case-insensitively', async () => {
       const parsedWithMixedCase = {
         ...mockParsedRecipe,
