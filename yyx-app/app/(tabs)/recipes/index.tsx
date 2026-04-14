@@ -1,16 +1,21 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Animated, FlatList, View, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useRecipes } from '@/hooks/useRecipes';
 import { useUserProfile } from '@/contexts/UserProfileContext';
 import { useMealPlan } from '@/hooks/useMealPlan';
 import { usePersonalizedSections } from '@/hooks/usePersonalizedSections';
+import {
+  usePersonalizedFilterChips,
+  applyChipFilter,
+} from '@/hooks/usePersonalizedFilterChips';
 import { SPACING } from '@/constants/design-tokens';
 
 import { RecipeListHeader } from '@/components/recipe/RecipeListHeader';
 import { SearchBar } from '@/components/common/SearchBar';
-import { RecipeSectionList } from '@/components/recipe/RecipeSectionList';
+import { RecipeSectionList, RecipeSection } from '@/components/recipe/RecipeSectionList';
 import { RecipeList } from '@/components/recipe/RecipeList';
+import { FilterChips } from '@/components/recipe/FilterChips';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import i18n from '@/i18n';
 import { eventService } from '@/services/eventService';
@@ -129,6 +134,24 @@ const Recipes = () => {
     activePlan,
   });
 
+  // Filter chips — single-select, additive on top of dietary restrictions.
+  const chips = usePersonalizedFilterChips(recipes, userProfile);
+  const [selectedChipId, setSelectedChipId] = useState<string | null>(null);
+  const selectedChip = useMemo(
+    () => chips.find((c) => c.id === selectedChipId) ?? null,
+    [chips, selectedChipId],
+  );
+
+  // When a chip is active, narrow only the "all_recipes" section's recipes.
+  const displaySections = useMemo<RecipeSection[]>(() => {
+    if (!selectedChip) return sections;
+    return sections.map((section) =>
+      section.id === 'all_recipes'
+        ? { ...section, recipes: applyChipFilter(section.recipes, selectedChip) }
+        : section,
+    );
+  }, [sections, selectedChip]);
+
   return (
     <PageLayout contentPaddingHorizontal={0} disableMaxWidth={true}>
       <Animated.View
@@ -147,7 +170,7 @@ const Recipes = () => {
           displayName={displayName}
           onLogoPress={() => {}}
         />
-        <View className="pb-md px-md bg-background-default w-full max-w-[1200px] self-center">
+        <View className="pb-sm px-md bg-background-default w-full max-w-[1200px] self-center">
           <SearchBar
             searchQuery={searchQuery}
             setSearchQuery={handleSearchChange}
@@ -156,6 +179,15 @@ const Recipes = () => {
             variant="warm"
           />
         </View>
+        {!isSearching && chips.length > 0 && (
+          <View className="pb-sm bg-background-default w-full max-w-[1200px] self-center">
+            <FilterChips
+              chips={chips}
+              selectedId={selectedChipId}
+              onSelect={setSelectedChipId}
+            />
+          </View>
+        )}
       </Animated.View>
 
       <View className="flex-1 w-full max-w-[1200px] self-center">
@@ -175,7 +207,7 @@ const Recipes = () => {
           /* Default: sectioned feed */
           <RecipeSectionList
             ref={listRef}
-            sections={sections}
+            sections={displaySections}
             loading={loading}
             initialLoading={initialLoading}
             error={error}
