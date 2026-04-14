@@ -30,9 +30,9 @@ interface MealPlanViewProps {
   progress: PlanProgress;
   isApproving: boolean;
   onApprove: () => void | Promise<void>;
-  onCook: (slot: MealPlanSlotResponse) => void;
+  onCook?: (slot: MealPlanSlotResponse) => void;
   onSwap: (slot: MealPlanSlotResponse) => void;
-  onSkip: (slot: MealPlanSlotResponse) => void;
+  onRemove: (slot: MealPlanSlotResponse) => void;
 }
 
 export function MealPlanView({
@@ -43,7 +43,7 @@ export function MealPlanView({
   onApprove,
   onCook,
   onSwap,
-  onSkip,
+  onRemove,
 }: MealPlanViewProps) {
   const mode: 'draft' | 'active' = plan.shoppingListId ? 'active' : 'draft';
 
@@ -101,13 +101,15 @@ export function MealPlanView({
     [],
   );
 
+  // Cook Now is navigation-only. The slot is marked cooked later, from the
+  // cooking-guide completion flow — not on tap.
   const handleCook = useCallback(
     (slot: MealPlanSlotResponse) => {
       const primary = slot.components.find((c) => c.isPrimary) ?? slot.components[0];
       if (primary?.recipeId) {
         router.push(`/recipes/${primary.recipeId}` as any);
       }
-      onCook(slot);
+      onCook?.(slot);
     },
     [onCook],
   );
@@ -173,7 +175,7 @@ export function MealPlanView({
                         mode={mode}
                         onCook={mode === 'active' ? handleCook : undefined}
                         onSwap={onSwap}
-                        onSkip={onSkip}
+                        onRemove={onRemove}
                       />
                     ))
                   )}

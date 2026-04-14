@@ -195,6 +195,7 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
             ? (isActive ? 34 : 32) + emphasisBoost
             : (isActive ? 26 : 24) + emphasisBoost;
           const activeBg = tab.emphasized ? 'bg-primary-default' : 'bg-primary-light';
+          const baseSize = SPACING.xxl;
 
           return (
             <TouchableOpacity
@@ -208,8 +209,8 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
                 className={`rounded-md items-center justify-center ${isActive ? activeBg : 'bg-transparent'
                   }`}
                 style={{
-                  width: SPACING['2xl'] + emphasisBoost,
-                  height: SPACING['2xl'] + emphasisBoost,
+                  width: baseSize + emphasisBoost,
+                  height: baseSize + emphasisBoost,
                 }}
               >
                 {renderTabIcon(tab, isActive, iconSize)}

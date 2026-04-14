@@ -13,17 +13,17 @@ interface MealCardProps {
   mode: PlanMode;
   onCook?: (slot: MealPlanSlotResponse) => void;
   onSwap?: (slot: MealPlanSlotResponse) => void;
-  onSkip?: (slot: MealPlanSlotResponse) => void;
+  onRemove?: (slot: MealPlanSlotResponse) => void;
 }
 
-export function MealCard({ slot, mode, onCook, onSwap, onSkip }: MealCardProps) {
+export function MealCard({ slot, mode, onCook, onSwap, onRemove }: MealCardProps) {
   const primary =
     slot.components.find((c) => c.isPrimary) ?? slot.components[0];
   const isLeftover = slot.slotType === 'leftover_target_slot';
   const isCooked = slot.status === 'cooked';
-  const isSkipped = slot.status === 'skipped';
+  const isRemoved = slot.status === 'skipped';
 
-  const opacity = isSkipped ? 0.5 : 1;
+  const opacity = isRemoved ? 0.5 : 1;
   const cardClass = isLeftover
     ? 'bg-background-secondary border border-grey-light'
     : 'bg-neutral-white border border-grey-light';
@@ -71,9 +71,9 @@ export function MealCard({ slot, mode, onCook, onSwap, onSkip }: MealCardProps) 
         </View>
       </View>
 
-      {isSkipped ? (
+      {isRemoved ? (
         <Text preset="bodySmall" className="text-text-secondary mt-md">
-          {i18n.t('planner.card.skipped')}
+          {i18n.t('planner.card.removed')}
         </Text>
       ) : isCooked ? (
         <Text preset="bodySmall" className="text-status-success mt-md">
@@ -87,6 +87,7 @@ export function MealCard({ slot, mode, onCook, onSwap, onSkip }: MealCardProps) 
               size="small"
               onPress={() => onCook(slot)}
               accessibilityLabel={i18n.t('planner.card.cookNow')}
+              style={{ minHeight: 44 }}
             >
               {i18n.t('planner.card.cookNow')}
             </Button>
@@ -97,18 +98,20 @@ export function MealCard({ slot, mode, onCook, onSwap, onSkip }: MealCardProps) 
               size="small"
               onPress={() => onSwap(slot)}
               accessibilityLabel={i18n.t('planner.card.swap')}
+              style={{ minHeight: 44 }}
             >
               {i18n.t('planner.card.swap')}
             </Button>
           )}
-          {onSkip && (
+          {onRemove && (
             <Pressable
-              onPress={() => onSkip(slot)}
-              accessibilityLabel={i18n.t('planner.card.skip')}
-              className="px-md py-sm"
+              onPress={() => onRemove(slot)}
+              accessibilityLabel={i18n.t('planner.card.remove')}
+              className="px-md items-center justify-center"
+              style={{ minHeight: 44 }}
             >
               <Text preset="bodySmall" className="text-text-secondary">
-                {i18n.t('planner.card.skip')}
+                {i18n.t('planner.card.remove')}
               </Text>
             </Pressable>
           )}

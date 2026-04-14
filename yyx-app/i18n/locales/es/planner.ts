@@ -42,10 +42,9 @@ export const planner = {
   },
   mealTypes: {
     dinnersOnly: "Solo cenas",
-    lunchAndDinner: "Almuerzo + cena",
-    comidaOnly: "Solo comidas",
-    comidaAndDinner: "Comida + cena",
-    allThree: "Desayuno, comida y cena",
+    lunchAndDinner: "Comida + cena",
+    breakfastAndLunch: "Desayuno + comida",
+    allThree: "Todas las comidas",
   },
   days: {
     mon: "Lun",
@@ -68,9 +67,9 @@ export const planner = {
   card: {
     cookNow: "Cocinar ahora",
     swap: "Cambiar",
-    skip: "Saltar",
+    remove: "Quitar",
     cooked: "Cocinada",
-    skipped: "Saltada",
+    removed: "Quitada",
     leftover: "Sobras de antes en la semana",
     untitled: "Comida sin título",
     minutes: "{{n}} min",

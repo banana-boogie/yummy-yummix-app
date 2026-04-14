@@ -24,6 +24,11 @@ import type {
 
 interface FirstTimePlanSetupFlowProps {
   initialPreferences?: PreferencesResponse;
+  /**
+   * `first-time` hides already-answered steps (fast onboarding).
+   * `settings` shows every step so the user can edit any answer.
+   */
+  mode?: 'first-time' | 'settings';
   onCancel: () => void;
   onComplete: (answers: GeneratePlanOptions) => Promise<void> | void;
 }
@@ -56,17 +61,24 @@ interface MealTypeOption {
 }
 
 function getMealTypeOptions(localeIsES: boolean): MealTypeOption[] {
-  // In es-MX, the midday meal ("comida") takes the role of lunch.
-  // We still send canonical meal types to the server; the label is localized.
-  const lunchLabel = localeIsES
-    ? 'planner.mealTypes.comidaOnly'
-    : 'planner.mealTypes.dinnersOnly';
-  const comboLabel = localeIsES
-    ? 'planner.mealTypes.comidaAndDinner'
-    : 'planner.mealTypes.lunchAndDinner';
+  // For es-MX, the midday meal ("comida") is the canonical `lunch` on the server.
+  // We send canonical meal types to the API regardless; only the label is localized.
   return [
-    { id: 'dinner', mealTypes: ['dinner'], labelKey: lunchLabel },
-    { id: 'lunch_dinner', mealTypes: ['lunch', 'dinner'], labelKey: comboLabel },
+    {
+      id: 'lunch_or_dinner',
+      mealTypes: localeIsES ? ['lunch'] : ['dinner'],
+      labelKey: 'planner.mealTypes.dinnersOnly',
+    },
+    {
+      id: 'lunch_dinner',
+      mealTypes: ['lunch', 'dinner'],
+      labelKey: 'planner.mealTypes.lunchAndDinner',
+    },
+    {
+      id: 'breakfast_lunch',
+      mealTypes: ['breakfast', 'lunch'],
+      labelKey: 'planner.mealTypes.breakfastAndLunch',
+    },
     {
       id: 'breakfast_lunch_dinner',
       mealTypes: ['breakfast', 'lunch', 'dinner'],
@@ -84,28 +96,31 @@ const HOUSEHOLD_OPTIONS: { id: HouseholdSize; labelKey: string }[] = [
 
 export function FirstTimePlanSetupFlow({
   initialPreferences,
+  mode = 'first-time',
   onCancel,
   onComplete,
 }: FirstTimePlanSetupFlowProps) {
   const { locale } = useLanguage();
   const isES = isMexicanSpanish(locale);
 
-  // Skip steps that already have saved data, except household size (always shown).
+  // Settings mode always shows every step so saved values stay editable.
+  // First-time mode skips already-answered steps for a fast onboarding path.
   const hasSavedDays = !!initialPreferences?.activeDayIndexes?.length;
   const hasSavedBusy = !!initialPreferences?.busyDays?.length;
   const hasSavedMealTypes = !!initialPreferences?.mealTypes?.length;
+  const isSettings = mode === 'settings';
 
   const steps = useMemo(
     () => {
       const all: ('household' | 'days' | 'busy' | 'mealTypes')[] = [
         'household',
       ];
-      if (!hasSavedDays) all.push('days');
-      if (!hasSavedBusy) all.push('busy');
-      if (!hasSavedMealTypes) all.push('mealTypes');
+      if (isSettings || !hasSavedDays) all.push('days');
+      if (isSettings || !hasSavedBusy) all.push('busy');
+      if (isSettings || !hasSavedMealTypes) all.push('mealTypes');
       return all;
     },
-    [hasSavedDays, hasSavedBusy, hasSavedMealTypes],
+    [isSettings, hasSavedDays, hasSavedBusy, hasSavedMealTypes],
   );
 
   const [stepIndex, setStepIndex] = useState(0);
