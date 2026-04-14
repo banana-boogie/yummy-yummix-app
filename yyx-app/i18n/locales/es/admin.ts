@@ -477,14 +477,13 @@ export const admin = {
       myWeekSetup: {
         title: "Mi Semana",
         eligibility: {
-          ready: "Lista para Mi Semana",
+          ready: "Metadatos de Mi Semana completos",
           missingTitle: "Falta información",
           need: "Falta:",
           missing: {
             plannerRole: "rol de la receta",
             foodGroups: "qué contiene",
             mealTypes: "tiempos de comida",
-            publish: "Publicar la receta",
           },
         },
         plannerRole: {
@@ -494,8 +493,9 @@ export const admin = {
             "¿Qué papel juega esta receta en una comida? Un plato fuerte es el protagonista. Una guarnición lo acompaña.",
           main: "Plato fuerte",
           side: "Guarnición",
-          dessert: "Postre",
           snack: "Colación",
+          dessert: "Postre",
+          beverage: "Bebida",
           condiment: "Aderezo",
         },
         foodGroups: {
@@ -506,6 +506,7 @@ export const admin = {
           protein: "Tiene proteína",
           carb: "Tiene carbohidratos",
           veg: "Tiene verduras",
+          snack: "Es un snack",
           dessert: "Es un postre",
         },
         isCompleteMeal: {

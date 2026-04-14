@@ -472,14 +472,13 @@ export const admin = {
       myWeekSetup: {
         title: "My Week Setup",
         eligibility: {
-          ready: "Ready for My Week",
+          ready: "Planner metadata complete",
           missingTitle: "Missing info",
           need: "Need:",
           missing: {
             plannerRole: "recipe role",
             foodGroups: "what's in it",
             mealTypes: "meal types",
-            publish: "Publish recipe",
           },
         },
         plannerRole: {
@@ -489,8 +488,9 @@ export const admin = {
             "What role does this recipe play in a meal? A main dish is the star. A side dish accompanies it.",
           main: "Main dish",
           side: "Side dish",
-          dessert: "Dessert",
           snack: "Snack",
+          dessert: "Dessert",
+          beverage: "Beverage",
           condiment: "Condiment",
         },
         foodGroups: {
@@ -501,6 +501,7 @@ export const admin = {
           protein: "Has protein",
           carb: "Has carbs",
           veg: "Has vegetables",
+          snack: "Is a snack",
           dessert: "Is a dessert",
         },
         isCompleteMeal: {

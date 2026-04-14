@@ -52,8 +52,9 @@ export function MyWeekSetupForm({ recipe, onUpdateRecipe, displayLocale = 'es' }
   const plannerRoleOptions: SelectOption[] = [
     { label: i18n.t('admin.recipes.form.myWeekSetup.plannerRole.main'), value: 'main' },
     { label: i18n.t('admin.recipes.form.myWeekSetup.plannerRole.side'), value: 'side' },
-    { label: i18n.t('admin.recipes.form.myWeekSetup.plannerRole.dessert'), value: 'dessert' },
     { label: i18n.t('admin.recipes.form.myWeekSetup.plannerRole.snack'), value: 'snack' },
+    { label: i18n.t('admin.recipes.form.myWeekSetup.plannerRole.dessert'), value: 'dessert' },
+    { label: i18n.t('admin.recipes.form.myWeekSetup.plannerRole.beverage'), value: 'beverage' },
     { label: i18n.t('admin.recipes.form.myWeekSetup.plannerRole.condiment'), value: 'condiment' },
   ];
 
@@ -61,6 +62,7 @@ export function MyWeekSetupForm({ recipe, onUpdateRecipe, displayLocale = 'es' }
     { label: i18n.t('admin.recipes.form.myWeekSetup.foodGroups.protein'), value: 'protein' as FoodGroup },
     { label: i18n.t('admin.recipes.form.myWeekSetup.foodGroups.carb'), value: 'carb' as FoodGroup },
     { label: i18n.t('admin.recipes.form.myWeekSetup.foodGroups.veg'), value: 'veg' as FoodGroup },
+    { label: i18n.t('admin.recipes.form.myWeekSetup.foodGroups.snack'), value: 'snack' as FoodGroup },
     { label: i18n.t('admin.recipes.form.myWeekSetup.foodGroups.dessert'), value: 'dessert' as FoodGroup },
   ];
 
@@ -101,15 +103,15 @@ export function MyWeekSetupForm({ recipe, onUpdateRecipe, displayLocale = 'es' }
   const foodGroups = recipe.foodGroups || [];
   const equipmentTags = recipe.equipmentTags || [];
   const hasMealType = selectedMealTypeIds.length > 0;
-  const isPublished = recipe.isPublished === true;
+  // Step-local completion. DB-level planner eligibility additionally requires is_published,
+  // but the publish toggle lives on the Review step — keep this badge scoped to this step.
   const isEligible =
-    Boolean(recipe.plannerRole) && foodGroups.length >= 1 && hasMealType && isPublished;
+    Boolean(recipe.plannerRole) && foodGroups.length >= 1 && hasMealType;
 
   const missingLabels: string[] = [];
   if (!recipe.plannerRole) missingLabels.push(i18n.t('admin.recipes.form.myWeekSetup.eligibility.missing.plannerRole'));
   if (foodGroups.length === 0) missingLabels.push(i18n.t('admin.recipes.form.myWeekSetup.eligibility.missing.foodGroups'));
   if (!hasMealType) missingLabels.push(i18n.t('admin.recipes.form.myWeekSetup.eligibility.missing.mealTypes'));
-  if (!isPublished) missingLabels.push(i18n.t('admin.recipes.form.myWeekSetup.eligibility.missing.publish'));
 
   const handleVerifiedToggle = (on: boolean) => {
     if (on) {
@@ -327,7 +329,9 @@ export function MyWeekSetupForm({ recipe, onUpdateRecipe, displayLocale = 'es' }
           {recipe.verifiedAt && (
             <Text preset="caption" className="text-text-secondary mt-xs">
               {i18n.t('admin.recipes.form.myWeekSetup.verified.verifiedAt', {
-                date: new Date(recipe.verifiedAt).toLocaleDateString(),
+                date: new Date(recipe.verifiedAt).toLocaleDateString(
+                  displayLocale === 'en' ? 'en-US' : 'es-MX',
+                ),
               })}
             </Text>
           )}
