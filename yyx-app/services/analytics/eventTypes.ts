@@ -373,8 +373,9 @@ export interface LegacyActionExecutePayload {
  * Canonical map of event name -> payload shape.
  *
  * Adding an event: add an entry here. Removing one: remove its entry.
- * Call-sites use `trackEvent<K extends EventName>(name: K, payload: EventPayloadMap[K])`,
- * so TypeScript will flag wrong payloads at compile time.
+ * Call-sites use `trackEvent(event: AnalyticsEvent, envelopeInput)` where
+ * `AnalyticsEvent` is the discriminated union `{ name, payload }` derived from
+ * this map, so TypeScript rejects mismatched name/payload pairs at compile time.
  */
 export interface EventPayloadMap {
   // --- Legacy events (existing, pre-planner) ---
