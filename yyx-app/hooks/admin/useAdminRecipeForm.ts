@@ -329,6 +329,18 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
         tags: recipe.tags,
         steps: recipe.steps,
         kitchenTools: recipe.kitchenTools,
+        // My Week Setup planner metadata
+        plannerRole: recipe.plannerRole,
+        foodGroups: recipe.foodGroups,
+        isCompleteMeal: recipe.isCompleteMeal,
+        equipmentTags: recipe.equipmentTags,
+        cookingLevel: recipe.cookingLevel,
+        leftoversFriendly: recipe.leftoversFriendly,
+        batchFriendly: recipe.batchFriendly,
+        maxHouseholdSizeSupported: recipe.maxHouseholdSizeSupported,
+        requiresMultiBatchNote: recipe.requiresMultiBatchNote,
+        verifiedAt: recipe.verifiedAt,
+        verifiedBy: recipe.verifiedBy,
       };
       
       // Create the recipe

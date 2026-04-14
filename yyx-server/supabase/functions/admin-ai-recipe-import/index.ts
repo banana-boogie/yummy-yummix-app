@@ -86,6 +86,7 @@ MEAL PLANNER METADATA (best-guess from recipe text, admin will override):
 - batchFriendly: true if it's reasonable to double the batch; false for tricky scales (soufflé, delicate sauces).
 - maxHouseholdSizeSupported: optional integer. Only set if the recipe notes a capacity limit (e.g., "fits one Thermomix bowl"). Otherwise null.
 - requiresMultiBatchNote: optional short note on scaling if the recipe implies batching. Otherwise empty string.
+- mealTypes: array of canonical meal-type values the recipe best fits. Allowed values: "breakfast", "lunch", "dinner", "snack", "dessert", "beverage". Best-guess from recipe content even when not explicit in the source (e.g., pancakes -> ["breakfast"], hearty stew -> ["lunch","dinner"], brownies -> ["dessert"]). Pick 1-2 values typically. Empty array only if genuinely ambiguous.
 `;
 
 // =============================================================================
@@ -514,6 +515,15 @@ const jsonSchema = {
       type: "string",
       description: "Short scaling note, or empty string if none.",
     },
+    mealTypes: {
+      type: "array",
+      description:
+        "Best-guess meal types this recipe fits. Canonical values only.",
+      items: {
+        type: "string",
+        enum: ["breakfast", "lunch", "dinner", "snack", "dessert", "beverage"],
+      },
+    },
   },
   required: [
     "translations",
@@ -534,6 +544,7 @@ const jsonSchema = {
     "batchFriendly",
     "maxHouseholdSizeSupported",
     "requiresMultiBatchNote",
+    "mealTypes",
   ],
   additionalProperties: false,
 };

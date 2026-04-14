@@ -484,6 +484,7 @@ export const admin = {
             plannerRole: "rol de la receta",
             foodGroups: "qué contiene",
             mealTypes: "tiempos de comida",
+            publish: "Publicar la receta",
           },
         },
         plannerRole: {

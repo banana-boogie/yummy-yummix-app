@@ -479,6 +479,7 @@ export const admin = {
             plannerRole: "recipe role",
             foodGroups: "what's in it",
             mealTypes: "meal types",
+            publish: "Publish recipe",
           },
         },
         plannerRole: {

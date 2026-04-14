@@ -101,15 +101,20 @@ export function MyWeekSetupForm({ recipe, onUpdateRecipe, displayLocale = 'es' }
   const foodGroups = recipe.foodGroups || [];
   const equipmentTags = recipe.equipmentTags || [];
   const hasMealType = selectedMealTypeIds.length > 0;
-  const isEligible = Boolean(recipe.plannerRole) && foodGroups.length >= 1 && hasMealType;
+  const isPublished = recipe.isPublished === true;
+  const isEligible =
+    Boolean(recipe.plannerRole) && foodGroups.length >= 1 && hasMealType && isPublished;
 
   const missingLabels: string[] = [];
   if (!recipe.plannerRole) missingLabels.push(i18n.t('admin.recipes.form.myWeekSetup.eligibility.missing.plannerRole'));
   if (foodGroups.length === 0) missingLabels.push(i18n.t('admin.recipes.form.myWeekSetup.eligibility.missing.foodGroups'));
   if (!hasMealType) missingLabels.push(i18n.t('admin.recipes.form.myWeekSetup.eligibility.missing.mealTypes'));
+  if (!isPublished) missingLabels.push(i18n.t('admin.recipes.form.myWeekSetup.eligibility.missing.publish'));
 
   const handleVerifiedToggle = (on: boolean) => {
     if (on) {
+      // Store user.id for stable attribution (verified_by is TEXT).
+      // If/when a UI surfaces verified_by to users, revisit whether to store an admin display name.
       onUpdateRecipe({
         verifiedAt: new Date().toISOString(),
         verifiedBy: user?.id || null,

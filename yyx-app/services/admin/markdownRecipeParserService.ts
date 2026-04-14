@@ -231,6 +231,33 @@ export const parseRecipeMarkdown = async (markdown: string): Promise<ParseRecipe
     
     // Process tags
     const { tags, missingTags } = processTags(data.tags, allTags);
+
+    // Resolve inferred meal-type values against existing "Meal Type" tag category.
+    // Case-insensitive match against tag names; silently skip values with no matching tag
+    // (do NOT invent tags — same rule as the main tag pipeline).
+    const MEAL_TYPE_CATEGORY_MATCH = /meal\s*type/i;
+    const mealTypeValues: string[] = Array.isArray(data.mealTypes) ? data.mealTypes : [];
+    if (mealTypeValues.length > 0) {
+      const mealTypeTags = (allTags as AdminRecipeTag[]).filter(t =>
+        (t.categories || []).some((c: string) => MEAL_TYPE_CATEGORY_MATCH.test(c))
+      );
+      const existingIds = new Set(tags.map(t => t.id));
+      for (const value of mealTypeValues) {
+        const match = mealTypeTags.find(t => {
+          const nameEn = getTranslatedField(t.translations, 'en', 'name');
+          const nameEs = getTranslatedField(t.translations, 'es', 'name');
+          return (
+            nameEn.toLowerCase() === value.toLowerCase() ||
+            nameEs.toLowerCase() === value.toLowerCase()
+          );
+        });
+        if (match && !existingIds.has(match.id)) {
+          tags.push(match);
+          existingIds.add(match.id);
+        }
+      }
+    }
+
     recipe.tags = tags;
     
     // Use the processed ingredients as the data source for finding ingredients used in the instruction
