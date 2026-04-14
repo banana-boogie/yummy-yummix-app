@@ -564,6 +564,9 @@ export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]>
             if (toolCalls.actions) {
                 message.actions = toolCalls.actions as Action[];
             }
+            if (toolCalls.suggestions) {
+                message.suggestions = toolCalls.suggestions as import('@/types/irmixy').Suggestion[];
+            }
         }
 
         return message;
@@ -694,6 +697,7 @@ export async function saveVoiceTranscript(
             ...(msg.customRecipe ? { customRecipe: msg.customRecipe } : {}),
             ...(msg.safetyFlags ? { safetyFlags: msg.safetyFlags } : {}),
             ...(msg.actions ? { actions: msg.actions } : {}),
+            ...(msg.suggestions ? { suggestions: msg.suggestions } : {}),
         }));
 
         const response = await fetch(
