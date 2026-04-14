@@ -9,6 +9,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { createUserClient } from "../_shared/supabase-client.ts";
 import { validateAuth } from "../_shared/auth.ts";
 import { normalizeMealTypes } from "./meal-types.ts";
+import { executeGenerateShoppingList } from "./generate-shopping-list.ts";
 
 import {
   type GeneratePlanResponse,
@@ -273,20 +274,25 @@ async function handleMarkMealCooked(
 
 async function handleGenerateShoppingList(
   payload: Record<string, unknown>,
-  _userId: string,
-  _supabase: UserClient,
+  userId: string,
+  supabase: UserClient,
 ): Promise<Response> {
+  let mealPlanId: string;
   try {
-    requireString(payload, "mealPlanId");
+    mealPlanId = requireString(payload, "mealPlanId");
   } catch (error) {
     return errorResponse("INVALID_INPUT", (error as Error).message);
   }
 
-  const response: GenerateShoppingListResponse = {
-    shoppingListId: null,
-    warnings: [stubWarning("generate_shopping_list")],
-  };
-  return jsonResponse(response);
+  const { response, status } = await executeGenerateShoppingList(
+    supabase,
+    userId,
+    mealPlanId,
+  );
+  if (status === 404) {
+    return errorResponse("PLAN_NOT_FOUND", "Meal plan not found", 404);
+  }
+  return jsonResponse(response, status);
 }
 
 async function handleGetPreferences(
