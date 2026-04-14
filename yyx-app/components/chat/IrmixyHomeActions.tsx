@@ -1,8 +1,15 @@
 /**
  * IrmixyHomeActions
  *
- * Context-aware action cards rendered in the chat empty state.
- * Card set switches based on whether the user has an active meal plan.
+ * Action cards rendered in the chat empty state.
+ *
+ * NOTE: Active-plan detection is not yet reliable — `get_current_plan` is a
+ * stub in the meal-planner edge function (PR #1) that always returns
+ * `{ plan: null }`. Until a real implementation lands, this component only
+ * renders the no-plan card set. The active-plan i18n keys
+ * (`chat.homeActions.whatsOnWeek*`) are intentionally kept in the locale
+ * files so we avoid translation churn when the active-plan branch is
+ * reintroduced.
  *
  * Card kinds:
  *   - navigate      -> jump to another screen (e.g. Week tab)
@@ -20,7 +27,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text } from '@/components/common/Text';
 import i18n from '@/i18n';
 import { COLORS } from '@/constants/design-tokens';
-import { useActivePlan } from '@/hooks/chat/useActivePlan';
 
 type ActionKind =
     | { kind: 'navigate'; route: string }
@@ -42,47 +48,16 @@ export interface IrmixyHomeActionsProps {
 /** Future Week tab route — kept in one place so updating is trivial when the tab lands. */
 const WEEK_ROUTE = '/(tabs)/week';
 
-function useHomeActionCards(hasActivePlan: boolean): HomeActionCard[] {
+function useHomeActionCards(): HomeActionCard[] {
     const t = (key: string) => i18n.t(key);
 
-    if (!hasActivePlan) {
-        return [
-            {
-                id: 'start_week',
-                icon: 'calendar-week',
-                label: t('chat.homeActions.startWeek'),
-                action: { kind: 'navigate', route: WEEK_ROUTE },
-            },
-            {
-                id: 'what_to_cook',
-                icon: 'silverware-fork-knife',
-                label: t('chat.homeActions.whatToCook'),
-                action: {
-                    kind: 'send_message',
-                    message: t('chat.homeActions.whatToCookMessage'),
-                },
-            },
-            {
-                id: 'use_ingredients',
-                icon: 'fridge-outline',
-                label: t('chat.homeActions.useIngredients'),
-                action: {
-                    kind: 'focus_input',
-                    placeholder: t('chat.homeActions.useIngredientsPlaceholder'),
-                },
-            },
-        ];
-    }
-
+    // Only the no-plan set ships for now. See file header for rationale.
     return [
         {
-            id: 'whats_on_week',
-            icon: 'calendar-check-outline',
-            label: t('chat.homeActions.whatsOnWeek'),
-            action: {
-                kind: 'send_message',
-                message: t('chat.homeActions.whatsOnWeekMessage'),
-            },
+            id: 'start_week',
+            icon: 'calendar-week',
+            label: t('chat.homeActions.startWeek'),
+            action: { kind: 'navigate', route: WEEK_ROUTE },
         },
         {
             id: 'what_to_cook',
@@ -109,8 +84,7 @@ export function IrmixyHomeActions({
     onSendMessage,
     onFocusInput,
 }: IrmixyHomeActionsProps) {
-    const { hasActivePlan } = useActivePlan();
-    const cards = useHomeActionCards(hasActivePlan);
+    const cards = useHomeActionCards();
 
     const handlePress = (action: ActionKind) => {
         switch (action.kind) {

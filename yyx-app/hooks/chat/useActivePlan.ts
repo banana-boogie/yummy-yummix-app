@@ -3,9 +3,14 @@
  *
  * Minimal hook for chat's Home Actions: reports whether the user has an
  * active meal plan. Calls the meal-planner edge function's `get_current_plan`
- * action. The backend is a stub today ({ plan: null, warnings: [...] }) —
- * this hook treats any non-null `plan` shape as "active" and every error or
- * stub response as "no active plan" so chat degrades gracefully.
+ * action.
+ *
+ * WARNING — active-plan detection is unreliable.
+ * The `get_current_plan` action in the meal-planner edge function is a stub
+ * today (PR #1) that always returns `{ plan: null }`, so this hook currently
+ * reports `hasActivePlan: false` for every user. IrmixyHomeActions therefore
+ * no longer branches on the return value and only shows the no-plan card
+ * set. Re-enable branching once `get_current_plan` returns real plan data.
  *
  * Kept colocated with chat (hooks/chat/) intentionally: this PR does not
  * introduce a full planner client layer.
