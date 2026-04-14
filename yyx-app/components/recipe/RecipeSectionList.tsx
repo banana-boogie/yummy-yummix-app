@@ -27,6 +27,8 @@ export interface RecipeSection {
   layout: 'horizontal' | 'grid';
 }
 
+export type RecipeCardRenderer = (recipe: Recipe, compact: boolean) => React.ReactElement;
+
 interface RecipeSectionListProps {
   sections: RecipeSection[];
   onLoadMore: () => void;
@@ -36,10 +38,26 @@ interface RecipeSectionListProps {
   error: string | null;
   hasMore: boolean;
   contentContainerStyle?: StyleProp<ViewStyle>;
+  renderCard?: RecipeCardRenderer;
+  /**
+   * Fired once per section the first time it renders. Used by the Explore
+   * page to emit `explore_section_viewed` analytics events.
+   */
+  onSectionViewed?: (section: RecipeSection, position: number) => void;
 }
 
+const defaultRenderCard: RecipeCardRenderer = (recipe, compact) => (
+  <WatercolorRecipeCard recipe={recipe} compact={compact} />
+);
+
 // Memoized horizontal section
-const HorizontalSection = React.memo(function HorizontalSection({ recipes }: { recipes: Recipe[] }) {
+const HorizontalSection = React.memo(function HorizontalSection({
+  recipes,
+  renderCard,
+}: {
+  recipes: Recipe[];
+  renderCard: RecipeCardRenderer;
+}) {
   return (
     <ScrollView
       horizontal
@@ -48,7 +66,9 @@ const HorizontalSection = React.memo(function HorizontalSection({ recipes }: { r
       removeClippedSubviews
     >
       {recipes.map(recipe => (
-        <WatercolorRecipeCard key={recipe.id} recipe={recipe} compact />
+        <View key={recipe.id} style={{ width: 280 }}>
+          {renderCard(recipe, true)}
+        </View>
       ))}
     </ScrollView>
   );
@@ -58,13 +78,15 @@ const HorizontalSection = React.memo(function HorizontalSection({ recipes }: { r
 const GridItem = React.memo(function GridItem({
   recipe,
   itemWidth,
+  renderCard,
 }: {
   recipe: Recipe;
   itemWidth: number | string;
+  renderCard: RecipeCardRenderer;
 }) {
   return (
     <View style={{ width: itemWidth, marginBottom: SPACING.xl }}>
-      <WatercolorRecipeCard recipe={recipe} />
+      {renderCard(recipe, false)}
     </View>
   );
 });
@@ -78,8 +100,21 @@ const RecipeSectionListInner = forwardRef<FlatList, RecipeSectionListProps>(({
   error,
   hasMore,
   contentContainerStyle,
+  renderCard = defaultRenderCard,
+  onSectionViewed,
 }, ref) => {
   const { isPhone } = useDevice();
+  const viewedRef = React.useRef<Set<string>>(new Set());
+
+  React.useEffect(() => {
+    if (!onSectionViewed) return;
+    sections.forEach((section, index) => {
+      if (!viewedRef.current.has(section.id)) {
+        viewedRef.current.add(section.id);
+        onSectionViewed(section, index);
+      }
+    });
+  }, [sections, onSectionViewed]);
   const { width: screenWidth } = useWindowDimensions();
 
   // Grid layout calculations
@@ -189,7 +224,7 @@ const RecipeSectionListInner = forwardRef<FlatList, RecipeSectionListProps>(({
 
               {/* Horizontal scroll content */}
               <View className="pb-md">
-                <HorizontalSection recipes={section.recipes} />
+                <HorizontalSection recipes={section.recipes} renderCard={renderCard} />
               </View>
             </View>
           </View>
@@ -210,6 +245,7 @@ const RecipeSectionListInner = forwardRef<FlatList, RecipeSectionListProps>(({
                   key={recipe.id}
                   recipe={recipe}
                   itemWidth={gridItemWidth}
+                  renderCard={renderCard}
                 />
               ))}
               {numColumns > 1 && item.recipes!.length < numColumns && (
@@ -223,7 +259,7 @@ const RecipeSectionListInner = forwardRef<FlatList, RecipeSectionListProps>(({
       default:
         return null;
     }
-  }, [numColumns, gridItemWidth]);
+  }, [numColumns, gridItemWidth, renderCard]);
 
   const keyExtractor = useCallback(
     (item: typeof flatData[0]) => item.key,

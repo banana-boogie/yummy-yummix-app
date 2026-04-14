@@ -8,7 +8,10 @@ type EventType =
   | 'cook_complete'
   | 'search'
   | 'recipe_generate'
-  | 'action_execute';
+  | 'action_execute'
+  | 'explore_section_viewed'
+  | 'explore_filter_applied'
+  | 'explore_add_to_plan';
 type RecipeTable = 'recipes' | 'user_recipes';
 
 interface QueuedEvent {
@@ -230,6 +233,54 @@ class EventService {
       recipe_name: recipeName,
       success,
       duration_ms: Math.round(durationMs),
+    });
+  }
+
+  /**
+   * Log that an Explore section became visible on screen. Fired once per
+   * section per mount.
+   */
+  logExploreSectionViewed(payload: {
+    sectionId: string;
+    sectionPosition: number;
+    recipeCount: number;
+  }): void {
+    this.queueEvent('explore_section_viewed', {
+      section_id: payload.sectionId,
+      section_position: payload.sectionPosition,
+      recipe_count: payload.recipeCount,
+    });
+  }
+
+  /**
+   * Log that the user selected a filter chip on the Explore page.
+   */
+  logExploreFilterApplied(payload: {
+    filterId: string;
+    filterType: string;
+  }): void {
+    this.queueEvent('explore_filter_applied', {
+      filter_id: payload.filterId,
+      filter_type: payload.filterType,
+    });
+  }
+
+  /**
+   * Log a successful "Add to Plan" action from the Explore page.
+   */
+  logExploreAddToPlan(payload: {
+    recipeId: string;
+    planId: string;
+    slotId: string;
+    dayIndex: number;
+    mealType: string;
+  }): void {
+    this.queueEvent('explore_add_to_plan', {
+      recipe_id: payload.recipeId,
+      plan_id: payload.planId,
+      slot_id: payload.slotId,
+      day_index: payload.dayIndex,
+      meal_type: payload.mealType,
     });
   }
 

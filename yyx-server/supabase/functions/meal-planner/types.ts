@@ -19,6 +19,7 @@ export const MEAL_PLAN_ACTIONS = [
   "get_preferences",
   "update_preferences",
   "link_shopping_list",
+  "add_recipe_to_slot",
 ] as const;
 
 export const CANONICAL_MEAL_TYPES = [
@@ -169,6 +170,12 @@ export interface LinkShoppingListPayload {
   shoppingListId: string;
 }
 
+export interface AddRecipeToSlotPayload {
+  mealPlanId: string;
+  mealPlanSlotId: string;
+  recipeId: string;
+}
+
 // ============================================================
 // Response Types (slot-based, from meal-slot-schema.md § 9)
 // ============================================================
@@ -290,6 +297,11 @@ export interface LinkShoppingListResponse {
   linked: boolean;
   mealPlanId: string | null;
   shoppingListId: string | null;
+  warnings: string[];
+}
+
+export interface AddRecipeToSlotResponse {
+  slot: MealPlanSlotResponse | null;
   warnings: string[];
 }
 

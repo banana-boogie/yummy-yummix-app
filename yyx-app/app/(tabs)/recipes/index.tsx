@@ -16,9 +16,12 @@ import { SearchBar } from '@/components/common/SearchBar';
 import { RecipeSectionList, RecipeSection } from '@/components/recipe/RecipeSectionList';
 import { RecipeList } from '@/components/recipe/RecipeList';
 import { FilterChips } from '@/components/recipe/FilterChips';
+import { ExploreRecipeCard } from '@/components/recipe/ExploreRecipeCard';
+import { AddToPlanModal } from '@/components/recipe/AddToPlanModal';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import i18n from '@/i18n';
 import { eventService } from '@/services/eventService';
+import type { Recipe } from '@/types/recipe.types';
 
 const Recipes = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -142,6 +145,49 @@ const Recipes = () => {
     [chips, selectedChipId],
   );
 
+  // Add to Plan modal
+  const [planRecipe, setPlanRecipe] = useState<Recipe | null>(null);
+  const handleAddToPlan = useCallback((recipe: Recipe) => {
+    setPlanRecipe(recipe);
+  }, []);
+  const renderExploreCard = useCallback(
+    (recipe: Recipe, compact: boolean) => (
+      <ExploreRecipeCard recipe={recipe} compact={compact} onAddToPlan={handleAddToPlan} />
+    ),
+    [handleAddToPlan],
+  );
+
+  const handleSectionViewed = useCallback(
+    (section: RecipeSection, position: number) => {
+      eventService.logExploreSectionViewed({
+        sectionId: section.id,
+        sectionPosition: position,
+        recipeCount: section.recipes.length,
+      });
+    },
+    [],
+  );
+
+  const handleChipSelect = useCallback(
+    (id: string | null) => {
+      setSelectedChipId(id);
+      if (id) {
+        const chip = chips.find((c) => c.id === id);
+        eventService.logExploreFilterApplied({
+          filterId: id,
+          filterType: chip?.filter.cuisine
+            ? 'cuisine'
+            : chip?.filter.dietType
+            ? 'diet'
+            : chip?.filter.maxTime
+            ? 'time'
+            : 'other',
+        });
+      }
+    },
+    [chips],
+  );
+
   // When a chip is active, narrow only the "all_recipes" section's recipes.
   const displaySections = useMemo<RecipeSection[]>(() => {
     if (!selectedChip) return sections;
@@ -184,7 +230,7 @@ const Recipes = () => {
             <FilterChips
               chips={chips}
               selectedId={selectedChipId}
-              onSelect={setSelectedChipId}
+              onSelect={handleChipSelect}
             />
           </View>
         )}
@@ -215,9 +261,17 @@ const Recipes = () => {
             onLoadMore={loadMore}
             onScroll={onScroll}
             contentContainerStyle={{ paddingTop: headerHeight }}
+            renderCard={renderExploreCard}
+            onSectionViewed={handleSectionViewed}
           />
         )}
       </View>
+      <AddToPlanModal
+        visible={!!planRecipe}
+        recipe={planRecipe}
+        onClose={() => setPlanRecipe(null)}
+        activePlan={activePlan}
+      />
     </PageLayout>
   );
 };

@@ -11,6 +11,7 @@ import { validateAuth } from "../_shared/auth.ts";
 import { normalizeMealTypes } from "./meal-types.ts";
 
 import {
+  type AddRecipeToSlotResponse,
   type GeneratePlanResponse,
   type GenerateShoppingListResponse,
   type GetCurrentPlanResponse,
@@ -22,6 +23,8 @@ import {
   type MealPlannerErrorCode,
   type MealPlannerErrorResponse,
   type MealPlannerRequest,
+  type MealPlanSlotComponentResponse,
+  type MealPlanSlotResponse,
   type PreferencesResponse,
   type SkipMealResponse,
   type SwapMealResponse,
@@ -318,6 +321,242 @@ async function handleUpdatePreferences(
   }
 }
 
+interface SlotRow {
+  id: string;
+  meal_plan_id: string;
+  planned_date: string;
+  day_index: number;
+  meal_type: string;
+  display_order: number;
+  slot_type: string;
+  structure_template: string;
+  expected_food_groups: string[];
+  selection_reason: string | null;
+  shopping_sync_state: string;
+  status: string;
+  swap_count: number;
+  last_swapped_at: string | null;
+  cooked_at: string | null;
+  skipped_at: string | null;
+  merged_cooking_guide: Record<string, unknown> | null;
+  meal_plan: { id: string; user_id: string } | null;
+}
+
+interface ComponentRow {
+  id: string;
+  component_role: string;
+  source_kind: string;
+  recipe_id: string | null;
+  source_component_id: string | null;
+  food_groups_snapshot: string[];
+  pairing_basis: string;
+  display_order: number;
+  is_primary: boolean;
+  title_snapshot: string;
+  image_url_snapshot: string | null;
+  total_time_snapshot: number | null;
+  difficulty_snapshot: string | null;
+  portions_snapshot: number | null;
+  equipment_tags_snapshot: string[];
+}
+
+function componentRowToResponse(
+  row: ComponentRow,
+): MealPlanSlotComponentResponse {
+  return {
+    id: row.id,
+    componentRole: row.component_role as MealPlanSlotComponentResponse[
+      "componentRole"
+    ],
+    sourceKind: row.source_kind as MealPlanSlotComponentResponse["sourceKind"],
+    recipeId: row.recipe_id,
+    sourceComponentId: row.source_component_id,
+    foodGroupsSnapshot: row.food_groups_snapshot ?? [],
+    pairingBasis: row.pairing_basis as MealPlanSlotComponentResponse[
+      "pairingBasis"
+    ],
+    displayOrder: row.display_order,
+    isPrimary: row.is_primary,
+    title: row.title_snapshot,
+    imageUrl: row.image_url_snapshot,
+    totalTimeMinutes: row.total_time_snapshot,
+    difficulty: row
+      .difficulty_snapshot as MealPlanSlotComponentResponse["difficulty"],
+    portions: row.portions_snapshot,
+    equipmentTags: row.equipment_tags_snapshot ?? [],
+  };
+}
+
+function slotRowToResponse(
+  row: SlotRow,
+  components: ComponentRow[],
+): MealPlanSlotResponse {
+  return {
+    id: row.id,
+    plannedDate: row.planned_date,
+    dayIndex: row.day_index,
+    mealType: row.meal_type as MealPlanSlotResponse["mealType"],
+    displayMealLabel: row.meal_type,
+    displayOrder: row.display_order,
+    slotType: row.slot_type as MealPlanSlotResponse["slotType"],
+    structureTemplate: row.structure_template as MealPlanSlotResponse[
+      "structureTemplate"
+    ],
+    expectedFoodGroups: row.expected_food_groups ?? [],
+    selectionReason: row.selection_reason ?? "",
+    shoppingSyncState: row.shopping_sync_state as MealPlanSlotResponse[
+      "shoppingSyncState"
+    ],
+    status: row.status as MealPlanSlotResponse["status"],
+    swapCount: row.swap_count,
+    lastSwappedAt: row.last_swapped_at,
+    cookedAt: row.cooked_at,
+    skippedAt: row.skipped_at,
+    mergedCookingGuide: row.merged_cooking_guide,
+    components: components
+      .slice()
+      .sort((a, b) => a.display_order - b.display_order)
+      .map(componentRowToResponse),
+  };
+}
+
+async function handleAddRecipeToSlot(
+  payload: Record<string, unknown>,
+  userId: string,
+  supabase: UserClient,
+): Promise<Response> {
+  let mealPlanId: string;
+  let mealPlanSlotId: string;
+  let recipeId: string;
+  try {
+    mealPlanId = requireString(payload, "mealPlanId");
+    mealPlanSlotId = requireString(payload, "mealPlanSlotId");
+    recipeId = requireString(payload, "recipeId");
+  } catch (error) {
+    return errorResponse("INVALID_INPUT", (error as Error).message);
+  }
+
+  // Validate slot ownership and plan match in a single query.
+  // deno-lint-ignore no-explicit-any
+  const slotQuery = await (supabase as any)
+    .from("meal_plan_slots")
+    .select(
+      "id, meal_plan_id, planned_date, day_index, meal_type, display_order, slot_type, structure_template, expected_food_groups, selection_reason, shopping_sync_state, status, swap_count, last_swapped_at, cooked_at, skipped_at, merged_cooking_guide, meal_plan:meal_plans!inner(id, user_id)",
+    )
+    .eq("id", mealPlanSlotId)
+    .single();
+
+  if (slotQuery.error || !slotQuery.data) {
+    return errorResponse("PLAN_NOT_FOUND", "Slot not found", 404);
+  }
+  const slot = slotQuery.data as SlotRow;
+  if (!slot.meal_plan || slot.meal_plan.user_id !== userId) {
+    return errorResponse("UNAUTHORIZED", "Slot does not belong to user", 403);
+  }
+  if (slot.meal_plan.id !== mealPlanId) {
+    return errorResponse(
+      "INVALID_INPUT",
+      "Slot does not belong to the given meal plan",
+    );
+  }
+
+  // Load the recipe snapshot fields.
+  // deno-lint-ignore no-explicit-any
+  const recipeQuery = await (supabase as any)
+    .from("recipes")
+    .select(
+      "id, image_url, total_time, difficulty, portions, equipment_tags, planner_role, food_groups, translations:recipe_translations(locale, name)",
+    )
+    .eq("id", recipeId)
+    .single();
+
+  if (recipeQuery.error || !recipeQuery.data) {
+    return errorResponse("INVALID_INPUT", "Recipe not found");
+  }
+  const recipe = recipeQuery.data as {
+    id: string;
+    image_url: string | null;
+    total_time: number | null;
+    difficulty: string | null;
+    portions: number | null;
+    equipment_tags: string[] | null;
+    planner_role: string | null;
+    food_groups: string[] | null;
+    translations: Array<{ locale: string; name: string }>;
+  };
+
+  const translation = recipe.translations?.find((t) => t.locale === "en") ??
+    recipe.translations?.[0];
+  const title = translation?.name ?? "Untitled";
+
+  // Load existing components to decide display_order + primacy.
+  // deno-lint-ignore no-explicit-any
+  const existingQuery = await (supabase as any)
+    .from("meal_plan_slot_components")
+    .select(
+      "id, component_role, source_kind, recipe_id, source_component_id, food_groups_snapshot, pairing_basis, display_order, is_primary, title_snapshot, image_url_snapshot, total_time_snapshot, difficulty_snapshot, portions_snapshot, equipment_tags_snapshot",
+    )
+    .eq("meal_plan_slot_id", mealPlanSlotId);
+
+  if (existingQuery.error) {
+    return errorResponse(
+      "INTERNAL_ERROR",
+      "Failed to load slot components",
+      500,
+    );
+  }
+  const existing = (existingQuery.data ?? []) as ComponentRow[];
+  const nextDisplayOrder = existing.reduce(
+    (max, c) => Math.max(max, c.display_order + 1),
+    0,
+  );
+  const shouldBePrimary = existing.length === 0;
+
+  const componentRole = recipe.planner_role === "main" || existing.length === 0
+    ? "main"
+    : "side";
+
+  // deno-lint-ignore no-explicit-any
+  const insertQuery = await (supabase as any)
+    .from("meal_plan_slot_components")
+    .insert({
+      meal_plan_slot_id: mealPlanSlotId,
+      component_role: componentRole,
+      source_kind: "recipe",
+      recipe_id: recipe.id,
+      food_groups_snapshot: recipe.food_groups ?? [],
+      pairing_basis: "manual",
+      display_order: nextDisplayOrder,
+      title_snapshot: title,
+      image_url_snapshot: recipe.image_url,
+      total_time_snapshot: recipe.total_time,
+      difficulty_snapshot: recipe.difficulty,
+      portions_snapshot: recipe.portions,
+      equipment_tags_snapshot: recipe.equipment_tags ?? [],
+      selection_reason: "explore_add",
+      is_primary: shouldBePrimary,
+    })
+    .select(
+      "id, component_role, source_kind, recipe_id, source_component_id, food_groups_snapshot, pairing_basis, display_order, is_primary, title_snapshot, image_url_snapshot, total_time_snapshot, difficulty_snapshot, portions_snapshot, equipment_tags_snapshot",
+    )
+    .single();
+
+  if (insertQuery.error || !insertQuery.data) {
+    return errorResponse(
+      "INTERNAL_ERROR",
+      "Failed to add recipe to slot",
+      500,
+    );
+  }
+
+  const updatedComponents = [...existing, insertQuery.data as ComponentRow];
+  const response: AddRecipeToSlotResponse = {
+    slot: slotRowToResponse(slot, updatedComponents),
+    warnings: [],
+  };
+  return jsonResponse(response);
+}
+
 async function handleLinkShoppingList(
   payload: Record<string, unknown>,
   _userId: string,
@@ -358,6 +597,7 @@ const actionHandlers: Record<
   get_preferences: handleGetPreferences,
   update_preferences: handleUpdatePreferences,
   link_shopping_list: handleLinkShoppingList,
+  add_recipe_to_slot: handleAddRecipeToSlot,
 };
 
 export async function handleMealPlannerRequest(
