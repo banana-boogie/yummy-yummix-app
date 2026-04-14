@@ -276,3 +276,38 @@ Deno.test("buildSystemPrompt cooking helper mode works without stepInstructions"
   assertStringIncludes(prompt, "Step 1");
   assertEquals(prompt.includes("Current step instructions:"), false);
 });
+
+Deno.test("buildSystemPrompt includes meal plan context when an active plan is provided", () => {
+  const prompt = buildSystemPrompt(
+    createUserContext(),
+    undefined,
+    undefined,
+    {
+      planId: "plan-1",
+      weekStart: "2026-04-13",
+      nextMeal: {
+        plannedDate: "2026-04-14",
+        dayIndex: 1,
+        mealType: "dinner",
+        title: "Spaghetti Bolognese",
+      },
+    },
+  );
+
+  assertStringIncludes(prompt, "MEAL PLAN CONTEXT");
+  assertStringIncludes(prompt, "2026-04-13");
+  assertStringIncludes(prompt, "Spaghetti Bolognese");
+  assertStringIncludes(prompt, "dinner");
+});
+
+Deno.test("buildSystemPrompt omits meal plan context section when no plan is provided", () => {
+  const promptNull = buildSystemPrompt(
+    createUserContext(),
+    undefined,
+    undefined,
+    null,
+  );
+  const promptUndef = buildSystemPrompt(createUserContext());
+  assertEquals(promptNull.includes("MEAL PLAN CONTEXT"), false);
+  assertEquals(promptUndef.includes("MEAL PLAN CONTEXT"), false);
+});

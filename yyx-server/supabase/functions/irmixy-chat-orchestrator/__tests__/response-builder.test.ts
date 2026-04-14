@@ -9,7 +9,8 @@ import {
   assertRejects,
 } from "https://deno.land/std@0.192.0/testing/asserts.ts";
 import type { UserContext } from "../../_shared/irmixy-schemas.ts";
-import { finalizeResponse } from "../response-builder.ts";
+import { buildSuggestions, finalizeResponse } from "../response-builder.ts";
+import type { PlanContext } from "../plan-context.ts";
 
 function createUserContext(
   overrides: Partial<UserContext> = {},
@@ -183,4 +184,122 @@ Deno.test("finalizeResponse propagates history insert failures", async () => {
     Error,
     "insert failed",
   );
+});
+
+// ============================================================
+// buildSuggestions — chip generation
+// ============================================================
+
+const samplePlanContext: PlanContext = {
+  planId: "plan-1",
+  weekStart: "2026-04-13",
+  nextMeal: null,
+};
+
+Deno.test("buildSuggestions returns 1-3 EN chips for each category", () => {
+  for (const category of ["recipe", "planner", "general"] as const) {
+    const chips = buildSuggestions(category, "en");
+    const n = chips.length;
+    assertEquals(
+      n >= 1 && n <= 3,
+      true,
+      `expected 1-3 chips for ${category}, got ${n}`,
+    );
+    for (const chip of chips) {
+      assertEquals(typeof chip.label, "string");
+      assertEquals(typeof chip.message, "string");
+      // English chips should not contain accented Spanish characters
+      assertEquals(
+        /[¿¡áéíóúñ]/i.test(chip.label),
+        false,
+        `EN chip looks Spanish: ${chip.label}`,
+      );
+    }
+  }
+});
+
+Deno.test("buildSuggestions returns Spanish chips when language is 'es'", () => {
+  const chips = buildSuggestions("recipe", "es");
+  assertEquals(chips.length >= 1 && chips.length <= 3, true);
+  // At least one chip should contain a Spanish-specific character
+  const hasSpanish = chips.some((c) =>
+    /[¿¡áéíóúñ]/i.test(c.label) || /[¿¡áéíóúñ]/i.test(c.message)
+  );
+  assertEquals(
+    hasSpanish,
+    true,
+    "expected at least one ES chip with Spanish characters",
+  );
+});
+
+Deno.test("buildSuggestions differentiates planner category based on active plan", () => {
+  const withPlan = buildSuggestions("planner", "en", samplePlanContext);
+  const withoutPlan = buildSuggestions("planner", "en", null);
+  assertEquals(withPlan.length >= 1 && withPlan.length <= 3, true);
+  assertEquals(withoutPlan.length >= 1 && withoutPlan.length <= 3, true);
+  // With a plan, we reference the existing week; without one, we offer to plan.
+  const withPlanLabels = withPlan.map((c) => c.label).join(" | ");
+  const withoutPlanLabels = withoutPlan.map((c) => c.label).join(" | ");
+  assertEquals(withPlanLabels.includes("See my week"), true);
+  assertEquals(withoutPlanLabels.includes("Plan my week"), true);
+});
+
+Deno.test("buildSuggestions general category varies based on active plan", () => {
+  const withPlan = buildSuggestions("general", "en", samplePlanContext);
+  const withoutPlan = buildSuggestions("general", "en", null);
+  assertEquals(
+    withPlan.map((c) => c.label).includes("See my week"),
+    true,
+  );
+  assertEquals(
+    withoutPlan.map((c) => c.label).includes("Plan my week"),
+    true,
+  );
+});
+
+// ============================================================
+// finalizeResponse — suggestions persistence
+// ============================================================
+
+Deno.test("finalizeResponse persists suggestions in tool_calls when provided", async () => {
+  const { supabase, inserts } = createMockSupabase();
+  const suggestions = [
+    { label: "Plan my week", message: "Help me plan my week" },
+    { label: "Something quicker", message: "I want something quicker" },
+  ];
+  const response = await finalizeResponse(
+    supabase as unknown as any,
+    "session-123",
+    "hi",
+    "assistant text",
+    createUserContext(),
+    undefined,
+    undefined,
+    undefined,
+    suggestions,
+  );
+
+  assertEquals(response.suggestions?.length, 2);
+  const assistantInsert = inserts[1] as Record<string, unknown>;
+  const toolCalls = assistantInsert.tool_calls as Record<string, unknown>;
+  assertEquals(Array.isArray(toolCalls.suggestions), true);
+  assertEquals((toolCalls.suggestions as unknown[]).length, 2);
+});
+
+Deno.test("finalizeResponse omits empty suggestions array from tool_calls", async () => {
+  const { supabase, inserts } = createMockSupabase();
+  await finalizeResponse(
+    supabase as unknown as any,
+    "session-123",
+    "hi",
+    "assistant text",
+    createUserContext(),
+    undefined,
+    undefined,
+    undefined,
+    [],
+  );
+
+  const assistantInsert = inserts[1] as Record<string, unknown>;
+  assertEquals(assistantInsert.tool_calls, null);
 });
