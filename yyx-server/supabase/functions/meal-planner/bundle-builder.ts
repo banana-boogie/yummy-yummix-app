@@ -10,16 +10,33 @@
  */
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import type { RecipeCandidate } from "./candidate-retrieval.ts";
+import {
+  normalizeKey,
+  pickTranslationName,
+  type RecipeCandidate,
+} from "./candidate-retrieval.ts";
 import type { MealSlot } from "./slot-classifier.ts";
 import { CONDIMENT_RULES } from "./scoring-config.ts";
+import { getNoCookPlaceholderTitle } from "./selection-reason-templates.ts";
 import type { ComponentRole, PairingBasis, SourceKind } from "./types.ts";
 
 export interface SlotComponent {
   role: ComponentRole;
   sourceKind: SourceKind;
   recipeId: string | null;
+  /**
+   * Final DB UUID of the source component for `source_kind = 'leftover'`.
+   * Populated post-persist; null in-memory. See `sourceSlotIdRef` for the
+   * planner-internal reference used during the two-phase component insert.
+   */
   sourceComponentId: string | null;
+  /**
+   * For leftover components: the slotId of the source meal whose primary
+   * component will feed this leftover. Used during persistence to look up
+   * the real DB UUID of that primary component and populate
+   * `source_component_id`. Null for non-leftover components.
+   */
+  sourceSlotIdRef: string | null;
   foodGroupsSnapshot: string[];
   pairingBasis: PairingBasis;
   isPrimary: boolean;
@@ -56,6 +73,7 @@ export interface PairingLookup {
 export async function fetchPairingsForCandidates(
   supabase: SupabaseClient,
   primaryRecipeIds: string[],
+  localeChain: string[],
 ): Promise<PairingLookup> {
   const byRole = new Map<string, Map<string, PairingRow[]>>();
   const candidatesById = new Map<string, RecipeCandidate>();
@@ -78,7 +96,10 @@ export async function fetchPairingsForCandidates(
     byRole.set(p.source_recipe_id, slot);
   }
 
-  // Hydrate target candidates.
+  // Hydrate target candidates. We include recipe_ingredients so downstream
+  // allergen annotation can match paired sides/bases against the user's
+  // dietary restrictions — otherwise a user with a gluten allergy could get
+  // an allergen-safe primary dish with a gluten-heavy paired side.
   const targetIds = [
     ...new Set((pairings as PairingRow[]).map((p) => p.target_recipe_id)),
   ];
@@ -102,19 +123,50 @@ export async function fetchPairingsForCandidates(
       cooking_level,
       verified_at,
       is_published,
-      recipe_translations ( locale, name )
+      recipe_translations ( locale, name ),
+      recipe_ingredients ( ingredient_id, ingredients ( id, ingredient_translations ( locale, name ) ) )
     `)
     .in("id", targetIds)
     .eq("is_published", true);
 
   if (targetError || !targets) return { byRole, candidatesById };
 
+  let droppedForLocale = 0;
   for (const row of targets as Array<Record<string, unknown>>) {
     const translations = (row.recipe_translations as Array<
       { locale: string; name: string | null }
-    >) ??
-      [];
-    const title = translations.find((t) => t.name)?.name ?? "";
+    >) ?? [];
+    const title = pickTranslationName(translations, localeChain);
+    if (!title) {
+      // No same-language translation available — drop the pairing target
+      // rather than cross-language fallback.
+      droppedForLocale++;
+      continue;
+    }
+
+    const ingredientIds: string[] = [];
+    const ingredientKeys: string[] = [];
+    const rawIngredients = (row.recipe_ingredients as Array<{
+      ingredient_id: string | null;
+      ingredients: {
+        id: string;
+        ingredient_translations: Array<{ locale: string; name: string | null }>;
+      } | null;
+    }>) ?? [];
+    for (const ri of rawIngredients) {
+      const ing = ri.ingredients;
+      if (!ing) continue;
+      ingredientIds.push(ing.id);
+      const ingName = pickTranslationName(
+        ing.ingredient_translations ?? [],
+        localeChain,
+      );
+      // For allergen matching we normalize names regardless of language so
+      // the English "chicken" and Spanish "pollo" both work against the
+      // allergen_groups canonical list.
+      if (ingName) ingredientKeys.push(normalizeKey(ingName));
+    }
+
     const candidate: RecipeCandidate = {
       id: row.id as string,
       title,
@@ -137,13 +189,21 @@ export async function fetchPairingsForCandidates(
         | null) ?? null,
       verifiedAt: (row.verified_at as string | null) ?? null,
       isPublished: !!row.is_published,
-      ingredientIds: [],
-      ingredientKeys: [],
+      ingredientIds,
+      ingredientKeys,
       cuisineTags: [],
       hasAllergenConflict: false,
       allergenMatches: [],
     };
     candidatesById.set(candidate.id, candidate);
+  }
+
+  if (droppedForLocale > 0) {
+    console.warn(
+      `[bundle-builder] Dropped ${droppedForLocale} pairing target(s) missing translation for locale chain=${
+        localeChain.join(",")
+      }`,
+    );
   }
 
   return { byRole, candidatesById };
@@ -162,6 +222,7 @@ function toComponent(
     sourceKind: "recipe",
     recipeId: candidate.id,
     sourceComponentId: null,
+    sourceSlotIdRef: null,
     foodGroupsSnapshot: candidate.foodGroups,
     pairingBasis,
     isPrimary,
@@ -233,6 +294,7 @@ export function buildBundle(
       if (components.length >= budget) break;
       const target = pairings.candidatesById.get(pairing.target_recipe_id);
       if (!target) continue;
+      if (target.hasAllergenConflict) continue; // hard dietary filter
       const currentFoodGroups = target.foodGroups;
       const addsCoverage = currentFoodGroups.some((g) => !coveredGroups.has(g));
       if (!addsCoverage && role !== "beverage" && role !== "dessert") continue;
@@ -258,6 +320,7 @@ export function buildBundle(
     if (!CONDIMENT_RULES.explicitPairingOnly) break; // always true per config
     const target = pairings.candidatesById.get(c.target_recipe_id);
     if (!target) continue;
+    if (target.hasAllergenConflict) continue; // hard dietary filter
     addComponent("condiment", target, "explicit_pairing", c.reason);
     condimentsAdded++;
   }
@@ -285,17 +348,23 @@ function targetComponentCount(
  * no concrete recipe. Used so the plan persistence layer has a consistent
  * shape regardless of whether the slot materialized as a recipe, leftover, or
  * no-cook meal.
+ *
+ * For leftovers we carry `sourceSlotIdRef` — the slotId of the meal that will
+ * feed this leftover. The persistence layer uses that reference during a
+ * two-phase insert to resolve the real DB UUID for `source_component_id`,
+ * which the schema's `components_source_lineage_check` constraint requires.
  */
 export function buildLeftoverPlaceholder(
   _slot: MealSlot,
-  sourceComponentId: string,
+  sourceSlotId: string,
   sourceTitle: string,
 ): SlotComponent {
   return {
     role: "main",
     sourceKind: "leftover",
     recipeId: null,
-    sourceComponentId,
+    sourceComponentId: null,
+    sourceSlotIdRef: sourceSlotId,
     foodGroupsSnapshot: [],
     pairingBasis: "leftover_carry",
     isPrimary: true,
@@ -313,19 +382,20 @@ export function buildLeftoverPlaceholder(
 
 export function buildNoCookPlaceholder(
   _slot: MealSlot,
-  title: string,
+  locale: string,
 ): SlotComponent {
   return {
     role: "main",
     sourceKind: "no_cook",
     recipeId: null,
     sourceComponentId: null,
+    sourceSlotIdRef: null,
     foodGroupsSnapshot: [],
     pairingBasis: "standalone",
     isPrimary: true,
     candidate: null,
     displayOrder: 0,
-    titleSnapshot: title,
+    titleSnapshot: getNoCookPlaceholderTitle(locale),
     imageSnapshot: null,
     totalTimeSnapshot: null,
     difficultySnapshot: null,

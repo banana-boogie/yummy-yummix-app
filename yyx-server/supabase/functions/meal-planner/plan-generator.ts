@@ -32,6 +32,7 @@ import {
   assembleWeek,
   type WeekState,
 } from "./week-assembler.ts";
+import type { SlotComponent } from "./bundle-builder.ts";
 import type { UserContext } from "./scoring/types.ts";
 import { buildLocaleChain } from "../_shared/locale-utils.ts";
 import {
@@ -81,6 +82,21 @@ export interface DebugTrace {
 
 export interface GeneratePlanResult extends GeneratePlanResponse {
   debugTrace: DebugTrace;
+}
+
+/**
+ * Thrown by `persistPlan` when `replaceExisting` is false and an existing
+ * draft/active plan is already present for the same (user_id, week_start).
+ * The request handler catches this and maps it to the documented
+ * `PLAN_ALREADY_EXISTS` error code with HTTP 409.
+ */
+export class PlanAlreadyExistsError extends Error {
+  public readonly existingPlanId: string;
+  constructor(existingPlanId: string) {
+    super(`A draft or active plan already exists for this week`);
+    this.name = "PlanAlreadyExistsError";
+    this.existingPlanId = existingPlanId;
+  }
 }
 
 // ============================================================
@@ -279,27 +295,23 @@ async function loadLeftoverTransforms(
 // Allergen annotation — marks candidates with hard conflicts.
 // ============================================================
 
-async function annotateAllergenConflicts(
+/**
+ * Load the allergen → canonical-ingredient map once per request. Kept separate
+ * from `annotateAllergenConflicts` so callers that also need it (pairings)
+ * can avoid re-fetching.
+ */
+async function loadAllergenMap(
   supabase: SupabaseClient,
-  candidateMap: CandidateMap,
   dietaryRestrictions: string[],
-): Promise<void> {
-  if (dietaryRestrictions.length === 0) return;
-  const allIds = new Set<string>();
-  for (const list of candidateMap.cook.values()) {
-    for (const c of list) allIds.add(c.id);
-  }
-  for (const list of candidateMap.fallback.values()) {
-    for (const c of list) allIds.add(c.id);
-  }
-  if (allIds.size === 0) return;
+): Promise<Map<string, Set<string>>> {
+  const allergenByRestriction = new Map<string, Set<string>>();
+  if (dietaryRestrictions.length === 0) return allergenByRestriction;
 
-  // Load allergen_groups → restriction → ingredient list.
   const { data: allergens } = await supabase
     .from("allergen_groups")
     .select("category, ingredient_canonical");
-  if (!allergens) return;
-  const allergenByRestriction = new Map<string, Set<string>>();
+  if (!allergens) return allergenByRestriction;
+
   for (
     const row of allergens as Array<
       { category: string; ingredient_canonical: string }
@@ -310,9 +322,15 @@ async function annotateAllergenConflicts(
     set.add(row.ingredient_canonical.toLowerCase());
     allergenByRestriction.set(row.category, set);
   }
-  if (allergenByRestriction.size === 0) return;
+  return allergenByRestriction;
+}
 
-  const markConflict = (c: RecipeCandidate) => {
+function annotateCandidates(
+  candidates: Iterable<RecipeCandidate>,
+  allergenByRestriction: Map<string, Set<string>>,
+): void {
+  if (allergenByRestriction.size === 0) return;
+  for (const c of candidates) {
     for (const key of c.ingredientKeys) {
       const lower = key.toLowerCase();
       for (const [restriction, ingredients] of allergenByRestriction) {
@@ -326,9 +344,26 @@ async function annotateAllergenConflicts(
         }
       }
     }
-  };
-  for (const list of candidateMap.cook.values()) list.forEach(markConflict);
-  for (const list of candidateMap.fallback.values()) list.forEach(markConflict);
+  }
+}
+
+async function annotateAllergenConflicts(
+  supabase: SupabaseClient,
+  candidateMap: CandidateMap,
+  dietaryRestrictions: string[],
+): Promise<Map<string, Set<string>>> {
+  const allergenByRestriction = await loadAllergenMap(
+    supabase,
+    dietaryRestrictions,
+  );
+  if (allergenByRestriction.size === 0) return allergenByRestriction;
+  for (const list of candidateMap.cook.values()) {
+    annotateCandidates(list, allergenByRestriction);
+  }
+  for (const list of candidateMap.fallback.values()) {
+    annotateCandidates(list, allergenByRestriction);
+  }
+  return allergenByRestriction;
 }
 
 // ============================================================
@@ -341,6 +376,40 @@ interface PersistedPlan {
   components: Array<{ id: string; slotId: string; displayOrder: number }>;
 }
 
+type ArchivedPlan = { id: string; previousStatus: string };
+
+/**
+ * Best-effort rollback of archived plans. If a later insert in the persistence
+ * flow fails, we walk this list and try to restore each plan's previous status.
+ * Errors during rollback are logged but swallowed — rollback itself is
+ * best-effort. This is not a real transaction; the intent is to avoid leaving
+ * the user with zero visible plans when generation fails partway through.
+ */
+async function restoreArchivedPlans(
+  supabase: SupabaseClient,
+  archived: ArchivedPlan[],
+): Promise<void> {
+  for (const plan of archived) {
+    try {
+      const { error } = await supabase
+        .from("meal_plans")
+        .update({ status: plan.previousStatus })
+        .eq("id", plan.id);
+      if (error) {
+        console.error(
+          `[plan-generator] Failed to restore plan ${plan.id} to ${plan.previousStatus}:`,
+          error.message,
+        );
+      }
+    } catch (err) {
+      console.error(
+        `[plan-generator] Exception restoring plan ${plan.id}:`,
+        err,
+      );
+    }
+  }
+}
+
 async function persistPlan(
   supabase: SupabaseClient,
   userId: string,
@@ -348,22 +417,105 @@ async function persistPlan(
   locale: string,
   best: WeekState,
   slots: MealSlot[],
-  missingSlots: MealSlot[],
   requestedDayIndexes: number[],
   requestedMealTypes: string[],
   replaceExisting: boolean,
 ): Promise<PersistedPlan> {
-  // If an existing draft/active plan blocks insertion, archive or delete as
-  // requested. The unique index only permits one active/draft per week.
-  if (replaceExisting) {
-    await supabase
+  // Preflight: the unique index only permits one draft/active plan per week.
+  // If `replaceExisting` is false and such a plan exists, surface the
+  // documented PLAN_ALREADY_EXISTS contract rather than letting the insert
+  // throw a generic unique-constraint error that would map to INTERNAL_ERROR.
+  if (!replaceExisting) {
+    const { data: existing, error: existingError } = await supabase
       .from("meal_plans")
-      .update({ status: "archived" })
+      .select("id")
+      .eq("user_id", userId)
+      .eq("week_start", weekStart)
+      .in("status", ["draft", "active"])
+      .maybeSingle();
+    if (existingError) {
+      throw new Error(
+        `Failed to check for existing plan: ${existingError.message}`,
+      );
+    }
+    if (existing?.id) {
+      throw new PlanAlreadyExistsError(existing.id as string);
+    }
+  }
+
+  // Archive the current draft/active plans for this week. Remember their
+  // prior statuses so we can roll back if the subsequent inserts fail.
+  const archived: ArchivedPlan[] = [];
+  if (replaceExisting) {
+    const { data: current, error: currentError } = await supabase
+      .from("meal_plans")
+      .select("id, status")
       .eq("user_id", userId)
       .eq("week_start", weekStart)
       .in("status", ["draft", "active"]);
+    if (currentError) {
+      throw new Error(
+        `Failed to load existing plans: ${currentError.message}`,
+      );
+    }
+    for (
+      const row of (current ?? []) as Array<{ id: string; status: string }>
+    ) {
+      archived.push({ id: row.id, previousStatus: row.status });
+    }
+    if (archived.length > 0) {
+      const { error: archiveError } = await supabase
+        .from("meal_plans")
+        .update({ status: "archived" })
+        .in("id", archived.map((p) => p.id));
+      if (archiveError) {
+        throw new Error(
+          `Failed to archive existing plans: ${archiveError.message}`,
+        );
+      }
+    }
   }
 
+  try {
+    return await writeFreshPlan(
+      supabase,
+      userId,
+      weekStart,
+      locale,
+      best,
+      slots,
+      requestedDayIndexes,
+      requestedMealTypes,
+    );
+  } catch (err) {
+    if (archived.length > 0) {
+      console.warn(
+        `[plan-generator] Write failed after archive; attempting to restore ${archived.length} plan(s)`,
+      );
+      await restoreArchivedPlans(supabase, archived);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Inner write path: insert plan, slots, then components in two phases so
+ * `source_kind = 'leftover'` rows carry a real `source_component_id`
+ * (required by the `components_source_lineage_check` CHECK constraint).
+ *
+ * This function does not roll back. The outer `persistPlan` handles archive
+ * rollback when this throws.
+ */
+async function writeFreshPlan(
+  supabase: SupabaseClient,
+  userId: string,
+  weekStart: string,
+  locale: string,
+  best: WeekState,
+  slots: MealSlot[],
+  requestedDayIndexes: number[],
+  requestedMealTypes: string[],
+): Promise<PersistedPlan> {
   const { data: plan, error: planError } = await supabase
     .from("meal_plans")
     .insert({
@@ -388,12 +540,10 @@ async function persistPlan(
   const createdAt = (plan as { id: string; created_at: string }).created_at ??
     new Date().toISOString();
 
-  // Build slot rows in calendar order. Unfilled slots still get inserted so
-  // the UI can render them as pending.
-  const slotInserts: Array<Record<string, unknown>> = [];
-  for (const slot of slots) {
+  // Insert slots first; unfilled slots still land so the UI can render them.
+  const slotInserts: Array<Record<string, unknown>> = slots.map((slot) => {
     const assignment = best.assignments.get(slot.slotId);
-    slotInserts.push({
+    return {
       meal_plan_id: planId,
       planned_date: slot.plannedDate,
       day_index: slot.dayIndex,
@@ -408,8 +558,8 @@ async function persistPlan(
       shopping_sync_state: "not_created",
       status: "planned",
       swap_count: 0,
-    });
-  }
+    };
+  });
 
   const { data: insertedSlots, error: slotsError } = await supabase
     .from("meal_plan_slots")
@@ -422,35 +572,114 @@ async function persistPlan(
     );
   }
 
-  // Map slotId → insertedId.
-  const slotIdToInsertedId = new Map<string, string>();
   const inserted = insertedSlots as Array<
     { id: string; day_index: number; meal_type: string }
   >;
-  for (let i = 0; i < slots.length; i++) {
+
+  // Map in-memory slotId → inserted DB UUID.
+  const slotIdToInsertedId = new Map<string, string>();
+  for (const slot of slots) {
     const insertedRow = inserted.find(
       (row) =>
-        row.day_index === slots[i].dayIndex &&
-        row.meal_type === slots[i].canonicalMealType,
+        row.day_index === slot.dayIndex &&
+        row.meal_type === slot.canonicalMealType,
     );
-    if (insertedRow) slotIdToInsertedId.set(slots[i].slotId, insertedRow.id);
+    if (insertedRow) slotIdToInsertedId.set(slot.slotId, insertedRow.id);
   }
 
-  // Components: only for assigned slots.
-  const componentInserts: Array<Record<string, unknown>> = [];
+  // Phase 1: insert every component whose source_kind is not 'leftover'.
+  // This includes primaries (recipe/no_cook) and secondary pairing components.
+  // We need their DB UUIDs before we can fill in `source_component_id` on any
+  // downstream leftover rows.
+  const phase1Rows: Array<{ slotId: string; comp: SlotComponent }> = [];
+  const phase2Rows: Array<{ slotId: string; comp: SlotComponent }> = [];
+
   for (const slot of slots) {
     const assignment = best.assignments.get(slot.slotId);
     if (!assignment) continue;
-    const slotInsertedId = slotIdToInsertedId.get(slot.slotId);
-    if (!slotInsertedId) continue;
     for (const comp of assignment.components) {
-      const candidate = comp.candidate;
-      componentInserts.push({
-        meal_plan_slot_id: slotInsertedId,
+      if (comp.sourceKind === "leftover") {
+        phase2Rows.push({ slotId: slot.slotId, comp });
+      } else {
+        phase1Rows.push({ slotId: slot.slotId, comp });
+      }
+    }
+  }
+
+  const phase1Inserts = phase1Rows.map(({ slotId, comp }) => {
+    const slotDBId = slotIdToInsertedId.get(slotId);
+    return {
+      meal_plan_slot_id: slotDBId,
+      component_role: comp.role,
+      source_kind: comp.sourceKind,
+      recipe_id: comp.candidate?.id ?? null,
+      source_component_id: null,
+      food_groups_snapshot: comp.foodGroupsSnapshot,
+      pairing_basis: comp.pairingBasis,
+      display_order: comp.displayOrder,
+      title_snapshot: comp.titleSnapshot,
+      image_url_snapshot: comp.imageSnapshot,
+      total_time_snapshot: comp.totalTimeSnapshot,
+      difficulty_snapshot: comp.difficultySnapshot,
+      portions_snapshot: comp.portionsSnapshot,
+      equipment_tags_snapshot: comp.equipmentSnapshot,
+      selection_reason: comp.selectionReason ?? null,
+      is_primary: comp.isPrimary,
+    };
+  });
+
+  let phase1DB: Array<{
+    id: string;
+    meal_plan_slot_id: string;
+    display_order: number;
+    is_primary: boolean;
+  }> = [];
+  if (phase1Inserts.length > 0) {
+    const { data, error } = await supabase
+      .from("meal_plan_slot_components")
+      .insert(phase1Inserts)
+      .select("id, meal_plan_slot_id, display_order, is_primary");
+    if (error) {
+      throw new Error(
+        `Failed to insert components (phase 1): ${error.message}`,
+      );
+    }
+    phase1DB = (data ?? []) as typeof phase1DB;
+  }
+
+  // Build lookup: in-memory slotId → primary component DB UUID. Each cook
+  // slot should have at most one primary component.
+  const primaryComponentIdBySlot = new Map<string, string>();
+  for (const [slotId, slotDBId] of slotIdToInsertedId) {
+    const primary = phase1DB.find(
+      (row) => row.meal_plan_slot_id === slotDBId && row.is_primary,
+    );
+    if (primary) primaryComponentIdBySlot.set(slotId, primary.id);
+  }
+
+  // Phase 2: insert leftover components with real source_component_id UUIDs
+  // so they satisfy the schema's leftover lineage check.
+  let phase2DB: Array<{
+    id: string;
+    meal_plan_slot_id: string;
+    display_order: number;
+  }> = [];
+  if (phase2Rows.length > 0) {
+    const phase2Inserts = phase2Rows.map(({ slotId, comp }) => {
+      const slotDBId = slotIdToInsertedId.get(slotId);
+      const sourceSlotId = comp.sourceSlotIdRef ?? "";
+      const sourceComponentId = primaryComponentIdBySlot.get(sourceSlotId);
+      if (!sourceComponentId) {
+        throw new Error(
+          `Leftover component for slot ${slotId} references unknown source slot ${sourceSlotId}`,
+        );
+      }
+      return {
+        meal_plan_slot_id: slotDBId,
         component_role: comp.role,
         source_kind: comp.sourceKind,
-        recipe_id: candidate?.id ?? null,
-        source_component_id: null, // leftover linkage is resolved post-insert
+        recipe_id: null,
+        source_component_id: sourceComponentId,
         food_groups_snapshot: comp.foodGroupsSnapshot,
         pairing_basis: comp.pairingBasis,
         display_order: comp.displayOrder,
@@ -462,22 +691,27 @@ async function persistPlan(
         equipment_tags_snapshot: comp.equipmentSnapshot,
         selection_reason: comp.selectionReason ?? null,
         is_primary: comp.isPrimary,
-      });
-    }
-  }
-
-  let insertedComponents:
-    | Array<{ id: string; meal_plan_slot_id: string; display_order: number }>
-    | undefined = [];
-  if (componentInserts.length > 0) {
+      };
+    });
     const { data, error } = await supabase
       .from("meal_plan_slot_components")
-      .insert(componentInserts)
+      .insert(phase2Inserts)
       .select("id, meal_plan_slot_id, display_order");
     if (error) {
-      throw new Error(`Failed to insert components: ${error.message}`);
+      throw new Error(
+        `Failed to insert components (phase 2): ${error.message}`,
+      );
     }
-    insertedComponents = data as typeof insertedComponents;
+    phase2DB = (data ?? []) as typeof phase2DB;
+
+    // Back-fill the in-memory `sourceComponentId` so `buildResponse` can
+    // return real lineage to callers.
+    for (let i = 0; i < phase2Rows.length; i++) {
+      const entry = phase2Rows[i];
+      const sourceSlotId = entry.comp.sourceSlotIdRef ?? "";
+      const sourceComponentId = primaryComponentIdBySlot.get(sourceSlotId);
+      if (sourceComponentId) entry.comp.sourceComponentId = sourceComponentId;
+    }
   }
 
   return {
@@ -489,11 +723,18 @@ async function persistPlan(
           s.dayIndex === row.day_index && s.canonicalMealType === row.meal_type,
       )?.slotId ?? "",
     })),
-    components: (insertedComponents ?? []).map((row) => ({
-      id: row.id,
-      slotId: row.meal_plan_slot_id,
-      displayOrder: row.display_order,
-    })),
+    components: [
+      ...phase1DB.map((row) => ({
+        id: row.id,
+        slotId: row.meal_plan_slot_id,
+        displayOrder: row.display_order,
+      })),
+      ...phase2DB.map((row) => ({
+        id: row.id,
+        slotId: row.meal_plan_slot_id,
+        displayOrder: row.display_order,
+      })),
+    ],
   };
 }
 
@@ -683,11 +924,10 @@ export async function generatePlan(
     locale: user.locale,
     localeChain: user.localeChain,
     dietaryRestrictions: user.dietaryRestrictions,
-    ingredientDislikes: user.ingredientDislikes,
     hardExcludedRecipeIds: hardExcluded,
   });
 
-  await annotateAllergenConflicts(
+  const allergenByRestriction = await annotateAllergenConflicts(
     supabase,
     candidateMap,
     user.dietaryRestrictions,
@@ -712,7 +952,15 @@ export async function generatePlan(
   const pairings: PairingLookup = await fetchPairingsForCandidates(
     supabase,
     [...primaryRecipeIds],
+    user.localeChain,
   );
+  // Paired side/base/dessert/condiment candidates must go through the same
+  // allergen filter as primaries — otherwise a user with a gluten allergy
+  // could get an allergen-safe primary dish with a gluten-containing side.
+  if (allergenByRestriction.size > 0) {
+    annotateCandidates(pairings.candidatesById.values(), allergenByRestriction);
+  }
+
   const leftoverTransformByRecipe = await loadLeftoverTransforms(
     supabase,
     [...primaryRecipeIds],
@@ -736,7 +984,6 @@ export async function generatePlan(
     user.locale,
     assembly.best,
     classification.slots,
-    assembly.missingSlots,
     requestedDayIndexes,
     requestedMealTypes as unknown as string[],
     payload.replaceExisting ?? true,

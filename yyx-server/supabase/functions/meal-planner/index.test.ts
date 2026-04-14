@@ -98,6 +98,95 @@ Deno.test("generate_plan accepts comida without raising INVALID_INPUT", async ()
   assertEquals(body.error.code, "INTERNAL_ERROR");
 });
 
+// Minimal Supabase builder mock. Each `.from(table)` gets fresh state so
+// filter flags don't bleed across tables. The only query that returns a row
+// is the plan preflight: `from("meal_plans").select...in("status", ["draft",
+// "active"]).maybeSingle()`.
+// deno-lint-ignore no-explicit-any
+function makePreflightConflictSupabase(existingPlanId: string | null): any {
+  const buildBuilder = () => {
+    let table = "";
+    let sawDraftStatusFilter = false;
+    // deno-lint-ignore no-explicit-any
+    const builder: any = {
+      select: () => builder,
+      eq: () => builder,
+      // deno-lint-ignore no-explicit-any
+      in: (col: string, vals: any) => {
+        if (col === "status" && Array.isArray(vals) && vals.includes("draft")) {
+          sawDraftStatusFilter = true;
+        }
+        return builder;
+      },
+      not: () => builder,
+      gte: () => builder,
+      insert: () => builder,
+      update: () => builder,
+      maybeSingle: () => {
+        if (table === "meal_plans" && sawDraftStatusFilter) {
+          return Promise.resolve({
+            data: existingPlanId ? { id: existingPlanId } : null,
+            error: null,
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+      single: () => Promise.resolve({ data: null, error: null }),
+      // deno-lint-ignore no-explicit-any
+      then: (resolve: any) => resolve({ data: [], error: null }),
+    };
+    return {
+      from: (t: string) => {
+        table = t;
+        return builder;
+      },
+    };
+  };
+  return {
+    from: (t: string) => buildBuilder().from(t),
+  };
+}
+
+Deno.test("generate_plan returns 409 PLAN_ALREADY_EXISTS when replaceExisting=false and a draft plan exists", async () => {
+  const mockSupabase = makePreflightConflictSupabase("existing-plan-uuid");
+  const req = createAuthenticatedRequest({
+    action: "generate_plan",
+    payload: {
+      weekStart: "2026-04-13",
+      dayIndexes: [0, 1, 2, 3, 4],
+      mealTypes: ["dinner"],
+      replaceExisting: false,
+    },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => mockSupabase as never,
+  });
+  const body = await response.json();
+
+  assertEquals(response.status, 409);
+  assertEquals(body.error.code, "PLAN_ALREADY_EXISTS");
+});
+
+Deno.test("generate_plan debug flag controls debugTrace presence", async () => {
+  // Debug flag validation is a contract check. The full orchestrator will
+  // still fail on the empty mock supabase (500 INTERNAL_ERROR), but we can
+  // verify INVALID_INPUT fires when `debug` is the wrong type.
+  const badReq = createAuthenticatedRequest({
+    action: "generate_plan",
+    payload: {
+      weekStart: "2026-04-13",
+      dayIndexes: [0, 1, 2, 3, 4],
+      mealTypes: ["dinner"],
+      debug: "yes",
+    },
+  });
+  const badResponse = await handleMealPlannerRequest(badReq, mockDependencies);
+  const badBody = await badResponse.json();
+  assertEquals(badResponse.status, 400);
+  assertEquals(badBody.error.code, "INVALID_INPUT");
+});
+
 Deno.test("get_preferences returns the PR #1 default preference stub", async () => {
   const req = createAuthenticatedRequest({
     action: "get_preferences",

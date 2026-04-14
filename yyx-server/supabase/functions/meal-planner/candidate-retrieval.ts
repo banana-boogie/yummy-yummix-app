@@ -52,7 +52,6 @@ export interface CandidateRetrievalContext {
   locale: string;
   localeChain: string[];
   dietaryRestrictions: string[];
-  ingredientDislikes: string[];
   hardExcludedRecipeIds: Set<string>; // rating ≤ 2 etc.
 }
 
@@ -92,7 +91,12 @@ interface RawRecipeRow {
     | null;
 }
 
-function pickTranslationName(
+/**
+ * Resolve a translation name using the locale fallback chain. Returns an empty
+ * string when no chain entry matches — no cross-language fallback. Callers
+ * must handle empty titles (usually by dropping the candidate).
+ */
+export function pickTranslationName(
   translations: Array<{ locale: string; name: string | null }> | null,
   localeChain: string[],
 ): string {
@@ -101,10 +105,10 @@ function pickTranslationName(
     const row = translations.find((t) => t.locale === l);
     if (row?.name) return row.name;
   }
-  return translations[0]?.name ?? "";
+  return "";
 }
 
-function normalizeKey(name: string): string {
+export function normalizeKey(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
 }
 
@@ -221,10 +225,29 @@ export async function fetchCandidates(
   }
 
   const rawRows = (data ?? []) as unknown as RawRecipeRow[];
-  const candidates = rawRows
+  const hydrated = rawRows
     .filter((r) => (r.food_groups?.length ?? 0) > 0)
     .filter((r) => !ctx.hardExcludedRecipeIds.has(r.id))
     .map((r) => toCandidate(r, ctx));
+
+  // Drop candidates with no translation in the requested locale chain. We do
+  // not cross-language fallback — a Spanish user should never see an English
+  // recipe name and vice versa. Missing translations are logged so the content
+  // team can close the gap.
+  const candidates: RecipeCandidate[] = [];
+  let droppedForLocale = 0;
+  for (const c of hydrated) {
+    if (!c.title || c.title.length === 0) {
+      droppedForLocale++;
+      continue;
+    }
+    candidates.push(c);
+  }
+  if (droppedForLocale > 0) {
+    console.warn(
+      `[candidate-retrieval] Dropped ${droppedForLocale} candidate(s) missing translation for locale=${ctx.locale}`,
+    );
+  }
 
   return splitCandidatesBySlot(slots, candidates);
 }

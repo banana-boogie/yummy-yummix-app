@@ -9,7 +9,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { createUserClient } from "../_shared/supabase-client.ts";
 import { validateAuth } from "../_shared/auth.ts";
 import { normalizeMealTypes } from "./meal-types.ts";
-import { generatePlan } from "./plan-generator.ts";
+import { generatePlan, PlanAlreadyExistsError } from "./plan-generator.ts";
 
 import {
   type GeneratePlanPayload,
@@ -191,6 +191,7 @@ async function handleGeneratePlan(
   supabase: UserClient,
 ): Promise<Response> {
   let typedPayload: GeneratePlanPayload;
+  let includeDebugTrace = false;
   try {
     const weekStart = requireString(payload, "weekStart");
     const dayIndexes = parseDayIndexArray(payload.dayIndexes, "dayIndexes");
@@ -223,6 +224,11 @@ async function handleGeneratePlan(
       throw new Error("replaceExisting must be a boolean");
     }
 
+    if (payload.debug !== undefined && typeof payload.debug !== "boolean") {
+      throw new Error("debug must be a boolean");
+    }
+    includeDebugTrace = payload.debug === true;
+
     typedPayload = {
       weekStart,
       dayIndexes,
@@ -237,20 +243,36 @@ async function handleGeneratePlan(
     return errorResponse("INVALID_INPUT", (error as Error).message);
   }
 
-  const result = await generatePlan({
-    payload: typedPayload,
-    userId,
-    supabase: supabase as never,
-  });
+  try {
+    const result = await generatePlan({
+      payload: typedPayload,
+      userId,
+      supabase: supabase as never,
+    });
 
-  const response: GeneratePlanResponse & { debugTrace: unknown } = {
-    plan: result.plan,
-    isPartial: result.isPartial,
-    missingSlots: result.missingSlots,
-    warnings: result.warnings,
-    debugTrace: result.debugTrace,
-  };
-  return jsonResponse(response);
+    const response:
+      & GeneratePlanResponse
+      & { debugTrace?: unknown } = {
+        plan: result.plan,
+        isPartial: result.isPartial,
+        missingSlots: result.missingSlots,
+        warnings: result.warnings,
+      };
+    if (includeDebugTrace) response.debugTrace = result.debugTrace;
+    return jsonResponse(response);
+  } catch (error) {
+    // PLAN_ALREADY_EXISTS is a documented contract, not an internal error.
+    // Surface it with HTTP 409 before the generic catch in the outer handler
+    // maps unknown errors to INTERNAL_ERROR.
+    if (error instanceof PlanAlreadyExistsError) {
+      return errorResponse(
+        "PLAN_ALREADY_EXISTS",
+        error.message,
+        409,
+      );
+    }
+    throw error;
+  }
 }
 
 async function handleSwapMeal(

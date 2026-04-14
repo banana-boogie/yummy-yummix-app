@@ -32,6 +32,11 @@ import {
   OPEN_SLOT_CONTRIBUTION,
   RETRIEVAL_LIMITS,
 } from "./scoring-config.ts";
+import {
+  getDayLabel,
+  renderSelectionReason,
+  type SelectionReasonCode,
+} from "./selection-reason-templates.ts";
 
 export interface AssembledSlot {
   slot: MealSlot;
@@ -51,7 +56,7 @@ export interface WeekState {
   leftoverSources: Map<
     string, // slotId of the source
     {
-      componentId: string; // synthetic id — refers to source's primary component
+      sourceSlotId: string; // in-memory ref; persistence resolves to DB UUID
       primaryRecipeId: string;
       primaryTitle: string;
       portionsAvailable: number;
@@ -217,47 +222,41 @@ function buildSelectionReason(
   slot: MealSlot,
   components: SlotComponent[],
   state: WeekState,
+  locale: string,
 ): string {
   const primary = components.find((c) => c.isPrimary);
-  const dayLabel = dayLabelFor(slot.dayIndex);
-  if (!primary) {
-    return slot.slotKind === "no_cook_fallback_slot"
-      ? `Light no-cook option for your busy ${dayLabel}.`
-      : "";
-  }
-  if (primary.sourceKind === "leftover") {
-    return `Uses leftovers from ${primary.titleSnapshot} so you do not need to cook on ${dayLabel}.`;
-  }
-  if (primary.sourceKind === "no_cook") {
-    return `Light no-cook option for your busy ${dayLabel}.`;
-  }
-  if (state.mode === "first_week_trust") {
-    return `Reliable family-friendly pick for your first week.`;
-  }
-  if (primary.candidate?.leftoversFriendly && slot.dayIndex <= 3) {
-    return `Makes enough to help cover later in the week.`;
-  }
-  if (primary.candidate?.verifiedAt) {
-    return `YummyYummix-tested recipe that fits your ${dayLabel}.`;
-  }
-  const total = primary.candidate?.totalTimeMinutes ?? 0;
-  if (total > 0 && total <= 30) {
-    return `Fits your usual ${dayLabel} time window.`;
-  }
-  return `Good fit for your ${dayLabel}.`;
+  const dayLabel = getDayLabel(slot.dayIndex, locale);
+
+  const code: SelectionReasonCode = resolveReasonCode(slot, primary, state);
+  const params = {
+    dayLabel,
+    sourceTitle: primary?.sourceKind === "leftover"
+      ? primary.titleSnapshot
+      : undefined,
+  };
+  return renderSelectionReason(code, locale, params);
 }
 
-function dayLabelFor(dayIndex: number): string {
-  const labels = [
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-    "Sunday",
-  ];
-  return labels[dayIndex] ?? `day ${dayIndex}`;
+function resolveReasonCode(
+  slot: MealSlot,
+  primary: SlotComponent | undefined,
+  state: WeekState,
+): SelectionReasonCode {
+  if (!primary) {
+    return slot.slotKind === "no_cook_fallback_slot"
+      ? "no_cook_fallback"
+      : "default";
+  }
+  if (primary.sourceKind === "leftover") return "busy_day_leftovers";
+  if (primary.sourceKind === "no_cook") return "no_cook_fallback";
+  if (state.mode === "first_week_trust") return "first_week_trust";
+  if (primary.candidate?.leftoversFriendly && slot.dayIndex <= 3) {
+    return "leftovers_source";
+  }
+  if (primary.candidate?.verifiedAt) return "verified_fit";
+  const total = primary.candidate?.totalTimeMinutes ?? 0;
+  if (total > 0 && total <= 30) return "time_fit";
+  return "default";
 }
 
 function registerLeftoverSource(
@@ -274,7 +273,7 @@ function registerLeftoverSource(
   const available = Math.max(0, portions - householdSize);
   if (available <= 0) return;
   state.leftoverSources.set(slot.slotId, {
-    componentId: `${slot.slotId}:primary`,
+    sourceSlotId: slot.slotId,
     primaryRecipeId: primary.candidate.id,
     primaryTitle: primary.titleSnapshot,
     portionsAvailable: available,
@@ -320,7 +319,12 @@ function expandRecipeCandidates(
     const components = buildBundle(slot, entry.candidate, pairings);
     const contribution = entry.detail.total;
     const adjustments = assemblyAdjustments(successor, slot, components);
-    const reason = buildSelectionReason(slot, components, successor);
+    const reason = buildSelectionReason(
+      slot,
+      components,
+      successor,
+      user.locale,
+    );
     recordAssignment(
       successor,
       slot,
@@ -368,12 +372,14 @@ function expandLeftoverTargetSlot(
     for (const transformId of source.transformRecipeIds) {
       const transform = pairings.candidatesById.get(transformId);
       if (!transform) continue;
+      if (transform.hasAllergenConflict) continue;
       const successor = cloneState(state);
       const transformComponent: SlotComponent = {
         role: "main",
         sourceKind: "recipe",
         recipeId: transform.id,
         sourceComponentId: null,
+        sourceSlotIdRef: null,
         foodGroupsSnapshot: transform.foodGroups,
         pairingBasis: "explicit_pairing",
         isPrimary: true,
@@ -401,7 +407,12 @@ function expandLeftoverTargetSlot(
         slot,
         [transformComponent],
         contribution,
-        buildSelectionReason(slot, [transformComponent], successor),
+        buildSelectionReason(
+          slot,
+          [transformComponent],
+          successor,
+          user.locale,
+        ),
         contribution,
         [],
         adjustments,
@@ -413,7 +424,7 @@ function expandLeftoverTargetSlot(
     const successor = cloneState(state);
     const placeholder = buildLeftoverPlaceholder(
       slot,
-      source.componentId,
+      source.sourceSlotId,
       source.primaryTitle,
     );
     const contribution = leftoverResolutionScore(
@@ -429,7 +440,7 @@ function expandLeftoverTargetSlot(
       slot,
       [placeholder],
       contribution,
-      buildSelectionReason(slot, [placeholder], successor),
+      buildSelectionReason(slot, [placeholder], successor, user.locale),
       contribution,
       [],
       adjustments,
@@ -465,7 +476,7 @@ function expandLeftoverTargetSlot(
       slot,
       components,
       contribution,
-      buildSelectionReason(slot, components, successor),
+      buildSelectionReason(slot, components, successor, user.locale),
       contribution,
       [],
       ASSEMBLY_ADJUSTMENTS.fallbackWhenLeftoverShouldHaveExisted,
@@ -483,13 +494,13 @@ function expandLeftoverTargetSlot(
   if (next.length === 0) {
     // Last resort — empty no-cook placeholder with open contribution.
     const successor = cloneState(state);
-    const placeholder = buildNoCookPlaceholder(slot, "No-cook meal");
+    const placeholder = buildNoCookPlaceholder(slot, user.locale);
     recordAssignment(
       successor,
       slot,
       [placeholder],
       OPEN_SLOT_CONTRIBUTION.openNoCook,
-      buildSelectionReason(slot, [placeholder], successor),
+      buildSelectionReason(slot, [placeholder], successor, user.locale),
       OPEN_SLOT_CONTRIBUTION.openNoCook,
       [`UNFILLED_LEFTOVER_TARGET:${slot.slotId}`],
       ASSEMBLY_ADJUSTMENTS.fallbackWhenLeftoverShouldHaveExisted,
@@ -520,13 +531,13 @@ function expandNoCookFallback(
 
   if (scored.length === 0) {
     const successor = cloneState(state);
-    const placeholder = buildNoCookPlaceholder(slot, "No-cook meal");
+    const placeholder = buildNoCookPlaceholder(slot, user.locale);
     recordAssignment(
       successor,
       slot,
       [placeholder],
       OPEN_SLOT_CONTRIBUTION.openNoCook,
-      buildSelectionReason(slot, [placeholder], successor),
+      buildSelectionReason(slot, [placeholder], successor, user.locale),
       OPEN_SLOT_CONTRIBUTION.openNoCook,
       [`OPEN_NO_COOK_SLOT:${slot.slotId}`],
       0,
@@ -543,7 +554,7 @@ function expandNoCookFallback(
       slot,
       components,
       contribution,
-      buildSelectionReason(slot, components, successor),
+      buildSelectionReason(slot, components, successor, user.locale),
       contribution,
       [],
       0,
