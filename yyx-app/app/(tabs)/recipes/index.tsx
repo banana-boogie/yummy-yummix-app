@@ -1,18 +1,19 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Animated, FlatList, View, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useRecipes } from '@/hooks/useRecipes';
 import { useUserProfile } from '@/contexts/UserProfileContext';
+import { useMealPlan } from '@/hooks/useMealPlan';
+import { usePersonalizedSections } from '@/hooks/usePersonalizedSections';
 import { SPACING } from '@/constants/design-tokens';
 
 import { RecipeListHeader } from '@/components/recipe/RecipeListHeader';
 import { SearchBar } from '@/components/common/SearchBar';
-import { RecipeSectionList, RecipeSection } from '@/components/recipe/RecipeSectionList';
+import { RecipeSectionList } from '@/components/recipe/RecipeSectionList';
 import { RecipeList } from '@/components/recipe/RecipeList';
 import { PageLayout } from '@/components/layouts/PageLayout';
 import i18n from '@/i18n';
 import { eventService } from '@/services/eventService';
-import { filterQuick, filterFamily, filterRecent } from '@/utils/recipeFilters';
 
 const Recipes = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -28,6 +29,7 @@ const Recipes = () => {
   } = useRecipes();
 
   const { userProfile } = useUserProfile();
+  const { plan: activePlan } = useMealPlan();
 
   const lastLoggedSearch = useRef<string>('');
 
@@ -120,40 +122,12 @@ const Recipes = () => {
   const isSearching = searchQuery.trim().length > 0;
   const animatedTranslateY = isSearching ? 0 : headerTranslateY;
 
-  // Build recipe sections for the sectioned feed
-  const sections = useMemo((): RecipeSection[] => {
-    if (!recipes.length) return [];
-
-    const allSections: RecipeSection[] = [
-      {
-        id: 'quick',
-        title: i18n.t('recipes.sections.quick'),
-        recipes: filterQuick(recipes, 30),
-        layout: 'horizontal',
-      },
-      {
-        id: 'family',
-        title: i18n.t('recipes.sections.family'),
-        recipes: filterFamily(recipes, 4),
-        layout: 'horizontal',
-      },
-      {
-        id: 'new',
-        title: i18n.t('recipes.sections.new'),
-        recipes: filterRecent(recipes, 7),
-        layout: 'horizontal',
-      },
-      {
-        id: 'all',
-        title: i18n.t('recipes.sections.all'),
-        recipes: recipes,
-        layout: 'grid',
-      },
-    ];
-
-    // Remove empty sections
-    return allSections.filter(section => section.recipes.length > 0);
-  }, [recipes]);
+  // Build personalized recipe sections (restriction-filtered by default)
+  const sections = usePersonalizedSections({
+    recipes,
+    userProfile,
+    activePlan,
+  });
 
   return (
     <PageLayout contentPaddingHorizontal={0} disableMaxWidth={true}>

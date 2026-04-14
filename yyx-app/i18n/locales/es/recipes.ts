@@ -5,6 +5,12 @@ export const recipes = {
     family: "Favoritos de la Familia",
     new: "Nuevo Esta Semana",
     all: "Todas las Recetas",
+    todays_meal: "La Comida de Hoy",
+    for_you: "Para Ti",
+    favourites: "Tus Favoritos",
+    quick_easy: "Rápido y Fácil",
+    worth_a_try: "Vale la Pena",
+    popular: "Popular",
   },
   header: {
     greeting: "¡Hola, {{name}}!",
