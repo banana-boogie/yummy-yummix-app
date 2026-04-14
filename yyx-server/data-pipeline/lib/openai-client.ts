@@ -95,6 +95,9 @@ export interface NutritionData {
   protein: number;
   fat: number;
   carbohydrates: number;
+  fiber: number;
+  sugar: number;
+  sodium: number;
 }
 
 /**
@@ -115,7 +118,7 @@ export async function fetchNutritionFromOpenAI(
     messages: [{
       role: 'user',
       content:
-        `Provide nutritional facts per 100g for ${ingredientName}. Return ONLY a JSON object in this exact format: {"calories": number, "protein": number, "fat": number, "carbohydrates": number}`,
+        `Provide nutritional facts per 100g for ${ingredientName}. Units: calories in kcal; protein, fat, carbohydrates, fiber, sugar in grams; sodium in milligrams. Return ONLY a JSON object in this exact format: {"calories": number, "protein": number, "fat": number, "carbohydrates": number, "fiber": number, "sugar": number, "sodium": number}`,
     }],
     temperature: 0.3,
     logger,
@@ -131,7 +134,10 @@ export async function fetchNutritionFromOpenAI(
       typeof nutrition.calories !== 'number' ||
       typeof nutrition.protein !== 'number' ||
       typeof nutrition.fat !== 'number' ||
-      typeof nutrition.carbohydrates !== 'number'
+      typeof nutrition.carbohydrates !== 'number' ||
+      typeof nutrition.fiber !== 'number' ||
+      typeof nutrition.sugar !== 'number' ||
+      typeof nutrition.sodium !== 'number'
     ) return null;
 
     return {
@@ -139,6 +145,9 @@ export async function fetchNutritionFromOpenAI(
       protein: Math.round(nutrition.protein * 10) / 10,
       fat: Math.round(nutrition.fat * 10) / 10,
       carbohydrates: Math.round(nutrition.carbohydrates * 10) / 10,
+      fiber: Math.round(nutrition.fiber * 10) / 10,
+      sugar: Math.round(nutrition.sugar * 10) / 10,
+      sodium: Math.round(nutrition.sodium),
     };
   } catch {
     logger.warn(`Failed to parse nutrition JSON for "${ingredientName}": ${content}`);
