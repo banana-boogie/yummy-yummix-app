@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ScrollView, View, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS } from '@/constants/design-tokens';
@@ -47,6 +47,7 @@ export default function EditRecipePage() {
   const { validateRecipe } = useRecipeValidation();
   const { getNextButtonLabel } = useRecipeNavigation(recipe, currentStep);
   const { isSmall } = useDevice();
+  const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     loadAuthoringLocale().then(setAuthoringLocale);
@@ -184,6 +185,7 @@ export default function EditRecipePage() {
             recipe={recipe}
             onUpdateRecipe={handleUpdateRecipe}
             displayLocale={displayLocale}
+            scrollViewRef={scrollViewRef}
           />
         );
       case CreateRecipeStep.TRANSLATIONS:
@@ -241,6 +243,7 @@ export default function EditRecipePage() {
     >
       <View className="flex-1">
         <ScrollView
+          ref={scrollViewRef}
           className="flex-1 bg-background-default"
           contentContainerStyle={{
             padding: isSmall ? 12 : 24,

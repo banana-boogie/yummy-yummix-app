@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useRouter } from 'expo-router';
@@ -31,6 +31,7 @@ export default function NewRecipePage() {
   const router = useRouter();
   const [showAlert, setShowAlert] = useState(false);
   const [displayLocale, setDisplayLocale] = useState(i18n.locale);
+  const scrollViewRef = useRef<ScrollView>(null);
   const [alertMessage, setAlertMessage] = useState('');
   const [alertSuccess, setAlertSuccess] = useState(false);
 
@@ -85,7 +86,7 @@ export default function NewRecipePage() {
       case CreateRecipeStep.TAGS:
         return <TagsForm recipe={recipe} onUpdateRecipe={updateRecipe} errors={errors} displayLocale={displayLocale} />;
       case CreateRecipeStep.MY_WEEK_SETUP:
-        return <MyWeekSetupForm recipe={recipe} onUpdateRecipe={updateRecipe} displayLocale={displayLocale} />;
+        return <MyWeekSetupForm recipe={recipe} onUpdateRecipe={updateRecipe} displayLocale={displayLocale} scrollViewRef={scrollViewRef} />;
       case CreateRecipeStep.TRANSLATIONS:
         return <TranslationStep recipe={recipe} authoringLocale={authoringLocale} onUpdateRecipe={updateRecipe} />;
       case CreateRecipeStep.REVIEW:
@@ -147,6 +148,7 @@ export default function NewRecipePage() {
             // Other steps: scrollable
             return (
               <ScrollView
+                ref={scrollViewRef}
                 className="flex-1"
                 contentContainerClassName="p-lg flex-grow"
                 keyboardShouldPersistTaps="handled"
