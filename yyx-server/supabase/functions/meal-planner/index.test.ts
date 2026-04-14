@@ -168,6 +168,79 @@ Deno.test("generate_plan returns 409 PLAN_ALREADY_EXISTS when replaceExisting=fa
   assertEquals(body.error.code, "PLAN_ALREADY_EXISTS");
 });
 
+// Mock where meal_plans INSERT returns a Postgres unique-violation (23505).
+// Simulates the concurrent-generate_plan race: both requests pass preflight
+// (or replaceExisting=true skips it), but the second INSERT collides on the
+// idx_meal_plans_active_week partial unique index.
+// deno-lint-ignore no-explicit-any
+function makeInsertUniqueViolationSupabase(): any {
+  const buildBuilder = () => {
+    let table = "";
+    let insertCalled = false;
+    // deno-lint-ignore no-explicit-any
+    const builder: any = {
+      select: () => builder,
+      eq: () => builder,
+      in: () => builder,
+      not: () => builder,
+      gte: () => builder,
+      insert: () => {
+        insertCalled = true;
+        return builder;
+      },
+      update: () => builder,
+      delete: () => builder,
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      single: () => {
+        if (table === "meal_plans" && insertCalled) {
+          return Promise.resolve({
+            data: null,
+            error: {
+              code: "23505",
+              message:
+                'duplicate key value violates unique constraint "idx_meal_plans_active_week"',
+            },
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+      // deno-lint-ignore no-explicit-any
+      then: (resolve: any) => resolve({ data: [], error: null }),
+    };
+    return {
+      from: (t: string) => {
+        table = t;
+        return builder;
+      },
+    };
+  };
+  return {
+    from: (t: string) => buildBuilder().from(t),
+  };
+}
+
+Deno.test("generate_plan returns 409 PLAN_ALREADY_EXISTS when insert races on unique index (23505)", async () => {
+  const mockSupabase = makeInsertUniqueViolationSupabase();
+  const req = createAuthenticatedRequest({
+    action: "generate_plan",
+    payload: {
+      weekStart: "2026-04-13",
+      dayIndexes: [0, 1, 2, 3, 4],
+      mealTypes: ["dinner"],
+      // replaceExisting=true skips preflight so the race hits the INSERT.
+      replaceExisting: true,
+    },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => mockSupabase as never,
+  });
+  const body = await response.json();
+
+  assertEquals(response.status, 409);
+  assertEquals(body.error.code, "PLAN_ALREADY_EXISTS");
+});
+
 Deno.test("generate_plan debug flag controls debugTrace presence", async () => {
   // Debug flag validation is a contract check. The full orchestrator will
   // still fail on the empty mock supabase (500 INTERNAL_ERROR), but we can

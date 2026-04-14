@@ -33,6 +33,7 @@ import {
   type WeekState,
 } from "./week-assembler.ts";
 import type { SlotComponent } from "./bundle-builder.ts";
+import { matchesAllergen } from "../_shared/allergen-filter.ts";
 import type { UserContext } from "./scoring/types.ts";
 import { buildLocaleChain } from "../_shared/locale-utils.ts";
 import {
@@ -85,14 +86,18 @@ export interface GeneratePlanResult extends GeneratePlanResponse {
 }
 
 /**
- * Thrown by `persistPlan` when `replaceExisting` is false and an existing
- * draft/active plan is already present for the same (user_id, week_start).
- * The request handler catches this and maps it to the documented
- * `PLAN_ALREADY_EXISTS` error code with HTTP 409.
+ * Thrown by `persistPlan` when a draft/active plan already exists for the same
+ * (user_id, week_start). Two paths raise this:
+ *   1. The preflight SELECT when `replaceExisting` is false.
+ *   2. A Postgres 23505 unique-violation on the INSERT — hit when a concurrent
+ *      request beat us past preflight and committed first. `existingPlanId`
+ *      is null in that path since we can't cheaply recover the winning row.
+ *
+ * The request handler maps this to PLAN_ALREADY_EXISTS with HTTP 409.
  */
 export class PlanAlreadyExistsError extends Error {
-  public readonly existingPlanId: string;
-  constructor(existingPlanId: string) {
+  public readonly existingPlanId: string | null;
+  constructor(existingPlanId: string | null = null) {
     super(`A draft or active plan already exists for this week`);
     this.name = "PlanAlreadyExistsError";
     this.existingPlanId = existingPlanId;
@@ -106,13 +111,9 @@ export class PlanAlreadyExistsError extends Error {
 interface ProfileRow {
   locale: string | null;
   dietary_restrictions: string[] | null;
-  diet_types: string[] | null;
   cuisine_preferences: string[] | null;
-  other_allergy: unknown;
-  kitchen_equipment: string[] | null;
   skill_level: string | null;
   household_size: number | null;
-  ingredient_dislikes: string[] | null;
   nutrition_goal: string | null;
 }
 
@@ -154,13 +155,9 @@ async function loadUserContext(
       .select(`
         locale,
         dietary_restrictions,
-        diet_types,
         cuisine_preferences,
-        other_allergy,
-        kitchen_equipment,
         skill_level,
         household_size,
-        ingredient_dislikes,
         nutrition_goal
       `)
       .eq("id", userId)
@@ -222,10 +219,7 @@ async function loadUserContext(
     householdSize: profile?.household_size ?? HOUSEHOLD.defaultSize,
     skillLevel: (profile?.skill_level as UserContext["skillLevel"]) ?? null,
     dietaryRestrictions: profile?.dietary_restrictions ?? [],
-    dietTypes: profile?.diet_types ?? [],
     cuisinePreferences: profile?.cuisine_preferences ?? [],
-    ingredientDislikes: profile?.ingredient_dislikes ?? [],
-    kitchenEquipment: profile?.kitchen_equipment ?? [],
     nutritionGoal:
       (profile?.nutrition_goal ?? "no_preference") as NutritionGoal,
     preferLeftoversForLunch: payload.preferLeftoversForLunch ??
@@ -244,12 +238,18 @@ async function loadCookCount(
   userId: string,
 ): Promise<Map<string, number>> {
   const map = new Map<string, number>();
+  // Bounded scan: matches the recentCookedRecipes window so the cook-count
+  // map and the recency map describe the same slice of history. Plus a hard
+  // row cap so a heavy user doesn't pull a giant payload per generation.
+  const cutoff = new Date(Date.now() - 21 * 86_400_000).toISOString();
   try {
     const { data, error } = await supabase
       .from("user_events")
       .select("payload")
       .eq("user_id", userId)
-      .eq("event_type", "cook_complete");
+      .eq("event_type", "cook_complete")
+      .gte("created_at", cutoff)
+      .limit(2000);
     if (error || !data) return map;
     for (const row of data as Array<{ payload: Record<string, unknown> }>) {
       const recipeId = row.payload?.recipe_id;
@@ -325,17 +325,21 @@ async function loadAllergenMap(
   return allergenByRestriction;
 }
 
-function annotateCandidates(
+/**
+ * Tag each candidate with allergen conflicts. Uses word-boundary matching via
+ * `_shared/allergen-filter.ts:matchesAllergen` so canonicals like `bread`
+ * don't false-positive against `breadfruit`. Exported for regression testing.
+ */
+export function annotateCandidates(
   candidates: Iterable<RecipeCandidate>,
   allergenByRestriction: Map<string, Set<string>>,
 ): void {
   if (allergenByRestriction.size === 0) return;
   for (const c of candidates) {
     for (const key of c.ingredientKeys) {
-      const lower = key.toLowerCase();
       for (const [restriction, ingredients] of allergenByRestriction) {
         for (const ing of ingredients) {
-          if (lower.includes(ing)) {
+          if (matchesAllergen(key, ing)) {
             c.hasAllergenConflict = true;
             if (!c.allergenMatches.includes(restriction)) {
               c.allergenMatches.push(restriction);
@@ -379,11 +383,54 @@ interface PersistedPlan {
 type ArchivedPlan = { id: string; previousStatus: string };
 
 /**
+ * Mutable reference populated by `writeFreshPlan` as it commits rows. If the
+ * inner write throws partway through, the outer `persistPlan` catch reads
+ * this to know what to clean up — specifically the orphan meal_plans row
+ * that would otherwise block the archive-restore UPDATE on the partial
+ * unique index `idx_meal_plans_active_week`.
+ */
+interface WriteRefs {
+  newPlanId: string | null;
+}
+
+/**
+ * Delete the orphan plan row (if any) created by a failed write. CASCADE
+ * cleans the associated slots/components. Best-effort: errors are logged and
+ * swallowed so the outer catch can still attempt archive restoration.
+ */
+async function deleteOrphanPlan(
+  supabase: SupabaseClient,
+  planId: string,
+): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from("meal_plans")
+      .delete()
+      .eq("id", planId);
+    if (error) {
+      console.error(
+        `[plan-generator] Failed to delete orphan plan ${planId}:`,
+        error.message,
+      );
+    }
+  } catch (err) {
+    console.error(
+      `[plan-generator] Exception deleting orphan plan ${planId}:`,
+      err,
+    );
+  }
+}
+
+/**
  * Best-effort rollback of archived plans. If a later insert in the persistence
  * flow fails, we walk this list and try to restore each plan's previous status.
  * Errors during rollback are logged but swallowed — rollback itself is
  * best-effort. This is not a real transaction; the intent is to avoid leaving
  * the user with zero visible plans when generation fails partway through.
+ *
+ * Callers MUST delete the orphan new-plan row first. Otherwise the partial
+ * unique index `idx_meal_plans_active_week` blocks the UPDATE back to
+ * draft/active.
  */
 async function restoreArchivedPlans(
   supabase: SupabaseClient,
@@ -476,6 +523,7 @@ async function persistPlan(
     }
   }
 
+  const refs: WriteRefs = { newPlanId: null };
   try {
     return await writeFreshPlan(
       supabase,
@@ -486,8 +534,16 @@ async function persistPlan(
       slots,
       requestedDayIndexes,
       requestedMealTypes,
+      refs,
     );
   } catch (err) {
+    // Clean up the orphan new-plan row (if any) BEFORE restoring archived
+    // plans. Otherwise the partial unique index blocks the archive restore
+    // because the orphan is still status='draft' for the same (user_id,
+    // week_start) tuple.
+    if (refs.newPlanId) {
+      await deleteOrphanPlan(supabase, refs.newPlanId);
+    }
     if (archived.length > 0) {
       console.warn(
         `[plan-generator] Write failed after archive; attempting to restore ${archived.length} plan(s)`,
@@ -503,8 +559,12 @@ async function persistPlan(
  * `source_kind = 'leftover'` rows carry a real `source_component_id`
  * (required by the `components_source_lineage_check` CHECK constraint).
  *
- * This function does not roll back. The outer `persistPlan` handles archive
- * rollback when this throws.
+ * Populates `refs.newPlanId` as soon as the plan row is committed, so the
+ * outer `persistPlan` catch can delete the orphan on failure before trying
+ * to restore archived plans.
+ *
+ * This function does not roll back. The outer `persistPlan` handles orphan
+ * deletion and archive rollback when this throws.
  */
 async function writeFreshPlan(
   supabase: SupabaseClient,
@@ -515,6 +575,7 @@ async function writeFreshPlan(
   slots: MealSlot[],
   requestedDayIndexes: number[],
   requestedMealTypes: string[],
+  refs: WriteRefs,
 ): Promise<PersistedPlan> {
   const { data: plan, error: planError } = await supabase
     .from("meal_plans")
@@ -531,12 +592,21 @@ async function writeFreshPlan(
     .single();
 
   if (planError || !plan) {
+    // 23505 is Postgres' unique-violation. We see this when a concurrent
+    // request beat us past our preflight and committed its plan first.
+    // Surface the documented PLAN_ALREADY_EXISTS contract rather than leaking
+    // the raw DB error up as INTERNAL_ERROR.
+    const code = (planError as { code?: string } | null)?.code;
+    if (code === "23505") {
+      throw new PlanAlreadyExistsError(null);
+    }
     throw new Error(
       `Failed to create meal_plan: ${planError?.message ?? "unknown"}`,
     );
   }
 
   const planId = (plan as { id: string; created_at: string }).id;
+  refs.newPlanId = planId;
   const createdAt = (plan as { id: string; created_at: string }).created_at ??
     new Date().toISOString();
 

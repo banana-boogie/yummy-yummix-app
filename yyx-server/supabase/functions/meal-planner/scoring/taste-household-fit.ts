@@ -17,6 +17,7 @@ import {
   TASTE_SUBWEIGHTS,
 } from "../scoring-config.ts";
 import type { CandidateScoreDetail, ScoreCandidateInput } from "./types.ts";
+import { inferProteinKey } from "./protein-inference.ts";
 
 function implicitAffinity(
   score: number,
@@ -25,42 +26,6 @@ function implicitAffinity(
   // Preference scores are maintained roughly in −3..+3; normalize to −1..+1.
   const normalized = clamp11(score / 3);
   return normalized * clamp01(confidence);
-}
-
-function inferProteinKey(
-  candidate: ScoreCandidateInput["candidate"],
-): string | null {
-  // No primary_protein_tag column in schema yet — use food_groups + ingredient
-  // keys as a best-effort signal. First explicit protein ingredient wins.
-  if (!candidate.foodGroups.includes("protein")) return null;
-  const keys = candidate.ingredientKeys;
-  const proteinMatches = [
-    "chicken",
-    "pollo",
-    "beef",
-    "carne_de_res",
-    "pork",
-    "cerdo",
-    "fish",
-    "pescado",
-    "shrimp",
-    "camaron",
-    "tofu",
-    "egg",
-    "huevo",
-    "lentil",
-    "lenteja",
-    "beans",
-    "frijol",
-    "chickpea",
-    "garbanzo",
-  ];
-  for (const key of keys) {
-    for (const m of proteinMatches) {
-      if (key.includes(m)) return m;
-    }
-  }
-  return "other_protein";
 }
 
 function recipeHistoryAffinity(input: ScoreCandidateInput): number {

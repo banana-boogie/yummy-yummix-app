@@ -15,10 +15,7 @@ export interface UserContext {
   householdSize: number;
   skillLevel: "beginner" | "intermediate" | "experienced" | null;
   dietaryRestrictions: string[];
-  dietTypes: string[];
   cuisinePreferences: string[];
-  ingredientDislikes: string[];
-  kitchenEquipment: string[];
   nutritionGoal: NutritionGoal;
   preferLeftoversForLunch: boolean;
   defaultMaxWeeknightMinutes: number;

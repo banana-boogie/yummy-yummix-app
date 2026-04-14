@@ -23,6 +23,7 @@ import {
 } from "./bundle-builder.ts";
 import { scoreCandidate, violatesHardRules } from "./scoring/index.ts";
 import type { UserContext, WeekStateReadOnly } from "./scoring/types.ts";
+import { inferProteinKey } from "./scoring/protein-inference.ts";
 import {
   ASSEMBLY_ADJUSTMENTS,
   BEAM,
@@ -135,36 +136,7 @@ function readonlyView(state: WeekState): WeekStateReadOnly {
   };
 }
 
-function primaryProteinKey(candidate: RecipeCandidate): string | null {
-  if (!candidate.foodGroups.includes("protein")) return null;
-  const markers = [
-    "chicken",
-    "pollo",
-    "beef",
-    "carne_de_res",
-    "pork",
-    "cerdo",
-    "fish",
-    "pescado",
-    "shrimp",
-    "camaron",
-    "tofu",
-    "egg",
-    "huevo",
-    "lentil",
-    "lenteja",
-    "beans",
-    "frijol",
-    "chickpea",
-    "garbanzo",
-  ];
-  for (const key of candidate.ingredientKeys) {
-    for (const m of markers) {
-      if (key.includes(m)) return m;
-    }
-  }
-  return "other_protein";
-}
+// Shared helper — see scoring/protein-inference.ts for the canonical marker list.
 
 function recordAssignment(
   state: WeekState,
@@ -199,7 +171,7 @@ function recordAssignment(
 
   const primary = components.find((c) => c.isPrimary);
   if (primary?.candidate) {
-    const proteinKey = primaryProteinKey(primary.candidate);
+    const proteinKey = inferProteinKey(primary.candidate);
     if (proteinKey) {
       state.assignedProteinByDayIndex.set(slot.dayIndex, proteinKey);
     }
@@ -575,7 +547,7 @@ function assemblyAdjustments(
   if (!primary?.candidate) return 0;
 
   // Adjacent same-protein repeat.
-  const proteinKey = primaryProteinKey(primary.candidate);
+  const proteinKey = inferProteinKey(primary.candidate);
   if (proteinKey) {
     if (
       state.assignedProteinByDayIndex.get(slot.dayIndex - 1) === proteinKey ||

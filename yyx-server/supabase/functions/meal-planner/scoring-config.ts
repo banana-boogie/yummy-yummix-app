@@ -171,8 +171,6 @@ export const THIN_CATALOG = {
 export const ASSEMBLY_ADJUSTMENTS = {
   busyDayCoveredByLeftovers: 8,
   strongLeftoverTransform: 5,
-  themeNudgeSatisfied: 3,
-  familyFlexibleLargeHousehold: 2,
   adjacentSameProteinRepeat: -6,
   cuisineRepeatedTooOften: -4,
   extraNoveltyFirstWeek: -6,

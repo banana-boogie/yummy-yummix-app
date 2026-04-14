@@ -17,42 +17,10 @@ import {
 } from "../scoring-config.ts";
 import type { ScoreCandidateInput } from "./types.ts";
 import type { FactorOutput } from "./taste-household-fit.ts";
-
-function primaryProteinKey(
-  candidate: ScoreCandidateInput["candidate"],
-): string | null {
-  if (!candidate.foodGroups.includes("protein")) return null;
-  const markers = [
-    "chicken",
-    "pollo",
-    "beef",
-    "carne_de_res",
-    "pork",
-    "cerdo",
-    "fish",
-    "pescado",
-    "shrimp",
-    "camaron",
-    "tofu",
-    "egg",
-    "huevo",
-    "lentil",
-    "lenteja",
-    "beans",
-    "frijol",
-    "chickpea",
-    "garbanzo",
-  ];
-  for (const key of candidate.ingredientKeys) {
-    for (const m of markers) {
-      if (key.includes(m)) return m;
-    }
-  }
-  return "other_protein";
-}
+import { inferProteinKey } from "./protein-inference.ts";
 
 function adjacentProteinPenalty(input: ScoreCandidateInput): number {
-  const key = primaryProteinKey(input.candidate);
+  const key = inferProteinKey(input.candidate);
   if (!key) return 0;
   const prev = input.state.assignedProteinByDayIndex.get(
     input.slot.dayIndex - VARIETY_LIMITS.adjacentProteinWindow,
