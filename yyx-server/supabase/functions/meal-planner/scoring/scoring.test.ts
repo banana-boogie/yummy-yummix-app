@@ -189,27 +189,35 @@ Deno.test("scoreCandidate: dislike conflict is a hard rule violation", () => {
   }
 });
 
-Deno.test("scoreCandidate: no_cook_fallback_slot — noCookEligible and reheatOrAssemblyFit are clamped to 0", () => {
-  // Per spec §4.3, no_cook eligibility must come from explicit recipe
-  // metadata. Until that column ships, both sub-factors return 0 for all
-  // recipe candidates — the only non-zero contribution to slotFitNorm in a
-  // no_cook_fallback_slot is the time-based zeroPrepConfidence (weight 0.15).
-  // So the raw slot-fit should be strictly less than 0.15 for any candidate
-  // here.
-  const input = baseInput({
-    slot: baseSlot({ slotKind: "no_cook_fallback_slot" }),
-    candidate: baseCandidate({
-      plannerRole: "main",
-      leftoversFriendly: true,
-      totalTimeMinutes: 5,
-      cookingLevel: "beginner",
+Deno.test("scoreCandidate: busy-day cook_slot prefers an easy+fast recipe over a slow+hard one", () => {
+  // The no_cook_fallback_slot concept is gone. Busy days are plain cook_slots
+  // with a stronger difficulty + time weighting (SLOT_FIT_SUBWEIGHTS.busyCookSlot).
+  // Same taste, same state — a quick easy recipe must outscore a slow hard one
+  // on slot-fit alone.
+  const slot = baseSlot({ slotKind: "cook_slot", isBusyDay: true });
+  const easyFast = scoreCandidate(
+    baseInput({
+      slot,
+      candidate: baseCandidate({
+        difficulty: "easy",
+        cookingLevel: "beginner",
+        totalTimeMinutes: 20,
+      }),
     }),
-  });
-  const detail = scoreCandidate(input);
-  // Upper bound: 0.15 * zeroPrep_max(1) = 0.15. Strictly less than 0.2.
-  if (detail.factors.slotFit.raw >= 0.2) {
+  );
+  const slowHard = scoreCandidate(
+    baseInput({
+      slot,
+      candidate: baseCandidate({
+        difficulty: "hard",
+        cookingLevel: "experienced",
+        totalTimeMinutes: 75,
+      }),
+    }),
+  );
+  if (easyFast.factors.slotFit.raw <= slowHard.factors.slotFit.raw) {
     throw new Error(
-      `expected slotFit.raw < 0.2 for no_cook_fallback_slot (got ${detail.factors.slotFit.raw})`,
+      `expected easy+fast (${easyFast.factors.slotFit.raw}) > slow+hard (${slowHard.factors.slotFit.raw}) for busy-day cook_slot`,
     );
   }
 });

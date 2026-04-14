@@ -17,7 +17,6 @@ import {
 } from "./candidate-retrieval.ts";
 import type { MealSlot } from "./slot-classifier.ts";
 import { CONDIMENT_RULES } from "./scoring-config.ts";
-import { getNoCookPlaceholderTitle } from "./selection-reason-templates.ts";
 import type { ComponentRole, PairingBasis, SourceKind } from "./types.ts";
 
 export interface SlotComponent {
@@ -375,31 +374,6 @@ export function buildLeftoverPlaceholder(
     candidate: null,
     displayOrder: 0,
     titleSnapshot: sourceTitle,
-    imageSnapshot: null,
-    totalTimeSnapshot: null,
-    difficultySnapshot: null,
-    portionsSnapshot: null,
-    equipmentSnapshot: [],
-    selectionReason: null,
-  };
-}
-
-export function buildNoCookPlaceholder(
-  _slot: MealSlot,
-  locale: string,
-): SlotComponent {
-  return {
-    role: "main",
-    sourceKind: "no_cook",
-    recipeId: null,
-    sourceComponentId: null,
-    sourceSlotIdRef: null,
-    foodGroupsSnapshot: [],
-    pairingBasis: "standalone",
-    isPrimary: true,
-    candidate: null,
-    displayOrder: 0,
-    titleSnapshot: getNoCookPlaceholderTitle(locale),
     imageSnapshot: null,
     totalTimeSnapshot: null,
     difficultySnapshot: null,

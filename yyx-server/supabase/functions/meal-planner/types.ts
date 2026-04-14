@@ -33,7 +33,6 @@ export const CANONICAL_MEAL_TYPES = [
 export const SLOT_TYPES = [
   "cook_slot",
   "leftover_target_slot",
-  "no_cook_fallback_slot",
   "weekend_flexible_slot",
 ] as const;
 
@@ -70,7 +69,6 @@ export const COMPONENT_ROLES = [
 export const SOURCE_KINDS = [
   "recipe",
   "leftover",
-  "no_cook",
   "custom",
 ] as const;
 

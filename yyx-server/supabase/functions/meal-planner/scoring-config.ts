@@ -76,6 +76,18 @@ export const SLOT_FIT_SUBWEIGHTS = {
     timeCompat: 0.30,
     householdComplexity: 0.20,
   },
+  /**
+   * Busy-day cook_slot variant: a weekday cook slot where the user has
+   * flagged the day as busy AND no leftover source existed to downgrade
+   * this into a leftover_target_slot. Same formula as `cook` but with a
+   * stronger pull toward easy + fast recipes so busy days don't get a
+   * 90-minute project dinner.
+   */
+  busyCookSlot: {
+    difficulty: 0.55,
+    timeCompat: 0.40,
+    householdComplexity: 0.05,
+  },
   weekend: {
     difficulty: 0.50,
     timeCompat: 0.30,
@@ -86,11 +98,6 @@ export const SLOT_FIT_SUBWEIGHTS = {
     timeCompat: 0.20,
     leftoversEligible: 0.15,
     leftoverYield: 0.20,
-  },
-  noCook: {
-    noCookEligible: 0.60,
-    reheatAssembly: 0.25,
-    zeroPrep: 0.15,
   },
 } as const;
 
@@ -132,7 +139,9 @@ export const NUTRITION_HEALTHIER_SUBWEIGHTS = {
 export const TIME_BUDGETS = {
   weeknightDefault: 45,
   weekend: 120,
-  noCookFallback: 20,
+  // Busy-day cook_slot: tighter budget so the time-fit factor punishes long
+  // cooks more aggressively on days the user flagged as busy.
+  busyDay: 30,
 } as const;
 
 // ============================================================
@@ -141,9 +150,7 @@ export const TIME_BUDGETS = {
 
 export const RETRIEVAL_LIMITS = {
   cookSlotTopN: 30,
-  noCookFallbackTopN: 10,
   cookSlotBeamPerState: 12,
-  fallbackBeamPerState: 3,
 } as const;
 
 // ============================================================
@@ -175,7 +182,6 @@ export const ASSEMBLY_ADJUSTMENTS = {
   cuisineRepeatedTooOften: -4,
   extraNoveltyFirstWeek: -6,
   unfilledNonBusySlot: -10,
-  fallbackWhenLeftoverShouldHaveExisted: -4,
 } as const;
 
 // ============================================================
@@ -200,7 +206,6 @@ export const LEFTOVER_PLAN_QUALITY = {
 // ============================================================
 
 export const OPEN_SLOT_CONTRIBUTION = {
-  openNoCook: 55, // no concrete recipe, but intentionally open
   unfilledCookSlot: 0,
 } as const;
 
@@ -374,21 +379,19 @@ export type NutritionGoal =
   | "more_protein"
   | "less_sugar";
 
-export interface TimeBudgetLookup {
-  cookSlotMinutes: number;
-  weekendMinutes: number;
-  noCookMinutes: number;
-}
-
 export function resolveTimeBudget(
   slotKind: SlotType,
+  isBusyDay: boolean,
   userMaxWeeknightMinutes: number | null | undefined,
 ): number {
-  if (slotKind === "no_cook_fallback_slot") {
-    return TIME_BUDGETS.noCookFallback;
-  }
   if (slotKind === "weekend_flexible_slot") {
     return TIME_BUDGETS.weekend;
+  }
+  // Busy-day cook slots get a tighter budget so the time-fit factor
+  // aggressively penalizes long cooks. Leftover targets skip this branch —
+  // their slot-fit uses the leftoverSource sub-weights instead of time-fit.
+  if (isBusyDay && slotKind === "cook_slot") {
+    return TIME_BUDGETS.busyDay;
   }
   return userMaxWeeknightMinutes && userMaxWeeknightMinutes > 0
     ? userMaxWeeknightMinutes

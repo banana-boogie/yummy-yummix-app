@@ -18,7 +18,6 @@ import type { PairingLookup } from "./bundle-builder.ts";
 import {
   buildBundle,
   buildLeftoverPlaceholder,
-  buildNoCookPlaceholder,
   type SlotComponent,
 } from "./bundle-builder.ts";
 import { scoreCandidate, violatesHardRules } from "./scoring/index.ts";
@@ -30,7 +29,6 @@ import {
   clamp01,
   LEFTOVER_PLAN_QUALITY,
   LEFTOVER_RESOLUTION_SUBWEIGHTS,
-  OPEN_SLOT_CONTRIBUTION,
   RETRIEVAL_LIMITS,
 } from "./scoring-config.ts";
 import {
@@ -214,16 +212,16 @@ function resolveReasonCode(
   primary: SlotComponent | undefined,
   state: WeekState,
 ): SelectionReasonCode {
-  if (!primary) {
-    return slot.slotKind === "no_cook_fallback_slot"
-      ? "no_cook_fallback"
-      : "default";
-  }
+  if (!primary) return "default";
   if (primary.sourceKind === "leftover") return "busy_day_leftovers";
-  if (primary.sourceKind === "no_cook") return "no_cook_fallback";
   if (state.mode === "first_week_trust") return "first_week_trust";
   if (primary.candidate?.leftoversFriendly && slot.dayIndex <= 3) {
     return "leftovers_source";
+  }
+  // Busy-day cook slot without leftovers — the ranking already biased toward
+  // easy + fast, so the reason reflects that choice.
+  if (slot.isBusyDay && slot.slotKind === "cook_slot") {
+    return "busy_day_easy_pick";
   }
   if (primary.candidate?.verifiedAt) return "verified_fit";
   const total = primary.candidate?.totalTimeMinutes ?? 0;
@@ -325,226 +323,114 @@ function expandRecipeCandidates(
   return next;
 }
 
+/**
+ * Emit successors for a leftover_target_slot. The slot-classifier only sets
+ * this kind when a valid prior source exists, and the planning order places
+ * the source before the target so `state.leftoverSources` has already been
+ * populated — at least for cook-slot successors where the source's primary
+ * was `leftoversFriendly` with surplus portions.
+ *
+ * If at runtime the source never registered (source slot's chosen recipe
+ * had no leftovers), we treat this slot as a regular cook slot so the user
+ * still gets a meal.
+ */
 function expandLeftoverTargetSlot(
   state: WeekState,
   slot: MealSlot,
-  fallbacks: RecipeCandidate[],
   pairings: PairingLookup,
   user: UserContext,
-  leftoverTransformByRecipe: Map<string, string[]>,
 ): WeekState[] {
   const next: WeekState[] = [];
-  const readonly = readonlyView(state);
 
   const sourceId = slot.sourceDependencySlotId;
   const source = sourceId ? state.leftoverSources.get(sourceId) : undefined;
 
-  if (source) {
-    // Prefer explicit leftover_transform if present.
-    for (const transformId of source.transformRecipeIds) {
-      const transform = pairings.candidatesById.get(transformId);
-      if (!transform) continue;
-      if (transform.hasAllergenConflict) continue;
-      if (transform.hasDislikeConflict) continue;
-      const successor = cloneState(state);
-      const transformComponent: SlotComponent = {
-        role: "main",
-        sourceKind: "recipe",
-        recipeId: transform.id,
-        sourceComponentId: null,
-        sourceSlotIdRef: null,
-        foodGroupsSnapshot: transform.foodGroups,
-        pairingBasis: "explicit_pairing",
-        isPrimary: true,
-        candidate: transform,
-        displayOrder: 0,
-        titleSnapshot: transform.title,
-        imageSnapshot: transform.imageUrl,
-        totalTimeSnapshot: transform.totalTimeMinutes,
-        difficultySnapshot: transform.difficulty,
-        portionsSnapshot: transform.portions,
-        equipmentSnapshot: transform.equipmentTags,
-        selectionReason: null,
-      };
-      const contribution = leftoverResolutionScore(
-        LEFTOVER_PLAN_QUALITY.explicitTransform,
-        1,
-        slot.isBusyDay ? 1 : 0.5,
-      );
-      const adjustments = slot.isBusyDay
-        ? ASSEMBLY_ADJUSTMENTS.busyDayCoveredByLeftovers +
-          ASSEMBLY_ADJUSTMENTS.strongLeftoverTransform
-        : ASSEMBLY_ADJUSTMENTS.strongLeftoverTransform;
-      recordAssignment(
-        successor,
-        slot,
-        [transformComponent],
-        contribution,
-        buildSelectionReason(
-          slot,
-          [transformComponent],
-          successor,
-          user.locale,
-        ),
-        contribution,
-        [],
-        adjustments,
-      );
-      next.push(successor);
-    }
+  if (!source) {
+    // Source didn't register a leftover at runtime. Caller (assembleWeek) is
+    // expected to handle this by treating it as a regular cook slot; we emit
+    // an empty successor list so the fallback path runs.
+    return next;
+  }
 
-    // Always also consider a generic carry-forward leftover.
+  // Prefer explicit leftover_transform if present.
+  for (const transformId of source.transformRecipeIds) {
+    const transform = pairings.candidatesById.get(transformId);
+    if (!transform) continue;
+    if (transform.hasAllergenConflict) continue;
+    if (transform.hasDislikeConflict) continue;
     const successor = cloneState(state);
-    const placeholder = buildLeftoverPlaceholder(
-      slot,
-      source.sourceSlotId,
-      source.primaryTitle,
-    );
+    const transformComponent: SlotComponent = {
+      role: "main",
+      sourceKind: "recipe",
+      recipeId: transform.id,
+      sourceComponentId: null,
+      sourceSlotIdRef: null,
+      foodGroupsSnapshot: transform.foodGroups,
+      pairingBasis: "explicit_pairing",
+      isPrimary: true,
+      candidate: transform,
+      displayOrder: 0,
+      titleSnapshot: transform.title,
+      imageSnapshot: transform.imageUrl,
+      totalTimeSnapshot: transform.totalTimeMinutes,
+      difficultySnapshot: transform.difficulty,
+      portionsSnapshot: transform.portions,
+      equipmentSnapshot: transform.equipmentTags,
+      selectionReason: null,
+    };
     const contribution = leftoverResolutionScore(
-      LEFTOVER_PLAN_QUALITY.genericCarryForward,
-      source.portionsAvailable >= user.householdSize ? 1 : 0.5,
+      LEFTOVER_PLAN_QUALITY.explicitTransform,
+      1,
       slot.isBusyDay ? 1 : 0.5,
     );
     const adjustments = slot.isBusyDay
-      ? ASSEMBLY_ADJUSTMENTS.busyDayCoveredByLeftovers
-      : 0;
+      ? ASSEMBLY_ADJUSTMENTS.busyDayCoveredByLeftovers +
+        ASSEMBLY_ADJUSTMENTS.strongLeftoverTransform
+      : ASSEMBLY_ADJUSTMENTS.strongLeftoverTransform;
     recordAssignment(
       successor,
       slot,
-      [placeholder],
+      [transformComponent],
       contribution,
-      buildSelectionReason(slot, [placeholder], successor, user.locale),
+      buildSelectionReason(
+        slot,
+        [transformComponent],
+        successor,
+        user.locale,
+      ),
       contribution,
       [],
       adjustments,
     );
     next.push(successor);
-    return next;
   }
 
-  // No source available — fall through to no-cook fallback behavior.
-  const scoredFallbacks = fallbacks
-    .map((candidate) => ({
-      candidate,
-      detail: scoreCandidate({
-        slot: { ...slot, slotKind: "no_cook_fallback_slot" },
-        candidate,
-        state: readonly,
-        user,
-      }),
-    }))
-    .filter((entry) => !violatesHardRules(entry.detail))
-    .sort((a, b) => b.detail.total - a.detail.total)
-    .slice(0, RETRIEVAL_LIMITS.fallbackBeamPerState);
-
-  for (const entry of scoredFallbacks) {
-    const successor = cloneState(state);
-    const components = buildBundle(slot, entry.candidate, pairings);
-    successor.warnings.push(
-      `FALLBACK_WITHOUT_LEFTOVER_SOURCE:${slot.slotId}`,
-    );
-    const contribution = entry.detail.total;
-    recordAssignment(
-      successor,
-      slot,
-      components,
-      contribution,
-      buildSelectionReason(slot, components, successor, user.locale),
-      contribution,
-      [],
-      ASSEMBLY_ADJUSTMENTS.fallbackWhenLeftoverShouldHaveExisted,
-    );
-    registerLeftoverSource(
-      successor,
-      slot,
-      components,
-      user.householdSize,
-      leftoverTransformByRecipe,
-    );
-    next.push(successor);
-  }
-
-  if (next.length === 0) {
-    // Last resort — empty no-cook placeholder with open contribution.
-    const successor = cloneState(state);
-    const placeholder = buildNoCookPlaceholder(slot, user.locale);
-    recordAssignment(
-      successor,
-      slot,
-      [placeholder],
-      OPEN_SLOT_CONTRIBUTION.openNoCook,
-      buildSelectionReason(slot, [placeholder], successor, user.locale),
-      OPEN_SLOT_CONTRIBUTION.openNoCook,
-      [`UNFILLED_LEFTOVER_TARGET:${slot.slotId}`],
-      ASSEMBLY_ADJUSTMENTS.fallbackWhenLeftoverShouldHaveExisted,
-    );
-    next.push(successor);
-  }
-
-  return next;
-}
-
-function expandNoCookFallback(
-  state: WeekState,
-  slot: MealSlot,
-  fallbacks: RecipeCandidate[],
-  pairings: PairingLookup,
-  user: UserContext,
-): WeekState[] {
-  const next: WeekState[] = [];
-  const readonly = readonlyView(state);
-  const scored = fallbacks
-    .map((candidate) => ({
-      candidate,
-      detail: scoreCandidate({ slot, candidate, state: readonly, user }),
-    }))
-    .filter((entry) => !violatesHardRules(entry.detail))
-    .sort((a, b) => b.detail.total - a.detail.total)
-    .slice(0, RETRIEVAL_LIMITS.fallbackBeamPerState);
-
-  for (const entry of scored) {
-    const successor = cloneState(state);
-    const components = buildBundle(slot, entry.candidate, pairings);
-    const contribution = entry.detail.total;
-    recordAssignment(
-      successor,
-      slot,
-      components,
-      contribution,
-      buildSelectionReason(slot, components, successor, user.locale),
-      contribution,
-      [],
-      0,
-    );
-    next.push(successor);
-  }
-
-  // Always offer the no-cook placeholder as an alternative successor. Beam
-  // selection picks whichever scores higher. Without this, a scored recipe
-  // would always win in `no_cook_fallback_slot` since the placeholder used
-  // to only be emitted when `scored` was empty — which silently scheduled
-  // cooking in slots the user flagged as busy. The placeholder contribution
-  // is `OPEN_SLOT_CONTRIBUTION.openNoCook` (55), so a recipe only wins when
-  // its total score genuinely exceeds that floor.
-  const placeholderSuccessor = cloneState(state);
-  const placeholder = buildNoCookPlaceholder(slot, user.locale);
+  // Always also consider a generic carry-forward leftover.
+  const successor = cloneState(state);
+  const placeholder = buildLeftoverPlaceholder(
+    slot,
+    source.sourceSlotId,
+    source.primaryTitle,
+  );
+  const contribution = leftoverResolutionScore(
+    LEFTOVER_PLAN_QUALITY.genericCarryForward,
+    source.portionsAvailable >= user.householdSize ? 1 : 0.5,
+    slot.isBusyDay ? 1 : 0.5,
+  );
+  const adjustments = slot.isBusyDay
+    ? ASSEMBLY_ADJUSTMENTS.busyDayCoveredByLeftovers
+    : 0;
   recordAssignment(
-    placeholderSuccessor,
+    successor,
     slot,
     [placeholder],
-    OPEN_SLOT_CONTRIBUTION.openNoCook,
-    buildSelectionReason(
-      slot,
-      [placeholder],
-      placeholderSuccessor,
-      user.locale,
-    ),
-    OPEN_SLOT_CONTRIBUTION.openNoCook,
-    scored.length === 0 ? [`OPEN_NO_COOK_SLOT:${slot.slotId}`] : [],
-    0,
+    contribution,
+    buildSelectionReason(slot, [placeholder], successor, user.locale),
+    contribution,
+    [],
+    adjustments,
   );
-  next.push(placeholderSuccessor);
-
+  next.push(successor);
   return next;
 }
 
@@ -607,40 +493,39 @@ export function assembleWeek(input: AssembleInput): AssembleResult {
     const nextBeam: WeekState[] = [];
     for (const state of beam) {
       let successors: WeekState[] = [];
-      const cookCandidates = input.candidates.cook.get(slot.slotId) ?? [];
-      const fallbackCandidates = input.candidates.fallback.get(slot.slotId) ??
-        [];
+      const candidates = input.candidates.get(slot.slotId) ?? [];
 
       if (slot.slotKind === "leftover_target_slot") {
         successors = expandLeftoverTargetSlot(
           state,
           slot,
-          fallbackCandidates.length ? fallbackCandidates : cookCandidates,
-          input.pairings,
-          input.user,
-          input.leftoverTransformByRecipe,
-        );
-      } else if (slot.slotKind === "no_cook_fallback_slot") {
-        successors = expandNoCookFallback(
-          state,
-          slot,
-          fallbackCandidates.length ? fallbackCandidates : cookCandidates,
           input.pairings,
           input.user,
         );
-      } else {
+      }
+
+      // Cook slot / weekend slot, OR a leftover_target whose source didn't
+      // register a leftover at runtime — fall through to normal recipe
+      // ranking so the slot still gets a meal (busy-day bias applies via
+      // `isBusyDay` in the scoring layer).
+      if (successors.length === 0) {
         successors = expandRecipeCandidates(
           state,
           slot,
-          cookCandidates,
+          candidates,
           input.pairings,
           input.user,
           input.leftoverTransformByRecipe,
         );
         if (successors.length === 0) {
-          // Unable to fill a cook slot: keep a partial state and emit warning.
+          // Still nothing — keep a partial state and emit an unfilled warning.
           const successor = cloneState(state);
           successor.warnings.push(`UNFILLED_COOK_SLOT:${slot.slotId}`);
+          if (slot.sourceDependencySlotId) {
+            successor.warnings.push(
+              `FALLBACK_WITHOUT_LEFTOVER_SOURCE:${slot.slotId}`,
+            );
+          }
           successor.assemblyPenalty += ASSEMBLY_ADJUSTMENTS.unfilledNonBusySlot;
           successor.objectiveScore += ASSEMBLY_ADJUSTMENTS.unfilledNonBusySlot;
           successor.slotIndex += 1;

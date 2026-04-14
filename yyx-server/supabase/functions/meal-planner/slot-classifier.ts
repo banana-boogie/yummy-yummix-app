@@ -180,13 +180,18 @@ export function classifySlots(
 }
 
 /**
- * Wire leftover_target_slot dependencies and downgrade when no valid source
- * exists. Pass 1 is calendar order so earlier slots can seed later leftover
- * targets.
+ * Wire leftover_target_slot dependencies. Pass 1 is calendar order so earlier
+ * slots can seed later leftover targets.
  *
  * Valid sources: cook_slot or weekend_flexible_slot for dinner OR lunch
  * scheduled strictly before the target. Breakfasts and snacks are not used
  * as leftover sources.
+ *
+ * If a busy-day target has no valid source, we revert it to a plain
+ * `cook_slot`. The `isBusyDay` flag is still true on the slot so the
+ * scoring layer can apply the busy-day bias (easy + fast recipes) without
+ * needing a dedicated slot kind. "No-cook fallback" as a concept is
+ * deliberately gone — even a sandwich is cooking.
  */
 function resolveLeftoverDependencies(
   slots: MealSlot[],
@@ -204,11 +209,11 @@ function resolveLeftoverDependencies(
 
     const sourceIdx = findPrecedingSourceIndex(slots, i);
     if (sourceIdx === -1) {
-      // No valid source — busy days downgrade to no-cook fallback.
-      if (target.isBusyDay) {
-        target.slotKind = "no_cook_fallback_slot";
+      // No valid source — revert to a plain cook_slot. Busy-day bias still
+      // applies via `isBusyDay` in the scoring layer.
+      if (target.slotKind === "leftover_target_slot") {
+        target.slotKind = "cook_slot";
       }
-      // prefer_leftovers_for_lunch soft preference leaves the slot as cook_slot.
       continue;
     }
 
@@ -242,8 +247,7 @@ function findPrecedingSourceIndex(
  * Planning order:
  *   1. Cook/weekend slots that feed a future leftover target
  *   2. Remaining cook_slot + weekend_flexible_slot
- *   3. leftover_target_slot (needs source already placed)
- *   4. no_cook_fallback_slot
+ *   3. leftover_target_slot (needs its source already placed)
  *
  * Within each bucket, preserve calendar order.
  */
@@ -256,12 +260,9 @@ export function buildPlanningOrder(slots: MealSlot[]): MealSlot[] {
   const sourcesWithDependents: MealSlot[] = [];
   const otherCookables: MealSlot[] = [];
   const leftoverTargets: MealSlot[] = [];
-  const fallbacks: MealSlot[] = [];
 
   for (const slot of slots) {
-    if (slot.slotKind === "no_cook_fallback_slot") {
-      fallbacks.push(slot);
-    } else if (slot.slotKind === "leftover_target_slot") {
+    if (slot.slotKind === "leftover_target_slot") {
       leftoverTargets.push(slot);
     } else if (sources.has(slot.slotId)) {
       sourcesWithDependents.push(slot);
@@ -274,6 +275,5 @@ export function buildPlanningOrder(slots: MealSlot[]): MealSlot[] {
     ...sourcesWithDependents,
     ...otherCookables,
     ...leftoverTargets,
-    ...fallbacks,
   ];
 }

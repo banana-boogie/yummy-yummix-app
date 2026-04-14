@@ -362,10 +362,7 @@ async function annotateAllergenConflicts(
     dietaryRestrictions,
   );
   if (allergenByRestriction.size === 0) return allergenByRestriction;
-  for (const list of candidateMap.cook.values()) {
-    annotateCandidates(list, allergenByRestriction);
-  }
-  for (const list of candidateMap.fallback.values()) {
+  for (const list of candidateMap.values()) {
     annotateCandidates(list, allergenByRestriction);
   }
   return allergenByRestriction;
@@ -940,11 +937,8 @@ function buildDebugTrace(
   warnings: string[],
 ): DebugTrace {
   const candidateCounts: Record<string, number> = {};
-  for (const [slotId, list] of candidates.cook) {
-    candidateCounts[`cook:${slotId}`] = list.length;
-  }
-  for (const [slotId, list] of candidates.fallback) {
-    candidateCounts[`fallback:${slotId}`] = list.length;
+  for (const [slotId, list] of candidates) {
+    candidateCounts[slotId] = list.length;
   }
   const chosenSlots = slots.map((slot) => {
     const assignment = best.assignments.get(slot.slotId);
@@ -1008,7 +1002,7 @@ export async function generatePlan(
       debugTrace: buildDebugTrace(
         user.evidenceWeeks === 0 ? "first_week_trust" : "normal",
         [],
-        { cook: new Map(), fallback: new Map() },
+        new Map(),
         {
           assignments: new Map(),
           assignedRecipeIds: new Set(),
@@ -1049,10 +1043,7 @@ export async function generatePlan(
   // Explicit dislikes are a hard reject — same treatment as allergens but
   // scoped to the user's own preferences rather than the shared allergen map.
   if (user.ingredientDislikes.length > 0) {
-    for (const list of candidateMap.cook.values()) {
-      annotateDislikeConflicts(list, user.ingredientDislikes);
-    }
-    for (const list of candidateMap.fallback.values()) {
+    for (const list of candidateMap.values()) {
       annotateDislikeConflicts(list, user.ingredientDislikes);
     }
   }
@@ -1066,7 +1057,7 @@ export async function generatePlan(
   // we ever need richer client-side filtering, switch the contract to
   // `warnings: Array<{ code: string; detail?: Record<string, unknown> }>`.
   const primaryRecipeIds = new Set<string>();
-  for (const list of candidateMap.cook.values()) {
+  for (const list of candidateMap.values()) {
     for (const c of list) primaryRecipeIds.add(c.id);
   }
   const uniqueTotal = countUniqueCandidates(candidateMap);
@@ -1074,7 +1065,7 @@ export async function generatePlan(
     warnings.push(`LIMITED_CATALOG_COVERAGE:total=${uniqueTotal}`);
   }
 
-  for (const [slotId, list] of candidateMap.cook) {
+  for (const [slotId, list] of candidateMap) {
     if (list.length < THIN_CATALOG.viableCandidatesPerSlotThreshold) {
       warnings.push(`LIMITED_CATALOG_COVERAGE:slot=${slotId}:n=${list.length}`);
     }

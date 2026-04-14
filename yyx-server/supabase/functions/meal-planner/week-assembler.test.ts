@@ -1,6 +1,6 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { assembleWeek } from "./week-assembler.ts";
-import type { RecipeCandidate } from "./candidate-retrieval.ts";
+import type { CandidateMap, RecipeCandidate } from "./candidate-retrieval.ts";
 import type { MealSlot } from "./slot-classifier.ts";
 import type { UserContext } from "./scoring/types.ts";
 import type { PairingLookup } from "./bundle-builder.ts";
@@ -31,7 +31,7 @@ function mkCandidate(
     plannerRole: "main",
     foodGroups: ["protein", "carb"],
     isComplete: false,
-    totalTimeMinutes: 60, // well above the 20-minute no-cook budget
+    totalTimeMinutes: 30,
     difficulty: "medium",
     portions: 2,
     imageUrl: null,
@@ -67,7 +67,7 @@ function mkUser(overrides: Partial<UserContext> = {}): UserContext {
     preferLeftoversForLunch: false,
     defaultMaxWeeknightMinutes: 45,
     implicitPreferences: new Map(),
-    evidenceWeeks: 5, // not first-week trust mode
+    evidenceWeeks: 5,
     recentCookedRecipes: new Map(),
     cookCountByRecipe: new Map(),
     ...overrides,
@@ -79,59 +79,33 @@ const EMPTY_PAIRINGS: PairingLookup = {
   candidatesById: new Map(),
 };
 
-Deno.test("assembleWeek: no_cook_fallback_slot picks placeholder when recipes can't beat the 55-point floor", () => {
-  // Spec §4.3 requires no_cook fallback to prefer true no-cook options. The
-  // noCookEligible/reheatOrAssemblyFit scoring factors are clamped to 0 until
-  // explicit recipe metadata exists, which limits slot-fit to ~0.15 × 20 =
-  // 3 points. A slow recipe (60 min) also bottoms out on time-fit (0). Against
-  // the placeholder's 55-point contribution, the placeholder must win.
+Deno.test("assembleWeek: busy-day cook_slot picks an easy + fast recipe over a slow one", () => {
+  // Busy days are now plain cook_slots with a stronger easy+fast scoring bias
+  // (no_cook_fallback_slot no longer exists). Given two candidates — a quick
+  // easy recipe and a slow harder one — the easy+fast should win.
   const slot = mkSlot({
     slotId: "1-dinner",
-    slotKind: "no_cook_fallback_slot",
+    slotKind: "cook_slot",
     isBusyDay: true,
-    prefersLeftovers: true,
   });
 
-  const candidates = [
-    mkCandidate("slow-recipe-1", { totalTimeMinutes: 60 }),
-    mkCandidate("slow-recipe-2", { totalTimeMinutes: 90 }),
-  ];
+  const quick = mkCandidate("quick-easy", {
+    totalTimeMinutes: 20,
+    difficulty: "easy",
+    cookingLevel: "beginner",
+  });
+  const slow = mkCandidate("slow-hard", {
+    totalTimeMinutes: 75,
+    difficulty: "hard",
+    cookingLevel: "experienced",
+  });
+
+  const candidates: CandidateMap = new Map([[slot.slotId, [quick, slow]]]);
 
   const result = assembleWeek({
     slots: [slot],
     planningOrder: [slot],
-    candidates: {
-      cook: new Map(),
-      fallback: new Map([[slot.slotId, candidates]]),
-    },
-    pairings: EMPTY_PAIRINGS,
-    user: mkUser(),
-    leftoverTransformByRecipe: new Map(),
-  });
-
-  const assignment = result.best.assignments.get(slot.slotId);
-  if (!assignment) {
-    throw new Error("expected slot to be assigned");
-  }
-  const primary = assignment.components.find((c) => c.isPrimary);
-  assertEquals(primary?.sourceKind, "no_cook");
-  assertEquals(primary?.recipeId, null);
-});
-
-Deno.test("assembleWeek: no_cook_fallback_slot with empty candidate pool falls back to placeholder", () => {
-  // Separate regression: when no fallback candidates exist at all, the
-  // placeholder path must still run.
-  const slot = mkSlot({
-    slotId: "2-dinner",
-    slotKind: "no_cook_fallback_slot",
-    isBusyDay: true,
-    prefersLeftovers: true,
-  });
-
-  const result = assembleWeek({
-    slots: [slot],
-    planningOrder: [slot],
-    candidates: { cook: new Map(), fallback: new Map([[slot.slotId, []]]) },
+    candidates,
     pairings: EMPTY_PAIRINGS,
     user: mkUser(),
     leftoverTransformByRecipe: new Map(),
@@ -139,22 +113,11 @@ Deno.test("assembleWeek: no_cook_fallback_slot with empty candidate pool falls b
 
   const assignment = result.best.assignments.get(slot.slotId);
   const primary = assignment?.components.find((c) => c.isPrimary);
-  assertEquals(primary?.sourceKind, "no_cook");
-  // When the candidate pool was truly empty we also emit an OPEN_NO_COOK_SLOT
-  // warning so the client can surface that this slot is intentionally open.
-  const hasOpenWarning = result.best.warnings.some((w) =>
-    w.startsWith("OPEN_NO_COOK_SLOT")
-  );
-  if (!hasOpenWarning) {
-    throw new Error(
-      "expected OPEN_NO_COOK_SLOT warning when fallback pool was empty",
-    );
-  }
+  assertEquals(primary?.sourceKind, "recipe");
+  assertEquals(primary?.recipeId, "quick-easy");
 });
 
 Deno.test("assembleWeek: cook_slot with a strong candidate assigns that recipe", () => {
-  // Sanity check — the new placeholder path is scoped to no_cook_fallback_slot;
-  // regular cook slots should still assign recipes normally.
   const slot = mkSlot({ slotId: "1-dinner", slotKind: "cook_slot" });
   const candidate = mkCandidate("winner", {
     totalTimeMinutes: 30,
@@ -164,10 +127,7 @@ Deno.test("assembleWeek: cook_slot with a strong candidate assigns that recipe",
   const result = assembleWeek({
     slots: [slot],
     planningOrder: [slot],
-    candidates: {
-      cook: new Map([[slot.slotId, [candidate]]]),
-      fallback: new Map(),
-    },
+    candidates: new Map([[slot.slotId, [candidate]]]),
     pairings: EMPTY_PAIRINGS,
     user: mkUser(),
     leftoverTransformByRecipe: new Map(),
@@ -177,4 +137,26 @@ Deno.test("assembleWeek: cook_slot with a strong candidate assigns that recipe",
   const primary = assignment?.components.find((c) => c.isPrimary);
   assertEquals(primary?.sourceKind, "recipe");
   assertEquals(primary?.recipeId, "winner");
+});
+
+Deno.test("assembleWeek: unfilled cook slot emits UNFILLED_COOK_SLOT warning", () => {
+  const slot = mkSlot({ slotId: "1-dinner", slotKind: "cook_slot" });
+  // Empty candidate pool — nothing to assign.
+  const result = assembleWeek({
+    slots: [slot],
+    planningOrder: [slot],
+    candidates: new Map([[slot.slotId, []]]),
+    pairings: EMPTY_PAIRINGS,
+    user: mkUser(),
+    leftoverTransformByRecipe: new Map(),
+  });
+
+  const hasWarning = result.best.warnings.some((w) =>
+    w.startsWith("UNFILLED_COOK_SLOT")
+  );
+  if (!hasWarning) {
+    throw new Error(
+      "expected UNFILLED_COOK_SLOT warning when the candidate pool was empty",
+    );
+  }
 });

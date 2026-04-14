@@ -1,10 +1,9 @@
 /**
  * Deterministic, locale-aware templates for planner-generated user-facing copy.
  *
- * The planner produces short explanations (`selection_reason`) and placeholder
- * titles (no-cook meal name, day labels) at generation time. These must match
- * the user's locale — Mexico is the primary market and Spanish users must see
- * Spanish text.
+ * The planner produces short explanations (`selection_reason`) at generation
+ * time. These must match the user's locale — Mexico is the primary market and
+ * Spanish users must see Spanish text.
  *
  * No LLM generation. All text is static per locale; variables are interpolated
  * deterministically.
@@ -12,7 +11,7 @@
 
 export type SelectionReasonCode =
   | "busy_day_leftovers"
-  | "no_cook_fallback"
+  | "busy_day_easy_pick"
   | "first_week_trust"
   | "leftovers_source"
   | "verified_fit"
@@ -35,8 +34,8 @@ const SELECTION_REASON_TEMPLATES: Record<
       `Uses leftovers from ${sourceTitle} so you don't need to cook on ${dayLabel}.`
         .replace(/\s+\./, ".")
         .trim(),
-    no_cook_fallback: ({ dayLabel = "" }) =>
-      `Light no-cook option for your busy ${dayLabel}.`.replace(/\s+\./, ".")
+    busy_day_easy_pick: ({ dayLabel = "" }) =>
+      `Quick, easy pick for your busy ${dayLabel}.`.replace(/\s+\./, ".")
         .trim(),
     first_week_trust: () =>
       `Reliable family-friendly pick for your first week.`,
@@ -58,8 +57,8 @@ const SELECTION_REASON_TEMPLATES: Record<
       `Aprovecha las sobras de ${sourceTitle} y no tendrás que cocinar el ${dayLabel}.`
         .replace(/\s+\./, ".")
         .trim(),
-    no_cook_fallback: ({ dayLabel = "" }) =>
-      `Opción ligera sin cocinar para tu ${dayLabel} ocupado.`.replace(
+    busy_day_easy_pick: ({ dayLabel = "" }) =>
+      `Opción rápida y fácil para tu ${dayLabel} ocupado.`.replace(
         /\s+\./,
         ".",
       ).trim(),
@@ -100,11 +99,6 @@ const DAY_LABELS: Record<string, string[]> = {
   ],
 };
 
-const NO_COOK_PLACEHOLDER_TITLES: Record<string, string> = {
-  en: "No-cook meal",
-  es: "Comida sin cocinar",
-};
-
 function pickLanguage(locale: string): "en" | "es" {
   return locale.toLowerCase().startsWith("es") ? "es" : "en";
 }
@@ -124,9 +118,4 @@ export function getDayLabel(dayIndex: number, locale: string): string {
   const lang = pickLanguage(locale);
   return DAY_LABELS[lang]?.[dayIndex] ?? DAY_LABELS.en[dayIndex] ??
     `day ${dayIndex}`;
-}
-
-export function getNoCookPlaceholderTitle(locale: string): string {
-  const lang = pickLanguage(locale);
-  return NO_COOK_PLACEHOLDER_TITLES[lang] ?? NO_COOK_PLACEHOLDER_TITLES.en;
 }

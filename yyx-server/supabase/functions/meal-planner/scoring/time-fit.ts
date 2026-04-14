@@ -21,6 +21,7 @@ export function scoreTimeFit(
   }
   const budget = resolveTimeBudget(
     input.slot.slotKind,
+    input.slot.isBusyDay,
     input.user.defaultMaxWeeknightMinutes,
   );
   const norm = clamp01(1 - Math.max(0, total - budget) / Math.max(budget, 1));

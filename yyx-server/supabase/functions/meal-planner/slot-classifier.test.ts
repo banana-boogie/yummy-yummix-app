@@ -68,7 +68,11 @@ Deno.test("classifySlots: busy day with valid prior source becomes leftover_targ
   );
 });
 
-Deno.test("classifySlots: busy day without prior source downgrades to no_cook_fallback_slot", () => {
+Deno.test("classifySlots: busy day without prior source reverts to cook_slot (isBusyDay preserved)", () => {
+  // The no_cook_fallback_slot concept was removed. Busy days without a valid
+  // prior source become plain cook_slots; the scoring layer reads `isBusyDay`
+  // and applies the easy+fast bias. Users always get a real recipe, never a
+  // "no-cook meal" placeholder.
   const result = classifySlots({
     weekStart: "2026-04-13",
     dayIndexes: [0],
@@ -77,7 +81,8 @@ Deno.test("classifySlots: busy day without prior source downgrades to no_cook_fa
     preferLeftoversForLunch: false,
     locale: "en",
   });
-  assertEquals(result.slots[0].slotKind, "no_cook_fallback_slot");
+  assertEquals(result.slots[0].slotKind, "cook_slot");
+  assertEquals(result.slots[0].isBusyDay, true);
 });
 
 Deno.test("classifySlots: prefer_leftovers_for_lunch turns lunch after dinner into leftover_target_slot", () => {
@@ -102,7 +107,7 @@ Deno.test("classifySlots: prefer_leftovers_for_lunch turns lunch after dinner in
   assertEquals(d1lunch?.sourceDependencySlotId, d0dinner?.slotId);
 });
 
-Deno.test("classifySlots: planning order puts sources first, leftover targets after cookables, fallbacks last", () => {
+Deno.test("classifySlots: planning order puts sources first, leftover targets last", () => {
   const result = classifySlots({
     weekStart: "2026-04-13",
     dayIndexes: [0, 1, 5],

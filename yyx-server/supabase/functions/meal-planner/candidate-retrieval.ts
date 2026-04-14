@@ -49,10 +49,13 @@ export interface RecipeCandidate {
   dislikeMatches: string[];
 }
 
-export interface CandidateMap {
-  cook: Map<string, RecipeCandidate[]>;
-  fallback: Map<string, RecipeCandidate[]>;
-}
+/**
+ * Per-slot top-N candidates, keyed by slotId. Every slot kind — cook_slot,
+ * leftover_target_slot, weekend_flexible_slot — draws from the same pool;
+ * busy-day ranking bias lives in the scoring layer, not a separate candidate
+ * path.
+ */
+export type CandidateMap = Map<string, RecipeCandidate[]>;
 
 export interface CandidateRetrievalContext {
   supabase: SupabaseClient;
@@ -197,7 +200,7 @@ export async function fetchCandidates(
   }
 
   if (neededRoles.size === 0) {
-    return { cook: new Map(), fallback: new Map() };
+    return new Map();
   }
 
   const selectFields = `
@@ -263,63 +266,37 @@ export async function fetchCandidates(
 }
 
 /**
- * Given all fetched candidates, partition into:
- *   - cook: per-slot top N (candidates compatible with the slot's meal-type roles)
- *   - fallback: per-slot top N for no-cook
+ * Partition candidates per slot. Every slot kind uses the same retrieval cap
+ * and the same pool — scoring applies the busy-day and leftover-source
+ * biases. Deterministic id-sort keeps tests stable.
  */
 function splitCandidatesBySlot(
   slots: MealSlot[],
   candidates: RecipeCandidate[],
 ): CandidateMap {
-  const cook = new Map<string, RecipeCandidate[]>();
-  const fallback = new Map<string, RecipeCandidate[]>();
+  const bySlot: CandidateMap = new Map();
 
   for (const slot of slots) {
     const allowedRoles = MEAL_TYPE_PRIMARY_ROLES[slot.canonicalMealType];
     const compatible = candidates.filter((c) =>
       allowedRoles.includes(c.plannerRole)
     );
-
-    const isFallbackSlot = slot.slotKind === "no_cook_fallback_slot";
-    const cap = isFallbackSlot
-      ? RETRIEVAL_LIMITS.noCookFallbackTopN
-      : RETRIEVAL_LIMITS.cookSlotTopN;
-
-    if (isFallbackSlot) {
-      // no-cook fallback: prefer shorter recipes, snack/dessert roles, or
-      // leftovers_friendly recipes. Time-first sort; scoring refines further.
-      const sorted = compatible
-        .slice()
-        .sort((a, b) =>
-          (a.totalTimeMinutes ?? 9999) - (b.totalTimeMinutes ?? 9999)
-        )
-        .slice(0, cap);
-      fallback.set(slot.slotId, sorted);
-      // Also populate cook in case of partial plan rescue.
-      cook.set(slot.slotId, sorted);
-    } else {
-      // Cookable slots: return all compatible up to cap. Scoring handles ranking.
-      // Slicing by a deterministic key keeps tests stable; sort by id.
-      const sorted = compatible
-        .slice()
-        .sort((a, b) => a.id.localeCompare(b.id))
-        .slice(0, cap);
-      cook.set(slot.slotId, sorted);
-    }
+    const sorted = compatible
+      .slice()
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .slice(0, RETRIEVAL_LIMITS.cookSlotTopN);
+    bySlot.set(slot.slotId, sorted);
   }
 
-  return { cook, fallback };
+  return bySlot;
 }
 
 /**
- * Total unique candidates across the map — used for thin-catalog checks.
+ * Total unique candidates across all slots — used for thin-catalog checks.
  */
 export function countUniqueCandidates(map: CandidateMap): number {
   const ids = new Set<string>();
-  for (const arr of map.cook.values()) {
-    for (const c of arr) ids.add(c.id);
-  }
-  for (const arr of map.fallback.values()) {
+  for (const arr of map.values()) {
     for (const c of arr) ids.add(c.id);
   }
   return ids.size;
