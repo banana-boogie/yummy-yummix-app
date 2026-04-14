@@ -125,6 +125,10 @@ jest.mock('@/services/chatService', () => {
 
 jest.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: jest.fn().mockResolvedValue(undefined) }),
+  // Minimal stub so components using useQuery (e.g. useActivePlan via
+  // IrmixyHomeActions) render without a QueryClientProvider. Returns a
+  // benign "no data, not loading" shape.
+  useQuery: () => ({ data: undefined, isLoading: false, error: null }),
 }));
 
 jest.mock('@ronradtke/react-native-markdown-display', () => {
