@@ -246,9 +246,13 @@ export function ChatScreen({
     setInputTextRef.current = setInputText;
 
     // Home actions + suggestion chips: send a message immediately.
+    // Gated behind isBudgetExceeded so chips/cards can't bypass the input bar's
+    // disabled state — matches the ChatInputBar `disabled={isBudgetExceeded}`
+    // gate. Silent no-op if exceeded; the chips/cards are also hidden below.
     const handleHomeSend = useCallback((message: string) => {
+        if (isBudgetExceeded) return;
         handleSendMessage(message);
-    }, [handleSendMessage]);
+    }, [handleSendMessage, isBudgetExceeded]);
 
     // Home actions "focus_input" variant: focus the input, optionally hinting.
     // Placeholder is dropped into setInputText as a seed only when the input
@@ -400,10 +404,10 @@ export function ChatScreen({
                 onCopyMessage={handleCopyMessage}
                 onStartCooking={handleStartCooking}
                 onActionPress={handleActionPress}
-                onSuggestionPress={handleHomeSend}
+                onSuggestionPress={isBudgetExceeded ? undefined : handleHomeSend}
             />
         );
-    }, [lastMessageId, isLoading, isRecipeGenerating, currentStatus, statusText, handleCopyMessage, handleStartCooking, handleActionPress, handleHomeSend]);
+    }, [lastMessageId, isLoading, isRecipeGenerating, currentStatus, statusText, handleCopyMessage, handleStartCooking, handleActionPress, handleHomeSend, isBudgetExceeded]);
 
     if (!user) {
         return (
@@ -456,12 +460,14 @@ export function ChatScreen({
                             style={{ width: 200, height: 200 }}
                             contentFit="contain"
                         />
-                        <View className="mt-md w-full">
-                            <IrmixyHomeActions
-                                onSendMessage={handleHomeSend}
-                                onFocusInput={handleHomeFocusInput}
-                            />
-                        </View>
+                        {!isBudgetExceeded && (
+                            <View className="mt-md w-full">
+                                <IrmixyHomeActions
+                                    onSendMessage={handleHomeSend}
+                                    onFocusInput={handleHomeFocusInput}
+                                />
+                            </View>
+                        )}
                     </View>
                 }
             />
