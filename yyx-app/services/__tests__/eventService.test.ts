@@ -273,16 +273,22 @@ describe('eventService', () => {
     const { eventService } = require('../eventService');
     await flushPromises();
 
-    eventService.trackEvent('meal_plan_approved', {
-      mealPlanId: 'plan-1',
-      weekStart: '2026-04-13',
-      requestedDayIndexes: [0, 1, 2],
-      requestedMealTypes: ['dinner'],
-      generatedSlotCount: 3,
-      approvalDurationMs: 12000,
-      isFirstWeekPlan: true,
-      shoppingListId: null,
-    });
+    eventService.trackEvent(
+      {
+        name: 'meal_plan_approved',
+        payload: {
+          mealPlanId: 'plan-1',
+          weekStart: '2026-04-13',
+          requestedDayIndexes: [0, 1, 2],
+          requestedMealTypes: ['dinner'],
+          generatedSlotCount: 3,
+          approvalDurationMs: 12000,
+          isFirstWeekPlan: true,
+          shoppingListId: null,
+        },
+      },
+      { locale: 'es-MX', sourceSurface: 'planner' },
+    );
 
     await eventService.flush();
 
@@ -296,6 +302,50 @@ describe('eventService', () => {
         generatedSlotCount: 3,
         isFirstWeekPlan: true,
       })
+    );
+    // Envelope is flattened into payload._envelope until a dedicated schema
+    // migration adds top-level columns (see eventService.flush TODO).
+    expect(row.payload._envelope).toEqual({
+      locale: 'es-MX',
+      sourceSurface: 'planner',
+      appPlatform: 'ios',
+    });
+  });
+
+  // Type-only regression tests: these never execute, but failing them means
+  // the compiler accepted a mismatched (name, payload) pair. Locks the
+  // strictness of the discriminated `AnalyticsEvent` union.
+  it.skip('type-level: rejects mismatched event name / payload pairs', () => {
+    // Import types lazily here so the test body type-checks against the real
+    // service exports without affecting the module mock above.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { eventService } = require('../eventService') as typeof import('../eventService');
+
+    // 1) Planner event name paired with a legacy recipe-shaped payload.
+    //    `meal_plan_approved` requires MealPlanApprovedPayload (mealPlanId,
+    //    weekStart, ...) — a payload missing those required fields must be
+    //    rejected.
+    const badPayload1 = { recipe_id: 'r-1', recipe_name: 'R' };
+    eventService.trackEvent(
+      // @ts-expect-error — 'meal_plan_approved' requires MealPlanApprovedPayload
+      { name: 'meal_plan_approved', payload: badPayload1 },
+      { locale: 'en', sourceSurface: 'planner' },
+    );
+
+    // 2) Legacy event name paired with a planner payload.
+    //    `view_recipe` requires LegacyRecipePayload (recipe_id/recipe_name) —
+    //    a planner payload must be rejected.
+    const badPayload2 = {
+      mealPlanId: 'plan-1',
+      weekStart: '2026-04-13',
+      requestedDayIndexes: [] as number[],
+      requestedMealTypes: [] as string[],
+      generatedSlotCount: 0,
+    };
+    eventService.trackEvent(
+      // @ts-expect-error — 'view_recipe' requires LegacyRecipePayload
+      { name: 'view_recipe', payload: badPayload2 },
+      { locale: 'en', sourceSurface: 'planner' },
     );
   });
 
