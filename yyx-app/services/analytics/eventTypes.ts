@@ -12,10 +12,42 @@
  *   `search`, `recipe_generate`) keep their original snake_case payload keys
  *   for backwards compatibility — they pre-date this convention.
  *
+ * Common envelope:
+ * - Every tracked event carries an `AnalyticsEnvelope` alongside its payload,
+ *   per Plan 06's "common envelope" spec. The envelope holds cross-cutting
+ *   metadata (`locale`, `appPlatform`, `sourceSurface`) that was previously
+ *   hand-rolled onto individual payloads. `eventService.trackEvent(...)`
+ *   derives `appPlatform` automatically from `Platform.OS`; callers supply
+ *   `{ locale, sourceSurface }`.
+ *
  * These types are types-only: they describe what events may be emitted and
  * what payloads they carry. Feature PRs wire up the actual `trackEvent(...)`
  * call-sites.
  */
+
+// -----------------------------------------------------------------------------
+// Common envelope (shared analytics metadata — attached to every event)
+// -----------------------------------------------------------------------------
+
+/**
+ * Common metadata attached to every analytics event.
+ *
+ * - `locale`: user's current UI locale, e.g., `'en'`, `'es'`, `'es-MX'`.
+ * - `appPlatform`: runtime platform (derived by eventService from Platform.OS).
+ * - `sourceSurface`: the UI surface that originated the event, e.g.,
+ *   `'planner'`, `'chat'`, `'explore'`, `'recipe_detail'`.
+ */
+export interface AnalyticsEnvelope {
+  locale: string;
+  appPlatform: 'ios' | 'android' | 'web';
+  sourceSurface: string;
+}
+
+/**
+ * Envelope fields the caller supplies — `appPlatform` is derived automatically
+ * by `eventService.trackEvent(...)` from `Platform.OS`.
+ */
+export type AnalyticsEnvelopeInput = Omit<AnalyticsEnvelope, 'appPlatform'>;
 
 // -----------------------------------------------------------------------------
 // Shared enums / literals
@@ -256,14 +288,12 @@ export interface RecipeDifficultyOverrideAppliedPayload {
 
 export interface WeekTabViewedPayload {
   hasActivePlan: boolean;
-  locale: string;
 }
 
 export interface ChatHomeActionPayload {
   actionId: ChatHomeActionId;
   actionBehavior: ChatHomeActionBehavior;
   hasActivePlan: boolean;
-  locale: string;
 }
 
 export interface ExploreSectionViewedPayload {
