@@ -1,6 +1,7 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   annotateCandidates,
+  annotateDislikeConflicts,
   PlanAlreadyExistsError,
 } from "./plan-generator.ts";
 import type { RecipeCandidate } from "./candidate-retrieval.ts";
@@ -52,6 +53,8 @@ function mkCandidate(
     cuisineTags: [],
     hasAllergenConflict: false,
     allergenMatches: [],
+    hasDislikeConflict: false,
+    dislikeMatches: [],
   };
 }
 
@@ -110,4 +113,56 @@ Deno.test("annotateCandidates: empty allergen map is a no-op", () => {
   annotateCandidates([candidate], new Map());
   assertEquals(candidate.hasAllergenConflict, false);
   assertEquals(candidate.allergenMatches, []);
+});
+
+Deno.test("annotateDislikeConflicts: flags candidates containing disliked ingredients", () => {
+  const candidate = mkCandidate("r-shrooms", [
+    "chicken_breast",
+    "cremini_mushrooms",
+    "olive_oil",
+  ]);
+  annotateDislikeConflicts([candidate], ["cremini mushrooms"]);
+  assertEquals(candidate.hasDislikeConflict, true);
+  assertEquals(candidate.dislikeMatches, ["cremini_mushrooms"]);
+});
+
+Deno.test("annotateDislikeConflicts: normalizes user input to canonical key form", () => {
+  // "Bell Pepper" should match ingredient key `bell_pepper` via the same
+  // underscore-normalization that candidate keys go through.
+  const candidate = mkCandidate("r-peppers", ["bell_pepper", "onion"]);
+  annotateDislikeConflicts([candidate], ["Bell Pepper"]);
+  assertEquals(candidate.hasDislikeConflict, true);
+  assertEquals(candidate.dislikeMatches, ["bell_pepper"]);
+});
+
+Deno.test("annotateDislikeConflicts: word-boundary prevents compound-word false positives", () => {
+  // User dislikes "bean"; recipe has "green_beans_sprout" (made-up edge case).
+  // Word-boundary matching: `green_beans_sprout` → segments are green/beans/
+  // sprout; dislike `bean` does NOT match `beans` (no boundary after 'n').
+  const candidate = mkCandidate("r-sprouts", ["green_beans_sprout"]);
+  annotateDislikeConflicts([candidate], ["bean"]);
+  assertEquals(candidate.hasDislikeConflict, false);
+  assertEquals(candidate.dislikeMatches, []);
+});
+
+Deno.test("annotateDislikeConflicts: empty or blank dislike list is a no-op", () => {
+  const candidate = mkCandidate("r-any", ["onion", "garlic"]);
+  annotateDislikeConflicts([candidate], []);
+  assertEquals(candidate.hasDislikeConflict, false);
+  annotateDislikeConflicts([candidate], ["   ", ""]);
+  assertEquals(candidate.hasDislikeConflict, false);
+});
+
+Deno.test("annotateDislikeConflicts: deduplicates multiple occurrences of same dislike", () => {
+  const candidate = mkCandidate("r-onion", [
+    "yellow_onion",
+    "red_onion",
+    "onion_powder",
+  ]);
+  // The normalized dislike `onion` matches all three ingredient keys — the
+  // `dislikeMatches` list should only contain one entry since we dedup on
+  // the dislike token, not the ingredient key.
+  annotateDislikeConflicts([candidate], ["onion"]);
+  assertEquals(candidate.hasDislikeConflict, true);
+  assertEquals(candidate.dislikeMatches, ["onion"]);
 });

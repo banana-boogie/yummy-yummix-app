@@ -40,6 +40,13 @@ export interface RecipeCandidate {
   // Allergen annotation per user context (populated post-fetch).
   hasAllergenConflict: boolean;
   allergenMatches: string[];
+  /**
+   * Explicit-dislike annotation per user context (populated post-fetch).
+   * Candidates with `hasDislikeConflict=true` are hard-rejected during
+   * scoring alongside allergen conflicts.
+   */
+  hasDislikeConflict: boolean;
+  dislikeMatches: string[];
 }
 
 export interface CandidateMap {
@@ -52,6 +59,7 @@ export interface CandidateRetrievalContext {
   locale: string;
   localeChain: string[];
   dietaryRestrictions: string[];
+  ingredientDislikes: string[];
   hardExcludedRecipeIds: Set<string>; // rating ≤ 2 etc.
 }
 
@@ -163,6 +171,8 @@ function toCandidate(
     cuisineTags,
     hasAllergenConflict: false,
     allergenMatches: [],
+    hasDislikeConflict: false,
+    dislikeMatches: [],
   };
 }
 

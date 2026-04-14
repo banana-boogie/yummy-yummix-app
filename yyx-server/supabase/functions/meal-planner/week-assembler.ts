@@ -345,6 +345,7 @@ function expandLeftoverTargetSlot(
       const transform = pairings.candidatesById.get(transformId);
       if (!transform) continue;
       if (transform.hasAllergenConflict) continue;
+      if (transform.hasDislikeConflict) continue;
       const successor = cloneState(state);
       const transformComponent: SlotComponent = {
         role: "main",

@@ -33,6 +33,8 @@ function baseCandidate(
     cuisineTags: [],
     hasAllergenConflict: false,
     allergenMatches: [],
+    hasDislikeConflict: false,
+    dislikeMatches: [],
     ...overrides,
   };
 }
@@ -75,6 +77,7 @@ function baseInput(
       householdSize: 2,
       skillLevel: "beginner",
       dietaryRestrictions: [],
+      ingredientDislikes: [],
       cuisinePreferences: [],
       nutritionGoal: "no_preference",
       preferLeftoversForLunch: false,
@@ -170,6 +173,44 @@ Deno.test("scoreCandidate: allergen conflict is a hard rule violation", () => {
   const detail = scoreCandidate(input);
   if (!detail.hardRuleViolations.includes("allergen_conflict")) {
     throw new Error("expected allergen_conflict hard rule violation");
+  }
+});
+
+Deno.test("scoreCandidate: dislike conflict is a hard rule violation", () => {
+  const input = baseInput({
+    candidate: baseCandidate({
+      hasDislikeConflict: true,
+      dislikeMatches: ["mushrooms"],
+    }),
+  });
+  const detail = scoreCandidate(input);
+  if (!detail.hardRuleViolations.includes("ingredient_dislike_conflict")) {
+    throw new Error("expected ingredient_dislike_conflict hard rule violation");
+  }
+});
+
+Deno.test("scoreCandidate: no_cook_fallback_slot — noCookEligible and reheatOrAssemblyFit are clamped to 0", () => {
+  // Per spec §4.3, no_cook eligibility must come from explicit recipe
+  // metadata. Until that column ships, both sub-factors return 0 for all
+  // recipe candidates — the only non-zero contribution to slotFitNorm in a
+  // no_cook_fallback_slot is the time-based zeroPrepConfidence (weight 0.15).
+  // So the raw slot-fit should be strictly less than 0.15 for any candidate
+  // here.
+  const input = baseInput({
+    slot: baseSlot({ slotKind: "no_cook_fallback_slot" }),
+    candidate: baseCandidate({
+      plannerRole: "main",
+      leftoversFriendly: true,
+      totalTimeMinutes: 5,
+      cookingLevel: "beginner",
+    }),
+  });
+  const detail = scoreCandidate(input);
+  // Upper bound: 0.15 * zeroPrep_max(1) = 0.15. Strictly less than 0.2.
+  if (detail.factors.slotFit.raw >= 0.2) {
+    throw new Error(
+      `expected slotFit.raw < 0.2 for no_cook_fallback_slot (got ${detail.factors.slotFit.raw})`,
+    );
   }
 });
 

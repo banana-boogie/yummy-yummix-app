@@ -32,6 +32,8 @@ function mkCandidate(
     cuisineTags: [],
     hasAllergenConflict: false,
     allergenMatches: [],
+    hasDislikeConflict: false,
+    dislikeMatches: [],
     ...overrides,
   };
 }

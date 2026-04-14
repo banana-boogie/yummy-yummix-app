@@ -15,6 +15,13 @@ export interface UserContext {
   householdSize: number;
   skillLevel: "beginner" | "intermediate" | "experienced" | null;
   dietaryRestrictions: string[];
+  /**
+   * Explicit user-profile ingredient dislikes (e.g., "mushrooms", "cilantro").
+   * Treated as a HARD reject in candidate + bundle filtering — distinct from
+   * the soft `recentRepeatPenalty` signal and from implicit preference rows,
+   * since these are explicit preferences the user set during onboarding.
+   */
+  ingredientDislikes: string[];
   cuisinePreferences: string[];
   nutritionGoal: NutritionGoal;
   preferLeftoversForLunch: boolean;

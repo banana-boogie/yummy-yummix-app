@@ -45,6 +45,9 @@ export function scoreCandidate(
   if (input.candidate.hasAllergenConflict) {
     hardRuleViolations.push("allergen_conflict");
   }
+  if (input.candidate.hasDislikeConflict) {
+    hardRuleViolations.push("ingredient_dislike_conflict");
+  }
   if (!input.candidate.isPublished) {
     hardRuleViolations.push("not_published");
   }

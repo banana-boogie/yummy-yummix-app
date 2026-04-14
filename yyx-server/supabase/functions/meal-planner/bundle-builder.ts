@@ -194,6 +194,8 @@ export async function fetchPairingsForCandidates(
       cuisineTags: [],
       hasAllergenConflict: false,
       allergenMatches: [],
+      hasDislikeConflict: false,
+      dislikeMatches: [],
     };
     candidatesById.set(candidate.id, candidate);
   }
@@ -295,6 +297,7 @@ export function buildBundle(
       const target = pairings.candidatesById.get(pairing.target_recipe_id);
       if (!target) continue;
       if (target.hasAllergenConflict) continue; // hard dietary filter
+      if (target.hasDislikeConflict) continue; // explicit dislike hard filter
       const currentFoodGroups = target.foodGroups;
       const addsCoverage = currentFoodGroups.some((g) => !coveredGroups.has(g));
       if (!addsCoverage && role !== "beverage" && role !== "dessert") continue;
@@ -321,6 +324,7 @@ export function buildBundle(
     const target = pairings.candidatesById.get(c.target_recipe_id);
     if (!target) continue;
     if (target.hasAllergenConflict) continue; // hard dietary filter
+    if (target.hasDislikeConflict) continue; // explicit dislike hard filter
     addComponent("condiment", target, "explicit_pairing", c.reason);
     condimentsAdded++;
   }

@@ -112,6 +112,7 @@ interface ProfileRow {
   locale: string | null;
   dietary_restrictions: string[] | null;
   cuisine_preferences: string[] | null;
+  ingredient_dislikes: string[] | null;
   skill_level: string | null;
   household_size: number | null;
   nutrition_goal: string | null;
@@ -147,7 +148,6 @@ async function loadUserContext(
     prefsResult,
     implicitResult,
     patternsResult,
-    hardExcluded,
     recentCooked,
   ] = await Promise.all([
     supabase
@@ -156,6 +156,7 @@ async function loadUserContext(
         locale,
         dietary_restrictions,
         cuisine_preferences,
+        ingredient_dislikes,
         skill_level,
         household_size,
         nutrition_goal
@@ -183,7 +184,6 @@ async function loadUserContext(
       .from("user_day_patterns")
       .select("day_index, evidence_weeks")
       .eq("user_id", userId),
-    loadHardExcludedRecipeIds(supabase, userId),
     loadRecentCookedRecipeIds(supabase, userId),
   ]);
 
@@ -219,6 +219,7 @@ async function loadUserContext(
     householdSize: profile?.household_size ?? HOUSEHOLD.defaultSize,
     skillLevel: (profile?.skill_level as UserContext["skillLevel"]) ?? null,
     dietaryRestrictions: profile?.dietary_restrictions ?? [],
+    ingredientDislikes: profile?.ingredient_dislikes ?? [],
     cuisinePreferences: profile?.cuisine_preferences ?? [],
     nutritionGoal:
       (profile?.nutrition_goal ?? "no_preference") as NutritionGoal,
@@ -368,6 +369,47 @@ async function annotateAllergenConflicts(
     annotateCandidates(list, allergenByRestriction);
   }
   return allergenByRestriction;
+}
+
+/**
+ * Normalize a user-provided dislike label into the same canonical-key shape
+ * produced by `normalizeKey()` for recipe ingredient keys. That way word-
+ * boundary allergen matching can compare apples to apples.
+ */
+function normalizeDislike(raw: string): string {
+  return raw.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+}
+
+/**
+ * Tag each candidate with explicit-dislike conflicts. User-profile
+ * `ingredient_dislikes` is a HARD reject signal (distinct from the soft
+ * implicit-preference penalty handled in `scoring/taste-household-fit.ts`).
+ * Uses the same `matchesAllergen` word-boundary helper so a dislike of
+ * `"bread"` does not false-positive against `breadfruit`.
+ *
+ * Exported for regression testing.
+ */
+export function annotateDislikeConflicts(
+  candidates: Iterable<RecipeCandidate>,
+  ingredientDislikes: string[],
+): void {
+  if (ingredientDislikes.length === 0) return;
+  const normalized = ingredientDislikes
+    .map(normalizeDislike)
+    .filter((d) => d.length > 0);
+  if (normalized.length === 0) return;
+  for (const c of candidates) {
+    for (const key of c.ingredientKeys) {
+      for (const dislike of normalized) {
+        if (matchesAllergen(key, dislike)) {
+          c.hasDislikeConflict = true;
+          if (!c.dislikeMatches.includes(dislike)) {
+            c.dislikeMatches.push(dislike);
+          }
+        }
+      }
+    }
+  }
 }
 
 // ============================================================
@@ -994,6 +1036,7 @@ export async function generatePlan(
     locale: user.locale,
     localeChain: user.localeChain,
     dietaryRestrictions: user.dietaryRestrictions,
+    ingredientDislikes: user.ingredientDislikes,
     hardExcludedRecipeIds: hardExcluded,
   });
 
@@ -1002,6 +1045,17 @@ export async function generatePlan(
     candidateMap,
     user.dietaryRestrictions,
   );
+
+  // Explicit dislikes are a hard reject — same treatment as allergens but
+  // scoped to the user's own preferences rather than the shared allergen map.
+  if (user.ingredientDislikes.length > 0) {
+    for (const list of candidateMap.cook.values()) {
+      annotateDislikeConflicts(list, user.ingredientDislikes);
+    }
+    for (const list of candidateMap.fallback.values()) {
+      annotateDislikeConflicts(list, user.ingredientDislikes);
+    }
+  }
 
   // Check thin-catalog condition for coverage warnings.
   const primaryRecipeIds = new Set<string>();
@@ -1025,10 +1079,17 @@ export async function generatePlan(
     user.localeChain,
   );
   // Paired side/base/dessert/condiment candidates must go through the same
-  // allergen filter as primaries — otherwise a user with a gluten allergy
-  // could get an allergen-safe primary dish with a gluten-containing side.
+  // allergen + dislike filters as primaries — otherwise a user with a gluten
+  // allergy could get an allergen-safe primary dish with a gluten-containing
+  // side, and similarly for explicit dislikes.
   if (allergenByRestriction.size > 0) {
     annotateCandidates(pairings.candidatesById.values(), allergenByRestriction);
+  }
+  if (user.ingredientDislikes.length > 0) {
+    annotateDislikeConflicts(
+      pairings.candidatesById.values(),
+      user.ingredientDislikes,
+    );
   }
 
   const leftoverTransformByRecipe = await loadLeftoverTransforms(

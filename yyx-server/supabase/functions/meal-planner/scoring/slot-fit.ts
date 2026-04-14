@@ -121,22 +121,23 @@ function leftoverYieldConfidence(input: ScoreCandidateInput): number {
   return 0.6;
 }
 
-function noCookEligible(input: ScoreCandidateInput): number {
-  // Must be explicitly tagged. The schema has no `no_cook_eligible` boolean
-  // yet — we use `planner_role === 'snack'` OR cooking_level === 'beginner'
-  // combined with total_time ≤ 20 as a safe proxy.
-  if (input.candidate.plannerRole === "snack") return 1;
-  const total = input.candidate.totalTimeMinutes ?? 999;
-  if (total <= 10) return 1;
-  if (total <= 20 && input.candidate.cookingLevel === "beginner") return 0.8;
-  return 0.2;
+function noCookEligible(_input: ScoreCandidateInput): number {
+  // Spec §4 requires this signal to come from explicit `no_cook_eligible`
+  // recipe metadata ("Must be set explicitly on recipes — not inferred from
+  // cooking time alone"). The current schema does not ship that column, so
+  // any recipe-backed candidate in a no_cook_fallback_slot scores 0 here.
+  // This keeps busy-day fallback slots honest: without explicit tags the
+  // week assembler prefers the no-cook placeholder or a leftover, not a
+  // quick-but-still-cooking recipe dressed up as no-cook.
+  // Wire explicit metadata in a follow-up migration and flip this to read
+  // the flag.
+  return 0;
 }
 
-function reheatOrAssemblyFit(input: ScoreCandidateInput): number {
-  // No `reheat_or_assembly` tag yet. Use leftovers_friendly + short time as proxy.
-  if (input.candidate.leftoversFriendly) return 0.8;
-  const total = input.candidate.totalTimeMinutes ?? 999;
-  if (total <= 15) return 0.6;
+function reheatOrAssemblyFit(_input: ScoreCandidateInput): number {
+  // Same rule as `noCookEligible` — the spec requires explicit metadata
+  // (`no_cook_eligible` or `busy_day_friendly`). Until that column exists
+  // we return 0 rather than inferring from `leftovers_friendly` + time.
   return 0;
 }
 
