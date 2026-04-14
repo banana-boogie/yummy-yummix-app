@@ -118,7 +118,7 @@ export async function fetchNutritionFromOpenAI(
     messages: [{
       role: 'user',
       content:
-        `Provide nutritional facts per 100g for ${ingredientName}. Units: calories in kcal; protein, fat, carbohydrates, fiber, sugar in grams; sodium in milligrams. Return ONLY a JSON object in this exact format: {"calories": number, "protein": number, "fat": number, "carbohydrates": number, "fiber": number, "sugar": number, "sodium": number}`,
+        `Provide nutritional facts per 100g for raw/unprocessed "${ingredientName}". Use USDA reference values. Units: calories in kcal; protein, fat, carbohydrates, fiber, sugar in grams; sodium in milligrams. Return ONLY a JSON object in this exact format: {"calories": number, "protein": number, "fat": number, "carbohydrates": number, "fiber": number, "sugar": number, "sodium": number}`,
     }],
     temperature: 0.3,
     logger,

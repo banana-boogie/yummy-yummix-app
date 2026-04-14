@@ -107,6 +107,10 @@ DECLARE
     v_ml NUMERIC;
     v_factor NUMERIC;
 BEGIN
+    IF NOT public.is_admin() THEN
+        RAISE EXCEPTION 'Admin access required';
+    END IF;
+
     SELECT COALESCE(portions, 1) INTO v_portions
     FROM recipes WHERE id = p_recipe_id;
 
@@ -169,8 +173,19 @@ BEGIN
             END IF;
         END IF;
 
-        -- Need grams AND nutrition to contribute
-        IF v_grams IS NULL OR ri.n_calories IS NULL THEN
+        -- Need grams AND complete 7-macro nutrition to contribute.
+        -- Legacy rows backfilled with only 4 macros (null fiber/sugar/
+        -- sodium) are skipped so we never undercount; they'll start
+        -- counting once a 7-macro row is written for the ingredient.
+        IF v_grams IS NULL
+           OR ri.n_calories IS NULL
+           OR ri.n_protein IS NULL
+           OR ri.n_fat IS NULL
+           OR ri.n_carbs IS NULL
+           OR ri.n_fiber IS NULL
+           OR ri.n_sugar IS NULL
+           OR ri.n_sodium IS NULL
+        THEN
             CONTINUE;
         END IF;
 
@@ -179,13 +194,13 @@ BEGIN
         END IF;
 
         v_factor := v_grams / 100.0;
-        v_calories := v_calories + COALESCE(ri.n_calories, 0)  * v_factor;
-        v_protein  := v_protein  + COALESCE(ri.n_protein,  0)  * v_factor;
-        v_fat      := v_fat      + COALESCE(ri.n_fat,      0)  * v_factor;
-        v_carbs    := v_carbs    + COALESCE(ri.n_carbs,    0)  * v_factor;
-        v_fiber    := v_fiber    + COALESCE(ri.n_fiber,    0)  * v_factor;
-        v_sugar    := v_sugar    + COALESCE(ri.n_sugar,    0)  * v_factor;
-        v_sodium   := v_sodium   + COALESCE(ri.n_sodium,   0)  * v_factor;
+        v_calories := v_calories + ri.n_calories * v_factor;
+        v_protein  := v_protein  + ri.n_protein  * v_factor;
+        v_fat      := v_fat      + ri.n_fat      * v_factor;
+        v_carbs    := v_carbs    + ri.n_carbs    * v_factor;
+        v_fiber    := v_fiber    + ri.n_fiber    * v_factor;
+        v_sugar    := v_sugar    + ri.n_sugar    * v_factor;
+        v_sodium   := v_sodium   + ri.n_sodium   * v_factor;
     END LOOP;
 
     INSERT INTO recipe_nutrition_summary AS s (
@@ -203,17 +218,34 @@ BEGIN
         computed_at
     ) VALUES (
         p_recipe_id,
-        ROUND((v_calories / v_portions)::numeric, 1),
-        ROUND((v_protein  / v_portions)::numeric, 2),
-        ROUND((v_fat      / v_portions)::numeric, 2),
-        ROUND((v_carbs    / v_portions)::numeric, 2),
-        ROUND((v_fiber    / v_portions)::numeric, 2),
-        ROUND((v_sugar    / v_portions)::numeric, 2),
-        ROUND((v_sodium   / v_portions)::numeric, 1),
-        CASE WHEN v_calories > 0
+        -- When nothing contributed, leave per-portion metrics NULL
+        -- rather than writing fabricated zeros that would enter
+        -- percentile ranking as "0-calorie" recipes.
+        CASE WHEN v_counted_ingredients > 0
+             THEN ROUND((v_calories / v_portions)::numeric, 1)
+             ELSE NULL END,
+        CASE WHEN v_counted_ingredients > 0
+             THEN ROUND((v_protein  / v_portions)::numeric, 2)
+             ELSE NULL END,
+        CASE WHEN v_counted_ingredients > 0
+             THEN ROUND((v_fat      / v_portions)::numeric, 2)
+             ELSE NULL END,
+        CASE WHEN v_counted_ingredients > 0
+             THEN ROUND((v_carbs    / v_portions)::numeric, 2)
+             ELSE NULL END,
+        CASE WHEN v_counted_ingredients > 0
+             THEN ROUND((v_fiber    / v_portions)::numeric, 2)
+             ELSE NULL END,
+        CASE WHEN v_counted_ingredients > 0
+             THEN ROUND((v_sugar    / v_portions)::numeric, 2)
+             ELSE NULL END,
+        CASE WHEN v_counted_ingredients > 0
+             THEN ROUND((v_sodium   / v_portions)::numeric, 1)
+             ELSE NULL END,
+        CASE WHEN v_counted_ingredients > 0 AND v_calories > 0
              THEN ROUND(((v_protein * 4) / v_calories * 100)::numeric, 2)
              ELSE NULL END,
-        CASE WHEN v_calories > 0
+        CASE WHEN v_counted_ingredients > 0 AND v_calories > 0
              THEN ROUND(((v_sugar * 4) / v_calories * 100)::numeric, 2)
              ELSE NULL END,
         CASE WHEN v_total_ingredients > 0
@@ -240,7 +272,6 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.compute_recipe_nutrition(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.compute_recipe_nutrition(UUID) TO authenticated;
 
 -- ============================================================
 -- 4. recompute_nutrition_percentiles(meal_type, recipe_ids)
@@ -267,6 +298,10 @@ DECLARE
     v_sql_calorie_col TEXT;
     v_sql_protein_col TEXT;
 BEGIN
+    IF NOT public.is_admin() THEN
+        RAISE EXCEPTION 'Admin access required';
+    END IF;
+
     IF p_meal_type NOT IN ('breakfast', 'lunch', 'dinner', 'snack', 'dessert') THEN
         RAISE EXCEPTION
             'Invalid meal_type: %. Must be breakfast|lunch|dinner|snack|dessert.',
@@ -313,4 +348,3 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.recompute_nutrition_percentiles(TEXT, UUID[]) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.recompute_nutrition_percentiles(TEXT, UUID[]) TO authenticated;
