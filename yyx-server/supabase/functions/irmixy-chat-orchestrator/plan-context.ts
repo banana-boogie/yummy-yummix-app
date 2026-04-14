@@ -45,6 +45,7 @@ interface NextSlotRow {
 export async function loadPlanContext(
   supabase: SupabaseClient,
   userId: string,
+  todayLocalDate?: string,
 ): Promise<PlanContext | null> {
   try {
     const { data: plan, error: planError } = await supabase
@@ -58,7 +59,13 @@ export async function loadPlanContext(
 
     if (planError || !plan) return null;
 
-    const today = new Date().toISOString().slice(0, 10);
+    // Prefer the user's local calendar date (forwarded by the client) over
+    // UTC. Without it, evening users in UTC-negative zones (e.g. Mexico)
+    // would skip same-day meals because UTC has already rolled over.
+    const today = todayLocalDate &&
+        /^\d{4}-\d{2}-\d{2}$/.test(todayLocalDate)
+      ? todayLocalDate
+      : new Date().toISOString().slice(0, 10);
 
     const { data: slots, error: slotsError } = await supabase
       .from("meal_plan_slots")

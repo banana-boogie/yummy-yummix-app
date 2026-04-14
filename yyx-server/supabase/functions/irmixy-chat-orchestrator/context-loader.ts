@@ -24,11 +24,12 @@ export async function buildRequestContext(
   sessionId: string | undefined,
   message: string,
   cookingContext?: CookingContext,
+  todayLocalDate?: string,
 ): Promise<RequestContext> {
   const contextBuilder = createContextBuilder(supabase);
   const [userContext, planContext] = await Promise.all([
     contextBuilder.buildContext(userId, sessionId),
-    loadPlanContext(supabase, userId),
+    loadPlanContext(supabase, userId, todayLocalDate),
   ]);
 
   // Detect meal context from user message

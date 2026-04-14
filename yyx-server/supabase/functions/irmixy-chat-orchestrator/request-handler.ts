@@ -26,7 +26,17 @@ export interface ValidatedRequest {
   sessionId: string | undefined;
   cookingContext: CookingContext | undefined;
   budgetWarning: { usedUsd: number; budgetUsd: number } | undefined;
+  /**
+   * Local calendar date (YYYY-MM-DD) in the user's timezone. Forwarded by
+   * the client so server-side plan-context filtering reflects the user's
+   * actual "today" rather than UTC. Optional — falls back to server UTC
+   * when absent.
+   */
+  todayLocalDate: string | undefined;
 }
+
+/** Matches a YYYY-MM-DD calendar date. */
+const LOCAL_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Parse, authenticate, and validate the incoming request.
@@ -43,6 +53,7 @@ export async function parseAndValidateRequest(
     | {
       message: string;
       sessionId?: string;
+      todayLocalDate?: string;
       cookingContext?: {
         recipeTitle: string;
         currentStep: string;
@@ -65,6 +76,18 @@ export async function parseAndValidateRequest(
   const sessionId = typeof body?.sessionId === "string"
     ? body.sessionId
     : undefined;
+  const rawTodayLocalDate = typeof body?.todayLocalDate === "string"
+    ? body.todayLocalDate
+    : undefined;
+  let todayLocalDate: string | undefined;
+  if (rawTodayLocalDate && LOCAL_DATE_PATTERN.test(rawTodayLocalDate)) {
+    todayLocalDate = rawTodayLocalDate;
+  } else {
+    if (rawTodayLocalDate) {
+      log.warn("Ignoring malformed todayLocalDate", { rawTodayLocalDate });
+    }
+    todayLocalDate = undefined;
+  }
 
   // Extract cooking context if provided
   const cookingContext: CookingContext | undefined = body?.cookingContext &&
@@ -200,5 +223,6 @@ export async function parseAndValidateRequest(
     sessionId,
     cookingContext,
     budgetWarning: budget.warningData,
+    todayLocalDate,
   };
 }

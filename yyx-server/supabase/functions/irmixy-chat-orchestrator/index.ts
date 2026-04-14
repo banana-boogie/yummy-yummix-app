@@ -58,6 +58,7 @@ serve(async (req) => {
       sessionId: rawSessionId,
       cookingContext,
       budgetWarning,
+      todayLocalDate,
     } = validated;
 
     const sessionResult = await ensureSessionId(
@@ -98,6 +99,7 @@ serve(async (req) => {
         sessionId,
         sanitizedMessage,
         cookingContext,
+        todayLocalDate,
       );
       const contextBuildMs = Math.round(performance.now() - phaseStart);
       phaseStart = performance.now();

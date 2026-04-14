@@ -372,9 +372,16 @@ export function sendMessage(
 
                 // Wrap connection in Promise to handle retry logic
                 await new Promise<void>((resolveConnection, rejectConnection) => {
+                    // Local calendar date (YYYY-MM-DD) in the user's timezone.
+                    // Server uses this to filter `nextMeal` so evening users in
+                    // UTC-negative zones (e.g. Mexico) don't skip same-day dinner.
+                    // `en-CA` locale reliably formats as YYYY-MM-DD.
+                    const todayLocalDate = new Date().toLocaleDateString('en-CA');
+
                     const requestBody: Record<string, unknown> = {
                         message,
                         sessionId,
+                        todayLocalDate,
                         ...(options?.cookingContext ? { cookingContext: options.cookingContext } : {}),
                     };
 
