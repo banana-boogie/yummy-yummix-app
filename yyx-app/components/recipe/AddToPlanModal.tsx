@@ -17,6 +17,7 @@ import type { Recipe } from '@/types/recipe.types';
 import type { MealPlan, MealPlanSlot } from '@/types/mealPlan';
 import { useMealPlan } from '@/hooks/useMealPlan';
 import { eventService } from '@/services/eventService';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export interface AddToPlanModalProps {
   visible: boolean;
@@ -38,14 +39,22 @@ function toast(message: string) {
   }
 }
 
-function dayLabel(slot: MealPlanSlot): string {
+function dayLabel(slot: MealPlanSlot, bcp47Locale: string): string {
   const date = new Date(slot.plannedDate);
   if (Number.isNaN(date.getTime())) return slot.plannedDate;
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(bcp47Locale, {
     weekday: 'long',
     month: 'short',
     day: 'numeric',
   });
+}
+
+/**
+ * Map the app's UI language to a full BCP-47 locale for date formatting.
+ * We default Spanish to es-MX (Mexico-first) and English to en-US.
+ */
+function uiLanguageToBcp47(language: string): string {
+  return language === 'es' ? 'es-MX' : 'en-US';
 }
 
 export function AddToPlanModal({
@@ -56,6 +65,8 @@ export function AddToPlanModal({
 }: AddToPlanModalProps) {
   const router = useRouter();
   const { addRecipeToSlot } = useMealPlan();
+  const { language } = useLanguage();
+  const bcp47Locale = uiLanguageToBcp47(language);
   const [busySlotId, setBusySlotId] = useState<string | null>(null);
 
   const handleCreatePlan = () => {
@@ -161,7 +172,7 @@ export function AddToPlanModal({
                       }}
                     >
                       <Text preset="subheading" className="text-text-default" marginBottom={0}>
-                        {dayLabel(slot)}
+                        {dayLabel(slot, bcp47Locale)}
                       </Text>
                       <Text preset="bodySmall" className="text-text-secondary">
                         {slot.displayMealLabel || slot.mealType}

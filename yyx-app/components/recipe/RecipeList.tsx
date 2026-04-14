@@ -12,6 +12,11 @@ import i18n from '@/i18n';
 import { Recipe } from '@/types/recipe.types';
 import { useDevice } from '@/hooks/useDevice';
 
+export type RecipeListCardRenderer = (
+  recipe: Recipe,
+  context: { featured: boolean },
+) => React.ReactElement;
+
 interface RecipeListProps {
   recipes: Recipe[];
   loading: boolean;
@@ -23,18 +28,30 @@ interface RecipeListProps {
   style?: StyleProp<ViewStyle>;
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   contentContainerStyle?: StyleProp<ViewStyle>;
+  /**
+   * Optional renderer override. Used by the Explore page to swap in
+   * ExploreRecipeCard (which adds the Add-to-Plan button) without forking
+   * this list component.
+   */
+  renderCard?: RecipeListCardRenderer;
 }
+
+const defaultListCardRenderer: RecipeListCardRenderer = (recipe, { featured }) => (
+  <RecipeCard recipe={recipe} featured={featured} />
+);
 
 // Memoized item wrapper - defined outside component to prevent recreation
 const RecipeItemWrapper = React.memo(({
   item,
-  itemWidth
+  itemWidth,
+  renderCard,
 }: {
   item: Recipe;
   itemWidth: number | string;
+  renderCard: RecipeListCardRenderer;
 }) => (
   <View style={{ width: itemWidth, marginBottom: SPACING.xl }}>
-    <RecipeCard recipe={item} />
+    {renderCard(item, { featured: false })}
   </View>
 ));
 
@@ -49,6 +66,7 @@ export const RecipeList: React.FC<RecipeListProps> = ({
   style,
   onScroll,
   contentContainerStyle,
+  renderCard = defaultListCardRenderer,
 }) => {
   const { isPhone } = useDevice();
   const router = useRouter();
@@ -121,8 +139,8 @@ export const RecipeList: React.FC<RecipeListProps> = ({
 
   // Render each item
   const renderItem = useCallback(({ item }: { item: Recipe }) => (
-    <RecipeItemWrapper item={item} itemWidth={itemWidth} />
-  ), [itemWidth]);
+    <RecipeItemWrapper item={item} itemWidth={itemWidth} renderCard={renderCard} />
+  ), [itemWidth, renderCard]);
 
   // Key extractor
   const keyExtractor = useCallback((item: Recipe) => item.id, []);
@@ -132,10 +150,10 @@ export const RecipeList: React.FC<RecipeListProps> = ({
     if (!featuredRecipe) return null;
     return (
       <View style={{ marginBottom: SPACING.xl }}>
-        <RecipeCard recipe={featuredRecipe} featured={!isPhone} />
+        {renderCard(featuredRecipe, { featured: !isPhone })}
       </View>
     );
-  }, [featuredRecipe, isPhone]);
+  }, [featuredRecipe, isPhone, renderCard]);
 
   return (
     <View className={`flex-1 ${className}`} style={style}>

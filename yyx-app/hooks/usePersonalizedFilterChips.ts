@@ -108,6 +108,23 @@ export function usePersonalizedFilterChips(
 }
 
 /**
+ * Apply a chip filter to the "all_recipes" section of an Explore section
+ * list. If the filter produces zero results, the section is dropped
+ * entirely so callers don't render a lonely header.
+ */
+export function applyChipToSections<
+  S extends { id: string; recipes: Recipe[] },
+>(sections: S[], chip: FilterChip | null): S[] {
+  if (!chip) return sections;
+  return sections.flatMap((section) => {
+    if (section.id !== 'all_recipes') return [section];
+    const filtered = applyChipFilter(section.recipes, chip);
+    if (filtered.length === 0) return [];
+    return [{ ...section, recipes: filtered }];
+  });
+}
+
+/**
  * Apply a chip filter predicate to a recipe list. Pure client-side
  * filtering — server-side filtering is a follow-up.
  */

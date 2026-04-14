@@ -7,9 +7,10 @@ import { useMealPlan } from '@/hooks/useMealPlan';
 import { usePersonalizedSections } from '@/hooks/usePersonalizedSections';
 import {
   usePersonalizedFilterChips,
-  applyChipFilter,
+  applyChipToSections,
 } from '@/hooks/usePersonalizedFilterChips';
 import { SPACING } from '@/constants/design-tokens';
+import { filterByDietarySafety } from '@/utils/dietarySafety';
 
 import { RecipeListHeader } from '@/components/recipe/RecipeListHeader';
 import { SearchBar } from '@/components/common/SearchBar';
@@ -156,6 +157,22 @@ const Recipes = () => {
     ),
     [handleAddToPlan],
   );
+  // Adapter for RecipeList (flat grid, non-compact) — keeps Add-to-Plan parity
+  // between the sectioned feed and the search results list.
+  const renderExploreCardForList = useCallback(
+    (recipe: Recipe) => (
+      <ExploreRecipeCard recipe={recipe} compact={false} onAddToPlan={handleAddToPlan} />
+    ),
+    [handleAddToPlan],
+  );
+
+  // Apply the same dietary-safety filter to the search-mode list as the
+  // sectioned feed does, so a shellfish-allergic user never sees shrimp in
+  // search results either.
+  const safeSearchRecipes = useMemo(
+    () => filterByDietarySafety(recipes, userProfile),
+    [recipes, userProfile],
+  );
 
   const handleSectionViewed = useCallback(
     (section: RecipeSection, position: number) => {
@@ -189,14 +206,12 @@ const Recipes = () => {
   );
 
   // When a chip is active, narrow only the "all_recipes" section's recipes.
-  const displaySections = useMemo<RecipeSection[]>(() => {
-    if (!selectedChip) return sections;
-    return sections.map((section) =>
-      section.id === 'all_recipes'
-        ? { ...section, recipes: applyChipFilter(section.recipes, selectedChip) }
-        : section,
-    );
-  }, [sections, selectedChip]);
+  // If the filter empties that section, drop it entirely so we don't render
+  // a lonely header with nothing under it.
+  const displaySections = useMemo<RecipeSection[]>(
+    () => applyChipToSections(sections, selectedChip),
+    [sections, selectedChip],
+  );
 
   return (
     <PageLayout contentPaddingHorizontal={0} disableMaxWidth={true}>
@@ -240,7 +255,7 @@ const Recipes = () => {
         {isSearching ? (
           /* When searching, fall back to flat grid list */
           <RecipeList
-            recipes={recipes}
+            recipes={safeSearchRecipes}
             loading={loading}
             initialLoading={initialLoading}
             error={error}
@@ -248,6 +263,7 @@ const Recipes = () => {
             onLoadMore={loadMore}
             onScroll={onScroll}
             contentContainerStyle={{ paddingTop: headerHeight, paddingHorizontal: SPACING.md }}
+            renderCard={renderExploreCardForList}
           />
         ) : (
           /* Default: sectioned feed */

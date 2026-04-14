@@ -105,16 +105,17 @@ const RecipeSectionListInner = forwardRef<FlatList, RecipeSectionListProps>(({
 }, ref) => {
   const { isPhone } = useDevice();
   const viewedRef = React.useRef<Set<string>>(new Set());
-
+  // Keep a ref to the current sections so the viewability callback (which
+  // must be stable per FlatList's requirement) can resolve ids to section
+  // metadata without re-creating the callback.
+  const sectionsRef = React.useRef(sections);
   React.useEffect(() => {
-    if (!onSectionViewed) return;
-    sections.forEach((section, index) => {
-      if (!viewedRef.current.has(section.id)) {
-        viewedRef.current.add(section.id);
-        onSectionViewed(section, index);
-      }
-    });
-  }, [sections, onSectionViewed]);
+    sectionsRef.current = sections;
+  }, [sections]);
+  const onSectionViewedRef = React.useRef(onSectionViewed);
+  React.useEffect(() => {
+    onSectionViewedRef.current = onSectionViewed;
+  }, [onSectionViewed]);
   const { width: screenWidth } = useWindowDimensions();
 
   // Grid layout calculations
@@ -266,6 +267,32 @@ const RecipeSectionListInner = forwardRef<FlatList, RecipeSectionListProps>(({
     []
   );
 
+  // Viewability: emit `onSectionViewed` the first time a section-block
+  // actually crosses 50% of the viewport. De-duped via `viewedRef` so each
+  // section fires at most once per mount.
+  const viewabilityConfig = React.useRef({
+    itemVisiblePercentThreshold: 50,
+    minimumViewTime: 200,
+  }).current;
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: { item: typeof flatData[0] }[] }) => {
+      const handler = onSectionViewedRef.current;
+      if (!handler) return;
+      for (const vi of viewableItems) {
+        const item = vi.item;
+        if (item?.type !== 'section-block' || !item.section) continue;
+        const id = item.section.id;
+        if (viewedRef.current.has(id)) continue;
+        viewedRef.current.add(id);
+        handler(item.section, item.sectionIndex ?? 0);
+      }
+    },
+    [],
+  );
+  const viewabilityConfigCallbackPairs = React.useRef([
+    { viewabilityConfig, onViewableItemsChanged },
+  ]).current;
+
   // Empty/loading/error states
   const renderEmptyList = useMemo(() => {
     if (initialLoading) {
@@ -319,6 +346,7 @@ const RecipeSectionListInner = forwardRef<FlatList, RecipeSectionListProps>(({
         onEndReachedThreshold={0.5}
         onScroll={onScroll}
         contentContainerStyle={contentContainerStyle}
+        viewabilityConfigCallbackPairs={viewabilityConfigCallbackPairs}
         initialNumToRender={4}
         maxToRenderPerBatch={4}
         windowSize={7}

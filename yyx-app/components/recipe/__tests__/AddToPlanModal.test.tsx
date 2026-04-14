@@ -26,6 +26,15 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn() }),
 }));
 
+jest.mock('@/contexts/LanguageContext', () => ({
+  useLanguage: () => ({
+    language: 'en',
+    locale: 'en-US',
+    setLanguage: jest.fn(),
+    setLocale: jest.fn(),
+  }),
+}));
+
 const mockLogAddToPlan = jest.fn();
 jest.mock('@/services/eventService', () => ({
   eventService: {

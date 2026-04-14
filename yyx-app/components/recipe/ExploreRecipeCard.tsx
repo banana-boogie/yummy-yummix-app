@@ -36,14 +36,15 @@ export const ExploreRecipeCard = React.memo(function ExploreRecipeCard({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('title', 'Add to Plan')}
+        hitSlop={8}
         onPress={() => onAddToPlan(recipe)}
         style={{
           position: 'absolute',
           top: SPACING.sm,
           right: SPACING.sm,
-          width: 36,
-          height: 36,
-          borderRadius: 18,
+          width: 44,
+          height: 44,
+          borderRadius: 22,
           backgroundColor: COLORS.background.default,
           alignItems: 'center',
           justifyContent: 'center',
@@ -54,7 +55,7 @@ export const ExploreRecipeCard = React.memo(function ExploreRecipeCard({
           elevation: 2,
         }}
       >
-        <Ionicons name="add" size={22} color={COLORS.primary.darkest} />
+        <Ionicons name="add" size={26} color={COLORS.primary.darkest} />
       </Pressable>
     </View>
   );

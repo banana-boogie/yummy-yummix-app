@@ -18,78 +18,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import i18n from '@/i18n';
 import type { Recipe } from '@/types/recipe.types';
 import type { UserProfile } from '@/types/user';
-import type { DietaryRestriction } from '@/types/dietary';
 import type { RecipeSection } from '@/components/recipe/RecipeSectionList';
 import type { MealPlan, MealPlanSlot } from '@/types/mealPlan';
+import { filterByDietarySafety, recipeKeywords } from '@/utils/dietarySafety';
 
 const SEEN_STORAGE_KEY = '@yyx/explore/for-you-seen';
 const SEEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 type SeenMap = Record<string, number>;
-
-/**
- * Lowercase token set from a recipe's searchable fields used for
- * matching against restriction / diet keywords.
- */
-function recipeKeywords(recipe: Recipe): Set<string> {
-  const tokens = new Set<string>();
-  const push = (s: string | undefined | null) => {
-    if (!s) return;
-    s.toLowerCase()
-      .split(/[^a-z0-9]+/)
-      .filter(Boolean)
-      .forEach((t) => tokens.add(t));
-  };
-  push(recipe.name);
-  push(recipe.description);
-  (recipe.tags ?? []).forEach((t) => {
-    push(t.name);
-    (t.categories ?? []).forEach((c) => push(c));
-  });
-  (recipe.ingredients ?? []).forEach((ing) => push(ing.name));
-  return tokens;
-}
-
-/**
- * Keyword lookup for each restriction group. Extend as needed.
- */
-const RESTRICTION_KEYWORDS: Record<DietaryRestriction, string[]> = {
-  none: [],
-  nuts: ['nut', 'nuts', 'almond', 'walnut', 'pecan', 'cashew', 'hazelnut', 'pistachio', 'peanut'],
-  dairy: ['milk', 'cheese', 'butter', 'cream', 'yogurt', 'yoghurt', 'dairy'],
-  eggs: ['egg', 'eggs'],
-  seafood: ['fish', 'shrimp', 'prawn', 'salmon', 'tuna', 'shellfish', 'seafood', 'crab', 'lobster'],
-  gluten: ['wheat', 'flour', 'bread', 'pasta', 'gluten'],
-  other: [],
-};
-
-function violatesRestrictions(
-  recipe: Recipe,
-  restrictions: DietaryRestriction[],
-  otherAllergies: string[],
-): boolean {
-  if (!restrictions.length && !otherAllergies.length) return false;
-  const keywords = recipeKeywords(recipe);
-  for (const r of restrictions) {
-    if (r === 'none') continue;
-    const kws = RESTRICTION_KEYWORDS[r] ?? [];
-    if (kws.some((k) => keywords.has(k))) return true;
-  }
-  for (const raw of otherAllergies) {
-    const token = raw.trim().toLowerCase();
-    if (!token) continue;
-    if (keywords.has(token)) return true;
-  }
-  return false;
-}
-
-function filterByRestrictions(recipes: Recipe[], profile: UserProfile | null): Recipe[] {
-  if (!profile) return recipes;
-  const restrictions = profile.dietaryRestrictions ?? [];
-  const other = profile.otherAllergy ?? [];
-  if (!restrictions.length && !other.length) return recipes;
-  return recipes.filter((r) => !violatesRestrictions(r, restrictions, other));
-}
 
 function scoreForYou(
   recipe: Recipe,
@@ -217,7 +153,7 @@ export function usePersonalizedSections({
   }, []);
 
   return useMemo<RecipeSection[]>(() => {
-    const safeRecipes = filterByRestrictions(recipes, userProfile);
+    const safeRecipes = filterByDietarySafety(recipes, userProfile);
 
     const sections: RecipeSection[] = [];
     const usedIds = new Set<string>();
