@@ -1058,6 +1058,13 @@ export async function generatePlan(
   }
 
   // Check thin-catalog condition for coverage warnings.
+  //
+  // Warning string format: `CODE` or `CODE:key=value[:key=value]...`.
+  // Clients detect a warning class with `.startsWith("CODE")` and parse the
+  // colon-separated `key=value` pairs for detail. Kept as strings (not
+  // structured objects) to match the `warnings: string[]` API contract; if
+  // we ever need richer client-side filtering, switch the contract to
+  // `warnings: Array<{ code: string; detail?: Record<string, unknown> }>`.
   const primaryRecipeIds = new Set<string>();
   for (const list of candidateMap.cook.values()) {
     for (const c of list) primaryRecipeIds.add(c.id);

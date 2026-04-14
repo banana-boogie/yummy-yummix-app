@@ -502,22 +502,6 @@ function expandNoCookFallback(
     .sort((a, b) => b.detail.total - a.detail.total)
     .slice(0, RETRIEVAL_LIMITS.fallbackBeamPerState);
 
-  if (scored.length === 0) {
-    const successor = cloneState(state);
-    const placeholder = buildNoCookPlaceholder(slot, user.locale);
-    recordAssignment(
-      successor,
-      slot,
-      [placeholder],
-      OPEN_SLOT_CONTRIBUTION.openNoCook,
-      buildSelectionReason(slot, [placeholder], successor, user.locale),
-      OPEN_SLOT_CONTRIBUTION.openNoCook,
-      [`OPEN_NO_COOK_SLOT:${slot.slotId}`],
-      0,
-    );
-    return [successor];
-  }
-
   for (const entry of scored) {
     const successor = cloneState(state);
     const components = buildBundle(slot, entry.candidate, pairings);
@@ -534,6 +518,33 @@ function expandNoCookFallback(
     );
     next.push(successor);
   }
+
+  // Always offer the no-cook placeholder as an alternative successor. Beam
+  // selection picks whichever scores higher. Without this, a scored recipe
+  // would always win in `no_cook_fallback_slot` since the placeholder used
+  // to only be emitted when `scored` was empty — which silently scheduled
+  // cooking in slots the user flagged as busy. The placeholder contribution
+  // is `OPEN_SLOT_CONTRIBUTION.openNoCook` (55), so a recipe only wins when
+  // its total score genuinely exceeds that floor.
+  const placeholderSuccessor = cloneState(state);
+  const placeholder = buildNoCookPlaceholder(slot, user.locale);
+  recordAssignment(
+    placeholderSuccessor,
+    slot,
+    [placeholder],
+    OPEN_SLOT_CONTRIBUTION.openNoCook,
+    buildSelectionReason(
+      slot,
+      [placeholder],
+      placeholderSuccessor,
+      user.locale,
+    ),
+    OPEN_SLOT_CONTRIBUTION.openNoCook,
+    scored.length === 0 ? [`OPEN_NO_COOK_SLOT:${slot.slotId}`] : [],
+    0,
+  );
+  next.push(placeholderSuccessor);
+
   return next;
 }
 

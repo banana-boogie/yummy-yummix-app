@@ -47,7 +47,7 @@ Located in `supabase/functions/`:
 - **get-nutritional-facts/** - AI-powered nutrition data lookup (per 100g macros)
 - **semantic-recipe-search/** - Lightweight semantic (vector) search endpoint for Explore tab fallback
 - **admin-ai-recipe-import/** - Admin AI-powered recipe import from markdown
-- **meal-planner/** - Meal planning action router (get/generate/approve/swap/skip plans, preferences). Scaffold in PR #1; ranking and plan assembly land in PR #2.
+- **meal-planner/** - Meal planning action router (get/generate/swap/skip plans, preferences). Modules: `scoring-config.ts` (SCORING_CONFIG_V1 weights), `slot-classifier.ts` (canonical meal-type + busy-day/weekend/leftover-target classification), `candidate-retrieval.ts` (SQL prefilter), `scoring/` (7 pure factor functions), `bundle-builder.ts` (explicit-pairing component bundles), `week-assembler.ts` (beam search width 5, leftover source/target resolution, first-week trust mode), `plan-generator.ts` (orchestration + two-phase component persistence with rollback), `selection-reason-templates.ts` (locale-keyed en/es templates).
 - **_shared/** - Shared utilities (CORS, auth, AI gateway)
 
 ### Deploying Functions
