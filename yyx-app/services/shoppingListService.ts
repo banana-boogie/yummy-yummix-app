@@ -457,6 +457,88 @@ export const shoppingListService = {
         const userId = await getCurrentUserId();
         await invalidateShoppingCaches(userId, listId);
     },
+
+    /**
+     * Adds a batch of recipe ingredients to a shopping list, consolidating
+     * with any existing rows that share the same ingredient_id + unit_id by
+     * summing quantities. Rows with different units stay as separate entries.
+     * Items without an ingredient_id fall back to insert-only (no dedupe).
+     */
+    async addRecipeIngredients(
+        listId: string,
+        ingredients: {
+            ingredientId?: string | null;
+            name?: string;
+            quantity: number;
+            unitId?: string | null;
+            categoryId?: string;
+            recipeId?: string | null;
+        }[],
+    ): Promise<void> {
+        if (ingredients.length === 0) return;
+
+        const { data: existing, error: existingErr } = await supabase
+            .from('shopping_list_items')
+            .select('id, ingredient_id, unit_id, quantity')
+            .eq('shopping_list_id', listId);
+        if (existingErr) {
+            throw new Error(`Load list failed: ${existingErr.message}`);
+        }
+        const existingRows = (existing ?? []) as {
+            id: string;
+            ingredient_id: string | null;
+            unit_id: string | null;
+            quantity: number | string | null;
+        }[];
+        const keyOf = (ingredientId: string | null, unitId: string | null) =>
+            `${ingredientId ?? ''}:${unitId ?? ''}`;
+        const byKey = new Map<string, { id: string; quantity: number }>();
+        for (const row of existingRows) {
+            if (!row.ingredient_id) continue;
+            const qty = parseFloat(String(row.quantity ?? 0)) || 0;
+            byKey.set(keyOf(row.ingredient_id, row.unit_id), { id: row.id, quantity: qty });
+        }
+
+        const toInsert: Record<string, any>[] = [];
+        const toUpdate: { id: string; quantity: number }[] = [];
+        for (const ing of ingredients) {
+            const ingId = ing.ingredientId ?? null;
+            const unitId = ing.unitId ?? null;
+            if (ingId) {
+                const match = byKey.get(keyOf(ingId, unitId));
+                if (match) {
+                    match.quantity += ing.quantity;
+                    toUpdate.push({ id: match.id, quantity: match.quantity });
+                    continue;
+                }
+            }
+            toInsert.push({
+                shopping_list_id: listId,
+                ingredient_id: ingId,
+                name_custom: ingId ? null : ing.name ?? null,
+                category_id: ing.categoryId ?? 'other',
+                quantity: ing.quantity,
+                unit_id: unitId,
+                recipe_id: ing.recipeId ?? null,
+                is_checked: false,
+            });
+        }
+
+        if (toInsert.length > 0) {
+            const { error } = await supabase.from('shopping_list_items').insert(toInsert);
+            if (error) throw new Error(`Insert items failed: ${error.message}`);
+        }
+        for (const u of toUpdate) {
+            const { error } = await supabase
+                .from('shopping_list_items')
+                .update({ quantity: u.quantity })
+                .eq('id', u.id);
+            if (error) throw new Error(`Update quantity failed: ${error.message}`);
+        }
+
+        const userId = await getCurrentUserId();
+        await invalidateShoppingCaches(userId, listId);
+    },
 };
 
 export default shoppingListService;
