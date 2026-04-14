@@ -77,8 +77,8 @@ FORMATTING RULES:
 - Ingredient name field = base ingredient ONLY. No quantities, units, or prep adjectives. Put unit in measurementUnitID, prep state in notes.
 
 MEAL PLANNER METADATA (best-guess from recipe text, admin will override):
-- plannerRole: one of "main", "side", "dessert", "snack", "condiment". Pick the single best fit. Do NOT use "beverage" — drinks belong in meal types, not planner_role.
-- foodGroups: array of "protein", "carb", "veg", "dessert". Include every group the recipe clearly contains. Chicken pasta = ["protein","carb"]. Salad = ["veg"]. Brownies = ["dessert"].
+- plannerRole: one of "main", "side", "snack", "dessert", "beverage", "condiment". Pick the single best fit.
+- foodGroups: array of "protein", "carb", "veg", "snack", "dessert". Include every group the recipe clearly contains. Chicken pasta = ["protein","carb"]. Salad = ["veg"]. Brownies = ["dessert"].
 - isCompleteMeal: true only if the dish by itself covers a full meal (e.g., hearty soup with protein + carb + veg). Otherwise false.
 - equipmentTags: array of "thermomix", "air_fryer", "oven", "stovetop", "none". Infer from the steps. Use "none" only if the recipe needs no cooking equipment.
 - cookingLevel: "beginner" for simple assembly/mixing, "intermediate" for standard home cooking techniques, "experienced" for advanced technique or timing.
@@ -468,16 +468,15 @@ const jsonSchema = {
     },
     plannerRole: {
       type: ["string", "null"],
-      enum: ["main", "side", "dessert", "snack", "condiment", null],
-      description:
-        "Best-guess planner role. Do NOT use 'beverage' — drinks go in meal types.",
+      enum: ["main", "side", "snack", "dessert", "beverage", "condiment", null],
+      description: "Best-guess planner role for meal slotting.",
     },
     foodGroups: {
       type: "array",
       description: "Food groups present in the recipe.",
       items: {
         type: "string",
-        enum: ["protein", "carb", "veg", "dessert"],
+        enum: ["protein", "carb", "veg", "snack", "dessert"],
       },
     },
     isCompleteMeal: {
