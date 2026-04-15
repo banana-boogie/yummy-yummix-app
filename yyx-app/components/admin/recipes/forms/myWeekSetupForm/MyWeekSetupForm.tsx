@@ -120,11 +120,9 @@ export function MyWeekSetupForm({
 
   const mealTypeTags = useMemo(
     () =>
-      allTags
-        .filter((t) =>
-          (t.categories || []).some((c) => MEAL_TYPE_CATEGORY_MATCH.test(c)),
-        )
-        .sort((a, b) => a.translations.name - b.translations.name),
+      allTags.filter((t) =>
+        (t.categories || []).some((c) => MEAL_TYPE_CATEGORY_MATCH.test(c)),
+      ),
     [allTags],
   );
 
@@ -225,7 +223,9 @@ export function MyWeekSetupForm({
         "—",
       value: t.id,
     }))
-    .sort((a, b) => a.label.localeCompare(b.label, displayLocale, { sensitivity: 'base' }));
+    .sort((a, b) =>
+      a.label.localeCompare(b.label, displayLocale, { sensitivity: "base" }),
+    );
 
   const selectedTags = (recipe.tags as AdminRecipeTag[]) || [];
   const selectedMealTypeIds = selectedTags
