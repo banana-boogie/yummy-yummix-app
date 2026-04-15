@@ -35,6 +35,17 @@ jest.mock('@/components/common/Button', () => {
   };
 });
 
+jest.mock('@/i18n', () => ({
+  t: (key: string) => {
+    const translations: Record<string, string> = {
+      'common.cancel': 'Cancel',
+      'common.done': 'Done',
+      'common.noOptionsAvailable': 'No options available',
+    };
+    return translations[key] ?? key;
+  },
+}));
+
 const OPTIONS = [
   { label: 'Apple', value: 'apple' },
   { label: 'Banana', value: 'banana' },

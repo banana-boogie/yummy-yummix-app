@@ -16,6 +16,7 @@ export const common = {
   next: "Next",
   delete: "Delete",
   dismiss: "Dismiss",
+  noOptionsAvailable: "No options available",
   selectDate: "Select Date",
   showAll: "Show {{count}} more",
   showLess: "Show less",

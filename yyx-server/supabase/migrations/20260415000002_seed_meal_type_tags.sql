@@ -18,11 +18,11 @@ BEGIN
   FOR r IN
     SELECT * FROM (VALUES
       ('Breakfast', 'Desayuno'),
-      ('Brunch',    'Brunch'),
       ('Lunch',     'Comida'),
       ('Dinner',    'Cena'),
       ('Snack',     'Botana'),
-      ('Dessert',   'Postre')
+      ('Dessert',   'Postre'),
+      ('Beverage',  'Bebida')
     ) AS v(name_en, name_es)
   LOOP
     SELECT t.recipe_tag_id INTO existing_id

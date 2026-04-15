@@ -12,6 +12,7 @@ export const common = {
   remove: "Eliminar",
   cancel: "Cancelar",
   dismiss: "Cerrar",
+  noOptionsAvailable: "No hay opciones disponibles",
   import: "Import",
   done: "Listo",
   selectDate: "Seleccionar Fecha",

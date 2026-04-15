@@ -539,7 +539,7 @@ export const admin = {
           empty:
             "No meal-type tags found. Create tags under a 'Meal Type' category to enable this.",
           emptyTitle: "No meal-type tags yet",
-          createCta: "Create a Meal Type tag",
+          createCta: "Open tags admin",
           loadError: "Couldn't load meal-type tags. Retry.",
         },
         cookingLevel: {

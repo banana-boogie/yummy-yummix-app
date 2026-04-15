@@ -9,6 +9,7 @@ import {
   StyleProp,
   ViewStyle,
 } from 'react-native';
+import i18n from '@/i18n';
 import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/common/Button';
@@ -41,7 +42,12 @@ interface HeaderProps {
 function Header({ title, onCancel, onConfirm }: HeaderProps) {
   return (
     <View className="flex-row items-center justify-between px-lg py-md border-b border-primary-default bg-background-secondary">
-      <Button variant="secondary" size="small" onPress={onCancel} label="Cancel" />
+      <Button
+        variant="secondary"
+        size="small"
+        onPress={onCancel}
+        label={i18n.t('common.cancel')}
+      />
       <Text
         preset="subheading"
         numberOfLines={1}
@@ -49,7 +55,12 @@ function Header({ title, onCancel, onConfirm }: HeaderProps) {
       >
         {title}
       </Text>
-      <Button variant="primary" size="small" onPress={onConfirm} label="Done" />
+      <Button
+        variant="primary"
+        size="small"
+        onPress={onConfirm}
+        label={i18n.t('common.done')}
+      />
     </View>
   );
 }
@@ -70,7 +81,7 @@ function OptionsList({ options, selectedValues, onToggle, maxHeight }: OptionsLi
     >
       {options.length === 0 ? (
         <Text preset="caption" className="py-lg text-center">
-          No options available
+          {i18n.t('common.noOptionsAvailable')}
         </Text>
       ) : (
         options.map((option) => {

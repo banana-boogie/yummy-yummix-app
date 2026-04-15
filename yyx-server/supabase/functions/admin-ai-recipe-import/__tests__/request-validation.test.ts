@@ -14,6 +14,7 @@
 import {
   assertEquals,
   assertExists,
+  assertStringIncludes,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   createMockErrorResponse,
@@ -155,6 +156,14 @@ Deno.test("schema - mealTypes enum includes canonical values", () => {
       `Meal type ${v} must be in AI schema enum`,
     );
   });
+});
+
+Deno.test("schema - maxHouseholdSizeSupported requires integer values", () => {
+  const source = Deno.readTextFileSync(new URL("../index.ts", import.meta.url));
+  assertStringIncludes(
+    source,
+    'maxHouseholdSizeSupported: {\n      type: ["integer", "null"]',
+  );
 });
 
 Deno.test("schema - measurement units enum has expected values", () => {

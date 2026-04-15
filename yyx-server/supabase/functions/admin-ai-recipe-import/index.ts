@@ -506,7 +506,7 @@ const jsonSchema = {
       description: "True if the recipe scales up easily (can be doubled).",
     },
     maxHouseholdSizeSupported: {
-      type: ["number", "null"],
+      type: ["integer", "null"],
       description:
         "Optional capacity limit (e.g., 'fits one Thermomix bowl'). null if not implied.",
     },

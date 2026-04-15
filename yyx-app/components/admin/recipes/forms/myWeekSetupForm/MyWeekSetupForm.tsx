@@ -540,9 +540,7 @@ export function MyWeekSetupForm({
                 <Button
                   variant="outline"
                   size="small"
-                  onPress={() =>
-                    router.push("/admin/tags?category=meal-type&new=1")
-                  }
+                  onPress={() => router.push("/admin/tags")}
                   label={i18n.t(
                     "admin.recipes.form.myWeekSetup.mealTypes.createCta",
                   )}

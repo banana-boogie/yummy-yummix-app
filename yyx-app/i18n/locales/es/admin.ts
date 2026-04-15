@@ -544,7 +544,7 @@ export const admin = {
           empty:
             "No se encontraron etiquetas de tiempo de comida. Crea etiquetas bajo la categoría 'Meal Type' para habilitar esto.",
           emptyTitle: "Aún no hay etiquetas de tipo de comida",
-          createCta: "Crear etiqueta de tipo de comida",
+          createCta: "Abrir administración de etiquetas",
           loadError: "No se pudieron cargar las etiquetas. Reintentar.",
         },
         cookingLevel: {
