@@ -242,6 +242,7 @@ export function MyWeekSetupForm({
                 selectedValues={foodGroups}
                 onValueChange={(values) => onUpdateRecipe({ foodGroups: values as FoodGroup[] })}
                 placeholder={i18n.t('admin.recipes.form.myWeekSetup.foodGroups.placeholder')}
+                title={i18n.t('admin.recipes.form.myWeekSetup.foodGroups.pickerTitle')}
               />
             </FormGroup>
           </View>
@@ -269,6 +270,7 @@ export function MyWeekSetupForm({
               selectedValues={equipmentTags}
               onValueChange={(values) => onUpdateRecipe({ equipmentTags: values as EquipmentTag[] })}
               placeholder={i18n.t('admin.recipes.form.myWeekSetup.equipment.placeholder')}
+              title={i18n.t('admin.recipes.form.myWeekSetup.equipment.pickerTitle')}
             />
           </FormGroup>
           <FormGroup
@@ -370,6 +372,7 @@ export function MyWeekSetupForm({
               selectedValues={selectedMealTypeIds}
               onValueChange={handleMealTypesChange}
               placeholder={i18n.t('admin.recipes.form.myWeekSetup.mealTypes.placeholder')}
+              title={i18n.t('admin.recipes.form.myWeekSetup.mealTypes.pickerTitle')}
             />
           </FormGroup>
         ) : (

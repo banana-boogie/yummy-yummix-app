@@ -505,6 +505,7 @@ export const admin = {
         foodGroups: {
           label: "What's in this recipe?",
           placeholder: "Select all that apply",
+          pickerTitle: "Select food groups",
           tooltip:
             "Check all that apply. Chicken pasta has both protein AND carbs. A salad has vegetables. This helps the planner build complete meals.",
           protein: "Has protein",
@@ -521,6 +522,7 @@ export const admin = {
         equipment: {
           label: "Equipment needed",
           placeholder: "Select equipment",
+          pickerTitle: "Select equipment",
           tooltip: "Which tools does the cook need? Select all that apply.",
           thermomix: "Thermomix",
           airFryer: "Air fryer",
@@ -531,6 +533,7 @@ export const admin = {
         mealTypes: {
           label: "Meal types",
           placeholder: "Select meal types",
+          pickerTitle: "Select meal types",
           tooltip:
             "When could someone eat this? Most main dishes work for both lunch and dinner.",
           empty:

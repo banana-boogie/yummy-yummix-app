@@ -243,6 +243,7 @@ export function TagSelector({ selectedTags, onTagsChange, displayLocale = 'es' }
               }))}
               onValueChange={(values) => setFilters(prev => ({ ...prev, categories: values }))}
               placeholder={i18n.t('admin.recipes.form.tagsInfo.selectCategories')}
+              title={i18n.t('admin.recipes.form.tagsInfo.selectCategories')}
               containerStyle={{ marginBottom: 0 }}
             />
           </View>

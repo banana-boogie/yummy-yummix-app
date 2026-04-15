@@ -510,6 +510,7 @@ export const admin = {
         foodGroups: {
           label: "¿Qué contiene esta receta?",
           placeholder: "Selecciona todas las que apliquen",
+          pickerTitle: "Selecciona los grupos de alimentos",
           tooltip:
             "Marca todas las que apliquen. La pasta con pollo tiene proteína Y carbohidratos. Una ensalada tiene verduras. Esto ayuda al planificador a armar comidas completas.",
           protein: "Tiene proteína",
@@ -526,6 +527,7 @@ export const admin = {
         equipment: {
           label: "Equipo necesario",
           placeholder: "Selecciona el equipo",
+          pickerTitle: "Selecciona el equipo",
           tooltip: "¿Qué utensilios necesita la cocinera? Selecciona todos los que apliquen.",
           thermomix: "Thermomix",
           airFryer: "Freidora de aire",
@@ -536,6 +538,7 @@ export const admin = {
         mealTypes: {
           label: "Tiempos de comida",
           placeholder: "Selecciona los tiempos de comida",
+          pickerTitle: "Selecciona los tiempos de comida",
           tooltip:
             "¿Cuándo se puede comer esto? La mayoría de los platos fuertes funcionan tanto para la comida como para la cena.",
           empty:
