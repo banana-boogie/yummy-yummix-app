@@ -64,9 +64,9 @@ interface OptionsListProps {
 function OptionsList({ options, selectedValues, onToggle, maxHeight }: OptionsListProps) {
   return (
     <ScrollView
-      className="px-md py-sm"
+      className="px-lg py-md"
       style={maxHeight ? { maxHeight } : undefined}
-      contentContainerStyle={{ paddingBottom: 8 }}
+      contentContainerStyle={{ paddingBottom: 16 }}
     >
       {options.length === 0 ? (
         <Text preset="caption" className="py-lg text-center">
@@ -80,25 +80,25 @@ function OptionsList({ options, selectedValues, onToggle, maxHeight }: OptionsLi
               key={option.value}
               onPress={() => onToggle(option.value)}
               className={`
-                flex-row items-center py-sm px-md rounded-md
+                flex-row items-center py-md px-md rounded-lg mb-xs
                 web:hover:bg-primary-lightest web:transition-colors web:cursor-pointer
                 ${isSelected ? 'bg-primary-lighter' : ''}
               `}
             >
               <View className="flex-1 flex-row items-center">
-                <View className="w-6 mr-sm items-center">
+                <View className="w-8 mr-sm items-center">
                   {isSelected ? (
                     <Ionicons
                       name="checkmark-circle"
-                      size={24}
+                      size={28}
                       className="text-primary-darkest"
                     />
                   ) : (
-                    <View className="w-6 h-6 rounded-full border-2 border-primary-default" />
+                    <View className="w-7 h-7 rounded-full border-2 border-primary-default" />
                   )}
                 </View>
                 <Text
-                  className={`text-base flex-1 text-text-default ${
+                  className={`text-lg flex-1 text-text-default ${
                     isSelected ? 'font-semibold' : ''
                   }`}
                 >
@@ -194,7 +194,8 @@ export function MultiSelect({
         {isWeb ? (
           <Pressable
             onPress={handleCancel}
-            className="flex-1 items-center justify-center bg-black/50 web:fixed web:inset-0"
+            className="flex-1 items-center justify-center bg-black/50"
+            style={{ position: 'fixed' as unknown as 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
           >
             <Pressable
               // Prevent backdrop dismiss when clicking inside the dialog.
@@ -202,13 +203,14 @@ export function MultiSelect({
                 const anyEvt = e as unknown as { stopPropagation?: () => void };
                 anyEvt.stopPropagation?.();
               }}
-              className="w-full items-center px-md"
+              className="items-center px-md"
+              style={{ width: '100%', maxWidth: 560 }}
             >
               <View
                 accessibilityRole={'dialog' as never}
                 accessibilityViewIsModal
-                className="w-full web:max-w-[420px] mx-auto rounded-xl bg-white border border-primary-default shadow-lg overflow-hidden"
-                style={{ maxHeight: 560 }}
+                className="rounded-xl bg-white border border-primary-default shadow-lg overflow-hidden"
+                style={{ width: '100%', maxHeight: 640 }}
               >
                 <Header
                   title={headerTitle}
@@ -219,7 +221,7 @@ export function MultiSelect({
                   options={options}
                   selectedValues={tempSelectedValues}
                   onToggle={toggleOption}
-                  maxHeight={420}
+                  maxHeight={480}
                 />
               </View>
             </Pressable>

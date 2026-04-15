@@ -1,31 +1,37 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { findNodeHandle, Platform, ScrollView, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import i18n from '@/i18n';
-import { Text } from '@/components/common/Text';
-import { Button } from '@/components/common/Button';
-import { TextInput } from '@/components/form/TextInput';
-import { FormGroup } from '@/components/form/FormGroup';
-import { FormSection } from '@/components/form/FormSection';
-import { SelectInput, SelectOption } from '@/components/form/SelectInput';
-import { MultiSelect } from '@/components/form/MultiSelect';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { findNodeHandle, Platform, ScrollView, View } from "react-native";
+import { useRouter } from "expo-router";
+import i18n from "@/i18n";
+import { Text } from "@/components/common/Text";
+import { Button } from "@/components/common/Button";
+import { TextInput } from "@/components/form/TextInput";
+import { FormGroup } from "@/components/form/FormGroup";
+import { FormSection } from "@/components/form/FormSection";
+import { SelectInput, SelectOption } from "@/components/form/SelectInput";
+import { MultiSelect } from "@/components/form/MultiSelect";
 import {
   AdminRecipe,
   AdminRecipeTag,
   pickTranslation,
-} from '@/types/recipe.admin.types';
+} from "@/types/recipe.admin.types";
 import {
   CookingLevel,
   EquipmentTag,
   FoodGroup,
   PlannerRole,
-} from '@/types/recipe.types';
-import { adminRecipeTagService } from '@/services/admin/adminRecipeTagService';
-import { useAuth } from '@/contexts/AuthContext';
-import logger from '@/services/logger';
-import { ReadinessBadge, ReadinessAnchor } from './ReadinessBadge';
-import { ToggleCard } from './ToggleCard';
-import { VerificationCard } from './VerificationCard';
+} from "@/types/recipe.types";
+import { adminRecipeTagService } from "@/services/admin/adminRecipeTagService";
+import { useAuth } from "@/contexts/AuthContext";
+import logger from "@/services/logger";
+import { ReadinessBadge, ReadinessAnchor } from "./ReadinessBadge";
+import { ToggleCard } from "./ToggleCard";
+import { VerificationCard } from "./VerificationCard";
 
 // Tag category name convention: meal types are any tags whose categories include this string
 // (case-insensitive match against TAG category labels like "Meal Type"/"MEAL_TYPE").
@@ -45,7 +51,7 @@ interface MyWeekSetupFormProps {
 export function MyWeekSetupForm({
   recipe,
   onUpdateRecipe,
-  displayLocale = 'es',
+  displayLocale = "es",
   scrollViewRef,
 }: MyWeekSetupFormProps) {
   const { user } = useAuth();
@@ -63,34 +69,39 @@ export function MyWeekSetupForm({
     mealTypes: mealTypesRef,
   };
 
-  const handleRequestScrollTo = useCallback((anchor: ReadinessAnchor) => {
-    const target = anchorRefs[anchor]?.current;
-    if (!target) return;
+  const handleRequestScrollTo = useCallback(
+    (anchor: ReadinessAnchor) => {
+      const target = anchorRefs[anchor]?.current;
+      if (!target) return;
 
-    if (Platform.OS === 'web') {
-      // On web, the underlying node is a DOM element.
-      const node = target as unknown as { scrollIntoView?: (opts?: ScrollIntoViewOptions) => void };
-      if (typeof node.scrollIntoView === 'function') {
-        node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (Platform.OS === "web") {
+        // On web, the underlying node is a DOM element.
+        const node = target as unknown as {
+          scrollIntoView?: (opts?: ScrollIntoViewOptions) => void;
+        };
+        if (typeof node.scrollIntoView === "function") {
+          node.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+        return;
       }
-      return;
-    }
 
-    const scrollView = scrollViewRef?.current;
-    if (!scrollView) return;
-    const scrollNode = findNodeHandle(scrollView);
-    if (scrollNode == null) return;
+      const scrollView = scrollViewRef?.current;
+      if (!scrollView) return;
+      const scrollNode = findNodeHandle(scrollView);
+      if (scrollNode == null) return;
 
-    target.measureLayout(
-      scrollNode,
-      (_x: number, y: number) => {
-        scrollView.scrollTo({ y: Math.max(0, y - 16), animated: true });
-      },
-      () => {
-        // measurement failed — no-op
-      },
-    );
-  }, [anchorRefs, scrollViewRef]);
+      target.measureLayout(
+        scrollNode,
+        (_x: number, y: number) => {
+          scrollView.scrollTo({ y: Math.max(0, y - 16), animated: true });
+        },
+        () => {
+          // measurement failed — no-op
+        },
+      );
+    },
+    [anchorRefs, scrollViewRef],
+  );
 
   const loadTags = React.useCallback(() => {
     setTagsLoadError(false);
@@ -98,7 +109,7 @@ export function MyWeekSetupForm({
       .getAllTags()
       .then(setAllTags)
       .catch((e) => {
-        logger.error('Failed to load tags for meal types:', e);
+        logger.error("Failed to load tags for meal types:", e);
         setTagsLoadError(true);
       });
   }, []);
@@ -108,58 +119,125 @@ export function MyWeekSetupForm({
   }, [loadTags]);
 
   const mealTypeTags = useMemo(
-    () => allTags.filter(t => (t.categories || []).some(c => MEAL_TYPE_CATEGORY_MATCH.test(c))),
+    () =>
+      allTags
+        .filter((t) =>
+          (t.categories || []).some((c) => MEAL_TYPE_CATEGORY_MATCH.test(c)),
+        )
+        .sort((a, b) => a.translations.name - b.translations.name),
     [allTags],
   );
 
   const plannerRoleOptions: SelectOption[] = [
-    { label: i18n.t('admin.recipes.form.myWeekSetup.plannerRole.main'), value: 'main' },
-    { label: i18n.t('admin.recipes.form.myWeekSetup.plannerRole.side'), value: 'side' },
-    { label: i18n.t('admin.recipes.form.myWeekSetup.plannerRole.snack'), value: 'snack' },
-    { label: i18n.t('admin.recipes.form.myWeekSetup.plannerRole.dessert'), value: 'dessert' },
-    { label: i18n.t('admin.recipes.form.myWeekSetup.plannerRole.beverage'), value: 'beverage' },
-    { label: i18n.t('admin.recipes.form.myWeekSetup.plannerRole.condiment'), value: 'condiment' },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.plannerRole.main"),
+      value: "main",
+    },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.plannerRole.side"),
+      value: "side",
+    },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.plannerRole.snack"),
+      value: "snack",
+    },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.plannerRole.dessert"),
+      value: "dessert",
+    },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.plannerRole.beverage"),
+      value: "beverage",
+    },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.plannerRole.condiment"),
+      value: "condiment",
+    },
   ];
 
   const foodGroupOptions = [
-    { label: i18n.t('admin.recipes.form.myWeekSetup.foodGroups.protein'), value: 'protein' as FoodGroup },
-    { label: i18n.t('admin.recipes.form.myWeekSetup.foodGroups.carb'), value: 'carb' as FoodGroup },
-    { label: i18n.t('admin.recipes.form.myWeekSetup.foodGroups.veg'), value: 'veg' as FoodGroup },
-    { label: i18n.t('admin.recipes.form.myWeekSetup.foodGroups.snack'), value: 'snack' as FoodGroup },
-    { label: i18n.t('admin.recipes.form.myWeekSetup.foodGroups.dessert'), value: 'dessert' as FoodGroup },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.foodGroups.protein"),
+      value: "protein" as FoodGroup,
+    },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.foodGroups.carb"),
+      value: "carb" as FoodGroup,
+    },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.foodGroups.veg"),
+      value: "veg" as FoodGroup,
+    },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.foodGroups.snack"),
+      value: "snack" as FoodGroup,
+    },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.foodGroups.dessert"),
+      value: "dessert" as FoodGroup,
+    },
   ];
 
   const equipmentOptions = [
-    { label: i18n.t('admin.recipes.form.myWeekSetup.equipment.thermomix'), value: 'thermomix' as EquipmentTag },
-    { label: i18n.t('admin.recipes.form.myWeekSetup.equipment.airFryer'), value: 'air_fryer' as EquipmentTag },
-    { label: i18n.t('admin.recipes.form.myWeekSetup.equipment.oven'), value: 'oven' as EquipmentTag },
-    { label: i18n.t('admin.recipes.form.myWeekSetup.equipment.stovetop'), value: 'stovetop' as EquipmentTag },
-    { label: i18n.t('admin.recipes.form.myWeekSetup.equipment.none'), value: 'none' as EquipmentTag },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.equipment.thermomix"),
+      value: "thermomix" as EquipmentTag,
+    },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.equipment.airFryer"),
+      value: "air_fryer" as EquipmentTag,
+    },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.equipment.oven"),
+      value: "oven" as EquipmentTag,
+    },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.equipment.stovetop"),
+      value: "stovetop" as EquipmentTag,
+    },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.equipment.none"),
+      value: "none" as EquipmentTag,
+    },
   ];
 
   const cookingLevelOptions: SelectOption[] = [
-    { label: i18n.t('admin.recipes.form.myWeekSetup.cookingLevel.beginner'), value: 'beginner' },
-    { label: i18n.t('admin.recipes.form.myWeekSetup.cookingLevel.intermediate'), value: 'intermediate' },
-    { label: i18n.t('admin.recipes.form.myWeekSetup.cookingLevel.experienced'), value: 'experienced' },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.cookingLevel.beginner"),
+      value: "beginner",
+    },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.cookingLevel.intermediate"),
+      value: "intermediate",
+    },
+    {
+      label: i18n.t("admin.recipes.form.myWeekSetup.cookingLevel.experienced"),
+      value: "experienced",
+    },
   ];
 
-  const mealTypeOptions = mealTypeTags.map(t => ({
-    label: pickTranslation(t.translations, displayLocale)?.name
-      || pickTranslation(t.translations, 'es')?.name
-      || pickTranslation(t.translations, 'en')?.name
-      || '—',
-    value: t.id,
-  }));
+  const mealTypeOptions = mealTypeTags
+    .map((t) => ({
+      label:
+        pickTranslation(t.translations, displayLocale)?.name ||
+        pickTranslation(t.translations, "es")?.name ||
+        pickTranslation(t.translations, "en")?.name ||
+        "—",
+      value: t.id,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, displayLocale, { sensitivity: 'base' }));
 
   const selectedTags = (recipe.tags as AdminRecipeTag[]) || [];
   const selectedMealTypeIds = selectedTags
-    .filter(t => mealTypeTags.some(mt => mt.id === t.id))
-    .map(t => t.id);
+    .filter((t) => mealTypeTags.some((mt) => mt.id === t.id))
+    .map((t) => t.id);
 
   const handleMealTypesChange = (ids: string[]) => {
     // Keep any non-meal-type tags untouched; replace only meal-type ones
-    const nonMealType = selectedTags.filter(t => !mealTypeTags.some(mt => mt.id === t.id));
-    const newMealTypes = mealTypeTags.filter(mt => ids.includes(mt.id));
+    const nonMealType = selectedTags.filter(
+      (t) => !mealTypeTags.some((mt) => mt.id === t.id),
+    );
+    const newMealTypes = mealTypeTags.filter((mt) => ids.includes(mt.id));
     onUpdateRecipe({ tags: [...nonMealType, ...newMealTypes] });
   };
 
@@ -174,20 +252,26 @@ export function MyWeekSetupForm({
   const missing: { anchor: ReadinessAnchor; label: string }[] = [];
   if (!recipe.plannerRole) {
     missing.push({
-      anchor: 'plannerRole',
-      label: i18n.t('admin.recipes.form.myWeekSetup.eligibility.missing.plannerRole'),
+      anchor: "plannerRole",
+      label: i18n.t(
+        "admin.recipes.form.myWeekSetup.eligibility.missing.plannerRole",
+      ),
     });
   }
   if (foodGroups.length === 0) {
     missing.push({
-      anchor: 'foodGroups',
-      label: i18n.t('admin.recipes.form.myWeekSetup.eligibility.missing.foodGroups'),
+      anchor: "foodGroups",
+      label: i18n.t(
+        "admin.recipes.form.myWeekSetup.eligibility.missing.foodGroups",
+      ),
     });
   }
   if (!hasMealType) {
     missing.push({
-      anchor: 'mealTypes',
-      label: i18n.t('admin.recipes.form.myWeekSetup.eligibility.missing.mealTypes'),
+      anchor: "mealTypes",
+      label: i18n.t(
+        "admin.recipes.form.myWeekSetup.eligibility.missing.mealTypes",
+      ),
     });
   }
 
@@ -213,42 +297,65 @@ export function MyWeekSetupForm({
 
       {/* Role & composition */}
       <FormSection
-        title={i18n.t('admin.recipes.form.myWeekSetup.sections.roleComposition')}
+        title={i18n.t(
+          "admin.recipes.form.myWeekSetup.sections.roleComposition",
+        )}
         headerVariant="prominent"
       >
         <View className="gap-xl">
           <View ref={plannerRoleRef}>
             <FormGroup
-              label={i18n.t('admin.recipes.form.myWeekSetup.plannerRole.label')}
-              helperText={i18n.t('admin.recipes.form.myWeekSetup.plannerRole.tooltip')}
+              label={i18n.t("admin.recipes.form.myWeekSetup.plannerRole.label")}
+              helperText={i18n.t(
+                "admin.recipes.form.myWeekSetup.plannerRole.tooltip",
+              )}
               required
             >
               <SelectInput
-                value={recipe.plannerRole || ''}
+                value={recipe.plannerRole || ""}
                 options={plannerRoleOptions}
-                onValueChange={(value) => onUpdateRecipe({ plannerRole: value as PlannerRole })}
-                placeholder={i18n.t('admin.recipes.form.myWeekSetup.plannerRole.placeholder')}
+                onValueChange={(value) =>
+                  onUpdateRecipe({ plannerRole: value as PlannerRole })
+                }
+                placeholder={i18n.t(
+                  "admin.recipes.form.myWeekSetup.plannerRole.placeholder",
+                )}
               />
             </FormGroup>
           </View>
           <View ref={foodGroupsRef}>
             <FormGroup
-              label={i18n.t('admin.recipes.form.myWeekSetup.foodGroups.label')}
-              helperText={i18n.t('admin.recipes.form.myWeekSetup.foodGroups.tooltip')}
+              label={i18n.t("admin.recipes.form.myWeekSetup.foodGroups.label")}
+              helperText={i18n.t(
+                "admin.recipes.form.myWeekSetup.foodGroups.tooltip",
+              )}
               required
             >
               <MultiSelect
-                options={foodGroupOptions.map(o => ({ label: o.label, value: o.value }))}
+                options={foodGroupOptions.map((o) => ({
+                  label: o.label,
+                  value: o.value,
+                }))}
                 selectedValues={foodGroups}
-                onValueChange={(values) => onUpdateRecipe({ foodGroups: values as FoodGroup[] })}
-                placeholder={i18n.t('admin.recipes.form.myWeekSetup.foodGroups.placeholder')}
-                title={i18n.t('admin.recipes.form.myWeekSetup.foodGroups.pickerTitle')}
+                onValueChange={(values) =>
+                  onUpdateRecipe({ foodGroups: values as FoodGroup[] })
+                }
+                placeholder={i18n.t(
+                  "admin.recipes.form.myWeekSetup.foodGroups.placeholder",
+                )}
+                title={i18n.t(
+                  "admin.recipes.form.myWeekSetup.foodGroups.pickerTitle",
+                )}
               />
             </FormGroup>
           </View>
           <ToggleCard
-            label={i18n.t('admin.recipes.form.myWeekSetup.isCompleteMeal.label')}
-            helper={i18n.t('admin.recipes.form.myWeekSetup.isCompleteMeal.tooltip')}
+            label={i18n.t(
+              "admin.recipes.form.myWeekSetup.isCompleteMeal.label",
+            )}
+            helper={i18n.t(
+              "admin.recipes.form.myWeekSetup.isCompleteMeal.tooltip",
+            )}
             value={!!recipe.isCompleteMeal}
             onChange={(v) => onUpdateRecipe({ isCompleteMeal: v })}
           />
@@ -257,31 +364,50 @@ export function MyWeekSetupForm({
 
       {/* Equipment & difficulty */}
       <FormSection
-        title={i18n.t('admin.recipes.form.myWeekSetup.sections.equipmentDifficulty')}
+        title={i18n.t(
+          "admin.recipes.form.myWeekSetup.sections.equipmentDifficulty",
+        )}
         headerVariant="prominent"
       >
         <View className="gap-xl">
           <FormGroup
-            label={i18n.t('admin.recipes.form.myWeekSetup.equipment.label')}
-            helperText={i18n.t('admin.recipes.form.myWeekSetup.equipment.tooltip')}
+            label={i18n.t("admin.recipes.form.myWeekSetup.equipment.label")}
+            helperText={i18n.t(
+              "admin.recipes.form.myWeekSetup.equipment.tooltip",
+            )}
           >
             <MultiSelect
-              options={equipmentOptions.map(o => ({ label: o.label, value: o.value }))}
+              options={equipmentOptions.map((o) => ({
+                label: o.label,
+                value: o.value,
+              }))}
               selectedValues={equipmentTags}
-              onValueChange={(values) => onUpdateRecipe({ equipmentTags: values as EquipmentTag[] })}
-              placeholder={i18n.t('admin.recipes.form.myWeekSetup.equipment.placeholder')}
-              title={i18n.t('admin.recipes.form.myWeekSetup.equipment.pickerTitle')}
+              onValueChange={(values) =>
+                onUpdateRecipe({ equipmentTags: values as EquipmentTag[] })
+              }
+              placeholder={i18n.t(
+                "admin.recipes.form.myWeekSetup.equipment.placeholder",
+              )}
+              title={i18n.t(
+                "admin.recipes.form.myWeekSetup.equipment.pickerTitle",
+              )}
             />
           </FormGroup>
           <FormGroup
-            label={i18n.t('admin.recipes.form.myWeekSetup.cookingLevel.label')}
-            helperText={i18n.t('admin.recipes.form.myWeekSetup.cookingLevel.tooltip')}
+            label={i18n.t("admin.recipes.form.myWeekSetup.cookingLevel.label")}
+            helperText={i18n.t(
+              "admin.recipes.form.myWeekSetup.cookingLevel.tooltip",
+            )}
           >
             <SelectInput
-              value={recipe.cookingLevel || ''}
+              value={recipe.cookingLevel || ""}
               options={cookingLevelOptions}
-              onValueChange={(value) => onUpdateRecipe({ cookingLevel: value as CookingLevel })}
-              placeholder={i18n.t('admin.recipes.form.myWeekSetup.cookingLevel.placeholder')}
+              onValueChange={(value) =>
+                onUpdateRecipe({ cookingLevel: value as CookingLevel })
+              }
+              placeholder={i18n.t(
+                "admin.recipes.form.myWeekSetup.cookingLevel.placeholder",
+              )}
             />
           </FormGroup>
         </View>
@@ -289,35 +415,48 @@ export function MyWeekSetupForm({
 
       {/* Scale & leftovers */}
       <FormSection
-        title={i18n.t('admin.recipes.form.myWeekSetup.sections.scaleLeftovers')}
+        title={i18n.t("admin.recipes.form.myWeekSetup.sections.scaleLeftovers")}
         headerVariant="prominent"
       >
         <View className="gap-xl">
           <View className="gap-md">
             <ToggleCard
-              label={i18n.t('admin.recipes.form.myWeekSetup.leftoversFriendly.label')}
-              helper={i18n.t('admin.recipes.form.myWeekSetup.leftoversFriendly.tooltip')}
+              label={i18n.t(
+                "admin.recipes.form.myWeekSetup.leftoversFriendly.label",
+              )}
+              helper={i18n.t(
+                "admin.recipes.form.myWeekSetup.leftoversFriendly.tooltip",
+              )}
               value={!!recipe.leftoversFriendly}
               onChange={(v) => onUpdateRecipe({ leftoversFriendly: v })}
             />
             <ToggleCard
-              label={i18n.t('admin.recipes.form.myWeekSetup.batchFriendly.label')}
-              helper={i18n.t('admin.recipes.form.myWeekSetup.batchFriendly.tooltip')}
+              label={i18n.t(
+                "admin.recipes.form.myWeekSetup.batchFriendly.label",
+              )}
+              helper={i18n.t(
+                "admin.recipes.form.myWeekSetup.batchFriendly.tooltip",
+              )}
               value={!!recipe.batchFriendly}
               onChange={(v) => onUpdateRecipe({ batchFriendly: v })}
             />
           </View>
           <View className="max-w-[160px] w-full">
             <FormGroup
-              label={i18n.t('admin.recipes.form.myWeekSetup.maxHouseholdSize.label')}
-              helperText={i18n.t('admin.recipes.form.myWeekSetup.maxHouseholdSize.tooltip')}
+              label={i18n.t(
+                "admin.recipes.form.myWeekSetup.maxHouseholdSize.label",
+              )}
+              helperText={i18n.t(
+                "admin.recipes.form.myWeekSetup.maxHouseholdSize.tooltip",
+              )}
             >
               <TextInput
-                value={recipe.maxHouseholdSizeSupported?.toString() || ''}
+                value={recipe.maxHouseholdSizeSupported?.toString() || ""}
                 onChangeText={(text) => {
                   const n = parseInt(text);
                   onUpdateRecipe({
-                    maxHouseholdSizeSupported: Number.isFinite(n) && n > 0 ? n : null,
+                    maxHouseholdSizeSupported:
+                      Number.isFinite(n) && n > 0 ? n : null,
                   });
                 }}
                 keyboardType="numeric"
@@ -325,17 +464,23 @@ export function MyWeekSetupForm({
             </FormGroup>
           </View>
           <FormGroup
-            label={i18n.t('admin.recipes.form.myWeekSetup.scalingNotes.label')}
-            helperText={i18n.t('admin.recipes.form.myWeekSetup.scalingNotes.tooltip')}
+            label={i18n.t("admin.recipes.form.myWeekSetup.scalingNotes.label")}
+            helperText={i18n.t(
+              "admin.recipes.form.myWeekSetup.scalingNotes.tooltip",
+            )}
           >
             <TextInput
-              value={recipe.requiresMultiBatchNote || ''}
-              onChangeText={(text) => onUpdateRecipe({ requiresMultiBatchNote: text || null })}
+              value={recipe.requiresMultiBatchNote || ""}
+              onChangeText={(text) =>
+                onUpdateRecipe({ requiresMultiBatchNote: text || null })
+              }
               multiline
               numberOfLines={3}
               className="min-h-[96px] p-md"
-              style={{ textAlignVertical: 'top' }}
-              placeholder={i18n.t('admin.recipes.form.myWeekSetup.scalingNotes.placeholder')}
+              style={{ textAlignVertical: "top" }}
+              placeholder={i18n.t(
+                "admin.recipes.form.myWeekSetup.scalingNotes.placeholder",
+              )}
             />
           </FormGroup>
         </View>
@@ -343,63 +488,78 @@ export function MyWeekSetupForm({
 
       {/* Meal types */}
       <View ref={mealTypesRef}>
-      <FormSection
-        title={i18n.t('admin.recipes.form.myWeekSetup.sections.mealTypes')}
-        headerVariant="prominent"
-      >
-        {tagsLoadError ? (
-          <View className="p-lg rounded-lg border border-dashed border-status-error bg-status-error/10">
-            <Text preset="bodySmall" className="text-status-error">
-              {i18n.t('admin.recipes.form.myWeekSetup.mealTypes.loadError')}
-            </Text>
-            <View className="mt-md self-start">
-              <Button
-                variant="outline"
-                size="small"
-                onPress={loadTags}
-                label={i18n.t('admin.recipes.form.myWeekSetup.mealTypes.loadError')}
-              />
+        <FormSection
+          title={i18n.t("admin.recipes.form.myWeekSetup.sections.mealTypes")}
+          headerVariant="prominent"
+        >
+          {tagsLoadError ? (
+            <View className="p-lg rounded-lg border border-dashed border-status-error bg-status-error/10">
+              <Text preset="bodySmall" className="text-status-error">
+                {i18n.t("admin.recipes.form.myWeekSetup.mealTypes.loadError")}
+              </Text>
+              <View className="mt-md self-start">
+                <Button
+                  variant="outline"
+                  size="small"
+                  onPress={loadTags}
+                  label={i18n.t(
+                    "admin.recipes.form.myWeekSetup.mealTypes.loadError",
+                  )}
+                />
+              </View>
             </View>
-          </View>
-        ) : mealTypeOptions.length > 0 ? (
-          <FormGroup
-            label={i18n.t('admin.recipes.form.myWeekSetup.mealTypes.label')}
-            helperText={i18n.t('admin.recipes.form.myWeekSetup.mealTypes.tooltip')}
-            required
-          >
-            <MultiSelect
-              options={mealTypeOptions}
-              selectedValues={selectedMealTypeIds}
-              onValueChange={handleMealTypesChange}
-              placeholder={i18n.t('admin.recipes.form.myWeekSetup.mealTypes.placeholder')}
-              title={i18n.t('admin.recipes.form.myWeekSetup.mealTypes.pickerTitle')}
-            />
-          </FormGroup>
-        ) : (
-          <View className="p-lg rounded-lg border border-dashed border-primary-medium bg-primary-lightest">
-            <Text preset="subheading" className="text-text-default">
-              {i18n.t('admin.recipes.form.myWeekSetup.mealTypes.emptyTitle')}
-            </Text>
-            <Text preset="body" className="text-text-secondary mt-xs">
-              {i18n.t('admin.recipes.form.myWeekSetup.mealTypes.empty')}
-            </Text>
-            <View className="mt-md self-start">
-              <Button
-                variant="outline"
-                size="small"
-                onPress={() => router.push('/admin/tags?category=meal-type&new=1')}
-                label={i18n.t('admin.recipes.form.myWeekSetup.mealTypes.createCta')}
+          ) : mealTypeOptions.length > 0 ? (
+            <FormGroup
+              label={i18n.t("admin.recipes.form.myWeekSetup.mealTypes.label")}
+              helperText={i18n.t(
+                "admin.recipes.form.myWeekSetup.mealTypes.tooltip",
+              )}
+              required
+            >
+              <MultiSelect
+                options={mealTypeOptions}
+                selectedValues={selectedMealTypeIds}
+                onValueChange={handleMealTypesChange}
+                placeholder={i18n.t(
+                  "admin.recipes.form.myWeekSetup.mealTypes.placeholder",
+                )}
+                title={i18n.t(
+                  "admin.recipes.form.myWeekSetup.mealTypes.pickerTitle",
+                )}
               />
+            </FormGroup>
+          ) : (
+            <View className="p-lg rounded-lg border border-dashed border-primary-medium bg-primary-lightest">
+              <Text preset="subheading" className="text-text-default">
+                {i18n.t("admin.recipes.form.myWeekSetup.mealTypes.emptyTitle")}
+              </Text>
+              <Text preset="body" className="text-text-secondary mt-xs">
+                {i18n.t("admin.recipes.form.myWeekSetup.mealTypes.empty")}
+              </Text>
+              <View className="mt-md self-start">
+                <Button
+                  variant="outline"
+                  size="small"
+                  onPress={() =>
+                    router.push("/admin/tags?category=meal-type&new=1")
+                  }
+                  label={i18n.t(
+                    "admin.recipes.form.myWeekSetup.mealTypes.createCta",
+                  )}
+                />
+              </View>
             </View>
-          </View>
-        )}
-      </FormSection>
+          )}
+        </FormSection>
       </View>
 
       {/* Verification — sits outside FormSection accent */}
       <View className="mt-2xl">
-        <Text preset="caption" className="text-text-secondary uppercase tracking-wider mb-sm">
-          {i18n.t('admin.recipes.form.myWeekSetup.verified.sectionEyebrow')}
+        <Text
+          preset="caption"
+          className="text-text-secondary uppercase tracking-wider mb-sm"
+        >
+          {i18n.t("admin.recipes.form.myWeekSetup.verified.sectionEyebrow")}
         </Text>
         <VerificationCard
           verifiedAt={recipe.verifiedAt || null}
