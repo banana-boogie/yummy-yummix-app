@@ -107,7 +107,24 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
   }, [searchQuery, ingredients]);
 
   const handleAddRecipeIngredient = (ingredient: AdminIngredient) => {
-    // Create a new recipe ingredient from the selected ingredient
+    // New ingredients default to the "Main" / "Principal" section. Compute
+    // displayOrder as (max within that section) + 1 so it lands at the end of
+    // the section without colliding or leaving gaps. Using the global
+    // recipe.ingredients.length can produce duplicate or gapped orders when
+    // ingredients arrive from mixed sources (AI populate + manual add),
+    // which breaks stable sort and drag-and-drop reconciliation.
+    const targetSectionEs = 'Principal';
+    const targetSectionEn = 'Main';
+    const sectionIngredients = (recipe.ingredients || []).filter(ing =>
+      ing.translations?.some(t =>
+        (t.locale === 'es' && t.recipeSection === targetSectionEs) ||
+        (t.locale === 'en' && t.recipeSection === targetSectionEn)
+      )
+    );
+    const nextDisplayOrder = sectionIngredients.length > 0
+      ? Math.max(...sectionIngredients.map(ing => ing.displayOrder || 0)) + 1
+      : 1;
+
     const newRecipeIngredient: AdminRecipeIngredient = {
       id: generateUUID(),
       ingredientId: ingredient.id,
@@ -121,10 +138,10 @@ export function RecipeIngredientsForm({ recipe, onUpdateRecipe, errors, authorin
       },
       optional: false,
       translations: [
-        { locale: 'es', recipeSection: 'Principal' },
-        { locale: 'en', recipeSection: 'Main' },
+        { locale: 'es', recipeSection: targetSectionEs },
+        { locale: 'en', recipeSection: targetSectionEn },
       ],
-      displayOrder: recipe.ingredients ? recipe.ingredients.length + 1 : 1,
+      displayOrder: nextDisplayOrder,
     };
 
     setSelectedRecipeIngredient(newRecipeIngredient);
