@@ -334,6 +334,17 @@ export function buildBundle(
 function targetComponentCount(
   template: MealSlot["structureTemplate"],
 ): number {
+  return templateComponentCount(template);
+}
+
+/**
+ * Map a `structure_template` value to the number of components it represents.
+ * Exported so persistence + response code can recompute the template from an
+ * actual component count without importing the switch in multiple places.
+ */
+export function templateComponentCount(
+  template: MealSlot["structureTemplate"],
+): number {
   switch (template) {
     case "single_component":
       return 1;
@@ -344,6 +355,21 @@ function targetComponentCount(
     default:
       return 1;
   }
+}
+
+/**
+ * Inverse of `templateComponentCount`: given an actual component count, return
+ * the `structure_template` value that best describes the bundle. Used by the
+ * persistence + response layers so a slot classified as "main_plus_one" but
+ * built with only the primary (no pairings matched) is persisted as
+ * "single_component", matching what the user will actually see.
+ */
+export function templateForComponentCount(
+  count: number,
+): MealSlot["structureTemplate"] {
+  if (count >= 3) return "main_plus_two_components";
+  if (count === 2) return "main_plus_one_component";
+  return "single_component";
 }
 
 /**

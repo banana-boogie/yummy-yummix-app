@@ -19,13 +19,14 @@ import {
   type CandidateMap,
   countUniqueCandidates,
   fetchCandidates,
+  loadCookHistory,
   loadHardExcludedRecipeIds,
-  loadRecentCookedRecipeIds,
   type RecipeCandidate,
 } from "./candidate-retrieval.ts";
 import {
   fetchPairingsForCandidates,
   type PairingLookup,
+  templateForComponentCount,
 } from "./bundle-builder.ts";
 import {
   type AssembleResult,
@@ -104,6 +105,21 @@ export class PlanAlreadyExistsError extends Error {
   }
 }
 
+/**
+ * Thrown when the catalog has zero recipes eligible for any of the requested
+ * slots — usually because content hasn't been tagged with `planner_role` and
+ * `food_groups` yet, or dietary restrictions filtered everything out. Returning
+ * an empty plan in this case is unhelpful (the UI can't render anything), so
+ * we surface the documented `INSUFFICIENT_RECIPES` contract with HTTP 422
+ * instead.
+ */
+export class InsufficientRecipesError extends Error {
+  constructor() {
+    super(`No recipes available for the requested slots`);
+    this.name = "InsufficientRecipesError";
+  }
+}
+
 // ============================================================
 // User context loading
 // ============================================================
@@ -148,7 +164,7 @@ async function loadUserContext(
     prefsResult,
     implicitResult,
     patternsResult,
-    recentCooked,
+    cookHistory,
   ] = await Promise.all([
     supabase
       .from("user_profiles")
@@ -184,7 +200,7 @@ async function loadUserContext(
       .from("user_day_patterns")
       .select("day_index, evidence_weeks")
       .eq("user_id", userId),
-    loadRecentCookedRecipeIds(supabase, userId),
+    loadCookHistory(supabase, userId),
   ]);
 
   const profile = (profileResult.data as ProfileRow | null) ?? null;
@@ -209,9 +225,6 @@ async function loadUserContext(
     ),
   );
 
-  // Cook-count map: consolidate across the recent-cooked window.
-  const cookCountByRecipe = await loadCookCount(supabase, userId);
-
   return {
     userId,
     locale,
@@ -229,39 +242,9 @@ async function loadUserContext(
     defaultMaxWeeknightMinutes: prefs?.default_max_weeknight_minutes ?? 45,
     implicitPreferences,
     evidenceWeeks,
-    recentCookedRecipes: recentCooked,
-    cookCountByRecipe,
+    recentCookedRecipes: cookHistory.recentCooked,
+    cookCountByRecipe: cookHistory.cookCount,
   };
-}
-
-async function loadCookCount(
-  supabase: SupabaseClient,
-  userId: string,
-): Promise<Map<string, number>> {
-  const map = new Map<string, number>();
-  // Bounded scan: matches the recentCookedRecipes window so the cook-count
-  // map and the recency map describe the same slice of history. Plus a hard
-  // row cap so a heavy user doesn't pull a giant payload per generation.
-  const cutoff = new Date(Date.now() - 21 * 86_400_000).toISOString();
-  try {
-    const { data, error } = await supabase
-      .from("user_events")
-      .select("payload")
-      .eq("user_id", userId)
-      .eq("event_type", "cook_complete")
-      .gte("created_at", cutoff)
-      .limit(2000);
-    if (error || !data) return map;
-    for (const row of data as Array<{ payload: Record<string, unknown> }>) {
-      const recipeId = row.payload?.recipe_id;
-      if (typeof recipeId === "string" && recipeId.length > 0) {
-        map.set(recipeId, (map.get(recipeId) ?? 0) + 1);
-      }
-    }
-  } catch {
-    // swallow
-  }
-  return map;
 }
 
 // ============================================================
@@ -650,16 +633,26 @@ async function writeFreshPlan(
     new Date().toISOString();
 
   // Insert slots first; unfilled slots still land so the UI can render them.
+  //
+  // For filled slots we use the assignment's effective slot kind + a
+  // structure_template recomputed from the actual component count, so the
+  // persisted row matches what's really in the slot (not what classification
+  // originally hoped for). Unfilled slots keep their original classification
+  // values so the UI can show the user what they asked for.
   const slotInserts: Array<Record<string, unknown>> = slots.map((slot) => {
     const assignment = best.assignments.get(slot.slotId);
+    const slotType = assignment?.effectiveSlotKind ?? slot.slotKind;
+    const structureTemplate = assignment
+      ? templateForComponentCount(assignment.components.length)
+      : slot.structureTemplate;
     return {
       meal_plan_id: planId,
       planned_date: slot.plannedDate,
       day_index: slot.dayIndex,
       meal_type: slot.canonicalMealType,
       display_order: 0,
-      slot_type: slot.slotKind,
-      structure_template: slot.structureTemplate,
+      slot_type: slotType,
+      structure_template: structureTemplate,
       expected_food_groups: assignment?.components.flatMap((c) =>
         c.foodGroupsSnapshot
       ) ?? [],
@@ -892,6 +885,13 @@ function buildResponse(
         });
       }
     }
+    // Response mirrors the persisted shape: effective slot kind for filled
+    // slots (so the UI sees `cook_slot` when a leftover_target fell back),
+    // recomputed structure template based on actual component count.
+    const slotType = assignment?.effectiveSlotKind ?? slot.slotKind;
+    const structureTemplate = assignment
+      ? templateForComponentCount(assignment.components.length)
+      : slot.structureTemplate;
     slotsOut.push({
       id: persistedSlot?.id ?? "",
       plannedDate: slot.plannedDate,
@@ -899,8 +899,8 @@ function buildResponse(
       mealType: slot.canonicalMealType,
       displayMealLabel: slot.displayMealLabel,
       displayOrder: 0,
-      slotType: slot.slotKind,
-      structureTemplate: slot.structureTemplate,
+      slotType,
+      structureTemplate,
       expectedFoodGroups: assignment?.components.flatMap((c) =>
         c.foodGroupsSnapshot
       ) ?? [],
@@ -1061,6 +1061,13 @@ export async function generatePlan(
     for (const c of list) primaryRecipeIds.add(c.id);
   }
   const uniqueTotal = countUniqueCandidates(candidateMap);
+  // Zero candidates across all slots means we can't plan anything. An empty
+  // plan with warnings is worse UX than a hard error — the client has nothing
+  // to render. Surface INSUFFICIENT_RECIPES (HTTP 422) so callers can show a
+  // meaningful "add recipes / relax filters" message instead.
+  if (uniqueTotal === 0) {
+    throw new InsufficientRecipesError();
+  }
   if (uniqueTotal < THIN_CATALOG.totalPublishedThreshold) {
     warnings.push(`LIMITED_CATALOG_COVERAGE:total=${uniqueTotal}`);
   }

@@ -39,6 +39,14 @@ import {
 
 export interface AssembledSlot {
   slot: MealSlot;
+  /**
+   * Slot kind as actually assembled. Usually matches `slot.slotKind` from
+   * classification, but may differ when `leftover_target_slot` falls back to
+   * recipe ranking at runtime (no leftover source registered). Persistence
+   * and the API response use this value so slot_type reflects what's really
+   * in the slot, not what we originally hoped.
+   */
+  effectiveSlotKind: MealSlot["slotKind"];
   components: SlotComponent[];
   slotScore: number;
   selectionReason: string;
@@ -145,9 +153,11 @@ function recordAssignment(
   contribution: number,
   warnings: string[] = [],
   adjustments: number = 0,
+  effectiveSlotKind?: MealSlot["slotKind"],
 ): void {
   state.assignments.set(slot.slotId, {
     slot,
+    effectiveSlotKind: effectiveSlotKind ?? slot.slotKind,
     components,
     slotScore,
     selectionReason,
@@ -272,6 +282,7 @@ function expandRecipeCandidates(
   pairings: PairingLookup,
   user: UserContext,
   leftoverTransformByRecipe: Map<string, string[]>,
+  effectiveSlotKind?: MealSlot["slotKind"],
 ): WeekState[] {
   const next: WeekState[] = [];
   const readonly = readonlyView(state);
@@ -304,6 +315,7 @@ function expandRecipeCandidates(
       contribution,
       [],
       adjustments,
+      effectiveSlotKind,
     );
     registerLeftoverSource(
       successor,
@@ -495,6 +507,7 @@ export function assembleWeek(input: AssembleInput): AssembleResult {
       let successors: WeekState[] = [];
       const candidates = input.candidates.get(slot.slotId) ?? [];
 
+      let fellBackFromLeftoverTarget = false;
       if (slot.slotKind === "leftover_target_slot") {
         successors = expandLeftoverTargetSlot(
           state,
@@ -502,13 +515,19 @@ export function assembleWeek(input: AssembleInput): AssembleResult {
           input.pairings,
           input.user,
         );
+        if (successors.length === 0) fellBackFromLeftoverTarget = true;
       }
 
       // Cook slot / weekend slot, OR a leftover_target whose source didn't
       // register a leftover at runtime — fall through to normal recipe
       // ranking so the slot still gets a meal (busy-day bias applies via
-      // `isBusyDay` in the scoring layer).
+      // `isBusyDay` in the scoring layer). When we fall back from a
+      // leftover_target, override the effective slot kind to `cook_slot` so
+      // persistence and the API response reflect what's actually in the slot
+      // (a fresh recipe), not the original classification.
       if (successors.length === 0) {
+        const overrideKind: MealSlot["slotKind"] | undefined =
+          fellBackFromLeftoverTarget ? "cook_slot" : undefined;
         successors = expandRecipeCandidates(
           state,
           slot,
@@ -516,6 +535,7 @@ export function assembleWeek(input: AssembleInput): AssembleResult {
           input.pairings,
           input.user,
           input.leftoverTransformByRecipe,
+          overrideKind,
         );
         if (successors.length === 0) {
           // Still nothing — keep a partial state and emit an unfilled warning.

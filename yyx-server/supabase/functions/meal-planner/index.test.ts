@@ -98,10 +98,37 @@ Deno.test("generate_plan accepts comida without raising INVALID_INPUT", async ()
   assertEquals(body.error.code, "INTERNAL_ERROR");
 });
 
+// A minimal recipe row that satisfies `food_groups` non-empty and has an
+// English translation, so `fetchCandidates` retains at least one candidate
+// and `uniqueTotal > 0` — otherwise `generate_plan` throws
+// InsufficientRecipesError before reaching the preflight/insert paths these
+// tests care about.
+const MINIMAL_RECIPE_ROW = {
+  id: "fake-recipe-1",
+  planner_role: "main",
+  food_groups: ["protein"],
+  is_complete_meal: false,
+  total_time: 30,
+  difficulty: "easy",
+  portions: 2,
+  image_url: null,
+  leftovers_friendly: false,
+  batch_friendly: null,
+  max_household_size_supported: null,
+  equipment_tags: [],
+  cooking_level: "beginner",
+  verified_at: null,
+  is_published: true,
+  recipe_translations: [{ locale: "en", name: "Fake Recipe" }],
+  recipe_ingredients: [],
+  recipe_to_tag: [],
+};
+
 // Minimal Supabase builder mock. Each `.from(table)` gets fresh state so
 // filter flags don't bleed across tables. The only query that returns a row
 // is the plan preflight: `from("meal_plans").select...in("status", ["draft",
-// "active"]).maybeSingle()`.
+// "active"]).maybeSingle()`. `recipes` also returns one minimal row so the
+// thin-catalog check passes.
 // deno-lint-ignore no-explicit-any
 function makePreflightConflictSupabase(existingPlanId: string | null): any {
   const buildBuilder = () => {
@@ -122,6 +149,7 @@ function makePreflightConflictSupabase(existingPlanId: string | null): any {
       gte: () => builder,
       insert: () => builder,
       update: () => builder,
+      limit: () => builder,
       maybeSingle: () => {
         if (table === "meal_plans" && sawDraftStatusFilter) {
           return Promise.resolve({
@@ -133,7 +161,13 @@ function makePreflightConflictSupabase(existingPlanId: string | null): any {
       },
       single: () => Promise.resolve({ data: null, error: null }),
       // deno-lint-ignore no-explicit-any
-      then: (resolve: any) => resolve({ data: [], error: null }),
+      then: (resolve: any) => {
+        if (table === "recipes") {
+          resolve({ data: [MINIMAL_RECIPE_ROW], error: null });
+          return;
+        }
+        resolve({ data: [], error: null });
+      },
     };
     return {
       from: (t: string) => {
@@ -171,7 +205,8 @@ Deno.test("generate_plan returns 409 PLAN_ALREADY_EXISTS when replaceExisting=fa
 // Mock where meal_plans INSERT returns a Postgres unique-violation (23505).
 // Simulates the concurrent-generate_plan race: both requests pass preflight
 // (or replaceExisting=true skips it), but the second INSERT collides on the
-// idx_meal_plans_active_week partial unique index.
+// idx_meal_plans_active_week partial unique index. `recipes` returns one
+// minimal row so we get past the thin-catalog check.
 // deno-lint-ignore no-explicit-any
 function makeInsertUniqueViolationSupabase(): any {
   const buildBuilder = () => {
@@ -184,6 +219,7 @@ function makeInsertUniqueViolationSupabase(): any {
       in: () => builder,
       not: () => builder,
       gte: () => builder,
+      limit: () => builder,
       insert: () => {
         insertCalled = true;
         return builder;
@@ -205,7 +241,13 @@ function makeInsertUniqueViolationSupabase(): any {
         return Promise.resolve({ data: null, error: null });
       },
       // deno-lint-ignore no-explicit-any
-      then: (resolve: any) => resolve({ data: [], error: null }),
+      then: (resolve: any) => {
+        if (table === "recipes") {
+          resolve({ data: [MINIMAL_RECIPE_ROW], error: null });
+          return;
+        }
+        resolve({ data: [], error: null });
+      },
     };
     return {
       from: (t: string) => {
@@ -239,6 +281,53 @@ Deno.test("generate_plan returns 409 PLAN_ALREADY_EXISTS when insert races on un
 
   assertEquals(response.status, 409);
   assertEquals(body.error.code, "PLAN_ALREADY_EXISTS");
+});
+
+// Mock supabase that returns well-shaped-but-empty results for every query.
+// fetchCandidates() sees an empty recipes array → uniqueTotal = 0 → we throw
+// InsufficientRecipesError → handler maps to 422 INSUFFICIENT_RECIPES.
+// deno-lint-ignore no-explicit-any
+function makeEmptyCatalogSupabase(): any {
+  const buildBuilder = () => {
+    // deno-lint-ignore no-explicit-any
+    const builder: any = {
+      select: () => builder,
+      eq: () => builder,
+      in: () => builder,
+      not: () => builder,
+      gte: () => builder,
+      insert: () => builder,
+      update: () => builder,
+      delete: () => builder,
+      limit: () => builder,
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      single: () => Promise.resolve({ data: null, error: null }),
+      // deno-lint-ignore no-explicit-any
+      then: (resolve: any) => resolve({ data: [], error: null }),
+    };
+    return { from: (_t: string) => builder };
+  };
+  return { from: (t: string) => buildBuilder().from(t) };
+}
+
+Deno.test("generate_plan returns 422 INSUFFICIENT_RECIPES when the catalog is empty", async () => {
+  const mockSupabase = makeEmptyCatalogSupabase();
+  const req = createAuthenticatedRequest({
+    action: "generate_plan",
+    payload: {
+      weekStart: "2026-04-13",
+      dayIndexes: [0, 1, 2, 3, 4],
+      mealTypes: ["dinner"],
+    },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => mockSupabase as never,
+  });
+  const body = await response.json();
+
+  assertEquals(response.status, 422);
+  assertEquals(body.error.code, "INSUFFICIENT_RECIPES");
 });
 
 Deno.test("generate_plan debug flag controls debugTrace presence", async () => {

@@ -9,7 +9,11 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { createUserClient } from "../_shared/supabase-client.ts";
 import { validateAuth } from "../_shared/auth.ts";
 import { normalizeMealTypes } from "./meal-types.ts";
-import { generatePlan, PlanAlreadyExistsError } from "./plan-generator.ts";
+import {
+  generatePlan,
+  InsufficientRecipesError,
+  PlanAlreadyExistsError,
+} from "./plan-generator.ts";
 
 import {
   type GeneratePlanPayload,
@@ -269,6 +273,13 @@ async function handleGeneratePlan(
         "PLAN_ALREADY_EXISTS",
         error.message,
         409,
+      );
+    }
+    if (error instanceof InsufficientRecipesError) {
+      return errorResponse(
+        "INSUFFICIENT_RECIPES",
+        error.message,
+        422,
       );
     }
     throw error;

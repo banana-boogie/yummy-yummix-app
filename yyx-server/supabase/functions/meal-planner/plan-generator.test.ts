@@ -2,6 +2,7 @@ import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   annotateCandidates,
   annotateDislikeConflicts,
+  InsufficientRecipesError,
   PlanAlreadyExistsError,
 } from "./plan-generator.ts";
 import type { RecipeCandidate } from "./candidate-retrieval.ts";
@@ -25,6 +26,17 @@ Deno.test("PlanAlreadyExistsError is an Error subclass", () => {
 Deno.test("PlanAlreadyExistsError existingPlanId can be null for insert-race path", () => {
   const err = new PlanAlreadyExistsError(null);
   assertEquals(err.existingPlanId, null);
+});
+
+Deno.test("InsufficientRecipesError is a distinguishable Error subclass", () => {
+  const err = new InsufficientRecipesError();
+  assertEquals(err.name, "InsufficientRecipesError");
+  if (!(err instanceof InsufficientRecipesError)) {
+    throw new Error("instanceof check failed");
+  }
+  if (!(err instanceof Error)) {
+    throw new Error("should subclass Error");
+  }
 });
 
 function mkCandidate(

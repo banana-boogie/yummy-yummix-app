@@ -339,25 +339,40 @@ export async function loadHardExcludedRecipeIds(
   return excluded;
 }
 
+export interface CookHistory {
+  /** recipeId → most-recent cook timestamp within the window. */
+  recentCooked: Map<string, Date>;
+  /** recipeId → cook count within the window. */
+  cookCount: Map<string, number>;
+}
+
 /**
- * Load recent cook history for the user (last 3 weeks) → used for
- * recentRecipePenalty in the variety factor.
+ * Load the user's recent cook history in a single SELECT. Two maps are
+ * derived from the same row set:
+ *   - `recentCooked` — powers the recentRecipePenalty in the variety factor.
+ *   - `cookCount`    — powers the familyFavoriteBoost in taste+household.
+ *
+ * Previously split across two queries (`loadRecentCookedRecipeIds` and
+ * `loadCookCount`). Both want the same 21-day slice of `user_events`, so
+ * collapsing saves a round-trip per generation.
  */
-export async function loadRecentCookedRecipeIds(
+export async function loadCookHistory(
   supabase: SupabaseClient,
   userId: string,
   sinceDaysAgo = 21,
-): Promise<Map<string, Date>> {
+): Promise<CookHistory> {
   const cutoff = new Date(Date.now() - sinceDaysAgo * 86_400_000).toISOString();
-  const map = new Map<string, Date>();
+  const recentCooked = new Map<string, Date>();
+  const cookCount = new Map<string, number>();
   try {
     const { data, error } = await supabase
       .from("user_events")
       .select("payload, created_at")
       .eq("user_id", userId)
       .eq("event_type", "cook_complete")
-      .gte("created_at", cutoff);
-    if (error || !data) return map;
+      .gte("created_at", cutoff)
+      .limit(2000);
+    if (error || !data) return { recentCooked, cookCount };
     for (
       const row of data as Array<{
         payload: Record<string, unknown>;
@@ -365,14 +380,14 @@ export async function loadRecentCookedRecipeIds(
       }>
     ) {
       const recipeId = row.payload?.recipe_id;
-      if (typeof recipeId === "string" && recipeId.length > 0) {
-        const existing = map.get(recipeId);
-        const when = new Date(row.created_at);
-        if (!existing || when > existing) map.set(recipeId, when);
-      }
+      if (typeof recipeId !== "string" || recipeId.length === 0) continue;
+      const when = new Date(row.created_at);
+      const existing = recentCooked.get(recipeId);
+      if (!existing || when > existing) recentCooked.set(recipeId, when);
+      cookCount.set(recipeId, (cookCount.get(recipeId) ?? 0) + 1);
     }
   } catch {
-    // swallow
+    // swallow — cook history is a best-effort signal
   }
-  return map;
+  return { recentCooked, cookCount };
 }

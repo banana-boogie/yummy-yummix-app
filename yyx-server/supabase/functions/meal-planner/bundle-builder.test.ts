@@ -4,7 +4,11 @@ import {
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import type { RecipeCandidate } from "./candidate-retrieval.ts";
 import type { MealSlot } from "./slot-classifier.ts";
-import { buildBundle, type PairingLookup } from "./bundle-builder.ts";
+import {
+  buildBundle,
+  type PairingLookup,
+  templateForComponentCount,
+} from "./bundle-builder.ts";
 
 function mkCandidate(
   id: string,
@@ -163,4 +167,12 @@ Deno.test("buildBundle: allergen-conflicted condiment is dropped", () => {
   for (const id of recipeIds) {
     assertNotEquals(id, unsafeCondiment.id);
   }
+});
+
+Deno.test("templateForComponentCount: maps component counts to structure_template values", () => {
+  assertEquals(templateForComponentCount(0), "single_component");
+  assertEquals(templateForComponentCount(1), "single_component");
+  assertEquals(templateForComponentCount(2), "main_plus_one_component");
+  assertEquals(templateForComponentCount(3), "main_plus_two_components");
+  assertEquals(templateForComponentCount(99), "main_plus_two_components");
 });

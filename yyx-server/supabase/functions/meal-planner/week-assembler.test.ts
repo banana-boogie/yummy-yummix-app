@@ -139,6 +139,60 @@ Deno.test("assembleWeek: cook_slot with a strong candidate assigns that recipe",
   assertEquals(primary?.recipeId, "winner");
 });
 
+Deno.test("assembleWeek: leftover_target without runtime source downgrades to cook_slot", () => {
+  // Source slot picks a recipe that is NOT leftoversFriendly, so the target
+  // never sees a registered source. The target was classified as
+  // leftover_target_slot (it has sourceDependencySlotId), but at runtime it
+  // falls through to recipe ranking. The resulting assignment should carry
+  // `effectiveSlotKind: "cook_slot"` so persistence + API response reflect
+  // what's actually in the slot.
+  const source: MealSlot = mkSlot({
+    slotId: "0-dinner",
+    dayIndex: 0,
+    slotKind: "cook_slot",
+  });
+  const target: MealSlot = mkSlot({
+    slotId: "1-dinner",
+    dayIndex: 1,
+    slotKind: "leftover_target_slot",
+    sourceDependencySlotId: source.slotId,
+    isBusyDay: true,
+    prefersLeftovers: true,
+  });
+
+  const sourceRecipe = mkCandidate("source-recipe", {
+    leftoversFriendly: false, // critical: won't register as a leftover source
+    portions: 2,
+    totalTimeMinutes: 30,
+  });
+  const targetRecipe = mkCandidate("target-recipe", {
+    difficulty: "easy",
+    cookingLevel: "beginner",
+    totalTimeMinutes: 20,
+  });
+
+  const result = assembleWeek({
+    slots: [source, target],
+    planningOrder: [source, target],
+    candidates: new Map([
+      [source.slotId, [sourceRecipe]],
+      [target.slotId, [targetRecipe]],
+    ]),
+    pairings: EMPTY_PAIRINGS,
+    user: mkUser({ householdSize: 2 }),
+    leftoverTransformByRecipe: new Map(),
+  });
+
+  const targetAssignment = result.best.assignments.get(target.slotId);
+  if (!targetAssignment) {
+    throw new Error("expected target slot to be assigned");
+  }
+  assertEquals(targetAssignment.effectiveSlotKind, "cook_slot");
+  const primary = targetAssignment.components.find((c) => c.isPrimary);
+  assertEquals(primary?.sourceKind, "recipe");
+  assertEquals(primary?.recipeId, "target-recipe");
+});
+
 Deno.test("assembleWeek: unfilled cook slot emits UNFILLED_COOK_SLOT warning", () => {
   const slot = mkSlot({ slotId: "1-dinner", slotKind: "cook_slot" });
   // Empty candidate pool — nothing to assign.
