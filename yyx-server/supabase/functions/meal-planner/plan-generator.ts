@@ -107,7 +107,7 @@ export class PlanAlreadyExistsError extends Error {
 /**
  * Thrown when the catalog has zero recipes eligible for any of the requested
  * slots — usually because content hasn't been tagged with `planner_role` and
- * `food_groups` yet, or dietary restrictions filtered everything out. Returning
+ * `meal_components` yet, or dietary restrictions filtered everything out. Returning
  * an empty plan in this case is unhelpful (the UI can't render anything), so
  * we surface the documented `INSUFFICIENT_RECIPES` contract with HTTP 422
  * instead.
@@ -692,8 +692,8 @@ async function writeFreshPlan(
       display_order: 0,
       slot_type: slotType,
       structure_template: structureTemplate,
-      expected_food_groups: assignment?.components.flatMap((c) =>
-        c.foodGroupsSnapshot
+      expected_meal_components: assignment?.components.flatMap((c) =>
+        c.mealComponentsSnapshot
       ) ?? [],
       selection_reason: assignment?.selectionReason ?? null,
       shopping_sync_state: "not_created",
@@ -755,7 +755,7 @@ async function writeFreshPlan(
       source_kind: comp.sourceKind,
       recipe_id: comp.candidate?.id ?? null,
       source_component_id: null,
-      food_groups_snapshot: comp.foodGroupsSnapshot,
+      meal_components_snapshot: comp.mealComponentsSnapshot,
       pairing_basis: comp.pairingBasis,
       display_order: comp.displayOrder,
       title_snapshot: comp.titleSnapshot,
@@ -821,7 +821,7 @@ async function writeFreshPlan(
         source_kind: comp.sourceKind,
         recipe_id: null,
         source_component_id: sourceComponentId,
-        food_groups_snapshot: comp.foodGroupsSnapshot,
+        meal_components_snapshot: comp.mealComponentsSnapshot,
         pairing_basis: comp.pairingBasis,
         display_order: comp.displayOrder,
         title_snapshot: comp.titleSnapshot,
@@ -911,7 +911,7 @@ function buildResponse(
           sourceKind: comp.sourceKind,
           recipeId: comp.recipeId,
           sourceComponentId: comp.sourceComponentId,
-          foodGroupsSnapshot: comp.foodGroupsSnapshot,
+          mealComponentsSnapshot: comp.mealComponentsSnapshot,
           pairingBasis: comp.pairingBasis,
           displayOrder: comp.displayOrder,
           isPrimary: comp.isPrimary,
@@ -940,8 +940,8 @@ function buildResponse(
       displayOrder: 0,
       slotType,
       structureTemplate,
-      expectedFoodGroups: assignment?.components.flatMap((c) =>
-        c.foodGroupsSnapshot
+      expectedMealComponents: assignment?.components.flatMap((c) =>
+        c.mealComponentsSnapshot
       ) ?? [],
       selectionReason: assignment?.selectionReason ?? "",
       shoppingSyncState: "not_created",

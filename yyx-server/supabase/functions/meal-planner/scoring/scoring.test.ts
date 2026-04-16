@@ -15,7 +15,7 @@ function baseCandidate(
     id: "r1",
     title: "Test Recipe",
     plannerRole: "main",
-    foodGroups: ["protein", "carb"],
+    mealComponents: ["protein", "carb"],
     isComplete: true,
     totalTimeMinutes: 30,
     difficulty: "easy",

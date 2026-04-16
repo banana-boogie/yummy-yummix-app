@@ -3,7 +3,7 @@
  *
  * SQL prefilter for each cookable slot:
  *   - is_published = true (the quality gate per §3)
- *   - has planner_role + food_groups
+ *   - has planner_role + meal_components
  *   - planner_role compatible with canonical meal type
  *   - dietary_restrictions → allergen exclusion (filtered at scoring time
  *     since allergen data lives on ingredient rows; here we annotate)
@@ -33,7 +33,7 @@ export interface RecipeCandidate {
    * The CHECK constraint forbids `'pantry'` here.
    */
   alternatePlannerRoles: string[];
-  foodGroups: string[];
+  mealComponents: string[];
   isComplete: boolean;
   totalTimeMinutes: number | null;
   difficulty: "easy" | "medium" | "hard" | null;
@@ -82,7 +82,7 @@ interface RawRecipeRow {
   id: string;
   planner_role: string | null;
   alternate_planner_roles: string[] | null;
-  food_groups: string[] | null;
+  meal_components: string[] | null;
   is_complete_meal: boolean | null;
   total_time: number | null;
   difficulty: "easy" | "medium" | "hard" | null;
@@ -170,7 +170,7 @@ function toCandidate(
     title: pickTranslationName(row.recipe_translations, ctx.localeChain),
     plannerRole: row.planner_role ?? "",
     alternatePlannerRoles: row.alternate_planner_roles ?? [],
-    foodGroups: row.food_groups ?? [],
+    mealComponents: row.meal_components ?? [],
     isComplete: !!row.is_complete_meal,
     totalTimeMinutes: row.total_time,
     difficulty: row.difficulty,
@@ -317,11 +317,11 @@ export function shortlistCandidatesForSlot(
 }
 
 /**
- * Roles that require non-empty `food_groups` per recipe-role-model.md §6.1.
+ * Roles that require non-empty `meal_components` per recipe-role-model.md §6.1.
  * Other roles (snack, dessert, beverage, condiment) intentionally have
- * empty food_groups — that's data correctness, not a quality issue.
+ * empty meal_components — that's data correctness, not a quality issue.
  */
-const ROLES_REQUIRING_FOOD_GROUPS: ReadonlySet<string> = new Set([
+const ROLES_REQUIRING_MEAL_COMPONENTS: ReadonlySet<string> = new Set([
   "main",
   "side",
 ]);
@@ -338,13 +338,13 @@ function isRoleEligibleForAnySlot(
   return false;
 }
 
-function satisfiesRoleConditionalFoodGroups(row: RawRecipeRow): boolean {
-  // food_groups is mandatory only for main/side roles. Recipes whose
-  // primary role doesn't require food_groups (snack, dessert, beverage,
-  // condiment) pass even with empty food_groups.
+function satisfiesRoleConditionalMealComponents(row: RawRecipeRow): boolean {
+  // meal_components is mandatory only for main/side roles. Recipes whose
+  // primary role doesn't require meal_components (snack, dessert, beverage,
+  // condiment) pass even with empty meal_components.
   if (!row.planner_role) return false;
-  if (!ROLES_REQUIRING_FOOD_GROUPS.has(row.planner_role)) return true;
-  return (row.food_groups?.length ?? 0) > 0;
+  if (!ROLES_REQUIRING_MEAL_COMPONENTS.has(row.planner_role)) return true;
+  return (row.meal_components?.length ?? 0) > 0;
 }
 
 /**
@@ -393,7 +393,7 @@ export async function fetchCandidates(
     id,
     planner_role,
     alternate_planner_roles,
-    food_groups,
+    meal_components,
     is_complete_meal,
     total_time,
     difficulty,
@@ -418,7 +418,7 @@ export async function fetchCandidates(
   //     enter the planner)
   // Per-slot role matching (primary OR alternate) is done in JS to avoid
   // PostgREST .or() string-encoding issues with array overlap operators.
-  // food_groups is no longer a universal hard filter — it's only required
+  // meal_components is no longer a universal hard filter — it's only required
   // for main/side roles, enforced at scoring time per slot.
   const { data, error } = await ctx.supabase
     .from("recipes")
@@ -435,7 +435,7 @@ export async function fetchCandidates(
   const hydrated = rawRows
     .filter((r) => !ctx.hardExcludedRecipeIds.has(r.id))
     .filter((r) => isRoleEligibleForAnySlot(r, neededRoles))
-    .filter((r) => satisfiesRoleConditionalFoodGroups(r))
+    .filter((r) => satisfiesRoleConditionalMealComponents(r))
     .map((r) => toCandidate(r, ctx));
 
   // Drop candidates with no translation in the requested locale chain. We do

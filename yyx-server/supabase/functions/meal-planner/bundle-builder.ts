@@ -4,7 +4,7 @@
  * Given a primary (main) recipe assigned to a slot, attach compatible
  * components via explicit `recipe_pairings` rows only. Rules per task brief:
  *   - condiments: explicit-pairing only, after coverage, max 1, total ≤ 3
- *   - sides/bases/veg: explicit-pairing only, filling food_groups gaps
+ *   - sides/bases/veg: explicit-pairing only, filling meal_components gaps
  *
  * Spec: meal-slot-schema.md §2–§3; ranking-algorithm-detail.md §2 assembly
  */
@@ -36,7 +36,7 @@ export interface SlotComponent {
    * `source_component_id`. Null for non-leftover components.
    */
   sourceSlotIdRef: string | null;
-  foodGroupsSnapshot: string[];
+  mealComponentsSnapshot: string[];
   pairingBasis: PairingBasis;
   isPrimary: boolean;
   candidate: RecipeCandidate | null; // null for leftover / no-cook placeholders
@@ -109,7 +109,7 @@ export async function fetchPairingsForCandidates(
     .select(`
       id,
       planner_role,
-      food_groups,
+      meal_components,
       is_complete_meal,
       total_time,
       difficulty,
@@ -170,7 +170,7 @@ export async function fetchPairingsForCandidates(
       id: row.id as string,
       title,
       plannerRole: (row.planner_role as string) ?? "",
-      foodGroups: (row.food_groups as string[]) ?? [],
+      mealComponents: (row.meal_components as string[]) ?? [],
       isComplete: !!row.is_complete_meal,
       totalTimeMinutes: (row.total_time as number | null) ?? null,
       difficulty: (row.difficulty as "easy" | "medium" | "hard" | null) ?? null,
@@ -227,7 +227,7 @@ function toComponent(
     recipeId: candidate.id,
     sourceComponentId: null,
     sourceSlotIdRef: null,
-    foodGroupsSnapshot: candidate.foodGroups,
+    mealComponentsSnapshot: candidate.mealComponents,
     pairingBasis,
     isPrimary,
     candidate,
@@ -265,7 +265,7 @@ export function buildBundle(
   const pairingsBySource = pairings.byRole.get(primary.id);
   if (!pairingsBySource) return components;
 
-  const coveredGroups = new Set<string>(primary.foodGroups);
+  const coveredComponents = new Set<string>(primary.mealComponents);
   const filledRoles = new Set<string>(["main"]);
 
   const addComponent = (
@@ -280,7 +280,7 @@ export function buildBundle(
       toComponent(candidate, role, basis, false, components.length, reason),
     );
     filledRoles.add(role);
-    for (const g of candidate.foodGroups) coveredGroups.add(g);
+    for (const g of candidate.mealComponents) coveredComponents.add(g);
   };
 
   const rolePriority: ComponentRole[] = [
@@ -300,8 +300,10 @@ export function buildBundle(
       if (!target) continue;
       if (target.hasAllergenConflict) continue; // hard dietary filter
       if (target.hasDislikeConflict) continue; // explicit dislike hard filter
-      const currentFoodGroups = target.foodGroups;
-      const addsCoverage = currentFoodGroups.some((g) => !coveredGroups.has(g));
+      const targetComponents = target.mealComponents;
+      const addsCoverage = targetComponents.some((g) =>
+        !coveredComponents.has(g)
+      );
       if (!addsCoverage && role !== "beverage" && role !== "dessert") continue;
       addComponent(role, target, "explicit_pairing", pairing.reason);
       break;
@@ -397,7 +399,7 @@ export function buildLeftoverPlaceholder(
     recipeId: null,
     sourceComponentId: null,
     sourceSlotIdRef: sourceSlotId,
-    foodGroupsSnapshot: [],
+    mealComponentsSnapshot: [],
     pairingBasis: "leftover_carry",
     isPrimary: true,
     candidate: null,

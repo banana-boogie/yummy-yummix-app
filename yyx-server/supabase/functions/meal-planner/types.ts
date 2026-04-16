@@ -82,6 +82,46 @@ export const PAIRING_BASES = [
 
 export const MEAL_PLAN_STATUSES = ["draft", "active", "archived"] as const;
 
+/**
+ * Per recipe-role-model.md (accepted 2026-04-15), `meal_components` answers
+ * one question only: "what does this recipe contribute to a complete meal?"
+ * Three values, no overlap with `planner_role` (course / scheduling) or
+ * `diet` tags (dietary descriptors like keto / high-protein).
+ *
+ * Stored under the `meal_components` column on `recipes`, mirrored as
+ * `expected_meal_components` on `meal_plan_slots` and
+ * `meal_components_snapshot` on `meal_plan_slot_components`. PR #46 ships
+ * the rename + CHECK narrowing.
+ */
+export const MEAL_COMPONENTS = ["protein", "carb", "veg"] as const;
+export type MealComponent = typeof MEAL_COMPONENTS[number];
+
+export const PLANNER_ROLES = [
+  "main",
+  "side",
+  "snack",
+  "dessert",
+  "beverage",
+  "condiment",
+  "pantry",
+] as const;
+export type PlannerRole = typeof PLANNER_ROLES[number];
+
+/**
+ * `alternate_planner_roles` is mutually exclusive with `pantry` — the column
+ * CHECK constraint forbids it. Pantry recipes are never scheduled, so they
+ * can't be alternates either.
+ */
+export const ALTERNATE_PLANNER_ROLES = [
+  "main",
+  "side",
+  "snack",
+  "dessert",
+  "beverage",
+  "condiment",
+] as const;
+export type AlternatePlannerRole = typeof ALTERNATE_PLANNER_ROLES[number];
+
 // ============================================================
 // Enums / Unions
 // ============================================================

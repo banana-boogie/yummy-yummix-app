@@ -98,7 +98,7 @@ Deno.test("generate_plan accepts comida without raising INVALID_INPUT", async ()
   assertEquals(body.error.code, "INTERNAL_ERROR");
 });
 
-// A minimal recipe row that satisfies `food_groups` non-empty and has an
+// A minimal recipe row that satisfies `meal_components` non-empty and has an
 // English translation, so `fetchCandidates` retains at least one candidate
 // and `uniqueTotal > 0` — otherwise `generate_plan` throws
 // InsufficientRecipesError before reaching the preflight/insert paths these
@@ -107,7 +107,7 @@ const MINIMAL_RECIPE_ROW = {
   id: "fake-recipe-1",
   planner_role: "main",
   alternate_planner_roles: [],
-  food_groups: ["protein"],
+  meal_components: ["protein"],
   is_complete_meal: false,
   total_time: 30,
   difficulty: "easy",

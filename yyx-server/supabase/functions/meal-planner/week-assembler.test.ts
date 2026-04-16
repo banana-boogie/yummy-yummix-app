@@ -34,7 +34,7 @@ function mkCandidate(
     id,
     title: `Recipe ${id}`,
     plannerRole: "main",
-    foodGroups: ["protein", "carb"],
+    mealComponents: ["protein", "carb"],
     isComplete: false,
     totalTimeMinutes: 30,
     difficulty: "medium",

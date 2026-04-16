@@ -378,7 +378,7 @@ function expandLeftoverTargetSlot(
       recipeId: transform.id,
       sourceComponentId: null,
       sourceSlotIdRef: null,
-      foodGroupsSnapshot: transform.foodGroups,
+      mealComponentsSnapshot: transform.mealComponents,
       pairingBasis: "explicit_pairing",
       isPrimary: true,
       candidate: transform,

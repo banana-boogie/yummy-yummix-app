@@ -91,7 +91,7 @@ function householdComplexityFit(input: ScoreCandidateInput): number {
   const size = input.user.householdSize || HOUSEHOLD.defaultSize;
   if (size < HOUSEHOLD.largeThreshold) return 0.5; // neutral
   // Large household → prefer family_flexible / shared_base / crowd_pleaser.
-  // We use equipment_tags + food_groups as imperfect proxies. Complete-meal
+  // We use equipment_tags + meal_components as imperfect proxies. Complete-meal
   // recipes and recipes flagged batch_friendly are preferred.
   let score = 0.4;
   if (input.candidate.isComplete) score += 0.2;

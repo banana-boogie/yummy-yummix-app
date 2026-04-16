@@ -18,7 +18,7 @@ function mkCandidate(
     id,
     title: `Recipe ${id}`,
     plannerRole: "main",
-    foodGroups: ["protein"],
+    mealComponents: ["protein"],
     isComplete: false,
     totalTimeMinutes: 30,
     difficulty: "medium",
@@ -60,10 +60,10 @@ function mkSlot(): MealSlot {
 }
 
 Deno.test("buildBundle: non-conflicted pairing target is included", () => {
-  const primary = mkCandidate("primary-1", { foodGroups: ["protein"] });
+  const primary = mkCandidate("primary-1", { mealComponents: ["protein"] });
   const side = mkCandidate("side-1", {
     plannerRole: "side",
-    foodGroups: ["carb"],
+    mealComponents: ["carb"],
     hasAllergenConflict: false,
   });
   const pairings: PairingLookup = {
@@ -89,10 +89,10 @@ Deno.test("buildBundle: non-conflicted pairing target is included", () => {
 });
 
 Deno.test("buildBundle: allergen-conflicted pairing target is dropped", () => {
-  const primary = mkCandidate("primary-2", { foodGroups: ["protein"] });
+  const primary = mkCandidate("primary-2", { mealComponents: ["protein"] });
   const unsafeSide = mkCandidate("unsafe-side", {
     plannerRole: "side",
-    foodGroups: ["carb"],
+    mealComponents: ["carb"],
     hasAllergenConflict: true,
     allergenMatches: ["gluten"],
   });
@@ -119,16 +119,18 @@ Deno.test("buildBundle: allergen-conflicted pairing target is dropped", () => {
 });
 
 Deno.test("buildBundle: allergen-conflicted condiment is dropped", () => {
-  const primary = mkCandidate("primary-3", { foodGroups: ["protein", "carb"] });
+  const primary = mkCandidate("primary-3", {
+    mealComponents: ["protein", "carb"],
+  });
   const unsafeCondiment = mkCandidate("bad-condiment", {
     plannerRole: "condiment",
-    foodGroups: [],
+    mealComponents: [],
     hasAllergenConflict: true,
     allergenMatches: ["nuts"],
   });
   const safeCondiment = mkCandidate("good-condiment", {
     plannerRole: "condiment",
-    foodGroups: [],
+    mealComponents: [],
     hasAllergenConflict: false,
   });
 

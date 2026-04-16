@@ -32,7 +32,7 @@ const PROTEIN_MARKERS: ReadonlyArray<string> = [
 ];
 
 export function inferProteinKey(candidate: RecipeCandidate): string | null {
-  if (!candidate.foodGroups.includes("protein")) return null;
+  if (!candidate.mealComponents.includes("protein")) return null;
   for (const key of candidate.ingredientKeys) {
     for (const marker of PROTEIN_MARKERS) {
       if (key.includes(marker)) return marker;
