@@ -21,9 +21,10 @@ import {
   pickTranslation,
 } from "@/types/recipe.admin.types";
 import {
+  AlternatePlannerRole,
   CookingLevel,
   EquipmentTag,
-  FoodGroup,
+  MealComponent,
   PlannerRole,
 } from "@/types/recipe.types";
 import { adminRecipeTagService } from "@/services/admin/adminRecipeTagService";
@@ -61,12 +62,12 @@ export function MyWeekSetupForm({
   const [tagsLoadError, setTagsLoadError] = useState(false);
 
   const plannerRoleRef = useRef<View>(null);
-  const foodGroupsRef = useRef<View>(null);
+  const mealComponentsRef = useRef<View>(null);
   const mealTypesRef = useRef<View>(null);
 
   const anchorRefs: Record<ReadinessAnchor, React.RefObject<View | null>> = {
     plannerRole: plannerRoleRef,
-    foodGroups: foodGroupsRef,
+    mealComponents: mealComponentsRef,
     mealTypes: mealTypesRef,
   };
 
@@ -127,57 +128,42 @@ export function MyWeekSetupForm({
     [allTags],
   );
 
-  const plannerRoleOptions: SelectOption[] = [
-    {
-      label: i18n.t("admin.recipes.form.myWeekSetup.plannerRole.main"),
-      value: "main",
-    },
-    {
-      label: i18n.t("admin.recipes.form.myWeekSetup.plannerRole.side"),
-      value: "side",
-    },
-    {
-      label: i18n.t("admin.recipes.form.myWeekSetup.plannerRole.snack"),
-      value: "snack",
-    },
-    {
-      label: i18n.t("admin.recipes.form.myWeekSetup.plannerRole.dessert"),
-      value: "dessert",
-    },
-    {
-      label: i18n.t("admin.recipes.form.myWeekSetup.plannerRole.beverage"),
-      value: "beverage",
-    },
-    {
-      label: i18n.t("admin.recipes.form.myWeekSetup.plannerRole.condiment"),
-      value: "condiment",
-    },
+  const ALL_PLANNER_ROLES: PlannerRole[] = [
+    "main",
+    "side",
+    "snack",
+    "dessert",
+    "beverage",
+    "condiment",
+    "pantry",
   ];
 
-  const foodGroupOptions = [
+  const plannerRoleOptions: SelectOption[] = ALL_PLANNER_ROLES.map((role) => ({
+    label: i18n.t(`admin.recipes.form.myWeekSetup.plannerRole.${role}`),
+    value: role,
+  }));
+
+  // "Also serves as…" — all scheduling roles except the current primary and
+  // 'pantry' (pantry is mutually exclusive with scheduling).
+  const alternateRoleOptions: SelectOption[] = ALL_PLANNER_ROLES
+    .filter((role) => role !== "pantry" && role !== recipe.plannerRole)
+    .map((role) => ({
+      label: i18n.t(`admin.recipes.form.myWeekSetup.plannerRole.${role}`),
+      value: role,
+    }));
+
+  const mealComponentOptions = [
     {
-      label: i18n.t("admin.recipes.form.myWeekSetup.foodGroups.protein"),
-      value: "protein" as FoodGroup,
+      label: i18n.t("admin.recipes.form.myWeekSetup.mealComponents.protein"),
+      value: "protein" as MealComponent,
     },
     {
-      label: i18n.t("admin.recipes.form.myWeekSetup.foodGroups.carb"),
-      value: "carb" as FoodGroup,
+      label: i18n.t("admin.recipes.form.myWeekSetup.mealComponents.carb"),
+      value: "carb" as MealComponent,
     },
     {
-      label: i18n.t("admin.recipes.form.myWeekSetup.foodGroups.veg"),
-      value: "veg" as FoodGroup,
-    },
-    {
-      label: i18n.t("admin.recipes.form.myWeekSetup.foodGroups.fat"),
-      value: "fat" as FoodGroup,
-    },
-    {
-      label: i18n.t("admin.recipes.form.myWeekSetup.foodGroups.snack"),
-      value: "snack" as FoodGroup,
-    },
-    {
-      label: i18n.t("admin.recipes.form.myWeekSetup.foodGroups.dessert"),
-      value: "dessert" as FoodGroup,
+      label: i18n.t("admin.recipes.form.myWeekSetup.mealComponents.veg"),
+      value: "veg" as MealComponent,
     },
   ];
 
@@ -246,13 +232,26 @@ export function MyWeekSetupForm({
     onUpdateRecipe({ tags: [...nonMealType, ...newMealTypes] });
   };
 
-  const foodGroups = recipe.foodGroups || [];
+  const mealComponents = recipe.mealComponents || [];
   const equipmentTags = recipe.equipmentTags || [];
   const hasMealType = selectedMealTypeIds.length > 0;
   // Step-local completion. DB-level planner eligibility additionally requires is_published,
   // but the publish toggle lives on the Review step — keep this badge scoped to this step.
+  // Role-dependent eligibility:
+  //   - pantry items are intentionally never planner-eligible (Explore only).
+  //   - meal_components is only required when the role composes into a meal
+  //     (main or side). Snacks, desserts, beverages, condiments skip it.
+  //   - meal types are required for all non-pantry roles.
+  const requiresMealComponents =
+    recipe.plannerRole === "main" || recipe.plannerRole === "side";
+  const requiresMealType = recipe.plannerRole !== "pantry";
+
+  const isPantry = recipe.plannerRole === "pantry";
   const isEligible =
-    Boolean(recipe.plannerRole) && foodGroups.length >= 1 && hasMealType;
+    Boolean(recipe.plannerRole) &&
+    !isPantry &&
+    (!requiresMealComponents || mealComponents.length >= 1) &&
+    (!requiresMealType || hasMealType);
 
   const missing: { anchor: ReadinessAnchor; label: string }[] = [];
   if (!recipe.plannerRole) {
@@ -263,15 +262,15 @@ export function MyWeekSetupForm({
       ),
     });
   }
-  if (foodGroups.length === 0) {
+  if (requiresMealComponents && mealComponents.length === 0) {
     missing.push({
-      anchor: "foodGroups",
+      anchor: "mealComponents",
       label: i18n.t(
-        "admin.recipes.form.myWeekSetup.eligibility.missing.foodGroups",
+        "admin.recipes.form.myWeekSetup.eligibility.missing.mealComponents",
       ),
     });
   }
-  if (!hasMealType) {
+  if (requiresMealType && !hasMealType) {
     missing.push({
       anchor: "mealTypes",
       label: i18n.t(
@@ -296,6 +295,7 @@ export function MyWeekSetupForm({
     <View className="w-full max-w-[720px] self-center gap-2xl">
       <ReadinessBadge
         isReady={isEligible}
+        isPantry={isPantry}
         missing={missing}
         onJumpToField={handleRequestScrollTo}
       />
@@ -338,42 +338,82 @@ export function MyWeekSetupForm({
               </Text>
             ) : null}
           </View>
-          <View ref={foodGroupsRef}>
+
+          {/* Also serves as… — alternate planner roles. Hidden when primary
+              role is 'pantry' (mutually exclusive with scheduling) or when
+              no primary role is selected yet. */}
+          {recipe.plannerRole && recipe.plannerRole !== "pantry" ? (
             <FormGroup
-              label={i18n.t("admin.recipes.form.myWeekSetup.foodGroups.label")}
-              helperText={i18n.t(
-                "admin.recipes.form.myWeekSetup.foodGroups.tooltip",
+              label={i18n.t(
+                "admin.recipes.form.myWeekSetup.alternateRoles.label",
               )}
-              required
+              helperText={i18n.t(
+                "admin.recipes.form.myWeekSetup.alternateRoles.tooltip",
+              )}
             >
               <MultiSelect
-                options={foodGroupOptions.map((o) => ({
-                  label: o.label,
-                  value: o.value,
-                }))}
-                selectedValues={foodGroups}
+                options={alternateRoleOptions}
+                selectedValues={recipe.alternatePlannerRoles ?? []}
                 onValueChange={(values) =>
-                  onUpdateRecipe({ foodGroups: values as FoodGroup[] })
+                  onUpdateRecipe({
+                    alternatePlannerRoles: values as AlternatePlannerRole[],
+                  })
                 }
                 placeholder={i18n.t(
-                  "admin.recipes.form.myWeekSetup.foodGroups.placeholder",
+                  "admin.recipes.form.myWeekSetup.alternateRoles.placeholder",
                 )}
                 title={i18n.t(
-                  "admin.recipes.form.myWeekSetup.foodGroups.pickerTitle",
+                  "admin.recipes.form.myWeekSetup.alternateRoles.pickerTitle",
                 )}
               />
             </FormGroup>
-          </View>
-          <ToggleCard
-            label={i18n.t(
-              "admin.recipes.form.myWeekSetup.isCompleteMeal.label",
-            )}
-            helper={i18n.t(
-              "admin.recipes.form.myWeekSetup.isCompleteMeal.tooltip",
-            )}
-            value={!!recipe.isCompleteMeal}
-            onChange={(v) => onUpdateRecipe({ isCompleteMeal: v })}
-          />
+          ) : null}
+
+          {/* Meal components — only shown when the recipe composes into a meal
+              (main or side). Snacks, desserts, beverages, condiments, and
+              pantry items don't need a macronutrient answer. */}
+          {recipe.plannerRole === "main" || recipe.plannerRole === "side" ? (
+            <>
+              <View ref={mealComponentsRef}>
+                <FormGroup
+                  label={i18n.t(
+                    "admin.recipes.form.myWeekSetup.mealComponents.label",
+                  )}
+                  helperText={i18n.t(
+                    "admin.recipes.form.myWeekSetup.mealComponents.tooltip",
+                  )}
+                  required
+                >
+                  <MultiSelect
+                    options={mealComponentOptions.map((o) => ({
+                      label: o.label,
+                      value: o.value,
+                    }))}
+                    selectedValues={mealComponents}
+                    onValueChange={(values) =>
+                      onUpdateRecipe({ mealComponents: values as MealComponent[] })
+                    }
+                    placeholder={i18n.t(
+                      "admin.recipes.form.myWeekSetup.mealComponents.placeholder",
+                    )}
+                    title={i18n.t(
+                      "admin.recipes.form.myWeekSetup.mealComponents.pickerTitle",
+                    )}
+                  />
+                </FormGroup>
+              </View>
+              <ToggleCard
+                label={i18n.t(
+                  "admin.recipes.form.myWeekSetup.isCompleteMeal.label",
+                )}
+                helper={i18n.t(
+                  "admin.recipes.form.myWeekSetup.isCompleteMeal.tooltip",
+                )}
+                value={!!recipe.isCompleteMeal}
+                onChange={(v) => onUpdateRecipe({ isCompleteMeal: v })}
+              />
+            </>
+          ) : null}
         </View>
       </FormSection>
 

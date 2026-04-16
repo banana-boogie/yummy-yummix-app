@@ -491,9 +491,12 @@ export const admin = {
           jumpToField: "Ir a {{field}}",
           missing: {
             plannerRole: "rol de la receta",
-            foodGroups: "qué contiene",
+            mealComponents: "qué aporta",
             mealTypes: "tiempos de comida",
           },
+          pantryTitle: "Item de despensa — solo en Explorar",
+          pantryHelper:
+            "Los items de despensa no necesitan metadatos de Mi Semana. Aparecen en Explorar y en Irmixy pero no se programan en los planes semanales.",
         },
         plannerRole: {
           label: "Rol en la comida",
@@ -501,26 +504,33 @@ export const admin = {
           tooltip:
             "¿Qué papel juega esta receta en una comida? Un plato fuerte es el protagonista. Una guarnición lo acompaña.",
           ambiguityHint:
-            "Para platillos que cambian de rol (hummus, sopas, untables), elige el rol dominante. Usa Combina bien con para enlazar usos alternativos.",
+            "Para platillos que cambian de rol (hummus, sopas, untables), elige el rol dominante y añade alternativas abajo.",
           main: "Plato fuerte",
           side: "Guarnición",
           snack: "Colación",
           dessert: "Postre",
           beverage: "Bebida",
           condiment: "Aderezo",
+          pantry: "Item de despensa",
+          pantryTooltip:
+            "Aparece en Explorar pero no se programa en los planes semanales. Úsalo para preparaciones que duran semanas (mantequillas compuestas, mezclas de especias, chile crisp).",
         },
-        foodGroups: {
-          label: "¿Qué contiene esta receta?",
-          placeholder: "Selecciona todas las que apliquen",
-          pickerTitle: "Selecciona los grupos de alimentos",
+        alternateRoles: {
+          label: "También sirve como…",
+          placeholder: "Selecciona roles alternativos",
+          pickerTitle: "Selecciona roles alternativos",
           tooltip:
-            "Marca todas las que apliquen. La pasta con pollo tiene proteína Y carbohidratos. Una ensalada tiene verduras. Esto ayuda al planificador a armar comidas completas.",
+            "¿Funciona en otros tipos de bloque? Ejemplo: el hummus es principalmente guarnición pero también sirve como colación. Déjalo vacío si solo encaja en su rol primario.",
+        },
+        mealComponents: {
+          label: "¿Qué aporta esta receta a una comida completa?",
+          placeholder: "Selecciona todas las que apliquen",
+          pickerTitle: "Selecciona los aportes",
+          tooltip:
+            "¿Qué macronutrientes aporta esta receta? Esto ayuda al planificador a armar comidas balanceadas.",
           protein: "Tiene proteína",
           carb: "Tiene carbohidratos",
           veg: "Tiene verduras",
-          fat: "Tiene grasa",
-          snack: "Es un snack",
-          dessert: "Es un postre",
         },
         isCompleteMeal: {
           label: "¿Es una comida completa?",

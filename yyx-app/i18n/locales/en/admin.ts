@@ -486,9 +486,12 @@ export const admin = {
           jumpToField: "Jump to {{field}}",
           missing: {
             plannerRole: "recipe role",
-            foodGroups: "what's in it",
+            mealComponents: "what it contributes",
             mealTypes: "meal types",
           },
+          pantryTitle: "Pantry item — Explore only",
+          pantryHelper:
+            "Pantry items don't need planner metadata. They appear in Explore and Irmixy suggestions but are never scheduled into weekly plans.",
         },
         plannerRole: {
           label: "Planner role",
@@ -496,26 +499,33 @@ export const admin = {
           tooltip:
             "What role does this recipe play in a meal? A main dish is the star. A side dish accompanies it.",
           ambiguityHint:
-            "For dishes that flex (hummus, soups, spreads), pick the dominant role. Use Pairs Well With below to link alternate uses.",
+            "For dishes that flex between roles (hummus, soups, spreads), pick the dominant role and add alternates below.",
           main: "Main dish",
           side: "Side dish",
           snack: "Snack",
           dessert: "Dessert",
           beverage: "Beverage",
           condiment: "Condiment",
+          pantry: "Pantry item",
+          pantryTooltip:
+            "Shown in Explore but not scheduled into weekly plans. Use for make-aheads, spice blends, compound butters — things that last weeks and are used across many meals.",
         },
-        foodGroups: {
-          label: "What's in this recipe?",
-          placeholder: "Select all that apply",
-          pickerTitle: "Select food groups",
+        alternateRoles: {
+          label: "Also serves as…",
+          placeholder: "Select alternate roles",
+          pickerTitle: "Select alternate roles",
           tooltip:
-            "Check all that apply. Chicken pasta has both protein AND carbs. A salad has vegetables. This helps the planner build complete meals.",
+            "Does this recipe work in other slot types? Example: hummus is primarily a side but also works as a snack. Leave empty if the recipe only fits its primary role.",
+        },
+        mealComponents: {
+          label: "What does this recipe contribute to a complete meal?",
+          placeholder: "Select all that apply",
+          pickerTitle: "Select meal components",
+          tooltip:
+            "What macronutrients does this recipe contribute? This helps the planner build balanced meals.",
           protein: "Has protein",
           carb: "Has carbs",
           veg: "Has vegetables",
-          fat: "Has fat",
-          snack: "Is a snack",
-          dessert: "Is a dessert",
         },
         isCompleteMeal: {
           label: "Is this a complete meal?",
