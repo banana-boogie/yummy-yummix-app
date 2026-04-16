@@ -32,6 +32,7 @@ import logger from "@/services/logger";
 import { ReadinessBadge, ReadinessAnchor } from "./ReadinessBadge";
 import { ToggleCard } from "./ToggleCard";
 import { VerificationCard } from "./VerificationCard";
+import { PairingsSection } from "./PairingsSection";
 
 // Tag category name convention: meal types are any tags whose categories include this string
 // (case-insensitive match against TAG category labels like "Meal Type"/"MEAL_TYPE").
@@ -554,6 +555,13 @@ export function MyWeekSetupForm({
           )}
         </FormSection>
       </View>
+
+      {/* Pairings — sits between Meal Types and Verification */}
+      <PairingsSection
+        recipe={recipe}
+        onUpdateRecipe={onUpdateRecipe}
+        displayLocale={displayLocale}
+      />
 
       {/* Verification — sits outside FormSection accent */}
       <View className="mt-2xl">
