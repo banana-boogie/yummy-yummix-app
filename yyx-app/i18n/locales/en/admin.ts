@@ -511,6 +511,7 @@ export const admin = {
           protein: "Has protein",
           carb: "Has carbs",
           veg: "Has vegetables",
+          fat: "Has fat",
           snack: "Is a snack",
           dessert: "Is a dessert",
         },

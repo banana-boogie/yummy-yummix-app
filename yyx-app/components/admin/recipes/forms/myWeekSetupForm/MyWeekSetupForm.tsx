@@ -167,6 +167,10 @@ export function MyWeekSetupForm({
       value: "veg" as FoodGroup,
     },
     {
+      label: i18n.t("admin.recipes.form.myWeekSetup.foodGroups.fat"),
+      value: "fat" as FoodGroup,
+    },
+    {
       label: i18n.t("admin.recipes.form.myWeekSetup.foodGroups.snack"),
       value: "snack" as FoodGroup,
     },

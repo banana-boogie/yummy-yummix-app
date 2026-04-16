@@ -516,6 +516,7 @@ export const admin = {
           protein: "Tiene proteína",
           carb: "Tiene carbohidratos",
           veg: "Tiene verduras",
+          fat: "Tiene grasa",
           snack: "Es un snack",
           dessert: "Es un postre",
         },

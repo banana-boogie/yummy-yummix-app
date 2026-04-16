@@ -58,7 +58,14 @@ const expectedPlannerRoleValues = [
   "condiment",
 ];
 
-const expectedFoodGroupValues = ["protein", "carb", "veg", "snack", "dessert"];
+const expectedFoodGroupValues = [
+  "protein",
+  "carb",
+  "veg",
+  "fat",
+  "snack",
+  "dessert",
+];
 
 const expectedMealTypeValues = [
   "breakfast",
@@ -130,7 +137,7 @@ Deno.test("schema - plannerRole enum matches DB CHECK constraint", () => {
 
 Deno.test("schema - foodGroups enum matches DB CHECK constraint", () => {
   // Must reconcile with recipes.food_groups CHECK constraint.
-  const dbAllowed = ["protein", "carb", "veg", "snack", "dessert"];
+  const dbAllowed = ["protein", "carb", "veg", "fat", "snack", "dessert"];
   dbAllowed.forEach((v) => {
     assertEquals(
       expectedFoodGroupValues.includes(v),

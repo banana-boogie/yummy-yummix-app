@@ -476,7 +476,7 @@ const jsonSchema = {
       description: "Food groups present in the recipe.",
       items: {
         type: "string",
-        enum: ["protein", "carb", "veg", "snack", "dessert"],
+        enum: ["protein", "carb", "veg", "fat", "snack", "dessert"],
       },
     },
     isCompleteMeal: {

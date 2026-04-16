@@ -34,7 +34,7 @@ export interface Recipe {
 
 // Planner-related enums (stored as TEXT / TEXT[] in DB)
 export type PlannerRole = 'main' | 'side' | 'snack' | 'dessert' | 'beverage' | 'condiment';
-export type FoodGroup = 'protein' | 'carb' | 'veg' | 'snack' | 'dessert';
+export type FoodGroup = 'protein' | 'carb' | 'veg' | 'fat' | 'snack' | 'dessert';
 export type EquipmentTag = 'thermomix' | 'air_fryer' | 'oven' | 'stovetop' | 'none';
 export type CookingLevel = 'beginner' | 'intermediate' | 'experienced';
 
