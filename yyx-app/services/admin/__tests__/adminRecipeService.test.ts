@@ -35,9 +35,17 @@ const createChainableMock = (resolvedValue: any = { data: null, error: null }) =
 let mockChain = createChainableMock();
 const mockFrom = jest.fn().mockImplementation(() => mockChain);
 
+const mockGetUser = jest.fn().mockResolvedValue({
+  data: { user: { id: 'current-admin-id' } },
+  error: null,
+});
+
 jest.mock('@/lib/supabase', () => ({
   supabase: {
     from: (table: string) => mockFrom(table),
+    auth: {
+      getUser: () => mockGetUser(),
+    },
   },
 }));
 
@@ -591,6 +599,101 @@ describe('AdminRecipeService', () => {
       expect(insertedData[0].display_order).toBe(1);
       expect(insertedData[1].display_order).toBe(2);
       expect(insertedData[2].display_order).toBe(3);
+    });
+  });
+
+  describe('getRecipePairings', () => {
+    it('maps rows to AdminRecipePairing shape with target name resolved', async () => {
+      const fromDb = [
+        {
+          id: 'p-1',
+          source_recipe_id: 'recipe-1',
+          target_recipe_id: 'recipe-target',
+          pairing_role: 'side',
+          reason: 'goes great with rice',
+          target: {
+            id: 'recipe-target',
+            image_url: 'https://example.com/x.png',
+            planner_role: 'side',
+            translations: [{ locale: 'en', name: 'Rice' }],
+          },
+        },
+      ];
+      mockChain = createChainableMock({ data: fromDb, error: null });
+      mockChain.eq = jest.fn().mockResolvedValue({ data: fromDb, error: null });
+      mockFrom.mockImplementation(() => mockChain);
+
+      const result = await adminRecipeService.getRecipePairings('recipe-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].pairingRole).toBe('side');
+      expect(result[0].targetName).toBe('Rice');
+      expect(result[0].targetPlannerRole).toBe('side');
+      expect(result[0].reason).toBe('goes great with rice');
+    });
+
+    it('returns empty array when no pairings exist', async () => {
+      mockChain = createChainableMock({ data: [], error: null });
+      mockChain.eq = jest.fn().mockResolvedValue({ data: [], error: null });
+      mockFrom.mockImplementation(() => mockChain);
+
+      const result = await adminRecipeService.getRecipePairings('recipe-1');
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('updateRecipePairings', () => {
+    it('deletes existing pairings and inserts new ones with created_by', async () => {
+      mockChain = createChainableMock({ data: null, error: null });
+      mockChain.eq = jest.fn().mockResolvedValue({ error: null });
+      mockChain.insert = jest.fn().mockResolvedValue({ error: null });
+      mockFrom.mockImplementation(() => mockChain);
+
+      await adminRecipeService.updateRecipePairings('recipe-1', [
+        {
+          sourceRecipeId: 'recipe-1',
+          targetRecipeId: 'recipe-target',
+          pairingRole: 'side',
+          reason: null,
+        },
+      ]);
+
+      expect(mockFrom).toHaveBeenCalledWith('recipe_pairings');
+      expect(mockChain.delete).toHaveBeenCalled();
+      expect(mockChain.insert).toHaveBeenCalled();
+      const insertedRows = (mockChain.insert as jest.Mock).mock.calls[0][0];
+      expect(insertedRows[0].created_by).toBe('current-admin-id');
+      expect(insertedRows[0].pairing_role).toBe('side');
+    });
+
+    it('skips pairings with no pairing_role', async () => {
+      mockChain = createChainableMock({ data: null, error: null });
+      mockChain.eq = jest.fn().mockResolvedValue({ error: null });
+      mockChain.insert = jest.fn().mockResolvedValue({ error: null });
+      mockFrom.mockImplementation(() => mockChain);
+
+      await adminRecipeService.updateRecipePairings('recipe-1', [
+        {
+          sourceRecipeId: 'recipe-1',
+          targetRecipeId: 'recipe-target',
+          pairingRole: null,
+        },
+      ]);
+
+      expect(mockChain.delete).toHaveBeenCalled();
+      expect(mockChain.insert).not.toHaveBeenCalled();
+    });
+
+    it('throws when delete fails', async () => {
+      mockChain = createChainableMock();
+      mockChain.eq = jest
+        .fn()
+        .mockResolvedValue({ error: { message: 'Delete failed' } });
+      mockFrom.mockImplementation(() => mockChain);
+
+      await expect(
+        adminRecipeService.updateRecipePairings('recipe-1', []),
+      ).rejects.toThrow('Failed to clear existing pairings: Delete failed');
     });
   });
 

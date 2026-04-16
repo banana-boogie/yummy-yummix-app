@@ -133,12 +133,34 @@ export interface AdminRecipeKitchenTool {
   kitchenTool: AdminKitchenTool;
 }
 
+export type PairingRole =
+  | 'side'
+  | 'base'
+  | 'veg'
+  | 'dessert'
+  | 'beverage'
+  | 'condiment'
+  | 'leftover_transform';
+
+export interface AdminRecipePairing {
+  id?: string;
+  sourceRecipeId: string;
+  targetRecipeId: string;
+  pairingRole: PairingRole | null;
+  reason?: string | null;
+  // UI-derived from target recipe join — not persisted back.
+  targetName?: string;
+  targetImageUrl?: string | null;
+  targetPlannerRole?: string | null;
+}
+
 export interface AdminRecipe extends Omit<Recipe, 'name' | 'ingredients' | 'tags' | 'steps' | 'kitchenTools'> {
   translations: AdminRecipeTranslation[];
   ingredients: AdminRecipeIngredient[];
   tags: AdminRecipeTag[];
   steps: AdminRecipeSteps[];
   kitchenTools?: AdminRecipeKitchenTool[];
+  pairings?: AdminRecipePairing[];
   // Derived, read-only — resolved from user_profiles at fetch time.
   verifiedByName?: string | null;
 }

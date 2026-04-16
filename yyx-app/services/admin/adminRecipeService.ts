@@ -3,6 +3,8 @@ import {
   AdminRecipe, AdminRecipeIngredient, AdminRecipeSteps,
   AdminRecipeTag, AdminRecipeKitchenTool,
   AdminRecipeTranslation,
+  AdminRecipePairing,
+  PairingRole,
   getNameFromTranslations,
 } from '@/types/recipe.admin.types';
 import { imageService } from '@/services/storage/imageService';
@@ -26,6 +28,7 @@ class AdminRecipeService extends BaseService {
         is_published,
         created_at,
         updated_at,
+        planner_role,
         translations:recipe_translations (
           locale,
           name,
@@ -214,6 +217,8 @@ class AdminRecipeService extends BaseService {
       }
     }
 
+    recipe.pairings = await this.getRecipePairings(recipe.id);
+
     return recipe;
   }
 
@@ -288,6 +293,10 @@ class AdminRecipeService extends BaseService {
 
       if (recipe.kitchenTools?.length) {
         await this.updateRecipeKitchenTools(recipeId.id, recipe.kitchenTools);
+      }
+
+      if (recipe.pairings?.length) {
+        await this.updateRecipePairings(recipeId.id, recipe.pairings);
       }
 
       await recipeCache.clearCache();
@@ -375,6 +384,10 @@ class AdminRecipeService extends BaseService {
 
     if (recipe.kitchenTools) {
       await this.updateRecipeKitchenTools(id, recipe.kitchenTools);
+    }
+
+    if (recipe.pairings) {
+      await this.updateRecipePairings(id, recipe.pairings);
     }
 
     // Invalidate user-facing cache so the updated recipe is visible immediately
@@ -681,6 +694,80 @@ class AdminRecipeService extends BaseService {
           throw new Error(`Failed to insert kitchen tool translations: ${translationError.message}`);
         }
       }
+    }
+  }
+
+  async getRecipePairings(recipeId: string): Promise<AdminRecipePairing[]> {
+    const { data, error } = await this.supabase
+      .from('recipe_pairings')
+      .select(`
+        id,
+        source_recipe_id,
+        target_recipe_id,
+        pairing_role,
+        reason,
+        target:recipes!recipe_pairings_target_recipe_id_fkey (
+          id,
+          image_url,
+          planner_role,
+          translations:recipe_translations ( locale, name )
+        )
+      `)
+      .eq('source_recipe_id', recipeId);
+
+    if (error) {
+      throw new Error(`Failed to load recipe pairings: ${error.message}`);
+    }
+
+    return (data ?? []).map((row: any) => {
+      const target = row.target ?? {};
+      const targetTranslations = target.translations ?? [];
+      return {
+        id: row.id,
+        sourceRecipeId: row.source_recipe_id,
+        targetRecipeId: row.target_recipe_id,
+        pairingRole: row.pairing_role as PairingRole,
+        reason: row.reason,
+        targetName: getNameFromTranslations(targetTranslations),
+        targetImageUrl: target.image_url ?? null,
+        targetPlannerRole: target.planner_role ?? null,
+      };
+    });
+  }
+
+  async updateRecipePairings(recipeId: string, pairings: AdminRecipePairing[]): Promise<void> {
+    // Full-replace pattern (matches other side tables). Deletes all existing
+    // pairings from this source then inserts the target list. Skips rows with
+    // no pairing_role — the UI blocks save in that case but we defensive-skip.
+    const { error: deleteError } = await this.supabase
+      .from('recipe_pairings')
+      .delete()
+      .eq('source_recipe_id', recipeId);
+
+    if (deleteError) {
+      throw new Error(`Failed to clear existing pairings: ${deleteError.message}`);
+    }
+
+    const valid = pairings.filter((p) => p.pairingRole && p.targetRecipeId);
+    if (!valid.length) return;
+
+    const { data: authData } = await this.supabase.auth.getUser();
+    const createdBy = authData?.user?.id ?? null;
+
+    const rows = valid.map((p) => ({
+      source_recipe_id: recipeId,
+      target_recipe_id: p.targetRecipeId,
+      pairing_role: p.pairingRole,
+      reason: p.reason ?? null,
+      created_by: createdBy,
+    }));
+
+    const { error: insertError } = await this.supabase
+      .from('recipe_pairings')
+      .insert(rows);
+
+    if (insertError) {
+      throw new Error(`Failed to insert pairings: ${insertError.message}`);
     }
   }
 
