@@ -179,7 +179,7 @@ export interface MealPlanSlotComponentResponse {
   sourceKind: SourceKind;
   recipeId: string | null;
   sourceComponentId: string | null;
-  foodGroupsSnapshot: string[];
+  mealComponentsSnapshot: string[];
   pairingBasis: PairingBasis;
   displayOrder: number;
   isPrimary: boolean;
@@ -200,7 +200,7 @@ export interface MealPlanSlotResponse {
   displayOrder: number;
   slotType: SlotType;
   structureTemplate: StructureTemplate;
-  expectedFoodGroups: string[];
+  expectedMealComponents: string[];
   selectionReason: string;
   shoppingSyncState: ShoppingSyncState;
   status: SlotStatus;

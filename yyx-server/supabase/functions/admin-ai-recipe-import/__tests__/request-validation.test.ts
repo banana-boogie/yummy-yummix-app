@@ -38,7 +38,7 @@ const expectedSchemaProperties = [
   "steps",
   "tags",
   "plannerRole",
-  "foodGroups",
+  "mealComponents",
   "isCompleteMeal",
   "equipmentTags",
   "cookingLevel",
@@ -56,16 +56,10 @@ const expectedPlannerRoleValues = [
   "dessert",
   "beverage",
   "condiment",
+  "pantry",
 ];
 
-const expectedFoodGroupValues = [
-  "protein",
-  "carb",
-  "veg",
-  "fat",
-  "snack",
-  "dessert",
-];
+const expectedMealComponentValues = ["protein", "carb", "veg"];
 
 const expectedMealTypeValues = [
   "breakfast",
@@ -135,14 +129,14 @@ Deno.test("schema - plannerRole enum matches DB CHECK constraint", () => {
   });
 });
 
-Deno.test("schema - foodGroups enum matches DB CHECK constraint", () => {
-  // Must reconcile with recipes.food_groups CHECK constraint.
-  const dbAllowed = ["protein", "carb", "veg", "fat", "snack", "dessert"];
+Deno.test("schema - mealComponents enum matches DB CHECK constraint", () => {
+  // Must reconcile with recipes.meal_components CHECK constraint.
+  const dbAllowed = ["protein", "carb", "veg"];
   dbAllowed.forEach((v) => {
     assertEquals(
-      expectedFoodGroupValues.includes(v),
+      expectedMealComponentValues.includes(v),
       true,
-      `Food group ${v} must be in AI schema enum`,
+      `Meal component ${v} must be in AI schema enum`,
     );
   });
 });

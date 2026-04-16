@@ -77,8 +77,8 @@ FORMATTING RULES:
 - Ingredient name field = base ingredient ONLY. No quantities, units, or prep adjectives. Put unit in measurementUnitID, prep state in notes.
 
 MEAL PLANNER METADATA (best-guess from recipe text, admin will override):
-- plannerRole: one of "main", "side", "snack", "dessert", "beverage", "condiment". Pick the single best fit.
-- foodGroups: array of "protein", "carb", "veg", "snack", "dessert". Include every group the recipe clearly contains. Chicken pasta = ["protein","carb"]. Salad = ["veg"]. Brownies = ["dessert"].
+- plannerRole: one of "main", "side", "snack", "dessert", "beverage", "condiment", "pantry". Pick the single best fit. Use "pantry" only for make-aheads/enhancers that sit in the fridge for weeks (compound butters, chile crisp, spice blends, preserved lemons) — these are discoverable in Explore but never scheduled into weekly plans.
+- mealComponents: array of "protein", "carb", "veg". Only populate for main and side roles — this field answers "what does this recipe contribute to a complete meal?" Leave as [] for snack/dessert/beverage/condiment/pantry (the question doesn't apply). Chicken pasta = ["protein","carb"]. Salad = ["veg"].
 - isCompleteMeal: true only if the dish by itself covers a full meal (e.g., hearty soup with protein + carb + veg). Otherwise false.
 - equipmentTags: array of "thermomix", "air_fryer", "oven", "stovetop", "none". Infer from the steps. Use "none" only if the recipe needs no cooking equipment.
 - cookingLevel: "beginner" for simple assembly/mixing, "intermediate" for standard home cooking techniques, "experienced" for advanced technique or timing.
@@ -468,15 +468,26 @@ const jsonSchema = {
     },
     plannerRole: {
       type: ["string", "null"],
-      enum: ["main", "side", "snack", "dessert", "beverage", "condiment", null],
-      description: "Best-guess planner role for meal slotting.",
+      enum: [
+        "main",
+        "side",
+        "snack",
+        "dessert",
+        "beverage",
+        "condiment",
+        "pantry",
+        null,
+      ],
+      description:
+        "Best-guess planner role for meal slotting. Use 'pantry' for make-aheads and enhancers (compound butters, spice blends, chile crisp) that aren't scheduled weekly.",
     },
-    foodGroups: {
+    mealComponents: {
       type: "array",
-      description: "Food groups present in the recipe.",
+      description:
+        "What this recipe contributes to a complete meal. Only meaningful for main and side roles.",
       items: {
         type: "string",
-        enum: ["protein", "carb", "veg", "fat", "snack", "dessert"],
+        enum: ["protein", "carb", "veg"],
       },
     },
     isCompleteMeal: {
@@ -535,7 +546,7 @@ const jsonSchema = {
     "steps",
     "tags",
     "plannerRole",
-    "foodGroups",
+    "mealComponents",
     "isCompleteMeal",
     "equipmentTags",
     "cookingLevel",
