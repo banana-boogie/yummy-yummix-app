@@ -2,10 +2,12 @@ import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   annotateCandidates,
   annotateDislikeConflicts,
+  countUniqueViableCandidates,
+  countViableCandidates,
   InsufficientRecipesError,
   PlanAlreadyExistsError,
 } from "./plan-generator.ts";
-import type { RecipeCandidate } from "./candidate-retrieval.ts";
+import type { CandidateMap, RecipeCandidate } from "./candidate-retrieval.ts";
 
 Deno.test("PlanAlreadyExistsError carries the existing plan id", () => {
   const err = new PlanAlreadyExistsError("plan-abc");
@@ -177,4 +179,23 @@ Deno.test("annotateDislikeConflicts: deduplicates multiple occurrences of same d
   annotateDislikeConflicts([candidate], ["onion"]);
   assertEquals(candidate.hasDislikeConflict, true);
   assertEquals(candidate.dislikeMatches, ["onion"]);
+});
+
+Deno.test("viable candidate helpers ignore allergen and dislike conflicts", () => {
+  const viable = mkCandidate("r-safe", ["chicken"]);
+  const allergenConflict = mkCandidate("r-allergen", ["bread"]);
+  allergenConflict.hasAllergenConflict = true;
+  const dislikeConflict = mkCandidate("r-dislike", ["mushroom"]);
+  dislikeConflict.hasDislikeConflict = true;
+
+  assertEquals(
+    countViableCandidates([viable, allergenConflict, dislikeConflict]),
+    1,
+  );
+
+  const candidateMap: CandidateMap = new Map([
+    ["slot-a", [viable, allergenConflict]],
+    ["slot-b", [viable, dislikeConflict]],
+  ]);
+  assertEquals(countUniqueViableCandidates(candidateMap), 1);
 });

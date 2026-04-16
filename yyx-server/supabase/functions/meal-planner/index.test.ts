@@ -124,6 +124,18 @@ const MINIMAL_RECIPE_ROW = {
   recipe_to_tag: [],
 };
 
+const DISLIKED_RECIPE_ROW = {
+  ...MINIMAL_RECIPE_ROW,
+  id: "fake-recipe-disliked",
+  recipe_ingredients: [{
+    ingredient_id: "ing-mushroom",
+    ingredients: {
+      id: "ing-mushroom",
+      ingredient_translations: [{ locale: "en", name: "Cremini Mushrooms" }],
+    },
+  }],
+};
+
 // Minimal Supabase builder mock. Each `.from(table)` gets fresh state so
 // filter flags don't bleed across tables. The only query that returns a row
 // is the plan preflight: `from("meal_plans").select...in("status", ["draft",
@@ -330,6 +342,84 @@ Deno.test("generate_plan returns 422 INSUFFICIENT_RECIPES when the catalog is em
   assertEquals(body.error.code, "INSUFFICIENT_RECIPES");
 });
 
+// Mock supabase that exposes one raw candidate, but the user's explicit
+// ingredient dislike removes it from the viable pool after annotation. This
+// exercises the contract regression where we used to count raw candidates and
+// persist an empty/partial plan instead of returning 422.
+// deno-lint-ignore no-explicit-any
+function makeDislikeFilteredCatalogSupabase(): any {
+  const buildBuilder = () => {
+    let table = "";
+    // deno-lint-ignore no-explicit-any
+    const builder: any = {
+      select: () => builder,
+      eq: () => builder,
+      in: () => builder,
+      not: () => builder,
+      gte: () => builder,
+      insert: () => builder,
+      update: () => builder,
+      delete: () => builder,
+      limit: () => builder,
+      maybeSingle: () => {
+        if (table === "user_profiles") {
+          return Promise.resolve({
+            data: {
+              locale: "en",
+              dietary_restrictions: [],
+              cuisine_preferences: [],
+              ingredient_dislikes: ["cremini mushrooms"],
+              skill_level: "beginner",
+              household_size: 2,
+              nutrition_goal: "no_preference",
+            },
+            error: null,
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+      single: () => Promise.resolve({ data: null, error: null }),
+      // deno-lint-ignore no-explicit-any
+      then: (resolve: any) => {
+        if (table === "recipes") {
+          resolve({ data: [DISLIKED_RECIPE_ROW], error: null });
+          return;
+        }
+        resolve({ data: [], error: null });
+      },
+    };
+    return {
+      from: (t: string) => {
+        table = t;
+        return builder;
+      },
+    };
+  };
+  return {
+    from: (t: string) => buildBuilder().from(t),
+  };
+}
+
+Deno.test("generate_plan returns 422 INSUFFICIENT_RECIPES when every raw candidate is filtered by hard dislike rules", async () => {
+  const mockSupabase = makeDislikeFilteredCatalogSupabase();
+  const req = createAuthenticatedRequest({
+    action: "generate_plan",
+    payload: {
+      weekStart: "2026-04-13",
+      dayIndexes: [0, 1, 2, 3, 4],
+      mealTypes: ["dinner"],
+    },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => mockSupabase as never,
+  });
+  const body = await response.json();
+
+  assertEquals(response.status, 422);
+  assertEquals(body.error.code, "INSUFFICIENT_RECIPES");
+});
+
 Deno.test("generate_plan debug flag controls debugTrace presence", async () => {
   // Debug flag validation is a contract check. The full orchestrator will
   // still fail on the empty mock supabase (500 INTERNAL_ERROR), but we can
@@ -415,6 +505,23 @@ Deno.test("generate_plan rejects missing weekStart", async () => {
 
   assertEquals(response.status, 400);
   assertEquals(body.error.code, "INVALID_INPUT");
+});
+
+Deno.test("generate_plan rejects malformed weekStart before planner execution", async () => {
+  const req = createAuthenticatedRequest({
+    action: "generate_plan",
+    payload: {
+      weekStart: "2026-02-30",
+      dayIndexes: [0, 1, 2, 3, 4],
+      mealTypes: ["dinner"],
+    },
+  });
+  const response = await handleMealPlannerRequest(req, mockDependencies);
+  const body = await response.json();
+
+  assertEquals(response.status, 400);
+  assertEquals(body.error.code, "INVALID_INPUT");
+  assertStringIncludes(body.error.message, "weekStart");
 });
 
 Deno.test("link_shopping_list rejects missing shoppingListId", async () => {

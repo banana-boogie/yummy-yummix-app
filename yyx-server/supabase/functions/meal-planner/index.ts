@@ -27,7 +27,6 @@ import {
   type MealPlanAction,
   type MealPlannerErrorCode,
   type MealPlannerErrorResponse,
-  type MealPlannerRequest,
   type PreferencesResponse,
   type SkipMealResponse,
   type SwapMealResponse,
@@ -47,6 +46,7 @@ const DEFAULT_DEPENDENCIES: MealPlannerDependencies = {
 };
 
 const VALID_ACTIONS = new Set<MealPlanAction>(MEAL_PLAN_ACTIONS);
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export const DEFAULT_PREFERENCES: PreferencesResponse = {
   mealTypes: ["dinner"],
@@ -98,6 +98,23 @@ function requireString(
     throw new Error(`${field} is required and must be a non-empty string`);
   }
   return value;
+}
+
+function parseWeekStart(payload: Record<string, unknown>): string {
+  const weekStart = requireString(payload, "weekStart");
+  if (!ISO_DATE_PATTERN.test(weekStart)) {
+    throw new Error("weekStart must be a valid ISO date in YYYY-MM-DD format");
+  }
+
+  const parsed = new Date(`${weekStart}T00:00:00Z`);
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.toISOString().slice(0, 10) !== weekStart
+  ) {
+    throw new Error("weekStart must be a valid ISO date in YYYY-MM-DD format");
+  }
+
+  return weekStart;
 }
 
 function parseDayIndexArray(value: unknown, field: string): number[] {
@@ -197,7 +214,7 @@ async function handleGeneratePlan(
   let typedPayload: GeneratePlanPayload;
   let includeDebugTrace = false;
   try {
-    const weekStart = requireString(payload, "weekStart");
+    const weekStart = parseWeekStart(payload);
     const dayIndexes = parseDayIndexArray(payload.dayIndexes, "dayIndexes");
 
     const rawMealTypes = payload.mealTypes;

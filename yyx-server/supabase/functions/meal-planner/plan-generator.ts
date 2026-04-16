@@ -17,7 +17,6 @@ import {
 } from "./slot-classifier.ts";
 import {
   type CandidateMap,
-  countUniqueCandidates,
   fetchCandidates,
   loadCookHistory,
   loadHardExcludedRecipeIds,
@@ -390,6 +389,46 @@ export function annotateDislikeConflicts(
       }
     }
   }
+}
+
+export function isViableCandidate(candidate: RecipeCandidate): boolean {
+  return !candidate.hasAllergenConflict && !candidate.hasDislikeConflict;
+}
+
+export function countViableCandidates(
+  candidates: Iterable<RecipeCandidate>,
+): number {
+  let total = 0;
+  for (const candidate of candidates) {
+    if (isViableCandidate(candidate)) total += 1;
+  }
+  return total;
+}
+
+export function countUniqueViableCandidates(
+  candidateMap: CandidateMap,
+): number {
+  const ids = new Set<string>();
+  for (const candidates of candidateMap.values()) {
+    for (const candidate of candidates) {
+      if (isViableCandidate(candidate)) {
+        ids.add(candidate.id);
+      }
+    }
+  }
+  return ids.size;
+}
+
+function collectViableCandidateIds(candidateMap: CandidateMap): Set<string> {
+  const ids = new Set<string>();
+  for (const candidates of candidateMap.values()) {
+    for (const candidate of candidates) {
+      if (isViableCandidate(candidate)) {
+        ids.add(candidate.id);
+      }
+    }
+  }
+  return ids;
 }
 
 // ============================================================
@@ -938,7 +977,7 @@ function buildDebugTrace(
 ): DebugTrace {
   const candidateCounts: Record<string, number> = {};
   for (const [slotId, list] of candidates) {
-    candidateCounts[slotId] = list.length;
+    candidateCounts[slotId] = countViableCandidates(list);
   }
   const chosenSlots = slots.map((slot) => {
     const assignment = best.assignments.get(slot.slotId);
@@ -958,7 +997,7 @@ function buildDebugTrace(
     mode,
     slotCount: slots.length,
     candidateCounts,
-    totalUniqueCandidates: countUniqueCandidates(candidates),
+    totalUniqueCandidates: countUniqueViableCandidates(candidates),
     objectiveScore: best.objectiveScore,
     assemblyBonus: best.assemblyBonus,
     assemblyPenalty: best.assemblyPenalty,
@@ -1056,11 +1095,8 @@ export async function generatePlan(
   // structured objects) to match the `warnings: string[]` API contract; if
   // we ever need richer client-side filtering, switch the contract to
   // `warnings: Array<{ code: string; detail?: Record<string, unknown> }>`.
-  const primaryRecipeIds = new Set<string>();
-  for (const list of candidateMap.values()) {
-    for (const c of list) primaryRecipeIds.add(c.id);
-  }
-  const uniqueTotal = countUniqueCandidates(candidateMap);
+  const primaryRecipeIds = collectViableCandidateIds(candidateMap);
+  const uniqueTotal = primaryRecipeIds.size;
   // Zero candidates across all slots means we can't plan anything. An empty
   // plan with warnings is worse UX than a hard error — the client has nothing
   // to render. Surface INSUFFICIENT_RECIPES (HTTP 422) so callers can show a
@@ -1073,8 +1109,9 @@ export async function generatePlan(
   }
 
   for (const [slotId, list] of candidateMap) {
-    if (list.length < THIN_CATALOG.viableCandidatesPerSlotThreshold) {
-      warnings.push(`LIMITED_CATALOG_COVERAGE:slot=${slotId}:n=${list.length}`);
+    const viableCount = countViableCandidates(list);
+    if (viableCount < THIN_CATALOG.viableCandidatesPerSlotThreshold) {
+      warnings.push(`LIMITED_CATALOG_COVERAGE:slot=${slotId}:n=${viableCount}`);
     }
   }
 

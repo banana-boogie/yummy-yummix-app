@@ -179,6 +179,129 @@ function toCandidate(
   };
 }
 
+function normalizedDifficulty(
+  candidate: RecipeCandidate,
+): "easy" | "medium" | "hard" {
+  const level = candidate.cookingLevel ?? candidate.difficulty;
+  if (level === "easy" || level === "beginner") return "easy";
+  if (level === "hard" || level === "experienced") return "hard";
+  return "medium";
+}
+
+function shortlistTimeScore(
+  slot: MealSlot,
+  candidate: RecipeCandidate,
+): number {
+  const total = candidate.totalTimeMinutes;
+  if (!total || total <= 0) {
+    return slot.slotKind === "weekend_flexible_slot" ? 12 : 10;
+  }
+
+  if (slot.slotKind === "weekend_flexible_slot") {
+    if (total <= 120) return 18;
+    if (total <= 180) return 14;
+    if (total <= 240) return 10;
+    return 4;
+  }
+
+  if (slot.isBusyDay) {
+    if (total <= 30) return 24;
+    if (total <= 45) return 18;
+    if (total <= 60) return 10;
+    return 2;
+  }
+
+  if (total <= 45) return 20;
+  if (total <= 60) return 14;
+  if (total <= 75) return 8;
+  return 3;
+}
+
+function shortlistDifficultyScore(
+  slot: MealSlot,
+  candidate: RecipeCandidate,
+): number {
+  const level = normalizedDifficulty(candidate);
+  if (slot.slotKind === "weekend_flexible_slot") {
+    if (level === "medium") return 10;
+    if (level === "easy") return 9;
+    return 7;
+  }
+
+  if (slot.isBusyDay) {
+    if (level === "easy") return 14;
+    if (level === "medium") return 7;
+    return 1;
+  }
+
+  if (level === "easy") return 12;
+  if (level === "medium") return 9;
+  return 4;
+}
+
+function shortlistSourceScore(
+  slot: MealSlot,
+  candidate: RecipeCandidate,
+): number {
+  if (!slot.feedsFutureLeftoverTarget) return 0;
+
+  let score = candidate.leftoversFriendly ? 26 : 0;
+  if (candidate.batchFriendly) score += 6;
+  if (candidate.portions && candidate.portions > 0) {
+    score += Math.min(candidate.portions, 8);
+  }
+  return score;
+}
+
+function shortlistScore(slot: MealSlot, candidate: RecipeCandidate): number {
+  let score = 0;
+  score += shortlistSourceScore(slot, candidate);
+  score += shortlistTimeScore(slot, candidate);
+  score += shortlistDifficultyScore(slot, candidate);
+  if (candidate.verifiedAt) score += 18;
+  if (candidate.isComplete) score += 10;
+  if (candidate.leftoversFriendly && !slot.feedsFutureLeftoverTarget) {
+    score += 3;
+  }
+  return score;
+}
+
+function compareCandidateTimes(
+  a: RecipeCandidate,
+  b: RecipeCandidate,
+): number {
+  const timeA = a.totalTimeMinutes ?? Number.POSITIVE_INFINITY;
+  const timeB = b.totalTimeMinutes ?? Number.POSITIVE_INFINITY;
+  return timeA - timeB;
+}
+
+export function shortlistCandidatesForSlot(
+  slot: MealSlot,
+  candidates: RecipeCandidate[],
+): RecipeCandidate[] {
+  return candidates
+    .slice()
+    .sort((a, b) => {
+      const scoreDelta = shortlistScore(slot, b) - shortlistScore(slot, a);
+      if (scoreDelta !== 0) return scoreDelta;
+
+      const verifiedDelta = Number(!!b.verifiedAt) - Number(!!a.verifiedAt);
+      if (verifiedDelta !== 0) return verifiedDelta;
+
+      const completenessDelta = Number(b.isComplete) - Number(a.isComplete);
+      if (completenessDelta !== 0) return completenessDelta;
+
+      const timeDelta = compareCandidateTimes(a, b);
+      if (timeDelta !== 0) return timeDelta;
+
+      const titleDelta = a.title.localeCompare(b.title);
+      if (titleDelta !== 0) return titleDelta;
+
+      return a.id.localeCompare(b.id);
+    })
+    .slice(0, RETRIEVAL_LIMITS.cookSlotTopN);
+}
+
 /**
  * Fetch all candidates for this request's distinct canonical meal types.
  * We fetch once per canonical meal type, then slice per slot.
@@ -268,7 +391,8 @@ export async function fetchCandidates(
 /**
  * Partition candidates per slot. Every slot kind uses the same retrieval cap
  * and the same pool — scoring applies the busy-day and leftover-source
- * biases. Deterministic id-sort keeps tests stable.
+ * biases. The shortlist uses a deterministic slot-fit heuristic so the cap
+ * keeps the strongest candidates instead of an arbitrary UUID slice.
  */
 function splitCandidatesBySlot(
   slots: MealSlot[],
@@ -281,11 +405,7 @@ function splitCandidatesBySlot(
     const compatible = candidates.filter((c) =>
       allowedRoles.includes(c.plannerRole)
     );
-    const sorted = compatible
-      .slice()
-      .sort((a, b) => a.id.localeCompare(b.id))
-      .slice(0, RETRIEVAL_LIMITS.cookSlotTopN);
-    bySlot.set(slot.slotId, sorted);
+    bySlot.set(slot.slotId, shortlistCandidatesForSlot(slot, compatible));
   }
 
   return bySlot;

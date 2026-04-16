@@ -19,6 +19,7 @@ Deno.test("classifySlots: weekday cook slots have cook_slot kind", () => {
     assertEquals(s.canonicalMealType, "dinner");
     assertEquals(s.isBusyDay, false);
     assertEquals(s.isWeekend, false);
+    assertEquals(s.feedsFutureLeftoverTarget, false);
   }
 });
 
@@ -62,6 +63,8 @@ Deno.test("classifySlots: busy day with valid prior source becomes leftover_targ
   assertEquals(result.slots.length, 2);
   assertEquals(result.slots[0].slotKind, "cook_slot");
   assertEquals(result.slots[1].slotKind, "leftover_target_slot");
+  assertEquals(result.slots[0].feedsFutureLeftoverTarget, true);
+  assertEquals(result.slots[1].feedsFutureLeftoverTarget, false);
   assertStrictEquals(
     result.slots[1].sourceDependencySlotId,
     result.slots[0].slotId,
@@ -105,6 +108,7 @@ Deno.test("classifySlots: prefer_leftovers_for_lunch turns lunch after dinner in
   );
   assertEquals(d1lunch?.slotKind, "leftover_target_slot");
   assertEquals(d1lunch?.sourceDependencySlotId, d0dinner?.slotId);
+  assertEquals(d0dinner?.feedsFutureLeftoverTarget, true);
 });
 
 Deno.test("classifySlots: planning order puts sources first, leftover targets last", () => {

@@ -225,7 +225,7 @@ function resolveReasonCode(
   if (!primary) return "default";
   if (primary.sourceKind === "leftover") return "busy_day_leftovers";
   if (state.mode === "first_week_trust") return "first_week_trust";
-  if (primary.candidate?.leftoversFriendly && slot.dayIndex <= 3) {
+  if (slot.feedsFutureLeftoverTarget && primary.candidate?.leftoversFriendly) {
     return "leftovers_source";
   }
   // Busy-day cook slot without leftovers — the ranking already biased toward
@@ -246,6 +246,7 @@ function registerLeftoverSource(
   householdSize: number,
   leftoverTransformByRecipe: Map<string, string[]>,
 ): void {
+  if (!slot.feedsFutureLeftoverTarget) return;
   const primary = components.find((c) => c.isPrimary);
   if (!primary?.candidate) return;
   if (!primary.candidate.leftoversFriendly) return;

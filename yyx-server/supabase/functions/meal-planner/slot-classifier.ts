@@ -5,8 +5,8 @@
  * Handles:
  *   - locale → canonical meal-type mapping (comida → lunch, cena → dinner)
  *   - weekend detection (Sat/Sun → weekend_flexible_slot)
- *   - busy-day → leftover_target_slot (downgrades to no_cook_fallback_slot
- *     when no valid source exists in the preceding cookable schedule)
+ *   - busy-day → leftover_target_slot (downgrades to cook_slot when no valid
+ *     source exists in the preceding cookable schedule)
  *   - prefer_leftovers_for_lunch lunch-after-dinner chaining
  *   - dependency-aware planning order
  *
@@ -27,6 +27,7 @@ export interface MealSlot {
   isBusyDay: boolean;
   isWeekend: boolean;
   prefersLeftovers: boolean;
+  feedsFutureLeftoverTarget: boolean;
   sourceDependencySlotId?: string;
   structureTemplate: typeof STRUCTURE_DEFAULTS[CanonicalMealType];
 }
@@ -114,7 +115,7 @@ function canonicalMealTypeOrder(mt: CanonicalMealType): number {
  *   2. Mark weekends → weekend_flexible_slot (unless busy-day overrides).
  *   3. For busy days:
  *        - if a valid previous dinner/lunch cookable slot exists → leftover_target_slot
- *        - otherwise → no_cook_fallback_slot
+ *        - otherwise → cook_slot
  *   4. For prefer_leftovers_for_lunch: lunch adjacent to preceding dinner
  *      becomes leftover_target_slot.
  *   5. Emit dependency-aware planning order.
@@ -166,12 +167,14 @@ export function classifySlots(
         isWeekend,
         prefersLeftovers: isBusyDay ||
           (input.preferLeftoversForLunch && canonical === "lunch"),
+        feedsFutureLeftoverTarget: false,
         structureTemplate: STRUCTURE_DEFAULTS[canonical],
       });
     }
   }
 
   resolveLeftoverDependencies(slots, input.preferLeftoversForLunch);
+  markLeftoverSourceSlots(slots);
 
   return {
     slots,
@@ -222,6 +225,18 @@ function resolveLeftoverDependencies(
   }
 }
 
+function markLeftoverSourceSlots(slots: MealSlot[]): void {
+  const sourceIds = new Set(
+    slots
+      .map((slot) => slot.sourceDependencySlotId)
+      .filter((slotId): slotId is string => !!slotId),
+  );
+
+  for (const slot of slots) {
+    slot.feedsFutureLeftoverTarget = sourceIds.has(slot.slotId);
+  }
+}
+
 function findPrecedingSourceIndex(
   slots: MealSlot[],
   targetIdx: number,
@@ -252,11 +267,6 @@ function findPrecedingSourceIndex(
  * Within each bucket, preserve calendar order.
  */
 export function buildPlanningOrder(slots: MealSlot[]): MealSlot[] {
-  const sources = new Set<string>();
-  for (const s of slots) {
-    if (s.sourceDependencySlotId) sources.add(s.sourceDependencySlotId);
-  }
-
   const sourcesWithDependents: MealSlot[] = [];
   const otherCookables: MealSlot[] = [];
   const leftoverTargets: MealSlot[] = [];
@@ -264,7 +274,7 @@ export function buildPlanningOrder(slots: MealSlot[]): MealSlot[] {
   for (const slot of slots) {
     if (slot.slotKind === "leftover_target_slot") {
       leftoverTargets.push(slot);
-    } else if (sources.has(slot.slotId)) {
+    } else if (slot.feedsFutureLeftoverTarget) {
       sourcesWithDependents.push(slot);
     } else {
       otherCookables.push(slot);

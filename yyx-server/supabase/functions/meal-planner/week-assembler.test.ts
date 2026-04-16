@@ -1,9 +1,13 @@
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  assertEquals,
+  assertNotEquals,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { assembleWeek } from "./week-assembler.ts";
 import type { CandidateMap, RecipeCandidate } from "./candidate-retrieval.ts";
 import type { MealSlot } from "./slot-classifier.ts";
 import type { UserContext } from "./scoring/types.ts";
 import type { PairingLookup } from "./bundle-builder.ts";
+import { renderSelectionReason } from "./selection-reason-templates.ts";
 
 function mkSlot(overrides: Partial<MealSlot> = {}): MealSlot {
   return {
@@ -16,6 +20,7 @@ function mkSlot(overrides: Partial<MealSlot> = {}): MealSlot {
     isBusyDay: false,
     isWeekend: false,
     prefersLeftovers: false,
+    feedsFutureLeftoverTarget: false,
     structureTemplate: "single_component",
     ...overrides,
   };
@@ -139,6 +144,34 @@ Deno.test("assembleWeek: cook_slot with a strong candidate assigns that recipe",
   assertEquals(primary?.recipeId, "winner");
 });
 
+Deno.test("assembleWeek: leftovers_source reason only appears for true dependency source slots", () => {
+  const slot = mkSlot({
+    slotId: "2-dinner",
+    dayIndex: 2,
+    feedsFutureLeftoverTarget: false,
+  });
+  const candidate = mkCandidate("leftover-friendly", {
+    leftoversFriendly: true,
+    portions: 6,
+    totalTimeMinutes: 55,
+  });
+
+  const result = assembleWeek({
+    slots: [slot],
+    planningOrder: [slot],
+    candidates: new Map([[slot.slotId, [candidate]]]),
+    pairings: EMPTY_PAIRINGS,
+    user: mkUser(),
+    leftoverTransformByRecipe: new Map(),
+  });
+
+  const assignment = result.best.assignments.get(slot.slotId);
+  assertNotEquals(
+    assignment?.selectionReason,
+    renderSelectionReason("leftovers_source", "en"),
+  );
+});
+
 Deno.test("assembleWeek: leftover_target without runtime source downgrades to cook_slot", () => {
   // Source slot picks a recipe that is NOT leftoversFriendly, so the target
   // never sees a registered source. The target was classified as
@@ -150,6 +183,7 @@ Deno.test("assembleWeek: leftover_target without runtime source downgrades to co
     slotId: "0-dinner",
     dayIndex: 0,
     slotKind: "cook_slot",
+    feedsFutureLeftoverTarget: true,
   });
   const target: MealSlot = mkSlot({
     slotId: "1-dinner",
@@ -158,6 +192,7 @@ Deno.test("assembleWeek: leftover_target without runtime source downgrades to co
     sourceDependencySlotId: source.slotId,
     isBusyDay: true,
     prefersLeftovers: true,
+    feedsFutureLeftoverTarget: false,
   });
 
   const sourceRecipe = mkCandidate("source-recipe", {

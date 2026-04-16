@@ -131,14 +131,7 @@ function leftoverYieldConfidence(input: ScoreCandidateInput): number {
 }
 
 function isSourceForLeftoverTarget(input: ScoreCandidateInput): boolean {
-  // The slot-classifier records sourceDependencySlotId on downstream targets;
-  // we receive the source slot here and infer via week state. Since the week
-  // assembler places slots in dependency order, this factor is applied when
-  // the candidate is eligible to feed a future leftover slot — we approximate
-  // by prefersLeftovers being false (so this is a source) AND the slot is in
-  // the first half of the week.
-  return !input.slot.prefersLeftovers &&
-    input.slot.dayIndex < 5 &&
+  return input.slot.feedsFutureLeftoverTarget &&
     input.candidate.leftoversFriendly;
 }
 

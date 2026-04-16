@@ -53,6 +53,7 @@ function mkSlot(): MealSlot {
     isBusyDay: false,
     isWeekend: false,
     prefersLeftovers: false,
+    feedsFutureLeftoverTarget: false,
     structureTemplate: "main_plus_one_component",
   };
 }

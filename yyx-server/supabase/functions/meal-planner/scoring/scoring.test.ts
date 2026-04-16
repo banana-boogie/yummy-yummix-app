@@ -50,6 +50,7 @@ function baseSlot(overrides: Partial<MealSlot> = {}): MealSlot {
     isBusyDay: false,
     isWeekend: false,
     prefersLeftovers: false,
+    feedsFutureLeftoverTarget: false,
     structureTemplate: "main_plus_one_component",
     ...overrides,
   };
@@ -218,6 +219,33 @@ Deno.test("scoreCandidate: busy-day cook_slot prefers an easy+fast recipe over a
   if (easyFast.factors.slotFit.raw <= slowHard.factors.slotFit.raw) {
     throw new Error(
       `expected easy+fast (${easyFast.factors.slotFit.raw}) > slow+hard (${slowHard.factors.slotFit.raw}) for busy-day cook_slot`,
+    );
+  }
+});
+
+Deno.test("scoreCandidate: leftover-source slot-fit bonus only applies when the slot actually feeds a future target", () => {
+  const candidate = baseCandidate({
+    leftoversFriendly: true,
+    portions: 6,
+    totalTimeMinutes: 40,
+  });
+
+  const sourceScore = scoreCandidate(
+    baseInput({
+      slot: baseSlot({ feedsFutureLeftoverTarget: true }),
+      candidate,
+    }),
+  ).factors.slotFit.raw;
+  const regularScore = scoreCandidate(
+    baseInput({
+      slot: baseSlot({ feedsFutureLeftoverTarget: false }),
+      candidate,
+    }),
+  ).factors.slotFit.raw;
+
+  if (sourceScore <= regularScore) {
+    throw new Error(
+      `expected leftover source slot-fit (${sourceScore}) to exceed regular cook slot (${regularScore})`,
     );
   }
 });
