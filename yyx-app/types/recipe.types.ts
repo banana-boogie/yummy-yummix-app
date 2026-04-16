@@ -21,7 +21,7 @@ export interface Recipe {
   // Planner (My Week Setup) metadata
   plannerRole?: PlannerRole | null;
   alternatePlannerRoles?: AlternatePlannerRole[] | null;
-  foodGroups?: FoodGroup[] | null;
+  mealComponents?: MealComponent[] | null;
   isCompleteMeal?: boolean | null;
   equipmentTags?: EquipmentTag[] | null;
   cookingLevel?: CookingLevel | null;
@@ -47,7 +47,16 @@ export type PlannerRole =
 // which is mutually exclusive with scheduling.
 export type AlternatePlannerRole = Exclude<PlannerRole, 'pantry'>;
 
-export type FoodGroup = 'protein' | 'carb' | 'veg';
+/**
+ * What a recipe contributes to a complete meal.
+ *
+ * Renamed from the earlier `FoodGroup` which mixed macronutrient values
+ * (protein/carb/veg) with course identity (snack/dessert) on one axis.
+ * This type captures only the meal-composition axis; course identity
+ * lives on `planner_role` and dietary descriptors live in the `diet`
+ * tag category.
+ */
+export type MealComponent = 'protein' | 'carb' | 'veg';
 export type EquipmentTag = 'thermomix' | 'air_fryer' | 'oven' | 'stovetop' | 'none';
 export type CookingLevel = 'beginner' | 'intermediate' | 'experienced';
 

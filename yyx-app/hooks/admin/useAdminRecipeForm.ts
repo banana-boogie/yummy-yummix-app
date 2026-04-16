@@ -366,7 +366,8 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
         kitchenTools: recipe.kitchenTools,
         // My Week Setup planner metadata
         plannerRole: recipe.plannerRole,
-        foodGroups: recipe.foodGroups,
+        alternatePlannerRoles: recipe.alternatePlannerRoles,
+        mealComponents: recipe.mealComponents,
         isCompleteMeal: recipe.isCompleteMeal,
         equipmentTags: recipe.equipmentTags,
         cookingLevel: recipe.cookingLevel,

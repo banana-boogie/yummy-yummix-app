@@ -375,7 +375,8 @@ describe('AdminRecipeService', () => {
       await adminRecipeService.createRecipe({
         translations: [{ locale: 'en', name: 'Planner Recipe' }],
         plannerRole: 'main',
-        foodGroups: ['protein', 'carb'],
+        alternatePlannerRoles: ['side'],
+        mealComponents: ['protein', 'carb'],
         isCompleteMeal: true,
         equipmentTags: ['thermomix'],
         cookingLevel: 'intermediate',
@@ -394,7 +395,8 @@ describe('AdminRecipeService', () => {
       expect(insertedRows).toBeDefined();
       const row = insertedRows![0];
       expect(row.planner_role).toBe('main');
-      expect(row.food_groups).toEqual(['protein', 'carb']);
+      expect(row.alternate_planner_roles).toEqual(['side']);
+      expect(row.meal_components).toEqual(['protein', 'carb']);
       expect(row.is_complete_meal).toBe(true);
       expect(row.equipment_tags).toEqual(['thermomix']);
       expect(row.cooking_level).toBe('intermediate');
@@ -415,7 +417,8 @@ describe('AdminRecipeService', () => {
         portions: 4,
         is_published: true,
         planner_role: 'side',
-        food_groups: ['veg'],
+        alternate_planner_roles: ['snack'],
+        meal_components: ['veg'],
         is_complete_meal: false,
         equipment_tags: ['oven'],
         cooking_level: 'beginner',
@@ -438,7 +441,8 @@ describe('AdminRecipeService', () => {
 
       expect(result).toBeTruthy();
       expect(result!.plannerRole).toBe('side');
-      expect(result!.foodGroups).toEqual(['veg']);
+      expect(result!.alternatePlannerRoles).toEqual(['snack']);
+      expect(result!.mealComponents).toEqual(['veg']);
       expect(result!.isCompleteMeal).toBe(false);
       expect(result!.equipmentTags).toEqual(['oven']);
       expect(result!.cookingLevel).toBe('beginner');

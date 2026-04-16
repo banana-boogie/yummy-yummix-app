@@ -107,7 +107,8 @@ describe('useAdminRecipeForm — create flow persists My Week Setup', () => {
         steps: [],
         kitchenTools: [],
         plannerRole: 'main' as any,
-        foodGroups: ['protein', 'carb'] as any,
+        alternatePlannerRoles: ['side'] as any,
+        mealComponents: ['protein', 'carb'] as any,
         isCompleteMeal: true,
         equipmentTags: ['thermomix'] as any,
         cookingLevel: 'intermediate' as any,
@@ -130,7 +131,8 @@ describe('useAdminRecipeForm — create flow persists My Week Setup', () => {
     // Regression: all My Week Setup fields must reach the service layer.
     expect(payload).toMatchObject({
       plannerRole: 'main',
-      foodGroups: ['protein', 'carb'],
+      alternatePlannerRoles: ['side'],
+      mealComponents: ['protein', 'carb'],
       isCompleteMeal: true,
       equipmentTags: ['thermomix'],
       cookingLevel: 'intermediate',

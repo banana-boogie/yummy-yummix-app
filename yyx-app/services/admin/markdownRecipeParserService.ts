@@ -214,7 +214,7 @@ export const parseRecipeMarkdown = async (markdown: string): Promise<ParseRecipe
       portions: data.portions,
       // Planner (My Week Setup) metadata — best-guess from AI, admin can override
       plannerRole: data.plannerRole ?? null,
-      foodGroups: data.foodGroups ?? null,
+      mealComponents: data.mealComponents ?? null,
       isCompleteMeal: data.isCompleteMeal ?? null,
       equipmentTags: data.equipmentTags ?? null,
       cookingLevel: data.cookingLevel ?? null,

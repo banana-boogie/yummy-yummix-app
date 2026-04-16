@@ -69,7 +69,7 @@ class AdminRecipeService extends BaseService {
         updated_at,
         planner_role,
         alternate_planner_roles,
-        food_groups,
+        meal_components,
         is_complete_meal,
         equipment_tags,
         cooking_level,
@@ -240,7 +240,7 @@ class AdminRecipeService extends BaseService {
         isPublished: recipe.isPublished,
         plannerRole: recipe.plannerRole ?? null,
         alternatePlannerRoles: recipe.alternatePlannerRoles ?? [],
-        foodGroups: recipe.foodGroups ?? null,
+        mealComponents: recipe.mealComponents ?? null,
         isCompleteMeal: recipe.isCompleteMeal ?? null,
         equipmentTags: recipe.equipmentTags ?? null,
         cookingLevel: recipe.cookingLevel ?? null,
@@ -319,7 +319,7 @@ class AdminRecipeService extends BaseService {
     if (recipe.isPublished !== undefined) nonTranslatableFields.isPublished = recipe.isPublished;
     if (recipe.plannerRole !== undefined) nonTranslatableFields.plannerRole = recipe.plannerRole;
     if (recipe.alternatePlannerRoles !== undefined) nonTranslatableFields.alternatePlannerRoles = recipe.alternatePlannerRoles;
-    if (recipe.foodGroups !== undefined) nonTranslatableFields.foodGroups = recipe.foodGroups;
+    if (recipe.mealComponents !== undefined) nonTranslatableFields.mealComponents = recipe.mealComponents;
     if (recipe.isCompleteMeal !== undefined) nonTranslatableFields.isCompleteMeal = recipe.isCompleteMeal;
     if (recipe.equipmentTags !== undefined) nonTranslatableFields.equipmentTags = recipe.equipmentTags;
     if (recipe.cookingLevel !== undefined) nonTranslatableFields.cookingLevel = recipe.cookingLevel;
@@ -907,7 +907,7 @@ class AdminRecipeService extends BaseService {
       createdAt: recipe.createdAt ?? recipe.created_at,
       updatedAt: recipe.updatedAt ?? recipe.updated_at,
       plannerRole: recipe.plannerRole ?? recipe.planner_role ?? null,
-      foodGroups: recipe.foodGroups ?? recipe.food_groups ?? null,
+      mealComponents: recipe.mealComponents ?? recipe.meal_components ?? null,
       isCompleteMeal: recipe.isCompleteMeal ?? recipe.is_complete_meal ?? null,
       alternatePlannerRoles: recipe.alternatePlannerRoles ?? recipe.alternate_planner_roles ?? [],
       equipmentTags: recipe.equipmentTags ?? recipe.equipment_tags ?? null,
