@@ -35,6 +35,7 @@ function baseCandidate(
     allergenMatches: [],
     hasDislikeConflict: false,
     dislikeMatches: [],
+    alternatePlannerRoles: [],
     ...overrides,
   };
 }
@@ -246,6 +247,48 @@ Deno.test("scoreCandidate: leftover-source slot-fit bonus only applies when the 
   if (sourceScore <= regularScore) {
     throw new Error(
       `expected leftover source slot-fit (${sourceScore}) to exceed regular cook slot (${regularScore})`,
+    );
+  }
+});
+
+Deno.test("scoreCandidate: alternate-role match takes the primary-role preference penalty", () => {
+  // Snack slot. A side-role recipe with alternates=['snack'] is matched
+  // only via its alternates list, so the primary-role-preference penalty
+  // (5 pts per SCORE_MODIFIERS) applies. A snack-role recipe doesn't take
+  // the penalty.
+  const snackSlot = baseSlot({ canonicalMealType: "snack" });
+  const primaryMatch = scoreCandidate(
+    baseInput({
+      slot: snackSlot,
+      candidate: baseCandidate({
+        plannerRole: "snack",
+        alternatePlannerRoles: [],
+      }),
+    }),
+  );
+  const alternateMatch = scoreCandidate(
+    baseInput({
+      slot: snackSlot,
+      candidate: baseCandidate({
+        plannerRole: "side",
+        alternatePlannerRoles: ["snack"],
+      }),
+    }),
+  );
+
+  // The 5-point penalty should drop the alternate-match total relative to
+  // an otherwise identical primary match.
+  if (alternateMatch.total >= primaryMatch.total) {
+    throw new Error(
+      `expected alternate-role total (${alternateMatch.total}) < primary-role total (${primaryMatch.total})`,
+    );
+  }
+  if (!alternateMatch.softPenalties.includes("alternate_role_match")) {
+    throw new Error("expected alternate_role_match in softPenalties");
+  }
+  if (primaryMatch.softPenalties.includes("alternate_role_match")) {
+    throw new Error(
+      "primary match should NOT carry the alternate_role_match penalty",
     );
   }
 });

@@ -106,6 +106,7 @@ Deno.test("generate_plan accepts comida without raising INVALID_INPUT", async ()
 const MINIMAL_RECIPE_ROW = {
   id: "fake-recipe-1",
   planner_role: "main",
+  alternate_planner_roles: [],
   food_groups: ["protein"],
   is_complete_meal: false,
   total_time: 30,
@@ -158,6 +159,7 @@ function makePreflightConflictSupabase(existingPlanId: string | null): any {
         return builder;
       },
       not: () => builder,
+      neq: () => builder,
       gte: () => builder,
       insert: () => builder,
       update: () => builder,
@@ -230,6 +232,7 @@ function makeInsertUniqueViolationSupabase(): any {
       eq: () => builder,
       in: () => builder,
       not: () => builder,
+      neq: () => builder,
       gte: () => builder,
       limit: () => builder,
       insert: () => {
@@ -307,6 +310,7 @@ function makeEmptyCatalogSupabase(): any {
       eq: () => builder,
       in: () => builder,
       not: () => builder,
+      neq: () => builder,
       gte: () => builder,
       insert: () => builder,
       update: () => builder,
@@ -356,6 +360,7 @@ function makeDislikeFilteredCatalogSupabase(): any {
       eq: () => builder,
       in: () => builder,
       not: () => builder,
+      neq: () => builder,
       gte: () => builder,
       insert: () => builder,
       update: () => builder,

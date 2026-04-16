@@ -195,6 +195,9 @@ export async function fetchPairingsForCandidates(
       allergenMatches: [],
       hasDislikeConflict: false,
       dislikeMatches: [],
+      // Pairing targets are matched via explicit recipe_pairings rows, not
+      // via planner_role lookup, so the alternate-role list isn't needed.
+      alternatePlannerRoles: [],
     };
     candidatesById.set(candidate.id, candidate);
   }

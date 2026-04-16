@@ -8,9 +8,11 @@
 
 import {
   pickWeights,
+  SCORE_MODIFIERS,
   type ScoringMode,
   type ScoringWeights,
 } from "../scoring-config.ts";
+import { isAlternateRoleMatch } from "../candidate-retrieval.ts";
 import type { CandidateScoreDetail, ScoreCandidateInput } from "./types.ts";
 import { scoreTasteHouseholdFit } from "./taste-household-fit.ts";
 import { scoreVerifiedBoost } from "./verified-boost.ts";
@@ -52,13 +54,21 @@ export function scoreCandidate(
     hardRuleViolations.push("not_published");
   }
 
-  const total = tasteHousehold.weighted +
+  let total = tasteHousehold.weighted +
     slotFit.weighted +
     timeFit.weighted +
     ingredientOverlap.weighted +
     variety.weighted +
     nutrition.weighted +
     verified.weighted;
+
+  // Primary-role preference: a recipe matched only via alternate_planner_roles
+  // takes a small penalty so a recipe in its default role is preferred when
+  // both fit the slot. Per recipe-role-model.md §6.3.
+  if (isAlternateRoleMatch(input.slot, input.candidate)) {
+    total -= SCORE_MODIFIERS.primaryRolePreferencePenalty;
+    softPenalties.push("alternate_role_match");
+  }
 
   return {
     slotId: input.slot.slotId,

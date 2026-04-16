@@ -54,6 +54,7 @@ function mkCandidate(
     allergenMatches: [],
     hasDislikeConflict: false,
     dislikeMatches: [],
+    alternatePlannerRoles: [],
     ...overrides,
   };
 }

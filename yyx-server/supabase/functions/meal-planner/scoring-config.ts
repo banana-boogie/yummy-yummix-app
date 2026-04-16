@@ -184,6 +184,19 @@ export const ASSEMBLY_ADJUSTMENTS = {
   unfilledNonBusySlot: -10,
 } as const;
 
+/**
+ * Score modifiers applied per-candidate after the 7-factor sum.
+ *
+ * `primaryRolePreferencePenalty` (recipe-role-model.md §6.3): recipes that
+ * fit a slot only via their `alternate_planner_roles` (not their primary
+ * `planner_role`) take a small penalty so a recipe is preferred in its
+ * default role. Small enough that a great alternate match still beats a
+ * mediocre primary match.
+ */
+export const SCORE_MODIFIERS = {
+  primaryRolePreferencePenalty: 5,
+} as const;
+
 // ============================================================
 // Leftover resolution scoring
 // ============================================================
@@ -337,6 +350,7 @@ export const SCORING_CONFIG_V1 = {
   beam: BEAM,
   thinCatalog: THIN_CATALOG,
   assembly: ASSEMBLY_ADJUSTMENTS,
+  scoreModifiers: SCORE_MODIFIERS,
   leftoverResolution: LEFTOVER_RESOLUTION_SUBWEIGHTS,
   leftoverPlanQuality: LEFTOVER_PLAN_QUALITY,
   openSlotContribution: OPEN_SLOT_CONTRIBUTION,

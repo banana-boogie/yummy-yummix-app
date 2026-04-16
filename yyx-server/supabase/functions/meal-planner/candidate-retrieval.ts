@@ -20,7 +20,19 @@ import type { CanonicalMealType } from "./types.ts";
 export interface RecipeCandidate {
   id: string;
   title: string;
+  /**
+   * Default planner role from the recipe's `planner_role` column.
+   * Drives default scheduling and content-health bucketing. Pantry-role
+   * recipes are filtered out at retrieval — never seen here.
+   */
   plannerRole: string;
+  /**
+   * Optional secondary slot-types this recipe is also eligible for, from
+   * `recipes.alternate_planner_roles`. Empty for most recipes.
+   * Example: hummus has `plannerRole='side'`, `alternatePlannerRoles=['snack']`.
+   * The CHECK constraint forbids `'pantry'` here.
+   */
+  alternatePlannerRoles: string[];
   foodGroups: string[];
   isComplete: boolean;
   totalTimeMinutes: number | null;
@@ -69,6 +81,7 @@ export interface CandidateRetrievalContext {
 interface RawRecipeRow {
   id: string;
   planner_role: string | null;
+  alternate_planner_roles: string[] | null;
   food_groups: string[] | null;
   is_complete_meal: boolean | null;
   total_time: number | null;
@@ -156,6 +169,7 @@ function toCandidate(
     id: row.id,
     title: pickTranslationName(row.recipe_translations, ctx.localeChain),
     plannerRole: row.planner_role ?? "",
+    alternatePlannerRoles: row.alternate_planner_roles ?? [],
     foodGroups: row.food_groups ?? [],
     isComplete: !!row.is_complete_meal,
     totalTimeMinutes: row.total_time,
@@ -303,6 +317,55 @@ export function shortlistCandidatesForSlot(
 }
 
 /**
+ * Roles that require non-empty `food_groups` per recipe-role-model.md §6.1.
+ * Other roles (snack, dessert, beverage, condiment) intentionally have
+ * empty food_groups — that's data correctness, not a quality issue.
+ */
+const ROLES_REQUIRING_FOOD_GROUPS: ReadonlySet<string> = new Set([
+  "main",
+  "side",
+]);
+
+function isRoleEligibleForAnySlot(
+  row: RawRecipeRow,
+  neededRoles: ReadonlySet<string>,
+): boolean {
+  if (neededRoles.size === 0) return false;
+  if (row.planner_role && neededRoles.has(row.planner_role)) return true;
+  for (const alt of row.alternate_planner_roles ?? []) {
+    if (neededRoles.has(alt)) return true;
+  }
+  return false;
+}
+
+function satisfiesRoleConditionalFoodGroups(row: RawRecipeRow): boolean {
+  // food_groups is mandatory only for main/side roles. Recipes whose
+  // primary role doesn't require food_groups (snack, dessert, beverage,
+  // condiment) pass even with empty food_groups.
+  if (!row.planner_role) return false;
+  if (!ROLES_REQUIRING_FOOD_GROUPS.has(row.planner_role)) return true;
+  return (row.food_groups?.length ?? 0) > 0;
+}
+
+/**
+ * True if `candidate` matches `slot` only via its `alternate_planner_roles`
+ * (its primary `plannerRole` is NOT in the meal-type's expected primary
+ * roles list). Used by the scorer to apply the primary-role preference
+ * penalty per recipe-role-model.md §6.3.
+ */
+export function isAlternateRoleMatch(
+  slot: MealSlot,
+  candidate: RecipeCandidate,
+): boolean {
+  const primaryRoles = MEAL_TYPE_PRIMARY_ROLES[slot.canonicalMealType];
+  if (primaryRoles.includes(candidate.plannerRole)) return false;
+  for (const alt of candidate.alternatePlannerRoles) {
+    if (primaryRoles.includes(alt)) return true;
+  }
+  return false;
+}
+
+/**
  * Fetch all candidates for this request's distinct canonical meal types.
  * We fetch once per canonical meal type, then slice per slot.
  */
@@ -329,6 +392,7 @@ export async function fetchCandidates(
   const selectFields = `
     id,
     planner_role,
+    alternate_planner_roles,
     food_groups,
     is_complete_meal,
     total_time,
@@ -347,14 +411,21 @@ export async function fetchCandidates(
     recipe_to_tag ( recipe_tags ( categories, recipe_tag_translations ( locale, name ) ) )
   `;
 
+  // Per recipe-role-model.md §6.1:
+  //   - is_published = true (quality gate)
+  //   - planner_role IS NOT NULL (must be tagged)
+  //   - planner_role != 'pantry' (pantry items live in Explore only, never
+  //     enter the planner)
+  // Per-slot role matching (primary OR alternate) is done in JS to avoid
+  // PostgREST .or() string-encoding issues with array overlap operators.
+  // food_groups is no longer a universal hard filter — it's only required
+  // for main/side roles, enforced at scoring time per slot.
   const { data, error } = await ctx.supabase
     .from("recipes")
     .select(selectFields)
     .eq("is_published", true)
     .not("planner_role", "is", null)
-    .in("planner_role", [...neededRoles])
-    // food_groups must have at least one value to qualify as planner-ready.
-    .not("food_groups", "eq", "{}");
+    .neq("planner_role", "pantry");
 
   if (error) {
     throw new Error(`Candidate fetch failed: ${error.message}`);
@@ -362,8 +433,9 @@ export async function fetchCandidates(
 
   const rawRows = (data ?? []) as unknown as RawRecipeRow[];
   const hydrated = rawRows
-    .filter((r) => (r.food_groups?.length ?? 0) > 0)
     .filter((r) => !ctx.hardExcludedRecipeIds.has(r.id))
+    .filter((r) => isRoleEligibleForAnySlot(r, neededRoles))
+    .filter((r) => satisfiesRoleConditionalFoodGroups(r))
     .map((r) => toCandidate(r, ctx));
 
   // Drop candidates with no translation in the requested locale chain. We do
@@ -402,9 +474,15 @@ function splitCandidatesBySlot(
 
   for (const slot of slots) {
     const allowedRoles = MEAL_TYPE_PRIMARY_ROLES[slot.canonicalMealType];
-    const compatible = candidates.filter((c) =>
-      allowedRoles.includes(c.plannerRole)
-    );
+    // A candidate is compatible if EITHER its primary planner_role matches
+    // any of the meal-type's expected roles OR one of its
+    // alternate_planner_roles does. Per recipe-role-model.md §6.2.
+    const compatible = candidates.filter((c) => {
+      if (allowedRoles.includes(c.plannerRole)) return true;
+      return c.alternatePlannerRoles.some((role) =>
+        allowedRoles.includes(role)
+      );
+    });
     bySlot.set(slot.slotId, shortlistCandidatesForSlot(slot, compatible));
   }
 

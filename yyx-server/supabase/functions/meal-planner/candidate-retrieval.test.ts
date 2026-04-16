@@ -1,5 +1,6 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
+  isAlternateRoleMatch,
   type RecipeCandidate,
   shortlistCandidatesForSlot,
 } from "./candidate-retrieval.ts";
@@ -51,6 +52,7 @@ function mkCandidate(
     allergenMatches: [],
     hasDislikeConflict: false,
     dislikeMatches: [],
+    alternatePlannerRoles: [],
     ...overrides,
   };
 }
@@ -101,4 +103,41 @@ Deno.test("shortlistCandidatesForSlot keeps a leftovers-friendly source candidat
   assertEquals(shortlist.length, RETRIEVAL_LIMITS.cookSlotTopN);
   assertEquals(ids.includes("z-leftover-source"), true);
   assertEquals(ids.includes("b-29"), false);
+});
+
+Deno.test("isAlternateRoleMatch: primary plannerRole match returns false", () => {
+  // dinner expects ['main']; a `main` recipe is a primary match.
+  const slot = mkSlot({ canonicalMealType: "dinner" });
+  const candidate = mkCandidate("primary-main", { plannerRole: "main" });
+  assertEquals(isAlternateRoleMatch(slot, candidate), false);
+});
+
+Deno.test("isAlternateRoleMatch: alternate role match returns true", () => {
+  // snack slot expects ['snack']. Hummus is plannerRole='side' with
+  // alternates=['snack'] — it qualifies for the snack slot only via its
+  // alternates list, so the primary-role-preference penalty applies.
+  const slot = mkSlot({ canonicalMealType: "snack" });
+  const hummus = mkCandidate("hummus", {
+    plannerRole: "side",
+    alternatePlannerRoles: ["snack"],
+  });
+  assertEquals(isAlternateRoleMatch(slot, hummus), true);
+});
+
+Deno.test("isAlternateRoleMatch: no role match either way returns false", () => {
+  // dessert slot expects ['dessert']. A main recipe with no alternates
+  // doesn't match at all — function still returns false (it's not even a
+  // candidate). The scorer wouldn't see this case in practice since
+  // splitCandidatesBySlot would have filtered it out.
+  const slot = mkSlot({ canonicalMealType: "dessert" });
+  const main = mkCandidate("not-a-dessert", { plannerRole: "main" });
+  assertEquals(isAlternateRoleMatch(slot, main), false);
+});
+
+Deno.test("isAlternateRoleMatch: breakfast accepts main OR snack as primary", () => {
+  // breakfast expects ['main', 'snack'] (per MEAL_TYPE_PRIMARY_ROLES).
+  // A snack-role recipe at breakfast is a PRIMARY match, not alternate.
+  const slot = mkSlot({ canonicalMealType: "breakfast" });
+  const snackRecipe = mkCandidate("granola", { plannerRole: "snack" });
+  assertEquals(isAlternateRoleMatch(slot, snackRecipe), false);
 });
