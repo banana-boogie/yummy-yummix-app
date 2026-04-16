@@ -9,6 +9,7 @@ import { COLORS } from '@/constants/design-tokens';
 interface VerificationCardProps {
   verifiedAt: string | null;
   verifiedBy: string | null;
+  verifiedByDisplay?: string | null;
   displayLocale: string;
   onMarkVerified: () => void;
   onUnverify: () => void;
@@ -17,6 +18,7 @@ interface VerificationCardProps {
 export function VerificationCard({
   verifiedAt,
   verifiedBy,
+  verifiedByDisplay,
   displayLocale,
   onMarkVerified,
   onUnverify,
@@ -69,8 +71,9 @@ export function VerificationCard({
   const verifiedAtLine = i18n.t('admin.recipes.form.myWeekSetup.verified.verifiedAt', {
     date: dateStr,
   });
-  const byLine = verifiedBy
-    ? ' ' + i18n.t('admin.recipes.form.myWeekSetup.verified.verifiedBy', { who: verifiedBy })
+  const who = verifiedByDisplay ?? verifiedBy;
+  const byLine = who
+    ? ' ' + i18n.t('admin.recipes.form.myWeekSetup.verified.verifiedBy', { who })
     : '';
 
   return (

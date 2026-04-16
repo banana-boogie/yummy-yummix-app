@@ -139,6 +139,8 @@ export interface AdminRecipe extends Omit<Recipe, 'name' | 'ingredients' | 'tags
   tags: AdminRecipeTag[];
   steps: AdminRecipeSteps[];
   kitchenTools?: AdminRecipeKitchenTool[];
+  // Derived, read-only — resolved from user_profiles at fetch time.
+  verifiedByName?: string | null;
 }
 
 // ============================================================

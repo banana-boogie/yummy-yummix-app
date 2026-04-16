@@ -70,4 +70,32 @@ describe('VerificationCard', () => {
     expect(screen.queryByText('Mark verified')).toBeNull();
     expect(screen.getByText('Remove verification')).toBeTruthy();
   });
+
+  it('renders verifiedByDisplay name instead of UUID when provided', () => {
+    render(
+      <VerificationCard
+        verifiedAt="2026-04-13T00:00:00.000Z"
+        verifiedBy="41fda130-9e9e-40f0-af95-679db75ebcd0"
+        verifiedByDisplay="Ana"
+        displayLocale="en"
+        onMarkVerified={() => {}}
+        onUnverify={() => {}}
+      />,
+    );
+    expect(screen.getByText(/by Ana/)).toBeTruthy();
+    expect(screen.queryByText(/41fda130/)).toBeNull();
+  });
+
+  it('falls back to raw UUID when verifiedByDisplay is not provided', () => {
+    render(
+      <VerificationCard
+        verifiedAt="2026-04-13T00:00:00.000Z"
+        verifiedBy="user-123"
+        displayLocale="en"
+        onMarkVerified={() => {}}
+        onUnverify={() => {}}
+      />,
+    );
+    expect(screen.getByText(/by user-123/)).toBeTruthy();
+  });
 });

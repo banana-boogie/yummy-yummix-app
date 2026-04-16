@@ -197,7 +197,24 @@ class AdminRecipeService extends BaseService {
       .single();
 
     const data = await this.transformedSelect<any>(query);
-    return data ? this.transformRecipeDetailData(data) : null;
+    if (!data) return null;
+
+    const recipe = this.transformRecipeDetailData(data);
+
+    if (recipe.verifiedBy) {
+      const { data: profile } = await this.supabase
+        .from('user_profiles')
+        .select('name, username, email')
+        .eq('id', recipe.verifiedBy)
+        .maybeSingle();
+
+      if (profile) {
+        recipe.verifiedByName =
+          profile.name ?? profile.username ?? profile.email ?? null;
+      }
+    }
+
+    return recipe;
   }
 
   async createRecipe(recipe: Partial<AdminRecipe>): Promise<string> {

@@ -566,6 +566,7 @@ export function MyWeekSetupForm({
         <VerificationCard
           verifiedAt={recipe.verifiedAt || null}
           verifiedBy={recipe.verifiedBy || null}
+          verifiedByDisplay={recipe.verifiedByName ?? null}
           displayLocale={displayLocale}
           onMarkVerified={handleMarkVerified}
           onUnverify={handleUnverify}

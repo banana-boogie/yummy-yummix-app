@@ -12,7 +12,7 @@ import { adminRecipeService } from '../adminRecipeService';
 
 const createChainableMock = (resolvedValue: any = { data: null, error: null }) => {
   const chainable: any = {};
-  const methods = ['select', 'insert', 'update', 'delete', 'eq', 'single', 'order', 'from'];
+  const methods = ['select', 'insert', 'update', 'delete', 'eq', 'single', 'maybeSingle', 'order', 'from'];
 
   methods.forEach(method => {
     chainable[method] = jest.fn().mockReturnValue(chainable);
@@ -20,10 +20,12 @@ const createChainableMock = (resolvedValue: any = { data: null, error: null }) =
 
   // Make terminal methods resolve
   chainable.single = jest.fn().mockResolvedValue(resolvedValue);
+  chainable.maybeSingle = jest.fn().mockResolvedValue(resolvedValue);
   chainable.order = jest.fn().mockResolvedValue(resolvedValue);
   chainable.eq = jest.fn().mockImplementation(() => {
     const result = { ...chainable };
     result.single = jest.fn().mockResolvedValue(resolvedValue);
+    result.maybeSingle = jest.fn().mockResolvedValue(resolvedValue);
     return result;
   });
 
@@ -438,6 +440,73 @@ describe('AdminRecipeService', () => {
       expect(result!.requiresMultiBatchNote).toBeNull();
       expect(result!.verifiedAt).toBe('2026-04-01T12:00:00.000Z');
       expect(result!.verifiedBy).toBe('admin-1');
+    });
+
+    it('getRecipeById resolves verifiedByName from user_profiles (name preferred)', async () => {
+      const recipeRow = {
+        id: 'recipe-7',
+        verified_by: 'admin-uuid',
+        translations: [{ locale: 'en', name: 'R', tips_and_tricks: null }],
+        ingredients: [],
+        steps: [],
+        tags: [],
+        kitchen_tools: [],
+      };
+      const recipeChain = createChainableMock({ data: recipeRow, error: null });
+      const profileChain = createChainableMock({
+        data: { name: 'Ana', username: 'ana99', email: 'ana@example.com' },
+        error: null,
+      });
+      mockFrom.mockImplementation((table: string) =>
+        table === 'user_profiles' ? profileChain : recipeChain,
+      );
+
+      const result = await adminRecipeService.getRecipeById('recipe-7');
+
+      expect(result!.verifiedByName).toBe('Ana');
+    });
+
+    it('getRecipeById falls back through username then email', async () => {
+      const recipeRow = {
+        id: 'recipe-7',
+        verified_by: 'admin-uuid',
+        translations: [{ locale: 'en', name: 'R', tips_and_tricks: null }],
+        ingredients: [],
+        steps: [],
+        tags: [],
+        kitchen_tools: [],
+      };
+      const recipeChain = createChainableMock({ data: recipeRow, error: null });
+      const profileChain = createChainableMock({
+        data: { name: null, username: null, email: 'ops@example.com' },
+        error: null,
+      });
+      mockFrom.mockImplementation((table: string) =>
+        table === 'user_profiles' ? profileChain : recipeChain,
+      );
+
+      const result = await adminRecipeService.getRecipeById('recipe-7');
+
+      expect(result!.verifiedByName).toBe('ops@example.com');
+    });
+
+    it('getRecipeById omits profile query when verified_by is null', async () => {
+      const recipeRow = {
+        id: 'recipe-7',
+        verified_by: null,
+        translations: [{ locale: 'en', name: 'R', tips_and_tricks: null }],
+        ingredients: [],
+        steps: [],
+        tags: [],
+        kitchen_tools: [],
+      };
+      mockChain = createChainableMock({ data: recipeRow, error: null });
+      mockFrom.mockImplementation(() => mockChain);
+
+      const result = await adminRecipeService.getRecipeById('recipe-7');
+
+      expect(result!.verifiedByName).toBeUndefined();
+      expect(mockFrom).not.toHaveBeenCalledWith('user_profiles');
     });
   });
 
