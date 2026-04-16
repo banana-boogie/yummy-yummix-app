@@ -68,6 +68,7 @@ class AdminRecipeService extends BaseService {
         created_at,
         updated_at,
         planner_role,
+        alternate_planner_roles,
         food_groups,
         is_complete_meal,
         equipment_tags,
@@ -238,6 +239,7 @@ class AdminRecipeService extends BaseService {
         portions: recipe.portions,
         isPublished: recipe.isPublished,
         plannerRole: recipe.plannerRole ?? null,
+        alternatePlannerRoles: recipe.alternatePlannerRoles ?? [],
         foodGroups: recipe.foodGroups ?? null,
         isCompleteMeal: recipe.isCompleteMeal ?? null,
         equipmentTags: recipe.equipmentTags ?? null,
@@ -316,6 +318,7 @@ class AdminRecipeService extends BaseService {
     if (recipe.portions !== undefined) nonTranslatableFields.portions = recipe.portions;
     if (recipe.isPublished !== undefined) nonTranslatableFields.isPublished = recipe.isPublished;
     if (recipe.plannerRole !== undefined) nonTranslatableFields.plannerRole = recipe.plannerRole;
+    if (recipe.alternatePlannerRoles !== undefined) nonTranslatableFields.alternatePlannerRoles = recipe.alternatePlannerRoles;
     if (recipe.foodGroups !== undefined) nonTranslatableFields.foodGroups = recipe.foodGroups;
     if (recipe.isCompleteMeal !== undefined) nonTranslatableFields.isCompleteMeal = recipe.isCompleteMeal;
     if (recipe.equipmentTags !== undefined) nonTranslatableFields.equipmentTags = recipe.equipmentTags;
@@ -906,6 +909,7 @@ class AdminRecipeService extends BaseService {
       plannerRole: recipe.plannerRole ?? recipe.planner_role ?? null,
       foodGroups: recipe.foodGroups ?? recipe.food_groups ?? null,
       isCompleteMeal: recipe.isCompleteMeal ?? recipe.is_complete_meal ?? null,
+      alternatePlannerRoles: recipe.alternatePlannerRoles ?? recipe.alternate_planner_roles ?? [],
       equipmentTags: recipe.equipmentTags ?? recipe.equipment_tags ?? null,
       cookingLevel: recipe.cookingLevel ?? recipe.cooking_level ?? null,
       leftoversFriendly: recipe.leftoversFriendly ?? recipe.leftovers_friendly ?? null,

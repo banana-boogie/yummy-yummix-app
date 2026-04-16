@@ -20,6 +20,7 @@ export interface Recipe {
   updatedAt: string;
   // Planner (My Week Setup) metadata
   plannerRole?: PlannerRole | null;
+  alternatePlannerRoles?: AlternatePlannerRole[] | null;
   foodGroups?: FoodGroup[] | null;
   isCompleteMeal?: boolean | null;
   equipmentTags?: EquipmentTag[] | null;
@@ -33,8 +34,20 @@ export interface Recipe {
 }
 
 // Planner-related enums (stored as TEXT / TEXT[] in DB)
-export type PlannerRole = 'main' | 'side' | 'snack' | 'dessert' | 'beverage' | 'condiment';
-export type FoodGroup = 'protein' | 'carb' | 'veg' | 'fat' | 'snack' | 'dessert';
+export type PlannerRole =
+  | 'main'
+  | 'side'
+  | 'snack'
+  | 'dessert'
+  | 'beverage'
+  | 'condiment'
+  | 'pantry';
+
+// Alternate slot-type eligibility — same as PlannerRole minus 'pantry',
+// which is mutually exclusive with scheduling.
+export type AlternatePlannerRole = Exclude<PlannerRole, 'pantry'>;
+
+export type FoodGroup = 'protein' | 'carb' | 'veg';
 export type EquipmentTag = 'thermomix' | 'air_fryer' | 'oven' | 'stovetop' | 'none';
 export type CookingLevel = 'beginner' | 'intermediate' | 'experienced';
 
