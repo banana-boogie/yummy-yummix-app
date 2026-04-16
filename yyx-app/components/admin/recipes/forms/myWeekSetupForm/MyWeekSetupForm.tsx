@@ -327,6 +327,16 @@ export function MyWeekSetupForm({
                 )}
               />
             </FormGroup>
+            {recipe.plannerRole === "main" || recipe.plannerRole === "snack" ? (
+              <Text
+                preset="bodySmall"
+                className="text-text-secondary mt-xs"
+              >
+                {i18n.t(
+                  "admin.recipes.form.myWeekSetup.plannerRole.ambiguityHint",
+                )}
+              </Text>
+            ) : null}
           </View>
           <View ref={foodGroupsRef}>
             <FormGroup

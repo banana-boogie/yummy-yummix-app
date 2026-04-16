@@ -495,6 +495,8 @@ export const admin = {
           placeholder: "Select a role",
           tooltip:
             "What role does this recipe play in a meal? A main dish is the star. A side dish accompanies it.",
+          ambiguityHint:
+            "For dishes that flex (hummus, soups, spreads), pick the dominant role. Use Pairs Well With below to link alternate uses.",
           main: "Main dish",
           side: "Side dish",
           snack: "Snack",

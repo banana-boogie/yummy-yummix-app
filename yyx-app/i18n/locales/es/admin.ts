@@ -500,6 +500,8 @@ export const admin = {
           placeholder: "Selecciona un rol",
           tooltip:
             "¿Qué papel juega esta receta en una comida? Un plato fuerte es el protagonista. Una guarnición lo acompaña.",
+          ambiguityHint:
+            "Para platillos que cambian de rol (hummus, sopas, untables), elige el rol dominante. Usa Combina bien con para enlazar usos alternativos.",
           main: "Plato fuerte",
           side: "Guarnición",
           snack: "Colación",
