@@ -11,6 +11,19 @@ import i18n from '@/i18n';
 import { Text } from '@/components/common/Text';
 import { COLORS } from '@/constants/design-tokens';
 
+// react-dom only exists on web. Require it lazily to keep native bundles clean.
+let rdomCreatePortal:
+  | ((children: React.ReactNode, container: Element) => React.ReactPortal)
+  | null = null;
+if (Platform.OS === 'web') {
+  try {
+     
+    rdomCreatePortal = require('react-dom').createPortal;
+  } catch {
+    rdomCreatePortal = null;
+  }
+}
+
 interface InfoTooltipProps {
   content: string;
   accessibilityLabel?: string;
@@ -188,22 +201,26 @@ export function InfoTooltip({
         />
       </Pressable>
 
-      {open && isWeb && coords ? (
-        <>
-          {/* Fixed-position backdrop captures outside taps above all content. */}
-          <Pressable
-            onPress={close}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            style={styles.webBackdrop}
-          />
-          {/* Panel lives at position:fixed with computed coords; outside any
-              parent stacking context / overflow boundary. */}
-          <View style={[styles.webPanelFixed, { top: coords.top, left: coords.left }]}>
-            {panel}
-          </View>
-        </>
-      ) : null}
+      {open && isWeb && coords && rdomCreatePortal && typeof document !== 'undefined'
+        ? rdomCreatePortal(
+            <>
+              {/* Fixed-position backdrop captures outside taps. */}
+              <Pressable
+                onPress={close}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={styles.webBackdrop}
+              />
+              {/* Panel lives at position:fixed with computed coords. Rendered
+                  via a portal into document.body so no parent stacking
+                  context / overflow / transform can clip or lower it. */}
+              <View style={[styles.webPanelFixed, { top: coords.top, left: coords.left }]}>
+                {panel}
+              </View>
+            </>,
+            document.body,
+          )
+        : null}
 
       {open && !isWeb ? (
         <Modal transparent animationType="fade" onRequestClose={close}>
