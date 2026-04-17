@@ -323,9 +323,11 @@ export function MealPlanningForm({
           <View ref={plannerRoleRef}>
             <FormGroup
               label={i18n.t("admin.recipes.form.mealPlanning.plannerRole.label")}
-              helperText={i18n.t(
-                "admin.recipes.form.mealPlanning.plannerRole.tooltip",
-              )}
+              helperText={
+                recipe.plannerRole === "main" || recipe.plannerRole === "snack"
+                  ? `${i18n.t("admin.recipes.form.mealPlanning.plannerRole.tooltip")}\n\n${i18n.t("admin.recipes.form.mealPlanning.plannerRole.ambiguityHint")}`
+                  : i18n.t("admin.recipes.form.mealPlanning.plannerRole.tooltip")
+              }
               required
             >
               <SelectInput
@@ -345,16 +347,6 @@ export function MealPlanningForm({
                 )}
               />
             </FormGroup>
-            {recipe.plannerRole === "main" || recipe.plannerRole === "snack" ? (
-              <Text
-                preset="bodySmall"
-                className="text-text-secondary mt-xs"
-              >
-                {i18n.t(
-                  "admin.recipes.form.mealPlanning.plannerRole.ambiguityHint",
-                )}
-              </Text>
-            ) : null}
           </View>
 
           {/* Also serves as… — alternate planner roles. Hidden when primary
