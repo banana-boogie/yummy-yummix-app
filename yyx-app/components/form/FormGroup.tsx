@@ -11,17 +11,14 @@ interface FormGroupProps {
   helperText?: string;
   className?: string;
   style?: StyleProp<ViewStyle>;
-  /**
-   * Whether the group should grow in a flex-row layout (e.g., inside a FormRow)
-   * to share horizontal space with siblings. Defaults to true to preserve the
-   * existing layout behavior across the admin forms that rely on FormRow.
-   *
-   * Set to false when used in a flex-column stack where flex-1 would instead
-   * distribute vertical space unevenly between siblings of different heights.
-   */
-  grow?: boolean;
 }
 
+/**
+ * Form field group: label (+ optional tooltip) above the control, with an
+ * optional error message below. Layout-agnostic — does not assume it will be
+ * in a row or a column. Parents like FormRow own layout behavior; a bare
+ * FormGroup simply stacks label → control → error.
+ */
 export function FormGroup({
   label,
   required = false,
@@ -30,7 +27,6 @@ export function FormGroup({
   helperText,
   className = '',
   style,
-  grow = true,
 }: FormGroupProps) {
   // Pass hasError prop to child input so it shows error styling (red border)
   // without duplicating the error message (FormGroup already shows it)
@@ -39,7 +35,7 @@ export function FormGroup({
     : children;
 
   return (
-    <View className={`${grow ? 'flex-1' : ''} ${className}`} style={style}>
+    <View className={className} style={style}>
       {label ? (
         <View className="flex-row items-center gap-xxs mb-sm">
           <Text className="flex-shrink text-base text-text-default font-semibold">

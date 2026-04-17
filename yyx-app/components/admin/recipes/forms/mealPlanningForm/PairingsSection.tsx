@@ -200,7 +200,6 @@ function PairingCard({ pairing, roleOptions, onChange, onRemove }: PairingCardPr
 
       <View className="mt-lg">
         <FormGroup
-          grow={false}
           label={i18n.t('admin.recipes.form.mealPlanning.pairings.roleLabel')}
           required
           error={
@@ -224,7 +223,6 @@ function PairingCard({ pairing, roleOptions, onChange, onRemove }: PairingCardPr
 
       <View className="mt-lg">
         <FormGroup
-          grow={false}
           label={i18n.t('admin.recipes.form.mealPlanning.pairings.reasonLabel')}
         >
           <TextInput
