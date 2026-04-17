@@ -74,6 +74,7 @@ export function TranslationStep({ recipe, authoringLocale, onUpdateRecipe }: Tra
     const src = pickTranslation(recipe.translations, authoringLocale) as AdminRecipeTranslation | undefined;
     if (src?.name) recipeInfoFields++;
     if (src?.tipsAndTricks) recipeInfoFields++;
+    if (src?.scalingNotes) recipeInfoFields++;
 
     let stepFields = 0;
     for (const step of steps) {
@@ -365,6 +366,19 @@ function TranslationReview({
           onTargetChange={(text) => {
             const updated = (recipe.translations || []).map(t =>
               t.locale === targetLocale ? { ...t, tipsAndTricks: text } : t
+            );
+            onUpdateRecipe({ translations: updated });
+          }}
+          isMobile={isMobile}
+          multiline
+        />
+        <FieldPair
+          label={i18n.t('admin.translate.fieldScalingNotes', { defaultValue: 'Scaling notes' })}
+          sourceValue={getTranslatedField(recipe.translations, sourceLocale, 'scalingNotes')}
+          targetValue={getTranslatedField(recipe.translations, targetLocale, 'scalingNotes')}
+          onTargetChange={(text) => {
+            const updated = (recipe.translations || []).map(t =>
+              t.locale === targetLocale ? { ...t, scalingNotes: text } : t
             );
             onUpdateRecipe({ translations: updated });
           }}

@@ -44,6 +44,11 @@ interface MealPlanningFormProps {
   onUpdateRecipe: (updates: Partial<AdminRecipe>) => void;
   displayLocale?: string;
   /**
+   * The locale the admin is authoring in. Used to bind translatable fields
+   * like scaling_notes to the right row in `recipe.translations`.
+   */
+  authoringLocale?: string;
+  /**
    * Optional ScrollView ref from the wizard host. When provided, ReadinessBadge
    * chips scroll the corresponding field into view.
    */
@@ -54,6 +59,7 @@ export function MealPlanningForm({
   recipe,
   onUpdateRecipe,
   displayLocale = "es",
+  authoringLocale = "es",
   scrollViewRef,
 }: MealPlanningFormProps) {
   const { user } = useAuth();
@@ -598,10 +604,32 @@ export function MealPlanningForm({
             label={i18n.t("admin.recipes.form.mealPlanning.scalingNotes.label")}
           >
             <TextInput
-              value={recipe.requiresMultiBatchNote || ""}
-              onChangeText={(text) =>
-                onUpdateRecipe({ requiresMultiBatchNote: text || null })
+              value={
+                (recipe.translations ?? []).find(
+                  (t) => t.locale === authoringLocale,
+                )?.scalingNotes ?? ""
               }
+              onChangeText={(text) => {
+                const translations = recipe.translations ?? [];
+                const existing = translations.find(
+                  (t) => t.locale === authoringLocale,
+                );
+                const next = existing
+                  ? translations.map((t) =>
+                      t.locale === authoringLocale
+                        ? { ...t, scalingNotes: text || undefined }
+                        : t,
+                    )
+                  : [
+                      ...translations,
+                      {
+                        locale: authoringLocale,
+                        name: "",
+                        scalingNotes: text || undefined,
+                      },
+                    ];
+                onUpdateRecipe({ translations: next });
+              }}
               multiline
               numberOfLines={3}
               className="min-h-[96px] p-md"

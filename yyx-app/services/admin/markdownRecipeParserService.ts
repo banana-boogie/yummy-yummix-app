@@ -205,7 +205,9 @@ export const parseRecipeMarkdown = async (markdown: string): Promise<ParseRecipe
     const data = JSON.parse(responseData)
     
 
-    // Process the parsed data into AdminRecipe format
+    // Process the parsed data into AdminRecipe format. `scalingNotes` is
+    // per-locale (translation field) — the AI schema returns it on each
+    // translation row, so it rides along in `data.translations` already.
     const recipe: Partial<AdminRecipe> = {
       translations: data.translations || [],
       totalTime: data.totalTime,
@@ -221,7 +223,6 @@ export const parseRecipeMarkdown = async (markdown: string): Promise<ParseRecipe
       leftoversFriendly: data.leftoversFriendly ?? null,
       batchFriendly: data.batchFriendly ?? null,
       maxHouseholdSizeSupported: data.maxHouseholdSizeSupported ?? null,
-      requiresMultiBatchNote: data.requiresMultiBatchNote || null,
     };
     
     // Process ingredients

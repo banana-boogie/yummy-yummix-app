@@ -846,6 +846,7 @@ export const admin = {
     keepEnglish: "Keep English",
     fieldName: "Name",
     fieldTipsAndTricks: "Tips & Tricks",
+    fieldScalingNotes: "Scaling notes",
     fieldSection: "Section",
     fieldNotes: "Notes",
   },

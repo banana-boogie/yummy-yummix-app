@@ -17,10 +17,18 @@ export interface EntityTranslation {
   [key: string]: string | undefined;
 }
 
+/**
+ * Policy: any new free-form user-facing text field on a recipe must be added
+ * to recipe_translations (this type), not the base `recipes` table. The base
+ * table holds only enums, numbers, booleans, and tag references. Free-form
+ * text requires per-locale authoring so that Spanish users never fall back to
+ * English content, and vice versa.
+ */
 export interface AdminRecipeTranslation extends EntityTranslation {
   name: string;
   description?: string;
   tipsAndTricks?: string;
+  scalingNotes?: string;
 }
 
 export interface AdminIngredientTranslation extends EntityTranslation {

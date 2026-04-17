@@ -411,7 +411,6 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
         leftoversFriendly: recipe.leftoversFriendly,
         batchFriendly: recipe.batchFriendly,
         maxHouseholdSizeSupported: recipe.maxHouseholdSizeSupported,
-        requiresMultiBatchNote: recipe.requiresMultiBatchNote,
         verifiedAt: recipe.verifiedAt,
         verifiedBy: recipe.verifiedBy,
       };

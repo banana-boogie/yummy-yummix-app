@@ -187,6 +187,7 @@ export default function EditRecipePage() {
             recipe={recipe}
             onUpdateRecipe={handleUpdateRecipe}
             displayLocale={displayLocale}
+            authoringLocale={authoringLocale}
             scrollViewRef={scrollViewRef}
           />
         );

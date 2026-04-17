@@ -76,13 +76,13 @@ class AdminRecipeService extends BaseService {
         leftovers_friendly,
         batch_friendly,
         max_household_size_supported,
-        requires_multi_batch_note,
         verified_at,
         verified_by,
         translations:recipe_translations (
           locale,
           name,
           tips_and_tricks,
+          scaling_notes,
           description
         ),
         kitchen_tools:recipe_kitchen_tools(
@@ -248,7 +248,6 @@ class AdminRecipeService extends BaseService {
         leftoversFriendly: recipe.leftoversFriendly ?? null,
         batchFriendly: recipe.batchFriendly ?? null,
         maxHouseholdSizeSupported: recipe.maxHouseholdSizeSupported ?? null,
-        requiresMultiBatchNote: recipe.requiresMultiBatchNote ?? null,
         verifiedAt: recipe.verifiedAt ?? null,
         verifiedBy: recipe.verifiedBy ?? null,
       });
@@ -271,6 +270,7 @@ class AdminRecipeService extends BaseService {
           name: t.name,
           description: t.description || null,
           tips_and_tricks: t.tipsAndTricks || null,
+          scaling_notes: t.scalingNotes || null,
         }));
 
         const { error: translationError } = await this.supabase
@@ -323,7 +323,6 @@ class AdminRecipeService extends BaseService {
     if (recipe.leftoversFriendly !== undefined) nonTranslatableFields.leftoversFriendly = recipe.leftoversFriendly;
     if (recipe.batchFriendly !== undefined) nonTranslatableFields.batchFriendly = recipe.batchFriendly;
     if (recipe.maxHouseholdSizeSupported !== undefined) nonTranslatableFields.maxHouseholdSizeSupported = recipe.maxHouseholdSizeSupported;
-    if (recipe.requiresMultiBatchNote !== undefined) nonTranslatableFields.requiresMultiBatchNote = recipe.requiresMultiBatchNote;
     if (recipe.verifiedAt !== undefined) nonTranslatableFields.verifiedAt = recipe.verifiedAt;
     if (recipe.verifiedBy !== undefined) nonTranslatableFields.verifiedBy = recipe.verifiedBy;
 
@@ -359,6 +358,7 @@ class AdminRecipeService extends BaseService {
         name: t.name,
         description: t.description || null,
         tips_and_tricks: t.tipsAndTricks || null,
+        scaling_notes: t.scalingNotes || null,
       }));
 
       const { error: translationError } = await this.supabase
@@ -890,6 +890,7 @@ class AdminRecipeService extends BaseService {
           name: t.name || '',
           description: t.description || undefined,
           tipsAndTricks: t.tips_and_tricks || t.tipsAndTricks || undefined,
+          scalingNotes: t.scaling_notes || t.scalingNotes || undefined,
         })),
         ingredients: [],
         tags: [],
@@ -922,7 +923,6 @@ class AdminRecipeService extends BaseService {
       leftoversFriendly: recipe.leftoversFriendly ?? recipe.leftovers_friendly ?? null,
       batchFriendly: recipe.batchFriendly ?? recipe.batch_friendly ?? null,
       maxHouseholdSizeSupported: recipe.maxHouseholdSizeSupported ?? recipe.max_household_size_supported ?? null,
-      requiresMultiBatchNote: recipe.requiresMultiBatchNote ?? recipe.requires_multi_batch_note ?? null,
       verifiedAt: recipe.verifiedAt ?? recipe.verified_at ?? null,
       verifiedBy: recipe.verifiedBy ?? recipe.verified_by ?? null,
       translations: (recipe.translations || []).map((t: any) => ({
@@ -930,6 +930,7 @@ class AdminRecipeService extends BaseService {
         name: t.name || '',
         description: t.description || undefined,
         tipsAndTricks: t.tips_and_tricks || t.tipsAndTricks || undefined,
+        scalingNotes: t.scaling_notes || t.scalingNotes || undefined,
       })),
     };
 

@@ -28,7 +28,6 @@ export interface Recipe {
   leftoversFriendly?: boolean | null;
   batchFriendly?: boolean | null;
   maxHouseholdSizeSupported?: number | null;
-  requiresMultiBatchNote?: string | null;
   verifiedAt?: string | null;
   verifiedBy?: string | null;
 }

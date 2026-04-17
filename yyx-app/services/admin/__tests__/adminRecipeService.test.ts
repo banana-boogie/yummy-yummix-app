@@ -401,7 +401,6 @@ describe('AdminRecipeService', () => {
         leftoversFriendly: true,
         batchFriendly: false,
         maxHouseholdSizeSupported: 6,
-        requiresMultiBatchNote: 'Scale in two batches.',
         verifiedAt: '2026-04-13T00:00:00.000Z',
         verifiedBy: 'user-1',
       } as any);
@@ -421,7 +420,7 @@ describe('AdminRecipeService', () => {
       expect(row.leftovers_friendly).toBe(true);
       expect(row.batch_friendly).toBe(false);
       expect(row.max_household_size_supported).toBe(6);
-      expect(row.requires_multi_batch_note).toBe('Scale in two batches.');
+      expect(row.requires_multi_batch_note).toBeUndefined();
       expect(row.verified_at).toBe('2026-04-13T00:00:00.000Z');
       expect(row.verified_by).toBe('user-1');
     });
@@ -443,7 +442,6 @@ describe('AdminRecipeService', () => {
         leftovers_friendly: false,
         batch_friendly: true,
         max_household_size_supported: 4,
-        requires_multi_batch_note: null,
         verified_at: '2026-04-01T12:00:00.000Z',
         verified_by: 'admin-1',
         translations: [{ locale: 'en', name: 'Side Salad', tips_and_tricks: null }],
@@ -476,7 +474,6 @@ describe('AdminRecipeService', () => {
       expect(result!.leftoversFriendly).toBe(false);
       expect(result!.batchFriendly).toBe(true);
       expect(result!.maxHouseholdSizeSupported).toBe(4);
-      expect(result!.requiresMultiBatchNote).toBeNull();
       expect(result!.verifiedAt).toBe('2026-04-01T12:00:00.000Z');
       expect(result!.verifiedBy).toBe('admin-1');
     });

@@ -45,7 +45,6 @@ const expectedSchemaProperties = [
   "leftoversFriendly",
   "batchFriendly",
   "maxHouseholdSizeSupported",
-  "requiresMultiBatchNote",
   "mealTypes",
 ];
 

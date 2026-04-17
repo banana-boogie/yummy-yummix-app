@@ -86,7 +86,7 @@ export default function NewRecipePage() {
       case CreateRecipeStep.TAGS:
         return <TagsForm recipe={recipe} onUpdateRecipe={updateRecipe} errors={errors} displayLocale={displayLocale} />;
       case CreateRecipeStep.MEAL_PLANNING:
-        return <MealPlanningForm recipe={recipe} onUpdateRecipe={updateRecipe} displayLocale={displayLocale} scrollViewRef={scrollViewRef} />;
+        return <MealPlanningForm recipe={recipe} onUpdateRecipe={updateRecipe} displayLocale={displayLocale} authoringLocale={authoringLocale} scrollViewRef={scrollViewRef} />;
       case CreateRecipeStep.TRANSLATIONS:
         return <TranslationStep recipe={recipe} authoringLocale={authoringLocale} onUpdateRecipe={updateRecipe} />;
       case CreateRecipeStep.REVIEW:

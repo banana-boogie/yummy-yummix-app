@@ -125,7 +125,6 @@ describe('useAdminRecipeForm — create flow persists Meal Planning', () => {
         leftoversFriendly: true,
         batchFriendly: false,
         maxHouseholdSizeSupported: 6,
-        requiresMultiBatchNote: 'Double batch requires 2 bowls',
         verifiedAt: '2026-04-13T00:00:00.000Z',
         verifiedBy: 'user-abc',
       });
@@ -149,7 +148,6 @@ describe('useAdminRecipeForm — create flow persists Meal Planning', () => {
       leftoversFriendly: true,
       batchFriendly: false,
       maxHouseholdSizeSupported: 6,
-      requiresMultiBatchNote: 'Double batch requires 2 bowls',
       verifiedAt: '2026-04-13T00:00:00.000Z',
       verifiedBy: 'user-abc',
     });

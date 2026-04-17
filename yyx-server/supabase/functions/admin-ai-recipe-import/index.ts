@@ -85,7 +85,7 @@ MEAL PLANNER METADATA (best-guess from recipe text, admin will override):
 - leftoversFriendly: true if the dish reheats or keeps well the next day.
 - batchFriendly: true if it's reasonable to double the batch; false for tricky scales (soufflé, delicate sauces).
 - maxHouseholdSizeSupported: optional integer. Only set if the recipe notes a capacity limit (e.g., "fits one Thermomix bowl"). Otherwise null.
-- requiresMultiBatchNote: optional short note on scaling if the recipe implies batching. Otherwise empty string.
+- scalingNotes: per-locale translation field (lives on each translation row alongside name/description/tipsAndTricks). Short note on scaling if the recipe implies batching. Translate per locale. Empty string if none.
 - mealTypes: array of canonical meal-type values the recipe best fits. Allowed values: "breakfast", "lunch", "dinner", "snack", "dessert", "beverage". Best-guess from recipe content even when not explicit in the source (e.g., pancakes -> ["breakfast"], hearty stew -> ["lunch","dinner"], brownies -> ["dessert"]). Pick 1-2 values typically. Empty array only if genuinely ambiguous.
 `;
 
@@ -244,6 +244,14 @@ const jsonSchema = {
         schema: {
           type: "string",
           description: "Tips and tricks section. Empty string if none.",
+        },
+      },
+      {
+        name: "scalingNotes",
+        schema: {
+          type: "string",
+          description:
+            "Short per-locale scaling note if the recipe implies batching (e.g. 'fits one Thermomix bowl; blend sauce in two batches for 6+ people'). Empty string if none.",
         },
       },
     ]),
@@ -521,10 +529,6 @@ const jsonSchema = {
       description:
         "Optional capacity limit (e.g., 'fits one Thermomix bowl'). null if not implied.",
     },
-    requiresMultiBatchNote: {
-      type: "string",
-      description: "Short scaling note, or empty string if none.",
-    },
     mealTypes: {
       type: "array",
       description:
@@ -553,7 +557,6 @@ const jsonSchema = {
     "leftoversFriendly",
     "batchFriendly",
     "maxHouseholdSizeSupported",
-    "requiresMultiBatchNote",
     "mealTypes",
   ],
   additionalProperties: false,
