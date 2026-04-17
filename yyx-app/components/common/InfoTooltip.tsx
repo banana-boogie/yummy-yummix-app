@@ -56,8 +56,8 @@ export function InfoTooltip({
     <View
       nativeID={isWeb ? panelId : undefined}
       accessibilityLiveRegion={!isWeb ? 'polite' : undefined}
-      className="bg-neutral-white rounded-md border border-grey-default p-sm max-w-[280px]"
-      style={styles.panelShadow}
+      className="bg-neutral-white rounded-md border border-grey-default p-sm"
+      style={[styles.panelShadow, { width: 280 }]}
     >
       <Text preset="bodySmall" className="text-text-default">
         {content}
@@ -66,7 +66,10 @@ export function InfoTooltip({
   );
 
   return (
-    <View className="relative">
+    <View
+      className="relative"
+      style={open && isWeb ? styles.openContainer : undefined}
+    >
       <Pressable
         onPress={toggle}
         onHoverIn={() => setHovered(true)}
@@ -146,7 +149,13 @@ const styles = StyleSheet.create({
     top: '100%',
     left: 0,
     marginTop: 6,
-    zIndex: 50,
+    zIndex: 9999,
+  },
+  openContainer: {
+    zIndex: 9999,
+    // Hoist icon+panel above sibling form fields so the panel doesn't
+    // render behind inputs that appear later in the DOM.
+    ...(Platform.OS === 'web' ? ({ position: 'relative' } as object) : {}),
   },
   nativeBackdrop: {
     flex: 1,
