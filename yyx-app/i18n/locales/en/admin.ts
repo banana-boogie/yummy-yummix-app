@@ -469,8 +469,8 @@ export const admin = {
         allCategories: "All Categories",
         clearFilters: "Clear filters",
       },
-      myWeekSetup: {
-        title: "My Week Setup",
+      mealPlanning: {
+        title: "Meal Planning",
         sections: {
           roleComposition: "Role & composition",
           equipmentDifficulty: "Equipment & difficulty",
@@ -479,7 +479,7 @@ export const admin = {
           verification: "Verification",
         },
         eligibility: {
-          ready: "Planner metadata complete",
+          ready: "Ready to plan",
           missingTitle: "Missing info",
           need: "Need:",
           needHelper: "Complete these to make the recipe planner-eligible:",
@@ -522,7 +522,7 @@ export const admin = {
           placeholder: "Select all that apply",
           pickerTitle: "Select meal components",
           tooltip:
-            "What macronutrients does this recipe contribute? This helps the planner build balanced meals.",
+            "What macronutrients does this recipe contribute? Leave blank if it's more of an accompaniment (like hummus or a dip) that doesn't own an axis.",
           protein: "Has protein",
           carb: "Has carbs",
           veg: "Has vegetables",

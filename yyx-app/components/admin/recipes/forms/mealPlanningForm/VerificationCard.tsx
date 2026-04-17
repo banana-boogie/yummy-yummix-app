@@ -46,17 +46,17 @@ export function VerificationCard({
           <Ionicons name="shield-outline" size={28} color={COLORS.text.secondary} />
           <View className="flex-1">
             <Text preset="subheading" className="text-text-default">
-              {i18n.t('admin.recipes.form.myWeekSetup.verified.label')}
+              {i18n.t('admin.recipes.form.mealPlanning.verified.label')}
             </Text>
             <Text preset="bodySmall" className="text-text-secondary mt-xs">
-              {i18n.t('admin.recipes.form.myWeekSetup.verified.tooltip')}
+              {i18n.t('admin.recipes.form.mealPlanning.verified.tooltip')}
             </Text>
             <View className="mt-md self-start">
               <Button
                 variant="primary"
                 size="small"
                 onPress={onMarkVerified}
-                label={i18n.t('admin.recipes.form.myWeekSetup.verified.markVerifiedCta')}
+                label={i18n.t('admin.recipes.form.mealPlanning.verified.markVerifiedCta')}
               />
             </View>
           </View>
@@ -68,12 +68,12 @@ export function VerificationCard({
   const dateStr = new Date(verifiedAt!).toLocaleDateString(
     displayLocale === 'en' ? 'en-US' : 'es-MX',
   );
-  const verifiedAtLine = i18n.t('admin.recipes.form.myWeekSetup.verified.verifiedAt', {
+  const verifiedAtLine = i18n.t('admin.recipes.form.mealPlanning.verified.verifiedAt', {
     date: dateStr,
   });
   const who = verifiedByDisplay ?? verifiedBy;
   const byLine = who
-    ? ' ' + i18n.t('admin.recipes.form.myWeekSetup.verified.verifiedBy', { who })
+    ? ' ' + i18n.t('admin.recipes.form.mealPlanning.verified.verifiedBy', { who })
     : '';
 
   return (
@@ -85,7 +85,7 @@ export function VerificationCard({
         <Ionicons name="shield-checkmark" size={28} color={COLORS.status.success} />
         <View className="flex-1">
           <Text preset="subheading" className="text-status-success">
-            {i18n.t('admin.recipes.form.myWeekSetup.verified.label')}
+            {i18n.t('admin.recipes.form.mealPlanning.verified.label')}
           </Text>
           <Text preset="caption" className="text-text-secondary mt-xs">
             {verifiedAtLine}
@@ -96,7 +96,7 @@ export function VerificationCard({
               variant="outline"
               size="small"
               onPress={onUnverify}
-              label={i18n.t('admin.recipes.form.myWeekSetup.verified.unverifyCta')}
+              label={i18n.t('admin.recipes.form.mealPlanning.verified.unverifyCta')}
             />
           </View>
         </View>

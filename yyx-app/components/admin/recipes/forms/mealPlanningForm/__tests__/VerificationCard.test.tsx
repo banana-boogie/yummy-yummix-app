@@ -7,15 +7,15 @@ jest.mock('@/i18n', () => ({
   default: {
     t: (key: string, params?: Record<string, string>) => {
       const map: Record<string, string> = {
-        'admin.recipes.form.myWeekSetup.verified.label': 'YummyYummix Verified',
-        'admin.recipes.form.myWeekSetup.verified.tooltip': 'Turn on if cooked by team.',
-        'admin.recipes.form.myWeekSetup.verified.markVerifiedCta': 'Mark verified',
-        'admin.recipes.form.myWeekSetup.verified.unverifyCta': 'Remove verification',
+        'admin.recipes.form.mealPlanning.verified.label': 'YummyYummix Verified',
+        'admin.recipes.form.mealPlanning.verified.tooltip': 'Turn on if cooked by team.',
+        'admin.recipes.form.mealPlanning.verified.markVerifiedCta': 'Mark verified',
+        'admin.recipes.form.mealPlanning.verified.unverifyCta': 'Remove verification',
       };
-      if (key === 'admin.recipes.form.myWeekSetup.verified.verifiedAt') {
+      if (key === 'admin.recipes.form.mealPlanning.verified.verifiedAt') {
         return `Verified on ${params?.date ?? ''}`;
       }
-      if (key === 'admin.recipes.form.myWeekSetup.verified.verifiedBy') {
+      if (key === 'admin.recipes.form.mealPlanning.verified.verifiedBy') {
         return ` by ${params?.who ?? ''}`;
       }
       return map[key] ?? key;

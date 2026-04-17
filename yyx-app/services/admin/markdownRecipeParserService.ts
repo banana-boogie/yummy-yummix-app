@@ -212,7 +212,7 @@ export const parseRecipeMarkdown = async (markdown: string): Promise<ParseRecipe
       prepTime: data.prepTime,
       difficulty: data.difficulty as RecipeDifficulty,
       portions: data.portions,
-      // Planner (My Week Setup) metadata — best-guess from AI, admin can override
+      // Planner (Meal Planning) metadata — best-guess from AI, admin can override
       plannerRole: data.plannerRole ?? null,
       mealComponents: data.mealComponents ?? null,
       isCompleteMeal: data.isCompleteMeal ?? null,

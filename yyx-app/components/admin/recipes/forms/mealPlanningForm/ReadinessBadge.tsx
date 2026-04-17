@@ -25,7 +25,7 @@ interface ReadinessBadgeProps {
 }
 
 /**
- * ReadinessBadge — status banner at the top of the My Week Setup step.
+ * ReadinessBadge — status banner at the top of the Meal Planning step.
  * Three states:
  *   - Pantry: neutral info tile ("Explore only — not scheduled").
  *   - Ready: green success tile.
@@ -39,10 +39,10 @@ export function ReadinessBadge({ isReady, isPantry, missing, onJumpToField }: Re
         <Ionicons name="archive-outline" size={20} color={COLORS.text.secondary} />
         <View className="flex-1">
           <Text preset="subheading" className="text-text-default">
-            {i18n.t('admin.recipes.form.myWeekSetup.eligibility.pantryTitle')}
+            {i18n.t('admin.recipes.form.mealPlanning.eligibility.pantryTitle')}
           </Text>
           <Text preset="bodySmall" className="text-text-secondary mt-xs">
-            {i18n.t('admin.recipes.form.myWeekSetup.eligibility.pantryHelper')}
+            {i18n.t('admin.recipes.form.mealPlanning.eligibility.pantryHelper')}
           </Text>
         </View>
       </View>
@@ -56,7 +56,7 @@ export function ReadinessBadge({ isReady, isPantry, missing, onJumpToField }: Re
       >
         <Ionicons name="checkmark-circle" size={20} color={COLORS.status.success} />
         <Text preset="subheading" className="text-status-success">
-          {i18n.t('admin.recipes.form.myWeekSetup.eligibility.ready')}
+          {i18n.t('admin.recipes.form.mealPlanning.eligibility.ready')}
         </Text>
       </View>
     );
@@ -67,10 +67,10 @@ export function ReadinessBadge({ isReady, isPantry, missing, onJumpToField }: Re
       className="p-lg rounded-lg bg-status-error/10 border border-status-error/30 web:transition-[background-color,border-color] web:duration-200"
     >
       <Text preset="subheading" className="text-status-error">
-        {i18n.t('admin.recipes.form.myWeekSetup.eligibility.missingTitle')}
+        {i18n.t('admin.recipes.form.mealPlanning.eligibility.missingTitle')}
       </Text>
       <Text preset="bodySmall" className="text-text-secondary mt-xs">
-        {i18n.t('admin.recipes.form.myWeekSetup.eligibility.needHelper')}
+        {i18n.t('admin.recipes.form.mealPlanning.eligibility.needHelper')}
       </Text>
       {missing.length > 0 ? (
         <View className="flex-row flex-wrap gap-xs mt-md">
@@ -80,7 +80,7 @@ export function ReadinessBadge({ isReady, isPantry, missing, onJumpToField }: Re
               onPress={() => onJumpToField?.(chip.anchor)}
               accessibilityRole="button"
               accessibilityLabel={i18n.t(
-                'admin.recipes.form.myWeekSetup.eligibility.jumpToField',
+                'admin.recipes.form.mealPlanning.eligibility.jumpToField',
                 { field: chip.label },
               )}
               className="flex-row items-center gap-xs px-sm py-xs rounded-md bg-status-error/15 min-h-[36px] web:hover:bg-status-error/25 web:focus-visible:ring-2 web:focus-visible:ring-status-error/50 web:focus:outline-none"

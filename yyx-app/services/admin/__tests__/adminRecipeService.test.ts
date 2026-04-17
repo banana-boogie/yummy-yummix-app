@@ -385,7 +385,7 @@ describe('AdminRecipeService', () => {
       expect(mockFrom).toHaveBeenCalledWith('recipe_kitchen_tools');
     });
 
-    it('persists all My Week Setup planner metadata (snake_case) on insert', async () => {
+    it('persists all Meal Planning planner metadata (snake_case) on insert', async () => {
       mockChain = createChainableMock({ data: { id: 'new-id' }, error: null });
       mockChain.eq = jest.fn().mockResolvedValue({ error: null });
       mockFrom.mockImplementation(() => mockChain);

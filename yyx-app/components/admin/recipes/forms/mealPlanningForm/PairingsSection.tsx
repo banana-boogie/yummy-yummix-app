@@ -56,7 +56,7 @@ export function PairingsSection({
   const roleOptions: SelectOption[] = useMemo(
     () =>
       PAIRING_ROLES.map((role) => ({
-        label: i18n.t(`admin.recipes.form.myWeekSetup.pairings.roles.${role}`),
+        label: i18n.t(`admin.recipes.form.mealPlanning.pairings.roles.${role}`),
         value: role,
       })),
     [],
@@ -106,7 +106,7 @@ export function PairingsSection({
     [pairings, onUpdateRecipe, recipe.id],
   );
 
-  const sectionTitle = i18n.t('admin.recipes.form.myWeekSetup.pairings.title');
+  const sectionTitle = i18n.t('admin.recipes.form.mealPlanning.pairings.title');
 
   // New recipe (no id yet): render the empty-state CTA.
   if (!recipe.id) {
@@ -114,7 +114,7 @@ export function PairingsSection({
       <FormSection title={sectionTitle} headerVariant="prominent">
         <View className="p-lg rounded-xl border border-dashed border-primary-medium bg-primary-lightest">
           <Text preset="body" className="text-text-secondary">
-            {i18n.t('admin.recipes.form.myWeekSetup.pairings.emptyBeforeSave')}
+            {i18n.t('admin.recipes.form.mealPlanning.pairings.emptyBeforeSave')}
           </Text>
         </View>
       </FormSection>
@@ -126,7 +126,7 @@ export function PairingsSection({
       <View className="gap-md">
         {pairings.length === 0 ? (
           <Text preset="bodySmall" className="text-text-secondary">
-            {i18n.t('admin.recipes.form.myWeekSetup.pairings.noneYet')}
+            {i18n.t('admin.recipes.form.mealPlanning.pairings.noneYet')}
           </Text>
         ) : (
           pairings.map((p, idx) => (
@@ -144,7 +144,7 @@ export function PairingsSection({
           variant="outline"
           size="small"
           onPress={() => setPickerOpen(true)}
-          label={i18n.t('admin.recipes.form.myWeekSetup.pairings.addCta')}
+          label={i18n.t('admin.recipes.form.mealPlanning.pairings.addCta')}
         />
       </View>
 
@@ -183,14 +183,14 @@ function PairingCard({ pairing, roleOptions, onChange, onRemove }: PairingCardPr
         <View className="flex-1">
           <Text preset="body" className="text-text-default font-semibold">
             {pairing.targetName ??
-              i18n.t('admin.recipes.form.myWeekSetup.pairings.untitledTarget')}
+              i18n.t('admin.recipes.form.mealPlanning.pairings.untitledTarget')}
           </Text>
         </View>
         <TouchableOpacity
           onPress={onRemove}
           accessibilityRole="button"
           accessibilityLabel={i18n.t(
-            'admin.recipes.form.myWeekSetup.pairings.removeCta',
+            'admin.recipes.form.mealPlanning.pairings.removeCta',
           )}
           hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
         >
@@ -200,11 +200,11 @@ function PairingCard({ pairing, roleOptions, onChange, onRemove }: PairingCardPr
 
       <View className="mt-sm">
         <FormGroup
-          label={i18n.t('admin.recipes.form.myWeekSetup.pairings.roleLabel')}
+          label={i18n.t('admin.recipes.form.mealPlanning.pairings.roleLabel')}
           required
           error={
             missingRole
-              ? i18n.t('admin.recipes.form.myWeekSetup.pairings.roleRequired')
+              ? i18n.t('admin.recipes.form.mealPlanning.pairings.roleRequired')
               : undefined
           }
         >
@@ -215,7 +215,7 @@ function PairingCard({ pairing, roleOptions, onChange, onRemove }: PairingCardPr
               onChange({ pairingRole: (value as PairingRole) || null })
             }
             placeholder={i18n.t(
-              'admin.recipes.form.myWeekSetup.pairings.rolePlaceholder',
+              'admin.recipes.form.mealPlanning.pairings.rolePlaceholder',
             )}
           />
         </FormGroup>
@@ -223,13 +223,13 @@ function PairingCard({ pairing, roleOptions, onChange, onRemove }: PairingCardPr
 
       <View className="mt-sm">
         <FormGroup
-          label={i18n.t('admin.recipes.form.myWeekSetup.pairings.reasonLabel')}
+          label={i18n.t('admin.recipes.form.mealPlanning.pairings.reasonLabel')}
         >
           <TextInput
             value={pairing.reason ?? ''}
             onChangeText={(text) => onChange({ reason: text || null })}
             placeholder={i18n.t(
-              'admin.recipes.form.myWeekSetup.pairings.reasonPlaceholder',
+              'admin.recipes.form.mealPlanning.pairings.reasonPlaceholder',
             )}
           />
         </FormGroup>
@@ -281,7 +281,7 @@ function PairingPickerModal({
             pickTranslation(translations, displayLocale)?.name
             ?? pickTranslation(translations, 'es')?.name
             ?? pickTranslation(translations, 'en')?.name
-            ?? i18n.t('admin.recipes.form.myWeekSetup.pairings.untitledTarget');
+            ?? i18n.t('admin.recipes.form.mealPlanning.pairings.untitledTarget');
           return {
             id: r.id,
             name,
@@ -295,7 +295,7 @@ function PairingPickerModal({
         logger.error('Failed to load pairing candidates:', e);
         if (!cancelled) {
           setError(
-            i18n.t('admin.recipes.form.myWeekSetup.pairings.loadError'),
+            i18n.t('admin.recipes.form.mealPlanning.pairings.loadError'),
           );
         }
       })
@@ -336,7 +336,7 @@ function PairingPickerModal({
       .filter((c) => (q ? c.name.toLowerCase().includes(q) : true));
   }, [candidates, query, sourceRecipeId, alreadyPairedIds]);
 
-  const title = i18n.t('admin.recipes.form.myWeekSetup.pairings.pickerTitle');
+  const title = i18n.t('admin.recipes.form.mealPlanning.pairings.pickerTitle');
 
   const WebDialog = (
     <Pressable
@@ -356,7 +356,7 @@ function PairingPickerModal({
           anyEvt.stopPropagation?.();
         }}
         className="items-center px-md"
-        style={{ width: '100%', maxWidth: 560 }}
+        style={{ width: '100%', maxWidth: 720 }}
       >
         <View
           className="rounded-xl bg-white border border-primary-default shadow-lg overflow-hidden"
@@ -368,7 +368,7 @@ function PairingPickerModal({
               value={query}
               onChangeText={setQuery}
               placeholder={i18n.t(
-                'admin.recipes.form.myWeekSetup.pairings.searchPlaceholder',
+                'admin.recipes.form.mealPlanning.pairings.searchPlaceholder',
               )}
             />
           </View>
@@ -396,7 +396,7 @@ function PairingPickerModal({
             value={query}
             onChangeText={setQuery}
             placeholder={i18n.t(
-              'admin.recipes.form.myWeekSetup.pairings.searchPlaceholder',
+              'admin.recipes.form.mealPlanning.pairings.searchPlaceholder',
             )}
           />
         </View>
@@ -456,7 +456,7 @@ function PickerBody({
     return (
       <View className="px-lg py-lg">
         <Text preset="caption" className="text-center text-text-secondary">
-          {i18n.t('admin.recipes.form.myWeekSetup.pairings.loading')}
+          {i18n.t('admin.recipes.form.mealPlanning.pairings.loading')}
         </Text>
       </View>
     );
@@ -476,7 +476,7 @@ function PickerBody({
     return (
       <View className="px-lg py-lg">
         <Text preset="caption" className="text-center text-text-secondary">
-          {i18n.t('admin.recipes.form.myWeekSetup.pairings.noMatches')}
+          {i18n.t('admin.recipes.form.mealPlanning.pairings.noMatches')}
         </Text>
       </View>
     );

@@ -1,7 +1,7 @@
 /**
  * useAdminRecipeForm Hook Tests
  *
- * Regression coverage for My Week Setup planner metadata persistence on
+ * Regression coverage for Meal Planning planner metadata persistence on
  * recipe CREATE. Previously handlePublish() dropped planner fields on the
  * floor — this test asserts they all reach adminRecipeService.createRecipe.
  */
@@ -84,7 +84,7 @@ jest.mock('@/i18n', () => ({
 
 // ---- Test ---------------------------------------------------------------
 
-describe('useAdminRecipeForm — create flow persists My Week Setup', () => {
+describe('useAdminRecipeForm — create flow persists Meal Planning', () => {
   beforeEach(() => {
     mockCreateRecipe.mockReset();
     mockCreateRecipe.mockResolvedValue({ id: 'recipe-1' });
@@ -138,7 +138,7 @@ describe('useAdminRecipeForm — create flow persists My Week Setup', () => {
     expect(mockCreateRecipe).toHaveBeenCalledTimes(1);
     const payload = mockCreateRecipe.mock.calls[0][0];
 
-    // Regression: all My Week Setup fields must reach the service layer.
+    // Regression: all Meal Planning fields must reach the service layer.
     expect(payload).toMatchObject({
       plannerRole: 'main',
       alternatePlannerRoles: ['side'],
@@ -207,7 +207,7 @@ describe('migrateDraftStep — draft schema migration', () => {
   });
 
   it('does not shift when already on current version', () => {
-    expect(migrateDraftStep(6, 2)).toBe(CreateRecipeStep.MY_WEEK_SETUP);
+    expect(migrateDraftStep(6, 2)).toBe(CreateRecipeStep.MEAL_PLANNING);
     expect(migrateDraftStep(7, 2)).toBe(CreateRecipeStep.TRANSLATIONS);
     expect(migrateDraftStep(8, 2)).toBe(CreateRecipeStep.REVIEW);
   });

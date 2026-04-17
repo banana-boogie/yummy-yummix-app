@@ -474,8 +474,8 @@ export const admin = {
         allCategories: "Todas las Categorías",
         clearFilters: "Limpiar filtros",
       },
-      myWeekSetup: {
-        title: "Mi Semana",
+      mealPlanning: {
+        title: "Planificación de comidas",
         sections: {
           roleComposition: "Rol y composición",
           equipmentDifficulty: "Equipo y dificultad",
@@ -484,7 +484,7 @@ export const admin = {
           verification: "Verificación",
         },
         eligibility: {
-          ready: "Metadatos de Mi Semana completos",
+          ready: "Listo para planificar",
           missingTitle: "Falta información",
           need: "Falta:",
           needHelper: "Completa estos campos para que la receta sea elegible en el planificador:",
@@ -496,7 +496,7 @@ export const admin = {
           },
           pantryTitle: "Item de despensa — solo en Explorar",
           pantryHelper:
-            "Los items de despensa no necesitan metadatos de Mi Semana. Aparecen en Explorar y en Irmixy pero no se programan en los planes semanales.",
+            "Los items de despensa no necesitan metadatos de planificación. Aparecen en Explorar y en Irmixy pero no se programan en los planes semanales.",
         },
         plannerRole: {
           label: "Rol en la comida",
@@ -527,7 +527,7 @@ export const admin = {
           placeholder: "Selecciona todas las que apliquen",
           pickerTitle: "Selecciona los aportes",
           tooltip:
-            "¿Qué macronutrientes aporta esta receta? Esto ayuda al planificador a armar comidas balanceadas.",
+            "¿Qué macronutrientes aporta esta receta? Déjalo en blanco si es más bien un acompañamiento (como hummus o una salsa para untar) que no aporta un eje específico.",
           protein: "Tiene proteína",
           carb: "Tiene carbohidratos",
           veg: "Tiene verduras",

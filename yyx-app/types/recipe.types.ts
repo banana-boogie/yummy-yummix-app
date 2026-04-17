@@ -18,7 +18,7 @@ export interface Recipe {
   isPublished: boolean;
   createdAt: string;
   updatedAt: string;
-  // Planner (My Week Setup) metadata
+  // Planner (Meal Planning) metadata
   plannerRole?: PlannerRole | null;
   alternatePlannerRoles?: AlternatePlannerRole[] | null;
   mealComponents?: MealComponent[] | null;

@@ -22,7 +22,7 @@ jest.mock('@/i18n', () => ({
         'admin.recipes.form.ingredientsInfo.title': 'Ingredients',
         'admin.recipes.form.stepsInfo.title': 'Steps',
         'admin.recipes.form.tagsInfo.title': 'Tags',
-        'admin.recipes.form.myWeekSetup.title': 'My Week',
+        'admin.recipes.form.mealPlanning.title': 'My Week',
         'admin.translate.translationStep': 'Translations',
         'admin.recipes.form.reviewInfo.title': 'Review',
       };
@@ -176,7 +176,7 @@ describe('RecipeProgressIndicator', () => {
       expect(CreateRecipeStep.INGREDIENTS).toBe(3);
       expect(CreateRecipeStep.STEPS).toBe(4);
       expect(CreateRecipeStep.TAGS).toBe(5);
-      expect(CreateRecipeStep.MY_WEEK_SETUP).toBe(6);
+      expect(CreateRecipeStep.MEAL_PLANNING).toBe(6);
       expect(CreateRecipeStep.TRANSLATIONS).toBe(7);
       expect(CreateRecipeStep.REVIEW).toBe(8);
     });

@@ -64,7 +64,7 @@ export const useRecipeValidation = () => {
 
     if (hasInvalidPairing) {
       errors.pairings = i18n.t(
-        'admin.recipes.form.myWeekSetup.pairings.roleRequired',
+        'admin.recipes.form.mealPlanning.pairings.roleRequired',
       );
     }
 

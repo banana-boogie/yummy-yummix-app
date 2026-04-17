@@ -6,16 +6,16 @@ jest.mock('@/i18n', () => ({
   __esModule: true,
   default: {
     t: (key: string, params?: Record<string, string>) => {
-      if (key === 'admin.recipes.form.myWeekSetup.eligibility.ready') return 'Ready';
-      if (key === 'admin.recipes.form.myWeekSetup.eligibility.missingTitle') return 'Missing info';
-      if (key === 'admin.recipes.form.myWeekSetup.eligibility.needHelper') return 'Complete these:';
-      if (key === 'admin.recipes.form.myWeekSetup.eligibility.jumpToField') {
+      if (key === 'admin.recipes.form.mealPlanning.eligibility.ready') return 'Ready';
+      if (key === 'admin.recipes.form.mealPlanning.eligibility.missingTitle') return 'Missing info';
+      if (key === 'admin.recipes.form.mealPlanning.eligibility.needHelper') return 'Complete these:';
+      if (key === 'admin.recipes.form.mealPlanning.eligibility.jumpToField') {
         return `Jump to ${params?.field ?? ''}`;
       }
-      if (key === 'admin.recipes.form.myWeekSetup.eligibility.pantryTitle') {
+      if (key === 'admin.recipes.form.mealPlanning.eligibility.pantryTitle') {
         return 'Pantry item — Explore only';
       }
-      if (key === 'admin.recipes.form.myWeekSetup.eligibility.pantryHelper') {
+      if (key === 'admin.recipes.form.mealPlanning.eligibility.pantryHelper') {
         return 'Not scheduled into weekly plans.';
       }
       return key;

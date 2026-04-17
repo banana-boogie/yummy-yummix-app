@@ -20,12 +20,12 @@ const STORAGE_KEYS = {
 
 // Bump this when the step enum order changes so that older drafts get migrated.
 // v1 = pre-planner (TRANSLATIONS=6, REVIEW=7)
-// v2 = planner inserted (MY_WEEK_SETUP=6, TRANSLATIONS=7, REVIEW=8)
+// v2 = planner inserted (MEAL_PLANNING=6, TRANSLATIONS=7, REVIEW=8)
 const DRAFT_SCHEMA_VERSION = 2;
 
 /**
  * Migrate a raw persisted step value (unknown schema version) to the current enum.
- * For v1 → v2: TRANSLATIONS/REVIEW shifted by +1 because MY_WEEK_SETUP was inserted at 6.
+ * For v1 → v2: TRANSLATIONS/REVIEW shifted by +1 because MEAL_PLANNING was inserted at 6.
  */
 export function migrateDraftStep(rawStep: number, fromVersion: number): CreateRecipeStep {
   const maxStep = CreateRecipeStep.REVIEW;
@@ -401,7 +401,7 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
         tags: recipe.tags,
         steps: recipe.steps,
         kitchenTools: recipe.kitchenTools,
-        // My Week Setup planner metadata
+        // Meal Planning planner metadata
         plannerRole: recipe.plannerRole,
         alternatePlannerRoles: recipe.alternatePlannerRoles,
         mealComponents: recipe.mealComponents,
