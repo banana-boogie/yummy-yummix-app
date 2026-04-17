@@ -298,11 +298,36 @@ export function MealPlanningForm({
   }
 
   const handleMarkVerified = () => {
-    // Store user.id for stable attribution (verified_by is TEXT).
     onUpdateRecipe({
       verifiedAt: new Date().toISOString(),
       verifiedBy: user?.id || null,
     });
+  };
+
+  // Scaling notes live on `recipe_translations.scaling_notes` (per-locale).
+  // Read + write the authoring-locale translation row, creating it if absent.
+  const authoringScalingNotes =
+    (recipe.translations ?? []).find((t) => t.locale === authoringLocale)
+      ?.scalingNotes ?? "";
+
+  const handleScalingNotesChange = (text: string) => {
+    const translations = recipe.translations ?? [];
+    const existing = translations.find((t) => t.locale === authoringLocale);
+    const next = existing
+      ? translations.map((t) =>
+          t.locale === authoringLocale
+            ? { ...t, scalingNotes: text || undefined }
+            : t,
+        )
+      : [
+          ...translations,
+          {
+            locale: authoringLocale,
+            name: "",
+            scalingNotes: text || undefined,
+          },
+        ];
+    onUpdateRecipe({ translations: next });
   };
 
   const handleUnverify = () => {
@@ -604,32 +629,8 @@ export function MealPlanningForm({
             label={i18n.t("admin.recipes.form.mealPlanning.scalingNotes.label")}
           >
             <TextInput
-              value={
-                (recipe.translations ?? []).find(
-                  (t) => t.locale === authoringLocale,
-                )?.scalingNotes ?? ""
-              }
-              onChangeText={(text) => {
-                const translations = recipe.translations ?? [];
-                const existing = translations.find(
-                  (t) => t.locale === authoringLocale,
-                );
-                const next = existing
-                  ? translations.map((t) =>
-                      t.locale === authoringLocale
-                        ? { ...t, scalingNotes: text || undefined }
-                        : t,
-                    )
-                  : [
-                      ...translations,
-                      {
-                        locale: authoringLocale,
-                        name: "",
-                        scalingNotes: text || undefined,
-                      },
-                    ];
-                onUpdateRecipe({ translations: next });
-              }}
+              value={authoringScalingNotes}
+              onChangeText={handleScalingNotesChange}
               multiline
               numberOfLines={3}
               className="min-h-[96px] p-md"

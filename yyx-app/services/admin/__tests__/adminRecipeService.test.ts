@@ -12,7 +12,7 @@ import { adminRecipeService } from '../adminRecipeService';
 
 const createChainableMock = (resolvedValue: any = { data: null, error: null }) => {
   const chainable: any = {};
-  const methods = ['select', 'insert', 'update', 'delete', 'eq', 'single', 'maybeSingle', 'order', 'from'];
+  const methods = ['select', 'insert', 'update', 'upsert', 'delete', 'eq', 'single', 'maybeSingle', 'order', 'from'];
 
   methods.forEach(method => {
     chainable[method] = jest.fn().mockReturnValue(chainable);
@@ -425,6 +425,72 @@ describe('AdminRecipeService', () => {
       expect(row.verified_by).toBe('user-1');
     });
 
+    it('updateRecipe carries scaling_notes through on translation upsert', async () => {
+      mockChain = createChainableMock({ data: null, error: null });
+      // updateRecipe hits the `recipes` table UPDATE via BaseService.transformedUpdate,
+      // which chains .from().update().eq(). We only care here about the
+      // recipe_translations upsert — intercept it via mockFrom dispatch.
+      mockFrom.mockImplementation(() => mockChain);
+
+      await adminRecipeService.updateRecipe('recipe-1', {
+        translations: [
+          {
+            locale: 'en',
+            name: 'Tomato Soup',
+            scalingNotes: 'Double sauce for 6+ people.',
+          },
+        ],
+      });
+
+      const upsertCall = mockChain.upsert.mock.calls.find(
+        (call: any[]) =>
+          Array.isArray(call[0]) &&
+          call[0].some((row: any) => 'scaling_notes' in row),
+      );
+      expect(upsertCall).toBeDefined();
+      const rows = upsertCall![0];
+      expect(rows[0].scaling_notes).toBe('Double sauce for 6+ people.');
+    });
+
+    it('createRecipe carries scaling_notes through on translation insert', async () => {
+      mockChain = createChainableMock({ data: { id: 'new-id' }, error: null });
+      mockChain.eq = jest.fn().mockResolvedValue({ error: null });
+      mockFrom.mockImplementation(() => mockChain);
+
+      await adminRecipeService.createRecipe({
+        translations: [
+          {
+            locale: 'en',
+            name: 'Tomato Soup',
+            tipsAndTricks: 'Use ripe tomatoes.',
+            scalingNotes: 'Thermomix bowl fits one batch of 4 servings.',
+          },
+          {
+            locale: 'es',
+            name: 'Sopa de Jitomate',
+            scalingNotes: 'El vaso del Thermomix cabe una tanda de 4 porciones.',
+          },
+        ],
+      });
+
+      const translationInsert = mockChain.insert.mock.calls.find(
+        (call: any[]) =>
+          Array.isArray(call[0]) &&
+          call[0].some((row: any) => 'scaling_notes' in row),
+      );
+      expect(translationInsert).toBeDefined();
+      const rows = translationInsert![0];
+      const en = rows.find((r: any) => r.locale === 'en');
+      const es = rows.find((r: any) => r.locale === 'es');
+      expect(en.scaling_notes).toBe(
+        'Thermomix bowl fits one batch of 4 servings.',
+      );
+      expect(en.tips_and_tricks).toBe('Use ripe tomatoes.');
+      expect(es.scaling_notes).toBe(
+        'El vaso del Thermomix cabe una tanda de 4 porciones.',
+      );
+    });
+
     it('getRecipeById returns planner metadata mapped to camelCase', async () => {
       const fromDb = {
         id: 'recipe-42',
@@ -444,7 +510,14 @@ describe('AdminRecipeService', () => {
         max_household_size_supported: 4,
         verified_at: '2026-04-01T12:00:00.000Z',
         verified_by: 'admin-1',
-        translations: [{ locale: 'en', name: 'Side Salad', tips_and_tricks: null }],
+        translations: [
+          {
+            locale: 'en',
+            name: 'Side Salad',
+            tips_and_tricks: null,
+            scaling_notes: 'Double the dressing for 6+ servings.',
+          },
+        ],
         ingredients: [],
         steps: [],
         tags: [],
@@ -476,6 +549,12 @@ describe('AdminRecipeService', () => {
       expect(result!.maxHouseholdSizeSupported).toBe(4);
       expect(result!.verifiedAt).toBe('2026-04-01T12:00:00.000Z');
       expect(result!.verifiedBy).toBe('admin-1');
+      // scaling_notes (snake_case) is hydrated into scalingNotes on each
+      // translation row — makes the field per-locale instead of on the
+      // base recipe. Guards the tips_and_tricks-parallel plumbing.
+      expect(result!.translations[0].scalingNotes).toBe(
+        'Double the dressing for 6+ servings.',
+      );
     });
 
     it('getRecipeById resolves verifiedByName from user_profiles (name preferred)', async () => {
