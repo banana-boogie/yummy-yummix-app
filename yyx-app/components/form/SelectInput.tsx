@@ -70,7 +70,7 @@ export function SelectInput({
             {label} {required ? '*' : ''}
           </Text>
         ) : null}
-        <View className="flex-row items-center justify-between rounded-md bg-background-default overflow-hidden min-h-[56px] px-md border-[1.5px] border-border-default relative">
+        <View className="flex-row items-center justify-between rounded-md bg-neutral-white overflow-hidden min-h-[56px] px-md border-[1.5px] border-grey-default web:hover:border-grey-medium_dark web:focus-within:border-primary-medium web:focus-within:ring-2 web:focus-within:ring-primary-default relative">
           <select
             value={value}
             onChange={(e) => onValueChange(e.target.value)}
@@ -101,14 +101,14 @@ export function SelectInput({
           <Text
             className={`
               text-base mb-0 flex-1
-              ${!selectedItem ? 'text-text-secondary' : 'text-text-default'}
+              ${!selectedItem ? 'text-text-secondary' : 'text-text-default font-medium'}
             `}
             numberOfLines={1}
           >
             {displayText}
           </Text>
           <View>
-            <Ionicons name="chevron-down" size={24} className="text-text-secondary" />
+            <Ionicons name="chevron-down" size={24} color={COLORS.grey.medium_dark} />
           </View>
         </View>
         {error ? (
@@ -128,7 +128,7 @@ export function SelectInput({
       ) : null}
       <TouchableOpacity
         className={`
-          flex-row items-center justify-between min-h-[56px] px-md bg-background-default rounded-md border-[1.5px] border-border-default
+          flex-row items-center justify-between min-h-[56px] px-md bg-neutral-white rounded-md border-[1.5px] border-grey-default
           ${error ? 'border-status-error' : ''}
           ${className}
         `}
@@ -137,14 +137,14 @@ export function SelectInput({
         <Text
           className={`
             flex-1 text-md
-            ${!selectedItem ? 'text-text-secondary' : 'text-text-default'}
+            ${!selectedItem ? 'text-text-secondary' : 'text-text-default font-medium'}
             ${error ? 'text-status-error' : ''}
           `}
           numberOfLines={1}
         >
           {displayText}
         </Text>
-        <Ionicons name="chevron-down" size={24} className="text-text-secondary" />
+        <Ionicons name="chevron-down" size={24} color={COLORS.grey.medium_dark} />
       </TouchableOpacity>
 
       {error ? (

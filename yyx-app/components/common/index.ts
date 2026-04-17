@@ -15,3 +15,4 @@ export { Switch } from './Switch';
 export { Divider } from './Divider';
 export { ErrorMessage } from './ErrorMessage';
 export { SafeImage } from './SafeImage';
+export { InfoTooltip } from './InfoTooltip';

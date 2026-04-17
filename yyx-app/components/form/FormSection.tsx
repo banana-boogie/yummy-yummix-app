@@ -45,24 +45,21 @@ export function FormSection({
   const isProminent = headerVariant === 'prominent';
   return (
     <View
-      className={`w-full ${className}`}
+      className={`w-full ${className} ${isProminent ? 'rounded-lg bg-background-default border border-grey-default p-xl' : ''}`}
       style={[{ maxWidth }, style]}
     >
       {title ? (
         <View
           style={{
-            borderLeftWidth: isProminent ? 4 : 3,
-            borderLeftColor: COLORS.primary.medium,
+            borderLeftWidth: isProminent ? 5 : 3,
+            borderLeftColor: isProminent ? COLORS.primary.dark : COLORS.primary.medium,
             paddingLeft: isProminent ? SPACING.md : SPACING.sm,
           }}
-          className={
-            isProminent
-              ? 'mb-lg pb-sm border-b border-primary-default/60'
-              : 'mb-sm'
-          }
+          className={isProminent ? 'mb-lg' : 'mb-sm'}
         >
           <Text
-            preset={isProminent ? 'h3' : 'subheading'}
+            preset={isProminent ? 'h2' : 'subheading'}
+            className={isProminent ? 'font-bold text-text-default' : ''}
             style={[isProminent ? undefined : { fontSize: FONT_SIZES['2xl'] }, titleStyle]}
           >
             {title}

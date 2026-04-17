@@ -37,4 +37,5 @@ export const common = {
   today: "Hoy",
   yesterday: "Ayer",
   daysAgo: "Hace {{count}} días",
+  moreInfo: "Más información",
 };

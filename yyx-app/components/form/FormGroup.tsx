@@ -1,6 +1,7 @@
 import React, { ReactNode, isValidElement, cloneElement } from 'react';
 import { View, StyleProp, ViewStyle } from 'react-native';
 import { Text } from '@/components/common/Text';
+import { InfoTooltip } from '@/components/common/InfoTooltip';
 
 interface FormGroupProps {
   label?: string;
@@ -30,16 +31,15 @@ export function FormGroup({
   return (
     <View className={`flex-1 ${className}`} style={style}>
       {label ? (
-        <Text className="text-base text-text-default font-semibold mb-xs">
-          {label}
-          {required ? (
-            <Text className="text-status-error"> *</Text>
-          ) : null}
-        </Text>
-      ) : null}
-
-      {helperText ? (
-        <Text className="text-sm text-text-secondary mb-sm">{helperText}</Text>
+        <View className="flex-row items-center gap-xs mb-sm">
+          <Text className="flex-shrink text-base text-text-default font-semibold">
+            {label}
+            {required ? (
+              <Text className="text-status-error"> *</Text>
+            ) : null}
+          </Text>
+          {helperText ? <InfoTooltip content={helperText} /> : null}
+        </View>
       ) : null}
 
       {enhancedChildren}

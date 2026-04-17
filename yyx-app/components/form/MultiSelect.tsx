@@ -13,6 +13,7 @@ import i18n from '@/i18n';
 import { Text } from '@/components/common/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/common/Button';
+import { COLORS } from '@/constants/design-tokens';
 
 interface MultiSelectOption {
   label: string;
@@ -182,18 +183,18 @@ export function MultiSelect({
   return (
     <View className={className} style={[style, containerStyle]}>
       <TouchableOpacity
-        className="flex-row items-center justify-between h-12 px-md bg-background-secondary rounded-lg"
+        className="flex-row items-center justify-between min-h-[48px] px-md bg-neutral-white rounded-lg border-[1.5px] border-grey-default web:hover:border-grey-medium_dark web:focus-within:border-primary-medium web:focus-within:ring-2 web:focus-within:ring-primary-default"
         onPress={openModal}
       >
         <Text
           className={`flex-1 text-base ${
-            selectedLabels ? 'text-text-default' : 'text-text-secondary'
+            selectedLabels ? 'text-text-default font-medium' : 'text-text-secondary'
           }`}
           numberOfLines={1}
         >
           {selectedLabels || placeholder}
         </Text>
-        <Ionicons name="chevron-down" size={24} className="text-text-secondary" />
+        <Ionicons name="chevron-down" size={24} color={COLORS.grey.medium_dark} />
       </TouchableOpacity>
 
       <Modal
