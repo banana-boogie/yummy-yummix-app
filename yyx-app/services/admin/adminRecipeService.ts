@@ -6,7 +6,6 @@ import {
   AdminRecipePairing,
   getNameFromTranslations,
   PairingRole,
-  pickTranslation,
 } from '@/types/recipe.admin.types';
 import { imageService } from '@/services/storage/imageService';
 import { BaseService } from '@/services/base/BaseService';
@@ -55,10 +54,7 @@ class AdminRecipeService extends BaseService {
     await recipeCache.clearCache();
   }
 
-  async getRecipeById(
-    id: string,
-    displayLocale = 'es',
-  ): Promise<AdminRecipe | null> {
+  async getRecipeById(id: string): Promise<AdminRecipe | null> {
     const query = this.supabase
       .from('recipes')
       .select(`
@@ -223,7 +219,7 @@ class AdminRecipeService extends BaseService {
       }
     }
 
-    recipe.pairings = await this.getRecipePairings(recipe.id, displayLocale);
+    recipe.pairings = await this.getRecipePairings(recipe.id);
 
     return recipe;
   }
@@ -701,10 +697,7 @@ class AdminRecipeService extends BaseService {
     }
   }
 
-  async getRecipePairings(
-    recipeId: string,
-    displayLocale = 'es',
-  ): Promise<AdminRecipePairing[]> {
+  async getRecipePairings(recipeId: string): Promise<AdminRecipePairing[]> {
     const { data, error } = await this.supabase
       .from('recipe_pairings')
       .select(`
@@ -727,6 +720,10 @@ class AdminRecipeService extends BaseService {
       throw new Error(`Failed to load recipe pairings: ${error.message}`);
     }
 
+    // Return raw translations on each pairing; the UI resolves the display
+    // name against the active display locale at render time so locale
+    // toggles do not require a full recipe refetch (which was clobbering
+    // unsaved form edits).
     return (data ?? []).map((row: any) => {
       const target = row.target ?? {};
       const targetTranslations: { locale: string; name?: string }[] =
@@ -737,11 +734,7 @@ class AdminRecipeService extends BaseService {
         targetRecipeId: row.target_recipe_id,
         pairingRole: row.pairing_role as PairingRole,
         reason: row.reason,
-        targetName:
-          pickTranslation(targetTranslations, displayLocale)?.name ??
-          pickTranslation(targetTranslations, 'es')?.name ??
-          pickTranslation(targetTranslations, 'en')?.name ??
-          'item',
+        targetTranslations,
         targetImageUrl: target.image_url ?? null,
         targetPlannerRole: target.planner_role ?? null,
       };

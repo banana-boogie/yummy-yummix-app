@@ -149,6 +149,13 @@ export interface AdminRecipePairing {
   pairingRole: PairingRole | null;
   reason?: string | null;
   // UI-derived from target recipe join — not persisted back.
+  /** Raw translations array from the target recipe. Rendered against the
+   *  active display locale at the UI layer so locale toggles do not require
+   *  a refetch of the parent recipe. */
+  targetTranslations?: { locale: string; name?: string }[];
+  /** Pre-resolved display name, used only for locally-added pairings (from
+   *  the picker) where only one locale's name was picked. Persisted pairings
+   *  carry `targetTranslations` instead and this field is unset. */
   targetName?: string;
   targetImageUrl?: string | null;
   targetPlannerRole?: string | null;

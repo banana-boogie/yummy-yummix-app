@@ -134,6 +134,7 @@ export function PairingsSection({
               key={p.id ?? `new-${idx}-${p.targetRecipeId}`}
               pairing={p}
               roleOptions={roleOptions}
+              displayLocale={displayLocale}
               onChange={(changes) => updatePairing(idx, changes)}
               onRemove={() => removePairing(idx)}
             />
@@ -167,12 +168,28 @@ export function PairingsSection({
 interface PairingCardProps {
   pairing: AdminRecipePairing;
   roleOptions: SelectOption[];
+  displayLocale: string;
   onChange: (changes: Partial<AdminRecipePairing>) => void;
   onRemove: () => void;
 }
 
-function PairingCard({ pairing, roleOptions, onChange, onRemove }: PairingCardProps) {
+function PairingCard({
+  pairing,
+  roleOptions,
+  displayLocale,
+  onChange,
+  onRemove,
+}: PairingCardProps) {
   const missingRole = !pairing.pairingRole;
+  // Resolve target name at render time from persisted translations (loaded
+  // once on mount) so locale toggles don't need a refetch. Falls back to the
+  // pre-resolved name used by picker-added pairings before save.
+  const targetName =
+    pickTranslation(pairing.targetTranslations, displayLocale)?.name ??
+    pickTranslation(pairing.targetTranslations, 'es')?.name ??
+    pickTranslation(pairing.targetTranslations, 'en')?.name ??
+    pairing.targetName ??
+    i18n.t('admin.recipes.form.mealPlanning.pairings.untitledTarget');
   return (
     <View
       className={`p-md rounded-lg border bg-white ${
@@ -182,8 +199,7 @@ function PairingCard({ pairing, roleOptions, onChange, onRemove }: PairingCardPr
       <View className="flex-row items-start gap-md">
         <View className="flex-1">
           <Text preset="body" className="text-text-default font-semibold">
-            {pairing.targetName ??
-              i18n.t('admin.recipes.form.mealPlanning.pairings.untitledTarget')}
+            {targetName}
           </Text>
         </View>
         <TouchableOpacity

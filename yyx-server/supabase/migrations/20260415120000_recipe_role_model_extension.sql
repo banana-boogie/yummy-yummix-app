@@ -28,6 +28,11 @@
 
 -- ============================================================
 -- 1. Scrub legacy 'snack'/'dessert'/'fat' values BEFORE rename.
+-- Applied to all three affected tables so the narrower CHECK
+-- constraints we install below cannot reject pre-existing rows.
+-- In this branch the meal_plan_* tables are empty (PR #1 scaffold
+-- only), but the cleanups are defensive against any rows that
+-- land between PR #1 merging and this PR deploying.
 -- ============================================================
 UPDATE public.recipes
 SET food_groups = array_remove(
@@ -38,6 +43,26 @@ SET food_groups = array_remove(
     'fat'
 )
 WHERE food_groups && ARRAY['snack', 'dessert', 'fat']::TEXT[];
+
+UPDATE public.meal_plan_slots
+SET expected_food_groups = array_remove(
+    array_remove(
+        array_remove(expected_food_groups, 'snack'),
+        'dessert'
+    ),
+    'fat'
+)
+WHERE expected_food_groups && ARRAY['snack', 'dessert', 'fat']::TEXT[];
+
+UPDATE public.meal_plan_slot_components
+SET food_groups_snapshot = array_remove(
+    array_remove(
+        array_remove(food_groups_snapshot, 'snack'),
+        'dessert'
+    ),
+    'fat'
+)
+WHERE food_groups_snapshot && ARRAY['snack', 'dessert', 'fat']::TEXT[];
 
 -- ============================================================
 -- 2. Rename columns across all three tables.

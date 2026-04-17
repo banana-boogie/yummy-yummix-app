@@ -63,10 +63,7 @@ export default function EditRecipePage() {
 
     try {
       setLoading(true);
-      const recipeData = await adminRecipeService.getRecipeById(
-        id as string,
-        displayLocale,
-      );
+      const recipeData = await adminRecipeService.getRecipeById(id as string);
       if (recipeData) {
         setRecipe(recipeData);
       } else {
@@ -78,7 +75,10 @@ export default function EditRecipePage() {
     } finally {
       setLoading(false);
     }
-  }, [displayLocale, id]);
+    // `id` only — displayLocale intentionally NOT a dep. Reloading on locale
+    // toggle would blow away unsaved form edits. Pairing names are resolved
+    // client-side from translations in the UI layer.
+  }, [id]);
 
   useEffect(() => {
     loadRecipe();

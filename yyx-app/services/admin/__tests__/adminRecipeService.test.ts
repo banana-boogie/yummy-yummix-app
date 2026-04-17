@@ -670,12 +670,14 @@ describe('AdminRecipeService', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].pairingRole).toBe('side');
-      expect(result[0].targetName).toBe('Rice');
+      expect(result[0].targetTranslations).toEqual([
+        { locale: 'en', name: 'Rice' },
+      ]);
       expect(result[0].targetPlannerRole).toBe('side');
       expect(result[0].reason).toBe('goes great with rice');
     });
 
-    it('resolves pairing names using the requested display locale', async () => {
+    it('returns raw translations so the UI can resolve names per locale', async () => {
       const fromDb = [
         {
           id: 'p-1',
@@ -701,9 +703,14 @@ describe('AdminRecipeService', () => {
       }));
       mockFrom.mockImplementation(() => mockChain);
 
-      const result = await adminRecipeService.getRecipePairings('recipe-1', 'en');
+      const result = await adminRecipeService.getRecipePairings('recipe-1');
 
-      expect(result[0].targetName).toBe('Rice');
+      // Both translations round-trip — UI picks the one matching the active
+      // display locale at render time.
+      expect(result[0].targetTranslations).toEqual([
+        { locale: 'es', name: 'Arroz' },
+        { locale: 'en', name: 'Rice' },
+      ]);
     });
 
     it('returns empty array when no pairings exist', async () => {
