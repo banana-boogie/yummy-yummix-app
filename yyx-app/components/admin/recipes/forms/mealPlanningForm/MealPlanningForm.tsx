@@ -322,6 +322,7 @@ export function MealPlanningForm({
         <View style={{ gap: 40 }}>
           <View ref={plannerRoleRef}>
             <FormGroup
+              grow={false}
               label={i18n.t("admin.recipes.form.mealPlanning.plannerRole.label")}
               helperText={
                 recipe.plannerRole === "main" || recipe.plannerRole === "snack"
@@ -354,6 +355,7 @@ export function MealPlanningForm({
               no primary role is selected yet. */}
           {recipe.plannerRole && recipe.plannerRole !== "pantry" ? (
             <FormGroup
+              grow={false}
               label={i18n.t(
                 "admin.recipes.form.mealPlanning.alternateRoles.label",
               )}
@@ -387,6 +389,7 @@ export function MealPlanningForm({
             <>
               <View ref={mealComponentsRef}>
                 <FormGroup
+                  grow={false}
                   label={i18n.t(
                     "admin.recipes.form.mealPlanning.mealComponents.label",
                   )}
@@ -437,6 +440,7 @@ export function MealPlanningForm({
       >
         <View className="gap-xl">
           <FormGroup
+            grow={false}
             label={i18n.t("admin.recipes.form.mealPlanning.equipment.label")}
           >
             <MultiSelect
@@ -457,6 +461,7 @@ export function MealPlanningForm({
             />
           </FormGroup>
           <FormGroup
+            grow={false}
             label={i18n.t("admin.recipes.form.mealPlanning.cookingLevel.label")}
             helperText={i18n.t(
               "admin.recipes.form.mealPlanning.cookingLevel.tooltip",
@@ -500,6 +505,7 @@ export function MealPlanningForm({
             </View>
           ) : mealTypeOptions.length > 0 ? (
             <FormGroup
+              grow={false}
               label={i18n.t("admin.recipes.form.mealPlanning.mealTypes.label")}
               required
             >
@@ -574,6 +580,7 @@ export function MealPlanningForm({
             />
           </View>
           <FormGroup
+            grow={false}
             label={i18n.t(
               "admin.recipes.form.mealPlanning.maxHouseholdSize.label",
             )}
@@ -595,6 +602,7 @@ export function MealPlanningForm({
             />
           </FormGroup>
           <FormGroup
+            grow={false}
             label={i18n.t("admin.recipes.form.mealPlanning.scalingNotes.label")}
           >
             <TextInput
