@@ -16,6 +16,7 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3
 import type { MealSlot } from "./slot-classifier.ts";
 import { MEAL_TYPE_PRIMARY_ROLES, RETRIEVAL_LIMITS } from "./scoring-config.ts";
 import type { CanonicalMealType } from "./types.ts";
+import { normalizeIngredients } from "../_shared/ingredient-normalization.ts";
 
 export interface RecipeCandidate {
   id: string;
@@ -139,6 +140,7 @@ export function normalizeKey(name: string): string {
 function toCandidate(
   row: RawRecipeRow,
   ctx: CandidateRetrievalContext,
+  canonicalByRawName: Map<string, string>,
 ): RecipeCandidate {
   const ingredientIds: string[] = [];
   const ingredientKeys: string[] = [];
@@ -146,11 +148,18 @@ function toCandidate(
     const ing = ri.ingredients;
     if (!ing) continue;
     ingredientIds.push(ing.id);
+    // Pick the locale-chain translation for display, then resolve it to a
+    // canonical English key via the alias system. This is the key fix for
+    // the locale-keyed-ingredient bug: without canonicalization, an es user's
+    // `pollo` would never match the canonical `chicken` allergen and the
+    // hard-reject filter would silently miss.
     const name = pickTranslationName(
       ing.ingredient_translations ?? [],
       ctx.localeChain,
     );
-    if (name) ingredientKeys.push(normalizeKey(name));
+    if (!name) continue;
+    const canonical = canonicalByRawName.get(name) ?? name;
+    ingredientKeys.push(normalizeKey(canonical));
   }
 
   const cuisineTags: string[] = [];
@@ -338,13 +347,84 @@ function isRoleEligibleForAnySlot(
   return false;
 }
 
-function satisfiesRoleConditionalMealComponents(row: RawRecipeRow): boolean {
-  // meal_components is mandatory only for main/side roles. Recipes whose
-  // primary role doesn't require meal_components (snack, dessert, beverage,
-  // condiment) pass even with empty meal_components.
+/**
+ * meal_components is mandatory whenever the recipe could fill a main or side
+ * slot — through its primary `planner_role` OR through any
+ * `alternate_planner_roles` entry. Without this rule, a `planner_role='snack'`
+ * recipe with `alternate_planner_roles=['main']` and empty `meal_components`
+ * would pass the gate (snack doesn't need meal_components), get matched into
+ * a dinner slot via its alternate role, and silently break coverage.
+ *
+ * Exported for direct unit testing.
+ */
+export function satisfiesRoleConditionalMealComponents(
+  row: Pick<
+    RawRecipeRow,
+    "planner_role" | "alternate_planner_roles" | "meal_components"
+  >,
+): boolean {
   if (!row.planner_role) return false;
-  if (!ROLES_REQUIRING_MEAL_COMPONENTS.has(row.planner_role)) return true;
+  const allRoles = [row.planner_role, ...(row.alternate_planner_roles ?? [])];
+  const requiresComponents = allRoles.some((r) =>
+    ROLES_REQUIRING_MEAL_COMPONENTS.has(r)
+  );
+  if (!requiresComponents) return true;
   return (row.meal_components?.length ?? 0) > 0;
+}
+
+/**
+ * Walk a batch of recipe rows, collect the unique locale-chain ingredient
+ * names, and resolve them to canonical English keys via the alias system.
+ * Returns a Map<rawName, canonicalName> that callers use to convert
+ * `ingredientKeys` to canonical form before allergen/dislike matching.
+ *
+ * The alias map is loaded once and cached inside `_shared/ingredient-
+ * normalization.ts` (see `loadAliases`), so repeat calls in the same edge
+ * invocation are cheap. Most-specific locale in the chain drives lookup —
+ * the helper itself walks `es-MX → es → en` fallbacks via `getBaseLanguage`.
+ */
+interface IngredientHydrationRow {
+  recipe_ingredients?:
+    | Array<{
+      ingredients?:
+        | {
+          ingredient_translations?:
+            | Array<{ locale: string; name: string | null }>
+            | null;
+        }
+        | null;
+    }>
+    | null;
+}
+
+export async function buildCanonicalIngredientMap(
+  supabase: SupabaseClient,
+  rows: ReadonlyArray<IngredientHydrationRow>,
+  localeChain: string[],
+): Promise<Map<string, string>> {
+  const rawNames = new Set<string>();
+  for (const row of rows) {
+    for (const ri of row.recipe_ingredients ?? []) {
+      const ing = ri.ingredients;
+      if (!ing) continue;
+      const name = pickTranslationName(
+        ing.ingredient_translations ?? [],
+        localeChain,
+      );
+      if (name) rawNames.add(name);
+    }
+  }
+  if (rawNames.size === 0) return new Map();
+
+  const namesArr = [...rawNames];
+  const locale = localeChain[0] ?? "en";
+  const canonicals = await normalizeIngredients(supabase, namesArr, locale);
+
+  const map = new Map<string, string>();
+  for (let i = 0; i < namesArr.length; i++) {
+    map.set(namesArr[i], canonicals[i] ?? namesArr[i]);
+  }
+  return map;
 }
 
 /**
@@ -432,11 +512,25 @@ export async function fetchCandidates(
   }
 
   const rawRows = (data ?? []) as unknown as RawRecipeRow[];
-  const hydrated = rawRows
+  const filteredRows = rawRows
     .filter((r) => !ctx.hardExcludedRecipeIds.has(r.id))
     .filter((r) => isRoleEligibleForAnySlot(r, neededRoles))
-    .filter((r) => satisfiesRoleConditionalMealComponents(r))
-    .map((r) => toCandidate(r, ctx));
+    .filter((r) => satisfiesRoleConditionalMealComponents(r));
+
+  // Resolve every ingredient translation name → canonical English key in one
+  // batch, so per-candidate hydration stays sync. Without this, allergen and
+  // dislike matching would compare locale-keyed names (`pollo`, `cacahuates`)
+  // against canonical allergen_groups values (`chicken`, `peanut_butter`) and
+  // silently fail for non-English users.
+  const canonicalByRawName = await buildCanonicalIngredientMap(
+    ctx.supabase,
+    filteredRows,
+    ctx.localeChain,
+  );
+
+  const hydrated = filteredRows.map((r) =>
+    toCandidate(r, ctx, canonicalByRawName)
+  );
 
   // Drop candidates with no translation in the requested locale chain. We do
   // not cross-language fallback — a Spanish user should never see an English

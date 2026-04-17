@@ -1,11 +1,14 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
+  buildCanonicalIngredientMap,
   isAlternateRoleMatch,
   type RecipeCandidate,
+  satisfiesRoleConditionalMealComponents,
   shortlistCandidatesForSlot,
 } from "./candidate-retrieval.ts";
 import type { MealSlot } from "./slot-classifier.ts";
 import { RETRIEVAL_LIMITS } from "./scoring-config.ts";
+import { clearAliasCache } from "../_shared/ingredient-normalization.ts";
 
 function mkSlot(overrides: Partial<MealSlot> = {}): MealSlot {
   return {
@@ -140,4 +143,193 @@ Deno.test("isAlternateRoleMatch: breakfast accepts main OR snack as primary", ()
   const slot = mkSlot({ canonicalMealType: "breakfast" });
   const snackRecipe = mkCandidate("granola", { plannerRole: "snack" });
   assertEquals(isAlternateRoleMatch(slot, snackRecipe), false);
+});
+
+Deno.test("satisfiesRoleConditionalMealComponents: snack with empty meal_components passes", () => {
+  // No alternate role into main/side — snack is a leaf role that doesn't
+  // require meal_components.
+  assertEquals(
+    satisfiesRoleConditionalMealComponents({
+      planner_role: "snack",
+      alternate_planner_roles: [],
+      meal_components: [],
+    }),
+    true,
+  );
+});
+
+Deno.test("satisfiesRoleConditionalMealComponents: snack with alt=['main'] and empty meal_components is REJECTED", () => {
+  // The bug this test pins: previously the gate only checked the primary
+  // role and let this through. Now we require meal_components when ANY role
+  // (primary or alternate) is in main/side.
+  assertEquals(
+    satisfiesRoleConditionalMealComponents({
+      planner_role: "snack",
+      alternate_planner_roles: ["main"],
+      meal_components: [],
+    }),
+    false,
+  );
+});
+
+Deno.test("satisfiesRoleConditionalMealComponents: snack with alt=['main'] and meal_components=['protein'] passes", () => {
+  assertEquals(
+    satisfiesRoleConditionalMealComponents({
+      planner_role: "snack",
+      alternate_planner_roles: ["main"],
+      meal_components: ["protein"],
+    }),
+    true,
+  );
+});
+
+Deno.test("satisfiesRoleConditionalMealComponents: side with alt=['snack'] and empty meal_components is REJECTED (primary requires)", () => {
+  assertEquals(
+    satisfiesRoleConditionalMealComponents({
+      planner_role: "side",
+      alternate_planner_roles: ["snack"],
+      meal_components: [],
+    }),
+    false,
+  );
+});
+
+Deno.test("satisfiesRoleConditionalMealComponents: alt=['side'] from a beverage primary is also gated", () => {
+  // beverage doesn't require meal_components by itself, but the alt 'side'
+  // pulls the recipe into main/side eligibility, which does require it.
+  assertEquals(
+    satisfiesRoleConditionalMealComponents({
+      planner_role: "beverage",
+      alternate_planner_roles: ["side"],
+      meal_components: [],
+    }),
+    false,
+  );
+});
+
+Deno.test("satisfiesRoleConditionalMealComponents: missing planner_role is rejected outright", () => {
+  assertEquals(
+    satisfiesRoleConditionalMealComponents({
+      planner_role: null,
+      alternate_planner_roles: [],
+      meal_components: ["protein"],
+    }),
+    false,
+  );
+});
+
+// ============================================================================
+// buildCanonicalIngredientMap — locale-aware canonicalization
+// ============================================================================
+
+/**
+ * Tiny stub supabase that returns a hard-coded `ingredient_aliases` table.
+ * Every other query returns an empty result. Mirrors the shape that
+ * `loadAliases` in `_shared/ingredient-normalization.ts` expects.
+ */
+// deno-lint-ignore no-explicit-any
+function makeMockSupabaseWithAliases(
+  aliases: Array<{
+    canonical: string;
+    alias: string;
+    locale: string;
+  }>,
+): any {
+  return {
+    from(table: string) {
+      // deno-lint-ignore no-explicit-any
+      const builder: any = {
+        select: () =>
+          Promise.resolve({
+            data: table === "ingredient_aliases" ? aliases : [],
+            error: null,
+          }),
+      };
+      return builder;
+    },
+  };
+}
+
+Deno.test("buildCanonicalIngredientMap: es 'pollo' resolves to canonical 'chicken'", async () => {
+  // This is the critical fix. Before the canonicalization pass, an es user's
+  // ingredientKeys would contain `pollo` and `cacahuates`, and the allergen
+  // check (against `allergen_groups.ingredient_canonical = 'chicken' / 'peanut_butter'`)
+  // would silently fail.
+  clearAliasCache();
+
+  const mock = makeMockSupabaseWithAliases([
+    { canonical: "chicken", alias: "pollo", locale: "es" },
+    { canonical: "peanut_butter", alias: "crema de cacahuate", locale: "es" },
+    { canonical: "rice", alias: "arroz", locale: "es" },
+  ]);
+
+  const rows = [
+    {
+      recipe_ingredients: [
+        {
+          ingredients: {
+            ingredient_translations: [
+              { locale: "es", name: "pollo" },
+              { locale: "en", name: "chicken" },
+            ],
+          },
+        },
+        {
+          ingredients: {
+            ingredient_translations: [
+              { locale: "es", name: "arroz" },
+              { locale: "en", name: "rice" },
+            ],
+          },
+        },
+      ],
+    },
+  ];
+
+  const map = await buildCanonicalIngredientMap(mock, rows, ["es-MX", "es"]);
+  assertEquals(map.get("pollo"), "chicken");
+  assertEquals(map.get("arroz"), "rice");
+
+  clearAliasCache();
+});
+
+Deno.test("buildCanonicalIngredientMap: returns empty map when no ingredients present", async () => {
+  clearAliasCache();
+  const mock = makeMockSupabaseWithAliases([]);
+  const map = await buildCanonicalIngredientMap(mock, [], ["en"]);
+  assertEquals(map.size, 0);
+  clearAliasCache();
+});
+
+Deno.test("buildCanonicalIngredientMap: deduplicates repeated raw names", async () => {
+  clearAliasCache();
+  const mock = makeMockSupabaseWithAliases([
+    { canonical: "onion", alias: "cebolla", locale: "es" },
+  ]);
+  // Two rows, both using 'cebolla' — expect a single normalizeIngredients
+  // input and a single map entry.
+  const rows = [
+    {
+      recipe_ingredients: [
+        {
+          ingredients: {
+            ingredient_translations: [{ locale: "es", name: "cebolla" }],
+          },
+        },
+      ],
+    },
+    {
+      recipe_ingredients: [
+        {
+          ingredients: {
+            ingredient_translations: [{ locale: "es", name: "cebolla" }],
+          },
+        },
+      ],
+    },
+  ];
+  const map = await buildCanonicalIngredientMap(mock, rows, ["es"]);
+  assertEquals(map.size, 1);
+  assertEquals(map.get("cebolla"), "onion");
+  clearAliasCache();
 });

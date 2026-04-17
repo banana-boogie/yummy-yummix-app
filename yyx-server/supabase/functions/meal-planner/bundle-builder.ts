@@ -11,6 +11,7 @@
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import {
+  buildCanonicalIngredientMap,
   normalizeKey,
   pickTranslationName,
   type RecipeCandidate,
@@ -130,6 +131,30 @@ export async function fetchPairingsForCandidates(
 
   if (targetError || !targets) return { byRole, candidatesById };
 
+  // Resolve every paired target's locale-chain ingredient name → canonical
+  // English key once, batched. Allergen + dislike matching downstream
+  // compares against canonical values from `allergen_groups`, so the keys
+  // we attach to the candidate must be canonical too. Without this, an es
+  // user's pairing target with `pollo` would never match the `chicken`
+  // allergen and a flagged side could slip through the bundle filter.
+  const canonicalByRawName = await buildCanonicalIngredientMap(
+    supabase,
+    targets as unknown as Array<{
+      recipe_ingredients?:
+        | Array<{
+          ingredients?:
+            | {
+              ingredient_translations?:
+                | Array<{ locale: string; name: string | null }>
+                | null;
+            }
+            | null;
+        }>
+        | null;
+    }>,
+    localeChain,
+  );
+
   let droppedForLocale = 0;
   for (const row of targets as Array<Record<string, unknown>>) {
     const translations = (row.recipe_translations as Array<
@@ -160,10 +185,9 @@ export async function fetchPairingsForCandidates(
         ing.ingredient_translations ?? [],
         localeChain,
       );
-      // For allergen matching we normalize names regardless of language so
-      // the English "chicken" and Spanish "pollo" both work against the
-      // allergen_groups canonical list.
-      if (ingName) ingredientKeys.push(normalizeKey(ingName));
+      if (!ingName) continue;
+      const canonical = canonicalByRawName.get(ingName) ?? ingName;
+      ingredientKeys.push(normalizeKey(canonical));
     }
 
     const candidate: RecipeCandidate = {
