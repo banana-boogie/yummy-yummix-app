@@ -1,4 +1,4 @@
-import React, { useId, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import {
   Modal,
   Platform,
@@ -18,12 +18,18 @@ interface InfoTooltipProps {
 }
 
 const isWeb = Platform.OS === 'web';
+const PANEL_WIDTH = 280;
 
 /**
- * InfoTooltip — small info-circle icon that toggles an inline panel with
- * helper text. Tap to open, tap icon/outside to close. Cross-platform:
- * web uses an absolutely-positioned inline panel with a transparent backdrop;
- * native uses a transparent Modal anchored at the icon's position.
+ * InfoTooltip — small info-circle icon that toggles a panel with helper text.
+ * Tap to open, tap icon or outside to close.
+ *
+ * Web: panel renders at `position: fixed` with coordinates computed from the
+ * icon's bounding rect. This bypasses stacking-context issues entirely — the
+ * panel lives outside any parent's overflow/z-index/transform boundaries.
+ *
+ * Native: transparent Modal with a centered panel (Modals already render above
+ * everything by default).
  */
 export function InfoTooltip({
   content,
@@ -32,10 +38,53 @@ export function InfoTooltip({
 }: InfoTooltipProps) {
   const [open, setOpen] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const iconRef = useRef<View>(null);
   const panelId = useId();
 
   const toggle = () => setOpen((v) => !v);
   const close = () => setOpen(false);
+
+  // Recompute panel coords whenever it opens and on resize/scroll while open.
+  useLayoutEffect(() => {
+    if (!open || !isWeb) return;
+
+    const measure = () => {
+      const node = iconRef.current as unknown as HTMLElement | null;
+      if (!node || typeof node.getBoundingClientRect !== 'function') return;
+      const rect = node.getBoundingClientRect();
+      const top = rect.bottom + 6;
+      const leftClamped = Math.max(
+        8,
+        Math.min(rect.left, (typeof window !== 'undefined' ? window.innerWidth : 0) - PANEL_WIDTH - 8),
+      );
+      setCoords({ top, left: leftClamped });
+    };
+
+    measure();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', measure);
+      window.addEventListener('scroll', measure, true);
+      return () => {
+        window.removeEventListener('resize', measure);
+        window.removeEventListener('scroll', measure, true);
+      };
+    }
+    return undefined;
+  }, [open]);
+
+  // Close on Escape (web only).
+  useEffect(() => {
+    if (!open || !isWeb) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('keydown', onKey);
+      return () => window.removeEventListener('keydown', onKey);
+    }
+    return undefined;
+  }, [open]);
 
   const iconColor = open
     ? COLORS.primary.dark
@@ -57,7 +106,7 @@ export function InfoTooltip({
       nativeID={isWeb ? panelId : undefined}
       accessibilityLiveRegion={!isWeb ? 'polite' : undefined}
       className="bg-neutral-white rounded-md border border-grey-default p-sm"
-      style={[styles.panelShadow, { width: 280 }]}
+      style={[styles.panelShadow, { width: PANEL_WIDTH }]}
     >
       <Text preset="bodySmall" className="text-text-default">
         {content}
@@ -66,11 +115,9 @@ export function InfoTooltip({
   );
 
   return (
-    <View
-      className="relative"
-      style={open && isWeb ? styles.openContainer : undefined}
-    >
+    <View className="relative">
       <Pressable
+        ref={iconRef}
         onPress={toggle}
         onHoverIn={() => setHovered(true)}
         onHoverOut={() => setHovered(false)}
@@ -87,16 +134,18 @@ export function InfoTooltip({
         />
       </Pressable>
 
-      {open && isWeb ? (
+      {open && isWeb && coords ? (
         <>
-          {/* Web backdrop — captures outside taps. position:fixed covers the viewport. */}
+          {/* Fixed-position backdrop captures outside taps above all content. */}
           <Pressable
             onPress={close}
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
             style={styles.webBackdrop}
           />
-          <View style={styles.webPanelAnchor} pointerEvents="box-none">
+          {/* Panel lives at position:fixed with computed coords; outside any
+              parent stacking context / overflow boundary. */}
+          <View style={[styles.webPanelFixed, { top: coords.top, left: coords.left }]}>
             {panel}
           </View>
         </>
@@ -142,20 +191,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 40,
+    // Transparent backdrop — its only job is click-outside-to-close.
   },
-  webPanelAnchor: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    marginTop: 6,
-    zIndex: 9999,
-  },
-  openContainer: {
-    zIndex: 9999,
-    // Hoist icon+panel above sibling form fields so the panel doesn't
-    // render behind inputs that appear later in the DOM.
-    ...(Platform.OS === 'web' ? ({ position: 'relative' } as object) : {}),
+  webPanelFixed: {
+    position: 'fixed' as unknown as 'absolute',
   },
   nativeBackdrop: {
     flex: 1,

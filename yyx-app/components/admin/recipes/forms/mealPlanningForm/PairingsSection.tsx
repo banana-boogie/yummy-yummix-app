@@ -198,7 +198,7 @@ function PairingCard({ pairing, roleOptions, onChange, onRemove }: PairingCardPr
         </TouchableOpacity>
       </View>
 
-      <View className="mt-sm">
+      <View className="mt-lg">
         <FormGroup
           label={i18n.t('admin.recipes.form.mealPlanning.pairings.roleLabel')}
           required
@@ -221,7 +221,7 @@ function PairingCard({ pairing, roleOptions, onChange, onRemove }: PairingCardPr
         </FormGroup>
       </View>
 
-      <View className="mt-sm">
+      <View className="mt-lg">
         <FormGroup
           label={i18n.t('admin.recipes.form.mealPlanning.pairings.reasonLabel')}
         >
