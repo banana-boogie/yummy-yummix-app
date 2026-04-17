@@ -322,6 +322,9 @@ function PairingPickerModal({
 
   const alreadyPairedIds = useMemo(() => {
     const ids = new Set<string>();
+    // Intentionally one role per target in the editor for now. The database
+    // stays more permissive so we can revisit multi-role pairings if product
+    // finds a real content need later.
     existingPairings.forEach((p) => ids.add(p.targetRecipeId));
     return ids;
   }, [existingPairings]);

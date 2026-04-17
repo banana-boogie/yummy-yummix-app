@@ -111,6 +111,11 @@ ALTER TABLE public.recipes
 UPDATE public.recipes
 SET verified_by = NULL
 WHERE verified_by IS NOT NULL
+  AND verified_by !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
+
+UPDATE public.recipes
+SET verified_by = NULL
+WHERE verified_by IS NOT NULL
   AND verified_by::uuid NOT IN (SELECT id FROM auth.users);
 
 ALTER TABLE public.recipes

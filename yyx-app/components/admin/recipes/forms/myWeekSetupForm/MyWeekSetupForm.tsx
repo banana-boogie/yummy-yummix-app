@@ -319,9 +319,15 @@ export function MyWeekSetupForm({
               <SelectInput
                 value={recipe.plannerRole || ""}
                 options={plannerRoleOptions}
-                onValueChange={(value) =>
-                  onUpdateRecipe({ plannerRole: value as PlannerRole })
-                }
+                onValueChange={(value) => {
+                  const nextPlannerRole = value as PlannerRole;
+                  onUpdateRecipe({
+                    plannerRole: nextPlannerRole,
+                    alternatePlannerRoles: (
+                      recipe.alternatePlannerRoles ?? []
+                    ).filter((role) => role !== nextPlannerRole),
+                  });
+                }}
                 placeholder={i18n.t(
                   "admin.recipes.form.myWeekSetup.plannerRole.placeholder",
                 )}

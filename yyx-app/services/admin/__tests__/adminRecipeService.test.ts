@@ -116,6 +116,18 @@ describe('AdminRecipeService', () => {
         expect(Array.isArray(result[0].translations)).toBe(true);
       }
     });
+
+    it('maps plannerRole from snake_case list rows', async () => {
+      mockChain = createChainableMock({
+        data: [{ ...mockRecipe, planner_role: 'dessert' }],
+        error: null,
+      });
+      mockFrom.mockImplementation(() => mockChain);
+
+      const result = await adminRecipeService.getAllRecipesForAdmin();
+
+      expect(result[0]?.plannerRole).toBe('dessert');
+    });
   });
 
   // ============================================================
@@ -131,8 +143,14 @@ describe('AdminRecipeService', () => {
         tags: [],
         kitchen_tools: [],
       };
-      mockChain = createChainableMock({ data: recipeWithRelations, error: null });
-      mockFrom.mockImplementation(() => mockChain);
+      const recipeChain = createChainableMock({
+        data: recipeWithRelations,
+        error: null,
+      });
+      const pairingsChain = createChainableMock({ data: [], error: null });
+      mockFrom.mockImplementation((table: string) =>
+        table === 'recipe_pairings' ? pairingsChain : recipeChain,
+      );
 
       const result = await adminRecipeService.getRecipeById('recipe-1');
 
@@ -321,8 +339,8 @@ describe('AdminRecipeService', () => {
       mockFrom.mockImplementation(() => mockChain);
 
       await adminRecipeService.createRecipe({
-        nameEn: 'Test',
-        ingredients: [{ ingredientId: 'ing-1', quantity: '100' }],
+        translations: [{ locale: 'en', name: 'Test' }],
+        ingredients: [{ ingredientId: 'ing-1', quantity: '100' }] as any,
       });
 
       expect(mockFrom).toHaveBeenCalledWith('recipe_ingredients');
@@ -334,8 +352,8 @@ describe('AdminRecipeService', () => {
       mockFrom.mockImplementation(() => mockChain);
 
       await adminRecipeService.createRecipe({
-        nameEn: 'Test',
-        tags: [{ id: 'tag-1' }],
+        translations: [{ locale: 'en', name: 'Test' }],
+        tags: [{ id: 'tag-1' }] as any,
       });
 
       expect(mockFrom).toHaveBeenCalledWith('recipe_to_tag');
@@ -347,8 +365,8 @@ describe('AdminRecipeService', () => {
       mockFrom.mockImplementation(() => mockChain);
 
       await adminRecipeService.createRecipe({
-        nameEn: 'Test',
-        steps: [{ order: 1, instructionEn: 'Step 1' }],
+        translations: [{ locale: 'en', name: 'Test' }],
+        steps: [{ order: 1, instructionEn: 'Step 1' }] as any,
       });
 
       expect(mockFrom).toHaveBeenCalledWith('recipe_steps');
@@ -360,8 +378,8 @@ describe('AdminRecipeService', () => {
       mockFrom.mockImplementation(() => mockChain);
 
       await adminRecipeService.createRecipe({
-        nameEn: 'Test',
-        kitchenTools: [{ kitchenToolId: 'item-1', displayOrder: 0 }],
+        translations: [{ locale: 'en', name: 'Test' }],
+        kitchenTools: [{ kitchenToolId: 'item-1', displayOrder: 0 }] as any,
       });
 
       expect(mockFrom).toHaveBeenCalledWith('recipe_kitchen_tools');
@@ -434,8 +452,17 @@ describe('AdminRecipeService', () => {
         tags: [],
         kitchen_tools: [],
       };
-      mockChain = createChainableMock({ data: fromDb, error: null });
-      mockFrom.mockImplementation(() => mockChain);
+      const recipeChain = createChainableMock({ data: fromDb, error: null });
+      const profileChain = createChainableMock({
+        data: { name: 'Ana', email: 'ana@example.com' },
+        error: null,
+      });
+      const pairingsChain = createChainableMock({ data: [], error: null });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'user_profiles') return profileChain;
+        if (table === 'recipe_pairings') return pairingsChain;
+        return recipeChain;
+      });
 
       const result = await adminRecipeService.getRecipeById('recipe-42');
 
@@ -466,19 +493,22 @@ describe('AdminRecipeService', () => {
       };
       const recipeChain = createChainableMock({ data: recipeRow, error: null });
       const profileChain = createChainableMock({
-        data: { name: 'Ana', username: 'ana99', email: 'ana@example.com' },
+        data: { name: 'Ana', email: 'ana@example.com' },
         error: null,
       });
-      mockFrom.mockImplementation((table: string) =>
-        table === 'user_profiles' ? profileChain : recipeChain,
-      );
+      const pairingsChain = createChainableMock({ data: [], error: null });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'user_profiles') return profileChain;
+        if (table === 'recipe_pairings') return pairingsChain;
+        return recipeChain;
+      });
 
       const result = await adminRecipeService.getRecipeById('recipe-7');
 
       expect(result!.verifiedByName).toBe('Ana');
     });
 
-    it('getRecipeById falls back through username then email', async () => {
+    it('getRecipeById falls back from name to email', async () => {
       const recipeRow = {
         id: 'recipe-7',
         verified_by: 'admin-uuid',
@@ -490,12 +520,15 @@ describe('AdminRecipeService', () => {
       };
       const recipeChain = createChainableMock({ data: recipeRow, error: null });
       const profileChain = createChainableMock({
-        data: { name: null, username: null, email: 'ops@example.com' },
+        data: { name: null, email: 'ops@example.com' },
         error: null,
       });
-      mockFrom.mockImplementation((table: string) =>
-        table === 'user_profiles' ? profileChain : recipeChain,
-      );
+      const pairingsChain = createChainableMock({ data: [], error: null });
+      mockFrom.mockImplementation((table: string) => {
+        if (table === 'user_profiles') return profileChain;
+        if (table === 'recipe_pairings') return pairingsChain;
+        return recipeChain;
+      });
 
       const result = await adminRecipeService.getRecipeById('recipe-7');
 
@@ -512,8 +545,11 @@ describe('AdminRecipeService', () => {
         tags: [],
         kitchen_tools: [],
       };
-      mockChain = createChainableMock({ data: recipeRow, error: null });
-      mockFrom.mockImplementation(() => mockChain);
+      const recipeChain = createChainableMock({ data: recipeRow, error: null });
+      const pairingsChain = createChainableMock({ data: [], error: null });
+      mockFrom.mockImplementation((table: string) =>
+        table === 'recipe_pairings' ? pairingsChain : recipeChain,
+      );
 
       const result = await adminRecipeService.getRecipeById('recipe-7');
 
@@ -534,7 +570,7 @@ describe('AdminRecipeService', () => {
 
       await adminRecipeService.updateRecipeIngredients('recipe-1', [
         { ingredientId: 'ing-1', quantity: '100', displayOrder: 0 },
-      ]);
+      ] as any);
 
       expect(mockFrom).toHaveBeenCalledWith('recipe_ingredients');
       expect(mockChain.delete).toHaveBeenCalled();
@@ -624,7 +660,10 @@ describe('AdminRecipeService', () => {
         },
       ];
       mockChain = createChainableMock({ data: fromDb, error: null });
-      mockChain.eq = jest.fn().mockResolvedValue({ data: fromDb, error: null });
+      mockChain.eq = jest.fn().mockImplementation(() => ({
+        ...mockChain,
+        order: jest.fn().mockResolvedValue({ data: fromDb, error: null }),
+      }));
       mockFrom.mockImplementation(() => mockChain);
 
       const result = await adminRecipeService.getRecipePairings('recipe-1');
@@ -636,9 +675,43 @@ describe('AdminRecipeService', () => {
       expect(result[0].reason).toBe('goes great with rice');
     });
 
+    it('resolves pairing names using the requested display locale', async () => {
+      const fromDb = [
+        {
+          id: 'p-1',
+          source_recipe_id: 'recipe-1',
+          target_recipe_id: 'recipe-target',
+          pairing_role: 'side',
+          reason: null,
+          target: {
+            id: 'recipe-target',
+            image_url: null,
+            planner_role: 'side',
+            translations: [
+              { locale: 'es', name: 'Arroz' },
+              { locale: 'en', name: 'Rice' },
+            ],
+          },
+        },
+      ];
+      mockChain = createChainableMock({ data: fromDb, error: null });
+      mockChain.eq = jest.fn().mockImplementation(() => ({
+        ...mockChain,
+        order: jest.fn().mockResolvedValue({ data: fromDb, error: null }),
+      }));
+      mockFrom.mockImplementation(() => mockChain);
+
+      const result = await adminRecipeService.getRecipePairings('recipe-1', 'en');
+
+      expect(result[0].targetName).toBe('Rice');
+    });
+
     it('returns empty array when no pairings exist', async () => {
       mockChain = createChainableMock({ data: [], error: null });
-      mockChain.eq = jest.fn().mockResolvedValue({ data: [], error: null });
+      mockChain.eq = jest.fn().mockImplementation(() => ({
+        ...mockChain,
+        order: jest.fn().mockResolvedValue({ data: [], error: null }),
+      }));
       mockFrom.mockImplementation(() => mockChain);
 
       const result = await adminRecipeService.getRecipePairings('recipe-1');
@@ -670,21 +743,25 @@ describe('AdminRecipeService', () => {
       expect(insertedRows[0].pairing_role).toBe('side');
     });
 
-    it('skips pairings with no pairing_role', async () => {
+    it('throws when a pairing is missing target or role', async () => {
       mockChain = createChainableMock({ data: null, error: null });
       mockChain.eq = jest.fn().mockResolvedValue({ error: null });
       mockChain.insert = jest.fn().mockResolvedValue({ error: null });
       mockFrom.mockImplementation(() => mockChain);
 
-      await adminRecipeService.updateRecipePairings('recipe-1', [
-        {
-          sourceRecipeId: 'recipe-1',
-          targetRecipeId: 'recipe-target',
-          pairingRole: null,
-        },
-      ]);
+      await expect(
+        adminRecipeService.updateRecipePairings('recipe-1', [
+          {
+            sourceRecipeId: 'recipe-1',
+            targetRecipeId: 'recipe-target',
+            pairingRole: null,
+          },
+        ]),
+      ).rejects.toThrow(
+        'Every pairing must include a target recipe and role before saving.',
+      );
 
-      expect(mockChain.delete).toHaveBeenCalled();
+      expect(mockChain.delete).not.toHaveBeenCalled();
       expect(mockChain.insert).not.toHaveBeenCalled();
     });
 
@@ -709,7 +786,7 @@ describe('AdminRecipeService', () => {
 
       await adminRecipeService.updateRecipeTags('recipe-1', [
         { id: 'tag-1' },
-      ]);
+      ] as any);
 
       expect(mockFrom).toHaveBeenCalledWith('recipe_to_tag');
       expect(mockChain.delete).toHaveBeenCalled();
@@ -734,7 +811,7 @@ describe('AdminRecipeService', () => {
 
       await adminRecipeService.updateRecipeKitchenTools('recipe-1', [
         { kitchenToolId: 'item-1', displayOrder: 0 },
-      ]);
+      ] as any);
 
       expect(mockFrom).toHaveBeenCalledWith('recipe_kitchen_tools');
       expect(mockChain.delete).toHaveBeenCalled();

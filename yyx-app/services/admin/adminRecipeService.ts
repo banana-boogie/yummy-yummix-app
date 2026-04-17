@@ -4,8 +4,9 @@ import {
   AdminRecipeTag, AdminRecipeKitchenTool,
   AdminRecipeTranslation,
   AdminRecipePairing,
-  PairingRole,
   getNameFromTranslations,
+  PairingRole,
+  pickTranslation,
 } from '@/types/recipe.admin.types';
 import { imageService } from '@/services/storage/imageService';
 import { BaseService } from '@/services/base/BaseService';
@@ -54,7 +55,10 @@ class AdminRecipeService extends BaseService {
     await recipeCache.clearCache();
   }
 
-  async getRecipeById(id: string): Promise<AdminRecipe | null> {
+  async getRecipeById(
+    id: string,
+    displayLocale = 'es',
+  ): Promise<AdminRecipe | null> {
     const query = this.supabase
       .from('recipes')
       .select(`
@@ -206,19 +210,20 @@ class AdminRecipeService extends BaseService {
     const recipe = this.transformRecipeDetailData(data);
 
     if (recipe.verifiedBy) {
-      const { data: profile } = await this.supabase
+      const { data: profile, error: profileError } = await this.supabase
         .from('user_profiles')
-        .select('name, username, email')
+        .select('name, email')
         .eq('id', recipe.verifiedBy)
         .maybeSingle();
 
-      if (profile) {
-        recipe.verifiedByName =
-          profile.name ?? profile.username ?? profile.email ?? null;
+      if (profileError) {
+        logger.error('Failed to resolve verifier display name:', profileError);
+      } else if (profile) {
+        recipe.verifiedByName = profile.name ?? profile.email ?? null;
       }
     }
 
-    recipe.pairings = await this.getRecipePairings(recipe.id);
+    recipe.pairings = await this.getRecipePairings(recipe.id, displayLocale);
 
     return recipe;
   }
@@ -295,10 +300,6 @@ class AdminRecipeService extends BaseService {
 
       if (recipe.kitchenTools?.length) {
         await this.updateRecipeKitchenTools(recipeId.id, recipe.kitchenTools);
-      }
-
-      if (recipe.pairings?.length) {
-        await this.updateRecipePairings(recipeId.id, recipe.pairings);
       }
 
       await recipeCache.clearCache();
@@ -700,7 +701,10 @@ class AdminRecipeService extends BaseService {
     }
   }
 
-  async getRecipePairings(recipeId: string): Promise<AdminRecipePairing[]> {
+  async getRecipePairings(
+    recipeId: string,
+    displayLocale = 'es',
+  ): Promise<AdminRecipePairing[]> {
     const { data, error } = await this.supabase
       .from('recipe_pairings')
       .select(`
@@ -716,7 +720,8 @@ class AdminRecipeService extends BaseService {
           translations:recipe_translations ( locale, name )
         )
       `)
-      .eq('source_recipe_id', recipeId);
+      .eq('source_recipe_id', recipeId)
+      .order('created_at', { ascending: true });
 
     if (error) {
       throw new Error(`Failed to load recipe pairings: ${error.message}`);
@@ -724,14 +729,19 @@ class AdminRecipeService extends BaseService {
 
     return (data ?? []).map((row: any) => {
       const target = row.target ?? {};
-      const targetTranslations = target.translations ?? [];
+      const targetTranslations: { locale: string; name?: string }[] =
+        target.translations ?? [];
       return {
         id: row.id,
         sourceRecipeId: row.source_recipe_id,
         targetRecipeId: row.target_recipe_id,
         pairingRole: row.pairing_role as PairingRole,
         reason: row.reason,
-        targetName: getNameFromTranslations(targetTranslations),
+        targetName:
+          pickTranslation(targetTranslations, displayLocale)?.name ??
+          pickTranslation(targetTranslations, 'es')?.name ??
+          pickTranslation(targetTranslations, 'en')?.name ??
+          'item',
         targetImageUrl: target.image_url ?? null,
         targetPlannerRole: target.planner_role ?? null,
       };
@@ -739,9 +749,13 @@ class AdminRecipeService extends BaseService {
   }
 
   async updateRecipePairings(recipeId: string, pairings: AdminRecipePairing[]): Promise<void> {
-    // Full-replace pattern (matches other side tables). Deletes all existing
-    // pairings from this source then inserts the target list. Skips rows with
-    // no pairing_role — the UI blocks save in that case but we defensive-skip.
+    // Full-replace pattern (matches other side tables). Invalid pairings are
+    // rejected here so callers cannot silently lose data on save.
+    const invalidPairings = pairings.filter((p) => !p.pairingRole || !p.targetRecipeId);
+    if (invalidPairings.length > 0) {
+      throw new Error('Every pairing must include a target recipe and role before saving.');
+    }
+
     const { error: deleteError } = await this.supabase
       .from('recipe_pairings')
       .delete()
@@ -751,13 +765,12 @@ class AdminRecipeService extends BaseService {
       throw new Error(`Failed to clear existing pairings: ${deleteError.message}`);
     }
 
-    const valid = pairings.filter((p) => p.pairingRole && p.targetRecipeId);
-    if (!valid.length) return;
+    if (!pairings.length) return;
 
     const { data: authData } = await this.supabase.auth.getUser();
     const createdBy = authData?.user?.id ?? null;
 
-    const rows = valid.map((p) => ({
+    const rows = pairings.map((p) => ({
       source_recipe_id: recipeId,
       target_recipe_id: p.targetRecipeId,
       pairing_role: p.pairingRole,
@@ -878,6 +891,7 @@ class AdminRecipeService extends BaseService {
         isPublished: recipe.isPublished ?? recipe.is_published,
         createdAt: recipe.createdAt ?? recipe.created_at,
         updatedAt: recipe.updatedAt ?? recipe.updated_at,
+        plannerRole: recipe.plannerRole ?? recipe.planner_role ?? null,
         translations: (recipe.translations || []).map((t: any) => ({
           locale: t.locale,
           name: t.name || '',

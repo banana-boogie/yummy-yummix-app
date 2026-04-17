@@ -13,6 +13,8 @@ import { CreateRecipeStep } from '@/components/admin/recipes/RecipeProgressIndic
 // ---- Mocks --------------------------------------------------------------
 
 const mockCreateRecipe = jest.fn();
+const mockValidatePairings = jest.fn().mockReturnValue({});
+const mockValidateRecipe = jest.fn().mockReturnValue({});
 
 jest.mock('@/services/admin/adminRecipeService', () => ({
   __esModule: true,
@@ -37,6 +39,8 @@ jest.mock('./useRecipeValidation', () => ({
     validateIngredients: jest.fn().mockReturnValue({}),
     validateSteps: jest.fn().mockReturnValue({}),
     validateTags: jest.fn().mockReturnValue({}),
+    validatePairings: (...args: any[]) => mockValidatePairings(...args),
+    validateRecipe: (...args: any[]) => mockValidateRecipe(...args),
   }),
 }), { virtual: true });
 
@@ -46,6 +50,8 @@ jest.mock('../useRecipeValidation', () => ({
     validateIngredients: jest.fn().mockReturnValue({}),
     validateSteps: jest.fn().mockReturnValue({}),
     validateTags: jest.fn().mockReturnValue({}),
+    validatePairings: (...args: any[]) => mockValidatePairings(...args),
+    validateRecipe: (...args: any[]) => mockValidateRecipe(...args),
   }),
 }));
 
@@ -82,6 +88,10 @@ describe('useAdminRecipeForm — create flow persists My Week Setup', () => {
   beforeEach(() => {
     mockCreateRecipe.mockReset();
     mockCreateRecipe.mockResolvedValue({ id: 'recipe-1' });
+    mockValidatePairings.mockReset();
+    mockValidatePairings.mockReturnValue({});
+    mockValidateRecipe.mockReset();
+    mockValidateRecipe.mockReturnValue({});
   });
 
   it('passes all planner metadata fields to createRecipe on publish', async () => {
@@ -146,6 +156,39 @@ describe('useAdminRecipeForm — create flow persists My Week Setup', () => {
 
     expect(onPublishError).not.toHaveBeenCalled();
     expect(onPublishSuccess).toHaveBeenCalled();
+  });
+
+  it('blocks publish when pairings validation fails', async () => {
+    const onPublishSuccess = jest.fn();
+    const onPublishError = jest.fn();
+    mockValidateRecipe.mockReturnValue({
+      pairings: 'Pick a role before saving.',
+    });
+
+    const { result } = renderHook(() =>
+      useAdminRecipeForm({ onPublishSuccess, onPublishError })
+    );
+
+    act(() => {
+      result.current.updateRecipe({
+        translations: [{ locale: 'en', name: 'Test Recipe' }],
+        pairings: [
+          {
+            sourceRecipeId: 'recipe-1',
+            targetRecipeId: 'recipe-2',
+            pairingRole: null as any,
+          },
+        ],
+      });
+    });
+
+    await act(async () => {
+      await result.current.handlePublish();
+    });
+
+    expect(mockCreateRecipe).not.toHaveBeenCalled();
+    expect(onPublishSuccess).not.toHaveBeenCalled();
+    expect(onPublishError).toHaveBeenCalledWith('Pick a role before saving.');
   });
 });
 

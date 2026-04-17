@@ -89,6 +89,7 @@ interface UseAdminRecipeFormReturn {
   handlePublish: () => Promise<void>;
   handleResumeSavedRecipe: () => void;
   handleStartNewRecipe: () => Promise<void>;
+  setCurrentStep: (step: CreateRecipeStep) => void;
 }
 
 export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdminRecipeFormProps): UseAdminRecipeFormReturn {
@@ -101,7 +102,14 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
   const [showResumeDialog, setShowResumeDialog] = useState(false);
   const [savedRecipe, setSavedRecipe] = useState<ExtendedRecipe | null>(null);
 
-  const { validateBasicInfo, validateIngredients, validateSteps, validateTags } = useRecipeValidation();
+  const {
+    validateBasicInfo,
+    validateIngredients,
+    validateSteps,
+    validateTags,
+    validatePairings,
+    validateRecipe,
+  } = useRecipeValidation();
 
   // Load authoring locale on mount
   useEffect(() => {
@@ -151,8 +159,16 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
       }
       
       // If there's a saved recipe, show the resume dialog
-      const savedNameEn = getTranslatedField(savedRecipeData?.translations, 'en', 'name');
-      const savedNameEs = getTranslatedField(savedRecipeData?.translations, 'es', 'name');
+      const savedNameEn = getTranslatedField<{ locale: string; name?: string }>(
+        savedRecipeData?.translations,
+        'en',
+        'name',
+      );
+      const savedNameEs = getTranslatedField<{ locale: string; name?: string }>(
+        savedRecipeData?.translations,
+        'es',
+        'name',
+      );
       if (savedRecipeData && (savedNameEn || savedNameEs)) {
         setSavedRecipe(savedRecipeData);
         setShowResumeDialog(true);
@@ -186,8 +202,16 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
           const migrated = migrateDraftStep(savedStep, savedVersion);
           // Special case: recipe was saved at initial setup after populated with AI help.
           // We should start at step 1 in this case, otherwise the user would get stuck at step 0.
-          const loadedNameEn = getTranslatedField(savedRecipe?.translations, 'en', 'name');
-          const loadedNameEs = getTranslatedField(savedRecipe?.translations, 'es', 'name');
+          const loadedNameEn = getTranslatedField<{ locale: string; name?: string }>(
+            savedRecipe?.translations,
+            'en',
+            'name',
+          );
+          const loadedNameEs = getTranslatedField<{ locale: string; name?: string }>(
+            savedRecipe?.translations,
+            'es',
+            'name',
+          );
           if (savedRecipe && (loadedNameEn || loadedNameEs)) {
             setCurrentStep(Math.max(migrated, 1) as CreateRecipeStep);
           } else {
@@ -314,6 +338,10 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
       case CreateRecipeStep.TAGS:
         newErrors = validateTags(recipe);
         break;
+
+      case CreateRecipeStep.REVIEW:
+        newErrors = validatePairings(recipe);
+        break;
     }
     
     setErrors(newErrors);
@@ -335,6 +363,15 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
   // Handle publishing the recipe
   const handlePublish = async () => {
     try {
+      const validationErrors = validateRecipe(recipe);
+      if (Object.keys(validationErrors).length > 0) {
+        setErrors(validationErrors);
+        onPublishError(
+          validationErrors.pairings ?? i18n.t('admin.recipes.form.saveError.message'),
+        );
+        return;
+      }
+
       setSaving(true);
             
       // Upload image if new image file is provided

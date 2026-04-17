@@ -12,7 +12,6 @@ import { RecipeKitchenToolsForm } from '@/components/admin/recipes/forms/kitchen
 import { MyWeekSetupForm } from '@/components/admin/recipes/forms/myWeekSetupForm/MyWeekSetupForm';
 import { AdminRecipe, getTranslatedField } from '@/types/recipe.admin.types';
 import { adminRecipeService } from '@/services/admin/adminRecipeService';
-import { friendlySaveError } from '@/hooks/admin/useAdminRecipeForm';
 import { Text } from '@/components/common/Text';
 import { AlertModal } from '@/components/common/AlertModal';
 import { FormErrors } from '@/components/form/FormErrors';
@@ -25,6 +24,7 @@ import { useDevice } from '@/hooks/useDevice';
 import { TranslationStep } from '@/components/admin/recipes/forms/translationForm/TranslationStep';
 import { loadAuthoringLocale, saveAuthoringLocale } from '@/components/admin/recipes/forms/shared/AuthoringLanguagePicker';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
+import logger from '@/services/logger';
 
 export default function EditRecipePage() {
   const { id } = useLocalSearchParams();
@@ -63,7 +63,10 @@ export default function EditRecipePage() {
 
     try {
       setLoading(true);
-      const recipeData = await adminRecipeService.getRecipeById(id as string);
+      const recipeData = await adminRecipeService.getRecipeById(
+        id as string,
+        displayLocale,
+      );
       if (recipeData) {
         setRecipe(recipeData);
       } else {
@@ -75,7 +78,7 @@ export default function EditRecipePage() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [displayLocale, id]);
 
   useEffect(() => {
     loadRecipe();
@@ -104,8 +107,7 @@ export default function EditRecipePage() {
       await loadRecipe();
     } catch (error) {
       logger.error('Error saving recipe:', error);
-      const msg = error instanceof Error ? error.message : '';
-      setErrors({ save: friendlySaveError(msg) });
+      setErrors({ save: i18n.t('admin.recipes.form.saveError.message') });
       setShowErrorDialog(true);
     } finally {
       setSaving(false);
