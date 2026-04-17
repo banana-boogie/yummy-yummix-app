@@ -319,7 +319,7 @@ export function MealPlanningForm({
         )}
         headerVariant="prominent"
       >
-        <View className="gap-xxl">
+        <View style={{ gap: 40 }}>
           <View ref={plannerRoleRef}>
             <FormGroup
               label={i18n.t("admin.recipes.form.mealPlanning.plannerRole.label")}

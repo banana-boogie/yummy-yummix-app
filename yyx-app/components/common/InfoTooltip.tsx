@@ -18,7 +18,27 @@ interface InfoTooltipProps {
 }
 
 const isWeb = Platform.OS === 'web';
-const PANEL_WIDTH = 280;
+const PANEL_WIDTH = 240;
+const PANEL_MIN_HEIGHT = 96;
+const PANEL_GAP = 12;
+
+// Module-level coordinator: only one InfoTooltip may be open at a time across
+// the whole app. Opening an instance broadcasts a close to all others.
+// Using a tiny pub/sub instead of Context to keep the primitive zero-setup.
+type TooltipCloser = () => void;
+const openSubscribers = new Set<{ id: string; close: TooltipCloser }>();
+function registerTooltip(id: string, close: TooltipCloser) {
+  const entry = { id, close };
+  openSubscribers.add(entry);
+  return () => {
+    openSubscribers.delete(entry);
+  };
+}
+function broadcastOpen(id: string) {
+  openSubscribers.forEach((entry) => {
+    if (entry.id !== id) entry.close();
+  });
+}
 
 /**
  * InfoTooltip — small info-circle icon that toggles a panel with helper text.
@@ -42,8 +62,23 @@ export function InfoTooltip({
   const iconRef = useRef<View>(null);
   const panelId = useId();
 
-  const toggle = () => setOpen((v) => !v);
-  const close = () => setOpen(false);
+  const close = React.useCallback(() => setOpen(false), []);
+
+  // Register with the module coordinator so other tooltips can close us.
+  useEffect(() => {
+    const unregister = registerTooltip(panelId, close);
+    return unregister;
+  }, [panelId, close]);
+
+  const toggle = (event?: unknown) => {
+    const maybeEvent = event as { stopPropagation?: () => void } | undefined;
+    maybeEvent?.stopPropagation?.();
+    setOpen((v) => {
+      const next = !v;
+      if (next) broadcastOpen(panelId);
+      return next;
+    });
+  };
 
   // Recompute panel coords whenever it opens and on resize/scroll while open.
   useLayoutEffect(() => {
@@ -53,12 +88,31 @@ export function InfoTooltip({
       const node = iconRef.current as unknown as HTMLElement | null;
       if (!node || typeof node.getBoundingClientRect !== 'function') return;
       const rect = node.getBoundingClientRect();
-      const top = rect.bottom + 6;
+      const viewportWidth =
+        typeof window !== 'undefined' ? window.innerWidth : 0;
+      const viewportHeight =
+        typeof window !== 'undefined' ? window.innerHeight : 0;
+      const topAligned = Math.max(
+        8,
+        Math.min(rect.top - 10, viewportHeight - PANEL_MIN_HEIGHT - 8),
+      );
+
+      if (rect.right + PANEL_GAP + PANEL_WIDTH <= viewportWidth - 8) {
+        setCoords({ top: topAligned, left: rect.right + PANEL_GAP });
+        return;
+      }
+
+      if (rect.left - PANEL_GAP - PANEL_WIDTH >= 8) {
+        setCoords({ top: topAligned, left: rect.left - PANEL_GAP - PANEL_WIDTH });
+        return;
+      }
+
+      const leftCentered = rect.left + rect.width / 2 - PANEL_WIDTH / 2;
       const leftClamped = Math.max(
         8,
-        Math.min(rect.left, (typeof window !== 'undefined' ? window.innerWidth : 0) - PANEL_WIDTH - 8),
+        Math.min(leftCentered, viewportWidth - PANEL_WIDTH - 8),
       );
-      setCoords({ top, left: leftClamped });
+      setCoords({ top: rect.bottom + 6, left: leftClamped });
     };
 
     measure();
@@ -191,10 +245,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    zIndex: 999,
     // Transparent backdrop — its only job is click-outside-to-close.
   },
   webPanelFixed: {
     position: 'fixed' as unknown as 'absolute',
+    zIndex: 1000,
   },
   nativeBackdrop: {
     flex: 1,

@@ -46,4 +46,23 @@ describe('InfoTooltip', () => {
     fireEvent.press(button);
     expect(screen.queryByText('Helpful explanation')).toBeNull();
   });
+
+  it('closes other open tooltips when one is opened', () => {
+    render(
+      <>
+        <InfoTooltip content="First tip" accessibilityLabel="First" />
+        <InfoTooltip content="Second tip" accessibilityLabel="Second" />
+      </>,
+    );
+    const first = screen.getByLabelText('First');
+    const second = screen.getByLabelText('Second');
+
+    fireEvent.press(first);
+    expect(screen.getByText('First tip')).toBeTruthy();
+    expect(screen.queryByText('Second tip')).toBeNull();
+
+    fireEvent.press(second);
+    expect(screen.queryByText('First tip')).toBeNull();
+    expect(screen.getByText('Second tip')).toBeTruthy();
+  });
 });
