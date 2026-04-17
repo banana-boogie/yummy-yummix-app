@@ -468,6 +468,7 @@ export async function fetchCandidates(
   if (neededRoles.size === 0) {
     return new Map();
   }
+  const neededRolesList = [...neededRoles];
 
   const selectFields = `
     id,
@@ -496,22 +497,45 @@ export async function fetchCandidates(
   //   - planner_role IS NOT NULL (must be tagged)
   //   - planner_role != 'pantry' (pantry items live in Explore only, never
   //     enter the planner)
-  // Per-slot role matching (primary OR alternate) is done in JS to avoid
-  // PostgREST .or() string-encoding issues with array overlap operators.
+  // We keep coarse role filtering in SQL so requests do not hydrate the whole
+  // published catalog. Alternate-role support uses a second overlap query, then
+  // we merge + dedupe before the JS-only hard filters and slot partitioning.
   // meal_components is no longer a universal hard filter — it's only required
   // for main/side roles, enforced at scoring time per slot.
-  const { data, error } = await ctx.supabase
-    .from("recipes")
-    .select(selectFields)
-    .eq("is_published", true)
-    .not("planner_role", "is", null)
-    .neq("planner_role", "pantry");
+  const baseRecipeQuery = () =>
+    ctx.supabase
+      .from("recipes")
+      .select(selectFields)
+      .eq("is_published", true)
+      .not("planner_role", "is", null)
+      .neq("planner_role", "pantry");
 
-  if (error) {
-    throw new Error(`Candidate fetch failed: ${error.message}`);
+  const [
+    { data: primaryRoleRows, error: primaryRoleError },
+    { data: alternateRoleRows, error: alternateRoleError },
+  ] = await Promise.all([
+    baseRecipeQuery().in("planner_role", neededRolesList),
+    baseRecipeQuery().overlaps("alternate_planner_roles", neededRolesList),
+  ]);
+
+  if (primaryRoleError) {
+    throw new Error(`Candidate fetch failed: ${primaryRoleError.message}`);
+  }
+  if (alternateRoleError) {
+    throw new Error(
+      `Candidate fetch failed: ${alternateRoleError.message}`,
+    );
   }
 
-  const rawRows = (data ?? []) as unknown as RawRecipeRow[];
+  const dedupedRawRows = new Map<string, RawRecipeRow>();
+  for (const row of (primaryRoleRows ?? []) as unknown as RawRecipeRow[]) {
+    dedupedRawRows.set(row.id, row);
+  }
+  for (const row of (alternateRoleRows ?? []) as unknown as RawRecipeRow[]) {
+    dedupedRawRows.set(row.id, row);
+  }
+
+  const rawRows = [...dedupedRawRows.values()];
   const filteredRows = rawRows
     .filter((r) => !ctx.hardExcludedRecipeIds.has(r.id))
     .filter((r) => isRoleEligibleForAnySlot(r, neededRoles))

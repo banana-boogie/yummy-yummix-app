@@ -100,7 +100,7 @@ post_planner() {
 FAILED=0
 
 # ============================================================================
-# 1. Happy path — returns a plan with at least one slot
+# 1. Happy path — returns a full 5-slot plan with usable slot content
 # ============================================================================
 echo -e "\n  ${YELLOW}[1/3]${NC} Happy path: generate_plan with dinner for 5 days"
 post_planner "$(jq -n --arg ws "$WEEK_START" '{
@@ -117,14 +117,24 @@ if [ "$LAST_STATUS" != "200" ]; then
   echo "    Body: $LAST_BODY"
   FAILED=1
 else
-  SLOTS_LEN=$(echo "$LAST_BODY" | jq '.plan.slots | length')
-  PLAN_ID=$(echo "$LAST_BODY" | jq -r '.plan.planId // empty')
-  if [ "$SLOTS_LEN" -lt 1 ] || [ -z "$PLAN_ID" ]; then
-    echo -e "    ${RED}✗ Expected plan.slots >= 1 and non-empty planId${NC}"
-    echo "    slots=$SLOTS_LEN planId=$PLAN_ID"
+  if ! echo "$LAST_BODY" | jq -e '
+    (.plan.planId | type == "string" and length > 0) and
+    (.plan.slots | length == 5) and
+    (.isPartial == false) and
+    (all(.plan.slots[];
+      (.selectionReason | type == "string" and length > 0) and
+      (.components | type == "array" and length > 0) and
+      (.components[0].isPrimary == true) and
+      (.components[0].recipeId != null)
+    ))
+  ' >/dev/null; then
+    echo -e "    ${RED}✗ Happy-path contract validation failed${NC}"
+    echo "    Body: $LAST_BODY"
     FAILED=1
   else
-    echo -e "    ${GREEN}✓ plan.slots = $SLOTS_LEN, planId = $PLAN_ID${NC}"
+    SLOTS_LEN=$(echo "$LAST_BODY" | jq '.plan.slots | length')
+    PLAN_ID=$(echo "$LAST_BODY" | jq -r '.plan.planId')
+    echo -e "    ${GREEN}✓ plan.slots = $SLOTS_LEN, planId = $PLAN_ID, isPartial=false${NC}"
   fi
 fi
 

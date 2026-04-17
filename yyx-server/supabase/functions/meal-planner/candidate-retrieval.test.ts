@@ -1,6 +1,7 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   buildCanonicalIngredientMap,
+  fetchCandidates,
   isAlternateRoleMatch,
   type RecipeCandidate,
   satisfiesRoleConditionalMealComponents,
@@ -227,7 +228,6 @@ Deno.test("satisfiesRoleConditionalMealComponents: missing planner_role is rejec
  * Every other query returns an empty result. Mirrors the shape that
  * `loadAliases` in `_shared/ingredient-normalization.ts` expects.
  */
-// deno-lint-ignore no-explicit-any
 function makeMockSupabaseWithAliases(
   aliases: Array<{
     canonical: string;
@@ -237,7 +237,6 @@ function makeMockSupabaseWithAliases(
 ): any {
   return {
     from(table: string) {
-      // deno-lint-ignore no-explicit-any
       const builder: any = {
         select: () =>
           Promise.resolve({
@@ -332,4 +331,122 @@ Deno.test("buildCanonicalIngredientMap: deduplicates repeated raw names", async 
   assertEquals(map.size, 1);
   assertEquals(map.get("cebolla"), "onion");
   clearAliasCache();
+});
+
+function makeRawRecipeRow(
+  id: string,
+  overrides: Partial<Record<string, unknown>> = {},
+): Record<string, unknown> {
+  return {
+    id,
+    planner_role: "main",
+    alternate_planner_roles: [],
+    meal_components: ["protein"],
+    is_complete_meal: true,
+    total_time: 30,
+    difficulty: "easy",
+    portions: 4,
+    image_url: null,
+    leftovers_friendly: false,
+    batch_friendly: null,
+    max_household_size_supported: null,
+    equipment_tags: [],
+    cooking_level: "beginner",
+    verified_at: null,
+    is_published: true,
+    recipe_translations: [{ locale: "en", name: `Recipe ${id}` }],
+    recipe_ingredients: [],
+    recipe_to_tag: [],
+    ...overrides,
+  };
+}
+
+function makeFetchCandidatesSupabase(
+  primaryRoleRows: Record<string, unknown>[],
+  alternateRoleRows: Record<string, unknown>[],
+): { client: any; calls: string[] } {
+  const calls: string[] = [];
+
+  return {
+    calls,
+    client: {
+      from(table: string) {
+        let queryKind: "primary" | "alternate" | "other" = "other";
+        const builder: any = {
+          select: () => builder,
+          eq: () => builder,
+          not: () => builder,
+          neq: () => builder,
+          in: (column: string) => {
+            if (table === "recipes" && column === "planner_role") {
+              queryKind = "primary";
+              calls.push("planner_role");
+            }
+            return builder;
+          },
+          overlaps: (column: string) => {
+            if (table === "recipes" && column === "alternate_planner_roles") {
+              queryKind = "alternate";
+              calls.push("alternate_planner_roles");
+            }
+            return builder;
+          },
+          then: (
+            resolve: (value: {
+              data: Record<string, unknown>[];
+              error: null;
+            }) => void,
+          ) => {
+            if (table !== "recipes") {
+              resolve({ data: [], error: null });
+              return;
+            }
+            resolve({
+              data: queryKind === "alternate"
+                ? alternateRoleRows
+                : primaryRoleRows,
+              error: null,
+            });
+          },
+        };
+        return builder;
+      },
+    },
+  };
+}
+
+Deno.test("fetchCandidates merges primary-role and alternate-role queries without duplicates", async () => {
+  const primaryMatch = makeRawRecipeRow("primary-match", {
+    planner_role: "main",
+    alternate_planner_roles: [],
+  });
+  const alternateOnlyMatch = makeRawRecipeRow("alternate-only", {
+    planner_role: "snack",
+    alternate_planner_roles: ["main"],
+  });
+  const duplicateAcrossQueries = makeRawRecipeRow("duplicate", {
+    planner_role: "main",
+    alternate_planner_roles: ["snack"],
+  });
+
+  const { client, calls } = makeFetchCandidatesSupabase(
+    [primaryMatch, duplicateAcrossQueries],
+    [alternateOnlyMatch, duplicateAcrossQueries],
+  );
+
+  const slot = mkSlot({ canonicalMealType: "dinner" });
+  const result = await fetchCandidates([slot], {
+    supabase: client,
+    locale: "en",
+    localeChain: ["en"],
+    dietaryRestrictions: [],
+    ingredientDislikes: [],
+    hardExcludedRecipeIds: new Set(),
+  });
+
+  const candidates = result.get(slot.slotId) ?? [];
+  const ids = candidates.map((candidate) => candidate.id).sort();
+
+  assertEquals(calls, ["planner_role", "alternate_planner_roles"]);
+  assertEquals(ids, ["alternate-only", "duplicate", "primary-match"]);
 });

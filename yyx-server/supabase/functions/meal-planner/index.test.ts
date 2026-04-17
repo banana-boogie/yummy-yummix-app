@@ -158,6 +158,7 @@ function makePreflightConflictSupabase(existingPlanId: string | null): any {
         }
         return builder;
       },
+      overlaps: () => builder,
       not: () => builder,
       neq: () => builder,
       gte: () => builder,
@@ -231,6 +232,7 @@ function makeInsertUniqueViolationSupabase(): any {
       select: () => builder,
       eq: () => builder,
       in: () => builder,
+      overlaps: () => builder,
       not: () => builder,
       neq: () => builder,
       gte: () => builder,
@@ -309,6 +311,7 @@ function makeEmptyCatalogSupabase(): any {
       select: () => builder,
       eq: () => builder,
       in: () => builder,
+      overlaps: () => builder,
       not: () => builder,
       neq: () => builder,
       gte: () => builder,
@@ -359,6 +362,7 @@ function makeDislikeFilteredCatalogSupabase(): any {
       select: () => builder,
       eq: () => builder,
       in: () => builder,
+      overlaps: () => builder,
       not: () => builder,
       neq: () => builder,
       gte: () => builder,
