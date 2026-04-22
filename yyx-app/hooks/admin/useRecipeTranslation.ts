@@ -77,7 +77,7 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
       try {
         let updatedRecipe = { ...recipe };
 
-        // 1. Translate recipe info (name, tipsAndTricks)
+        // 1. Translate recipe info (name, tipsAndTricks, scalingNotes)
         setProgress({ current: 0, total: totalBatches, label: 'Recipe info' });
         const recipeSource = pickTranslation(
           recipe.translations,
@@ -88,6 +88,8 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
           if (recipeSource.name) fields.name = recipeSource.name;
           if (recipeSource.tipsAndTricks)
             fields.tipsAndTricks = recipeSource.tipsAndTricks;
+          if (recipeSource.scalingNotes)
+            fields.scalingNotes = recipeSource.scalingNotes;
 
           try {
             const results = await translateContent(
@@ -103,6 +105,7 @@ export function useRecipeTranslation(): UseRecipeTranslationReturn {
               const newFields = {
                 name: result.fields.name || '',
                 tipsAndTricks: result.fields.tipsAndTricks,
+                scalingNotes: result.fields.scalingNotes,
               };
               if (existing) {
                 updated = updated.map((t) =>
