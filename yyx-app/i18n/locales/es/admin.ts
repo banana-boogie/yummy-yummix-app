@@ -618,6 +618,7 @@ export const admin = {
           loadError: "No se pudieron cargar las recetas. Intenta de nuevo.",
           noMatches: "No hay recetas que coincidan.",
           roles: {
+            main: "Plato fuerte",
             side: "Guarnición",
             base: "Base",
             veg: "Verdura",

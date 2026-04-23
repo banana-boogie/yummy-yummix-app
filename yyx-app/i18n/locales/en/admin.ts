@@ -613,6 +613,7 @@ export const admin = {
           loadError: "Couldn't load recipes. Try again.",
           noMatches: "No matching recipes.",
           roles: {
+            main: "Main dish",
             side: "Side",
             base: "Base",
             veg: "Vegetable",

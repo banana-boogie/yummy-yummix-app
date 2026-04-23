@@ -20,6 +20,7 @@ import { COLORS } from '@/constants/design-tokens';
 import logger from '@/services/logger';
 
 const PAIRING_ROLES: PairingRole[] = [
+  'main',
   'side',
   'base',
   'veg',
@@ -30,6 +31,7 @@ const PAIRING_ROLES: PairingRole[] = [
 ];
 
 const DIRECT_ROLE_MAP: ReadonlySet<PlannerRole> = new Set<PlannerRole>([
+  'main',
   'side',
   'dessert',
   'beverage',

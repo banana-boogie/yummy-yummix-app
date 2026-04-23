@@ -142,6 +142,7 @@ export interface AdminRecipeKitchenTool {
 }
 
 export type PairingRole =
+  | 'main'
   | 'side'
   | 'base'
   | 'veg'
