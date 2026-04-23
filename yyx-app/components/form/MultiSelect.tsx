@@ -183,7 +183,7 @@ export function MultiSelect({
   return (
     <View className={className} style={[style, containerStyle]}>
       <TouchableOpacity
-        className="flex-row items-center justify-between min-h-[48px] px-md bg-neutral-white rounded-lg border-[1.5px] border-grey-default web:hover:border-grey-medium_dark web:focus-within:border-primary-medium web:focus-within:ring-2 web:focus-within:ring-primary-default"
+        className="flex-row items-center justify-between min-h-[56px] px-md bg-neutral-white rounded-lg border-[1.5px] border-grey-default web:hover:border-grey-medium_dark web:focus-within:border-primary-medium web:focus-within:ring-2 web:focus-within:ring-primary-default"
         onPress={openModal}
       >
         <Text
