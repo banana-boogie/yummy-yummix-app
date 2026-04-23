@@ -7,6 +7,40 @@ import { COLORS, SPACING, FONT_SIZES } from '@/constants/design-tokens';
 // Export the maximum width for forms so it can be reused
 export const FORM_MAX_WIDTH = 800;
 
+type HeaderVariant = 'default' | 'prominent';
+
+/**
+ * Visual treatment per header variant. One source of truth instead of a
+ * ternary per style property sprinkled across the JSX.
+ */
+const VARIANT_CONFIG = {
+  default: {
+    // Outer card chrome — the non-prominent variant is a bare container.
+    containerClass: '',
+    // Title row
+    titleMarginClass: 'mb-sm',
+    accentBarWidth: 3,
+    accentBarColor: COLORS.primary.medium,
+    accentBarPaddingLeft: SPACING.sm,
+    // Title text
+    titlePreset: 'subheading' as const,
+    titleClass: '',
+    titleFontSize: FONT_SIZES['2xl'] as number | undefined,
+  },
+  prominent: {
+    containerClass:
+      'rounded-lg bg-background-default border border-grey-default p-xl',
+    titleMarginClass: 'mb-lg',
+    accentBarWidth: 5,
+    accentBarColor: COLORS.primary.dark,
+    accentBarPaddingLeft: SPACING.md,
+    titlePreset: 'h2' as const,
+    titleClass: 'font-bold text-text-default',
+    // h2 preset already sets font size; don't override.
+    titleFontSize: undefined as number | undefined,
+  },
+} satisfies Record<HeaderVariant, unknown>;
+
 interface FormSectionProps {
   children: ReactNode;
   title?: string;
@@ -16,6 +50,14 @@ interface FormSectionProps {
   titleStyle?: TextStyle;
   className?: string;
   style?: StyleProp<ViewStyle>;
+  /**
+   * Header visual treatment.
+   * - 'default': subheading title, 3px accent bar, compact spacing.
+   * - 'prominent': h2 title, 5px accent bar, containerized card with padding
+   *   and border. Used for admin wizard steps where section hierarchy should
+   *   read more strongly.
+   */
+  headerVariant?: HeaderVariant;
 }
 
 /**
@@ -32,16 +74,34 @@ export function FormSection({
   className = '',
   style,
   description,
-  error
+  error,
+  headerVariant = 'default',
 }: FormSectionProps) {
+  const variant = VARIANT_CONFIG[headerVariant];
   return (
     <View
-      className={`w-full ${className}`}
+      className={`w-full ${className} ${variant.containerClass}`}
       style={[{ maxWidth }, style]}
     >
       {title ? (
-        <View style={{ borderLeftWidth: 3, borderLeftColor: COLORS.primary.medium, paddingLeft: SPACING.sm }} className="mb-sm">
-          <Text preset="subheading" style={[{ fontSize: FONT_SIZES['2xl'] }, titleStyle]}>
+        <View
+          style={{
+            borderLeftWidth: variant.accentBarWidth,
+            borderLeftColor: variant.accentBarColor,
+            paddingLeft: variant.accentBarPaddingLeft,
+          }}
+          className={variant.titleMarginClass}
+        >
+          <Text
+            preset={variant.titlePreset}
+            className={variant.titleClass}
+            style={[
+              variant.titleFontSize != null
+                ? { fontSize: variant.titleFontSize }
+                : undefined,
+              titleStyle,
+            ]}
+          >
             {title}
           </Text>
         </View>

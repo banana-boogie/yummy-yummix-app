@@ -474,6 +474,161 @@ export const admin = {
         allCategories: "Todas las Categorías",
         clearFilters: "Limpiar filtros",
       },
+      mealPlanning: {
+        title: "Planificación de comidas",
+        sections: {
+          roleComposition: "Rol y composición",
+          equipmentDifficulty: "Equipo y dificultad",
+          scaleLeftovers: "Escala y sobras",
+          mealTypes: "Tipos de comida",
+          verification: "Verificación",
+        },
+        eligibility: {
+          ready: "Listo para planificar",
+          missingTitle: "Falta información",
+          need: "Falta:",
+          needHelper: "Completa estos campos para que la receta sea elegible en el planificador:",
+          jumpToField: "Ir a {{field}}",
+          missing: {
+            plannerRole: "rol de la receta",
+            mealComponents: "qué aporta",
+            mealTypes: "tiempos de comida",
+          },
+          pantryTitle: "Item de despensa — solo en Explorar",
+          pantryHelper:
+            "Los items de despensa no necesitan metadatos de planificación. Aparecen en Explorar y en Irmixy pero no se programan en los planes semanales.",
+        },
+        plannerRole: {
+          label: "Rol en la comida",
+          placeholder: "Selecciona un rol",
+          tooltip:
+            "¿Qué papel juega esta receta en una comida? Un plato fuerte es el protagonista. Una guarnición lo acompaña.",
+          ambiguityHint:
+            "Para platillos que cambian de rol (hummus, sopas, untables), elige el rol dominante y añade alternativas abajo.",
+          main: "Plato fuerte",
+          side: "Guarnición",
+          snack: "Colación",
+          dessert: "Postre",
+          beverage: "Bebida",
+          condiment: "Aderezo",
+          pantry: "Item de despensa",
+          pantryTooltip:
+            "Aparece en Explorar pero no se programa en los planes semanales. Úsalo para preparaciones que duran semanas (mantequillas compuestas, mezclas de especias, chile crisp).",
+        },
+        alternateRoles: {
+          label: "También sirve como…",
+          placeholder: "Selecciona roles alternativos",
+          pickerTitle: "Selecciona roles alternativos",
+          tooltip:
+            "¿Funciona en otros tipos de bloque? Ejemplo: el hummus es principalmente guarnición pero también sirve como colación. Déjalo vacío si solo encaja en su rol primario.",
+        },
+        mealComponents: {
+          label: "¿Qué aporta esta receta a una comida completa?",
+          placeholder: "Selecciona todas las que apliquen",
+          pickerTitle: "Selecciona los aportes",
+          tooltip:
+            "¿Qué macronutrientes aporta esta receta? Déjalo en blanco si es más bien un acompañamiento (como hummus o una salsa para untar) que no aporta un eje específico.",
+          protein: "Tiene proteína",
+          carb: "Tiene carbohidratos",
+          veg: "Tiene verduras",
+        },
+        isCompleteMeal: {
+          label: "¿Es una comida completa?",
+          tooltip:
+            "Actívalo si esta receta cubre una comida completa por sí sola — sin necesidad de guarniciones.",
+        },
+        equipment: {
+          label: "Equipo necesario",
+          placeholder: "Selecciona el equipo",
+          pickerTitle: "Selecciona el equipo",
+          tooltip: "¿Qué utensilios necesita la cocinera? Selecciona todos los que apliquen.",
+          thermomix: "Thermomix",
+          airFryer: "Freidora de aire",
+          oven: "Horno",
+          stovetop: "Estufa",
+          none: "No se necesita equipo",
+        },
+        mealTypes: {
+          label: "Tiempos de comida",
+          placeholder: "Selecciona los tiempos de comida",
+          pickerTitle: "Selecciona los tiempos de comida",
+          tooltip:
+            "¿Cuándo se puede comer esto? La mayoría de los platos fuertes funcionan tanto para la comida como para la cena.",
+          empty:
+            "No se encontraron etiquetas de tiempo de comida. Crea etiquetas bajo la categoría 'Meal Type' para habilitar esto.",
+          emptyTitle: "Aún no hay etiquetas de tipo de comida",
+          createCta: "Abrir administración de etiquetas",
+          loadError: "No se pudieron cargar las etiquetas. Reintentar.",
+        },
+        cookingLevel: {
+          label: "¿Para quién es esta receta?",
+          placeholder: "Selecciona un nivel",
+          tooltip: "El planificador ajusta las recetas al nivel de confianza de quien cocina.",
+          beginner: "Principiante",
+          intermediate: "Intermedio",
+          experienced: "Con experiencia",
+        },
+        leftoversFriendly: {
+          label: "¿Genera buenos sobrantes?",
+          tooltip:
+            "Actívalo si suele sobrar comida que se pueda aprovechar al día siguiente.",
+        },
+        batchFriendly: {
+          label: "¿Se puede duplicar la receta?",
+          tooltip:
+            "¿Se pueden hacer dos tandas con facilidad? Desactívalo para recetas difíciles de escalar.",
+        },
+        maxHouseholdSize: {
+          label: "¿Tamaño máximo de hogar al que sirve?",
+          tooltip:
+            "Opcional. El hogar más grande al que esta receta puede servir realistamente en una sola tanda. Si se deja vacío, el planificador usará las porciones como límite.",
+        },
+        scalingNotes: {
+          label: "Notas para aumentar la receta",
+          placeholder:
+            "Ej.: 'El vaso de la Thermomix alcanza para una tanda de 4 porciones. Para 6 personas o más, licuar la salsa en dos tandas.'",
+          tooltip: "Cualquier nota sobre cómo hacer más cantidad.",
+        },
+        verified: {
+          sectionEyebrow: "Paso final",
+          label: "Verificado por YummyYummix",
+          tooltip:
+            "Actívalo si el equipo de YummyYummix ya cocinó y probó esta receta.",
+          verifiedAt: "Verificado el {{date}}",
+          verifiedBy: " por {{who}}",
+          markVerifiedCta: "Marcar como verificada",
+          unverifyCta: "Quitar verificación",
+        },
+        pairings: {
+          title: "Combina bien con",
+          emptyBeforeSave:
+            "Disponible después del primer guardado. Guarda la receta para vincular combinaciones.",
+          noneYet: "Aún no hay combinaciones vinculadas.",
+          addCta: "Agregar combinación",
+          removeCta: "Quitar combinación",
+          untitledTarget: "Receta sin título",
+          roleLabel: "Rol en la combinación",
+          rolePlaceholder: "Selecciona un rol",
+          roleRequired: "Selecciona un rol antes de guardar.",
+          reasonLabel: "Por qué combinan (opcional)",
+          reasonPlaceholder: "p. ej., gran contraste de texturas",
+          pickerTitle: "Agregar receta para combinar",
+          searchPlaceholder: "Buscar recetas…",
+          loading: "Cargando recetas…",
+          loadError: "No se pudieron cargar las recetas. Intenta de nuevo.",
+          noMatches: "No hay recetas que coincidan.",
+          roles: {
+            main: "Plato fuerte",
+            side: "Guarnición",
+            base: "Base",
+            veg: "Verdura",
+            dessert: "Postre",
+            beverage: "Bebida",
+            condiment: "Aderezo",
+            leftover_transform: "Aprovecha sobras",
+          },
+        },
+      },
       reviewInfo: {
         title: "Revisión",
         reviewHelperText: "Revisa tu receta antes de publicar",
@@ -700,6 +855,7 @@ export const admin = {
     keepEnglish: "Mantener inglés",
     fieldName: "Nombre",
     fieldTipsAndTricks: "Consejos y Trucos",
+    fieldScalingNotes: "Notas de escalamiento",
     fieldSection: "Sección",
     fieldNotes: "Notas",
   },

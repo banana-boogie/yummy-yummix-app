@@ -12,6 +12,7 @@ export const common = {
   remove: "Eliminar",
   cancel: "Cancelar",
   dismiss: "Cerrar",
+  noOptionsAvailable: "No hay opciones disponibles",
   import: "Import",
   done: "Listo",
   selectDate: "Seleccionar Fecha",
@@ -36,4 +37,5 @@ export const common = {
   today: "Hoy",
   yesterday: "Ayer",
   daysAgo: "Hace {{count}} días",
+  moreInfo: "Más información",
 };

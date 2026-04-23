@@ -75,6 +75,18 @@ FORMATTING RULES:
 - ONE Thermomix instruction per step only. Split into two steps if needed.
 - Metric system: grams (g) and Celsius (°C).
 - Ingredient name field = base ingredient ONLY. No quantities, units, or prep adjectives. Put unit in measurementUnitID, prep state in notes.
+
+MEAL PLANNER METADATA (best-guess from recipe text, admin will override):
+- plannerRole: one of "main", "side", "snack", "dessert", "beverage", "condiment", "pantry". Pick the single best fit. Use "pantry" only for make-aheads/enhancers that sit in the fridge for weeks (compound butters, chile crisp, spice blends, preserved lemons) — these are discoverable in Explore but never scheduled into weekly plans.
+- mealComponents: array of "protein", "carb", "veg". Only populate for main and side roles — this field answers "what does this recipe contribute to a complete meal?" Leave as [] for snack/dessert/beverage/condiment/pantry (the question doesn't apply). Chicken pasta = ["protein","carb"]. Salad = ["veg"].
+- isCompleteMeal: true only if the dish by itself covers a full meal (e.g., hearty soup with protein + carb + veg). Otherwise false.
+- equipmentTags: array of "thermomix", "air_fryer", "oven", "stovetop", "none". Infer from the steps. Use "none" only if the recipe needs no cooking equipment.
+- cookingLevel: "beginner" for simple assembly/mixing, "intermediate" for standard home cooking techniques, "experienced" for advanced technique or timing.
+- leftoversFriendly: true if the dish reheats or keeps well the next day.
+- batchFriendly: true if it's reasonable to double the batch; false for tricky scales (soufflé, delicate sauces).
+- maxHouseholdSizeSupported: optional integer. Only set if the recipe notes a capacity limit (e.g., "fits one Thermomix bowl"). Otherwise null.
+- scalingNotes: per-locale translation field (lives on each translation row alongside name/description/tipsAndTricks). Short note on scaling if the recipe implies batching. Translate per locale. Empty string if none.
+- mealTypes: array of canonical meal-type values the recipe best fits. Allowed values: "breakfast", "lunch", "dinner", "snack", "dessert", "beverage". Best-guess from recipe content even when not explicit in the source (e.g., pancakes -> ["breakfast"], hearty stew -> ["lunch","dinner"], brownies -> ["dessert"]). Pick 1-2 values typically. Empty array only if genuinely ambiguous.
 `;
 
 // =============================================================================
@@ -232,6 +244,14 @@ const jsonSchema = {
         schema: {
           type: "string",
           description: "Tips and tricks section. Empty string if none.",
+        },
+      },
+      {
+        name: "scalingNotes",
+        schema: {
+          type: "string",
+          description:
+            "Short per-locale scaling note if the recipe implies batching (e.g. 'fits one Thermomix bowl; blend sauce in two batches for 6+ people'). Empty string if none.",
         },
       },
     ]),
@@ -454,6 +474,70 @@ const jsonSchema = {
       description: "Recipe tags, lowercase, no # prefix.",
       items: { type: "string" },
     },
+    plannerRole: {
+      type: ["string", "null"],
+      enum: [
+        "main",
+        "side",
+        "snack",
+        "dessert",
+        "beverage",
+        "condiment",
+        "pantry",
+        null,
+      ],
+      description:
+        "Best-guess planner role for meal slotting. Use 'pantry' for make-aheads and enhancers (compound butters, spice blends, chile crisp) that aren't scheduled weekly.",
+    },
+    mealComponents: {
+      type: "array",
+      description:
+        "What this recipe contributes to a complete meal. Only meaningful for main and side roles.",
+      items: {
+        type: "string",
+        enum: ["protein", "carb", "veg"],
+      },
+    },
+    isCompleteMeal: {
+      type: "boolean",
+      description:
+        "True if the recipe by itself covers a full meal (protein + carb + veg).",
+    },
+    equipmentTags: {
+      type: "array",
+      description: "Equipment needed to cook this recipe.",
+      items: {
+        type: "string",
+        enum: ["thermomix", "air_fryer", "oven", "stovetop", "none"],
+      },
+    },
+    cookingLevel: {
+      type: ["string", "null"],
+      enum: ["beginner", "intermediate", "experienced", null],
+      description: "Best-guess cook skill level required.",
+    },
+    leftoversFriendly: {
+      type: "boolean",
+      description: "True if the dish reheats well the next day.",
+    },
+    batchFriendly: {
+      type: "boolean",
+      description: "True if the recipe scales up easily (can be doubled).",
+    },
+    maxHouseholdSizeSupported: {
+      type: ["integer", "null"],
+      description:
+        "Optional capacity limit (e.g., 'fits one Thermomix bowl'). null if not implied.",
+    },
+    mealTypes: {
+      type: "array",
+      description:
+        "Best-guess meal types this recipe fits. Canonical values only.",
+      items: {
+        type: "string",
+        enum: ["breakfast", "lunch", "dinner", "snack", "dessert", "beverage"],
+      },
+    },
   },
   required: [
     "translations",
@@ -465,6 +549,15 @@ const jsonSchema = {
     "ingredients",
     "steps",
     "tags",
+    "plannerRole",
+    "mealComponents",
+    "isCompleteMeal",
+    "equipmentTags",
+    "cookingLevel",
+    "leftoversFriendly",
+    "batchFriendly",
+    "maxHouseholdSizeSupported",
+    "mealTypes",
   ],
   additionalProperties: false,
 };

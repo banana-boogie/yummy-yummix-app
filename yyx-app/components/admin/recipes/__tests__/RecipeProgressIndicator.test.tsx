@@ -22,6 +22,8 @@ jest.mock('@/i18n', () => ({
         'admin.recipes.form.ingredientsInfo.title': 'Ingredients',
         'admin.recipes.form.stepsInfo.title': 'Steps',
         'admin.recipes.form.tagsInfo.title': 'Tags',
+        'admin.recipes.form.mealPlanning.title': 'My Week',
+        'admin.translate.translationStep': 'Translations',
         'admin.recipes.form.reviewInfo.title': 'Review',
       };
       return translations[key] || key;
@@ -43,6 +45,8 @@ describe('RecipeProgressIndicator', () => {
       expect(screen.getByText('Ingredients')).toBeTruthy();
       expect(screen.getByText('Steps')).toBeTruthy();
       expect(screen.getByText('Tags')).toBeTruthy();
+      expect(screen.getByText('My Week')).toBeTruthy();
+      expect(screen.getByText('Translations')).toBeTruthy();
       expect(screen.getByText('Review')).toBeTruthy();
     });
 
@@ -55,6 +59,8 @@ describe('RecipeProgressIndicator', () => {
       expect(screen.getByText('4')).toBeTruthy();
       expect(screen.getByText('5')).toBeTruthy();
       expect(screen.getByText('6')).toBeTruthy();
+      expect(screen.getByText('7')).toBeTruthy();
+      expect(screen.getByText('8')).toBeTruthy();
     });
   });
 
@@ -170,8 +176,9 @@ describe('RecipeProgressIndicator', () => {
       expect(CreateRecipeStep.INGREDIENTS).toBe(3);
       expect(CreateRecipeStep.STEPS).toBe(4);
       expect(CreateRecipeStep.TAGS).toBe(5);
-      expect(CreateRecipeStep.TRANSLATIONS).toBe(6);
-      expect(CreateRecipeStep.REVIEW).toBe(7);
+      expect(CreateRecipeStep.MEAL_PLANNING).toBe(6);
+      expect(CreateRecipeStep.TRANSLATIONS).toBe(7);
+      expect(CreateRecipeStep.REVIEW).toBe(8);
     });
   });
 });

@@ -469,6 +469,161 @@ export const admin = {
         allCategories: "All Categories",
         clearFilters: "Clear filters",
       },
+      mealPlanning: {
+        title: "Meal Planning",
+        sections: {
+          roleComposition: "Role & composition",
+          equipmentDifficulty: "Equipment & difficulty",
+          scaleLeftovers: "Scale & leftovers",
+          mealTypes: "Meal types",
+          verification: "Verification",
+        },
+        eligibility: {
+          ready: "Ready to plan",
+          missingTitle: "Missing info",
+          need: "Need:",
+          needHelper: "Complete these to make the recipe planner-eligible:",
+          jumpToField: "Jump to {{field}}",
+          missing: {
+            plannerRole: "recipe role",
+            mealComponents: "what it contributes",
+            mealTypes: "meal types",
+          },
+          pantryTitle: "Pantry item — Explore only",
+          pantryHelper:
+            "Pantry items don't need planner metadata. They appear in Explore and Irmixy suggestions but are never scheduled into weekly plans.",
+        },
+        plannerRole: {
+          label: "Planner role",
+          placeholder: "Select a role",
+          tooltip:
+            "What role does this recipe play in a meal? A main dish is the star. A side dish accompanies it.",
+          ambiguityHint:
+            "For dishes that flex between roles (hummus, soups, spreads), pick the dominant role and add alternates below.",
+          main: "Main dish",
+          side: "Side dish",
+          snack: "Snack",
+          dessert: "Dessert",
+          beverage: "Beverage",
+          condiment: "Condiment",
+          pantry: "Pantry item",
+          pantryTooltip:
+            "Shown in Explore but not scheduled into weekly plans. Use for make-aheads, spice blends, compound butters — things that last weeks and are used across many meals.",
+        },
+        alternateRoles: {
+          label: "Also serves as…",
+          placeholder: "Select alternate roles",
+          pickerTitle: "Select alternate roles",
+          tooltip:
+            "Does this recipe work in other slot types? Example: hummus is primarily a side but also works as a snack. Leave empty if the recipe only fits its primary role.",
+        },
+        mealComponents: {
+          label: "What does this recipe contribute to a complete meal?",
+          placeholder: "Select all that apply",
+          pickerTitle: "Select meal components",
+          tooltip:
+            "What macronutrients does this recipe contribute? Leave blank if it's more of an accompaniment (like hummus or a dip) that doesn't own an axis.",
+          protein: "Has protein",
+          carb: "Has carbs",
+          veg: "Has vegetables",
+        },
+        isCompleteMeal: {
+          label: "Is this a complete meal?",
+          tooltip:
+            "Turn on if this recipe covers a full meal by itself — no sides needed.",
+        },
+        equipment: {
+          label: "Equipment needed",
+          placeholder: "Select equipment",
+          pickerTitle: "Select equipment",
+          tooltip: "Which tools does the cook need? Select all that apply.",
+          thermomix: "Thermomix",
+          airFryer: "Air fryer",
+          oven: "Oven",
+          stovetop: "Stovetop",
+          none: "No equipment needed",
+        },
+        mealTypes: {
+          label: "Meal types",
+          placeholder: "Select meal types",
+          pickerTitle: "Select meal types",
+          tooltip:
+            "When could someone eat this? Most main dishes work for both lunch and dinner.",
+          empty:
+            "No meal-type tags found. Create tags under a 'Meal Type' category to enable this.",
+          emptyTitle: "No meal-type tags yet",
+          createCta: "Open tags admin",
+          loadError: "Couldn't load meal-type tags. Retry.",
+        },
+        cookingLevel: {
+          label: "Who is this recipe for?",
+          placeholder: "Select a level",
+          tooltip: "The planner matches recipes to the cook's confidence level.",
+          beginner: "Beginner",
+          intermediate: "Intermediate",
+          experienced: "Experienced",
+        },
+        leftoversFriendly: {
+          label: "Makes good leftovers?",
+          tooltip:
+            "Turn on if there's usually food left over that can be used the next day.",
+        },
+        batchFriendly: {
+          label: "Can this recipe be doubled?",
+          tooltip:
+            "Can the cook make two batches easily? Turn off for recipes that are tricky to scale.",
+        },
+        maxHouseholdSize: {
+          label: "Maximum household size this can serve?",
+          tooltip:
+            "Optional. The biggest household this recipe can realistically serve in one batch. If blank, the planner uses portions as the limit.",
+        },
+        scalingNotes: {
+          label: "Scaling notes",
+          placeholder:
+            "e.g., 'Thermomix bowl fits one batch of 4 servings. For 6+ people, blend sauce in two batches.'",
+          tooltip: "Any notes about making more.",
+        },
+        verified: {
+          sectionEyebrow: "Final step",
+          label: "YummyYummix Verified",
+          tooltip:
+            "Turn on if the YummyYummix team has actually cooked and tested this recipe.",
+          verifiedAt: "Verified on {{date}}",
+          verifiedBy: " by {{who}}",
+          markVerifiedCta: "Mark verified",
+          unverifyCta: "Remove verification",
+        },
+        pairings: {
+          title: "Pairs well with",
+          emptyBeforeSave:
+            "Available after first save. Save the recipe to link pairings.",
+          noneYet: "No pairings linked yet.",
+          addCta: "Add pairing",
+          removeCta: "Remove pairing",
+          untitledTarget: "Untitled recipe",
+          roleLabel: "Role in the pairing",
+          rolePlaceholder: "Select a role",
+          roleRequired: "Pick a role before saving.",
+          reasonLabel: "Why they pair well (optional)",
+          reasonPlaceholder: "e.g., great texture contrast",
+          pickerTitle: "Add a recipe to pair with",
+          searchPlaceholder: "Search recipes…",
+          loading: "Loading recipes…",
+          loadError: "Couldn't load recipes. Try again.",
+          noMatches: "No matching recipes.",
+          roles: {
+            main: "Main dish",
+            side: "Side",
+            base: "Base",
+            veg: "Vegetable",
+            dessert: "Dessert",
+            beverage: "Beverage",
+            condiment: "Condiment",
+            leftover_transform: "Leftover transform",
+          },
+        },
+      },
       reviewInfo: {
         title: "Review",
         reviewHelperText: "Review your recipe before publishing",
@@ -692,6 +847,7 @@ export const admin = {
     keepEnglish: "Keep English",
     fieldName: "Name",
     fieldTipsAndTricks: "Tips & Tricks",
+    fieldScalingNotes: "Scaling notes",
     fieldSection: "Section",
     fieldNotes: "Notes",
   },

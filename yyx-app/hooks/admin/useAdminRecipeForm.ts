@@ -11,10 +11,14 @@ import { loadAuthoringLocale, saveAuthoringLocale } from '@/components/admin/rec
 import i18n from '@/i18n';
 import logger from '@/services/logger';
 
-// Storage keys
+// Storage keys for the admin recipe draft. This is an admin-only convenience
+// to resume a partially authored recipe — not a user-facing feature. If the
+// step enum changes shape in a future PR, it is acceptable to invalidate any
+// in-progress drafts (admin will just restart); no schema-version plumbing
+// is maintained here.
 const STORAGE_KEYS = {
   DRAFT_RECIPE: 'draft_recipe',
-  CURRENT_STEP: 'recipe_form_step'
+  CURRENT_STEP: 'recipe_form_step',
 };
 
 // Extended recipe type that includes the image file for upload
@@ -65,6 +69,7 @@ interface UseAdminRecipeFormReturn {
   handlePublish: () => Promise<void>;
   handleResumeSavedRecipe: () => void;
   handleStartNewRecipe: () => Promise<void>;
+  setCurrentStep: (step: CreateRecipeStep) => void;
 }
 
 export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdminRecipeFormProps): UseAdminRecipeFormReturn {
@@ -77,7 +82,14 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
   const [showResumeDialog, setShowResumeDialog] = useState(false);
   const [savedRecipe, setSavedRecipe] = useState<ExtendedRecipe | null>(null);
 
-  const { validateBasicInfo, validateIngredients, validateSteps, validateTags } = useRecipeValidation();
+  const {
+    validateBasicInfo,
+    validateIngredients,
+    validateSteps,
+    validateTags,
+    validatePairings,
+    validateRecipe,
+  } = useRecipeValidation();
 
   // Load authoring locale on mount
   useEffect(() => {
@@ -127,8 +139,16 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
       }
       
       // If there's a saved recipe, show the resume dialog
-      const savedNameEn = getTranslatedField(savedRecipeData?.translations, 'en', 'name');
-      const savedNameEs = getTranslatedField(savedRecipeData?.translations, 'es', 'name');
+      const savedNameEn = getTranslatedField<{ locale: string; name?: string }>(
+        savedRecipeData?.translations,
+        'en',
+        'name',
+      );
+      const savedNameEs = getTranslatedField<{ locale: string; name?: string }>(
+        savedRecipeData?.translations,
+        'es',
+        'name',
+      );
       if (savedRecipeData && (savedNameEn || savedNameEs)) {
         setSavedRecipe(savedRecipeData);
         setShowResumeDialog(true);
@@ -143,6 +163,17 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
   };
 
   // Load saved draft and step from storage
+  // Resolve a persisted step value to a valid CreateRecipeStep. Out-of-range
+  // or malformed values fall back to INITIAL_SETUP — the admin will just
+  // restart the wizard for that draft, which is acceptable for this surface.
+  const resolveStep = (rawStep: number): CreateRecipeStep => {
+    const maxStep = CreateRecipeStep.REVIEW;
+    if (!Number.isFinite(rawStep) || rawStep < 0 || rawStep > maxStep) {
+      return CreateRecipeStep.INITIAL_SETUP;
+    }
+    return rawStep as CreateRecipeStep;
+  };
+
   const loadSavedData = async () => {
     try {
       // For web
@@ -156,29 +187,38 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
         }
 
         if (savedStep) {
+          const resolved = resolveStep(savedStep);
           // Special case: recipe was saved at initial setup after populated with AI help.
           // We should start at step 1 in this case, otherwise the user would get stuck at step 0.
-          const loadedNameEn = getTranslatedField(savedRecipe?.translations, 'en', 'name');
-          const loadedNameEs = getTranslatedField(savedRecipe?.translations, 'es', 'name');
+          const loadedNameEn = getTranslatedField<{ locale: string; name?: string }>(
+            savedRecipe?.translations,
+            'en',
+            'name',
+          );
+          const loadedNameEs = getTranslatedField<{ locale: string; name?: string }>(
+            savedRecipe?.translations,
+            'es',
+            'name',
+          );
           if (savedRecipe && (loadedNameEn || loadedNameEs)) {
-            setCurrentStep(Math.max(savedStep, 1) as CreateRecipeStep);
+            setCurrentStep(Math.max(resolved, 1) as CreateRecipeStep);
           } else {
-            setCurrentStep(savedStep as CreateRecipeStep);
+            setCurrentStep(resolved);
           }
         }
-      } 
+      }
       // For mobile
       else {
         const savedRecipeStr = await AsyncStorage.getItem(STORAGE_KEYS.DRAFT_RECIPE);
         const savedStep = await AsyncStorage.getItem(STORAGE_KEYS.CURRENT_STEP);
-        
+
         if (savedRecipeStr) {
           const savedRecipe = JSON.parse(savedRecipeStr);
           restoreRecipeData(savedRecipe);
         }
-        
+
         if (savedStep) {
-          setCurrentStep(parseInt(savedStep) as CreateRecipeStep);
+          setCurrentStep(resolveStep(parseInt(savedStep)));
         }
       }
     } catch (error) {
@@ -228,7 +268,7 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         localStorage.setItem(STORAGE_KEYS.DRAFT_RECIPE, JSON.stringify(recipeToSave));
         localStorage.setItem(STORAGE_KEYS.CURRENT_STEP, currentStep.toString());
-      } 
+      }
       // For mobile
       else {
         await AsyncStorage.setItem(STORAGE_KEYS.DRAFT_RECIPE, JSON.stringify(recipeToSave));
@@ -279,6 +319,10 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
       case CreateRecipeStep.TAGS:
         newErrors = validateTags(recipe);
         break;
+
+      case CreateRecipeStep.REVIEW:
+        newErrors = validatePairings(recipe);
+        break;
     }
     
     setErrors(newErrors);
@@ -300,6 +344,15 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
   // Handle publishing the recipe
   const handlePublish = async () => {
     try {
+      const validationErrors = validateRecipe(recipe);
+      if (Object.keys(validationErrors).length > 0) {
+        setErrors(validationErrors);
+        onPublishError(
+          validationErrors.pairings ?? i18n.t('admin.recipes.form.saveError.message'),
+        );
+        return;
+      }
+
       setSaving(true);
             
       // Upload image if new image file is provided
@@ -329,6 +382,18 @@ export function useAdminRecipeForm({ onPublishSuccess, onPublishError }: UseAdmi
         tags: recipe.tags,
         steps: recipe.steps,
         kitchenTools: recipe.kitchenTools,
+        // Meal Planning planner metadata
+        plannerRole: recipe.plannerRole,
+        alternatePlannerRoles: recipe.alternatePlannerRoles,
+        mealComponents: recipe.mealComponents,
+        isCompleteMeal: recipe.isCompleteMeal,
+        equipmentTags: recipe.equipmentTags,
+        cookingLevel: recipe.cookingLevel,
+        leftoversFriendly: recipe.leftoversFriendly,
+        batchFriendly: recipe.batchFriendly,
+        maxHouseholdSizeSupported: recipe.maxHouseholdSizeSupported,
+        verifiedAt: recipe.verifiedAt,
+        verifiedBy: recipe.verifiedBy,
       };
       
       // Create the recipe

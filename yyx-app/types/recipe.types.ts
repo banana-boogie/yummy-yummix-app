@@ -18,7 +18,59 @@ export interface Recipe {
   isPublished: boolean;
   createdAt: string;
   updatedAt: string;
+  // Planner (Meal Planning) metadata
+  plannerRole?: PlannerRole | null;
+  alternatePlannerRoles?: AlternatePlannerRole[] | null;
+  mealComponents?: MealComponent[] | null;
+  isCompleteMeal?: boolean | null;
+  equipmentTags?: EquipmentTag[] | null;
+  cookingLevel?: CookingLevel | null;
+  leftoversFriendly?: boolean | null;
+  batchFriendly?: boolean | null;
+  maxHouseholdSizeSupported?: number | null;
+  verifiedAt?: string | null;
+  verifiedBy?: string | null;
 }
+
+// Planner-related enums (stored as TEXT / TEXT[] in DB).
+//
+// Mirrors the CHECK constraint on `recipes.planner_role` in
+// yyx-server/supabase/migrations/20260415120000_recipe_role_model_extension.sql.
+// Keep these in sync: the TypeScript union below is DERIVED from this const
+// array so adding/removing a role is a single edit that updates both the
+// type and the runtime list used by admin forms and tests.
+export const PLANNER_ROLES = [
+  'main',
+  'side',
+  'snack',
+  'dessert',
+  'beverage',
+  'condiment',
+  'pantry',
+] as const;
+
+export type PlannerRole = typeof PLANNER_ROLES[number];
+
+// Alternate slot-type eligibility — same as PlannerRole minus 'pantry',
+// which is mutually exclusive with scheduling.
+export const ALTERNATE_PLANNER_ROLES = PLANNER_ROLES.filter(
+  (r): r is Exclude<PlannerRole, 'pantry'> => r !== 'pantry',
+);
+
+export type AlternatePlannerRole = Exclude<PlannerRole, 'pantry'>;
+
+/**
+ * What a recipe contributes to a complete meal.
+ *
+ * Renamed from the earlier `FoodGroup` which mixed macronutrient values
+ * (protein/carb/veg) with course identity (snack/dessert) on one axis.
+ * This type captures only the meal-composition axis; course identity
+ * lives on `planner_role` and dietary descriptors live in the `diet`
+ * tag category.
+ */
+export type MealComponent = 'protein' | 'carb' | 'veg';
+export type EquipmentTag = 'thermomix' | 'air_fryer' | 'oven' | 'stovetop' | 'none';
+export type CookingLevel = 'beginner' | 'intermediate' | 'experienced';
 
 // Enums
 export enum RecipeDifficulty {

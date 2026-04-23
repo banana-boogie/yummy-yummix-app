@@ -3,7 +3,9 @@ import {
   AdminRecipe, AdminRecipeIngredient, AdminRecipeSteps,
   AdminRecipeTag, AdminRecipeKitchenTool,
   AdminRecipeTranslation,
+  AdminRecipePairing,
   getNameFromTranslations,
+  PairingRole,
 } from '@/types/recipe.admin.types';
 import { imageService } from '@/services/storage/imageService';
 import { BaseService } from '@/services/base/BaseService';
@@ -26,6 +28,7 @@ class AdminRecipeService extends BaseService {
         is_published,
         created_at,
         updated_at,
+        planner_role,
         translations:recipe_translations (
           locale,
           name,
@@ -64,10 +67,22 @@ class AdminRecipeService extends BaseService {
         is_published,
         created_at,
         updated_at,
+        planner_role,
+        alternate_planner_roles,
+        meal_components,
+        is_complete_meal,
+        equipment_tags,
+        cooking_level,
+        leftovers_friendly,
+        batch_friendly,
+        max_household_size_supported,
+        verified_at,
+        verified_by,
         translations:recipe_translations (
           locale,
           name,
           tips_and_tricks,
+          scaling_notes,
           description
         ),
         kitchen_tools:recipe_kitchen_tools(
@@ -186,7 +201,27 @@ class AdminRecipeService extends BaseService {
       .single();
 
     const data = await this.transformedSelect<any>(query);
-    return data ? this.transformRecipeDetailData(data) : null;
+    if (!data) return null;
+
+    const recipe = this.transformRecipeDetailData(data);
+
+    if (recipe.verifiedBy) {
+      const { data: profile, error: profileError } = await this.supabase
+        .from('user_profiles')
+        .select('name, email')
+        .eq('id', recipe.verifiedBy)
+        .maybeSingle();
+
+      if (profileError) {
+        logger.error('Failed to resolve verifier display name:', profileError);
+      } else if (profile) {
+        recipe.verifiedByName = profile.name ?? profile.email ?? null;
+      }
+    }
+
+    recipe.pairings = await this.getRecipePairings(recipe.id);
+
+    return recipe;
   }
 
   async createRecipe(recipe: Partial<AdminRecipe>): Promise<string> {
@@ -204,6 +239,17 @@ class AdminRecipeService extends BaseService {
         totalTime: recipe.totalTime,
         portions: recipe.portions,
         isPublished: recipe.isPublished,
+        plannerRole: recipe.plannerRole ?? null,
+        alternatePlannerRoles: recipe.alternatePlannerRoles ?? [],
+        mealComponents: recipe.mealComponents ?? null,
+        isCompleteMeal: recipe.isCompleteMeal ?? null,
+        equipmentTags: recipe.equipmentTags ?? null,
+        cookingLevel: recipe.cookingLevel ?? null,
+        leftoversFriendly: recipe.leftoversFriendly ?? null,
+        batchFriendly: recipe.batchFriendly ?? null,
+        maxHouseholdSizeSupported: recipe.maxHouseholdSizeSupported ?? null,
+        verifiedAt: recipe.verifiedAt ?? null,
+        verifiedBy: recipe.verifiedBy ?? null,
       });
 
       const { data: recipeId, error: recipeError } = await this.supabase
@@ -224,6 +270,7 @@ class AdminRecipeService extends BaseService {
           name: t.name,
           description: t.description || null,
           tips_and_tricks: t.tipsAndTricks || null,
+          scaling_notes: t.scalingNotes || null,
         }));
 
         const { error: translationError } = await this.supabase
@@ -267,6 +314,17 @@ class AdminRecipeService extends BaseService {
     if (recipe.totalTime !== undefined) nonTranslatableFields.totalTime = recipe.totalTime;
     if (recipe.portions !== undefined) nonTranslatableFields.portions = recipe.portions;
     if (recipe.isPublished !== undefined) nonTranslatableFields.isPublished = recipe.isPublished;
+    if (recipe.plannerRole !== undefined) nonTranslatableFields.plannerRole = recipe.plannerRole;
+    if (recipe.alternatePlannerRoles !== undefined) nonTranslatableFields.alternatePlannerRoles = recipe.alternatePlannerRoles;
+    if (recipe.mealComponents !== undefined) nonTranslatableFields.mealComponents = recipe.mealComponents;
+    if (recipe.isCompleteMeal !== undefined) nonTranslatableFields.isCompleteMeal = recipe.isCompleteMeal;
+    if (recipe.equipmentTags !== undefined) nonTranslatableFields.equipmentTags = recipe.equipmentTags;
+    if (recipe.cookingLevel !== undefined) nonTranslatableFields.cookingLevel = recipe.cookingLevel;
+    if (recipe.leftoversFriendly !== undefined) nonTranslatableFields.leftoversFriendly = recipe.leftoversFriendly;
+    if (recipe.batchFriendly !== undefined) nonTranslatableFields.batchFriendly = recipe.batchFriendly;
+    if (recipe.maxHouseholdSizeSupported !== undefined) nonTranslatableFields.maxHouseholdSizeSupported = recipe.maxHouseholdSizeSupported;
+    if (recipe.verifiedAt !== undefined) nonTranslatableFields.verifiedAt = recipe.verifiedAt;
+    if (recipe.verifiedBy !== undefined) nonTranslatableFields.verifiedBy = recipe.verifiedBy;
 
     if (recipe.pictureUrl && typeof recipe.pictureUrl === 'object') {
       const oldRecipe = await this.supabase
@@ -300,6 +358,7 @@ class AdminRecipeService extends BaseService {
         name: t.name,
         description: t.description || null,
         tips_and_tricks: t.tipsAndTricks || null,
+        scaling_notes: t.scalingNotes || null,
       }));
 
       const { error: translationError } = await this.supabase
@@ -325,6 +384,10 @@ class AdminRecipeService extends BaseService {
 
     if (recipe.kitchenTools) {
       await this.updateRecipeKitchenTools(id, recipe.kitchenTools);
+    }
+
+    if (recipe.pairings) {
+      await this.updateRecipePairings(id, recipe.pairings);
     }
 
     // Invalidate user-facing cache so the updated recipe is visible immediately
@@ -634,6 +697,89 @@ class AdminRecipeService extends BaseService {
     }
   }
 
+  async getRecipePairings(recipeId: string): Promise<AdminRecipePairing[]> {
+    const { data, error } = await this.supabase
+      .from('recipe_pairings')
+      .select(`
+        id,
+        source_recipe_id,
+        target_recipe_id,
+        pairing_role,
+        reason,
+        target:recipes!recipe_pairings_target_recipe_id_fkey (
+          id,
+          image_url,
+          planner_role,
+          translations:recipe_translations ( locale, name )
+        )
+      `)
+      .eq('source_recipe_id', recipeId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw new Error(`Failed to load recipe pairings: ${error.message}`);
+    }
+
+    // Return raw translations on each pairing; the UI resolves the display
+    // name against the active display locale at render time so locale
+    // toggles do not require a full recipe refetch (which was clobbering
+    // unsaved form edits).
+    return (data ?? []).map((row: any) => {
+      const target = row.target ?? {};
+      const targetTranslations: { locale: string; name?: string }[] =
+        target.translations ?? [];
+      return {
+        id: row.id,
+        sourceRecipeId: row.source_recipe_id,
+        targetRecipeId: row.target_recipe_id,
+        pairingRole: row.pairing_role as PairingRole,
+        reason: row.reason,
+        targetTranslations,
+        targetImageUrl: target.image_url ?? null,
+        targetPlannerRole: target.planner_role ?? null,
+      };
+    });
+  }
+
+  async updateRecipePairings(recipeId: string, pairings: AdminRecipePairing[]): Promise<void> {
+    // Full-replace pattern (matches other side tables). Invalid pairings are
+    // rejected here so callers cannot silently lose data on save.
+    const invalidPairings = pairings.filter((p) => !p.pairingRole || !p.targetRecipeId);
+    if (invalidPairings.length > 0) {
+      throw new Error('Every pairing must include a target recipe and role before saving.');
+    }
+
+    const { error: deleteError } = await this.supabase
+      .from('recipe_pairings')
+      .delete()
+      .eq('source_recipe_id', recipeId);
+
+    if (deleteError) {
+      throw new Error(`Failed to clear existing pairings: ${deleteError.message}`);
+    }
+
+    if (!pairings.length) return;
+
+    const { data: authData } = await this.supabase.auth.getUser();
+    const createdBy = authData?.user?.id ?? null;
+
+    const rows = pairings.map((p) => ({
+      source_recipe_id: recipeId,
+      target_recipe_id: p.targetRecipeId,
+      pairing_role: p.pairingRole,
+      reason: p.reason ?? null,
+      created_by: createdBy,
+    }));
+
+    const { error: insertError } = await this.supabase
+      .from('recipe_pairings')
+      .insert(rows);
+
+    if (insertError) {
+      throw new Error(`Failed to insert pairings: ${insertError.message}`);
+    }
+  }
+
   async getAllMeasurementUnits(): Promise<any[]> {
     const query = this.supabase
       .from('measurement_units')
@@ -738,11 +884,13 @@ class AdminRecipeService extends BaseService {
         isPublished: recipe.isPublished ?? recipe.is_published,
         createdAt: recipe.createdAt ?? recipe.created_at,
         updatedAt: recipe.updatedAt ?? recipe.updated_at,
+        plannerRole: recipe.plannerRole ?? recipe.planner_role ?? null,
         translations: (recipe.translations || []).map((t: any) => ({
           locale: t.locale,
           name: t.name || '',
           description: t.description || undefined,
           tipsAndTricks: t.tips_and_tricks || t.tipsAndTricks || undefined,
+          scalingNotes: t.scaling_notes || t.scalingNotes || undefined,
         })),
         ingredients: [],
         tags: [],
@@ -766,11 +914,23 @@ class AdminRecipeService extends BaseService {
       isPublished: recipe.isPublished ?? recipe.is_published,
       createdAt: recipe.createdAt ?? recipe.created_at,
       updatedAt: recipe.updatedAt ?? recipe.updated_at,
+      plannerRole: recipe.plannerRole ?? recipe.planner_role ?? null,
+      mealComponents: recipe.mealComponents ?? recipe.meal_components ?? null,
+      isCompleteMeal: recipe.isCompleteMeal ?? recipe.is_complete_meal ?? null,
+      alternatePlannerRoles: recipe.alternatePlannerRoles ?? recipe.alternate_planner_roles ?? [],
+      equipmentTags: recipe.equipmentTags ?? recipe.equipment_tags ?? null,
+      cookingLevel: recipe.cookingLevel ?? recipe.cooking_level ?? null,
+      leftoversFriendly: recipe.leftoversFriendly ?? recipe.leftovers_friendly ?? null,
+      batchFriendly: recipe.batchFriendly ?? recipe.batch_friendly ?? null,
+      maxHouseholdSizeSupported: recipe.maxHouseholdSizeSupported ?? recipe.max_household_size_supported ?? null,
+      verifiedAt: recipe.verifiedAt ?? recipe.verified_at ?? null,
+      verifiedBy: recipe.verifiedBy ?? recipe.verified_by ?? null,
       translations: (recipe.translations || []).map((t: any) => ({
         locale: t.locale,
         name: t.name || '',
         description: t.description || undefined,
         tipsAndTricks: t.tips_and_tricks || t.tipsAndTricks || undefined,
+        scalingNotes: t.scaling_notes || t.scalingNotes || undefined,
       })),
     };
 

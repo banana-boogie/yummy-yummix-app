@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ScrollView, View, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { COLORS } from '@/constants/design-tokens';
@@ -9,9 +9,9 @@ import { StepsForm } from '@/components/admin/recipes/forms/stepsForm/RecipeStep
 import { TagsForm } from '@/components/admin/recipes/forms/tagsForm/TagsForm';
 import { ReviewForm } from '@/components/admin/recipes/forms/reviewForm/ReviewForm';
 import { RecipeKitchenToolsForm } from '@/components/admin/recipes/forms/kitchenToolsForm/RecipeKitchenToolsForm';
+import { MealPlanningForm } from '@/components/admin/recipes/forms/mealPlanningForm/MealPlanningForm';
 import { AdminRecipe, getTranslatedField } from '@/types/recipe.admin.types';
 import { adminRecipeService } from '@/services/admin/adminRecipeService';
-import { friendlySaveError } from '@/hooks/admin/useAdminRecipeForm';
 import { Text } from '@/components/common/Text';
 import { AlertModal } from '@/components/common/AlertModal';
 import { FormErrors } from '@/components/form/FormErrors';
@@ -24,6 +24,7 @@ import { useDevice } from '@/hooks/useDevice';
 import { TranslationStep } from '@/components/admin/recipes/forms/translationForm/TranslationStep';
 import { loadAuthoringLocale, saveAuthoringLocale } from '@/components/admin/recipes/forms/shared/AuthoringLanguagePicker';
 import { AdminDisplayLocaleToggle } from '@/components/admin/recipes/forms/shared/AdminDisplayLocaleToggle';
+import logger from '@/services/logger';
 
 export default function EditRecipePage() {
   const { id } = useLocalSearchParams();
@@ -46,6 +47,7 @@ export default function EditRecipePage() {
   const { validateRecipe } = useRecipeValidation();
   const { getNextButtonLabel } = useRecipeNavigation(recipe, currentStep);
   const { isSmall } = useDevice();
+  const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     loadAuthoringLocale().then(setAuthoringLocale);
@@ -73,6 +75,9 @@ export default function EditRecipePage() {
     } finally {
       setLoading(false);
     }
+    // `id` only — displayLocale intentionally NOT a dep. Reloading on locale
+    // toggle would blow away unsaved form edits. Pairing names are resolved
+    // client-side from translations in the UI layer.
   }, [id]);
 
   useEffect(() => {
@@ -102,8 +107,7 @@ export default function EditRecipePage() {
       await loadRecipe();
     } catch (error) {
       logger.error('Error saving recipe:', error);
-      const msg = error instanceof Error ? error.message : '';
-      setErrors({ save: friendlySaveError(msg) });
+      setErrors({ save: i18n.t('admin.recipes.form.saveError.message') });
       setShowErrorDialog(true);
     } finally {
       setSaving(false);
@@ -177,6 +181,16 @@ export default function EditRecipePage() {
             displayLocale={displayLocale}
           />
         );
+      case CreateRecipeStep.MEAL_PLANNING:
+        return (
+          <MealPlanningForm
+            recipe={recipe}
+            onUpdateRecipe={handleUpdateRecipe}
+            displayLocale={displayLocale}
+            authoringLocale={authoringLocale}
+            scrollViewRef={scrollViewRef}
+          />
+        );
       case CreateRecipeStep.TRANSLATIONS:
         return (
           <TranslationStep
@@ -232,6 +246,7 @@ export default function EditRecipePage() {
     >
       <View className="flex-1">
         <ScrollView
+          ref={scrollViewRef}
           className="flex-1 bg-background-default"
           contentContainerStyle={{
             padding: isSmall ? 12 : 24,

@@ -205,13 +205,24 @@ export const parseRecipeMarkdown = async (markdown: string): Promise<ParseRecipe
     const data = JSON.parse(responseData)
     
 
-    // Process the parsed data into AdminRecipe format
+    // Process the parsed data into AdminRecipe format. `scalingNotes` is
+    // per-locale (translation field) — the AI schema returns it on each
+    // translation row, so it rides along in `data.translations` already.
     const recipe: Partial<AdminRecipe> = {
       translations: data.translations || [],
       totalTime: data.totalTime,
       prepTime: data.prepTime,
       difficulty: data.difficulty as RecipeDifficulty,
       portions: data.portions,
+      // Planner (Meal Planning) metadata — best-guess from AI, admin can override
+      plannerRole: data.plannerRole ?? null,
+      mealComponents: data.mealComponents ?? null,
+      isCompleteMeal: data.isCompleteMeal ?? null,
+      equipmentTags: data.equipmentTags ?? null,
+      cookingLevel: data.cookingLevel ?? null,
+      leftoversFriendly: data.leftoversFriendly ?? null,
+      batchFriendly: data.batchFriendly ?? null,
+      maxHouseholdSizeSupported: data.maxHouseholdSizeSupported ?? null,
     };
     
     // Process ingredients
@@ -221,6 +232,33 @@ export const parseRecipeMarkdown = async (markdown: string): Promise<ParseRecipe
     
     // Process tags
     const { tags, missingTags } = processTags(data.tags, allTags);
+
+    // Resolve inferred meal-type values against existing "Meal Type" tag category.
+    // Case-insensitive match against tag names; silently skip values with no matching tag
+    // (do NOT invent tags — same rule as the main tag pipeline).
+    const MEAL_TYPE_CATEGORY_MATCH = /meal\s*type/i;
+    const mealTypeValues: string[] = Array.isArray(data.mealTypes) ? data.mealTypes : [];
+    if (mealTypeValues.length > 0) {
+      const mealTypeTags = (allTags as AdminRecipeTag[]).filter(t =>
+        (t.categories || []).some((c: string) => MEAL_TYPE_CATEGORY_MATCH.test(c))
+      );
+      const existingIds = new Set(tags.map(t => t.id));
+      for (const value of mealTypeValues) {
+        const match = mealTypeTags.find(t => {
+          const nameEn = getTranslatedField(t.translations, 'en', 'name');
+          const nameEs = getTranslatedField(t.translations, 'es', 'name');
+          return (
+            nameEn.toLowerCase() === value.toLowerCase() ||
+            nameEs.toLowerCase() === value.toLowerCase()
+          );
+        });
+        if (match && !existingIds.has(match.id)) {
+          tags.push(match);
+          existingIds.add(match.id);
+        }
+      }
+    }
+
     recipe.tags = tags;
     
     // Use the processed ingredients as the data source for finding ingredients used in the instruction

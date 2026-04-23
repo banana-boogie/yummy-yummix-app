@@ -17,10 +17,18 @@ export interface EntityTranslation {
   [key: string]: string | undefined;
 }
 
+/**
+ * Policy: any new free-form user-facing text field on a recipe must be added
+ * to recipe_translations (this type), not the base `recipes` table. The base
+ * table holds only enums, numbers, booleans, and tag references. Free-form
+ * text requires per-locale authoring so that Spanish users never fall back to
+ * English content, and vice versa.
+ */
 export interface AdminRecipeTranslation extends EntityTranslation {
   name: string;
   description?: string;
   tipsAndTricks?: string;
+  scalingNotes?: string;
 }
 
 export interface AdminIngredientTranslation extends EntityTranslation {
@@ -133,12 +141,66 @@ export interface AdminRecipeKitchenTool {
   kitchenTool: AdminKitchenTool;
 }
 
+// Pairing roles for `recipe_pairings.pairing_role`.
+//
+// Mirrors the CHECK constraint in
+// yyx-server/supabase/migrations/20260410000001_add_meal_plans.sql
+// as widened by 20260423190515_add_main_to_pairing_roles.sql. The
+// TypeScript union is derived from this const array so keeping the
+// runtime list and the type in sync requires a single edit here.
+export const PAIRING_ROLES = [
+  'main',
+  'side',
+  'base',
+  'veg',
+  'dessert',
+  'beverage',
+  'condiment',
+  'leftover_transform',
+] as const;
+
+export type PairingRole = typeof PAIRING_ROLES[number];
+
+// Subset of PlannerRole values that map directly to a PairingRole when a
+// target recipe is picked. E.g., a target recipe with planner_role='main'
+// defaults to pairing_role='main'. Others (snack, pantry, null) require
+// the admin to pick explicitly.
+export const DIRECT_PAIRING_ROLE_MAP = new Set<PairingRole>([
+  'main',
+  'side',
+  'dessert',
+  'beverage',
+  'condiment',
+]);
+
+export interface AdminRecipePairing {
+  id?: string;
+  sourceRecipeId: string;
+  targetRecipeId: string;
+  pairingRole: PairingRole | null;
+  reason?: string | null;
+  // UI-derived from target recipe join — not persisted back.
+  /** Raw translations array from the target recipe. Rendered against the
+   *  active display locale at the UI layer so locale toggles do not require
+   *  a refetch of the parent recipe. */
+  targetTranslations?: { locale: string; name?: string }[];
+  /** Pre-resolved display name, used only for locally-added pairings (from
+   *  the picker) where only one locale's name was picked. Persisted pairings
+   *  carry `targetTranslations` instead and this field is unset. */
+  targetName?: string;
+  targetImageUrl?: string | null;
+  targetPlannerRole?: string | null;
+}
+
 export interface AdminRecipe extends Omit<Recipe, 'name' | 'ingredients' | 'tags' | 'steps' | 'kitchenTools'> {
   translations: AdminRecipeTranslation[];
   ingredients: AdminRecipeIngredient[];
   tags: AdminRecipeTag[];
   steps: AdminRecipeSteps[];
   kitchenTools?: AdminRecipeKitchenTool[];
+  pairings?: AdminRecipePairing[];
+  // Derived, read-only — resolved from user_profiles at fetch time.
+  verifiedByName?: string | null;
 }
 
 // ============================================================

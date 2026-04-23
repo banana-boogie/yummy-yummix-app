@@ -14,6 +14,7 @@
 import {
   assertEquals,
   assertExists,
+  assertStringIncludes,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   createMockErrorResponse,
@@ -36,6 +37,36 @@ const expectedSchemaProperties = [
   "ingredients",
   "steps",
   "tags",
+  "plannerRole",
+  "mealComponents",
+  "isCompleteMeal",
+  "equipmentTags",
+  "cookingLevel",
+  "leftoversFriendly",
+  "batchFriendly",
+  "maxHouseholdSizeSupported",
+  "mealTypes",
+];
+
+const expectedPlannerRoleValues = [
+  "main",
+  "side",
+  "snack",
+  "dessert",
+  "beverage",
+  "condiment",
+  "pantry",
+];
+
+const expectedMealComponentValues = ["protein", "carb", "veg"];
+
+const expectedMealTypeValues = [
+  "breakfast",
+  "lunch",
+  "dinner",
+  "snack",
+  "dessert",
+  "beverage",
 ];
 
 const expectedDifficultyValues = ["easy", "medium", "hard"];
@@ -76,6 +107,63 @@ Deno.test("schema - difficulty enum has correct values", () => {
       `Expected difficulty value ${value} to be valid`,
     );
   });
+});
+
+Deno.test("schema - plannerRole enum matches DB CHECK constraint", () => {
+  // Must reconcile with recipes.planner_role CHECK constraint in the meal_plans migration.
+  const dbAllowed = [
+    "main",
+    "side",
+    "snack",
+    "dessert",
+    "beverage",
+    "condiment",
+  ];
+  dbAllowed.forEach((v) => {
+    assertEquals(
+      expectedPlannerRoleValues.includes(v),
+      true,
+      `Planner role ${v} must be in AI schema enum`,
+    );
+  });
+});
+
+Deno.test("schema - mealComponents enum matches DB CHECK constraint", () => {
+  // Must reconcile with recipes.meal_components CHECK constraint.
+  const dbAllowed = ["protein", "carb", "veg"];
+  dbAllowed.forEach((v) => {
+    assertEquals(
+      expectedMealComponentValues.includes(v),
+      true,
+      `Meal component ${v} must be in AI schema enum`,
+    );
+  });
+});
+
+Deno.test("schema - mealTypes enum includes canonical values", () => {
+  const expected = [
+    "breakfast",
+    "lunch",
+    "dinner",
+    "snack",
+    "dessert",
+    "beverage",
+  ];
+  expected.forEach((v) => {
+    assertEquals(
+      expectedMealTypeValues.includes(v),
+      true,
+      `Meal type ${v} must be in AI schema enum`,
+    );
+  });
+});
+
+Deno.test("schema - maxHouseholdSizeSupported requires integer values", () => {
+  const source = Deno.readTextFileSync(new URL("../index.ts", import.meta.url));
+  assertStringIncludes(
+    source,
+    'maxHouseholdSizeSupported: {\n      type: ["integer", "null"]',
+  );
 });
 
 Deno.test("schema - measurement units enum has expected values", () => {

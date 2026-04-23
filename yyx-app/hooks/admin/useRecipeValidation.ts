@@ -55,6 +55,22 @@ export const useRecipeValidation = () => {
     return errors;
   };
 
+  const validatePairings = (recipe: Partial<AdminRecipe>): Record<string, string> => {
+    const errors: Record<string, string> = {};
+
+    const hasInvalidPairing = (recipe.pairings ?? []).some(
+      (pairing) => !pairing.pairingRole,
+    );
+
+    if (hasInvalidPairing) {
+      errors.pairings = i18n.t(
+        'admin.recipes.form.mealPlanning.pairings.roleRequired',
+      );
+    }
+
+    return errors;
+  };
+
   // Validate all sections at once
   const validateRecipe = (recipe: Partial<AdminRecipe>): Record<string, string> => {
     return {
@@ -62,6 +78,7 @@ export const useRecipeValidation = () => {
       ...validateIngredients(recipe),
       ...validateSteps(recipe),
       ...validateTags(recipe),
+      ...validatePairings(recipe),
     };
   };
 
@@ -71,5 +88,6 @@ export const useRecipeValidation = () => {
     validateIngredients,
     validateSteps,
     validateTags,
+    validatePairings,
   };
-}; 
+};
