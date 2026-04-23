@@ -22,9 +22,11 @@ import {
 } from "@/types/recipe.admin.types";
 import {
   AlternatePlannerRole,
+  ALTERNATE_PLANNER_ROLES,
   CookingLevel,
   EquipmentTag,
   MealComponent,
+  PLANNER_ROLES,
   PlannerRole,
 } from "@/types/recipe.types";
 import { adminRecipeTagService } from "@/services/admin/adminRecipeTagService";
@@ -58,8 +60,8 @@ interface MealPlanningFormProps {
 export function MealPlanningForm({
   recipe,
   onUpdateRecipe,
-  displayLocale = "es",
-  authoringLocale = "es",
+  displayLocale = i18n.locale,
+  authoringLocale = i18n.locale,
   scrollViewRef,
 }: MealPlanningFormProps) {
   const { user } = useAuth();
@@ -134,37 +136,28 @@ export function MealPlanningForm({
     [allTags],
   );
 
-  const ALL_PLANNER_ROLES: PlannerRole[] = [
-    "main",
-    "side",
-    "snack",
-    "dessert",
-    "beverage",
-    "condiment",
-    "pantry",
-  ];
-
   const sortByLabel = <T extends { label: string }>(opts: T[]): T[] =>
     [...opts].sort((a, b) =>
       a.label.localeCompare(b.label, displayLocale, { sensitivity: "base" }),
     );
 
   const plannerRoleOptions: SelectOption[] = sortByLabel(
-    ALL_PLANNER_ROLES.map((role) => ({
+    PLANNER_ROLES.map((role) => ({
       label: i18n.t(`admin.recipes.form.mealPlanning.plannerRole.${role}`),
       value: role,
     })),
   );
 
-  // "Also serves as…" — all scheduling roles except the current primary and
-  // 'pantry' (pantry is mutually exclusive with scheduling).
+  // "Also serves as…" — alternate scheduling roles minus the current primary.
+  // 'pantry' is already excluded by ALTERNATE_PLANNER_ROLES (mutually
+  // exclusive with scheduling).
   const alternateRoleOptions: SelectOption[] = sortByLabel(
-    ALL_PLANNER_ROLES
-      .filter((role) => role !== "pantry" && role !== recipe.plannerRole)
-      .map((role) => ({
+    ALTERNATE_PLANNER_ROLES.filter((role) => role !== recipe.plannerRole).map(
+      (role) => ({
         label: i18n.t(`admin.recipes.form.mealPlanning.plannerRole.${role}`),
         value: role,
-      })),
+      }),
+    ),
   );
 
   const mealComponentOptions = [

@@ -11,6 +11,8 @@ import { TextInput } from '@/components/form/TextInput';
 import {
   AdminRecipe,
   AdminRecipePairing,
+  DIRECT_PAIRING_ROLE_MAP,
+  PAIRING_ROLES,
   PairingRole,
   pickTranslation,
 } from '@/types/recipe.admin.types';
@@ -18,25 +20,6 @@ import { PlannerRole } from '@/types/recipe.types';
 import { adminRecipeService } from '@/services/admin/adminRecipeService';
 import { COLORS } from '@/constants/design-tokens';
 import logger from '@/services/logger';
-
-const PAIRING_ROLES: PairingRole[] = [
-  'main',
-  'side',
-  'base',
-  'veg',
-  'dessert',
-  'beverage',
-  'condiment',
-  'leftover_transform',
-];
-
-const DIRECT_ROLE_MAP: ReadonlySet<PlannerRole> = new Set<PlannerRole>([
-  'main',
-  'side',
-  'dessert',
-  'beverage',
-  'condiment',
-]);
 
 const isWeb = Platform.OS === 'web';
 
@@ -87,10 +70,13 @@ export function PairingsSection({
       imageUrl?: string | null;
       plannerRole?: PlannerRole | null;
     }) => {
+      // PlannerRole and PairingRole overlap on the values in
+      // DIRECT_PAIRING_ROLE_MAP (main, side, dessert, beverage, condiment).
+      // For a target in that set, auto-default the pairing role; otherwise
+      // leave null so the admin picks explicitly (blocks save).
+      const candidate = pick.plannerRole as PairingRole | null | undefined;
       const defaultRole: PairingRole | null =
-        pick.plannerRole && DIRECT_ROLE_MAP.has(pick.plannerRole)
-          ? (pick.plannerRole as PairingRole)
-          : null;
+        candidate && DIRECT_PAIRING_ROLE_MAP.has(candidate) ? candidate : null;
       const next: AdminRecipePairing[] = [
         ...pairings,
         {

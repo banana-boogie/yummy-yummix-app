@@ -65,9 +65,10 @@ export function VerificationCard({
     );
   }
 
-  const dateStr = new Date(verifiedAt!).toLocaleDateString(
-    displayLocale === 'en' ? 'en-US' : 'es-MX',
-  );
+  // Pass the admin's active display locale straight through — the underlying
+  // Intl implementation falls back gracefully on unknown tags, so this works
+  // for any future language addition without needing a mapping table.
+  const dateStr = new Date(verifiedAt!).toLocaleDateString(displayLocale);
   const verifiedAtLine = i18n.t('admin.recipes.form.mealPlanning.verified.verifiedAt', {
     date: dateStr,
   });

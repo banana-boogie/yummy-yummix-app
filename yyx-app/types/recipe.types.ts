@@ -32,18 +32,31 @@ export interface Recipe {
   verifiedBy?: string | null;
 }
 
-// Planner-related enums (stored as TEXT / TEXT[] in DB)
-export type PlannerRole =
-  | 'main'
-  | 'side'
-  | 'snack'
-  | 'dessert'
-  | 'beverage'
-  | 'condiment'
-  | 'pantry';
+// Planner-related enums (stored as TEXT / TEXT[] in DB).
+//
+// Mirrors the CHECK constraint on `recipes.planner_role` in
+// yyx-server/supabase/migrations/20260415120000_recipe_role_model_extension.sql.
+// Keep these in sync: the TypeScript union below is DERIVED from this const
+// array so adding/removing a role is a single edit that updates both the
+// type and the runtime list used by admin forms and tests.
+export const PLANNER_ROLES = [
+  'main',
+  'side',
+  'snack',
+  'dessert',
+  'beverage',
+  'condiment',
+  'pantry',
+] as const;
+
+export type PlannerRole = typeof PLANNER_ROLES[number];
 
 // Alternate slot-type eligibility — same as PlannerRole minus 'pantry',
 // which is mutually exclusive with scheduling.
+export const ALTERNATE_PLANNER_ROLES = PLANNER_ROLES.filter(
+  (r): r is Exclude<PlannerRole, 'pantry'> => r !== 'pantry',
+);
+
 export type AlternatePlannerRole = Exclude<PlannerRole, 'pantry'>;
 
 /**

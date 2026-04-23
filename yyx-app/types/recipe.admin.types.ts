@@ -141,15 +141,37 @@ export interface AdminRecipeKitchenTool {
   kitchenTool: AdminKitchenTool;
 }
 
-export type PairingRole =
-  | 'main'
-  | 'side'
-  | 'base'
-  | 'veg'
-  | 'dessert'
-  | 'beverage'
-  | 'condiment'
-  | 'leftover_transform';
+// Pairing roles for `recipe_pairings.pairing_role`.
+//
+// Mirrors the CHECK constraint in
+// yyx-server/supabase/migrations/20260410000001_add_meal_plans.sql
+// as widened by 20260423190515_add_main_to_pairing_roles.sql. The
+// TypeScript union is derived from this const array so keeping the
+// runtime list and the type in sync requires a single edit here.
+export const PAIRING_ROLES = [
+  'main',
+  'side',
+  'base',
+  'veg',
+  'dessert',
+  'beverage',
+  'condiment',
+  'leftover_transform',
+] as const;
+
+export type PairingRole = typeof PAIRING_ROLES[number];
+
+// Subset of PlannerRole values that map directly to a PairingRole when a
+// target recipe is picked. E.g., a target recipe with planner_role='main'
+// defaults to pairing_role='main'. Others (snack, pantry, null) require
+// the admin to pick explicitly.
+export const DIRECT_PAIRING_ROLE_MAP = new Set<PairingRole>([
+  'main',
+  'side',
+  'dessert',
+  'beverage',
+  'condiment',
+]);
 
 export interface AdminRecipePairing {
   id?: string;
