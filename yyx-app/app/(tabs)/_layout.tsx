@@ -23,7 +23,7 @@ type TabConfigItem = {
 const TAB_CONFIG: TabConfigItem[] = [
   { name: 'recipes', icon: 'compass-outline', iconActive: 'compass', href: '/recipes' },
   { name: 'chat', image: require('@/assets/images/irmixy-avatar/irmixy-face.png'), href: '/chat' },
-  { name: 'week', icon: 'calendar-outline', iconActive: 'calendar', href: '/week', emphasized: true },
+  { name: 'menu', icon: 'calendar-outline', iconActive: 'calendar', href: '/menu', emphasized: true },
   { name: 'profile', icon: 'person-outline', iconActive: 'person', href: '/profile' },
 ];
 

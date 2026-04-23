@@ -1,20 +1,20 @@
 export const planner = {
-  title: "Mi semana",
+  title: "Mi menú",
   openSettings: "Editar preferencias de planificación",
-  planReadyPlaceholder: "Tu plan está en camino — las comidas aparecerán aquí.",
+  planReadyPlaceholder: "Tu menú está en camino — las comidas aparecerán aquí.",
   dayEmpty: "No hay comidas planeadas para este día.",
   empty: {
-    planMyWeek: "Planear mi semana",
+    planMyWeek: "Planear mi menú",
     firstTime: {
-      heading: "¿Lista para planear tu semana?",
+      heading: "¿Lista para planear tu menú?",
       subtext: "Te armo una semana de comidas que puedes cambiar o ajustar cuando quieras.",
       bullet1: "Escoge tus comidas y días",
       bullet2: "Cambia cualquier comida que no te guste",
       bullet3: "Obtén tu lista de compras al instante",
     },
     ready: {
-      heading: "Vamos a planear otra semana",
-      subtext: "Toca abajo y uso tus preferencias guardadas para armar una nueva semana.",
+      heading: "Vamos a planear otro menú",
+      subtext: "Toca abajo y uso tus preferencias guardadas para armar un nuevo menú.",
     },
   },
   setup: {
@@ -31,8 +31,8 @@ export const planner = {
     mealTypesTitle: "¿Qué comidas planeo?",
     mealTypesHelper: "Escoge las comidas que quieres que te arme.",
     includeBeverages: "+ Incluir bebidas",
-    letsPlan: "¡A planear tu semana!",
-    generating: "Armando tu semana…",
+    letsPlan: "¡A planear tu menú!",
+    generating: "Armando tu menú…",
   },
   household: {
     solo: "Solo yo",
