@@ -1,13 +1,13 @@
 /**
  * First-time meal plan setup — full-height guided flow.
  *
- * One question per step, auto-advance on selection. Collects household size,
- * days to plan, busy days, and meal types. Returns the collected answers via
- * `onComplete` so the parent can call generatePlan() and/or persist
- * preferences.
+ * One question per step, auto-advance on selection. Collects days to plan,
+ * busy days, and meal types. Returns the collected answers via `onComplete`
+ * so the parent can call generatePlan() and/or persist preferences.
  *
- * The nutrition step is intentionally deferred until the FEATURE_NUTRITION_GOALS
- * flag is plumbed through; the component today ships a 4-step flow.
+ * Household size and nutrition goals are deferred: the first is handled at
+ * the profile level (no planner contract yet), and the second is gated on
+ * FEATURE_NUTRITION_GOALS once that flag is plumbed through.
  */
 
 import React, { useMemo, useState, useCallback } from 'react';
@@ -33,15 +33,13 @@ interface FirstTimePlanSetupFlowProps {
   onComplete: (answers: GeneratePlanOptions) => Promise<void> | void;
 }
 
-type HouseholdSize = 'solo' | 'two' | 'family_small' | 'family_large';
 type DaysPreset = 'weekdays' | 'every_day' | 'custom';
 
 const WEEKDAY_INDEXES = [0, 1, 2, 3, 4];
 const EVERY_DAY_INDEXES = [0, 1, 2, 3, 4, 5, 6];
 
-function isMexicanSpanish(locale: string): boolean {
-  const l = locale.toLowerCase();
-  return l.startsWith('es');
+function isSpanish(locale: string): boolean {
+  return locale.toLowerCase().startsWith('es');
 }
 
 const DAY_LABEL_KEYS = [
@@ -87,13 +85,6 @@ function getMealTypeOptions(localeIsES: boolean): MealTypeOption[] {
   ];
 }
 
-const HOUSEHOLD_OPTIONS: { id: HouseholdSize; labelKey: string }[] = [
-  { id: 'solo', labelKey: 'planner.household.solo' },
-  { id: 'two', labelKey: 'planner.household.two' },
-  { id: 'family_small', labelKey: 'planner.household.familySmall' },
-  { id: 'family_large', labelKey: 'planner.household.familyLarge' },
-];
-
 export function FirstTimePlanSetupFlow({
   initialPreferences,
   mode = 'first-time',
@@ -101,7 +92,7 @@ export function FirstTimePlanSetupFlow({
   onComplete,
 }: FirstTimePlanSetupFlowProps) {
   const { locale } = useLanguage();
-  const isES = isMexicanSpanish(locale);
+  const isES = isSpanish(locale);
 
   // Settings mode always shows every step so saved values stay editable.
   // First-time mode skips already-answered steps for a fast onboarding path.
@@ -110,11 +101,11 @@ export function FirstTimePlanSetupFlow({
   const hasSavedMealTypes = !!initialPreferences?.mealTypes?.length;
   const isSettings = mode === 'settings';
 
+  // Household size is handled at the profile level, not the planner contract.
+  // Revisit if/when the planner API accepts householdSize.
   const steps = useMemo(
     () => {
-      const all: ('household' | 'days' | 'busy' | 'mealTypes')[] = [
-        'household',
-      ];
+      const all: ('days' | 'busy' | 'mealTypes')[] = [];
       if (isSettings || !hasSavedDays) all.push('days');
       if (isSettings || !hasSavedBusy) all.push('busy');
       if (isSettings || !hasSavedMealTypes) all.push('mealTypes');
@@ -124,7 +115,6 @@ export function FirstTimePlanSetupFlow({
   );
 
   const [stepIndex, setStepIndex] = useState(0);
-  const [household, setHousehold] = useState<HouseholdSize | null>(null);
   const [daysPreset, setDaysPreset] = useState<DaysPreset | null>(
     hasSavedDays ? 'custom' : null,
   );
@@ -177,6 +167,9 @@ export function FirstTimePlanSetupFlow({
         mealTypes: finalMealTypes.length ? finalMealTypes : ['dinner'],
         busyDays,
       });
+    } catch {
+      // onComplete owns error surfacing (Alert in the parent). Swallow here
+      // so rejections don't bubble out of the event handler as unhandled.
     } finally {
       setSubmitting(false);
     }
@@ -221,25 +214,6 @@ export function FirstTimePlanSetupFlow({
         className="flex-1"
         contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
       >
-        {current === 'household' && (
-          <StepContainer
-            title={i18n.t('planner.setup.householdTitle')}
-            helper={i18n.t('planner.setup.householdHelper')}
-          >
-            {HOUSEHOLD_OPTIONS.map((opt) => (
-              <ChoiceButton
-                key={opt.id}
-                selected={household === opt.id}
-                label={i18n.t(opt.labelKey)}
-                onPress={() => {
-                  setHousehold(opt.id);
-                  next();
-                }}
-              />
-            ))}
-          </StepContainer>
-        )}
-
         {current === 'days' && (
           <StepContainer
             title={i18n.t('planner.setup.daysTitle')}

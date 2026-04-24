@@ -31,7 +31,6 @@ interface MealPlanViewProps {
   isApproving: boolean;
   onApprove: () => void | Promise<void>;
   onCook?: (slot: MealPlanSlotResponse) => void;
-  onSwap: (slot: MealPlanSlotResponse) => void;
   onRemove: (slot: MealPlanSlotResponse) => void;
 }
 
@@ -42,7 +41,6 @@ export function MealPlanView({
   isApproving,
   onApprove,
   onCook,
-  onSwap,
   onRemove,
 }: MealPlanViewProps) {
   const mode: 'draft' | 'active' = plan.shoppingListId ? 'active' : 'draft';
@@ -174,7 +172,6 @@ export function MealPlanView({
                         slot={slot}
                         mode={mode}
                         onCook={mode === 'active' ? handleCook : undefined}
-                        onSwap={onSwap}
                         onRemove={onRemove}
                       />
                     ))

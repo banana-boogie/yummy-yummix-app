@@ -56,9 +56,9 @@ export function MealPlanEmptyState({
           loading={loading}
           fullWidth
           style={{ minHeight: 72 }}
-          accessibilityLabel={i18n.t('planner.empty.planMyWeek')}
+          accessibilityLabel={i18n.t('planner.empty.planMyMenu')}
         >
-          {i18n.t('planner.empty.planMyWeek')}
+          {i18n.t('planner.empty.planMyMenu')}
         </Button>
       </View>
 

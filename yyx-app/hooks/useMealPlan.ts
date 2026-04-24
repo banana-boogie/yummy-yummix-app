@@ -20,6 +20,8 @@ import type {
   PlanProgress,
   PreferencesResponse,
   SwapMealResponse,
+  UpdatePreferencesPayload,
+  UpdatePreferencesResponse,
 } from '@/types/mealPlan';
 
 export const mealPlanKeys = {
@@ -51,6 +53,9 @@ export interface UseMealPlanReturn {
   error: string | null;
 
   generatePlan: (options?: GeneratePlanOptions) => Promise<GeneratePlanResponse>;
+  updatePreferences: (
+    payload: UpdatePreferencesPayload,
+  ) => Promise<UpdatePreferencesResponse>;
   swapSlot: (slotId: string, reason?: string) => Promise<SwapMealResponse>;
   skipSlot: (slotId: string) => Promise<void>;
   markCooked: (slotId: string) => Promise<void>;
@@ -84,6 +89,10 @@ export function useMealPlan(): UseMealPlanReturn {
     queryClient.invalidateQueries({ queryKey: mealPlanKeys.active() });
   }, [queryClient]);
 
+  const invalidatePreferences = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: mealPlanKeys.preferences() });
+  }, [queryClient]);
+
   const generateMutation = useMutation({
     mutationFn: async (options: GeneratePlanOptions = {}) => {
       const weekStart = options.weekStart ?? startOfWeekISO();
@@ -99,6 +108,15 @@ export function useMealPlan(): UseMealPlanReturn {
       });
     },
     onSuccess: () => invalidatePlan(),
+  });
+
+  const updatePreferencesMutation = useMutation({
+    mutationFn: async (payload: UpdatePreferencesPayload) =>
+      mealPlanService.updatePreferences(payload),
+    onSuccess: () => {
+      invalidatePreferences();
+      invalidatePlan();
+    },
   });
 
   const swapMutation = useMutation({
@@ -172,6 +190,8 @@ export function useMealPlan(): UseMealPlanReturn {
     isGenerating: generateMutation.isPending,
     error,
     generatePlan: (options) => generateMutation.mutateAsync(options ?? {}),
+    updatePreferences: (payload) =>
+      updatePreferencesMutation.mutateAsync(payload),
     swapSlot: (slotId, reason) => swapMutation.mutateAsync({ slotId, reason }),
     skipSlot: (slotId) => skipMutation.mutateAsync(slotId).then(() => undefined),
     markCooked: (slotId) =>

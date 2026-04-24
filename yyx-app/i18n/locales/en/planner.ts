@@ -4,7 +4,7 @@ export const planner = {
   planReadyPlaceholder: "Your menu is on the way — meals will appear here.",
   dayEmpty: "No meals planned for this day.",
   empty: {
-    planMyWeek: "Plan My Menu",
+    planMyMenu: "Plan My Menu",
     firstTime: {
       heading: "Ready to plan your menu?",
       subtext: "I'll put together a week of meals you can swap or tweak anytime.",
@@ -19,8 +19,6 @@ export const planner = {
   },
   setup: {
     stepOf: "Step {{current}} of {{total}}",
-    householdTitle: "Who are you cooking for?",
-    householdHelper: "I'll size portions to fit.",
     daysTitle: "Which days do you want meals planned?",
     daysHelper: "You can change this anytime.",
     daysWeekdays: "Weekdays",
@@ -33,12 +31,6 @@ export const planner = {
     includeBeverages: "+ Include beverages",
     letsPlan: "Let's plan your menu!",
     generating: "Putting your menu together…",
-  },
-  household: {
-    solo: "Just me",
-    two: "2 people",
-    familySmall: "Family of 3–4",
-    familyLarge: "Family of 5+",
   },
   mealTypes: {
     dinnersOnly: "Just dinners",
@@ -88,6 +80,7 @@ export const planner = {
     approved: "Shopping list ready",
   },
   error: {
+    setupTitle: "Couldn't save your preferences",
     shoppingListTitle: "Couldn't make your list",
     swapTitle: "Couldn't load alternatives",
   },

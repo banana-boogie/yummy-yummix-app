@@ -12,11 +12,12 @@ interface MealCardProps {
   slot: MealPlanSlotResponse;
   mode: PlanMode;
   onCook?: (slot: MealPlanSlotResponse) => void;
-  onSwap?: (slot: MealPlanSlotResponse) => void;
   onRemove?: (slot: MealPlanSlotResponse) => void;
 }
 
-export function MealCard({ slot, mode, onCook, onSwap, onRemove }: MealCardProps) {
+// Swap is deferred to a follow-up PR. The server returns alternatives the
+// UI cannot yet present, so shipping the button would dead-end the user.
+export function MealCard({ slot, mode, onCook, onRemove }: MealCardProps) {
   const primary =
     slot.components.find((c) => c.isPrimary) ?? slot.components[0];
   const isLeftover = slot.slotType === 'leftover_target_slot';
@@ -90,17 +91,6 @@ export function MealCard({ slot, mode, onCook, onSwap, onRemove }: MealCardProps
               style={{ minHeight: 44 }}
             >
               {i18n.t('planner.card.cookNow')}
-            </Button>
-          )}
-          {onSwap && (
-            <Button
-              variant="outline"
-              size="small"
-              onPress={() => onSwap(slot)}
-              accessibilityLabel={i18n.t('planner.card.swap')}
-              style={{ minHeight: 44 }}
-            >
-              {i18n.t('planner.card.swap')}
             </Button>
           )}
           {onRemove && (
