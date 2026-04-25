@@ -235,7 +235,7 @@ Every visual element + the design token that drives it. New tokens are flagged w
 | Aspect ratio | — | 4:3 (`aspectRatio: 4/3`) |
 | Border radius | `rounded-xl` top-only (`borderTopLeftRadius`/`borderTopRightRadius` = 24) | 24px top, 0 bottom |
 | Placeholder bg | `bg-grey-light` | `#F8F8F8` |
-| Cooked-state white overlay opacity | — | **0.35** (open Q in §8) |
+| Cooked-state white overlay opacity | — | 0.35 (layered with 0.6 saturation — see §6) |
 | Cooked-state photo saturation | — | 0.6 (via `expo-image` `tintColor`/CSS filter) |
 | Skipped-state opacity | — | 0.5 |
 | Checkmark badge bg | `bg-status-success` | `#78A97A` |
@@ -248,9 +248,9 @@ Every visual element + the design token that drives it. New tokens are flagged w
 | "Hoy en tu menú" header heading | `h2` | Page-level greeting. h1 is reserved for the existing "Mi Menú" tab title. |
 | Date subtitle "martes 8 abr" | `caption` | Secondary, dated context. Quicksand h2 above + Montserrat caption below = warmth + legibility. |
 | Recipe title (hero) | `h2` | Visually equal in weight to the page heading — the recipe IS the screen. |
-| Meta line "Para 4 · 30 min · Thermomix" | `bodySmall` with `text-text-secondary` | Three pieces of info, comma-style separator (`·`). Not `caption` — slightly heavier weight reads better at this size on 60+ devices. |
+| Meta line "Para 4 · 30 min · Thermomix" | `bodySmall` with `text-text-default` | Three pieces of info, comma-style separator (`·`). Not `caption` — slightly heavier weight reads better at this size on 60+ devices. Color uses `text-text-default` for WCAG AA contrast on white; visual subordination from title is carried by font size (14px) and position alone. |
 | "Cocinar esto" CTA label | inherits `Button` preset | (Button uses subheading-style internal preset) |
-| "Cambiar" secondary action | `body` (16px) with `text-primary-dark` | Using `body` not `link` — no underline, treated as button-text not link. Color = `primary-dark` (#FF9A99) for emphasis without underline noise. |
+| "Cambiar" secondary action | `body` (16px) with `text-primary-darkest` | Using `body` not `link` — no underline, treated as button-text not link. Color = `primary-darkest` (#D83A3A) — the brand red — for legibility on white (~5.6:1) without underline noise. |
 | "Ver mi menú de la semana →" page-level link | `link` | This IS a link — it changes views. Underlined per `link` preset. Centered. |
 | "Cocinada hoy" status label | `bodySmall` with `text-status-success`, `uppercase`, `letterSpacing: 0.5` | Small but emphatic, reads as a status badge in text form. |
 | "¡Buen trabajo hoy!" footer | `handwritten` with `color: COLORS.primary.darkest` | The one personal-voice moment. Brand-native. |
@@ -401,8 +401,8 @@ Required pairings to verify on-device with the WCAG contrast tool (don't trust e
 
 | Foreground | Background | Required ratio | Notes |
 |---|---|---|---|
-| `text-text-secondary` (#828181) on `bg-neutral-white` (#FFF) | white | 4.5:1 (normal text) | **Likely fails** — #828181 on white = ~3.3:1. Used for the meta line. **Mitigation:** use `text-text-default` (#2D2D2D) for the meta line instead, accepting that the visual hierarchy from title is carried by font weight + size, not color. ⚠ Open question §8. |
-| `text-primary-dark` (#FF9A99) on `bg-neutral-white` | white | 4.5:1 | **Likely fails** — light peach on white ≈ 2.7:1. Used for "Cambiar" label. **Mitigation:** use `text-primary-darkest` (#D83A3A) instead — visually warmer, still distinct from body text, ~5.6:1 against white. ⚠ Open question §8. |
+| `text-text-default` (#2D2D2D) on `bg-neutral-white` (#FFF) | white | 4.5:1 | ✓ Passes (~14.8:1). Used for the meta line — locked in (was previously secondary; switched for contrast). |
+| `text-primary-darkest` (#D83A3A) on `bg-neutral-white` | white | 4.5:1 | ✓ ~5.6:1. Used for "Cambiar" label — locked in (was previously primary-dark; switched for contrast). |
 | `text-status-success` (#78A97A) on `bg-neutral-white` | white | 4.5:1 | ~3.5:1 — borderline fail at 14px. **Mitigation:** boost to font-semibold (`fontWeight: '600'`) which qualifies as "large text" if size ≥ 14px and bold (3:1 threshold). The "Cocinada hoy" eyebrow already calls for emphasis — works in our favor. |
 | `text-text-default` on `bg-primary-lighter` (#FFF3EF) | warm cream | 4.5:1 | ✓ Should pass (#2D2D2D on #FFF3EF ≈ 14.8:1). Used in the draft-state hint block. |
 | `text-text-default` on `bg-primary-light` (#FFE9E3) | peach card | 4.5:1 | ✓ Should pass (#2D2D2D on #FFE9E3 ≈ 13.5:1). |
@@ -423,42 +423,42 @@ Required pairings to verify on-device with the WCAG contrast tool (don't trust e
 
 ---
 
-## 8. Open visual questions
+## 8. Resolved visual decisions
 
-Concrete decisions for product/design review before the frontend agent commits:
+All previously open questions have been resolved. Decisions are locked; frontend should not re-litigate.
 
-1. **Cooked photo dim treatment: 35% white overlay vs 60% saturation drop?** Recommend **both layered** (overlay 0.35 + tint towards desaturated), but if pick-one: 35% white overlay is more legible against the green checkmark badge. Mocked at 0.35; verify on a real recipe photo on device.
+1. **Cooked photo dim treatment:** Layered — 35% white overlay **+** 0.6 saturation. Both, not either-or. The overlay alone is sterile; the saturation alone is too subtle. Layered reads as "this happened, it was real."
 
-2. **Meta line color — `text-text-secondary` (visual hierarchy intent) vs `text-text-default` (contrast safety)?** Spec currently calls for secondary; contrast likely fails. Recommend **switch to `text-text-default`** and rely on font size (14px) + position alone for hierarchy. Alternative: keep secondary and bump size to 16px (qualifying as "large text" at lower contrast threshold) — but loses the visual "subordination" we want.
+2. **Meta line color:** `text-text-default` (#2D2D2D). Contrast safety wins over visual hierarchy. Hierarchy is carried by font size (14px) and position.
 
-3. **"Cambiar" color — `text-primary-dark` (warm, on-brand) vs `text-primary-darkest` (legible)?** Recommend **`text-primary-darkest`**. We lose a tiny bit of softness; we gain Lupita actually being able to read it.
+3. **"Cambiar" color:** `text-primary-darkest` (#D83A3A — brand red). Legibility wins.
 
-4. **Hint copy in `draftPlanned` — does the inline "Ver mi menú →" link belong inside the hint block or below it?** Spec puts it inside (one tight unit). Alternative: keep the hint as plain text and lean on the standalone "Ver mi menú de la semana →" link below the card. **Recommend inside** — Lupita reads the hint and her eye lands on the action immediately, no gaze travel.
+4. **`draftPlanned` hint composition:** Inline "Ver mi menú →" link **inside** the hint block. Lupita's eye lands on the action immediately after reading the hint — no gaze travel.
 
-5. **`skipped` variant copy "Esta comida se saltó. Elige otra opción." — is this the right tone in MX Spanish?** Plan does not specify copy for this variant. We're proposing a string; product should validate. **Open for product review.** If product prefers a different phrasing, swap the string; visual treatment unchanged.
+5. **`skipped` variant copy:** "Esta comida se saltó. Elige otra opción." Locked. Matter-of-fact, not scolding.
 
-6. **Error-state secondary line "Revisa tu conexión e intenta otra vez." — needed at all?** Plan §7 specifies only `loadError` ("No pude cargar tu menú") and `retry` ("Reintentar"). Adding a secondary explainer is a design proposal. **Recommend adding** — Lupita needs a hint about *why* it failed and what she can do. Open for product review on copy.
+6. **Error secondary line:** Keep "Revisa tu conexión e intenta otra vez." Lupita benefits from a hint about why it failed.
 
-7. **`noSlotToday` Irmixy face — reuse or restraint?** Spec calls for the existing `irmixy-face.png`. Alternative: leaner empty-state with no avatar (less visual noise). **Recommend keep avatar** — the empty state otherwise feels like an error; Irmixy's presence keeps it warm.
+7. **`noSlotToday` Irmixy face:** Keep the avatar. Without it the empty state reads like an error; Irmixy keeps it warm.
 
-8. **Wide-screen photo: cap or grow?** Plan caps `maxWidth: 600`. At 600px wide with 4:3 aspect, photo = 450pt tall. Recommend **stay capped at 600** — a 450pt-tall hero photo on iPad is plenty heroic; growing further makes the title and CTA feel undersized. Frontend: wrap the page content in `ResponsiveLayout maxWidth={600}` (existing component).
+8. **Wide-screen photo:** Cap at `maxWidth: 600` via `ResponsiveLayout`. A 450pt-tall photo on iPad is plenty heroic.
 
-9. **Shadow style on the hero card — `shadow-sm` (current convention) or stronger?** The hero is the most important card on the screen. A slightly heavier shadow (offset 0/4, opacity 0.08, radius 12) would lift it. **Recommend lift it slightly** — but not so much it feels modal. If the codebase has no precedent for a "hero shadow", use `shadow-sm` for v1 and revisit after concierge feedback.
+9. **Hero card shadow:** `shadow-sm` for v1 (matches existing codebase convention). No precedent for a "hero shadow" exists; introducing one for a single component is over-investing. Revisit after concierge feedback if the hero feels too flat in real use.
 
-10. **Should `noUncookedToday` retain the photo at all?** Current spec says yes (dimmed, with checkmark). Alternative: replace photo block with a confirmation illustration. **Recommend keep photo** — Lupita just made it; seeing the result of her work is the reward moment. This is the only state where the photo earns a "trophy" character.
+10. **`noUncookedToday` photo:** Keep the photo (dimmed, with checkmark). Lupita just cooked it — seeing the result is the reward moment. The only variant where the photo earns a "trophy" character.
 
 ---
 
 ## 9. New i18n strings introduced by this spec
 
-Beyond the strings in plan §7, this spec adds:
+Beyond the strings in plan §7, this spec adds (locked):
 
 | Key | ES | EN |
 |---|---|---|
 | `planner.today.skippedNotice` | "Esta comida se saltó. Elige otra opción." | "This meal was skipped. Pick another option." |
 | `planner.today.loadErrorHint` | "Revisa tu conexión e intenta otra vez." | "Check your connection and try again." |
 
-Both flagged as open questions in §8. Frontend agent: do not invent additional strings beyond these two and the plan's table.
+Frontend agent: do not invent additional strings beyond these two and the plan's table.
 
 ---
 
