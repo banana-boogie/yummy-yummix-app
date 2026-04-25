@@ -46,13 +46,27 @@ export interface AnalyticsEnvelope {
    * call-sites must pass a concrete `SourceSurface`.
    */
   sourceSurface: SourceSurface | null;
+  /**
+   * Beta cohort segment (Strategy 2026-04-25): all funnel metrics must be
+   * filterable by cohort. `null` for users not enrolled in the beta; set at
+   * beta enrollment via the partner screening question. No DB column yet —
+   * flattened into `payload._envelope` with the rest of the envelope until a
+   * backfill migration lands.
+   */
+  cohortSegment: BetaCohort | null;
 }
+
+/** Beta cohort segments — Sofía (paid beta) vs Lupita (usability tester only). */
+export type BetaCohort = 'sofia' | 'lupita';
 
 /**
  * Envelope fields the caller supplies — `appPlatform` is derived automatically
- * by `eventService.trackEvent(...)` from `Platform.OS`.
+ * by `eventService.trackEvent(...)` from `Platform.OS`. `cohortSegment` is
+ * optional at the call-site; eventService defaults it to `null` when omitted.
  */
-export type AnalyticsEnvelopeInput = Omit<AnalyticsEnvelope, 'appPlatform'>;
+export type AnalyticsEnvelopeInput = Omit<AnalyticsEnvelope, 'appPlatform' | 'cohortSegment'> & {
+  cohortSegment?: BetaCohort | null;
+};
 
 // -----------------------------------------------------------------------------
 // Shared enums / literals
@@ -108,6 +122,58 @@ export type ChatHomeActionId =
 export type ChatHomeActionBehavior = 'navigate' | 'send_message' | 'focus_input';
 
 export type ShoppingListGenerationMode = 'create' | 'replace' | 'refresh';
+
+export type PricingTestResponse = 'yes' | 'no' | 'maybe';
+
+export type FounderSessionType = 'manual' | 'auto';
+
+// -----------------------------------------------------------------------------
+// Mi Menú / strategic-metric payloads (Strategy 2026-04-25)
+// -----------------------------------------------------------------------------
+
+export interface MiMenuTodayViewedPayload {
+  mealPlanId: string | null;
+  hasActivePlan: boolean;
+  weekStart?: string;
+  dayIndex?: number;
+}
+
+export interface MiMenuTodayCookTappedPayload {
+  mealPlanId: string;
+  mealPlanSlotId: string;
+  primaryComponentId?: string | null;
+  primaryRecipeId?: string | null;
+  dayIndex: number;
+  mealType: string;
+}
+
+export interface MiMenuTodaySwapTappedPayload {
+  mealPlanId: string;
+  mealPlanSlotId: string;
+  dayIndex: number;
+  mealType: string;
+}
+
+export interface MiMenuWeekViewOpenedPayload {
+  mealPlanId: string | null;
+  hasActivePlan: boolean;
+}
+
+export interface PricingTestResponsePayload {
+  priceMxn: number;
+  response: PricingTestResponse;
+  surveyContext: 'end_of_week_3' | 'manual';
+  cohortSegment: BetaCohort | null;
+}
+
+export interface BetaCohortAssignedPayload {
+  cohortSegment: BetaCohort;
+  source: 'enrollment' | 'admin_override';
+}
+
+export interface FounderSessionOpenedPayload {
+  sessionType: FounderSessionType;
+}
 
 // -----------------------------------------------------------------------------
 // Planner payloads
@@ -422,6 +488,15 @@ export interface EventPayloadMap {
   explore_recipe_opened: ExploreRecipeOpenedPayload;
   explore_filter_applied: ExploreFilterAppliedPayload;
   explore_add_to_plan: ExploreAddToPlanPayload;
+
+  // --- Mi Menú / strategic metrics (Strategy 2026-04-25) ---
+  mi_menu_today_viewed: MiMenuTodayViewedPayload;
+  mi_menu_today_cook_tapped: MiMenuTodayCookTappedPayload;
+  mi_menu_today_swap_tapped: MiMenuTodaySwapTappedPayload;
+  mi_menu_week_view_opened: MiMenuWeekViewOpenedPayload;
+  pricing_test_response: PricingTestResponsePayload;
+  beta_cohort_assigned: BetaCohortAssignedPayload;
+  founder_session_opened: FounderSessionOpenedPayload;
 }
 
 /** Union of every tracked event name. */

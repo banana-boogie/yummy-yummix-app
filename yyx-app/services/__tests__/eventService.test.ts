@@ -308,6 +308,7 @@ describe('eventService', () => {
     expect(row.payload._envelope).toEqual({
       locale: 'es-MX',
       sourceSurface: 'week',
+      cohortSegment: null,
       appPlatform: 'ios',
     });
   });
@@ -346,6 +347,22 @@ describe('eventService', () => {
       // @ts-expect-error — 'view_recipe' requires LegacyRecipePayload
       { name: 'view_recipe', payload: badPayload2 },
       { locale: 'en', sourceSurface: 'week' },
+    );
+
+    // 3) cohortSegment must be a BetaCohort literal or null — arbitrary strings
+    //    must be rejected so we don't leak unsanctioned segment values into
+    //    funnel queries.
+    eventService.trackEvent(
+      { name: 'beta_cohort_assigned', payload: { cohortSegment: 'sofia', source: 'enrollment' } },
+      // @ts-expect-error — cohortSegment must be 'sofia' | 'lupita' | null
+      { locale: 'es-MX', sourceSurface: 'profile', cohortSegment: 'admin' },
+    );
+
+    // 4) New Mi Menú event must require its specific payload shape.
+    eventService.trackEvent(
+      // @ts-expect-error — 'mi_menu_today_cook_tapped' requires MiMenuTodayCookTappedPayload
+      { name: 'mi_menu_today_cook_tapped', payload: { hasActivePlan: true } },
+      { locale: 'es-MX', sourceSurface: 'week' },
     );
   });
 

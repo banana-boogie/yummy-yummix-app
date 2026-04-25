@@ -60,6 +60,14 @@ ALTER TABLE public.user_events
       'explore_section_viewed',
       'explore_recipe_opened',
       'explore_filter_applied',
-      'explore_add_to_plan'
+      'explore_add_to_plan',
+      -- Strategy 2026-04-25: Mi Menú surface + strategic decision metrics --
+      'mi_menu_today_viewed',
+      'mi_menu_today_cook_tapped',
+      'mi_menu_today_swap_tapped',
+      'mi_menu_week_view_opened',
+      'pricing_test_response',
+      'beta_cohort_assigned',
+      'founder_session_opened'
     )
   );
