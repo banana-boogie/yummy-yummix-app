@@ -13,7 +13,7 @@
  * Spec: ranking-algorithm-detail.md §1
  */
 
-import type { CanonicalMealType, SlotType } from "./types.ts";
+import type { CanonicalMealType, MealComponent, SlotType } from "./types.ts";
 import { STRUCTURE_DEFAULTS, WEEKEND_DAY_INDEXES } from "./scoring-config.ts";
 import { toCanonicalMealType } from "./meal-types.ts";
 
@@ -30,6 +30,7 @@ export interface MealSlot {
   feedsFutureLeftoverTarget: boolean;
   sourceDependencySlotId?: string;
   structureTemplate: typeof STRUCTURE_DEFAULTS[CanonicalMealType];
+  expectedMealComponents: MealComponent[];
 }
 
 export interface SlotClassificationInput {
@@ -107,6 +108,18 @@ function canonicalMealTypeOrder(mt: CanonicalMealType): number {
   return order[mt];
 }
 
+function expectedMealComponentsForTemplate(
+  template: typeof STRUCTURE_DEFAULTS[CanonicalMealType],
+): MealComponent[] {
+  switch (template) {
+    case "main_plus_one_component":
+    case "main_plus_two_components":
+      return ["protein", "carb", "veg"];
+    case "single_component":
+      return [];
+  }
+}
+
 /**
  * Classify slots from raw planner input.
  *
@@ -152,6 +165,8 @@ export function classifySlots(
       // Busy days: prefer leftover_target; may downgrade later.
       if (isBusyDay) slotKind = "leftover_target_slot";
 
+      const structureTemplate = STRUCTURE_DEFAULTS[canonical];
+
       slots.push({
         slotId: `${dayIndex}-${canonical}`,
         plannedDate: addDaysIso(input.weekStart, dayIndex),
@@ -168,7 +183,10 @@ export function classifySlots(
         prefersLeftovers: isBusyDay ||
           (input.preferLeftoversForLunch && canonical === "lunch"),
         feedsFutureLeftoverTarget: false,
-        structureTemplate: STRUCTURE_DEFAULTS[canonical],
+        structureTemplate,
+        expectedMealComponents: expectedMealComponentsForTemplate(
+          structureTemplate,
+        ),
       });
     }
   }

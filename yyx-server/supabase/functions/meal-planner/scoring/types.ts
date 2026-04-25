@@ -70,6 +70,13 @@ export interface CandidateScoreDetail {
 
 export interface ScoreCandidateInput {
   slot: MealSlot;
+  /**
+   * Runtime slot kind used for scoring when assembly falls back from an
+   * originally-classified slot kind. Example: a leftover_target_slot whose
+   * source produced no leftovers is scored as a fresh cook_slot while keeping
+   * the original slot metadata for downstream diagnostics.
+   */
+  effectiveSlotKind?: MealSlot["slotKind"];
   candidate: RecipeCandidate;
   state: WeekStateReadOnly;
   user: UserContext;

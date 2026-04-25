@@ -1,13 +1,14 @@
 /**
  * Candidate Retrieval
  *
- * SQL prefilter for each cookable slot:
+ * SQL + JS prefilter for each cookable slot:
  *   - is_published = true (the quality gate per §3)
- *   - has planner_role + meal_components
- *   - planner_role compatible with canonical meal type
+ *   - has planner_role
+ *   - planner_role compatible with canonical meal type's primary roles
+ *   - MEAL_TYPE tag compatible with canonical meal type
  *   - dietary_restrictions → allergen exclusion (filtered at scoring time
  *     since allergen data lives on ingredient rows; here we annotate)
- *   - top N per slot (30 for cook, 10 for no-cook fallback)
+ *   - top N per slot (30)
  *
  * Spec: ranking-algorithm-detail.md §3
  */
@@ -17,6 +18,7 @@ import type { MealSlot } from "./slot-classifier.ts";
 import { MEAL_TYPE_PRIMARY_ROLES, RETRIEVAL_LIMITS } from "./scoring-config.ts";
 import type { CanonicalMealType } from "./types.ts";
 import { normalizeIngredients } from "../_shared/ingredient-normalization.ts";
+import { toCanonicalMealType } from "./meal-types.ts";
 
 export interface RecipeCandidate {
   id: string;
@@ -50,6 +52,7 @@ export interface RecipeCandidate {
   ingredientIds: string[];
   ingredientKeys: string[]; // canonical ingredient names for overlap checks
   cuisineTags: string[];
+  mealTypeTags: CanonicalMealType[];
   // Allergen annotation per user context (populated post-fetch).
   hasAllergenConflict: boolean;
   allergenMatches: string[];
@@ -77,6 +80,7 @@ export interface CandidateRetrievalContext {
   dietaryRestrictions: string[];
   ingredientDislikes: string[];
   hardExcludedRecipeIds: Set<string>; // rating ≤ 2 etc.
+  warnings?: string[];
 }
 
 interface RawRecipeRow {
@@ -163,15 +167,27 @@ function toCandidate(
   }
 
   const cuisineTags: string[] = [];
+  const mealTypeTags = new Set<CanonicalMealType>();
   for (const rt of row.recipe_to_tag ?? []) {
     const tag = rt.recipe_tags;
     if (!tag) continue;
-    if (!tag.categories?.includes("CULTURAL_CUISINE")) continue;
-    const name = pickTranslationName(
-      tag.recipe_tag_translations ?? [],
-      ctx.localeChain,
-    );
-    if (name) cuisineTags.push(name.toLowerCase());
+    if (tag.categories?.includes("CULTURAL_CUISINE")) {
+      const name = pickTranslationName(
+        tag.recipe_tag_translations ?? [],
+        ctx.localeChain,
+      );
+      if (name) cuisineTags.push(name.toLowerCase());
+    }
+    if (tag.categories?.includes("MEAL_TYPE")) {
+      for (const translation of tag.recipe_tag_translations ?? []) {
+        if (!translation.name) continue;
+        try {
+          mealTypeTags.add(toCanonicalMealType(translation.name));
+        } catch {
+          // Ignore non-canonical legacy names that happen to carry MEAL_TYPE.
+        }
+      }
+    }
   }
 
   return {
@@ -194,7 +210,8 @@ function toCandidate(
     isPublished: !!row.is_published,
     ingredientIds,
     ingredientKeys,
-    cuisineTags,
+    cuisineTags: cuisineTags.sort((a, b) => a.localeCompare(b)),
+    mealTypeTags: [...mealTypeTags],
     hasAllergenConflict: false,
     allergenMatches: [],
     hasDislikeConflict: false,
@@ -326,13 +343,13 @@ export function shortlistCandidatesForSlot(
 }
 
 /**
- * Roles that require non-empty `meal_components` per recipe-role-model.md §6.1.
- * Other roles (snack, dessert, beverage, condiment) intentionally have
- * empty meal_components — that's data correctness, not a quality issue.
+ * Roles that require non-empty `meal_components` per recipe-role-model.md §6.1
+ * and its accepted 2026-04-17 amendment. Only main-role recipes are required
+ * to declare meal_components; sides may be empty when their contribution is
+ * contextual or not one of protein/carb/veg.
  */
 const ROLES_REQUIRING_MEAL_COMPONENTS: ReadonlySet<string> = new Set([
   "main",
-  "side",
 ]);
 
 function isRoleEligibleForAnySlot(
@@ -348,7 +365,7 @@ function isRoleEligibleForAnySlot(
 }
 
 /**
- * meal_components is mandatory whenever the recipe could fill a main or side
+ * meal_components is mandatory whenever the recipe could fill a main
  * slot — through its primary `planner_role` OR through any
  * `alternate_planner_roles` entry. Without this rule, a `planner_role='snack'`
  * recipe with `alternate_planner_roles=['main']` and empty `meal_components`
@@ -575,7 +592,7 @@ export async function fetchCandidates(
     );
   }
 
-  return splitCandidatesBySlot(slots, candidates);
+  return splitCandidatesBySlot(slots, candidates, ctx.warnings);
 }
 
 /**
@@ -587,20 +604,34 @@ export async function fetchCandidates(
 function splitCandidatesBySlot(
   slots: MealSlot[],
   candidates: RecipeCandidate[],
+  warnings?: string[],
 ): CandidateMap {
   const bySlot: CandidateMap = new Map();
+  const warnedMealTypes = new Set<CanonicalMealType>();
 
   for (const slot of slots) {
     const allowedRoles = MEAL_TYPE_PRIMARY_ROLES[slot.canonicalMealType];
     // A candidate is compatible if EITHER its primary planner_role matches
     // any of the meal-type's expected roles OR one of its
     // alternate_planner_roles does. Per recipe-role-model.md §6.2.
-    const compatible = candidates.filter((c) => {
+    const roleCompatible = candidates.filter((c) => {
       if (allowedRoles.includes(c.plannerRole)) return true;
       return c.alternatePlannerRoles.some((role) =>
         allowedRoles.includes(role)
       );
     });
+    const compatible = roleCompatible.filter((c) =>
+      c.mealTypeTags.includes(slot.canonicalMealType)
+    );
+    if (
+      roleCompatible.length > 0 && compatible.length === 0 &&
+      !warnedMealTypes.has(slot.canonicalMealType)
+    ) {
+      warnings?.push(
+        `MISSING_MEAL_TYPE_TAGS:meal_type=${slot.canonicalMealType}`,
+      );
+      warnedMealTypes.add(slot.canonicalMealType);
+    }
     bySlot.set(slot.slotId, shortlistCandidatesForSlot(slot, compatible));
   }
 
@@ -669,13 +700,13 @@ export interface CookHistory {
  *   - `cookCount`    — powers the familyFavoriteBoost in taste+household.
  *
  * Previously split across two queries (`loadRecentCookedRecipeIds` and
- * `loadCookCount`). Both want the same 21-day slice of `user_events`, so
+ * `loadCookCount`). Both want the same 30-day slice of `user_events`, so
  * collapsing saves a round-trip per generation.
  */
 export async function loadCookHistory(
   supabase: SupabaseClient,
   userId: string,
-  sinceDaysAgo = 21,
+  sinceDaysAgo = 30,
 ): Promise<CookHistory> {
   const cutoff = new Date(Date.now() - sinceDaysAgo * 86_400_000).toISOString();
   const recentCooked = new Map<string, Date>();

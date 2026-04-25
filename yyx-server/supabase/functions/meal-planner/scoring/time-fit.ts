@@ -20,7 +20,7 @@ export function scoreTimeFit(
     return { raw: 0.5, weighted: 0.5 * weight };
   }
   const budget = resolveTimeBudget(
-    input.slot.slotKind,
+    input.effectiveSlotKind ?? input.slot.slotKind,
     input.slot.isBusyDay,
     input.user.defaultMaxWeeknightMinutes,
   );

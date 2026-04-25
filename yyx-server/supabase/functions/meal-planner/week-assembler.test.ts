@@ -22,6 +22,7 @@ function mkSlot(overrides: Partial<MealSlot> = {}): MealSlot {
     prefersLeftovers: false,
     feedsFutureLeftoverTarget: false,
     structureTemplate: "single_component",
+    expectedMealComponents: [],
     ...overrides,
   };
 }
@@ -50,6 +51,7 @@ function mkCandidate(
     ingredientIds: ["ing-generic"],
     ingredientKeys: ["generic_ingredient"],
     cuisineTags: [],
+    mealTypeTags: ["dinner"],
     hasAllergenConflict: false,
     allergenMatches: [],
     hasDislikeConflict: false,
@@ -206,13 +208,18 @@ Deno.test("assembleWeek: leftover_target without runtime source downgrades to co
     cookingLevel: "beginner",
     totalTimeMinutes: 20,
   });
+  const slowRecipe = mkCandidate("slow-hard", {
+    difficulty: "hard",
+    cookingLevel: "experienced",
+    totalTimeMinutes: 75,
+  });
 
   const result = assembleWeek({
     slots: [source, target],
     planningOrder: [source, target],
     candidates: new Map([
       [source.slotId, [sourceRecipe]],
-      [target.slotId, [targetRecipe]],
+      [target.slotId, [slowRecipe, targetRecipe]],
     ]),
     pairings: EMPTY_PAIRINGS,
     user: mkUser({ householdSize: 2 }),
@@ -227,6 +234,10 @@ Deno.test("assembleWeek: leftover_target without runtime source downgrades to co
   const primary = targetAssignment.components.find((c) => c.isPrimary);
   assertEquals(primary?.sourceKind, "recipe");
   assertEquals(primary?.recipeId, "target-recipe");
+  assertEquals(
+    targetAssignment.selectionReason,
+    renderSelectionReason("busy_day_easy_pick", "en", { dayLabel: "Tuesday" }),
+  );
 });
 
 Deno.test("assembleWeek: unfilled cook slot emits UNFILLED_COOK_SLOT warning", () => {

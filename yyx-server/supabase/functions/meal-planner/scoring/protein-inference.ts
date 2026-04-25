@@ -38,5 +38,5 @@ export function inferProteinKey(candidate: RecipeCandidate): string | null {
       if (key.includes(marker)) return marker;
     }
   }
-  return "other_protein";
+  return null;
 }

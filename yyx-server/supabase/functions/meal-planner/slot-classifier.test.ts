@@ -37,6 +37,24 @@ Deno.test("classifySlots: comida maps to lunch but displays as comida for es", (
   assertEquals(result.slots[0].displayMealLabel, "comida");
 });
 
+Deno.test("classifySlots: expected meal components reflect slot requirement", () => {
+  const result = classifySlots({
+    weekStart: "2026-04-13",
+    dayIndexes: [0],
+    mealTypes: ["dinner", "snack"],
+    busyDays: [],
+    preferLeftoversForLunch: false,
+    locale: "en",
+  });
+  const dinner = result.slots.find((s) => s.canonicalMealType === "dinner");
+  const snack = result.slots.find((s) => s.canonicalMealType === "snack");
+
+  assertEquals(dinner?.structureTemplate, "main_plus_one_component");
+  assertEquals(dinner?.expectedMealComponents, ["protein", "carb", "veg"]);
+  assertEquals(snack?.structureTemplate, "single_component");
+  assertEquals(snack?.expectedMealComponents, []);
+});
+
 Deno.test("classifySlots: weekend days produce weekend_flexible_slot", () => {
   const result = classifySlots({
     weekStart: "2026-04-13",

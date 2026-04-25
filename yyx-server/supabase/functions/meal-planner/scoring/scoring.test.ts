@@ -31,6 +31,7 @@ function baseCandidate(
     ingredientIds: ["ing-1", "ing-2"],
     ingredientKeys: ["chicken", "rice"],
     cuisineTags: [],
+    mealTypeTags: ["dinner"],
     hasAllergenConflict: false,
     allergenMatches: [],
     hasDislikeConflict: false,
@@ -53,6 +54,7 @@ function baseSlot(overrides: Partial<MealSlot> = {}): MealSlot {
     prefersLeftovers: false,
     feedsFutureLeftoverTarget: false,
     structureTemplate: "main_plus_one_component",
+    expectedMealComponents: ["protein", "carb", "veg"],
     ...overrides,
   };
 }
@@ -220,6 +222,47 @@ Deno.test("scoreCandidate: busy-day cook_slot prefers an easy+fast recipe over a
   if (easyFast.factors.slotFit.raw <= slowHard.factors.slotFit.raw) {
     throw new Error(
       `expected easy+fast (${easyFast.factors.slotFit.raw}) > slow+hard (${slowHard.factors.slotFit.raw}) for busy-day cook_slot`,
+    );
+  }
+});
+
+Deno.test("scoreCandidate: busy-day leftover fallback scores using runtime cook_slot kind", () => {
+  const slot = baseSlot({
+    slotKind: "leftover_target_slot",
+    isBusyDay: true,
+    sourceDependencySlotId: "0-dinner",
+  });
+  const easyFast = scoreCandidate(
+    baseInput({
+      slot,
+      effectiveSlotKind: "cook_slot",
+      candidate: baseCandidate({
+        difficulty: "easy",
+        cookingLevel: "beginner",
+        totalTimeMinutes: 20,
+      }),
+    }),
+  );
+  const slowHard = scoreCandidate(
+    baseInput({
+      slot,
+      effectiveSlotKind: "cook_slot",
+      candidate: baseCandidate({
+        difficulty: "hard",
+        cookingLevel: "experienced",
+        totalTimeMinutes: 75,
+      }),
+    }),
+  );
+
+  if (easyFast.factors.slotFit.raw <= slowHard.factors.slotFit.raw) {
+    throw new Error(
+      `expected runtime cook_slot easy+fast (${easyFast.factors.slotFit.raw}) > slow+hard (${slowHard.factors.slotFit.raw})`,
+    );
+  }
+  if (easyFast.factors.timeFit.raw <= slowHard.factors.timeFit.raw) {
+    throw new Error(
+      `expected runtime cook_slot time-fit easy+fast (${easyFast.factors.timeFit.raw}) > slow+hard (${slowHard.factors.timeFit.raw})`,
     );
   }
 });

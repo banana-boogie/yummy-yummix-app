@@ -24,6 +24,7 @@ function mkSlot(overrides: Partial<MealSlot> = {}): MealSlot {
     prefersLeftovers: false,
     feedsFutureLeftoverTarget: false,
     structureTemplate: "main_plus_one_component",
+    expectedMealComponents: ["protein", "carb", "veg"],
     ...overrides,
   };
 }
@@ -52,6 +53,7 @@ function mkCandidate(
     ingredientIds: [],
     ingredientKeys: [],
     cuisineTags: [],
+    mealTypeTags: ["dinner"],
     hasAllergenConflict: false,
     allergenMatches: [],
     hasDislikeConflict: false,
@@ -184,27 +186,27 @@ Deno.test("satisfiesRoleConditionalMealComponents: snack with alt=['main'] and m
   );
 });
 
-Deno.test("satisfiesRoleConditionalMealComponents: side with alt=['snack'] and empty meal_components is REJECTED (primary requires)", () => {
+Deno.test("satisfiesRoleConditionalMealComponents: side with alt=['snack'] and empty meal_components passes", () => {
   assertEquals(
     satisfiesRoleConditionalMealComponents({
       planner_role: "side",
       alternate_planner_roles: ["snack"],
       meal_components: [],
     }),
-    false,
+    true,
   );
 });
 
-Deno.test("satisfiesRoleConditionalMealComponents: alt=['side'] from a beverage primary is also gated", () => {
-  // beverage doesn't require meal_components by itself, but the alt 'side'
-  // pulls the recipe into main/side eligibility, which does require it.
+Deno.test("satisfiesRoleConditionalMealComponents: alt=['side'] from a beverage primary passes", () => {
+  // Per recipe-role-model.md §6.1 accepted 2026-04-17 amendment, sides do
+  // not require meal_components. Only main-role eligibility is gated.
   assertEquals(
     satisfiesRoleConditionalMealComponents({
       planner_role: "beverage",
       alternate_planner_roles: ["side"],
       meal_components: [],
     }),
-    false,
+    true,
   );
 });
 
@@ -356,8 +358,17 @@ function makeRawRecipeRow(
     is_published: true,
     recipe_translations: [{ locale: "en", name: `Recipe ${id}` }],
     recipe_ingredients: [],
-    recipe_to_tag: [],
+    recipe_to_tag: [mealTypeTag("Dinner")],
     ...overrides,
+  };
+}
+
+function mealTypeTag(name: string): Record<string, unknown> {
+  return {
+    recipe_tags: {
+      categories: ["MEAL_TYPE"],
+      recipe_tag_translations: [{ locale: "en", name }],
+    },
   };
 }
 
@@ -449,4 +460,93 @@ Deno.test("fetchCandidates merges primary-role and alternate-role queries withou
 
   assertEquals(calls, ["planner_role", "alternate_planner_roles"]);
   assertEquals(ids, ["alternate-only", "duplicate", "primary-match"]);
+});
+
+Deno.test("fetchCandidates excludes recipes with no meal-type tags", async () => {
+  const untagged = makeRawRecipeRow("untagged", {
+    recipe_to_tag: [],
+  });
+  const { client } = makeFetchCandidatesSupabase([untagged], []);
+  const warnings: string[] = [];
+  const slot = mkSlot({ canonicalMealType: "dinner" });
+
+  const result = await fetchCandidates([slot], {
+    supabase: client,
+    locale: "en",
+    localeChain: ["en"],
+    dietaryRestrictions: [],
+    ingredientDislikes: [],
+    hardExcludedRecipeIds: new Set(),
+    warnings,
+  });
+
+  assertEquals(result.get(slot.slotId), []);
+  assertEquals(warnings, ["MISSING_MEAL_TYPE_TAGS:meal_type=dinner"]);
+});
+
+Deno.test("fetchCandidates keeps dinner-tagged recipe for dinner but not breakfast", async () => {
+  const dinnerOnly = makeRawRecipeRow("dinner-only", {
+    recipe_to_tag: [mealTypeTag("Dinner")],
+  });
+  const { client } = makeFetchCandidatesSupabase([dinnerOnly], []);
+  const dinnerSlot = mkSlot({
+    slotId: "0-dinner",
+    canonicalMealType: "dinner",
+  });
+  const breakfastSlot = mkSlot({
+    slotId: "0-breakfast",
+    canonicalMealType: "breakfast",
+    displayMealLabel: "breakfast",
+    structureTemplate: "single_component",
+    expectedMealComponents: [],
+  });
+
+  const result = await fetchCandidates([dinnerSlot, breakfastSlot], {
+    supabase: client,
+    locale: "en",
+    localeChain: ["en"],
+    dietaryRestrictions: [],
+    ingredientDislikes: [],
+    hardExcludedRecipeIds: new Set(),
+  });
+
+  assertEquals(
+    (result.get(dinnerSlot.slotId) ?? []).map((candidate) => candidate.id),
+    ["dinner-only"],
+  );
+  assertEquals(result.get(breakfastSlot.slotId), []);
+});
+
+Deno.test("fetchCandidates allows recipes tagged for both lunch and dinner in both slots", async () => {
+  const lunchDinner = makeRawRecipeRow("lunch-dinner", {
+    recipe_to_tag: [mealTypeTag("Lunch"), mealTypeTag("Dinner")],
+  });
+  const { client } = makeFetchCandidatesSupabase([lunchDinner], []);
+  const lunchSlot = mkSlot({
+    slotId: "0-lunch",
+    canonicalMealType: "lunch",
+    displayMealLabel: "lunch",
+  });
+  const dinnerSlot = mkSlot({
+    slotId: "0-dinner",
+    canonicalMealType: "dinner",
+  });
+
+  const result = await fetchCandidates([lunchSlot, dinnerSlot], {
+    supabase: client,
+    locale: "en",
+    localeChain: ["en"],
+    dietaryRestrictions: [],
+    ingredientDislikes: [],
+    hardExcludedRecipeIds: new Set(),
+  });
+
+  assertEquals(
+    (result.get(lunchSlot.slotId) ?? []).map((candidate) => candidate.id),
+    ["lunch-dinner"],
+  );
+  assertEquals(
+    (result.get(dinnerSlot.slotId) ?? []).map((candidate) => candidate.id),
+    ["lunch-dinner"],
+  );
 });

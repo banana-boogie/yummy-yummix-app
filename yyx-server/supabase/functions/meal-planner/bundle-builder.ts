@@ -215,6 +215,7 @@ export async function fetchPairingsForCandidates(
       ingredientIds,
       ingredientKeys,
       cuisineTags: [],
+      mealTypeTags: [],
       hasAllergenConflict: false,
       allergenMatches: [],
       hasDislikeConflict: false,
@@ -266,6 +267,21 @@ function toComponent(
   };
 }
 
+function primaryRoleForSlot(slot: MealSlot): ComponentRole {
+  switch (slot.canonicalMealType) {
+    case "snack":
+      return "snack";
+    case "dessert":
+      return "dessert";
+    case "beverage":
+      return "beverage";
+    case "breakfast":
+    case "lunch":
+    case "dinner":
+      return "main";
+  }
+}
+
 /**
  * Build a bounded component bundle anchored on `primary`.
  *
@@ -281,7 +297,9 @@ export function buildBundle(
   pairings: PairingLookup,
 ): SlotComponent[] {
   const components: SlotComponent[] = [];
-  components.push(toComponent(primary, "main", "standalone", true, 0, null));
+  components.push(
+    toComponent(primary, primaryRoleForSlot(slot), "standalone", true, 0, null),
+  );
 
   const budget = targetComponentCount(slot.structureTemplate);
   if (budget <= 1) return components;

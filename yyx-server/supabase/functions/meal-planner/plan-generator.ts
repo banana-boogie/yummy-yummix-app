@@ -25,9 +25,10 @@ import {
 import {
   fetchPairingsForCandidates,
   type PairingLookup,
-  templateForComponentCount,
+  templateComponentCount,
 } from "./bundle-builder.ts";
 import {
+  type AssembledSlot,
   type AssembleResult,
   assembleWeek,
   type WeekState,
@@ -443,6 +444,15 @@ interface PersistedPlan {
 
 type ArchivedPlan = { id: string; previousStatus: string };
 
+export function isCoverageComplete(
+  slot: MealSlot,
+  assignment: AssembledSlot,
+): boolean {
+  const requiredCount = templateComponentCount(slot.structureTemplate);
+  if (requiredCount < 2) return true;
+  return assignment.components.length >= requiredCount;
+}
+
 /**
  * Mutable reference populated by `writeFreshPlan` as it commits rows. If the
  * inner write throws partway through, the outer `persistPlan` catch reads
@@ -673,17 +683,12 @@ async function writeFreshPlan(
 
   // Insert slots first; unfilled slots still land so the UI can render them.
   //
-  // For filled slots we use the assignment's effective slot kind + a
-  // structure_template recomputed from the actual component count, so the
-  // persisted row matches what's really in the slot (not what classification
-  // originally hoped for). Unfilled slots keep their original classification
-  // values so the UI can show the user what they asked for.
+  // For filled slots we use the assignment's effective slot kind. The
+  // structure template and expected components stay tied to the slot
+  // requirement, while coverage_complete records whether assembly fulfilled it.
   const slotInserts: Array<Record<string, unknown>> = slots.map((slot) => {
     const assignment = best.assignments.get(slot.slotId);
     const slotType = assignment?.effectiveSlotKind ?? slot.slotKind;
-    const structureTemplate = assignment
-      ? templateForComponentCount(assignment.components.length)
-      : slot.structureTemplate;
     return {
       meal_plan_id: planId,
       planned_date: slot.plannedDate,
@@ -691,10 +696,11 @@ async function writeFreshPlan(
       meal_type: slot.canonicalMealType,
       display_order: 0,
       slot_type: slotType,
-      structure_template: structureTemplate,
-      expected_meal_components: assignment?.components.flatMap((c) =>
-        c.mealComponentsSnapshot
-      ) ?? [],
+      structure_template: slot.structureTemplate,
+      expected_meal_components: slot.expectedMealComponents,
+      coverage_complete: assignment
+        ? isCoverageComplete(slot, assignment)
+        : false,
       selection_reason: assignment?.selectionReason ?? null,
       shopping_sync_state: "not_created",
       status: "planned",
@@ -926,11 +932,8 @@ function buildResponse(
     }
     // Response mirrors the persisted shape: effective slot kind for filled
     // slots (so the UI sees `cook_slot` when a leftover_target fell back),
-    // recomputed structure template based on actual component count.
+    // with structure and expected components tied to the slot requirement.
     const slotType = assignment?.effectiveSlotKind ?? slot.slotKind;
-    const structureTemplate = assignment
-      ? templateForComponentCount(assignment.components.length)
-      : slot.structureTemplate;
     slotsOut.push({
       id: persistedSlot?.id ?? "",
       plannedDate: slot.plannedDate,
@@ -939,10 +942,11 @@ function buildResponse(
       displayMealLabel: slot.displayMealLabel,
       displayOrder: 0,
       slotType,
-      structureTemplate,
-      expectedMealComponents: assignment?.components.flatMap((c) =>
-        c.mealComponentsSnapshot
-      ) ?? [],
+      structureTemplate: slot.structureTemplate,
+      expectedMealComponents: slot.expectedMealComponents,
+      coverageComplete: assignment
+        ? isCoverageComplete(slot, assignment)
+        : false,
       selectionReason: assignment?.selectionReason ?? "",
       shoppingSyncState: "not_created",
       status: "planned",
@@ -1071,6 +1075,7 @@ export async function generatePlan(
     dietaryRestrictions: user.dietaryRestrictions,
     ingredientDislikes: user.ingredientDislikes,
     hardExcludedRecipeIds: hardExcluded,
+    warnings,
   });
 
   const allergenByRestriction = await annotateAllergenConflicts(

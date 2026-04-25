@@ -246,6 +246,7 @@ export interface MealPlanSlotResponse {
   slotType: SlotType;
   structureTemplate: StructureTemplate;
   expectedMealComponents: string[];
+  coverageComplete: boolean;
   selectionReason: string;
   shoppingSyncState: ShoppingSyncState;
   status: SlotStatus;

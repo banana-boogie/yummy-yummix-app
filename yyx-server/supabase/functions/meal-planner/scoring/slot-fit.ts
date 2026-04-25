@@ -139,7 +139,7 @@ export function scoreSlotFit(
   input: ScoreCandidateInput,
   weight: number,
 ): FactorOutput {
-  const kind = input.slot.slotKind;
+  const kind = input.effectiveSlotKind ?? input.slot.slotKind;
   const isBusyDay = input.slot.isBusyDay;
 
   if (kind === "weekend_flexible_slot") {

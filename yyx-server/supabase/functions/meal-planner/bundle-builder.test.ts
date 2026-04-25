@@ -34,6 +34,7 @@ function mkCandidate(
     ingredientIds: [],
     ingredientKeys: [],
     cuisineTags: [],
+    mealTypeTags: ["dinner"],
     hasAllergenConflict: false,
     allergenMatches: [],
     hasDislikeConflict: false,
@@ -43,7 +44,7 @@ function mkCandidate(
   };
 }
 
-function mkSlot(): MealSlot {
+function mkSlot(overrides: Partial<MealSlot> = {}): MealSlot {
   return {
     slotId: "0-dinner",
     plannedDate: "2026-04-13",
@@ -56,6 +57,8 @@ function mkSlot(): MealSlot {
     prefersLeftovers: false,
     feedsFutureLeftoverTarget: false,
     structureTemplate: "main_plus_one_component",
+    expectedMealComponents: ["protein", "carb", "veg"],
+    ...overrides,
   };
 }
 
@@ -179,4 +182,37 @@ Deno.test("templateForComponentCount: maps component counts to structure_templat
   assertEquals(templateForComponentCount(2), "main_plus_one_component");
   assertEquals(templateForComponentCount(3), "main_plus_two_components");
   assertEquals(templateForComponentCount(99), "main_plus_two_components");
+});
+
+Deno.test("buildBundle: primary component role follows leaf slot meal type", () => {
+  const snack = mkCandidate("snack-1", {
+    plannerRole: "snack",
+    mealComponents: [],
+  });
+  const snackComponents = buildBundle(
+    mkSlot({
+      slotId: "0-snack",
+      canonicalMealType: "snack",
+      displayMealLabel: "snack",
+      structureTemplate: "single_component",
+    }),
+    snack,
+    { byRole: new Map(), candidatesById: new Map() },
+  );
+
+  assertEquals(snackComponents[0].role, "snack");
+});
+
+Deno.test("buildBundle: dinner primary component role remains main", () => {
+  const dinner = mkCandidate("dinner-1", {
+    plannerRole: "main",
+    mealComponents: ["protein"],
+  });
+  const dinnerComponents = buildBundle(
+    mkSlot({ canonicalMealType: "dinner" }),
+    dinner,
+    { byRole: new Map(), candidatesById: new Map() },
+  );
+
+  assertEquals(dinnerComponents[0].role, "main");
 });

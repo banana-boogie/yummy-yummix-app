@@ -5,9 +5,12 @@ import {
   countUniqueViableCandidates,
   countViableCandidates,
   InsufficientRecipesError,
+  isCoverageComplete,
   PlanAlreadyExistsError,
 } from "./plan-generator.ts";
 import type { CandidateMap, RecipeCandidate } from "./candidate-retrieval.ts";
+import type { MealSlot } from "./slot-classifier.ts";
+import type { AssembledSlot } from "./week-assembler.ts";
 
 Deno.test("PlanAlreadyExistsError carries the existing plan id", () => {
   const err = new PlanAlreadyExistsError("plan-abc");
@@ -65,6 +68,7 @@ function mkCandidate(
     ingredientIds: [],
     ingredientKeys,
     cuisineTags: [],
+    mealTypeTags: ["dinner"],
     hasAllergenConflict: false,
     allergenMatches: [],
     hasDislikeConflict: false,
@@ -199,4 +203,71 @@ Deno.test("viable candidate helpers ignore allergen and dislike conflicts", () =
     ["slot-b", [viable, dislikeConflict]],
   ]);
   assertEquals(countUniqueViableCandidates(candidateMap), 1);
+});
+
+function mkSlot(overrides: Partial<MealSlot> = {}): MealSlot {
+  return {
+    slotId: "0-dinner",
+    plannedDate: "2026-04-13",
+    dayIndex: 0,
+    canonicalMealType: "dinner",
+    displayMealLabel: "dinner",
+    slotKind: "cook_slot",
+    isBusyDay: false,
+    isWeekend: false,
+    prefersLeftovers: false,
+    feedsFutureLeftoverTarget: false,
+    structureTemplate: "main_plus_one_component",
+    expectedMealComponents: ["protein", "carb", "veg"],
+    ...overrides,
+  };
+}
+
+function mkAssignment(
+  slot: MealSlot,
+  componentCount: number,
+): AssembledSlot {
+  return {
+    slot,
+    effectiveSlotKind: slot.slotKind,
+    components: Array.from({ length: componentCount }, (_, index) => ({
+      role: index === 0 ? "main" : "side",
+      sourceKind: "recipe",
+      recipeId: `recipe-${index}`,
+      sourceComponentId: null,
+      sourceSlotIdRef: null,
+      mealComponentsSnapshot: index === 0 ? ["protein"] : ["carb"],
+      pairingBasis: index === 0 ? "standalone" : "explicit_pairing",
+      isPrimary: index === 0,
+      candidate: null,
+      displayOrder: index,
+      titleSnapshot: `Recipe ${index}`,
+      imageSnapshot: null,
+      totalTimeSnapshot: 30,
+      difficultySnapshot: "easy",
+      portionsSnapshot: 2,
+      equipmentSnapshot: [],
+      selectionReason: null,
+    })),
+    slotScore: 80,
+    selectionReason: "Good fit",
+    contributionScore: 80,
+    warnings: [],
+  };
+}
+
+Deno.test("isCoverageComplete: multi-component slot is partial when pairings are missing", () => {
+  const slot = mkSlot({ structureTemplate: "main_plus_one_component" });
+  assertEquals(isCoverageComplete(slot, mkAssignment(slot, 1)), false);
+  assertEquals(isCoverageComplete(slot, mkAssignment(slot, 2)), true);
+});
+
+Deno.test("isCoverageComplete: single-component slots do not require coverage components", () => {
+  const slot = mkSlot({
+    canonicalMealType: "snack",
+    displayMealLabel: "snack",
+    structureTemplate: "single_component",
+    expectedMealComponents: [],
+  });
+  assertEquals(isCoverageComplete(slot, mkAssignment(slot, 1)), true);
 });

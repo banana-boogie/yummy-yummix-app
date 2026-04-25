@@ -101,7 +101,15 @@ function cloneState(state: WeekState): WeekState {
     assignedProteinByDayIndex: new Map(state.assignedProteinByDayIndex),
     assignedCuisineCounts: new Map(state.assignedCuisineCounts),
     ingredientIdUsage: new Map(state.ingredientIdUsage),
-    leftoverSources: new Map(state.leftoverSources),
+    leftoverSources: new Map(
+      [...state.leftoverSources].map(([slotId, source]) => [
+        slotId,
+        {
+          ...source,
+          transformRecipeIds: [...source.transformRecipeIds],
+        },
+      ]),
+    ),
     noveltyCount: state.noveltyCount,
     mode: state.mode,
     slotIndex: state.slotIndex,
@@ -203,11 +211,17 @@ function buildSelectionReason(
   components: SlotComponent[],
   state: WeekState,
   locale: string,
+  effectiveSlotKind?: MealSlot["slotKind"],
 ): string {
   const primary = components.find((c) => c.isPrimary);
   const dayLabel = getDayLabel(slot.dayIndex, locale);
 
-  const code: SelectionReasonCode = resolveReasonCode(slot, primary, state);
+  const code: SelectionReasonCode = resolveReasonCode(
+    slot,
+    primary,
+    state,
+    effectiveSlotKind,
+  );
   const params = {
     dayLabel,
     sourceTitle: primary?.sourceKind === "leftover"
@@ -221,6 +235,7 @@ function resolveReasonCode(
   slot: MealSlot,
   primary: SlotComponent | undefined,
   state: WeekState,
+  effectiveSlotKind?: MealSlot["slotKind"],
 ): SelectionReasonCode {
   if (!primary) return "default";
   if (primary.sourceKind === "leftover") return "busy_day_leftovers";
@@ -230,7 +245,8 @@ function resolveReasonCode(
   }
   // Busy-day cook slot without leftovers — the ranking already biased toward
   // easy + fast, so the reason reflects that choice.
-  if (slot.isBusyDay && slot.slotKind === "cook_slot") {
+  const runtimeKind = effectiveSlotKind ?? slot.slotKind;
+  if (slot.isBusyDay && runtimeKind === "cook_slot") {
     return "busy_day_easy_pick";
   }
   if (primary.candidate?.verifiedAt) return "verified_fit";
@@ -287,10 +303,17 @@ function expandRecipeCandidates(
 ): WeekState[] {
   const next: WeekState[] = [];
   const readonly = readonlyView(state);
+  const runtimeSlotKind = effectiveSlotKind ?? slot.slotKind;
   const scored = candidates
     .map((candidate) => ({
       candidate,
-      detail: scoreCandidate({ slot, candidate, state: readonly, user }),
+      detail: scoreCandidate({
+        slot,
+        effectiveSlotKind: runtimeSlotKind,
+        candidate,
+        state: readonly,
+        user,
+      }),
     }))
     .filter((entry) => !violatesHardRules(entry.detail))
     .sort((a, b) => b.detail.total - a.detail.total)
@@ -306,6 +329,7 @@ function expandRecipeCandidates(
       components,
       successor,
       user.locale,
+      runtimeSlotKind,
     );
     recordAssignment(
       successor,

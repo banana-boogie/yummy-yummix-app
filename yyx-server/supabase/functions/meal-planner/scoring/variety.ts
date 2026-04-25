@@ -62,9 +62,9 @@ function recentRecipePenalty(input: ScoreCandidateInput): number {
   const when = input.user.recentCookedRecipes.get(input.candidate.id);
   if (!when) return 0;
   const daysSince = (Date.now() - when.getTime()) / 86_400_000;
-  const windowDays = VARIETY_LIMITS.recentRecipeWindowWeeks * 7;
+  const windowDays = VARIETY_LIMITS.recentRecipeWindowDays;
   if (daysSince >= windowDays) return 0;
-  // Decaying linearly: same week = 1, fading over 3 weeks.
+  // Decaying linearly: same week = 1, fading over 30 days.
   const remaining = windowDays - daysSince;
   return clamp01(remaining / windowDays);
 }

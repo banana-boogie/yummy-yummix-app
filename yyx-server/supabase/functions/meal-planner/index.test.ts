@@ -122,7 +122,12 @@ const MINIMAL_RECIPE_ROW = {
   is_published: true,
   recipe_translations: [{ locale: "en", name: "Fake Recipe" }],
   recipe_ingredients: [],
-  recipe_to_tag: [],
+  recipe_to_tag: [{
+    recipe_tags: {
+      categories: ["MEAL_TYPE"],
+      recipe_tag_translations: [{ locale: "en", name: "Dinner" }],
+    },
+  }],
 };
 
 const DISLIKED_RECIPE_ROW = {

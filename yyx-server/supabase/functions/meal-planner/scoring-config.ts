@@ -230,7 +230,7 @@ export const VARIETY_LIMITS = {
   firstWeekNoveltyCap: 1,
   weeklyCuisineRepeatThreshold: 3, // more than this triggers full penalty
   adjacentProteinWindow: 1, // same protein on adjacent days triggers penalty
-  recentRecipeWindowWeeks: 3,
+  recentRecipeWindowDays: 30,
 } as const;
 
 // ============================================================
