@@ -100,6 +100,10 @@ describe('useMealPlan', () => {
     resetSupabaseMocks();
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('derives plan progress from slot statuses', async () => {
     const planResponse: GetCurrentPlanResponse = {
       plan: buildPlan(),
@@ -180,6 +184,152 @@ describe('useMealPlan', () => {
       JSON.stringify((c[0] as { queryKey: readonly string[] }).queryKey),
     );
     expect(keys).toContain(JSON.stringify(['mealPlan', 'preferences']));
+    expect(keys).toContain(JSON.stringify(['mealPlan', 'active']));
+  });
+
+  it('filters out slots whose plannedDate does not match today (stale-plan guard)', async () => {
+    // Pin "today" to Monday 2026-04-20. todayDayIndex() => 0.
+    jest.useFakeTimers().setSystemTime(new Date('2026-04-20T12:00:00'));
+
+    const planResponse: GetCurrentPlanResponse = {
+      plan: buildPlan({
+        slots: [
+          {
+            id: 'fresh-slot',
+            plannedDate: '2026-04-20',
+            dayIndex: 0,
+            mealType: 'dinner',
+            displayMealLabel: 'Dinner',
+            displayOrder: 0,
+            slotType: 'cook_slot',
+            structureTemplate: 'single_component',
+            expectedFoodGroups: [],
+            selectionReason: '',
+            shoppingSyncState: 'not_created',
+            status: 'planned',
+            swapCount: 0,
+            lastSwappedAt: null,
+            cookedAt: null,
+            skippedAt: null,
+            mergedCookingGuide: null,
+            components: [],
+          },
+          {
+            // Stale: same dayIndex but plannedDate from 2 weeks ago.
+            id: 'stale-slot',
+            plannedDate: '2026-04-06',
+            dayIndex: 0,
+            mealType: 'dinner',
+            displayMealLabel: 'Dinner',
+            displayOrder: 0,
+            slotType: 'cook_slot',
+            structureTemplate: 'single_component',
+            expectedFoodGroups: [],
+            selectionReason: '',
+            shoppingSyncState: 'not_created',
+            status: 'planned',
+            swapCount: 0,
+            lastSwappedAt: null,
+            cookedAt: null,
+            skippedAt: null,
+            mergedCookingGuide: null,
+            components: [],
+          },
+        ],
+      }),
+      warnings: [],
+    };
+    const prefsResponse: GetPreferencesResponse = {
+      preferences: {
+        mealTypes: ['dinner'],
+        busyDays: [],
+        activeDayIndexes: [0, 1, 2, 3, 4],
+        defaultMaxWeeknightMinutes: 30,
+        preferLeftoversForLunch: false,
+        preferredEatTimes: {},
+      },
+      warnings: [],
+    };
+
+    const mockClient = getMockSupabaseClient();
+    mockClient.functions.invoke.mockImplementation(
+      (_name: string, opts: { body: { action: string } }) => {
+        const action = opts.body.action;
+        if (action === 'get_current_plan') {
+          return Promise.resolve({ data: planResponse, error: null });
+        }
+        if (action === 'get_preferences') {
+          return Promise.resolve({ data: prefsResponse, error: null });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+    );
+
+    const { result } = renderHook(() => useMealPlan(), { wrapper: wrapper() });
+
+    await waitFor(() => {
+      expect(result.current.activePlan).not.toBeNull();
+    });
+
+    expect(result.current.todaysSlots).toHaveLength(1);
+    expect(result.current.todaysSlots[0].id).toBe('fresh-slot');
+  });
+
+  it('invalidates the active-plan query after a successful swap', async () => {
+    const planResponse: GetCurrentPlanResponse = {
+      plan: buildPlan(),
+      warnings: [],
+    };
+    const prefsResponse: GetPreferencesResponse = {
+      preferences: {
+        mealTypes: ['dinner'],
+        busyDays: [],
+        activeDayIndexes: [0, 1, 2, 3, 4],
+        defaultMaxWeeknightMinutes: 30,
+        preferLeftoversForLunch: false,
+        preferredEatTimes: {},
+      },
+      warnings: [],
+    };
+
+    const mockClient = getMockSupabaseClient();
+    mockClient.functions.invoke.mockImplementation(
+      (_name: string, opts: { body: { action: string } }) => {
+        const action = opts.body.action;
+        if (action === 'get_current_plan') {
+          return Promise.resolve({ data: planResponse, error: null });
+        }
+        if (action === 'get_preferences') {
+          return Promise.resolve({ data: prefsResponse, error: null });
+        }
+        if (action === 'swap_meal') {
+          return Promise.resolve({
+            data: { alternatives: [], warnings: [] },
+            error: null,
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+    );
+
+    const queryClient = createTestQueryClient();
+    const { result } = renderHook(() => useMealPlan(), {
+      wrapper: wrapper(queryClient),
+    });
+
+    await waitFor(() => {
+      expect(result.current.activePlan).not.toBeNull();
+    });
+
+    const invalidateSpy = jest.spyOn(queryClient, 'invalidateQueries');
+
+    await act(async () => {
+      await result.current.swapSlot('slot-2', 'too-busy');
+    });
+
+    const keys = invalidateSpy.mock.calls.map((c) =>
+      JSON.stringify((c[0] as { queryKey: readonly string[] }).queryKey),
+    );
     expect(keys).toContain(JSON.stringify(['mealPlan', 'active']));
   });
 });

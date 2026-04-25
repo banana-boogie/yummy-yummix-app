@@ -17,6 +17,7 @@ import { Text, Button } from '@/components/common';
 import { useLanguage } from '@/contexts/LanguageContext';
 import i18n from '@/i18n';
 import { COLORS } from '@/constants/design-tokens';
+import { primaryMealTypeForLocale } from '@/components/planner/utils/primaryMealType';
 import type {
   GeneratePlanOptions,
   PreferencesResponse,
@@ -38,10 +39,6 @@ type DaysPreset = 'weekdays' | 'every_day' | 'custom';
 const WEEKDAY_INDEXES = [0, 1, 2, 3, 4];
 const EVERY_DAY_INDEXES = [0, 1, 2, 3, 4, 5, 6];
 
-function isSpanish(locale: string): boolean {
-  return locale.toLowerCase().startsWith('es');
-}
-
 const DAY_LABEL_KEYS = [
   'planner.days.mon',
   'planner.days.tue',
@@ -58,13 +55,13 @@ interface MealTypeOption {
   labelKey: string;
 }
 
-function getMealTypeOptions(localeIsES: boolean): MealTypeOption[] {
+function getMealTypeOptions(locale: string): MealTypeOption[] {
   // For es-MX, the midday meal ("comida") is the canonical `lunch` on the server.
   // We send canonical meal types to the API regardless; only the label is localized.
   return [
     {
       id: 'lunch_or_dinner',
-      mealTypes: localeIsES ? ['lunch'] : ['dinner'],
+      mealTypes: [primaryMealTypeForLocale(locale)],
       labelKey: 'planner.mealTypes.dinnersOnly',
     },
     {
@@ -92,7 +89,6 @@ export function FirstTimePlanSetupFlow({
   onComplete,
 }: FirstTimePlanSetupFlowProps) {
   const { locale } = useLanguage();
-  const isES = isSpanish(locale);
 
   // Settings mode always shows every step so saved values stay editable.
   // First-time mode skips already-answered steps for a fast onboarding path.
@@ -305,7 +301,7 @@ export function FirstTimePlanSetupFlow({
             title={i18n.t('planner.setup.mealTypesTitle')}
             helper={i18n.t('planner.setup.mealTypesHelper')}
           >
-            {getMealTypeOptions(isES).map((opt) => (
+            {getMealTypeOptions(locale).map((opt) => (
               <ChoiceButton
                 key={opt.id}
                 selected={

@@ -12,6 +12,10 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { mealPlanService } from '@/services/mealPlanService';
+import {
+  todayDayIndex,
+  todayLocalISO,
+} from '@/components/planner/utils/dayIndex';
 import type {
   GeneratePlanOptions,
   GeneratePlanResponse,
@@ -37,12 +41,6 @@ function startOfWeekISO(date = new Date()): string {
   const diff = (day + 6) % 7; // 0 for Monday
   d.setUTCDate(d.getUTCDate() - diff);
   return d.toISOString().slice(0, 10);
-}
-
-function todayDayIndex(): number {
-  // meal-slot-schema uses Monday = 0
-  const day = new Date().getDay();
-  return (day + 6) % 7;
 }
 
 export interface UseMealPlanReturn {
@@ -128,6 +126,7 @@ export function useMealPlan(): UseMealPlanReturn {
         reason: vars.reason,
       });
     },
+    onSuccess: () => invalidatePlan(),
   });
 
   const skipMutation = useMutation({
@@ -164,9 +163,13 @@ export function useMealPlan(): UseMealPlanReturn {
   });
 
   const todayIndex = todayDayIndex();
+  const todayISO = todayLocalISO();
   const todaysSlots = useMemo(
-    () => (activePlan?.slots ?? []).filter((s) => s.dayIndex === todayIndex),
-    [activePlan, todayIndex],
+    () =>
+      (activePlan?.slots ?? []).filter(
+        (s) => s.dayIndex === todayIndex && s.plannedDate === todayISO,
+      ),
+    [activePlan, todayIndex, todayISO],
   );
 
   const planProgress = useMemo<PlanProgress>(() => {

@@ -9,6 +9,7 @@ import { useMealPlan } from '@/hooks/useMealPlan';
 import { MealPlanEmptyState } from '@/components/planner/MealPlanEmptyState';
 import { FirstTimePlanSetupFlow } from '@/components/planner/FirstTimePlanSetupFlow';
 import { MealPlanView } from '@/components/planner/MealPlanView';
+import { todayDayIndex } from '@/components/planner/utils/dayIndex';
 import i18n from '@/i18n';
 import { COLORS } from '@/constants/design-tokens';
 import type { GeneratePlanOptions } from '@/types/mealPlan';
@@ -20,11 +21,6 @@ import type { GeneratePlanOptions } from '@/types/mealPlan';
  * guided setup flow.
  */
 const SETUP_COMPLETED_KEY = 'planner.setupCompleted';
-
-function todayDayIndex(): number {
-  const day = new Date().getDay();
-  return (day + 6) % 7;
-}
 
 export default function MenuScreen() {
   const [setupMode, setSetupMode] = useState<'first-time' | 'settings' | null>(
