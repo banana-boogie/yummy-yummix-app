@@ -352,8 +352,11 @@ Key thresholds from `VARIETY_LIMITS`:
   week state. When that existing count is ≥ 3 (meaning the current
   candidate would be the 4th+ occurrence), the cuisine penalty goes full.
   Below that, penalty scales linearly as `count / threshold`.
-- `recentRecipeWindowWeeks: 3` — cooked within last 21 days incurs a
-  linearly-decaying penalty.
+- `recentRecipeWindowDays: 30` — a recipe cooked within the last 30 days
+  incurs a linearly-decaying recent-recipe penalty (full penalty in the
+  same week, fading to zero at 30 days). This window matches
+  `loadCookHistory`'s default `sinceDaysAgo = 30`, so the cook-history
+  data and the variety penalty agree on what "recent" means.
 - `firstWeekNoveltyCap: 1` — in first-week-trust mode, only the first novel
   recipe per week gets the full 0.6 novelty bonus; subsequent novels get
   just 0.1.

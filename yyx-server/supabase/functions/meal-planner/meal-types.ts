@@ -10,6 +10,7 @@ const LOCALE_TO_CANONICAL: Record<string, CanonicalMealType> = {
   cena: "dinner",
   snack: "snack",
   botana: "snack",
+  postre: "dessert",
   beverage: "beverage",
   bebida: "beverage",
 };

@@ -261,3 +261,52 @@ Deno.test("assembleWeek: unfilled cook slot emits UNFILLED_COOK_SLOT warning", (
     );
   }
 });
+
+Deno.test("assembleWeek: unfilled non-busy cook slot applies the non-busy penalty", () => {
+  const slot = mkSlot({
+    slotId: "1-dinner",
+    slotKind: "cook_slot",
+    isBusyDay: false,
+  });
+  const result = assembleWeek({
+    slots: [slot],
+    planningOrder: [slot],
+    candidates: new Map([[slot.slotId, []]]),
+    pairings: EMPTY_PAIRINGS,
+    user: mkUser(),
+    leftoverTransformByRecipe: new Map(),
+  });
+
+  // -10 penalty applied twice (assemblyPenalty + objectiveScore).
+  assertEquals(result.best.assemblyPenalty, -10);
+  assertEquals(result.best.objectiveScore, -10);
+});
+
+Deno.test("assembleWeek: unfilled busy-day cook slot does NOT apply the non-busy penalty", () => {
+  const slot = mkSlot({
+    slotId: "1-dinner",
+    slotKind: "cook_slot",
+    isBusyDay: true,
+  });
+  const result = assembleWeek({
+    slots: [slot],
+    planningOrder: [slot],
+    candidates: new Map([[slot.slotId, []]]),
+    pairings: EMPTY_PAIRINGS,
+    user: mkUser(),
+    leftoverTransformByRecipe: new Map(),
+  });
+
+  // The user opted out of cooking that day; no penalty.
+  assertEquals(result.best.assemblyPenalty, 0);
+  assertEquals(result.best.objectiveScore, 0);
+  // Warning should still fire so the client can render the empty slot.
+  const hasWarning = result.best.warnings.some((w) =>
+    w.startsWith("UNFILLED_COOK_SLOT")
+  );
+  if (!hasWarning) {
+    throw new Error(
+      "expected UNFILLED_COOK_SLOT warning even when isBusyDay=true",
+    );
+  }
+});

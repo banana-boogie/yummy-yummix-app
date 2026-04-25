@@ -168,7 +168,6 @@ export const BEAM = {
 export const THIN_CATALOG = {
   totalPublishedThreshold: 30,
   viableCandidatesPerSlotThreshold: 8,
-  restrictionCoverageRatioThreshold: 0.30, // ≥30% remaining survives
 } as const;
 
 // ============================================================
@@ -231,6 +230,19 @@ export const VARIETY_LIMITS = {
   weeklyCuisineRepeatThreshold: 3, // more than this triggers full penalty
   adjacentProteinWindow: 1, // same protein on adjacent days triggers penalty
   recentRecipeWindowDays: 30,
+} as const;
+
+// ============================================================
+// Assembly thresholds (week-level penalty gates)
+// ============================================================
+
+export const ASSEMBLY_THRESHOLDS = {
+  // Already this many of the same cuisine assigned in the week (before this
+  // slot) triggers ASSEMBLY_ADJUSTMENTS.cuisineRepeatedTooOften (-4).
+  // Distinct from VARIETY_LIMITS.weeklyCuisineRepeatThreshold, which gates
+  // the per-candidate variety scorer (a soft 0..1 penalty); this gate is the
+  // harder week-state penalty applied once the bundle is committed.
+  cuisineRepeatedTooOftenCount: 2,
 } as const;
 
 // ============================================================
@@ -355,6 +367,7 @@ export const SCORING_CONFIG_V1 = {
   leftoverPlanQuality: LEFTOVER_PLAN_QUALITY,
   openSlotContribution: OPEN_SLOT_CONTRIBUTION,
   varietyLimits: VARIETY_LIMITS,
+  assemblyThresholds: ASSEMBLY_THRESHOLDS,
   household: HOUSEHOLD,
   history: HISTORY,
   condimentRules: CONDIMENT_RULES,

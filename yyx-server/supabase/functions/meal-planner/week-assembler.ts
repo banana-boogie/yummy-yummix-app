@@ -25,6 +25,7 @@ import type { UserContext, WeekStateReadOnly } from "./scoring/types.ts";
 import { inferProteinKey } from "./scoring/protein-inference.ts";
 import {
   ASSEMBLY_ADJUSTMENTS,
+  ASSEMBLY_THRESHOLDS,
   BEAM,
   clamp01,
   LEFTOVER_PLAN_QUALITY,
@@ -496,7 +497,9 @@ function assemblyAdjustments(
   if (primary.candidate.cuisineTags.length > 0) {
     const tag = primary.candidate.cuisineTags[0];
     const count = state.assignedCuisineCounts.get(tag) ?? 0;
-    if (count >= 2) adjustments += ASSEMBLY_ADJUSTMENTS.cuisineRepeatedTooOften;
+    if (count >= ASSEMBLY_THRESHOLDS.cuisineRepeatedTooOftenCount) {
+      adjustments += ASSEMBLY_ADJUSTMENTS.cuisineRepeatedTooOften;
+    }
   }
 
   // Novelty penalty in first-week mode.
@@ -571,8 +574,15 @@ export function assembleWeek(input: AssembleInput): AssembleResult {
               `FALLBACK_WITHOUT_LEFTOVER_SOURCE:${slot.slotId}`,
             );
           }
-          successor.assemblyPenalty += ASSEMBLY_ADJUSTMENTS.unfilledNonBusySlot;
-          successor.objectiveScore += ASSEMBLY_ADJUSTMENTS.unfilledNonBusySlot;
+          // The unfilledNonBusySlot penalty (-10) only applies to non-busy
+          // slots, per spec: a busy day the user opted out of cooking should
+          // not be penalized when no recipe could be placed.
+          if (!slot.isBusyDay) {
+            successor.assemblyPenalty +=
+              ASSEMBLY_ADJUSTMENTS.unfilledNonBusySlot;
+            successor.objectiveScore +=
+              ASSEMBLY_ADJUSTMENTS.unfilledNonBusySlot;
+          }
           successor.slotIndex += 1;
           successors = [successor];
         }
