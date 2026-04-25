@@ -34,8 +34,11 @@
  *
  * - `locale`: user's current UI locale, e.g., `'en'`, `'es'`, `'es-MX'`.
  * - `appPlatform`: runtime platform (derived by eventService from Platform.OS).
- * - `sourceSurface`: the UI surface that originated the event, e.g.,
- *   `'planner'`, `'chat'`, `'explore'`, `'recipe_detail'`.
+ * - `sourceSurface`: the UI surface that originated the event — must be one of
+ *   the canonical `SourceSurface` values (`'week' | 'chat' | 'explore' |
+ *   'profile' | 'shopping'`). More granular contexts (e.g. `'recipe_detail'`,
+ *   `'notification'`) belong in event-specific payload fields, not this shared
+ *   envelope field.
  */
 export interface AnalyticsEnvelope {
   locale: string;
@@ -394,13 +397,6 @@ export interface ExploreFilterAppliedPayload {
   previousFilterId: string | null;
 }
 
-export interface ExploreAddToPlanPayload {
-  recipeId: string;
-  mealPlanId: string;
-  mealPlanSlotId?: string | null;
-  sectionId?: ExploreSectionId | null;
-}
-
 export interface PlannerSetupLifecyclePayload {
   sourceSurface: SourceSurface;
 }
@@ -487,7 +483,6 @@ export interface EventPayloadMap {
   explore_section_viewed: ExploreSectionViewedPayload;
   explore_recipe_opened: ExploreRecipeOpenedPayload;
   explore_filter_applied: ExploreFilterAppliedPayload;
-  explore_add_to_plan: ExploreAddToPlanPayload;
 
   // --- Mi Menú / strategic metrics (Strategy 2026-04-25) ---
   mi_menu_today_viewed: MiMenuTodayViewedPayload;

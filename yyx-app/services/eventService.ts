@@ -136,8 +136,11 @@ class EventService {
    * Usage:
    *   eventService.trackEvent(
    *     { name: 'meal_plan_approved', payload: { mealPlanId, weekStart, ... } },
-   *     { locale: 'es-MX', sourceSurface: 'planner' },
+   *     { locale: 'es-MX', sourceSurface: 'week' },
    *   );
+   *
+   * `sourceSurface` must be one of the canonical `SourceSurface` literals
+   * (`'week' | 'chat' | 'explore' | 'profile' | 'shopping'`).
    *
    * Why the discriminated-object shape: if the two arguments were separate
    * (`name`, `payload`), a caller could widen `name` to `EventName` via a
