@@ -15,41 +15,38 @@ import { clamp01, INGREDIENT_OVERLAP_SUBWEIGHTS } from "../scoring-config.ts";
 import type { ScoreCandidateInput } from "./types.ts";
 import type { FactorOutput } from "./taste-household-fit.ts";
 
+// Canonical (English) staple keys. `buildCanonicalIngredientMap` already
+// normalizes Spanish ingredients to their English canonical form before this
+// runs, so we don't need duplicate Spanish entries (cebolla → onion, etc.).
 const STAPLE_KEYS = new Set<string>([
   "salt",
-  "sal",
   "pepper",
-  "pimienta",
   "olive_oil",
-  "aceite_de_oliva",
   "oil",
-  "aceite",
   "garlic",
-  "ajo",
   "onion",
-  "cebolla",
   "rice",
-  "arroz",
   "flour",
-  "harina",
   "sugar",
-  "azucar",
   "butter",
-  "mantequilla",
   "tomato",
-  "tomate",
   "tortilla",
   "beans",
-  "frijol",
   "eggs",
-  "huevo",
   "milk",
-  "leche",
 ]);
 
+/**
+ * Match a candidate ingredient key against the staples set using underscore-
+ * delimited word boundaries — `green_onion` matches `onion`, but
+ * `sugar_snap_peas` does NOT match `sugar` (the latter would be a false
+ * positive that the previous substring match produced).
+ */
 function isStaple(key: string): boolean {
-  for (const s of STAPLE_KEYS) {
-    if (key.includes(s)) return true;
+  if (STAPLE_KEYS.has(key)) return true;
+  const tokens = key.split("_");
+  for (const token of tokens) {
+    if (STAPLE_KEYS.has(token)) return true;
   }
   return false;
 }

@@ -215,6 +215,9 @@ export async function fetchPairingsForCandidates(
       ingredientIds,
       ingredientKeys,
       cuisineTags: [],
+      // Pairing targets bypass meal-type filtering — they're attached to a
+      // primary via explicit recipe_pairings rows, not via the slot's
+      // meal-type compatibility check, so meal-type tags aren't loaded here.
       mealTypeTags: [],
       hasAllergenConflict: false,
       allergenMatches: [],

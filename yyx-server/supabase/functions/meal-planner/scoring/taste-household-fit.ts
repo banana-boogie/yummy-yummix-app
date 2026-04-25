@@ -103,12 +103,17 @@ function householdComplexityFit(input: ScoreCandidateInput): number {
 }
 
 function recentRepeatPenalty(input: ScoreCandidateInput): number {
+  // Decay buckets aligned with the 30-day VARIETY_LIMITS.recentRecipeWindowDays
+  // window. A recipe cooked between 22 and 30 days ago is still "recent
+  // enough" to warrant a soft taste penalty, even though variety's
+  // recentRecipePenalty has already faded most of the way out by then.
   const when = input.user.recentCookedRecipes.get(input.candidate.id);
   if (!when) return 0;
   const daysSince = (Date.now() - when.getTime()) / 86_400_000;
   if (daysSince <= 7) return 1;
   if (daysSince <= 14) return 0.6;
   if (daysSince <= 21) return 0.3;
+  if (daysSince <= 30) return 0.1;
   return 0;
 }
 
