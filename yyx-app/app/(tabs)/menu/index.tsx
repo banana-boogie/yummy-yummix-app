@@ -1,15 +1,28 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, ActivityIndicator, Pressable, Alert } from 'react-native';
+import {
+  View,
+  ActivityIndicator,
+  Pressable,
+  Alert,
+  BackHandler,
+  Platform,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PageLayout } from '@/components/layouts/PageLayout';
+import { ResponsiveLayout } from '@/components/layouts/ResponsiveLayout';
 import { Text } from '@/components/common';
 import { useMealPlan } from '@/hooks/useMealPlan';
 import { MealPlanEmptyState } from '@/components/planner/MealPlanEmptyState';
 import { FirstTimePlanSetupFlow } from '@/components/planner/FirstTimePlanSetupFlow';
 import { MealPlanView } from '@/components/planner/MealPlanView';
+import {
+  TodayHero,
+  TodayHeroError,
+} from '@/components/planner/TodayHero';
 import { todayDayIndex } from '@/components/planner/utils/dayIndex';
+import { eventService } from '@/services/eventService';
 import i18n from '@/i18n';
 import { COLORS } from '@/constants/design-tokens';
 import type { GeneratePlanOptions } from '@/types/mealPlan';
@@ -22,23 +35,31 @@ import type { GeneratePlanOptions } from '@/types/mealPlan';
  */
 const SETUP_COMPLETED_KEY = 'planner.setupCompleted';
 
+type MenuMode = 'today' | 'week';
+
 export default function MenuScreen() {
   const [setupMode, setSetupMode] = useState<'first-time' | 'settings' | null>(
     null,
   );
   const [setupCompleted, setSetupCompleted] = useState<boolean | null>(null);
   const [approving, setApproving] = useState(false);
+  const [mode, setMode] = useState<MenuMode>('today');
+  const [refreshing, setRefreshing] = useState(false);
 
   const {
     activePlan,
     preferences,
     isLoading,
     isGenerating,
+    error,
     generatePlan,
     updatePreferences,
     skipSlot,
+    swapSlot,
     generateShoppingList,
     planProgress,
+    todaysSlots,
+    refetch,
   } = useMealPlan();
 
   useEffect(() => {
@@ -46,6 +67,50 @@ export default function MenuScreen() {
       .then((v) => setSetupCompleted(v === 'true'))
       .catch(() => setSetupCompleted(false));
   }, []);
+
+  // Hardware back: when in week mode, intercept and return to today instead
+  // of leaving the tab. Android-only; iOS has no hardware back, web has no
+  // BackHandler.
+  useEffect(() => {
+    if (mode !== 'week' || Platform.OS === 'web') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      eventService.logPlannerModeChange({
+        from: 'week',
+        to: 'today',
+        trigger: 'hardware-back',
+      });
+      setMode('today');
+      return true;
+    });
+    return () => sub.remove();
+  }, [mode]);
+
+  const handleSeeWeek = useCallback(() => {
+    eventService.logPlannerModeChange({
+      from: 'today',
+      to: 'week',
+      trigger: 'link',
+    });
+    setMode('week');
+  }, []);
+
+  const handleBackToToday = useCallback(() => {
+    eventService.logPlannerModeChange({
+      from: 'week',
+      to: 'today',
+      trigger: 'back-button',
+    });
+    setMode('today');
+  }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.resolve(refetch());
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
 
   const handlePlanPress = useCallback(() => {
     if (!setupCompleted) {
@@ -125,11 +190,28 @@ export default function MenuScreen() {
   const showPlanPendingPlaceholder =
     setupCompleted === true && !isGenerating && !hasPlan && !isLoading;
 
-  return (
-    <PageLayout
-      header={
+  // Header content depends on mode.
+  const renderHeader = () => {
+    if (mode === 'week' && hasPlan) {
+      return (
         <View className="flex-row items-center justify-between px-lg pt-lg pb-sm">
-          <Text preset="h1">{i18n.t('planner.title')}</Text>
+          <Pressable
+            onPress={handleBackToToday}
+            accessibilityRole="button"
+            accessibilityLabel={i18n.t('planner.today.backToToday')}
+            hitSlop={12}
+            className="flex-row items-center"
+            style={{ minHeight: 44 }}
+          >
+            <Ionicons
+              name="chevron-back"
+              size={20}
+              color={COLORS.primary.darkest}
+            />
+            <Text preset="body" className="text-primary-darkest ml-xxs">
+              {i18n.t('planner.today.backToToday')}
+            </Text>
+          </Pressable>
           {setupCompleted && (
             <Pressable
               onPress={() => setSetupMode('settings')}
@@ -144,13 +226,57 @@ export default function MenuScreen() {
             </Pressable>
           )}
         </View>
-      }
-    >
-      {isLoading || setupCompleted === null ? (
+      );
+    }
+    return (
+      <View className="flex-row items-center justify-between px-lg pt-lg pb-sm">
+        <Text preset="h1">{i18n.t('planner.title')}</Text>
+        {setupCompleted && (
+          <Pressable
+            onPress={() => setSetupMode('settings')}
+            accessibilityLabel={i18n.t('planner.openSettings')}
+            hitSlop={12}
+          >
+            <Ionicons
+              name="settings-outline"
+              size={24}
+              color={COLORS.text.default}
+            />
+          </Pressable>
+        )}
+      </View>
+    );
+  };
+
+  const renderBody = () => {
+    if (isLoading || setupCompleted === null) {
+      return (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color={COLORS.primary.darkest} />
         </View>
-      ) : hasPlan ? (
+      );
+    }
+
+    if (hasPlan) {
+      if (mode === 'today') {
+        if (error) {
+          return <TodayHeroError onRetry={handleRefresh} />;
+        }
+        return (
+          <ResponsiveLayout maxWidth={600}>
+            <TodayHero
+              plan={activePlan}
+              todaysSlots={todaysSlots}
+              preferences={preferences}
+              onRefresh={handleRefresh}
+              isRefreshing={refreshing}
+              onSeeWeek={handleSeeWeek}
+              onSwap={swapSlot}
+            />
+          </ResponsiveLayout>
+        );
+      }
+      return (
         <MealPlanView
           plan={activePlan}
           todayDayIndex={todayDayIndex()}
@@ -159,14 +285,22 @@ export default function MenuScreen() {
           onApprove={handleApprove}
           onRemove={handleRemove}
         />
-      ) : showGeneratingPlaceholder ? (
+      );
+    }
+
+    if (showGeneratingPlaceholder) {
+      return (
         <View className="flex-1 items-center justify-center px-lg">
           <ActivityIndicator color={COLORS.primary.darkest} />
           <Text preset="body" className="text-center mt-md">
             {i18n.t('planner.setup.generating')}
           </Text>
         </View>
-      ) : showPlanPendingPlaceholder ? (
+      );
+    }
+
+    if (showPlanPendingPlaceholder) {
+      return (
         <View className="flex-1 items-center justify-center px-lg">
           <Text preset="body" className="text-center text-text-secondary">
             {i18n.t('planner.planReadyPlaceholder')}
@@ -180,13 +314,17 @@ export default function MenuScreen() {
             <Text preset="body">{i18n.t('planner.empty.planMyMenu')}</Text>
           </Pressable>
         </View>
-      ) : (
-        <MealPlanEmptyState
-          variant={setupCompleted ? 'ready' : 'first-time'}
-          onPressPlan={handlePlanPress}
-          loading={isGenerating}
-        />
-      )}
-    </PageLayout>
-  );
+      );
+    }
+
+    return (
+      <MealPlanEmptyState
+        variant={setupCompleted ? 'ready' : 'first-time'}
+        onPressPlan={handlePlanPress}
+        loading={isGenerating}
+      />
+    );
+  };
+
+  return <PageLayout header={renderHeader()}>{renderBody()}</PageLayout>;
 }

@@ -1,0 +1,249 @@
+import React from 'react';
+import { BackHandler, Platform } from 'react-native';
+import { renderWithProviders, screen, fireEvent, waitFor, act } from '@/test/utils/render';
+import type {
+  MealPlanResponse,
+  MealPlanSlotResponse,
+  PreferencesResponse,
+} from '@/types/mealPlan';
+
+// ---------- mocks ----------
+
+jest.mock('@/contexts/LanguageContext', () => ({
+  useLanguage: () => ({
+    language: 'en',
+    locale: 'en-US',
+    setLanguage: jest.fn(),
+    setLocale: jest.fn(),
+  }),
+}));
+
+const mockLogModeChange = jest.fn();
+jest.mock('@/services/eventService', () => ({
+  eventService: {
+    logPlannerTodayView: jest.fn(),
+    logPlannerCookPress: jest.fn(),
+    logPlannerSwapPress: jest.fn(),
+    logPlannerSwapComplete: jest.fn(),
+    logPlannerWeekLinkPress: jest.fn(),
+    logPlannerModeChange: (p: unknown) => mockLogModeChange(p),
+    logPlannerPullToRefresh: jest.fn(),
+  },
+}));
+
+const mockUseMealPlanReturn: {
+  current: ReturnType<typeof mockBuildHookReturn>;
+} = { current: mockBuildHookReturn() };
+
+jest.mock('@/hooks/useMealPlan', () => ({
+  useMealPlan: () => mockUseMealPlanReturn.current,
+}));
+
+// AsyncStorage already mocked in jest.setup.js — and returns null by default.
+// Force "setup completed" by stubbing the storage module's getItem.
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(async (key: string) =>
+      key === 'planner.setupCompleted' ? 'true' : null,
+    ),
+    setItem: jest.fn(async () => {}),
+    removeItem: jest.fn(async () => {}),
+    clear: jest.fn(async () => {}),
+  },
+}));
+
+// BackHandler listener registry — populated by overriding addEventListener
+// on the imported singleton (jest.mock would force RN init crashes).
+const mockBackHandlerListeners: Record<string, () => boolean> = {};
+const originalAddEventListener = BackHandler.addEventListener;
+(BackHandler as unknown as {
+  addEventListener: (e: string, h: () => boolean) => { remove: () => void };
+}).addEventListener = (event, handler) => {
+  mockBackHandlerListeners[event] = handler;
+  return { remove: () => delete mockBackHandlerListeners[event] };
+};
+afterAll(() => {
+  (BackHandler as unknown as { addEventListener: unknown }).addEventListener =
+    originalAddEventListener;
+});
+// Force Android (jest default is iOS).
+(Platform as unknown as { OS: string }).OS = 'android';
+
+// ---------- helpers ----------
+
+function buildSlot(id: string): MealPlanSlotResponse {
+  return {
+    id,
+    plannedDate: '2026-04-25',
+    dayIndex: 5,
+    mealType: 'lunch',
+    displayMealLabel: 'Lunch',
+    displayOrder: 0,
+    slotType: 'cook_slot',
+    structureTemplate: 'single_component',
+    expectedFoodGroups: [],
+    selectionReason: '',
+    shoppingSyncState: 'not_created',
+    status: 'planned',
+    swapCount: 0,
+    lastSwappedAt: null,
+    cookedAt: null,
+    skippedAt: null,
+    mergedCookingGuide: null,
+    components: [
+      {
+        id: `${id}-c0`,
+        componentRole: 'main',
+        sourceKind: 'recipe',
+        recipeId: `recipe-${id}`,
+        sourceComponentId: null,
+        foodGroupsSnapshot: [],
+        pairingBasis: 'standalone',
+        displayOrder: 0,
+        isPrimary: true,
+        title: `Title ${id}`,
+        imageUrl: null,
+        totalTimeMinutes: 30,
+        difficulty: 'easy',
+        portions: 4,
+        equipmentTags: [],
+      },
+    ],
+  };
+}
+
+function buildPlan(slots: MealPlanSlotResponse[]): MealPlanResponse {
+  return {
+    planId: 'plan-1',
+    weekStart: '2026-04-20',
+    locale: 'en-US',
+    requestedDayIndexes: [0, 1, 2, 3, 4],
+    requestedMealTypes: ['lunch'],
+    shoppingListId: 'shop-1',
+    shoppingSyncState: 'not_created',
+    slots,
+  };
+}
+
+function mockBuildHookReturn() {
+  const slots = [buildSlot('s1')];
+  const prefs: PreferencesResponse = {
+    mealTypes: ['lunch'],
+    busyDays: [],
+    activeDayIndexes: [0, 1, 2, 3, 4],
+    defaultMaxWeeknightMinutes: 30,
+    preferLeftoversForLunch: false,
+    preferredEatTimes: {},
+  };
+  return {
+    activePlan: buildPlan(slots),
+    preferences: prefs,
+    isLoading: false,
+    isGenerating: false,
+    error: null,
+    generatePlan: jest.fn(),
+    updatePreferences: jest.fn(),
+    swapSlot: jest
+      .fn()
+      .mockResolvedValue({ alternatives: [], warnings: [] }),
+    skipSlot: jest.fn(),
+    markCooked: jest.fn(),
+    generateShoppingList: jest.fn(),
+    todaysSlots: slots,
+    planProgress: { planned: 1, cooked: 0, skipped: 0 },
+    refetch: jest.fn(),
+  };
+}
+
+// ---------- tests ----------
+
+describe('MenuScreen mode toggle', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    Object.keys(mockBackHandlerListeners).forEach(
+      (k) => delete mockBackHandlerListeners[k],
+    );
+    mockUseMealPlanReturn.current = mockBuildHookReturn();
+    jest.useFakeTimers().setSystemTime(new Date('2026-04-25T12:00:00'));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('toggles to week mode when Ver mi menú link is tapped, fires analytics', async () => {
+    const MenuScreen = require('@/app/(tabs)/menu/index').default;
+    renderWithProviders(<MenuScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Today on your menu')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText('See my menu for the week →'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Back to today')).toBeTruthy();
+    });
+    expect(mockLogModeChange).toHaveBeenCalledWith({
+      from: 'today',
+      to: 'week',
+      trigger: 'link',
+    });
+  });
+
+  it('returns to today mode via the Volver a hoy header affordance', async () => {
+    const MenuScreen = require('@/app/(tabs)/menu/index').default;
+    renderWithProviders(<MenuScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Today on your menu')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText('See my menu for the week →'));
+    await waitFor(() => {
+      expect(screen.getByText('Back to today')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText('Back to today'));
+    await waitFor(() => {
+      expect(screen.getByText('Today on your menu')).toBeTruthy();
+    });
+    expect(mockLogModeChange).toHaveBeenLastCalledWith({
+      from: 'week',
+      to: 'today',
+      trigger: 'back-button',
+    });
+  });
+
+  it('hardware back in week mode returns to today (Android)', async () => {
+    const MenuScreen = require('@/app/(tabs)/menu/index').default;
+    renderWithProviders(<MenuScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Today on your menu')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText('See my menu for the week →'));
+    await waitFor(() => {
+      expect(screen.getByText('Back to today')).toBeTruthy();
+    });
+
+    // Listener should now be registered.
+    expect(mockBackHandlerListeners['hardwareBackPress']).toBeDefined();
+    let consumed = false;
+    act(() => {
+      consumed = mockBackHandlerListeners['hardwareBackPress']();
+    });
+    expect(consumed).toBe(true);
+
+    await waitFor(() => {
+      expect(screen.getByText('Today on your menu')).toBeTruthy();
+    });
+    expect(mockLogModeChange).toHaveBeenLastCalledWith({
+      from: 'week',
+      to: 'today',
+      trigger: 'hardware-back',
+    });
+  });
+});
