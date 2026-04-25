@@ -565,3 +565,86 @@ Deno.test("swap_meal rejects missing mealPlanSlotId", async () => {
   assertEquals(response.status, 400);
   assertEquals(body.error.code, "INVALID_INPUT");
 });
+
+// Same shape as MINIMAL_RECIPE_ROW but with NO MEAL_TYPE tag — exercises the
+// strict meal-type filter path. Role-compatible recipes that lack meal-type
+// tags should be excluded with a MISSING_MEAL_TYPE_TAGS warning, leading to
+// uniqueTotal === 0 → 422 INSUFFICIENT_RECIPES + warnings in body.
+const UNTAGGED_RECIPE_ROW = {
+  ...MINIMAL_RECIPE_ROW,
+  id: "fake-recipe-untagged",
+  recipe_to_tag: [],
+};
+
+// deno-lint-ignore no-explicit-any
+function makeUntaggedRecipeSupabase(): any {
+  const buildBuilder = () => {
+    let table = "";
+    // deno-lint-ignore no-explicit-any
+    const builder: any = {
+      select: () => builder,
+      eq: () => builder,
+      in: () => builder,
+      overlaps: () => builder,
+      not: () => builder,
+      neq: () => builder,
+      gte: () => builder,
+      insert: () => builder,
+      update: () => builder,
+      limit: () => builder,
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      single: () => Promise.resolve({ data: null, error: null }),
+      // deno-lint-ignore no-explicit-any
+      then: (resolve: any) => {
+        if (table === "recipes") {
+          resolve({ data: [UNTAGGED_RECIPE_ROW], error: null });
+          return;
+        }
+        resolve({ data: [], error: null });
+      },
+    };
+    return {
+      from: (t: string) => {
+        table = t;
+        return builder;
+      },
+    };
+  };
+  return {
+    from: (t: string) => buildBuilder().from(t),
+  };
+}
+
+Deno.test("generate_plan returns 422 INSUFFICIENT_RECIPES with MISSING_MEAL_TYPE_TAGS warning when role-compatible recipes lack meal-type tags", async () => {
+  const mockSupabase = makeUntaggedRecipeSupabase();
+  const req = createAuthenticatedRequest({
+    action: "generate_plan",
+    payload: {
+      weekStart: "2026-04-13",
+      dayIndexes: [0, 1, 2, 3, 4],
+      mealTypes: ["dinner"],
+    },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: (_authHeader: string) => mockSupabase,
+  });
+  const body = await response.json();
+
+  assertEquals(response.status, 422);
+  assertEquals(body.error.code, "INSUFFICIENT_RECIPES");
+  // The diagnostic must surface so callers know it's a tagging gap, not a
+  // generic "no recipes" condition.
+  if (
+    !Array.isArray(body.warnings) ||
+    !body.warnings.some((w: string) =>
+      w === "MISSING_MEAL_TYPE_TAGS:meal_type=dinner"
+    )
+  ) {
+    throw new Error(
+      `expected warnings to include MISSING_MEAL_TYPE_TAGS:meal_type=dinner, got: ${
+        JSON.stringify(body.warnings)
+      }`,
+    );
+  }
+});

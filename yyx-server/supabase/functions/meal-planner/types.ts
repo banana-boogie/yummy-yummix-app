@@ -348,4 +348,11 @@ export interface MealPlannerErrorResponse {
     code: MealPlannerErrorCode;
     message: string;
   };
+  /**
+   * Diagnostic warnings that accompanied the failure. Currently used by
+   * INSUFFICIENT_RECIPES (HTTP 422) to surface MISSING_MEAL_TYPE_TAGS and
+   * other coverage warnings so the caller can render a meaningful "add tags
+   * / relax filters" message rather than an opaque error.
+   */
+  warnings?: string[];
 }

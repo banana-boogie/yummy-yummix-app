@@ -61,8 +61,10 @@ function errorResponse(
   code: MealPlannerErrorCode,
   message: string,
   status = 400,
+  warnings?: string[],
 ): Response {
   const body: MealPlannerErrorResponse = { error: { code, message } };
+  if (warnings && warnings.length > 0) body.warnings = warnings;
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -297,6 +299,7 @@ async function handleGeneratePlan(
         "INSUFFICIENT_RECIPES",
         error.message,
         422,
+        error.warnings,
       );
     }
     throw error;

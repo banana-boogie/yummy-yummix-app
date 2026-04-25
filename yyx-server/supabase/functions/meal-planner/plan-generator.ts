@@ -114,9 +114,17 @@ export class PlanAlreadyExistsError extends Error {
  * instead.
  */
 export class InsufficientRecipesError extends Error {
-  constructor() {
+  /**
+   * Diagnostic warnings collected up to the point of failure (e.g.
+   * MISSING_MEAL_TYPE_TAGS). The handler surfaces these in the 422 response
+   * body so the caller can act on them.
+   */
+  readonly warnings: string[];
+
+  constructor(warnings: string[] = []) {
     super(`No recipes available for the requested slots`);
     this.name = "InsufficientRecipesError";
+    this.warnings = warnings;
   }
 }
 
@@ -1120,7 +1128,7 @@ export async function generatePlan(
   // to render. Surface INSUFFICIENT_RECIPES (HTTP 422) so callers can show a
   // meaningful "add recipes / relax filters" message instead.
   if (uniqueTotal === 0) {
-    throw new InsufficientRecipesError();
+    throw new InsufficientRecipesError(warnings);
   }
   if (uniqueTotal < THIN_CATALOG.totalPublishedThreshold) {
     warnings.push(`LIMITED_CATALOG_COVERAGE:total=${uniqueTotal}`);
