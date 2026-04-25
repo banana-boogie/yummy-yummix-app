@@ -1,5 +1,5 @@
 export const planner = {
-  title: "Mi menú",
+  title: "Mi Menú",
   openSettings: "Editar preferencias de planificación",
   planReadyPlaceholder: "Tu menú está en camino — las comidas aparecerán aquí.",
   dayEmpty: "No hay comidas planeadas para este día.",
@@ -76,7 +76,7 @@ export const planner = {
     label: "{{cooked}} de {{planned}} cocinadas",
   },
   cta: {
-    approve: "Me gusta — hazme la lista",
+    approve: "Hacer mi lista",
     approved: "Lista de compras lista",
   },
   error: {

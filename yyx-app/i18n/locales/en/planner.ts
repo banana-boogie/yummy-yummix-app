@@ -76,7 +76,7 @@ export const planner = {
     label: "{{cooked}} of {{planned}} cooked",
   },
   cta: {
-    approve: "Looks Good — Make My List",
+    approve: "Make My List",
     approved: "Shopping list ready",
   },
   error: {
