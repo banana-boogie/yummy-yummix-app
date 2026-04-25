@@ -193,7 +193,9 @@ Deno.test("finalizeResponse propagates history insert failures", async () => {
 const samplePlanContext: PlanContext = {
   planId: "plan-1",
   weekStart: "2026-04-13",
+  todayLocalDate: "2026-04-13",
   nextMeal: null,
+  weekMeals: [],
 };
 
 Deno.test("buildSuggestions returns 1-3 EN chips for each category", () => {
@@ -240,19 +242,19 @@ Deno.test("buildSuggestions differentiates planner category based on active plan
   // With a plan, we reference the existing week; without one, we offer to plan.
   const withPlanLabels = withPlan.map((c) => c.label).join(" | ");
   const withoutPlanLabels = withoutPlan.map((c) => c.label).join(" | ");
-  assertEquals(withPlanLabels.includes("See my week"), true);
-  assertEquals(withoutPlanLabels.includes("Plan my week"), true);
+  assertEquals(withPlanLabels.includes("See my menu"), true);
+  assertEquals(withoutPlanLabels.includes("Start my menu"), true);
 });
 
 Deno.test("buildSuggestions general category varies based on active plan", () => {
   const withPlan = buildSuggestions("general", "en", samplePlanContext);
   const withoutPlan = buildSuggestions("general", "en", null);
   assertEquals(
-    withPlan.map((c) => c.label).includes("See my week"),
+    withPlan.map((c) => c.label).includes("See my menu"),
     true,
   );
   assertEquals(
-    withoutPlan.map((c) => c.label).includes("Plan my week"),
+    withoutPlan.map((c) => c.label).includes("Start my menu"),
     true,
   );
 });
@@ -264,7 +266,7 @@ Deno.test("buildSuggestions general category varies based on active plan", () =>
 Deno.test("finalizeResponse persists suggestions in tool_calls when provided", async () => {
   const { supabase, inserts } = createMockSupabase();
   const suggestions = [
-    { label: "Plan my week", message: "Help me plan my week" },
+    { label: "Start my menu", message: "Help me start my menu" },
     { label: "Something quicker", message: "I want something quicker" },
   ];
   const response = await finalizeResponse(

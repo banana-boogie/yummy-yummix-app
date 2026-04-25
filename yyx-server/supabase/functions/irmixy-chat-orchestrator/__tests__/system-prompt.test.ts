@@ -277,7 +277,7 @@ Deno.test("buildSystemPrompt cooking helper mode works without stepInstructions"
   assertEquals(prompt.includes("Current step instructions:"), false);
 });
 
-Deno.test("buildSystemPrompt includes meal plan context when an active plan is provided", () => {
+Deno.test("buildSystemPrompt includes Mi Menú context when an active plan is provided", () => {
   const prompt = buildSystemPrompt(
     createUserContext(),
     undefined,
@@ -285,22 +285,41 @@ Deno.test("buildSystemPrompt includes meal plan context when an active plan is p
     {
       planId: "plan-1",
       weekStart: "2026-04-13",
+      todayLocalDate: "2026-04-14",
       nextMeal: {
         plannedDate: "2026-04-14",
         dayIndex: 1,
         mealType: "dinner",
         title: "Spaghetti Bolognese",
       },
+      weekMeals: [
+        {
+          plannedDate: "2026-04-14",
+          dayIndex: 1,
+          mealType: "dinner",
+          title: "Spaghetti Bolognese",
+          isToday: true,
+        },
+        {
+          plannedDate: "2026-04-15",
+          dayIndex: 2,
+          mealType: "dinner",
+          title: "Sopa de Pollo",
+          isToday: false,
+        },
+      ],
     },
   );
 
-  assertStringIncludes(prompt, "MEAL PLAN CONTEXT");
+  assertStringIncludes(prompt, "MI MENÚ CONTEXT");
   assertStringIncludes(prompt, "2026-04-13");
   assertStringIncludes(prompt, "Spaghetti Bolognese");
   assertStringIncludes(prompt, "dinner");
+  assertStringIncludes(prompt, "Today (2026-04-14)");
+  assertStringIncludes(prompt, "Sopa de Pollo");
 });
 
-Deno.test("buildSystemPrompt omits meal plan context section when no plan is provided", () => {
+Deno.test("buildSystemPrompt omits Mi Menú context section when no plan is provided", () => {
   const promptNull = buildSystemPrompt(
     createUserContext(),
     undefined,
@@ -308,6 +327,6 @@ Deno.test("buildSystemPrompt omits meal plan context section when no plan is pro
     null,
   );
   const promptUndef = buildSystemPrompt(createUserContext());
-  assertEquals(promptNull.includes("MEAL PLAN CONTEXT"), false);
-  assertEquals(promptUndef.includes("MEAL PLAN CONTEXT"), false);
+  assertEquals(promptNull.includes("MI MENÚ CONTEXT"), false);
+  assertEquals(promptUndef.includes("MI MENÚ CONTEXT"), false);
 });

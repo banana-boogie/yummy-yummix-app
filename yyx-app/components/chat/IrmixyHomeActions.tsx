@@ -27,6 +27,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text } from '@/components/common/Text';
 import i18n from '@/i18n';
 import { COLORS } from '@/constants/design-tokens';
+import eventService from '@/services/eventService';
 
 type ActionKind =
     | { kind: 'navigate'; route: string }
@@ -45,8 +46,8 @@ export interface IrmixyHomeActionsProps {
     onFocusInput: (placeholder?: string) => void;
 }
 
-/** Future Week tab route — kept in one place so updating is trivial when the tab lands. */
-const WEEK_ROUTE = '/(tabs)/week';
+/** Future Mi Menú tab route — kept in one place so updating is trivial when the tab lands. */
+const WEEK_ROUTE = '/(tabs)/menu';
 
 function useHomeActionCards(): HomeActionCard[] {
     const t = (key: string) => i18n.t(key);
@@ -86,18 +87,19 @@ export function IrmixyHomeActions({
 }: IrmixyHomeActionsProps) {
     const cards = useHomeActionCards();
 
-    const handlePress = (action: ActionKind) => {
-        switch (action.kind) {
+    const handlePress = (card: HomeActionCard) => {
+        eventService.logIrmixyHomeActionTapped(card.id);
+        switch (card.action.kind) {
             case 'navigate':
                 // Planner route may not exist yet; `router.push` is a no-op if
                 // the route isn't registered, which is acceptable for this PR.
-                router.push(action.route as never);
+                router.push(card.action.route as never);
                 return;
             case 'send_message':
-                onSendMessage(action.message);
+                onSendMessage(card.action.message);
                 return;
             case 'focus_input':
-                onFocusInput(action.placeholder);
+                onFocusInput(card.action.placeholder);
                 return;
         }
     };
@@ -107,7 +109,7 @@ export function IrmixyHomeActions({
             {cards.map((card) => (
                 <TouchableOpacity
                     key={card.id}
-                    onPress={() => handlePress(card.action)}
+                    onPress={() => handlePress(card)}
                     activeOpacity={0.8}
                     className="flex-row items-center bg-primary-lightest rounded-lg px-md py-sm"
                 >

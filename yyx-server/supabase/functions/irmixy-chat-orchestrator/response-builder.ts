@@ -75,17 +75,15 @@ export function buildSuggestions(
               : "What should I cook tonight?",
           },
           {
-            label: isEs ? "Ver mi semana" : "See my week",
-            message: isEs ? "¿Qué tengo esta semana?" : "What's on my week?",
+            label: isEs ? "Ver mi menú" : "See my menu",
+            message: isEs ? "¿Qué hay en mi menú?" : "What's on my menu?",
           },
         ];
       }
       return [
         {
-          label: isEs ? "Planear mi semana" : "Plan my week",
-          message: isEs
-            ? "Ayúdame a planear mi semana"
-            : "Help me plan my week",
+          label: isEs ? "Empezar mi menú" : "Start my menu",
+          message: isEs ? "Ayúdame a empezar mi menú" : "Help me start my menu",
         },
         {
           label: isEs
@@ -109,8 +107,8 @@ export function buildSuggestions(
               : "What should I cook tonight?",
           },
           {
-            label: isEs ? "Ver mi semana" : "See my week",
-            message: isEs ? "¿Qué tengo esta semana?" : "What's on my week?",
+            label: isEs ? "Ver mi menú" : "See my menu",
+            message: isEs ? "¿Qué hay en mi menú?" : "What's on my menu?",
           },
         ];
       }
@@ -124,10 +122,8 @@ export function buildSuggestions(
             : "What should I cook tonight?",
         },
         {
-          label: isEs ? "Planear mi semana" : "Plan my week",
-          message: isEs
-            ? "Ayúdame a planear mi semana"
-            : "Help me plan my week",
+          label: isEs ? "Empezar mi menú" : "Start my menu",
+          message: isEs ? "Ayúdame a empezar mi menú" : "Help me start my menu",
         },
       ];
   }

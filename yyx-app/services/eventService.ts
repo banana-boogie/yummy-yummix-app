@@ -8,7 +8,8 @@ type EventType =
   | 'cook_complete'
   | 'search'
   | 'recipe_generate'
-  | 'action_execute';
+  | 'action_execute'
+  | 'irmixy_home_action_tapped';
 type RecipeTable = 'recipes' | 'user_recipes';
 
 interface QueuedEvent {
@@ -215,6 +216,16 @@ class EventService {
       actionType,
       source,
       path,
+    });
+  }
+
+  /**
+   * Log when a user taps a card in the Irmixy chat empty-state action grid.
+   * Tracks which guided entry points actually get used.
+   */
+  logIrmixyHomeActionTapped(cardId: string): void {
+    this.queueEvent('irmixy_home_action_tapped', {
+      card_id: cardId,
     });
   }
 

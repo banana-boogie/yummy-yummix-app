@@ -163,13 +163,13 @@ export const chat = {
   },
   // Home actions (chat empty state, planner-aware)
   homeActions: {
-    startWeek: "Start my week",
+    startWeek: "Start my menu",
     whatToCook: "What should I cook?",
     whatToCookMessage: "What should I cook tonight?",
     useIngredients: "What can I make with...",
     useIngredientsPlaceholder: "What can I make with ",
-    whatsOnWeek: "What's on my week?",
-    whatsOnWeekMessage: "What's on my week?",
+    whatsOnWeek: "What's on my menu?",
+    whatsOnWeekMessage: "What's on my menu?",
   },
   // Replay / retrieval
   replay: {

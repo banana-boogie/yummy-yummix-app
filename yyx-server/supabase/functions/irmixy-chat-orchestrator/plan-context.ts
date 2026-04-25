@@ -18,10 +18,19 @@ export interface PlanContextNextMeal {
   title: string | null;
 }
 
+export interface PlanContextWeekMeal extends PlanContextNextMeal {
+  isToday: boolean;
+}
+
 export interface PlanContext {
   planId: string;
   weekStart: string;
+  /** The user's local calendar date (YYYY-MM-DD) used to compute isToday. */
+  todayLocalDate: string;
+  /** The first planned meal at or after today. Null if none remain. */
   nextMeal: PlanContextNextMeal | null;
+  /** All planned meals for the active week (today + future days). */
+  weekMeals: PlanContextWeekMeal[];
 }
 
 interface NextSlotRow {
@@ -77,32 +86,49 @@ export async function loadPlanContext(
       .gte("planned_date", today)
       .order("planned_date", { ascending: true })
       .order("display_order", { ascending: true })
-      .limit(1);
+      .limit(50);
 
     if (slotsError) {
-      return { planId: plan.id, weekStart: plan.week_start, nextMeal: null };
+      return {
+        planId: plan.id,
+        weekStart: plan.week_start,
+        todayLocalDate: today,
+        nextMeal: null,
+        weekMeals: [],
+      };
     }
 
-    const slot = (slots as NextSlotRow[] | null)?.[0];
-    let nextMeal: PlanContextNextMeal | null = null;
-    if (slot) {
+    const rows = (slots as NextSlotRow[] | null) ?? [];
+    const weekMeals: PlanContextWeekMeal[] = rows.map((slot) => {
       const components = slot.meal_plan_slot_components ?? [];
       const primary = components.find((c) => c.is_primary) ??
         [...components].sort(
           (a, b) => (a.display_order ?? 0) - (b.display_order ?? 0),
         )[0];
-      nextMeal = {
+      return {
         plannedDate: slot.planned_date,
         dayIndex: slot.day_index,
         mealType: slot.meal_type,
         title: primary?.title_snapshot ?? null,
+        isToday: slot.planned_date === today,
       };
-    }
+    });
+
+    const nextMeal: PlanContextNextMeal | null = weekMeals[0]
+      ? {
+        plannedDate: weekMeals[0].plannedDate,
+        dayIndex: weekMeals[0].dayIndex,
+        mealType: weekMeals[0].mealType,
+        title: weekMeals[0].title,
+      }
+      : null;
 
     return {
       planId: plan.id,
       weekStart: plan.week_start,
+      todayLocalDate: today,
       nextMeal,
+      weekMeals,
     };
   } catch {
     return null;

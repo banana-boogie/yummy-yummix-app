@@ -244,22 +244,40 @@ Do NOT search for recipes or generate new ones — the user is mid-cook.
   }
 
   // Add terse meal plan context when the user has an active weekly plan.
-  // Kept short so the LLM can reference the next meal naturally without
-  // treating the block as instructions to quote verbatim.
+  // Kept short so the LLM can reference the menu naturally without treating
+  // the block as instructions to quote verbatim.
   let planContextSection = "";
   if (planContext) {
     const lines: string[] = [
-      `\n\nMEAL PLAN CONTEXT:`,
-      `The user has an active meal plan for the week starting ${planContext.weekStart}.`,
+      `\n\nMI MENÚ CONTEXT:`,
+      `The user has an active menu for the week starting ${planContext.weekStart}.`,
     ];
-    if (planContext.nextMeal) {
+    const todays = planContext.weekMeals.filter((m) => m.isToday);
+    const upcoming = planContext.weekMeals.filter((m) => !m.isToday);
+    if (todays.length > 0) {
+      const todayLine = todays
+        .map((m) => `${m.mealType}: ${m.title ?? "a planned meal"}`)
+        .join("; ");
+      lines.push(
+        `Today (${planContext.todayLocalDate}) on their menu — ${todayLine}.`,
+      );
+    } else if (planContext.nextMeal) {
       const title = planContext.nextMeal.title ?? "an upcoming meal";
       lines.push(
-        `Their next planned meal is ${planContext.nextMeal.mealType} on ${planContext.nextMeal.plannedDate}: ${title}.`,
+        `Nothing planned for today. Their next meal is ${planContext.nextMeal.mealType} on ${planContext.nextMeal.plannedDate}: ${title}.`,
       );
     }
+    if (upcoming.length > 0) {
+      const upcomingLines = upcoming
+        .slice(0, 7)
+        .map(
+          (m) => `- ${m.plannedDate} ${m.mealType}: ${m.title ?? "(unnamed)"}`,
+        )
+        .join("\n");
+      lines.push(`Rest of the week:\n${upcomingLines}`);
+    }
     lines.push(
-      `Reference the plan naturally when relevant. Do NOT modify the plan — planner edits are not yet wired up through chat.`,
+      `Reference the menu naturally when relevant — talk about today's meal or any other day. Do NOT modify the menu — planner edits are not yet wired up through chat.`,
     );
     planContextSection = lines.join("\n");
   }
