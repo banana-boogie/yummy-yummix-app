@@ -57,7 +57,7 @@ describe('AddToPlanModal', () => {
         activePlan={null}
       />,
     );
-    expect(screen.getByText(/Create a plan/i)).toBeTruthy();
+    expect(screen.getByText(/Create my menu/i)).toBeTruthy();
   });
 
   it('calls addRecipeToSlot and fires analytics on slot press', async () => {

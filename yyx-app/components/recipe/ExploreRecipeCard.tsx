@@ -35,7 +35,7 @@ export const ExploreRecipeCard = React.memo(function ExploreRecipeCard({
       <WatercolorRecipeCard recipe={recipe} compact={compact} />
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={t('title', 'Add to Plan')}
+        accessibilityLabel={t('title', 'Add to my menu')}
         hitSlop={8}
         onPress={() => onAddToPlan(recipe)}
         style={{

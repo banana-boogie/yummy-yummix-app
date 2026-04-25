@@ -131,16 +131,16 @@ export function AddToPlanModal({
           }}
         >
           <Text preset="h2" className="text-text-default">
-            {t('title', 'Add to Plan')}
+            {t('title', 'Add to my menu')}
           </Text>
 
           {!activePlan ? (
             <View style={{ gap: SPACING.md }}>
               <Text preset="body" className="text-text-secondary">
-                {t('noPlanPrompt', 'No active plan yet. Create one first?')}
+                {t('noPlanPrompt', 'No menu yet. Create one first?')}
               </Text>
               <Button variant="primary" onPress={handleCreatePlan}>
-                {t('createPlanCta', 'Create a plan')}
+                {t('createPlanCta', 'Create my menu')}
               </Button>
               <Button variant="outline" onPress={onClose}>
                 {t('cancel', 'Cancel')}
