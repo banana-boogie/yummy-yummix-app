@@ -1,19 +1,21 @@
--- Migration: Backfill the `categories` column on `recipe_tags`
+-- Migration: SUPERSEDED stop-gap backfill of `recipe_tags.categories`.
 --
--- The column already exists in the production cloud schema (and is read by
--- `search-recipes.ts`, `hybrid-search.ts`, and now `candidate-retrieval.ts`
--- via the `recipe_to_tag(recipe_tags(categories, ...))` embedded select),
--- but it predates the committed migration history and was never included in
--- a local migration. Anyone running `supabase db reset` against a fresh
--- database hits a planner that throws "column categories does not exist"
--- on every `generate_plan` call.
+-- This migration is kept in the repo for cloud-history continuity (it was
+-- applied to production on 2026-04-25 via `supabase db push`) but its work
+-- has been superseded by 20260415000000_ensure_recipe_tags_categories_column.sql,
+-- which runs BEFORE the seed migration that needs the column AND uses the
+-- correct enum-array type (`public.recipe_tag_category[]`) to match the seed's
+-- `array_append(categories, 'MEAL_TYPE'::public.recipe_tag_category)` call.
 --
--- `ADD COLUMN IF NOT EXISTS` makes this safe against both:
---   - a fresh local DB that's never seen the column (column gets created)
---   - the production cloud DB where the column already exists (no-op)
+-- The original problem: `categories` was added to production manually outside
+-- the migration history. A fresh `supabase db reset` would fail at the seed
+-- migration. This file's TEXT[] declaration was a stop-gap, but it ran AFTER
+-- the seed (timestamp ordering) so it never actually fixed the reset path.
 --
--- Date: 2026-04-15
--- Depends on: base recipe_tags table (remote schema)
+-- Both this migration and its replacement use `IF NOT EXISTS`, so they're
+-- safe no-ops in any environment where the column already exists.
+--
+-- Date: 2026-04-15 (originally) / superseded note added 2026-04-25
 
 ALTER TABLE public.recipe_tags
     ADD COLUMN IF NOT EXISTS categories TEXT[] NOT NULL DEFAULT '{}';
