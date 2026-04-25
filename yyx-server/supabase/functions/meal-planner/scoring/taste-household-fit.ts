@@ -136,15 +136,11 @@ export function scoreTasteHouseholdFit(
   const favorite = familyFavoriteBoost(input);
   const household = householdComplexityFit(input);
 
-  // Explicit intent: no session-intent signal wired yet (A5/A7). Neutral 0.
-  const explicitIntent = 0;
-
   const norm = clamp01(
     TASTE_SUBWEIGHTS.recipeAffinity * pos01(recipeAff) +
       TASTE_SUBWEIGHTS.cuisineAffinity * pos01(cuisine.affinity) +
       TASTE_SUBWEIGHTS.proteinAffinity * pos01(protein) +
       TASTE_SUBWEIGHTS.mealTypeAffinity * pos01(mealType) +
-      TASTE_SUBWEIGHTS.explicitIntent * explicitIntent +
       TASTE_SUBWEIGHTS.familyFavorite * favorite -
       TASTE_SUBWEIGHTS.recentRepeatPenalty * repeat,
   );

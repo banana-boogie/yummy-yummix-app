@@ -53,13 +53,16 @@ export const WEIGHT_TOTAL = 100;
 // Taste / household sub-weights (inside 25-point factor)
 // ============================================================
 
+// Sub-weights inside the 25-point Taste/Household factor. Positive weights
+// (recipeAffinity through familyFavorite) sum to 1.0; recentRepeatPenalty is
+// subtracted, capping the worst-case raw value at -0.20 (clamped to 0 by the
+// outer clamp01).
 export const TASTE_SUBWEIGHTS = {
-  recipeAffinity: 0.30,
+  recipeAffinity: 0.40,
   cuisineAffinity: 0.20,
   proteinAffinity: 0.15,
   mealTypeAffinity: 0.10,
-  explicitIntent: 0.15,
-  familyFavorite: 0.10,
+  familyFavorite: 0.15,
   recentRepeatPenalty: 0.20,
   recipeHistoryRating: 0.50,
   recipeHistoryCompletion: 0.30,
