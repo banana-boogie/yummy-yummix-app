@@ -25,8 +25,8 @@ import {
 import {
   fetchPairingsForCandidates,
   type PairingLookup,
-  templateComponentCount,
 } from "./bundle-builder.ts";
+import type { MealComponent } from "./types.ts";
 import {
   type AssembledSlot,
   type AssembleResult,
@@ -444,13 +444,26 @@ interface PersistedPlan {
 
 type ArchivedPlan = { id: string; previousStatus: string };
 
+/**
+ * True when every component the slot requires is contributed by at least one
+ * of the assembled components. Slots with no expected components (snack,
+ * dessert, beverage, single-component complete-meal mains) are trivially
+ * complete. The check is set-based, not count-based: a 2-component bundle of
+ * main + beverage doesn't satisfy a `main_plus_one_component` slot if veg /
+ * carb are still missing.
+ */
 export function isCoverageComplete(
   slot: MealSlot,
   assignment: AssembledSlot,
 ): boolean {
-  const requiredCount = templateComponentCount(slot.structureTemplate);
-  if (requiredCount < 2) return true;
-  return assignment.components.length >= requiredCount;
+  if (slot.expectedMealComponents.length === 0) return true;
+  const achieved = new Set<MealComponent>();
+  for (const c of assignment.components) {
+    for (const mc of c.mealComponentsSnapshot as MealComponent[]) {
+      achieved.add(mc);
+    }
+  }
+  return slot.expectedMealComponents.every((mc) => achieved.has(mc));
 }
 
 /**

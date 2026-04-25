@@ -225,18 +225,18 @@ function mkSlot(overrides: Partial<MealSlot> = {}): MealSlot {
 
 function mkAssignment(
   slot: MealSlot,
-  componentCount: number,
+  componentSnapshots: string[][],
 ): AssembledSlot {
   return {
     slot,
     effectiveSlotKind: slot.slotKind,
-    components: Array.from({ length: componentCount }, (_, index) => ({
+    components: componentSnapshots.map((snapshot, index) => ({
       role: index === 0 ? "main" : "side",
       sourceKind: "recipe",
       recipeId: `recipe-${index}`,
       sourceComponentId: null,
       sourceSlotIdRef: null,
-      mealComponentsSnapshot: index === 0 ? ["protein"] : ["carb"],
+      mealComponentsSnapshot: snapshot,
       pairingBasis: index === 0 ? "standalone" : "explicit_pairing",
       isPrimary: index === 0,
       candidate: null,
@@ -256,18 +256,31 @@ function mkAssignment(
   };
 }
 
-Deno.test("isCoverageComplete: multi-component slot is partial when pairings are missing", () => {
+Deno.test("isCoverageComplete: returns false when expected components remain unmet", () => {
   const slot = mkSlot({ structureTemplate: "main_plus_one_component" });
-  assertEquals(isCoverageComplete(slot, mkAssignment(slot, 1)), false);
-  assertEquals(isCoverageComplete(slot, mkAssignment(slot, 2)), true);
+  const partial = mkAssignment(slot, [["protein"], ["carb"]]); // veg missing
+  assertEquals(isCoverageComplete(slot, partial), false);
 });
 
-Deno.test("isCoverageComplete: single-component slots do not require coverage components", () => {
+Deno.test("isCoverageComplete: returns true when components together cover expected", () => {
+  const slot = mkSlot({ structureTemplate: "main_plus_one_component" });
+  const complete = mkAssignment(slot, [["protein", "carb"], ["veg"]]);
+  assertEquals(isCoverageComplete(slot, complete), true);
+});
+
+Deno.test("isCoverageComplete: returns false when only a beverage fills the side slot", () => {
+  const slot = mkSlot({ structureTemplate: "main_plus_one_component" });
+  // main covers protein; beverage contributes nothing → carb + veg unmet
+  const beverageOnly = mkAssignment(slot, [["protein"], []]);
+  assertEquals(isCoverageComplete(slot, beverageOnly), false);
+});
+
+Deno.test("isCoverageComplete: single-component slots with no expected components are trivially complete", () => {
   const slot = mkSlot({
     canonicalMealType: "snack",
     displayMealLabel: "snack",
     structureTemplate: "single_component",
     expectedMealComponents: [],
   });
-  assertEquals(isCoverageComplete(slot, mkAssignment(slot, 1)), true);
+  assertEquals(isCoverageComplete(slot, mkAssignment(slot, [[]])), true);
 });
