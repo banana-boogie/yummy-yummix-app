@@ -50,11 +50,7 @@ export default function CustomCookingGuide() {
       eventService.logCookStart(recipe.id, recipe.name, 'user_recipes');
     }
 
-    if (recipe?.kitchenTools && recipe.kitchenTools.length > 0) {
-      router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-kitchen-tools', session));
-    } else {
-      router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-ingredients', session));
-    }
+    router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-ingredients', session));
   };
 
   if (loading) {
