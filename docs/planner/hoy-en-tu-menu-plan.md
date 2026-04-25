@@ -1,7 +1,7 @@
 # "Hoy en tu menú" — Implementation Plan
 
 **Status:** Draft. Do not build yet.
-**Gates:** Blocked on PR #2 (ranking core) + PR #4 (plan display + swap UX).
+**Gates:** Blocked on the ranking-core PR and the plan-display + swap-UX PR (both upcoming planner work, same author).
 **Source of truth:** `../product-kitchen/repeat-what-works/plans/01-meal-planner.md` § "Home Screen Pattern: Hoy en tu menú (Canonical)".
 
 ## 1. Intent
@@ -83,7 +83,7 @@ TodayHero must render gracefully for every state. No blank screens.
 | `loading` | `useMealPlan.isLoading === true` and no cached data | skeleton hero (photo block + 2 text bars + ghost CTA), no interaction |
 | `error` | `useMealPlan.isError === true` | inline error card with retry button; falls back to week link below |
 | `planned` | slot exists, `status === 'planned'` | full hero, "Cocinar esto" + "Cambiar" |
-| `cooked` | slot exists, `status === 'cooked'` | hero photo dimmed with checkmark badge, "Cocinada hoy", text-only "Ver receta otra vez" link, no "Cocinar esto", no "Cambiar". Persists for the rest of the calendar day. |
+| `cooked` | slot exists, `status === 'cooked'` | hero photo dimmed with checkmark badge, "Cocinada hoy", text-only "Ver receta otra vez" link, no "Cocinar esto", no "Cambiar". Persists for the rest of the calendar day so an accidental "marked cooked" tap can recover by re-opening the recipe. |
 | `skipped` | slot exists, `status === 'skipped'` | muted hero, "Cambiar" enabled, no "Cocinar esto" |
 | `noSlotToday` | active plan but no slot for today's primary meal | "Hoy no tienes nada planeado" message + prominent week link |
 | `noPlan` | no active plan | existing first-time / ready empty states (already built — TodayHero is not rendered) |
@@ -100,12 +100,12 @@ TodayHero must render gracefully for every state. No blank screens.
 - Optimistic mark-as-cooked happens in cooking guide on completion, not here.
 
 ### "Cambiar"
-- Opens `SwapMealSheet` (modal/bottom sheet, **shipped by PR #4**).
+- Opens `SwapMealSheet` (modal/bottom sheet, shipped by the upcoming swap-UX PR).
 - Shows 3 alternatives from the ranking engine.
 - Selection → local mutation via existing `swapMutation` in `useMealPlan`.
-- On success, hero re-renders with new slot. No re-approval. No shopping list regeneration (alternatives must be ingredient-compatible — that's a PR #4 contract, not a TodayHero concern).
+- On success, hero re-renders with new slot. No re-approval. No shopping list regeneration (alternatives must be ingredient-compatible — that's a swap-PR contract, not a TodayHero concern).
 
-**Hard dependency:** This plan assumes PR #4 ships swap as a reusable sheet/modal component, not just inline rows in the weekly grid. If PR #4 ships swap inline-only, TodayHero either inherits the inline list (worse UX, hero turns into a scroll surface) or this PR has to extract the sheet itself. Lock the swap-component contract before TodayHero starts.
+**Self-imposed constraint:** The swap-UX PR ships swap as a reusable `SwapMealSheet` component, not as inline rows inside the weekly grid only. Both surfaces (weekly grid + TodayHero) consume the same component. Decide this before building the swap PR; retrofitting an inline swap into a sheet costs more than designing the sheet up front.
 
 ### "Ver mi menú de la semana →"
 - Sets local `mode = 'week'`.
@@ -164,9 +164,9 @@ Defer to `06-analytics-and-metrics.md` for the canonical event names if they con
 
 ## 10. Open questions
 
-1. **Swap sheet contract:** PR #4 must define the alternatives payload shape. The hero's "Cambiar" depends on it being identical to the weekly grid's swap. Confirm before building.
-2. **Cooked-today persistence:** when a recipe is marked cooked, does the hero stay on the cooked card for the rest of the day, or reveal "no más por hoy"? Default: stay on cooked card with checkmark.
-3. **Time-of-day awareness:** if it's 9pm and dinner has been cooked, does tomorrow's meal show? Default: no — strictly today until midnight. Can revisit after first concierge cohort.
+1. **Swap sheet contract:** The swap-UX PR must define the alternatives payload shape, and `SwapMealSheet` must be a single reusable component consumed by both weekly grid and TodayHero. Resolved by self-imposed constraint in §6.
+2. **Cooked-today persistence:** Resolved — stay on cooked card with checkmark for the rest of the calendar day. Reason: protects against accidental mark-cooked taps (user re-opens recipe to undo or just verify).
+3. **Time-of-day awareness:** if it's 9pm and dinner has been cooked, does tomorrow's meal show? Default: no — strictly today until midnight. Revisit after first concierge cohort if users ask for it.
 
 ## 11. Sequencing
 
