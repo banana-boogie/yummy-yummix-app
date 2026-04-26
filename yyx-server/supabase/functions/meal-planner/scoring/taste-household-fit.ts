@@ -136,11 +136,18 @@ export function scoreTasteHouseholdFit(
   const favorite = familyFavoriteBoost(input);
   const household = householdComplexityFit(input);
 
+  // Session-intent signal (A5/A7) — currently 0 because no session-intent
+  // pipeline emits this yet. The 0.15 weight in TASTE_SUBWEIGHTS reserves
+  // the slot so the wiring is obvious once the chat orchestrator (or
+  // similar) starts passing intent into the planner.
+  const explicitIntent = 0;
+
   const norm = clamp01(
     TASTE_SUBWEIGHTS.recipeAffinity * pos01(recipeAff) +
       TASTE_SUBWEIGHTS.cuisineAffinity * pos01(cuisine.affinity) +
       TASTE_SUBWEIGHTS.proteinAffinity * pos01(protein) +
       TASTE_SUBWEIGHTS.mealTypeAffinity * pos01(mealType) +
+      TASTE_SUBWEIGHTS.explicitIntent * explicitIntent +
       TASTE_SUBWEIGHTS.familyFavorite * favorite -
       TASTE_SUBWEIGHTS.recentRepeatPenalty * repeat,
   );

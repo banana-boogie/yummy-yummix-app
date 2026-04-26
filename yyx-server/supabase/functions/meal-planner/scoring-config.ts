@@ -60,12 +60,20 @@ export const WEIGHT_TOTAL = 100;
 // (recipeAffinity through familyFavorite) sum to 1.0; recentRepeatPenalty is
 // subtracted, capping the worst-case raw value at -0.20 (clamped to 0 by the
 // outer clamp01).
+//
+// `explicitIntent` is the planned weight for a session-intent signal (e.g.
+// the chat orchestrator passing "user wants something light tonight" into
+// the planner via Track A5/A7). The signal isn't wired yet, so the factor
+// function multiplies by a hardcoded 0 — the slot is here so the wiring is
+// obvious when the signal lands, and 0.15 is the best-guess weight to use
+// then. Tune empirically once we have real session-intent data.
 export const TASTE_SUBWEIGHTS = {
-  recipeAffinity: 0.40,
+  recipeAffinity: 0.30,
   cuisineAffinity: 0.20,
   proteinAffinity: 0.15,
   mealTypeAffinity: 0.10,
-  familyFavorite: 0.15,
+  explicitIntent: 0.15,
+  familyFavorite: 0.10,
   recentRepeatPenalty: 0.20,
   recipeHistoryRating: 0.50,
   recipeHistoryCompletion: 0.30,
@@ -121,10 +129,16 @@ export const VARIETY_SUBWEIGHTS = {
 // ============================================================
 // Ingredient-overlap sub-weights (inside 15-point factor)
 // ============================================================
-
+//
+// Currently single-weight (weeklyOverlap = 1.0) — the previous pantryFriendly
+// subterm relied on a hardcoded global STAPLE_KEYS list which assumed every
+// kitchen has the same staples. That assumption biased scoring toward
+// recipes using common (US/Mexican) staples regardless of what any
+// particular user actually has on hand. Removed until per-user pantry
+// data exists (post-shopping-list track); reintroduce as a real per-user
+// signal at that point.
 export const INGREDIENT_OVERLAP_SUBWEIGHTS = {
-  weeklyOverlap: 0.55,
-  pantryFriendly: 0.45,
+  weeklyOverlap: 1.0,
 } as const;
 
 // ============================================================
