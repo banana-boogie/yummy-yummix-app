@@ -12,8 +12,9 @@
 -- migration. This file's TEXT[] declaration was a stop-gap, but it ran AFTER
 -- the seed (timestamp ordering) so it never actually fixed the reset path.
 --
--- Both this migration and its replacement use `IF NOT EXISTS`, so they're
--- safe no-ops in any environment where the column already exists.
+-- The replacement migration is now responsible for creating the enum, creating
+-- the column, or upgrading this stop-gap TEXT[] column to the enum-array shape.
+-- This file remains an `IF NOT EXISTS` no-op after that repair has run.
 --
 -- Date: 2026-04-15 (originally) / superseded note added 2026-04-25
 
