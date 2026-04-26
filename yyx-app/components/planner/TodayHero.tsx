@@ -16,11 +16,18 @@
  * `docs/planner/hoy-en-tu-menu-plan.md` for the full contract.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  forwardRef,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   AccessibilityInfo,
   Animated,
   Easing,
+  PixelRatio,
   Platform,
   Pressable,
   RefreshControl,
@@ -52,7 +59,14 @@ export type TodayHeroVariant =
   | 'cooked'
   | 'noUncookedToday'
   | 'skipped'
-  | 'noSlotToday';
+  | 'noSlotToday'
+  /**
+   * Internal variant: the slot is `planned`, plan is approved, but the primary
+   * component's recipeId is missing/null (e.g., recipe was deleted server-side).
+   * Renders like activePlanned but swaps the cook CTA for a "recipe unavailable"
+   * notice. Tracked in analytics so we can spot orphaned-slot regressions.
+   */
+  | 'recipeUnavailable';
 
 interface TodayHeroProps {
   plan: MealPlanResponse;
@@ -67,15 +81,18 @@ interface TodayHeroProps {
   onSwap: (slotId: string, reason?: string) => Promise<SwapMealResponse>;
 }
 
-export function TodayHero({
-  plan,
-  todaysSlots,
-  preferences,
-  onRefresh,
-  isRefreshing,
-  onSeeWeek,
-  onSwap,
-}: TodayHeroProps) {
+export const TodayHero = forwardRef<View, TodayHeroProps>(function TodayHero(
+  {
+    plan,
+    todaysSlots,
+    preferences,
+    onRefresh,
+    isRefreshing,
+    onSeeWeek,
+    onSwap,
+  }: TodayHeroProps,
+  ref,
+) {
   const { language, locale } = useLanguage();
 
   // Memoize selector output by slot id so downstream effects don't fire on
@@ -85,6 +102,14 @@ export function TodayHero({
     [todaysSlots, preferences, locale],
   );
 
+  // Derive `canCook` early — guards Cocinar esto / View again against deleted
+  // recipes (Lupita-readiness fail otherwise). See plan §F1.
+  const primaryComponent = useMemo(() => {
+    if (!slot) return null;
+    return slot.components.find((c) => c.isPrimary) ?? slot.components[0] ?? null;
+  }, [slot]);
+  const canCook = !!primaryComponent?.recipeId;
+
   const variant = useMemo<TodayHeroVariant>(() => {
     if (todaysSlots.length === 0 || slot == null) return 'noSlotToday';
     if (slot.status === 'skipped') return 'skipped';
@@ -93,8 +118,10 @@ export function TodayHero({
       return allCooked ? 'noUncookedToday' : 'cooked';
     }
     // status === 'planned'
-    return plan.shoppingListId == null ? 'draftPlanned' : 'activePlanned';
-  }, [todaysSlots, slot, plan.shoppingListId]);
+    if (plan.shoppingListId == null) return 'draftPlanned';
+    if (!canCook) return 'recipeUnavailable';
+    return 'activePlanned';
+  }, [todaysSlots, slot, plan.shoppingListId, canCook]);
 
   // Fire variant-render analytics once per variant change.
   useEffect(() => {
@@ -114,11 +141,16 @@ export function TodayHero({
     eventService.logPlannerSwapPress({ slotId: slot.id });
     setSwapVisible(true);
   };
-  const handlePickAlternative = (newSlotId: string) => {
+  const handlePickAlternative = ({
+    newRecipeId,
+  }: {
+    slotId: string;
+    newRecipeId: string | null;
+  }) => {
     if (!slot) return;
     eventService.logPlannerSwapComplete({
       slotId: slot.id,
-      newRecipeId: newSlotId,
+      newRecipeId,
     });
   };
 
@@ -137,9 +169,8 @@ export function TodayHero({
 
   const handleViewRecipeAgain = () => {
     if (!slot) return;
-    const primary =
-      slot.components.find((c) => c.isPrimary) ?? slot.components[0];
-    if (primary?.recipeId) router.push(`/recipes/${primary.recipeId}` as never);
+    if (primaryComponent?.recipeId)
+      router.push(`/recipes/${primaryComponent.recipeId}` as never);
   };
 
   // ---- Date heading ----
@@ -164,6 +195,8 @@ export function TodayHero({
         contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingBottom: 32 }}
         refreshControl={refreshControl}
       >
+        {/* Inner wrapper anchors a11y focus when toggling from week→today. */}
+        <View ref={ref} accessible>
         {/* Heading */}
         {variant !== 'noSlotToday' && (
           <View className="mt-md mb-md">
@@ -181,6 +214,7 @@ export function TodayHero({
             <HeroCard
               variant={variant}
               slot={slot}
+              canCook={canCook}
               onCook={handleCook}
               onSwap={handleOpenSwap}
               onSeeMyMenu={onSeeWeek}
@@ -211,6 +245,7 @@ export function TodayHero({
             </Pressable>
           </View>
         )}
+        </View>
       </ScrollView>
 
       <SwapMealSheet
@@ -226,7 +261,7 @@ export function TodayHero({
       />
     </>
   );
-}
+});
 
 // =============================================================================
 // HeroCard — variants that render as a card
@@ -235,6 +270,7 @@ export function TodayHero({
 interface HeroCardProps {
   variant: Exclude<TodayHeroVariant, 'noSlotToday'>;
   slot: MealPlanSlotResponse;
+  canCook: boolean;
   onCook: () => void;
   onSwap: () => void;
   onSeeMyMenu: () => void;
@@ -244,6 +280,7 @@ interface HeroCardProps {
 function HeroCard({
   variant,
   slot,
+  canCook,
   onCook,
   onSwap,
   onSeeMyMenu,
@@ -254,6 +291,11 @@ function HeroCard({
   const title = primary?.title ?? i18n.t('planner.card.untitled');
   const isCookedVariant = variant === 'cooked' || variant === 'noUncookedToday';
   const isSkipped = variant === 'skipped';
+
+  // Per design §7: allow up to 3 lines of recipe title at scaled fonts (≥1.3×)
+  // before clipping. At default scale we keep 2 to preserve hero rhythm.
+  const fontScale = PixelRatio.getFontScale();
+  const titleLines = fontScale >= 1.3 ? 3 : 2;
 
   const meta: string[] = [];
   if (primary?.portions != null) {
@@ -299,13 +341,17 @@ function HeroCard({
 
         <Text
           preset="h2"
-          numberOfLines={2}
+          numberOfLines={titleLines}
           style={isSkipped ? { opacity: 0.6 } : undefined}
         >
           {title}
         </Text>
 
         {meta.length > 0 && !isCookedVariant && (
+          // numberOfLines={1} keeps the meta row from wrapping. Custom Text
+          // doesn't pass through adjustsFontSizeToFit; at very large font
+          // scales the meta will truncate with an ellipsis. Acceptable per
+          // design §7 — caller is the canonical Text component.
           <Text
             preset="bodySmall"
             className="mt-xxs text-text-default"
@@ -320,6 +366,12 @@ function HeroCard({
         {variant === 'activePlanned' && (
           <>
             <View className="mt-lg">
+              {/*
+                NOTE: Button does not currently expose adjustsFontSizeToFit on its
+                inner Text. At very large font scales (>=1.5x) on narrow devices
+                the CTA copy may clip. Tracked as a follow-up to extend Button
+                rather than rebuild it here. See design §7.
+              */}
               <Button
                 variant="primary"
                 size="large"
@@ -332,6 +384,28 @@ function HeroCard({
               </Button>
             </View>
             <ChangeTextButton onPress={onSwap} />
+          </>
+        )}
+
+        {variant === 'recipeUnavailable' && (
+          <>
+            <View className="bg-grey-light rounded-md p-md mt-lg">
+              <Text preset="bodySmall" className="text-text-secondary">
+                {i18n.t('planner.today.recipeUnavailable')}
+              </Text>
+            </View>
+            <View className="mt-lg">
+              <Button
+                variant="outline"
+                size="large"
+                onPress={onSwap}
+                fullWidth
+                style={{ minHeight: 72 }}
+                accessibilityLabel={i18n.t('planner.today.change')}
+              >
+                {i18n.t('planner.today.change')}
+              </Button>
+            </View>
           </>
         )}
 
@@ -387,7 +461,7 @@ function HeroCard({
           </>
         )}
 
-        {(variant === 'cooked' || variant === 'noUncookedToday') && (
+        {(variant === 'cooked' || variant === 'noUncookedToday') && canCook && (
           <Pressable
             onPress={onViewRecipeAgain}
             accessibilityRole="link"

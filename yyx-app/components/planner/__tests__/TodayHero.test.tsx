@@ -26,6 +26,7 @@ jest.mock('expo-router', () => ({
 const mockLogTodayView = jest.fn();
 const mockLogCookPress = jest.fn();
 const mockLogSwapPress = jest.fn();
+const mockLogSwapComplete = jest.fn();
 const mockLogWeekLink = jest.fn();
 const mockLogPullRefresh = jest.fn();
 jest.mock('@/services/eventService', () => ({
@@ -33,7 +34,7 @@ jest.mock('@/services/eventService', () => ({
     logPlannerTodayView: (p: unknown) => mockLogTodayView(p),
     logPlannerCookPress: (p: unknown) => mockLogCookPress(p),
     logPlannerSwapPress: (p: unknown) => mockLogSwapPress(p),
-    logPlannerSwapComplete: jest.fn(),
+    logPlannerSwapComplete: (p: unknown) => mockLogSwapComplete(p),
     logPlannerWeekLinkPress: () => mockLogWeekLink(),
     logPlannerPullToRefresh: () => mockLogPullRefresh(),
   },
@@ -255,6 +256,41 @@ describe('TodayHero', () => {
     fireEvent.press(screen.getByText('See my menu for the week →'));
     expect(onSeeWeek).toHaveBeenCalled();
     expect(mockLogWeekLink).toHaveBeenCalled();
+  });
+
+  it('renders recipeUnavailable variant when primary recipeId is null', () => {
+    const slot = buildSlot({ id: 's1', mealType: 'lunch' });
+    // Null out recipeId to simulate a deleted/orphaned recipe.
+    slot.components[0].recipeId = null;
+    const plan = buildPlan('shop-1', [slot]);
+    renderWithProviders(
+      <TodayHero {...baseProps} plan={plan} todaysSlots={[slot]} />,
+    );
+
+    expect(
+      screen.getByText('This recipe is no longer available.'),
+    ).toBeTruthy();
+    expect(screen.queryByText('Cook this')).toBeNull();
+    // Change CTA still available so user has an exit.
+    expect(screen.getByText('Change')).toBeTruthy();
+    expect(mockLogTodayView).toHaveBeenCalledWith({
+      variant: 'recipeUnavailable',
+    });
+  });
+
+  it('omits "View recipe again" link when cooked slot has no recipeId', () => {
+    const slot1 = buildSlot({
+      id: 's1',
+      mealType: 'lunch',
+      status: 'cooked',
+    });
+    slot1.components[0].recipeId = null;
+    const plan = buildPlan('shop-1', [slot1]);
+    renderWithProviders(
+      <TodayHero {...baseProps} plan={plan} todaysSlots={[slot1]} />,
+    );
+
+    expect(screen.queryByText('View recipe again')).toBeNull();
   });
 
   it('opens swap sheet when Change is tapped', () => {
