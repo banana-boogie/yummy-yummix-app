@@ -11,6 +11,9 @@ import type { ChatMessage, RequestContext } from "./types.ts";
 import { detectMealContext } from "./meal-context.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import type { CookingContext } from "./system-prompt.ts";
+import { loadPlanContext, type PlanContext } from "./plan-context.ts";
+
+export type { PlanContext };
 
 /**
  * Build request context: user profile, conversation history, and message array.
@@ -21,9 +24,13 @@ export async function buildRequestContext(
   sessionId: string | undefined,
   message: string,
   cookingContext?: CookingContext,
+  todayLocalDate?: string,
 ): Promise<RequestContext> {
   const contextBuilder = createContextBuilder(supabase);
-  const userContext = await contextBuilder.buildContext(userId, sessionId);
+  const [userContext, planContext] = await Promise.all([
+    contextBuilder.buildContext(userId, sessionId),
+    loadPlanContext(supabase, userId, todayLocalDate),
+  ]);
 
   // Detect meal context from user message
   const mealContext = detectMealContext(message);
@@ -32,6 +39,7 @@ export async function buildRequestContext(
     userContext,
     mealContext,
     cookingContext,
+    planContext,
   );
 
   // Build message array from conversation history.
@@ -58,5 +66,5 @@ export async function buildRequestContext(
     { role: "user", content: message },
   ];
 
-  return { userContext, messages };
+  return { userContext, messages, planContext };
 }

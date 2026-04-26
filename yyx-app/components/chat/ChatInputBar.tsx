@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import {
     View,
     TextInput,
@@ -128,7 +128,11 @@ interface ChatInputBarProps {
     disabledMessage?: string;
 }
 
-export function ChatInputBar({
+export interface ChatInputBarHandle {
+    focus: () => void;
+}
+
+export const ChatInputBar = forwardRef<ChatInputBarHandle, ChatInputBarProps>(function ChatInputBar({
     inputText,
     setInputText,
     isLoading,
@@ -140,9 +144,14 @@ export function ChatInputBar({
     bottomInset,
     disabled,
     disabledMessage,
-}: ChatInputBarProps) {
+}, ref) {
     const hasText = inputText.trim().length > 0;
     const isNative = Platform.OS !== 'web';
+    const inputRef = useRef<TextInput>(null);
+
+    useImperativeHandle(ref, () => ({
+        focus: () => inputRef.current?.focus(),
+    }), []);
 
     return (
         <View
@@ -157,6 +166,7 @@ export function ChatInputBar({
                 style={{ paddingHorizontal: SPACING.sm }}
             >
                 <TextInput
+                    ref={inputRef}
                     className="flex-1 bg-background-secondary rounded-xl text-base text-text-primary"
                     style={{ minHeight: SPACING.xxl, maxHeight: 120, paddingLeft: SPACING.md + 2, paddingRight: SPACING.sm, paddingTop: SPACING.sm, paddingBottom: SPACING.xs, opacity: disabled ? 0.5 : 1 }}
                     value={inputText}
@@ -181,4 +191,4 @@ export function ChatInputBar({
             </View>
         </View>
     );
-}
+});

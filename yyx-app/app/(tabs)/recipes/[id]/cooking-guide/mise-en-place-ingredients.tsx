@@ -57,7 +57,11 @@ export default function IngredientsStep() {
   };
 
   const handleNext = () => {
-    router.push(`/(tabs)/recipes/${id}/cooking-guide/1`);
+    if (recipe?.kitchenTools && recipe.kitchenTools.length > 0) {
+      router.push(`/(tabs)/recipes/${id}/cooking-guide/mise-en-place-kitchen-tools`);
+    } else {
+      router.push(`/(tabs)/recipes/${id}/cooking-guide/1`);
+    }
   };
 
   return (

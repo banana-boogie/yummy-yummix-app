@@ -293,6 +293,7 @@ export function useMessageStreaming({
                             customRecipe: hasRecipeData ? response.customRecipe : msg.customRecipe,
                             safetyFlags: hasRecipeData ? response.safetyFlags : msg.safetyFlags,
                             actions: response.actions,
+                            suggestions: response.suggestions,
                         };
                     });
 
@@ -310,6 +311,14 @@ export function useMessageStreaming({
                                 viewPosition: 0,
                                 animated: true,
                             });
+                        }, SCROLL_DELAY_MS);
+                    } else if (response.suggestions?.length || response.actions?.length) {
+                        // Suggestion chips / action buttons render after the bubble and
+                        // grow content height post-stream. Force a follow-up scroll so
+                        // the bottom of the message stays visible.
+                        isNearBottomRef.current = true;
+                        setTimeout(() => {
+                            scrollToEndThrottled(true);
                         }, SCROLL_DELAY_MS);
                     }
 

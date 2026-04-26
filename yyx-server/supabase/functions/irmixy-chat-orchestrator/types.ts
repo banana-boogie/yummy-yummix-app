@@ -29,6 +29,7 @@ export interface ToolCall {
 export interface RequestContext {
   userContext: import("../_shared/irmixy-schemas.ts").UserContext;
   messages: ChatMessage[];
+  planContext?: import("./plan-context.ts").PlanContext | null;
 }
 
 export interface ToolExecutionResult {

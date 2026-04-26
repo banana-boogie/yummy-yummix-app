@@ -93,6 +93,14 @@ function formatRecipeForSharing(recipe: GeneratedRecipe): string {
 }
 
 const ACTION_HANDLERS: Record<string, ActionHandler> = {
+    // Planner actions — schema-accepted but not yet wired to navigation/UX.
+    // No-op on purpose so the backend can emit them before the planner UI lands.
+    view_in_planner: {
+        execute: () => false,
+    },
+    add_to_shopping_list: {
+        execute: () => false,
+    },
     view_recipe: {
         execute: (payload) => {
             const recipeId = payload.recipeId as string;

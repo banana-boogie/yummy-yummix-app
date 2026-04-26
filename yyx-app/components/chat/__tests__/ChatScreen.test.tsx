@@ -139,6 +139,9 @@ jest.mock('@/services/eventService', () => ({
 const mockInvalidateQueries = jest.fn().mockResolvedValue(undefined);
 jest.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
+  // Minimal stub so components using useQuery (e.g. useActivePlan via
+  // IrmixyHomeActions) render without a QueryClientProvider.
+  useQuery: () => ({ data: undefined, isLoading: false, error: null }),
 }));
 
 // Mock markdown

@@ -141,6 +141,8 @@ export interface ChatMessageItemProps {
     onCopyMessage: (content: string) => void;
     onStartCooking: (recipe: GeneratedRecipe, finalName: string, messageId: string, savedRecipeId?: string) => Promise<void>;
     onActionPress: (action: Action, messageId: string) => void;
+    /** Called when the user taps a suggestion chip. Only rendered on the last assistant message. */
+    onSuggestionPress?: (message: string) => void;
 }
 
 export const ChatMessageItem = memo(function ChatMessageItem({
@@ -154,6 +156,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
     onCopyMessage,
     onStartCooking,
     onActionPress,
+    onSuggestionPress,
 }: ChatMessageItemProps) {
     const isUser = item.role === 'user';
     const showRecipeTracker = !isUser && isRecipeGenerating && !item.customRecipe && isLastMessage;
@@ -243,6 +246,22 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                 </View>
             )}
 
+            {/* Suggestion chips (hard-coded follow-ups, only on the last assistant message) */}
+            {!isUser && isLastMessage && !isLoading && item.suggestions && item.suggestions.length > 0 && onSuggestionPress && (
+                <View className="mt-xs flex-row flex-wrap gap-xs">
+                    {item.suggestions.map((suggestion, idx) => (
+                        <TouchableOpacity
+                            key={`${item.id}-suggestion-${idx}`}
+                            onPress={() => onSuggestionPress(suggestion.message)}
+                            activeOpacity={0.7}
+                            className="bg-primary-lightest rounded-full px-md py-xs border border-primary-default"
+                        >
+                            <Text className="text-text-default text-sm">{suggestion.label}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            )}
+
             {/* Action buttons */}
             {!isUser && item.actions && item.actions.length > 0 && (
                 <View className="mt-xs gap-xs">
@@ -264,6 +283,8 @@ export const ChatMessageItem = memo(function ChatMessageItem({
     if (prev.item.recipes !== next.item.recipes) return false;
     if (prev.item.customRecipe !== next.item.customRecipe) return false;
     if (prev.item.actions !== next.item.actions) return false;
+    if (prev.item.suggestions !== next.item.suggestions) return false;
+    if (prev.onSuggestionPress !== next.onSuggestionPress) return false;
     if (prev.item.savedRecipeId !== next.item.savedRecipeId) return false;
     if (prev.item.safetyFlags !== next.item.safetyFlags) return false;
     if (prev.isLastMessage !== next.isLastMessage) return false;

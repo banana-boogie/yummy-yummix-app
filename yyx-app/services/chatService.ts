@@ -23,6 +23,8 @@ export interface ChatMessage {
     customRecipe?: GeneratedRecipe;
     safetyFlags?: SafetyFlags;
     actions?: Action[];
+    /** Hard-coded follow-up chips provided by the backend (never LLM-generated). */
+    suggestions?: import('@/types/irmixy').Suggestion[];
     // Error state flag for styling error messages
     hasError?: boolean;
     // ID of the saved custom recipe (to avoid duplicate saves)
@@ -370,9 +372,16 @@ export function sendMessage(
 
                 // Wrap connection in Promise to handle retry logic
                 await new Promise<void>((resolveConnection, rejectConnection) => {
+                    // Local calendar date (YYYY-MM-DD) in the user's timezone.
+                    // Server uses this to filter `nextMeal` so evening users in
+                    // UTC-negative zones (e.g. Mexico) don't skip same-day dinner.
+                    // `en-CA` locale reliably formats as YYYY-MM-DD.
+                    const todayLocalDate = new Date().toLocaleDateString('en-CA');
+
                     const requestBody: Record<string, unknown> = {
                         message,
                         sessionId,
+                        todayLocalDate,
                         ...(options?.cookingContext ? { cookingContext: options.cookingContext } : {}),
                     };
 
@@ -562,6 +571,9 @@ export async function loadChatHistory(sessionId: string): Promise<ChatMessage[]>
             if (toolCalls.actions) {
                 message.actions = toolCalls.actions as Action[];
             }
+            if (toolCalls.suggestions) {
+                message.suggestions = toolCalls.suggestions as import('@/types/irmixy').Suggestion[];
+            }
         }
 
         return message;
@@ -692,6 +704,7 @@ export async function saveVoiceTranscript(
             ...(msg.customRecipe ? { customRecipe: msg.customRecipe } : {}),
             ...(msg.safetyFlags ? { safetyFlags: msg.safetyFlags } : {}),
             ...(msg.actions ? { actions: msg.actions } : {}),
+            ...(msg.suggestions ? { suggestions: msg.suggestions } : {}),
         }));
 
         const response = await fetch(

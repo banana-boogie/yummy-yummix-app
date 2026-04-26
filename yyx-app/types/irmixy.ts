@@ -17,7 +17,16 @@ export interface RecipeCard {
 
 export interface Action {
   id: string;
-  type: 'start_cooking' | 'view_recipe' | 'save_recipe' | 'set_timer' | 'resume_cooking' | 'share_recipe';
+  type:
+    | 'start_cooking'
+    | 'view_recipe'
+    | 'save_recipe'
+    | 'set_timer'
+    | 'resume_cooking'
+    | 'share_recipe'
+    // Planner actions — accepted by the schema; frontend no-ops until wired.
+    | 'view_in_planner'
+    | 'add_to_shopping_list';
   label: string;
   payload: Record<string, unknown>;
   autoExecute?: boolean;

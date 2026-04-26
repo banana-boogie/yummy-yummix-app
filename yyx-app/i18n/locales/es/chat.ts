@@ -161,6 +161,16 @@ export const chat = {
     view_recipe: "Ver Receta",
     shared: "¡Receta compartida!",
   },
+  // Home actions (chat empty state, planner-aware)
+  homeActions: {
+    startWeek: "Empezar mi menú",
+    whatToCook: "¿Qué cocino?",
+    whatToCookMessage: "¿Qué debería cocinar esta noche?",
+    useIngredients: "¿Qué puedo hacer con...?",
+    useIngredientsPlaceholder: "¿Qué puedo hacer con ",
+    whatsOnWeek: "¿Qué hay en mi menú?",
+    whatsOnWeekMessage: "¿Qué hay en mi menú?",
+  },
   // Replay / retrieval
   replay: {
     foundOne: "¡Lo encontré! Aquí está tu receta.",

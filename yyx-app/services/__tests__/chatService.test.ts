@@ -125,6 +125,40 @@ describe('chatService', () => {
       expect(result[1].safetyFlags).toEqual(safetyFlags);
     });
 
+    it('rehydrates suggestion chips from tool_calls', async () => {
+      const suggestions = [
+        { label: 'Plan my week', message: 'Help me plan my week' },
+        { label: 'What should I cook tonight?', message: 'What should I cook tonight?' },
+      ];
+      const mockMessages = [
+        createMockChatMessage({
+          role: 'assistant',
+          content: 'Here are some ideas.',
+          tool_calls: { suggestions },
+        }),
+      ];
+
+      const mockSessionChain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: { id: 'session-s' }, error: null }),
+      };
+      const mockMessagesChain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: mockMessages, error: null }),
+      };
+      (supabase.from as jest.Mock).mockImplementation((table: string) => {
+        if (table === 'ai_chat_sessions') return mockSessionChain;
+        return mockMessagesChain;
+      });
+
+      const result = await loadChatHistory('session-s');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].suggestions).toEqual(suggestions);
+    });
+
     it('handles empty session', async () => {
       const mockSessionChain = {
         select: jest.fn().mockReturnThis(),

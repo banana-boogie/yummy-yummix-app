@@ -72,7 +72,7 @@ export default function KitchenToolsStep() {
                         </View>
                         <StepNavigationButtons
                             onBack={() => router.back()}
-                            onNext={() => router.push(`/(tabs)/recipes/${id}/cooking-guide/mise-en-place-ingredients`)}
+                            onNext={() => router.push(`/(tabs)/recipes/${id}/cooking-guide/1`)}
                             backText={i18n.t('recipes.cookingGuide.navigation.back')}
                             nextText={i18n.t('recipes.cookingGuide.navigation.next')}
                         />

@@ -65,7 +65,11 @@ export default function CustomIngredientsStep() {
   };
 
   const handleNext = () => {
-    router.push(getCustomCookingGuidePath(id as string, from, '1', session));
+    if (recipe?.kitchenTools && recipe.kitchenTools.length > 0) {
+      router.push(getCustomCookingGuidePath(id as string, from, 'mise-en-place-kitchen-tools', session));
+    } else {
+      router.push(getCustomCookingGuidePath(id as string, from, '1', session));
+    }
   };
 
   return (
