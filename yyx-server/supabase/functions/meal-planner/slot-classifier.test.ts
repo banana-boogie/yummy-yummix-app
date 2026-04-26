@@ -10,7 +10,7 @@ Deno.test("classifySlots: weekday cook slots have cook_slot kind", () => {
     dayIndexes: [0, 1, 2],
     mealTypes: ["dinner"],
     busyDays: [],
-    preferLeftoversForLunch: false,
+    autoLeftovers: false,
     locale: "en",
   });
   assertEquals(result.slots.length, 3);
@@ -29,7 +29,7 @@ Deno.test("classifySlots: comida maps to lunch but displays as comida for es", (
     dayIndexes: [0],
     mealTypes: ["comida"],
     busyDays: [],
-    preferLeftoversForLunch: false,
+    autoLeftovers: false,
     locale: "es",
   });
   assertEquals(result.slots.length, 1);
@@ -43,7 +43,7 @@ Deno.test("classifySlots: expected meal components reflect slot requirement", ()
     dayIndexes: [0],
     mealTypes: ["dinner", "snack"],
     busyDays: [],
-    preferLeftoversForLunch: false,
+    autoLeftovers: false,
     locale: "en",
   });
   const dinner = result.slots.find((s) => s.canonicalMealType === "dinner");
@@ -61,7 +61,7 @@ Deno.test("classifySlots: weekend days produce weekend_flexible_slot", () => {
     dayIndexes: [4, 5, 6],
     mealTypes: ["dinner"],
     busyDays: [],
-    preferLeftoversForLunch: false,
+    autoLeftovers: false,
     locale: "en",
   });
   assertEquals(result.slots[0].slotKind, "cook_slot");
@@ -75,7 +75,7 @@ Deno.test("classifySlots: busy day with valid prior source becomes leftover_targ
     dayIndexes: [0, 1],
     mealTypes: ["dinner"],
     busyDays: [1],
-    preferLeftoversForLunch: false,
+    autoLeftovers: false,
     locale: "en",
   });
   assertEquals(result.slots.length, 2);
@@ -99,34 +99,112 @@ Deno.test("classifySlots: busy day without prior source reverts to cook_slot (is
     dayIndexes: [0],
     mealTypes: ["dinner"],
     busyDays: [0],
-    preferLeftoversForLunch: false,
+    autoLeftovers: false,
     locale: "en",
   });
   assertEquals(result.slots[0].slotKind, "cook_slot");
   assertEquals(result.slots[0].isBusyDay, true);
 });
 
-Deno.test("classifySlots: prefer_leftovers_for_lunch turns lunch after dinner into leftover_target_slot", () => {
+Deno.test("classifySlots: autoLeftovers=true makes same-day dinner a leftover_target sourced from same-day lunch (comida → cena recalentado)", () => {
+  // The classic Mexican comida → cena pattern: comida (lunch) is the main
+  // hot meal, cena (dinner) is recalentado from comida the same day.
   const result = classifySlots({
     weekStart: "2026-04-13",
-    dayIndexes: [0, 1],
-    mealTypes: ["dinner", "lunch"],
+    dayIndexes: [0],
+    mealTypes: ["lunch", "dinner"],
     busyDays: [],
-    preferLeftoversForLunch: true,
-    locale: "en",
+    autoLeftovers: true,
+    locale: "es-MX",
   });
-  // Order returned is sorted by meal-type priority: lunch before dinner per day.
-  // Day 0 lunch has no prior source, so it stays as cook_slot.
-  // Day 1 lunch has day 0 dinner as source → leftover_target.
-  const d1lunch = result.slots.find(
-    (s) => s.dayIndex === 1 && s.canonicalMealType === "lunch",
+
+  const d0lunch = result.slots.find(
+    (s) => s.dayIndex === 0 && s.canonicalMealType === "lunch",
   );
   const d0dinner = result.slots.find(
     (s) => s.dayIndex === 0 && s.canonicalMealType === "dinner",
   );
-  assertEquals(d1lunch?.slotKind, "leftover_target_slot");
-  assertEquals(d1lunch?.sourceDependencySlotId, d0dinner?.slotId);
-  assertEquals(d0dinner?.feedsFutureLeftoverTarget, true);
+
+  // Lunch is the source (no prior slot to source from).
+  assertEquals(d0lunch?.slotKind, "cook_slot");
+  // Dinner becomes the leftover_target sourced from the same-day lunch.
+  assertEquals(d0dinner?.slotKind, "leftover_target_slot");
+  assertEquals(d0dinner?.sourceDependencySlotId, d0lunch?.slotId);
+  assertEquals(d0lunch?.feedsFutureLeftoverTarget, true);
+});
+
+Deno.test("classifySlots: autoLeftovers=true claims each source at most once", () => {
+  // Day 0: lunch + dinner (lunch sources dinner, claim 0-lunch).
+  // Day 1: lunch + dinner (1-lunch is fresh source for 1-dinner).
+  // 0-lunch should not also be claimed as 1-lunch's source — it's a day older
+  // AND already claimed.
+  const result = classifySlots({
+    weekStart: "2026-04-13",
+    dayIndexes: [0, 1],
+    mealTypes: ["lunch", "dinner"],
+    busyDays: [],
+    autoLeftovers: true,
+    locale: "en",
+  });
+
+  const counts = result.slots.reduce(
+    (acc, s) => {
+      acc[s.slotKind] = (acc[s.slotKind] ?? 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+  // 2 cook (the two lunches that are sources) + 2 leftover_target (the two dinners).
+  assertEquals(counts.cook_slot, 2);
+  assertEquals(counts.leftover_target_slot, 2);
+
+  const d0dinner = result.slots.find(
+    (s) => s.dayIndex === 0 && s.canonicalMealType === "dinner",
+  );
+  const d1dinner = result.slots.find(
+    (s) => s.dayIndex === 1 && s.canonicalMealType === "dinner",
+  );
+  const d0lunch = result.slots.find(
+    (s) => s.dayIndex === 0 && s.canonicalMealType === "lunch",
+  );
+  const d1lunch = result.slots.find(
+    (s) => s.dayIndex === 1 && s.canonicalMealType === "lunch",
+  );
+  assertEquals(d0dinner?.sourceDependencySlotId, d0lunch?.slotId);
+  assertEquals(d1dinner?.sourceDependencySlotId, d1lunch?.slotId);
+});
+
+Deno.test("classifySlots: autoLeftovers=false leaves all non-busy slots as cook_slot", () => {
+  const result = classifySlots({
+    weekStart: "2026-04-13",
+    dayIndexes: [0, 1],
+    mealTypes: ["lunch", "dinner"],
+    busyDays: [],
+    autoLeftovers: false,
+    locale: "en",
+  });
+  for (const slot of result.slots) {
+    assertEquals(slot.slotKind, "cook_slot");
+  }
+});
+
+Deno.test("classifySlots: autoLeftovers=true does NOT make breakfast a leftover_target", () => {
+  // Breakfast / snack / dessert / beverage are excluded from leftover-target
+  // eligibility — only lunch and dinner cook slots can be targets.
+  const result = classifySlots({
+    weekStart: "2026-04-13",
+    dayIndexes: [0, 1],
+    mealTypes: ["breakfast", "dinner"],
+    busyDays: [],
+    autoLeftovers: true,
+    locale: "en",
+  });
+  const d1breakfast = result.slots.find(
+    (s) => s.dayIndex === 1 && s.canonicalMealType === "breakfast",
+  );
+  // Even though day 0 dinner exists as a potential source, day 1 breakfast
+  // is not a leftover candidate.
+  assertEquals(d1breakfast?.slotKind, "cook_slot");
 });
 
 Deno.test("classifySlots: planning order puts sources first, leftover targets last", () => {
@@ -135,7 +213,7 @@ Deno.test("classifySlots: planning order puts sources first, leftover targets la
     dayIndexes: [0, 1, 5],
     mealTypes: ["dinner"],
     busyDays: [1],
-    preferLeftoversForLunch: false,
+    autoLeftovers: false,
     locale: "en",
   });
   // day 0 cook_slot (source for day 1), day 5 weekend, day 1 leftover_target

@@ -84,7 +84,7 @@ function baseInput(
       ingredientDislikes: [],
       cuisinePreferences: [],
       nutritionGoal: "no_preference",
-      preferLeftoversForLunch: false,
+      autoLeftovers: false,
       defaultMaxWeeknightMinutes: 45,
       implicitPreferences: new Map(),
       evidenceWeeks: 5,

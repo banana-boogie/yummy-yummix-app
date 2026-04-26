@@ -17,12 +17,12 @@ Deno.test("renderSelectionReason: busy_day_leftovers in English", () => {
   assertStringIncludes(text, "Tuesday");
 });
 
-Deno.test("renderSelectionReason: busy_day_leftovers in Spanish", () => {
+Deno.test("renderSelectionReason: busy_day_leftovers in Spanish uses recalentado framing", () => {
   const text = renderSelectionReason("busy_day_leftovers", "es", {
     dayLabel: "martes",
     sourceTitle: "Pollo asado",
   });
-  assertStringIncludes(text, "sobras");
+  assertStringIncludes(text, "Recalentado");
   assertStringIncludes(text, "Pollo asado");
   assertStringIncludes(text, "martes");
 });

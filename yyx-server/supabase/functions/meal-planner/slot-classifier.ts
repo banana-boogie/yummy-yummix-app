@@ -7,7 +7,10 @@
  *   - weekend detection (Sat/Sun → weekend_flexible_slot)
  *   - busy-day → leftover_target_slot (downgrades to cook_slot when no valid
  *     source exists in the preceding cookable schedule)
- *   - prefer_leftovers_for_lunch lunch-after-dinner chaining
+ *   - auto_leftovers: when true (default), both lunch AND dinner cook slots
+ *     can be satisfied by leftovers from any prior lunch/dinner cook slot
+ *     within the existing 24h source window — matches Mexican
+ *     comida-recalentado culture
  *   - dependency-aware planning order
  *
  * Spec: ranking-algorithm-detail.md §1
@@ -38,7 +41,14 @@ export interface SlotClassificationInput {
   dayIndexes: number[];
   mealTypes: string[]; // raw, may include 'comida'
   busyDays: number[];
-  preferLeftoversForLunch: boolean;
+  /**
+   * When true (default), lunch and dinner cook slots become leftover-target
+   * candidates whenever a prior lunch/dinner cook slot exists within the
+   * 24h source window. The fallback path (target → cook_slot at runtime
+   * when no source produces leftovers) handles "source recipe wasn't
+   * leftovers-friendly" automatically.
+   */
+  autoLeftovers: boolean;
   locale: string;
 }
 
@@ -129,8 +139,9 @@ function expectedMealComponentsForTemplate(
  *   3. For busy days:
  *        - if a valid previous dinner/lunch cookable slot exists → leftover_target_slot
  *        - otherwise → cook_slot
- *   4. For prefer_leftovers_for_lunch: lunch adjacent to preceding dinner
- *      becomes leftover_target_slot.
+ *   4. For autoLeftovers (default true): lunch AND dinner cook slots become
+ *      leftover_target candidates whenever a valid prior lunch/dinner source
+ *      exists in the 24h window. Sources are claimed at most once.
  *   5. Emit dependency-aware planning order.
  */
 export function classifySlots(
@@ -181,7 +192,8 @@ export function classifySlots(
         isBusyDay,
         isWeekend,
         prefersLeftovers: isBusyDay ||
-          (input.preferLeftoversForLunch && canonical === "lunch"),
+          (input.autoLeftovers &&
+            (canonical === "lunch" || canonical === "dinner")),
         feedsFutureLeftoverTarget: false,
         structureTemplate,
         expectedMealComponents: expectedMealComponentsForTemplate(
@@ -191,7 +203,7 @@ export function classifySlots(
     }
   }
 
-  resolveLeftoverDependencies(slots, input.preferLeftoversForLunch);
+  resolveLeftoverDependencies(slots, input.autoLeftovers);
   markLeftoverSourceSlots(slots);
 
   return {
@@ -216,19 +228,28 @@ export function classifySlots(
  */
 function resolveLeftoverDependencies(
   slots: MealSlot[],
-  preferLeftoversForLunch: boolean,
+  autoLeftovers: boolean,
 ): void {
+  // Track which sources have already been claimed by an earlier target so
+  // one source slot doesn't get assigned to two downstream leftover slots.
+  // Keyed by source slot index.
+  const claimedSources = new Set<number>();
+
   for (let i = 0; i < slots.length; i++) {
     const target = slots[i];
+    // Three paths into "this slot might become a leftover_target_slot":
+    //   1. Already classified as leftover_target_slot (busy day)
+    //   2. autoLeftovers + lunch/dinner cook slot (the new broader case)
     const isLeftoverCandidate = target.slotKind === "leftover_target_slot" ||
-      (preferLeftoversForLunch &&
-        target.canonicalMealType === "lunch" &&
+      (autoLeftovers &&
+        (target.canonicalMealType === "lunch" ||
+          target.canonicalMealType === "dinner") &&
         !target.isBusyDay &&
         target.slotKind === "cook_slot");
 
     if (!isLeftoverCandidate) continue;
 
-    const sourceIdx = findPrecedingSourceIndex(slots, i);
+    const sourceIdx = findPrecedingSourceIndex(slots, i, claimedSources);
     if (sourceIdx === -1) {
       // No valid source — revert to a plain cook_slot. Busy-day bias still
       // applies via `isBusyDay` in the scoring layer.
@@ -240,6 +261,7 @@ function resolveLeftoverDependencies(
 
     target.slotKind = "leftover_target_slot";
     target.sourceDependencySlotId = slots[sourceIdx].slotId;
+    claimedSources.add(sourceIdx);
   }
 }
 
@@ -258,13 +280,15 @@ function markLeftoverSourceSlots(slots: MealSlot[]): void {
 function findPrecedingSourceIndex(
   slots: MealSlot[],
   targetIdx: number,
+  claimedSources: Set<number>,
 ): number {
   const target = slots[targetIdx];
   // Scan backwards in calendar order; only look within the last ~24h window
-  // (same-day dinner → next-day lunch, or same-day earlier meal → later meal).
+  // (same-day earlier meal → later meal, or yesterday → today).
   for (let j = targetIdx - 1; j >= 0; j--) {
     const candidate = slots[j];
     if (candidate.dayIndex < target.dayIndex - 1) break;
+    if (claimedSources.has(j)) continue; // already feeding another leftover slot
     const isSourceKind = candidate.slotKind === "cook_slot" ||
       candidate.slotKind === "weekend_flexible_slot";
     if (!isSourceKind) continue;

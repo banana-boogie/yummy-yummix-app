@@ -474,7 +474,7 @@ Deno.test("update_preferences canonicalizes meal types without persisting", asyn
       busyDays: [1, 3],
       dayIndexes: [0, 1, 2, 3, 4],
       defaultMaxWeeknightMinutes: 30,
-      preferLeftoversForLunch: true,
+      autoLeftovers: true,
       preferredEatTimes: { lunch: "14:00" },
     },
   });
@@ -487,7 +487,7 @@ Deno.test("update_preferences canonicalizes meal types without persisting", asyn
   assertEquals(body.preferences.busyDays, [1, 3]);
   assertEquals(body.preferences.activeDayIndexes, [0, 1, 2, 3, 4]);
   assertEquals(body.preferences.defaultMaxWeeknightMinutes, 30);
-  assertEquals(body.preferences.preferLeftoversForLunch, true);
+  assertEquals(body.preferences.autoLeftovers, true);
   assertEquals(body.preferences.preferredEatTimes, { lunch: "14:00" });
 });
 
@@ -496,7 +496,7 @@ Deno.test("update_preferences rejects malformed payload values", async () => {
     action: "update_preferences",
     payload: {
       busyDays: ["abc"],
-      preferLeftoversForLunch: "false",
+      autoLeftovers: "false",
     },
   });
   const response = await handleMealPlannerRequest(req, mockDependencies);

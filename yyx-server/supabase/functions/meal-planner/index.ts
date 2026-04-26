@@ -53,7 +53,11 @@ export const DEFAULT_PREFERENCES: PreferencesResponse = {
   busyDays: [],
   activeDayIndexes: [0, 1, 2, 3, 4],
   defaultMaxWeeknightMinutes: 45,
-  preferLeftoversForLunch: false,
+  // Default true globally — Mexican comida-recalentado culture is the
+  // primary target market and reheated leftovers are positively framed.
+  // Users (or the chat orchestrator on a per-generation basis) can disable
+  // when they want fresh meals throughout the week.
+  autoLeftovers: true,
   preferredEatTimes: {},
 };
 
@@ -179,11 +183,11 @@ function buildPreferencesFromPayload(
     next.defaultMaxWeeknightMinutes = minutes;
   }
 
-  if (payload.preferLeftoversForLunch !== undefined) {
-    if (typeof payload.preferLeftoversForLunch !== "boolean") {
-      throw new Error("preferLeftoversForLunch must be a boolean");
+  if (payload.autoLeftovers !== undefined) {
+    if (typeof payload.autoLeftovers !== "boolean") {
+      throw new Error("autoLeftovers must be a boolean");
     }
-    next.preferLeftoversForLunch = payload.preferLeftoversForLunch;
+    next.autoLeftovers = payload.autoLeftovers;
   }
 
   if (payload.preferredEatTimes !== undefined) {
@@ -234,10 +238,10 @@ async function handleGeneratePlan(
       : undefined;
 
     if (
-      payload.preferLeftoversForLunch !== undefined &&
-      typeof payload.preferLeftoversForLunch !== "boolean"
+      payload.autoLeftovers !== undefined &&
+      typeof payload.autoLeftovers !== "boolean"
     ) {
-      throw new Error("preferLeftoversForLunch must be a boolean");
+      throw new Error("autoLeftovers must be a boolean");
     }
 
     if (
@@ -257,9 +261,7 @@ async function handleGeneratePlan(
       dayIndexes,
       mealTypes: rawMealTypes as string[],
       busyDays,
-      preferLeftoversForLunch: payload.preferLeftoversForLunch as
-        | boolean
-        | undefined,
+      autoLeftovers: payload.autoLeftovers as boolean | undefined,
       replaceExisting: payload.replaceExisting as boolean | undefined,
     };
   } catch (error) {

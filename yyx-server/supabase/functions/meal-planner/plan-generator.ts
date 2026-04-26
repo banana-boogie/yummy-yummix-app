@@ -147,7 +147,7 @@ interface PreferencesRow {
   busy_days: number[] | null;
   active_day_indexes: number[] | null;
   default_max_weeknight_minutes: number | null;
-  prefer_leftovers_for_lunch: boolean | null;
+  auto_leftovers: boolean | null;
 }
 
 interface ImplicitPrefRow {
@@ -194,7 +194,7 @@ async function loadUserContext(
         busy_days,
         active_day_indexes,
         default_max_weeknight_minutes,
-        prefer_leftovers_for_lunch
+        auto_leftovers
       `)
       .eq("user_id", userId)
       .maybeSingle(),
@@ -244,9 +244,10 @@ async function loadUserContext(
     cuisinePreferences: profile?.cuisine_preferences ?? [],
     nutritionGoal:
       (profile?.nutrition_goal ?? "no_preference") as NutritionGoal,
-    preferLeftoversForLunch: payload.preferLeftoversForLunch ??
-      prefs?.prefer_leftovers_for_lunch ??
-      false,
+    // Resolution order: per-generation request override → persisted user
+    // preference → global default (true). The default is true to match
+    // Mexican comida-recalentado culture (the primary launch market).
+    autoLeftovers: payload.autoLeftovers ?? prefs?.auto_leftovers ?? true,
     defaultMaxWeeknightMinutes: prefs?.default_max_weeknight_minutes ?? 45,
     implicitPreferences,
     evidenceWeeks,
@@ -1052,7 +1053,7 @@ export async function generatePlan(
     dayIndexes: payload.dayIndexes,
     mealTypes: payload.mealTypes,
     busyDays: payload.busyDays ?? [],
-    preferLeftoversForLunch: user.preferLeftoversForLunch,
+    autoLeftovers: user.autoLeftovers,
     locale: user.locale,
   });
 

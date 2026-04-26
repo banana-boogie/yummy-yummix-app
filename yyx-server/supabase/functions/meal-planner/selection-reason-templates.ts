@@ -52,9 +52,11 @@ const SELECTION_REASON_TEMPLATES: Record<
   },
   es: {
     busy_day_leftovers: (
-      { sourceTitle = "la comida de ayer", dayLabel = "" },
+      { sourceTitle = "la comida", dayLabel = "" },
     ) =>
-      `Aprovecha las sobras de ${sourceTitle} y no tendrás que cocinar el ${dayLabel}.`
+      // Use "Recalentado" — the canonical Mexican framing for reheated
+      // leftovers. Positive and traditional, not "settling for leftovers."
+      `Recalentado de ${sourceTitle} para tu ${dayLabel}.`
         .replace(/\s+\./, ".")
         .trim(),
     busy_day_easy_pick: ({ dayLabel = "" }) =>

@@ -24,7 +24,7 @@ export interface UserContext {
   ingredientDislikes: string[];
   cuisinePreferences: string[];
   nutritionGoal: NutritionGoal;
-  preferLeftoversForLunch: boolean;
+  autoLeftovers: boolean;
   defaultMaxWeeknightMinutes: number;
   // Implicit preference scores keyed by `${dimension}:${key}` → signed −3..3
   implicitPreferences: Map<string, { score: number; confidence: number }>;

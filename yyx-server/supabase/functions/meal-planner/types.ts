@@ -176,7 +176,13 @@ export interface GeneratePlanPayload {
   dayIndexes: number[];
   mealTypes: string[];
   busyDays?: number[];
-  preferLeftoversForLunch?: boolean;
+  /**
+   * Per-generation override of the user's auto-leftovers preference. When
+   * undefined, the planner reads `user_meal_planning_preferences.auto_leftovers`
+   * (default true). Pass `false` for a one-off "I want to cook fresh this week"
+   * generation without touching the persistent preference.
+   */
+  autoLeftovers?: boolean;
   replaceExisting?: boolean;
 }
 
@@ -205,7 +211,7 @@ export interface UpdatePreferencesPayload {
   mealTypes?: string[];
   busyDays?: number[];
   defaultMaxWeeknightMinutes?: number;
-  preferLeftoversForLunch?: boolean;
+  autoLeftovers?: boolean;
   preferredEatTimes?: Record<string, unknown>;
 }
 
@@ -301,7 +307,7 @@ export interface PreferencesResponse {
   busyDays: number[];
   activeDayIndexes: number[];
   defaultMaxWeeknightMinutes: number;
-  preferLeftoversForLunch: boolean;
+  autoLeftovers: boolean;
   preferredEatTimes: Record<string, unknown>;
 }
 

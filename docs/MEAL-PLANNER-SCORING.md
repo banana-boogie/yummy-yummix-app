@@ -106,7 +106,7 @@ After the meal type is canonicalized, the classifier assigns a `slotType`:
 | `slotType` | When |
 |---|---|
 | `cook_slot` | Default — the user is cooking that meal. |
-| `leftover_target_slot` | Triggered in two cases: (a) the day is flagged as busy, or (b) the slot is a `lunch` and the user has `preferLeftoversForLunch: true`. In both cases the classifier initially marks the slot as a leftover target; if no valid upstream source exists at assembly time the assembler falls back to treating it as a `cook_slot`. |
+| `leftover_target_slot` | Triggered in two cases: (a) the day is flagged as busy, or (b) the slot is `lunch` or `dinner` and `autoLeftovers: true` (default). In case (b) the classifier marks the slot as a leftover target if a valid prior `lunch` or `dinner` source exists within the 24h window; sources are claimed at most once. If no valid upstream source exists at assembly time the assembler falls back to treating the slot as a `cook_slot`. |
 | `weekend_flexible_slot` | The day index is in `WEEKEND_DAY_INDEXES` (Sat/Sun, indexes 5–6). Weekend slots get a larger time budget and tolerate harder recipes. |
 
 Busy days are NOT a slot type of their own. They influence scoring through:
