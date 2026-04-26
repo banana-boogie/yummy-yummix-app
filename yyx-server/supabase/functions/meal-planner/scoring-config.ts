@@ -35,15 +35,18 @@ const NORMAL_WEIGHTS: ScoringWeights = {
   verified: 5,
 };
 
-// First-week trust mode boosts time fit + verified, reduces nutrition + overlap.
-// Applied when user has no prior plan history (evidence_weeks === 0).
+// First-week trust mode boosts time fit + verified, reduces ingredient
+// overlap (no cook history to inform "recipes you already like the
+// ingredients of"). Nutrition stays at the full weight because the user's
+// nutrition_goal is explicit profile input — it doesn't need history to be
+// reliable. Total still 100. Applied when evidence_weeks === 0.
 const FIRST_WEEK_TRUST_WEIGHTS: ScoringWeights = {
   tasteHousehold: 25,
   slotFit: 20,
   timeFit: 20,
-  ingredientOverlap: 10,
+  ingredientOverlap: 5,
   variety: 10,
-  nutrition: 5,
+  nutrition: 10,
   verified: 10,
 };
 
@@ -229,7 +232,6 @@ export const OPEN_SLOT_CONTRIBUTION = {
 // ============================================================
 
 export const VARIETY_LIMITS = {
-  firstWeekNoveltyCap: 1,
   weeklyCuisineRepeatThreshold: 3, // more than this triggers full penalty
   adjacentProteinWindow: 1, // same protein on adjacent days triggers penalty
   recentRecipeWindowDays: 30,
@@ -272,7 +274,11 @@ export const HISTORY = {
 
 export const CONDIMENT_RULES = {
   maxPerSlot: 1,
-  totalComponentsPerSlot: 3,
+  // Cap the total components a single slot can carry. 4 covers the typical
+  // Mexican meal (main + base/rice + veg + condiment, or main + side + drink
+  // + condiment) without exploding into "everything but the kitchen sink"
+  // suggestions when many explicit pairings happen to exist.
+  totalComponentsPerSlot: 4,
   explicitPairingOnly: true,
   attachAfterCoverage: true, // only after main/side/veg are placed
 } as const;

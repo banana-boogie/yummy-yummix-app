@@ -70,19 +70,22 @@ function recentRecipePenalty(input: ScoreCandidateInput): number {
 }
 
 function noveltyBalanceBonus(input: ScoreCandidateInput): number {
+  // First-week trust mode: every candidate is "novel" by definition because
+  // there's no cook history yet. Returning a constant here would just shift
+  // every candidate's variety score by the same amount without changing
+  // rankings (and the previous noveltyCount-based cap actively penalized
+  // later slots vs earlier ones for no good reason). In first-week mode,
+  // variety differentiation comes from the within-week signals only —
+  // adjacent protein and weekly cuisine.
+  if (input.state.mode === "first_week_trust") return 0;
+
   // Novel recipe = not cooked in the last 30 days AND not already in this week.
   const cookedRecently = input.user.recentCookedRecipes.has(input.candidate.id);
   const alreadyAssignedThisWeek = input.state.assignedRecipeIds.has(
     input.candidate.id,
   );
   const isNovel = !cookedRecently && !alreadyAssignedThisWeek;
-  if (!isNovel) return 0;
-  if (input.state.mode === "first_week_trust") {
-    return input.state.noveltyCount < VARIETY_LIMITS.firstWeekNoveltyCap
-      ? 0.6
-      : 0.1;
-  }
-  return 1;
+  return isNovel ? 1 : 0;
 }
 
 export function scoreVariety(
