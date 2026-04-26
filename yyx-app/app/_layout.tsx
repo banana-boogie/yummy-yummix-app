@@ -1,6 +1,7 @@
 import React, { useEffect, ReactNode } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Head from 'expo-router/head';
 import * as SplashScreen from 'expo-splash-screen';
@@ -66,22 +67,24 @@ export default function RootLayout() {
   if (!loaded) return null;
 
   return (
-    <SafeAreaProvider>
-      <LanguageProvider>
-        <InnerProviders>
-          <Head>
-            <title>YummyYummix</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1" />
-          </Head>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="auth" />
-            <Stack.Screen name="admin" />
-            <Stack.Screen name="recipe" />
-            <Stack.Screen name="(tabs)" />
-          </Stack>
-        </InnerProviders>
-      </LanguageProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <LanguageProvider>
+          <InnerProviders>
+            <Head>
+              <title>YummyYummix</title>
+              <meta name="viewport" content="width=device-width, initial-scale=1" />
+            </Head>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="auth" />
+              <Stack.Screen name="admin" />
+              <Stack.Screen name="recipe" />
+              <Stack.Screen name="(tabs)" />
+            </Stack>
+          </InnerProviders>
+        </LanguageProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

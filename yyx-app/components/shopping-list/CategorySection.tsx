@@ -1,13 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import { View, TouchableOpacity, LayoutAnimation, Platform, UIManager } from 'react-native';
+import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { Text } from '@/components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/constants/design-tokens';
 import { ShoppingCategoryWithItems, ShoppingListItem, CATEGORY_ICONS } from '@/types/shopping-list.types';
 import { ShoppingListItemRow } from './ShoppingListItem';
-
-// Drag-to-reorder is intentionally disabled in this port — pending a native-capable
-// drag library. Unchecked items render with the same row component as checked items.
+import { DraggableShoppingListItem } from './DraggableShoppingListItem';
 import i18n from '@/i18n';
 
 // Wrapper to avoid inline closures per checked item in the .map() render
@@ -126,7 +125,41 @@ export const CategorySection = React.memo(function CategorySection({ category, o
 
     const iconName = CATEGORY_ICONS[category.id] || 'ellipsis-horizontal-outline';
 
-    void onReorderItems; // reorder disabled pending native drag support
+    const handleDragEnd = useCallback(
+        ({ data }: { data: ShoppingListItem[] }) => {
+            if (!onReorderItems) return;
+            const merged = [...data, ...checkedItems];
+            onReorderItems(merged);
+        },
+        [onReorderItems, checkedItems],
+    );
+
+    const renderDraggableItem = useCallback(
+        ({ item, drag, isActive }: RenderItemParams<ShoppingListItem>) => {
+            const handleCheck = () => {
+                if (isSelectMode && onToggleSelection) onToggleSelection(item.id);
+                else onCheckItem(item.id, !item.isChecked);
+            };
+            const handlePress = () => {
+                if (isSelectMode && onToggleSelection) onToggleSelection(item.id);
+                else onPressItem(item.id);
+            };
+            return (
+                <DraggableShoppingListItem
+                    item={item}
+                    drag={drag}
+                    isActive={isActive}
+                    onCheck={handleCheck}
+                    onDelete={() => onDeleteItem(item.id)}
+                    onPress={handlePress}
+                    onQuantityChange={onQuantityChange ? (qty) => onQuantityChange(item.id, qty) : undefined}
+                    isSelectMode={isSelectMode}
+                    isSelected={selectedItems?.has(item.id)}
+                />
+            );
+        },
+        [isSelectMode, onToggleSelection, onCheckItem, onPressItem, onDeleteItem, onQuantityChange, selectedItems],
+    );
 
     return (
         <View className="mb-md">
@@ -180,19 +213,30 @@ export const CategorySection = React.memo(function CategorySection({ category, o
 
             {isExpanded && (
                 <View className="mt-xs">
-                    {uncheckedItems.map(item => (
-                        <CheckedItemRow
-                            key={item.id}
-                            item={item}
-                            onCheckItem={onCheckItem}
-                            onDeleteItem={onDeleteItem}
-                            onPressItem={onPressItem}
-                            onQuantityChange={onQuantityChange}
-                            isSelectMode={isSelectMode}
-                            onToggleSelection={onToggleSelection}
-                            selectedItems={selectedItems}
+                    {onReorderItems && !isSelectMode ? (
+                        <DraggableFlatList
+                            data={uncheckedItems}
+                            keyExtractor={(item) => item.id}
+                            renderItem={renderDraggableItem}
+                            onDragEnd={handleDragEnd}
+                            scrollEnabled={false}
+                            activationDistance={20}
                         />
-                    ))}
+                    ) : (
+                        uncheckedItems.map(item => (
+                            <CheckedItemRow
+                                key={item.id}
+                                item={item}
+                                onCheckItem={onCheckItem}
+                                onDeleteItem={onDeleteItem}
+                                onPressItem={onPressItem}
+                                onQuantityChange={onQuantityChange}
+                                isSelectMode={isSelectMode}
+                                onToggleSelection={onToggleSelection}
+                                selectedItems={selectedItems}
+                            />
+                        ))
+                    )}
                     {checkedItems.map(item => (
                         <CheckedItemRow
                             key={item.id}
