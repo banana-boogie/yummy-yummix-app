@@ -1,11 +1,13 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  View,
+  AccessibilityInfo,
   ActivityIndicator,
-  Pressable,
   Alert,
   BackHandler,
+  findNodeHandle,
   Platform,
+  Pressable,
+  View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -20,6 +22,7 @@ import { MealPlanView } from '@/components/planner/MealPlanView';
 import {
   TodayHero,
   TodayHeroError,
+  TodayHeroSkeleton,
 } from '@/components/planner/TodayHero';
 import { todayDayIndex } from '@/components/planner/utils/dayIndex';
 import { eventService } from '@/services/eventService';
@@ -59,8 +62,13 @@ export default function MenuScreen() {
     generateShoppingList,
     planProgress,
     todaysSlots,
+    hasCachedPlan,
     refetch,
   } = useMealPlan();
+
+  // Refs for a11y focus shifts when toggling between today/week. Per F5.
+  const weekHeaderRef = useRef<View>(null);
+  const todayHeroRef = useRef<View>(null);
 
   useEffect(() => {
     AsyncStorage.getItem(SETUP_COMPLETED_KEY)
@@ -106,11 +114,21 @@ export default function MenuScreen() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.resolve(refetch());
+      await refetch();
     } finally {
       setRefreshing(false);
     }
   }, [refetch]);
+
+  // After the user toggles modes, shift screen-reader focus to the new
+  // primary surface so VoiceOver/TalkBack announce the change (F5).
+  useEffect(() => {
+    const target =
+      mode === 'week' ? weekHeaderRef.current : todayHeroRef.current;
+    if (!target) return;
+    const node = findNodeHandle(target);
+    if (node != null) AccessibilityInfo.setAccessibilityFocus(node);
+  }, [mode]);
 
   const handlePlanPress = useCallback(() => {
     if (!setupCompleted) {
@@ -194,7 +212,12 @@ export default function MenuScreen() {
   const renderHeader = () => {
     if (mode === 'week' && hasPlan) {
       return (
-        <View className="flex-row items-center justify-between px-lg pt-lg pb-sm">
+        <View
+          ref={weekHeaderRef}
+          accessible
+          accessibilityLabel={i18n.t('planner.title')}
+          className="flex-row items-center justify-between px-lg pt-lg pb-sm"
+        >
           <Pressable
             onPress={handleBackToToday}
             accessibilityRole="button"
@@ -249,22 +272,55 @@ export default function MenuScreen() {
   };
 
   const renderBody = () => {
-    if (isLoading || setupCompleted === null) {
+    // setup-rehydrating uses ActivityIndicator (not a plan-load state). Plan
+    // initial load in today-mode renders the skeleton (F7).
+    if (setupCompleted === null) {
       return (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color={COLORS.primary.darkest} />
         </View>
       );
     }
+    if (isLoading) {
+      return mode === 'today' ? (
+        <TodayHeroSkeleton />
+      ) : (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator color={COLORS.primary.darkest} />
+        </View>
+      );
+    }
+
+    // Blocking error: query failed and we have no cached plan to fall back on.
+    // Without cached data there's nothing to show, so retry is the only path.
+    if (mode === 'today' && error && !hasCachedPlan) {
+      return <TodayHeroError onRetry={handleRefresh} />;
+    }
 
     if (hasPlan) {
       if (mode === 'today') {
-        if (error) {
-          return <TodayHeroError onRetry={handleRefresh} />;
-        }
         return (
           <ResponsiveLayout maxWidth={600}>
+            {/* Non-blocking error: revalidation failed but we still have stale
+                cached plan data. Surface a slim banner; keep the hero usable. */}
+            {error && hasCachedPlan && (
+              <Pressable
+                onPress={handleRefresh}
+                accessibilityRole="button"
+                accessibilityLabel={`${i18n.t('planner.today.staleDataNotice')} — ${i18n.t('planner.today.staleDataAction')}`}
+                className="bg-primary-lighter px-md py-sm flex-row items-center justify-between"
+                style={{ minHeight: 44 }}
+              >
+                <Text preset="bodySmall" className="text-text-default">
+                  {i18n.t('planner.today.staleDataNotice')}
+                </Text>
+                <Text preset="link" className="text-primary-darkest">
+                  {i18n.t('planner.today.staleDataAction')}
+                </Text>
+              </Pressable>
+            )}
             <TodayHero
+              ref={todayHeroRef}
               plan={activePlan}
               todaysSlots={todaysSlots}
               preferences={preferences}

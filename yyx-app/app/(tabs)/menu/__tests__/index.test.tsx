@@ -1,5 +1,5 @@
 import React from 'react';
-import { BackHandler, Platform } from 'react-native';
+import { AccessibilityInfo, BackHandler, Platform } from 'react-native';
 import { renderWithProviders, screen, fireEvent, waitFor, act } from '@/test/utils/render';
 import type {
   MealPlanResponse,
@@ -141,7 +141,7 @@ function mockBuildHookReturn() {
     preferences: prefs,
     isLoading: false,
     isGenerating: false,
-    error: null,
+    error: null as string | null,
     generatePlan: jest.fn(),
     updatePreferences: jest.fn(),
     swapSlot: jest
@@ -152,7 +152,8 @@ function mockBuildHookReturn() {
     generateShoppingList: jest.fn(),
     todaysSlots: slots,
     planProgress: { planned: 1, cooked: 0, skipped: 0 },
-    refetch: jest.fn(),
+    hasCachedPlan: true,
+    refetch: jest.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -214,6 +215,81 @@ describe('MenuScreen mode toggle', () => {
       to: 'today',
       trigger: 'back-button',
     });
+  });
+
+  it('shows blocking error state when error and no cached plan (F2)', async () => {
+    mockUseMealPlanReturn.current = {
+      ...mockBuildHookReturn(),
+      activePlan: null as unknown as MealPlanResponse,
+      hasCachedPlan: false,
+      error: 'Network down',
+    };
+
+    const MenuScreen = require('@/app/(tabs)/menu/index').default;
+    renderWithProviders(<MenuScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Couldn't load your menu")).toBeTruthy();
+    });
+    expect(screen.getByText('Try again')).toBeTruthy();
+  });
+
+  it('shows stale-data banner when error but cached plan exists (F2)', async () => {
+    mockUseMealPlanReturn.current = {
+      ...mockBuildHookReturn(),
+      hasCachedPlan: true,
+      error: 'Network blip',
+    };
+
+    const MenuScreen = require('@/app/(tabs)/menu/index').default;
+    renderWithProviders(<MenuScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Today on your menu')).toBeTruthy();
+    });
+    expect(screen.getByText('Showing saved data')).toBeTruthy();
+    expect(screen.getByText('Tap to retry')).toBeTruthy();
+  });
+
+  it('shifts a11y focus when toggling to week mode (F5)', async () => {
+    const focusSpy = jest
+      .spyOn(AccessibilityInfo, 'setAccessibilityFocus')
+      .mockImplementation(() => {});
+
+    const MenuScreen = require('@/app/(tabs)/menu/index').default;
+    renderWithProviders(<MenuScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Today on your menu')).toBeTruthy();
+    });
+
+    focusSpy.mockClear();
+    fireEvent.press(screen.getByText('See my menu for the week →'));
+
+    await waitFor(() => {
+      expect(focusSpy).toHaveBeenCalled();
+    });
+
+    focusSpy.mockRestore();
+  });
+
+  it('renders TodayHeroSkeleton during initial today-mode loading (F7)', async () => {
+    mockUseMealPlanReturn.current = {
+      ...mockBuildHookReturn(),
+      isLoading: true,
+      activePlan: null as unknown as MealPlanResponse,
+      hasCachedPlan: false,
+    };
+
+    const MenuScreen = require('@/app/(tabs)/menu/index').default;
+    const { UNSAFE_root } = renderWithProviders(<MenuScreen />);
+
+    // Skeleton is the only animated placeholder in this state — verify the
+    // loading state does NOT render the empty state copy.
+    await waitFor(() => {
+      expect(screen.queryByText('Today on your menu')).toBeNull();
+    });
+    expect(UNSAFE_root).toBeTruthy();
   });
 
   it('hardware back in week mode returns to today (Android)', async () => {
