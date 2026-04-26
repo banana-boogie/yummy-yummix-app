@@ -1,11 +1,24 @@
 import React from 'react';
-import { AccessibilityInfo, BackHandler, Platform } from 'react-native';
+import * as ReactNative from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { renderWithProviders, screen, fireEvent, waitFor, act } from '@/test/utils/render';
 import type {
   MealPlanResponse,
   MealPlanSlotResponse,
   PreferencesResponse,
 } from '@/types/mealPlan';
+
+const { AccessibilityInfo, Alert, BackHandler, Platform } = ReactNative;
+
+// jsdom-style host components don't yield a node handle, so the production
+// guard `if (node != null)` short-circuits in tests. Force a numeric handle so
+// the focus call can be observed.
+jest.mock('react-native/Libraries/ReactNative/RendererProxy', () => {
+  const actual = jest.requireActual(
+    'react-native/Libraries/ReactNative/RendererProxy',
+  );
+  return { ...actual, findNodeHandle: () => 1 };
+});
 
 // ---------- mocks ----------
 
@@ -266,6 +279,12 @@ describe('MenuScreen mode toggle', () => {
     focusSpy.mockClear();
     fireEvent.press(screen.getByText('See my menu for the week →'));
 
+    // Focus is deferred via requestAnimationFrame so refs are populated
+    // before findNodeHandle runs. Flush the scheduled callback.
+    await act(async () => {
+      jest.runAllTimers();
+    });
+
     await waitFor(() => {
       expect(focusSpy).toHaveBeenCalled();
     });
@@ -290,6 +309,54 @@ describe('MenuScreen mode toggle', () => {
       expect(screen.queryByText('Today on your menu')).toBeNull();
     });
     expect(UNSAFE_root).toBeTruthy();
+  });
+
+  it('does not persist setupCompleted when plan generation fails', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const generatePlan = jest.fn().mockRejectedValue(new Error('generate failed'));
+    const updatePreferences = jest.fn().mockResolvedValue(undefined);
+    const prefs: PreferencesResponse = {
+      mealTypes: ['lunch'],
+      busyDays: [2],
+      activeDayIndexes: [0, 1, 2, 3, 4],
+      defaultMaxWeeknightMinutes: 30,
+      preferLeftoversForLunch: false,
+      preferredEatTimes: {},
+    };
+    (
+      AsyncStorage.getItem as jest.MockedFunction<typeof AsyncStorage.getItem>
+    ).mockResolvedValueOnce(null);
+    mockUseMealPlanReturn.current = {
+      ...mockBuildHookReturn(),
+      activePlan: null as unknown as MealPlanResponse,
+      preferences: prefs,
+      generatePlan,
+      updatePreferences,
+      todaysSlots: [],
+      hasCachedPlan: false,
+    };
+
+    const MenuScreen = require('@/app/(tabs)/menu/index').default;
+    renderWithProviders(<MenuScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Plan My Menu')).toBeTruthy();
+    });
+    fireEvent.press(screen.getByText('Plan My Menu'));
+
+    await waitFor(() => {
+      expect(generatePlan).toHaveBeenCalled();
+    });
+    expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(
+      'planner.setupCompleted',
+      'true',
+    );
+    expect(alertSpy).toHaveBeenCalledWith(
+      "Couldn't save your preferences",
+      'generate failed',
+    );
+
+    alertSpy.mockRestore();
   });
 
   it('hardware back in week mode returns to today (Android)', async () => {

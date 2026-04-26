@@ -33,7 +33,7 @@ export const planner = {
     generating: "Armando tu menú…",
   },
   mealTypes: {
-    dinnersOnly: "Solo cenas",
+    dinnersOnly: "Solo comidas",
     lunchAndDinner: "Comida + cena",
     breakfastAndLunch: "Desayuno + comida",
     allThree: "Todas las comidas",

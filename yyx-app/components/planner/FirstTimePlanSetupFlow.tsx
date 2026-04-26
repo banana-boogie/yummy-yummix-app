@@ -10,7 +10,7 @@
  * FEATURE_NUTRITION_GOALS once that flag is plumbed through.
  */
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { View, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text, Button } from '@/components/common';
@@ -128,10 +128,6 @@ export function FirstTimePlanSetupFlow({
 
   const current = steps[stepIndex];
 
-  const next = useCallback(() => {
-    setStepIndex((i) => Math.min(i + 1, steps.length));
-  }, [steps.length]);
-
   const back = useCallback(() => {
     if (stepIndex === 0) {
       onCancel();
@@ -152,16 +148,20 @@ export function FirstTimePlanSetupFlow({
     );
   }, []);
 
-  const finish = useCallback(async () => {
+  const finish = useCallback(async (overrides: GeneratePlanOptions = {}) => {
     setSubmitting(true);
     try {
+      const selectedMealTypes = overrides.mealTypes ?? mealTypes;
       const finalMealTypes = includeBeverages
-        ? [...mealTypes, 'beverage']
-        : mealTypes;
+        ? [...selectedMealTypes, 'beverage']
+        : selectedMealTypes;
+      const selectedDayIndexes = overrides.dayIndexes ?? dayIndexes;
       await onComplete({
-        dayIndexes: dayIndexes.length ? dayIndexes : WEEKDAY_INDEXES,
+        dayIndexes: selectedDayIndexes.length
+          ? selectedDayIndexes
+          : WEEKDAY_INDEXES,
         mealTypes: finalMealTypes.length ? finalMealTypes : ['dinner'],
-        busyDays,
+        busyDays: overrides.busyDays ?? busyDays,
       });
     } catch {
       // onComplete owns error surfacing (Alert in the parent). Swallow here
@@ -170,6 +170,28 @@ export function FirstTimePlanSetupFlow({
       setSubmitting(false);
     }
   }, [dayIndexes, mealTypes, busyDays, includeBeverages, onComplete]);
+
+  // Advance to the next step, or finish if we're past the last one. Used by
+  // every Continue affordance so first-time users with pre-answered steps
+  // don't get stuck on the submitting spinner forever (F2).
+  const goNextOrFinish = useCallback((overrides: GeneratePlanOptions = {}) => {
+    if (stepIndex + 1 >= steps.length) {
+      void finish(overrides);
+      return;
+    }
+    setStepIndex((i) => i + 1);
+  }, [stepIndex, steps.length, finish]);
+
+  // Edge case: user enters first-time mode with every step already answered
+  // (e.g. preferences pre-populated). `steps` is empty, so neither finish nor
+  // a step renders — auto-finish once on mount instead of trapping the user.
+  const autoFinishedRef = useRef(false);
+  useEffect(() => {
+    if (steps.length === 0 && !autoFinishedRef.current) {
+      autoFinishedRef.current = true;
+      void finish();
+    }
+  }, [steps.length, finish]);
 
   // If setup is complete, auto-finish.
   if (stepIndex >= steps.length) {
@@ -221,7 +243,7 @@ export function FirstTimePlanSetupFlow({
               onPress={() => {
                 setDaysPreset('weekdays');
                 setDayIndexes(WEEKDAY_INDEXES);
-                next();
+                goNextOrFinish({ dayIndexes: WEEKDAY_INDEXES });
               }}
             />
             <ChoiceButton
@@ -230,7 +252,7 @@ export function FirstTimePlanSetupFlow({
               onPress={() => {
                 setDaysPreset('every_day');
                 setDayIndexes(EVERY_DAY_INDEXES);
-                next();
+                goNextOrFinish({ dayIndexes: EVERY_DAY_INDEXES });
               }}
             />
             <ChoiceButton
@@ -255,7 +277,7 @@ export function FirstTimePlanSetupFlow({
                 </View>
                 <Button
                   variant="primary"
-                  onPress={next}
+                  onPress={goNextOrFinish}
                   disabled={dayIndexes.length === 0}
                   className="mt-lg"
                   fullWidth
@@ -287,7 +309,7 @@ export function FirstTimePlanSetupFlow({
             </View>
             <Button
               variant="primary"
-              onPress={next}
+              onPress={goNextOrFinish}
               className="mt-lg"
               fullWidth
             >

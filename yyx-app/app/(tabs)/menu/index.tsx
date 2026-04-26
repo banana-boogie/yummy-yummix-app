@@ -122,12 +122,18 @@ export default function MenuScreen() {
 
   // After the user toggles modes, shift screen-reader focus to the new
   // primary surface so VoiceOver/TalkBack announce the change (F5).
+  // Defer to the next frame so refs are populated after the render that
+  // mounts the new surface; otherwise findNodeHandle returns null and
+  // VoiceOver never announces the toggle.
   useEffect(() => {
-    const target =
-      mode === 'week' ? weekHeaderRef.current : todayHeroRef.current;
-    if (!target) return;
-    const node = findNodeHandle(target);
-    if (node != null) AccessibilityInfo.setAccessibilityFocus(node);
+    const raf = requestAnimationFrame(() => {
+      const target =
+        mode === 'week' ? weekHeaderRef.current : todayHeroRef.current;
+      if (!target) return;
+      const node = findNodeHandle(target);
+      if (node != null) AccessibilityInfo.setAccessibilityFocus(node);
+    });
+    return () => cancelAnimationFrame(raf);
   }, [mode]);
 
   const handlePlanPress = useCallback(() => {
@@ -153,8 +159,11 @@ export default function MenuScreen() {
           mealTypes: answers.mealTypes,
           busyDays: answers.busyDays,
         });
-        await AsyncStorage.setItem(SETUP_COMPLETED_KEY, 'true');
+        // Generate the plan BEFORE persisting the completion flag. If
+        // generatePlan rejects, the user is not stranded in a "completed"
+        // state with no plan — they bounce back to the setup flow on retry.
         await generatePlan(answers);
+        await AsyncStorage.setItem(SETUP_COMPLETED_KEY, 'true');
         setSetupCompleted(true);
         setSetupMode(null);
       } catch (err) {

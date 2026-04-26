@@ -205,7 +205,10 @@ export function useMealPlan(): UseMealPlanReturn {
     generateShoppingList: () => shoppingListMutation.mutateAsync(),
     todaysSlots,
     planProgress,
-    hasCachedPlan: planQuery.data != null,
+    // Stub backend can return `{ plan: null }` after generate; that's not a
+    // useful cache to fall back on, so the blocking-error path should still
+    // fire. Only treat the query as cached when there's an actual plan.
+    hasCachedPlan: planQuery.data?.plan != null,
     refetch: () => planQuery.refetch().then(() => undefined),
   };
 }

@@ -344,6 +344,47 @@ describe('useMealPlan', () => {
     expect(settled).toBe(true);
   });
 
+  it('does not treat a cached null plan response as a usable cached plan', async () => {
+    const planResponse: GetCurrentPlanResponse = {
+      plan: null,
+      warnings: [],
+    };
+    const prefsResponse: GetPreferencesResponse = {
+      preferences: {
+        mealTypes: ['dinner'],
+        busyDays: [],
+        activeDayIndexes: [0, 1, 2, 3, 4],
+        defaultMaxWeeknightMinutes: 30,
+        preferLeftoversForLunch: false,
+        preferredEatTimes: {},
+      },
+      warnings: [],
+    };
+
+    const mockClient = getMockSupabaseClient();
+    mockClient.functions.invoke.mockImplementation(
+      (_name: string, opts: { body: { action: string } }) => {
+        const action = opts.body.action;
+        if (action === 'get_current_plan') {
+          return Promise.resolve({ data: planResponse, error: null });
+        }
+        if (action === 'get_preferences') {
+          return Promise.resolve({ data: prefsResponse, error: null });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+    );
+
+    const { result } = renderHook(() => useMealPlan(), { wrapper: wrapper() });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.activePlan).toBeNull();
+    expect(result.current.hasCachedPlan).toBe(false);
+  });
+
   it('invalidates the active-plan query after a successful swap', async () => {
     const planResponse: GetCurrentPlanResponse = {
       plan: buildPlan(),
