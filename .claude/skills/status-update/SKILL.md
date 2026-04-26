@@ -24,9 +24,12 @@ Use when the user asks "where am I on this branch?", "status", "catch me up", or
 git rev-parse --abbrev-ref HEAD
 git log -3 --format="%h %s"
 git status --short
+git rev-list --left-right --count origin/main...HEAD
 ```
 
 Count: staged, unstaged, untracked. Do NOT dump the full status — just counts and the files that are clearly meaningful (new top-level files, migrations).
+
+From `rev-list --left-right --count`, derive **branch freshness**: the left number is commits on `origin/main` not in HEAD (behind), the right is commits on HEAD not in `origin/main` (ahead). Report as "N ahead, M behind main." If the branch is not pushed, note that too.
 
 ### 2. Resolve the plan
 
@@ -64,11 +67,13 @@ The merge-readiness checklist for this project (no CI bot reviews — reviews ar
 - Claude review run (manual; ask the user — don't assume)
 - Feature manually verified by the user
 - Critical files reviewed by the user
+- Docs in sync
 
 Determine each checkbox:
 - "Plan tasks done" — from step 2.
 - "PR opened" — `gh pr view --json state,number,url 2>/dev/null` or `gh pr list --head $(current-branch) --json number,url`.
-- The remaining four cannot be inferred from git. List them as `[ ]` and tell the user to confirm.
+- "Docs in sync" — **docs drift check**: if commits on this branch touched `yyx-app/`, `yyx-server/`, or `supabase/` but did not touch any file under `docs/`, mark `[ ]` and note "consider /update-docs." Otherwise mark `[x]`.
+- The review/verification items cannot be inferred from git. List them as `[ ]` and tell the user to confirm.
 
 ### 5. Output
 
@@ -76,6 +81,9 @@ Format exactly as below. Keep it short. No preamble.
 
 ```markdown
 ## Status: <branch-name>
+
+### Branch freshness
+N ahead, M behind main <(unpushed) if applicable>
 
 ### Recent commits
 - `<sha>` <subject>
@@ -98,6 +106,7 @@ staged: N | unstaged: N | untracked: N
 - [ ] Claude review — confirm with user
 - [ ] Manually verified — confirm with user
 - [ ] Critical files reviewed by you — confirm with user
+- [x/ ] Docs in sync (<note "consider /update-docs" if drift detected>)
 
 ### Critical files to review yourself
 - `path/to/file` — <why>

@@ -26,8 +26,11 @@ Run:
 - `git rev-parse --abbrev-ref HEAD`
 - `git log -3 --format="%h %s"`
 - `git status --short`
+- `git rev-list --left-right --count origin/main...HEAD`
 
 Count staged / unstaged / untracked. Do not dump full status — counts plus 1–3 notable files (new top-level files, migrations) at most.
+
+From `rev-list --left-right --count`, derive **branch freshness**: left = commits behind `origin/main`, right = commits ahead. Report as "N ahead, M behind main." If the branch is not pushed, note that too.
 
 ### 2. Plan resolution and progress
 
@@ -65,6 +68,7 @@ This project has no CI bot reviews — Codex and Claude reviews are run manually
 - Claude review run — cannot infer; ask user to confirm.
 - Feature manually verified — cannot infer; ask user.
 - Critical files reviewed by user — cannot infer; ask user.
+- Docs in sync — **docs drift check**: if commits on this branch touched `yyx-app/`, `yyx-server/`, or `supabase/` but did not touch any file under `docs/`, mark `[ ]` and note "consider $update-docs." Otherwise mark `[x]`.
 
 ### 5. Output
 
@@ -72,6 +76,9 @@ Exact format. No preamble.
 
 ```markdown
 ## Status: <branch-name>
+
+### Branch freshness
+N ahead, M behind main <(unpushed) if applicable>
 
 ### Recent commits
 - `<sha>` <subject>
@@ -94,6 +101,7 @@ staged: N | unstaged: N | untracked: N
 - [ ] Claude review — confirm with user
 - [ ] Manually verified — confirm with user
 - [ ] Critical files reviewed by you — confirm with user
+- [x/ ] Docs in sync (<note "consider $update-docs" if drift detected>)
 
 ### Critical files to review yourself
 - `path/to/file` — <why>
