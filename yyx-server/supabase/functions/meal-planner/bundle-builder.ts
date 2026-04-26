@@ -40,7 +40,7 @@ export interface SlotComponent {
   mealComponentsSnapshot: string[];
   pairingBasis: PairingBasis;
   isPrimary: boolean;
-  candidate: RecipeCandidate | null; // null for leftover / no-cook placeholders
+  candidate: RecipeCandidate | null; // null for leftover placeholders
   displayOrder: number;
   titleSnapshot: string;
   imageSnapshot: string | null;
