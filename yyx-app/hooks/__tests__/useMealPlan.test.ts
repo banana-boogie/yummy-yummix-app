@@ -275,6 +275,75 @@ describe('useMealPlan', () => {
     expect(result.current.todaysSlots[0].id).toBe('fresh-slot');
   });
 
+  it('returns awaitable refetch that settles only after refetch resolves (F3)', async () => {
+    const planResponse: GetCurrentPlanResponse = {
+      plan: buildPlan(),
+      warnings: [],
+    };
+    const prefsResponse: GetPreferencesResponse = {
+      preferences: {
+        mealTypes: ['dinner'],
+        busyDays: [],
+        activeDayIndexes: [0, 1, 2, 3, 4],
+        defaultMaxWeeknightMinutes: 30,
+        preferLeftoversForLunch: false,
+        preferredEatTimes: {},
+      },
+      warnings: [],
+    };
+
+    const mockClient = getMockSupabaseClient();
+    let initialResolved = false;
+    let deferredResolve: (() => void) | null = null;
+
+    mockClient.functions.invoke.mockImplementation(
+      (_name: string, opts: { body: { action: string } }) => {
+        const action = opts.body.action;
+        if (action === 'get_current_plan') {
+          if (!initialResolved) {
+            initialResolved = true;
+            return Promise.resolve({ data: planResponse, error: null });
+          }
+          // Second call (refetch) — gate it on a deferred we can release.
+          return new Promise((resolve) => {
+            deferredResolve = () =>
+              resolve({ data: planResponse, error: null });
+          });
+        }
+        if (action === 'get_preferences') {
+          return Promise.resolve({ data: prefsResponse, error: null });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+    );
+
+    const { result } = renderHook(() => useMealPlan(), { wrapper: wrapper() });
+
+    await waitFor(() => {
+      expect(result.current.activePlan).not.toBeNull();
+    });
+    expect(result.current.hasCachedPlan).toBe(true);
+
+    let settled = false;
+    let refetchPromise: Promise<void> | null = null;
+    act(() => {
+      refetchPromise = result.current.refetch().then(() => {
+        settled = true;
+      });
+    });
+
+    // Refetch is in-flight — the returned promise must not have resolved yet.
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    // Release the deferred and confirm the promise settles.
+    await act(async () => {
+      deferredResolve?.();
+      await refetchPromise;
+    });
+    expect(settled).toBe(true);
+  });
+
   it('invalidates the active-plan query after a successful swap', async () => {
     const planResponse: GetCurrentPlanResponse = {
       plan: buildPlan(),

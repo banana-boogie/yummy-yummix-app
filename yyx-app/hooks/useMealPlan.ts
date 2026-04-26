@@ -62,7 +62,10 @@ export interface UseMealPlanReturn {
   todaysSlots: MealPlanSlotResponse[];
   planProgress: PlanProgress;
 
-  refetch: () => void;
+  /** True when planQuery has cached data (i.e., a previous successful fetch). */
+  hasCachedPlan: boolean;
+  /** Awaitable refetch. Resolves once the underlying query refetch settles. */
+  refetch: () => Promise<void>;
 }
 
 export function useMealPlan(): UseMealPlanReturn {
@@ -202,8 +205,7 @@ export function useMealPlan(): UseMealPlanReturn {
     generateShoppingList: () => shoppingListMutation.mutateAsync(),
     todaysSlots,
     planProgress,
-    refetch: () => {
-      planQuery.refetch();
-    },
+    hasCachedPlan: planQuery.data != null,
+    refetch: () => planQuery.refetch().then(() => undefined),
   };
 }
