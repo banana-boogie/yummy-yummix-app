@@ -36,8 +36,15 @@ interface SwapMealSheetProps {
   slot: MealPlanSlotResponse | null;
   onSwap: (reason?: string) => Promise<SwapMealResponse>;
   onClose: () => void;
-  /** Called with the chosen alternative slot ID for analytics; sheet closes regardless. */
-  onPickAlternative?: (newSlotId: string) => void;
+  /**
+   * Called with the chosen alternative's slot ID and the new primary recipe ID
+   * (or null if the alternative has no primary recipe component) for analytics.
+   * Sheet closes regardless.
+   */
+  onPickAlternative?: (params: {
+    slotId: string;
+    newRecipeId: string | null;
+  }) => void;
 }
 
 type SheetState =
@@ -148,16 +155,25 @@ export function SwapMealSheet({
             {state.phase === 'loaded' && state.alternatives.length > 0 && (
               <ScrollView className="max-h-96" showsVerticalScrollIndicator={false}>
                 <View className="gap-sm">
-                  {state.alternatives.slice(0, 3).map((alt) => (
-                    <AlternativeRow
-                      key={alt.slot.id}
-                      alternative={alt}
-                      onPick={() => {
-                        onPickAlternative?.(alt.slot.id);
-                        onClose();
-                      }}
-                    />
-                  ))}
+                  {state.alternatives.slice(0, 3).map((alt) => {
+                    const altPrimary =
+                      alt.slot.components.find((c) => c.isPrimary) ??
+                      alt.slot.components[0];
+                    const newRecipeId = altPrimary?.recipeId ?? null;
+                    return (
+                      <AlternativeRow
+                        key={alt.slot.id}
+                        alternative={alt}
+                        onPick={() => {
+                          onPickAlternative?.({
+                            slotId: alt.slot.id,
+                            newRecipeId,
+                          });
+                          onClose();
+                        }}
+                      />
+                    );
+                  })}
                 </View>
               </ScrollView>
             )}

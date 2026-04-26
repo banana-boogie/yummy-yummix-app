@@ -142,8 +142,45 @@ describe('SwapMealSheet', () => {
     });
 
     fireEvent.press(screen.getByText('Tacos al pastor'));
-    expect(onPick).toHaveBeenCalledWith('alt-1');
+    expect(onPick).toHaveBeenCalledWith({
+      slotId: 'alt-1',
+      newRecipeId: 'recipe-alt-1',
+    });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('passes newRecipeId: null when alternative has no primary recipe', async () => {
+    const altSlot = buildSlot('alt-no-recipe', 'Mystery dish');
+    // Strip recipeId from primary component to simulate orphaned/missing data.
+    altSlot.components = altSlot.components.map((c) => ({
+      ...c,
+      recipeId: null,
+    }));
+    const onSwap = jest.fn().mockResolvedValue({
+      alternatives: [{ slot: altSlot, selectionReason: 'test' }],
+      warnings: [],
+    });
+    const onPick = jest.fn();
+
+    renderWithProviders(
+      <SwapMealSheet
+        visible
+        slot={slot}
+        onSwap={onSwap}
+        onClose={jest.fn()}
+        onPickAlternative={onPick}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Mystery dish')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText('Mystery dish'));
+    expect(onPick).toHaveBeenCalledWith({
+      slotId: 'alt-no-recipe',
+      newRecipeId: null,
+    });
   });
 
   it('exposes a labeled close button', async () => {

@@ -257,7 +257,7 @@ class EventService {
    */
   logPlannerSwapComplete(params: {
     slotId: string;
-    newRecipeId: string;
+    newRecipeId: string | null;
   }): void {
     this.queueEvent('planner_swap_complete', {
       slot_id: params.slotId,
