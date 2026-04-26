@@ -312,6 +312,14 @@ export function useMessageStreaming({
                                 animated: true,
                             });
                         }, SCROLL_DELAY_MS);
+                    } else if (response.suggestions?.length || response.actions?.length) {
+                        // Suggestion chips / action buttons render after the bubble and
+                        // grow content height post-stream. Force a follow-up scroll so
+                        // the bottom of the message stays visible.
+                        isNearBottomRef.current = true;
+                        setTimeout(() => {
+                            scrollToEndThrottled(true);
+                        }, SCROLL_DELAY_MS);
                     }
 
                     setIsLoading(false);
