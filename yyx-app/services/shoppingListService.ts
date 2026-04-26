@@ -1,7 +1,3 @@
-// @ts-nocheck -- ingredient select strings use legacy name_${lang} columns
-// that were replaced by ingredient_translations. Port retained for reference;
-// runtime queries will need to be rewritten before this service is enabled.
-import i18n from '@/i18n';
 import { supabase } from '@/lib/supabase';
 import {
     ShoppingList,
@@ -20,7 +16,22 @@ import {
     shoppingCategoryCache,
     invalidateAllShoppingListCaches,
 } from './cache/shoppingListCache';
-import { getLanguageSuffix, mapIngredient, mapMeasurementUnit, getLocalizedCategoryName } from './utils/mapSupabaseItem';
+import { getCurrentLocale, mapIngredient, mapMeasurementUnit, getLocalizedCategoryName } from './utils/mapSupabaseItem';
+
+const ITEM_SELECT = `
+  id, shopping_list_id, ingredient_id, category_id, name_custom, quantity, unit_id, notes, is_checked, checked_at, recipe_id, display_order, created_at, updated_at,
+  ingredient:ingredients (
+    id,
+    image_url,
+    translations:ingredient_translations (locale, name, plural_name)
+  ),
+  measurement_unit:measurement_units (
+    id,
+    type,
+    system,
+    translations:measurement_unit_translations (locale, name, name_plural, symbol, symbol_plural)
+  )
+`;
 
 const getCurrentUserId = async (): Promise<string | undefined> => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -97,7 +108,7 @@ export const shoppingListService = {
             }
         }
 
-        const lang = getLanguageSuffix();
+        const locale = getCurrentLocale();
 
         const { data: listData, error: listError } = await supabase
             .from('shopping_lists')
@@ -110,11 +121,7 @@ export const shoppingListService = {
 
         const { data: itemsData, error: itemsError } = await supabase
             .from('shopping_list_items')
-            .select(`
-        id, shopping_list_id, ingredient_id, category_id, name_custom, quantity, unit_id, notes, is_checked, checked_at, recipe_id, display_order, created_at, updated_at,
-        ingredient:ingredients (id, name${lang}, plural_name${lang}, picture_url),
-        measurement_unit:measurement_units (id, type, system, symbol${lang}, name${lang}, name${lang}_plural)
-      `)
+            .select(ITEM_SELECT)
             .eq('shopping_list_id', id)
             .order('display_order', { ascending: true });
 
@@ -123,7 +130,7 @@ export const shoppingListService = {
         const categories = await this.getCategories();
 
         const items: ShoppingListItem[] = (itemsData ?? []).map((item: any) => {
-            const ingredient = mapIngredient(item.ingredient, lang, item.name_custom);
+            const ingredient = mapIngredient(item.ingredient, locale, item.name_custom);
             return {
                 id: item.id,
                 shoppingListId: item.shopping_list_id,
@@ -131,7 +138,7 @@ export const shoppingListService = {
                 categoryId: item.category_id,
                 ...ingredient,
                 quantity: parseFloat(item.quantity) || 1,
-                unit: mapMeasurementUnit(item.measurement_unit, lang),
+                unit: mapMeasurementUnit(item.measurement_unit, locale),
                 notes: item.notes,
                 isChecked: item.is_checked,
                 checkedAt: item.checked_at,
@@ -203,7 +210,7 @@ export const shoppingListService = {
     },
 
     async addItem(item: ShoppingListItemCreate): Promise<ShoppingListItem> {
-        const lang = getLanguageSuffix();
+        const locale = getCurrentLocale();
 
         const { data: maxOrderData } = await supabase
             .from('shopping_list_items')
@@ -229,11 +236,7 @@ export const shoppingListService = {
                 recipe_id: item.recipeId,
                 display_order: displayOrder,
             })
-            .select(`
-        id, shopping_list_id, ingredient_id, category_id, name_custom, quantity, unit_id, notes, is_checked, checked_at, recipe_id, display_order, created_at, updated_at,
-        ingredient:ingredients (id, name${lang}, plural_name${lang}, picture_url),
-        measurement_unit:measurement_units (id, type, system, symbol${lang}, name${lang}, name${lang}_plural)
-      `)
+            .select(ITEM_SELECT)
             .single();
 
         if (error) throw new Error(`Error adding item: ${error.message}`);
@@ -241,7 +244,7 @@ export const shoppingListService = {
         const userId = await getCurrentUserId();
         await invalidateShoppingCaches(userId, item.shoppingListId);
 
-        const ingredient = mapIngredient(data.ingredient as any, lang, data.name_custom);
+        const ingredient = mapIngredient(data.ingredient as any, locale, data.name_custom);
         return {
             id: data.id,
             shoppingListId: data.shopping_list_id,
@@ -249,7 +252,7 @@ export const shoppingListService = {
             categoryId: data.category_id,
             ...ingredient,
             quantity: parseFloat(data.quantity) || 1,
-            unit: mapMeasurementUnit(data.measurement_unit as any, lang),
+            unit: mapMeasurementUnit(data.measurement_unit as any, locale),
             notes: data.notes,
             isChecked: data.is_checked,
             checkedAt: data.checked_at,
@@ -380,9 +383,8 @@ export const shoppingListService = {
     },
 
     async searchIngredients(query: string, limit = 10): Promise<IngredientSuggestion[]> {
-        const lang = getLanguageSuffix();
+        const locale = getCurrentLocale();
 
-        // Escape special LIKE/ILIKE characters to prevent injection
         const sanitizedQuery = query
             .replace(/[%_\\]/g, '\\$&')
             .trim();
@@ -390,20 +392,24 @@ export const shoppingListService = {
         if (!sanitizedQuery) return [];
 
         const { data, error } = await supabase
-            .from('ingredients')
-            .select(`id, name${lang}, plural_name${lang}, picture_url`)
-            .ilike(`name${lang}`, `%${sanitizedQuery}%`)
+            .from('ingredient_translations')
+            .select(`
+                ingredient_id,
+                name,
+                plural_name,
+                ingredient:ingredients (id, image_url)
+            `)
+            .eq('locale', locale)
+            .ilike('name', `%${sanitizedQuery}%`)
             .limit(limit);
 
         if (error) throw new Error(`Error searching ingredients: ${error.message}`);
 
-        return (data ?? []).map((ing: any) => ({
-            id: ing.id,
-            name: ing[`name${lang}`],
-            pluralName: ing[`plural_name${lang}`],
-            pictureUrl: ing.picture_url,
-            // Ingredients table has no category mapping. Default to 'other';
-            // users can reassign the category when adding to their list.
+        return (data ?? []).map((row: any) => ({
+            id: row.ingredient_id,
+            name: row.name,
+            pluralName: row.plural_name ?? undefined,
+            pictureUrl: row.ingredient?.image_url,
             categoryId: 'other',
         }));
     },
