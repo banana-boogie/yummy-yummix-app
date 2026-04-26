@@ -1,5 +1,6 @@
 export const shoppingList = {
   addToList: "Agregar a la Lista",
+  makeMyList: "Hacer mi lista",
   title: "Lista de Compras",
   createNew: "Nueva Lista",
   enterName: "Nombre de la lista",
