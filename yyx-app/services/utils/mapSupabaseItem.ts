@@ -2,18 +2,32 @@ import i18n from '@/i18n';
 import { MeasurementUnit } from '@/types/recipe.types';
 import { ShoppingCategory } from '@/types/shopping-list.types';
 
-// Raw Supabase join types (use index signatures for locale-dynamic keys)
+interface IngredientTranslationRow {
+    locale: string;
+    name: string;
+    plural_name?: string | null;
+}
+
+interface MeasurementUnitTranslationRow {
+    locale: string;
+    name: string;
+    name_plural?: string | null;
+    symbol: string;
+    symbol_plural?: string | null;
+}
+
 interface RawIngredientJoin {
     id: string;
     picture_url?: string;
-    [key: string]: unknown;
+    image_url?: string;
+    translations?: IngredientTranslationRow[];
 }
 
 interface RawMeasurementUnitJoin {
     id: string;
     type: string;
     system: string;
-    [key: string]: unknown;
+    translations?: MeasurementUnitTranslationRow[];
 }
 
 export interface MappedIngredientFields {
@@ -22,19 +36,28 @@ export interface MappedIngredientFields {
     pictureUrl?: string;
 }
 
-export function getLanguageSuffix(): string {
-    return `_${i18n.locale}`;
+function pickByLocale<T extends { locale: string }>(
+    rows: T[] | undefined,
+    locale: string,
+): T | undefined {
+    if (!rows || rows.length === 0) return undefined;
+    return rows.find(r => r.locale === locale) ?? rows.find(r => r.locale === locale.split('-')[0]);
+}
+
+export function getCurrentLocale(): string {
+    return i18n.locale;
 }
 
 export function mapIngredient(
     ingredient: RawIngredientJoin | null | undefined,
-    langSuffix: string,
+    locale: string,
     fallbackName?: string,
 ): MappedIngredientFields {
+    const t = pickByLocale(ingredient?.translations, locale);
     return {
-        name: (ingredient?.[`name${langSuffix}`] as string) ?? fallbackName ?? '',
-        pluralName: ingredient?.[`plural_name${langSuffix}`] as string | undefined,
-        pictureUrl: ingredient?.picture_url as string | undefined,
+        name: t?.name ?? fallbackName ?? '',
+        pluralName: t?.plural_name ?? undefined,
+        pictureUrl: ingredient?.picture_url ?? ingredient?.image_url,
     };
 }
 
@@ -44,14 +67,15 @@ export function getLocalizedCategoryName(category: ShoppingCategory): string {
 
 export function mapMeasurementUnit(
     unit: RawMeasurementUnitJoin | null | undefined,
-    langSuffix: string,
+    locale: string,
 ): MeasurementUnit | undefined {
     if (!unit) return undefined;
+    const t = pickByLocale(unit.translations, locale);
     return {
         id: unit.id,
         type: unit.type,
         system: unit.system,
-        name: unit[`name${langSuffix}`] as string,
-        symbol: unit[`symbol${langSuffix}`] as string,
+        name: t?.name ?? '',
+        symbol: t?.symbol ?? '',
     } as MeasurementUnit;
 }

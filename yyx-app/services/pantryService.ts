@@ -1,30 +1,48 @@
-// @ts-nocheck -- see shoppingListService.ts; legacy ingredient column names.
-import i18n from '@/i18n';
 import { supabase } from '@/lib/supabase';
 import { PantryItem, PantryItemCreate, PantryItemUpdate, FavoriteShoppingItem, FavoriteShoppingItemCreate, ShoppingCategory } from '@/types/shopping-list.types';
 import { shoppingListService } from './shoppingListService';
-import { getLanguageSuffix, mapIngredient, mapMeasurementUnit, getLocalizedCategoryName } from './utils/mapSupabaseItem';
+import { getCurrentLocale, mapIngredient, mapMeasurementUnit, getLocalizedCategoryName } from './utils/mapSupabaseItem';
+
+const INGREDIENT_JOIN = `
+  ingredient:ingredients (
+    id,
+    image_url,
+    translations:ingredient_translations (locale, name, plural_name)
+  ),
+  measurement_unit:measurement_units (
+    id,
+    type,
+    system,
+    translations:measurement_unit_translations (locale, name, name_plural, symbol, symbol_plural)
+  )
+`;
+
+const PANTRY_SELECT = `
+  id, user_id, ingredient_id, category_id, name_custom, quantity, unit_id, created_at, updated_at,
+  ${INGREDIENT_JOIN}
+`;
+
+const FAVORITE_SELECT = `
+  id, user_id, ingredient_id, category_id, name_custom, default_quantity, default_unit_id, purchase_count, created_at, updated_at,
+  ${INGREDIENT_JOIN}
+`;
 
 export const pantryService = {
     async getPantryItems(): Promise<{ categories: (ShoppingCategory & { localizedName: string; items: PantryItem[] })[] }> {
-        const lang = getLanguageSuffix();
+        const locale = getCurrentLocale();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
 
         const { data, error } = await supabase
             .from('pantry_items')
-            .select(`
-        id, user_id, ingredient_id, category_id, name_custom, quantity, unit_id, created_at, updated_at,
-        ingredient:ingredients (id, name${lang}, plural_name${lang}, picture_url),
-        measurement_unit:measurement_units (id, type, system, symbol${lang}, name${lang}, name${lang}_plural)
-      `)
+            .select(PANTRY_SELECT)
             .eq('user_id', user.id)
             .order('updated_at', { ascending: false });
 
         if (error) throw new Error(`Error fetching pantry items: ${error.message}`);
 
         const items: PantryItem[] = (data ?? []).map((item: any) => {
-            const ingredient = mapIngredient(item.ingredient, lang, item.name_custom);
+            const ingredient = mapIngredient(item.ingredient, locale, item.name_custom);
             return {
                 id: item.id,
                 userId: item.user_id,
@@ -32,7 +50,7 @@ export const pantryService = {
                 categoryId: item.category_id,
                 ...ingredient,
                 quantity: parseFloat(item.quantity) || 1,
-                unit: mapMeasurementUnit(item.measurement_unit, lang),
+                unit: mapMeasurementUnit(item.measurement_unit, locale),
                 createdAt: item.created_at,
                 updatedAt: item.updated_at,
             };
@@ -49,7 +67,7 @@ export const pantryService = {
     },
 
     async addPantryItem(item: PantryItemCreate): Promise<PantryItem> {
-        const lang = getLanguageSuffix();
+        const locale = getCurrentLocale();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
 
@@ -63,26 +81,23 @@ export const pantryService = {
                 quantity: item.quantity,
                 unit_id: item.unitId,
             })
-            .select(`
-        id, user_id, ingredient_id, category_id, name_custom, quantity, unit_id, created_at, updated_at,
-        ingredient:ingredients (id, name${lang}, plural_name${lang}, picture_url),
-        measurement_unit:measurement_units (id, type, system, symbol${lang}, name${lang}, name${lang}_plural)
-      `)
+            .select(PANTRY_SELECT)
             .single();
 
         if (error) throw new Error(`Error adding pantry item: ${error.message}`);
 
-        const ingredient = mapIngredient(data.ingredient as any, lang, data.name_custom);
+        const row = data as any;
+        const ingredient = mapIngredient(row.ingredient, locale, row.name_custom);
         return {
-            id: data.id,
-            userId: data.user_id,
-            ingredientId: data.ingredient_id,
-            categoryId: data.category_id,
+            id: row.id,
+            userId: row.user_id,
+            ingredientId: row.ingredient_id,
+            categoryId: row.category_id,
             ...ingredient,
-            quantity: parseFloat(data.quantity) || 1,
-            unit: mapMeasurementUnit(data.measurement_unit as any, lang),
-            createdAt: data.created_at,
-            updatedAt: data.updated_at,
+            quantity: parseFloat(row.quantity) || 1,
+            unit: mapMeasurementUnit(row.measurement_unit, locale),
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
         };
     },
 
@@ -102,24 +117,20 @@ export const pantryService = {
     },
 
     async getFavorites(): Promise<FavoriteShoppingItem[]> {
-        const lang = getLanguageSuffix();
+        const locale = getCurrentLocale();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
 
         const { data, error } = await supabase
             .from('favorite_shopping_items')
-            .select(`
-        id, user_id, ingredient_id, category_id, name_custom, default_quantity, default_unit_id, purchase_count, created_at, updated_at,
-        ingredient:ingredients (id, name${lang}, plural_name${lang}, picture_url),
-        measurement_unit:measurement_units (id, type, system, symbol${lang}, name${lang}, name${lang}_plural)
-      `)
+            .select(FAVORITE_SELECT)
             .eq('user_id', user.id)
             .order('purchase_count', { ascending: false });
 
         if (error) throw new Error(`Error fetching favorites: ${error.message}`);
 
         return (data ?? []).map((item: any) => {
-            const ingredient = mapIngredient(item.ingredient, lang, item.name_custom);
+            const ingredient = mapIngredient(item.ingredient, locale, item.name_custom);
             return {
                 id: item.id,
                 userId: item.user_id,
@@ -127,7 +138,7 @@ export const pantryService = {
                 categoryId: item.category_id,
                 ...ingredient,
                 defaultQuantity: parseFloat(item.default_quantity) || 1,
-                defaultUnit: mapMeasurementUnit(item.measurement_unit, lang),
+                defaultUnit: mapMeasurementUnit(item.measurement_unit, locale),
                 purchaseCount: item.purchase_count,
                 createdAt: item.created_at,
                 updatedAt: item.updated_at,
@@ -136,7 +147,7 @@ export const pantryService = {
     },
 
     async addToFavorites(item: FavoriteShoppingItemCreate): Promise<FavoriteShoppingItem> {
-        const lang = getLanguageSuffix();
+        const locale = getCurrentLocale();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
 
@@ -150,27 +161,24 @@ export const pantryService = {
                 default_quantity: item.defaultQuantity,
                 default_unit_id: item.defaultUnitId,
             })
-            .select(`
-        id, user_id, ingredient_id, category_id, name_custom, default_quantity, default_unit_id, purchase_count, created_at, updated_at,
-        ingredient:ingredients (id, name${lang}, plural_name${lang}, picture_url),
-        measurement_unit:measurement_units (id, type, system, symbol${lang}, name${lang}, name${lang}_plural)
-      `)
+            .select(FAVORITE_SELECT)
             .single();
 
         if (error) throw new Error(`Error adding to favorites: ${error.message}`);
 
-        const ingredient = mapIngredient(data.ingredient as any, lang, data.name_custom);
+        const row = data as any;
+        const ingredient = mapIngredient(row.ingredient, locale, row.name_custom);
         return {
-            id: data.id,
-            userId: data.user_id,
-            ingredientId: data.ingredient_id,
-            categoryId: data.category_id,
+            id: row.id,
+            userId: row.user_id,
+            ingredientId: row.ingredient_id,
+            categoryId: row.category_id,
             ...ingredient,
-            defaultQuantity: parseFloat(data.default_quantity) || 1,
-            defaultUnit: mapMeasurementUnit(data.measurement_unit as any, lang),
-            purchaseCount: data.purchase_count,
-            createdAt: data.created_at,
-            updatedAt: data.updated_at,
+            defaultQuantity: parseFloat(row.default_quantity) || 1,
+            defaultUnit: mapMeasurementUnit(row.measurement_unit, locale),
+            purchaseCount: row.purchase_count,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
         };
     },
 
@@ -184,33 +192,33 @@ export const pantryService = {
     },
 
     async addFavoriteToList(favoriteId: string, shoppingListId: string): Promise<void> {
-        const lang = getLanguageSuffix();
+        const locale = getCurrentLocale();
         const { data, error } = await supabase
             .from('favorite_shopping_items')
             .select(`
                 id, ingredient_id, category_id, name_custom, default_quantity, default_unit_id, purchase_count,
-                ingredient:ingredients (id, name${lang}, plural_name${lang}, picture_url),
-                measurement_unit:measurement_units (id, type, system, symbol${lang}, name${lang}, name${lang}_plural)
+                ${INGREDIENT_JOIN}
             `)
             .eq('id', favoriteId)
             .single();
 
         if (error || !data) throw new Error('Favorite not found');
 
-        const ingredient = mapIngredient(data.ingredient as any, lang, data.name_custom);
+        const row = data as any;
+        const ingredient = mapIngredient(row.ingredient, locale, row.name_custom);
 
         await shoppingListService.addItem({
             shoppingListId,
-            ingredientId: data.ingredient_id,
-            categoryId: data.category_id,
-            nameCustom: data.ingredient_id ? undefined : ingredient.name,
-            quantity: parseFloat(data.default_quantity) || 1,
-            unitId: data.default_unit_id,
+            ingredientId: row.ingredient_id,
+            categoryId: row.category_id,
+            nameCustom: row.ingredient_id ? undefined : ingredient.name,
+            quantity: parseFloat(row.default_quantity) || 1,
+            unitId: row.default_unit_id,
         });
 
         await supabase
             .from('favorite_shopping_items')
-            .update({ purchase_count: (data.purchase_count ?? 0) + 1 })
+            .update({ purchase_count: (row.purchase_count ?? 0) + 1 })
             .eq('id', favoriteId);
     },
 };

@@ -146,7 +146,7 @@ export interface FavoriteShoppingItemCreate {
 export interface IngredientSuggestion {
     id: string;
     name: string;
-    pluralName: string;
+    pluralName?: string;
     pictureUrl?: string;
     categoryId: string;
 }
