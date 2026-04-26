@@ -133,11 +133,21 @@ Deno.test("classifySlots: autoLeftovers=true makes same-day dinner a leftover_ta
   assertEquals(d0lunch?.feedsFutureLeftoverTarget, true);
 });
 
-Deno.test("classifySlots: autoLeftovers=true claims each source at most once", () => {
-  // Day 0: lunch + dinner (lunch sources dinner, claim 0-lunch).
-  // Day 1: lunch + dinner (1-lunch is fresh source for 1-dinner).
-  // 0-lunch should not also be claimed as 1-lunch's source — it's a day older
-  // AND already claimed.
+Deno.test("classifySlots: autoLeftovers=true forms a single chain, each source claimed at most once", () => {
+  // Day 0: lunch + dinner. Day 1: lunch + dinner.
+  // Calendar order: 0-lunch, 0-dinner, 1-lunch, 1-dinner.
+  //
+  // The classifier accepts prior leftover_target_slot as a source candidate
+  // too (so runtime fallback surplus can flow downstream — see the
+  // assembler test for the runtime side). With each link claimed at most
+  // once, the chain is:
+  //   0-lunch (cook_slot, source for 0-dinner)
+  //   0-dinner (leftover_target ← 0-lunch, source for 1-lunch)
+  //   1-lunch (leftover_target ← 0-dinner, source for 1-dinner)
+  //   1-dinner (leftover_target ← 1-lunch)
+  // = 1 cook_slot + 3 leftover_target. The chain is the broader autoLeftovers
+  // pattern; the runtime fallback path keeps the week safe when any link's
+  // source produces no actual leftovers.
   const result = classifySlots({
     weekStart: "2026-04-13",
     dayIndexes: [0, 1],
@@ -154,24 +164,37 @@ Deno.test("classifySlots: autoLeftovers=true claims each source at most once", (
     },
     {} as Record<string, number>,
   );
-  // 2 cook (the two lunches that are sources) + 2 leftover_target (the two dinners).
-  assertEquals(counts.cook_slot, 2);
-  assertEquals(counts.leftover_target_slot, 2);
+  assertEquals(counts.cook_slot, 1);
+  assertEquals(counts.leftover_target_slot, 3);
 
-  const d0dinner = result.slots.find(
-    (s) => s.dayIndex === 0 && s.canonicalMealType === "dinner",
-  );
-  const d1dinner = result.slots.find(
-    (s) => s.dayIndex === 1 && s.canonicalMealType === "dinner",
-  );
   const d0lunch = result.slots.find(
     (s) => s.dayIndex === 0 && s.canonicalMealType === "lunch",
+  );
+  const d0dinner = result.slots.find(
+    (s) => s.dayIndex === 0 && s.canonicalMealType === "dinner",
   );
   const d1lunch = result.slots.find(
     (s) => s.dayIndex === 1 && s.canonicalMealType === "lunch",
   );
+  const d1dinner = result.slots.find(
+    (s) => s.dayIndex === 1 && s.canonicalMealType === "dinner",
+  );
+
+  // Verify the chain: each slot's source is its immediate predecessor.
+  assertEquals(d0lunch?.slotKind, "cook_slot");
   assertEquals(d0dinner?.sourceDependencySlotId, d0lunch?.slotId);
+  assertEquals(d1lunch?.sourceDependencySlotId, d0dinner?.slotId);
   assertEquals(d1dinner?.sourceDependencySlotId, d1lunch?.slotId);
+
+  // No source feeds two downstream slots — claim-once invariant.
+  const dependencyTargets = result.slots
+    .map((s) => s.sourceDependencySlotId)
+    .filter((id): id is string => !!id);
+  assertEquals(
+    dependencyTargets.length,
+    new Set(dependencyTargets).size,
+    "every source slot must be claimed by at most one downstream target",
+  );
 });
 
 Deno.test("classifySlots: autoLeftovers=false leaves all non-busy slots as cook_slot", () => {

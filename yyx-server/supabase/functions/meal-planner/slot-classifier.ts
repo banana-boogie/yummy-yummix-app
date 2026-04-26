@@ -285,12 +285,25 @@ function findPrecedingSourceIndex(
   const target = slots[targetIdx];
   // Scan backwards in calendar order; only look within the last ~24h window
   // (same-day earlier meal → later meal, or yesterday → today).
+  //
+  // Important: we accept `leftover_target_slot` as a source candidate too,
+  // not just `cook_slot` / `weekend_flexible_slot`. With autoLeftovers chaining
+  // lunch→dinner→lunch, a leftover_target slot whose source produces no
+  // leftovers will fall back at runtime to a fresh cook recipe — and that
+  // fresh recipe's surplus should be available to later slots. The actual
+  // inventory check happens in `registerLeftoverSource`, which only stores
+  // a source when the slot is recipe-backed with leftoversFriendly + surplus
+  // (leftover placeholders have `primary.candidate === null` and exit early).
+  // Without this, a chain like 0-lunch (no surplus) → 0-dinner (falls back
+  // to 4-portion fresh) → 1-lunch overcooks because the classifier excluded
+  // 0-dinner as a source up front.
   for (let j = targetIdx - 1; j >= 0; j--) {
     const candidate = slots[j];
     if (candidate.dayIndex < target.dayIndex - 1) break;
     if (claimedSources.has(j)) continue; // already feeding another leftover slot
     const isSourceKind = candidate.slotKind === "cook_slot" ||
-      candidate.slotKind === "weekend_flexible_slot";
+      candidate.slotKind === "weekend_flexible_slot" ||
+      candidate.slotKind === "leftover_target_slot";
     if (!isSourceKind) continue;
     const isSourceMealType = candidate.canonicalMealType === "dinner" ||
       candidate.canonicalMealType === "lunch";

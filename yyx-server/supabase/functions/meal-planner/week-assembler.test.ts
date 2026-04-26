@@ -310,3 +310,110 @@ Deno.test("assembleWeek: unfilled busy-day cook slot does NOT apply the non-busy
     );
   }
 });
+
+Deno.test("assembleWeek: leftover_target fallback to fresh recipe with surplus can feed a downstream leftover slot", () => {
+  // The fallback-source chain: with autoLeftovers chaining lunch→dinner→
+  // lunch, an upstream slot that gets classified as leftover_target may end
+  // up running fresh at runtime (because its own source produced no
+  // leftovers). When that fresh fallback recipe yields surplus, downstream
+  // slots must be able to consume it. Without this, a 4-portion fallback
+  // recipe gets cooked but its leftovers are invisible to later slots →
+  // overcooking.
+  //
+  // Topology:
+  //   day-0 lunch (cook_slot, source for day-0 dinner — recipe has NO surplus)
+  //   day-0 dinner (leftover_target_slot sourced from day-0 lunch, AND
+  //                 source for day-1 lunch — at runtime falls back to a
+  //                 fresh recipe with surplus)
+  //   day-1 lunch (leftover_target_slot sourced from day-0 dinner — should
+  //                consume day-0 dinner's fallback surplus, NOT cook fresh)
+  const day0Lunch: MealSlot = mkSlot({
+    slotId: "0-lunch",
+    plannedDate: "2026-04-13",
+    dayIndex: 0,
+    canonicalMealType: "lunch",
+    displayMealLabel: "lunch",
+    slotKind: "cook_slot",
+    feedsFutureLeftoverTarget: true,
+  });
+  const day0Dinner: MealSlot = mkSlot({
+    slotId: "0-dinner",
+    plannedDate: "2026-04-13",
+    dayIndex: 0,
+    canonicalMealType: "dinner",
+    displayMealLabel: "dinner",
+    slotKind: "leftover_target_slot",
+    sourceDependencySlotId: day0Lunch.slotId,
+    feedsFutureLeftoverTarget: true, // also a source for day-1 lunch
+  });
+  const day1Lunch: MealSlot = mkSlot({
+    slotId: "1-lunch",
+    plannedDate: "2026-04-14",
+    dayIndex: 1,
+    canonicalMealType: "lunch",
+    displayMealLabel: "lunch",
+    slotKind: "leftover_target_slot",
+    sourceDependencySlotId: day0Dinner.slotId,
+    feedsFutureLeftoverTarget: false,
+  });
+
+  // Day-0 lunch picks a tiny recipe → no surplus → no leftover registered.
+  const tinyRecipe = mkCandidate("tiny", {
+    leftoversFriendly: false,
+    portions: 2,
+    totalTimeMinutes: 25,
+  });
+  // Day-0 dinner falls back to this fresh recipe (its leftover source had
+  // nothing). It IS leftovers-friendly with surplus → registers as a source
+  // for downstream.
+  const surplusFallback = mkCandidate("surplus-fallback", {
+    leftoversFriendly: true,
+    portions: 6,
+    totalTimeMinutes: 35,
+  });
+
+  const result = assembleWeek({
+    slots: [day0Lunch, day0Dinner, day1Lunch],
+    planningOrder: [day0Lunch, day0Dinner, day1Lunch],
+    candidates: new Map([
+      [day0Lunch.slotId, [tinyRecipe]],
+      [day0Dinner.slotId, [surplusFallback]],
+      // Day-1 lunch has its own pool but should prefer the leftover path
+      // and never use these candidates.
+      [day1Lunch.slotId, []],
+    ]),
+    pairings: EMPTY_PAIRINGS,
+    user: mkUser({ householdSize: 2 }),
+    leftoverTransformByRecipe: new Map(),
+  });
+
+  // Day-0 dinner: ran the fallback fresh recipe (effective kind is cook_slot
+  // post-fallback, primary is the recipe candidate, not a leftover placeholder).
+  const d0d = result.best.assignments.get(day0Dinner.slotId);
+  assertEquals(d0d?.effectiveSlotKind, "cook_slot");
+  const d0dPrimary = d0d?.components.find((c) => c.isPrimary);
+  assertEquals(d0dPrimary?.recipeId, "surplus-fallback");
+  assertEquals(d0dPrimary?.sourceKind, "recipe");
+
+  // Day-1 lunch: should have consumed day-0 dinner's surplus, NOT cooked
+  // a fresh recipe (its candidate pool is empty, so a fresh-cook outcome
+  // would mean an unfilled warning). The primary's sourceKind must be
+  // "leftover".
+  const d1l = result.best.assignments.get(day1Lunch.slotId);
+  if (!d1l) {
+    throw new Error(
+      "expected day-1 lunch to be assigned (via leftover from day-0 dinner)",
+    );
+  }
+  const d1lPrimary = d1l.components.find((c) => c.isPrimary);
+  assertEquals(
+    d1lPrimary?.sourceKind,
+    "leftover",
+    "day-1 lunch must consume day-0 dinner's fallback surplus rather than cook fresh",
+  );
+  // No unfilled warning for day-1 lunch.
+  const unfilled = result.best.warnings.find((w) =>
+    w === `UNFILLED_COOK_SLOT:${day1Lunch.slotId}`
+  );
+  assertEquals(unfilled, undefined);
+});

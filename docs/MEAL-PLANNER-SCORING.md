@@ -39,9 +39,11 @@ The scoring system has two important properties:
   `SCORING_CONFIG_V1`. Nothing is hard-coded outside that file. Tuning the
   ranking is a code change in one place.
 - **Mode-aware.** First-week users (no plan history) get a different weight
-  profile that boosts time fit + verified content and reduces nutrition +
-  ingredient overlap. The goal is to feel reliable on day one, then become
-  more nuanced once we have signal.
+  profile that boosts time fit + verified content and reduces ingredient
+  overlap (which needs cook history to be meaningful). Nutrition stays at
+  the full weight because `nutrition_goal` is explicit profile input — it
+  doesn't need history to be reliable. The goal is to feel reliable on day
+  one, then become more nuanced once we have signal.
 
 ---
 
