@@ -3,7 +3,7 @@
  *
  * Given a primary (main) recipe assigned to a slot, attach compatible
  * components via explicit `recipe_pairings` rows only. Rules per task brief:
- *   - condiments: explicit-pairing only, after coverage, max 1, total ≤ 3
+ *   - condiments: explicit-pairing only, after coverage, max 1, total ≤ 4
  *   - sides/bases/veg: explicit-pairing only, filling meal_components gaps
  *
  * Spec: meal-slot-schema.md §2–§3; ranking-algorithm-detail.md §2 assembly
@@ -292,7 +292,7 @@ function primaryRoleForSlot(slot: MealSlot): ComponentRole {
  *   1. Primary (main)
  *   2. Fill structure_template food-group gaps with explicit sides/base/veg
  *   3. Dessert/beverage if the template allows another component
- *   4. Condiment (max 1, total ≤ 3, after coverage — only via explicit pairing)
+ *   4. Condiment (max 1, total ≤ 4, after coverage — only via explicit pairing)
  */
 export function buildBundle(
   slot: MealSlot,
@@ -304,8 +304,8 @@ export function buildBundle(
     toComponent(primary, primaryRoleForSlot(slot), "standalone", true, 0, null),
   );
 
-  const budget = targetComponentCount(slot.structureTemplate);
-  if (budget <= 1) return components;
+  const coverageBudget = targetComponentCount(slot.structureTemplate);
+  if (coverageBudget <= 1) return components;
 
   const pairingsBySource = pairings.byRole.get(primary.id);
   if (!pairingsBySource) return components;
@@ -318,8 +318,11 @@ export function buildBundle(
     candidate: RecipeCandidate,
     basis: PairingBasis,
     reason: string | null,
+    options: { enforceCoverageBudget?: boolean } = {},
   ) => {
-    if (components.length >= budget) return;
+    const enforceCoverageBudget = options.enforceCoverageBudget ?? true;
+    if (enforceCoverageBudget && components.length >= coverageBudget) return;
+    if (components.length >= CONDIMENT_RULES.totalComponentsPerSlot) return;
     if (role !== "condiment" && filledRoles.has(role)) return;
     components.push(
       toComponent(candidate, role, basis, false, components.length, reason),
@@ -340,7 +343,7 @@ export function buildBundle(
     const candidates = pairingsBySource.get(role);
     if (!candidates || candidates.length === 0) continue;
     for (const pairing of candidates) {
-      if (components.length >= budget) break;
+      if (components.length >= coverageBudget) break;
       const target = pairings.candidatesById.get(pairing.target_recipe_id);
       if (!target) continue;
       if (target.hasAllergenConflict) continue; // hard dietary filter
@@ -355,8 +358,18 @@ export function buildBundle(
     }
   }
 
-  // Condiment rule: only when coverage is done and slot has room.
-  if (!CONDIMENT_RULES.attachAfterCoverage || components.length >= budget) {
+  // Condiment rule: only after the coverage pass has satisfied the slot and
+  // the separate absolute component cap still has room.
+  const hasExpectedCoverage = slot.expectedMealComponents.every((g) =>
+    coveredComponents.has(g)
+  );
+  const hasStructureCoverage = components.length >= coverageBudget ||
+    hasExpectedCoverage;
+  if (
+    !CONDIMENT_RULES.attachAfterCoverage ||
+    !hasStructureCoverage ||
+    components.length >= CONDIMENT_RULES.totalComponentsPerSlot
+  ) {
     return components.slice(0, CONDIMENT_RULES.totalComponentsPerSlot);
   }
 
@@ -374,7 +387,9 @@ export function buildBundle(
     if (!target) continue;
     if (target.hasAllergenConflict) continue; // hard dietary filter
     if (target.hasDislikeConflict) continue; // explicit dislike hard filter
-    addComponent("condiment", target, "explicit_pairing", c.reason);
+    addComponent("condiment", target, "explicit_pairing", c.reason, {
+      enforceCoverageBudget: false,
+    });
     condimentsAdded++;
   }
 

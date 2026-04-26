@@ -537,18 +537,19 @@ Algorithm:
    - Hasn't already been added at that role (except condiments, which
      bypass the role-uniqueness check).
 3. Stop when `components.length >= budget`.
-4. **Condiment attachment** runs after the role-priority walk. It does NOT
-   verify that slot coverage is complete — it only checks there's room
-   remaining in the budget (`components.length < CONDIMENT_RULES.totalComponentsPerSlot`)
-   and that an explicit condiment pairing exists. If both hold, one
-   condiment attaches; hard allergen + dislike filters apply.
+4. **Condiment attachment** runs after the role-priority walk. It only attaches
+   once the structure budget is filled, or the slot's expected meal components
+   are already covered, and there is room under the separate absolute cap
+   (`components.length < CONDIMENT_RULES.totalComponentsPerSlot`). If both
+   hold and an explicit condiment pairing exists, one condiment attaches; hard
+   allergen + dislike filters apply.
 
 ### Hard limits
 
 From `CONDIMENT_RULES`:
 
 - `maxPerSlot: 1` — at most one condiment per slot.
-- `totalComponentsPerSlot: 3` — at most 3 components total (primary + sides
+- `totalComponentsPerSlot: 4` — at most 4 components total (primary + sides
   + condiment).
 - `explicitPairingOnly: true` — only attach via `recipe_pairings` rows;
   never auto-pair by similarity.

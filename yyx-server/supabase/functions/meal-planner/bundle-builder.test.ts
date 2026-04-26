@@ -123,7 +123,7 @@ Deno.test("buildBundle: allergen-conflicted pairing target is dropped", () => {
 
 Deno.test("buildBundle: allergen-conflicted condiment is dropped", () => {
   const primary = mkCandidate("primary-3", {
-    mealComponents: ["protein", "carb"],
+    mealComponents: ["protein", "carb", "veg"],
   });
   const unsafeCondiment = mkCandidate("bad-condiment", {
     plannerRole: "condiment",
@@ -171,9 +171,60 @@ Deno.test("buildBundle: allergen-conflicted condiment is dropped", () => {
   const components = buildBundle(slot, primary, pairings);
   // Primary plus the safe condiment. The unsafe condiment must not appear.
   const recipeIds = components.map((c) => c.recipeId);
+  assertEquals(recipeIds, [primary.id, safeCondiment.id]);
   for (const id of recipeIds) {
     assertNotEquals(id, unsafeCondiment.id);
   }
+});
+
+Deno.test("buildBundle: safe condiment can attach after structure coverage is filled", () => {
+  const primary = mkCandidate("primary-4", { mealComponents: ["protein"] });
+  const side = mkCandidate("side-4", {
+    plannerRole: "side",
+    mealComponents: ["carb"],
+  });
+  const condiment = mkCandidate("salsa-4", {
+    plannerRole: "condiment",
+    mealComponents: [],
+  });
+  const pairings: PairingLookup = {
+    byRole: new Map([[
+      primary.id,
+      new Map([
+        [
+          "side",
+          [{
+            source_recipe_id: primary.id,
+            target_recipe_id: side.id,
+            pairing_role: "side",
+            reason: "rice fit",
+          }],
+        ],
+        [
+          "condiment",
+          [{
+            source_recipe_id: primary.id,
+            target_recipe_id: condiment.id,
+            pairing_role: "condiment",
+            reason: "salsa fit",
+          }],
+        ],
+      ]),
+    ]]),
+    candidatesById: new Map([
+      [side.id, side],
+      [condiment.id, condiment],
+    ]),
+  };
+
+  const components = buildBundle(mkSlot(), primary, pairings);
+
+  assertEquals(components.map((c) => c.recipeId), [
+    primary.id,
+    side.id,
+    condiment.id,
+  ]);
+  assertEquals(components.map((c) => c.role), ["main", "side", "condiment"]);
 });
 
 Deno.test("templateForComponentCount: maps component counts to structure_template values", () => {
