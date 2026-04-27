@@ -37,9 +37,13 @@ import { ToggleCard } from "./ToggleCard";
 import { VerificationCard } from "./VerificationCard";
 import { PairingsSection } from "./PairingsSection";
 
-// Tag category name convention: meal types are any tags whose categories include this string
-// (case-insensitive match against TAG category labels like "Meal Type"/"MEAL_TYPE").
-const MEAL_TYPE_CATEGORY_MATCH = /meal\s*type/i;
+// Canonical recipe_tag_category enum value. The `tag_system_rebuild`
+// migration (20260427022448) lowercased the enum from SCREAMING_CASE
+// (`MEAL_TYPE`) to snake_case (`meal_type`). The previous regex
+// `/meal\s*type/i` never matched underscores so it was silently broken
+// against both casings — comparing against the canonical literal is
+// strict and correct.
+const MEAL_TYPE_CATEGORY = "meal_type";
 
 interface MealPlanningFormProps {
   recipe: Partial<AdminRecipe>;
@@ -131,7 +135,7 @@ export function MealPlanningForm({
   const mealTypeTags = useMemo(
     () =>
       allTags.filter((t) =>
-        (t.categories || []).some((c) => MEAL_TYPE_CATEGORY_MATCH.test(c)),
+        (t.categories || []).includes(MEAL_TYPE_CATEGORY),
       ),
     [allTags],
   );

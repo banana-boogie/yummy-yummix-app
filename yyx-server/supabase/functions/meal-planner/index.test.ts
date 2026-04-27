@@ -766,7 +766,24 @@ function makeStatefulSupabase(opts: {
           const recipe = idFilter
             ? opts.recipeById?.[idFilter.val as string]
             : null;
-          return Promise.resolve({ data: recipe ?? null, error: null });
+          if (!recipe) return Promise.resolve({ data: null, error: null });
+
+          // Honor the `eq("is_published", true)` filter the apply path uses
+          // for eligibility validation. A recipe row with is_published=false
+          // looks absent to the caller, mirroring PostgREST behavior. Without
+          // this, eligibility-regression tests would pass for the wrong
+          // reason (the UUID guard rejecting a non-UUID id before the
+          // is_published check ever fires).
+          const publishedFilter = filters.find((f) =>
+            f.kind === "eq" && f.col === "is_published"
+          );
+          if (
+            publishedFilter && publishedFilter.val === true &&
+            (recipe as { is_published?: boolean }).is_published === false
+          ) {
+            return Promise.resolve({ data: null, error: null });
+          }
+          return Promise.resolve({ data: recipe, error: null });
         }
         return Promise.resolve({ data: null, error: null });
       },
@@ -1224,8 +1241,15 @@ Deno.test("approve_plan returns the approved plan, not the most recent one", asy
 });
 
 Deno.test("swap_meal apply path rejects an unpublished recipe", async () => {
+  // Real UUID so the format guard passes; the mock is configured to
+  // honor the `eq("is_published", true)` filter, so a row with
+  // is_published=false comes back as null from PostgREST and the handler
+  // surfaces INVALID_INPUT. Without the filter-aware mock this test
+  // would pass for the wrong reason (rejected by the UUID format guard
+  // before reaching the eligibility query).
+  const UNPUBLISHED_ID = "66666666-6666-6666-6666-666666666666";
   const unpublished = {
-    id: "alt-1",
+    id: UNPUBLISHED_ID,
     planner_role: "main",
     alternate_planner_roles: [],
     meal_components: ["protein"],
@@ -1241,14 +1265,14 @@ Deno.test("swap_meal apply path rejects an unpublished recipe", async () => {
   const { supabase } = makeStatefulSupabase({
     plan: seededPlanRow(),
     slot: seededSlotRef(),
-    recipeById: { "alt-1": unpublished },
+    recipeById: { [UNPUBLISHED_ID]: unpublished },
   });
   const req = createAuthenticatedRequest({
     action: "swap_meal",
     payload: {
       mealPlanId: SEEDED_PLAN_ID,
       mealPlanSlotId: SEEDED_SLOT_ID,
-      selectedRecipeId: "alt-1",
+      selectedRecipeId: UNPUBLISHED_ID,
     },
   });
   const response = await handleMealPlannerRequest(req, {
