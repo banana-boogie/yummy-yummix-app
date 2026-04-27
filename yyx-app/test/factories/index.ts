@@ -25,6 +25,7 @@
 
 export { recipeFactory } from './recipe.factory';
 export { userFactory } from './user.factory';
+export { shoppingListFactory } from './shopping-list.factory';
 
 // Re-export individual functions for convenience
 export {

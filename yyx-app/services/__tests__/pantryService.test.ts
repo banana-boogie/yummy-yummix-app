@@ -42,7 +42,11 @@ describe('pantryService', () => {
                     unit_id: null,
                     created_at: '2025-01-01',
                     updated_at: '2025-01-01',
-                    ingredient: { id: 'ing-1', name_en: 'Apple', plural_name_en: 'Apples', picture_url: null },
+                    ingredient: {
+                        id: 'ing-1',
+                        image_url: null,
+                        translations: [{ locale: 'en', name: 'Apple', plural_name: 'Apples' }],
+                    },
                     measurement_unit: null,
                 },
             ];
@@ -94,8 +98,17 @@ describe('pantryService', () => {
                 unit_id: null,
                 created_at: '2025-01-01',
                 updated_at: '2025-01-01',
-                ingredient: { id: 'ing-1', name_en: 'Banana', plural_name_en: 'Bananas', picture_url: 'https://img.com/banana.jpg' },
-                measurement_unit: { id: 'unit-g', type: 'weight', system: 'metric', name_en: 'gram', symbol_en: 'g' },
+                ingredient: {
+                    id: 'ing-1',
+                    image_url: 'https://img.com/banana.jpg',
+                    translations: [{ locale: 'en', name: 'Banana', plural_name: 'Bananas' }],
+                },
+                measurement_unit: {
+                    id: 'unit-g',
+                    type: 'weight',
+                    system: 'metric',
+                    translations: [{ locale: 'en', name: 'gram', name_plural: 'grams', symbol: 'g', symbol_plural: 'g' }],
+                },
             };
 
             const chainable = {
@@ -207,7 +220,11 @@ describe('pantryService', () => {
                     purchase_count: 5,
                     created_at: '2025-01-01',
                     updated_at: '2025-01-01',
-                    ingredient: { id: 'ing-1', name_en: 'Milk', plural_name_en: 'Milks', picture_url: null },
+                    ingredient: {
+                        id: 'ing-1',
+                        image_url: null,
+                        translations: [{ locale: 'en', name: 'Milk', plural_name: 'Milks' }],
+                    },
                     measurement_unit: null,
                 },
             ];
@@ -245,7 +262,11 @@ describe('pantryService', () => {
                 purchase_count: 1,
                 created_at: '2025-01-01',
                 updated_at: '2025-01-01',
-                ingredient: { id: 'ing-2', name_en: 'Tomato', plural_name_en: 'Tomatoes', picture_url: null },
+                ingredient: {
+                    id: 'ing-2',
+                    image_url: null,
+                    translations: [{ locale: 'en', name: 'Tomato', plural_name: 'Tomatoes' }],
+                },
                 measurement_unit: null,
             };
 
