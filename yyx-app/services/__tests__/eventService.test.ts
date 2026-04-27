@@ -246,6 +246,126 @@ describe('eventService', () => {
     expect(insertMock).not.toHaveBeenCalled();
   });
 
+  it('trackEvent queues typed planner events with camelCase payloads', async () => {
+    const insertMock = jest.fn().mockResolvedValue({ error: null });
+
+    jest.doMock('@/lib/supabase', () => ({
+      supabase: {
+        auth: {
+          getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
+          onAuthStateChange: jest.fn(() => ({
+            data: { subscription: { unsubscribe: jest.fn() } },
+          })),
+        },
+        from: jest.fn(() => ({
+          insert: insertMock,
+        })),
+      },
+    }));
+
+    jest.doMock('react-native', () => ({
+      AppState: {
+        addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+      },
+      Platform: { OS: 'ios' },
+    }));
+
+    const { eventService } = require('../eventService');
+    await flushPromises();
+
+    eventService.trackEvent(
+      {
+        name: 'meal_plan_approved',
+        payload: {
+          mealPlanId: 'plan-1',
+          weekStart: '2026-04-13',
+          requestedDayIndexes: [0, 1, 2],
+          requestedMealTypes: ['dinner'],
+          generatedSlotCount: 3,
+          approvalDurationMs: 12000,
+          isFirstWeekPlan: true,
+          shoppingListId: null,
+        },
+      },
+      { locale: 'es-MX', sourceSurface: 'week' },
+    );
+
+    await eventService.flush();
+
+    expect(insertMock).toHaveBeenCalledTimes(1);
+    const [row] = insertMock.mock.calls[0][0];
+    expect(row.event_type).toBe('meal_plan_approved');
+    expect(row.payload).toEqual(
+      expect.objectContaining({
+        mealPlanId: 'plan-1',
+        weekStart: '2026-04-13',
+        generatedSlotCount: 3,
+        isFirstWeekPlan: true,
+      })
+    );
+    // Envelope is flattened into payload._envelope until a dedicated schema
+    // migration adds top-level columns (see eventService.flush TODO).
+    expect(row.payload._envelope).toEqual({
+      locale: 'es-MX',
+      sourceSurface: 'week',
+      cohortSegment: null,
+      appPlatform: 'ios',
+    });
+  });
+
+  // Type-only regression tests: these never execute, but failing them means
+  // the compiler accepted a mismatched (name, payload) pair. Locks the
+  // strictness of the discriminated `AnalyticsEvent` union.
+  it.skip('type-level: rejects mismatched event name / payload pairs', () => {
+    // Import types lazily here so the test body type-checks against the real
+    // service exports without affecting the module mock above.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { eventService } = require('../eventService') as typeof import('../eventService');
+
+    // 1) Planner event name paired with a legacy recipe-shaped payload.
+    //    `meal_plan_approved` requires MealPlanApprovedPayload (mealPlanId,
+    //    weekStart, ...) — a payload missing those required fields must be
+    //    rejected.
+    const badPayload1 = { recipe_id: 'r-1', recipe_name: 'R' };
+    eventService.trackEvent(
+      // @ts-expect-error — 'meal_plan_approved' requires MealPlanApprovedPayload
+      { name: 'meal_plan_approved', payload: badPayload1 },
+      { locale: 'en', sourceSurface: 'week' },
+    );
+
+    // 2) Legacy event name paired with a planner payload.
+    //    `view_recipe` requires LegacyRecipePayload (recipe_id/recipe_name) —
+    //    a planner payload must be rejected.
+    const badPayload2 = {
+      mealPlanId: 'plan-1',
+      weekStart: '2026-04-13',
+      requestedDayIndexes: [] as number[],
+      requestedMealTypes: [] as string[],
+      generatedSlotCount: 0,
+    };
+    eventService.trackEvent(
+      // @ts-expect-error — 'view_recipe' requires LegacyRecipePayload
+      { name: 'view_recipe', payload: badPayload2 },
+      { locale: 'en', sourceSurface: 'week' },
+    );
+
+    // 3) cohortSegment must be a BetaCohort literal or null — arbitrary strings
+    //    must be rejected so we don't leak unsanctioned segment values into
+    //    funnel queries.
+    eventService.trackEvent(
+      { name: 'beta_cohort_assigned', payload: { cohortSegment: 'sofia', source: 'enrollment' } },
+      // @ts-expect-error — cohortSegment must be 'sofia' | 'lupita' | null
+      { locale: 'es-MX', sourceSurface: 'profile', cohortSegment: 'admin' },
+    );
+
+    // 4) New Mi Menú event must require its specific payload shape.
+    eventService.trackEvent(
+      // @ts-expect-error — 'mi_menu_today_cook_tapped' requires MiMenuTodayCookTappedPayload
+      { name: 'mi_menu_today_cook_tapped', payload: { hasActivePlan: true } },
+      { locale: 'es-MX', sourceSurface: 'week' },
+    );
+  });
+
   it('cleans up subscriptions on destroy', async () => {
     const removeListenerMock = jest.fn();
     const insertMock = jest.fn().mockResolvedValue({ error: null });
