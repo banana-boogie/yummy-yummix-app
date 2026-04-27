@@ -1,0 +1,4 @@
+interface:
+  display_name: "PR Reading Guide"
+  short_description: "Prose-style reading guide for a PR — explains must-read files so you can review intent without reading code"
+  default_prompt: "Use $pr-reading-guide to generate a reading guide for a PR; if I do not provide a PR number or URL, resolve the PR for my current branch and ask for confirmation before generating."
