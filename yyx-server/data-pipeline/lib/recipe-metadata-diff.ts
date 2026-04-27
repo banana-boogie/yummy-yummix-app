@@ -5,7 +5,7 @@
  * verification.
  */
 
-import type { RecipeMetadata } from './recipe-metadata-schema.ts';
+import { TAG_CATEGORIES, type RecipeMetadata } from './recipe-metadata-schema.ts';
 import type {
   CurrentRecipeState,
   IngredientSnapshot,
@@ -325,19 +325,9 @@ export function computeRecipeMetadataDiff(
   // -- tags (per-category set replacement) -------------------
   if (desired.tags) {
     const changes: DiffEntry[] = [];
-    // Must match TAG_CATEGORIES in recipe-metadata-schema.ts and the
-    // iteration list in apply_recipe_metadata. Track H = 7 categories.
-    for (
-      const category of [
-        'cuisine',
-        'meal_type',
-        'diet',
-        'dish_type',
-        'primary_ingredient',
-        'occasion',
-        'practical',
-      ] as const
-    ) {
+    // Use the schema's TAG_CATEGORIES as the single source of truth so this
+    // can't drift from the YAML schema or the RPC's iteration list.
+    for (const category of TAG_CATEGORIES) {
       const d = desired.tags[category];
       if (d === undefined) continue;
       const cur = current.tags_by_category[category] ?? [];

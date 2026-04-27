@@ -237,6 +237,9 @@ Deno.test({
     });
 
     assert(result.ok, 'expected RPC to accept dish_type/primary_ingredient categories');
+    // The strongest "non-mutating" assertion: the RPC's own changed flag.
+    // If this is false, no UPDATE on recipes.updated_at fired either.
+    assertEquals(result.changed, false, 'expected no recipe mutation');
     assertEquals(result.counts.tags_added, 0, 'expected no tag inserts');
     assertEquals(result.counts.tags_removed, 0, 'expected no tag deletes');
   },
