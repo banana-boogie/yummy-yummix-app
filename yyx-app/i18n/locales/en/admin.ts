@@ -717,6 +717,9 @@ export const admin = {
     uploadImage: "Upload Image",
     changeImage: "Change Image",
     translations: "Translations",
+    defaultCategory: "Default Shopping Category",
+    defaultCategoryHint: "Where this ingredient lands when added to a shopping list. Leave empty to use \"Other\".",
+    defaultCategoryNone: "None (defaults to Other)",
     nutritionalFacts: {
       title: "Nutritional Facts",
       subtitle: "Values per 100g of ingredient",

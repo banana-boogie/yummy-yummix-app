@@ -79,6 +79,7 @@ export interface AdminIngredient {
   translations: AdminIngredientTranslation[];
   pictureUrl: string;
   nutritionalFacts?: NutritionalFacts;
+  defaultCategoryId?: string | null;
 }
 
 export interface AdminKitchenTool {

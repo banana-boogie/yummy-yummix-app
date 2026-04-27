@@ -724,6 +724,9 @@ export const admin = {
     uploadImage: "Upload Image",
     changeImage: "Cambiar Imagen",
     translations: "Translations",
+    defaultCategory: "Categoría predeterminada",
+    defaultCategoryHint: "Donde aparece este ingrediente al agregarlo a una lista de compras. Déjalo vacío para usar \"Otros\".",
+    defaultCategoryNone: "Ninguna (usar Otros)",
     nutritionalFacts: {
       title: "Información Nutricional",
       subtitle: "Valores por 100g de ingrediente",
