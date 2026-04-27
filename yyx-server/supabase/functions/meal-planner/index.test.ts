@@ -15,21 +15,53 @@ const expectedActions: MealPlanAction[] = [
   "swap_meal",
   "skip_meal",
   "mark_meal_cooked",
+  "approve_plan",
   "generate_shopping_list",
   "get_preferences",
   "update_preferences",
   "link_shopping_list",
 ];
 
+// Builder that returns empty results for every PostgREST call. Used by tests
+// that just need handlers to take the "no rows" path without errors.
+// deno-lint-ignore no-explicit-any
+function makeEmptySupabase(): any {
+  const buildBuilder = () => {
+    // deno-lint-ignore no-explicit-any
+    const builder: any = {
+      select: () => builder,
+      eq: () => builder,
+      in: () => builder,
+      order: () => builder,
+      limit: () => builder,
+      not: () => builder,
+      neq: () => builder,
+      or: () => builder,
+      overlaps: () => builder,
+      gte: () => builder,
+      insert: () => builder,
+      update: () => builder,
+      upsert: () => builder,
+      delete: () => builder,
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      single: () => Promise.resolve({ data: null, error: null }),
+      // deno-lint-ignore no-explicit-any
+      then: (resolve: any) => resolve({ data: [], error: null }),
+    };
+    return { from: (_t: string) => builder };
+  };
+  return { from: (t: string) => buildBuilder().from(t) };
+}
+
 const mockDependencies = {
-  createUserClient: (_authHeader: string) => ({}) as never,
+  createUserClient: (_authHeader: string) => makeEmptySupabase() as never,
   validateAuth: async (_authHeader: string | null) => ({
     user: { id: "user-123", email: "test@example.com", role: "user" },
     error: null,
   }),
 };
 
-Deno.test("meal-planner exposes only the PR #1 action set", () => {
+Deno.test("meal-planner exposes the full action set", () => {
   assertEquals([...MEAL_PLAN_ACTIONS], expectedActions);
 });
 
@@ -66,7 +98,7 @@ Deno.test("meal-planner returns UNAUTHORIZED when auth fails", async () => {
 
 Deno.test("meal-planner rejects unknown actions with INVALID_INPUT", async () => {
   const req = createAuthenticatedRequest({
-    action: "approve_plan",
+    action: "not_a_real_action",
     payload: {},
   });
   const response = await handleMealPlannerRequest(req, mockDependencies);
@@ -78,11 +110,10 @@ Deno.test("meal-planner rejects unknown actions with INVALID_INPUT", async () =>
 });
 
 Deno.test("generate_plan accepts comida without raising INVALID_INPUT", async () => {
-  // generate_plan now runs the real orchestrator. With the stub supabase
-  // returned by mockDependencies it will fail at the first DB call and we
-  // expect the outer handler to wrap that as INTERNAL_ERROR (500). The key
-  // guarantee tested here is that `comida` passes validation — we should
-  // not see INVALID_INPUT.
+  // generate_plan now runs the real orchestrator. The empty-result mock
+  // walks the planner past validation; the catalog is empty so it surfaces
+  // INSUFFICIENT_RECIPES (422). The guarantee tested here is that `comida`
+  // passes validation — we should not see INVALID_INPUT.
   const req = createAuthenticatedRequest({
     action: "generate_plan",
     payload: {
@@ -94,8 +125,8 @@ Deno.test("generate_plan accepts comida without raising INVALID_INPUT", async ()
   const response = await handleMealPlannerRequest(req, mockDependencies);
   const body = await response.json();
 
-  assertEquals(response.status, 500);
-  assertEquals(body.error.code, "INTERNAL_ERROR");
+  assertEquals(response.status, 422);
+  assertEquals(body.error.code, "INSUFFICIENT_RECIPES");
 });
 
 // A minimal recipe row that satisfies `meal_components` non-empty and has an
@@ -457,7 +488,7 @@ Deno.test("generate_plan debug flag controls debugTrace presence", async () => {
   assertEquals(badBody.error.code, "INVALID_INPUT");
 });
 
-Deno.test("get_preferences returns the PR #1 default preference stub", async () => {
+Deno.test("get_preferences returns DEFAULT_PREFERENCES when no row exists", async () => {
   const req = createAuthenticatedRequest({
     action: "get_preferences",
     payload: {},
@@ -467,10 +498,10 @@ Deno.test("get_preferences returns the PR #1 default preference stub", async () 
 
   assertEquals(response.status, 200);
   assertEquals(body.preferences, DEFAULT_PREFERENCES);
-  assertEquals(body.warnings, ["STUB: get_preferences not yet implemented"]);
+  assertEquals(body.warnings, []);
 });
 
-Deno.test("update_preferences canonicalizes meal types without persisting", async () => {
+Deno.test("update_preferences canonicalizes meal types and persists", async () => {
   const req = createAuthenticatedRequest({
     action: "update_preferences",
     payload: {
@@ -486,7 +517,7 @@ Deno.test("update_preferences canonicalizes meal types without persisting", asyn
   const body = await response.json();
 
   assertEquals(response.status, 200);
-  assertEquals(body.updated, false);
+  assertEquals(body.updated, true);
   assertEquals(body.preferences.mealTypes, ["lunch", "dessert"]);
   assertEquals(body.preferences.busyDays, [1, 3]);
   assertEquals(body.preferences.activeDayIndexes, [0, 1, 2, 3, 4]);
@@ -652,4 +683,410 @@ Deno.test("generate_plan returns 422 INSUFFICIENT_RECIPES with MISSING_MEAL_TYPE
       }`,
     );
   }
+});
+
+// ============================================================
+// New handlers — get_current_plan / mutations / approve_plan
+// ============================================================
+
+/**
+ * Stateful in-memory Supabase mock that records updates and returns seeded
+ * rows. Sufficient to exercise the read/mutate/approve loop without a live
+ * database. Each test seeds the rows it needs and checks the resulting
+ * recorded mutations.
+ */
+function makeStatefulSupabase(opts: {
+  plan?: Record<string, unknown> | null;
+  slot?: Record<string, unknown> | null;
+  components?: Record<string, unknown>[];
+  rejections?: Record<string, unknown>[];
+  recipes?: Record<string, unknown>[];
+  recipeById?: Record<string, Record<string, unknown>>;
+  preferences?: Record<string, unknown> | null;
+}) {
+  const updates: Record<string, Record<string, unknown>[]> = {};
+  const inserts: Record<string, Record<string, unknown>[]> = {};
+  const upserts: Record<string, Record<string, unknown>[]> = {};
+
+  const buildBuilder = (table: string) => {
+    let pendingUpdate: Record<string, unknown> | null = null;
+    let pendingInsert: Record<string, unknown> | null = null;
+    let pendingUpsert: Record<string, unknown> | null = null;
+    const filters: Array<{ kind: string; col?: string; val?: unknown }> = [];
+
+    // deno-lint-ignore no-explicit-any
+    const builder: any = {
+      select: () => builder,
+      eq: (col: string, val: unknown) => {
+        filters.push({ kind: "eq", col, val });
+        return builder;
+      },
+      in: (col: string, val: unknown) => {
+        filters.push({ kind: "in", col, val });
+        return builder;
+      },
+      order: () => builder,
+      limit: () => builder,
+      not: () => builder,
+      neq: () => builder,
+      or: () => builder,
+      overlaps: () => builder,
+      gte: () => builder,
+      maybeSingle: () => {
+        if (table === "meal_plans") {
+          if (!opts.plan) return Promise.resolve({ data: null, error: null });
+          return Promise.resolve({ data: opts.plan, error: null });
+        }
+        if (table === "meal_plan_slots") {
+          return Promise.resolve({ data: opts.slot ?? null, error: null });
+        }
+        if (table === "user_meal_planning_preferences") {
+          return Promise.resolve({
+            data: opts.preferences ?? null,
+            error: null,
+          });
+        }
+        if (table === "recipes") {
+          const idFilter = filters.find((f) =>
+            f.kind === "eq" && f.col === "id"
+          );
+          const recipe = idFilter
+            ? opts.recipeById?.[idFilter.val as string]
+            : null;
+          return Promise.resolve({ data: recipe ?? null, error: null });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+      single: () => Promise.resolve({ data: null, error: null }),
+      insert: (row: Record<string, unknown>) => {
+        pendingInsert = row;
+        if (!inserts[table]) inserts[table] = [];
+        inserts[table].push(row);
+        // PostgREST insert is awaitable directly when no .select()/.single().
+        return Object.assign(
+          Promise.resolve({ data: null, error: null }),
+          builder,
+        );
+      },
+      update: (row: Record<string, unknown>) => {
+        pendingUpdate = row;
+        return builder;
+      },
+      upsert: (row: Record<string, unknown>) => {
+        pendingUpsert = row;
+        if (!upserts[table]) upserts[table] = [];
+        upserts[table].push(row);
+        return Object.assign(
+          Promise.resolve({ data: null, error: null }),
+          builder,
+        );
+      },
+      // deno-lint-ignore no-explicit-any
+      then: (resolve: any) => {
+        if (pendingUpdate) {
+          if (!updates[table]) updates[table] = [];
+          updates[table].push(pendingUpdate);
+          pendingUpdate = null;
+          return resolve({ data: null, error: null });
+        }
+        if (pendingInsert) {
+          pendingInsert = null;
+          return resolve({ data: null, error: null });
+        }
+        if (pendingUpsert) {
+          pendingUpsert = null;
+          return resolve({ data: null, error: null });
+        }
+        if (table === "recipes") {
+          return resolve({ data: opts.recipes ?? [], error: null });
+        }
+        if (table === "meal_plan_slot_rejections") {
+          return resolve({ data: opts.rejections ?? [], error: null });
+        }
+        return resolve({ data: [], error: null });
+      },
+    };
+    return builder;
+  };
+
+  return {
+    supabase: { from: (t: string) => buildBuilder(t) },
+    updates,
+    inserts,
+    upserts,
+  };
+}
+
+const SEEDED_PLAN_ID = "plan-uuid-1";
+const SEEDED_SLOT_ID = "slot-uuid-1";
+const SEEDED_COMPONENT_ID = "comp-uuid-1";
+
+function seededPlanRow() {
+  return {
+    id: SEEDED_PLAN_ID,
+    user_id: "user-123",
+    week_start: "2026-04-13",
+    status: "draft",
+    locale: "en",
+    requested_day_indexes: [0, 1, 2, 3, 4],
+    requested_meal_types: ["dinner"],
+    shopping_list_id: null,
+    shopping_sync_state: "not_created",
+    meal_plan_slots: [
+      {
+        id: SEEDED_SLOT_ID,
+        planned_date: "2026-04-13",
+        day_index: 0,
+        meal_type: "dinner",
+        display_order: 0,
+        slot_type: "cook_slot",
+        structure_template: "single_component",
+        expected_meal_components: [],
+        coverage_complete: true,
+        selection_reason: null,
+        shopping_sync_state: "not_created",
+        status: "planned",
+        swap_count: 0,
+        last_swapped_at: null,
+        cooked_at: null,
+        skipped_at: null,
+        merged_cooking_guide: null,
+        meal_plan_slot_components: [
+          {
+            id: SEEDED_COMPONENT_ID,
+            component_role: "main",
+            source_kind: "recipe",
+            recipe_id: "recipe-A",
+            source_component_id: null,
+            meal_components_snapshot: ["protein"],
+            pairing_basis: "standalone",
+            display_order: 0,
+            is_primary: true,
+            title_snapshot: "Original Recipe",
+            image_url_snapshot: null,
+            total_time_snapshot: 30,
+            difficulty_snapshot: "easy",
+            portions_snapshot: 4,
+            equipment_tags_snapshot: [],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function seededSlotRef() {
+  return { id: SEEDED_SLOT_ID, meal_plan_id: SEEDED_PLAN_ID };
+}
+
+Deno.test("get_current_plan returns null when no plan exists", async () => {
+  const { supabase } = makeStatefulSupabase({});
+  const req = createAuthenticatedRequest({
+    action: "get_current_plan",
+    payload: {},
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  const body = await response.json();
+  assertEquals(response.status, 200);
+  assertEquals(body.plan, null);
+  assertEquals(body.warnings, []);
+});
+
+Deno.test("get_current_plan returns the plan with slots and components", async () => {
+  const { supabase } = makeStatefulSupabase({ plan: seededPlanRow() });
+  const req = createAuthenticatedRequest({
+    action: "get_current_plan",
+    payload: {},
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  const body = await response.json();
+  assertEquals(response.status, 200);
+  assertEquals(body.plan.planId, SEEDED_PLAN_ID);
+  assertEquals(body.plan.slots.length, 1);
+  assertEquals(body.plan.slots[0].components[0].title, "Original Recipe");
+});
+
+Deno.test("mark_meal_cooked flips status and stamps cooked_at", async () => {
+  const { supabase, updates } = makeStatefulSupabase({
+    plan: seededPlanRow(),
+    slot: seededSlotRef(),
+  });
+  const req = createAuthenticatedRequest({
+    action: "mark_meal_cooked",
+    payload: { mealPlanId: SEEDED_PLAN_ID, mealPlanSlotId: SEEDED_SLOT_ID },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  assertEquals(response.status, 200);
+
+  const slotUpdates = updates["meal_plan_slots"] ?? [];
+  assertEquals(slotUpdates.length >= 1, true);
+  assertEquals(slotUpdates[0].status, "cooked");
+  if (typeof slotUpdates[0].cooked_at !== "string") {
+    throw new Error("expected cooked_at to be set to an ISO timestamp");
+  }
+});
+
+Deno.test("skip_meal flips status, stamps skipped_at, marks shopping stale", async () => {
+  const { supabase, updates } = makeStatefulSupabase({
+    plan: seededPlanRow(),
+    slot: seededSlotRef(),
+  });
+  const req = createAuthenticatedRequest({
+    action: "skip_meal",
+    payload: { mealPlanId: SEEDED_PLAN_ID, mealPlanSlotId: SEEDED_SLOT_ID },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  const body = await response.json();
+  assertEquals(response.status, 200);
+  assertEquals(body.suggestion, null);
+
+  const slotUpdates = updates["meal_plan_slots"] ?? [];
+  assertEquals(slotUpdates[0].status, "skipped");
+  assertEquals(slotUpdates[0].shopping_sync_state, "stale");
+});
+
+Deno.test("approve_plan flips status from draft to active", async () => {
+  const { supabase, updates } = makeStatefulSupabase({
+    plan: seededPlanRow(),
+  });
+  const req = createAuthenticatedRequest({
+    action: "approve_plan",
+    payload: { mealPlanId: SEEDED_PLAN_ID },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  const body = await response.json();
+  assertEquals(response.status, 200);
+  assertEquals(body.mergedGuidesGenerated, 0);
+  assertEquals(body.mergedGuidesFailed, 0);
+
+  const planUpdates = updates["meal_plans"] ?? [];
+  assertEquals(planUpdates[0].status, "active");
+});
+
+Deno.test("approve_plan returns PLAN_NOT_FOUND when plan missing", async () => {
+  const { supabase } = makeStatefulSupabase({});
+  const req = createAuthenticatedRequest({
+    action: "approve_plan",
+    payload: { mealPlanId: "missing" },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  const body = await response.json();
+  assertEquals(response.status, 404);
+  assertEquals(body.error.code, "PLAN_NOT_FOUND");
+});
+
+Deno.test("swap_meal browse path returns up to 3 alternatives", async () => {
+  const recipes = Array.from({ length: 5 }, (_, i) => ({
+    id: `alt-${i}`,
+    planner_role: "main",
+    alternate_planner_roles: [],
+    meal_components: ["protein"],
+    total_time: 25 + i,
+    difficulty: "easy",
+    portions: 4,
+    image_url: null,
+    equipment_tags: [],
+    verified_at: null,
+    recipe_translations: [{ locale: "en", name: `Alt ${i}` }],
+  }));
+  const { supabase } = makeStatefulSupabase({
+    plan: seededPlanRow(),
+    slot: seededSlotRef(),
+    recipes,
+  });
+  const req = createAuthenticatedRequest({
+    action: "swap_meal",
+    payload: { mealPlanId: SEEDED_PLAN_ID, mealPlanSlotId: SEEDED_SLOT_ID },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  const body = await response.json();
+  assertEquals(response.status, 200);
+  assertEquals(body.alternatives.length, 3);
+});
+
+Deno.test("swap_meal apply path persists swap and records rejection", async () => {
+  const replacement = {
+    id: "alt-1",
+    planner_role: "main",
+    alternate_planner_roles: [],
+    meal_components: ["protein"],
+    total_time: 20,
+    difficulty: "easy",
+    portions: 4,
+    image_url: null,
+    equipment_tags: [],
+    verified_at: null,
+    is_published: true,
+    recipe_translations: [{ locale: "en", name: "Replacement" }],
+  };
+  const { supabase, updates, inserts } = makeStatefulSupabase({
+    plan: seededPlanRow(),
+    slot: seededSlotRef(),
+    recipeById: { "alt-1": replacement },
+  });
+  const req = createAuthenticatedRequest({
+    action: "swap_meal",
+    payload: {
+      mealPlanId: SEEDED_PLAN_ID,
+      mealPlanSlotId: SEEDED_SLOT_ID,
+      selectedRecipeId: "alt-1",
+    },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  assertEquals(response.status, 200);
+
+  const compUpdates = updates["meal_plan_slot_components"] ?? [];
+  assertEquals(compUpdates[0].recipe_id, "alt-1");
+  assertEquals(compUpdates[0].title_snapshot, "Replacement");
+
+  const slotUpdates = updates["meal_plan_slots"] ?? [];
+  assertEquals(slotUpdates[0].swap_count, 1);
+  assertEquals(slotUpdates[0].shopping_sync_state, "stale");
+
+  const planUpdates = updates["meal_plans"] ?? [];
+  assertEquals(planUpdates[0].shopping_sync_state, "stale");
+
+  const rejections = inserts["meal_plan_slot_rejections"] ?? [];
+  assertEquals(rejections[0].recipe_id, "recipe-A");
+  assertEquals(rejections[0].reason_code, "user_swap");
+});
+
+Deno.test("generate_shopping_list returns deferred warning when Track B not present", async () => {
+  const { supabase } = makeStatefulSupabase({});
+  const req = createAuthenticatedRequest({
+    action: "generate_shopping_list",
+    payload: { mealPlanId: SEEDED_PLAN_ID },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  const body = await response.json();
+  assertEquals(response.status, 200);
+  assertEquals(body.shoppingListId, null);
+  assertEquals(body.warnings, ["SHOPPING_LIST_INTEGRATION_DEFERRED"]);
 });
