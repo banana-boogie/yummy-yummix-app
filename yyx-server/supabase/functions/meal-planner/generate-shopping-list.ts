@@ -25,6 +25,7 @@ interface ConsolidatedItem {
   quantity: number;
   firstComponentId: string;
   firstSlotId: string;
+  categoryId: string;
 }
 
 interface GenerateResult {
@@ -135,6 +136,33 @@ export async function executeGenerateShoppingList(
     ingredientsByRecipe.set(ri.recipe_id, list);
   }
 
+  // Look up each ingredient's default shopping category in one batch.
+  const uniqueIngredientIds = Array.from(
+    new Set(
+      recipeIngredients
+        .map((ri) => ri.ingredient_id)
+        .filter((id): id is string => id != null),
+    ),
+  );
+  const ingredientCategory = new Map<string, string>();
+  if (uniqueIngredientIds.length > 0) {
+    const { data: ingRows, error: ingErr } = await supabase
+      .from("ingredients")
+      .select("id, default_category_id")
+      .in("id", uniqueIngredientIds);
+    if (ingErr) {
+      throw new Error(`Load ingredient categories failed: ${ingErr.message}`);
+    }
+    for (const row of ingRows ?? []) {
+      if (row.default_category_id) {
+        ingredientCategory.set(
+          row.id as string,
+          row.default_category_id as string,
+        );
+      }
+    }
+  }
+
   // 4. Consolidate across all components. Key: ingredient_id + unit_id.
   // When ingredient_id is null (free-text), we don't try to dedupe.
   const consolidated = new Map<string, ConsolidatedItem>();
@@ -160,6 +188,8 @@ export async function executeGenerateShoppingList(
           quantity: qty,
           firstComponentId: comp.componentId,
           firstSlotId: comp.slotId,
+          categoryId: ingredientCategory.get(ri.ingredient_id) ??
+            DEFAULT_CATEGORY_ID,
         });
       }
     }
@@ -213,7 +243,7 @@ export async function executeGenerateShoppingList(
     shopping_list_id: shoppingListId,
     ingredient_id: item.ingredientId,
     name_custom: item.ingredientId ? null : item.nameCustom,
-    category_id: DEFAULT_CATEGORY_ID,
+    category_id: item.categoryId,
     quantity: item.quantity,
     unit_id: item.measurementUnitId,
     is_checked: false,
