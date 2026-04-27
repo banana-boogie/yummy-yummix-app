@@ -17,7 +17,11 @@
  */
 
 import type { CanonicalMealType, MealComponent, SlotType } from "./types.ts";
-import { STRUCTURE_DEFAULTS, WEEKEND_DAY_INDEXES } from "./scoring-config.ts";
+import {
+  EXPECTED_COMPONENTS_BY_MEAL_TYPE,
+  STRUCTURE_DEFAULTS,
+  WEEKEND_DAY_INDEXES,
+} from "./scoring-config.ts";
 import { toCanonicalMealType } from "./meal-types.ts";
 
 export interface MealSlot {
@@ -118,18 +122,6 @@ function canonicalMealTypeOrder(mt: CanonicalMealType): number {
   return order[mt];
 }
 
-function expectedMealComponentsForTemplate(
-  template: typeof STRUCTURE_DEFAULTS[CanonicalMealType],
-): MealComponent[] {
-  switch (template) {
-    case "main_plus_one_component":
-    case "main_plus_two_components":
-      return ["protein", "carb", "veg"];
-    case "single_component":
-      return [];
-  }
-}
-
 /**
  * Classify slots from raw planner input.
  *
@@ -196,9 +188,9 @@ export function classifySlots(
             (canonical === "lunch" || canonical === "dinner")),
         feedsFutureLeftoverTarget: false,
         structureTemplate,
-        expectedMealComponents: expectedMealComponentsForTemplate(
-          structureTemplate,
-        ),
+        expectedMealComponents: [
+          ...EXPECTED_COMPONENTS_BY_MEAL_TYPE[canonical],
+        ],
       });
     }
   }

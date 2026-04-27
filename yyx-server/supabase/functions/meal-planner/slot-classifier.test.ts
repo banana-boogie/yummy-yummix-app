@@ -37,21 +37,34 @@ Deno.test("classifySlots: comida maps to lunch but displays as comida for es", (
   assertEquals(result.slots[0].displayMealLabel, "comida");
 });
 
-Deno.test("classifySlots: expected meal components reflect slot requirement", () => {
+Deno.test("classifySlots: structure template (budget) is decoupled from expected components (coverage)", () => {
   const result = classifySlots({
     weekStart: "2026-04-13",
     dayIndexes: [0],
-    mealTypes: ["dinner", "snack"],
+    mealTypes: ["breakfast", "lunch", "dinner", "snack"],
     busyDays: [],
     autoLeftovers: false,
     locale: "en",
   });
+  const breakfast = result.slots.find((s) =>
+    s.canonicalMealType === "breakfast"
+  );
+  const lunch = result.slots.find((s) => s.canonicalMealType === "lunch");
   const dinner = result.slots.find((s) => s.canonicalMealType === "dinner");
   const snack = result.slots.find((s) => s.canonicalMealType === "snack");
 
-  assertEquals(dinner?.structureTemplate, "main_plus_one_component");
-  assertEquals(dinner?.expectedMealComponents, ["protein", "carb", "veg"]);
+  // Budget (max bundle size).
+  assertEquals(breakfast?.structureTemplate, "main_plus_one_component");
+  assertEquals(lunch?.structureTemplate, "main_plus_two_components");
+  assertEquals(dinner?.structureTemplate, "main_plus_two_components");
   assertEquals(snack?.structureTemplate, "single_component");
+
+  // Coverage (what counts as a complete meal). Breakfast can be 2 components
+  // (eggs+toast) without demanding veg coverage; lunch + dinner expect the
+  // full nutritional shape.
+  assertEquals(breakfast?.expectedMealComponents, []);
+  assertEquals(lunch?.expectedMealComponents, ["protein", "carb", "veg"]);
+  assertEquals(dinner?.expectedMealComponents, ["protein", "carb", "veg"]);
   assertEquals(snack?.expectedMealComponents, []);
 });
 

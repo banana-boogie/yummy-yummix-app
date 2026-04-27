@@ -515,13 +515,33 @@ A "slot" in the response is more than a single recipe — it's a small bundle:
 `buildBundle` uses the slot's `structureTemplate` to set the normal pairing
 budget via `templateComponentCount`. It also reads `expectedMealComponents`
 when deciding whether condiment attachment may run before the structure budget
-is fully filled:
+is fully filled. **Budget and expected coverage are independent concepts** —
+budget caps how many components the bundle may carry; expected coverage is
+the nutritional shape that must be present for the meal to be "complete."
 
 | Template | Budget |
 |---|---:|
 | `single_component` | 1 |
 | `main_plus_one_component` | 2 |
 | `main_plus_two_components` | 3 |
+
+Defaults per canonical meal type (`STRUCTURE_DEFAULTS` and
+`EXPECTED_COMPONENTS_BY_MEAL_TYPE` in `scoring-config.ts`):
+
+| Meal type | Budget template | Expected coverage |
+|---|---|---|
+| breakfast | `main_plus_one_component` (2) | `[]` — eggs+toast doesn't need veg |
+| lunch | `main_plus_two_components` (3) | `[protein, carb, veg]` |
+| dinner | `main_plus_two_components` (3) | `[protein, carb, veg]` |
+| snack | `single_component` (1) | `[]` |
+| dessert | `single_component` (1) | `[]` |
+| beverage | `single_component` (1) | `[]` |
+
+Lunch and dinner share the richer budget so American (`main + side + veg`)
+and Mexican (`main + arroz + agua`) patterns both fit. Breakfast carries a
+2-component budget for eggs+toast / pancakes+bacon style bundles, but no
+nutritional coverage is demanded — those bundles wouldn't reasonably include
+a vegetable.
 
 Algorithm:
 
@@ -772,8 +792,12 @@ those files too.
 - **`history`** — what cook count counts as "family favorite"; what rating
   counts as a hard rejection.
 - **`condimentRules`** — per-slot bundle-builder limits.
-- **`structureDefaults`** — what `structureTemplate` each canonical meal
-  type defaults to.
+- **`structureDefaults`** — what `structureTemplate` (bundle-size budget)
+  each canonical meal type defaults to.
+- **`expectedComponentsByMealType`** — what nutritional coverage each
+  canonical meal type demands for `coverage_complete`. Decoupled from
+  `structureDefaults` so breakfast can carry a 2-component bundle without
+  requiring veg coverage.
 - **`mealTypePrimaryRoles`** — which `planner_role` values each meal type
   accepts as primary.
 - **`weekendDayIndexes`** — `[5, 6]` (Sat, Sun).

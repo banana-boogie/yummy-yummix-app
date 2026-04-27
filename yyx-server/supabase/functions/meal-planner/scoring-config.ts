@@ -9,7 +9,7 @@
  * weight or constant elsewhere.
  */
 
-import type { CanonicalMealType, SlotType } from "./types.ts";
+import type { CanonicalMealType, MealComponent, SlotType } from "./types.ts";
 
 // ============================================================
 // Weight profiles
@@ -338,17 +338,57 @@ export const CONDIMENT_RULES = {
 // ============================================================
 // Slot structure defaults
 // ============================================================
-
+//
+// `STRUCTURE_DEFAULTS` is the bundle-size budget per meal type — the maximum
+// number of components the assembler will attach to a slot of that type
+// before the condiment cap kicks in. It is NOT a coverage requirement;
+// see `EXPECTED_COMPONENTS_BY_MEAL_TYPE` below for that.
+//
+// Lunch and dinner are bumped to `main_plus_two_components` (budget 3) so
+// non-Mexican meal patterns (American "main + side + veg" — chicken + rice +
+// broccoli, steak + potatoes + salad) can be assembled without truncation.
+// Mexican comida patterns (main + arroz + agua) also benefit. Breakfast is
+// bumped to `main_plus_one_component` (budget 2) for eggs+toast,
+// pancakes+bacon, oatmeal+fruit. The condiment cap (4) still applies.
+//
+// The bundle builder degrades gracefully when there aren't enough explicit
+// pairings to fill the budget — slots stay at the primary recipe alone.
 export const STRUCTURE_DEFAULTS: Record<
   CanonicalMealType,
   "single_component" | "main_plus_one_component" | "main_plus_two_components"
 > = {
-  breakfast: "single_component",
-  lunch: "main_plus_one_component",
-  dinner: "main_plus_one_component",
+  breakfast: "main_plus_one_component",
+  lunch: "main_plus_two_components",
+  dinner: "main_plus_two_components",
   snack: "single_component",
   dessert: "single_component",
   beverage: "single_component",
+};
+
+// ============================================================
+// Expected meal components per meal type
+// ============================================================
+//
+// Decoupled from `STRUCTURE_DEFAULTS` because "max bundle size" and "what
+// counts as a complete meal" are different concepts. Eggs + toast is a
+// reasonable 2-component breakfast that we don't want flagged as
+// incomplete for missing veg. The previous design conflated the two by
+// deriving expected components from the structure template.
+//
+// These drive the `coverage_complete` check in plan-generator. An empty
+// list means coverage always passes — no nutritional shape is required for
+// the meal type to be "complete." Non-empty lists demand that the bundle's
+// combined `meal_components` ⊇ this set.
+export const EXPECTED_COMPONENTS_BY_MEAL_TYPE: Record<
+  CanonicalMealType,
+  ReadonlyArray<MealComponent>
+> = {
+  breakfast: [], // eggs+toast or pancakes+bacon shouldn't be flagged for missing veg
+  lunch: ["protein", "carb", "veg"],
+  dinner: ["protein", "carb", "veg"],
+  snack: [],
+  dessert: [],
+  beverage: [],
 };
 
 // ============================================================
@@ -438,6 +478,7 @@ export const SCORING_CONFIG_V1 = {
   history: HISTORY,
   condimentRules: CONDIMENT_RULES,
   structureDefaults: STRUCTURE_DEFAULTS,
+  expectedComponentsByMealType: EXPECTED_COMPONENTS_BY_MEAL_TYPE,
   mealTypePrimaryRoles: MEAL_TYPE_PRIMARY_ROLES,
   weekendDayIndexes: [...WEEKEND_DAY_INDEXES],
   nutritionDefaultNoGoal: NUTRITION_DEFAULT_NORM_WHEN_NO_GOAL,
