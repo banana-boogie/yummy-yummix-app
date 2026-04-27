@@ -85,6 +85,8 @@ Promote those into MUST-READ even if they don't match a heuristic. Demote heuris
 
 ## Output Format
 
+**Before writing:** for each MUST-READ file, open the file at HEAD and read the surrounding code, not just the diff hunks. The Walkthrough must reflect the file's full behavior *after* the change, not only the lines that moved. If a function is called but not changed, you still need to know what it does to describe the flow accurately.
+
 Write the file to `/tmp/pr-reading-guide-<PR_NUMBER>.md`:
 
 ````markdown
@@ -97,6 +99,10 @@ Write the file to `/tmp/pr-reading-guide-<PR_NUMBER>.md`:
 
 <2–3 sentences in plain English describing intent, not commit-log restatement.>
 
+## How These Files Fit Together
+
+A short paragraph (or numbered flow) showing the call graph across the must-read files: where a request/event enters, which file routes it, which mutates state, what comes back. Skip this section if there is only one must-read file.
+
 ## What to Manually Verify
 
 - 3–7 bullets, each a concrete verifiable claim (not vague concerns).
@@ -105,9 +111,15 @@ Write the file to `/tmp/pr-reading-guide-<PR_NUMBER>.md`:
 
 ### `<path>`
 
-**What changed:** Plain-English description of behavior change, not function-by-function.
+**What changed:** 1–2 orienting sentences in plain English. Not function-by-function.
 
-**Why it matters:** The decision encoded. What would break or behave differently if wrong.
+**Walkthrough:** Detailed prose explanation of the file's logic after the change. Walk through the functions/blocks in execution order: inputs, what each step does, the branches that exist, the edge cases handled, the values returned. Be specific — the reader should be able to describe the code's behavior back to you afterwards. For changed (not new) files, include explicit **Before:** / **After:** contrast so the delta is obvious. Prefer prose, but quote a short snippet (≤5 lines) when the literal code — a regex, SQL clause, default value, key constant — is shorter and clearer than describing it. If you had to infer behavior because you couldn't fully resolve a helper or callee, say so at the end of this section.
+
+**Decisions encoded:** Bullet list of the non-obvious choices in this file — defaults, thresholds, fallbacks, ordering, retries, why approach A over B. One bullet per decision. This is what the user is actually validating.
+
+**Call sites / blast radius:** For shared utilities, types, services, or hooks, list who calls this file and how. Skip this block for leaf files that aren't imported elsewhere.
+
+**Data shapes:** When the file touches DB rows, request/response payloads, or shared types, inline the actual shape (column types and nullability, JSON structure, prop interface). Skip this block when not relevant.
 
 **What to verify:** A check the user can do without reading the code — UI test, Supabase inspection, log check, etc.
 
@@ -131,9 +143,9 @@ Anything the diff alone could not determine — call out lower-confidence areas.
 ## Quality Rules
 
 - Prose must be **specific**. The guide replaces reading code; vague summaries defeat the purpose.
-- Each MUST-READ section should fit on a short screen. If you need more than that, recommend the user read the actual code instead — and say so.
+- Be as long as needed to faithfully describe the code. Do not artificially compress — if a file has real complexity, the Walkthrough should cover it. If a file is huge but mostly mechanical (e.g., a long switch with repetitive branches), summarize the mechanical parts and go deep on the load-bearing logic.
 - Use the project's domain vocabulary (Mi Menú, Sofía, Lupita, planner, shopping list, Irmixy) where relevant — see `CLAUDE.md`.
-- Distinguish what the diff says from what is inferred. Mark inferences as such.
+- Distinguish what the diff says from what is inferred. Mark inferences as such inside the Walkthrough.
 - Surface what surprised you in the report-back; escalate to `$review-pr` when the diff has critical-severity smells (security, data loss, breaking API change).
 
 ## When NOT to Use

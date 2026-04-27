@@ -13,9 +13,10 @@ Write the guide to /tmp/pr-reading-guide-<PR_NUMBER>.md.
 
 Output requirements:
 - TL;DR explaining intent, not commit-log restatement
+- "How These Files Fit Together" — short call-graph paragraph across must-read files (skip if only one)
 - "What to Manually Verify" bullets — each a concrete check
-- One section per must-read file: What changed / Why it matters / What to verify / Risk if wrong
-- Each section short enough to fit on a screen — if longer, tell me to read the code
+- One section per must-read file with: What changed / Walkthrough (detailed prose, with Before/After for changed files, short ≤5-line snippets when clearer than prose, inference notes when applicable) / Decisions encoded (bullet list) / Call sites / blast radius (for shared code) / Data shapes (when relevant) / What to verify / Risk if wrong
+- Be as long as needed — do not artificially compress; readers must come away with the same mental model they'd have from reading the code
 - Skim list with one-line reasons
 - Skipped categories so nothing feels hidden
 - Open Questions for low-confidence areas

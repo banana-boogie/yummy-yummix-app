@@ -73,6 +73,8 @@ Promote those into MUST-READ even if they don't match a heuristic. Demote heuris
 
 ### Step 4: Write the Reading Guide
 
+**Before writing:** for each MUST-READ file, open the file at HEAD and read the surrounding code, not just the diff hunks. The Walkthrough must reflect the file's full behavior *after* the change, not only the lines that moved. If a function is called but not changed, you still need to know what it does to describe the flow accurately.
+
 Output to `/tmp/pr-reading-guide-<PR_NUMBER>.md` (overwrite if exists). Tell the user the path when done.
 
 Structure:
@@ -87,6 +89,10 @@ Structure:
 
 <2-3 sentence plain-English summary of what this PR does and why. Not a commit-message restatement — explain the *intent*.>
 
+## How These Files Fit Together
+
+A short paragraph (or numbered flow) showing the call graph across the must-read files: where a request/event enters, which file routes it, which mutates state, what comes back. Skip this section if there is only one must-read file.
+
 ## What to Manually Verify
 
 Bulleted list of the 3–7 things the user should actively check before merging. Each bullet is a verifiable claim, not a vague concern. Example: "Confirm the new `recipe_metadata.cuisine` column allows NULL — older rows have no cuisine yet."
@@ -97,9 +103,15 @@ For each MUST-READ file, one section:
 
 ### `<path>`
 
-**What changed:** 1–2 sentences in plain English. Not "added function X" — "now we route Sofía's planner request through the new recipe-metadata cache before falling back to the database."
+**What changed:** 1–2 orienting sentences. Not "added function X" — "now we route Sofía's planner request through the new recipe-metadata cache before falling back to the database."
 
-**Why it matters:** The decision encoded here. What would break or behave differently if this were wrong?
+**Walkthrough:** Detailed prose explanation of the file's logic after the change. Walk through the functions/blocks in execution order: inputs, what each step does, the branches that exist, the edge cases handled, the values returned. Be specific — the reader should be able to describe the code's behavior back to you afterwards. For changed (not new) files, include explicit **Before:** / **After:** contrast so the delta is obvious. Prefer prose, but quote a short snippet (≤5 lines) when the literal code — a regex, SQL clause, default value, key constant — is shorter and clearer than describing it. If you had to infer behavior because you couldn't fully resolve a helper or callee, say so at the end of this section.
+
+**Decisions encoded:** Bullet list of the non-obvious choices in this file — defaults, thresholds, fallbacks, ordering, retries, why approach A over B. One bullet per decision. This is what the user is actually validating.
+
+**Call sites / blast radius:** For shared utilities, types, services, or hooks, list who calls this file and how. Skip this block for leaf files that aren't imported elsewhere.
+
+**Data shapes:** When the file touches DB rows, request/response payloads, or shared types, inline the actual shape (column types and nullability, JSON structure, prop interface). Skip this block when not relevant.
 
 **What to verify:** Concrete check the user can do without reading code — e.g., "Open Supabase, confirm the `idx_recipe_meta_cuisine` index exists" or "Test the planner with a recipe that has no cuisine and confirm it doesn't error."
 
@@ -131,7 +143,8 @@ After writing, send the user a short message with:
 ## Tone and Length
 
 - The reading guide replaces reading code, so prose must be specific and concrete. Vague summaries ("this refactors the planner") are useless.
-- Aim for 1 short screen per must-read file. If a file needs more than that, the diff is probably too big and the user should read the code directly — say so.
+- Be as long as needed to faithfully describe the code. Do not artificially compress — if a file has real complexity, the Walkthrough should cover it. If a file is huge but mostly mechanical (e.g., a long switch with repetitive branches), summarize the mechanical parts and go deep on the load-bearing logic.
+- Distinguish what the diff/code says from what you inferred. Mark inferences as such inside the Walkthrough.
 - Use the user's domain vocabulary (Mi Menú, Sofía, Lupita, planner, shopping list, Irmixy) when relevant — they're already in `CLAUDE.md`.
 
 ## When NOT to Use This Skill
