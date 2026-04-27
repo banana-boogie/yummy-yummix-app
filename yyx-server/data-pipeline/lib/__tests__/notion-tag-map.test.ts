@@ -48,6 +48,30 @@ async function loadCanonicalSlugs(): Promise<Set<string>> {
   return slugs;
 }
 
+/** Read the migration's legacy_tag_remap keys (lowercase legacy names). */
+async function loadLegacyRemapKeys(): Promise<Set<string>> {
+  const sql = await Deno.readTextFile(MIGRATION_PATH);
+
+  // Isolate the INSERT INTO legacy_tag_remap (...) VALUES ... ; block so we
+  // don't accidentally pick up tuples from elsewhere.
+  const blockMatch = sql.match(
+    /INSERT INTO legacy_tag_remap[^;]*VALUES([\s\S]+?);/,
+  );
+  if (!blockMatch) {
+    throw new Error(
+      "Could not find legacy_tag_remap INSERT block in the migration",
+    );
+  }
+
+  // Each row: ('legacy name', 'slug'),
+  const rowRegex = /\(\s*'([^']+)'\s*,\s*'([a-z0-9_]+)'\s*\)/g;
+  const keys = new Set<string>();
+  for (const m of blockMatch[1].matchAll(rowRegex)) {
+    keys.add(m[1]);
+  }
+  return keys;
+}
+
 async function loadScanReport(): Promise<ScanReport> {
   const raw = await Deno.readTextFile(SCAN_REPORT_PATH);
   return JSON.parse(raw) as ScanReport;
@@ -106,6 +130,40 @@ Deno.test('notion-tag-map: INTENTIONAL_DROPS entries are not also mapped', () =>
     overlaps,
     [],
     `Tag(s) appear in both NOTION_TAG_MAP and INTENTIONAL_DROPS: ${overlaps.join(', ')}. Pick one.`,
+  );
+});
+
+Deno.test('migration legacy_tag_remap: covers every NOTION_TAG_MAP en/es value', async () => {
+  const remapKeys = await loadLegacyRemapKeys();
+
+  // Sanity-check the parser caught a non-trivial number of rows.
+  assertEquals(
+    remapKeys.size > 30,
+    true,
+    `Expected the migration legacy_tag_remap to contain >30 rows, got ${remapKeys.size}. The remap parser regex may be out of sync.`,
+  );
+
+  // Every translation row written by the importer (current OR historic)
+  // should be remappable. We lowercase to match the migration's
+  // case-insensitive join.
+  const drops = new Set(INTENTIONAL_DROPS);
+  const missing: string[] = [];
+  for (const [legacyName, mapping] of Object.entries(NOTION_TAG_MAP)) {
+    if (drops.has(legacyName)) continue;
+    for (const value of [mapping.en, mapping.es]) {
+      const key = value.toLowerCase();
+      if (!remapKeys.has(key)) {
+        missing.push(`${legacyName} -> ${value}`);
+      }
+    }
+  }
+
+  assertEquals(
+    missing,
+    [],
+    `Migration legacy_tag_remap is missing entries for these NOTION_TAG_MAP values: ${
+      missing.join(', ')
+    }. Add lowercase versions to the legacy_tag_remap INSERT block.`,
   );
 });
 

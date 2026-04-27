@@ -22,6 +22,8 @@
 --   - 'International' -> vague catch-all; cuisine handles specifics
 -- ============================================================
 
+BEGIN;
+
 -- 1. Snapshot recipe → legacy tag-name links BEFORE truncating.
 --    We record every translated name (en + es) per link so the remap
 --    can match either side. COALESCE would silently drop rows where
@@ -201,9 +203,14 @@ ALTER TABLE public.recipe_tags ALTER COLUMN slug SET NOT NULL;
 -- 6. Build the legacy → canonical-slug remap.
 --    This is the SINGLE source of truth used both for reinsertion and
 --    for logging which legacy names had no canonical home.
---    Keys are matched against legacy_tag_links.legacy_name (the old en/es
---    translation strings), so the table covers BOTH locale spellings to
---    survive cases where only one locale had been populated for a tag.
+--    Keys are stored lowercase and matched case-insensitively against
+--    legacy_tag_links.legacy_name. Coverage includes:
+--      - every old NOTION_TAG_MAP en/es value
+--      - every observed scan-report tag name
+--      - every new canonical name_en / name_es seeded above
+--    so that the migration survives both fresh runs against the legacy
+--    schema AND re-runs after the new canonical names are already in
+--    place.
 CREATE TEMP TABLE legacy_tag_remap (
   legacy_name text PRIMARY KEY,
   slug        text NOT NULL
@@ -211,123 +218,119 @@ CREATE TEMP TABLE legacy_tag_remap (
 
 INSERT INTO legacy_tag_remap (legacy_name, slug) VALUES
   -- meal_type
-  ('Postre',                 'dessert'),
   ('postre',                 'dessert'),
-  ('Bebida',                 'beverage'),
+  ('dessert',                'dessert'),
   ('bebida',                 'beverage'),
   ('drink',                  'beverage'),
-  ('Desayuno',               'breakfast'),
+  ('beverage',               'beverage'),
   ('desayuno',               'breakfast'),
   ('breakfast',              'breakfast'),
-  ('Botana',                 'snack'),
   ('botana',                 'snack'),
   ('snack',                  'snack'),
   ('merienda',               'snack'),
+  ('comida',                 'lunch'),
+  ('lunch',                  'lunch'),
+  ('cena',                   'dinner'),
+  ('dinner',                 'dinner'),
 
   -- cuisine
-  ('Mexican',                'mexican'),
   ('mexican',                'mexican'),
-  ('Mexicano',               'mexican'),
   ('mexicano',               'mexican'),
-  ('Indian',                 'indian'),
+  ('mexicana',               'mexican'),
   ('indian',                 'indian'),
   ('indio',                  'indian'),
+  ('india',                  'indian'),
 
   -- diet
-  ('Vegetarian',             'vegetarian'),
   ('vegetarian',             'vegetarian'),
-  ('Vegetariano',            'vegetarian'),
   ('vegetariano',            'vegetarian'),
-  ('Sugar Free',             'low_sugar'),
+  ('vegetariana',            'vegetarian'),
+  ('sugar free',             'low_sugar'),
   ('sugarfree',              'low_sugar'),
-  ('Sin gluten',             'gluten_free'),
+  ('sinazúcar',              'low_sugar'),
+  ('sin azúcar',             'low_sugar'),
+  ('low sugar',              'low_sugar'),
+  ('bajo en azúcar',         'low_sugar'),
   ('sin gluten',             'gluten_free'),
   ('singluten',              'gluten_free'),
   ('glutenfree',             'gluten_free'),
-  ('Healthy',                'healthy'),
+  ('gluten free',            'gluten_free'),
   ('healthy',                'healthy'),
   ('saludable',              'healthy'),
 
   -- dish_type
-  ('Sopa',                   'soup'),
   ('sopa',                   'soup'),
   ('soup',                   'soup'),
-  ('Salsas',                 'sauce'),
+  ('salsa',                  'sauce'),
   ('salsas',                 'sauce'),
+  ('sauce',                  'sauce'),
   ('sauces',                 'sauce'),
-  ('Dip/Dressing',           'dip_dressing'),
+  ('dip/dressing',           'dip_dressing'),
+  ('dip y aderezo',          'dip_dressing'),
+  ('dip & dressing',         'dip_dressing'),
   ('dip',                    'dip_dressing'),
-  ('Aperitivo',              'appetizer'),
   ('aperitivo',              'appetizer'),
   ('appetizer',              'appetizer'),
-  ('Plato fuerte',           'main_dish'),
   ('plato fuerte',           'main_dish'),
   ('main course',            'main_dish'),
-  ('Guarnicion',             'side_dish'),
+  ('main dish',              'main_dish'),
   ('guarnicion',             'side_dish'),
-  ('Guarnición',             'side_dish'),
   ('guarnición',             'side_dish'),
   ('sides',                  'side_dish'),
+  ('side dish',              'side_dish'),
   ('acompañamiento',         'side_dish'),
-  ('Panadería',              'bakery'),
   ('panadería',              'bakery'),
-  ('Panaderia',              'bakery'),
   ('panaderia',              'bakery'),
   ('bakery',                 'bakery'),
-  ('Pasta',                  'pasta'),
   ('pasta',                  'pasta'),
-  ('Candy',                  'candy'),
   ('candy',                  'candy'),
   ('dulces',                 'candy'),
 
   -- primary_ingredient
-  ('Pollo',                  'chicken'),
   ('pollo',                  'chicken'),
   ('chicken',                'chicken'),
-  ('Res',                    'beef'),
   ('res',                    'beef'),
   ('beef',                   'beef'),
-  ('Cerdo',                  'pork'),
   ('cerdo',                  'pork'),
   ('pork',                   'pork'),
-  ('Seafood',                'seafood'),
   ('seafood',                'seafood'),
   ('mariscos',               'seafood'),
-  ('Lamb',                   'lamb'),
   ('lamb',                   'lamb'),
   ('cordero',                'lamb'),
 
   -- occasion
-  ('Halloween',              'holiday_halloween'),
   ('halloween',              'holiday_halloween'),
-  ('Baby friendly',          'baby_friendly'),
+  ('halloween / día de brujas', 'holiday_halloween'),
   ('baby friendly',          'baby_friendly'),
   ('babyfriendly',           'baby_friendly'),
   ('aptoparabebe',           'baby_friendly'),
+  ('apto para bebés',        'baby_friendly'),
 
   -- practical
-  ('Todo en 1',              'one_pot'),
   ('todo en 1',              'one_pot'),
   ('one pot',                'one_pot'),
-  ('Básicos de la cocina',   'pantry_staple'),
+  ('una sola olla',          'one_pot'),
   ('básicos de la cocina',   'pantry_staple'),
-  ('Basicos de la cocina',   'pantry_staple'),
   ('basicos de la cocina',   'pantry_staple'),
   ('básicosdelacocina',      'pantry_staple'),
   ('basicosdelacocina',      'pantry_staple'),
+  ('básicos de cocina',      'pantry_staple'),
+  ('basicos de cocina',      'pantry_staple'),
   ('kitchenbasics',          'pantry_staple'),
   ('kitchen basics',         'pantry_staple'),
-  ('Spices',                 'pantry_staple'),
+  ('pantry staple',          'pantry_staple'),
   ('spices',                 'pantry_staple'),
   ('especias',               'pantry_staple');
 
 -- 7. Reinsert the curated recipe → tag links using the remap.
 --    The DISTINCT guards against double-insertion when both en + es
 --    translations of the same legacy tag matched the same canonical slug.
+--    LOWER() on the snapshot side makes the join case-insensitive so the
+--    remap only needs lowercase keys.
 INSERT INTO public.recipe_to_tag (recipe_id, tag_id)
 SELECT DISTINCT l.recipe_id, t.id
 FROM legacy_tag_links l
-JOIN legacy_tag_remap r ON r.legacy_name = l.legacy_name
+JOIN legacy_tag_remap r ON r.legacy_name = LOWER(l.legacy_name)
 JOIN public.recipe_tags t ON t.slug = r.slug;
 
 -- 8. Backfill planner_role from unambiguous dish_type / meal_type tags, but
@@ -370,7 +373,7 @@ BEGIN
   SELECT string_agg(DISTINCT l.legacy_name, ', ' ORDER BY l.legacy_name)
   INTO unmapped_names
   FROM legacy_tag_links l
-  LEFT JOIN legacy_tag_remap r ON r.legacy_name = l.legacy_name
+  LEFT JOIN legacy_tag_remap r ON r.legacy_name = LOWER(l.legacy_name)
   WHERE r.slug IS NULL;
 
   SELECT COUNT(*) INTO preserved_links FROM public.recipe_to_tag;
@@ -378,3 +381,5 @@ BEGIN
   RAISE NOTICE 'Tag rebuild: % recipe_to_tag links preserved after remap.', preserved_links;
   RAISE NOTICE 'Tag rebuild: dropped legacy tag names: %', COALESCE(unmapped_names, '(none)');
 END $$;
+
+COMMIT;
