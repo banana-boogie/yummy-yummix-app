@@ -1,0 +1,547 @@
+/**
+ * SCORING_CONFIG_V1 — Single source of truth for meal planner ranking.
+ *
+ * Canonical spec:
+ *   product-kitchen/repeat-what-works/design/ranking-algorithm-detail.md
+ *
+ * All weights, thresholds, assembly bonuses/penalties, and mode switches live
+ * here. Scoring modules import from this file — nothing should hardcode a
+ * weight or constant elsewhere.
+ */
+
+import type { CanonicalMealType, MealComponent, SlotType } from "./types.ts";
+
+// ============================================================
+// Weight profiles
+// ============================================================
+
+export interface ScoringWeights {
+  tasteHousehold: number;
+  slotFit: number;
+  timeFit: number;
+  ingredientOverlap: number;
+  variety: number;
+  nutrition: number;
+  verified: number;
+}
+
+const NORMAL_WEIGHTS: ScoringWeights = {
+  tasteHousehold: 25,
+  slotFit: 20,
+  timeFit: 15,
+  ingredientOverlap: 15,
+  variety: 10,
+  nutrition: 10,
+  verified: 5,
+};
+
+// First-week trust mode boosts time fit + verified, reduces ingredient
+// overlap (no cook history to inform "recipes you already like the
+// ingredients of"). Nutrition stays at the full weight because the user's
+// nutrition_goal is explicit profile input — it doesn't need history to be
+// reliable. Total still 100. Applied when evidence_weeks === 0.
+const FIRST_WEEK_TRUST_WEIGHTS: ScoringWeights = {
+  tasteHousehold: 25,
+  slotFit: 20,
+  timeFit: 20,
+  ingredientOverlap: 5,
+  variety: 10,
+  nutrition: 10,
+  verified: 10,
+};
+
+export const WEIGHT_TOTAL = 100;
+
+// ============================================================
+// Taste / household sub-weights (inside 25-point factor)
+// ============================================================
+
+// Sub-weights inside the 25-point Taste/Household factor. Positive weights
+// (recipeAffinity through familyFavorite) sum to 1.0; recentRepeatPenalty is
+// subtracted, capping the worst-case raw value at -0.20 (clamped to 0 by the
+// outer clamp01).
+//
+// `explicitIntent` is the planned weight for a session-intent signal (e.g.
+// the chat orchestrator passing "user wants something light tonight" into
+// the planner via Track A5/A7). The signal isn't wired yet, so the factor
+// function multiplies by a hardcoded 0 — the slot is here so the wiring is
+// obvious when the signal lands, and 0.15 is the best-guess weight to use
+// then. Tune empirically once we have real session-intent data.
+export const TASTE_SUBWEIGHTS = {
+  recipeAffinity: 0.30,
+  cuisineAffinity: 0.20,
+  proteinAffinity: 0.15,
+  mealTypeAffinity: 0.10,
+  explicitIntent: 0.15,
+  familyFavorite: 0.10,
+  recentRepeatPenalty: 0.20,
+  recipeHistoryRating: 0.50,
+  recipeHistoryCompletion: 0.30,
+  recipeHistoryRepeat: 0.20,
+} as const;
+
+// ============================================================
+// Slot-fit sub-weights per slot kind (inside 20-point factor)
+// ============================================================
+
+export const SLOT_FIT_SUBWEIGHTS = {
+  cook: {
+    difficulty: 0.50,
+    timeCompat: 0.30,
+    householdComplexity: 0.20,
+  },
+  /**
+   * Busy-day cook_slot variant: a weekday cook slot where the user has
+   * flagged the day as busy AND no leftover source existed to downgrade
+   * this into a leftover_target_slot. Same formula as `cook` but with a
+   * stronger pull toward easy + fast recipes so busy days don't get a
+   * 90-minute project dinner.
+   */
+  busyCookSlot: {
+    difficulty: 0.55,
+    timeCompat: 0.40,
+    householdComplexity: 0.05,
+  },
+  // Weekend uses the same sub-weight shape as `cook` on purpose. The actual
+  // weekend differentiation happens in TIME_BUDGETS.weekend (120 min vs 45
+  // weeknight), so a 90-min braise scores great on Saturday and poorly on
+  // Tuesday without needing a different formula.
+  weekend: {
+    difficulty: 0.50,
+    timeCompat: 0.30,
+    householdComplexity: 0.20,
+  },
+  leftoverSource: {
+    difficulty: 0.45,
+    timeCompat: 0.20,
+    leftoversEligible: 0.15,
+    leftoverYield: 0.20,
+  },
+} as const;
+
+// ============================================================
+// Variety sub-weights (inside 10-point factor)
+// ============================================================
+
+export const VARIETY_SUBWEIGHTS = {
+  adjacentProtein: 0.40,
+  weeklyCuisine: 0.25,
+  recentRecipe: 0.20,
+  noveltyBalance: 0.15,
+} as const;
+
+// ============================================================
+// Ingredient-overlap sub-weights (inside 15-point factor)
+// ============================================================
+//
+// Currently single-weight (weeklyOverlap = 1.0) — the previous pantryFriendly
+// subterm relied on a hardcoded global STAPLE_KEYS list which assumed every
+// kitchen has the same staples. That assumption biased scoring toward
+// recipes using common (US/Mexican) staples regardless of what any
+// particular user actually has on hand. Removed until per-user pantry
+// data exists (post-shopping-list track); reintroduce as a real per-user
+// signal at that point.
+export const INGREDIENT_OVERLAP_SUBWEIGHTS = {
+  weeklyOverlap: 1.0,
+} as const;
+
+// ============================================================
+// Nutrition sub-weights for eat_healthier goal
+// ============================================================
+
+export const NUTRITION_HEALTHIER_SUBWEIGHTS = {
+  fiberHealth: 0.35,
+  proteinDensity: 0.30,
+  lowSugar: 0.20,
+  lowSodium: 0.15,
+} as const;
+
+// ============================================================
+// Time-fit budgets (minutes)
+// ============================================================
+
+export const TIME_BUDGETS = {
+  weeknightDefault: 45,
+  weekend: 120,
+  // Busy-day cook_slot: tighter budget so the time-fit factor punishes long
+  // cooks more aggressively on days the user flagged as busy.
+  busyDay: 30,
+} as const;
+
+// ============================================================
+// Candidate retrieval limits
+// ============================================================
+
+export const RETRIEVAL_LIMITS = {
+  cookSlotTopN: 30,
+  cookSlotBeamPerState: 12,
+} as const;
+
+// ============================================================
+// Shortlist (SQL-prefilter) heuristic scores
+// ============================================================
+//
+// Used by `shortlistCandidatesForSlot` (candidate-retrieval.ts) to rank the
+// hydrated candidate pool BEFORE the full 7-factor scorer runs in beam
+// search. Goal: cheaply trim to the top N (`RETRIEVAL_LIMITS.cookSlotTopN`)
+// so the expensive scorer only sees plausible candidates.
+//
+// These are NOT part of the final 100-point scoring model — they're sort
+// keys, intentionally coarse. Tune by adjusting individual values; the
+// relative magnitudes between groups (source > time > difficulty) are what
+// matters, not the absolute numbers.
+export const SHORTLIST_SCORES = {
+  source: {
+    leftoversFriendly: 26, // recipe is a viable leftover source for a future slot
+    batchFriendly: 6,
+    portionsCap: 8, // bonus = min(portions, cap)
+  },
+  time: {
+    weekend: { under120: 18, under180: 14, under240: 10, over: 4, missing: 12 },
+    busyDay: { under30: 24, under45: 18, under60: 10, over: 2 },
+    weeknight: { under45: 20, under60: 14, under75: 8, over: 3, missing: 10 },
+  },
+  difficulty: {
+    weekend: { medium: 10, easy: 9, hard: 7 },
+    busyDay: { easy: 14, medium: 7, hard: 1 },
+    weeknight: { easy: 12, medium: 9, hard: 4 },
+  },
+  flags: {
+    verified: 18,
+    completeMeal: 10,
+    leftoversFriendlyBonusWhenNotFeedingLeftover: 3,
+  },
+} as const;
+
+// ============================================================
+// Beam-search settings
+// ============================================================
+
+export const BEAM = {
+  width: 5,
+} as const;
+
+// ============================================================
+// Thin-catalog thresholds
+// ============================================================
+
+export const THIN_CATALOG = {
+  totalPublishedThreshold: 30,
+  viableCandidatesPerSlotThreshold: 8,
+} as const;
+
+// ============================================================
+// Assembly bonuses / penalties (applied at week state level)
+// ============================================================
+
+export const ASSEMBLY_ADJUSTMENTS = {
+  busyDayCoveredByLeftovers: 8,
+  strongLeftoverTransform: 5,
+  adjacentSameProteinRepeat: -6,
+  cuisineRepeatedTooOften: -4,
+  unfilledNonBusySlot: -10,
+  // Coverage-completion bonus: rewards bundles that cover a slot's
+  // `expectedMealComponents` (lunch + dinner expect protein + carb + veg).
+  // Encodes the product belief that a complete meal is more valuable than a
+  // bare main — the planner should prefer "main + side that adds veg" over
+  // "main alone" when both are otherwise comparable. Suppressed on busy-day
+  // cook slots so time pressure beats balance.
+  //
+  // Tiered to give partial credit when the catalog can't go all the way:
+  //   - Full coverage (every expected component achieved): +5
+  //     (matches `strongLeftoverTransform` tier — meaningful but not dominant)
+  //   - Partial coverage (≥ half of expected achieved, but not all): +2
+  //   - Less than half: 0
+  coverageCompleteFull: 5,
+  coverageCompletePartial: 2,
+} as const;
+
+/**
+ * Score modifiers applied per-candidate after the 7-factor sum.
+ *
+ * `primaryRolePreferencePenalty` (recipe-role-model.md §6.3): recipes that
+ * fit a slot only via their `alternate_planner_roles` (not their primary
+ * `planner_role`) take a small penalty so a recipe is preferred in its
+ * default role. Small enough that a great alternate match still beats a
+ * mediocre primary match.
+ */
+export const SCORE_MODIFIERS = {
+  primaryRolePreferencePenalty: 5,
+} as const;
+
+// ============================================================
+// Leftover resolution scoring
+// ============================================================
+
+export const LEFTOVER_RESOLUTION_SUBWEIGHTS = {
+  planQuality: 0.45,
+  yieldConfidence: 0.35,
+  busyDayCoverage: 0.20,
+} as const;
+
+// Plan-quality values plugged into leftoverPlanQuality.
+export const LEFTOVER_PLAN_QUALITY = {
+  explicitTransform: 1.0,
+  genericCarryForward: 0.75,
+} as const;
+
+// ============================================================
+// Open / orphan slot contribution defaults
+// ============================================================
+
+export const OPEN_SLOT_CONTRIBUTION = {
+  unfilledCookSlot: 0,
+} as const;
+
+// ============================================================
+// Variety thresholds
+// ============================================================
+
+export const VARIETY_LIMITS = {
+  weeklyCuisineRepeatThreshold: 3, // more than this triggers full penalty
+  adjacentProteinWindow: 1, // same protein on adjacent days triggers penalty
+  recentRecipeWindowDays: 30,
+} as const;
+
+// ============================================================
+// Assembly thresholds (week-level penalty gates)
+// ============================================================
+
+export const ASSEMBLY_THRESHOLDS = {
+  // Already this many of the same cuisine assigned in the week (before this
+  // slot) triggers ASSEMBLY_ADJUSTMENTS.cuisineRepeatedTooOften (-4).
+  // Distinct from VARIETY_LIMITS.weeklyCuisineRepeatThreshold, which gates
+  // the per-candidate variety scorer (a soft 0..1 penalty); this gate is the
+  // harder week-state penalty applied once the bundle is committed.
+  cuisineRepeatedTooOftenCount: 2,
+} as const;
+
+// ============================================================
+// Household thresholds
+// ============================================================
+
+export const HOUSEHOLD = {
+  largeThreshold: 3,
+  defaultSize: 2,
+} as const;
+
+// ============================================================
+// Rating / history thresholds
+// ============================================================
+
+export const HISTORY = {
+  cookCountForFamilyFavorite: 3,
+  hardRejectionRating: 2, // rating <= this excludes the exact recipe
+} as const;
+
+// ============================================================
+// Condiment rules (bundle-level)
+// ============================================================
+
+export const CONDIMENT_RULES = {
+  maxPerSlot: 1,
+  // Cap the total components a single slot can carry. 4 covers the typical
+  // Mexican meal (main + base/rice + veg + condiment, or main + side + drink
+  // + condiment) without exploding into "everything but the kitchen sink"
+  // suggestions when many explicit pairings happen to exist.
+  totalComponentsPerSlot: 4,
+  explicitPairingOnly: true,
+  attachAfterCoverage: true, // only after main/side/veg are placed
+} as const;
+
+// ============================================================
+// Slot structure defaults
+// ============================================================
+//
+// `STRUCTURE_DEFAULTS` is the bundle-size budget per meal type — the maximum
+// number of components the assembler will attach to a slot of that type
+// before the condiment cap kicks in. It is NOT a coverage requirement;
+// see `EXPECTED_COMPONENTS_BY_MEAL_TYPE` below for that.
+//
+// Lunch and dinner are bumped to `main_plus_two_components` (budget 3) so
+// non-Mexican meal patterns (American "main + side + veg" — chicken + rice +
+// broccoli, steak + potatoes + salad) can be assembled without truncation.
+// Mexican comida patterns (main + arroz + agua) also benefit. Breakfast is
+// bumped to `main_plus_one_component` (budget 2) for eggs+toast,
+// pancakes+bacon, oatmeal+fruit. The condiment cap (4) still applies.
+//
+// The bundle builder degrades gracefully when there aren't enough explicit
+// pairings to fill the budget — slots stay at the primary recipe alone.
+export const STRUCTURE_DEFAULTS: Record<
+  CanonicalMealType,
+  "single_component" | "main_plus_one_component" | "main_plus_two_components"
+> = {
+  breakfast: "main_plus_one_component",
+  lunch: "main_plus_two_components",
+  dinner: "main_plus_two_components",
+  snack: "single_component",
+  dessert: "single_component",
+  beverage: "single_component",
+};
+
+// ============================================================
+// Expected meal components per meal type
+// ============================================================
+//
+// Decoupled from `STRUCTURE_DEFAULTS` because "max bundle size" and "what
+// counts as a complete meal" are different concepts. Eggs + toast is a
+// reasonable 2-component breakfast that we don't want flagged as
+// incomplete for missing veg. The previous design conflated the two by
+// deriving expected components from the structure template.
+//
+// These drive the `coverage_complete` check in plan-generator. An empty
+// list means coverage always passes — no nutritional shape is required for
+// the meal type to be "complete." Non-empty lists demand that the bundle's
+// combined `meal_components` ⊇ this set.
+export const EXPECTED_COMPONENTS_BY_MEAL_TYPE: Record<
+  CanonicalMealType,
+  ReadonlyArray<MealComponent>
+> = {
+  breakfast: [], // eggs+toast or pancakes+bacon shouldn't be flagged for missing veg
+  lunch: ["protein", "carb", "veg"],
+  dinner: ["protein", "carb", "veg"],
+  snack: [],
+  dessert: [],
+  beverage: [],
+};
+
+// ============================================================
+// Planner-role fit per meal type
+// Recipes are retrieved by planner_role; this map expresses which roles
+// can serve as the PRIMARY component for a given canonical meal type.
+// ============================================================
+
+// Breakfast accepts both `main` and `snack` planner roles because many real
+// breakfast options (granola, yogurt parfait, fruit bowl, pan dulce) are
+// catalogued as `snack`. Without snack as a fallback, breakfast slots would
+// often be unfillable on a small launch catalog. A hearty `main` breakfast
+// still wins on score when one exists.
+export const MEAL_TYPE_PRIMARY_ROLES: Record<
+  CanonicalMealType,
+  ReadonlyArray<string>
+> = {
+  breakfast: ["main", "snack"],
+  lunch: ["main"],
+  dinner: ["main"],
+  snack: ["snack"],
+  dessert: ["dessert"],
+  beverage: ["beverage"],
+};
+
+// ============================================================
+// Weekend detection
+// ============================================================
+
+export const WEEKEND_DAY_INDEXES = new Set<number>([5, 6]); // Sat, Sun
+
+// ============================================================
+// Nutrition defaults
+// ============================================================
+
+export const NUTRITION_DEFAULT_NORM_WHEN_NO_GOAL = 1.0;
+export const NUTRITION_DEFAULT_NORM_WHEN_MISSING_DATA = 0.5;
+
+// ============================================================
+// Debug trace
+// ============================================================
+
+export const DEBUG_TRACE = {
+  includePerCandidateFactors: true,
+  topKCandidatesPerSlot: 5,
+} as const;
+
+// ============================================================
+// Weight selection
+// ============================================================
+
+export type ScoringMode = "normal" | "first_week_trust";
+
+export function pickWeights(mode: ScoringMode): ScoringWeights {
+  return mode === "first_week_trust"
+    ? FIRST_WEEK_TRUST_WEIGHTS
+    : NORMAL_WEIGHTS;
+}
+
+// ============================================================
+// Final consolidated config object
+// ============================================================
+
+export const SCORING_CONFIG_V1 = {
+  version: "v1" as const,
+  weights: {
+    normal: NORMAL_WEIGHTS,
+    firstWeekTrust: FIRST_WEEK_TRUST_WEIGHTS,
+  },
+  taste: TASTE_SUBWEIGHTS,
+  slotFit: SLOT_FIT_SUBWEIGHTS,
+  variety: VARIETY_SUBWEIGHTS,
+  ingredientOverlap: INGREDIENT_OVERLAP_SUBWEIGHTS,
+  nutritionHealthier: NUTRITION_HEALTHIER_SUBWEIGHTS,
+  timeBudgets: TIME_BUDGETS,
+  retrieval: RETRIEVAL_LIMITS,
+  beam: BEAM,
+  thinCatalog: THIN_CATALOG,
+  assembly: ASSEMBLY_ADJUSTMENTS,
+  scoreModifiers: SCORE_MODIFIERS,
+  leftoverResolution: LEFTOVER_RESOLUTION_SUBWEIGHTS,
+  leftoverPlanQuality: LEFTOVER_PLAN_QUALITY,
+  openSlotContribution: OPEN_SLOT_CONTRIBUTION,
+  varietyLimits: VARIETY_LIMITS,
+  assemblyThresholds: ASSEMBLY_THRESHOLDS,
+  household: HOUSEHOLD,
+  history: HISTORY,
+  condimentRules: CONDIMENT_RULES,
+  structureDefaults: STRUCTURE_DEFAULTS,
+  expectedComponentsByMealType: EXPECTED_COMPONENTS_BY_MEAL_TYPE,
+  mealTypePrimaryRoles: MEAL_TYPE_PRIMARY_ROLES,
+  weekendDayIndexes: [...WEEKEND_DAY_INDEXES],
+  nutritionDefaultNoGoal: NUTRITION_DEFAULT_NORM_WHEN_NO_GOAL,
+  nutritionDefaultMissing: NUTRITION_DEFAULT_NORM_WHEN_MISSING_DATA,
+  debug: DEBUG_TRACE,
+} as const;
+
+// ============================================================
+// Helpers — clamping
+// ============================================================
+
+export const clamp01 = (n: number): number => {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(1, n));
+};
+
+export const clamp11 = (n: number): number => {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(-1, Math.min(1, n));
+};
+
+export const pos01 = (n: number): number => clamp01((clamp11(n) + 1) / 2);
+
+// ============================================================
+// Shared types
+// ============================================================
+
+export type NutritionGoal =
+  | "no_preference"
+  | "eat_healthier"
+  | "lose_weight"
+  | "more_protein"
+  | "less_sugar";
+
+export function resolveTimeBudget(
+  slotKind: SlotType,
+  isBusyDay: boolean,
+  userMaxWeeknightMinutes: number | null | undefined,
+): number {
+  if (slotKind === "weekend_flexible_slot") {
+    return TIME_BUDGETS.weekend;
+  }
+  // Busy-day cook slots get a tighter budget so the time-fit factor
+  // aggressively penalizes long cooks. Leftover targets skip this branch —
+  // their slot-fit uses the leftoverSource sub-weights instead of time-fit.
+  if (isBusyDay && slotKind === "cook_slot") {
+    return TIME_BUDGETS.busyDay;
+  }
+  return userMaxWeeknightMinutes && userMaxWeeknightMinutes > 0
+    ? userMaxWeeknightMinutes
+    : TIME_BUDGETS.weeknightDefault;
+}

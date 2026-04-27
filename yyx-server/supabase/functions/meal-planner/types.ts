@@ -33,7 +33,6 @@ export const CANONICAL_MEAL_TYPES = [
 export const SLOT_TYPES = [
   "cook_slot",
   "leftover_target_slot",
-  "no_cook_fallback_slot",
   "weekend_flexible_slot",
 ] as const;
 
@@ -70,7 +69,6 @@ export const COMPONENT_ROLES = [
 export const SOURCE_KINDS = [
   "recipe",
   "leftover",
-  "no_cook",
   "custom",
 ] as const;
 
@@ -83,6 +81,46 @@ export const PAIRING_BASES = [
 ] as const;
 
 export const MEAL_PLAN_STATUSES = ["draft", "active", "archived"] as const;
+
+/**
+ * Per recipe-role-model.md (accepted 2026-04-15), `meal_components` answers
+ * one question only: "what does this recipe contribute to a complete meal?"
+ * Three values, no overlap with `planner_role` (course / scheduling) or
+ * `diet` tags (dietary descriptors like keto / high-protein).
+ *
+ * Stored under the `meal_components` column on `recipes`, mirrored as
+ * `expected_meal_components` on `meal_plan_slots` and
+ * `meal_components_snapshot` on `meal_plan_slot_components`. PR #46 ships
+ * the rename + CHECK narrowing.
+ */
+export const MEAL_COMPONENTS = ["protein", "carb", "veg"] as const;
+export type MealComponent = typeof MEAL_COMPONENTS[number];
+
+export const PLANNER_ROLES = [
+  "main",
+  "side",
+  "snack",
+  "dessert",
+  "beverage",
+  "condiment",
+  "pantry",
+] as const;
+export type PlannerRole = typeof PLANNER_ROLES[number];
+
+/**
+ * `alternate_planner_roles` is mutually exclusive with `pantry` — the column
+ * CHECK constraint forbids it. Pantry recipes are never scheduled, so they
+ * can't be alternates either.
+ */
+export const ALTERNATE_PLANNER_ROLES = [
+  "main",
+  "side",
+  "snack",
+  "dessert",
+  "beverage",
+  "condiment",
+] as const;
+export type AlternatePlannerRole = typeof ALTERNATE_PLANNER_ROLES[number];
 
 // ============================================================
 // Enums / Unions
@@ -98,6 +136,13 @@ export type ComponentRole = typeof COMPONENT_ROLES[number];
 export type SourceKind = typeof SOURCE_KINDS[number];
 export type PairingBasis = typeof PAIRING_BASES[number];
 export type MealPlanStatus = typeof MEAL_PLAN_STATUSES[number];
+
+export type NutritionGoal =
+  | "no_preference"
+  | "eat_healthier"
+  | "lose_weight"
+  | "more_protein"
+  | "less_sugar";
 
 // ============================================================
 // Error Codes
@@ -131,7 +176,13 @@ export interface GeneratePlanPayload {
   dayIndexes: number[];
   mealTypes: string[];
   busyDays?: number[];
-  preferLeftoversForLunch?: boolean;
+  /**
+   * Per-generation override of the user's auto-leftovers preference. When
+   * undefined, the planner reads `user_meal_planning_preferences.auto_leftovers`
+   * (default true). Pass `false` for a one-off "I want to cook fresh this week"
+   * generation without touching the persistent preference.
+   */
+  autoLeftovers?: boolean;
   replaceExisting?: boolean;
 }
 
@@ -160,7 +211,7 @@ export interface UpdatePreferencesPayload {
   mealTypes?: string[];
   busyDays?: number[];
   defaultMaxWeeknightMinutes?: number;
-  preferLeftoversForLunch?: boolean;
+  autoLeftovers?: boolean;
   preferredEatTimes?: Record<string, unknown>;
 }
 
@@ -201,6 +252,7 @@ export interface MealPlanSlotResponse {
   slotType: SlotType;
   structureTemplate: StructureTemplate;
   expectedMealComponents: string[];
+  coverageComplete: boolean;
   selectionReason: string;
   shoppingSyncState: ShoppingSyncState;
   status: SlotStatus;
@@ -255,7 +307,7 @@ export interface PreferencesResponse {
   busyDays: number[];
   activeDayIndexes: number[];
   defaultMaxWeeknightMinutes: number;
-  preferLeftoversForLunch: boolean;
+  autoLeftovers: boolean;
   preferredEatTimes: Record<string, unknown>;
 }
 
@@ -302,4 +354,11 @@ export interface MealPlannerErrorResponse {
     code: MealPlannerErrorCode;
     message: string;
   };
+  /**
+   * Diagnostic warnings that accompanied the failure. Currently used by
+   * INSUFFICIENT_RECIPES (HTTP 422) to surface MISSING_MEAL_TYPE_TAGS and
+   * other coverage warnings so the caller can render a meaningful "add tags
+   * / relax filters" message rather than an opaque error.
+   */
+  warnings?: string[];
 }

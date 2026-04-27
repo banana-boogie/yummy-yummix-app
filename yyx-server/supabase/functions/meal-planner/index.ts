@@ -9,8 +9,14 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { createUserClient } from "../_shared/supabase-client.ts";
 import { validateAuth } from "../_shared/auth.ts";
 import { normalizeMealTypes } from "./meal-types.ts";
+import {
+  generatePlan,
+  InsufficientRecipesError,
+  PlanAlreadyExistsError,
+} from "./plan-generator.ts";
 
 import {
+  type GeneratePlanPayload,
   type GeneratePlanResponse,
   type GenerateShoppingListResponse,
   type GetCurrentPlanResponse,
@@ -21,7 +27,6 @@ import {
   type MealPlanAction,
   type MealPlannerErrorCode,
   type MealPlannerErrorResponse,
-  type MealPlannerRequest,
   type PreferencesResponse,
   type SkipMealResponse,
   type SwapMealResponse,
@@ -41,13 +46,18 @@ const DEFAULT_DEPENDENCIES: MealPlannerDependencies = {
 };
 
 const VALID_ACTIONS = new Set<MealPlanAction>(MEAL_PLAN_ACTIONS);
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export const DEFAULT_PREFERENCES: PreferencesResponse = {
   mealTypes: ["dinner"],
   busyDays: [],
   activeDayIndexes: [0, 1, 2, 3, 4],
   defaultMaxWeeknightMinutes: 45,
-  preferLeftoversForLunch: false,
+  // Default true globally — Mexican comida-recalentado culture is the
+  // primary target market and reheated leftovers are positively framed.
+  // Users (or the chat orchestrator on a per-generation basis) can disable
+  // when they want fresh meals throughout the week.
+  autoLeftovers: true,
   preferredEatTimes: {},
 };
 
@@ -55,8 +65,10 @@ function errorResponse(
   code: MealPlannerErrorCode,
   message: string,
   status = 400,
+  warnings?: string[],
 ): Response {
   const body: MealPlannerErrorResponse = { error: { code, message } };
+  if (warnings && warnings.length > 0) body.warnings = warnings;
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -92,6 +104,23 @@ function requireString(
     throw new Error(`${field} is required and must be a non-empty string`);
   }
   return value;
+}
+
+function parseWeekStart(payload: Record<string, unknown>): string {
+  const weekStart = requireString(payload, "weekStart");
+  if (!ISO_DATE_PATTERN.test(weekStart)) {
+    throw new Error("weekStart must be a valid ISO date in YYYY-MM-DD format");
+  }
+
+  const parsed = new Date(`${weekStart}T00:00:00Z`);
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.toISOString().slice(0, 10) !== weekStart
+  ) {
+    throw new Error("weekStart must be a valid ISO date in YYYY-MM-DD format");
+  }
+
+  return weekStart;
 }
 
 function parseDayIndexArray(value: unknown, field: string): number[] {
@@ -154,11 +183,11 @@ function buildPreferencesFromPayload(
     next.defaultMaxWeeknightMinutes = minutes;
   }
 
-  if (payload.preferLeftoversForLunch !== undefined) {
-    if (typeof payload.preferLeftoversForLunch !== "boolean") {
-      throw new Error("preferLeftoversForLunch must be a boolean");
+  if (payload.autoLeftovers !== undefined) {
+    if (typeof payload.autoLeftovers !== "boolean") {
+      throw new Error("autoLeftovers must be a boolean");
     }
-    next.preferLeftoversForLunch = payload.preferLeftoversForLunch;
+    next.autoLeftovers = payload.autoLeftovers;
   }
 
   if (payload.preferredEatTimes !== undefined) {
@@ -185,12 +214,14 @@ async function handleGetCurrentPlan(
 
 async function handleGeneratePlan(
   payload: Record<string, unknown>,
-  _userId: string,
-  _supabase: UserClient,
+  userId: string,
+  supabase: UserClient,
 ): Promise<Response> {
+  let typedPayload: GeneratePlanPayload;
+  let includeDebugTrace = false;
   try {
-    requireString(payload, "weekStart");
-    parseDayIndexArray(payload.dayIndexes, "dayIndexes");
+    const weekStart = parseWeekStart(payload);
+    const dayIndexes = parseDayIndexArray(payload.dayIndexes, "dayIndexes");
 
     const rawMealTypes = payload.mealTypes;
     if (!Array.isArray(rawMealTypes) || rawMealTypes.length === 0) {
@@ -199,18 +230,82 @@ async function handleGeneratePlan(
     if (rawMealTypes.some((entry) => typeof entry !== "string")) {
       throw new Error("mealTypes entries must be strings");
     }
+    // Validate canonical mapping; we keep raw labels so comida displays as comida.
     normalizeMealTypes(rawMealTypes as string[]);
+
+    const busyDays = payload.busyDays !== undefined
+      ? parseDayIndexArray(payload.busyDays, "busyDays")
+      : undefined;
+
+    if (
+      payload.autoLeftovers !== undefined &&
+      typeof payload.autoLeftovers !== "boolean"
+    ) {
+      throw new Error("autoLeftovers must be a boolean");
+    }
+
+    if (
+      payload.replaceExisting !== undefined &&
+      typeof payload.replaceExisting !== "boolean"
+    ) {
+      throw new Error("replaceExisting must be a boolean");
+    }
+
+    if (payload.debug !== undefined && typeof payload.debug !== "boolean") {
+      throw new Error("debug must be a boolean");
+    }
+    includeDebugTrace = payload.debug === true;
+
+    typedPayload = {
+      weekStart,
+      dayIndexes,
+      mealTypes: rawMealTypes as string[],
+      busyDays,
+      autoLeftovers: payload.autoLeftovers as boolean | undefined,
+      replaceExisting: payload.replaceExisting as boolean | undefined,
+    };
   } catch (error) {
     return errorResponse("INVALID_INPUT", (error as Error).message);
   }
 
-  const response: GeneratePlanResponse = {
-    plan: null,
-    isPartial: true,
-    missingSlots: [],
-    warnings: [stubWarning("generate_plan")],
-  };
-  return jsonResponse(response);
+  try {
+    const result = await generatePlan({
+      payload: typedPayload,
+      userId,
+      supabase: supabase as never,
+    });
+
+    const response:
+      & GeneratePlanResponse
+      & { debugTrace?: unknown } = {
+        plan: result.plan,
+        isPartial: result.isPartial,
+        missingSlots: result.missingSlots,
+        warnings: result.warnings,
+      };
+    if (includeDebugTrace) response.debugTrace = result.debugTrace;
+    return jsonResponse(response);
+  } catch (error) {
+    // PLAN_ALREADY_EXISTS is a documented contract, not an internal error.
+    // Surface it with HTTP 409 before the generic catch in the outer handler
+    // maps unknown errors to INTERNAL_ERROR.
+    if (error instanceof PlanAlreadyExistsError) {
+      return errorResponse(
+        "PLAN_ALREADY_EXISTS",
+        error.message,
+        409,
+      );
+    }
+    if (error instanceof InsufficientRecipesError) {
+      return errorResponse(
+        "INSUFFICIENT_RECIPES",
+        error.message,
+        422,
+        error.warnings,
+      );
+    }
+    throw error;
+  }
 }
 
 async function handleSwapMeal(

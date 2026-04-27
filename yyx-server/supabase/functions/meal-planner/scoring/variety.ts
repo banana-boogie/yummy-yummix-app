@@ -1,0 +1,110 @@
+/**
+ * Factor: Variety (0..10)
+ *
+ * Depends on the week state built up so far:
+ *   - adjacent-day protein repeat penalty
+ *   - weekly cuisine repeat penalty (scaled by user cuisine affinity)
+ *   - cross-week recentRecipe penalty (decaying)
+ *   - noveltyBalance bonus (capped in first-week trust mode)
+ *
+ * Spec: ranking-algorithm-detail.md §4.5
+ */
+
+import {
+  clamp01,
+  VARIETY_LIMITS,
+  VARIETY_SUBWEIGHTS,
+} from "../scoring-config.ts";
+import type { ScoreCandidateInput } from "./types.ts";
+import type { FactorOutput } from "./taste-household-fit.ts";
+import { inferProteinKey } from "./protein-inference.ts";
+
+function adjacentProteinPenalty(input: ScoreCandidateInput): number {
+  const key = inferProteinKey(input.candidate);
+  if (!key) return 0;
+  const prev = input.state.assignedProteinByDayIndex.get(
+    input.slot.dayIndex - VARIETY_LIMITS.adjacentProteinWindow,
+  );
+  const next = input.state.assignedProteinByDayIndex.get(
+    input.slot.dayIndex + VARIETY_LIMITS.adjacentProteinWindow,
+  );
+  if (prev === key || next === key) return 1;
+  return 0;
+}
+
+function weeklyCuisinePenalty(input: ScoreCandidateInput): number {
+  if (input.candidate.cuisineTags.length === 0) return 0;
+  // Consider the dominant cuisine tag as the primary.
+  const primary = input.candidate.cuisineTags[0];
+  const count = input.state.assignedCuisineCounts.get(primary) ?? 0;
+  if (count === 0) return 0;
+  if (count >= VARIETY_LIMITS.weeklyCuisineRepeatThreshold) return 1;
+  return count / VARIETY_LIMITS.weeklyCuisineRepeatThreshold;
+}
+
+function cuisineAffinityScale(input: ScoreCandidateInput): number {
+  // If the user strongly prefers a cuisine tag, dampen the repeat penalty.
+  let bestAffinity = 0;
+  let bestConfidence = 0;
+  for (const tag of input.candidate.cuisineTags) {
+    const row = input.user.implicitPreferences.get(`cuisine:${tag}`);
+    if (!row) continue;
+    const normalized = Math.max(-1, Math.min(1, row.score / 3));
+    if (normalized > bestAffinity) {
+      bestAffinity = normalized;
+      bestConfidence = row.confidence;
+    }
+  }
+  return 1 - clamp01(bestAffinity * bestConfidence);
+}
+
+function recentRecipePenalty(input: ScoreCandidateInput): number {
+  const when = input.user.recentCookedRecipes.get(input.candidate.id);
+  if (!when) return 0;
+  const daysSince = (Date.now() - when.getTime()) / 86_400_000;
+  const windowDays = VARIETY_LIMITS.recentRecipeWindowDays;
+  if (daysSince >= windowDays) return 0;
+  // Decaying linearly: same week = 1, fading over 30 days.
+  const remaining = windowDays - daysSince;
+  return clamp01(remaining / windowDays);
+}
+
+function noveltyBalanceBonus(input: ScoreCandidateInput): number {
+  // First-week trust mode: every candidate is "novel" by definition because
+  // there's no cook history yet. Returning a constant here would just shift
+  // every candidate's variety score by the same amount without changing
+  // rankings (and the previous noveltyCount-based cap actively penalized
+  // later slots vs earlier ones for no good reason). In first-week mode,
+  // variety differentiation comes from the within-week signals only —
+  // adjacent protein and weekly cuisine.
+  if (input.state.mode === "first_week_trust") return 0;
+
+  // Novel recipe = not cooked in the last 30 days AND not already in this week.
+  const cookedRecently = input.user.recentCookedRecipes.has(input.candidate.id);
+  const alreadyAssignedThisWeek = input.state.assignedRecipeIds.has(
+    input.candidate.id,
+  );
+  const isNovel = !cookedRecently && !alreadyAssignedThisWeek;
+  return isNovel ? 1 : 0;
+}
+
+export function scoreVariety(
+  input: ScoreCandidateInput,
+  weight: number,
+): FactorOutput {
+  const adjacent = adjacentProteinPenalty(input);
+  const cuisineRaw = weeklyCuisinePenalty(input);
+  const cuisineScale = cuisineAffinityScale(input);
+  const cuisine = cuisineRaw * cuisineScale;
+  const recent = recentRecipePenalty(input);
+  const novelty = noveltyBalanceBonus(input);
+
+  const norm = clamp01(
+    VARIETY_SUBWEIGHTS.adjacentProtein * (1 - adjacent) +
+      VARIETY_SUBWEIGHTS.weeklyCuisine * (1 - cuisine) +
+      VARIETY_SUBWEIGHTS.recentRecipe * (1 - recent) +
+      VARIETY_SUBWEIGHTS.noveltyBalance * novelty,
+  );
+
+  return { raw: norm, weighted: norm * weight };
+}
