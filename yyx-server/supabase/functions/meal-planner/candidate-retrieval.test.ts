@@ -373,8 +373,7 @@ function mealTypeTag(name: string): Record<string, unknown> {
 }
 
 function makeFetchCandidatesSupabase(
-  primaryRoleRows: Record<string, unknown>[],
-  alternateRoleRows: Record<string, unknown>[],
+  recipeRows: Record<string, unknown>[],
 ): { client: any; calls: string[] } {
   const calls: string[] = [];
 
@@ -382,24 +381,15 @@ function makeFetchCandidatesSupabase(
     calls,
     client: {
       from(table: string) {
-        let queryKind: "primary" | "alternate" | "other" = "other";
         const builder: any = {
           select: () => builder,
           eq: () => builder,
           not: () => builder,
           neq: () => builder,
-          in: (column: string) => {
-            if (table === "recipes" && column === "planner_role") {
-              queryKind = "primary";
-              calls.push("planner_role");
-            }
-            return builder;
-          },
-          overlaps: (column: string) => {
-            if (table === "recipes" && column === "alternate_planner_roles") {
-              queryKind = "alternate";
-              calls.push("alternate_planner_roles");
-            }
+          in: () => builder,
+          overlaps: () => builder,
+          or: (expr: string) => {
+            if (table === "recipes") calls.push(`or:${expr}`);
             return builder;
           },
           then: (
@@ -408,14 +398,8 @@ function makeFetchCandidatesSupabase(
               error: null;
             }) => void,
           ) => {
-            if (table !== "recipes") {
-              resolve({ data: [], error: null });
-              return;
-            }
             resolve({
-              data: queryKind === "alternate"
-                ? alternateRoleRows
-                : primaryRoleRows,
+              data: table === "recipes" ? recipeRows : [],
               error: null,
             });
           },
@@ -426,7 +410,7 @@ function makeFetchCandidatesSupabase(
   };
 }
 
-Deno.test("fetchCandidates merges primary-role and alternate-role queries without duplicates", async () => {
+Deno.test("fetchCandidates issues a single recipes query unioning primary + alternate roles", async () => {
   const primaryMatch = makeRawRecipeRow("primary-match", {
     planner_role: "main",
     alternate_planner_roles: [],
@@ -435,15 +419,19 @@ Deno.test("fetchCandidates merges primary-role and alternate-role queries withou
     planner_role: "snack",
     alternate_planner_roles: ["main"],
   });
-  const duplicateAcrossQueries = makeRawRecipeRow("duplicate", {
+  const dualMatch = makeRawRecipeRow("dual", {
     planner_role: "main",
     alternate_planner_roles: ["snack"],
   });
 
-  const { client, calls } = makeFetchCandidatesSupabase(
-    [primaryMatch, duplicateAcrossQueries],
-    [alternateOnlyMatch, duplicateAcrossQueries],
-  );
+  // PostgREST `.or()` returns each row at most once even when both branches
+  // would match, so we feed the deduped union directly — no client-side
+  // dedupe required.
+  const { client, calls } = makeFetchCandidatesSupabase([
+    primaryMatch,
+    alternateOnlyMatch,
+    dualMatch,
+  ]);
 
   const slot = mkSlot({ canonicalMealType: "dinner" });
   const result = await fetchCandidates([slot], {
@@ -458,15 +446,19 @@ Deno.test("fetchCandidates merges primary-role and alternate-role queries withou
   const candidates = result.get(slot.slotId) ?? [];
   const ids = candidates.map((candidate) => candidate.id).sort();
 
-  assertEquals(calls, ["planner_role", "alternate_planner_roles"]);
-  assertEquals(ids, ["alternate-only", "duplicate", "primary-match"]);
+  assertEquals(calls.length, 1);
+  assertEquals(
+    calls[0],
+    "or:planner_role.in.(main),alternate_planner_roles.ov.{main}",
+  );
+  assertEquals(ids, ["alternate-only", "dual", "primary-match"]);
 });
 
 Deno.test("fetchCandidates excludes recipes with no meal-type tags", async () => {
   const untagged = makeRawRecipeRow("untagged", {
     recipe_to_tag: [],
   });
-  const { client } = makeFetchCandidatesSupabase([untagged], []);
+  const { client } = makeFetchCandidatesSupabase([untagged]);
   const warnings: string[] = [];
   const slot = mkSlot({ canonicalMealType: "dinner" });
 
@@ -488,7 +480,7 @@ Deno.test("fetchCandidates keeps dinner-tagged recipe for dinner but not breakfa
   const dinnerOnly = makeRawRecipeRow("dinner-only", {
     recipe_to_tag: [mealTypeTag("Dinner")],
   });
-  const { client } = makeFetchCandidatesSupabase([dinnerOnly], []);
+  const { client } = makeFetchCandidatesSupabase([dinnerOnly]);
   const dinnerSlot = mkSlot({
     slotId: "0-dinner",
     canonicalMealType: "dinner",
@@ -521,7 +513,7 @@ Deno.test("fetchCandidates allows recipes tagged for both lunch and dinner in bo
   const lunchDinner = makeRawRecipeRow("lunch-dinner", {
     recipe_to_tag: [mealTypeTag("Lunch"), mealTypeTag("Dinner")],
   });
-  const { client } = makeFetchCandidatesSupabase([lunchDinner], []);
+  const { client } = makeFetchCandidatesSupabase([lunchDinner]);
   const lunchSlot = mkSlot({
     slotId: "0-lunch",
     canonicalMealType: "lunch",

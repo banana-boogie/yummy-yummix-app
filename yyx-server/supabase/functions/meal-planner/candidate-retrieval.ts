@@ -512,45 +512,27 @@ export async function fetchCandidates(
   //   - planner_role IS NOT NULL (must be tagged)
   //   - planner_role != 'pantry' (pantry items live in Explore only, never
   //     enter the planner)
-  // We keep coarse role filtering in SQL so requests do not hydrate the whole
-  // published catalog. Alternate-role support uses a second overlap query, then
-  // we merge + dedupe before the JS-only hard filters and slot partitioning.
-  // meal_components is no longer a universal hard filter — it's only required
-  // for main/side roles, enforced at scoring time per slot.
-  const baseRecipeQuery = () =>
-    ctx.supabase
-      .from("recipes")
-      .select(selectFields)
-      .eq("is_published", true)
-      .not("planner_role", "is", null)
-      .neq("planner_role", "pantry");
-
-  const [
-    { data: primaryRoleRows, error: primaryRoleError },
-    { data: alternateRoleRows, error: alternateRoleError },
-  ] = await Promise.all([
-    baseRecipeQuery().in("planner_role", neededRolesList),
-    baseRecipeQuery().overlaps("alternate_planner_roles", neededRolesList),
-  ]);
-
-  if (primaryRoleError) {
-    throw new Error(`Candidate fetch failed: ${primaryRoleError.message}`);
-  }
-  if (alternateRoleError) {
-    throw new Error(
-      `Candidate fetch failed: ${alternateRoleError.message}`,
+  // Single query unions primary-role match (`planner_role IN (...)`) with
+  // alternate-role match (`alternate_planner_roles && {...}`) via PostgREST
+  // `.or()`. PostgREST returns each row once even when both branches match,
+  // so no client-side dedupe is needed. meal_components is enforced later at
+  // scoring time per slot — not a universal SQL filter.
+  const rolesCsv = neededRolesList.join(",");
+  const { data: rawRecipeRows, error: recipeError } = await ctx.supabase
+    .from("recipes")
+    .select(selectFields)
+    .eq("is_published", true)
+    .not("planner_role", "is", null)
+    .neq("planner_role", "pantry")
+    .or(
+      `planner_role.in.(${rolesCsv}),alternate_planner_roles.ov.{${rolesCsv}}`,
     );
+
+  if (recipeError) {
+    throw new Error(`Candidate fetch failed: ${recipeError.message}`);
   }
 
-  const dedupedRawRows = new Map<string, RawRecipeRow>();
-  for (const row of (primaryRoleRows ?? []) as unknown as RawRecipeRow[]) {
-    dedupedRawRows.set(row.id, row);
-  }
-  for (const row of (alternateRoleRows ?? []) as unknown as RawRecipeRow[]) {
-    dedupedRawRows.set(row.id, row);
-  }
-
-  const rawRows = [...dedupedRawRows.values()];
+  const rawRows = (rawRecipeRows ?? []) as unknown as RawRecipeRow[];
   const filteredRows = rawRows
     .filter((r) => !ctx.hardExcludedRecipeIds.has(r.id))
     .filter((r) => isRoleEligibleForAnySlot(r, neededRoles))
