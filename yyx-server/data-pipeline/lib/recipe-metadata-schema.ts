@@ -77,17 +77,30 @@ export const THERMOMIX_TEMPERATURE_UNITS = ['C', 'F'] as const;
 // Special temperature literal allowed alongside numeric values.
 export const VAROMA = 'Varoma';
 
-// Valid speed values mirror the public.thermomix_speed_type enum (DB-enforced).
-// Source of truth: yyx-app/types/thermomix.types.ts:VALID_SPEEDS. Mirror here
-// because yyx-server cannot import from yyx-app.
+// Valid speed values — must match the public.thermomix_speed_type enum
+// exactly. Source of truth is the DB enum, NOT yyx-app/types/thermomix.types.ts
+// (the app types include speeds the DB enum does not currently store, e.g.
+// future TM7-extended values). The RPC casts to thermomix_speed_type, so any
+// value missing from this list would crash the apply with an enum cast error.
+// Schema-level rejection produces a line-aware error instead.
+//
+// To extend: first add the value to the DB enum via a migration, then add it
+// here. Keep these two in lockstep.
 export const VALID_SPEED_NUMBERS = [
   0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5,
   5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10,
 ] as const;
 
-// Valid temperature values mirror the public.thermomix_temperature_type enum.
-// The DB enum is the union of all model-supported temperatures known at the
-// time of the Track H rebuild; keep these in sync if the enum is extended.
+// Valid temperature values — must match the public.thermomix_temperature_type
+// enum exactly. Same rule as VALID_SPEED_NUMBERS: the DB enum is the source of
+// truth.
+//
+// Known gap: the app's TEMPERATURES_BY_MODEL.TM7 lists Celsius extended values
+// (125/135/145/155) and Fahrenheit extended values (257/266/275/284/293/302/
+// 311/320). These are NOT in the DB enum yet, so they are deliberately omitted
+// here — a YAML using them would be schema-rejected with a clear line number
+// rather than failing at apply with an opaque cast error. To unblock TM7
+// recipes, extend the DB enum first via a migration, then add here.
 export const VALID_TEMPERATURE_NUMBERS = [
   37, 40, 45, 50, 55, 60, 65, 70, 75, 80,
   85, 90, 95, 98, 100, 105, 110, 115, 120,
