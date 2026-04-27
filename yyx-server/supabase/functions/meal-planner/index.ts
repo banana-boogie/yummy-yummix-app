@@ -18,6 +18,7 @@ import {
   PlanAlreadyExistsError,
 } from "./plan-generator.ts";
 import { loadActivePlan, loadSlotWithPlan } from "./plan-loader.ts";
+import { buildLocaleChain, pickTranslation } from "../_shared/locale-utils.ts";
 
 import {
   type ApprovePlanResponse,
@@ -256,7 +257,7 @@ interface PreferencesRow {
   busy_days: number[] | null;
   active_day_indexes: number[] | null;
   default_max_weeknight_minutes: number | null;
-  prefer_leftovers_for_lunch: boolean | null;
+  auto_leftovers: boolean | null;
   preferred_eat_times: Record<string, unknown> | null;
 }
 
@@ -271,10 +272,7 @@ function rowToPreferences(row: PreferencesRow): PreferencesResponse {
       DEFAULT_PREFERENCES.activeDayIndexes,
     defaultMaxWeeknightMinutes: row.default_max_weeknight_minutes ??
       DEFAULT_PREFERENCES.defaultMaxWeeknightMinutes,
-    // The schema column `prefer_leftovers_for_lunch` predates the broader
-    // `auto_leftovers` flag and is the canonical persisted value used here.
-    autoLeftovers: row.prefer_leftovers_for_lunch ??
-      DEFAULT_PREFERENCES.autoLeftovers,
+    autoLeftovers: row.auto_leftovers ?? DEFAULT_PREFERENCES.autoLeftovers,
     preferredEatTimes: row.preferred_eat_times ?? {},
   };
 }
@@ -409,14 +407,8 @@ function pickName(
   rows: Array<{ locale: string; name: string | null }> | null,
   locale: string,
 ): string {
-  if (!rows || rows.length === 0) return "";
-  const exact = rows.find((r) => r.locale === locale && r.name);
-  if (exact?.name) return exact.name;
-  const baseLocale = locale.split("-")[0];
-  const baseMatch = rows.find((r) => r.locale === baseLocale && r.name);
-  if (baseMatch?.name) return baseMatch.name;
-  const fallback = rows.find((r) => r.name);
-  return fallback?.name ?? "";
+  const match = pickTranslation(rows ?? undefined, buildLocaleChain(locale));
+  return match?.name ?? "";
 }
 
 async function handleSwapMeal(
@@ -424,10 +416,11 @@ async function handleSwapMeal(
   userId: string,
   supabase: UserClient,
 ): Promise<Response> {
+  let mealPlanId: string;
   let mealPlanSlotId: string;
   let selectedRecipeId: string | undefined;
   try {
-    requireString(payload, "mealPlanId");
+    mealPlanId = requireString(payload, "mealPlanId");
     mealPlanSlotId = requireString(payload, "mealPlanSlotId");
     if (payload.selectedRecipeId !== undefined) {
       if (
@@ -448,6 +441,12 @@ async function handleSwapMeal(
     supabase as never,
   );
   if (!ctx) return errorResponse("PLAN_NOT_FOUND", "Slot not found", 404);
+  if (ctx.plan.planId !== mealPlanId) {
+    return errorResponse(
+      "INVALID_INPUT",
+      "mealPlanId does not match the slot's parent plan",
+    );
+  }
 
   const { plan, slot } = ctx;
   const primary = slot.components.find((c) => c.isPrimary);
@@ -499,9 +498,10 @@ async function respondWithSwapAlternatives(
 ): Promise<Response> {
   // Direct SQL prefilter — narrower than `fetchCandidates` but sufficient for
   // a swap browse: same primary role (or alternate role match), excludes
-  // current and rejected recipes, only published recipes. Per Plan 14 § 5.7
-  // the strict scoring core can be wired up in a follow-up; the integration
-  // gate only requires sensible alternatives.
+  // current and rejected recipes, only published recipes.
+  // TODO(plan-14-followup): wire up the scoring core from `scoring/index.ts`
+  // so alternatives are ranked against the user's week context (variety,
+  // taste, time fit) instead of the current verified+quick heuristic.
   const excluded = [
     primary.recipeId,
     ...rejectedRecipeIds,
@@ -718,9 +718,10 @@ async function handleSkipMeal(
   userId: string,
   supabase: UserClient,
 ): Promise<Response> {
+  let mealPlanId: string;
   let mealPlanSlotId: string;
   try {
-    requireString(payload, "mealPlanId");
+    mealPlanId = requireString(payload, "mealPlanId");
     mealPlanSlotId = requireString(payload, "mealPlanSlotId");
   } catch (error) {
     return errorResponse("INVALID_INPUT", (error as Error).message);
@@ -732,6 +733,12 @@ async function handleSkipMeal(
     supabase as never,
   );
   if (!ctx) return errorResponse("PLAN_NOT_FOUND", "Slot not found", 404);
+  if (ctx.plan.planId !== mealPlanId) {
+    return errorResponse(
+      "INVALID_INPUT",
+      "mealPlanId does not match the slot's parent plan",
+    );
+  }
 
   const nowIso = new Date().toISOString();
   const { error } = await supabase
@@ -758,8 +765,9 @@ async function handleSkipMeal(
     userId,
     supabase as never,
   );
-  // Salvage suggestion is structured but not generated in this PR. Plan 14
-  // § 5.6 defers the heuristic to a follow-up.
+  // TODO(plan-14-followup): compute the ingredient-salvage suggestion text
+  // (forgiveness mechanic, Plan 14 § 5.6). Returning null here keeps the
+  // contract stable so the UI can render an empty state without crashing.
   const response: SkipMealResponse = {
     slot: refreshed?.slot ?? null,
     suggestion: null,
@@ -773,9 +781,10 @@ async function handleMarkMealCooked(
   userId: string,
   supabase: UserClient,
 ): Promise<Response> {
+  let mealPlanId: string;
   let mealPlanSlotId: string;
   try {
-    requireString(payload, "mealPlanId");
+    mealPlanId = requireString(payload, "mealPlanId");
     mealPlanSlotId = requireString(payload, "mealPlanSlotId");
   } catch (error) {
     return errorResponse("INVALID_INPUT", (error as Error).message);
@@ -787,6 +796,12 @@ async function handleMarkMealCooked(
     supabase as never,
   );
   if (!ctx) return errorResponse("PLAN_NOT_FOUND", "Slot not found", 404);
+  if (ctx.plan.planId !== mealPlanId) {
+    return errorResponse(
+      "INVALID_INPUT",
+      "mealPlanId does not match the slot's parent plan",
+    );
+  }
 
   const nowIso = new Date().toISOString();
   const { error } = await supabase
@@ -795,6 +810,9 @@ async function handleMarkMealCooked(
     .eq("id", mealPlanSlotId);
   if (error) throw new Error(`Failed to mark cooked: ${error.message}`);
 
+  // TODO(plan-14-followup): emit positive implicit-preference signal into
+  // `user_implicit_preferences` and (if the helper lands) a `recipe_completion`
+  // row. Plan 14 § 5.5 marks both as best-effort and ships them later.
   await logUserEvent(supabase, userId, "planned_meal_cook_completed", {
     meal_plan_id: ctx.plan.planId,
     meal_plan_slot_id: mealPlanSlotId,
@@ -900,7 +918,7 @@ async function handleGetPreferences(
   const { data, error } = await supabase
     .from("user_meal_planning_preferences")
     .select(
-      "meal_types, busy_days, active_day_indexes, default_max_weeknight_minutes, prefer_leftovers_for_lunch, preferred_eat_times",
+      "meal_types, busy_days, active_day_indexes, default_max_weeknight_minutes, auto_leftovers, preferred_eat_times",
     )
     .eq("user_id", userId)
     .maybeSingle();
@@ -918,20 +936,26 @@ async function handleUpdatePreferences(
   userId: string,
   supabase: UserClient,
 ): Promise<Response> {
+  // Merge onto the user's existing preferences so partial payloads don't
+  // wipe untouched fields. Falls back to DEFAULT_PREFERENCES for new users.
+  // Read errors must surface as INTERNAL_ERROR — only payload validation
+  // failures map to INVALID_INPUT.
+  const { data: existing, error: readErr } = await supabase
+    .from("user_meal_planning_preferences")
+    .select(
+      "meal_types, busy_days, active_day_indexes, default_max_weeknight_minutes, auto_leftovers, preferred_eat_times",
+    )
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (readErr) {
+    throw new Error(`Failed to load preferences: ${readErr.message}`);
+  }
+  const base = existing
+    ? rowToPreferences(existing as PreferencesRow)
+    : DEFAULT_PREFERENCES;
+
   let next: PreferencesResponse;
   try {
-    // Merge onto the user's existing preferences so partial payloads don't
-    // wipe untouched fields. Falls back to DEFAULT_PREFERENCES for new users.
-    const { data: existing } = await supabase
-      .from("user_meal_planning_preferences")
-      .select(
-        "meal_types, busy_days, active_day_indexes, default_max_weeknight_minutes, prefer_leftovers_for_lunch, preferred_eat_times",
-      )
-      .eq("user_id", userId)
-      .maybeSingle();
-    const base = existing
-      ? rowToPreferences(existing as PreferencesRow)
-      : DEFAULT_PREFERENCES;
     next = buildPreferencesFromPayload(payload, base);
   } catch (error) {
     return errorResponse("INVALID_INPUT", (error as Error).message);
@@ -945,7 +969,7 @@ async function handleUpdatePreferences(
       busy_days: next.busyDays,
       active_day_indexes: next.activeDayIndexes,
       default_max_weeknight_minutes: next.defaultMaxWeeknightMinutes,
-      prefer_leftovers_for_lunch: next.autoLeftovers,
+      auto_leftovers: next.autoLeftovers,
       preferred_eat_times: next.preferredEatTimes,
     }, { onConflict: "user_id" });
   if (error) {

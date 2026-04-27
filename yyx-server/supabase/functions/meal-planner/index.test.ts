@@ -1075,6 +1075,64 @@ Deno.test("swap_meal apply path persists swap and records rejection", async () =
   assertEquals(rejections[0].reason_code, "user_swap");
 });
 
+Deno.test("swap_meal apply path rejects an unpublished recipe", async () => {
+  const unpublished = {
+    id: "alt-1",
+    planner_role: "main",
+    alternate_planner_roles: [],
+    meal_components: ["protein"],
+    total_time: 20,
+    difficulty: "easy",
+    portions: 4,
+    image_url: null,
+    equipment_tags: [],
+    verified_at: null,
+    is_published: false,
+    recipe_translations: [{ locale: "en", name: "Unpublished" }],
+  };
+  const { supabase } = makeStatefulSupabase({
+    plan: seededPlanRow(),
+    slot: seededSlotRef(),
+    recipeById: { "alt-1": unpublished },
+  });
+  const req = createAuthenticatedRequest({
+    action: "swap_meal",
+    payload: {
+      mealPlanId: SEEDED_PLAN_ID,
+      mealPlanSlotId: SEEDED_SLOT_ID,
+      selectedRecipeId: "alt-1",
+    },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  const body = await response.json();
+  assertEquals(response.status, 400);
+  assertEquals(body.error.code, "INVALID_INPUT");
+});
+
+Deno.test("mark_meal_cooked returns INVALID_INPUT when mealPlanId mismatches the slot's plan", async () => {
+  const { supabase } = makeStatefulSupabase({
+    plan: seededPlanRow(),
+    slot: seededSlotRef(),
+  });
+  const req = createAuthenticatedRequest({
+    action: "mark_meal_cooked",
+    payload: {
+      mealPlanId: "wrong-plan-uuid",
+      mealPlanSlotId: SEEDED_SLOT_ID,
+    },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  const body = await response.json();
+  assertEquals(response.status, 400);
+  assertEquals(body.error.code, "INVALID_INPUT");
+});
+
 Deno.test("generate_shopping_list returns deferred warning when Track B not present", async () => {
   const { supabase } = makeStatefulSupabase({});
   const req = createAuthenticatedRequest({
