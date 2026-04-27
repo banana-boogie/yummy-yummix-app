@@ -84,19 +84,17 @@ async function persistSeenMap(ids: string[]): Promise<void> {
   }
 }
 
-function pickUpcomingSlot(plan: MealPlan | null): MealPlanSlot | null {
+// TODO(track-a): When the Mi Menú "Hoy en tu menú" home hero ships, extract
+// this selector to a shared `services/mealPlan/selectTodaysMeal.ts` so the
+// Explore section and the home hero never disagree on which slot is "today's
+// meal." Today-only is intentional — matches the home hero spec.
+function pickTodaysSlot(plan: MealPlan | null): MealPlanSlot | null {
   if (!plan) return null;
   const todayIso = new Date().toISOString().slice(0, 10);
-  const upcoming = plan.slots
-    .filter((s) => s.status === 'planned')
-    .filter((s) => s.plannedDate >= todayIso)
-    .sort((a, b) => {
-      if (a.plannedDate === b.plannedDate) {
-        return a.displayOrder - b.displayOrder;
-      }
-      return a.plannedDate.localeCompare(b.plannedDate);
-    });
-  return upcoming[0] ?? null;
+  const todays = plan.slots
+    .filter((s) => s.status === 'planned' && s.plannedDate === todayIso)
+    .sort((a, b) => a.displayOrder - b.displayOrder);
+  return todays[0] ?? null;
 }
 
 /**
@@ -158,9 +156,9 @@ export function usePersonalizedSections({
     const sections: RecipeSection[] = [];
     const usedIds = new Set<string>();
 
-    // Today's Meal (requires plan)
-    const upcoming = pickUpcomingSlot(activePlan ?? null);
-    const upcomingRecipe = upcoming ? slotToRecipe(upcoming) : null;
+    // Today's Meal (requires plan + a slot scheduled for today)
+    const todaysSlot = pickTodaysSlot(activePlan ?? null);
+    const upcomingRecipe = todaysSlot ? slotToRecipe(todaysSlot) : null;
     if (upcomingRecipe) {
       sections.push({
         id: 'todays_meal',

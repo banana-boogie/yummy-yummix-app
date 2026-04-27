@@ -6,7 +6,7 @@
  * orphan "All Recipes" header with nothing under it.
  */
 
-import { applyChipToSections } from '../usePersonalizedFilterChips';
+import { applyChipToSections, applyChipFilter } from '../usePersonalizedFilterChips';
 import { recipeFactory } from '@/test/factories';
 import { RecipeDifficulty } from '@/types/recipe.types';
 import type { FilterChip } from '@/components/recipe/FilterChips';
@@ -53,5 +53,53 @@ describe('applyChipToSections', () => {
     const result = applyChipToSections(sections, quickChip);
     // for_you is preserved as-is even though its recipe wouldn't pass the chip
     expect(result.find((s) => s.id === 'for_you')?.recipes).toEqual([slow]);
+  });
+});
+
+describe('applyChipFilter — excludeRestriction', () => {
+  const glutenFreeChip: FilterChip = {
+    id: 'diet_gluten',
+    label: 'Gluten-Free',
+    filter: { excludeRestriction: 'gluten' },
+  };
+
+  it('removes recipes whose name contains a restricted keyword', () => {
+    // Override ingredients/tags to keep the test deterministic — the factory's
+    // random ingredients can include "flour" and trigger the gluten exclusion.
+    const breadRecipe = recipeFactory.create({
+      name: 'Sourdough Bread',
+      ingredients: [],
+      tags: [],
+    });
+    const soupRecipe = recipeFactory.create({
+      name: 'Tomato Soup',
+      ingredients: [],
+      tags: [],
+    });
+    const result = applyChipFilter([breadRecipe, soupRecipe], glutenFreeChip);
+    expect(result.map((r) => r.id)).toEqual([soupRecipe.id]);
+  });
+
+  it('removes recipes whose ingredients contain a restricted keyword (Spanish)', () => {
+    const seafoodChip: FilterChip = {
+      id: 'diet_seafood',
+      label: 'Sin Mariscos',
+      filter: { excludeRestriction: 'seafood' },
+    };
+    const camaronRecipe = recipeFactory.create({
+      name: 'Aguachile',
+      ingredients: [
+        // camarón is in RESTRICTION_KEYWORDS.seafood
+        { id: 'i1', name: 'camarón', amount: 200, unit: 'g' },
+      ],
+      tags: [],
+    });
+    const veg = recipeFactory.create({
+      name: 'Ensalada',
+      ingredients: [],
+      tags: [],
+    });
+    const result = applyChipFilter([camaronRecipe, veg], seafoodChip);
+    expect(result.map((r) => r.id)).toEqual([veg.id]);
   });
 });

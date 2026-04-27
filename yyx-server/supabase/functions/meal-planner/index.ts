@@ -330,7 +330,7 @@ interface SlotRow {
   display_order: number;
   slot_type: string;
   structure_template: string;
-  expected_food_groups: string[];
+  expected_meal_components: string[];
   selection_reason: string | null;
   shopping_sync_state: string;
   status: string;
@@ -348,7 +348,7 @@ interface ComponentRow {
   source_kind: string;
   recipe_id: string | null;
   source_component_id: string | null;
-  food_groups_snapshot: string[];
+  meal_components_snapshot: string[];
   pairing_basis: string;
   display_order: number;
   is_primary: boolean;
@@ -371,7 +371,7 @@ function componentRowToResponse(
     sourceKind: row.source_kind as MealPlanSlotComponentResponse["sourceKind"],
     recipeId: row.recipe_id,
     sourceComponentId: row.source_component_id,
-    foodGroupsSnapshot: row.food_groups_snapshot ?? [],
+    mealComponentsSnapshot: row.meal_components_snapshot ?? [],
     pairingBasis: row.pairing_basis as MealPlanSlotComponentResponse[
       "pairingBasis"
     ],
@@ -402,7 +402,7 @@ function slotRowToResponse(
     structureTemplate: row.structure_template as MealPlanSlotResponse[
       "structureTemplate"
     ],
-    expectedFoodGroups: row.expected_food_groups ?? [],
+    expectedMealComponents: row.expected_meal_components ?? [],
     selectionReason: row.selection_reason ?? "",
     shoppingSyncState: row.shopping_sync_state as MealPlanSlotResponse[
       "shoppingSyncState"
@@ -441,7 +441,7 @@ async function handleAddRecipeToSlot(
   const slotQuery = await (supabase as any)
     .from("meal_plan_slots")
     .select(
-      "id, meal_plan_id, planned_date, day_index, meal_type, display_order, slot_type, structure_template, expected_food_groups, selection_reason, shopping_sync_state, status, swap_count, last_swapped_at, cooked_at, skipped_at, merged_cooking_guide, meal_plan:meal_plans!inner(id, user_id)",
+      "id, meal_plan_id, planned_date, day_index, meal_type, display_order, slot_type, structure_template, expected_meal_components, selection_reason, shopping_sync_state, status, swap_count, last_swapped_at, cooked_at, skipped_at, merged_cooking_guide, meal_plan:meal_plans!inner(id, user_id)",
     )
     .eq("id", mealPlanSlotId)
     .single();
@@ -465,7 +465,7 @@ async function handleAddRecipeToSlot(
   const recipeQuery = await (supabase as any)
     .from("recipes")
     .select(
-      "id, image_url, total_time, difficulty, portions, equipment_tags, planner_role, food_groups, translations:recipe_translations(locale, name)",
+      "id, image_url, total_time, difficulty, portions, equipment_tags, planner_role, meal_components, translations:recipe_translations(locale, name)",
     )
     .eq("id", recipeId)
     .single();
@@ -481,7 +481,7 @@ async function handleAddRecipeToSlot(
     portions: number | null;
     equipment_tags: string[] | null;
     planner_role: string | null;
-    food_groups: string[] | null;
+    meal_components: string[] | null;
     translations: Array<{ locale: string; name: string }>;
   };
 
@@ -494,7 +494,7 @@ async function handleAddRecipeToSlot(
   const existingQuery = await (supabase as any)
     .from("meal_plan_slot_components")
     .select(
-      "id, component_role, source_kind, recipe_id, source_component_id, food_groups_snapshot, pairing_basis, display_order, is_primary, title_snapshot, image_url_snapshot, total_time_snapshot, difficulty_snapshot, portions_snapshot, equipment_tags_snapshot",
+      "id, component_role, source_kind, recipe_id, source_component_id, meal_components_snapshot, pairing_basis, display_order, is_primary, title_snapshot, image_url_snapshot, total_time_snapshot, difficulty_snapshot, portions_snapshot, equipment_tags_snapshot",
     )
     .eq("meal_plan_slot_id", mealPlanSlotId);
 
@@ -524,7 +524,7 @@ async function handleAddRecipeToSlot(
       component_role: componentRole,
       source_kind: "recipe",
       recipe_id: recipe.id,
-      food_groups_snapshot: recipe.food_groups ?? [],
+      meal_components_snapshot: recipe.meal_components ?? [],
       pairing_basis: "manual",
       display_order: nextDisplayOrder,
       title_snapshot: title,
@@ -537,7 +537,7 @@ async function handleAddRecipeToSlot(
       is_primary: shouldBePrimary,
     })
     .select(
-      "id, component_role, source_kind, recipe_id, source_component_id, food_groups_snapshot, pairing_basis, display_order, is_primary, title_snapshot, image_url_snapshot, total_time_snapshot, difficulty_snapshot, portions_snapshot, equipment_tags_snapshot",
+      "id, component_role, source_kind, recipe_id, source_component_id, meal_components_snapshot, pairing_basis, display_order, is_primary, title_snapshot, image_url_snapshot, total_time_snapshot, difficulty_snapshot, portions_snapshot, equipment_tags_snapshot",
     )
     .single();
 

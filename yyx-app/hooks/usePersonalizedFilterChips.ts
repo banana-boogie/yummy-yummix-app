@@ -11,7 +11,9 @@ import { useMemo } from 'react';
 import i18n from '@/i18n';
 import type { Recipe } from '@/types/recipe.types';
 import type { UserProfile } from '@/types/user';
+import type { DietaryRestriction } from '@/types/dietary';
 import type { FilterChip } from '@/components/recipe/FilterChips';
+import { RESTRICTION_KEYWORDS, recipeKeywords } from '@/utils/dietarySafety';
 
 const CUISINE_COUNT_THRESHOLD = 5;
 
@@ -72,20 +74,21 @@ export function usePersonalizedFilterChips(
       }
     }
 
-    // 3. One dietary chip if the user has a relevant restriction
+    // 3. One dietary chip if the user has a relevant restriction.
+    // Filter is "exclude recipes containing the restriction keywords" —
+    // matches the dietary-safety filter the page already applies by default,
+    // but lets the user toggle it off (or apply it on top of the broader
+    // catalog if the safety filter is ever loosened).
     const restrictions = (userProfile?.dietaryRestrictions ?? []).filter(
       (r) => r !== 'none' && r !== 'other',
-    );
+    ) as Exclude<DietaryRestriction, 'none' | 'other'>[];
     if (restrictions.length > 0) {
       const primaryRestriction = restrictions[0];
-      // Translate well-known restriction ids into chip ids when we have
-      // catalog support (gluten-free / dairy-free-ish). Fall back to the
-      // restriction key itself.
-      const key = primaryRestriction === 'gluten' ? 'gluten_free' : primaryRestriction;
+      const labelKey = `${primaryRestriction}_free`;
       chips.push({
-        id: `diet_${key}`,
-        label: chipLabel(key, key.replace('_', ' ')),
-        filter: { dietType: key },
+        id: `diet_${primaryRestriction}`,
+        label: chipLabel(labelKey, primaryRestriction),
+        filter: { excludeRestriction: primaryRestriction },
       });
     } else {
       // Surface a diet type preference chip as a softer signal
@@ -131,6 +134,9 @@ export function applyChipToSections<
 export function applyChipFilter(recipes: Recipe[], chip: FilterChip | null): Recipe[] {
   if (!chip) return recipes;
   const { filter } = chip;
+  const excludeKeywords = filter.excludeRestriction
+    ? RESTRICTION_KEYWORDS[filter.excludeRestriction as keyof typeof RESTRICTION_KEYWORDS] ?? []
+    : null;
   return recipes.filter((r) => {
     if (filter.maxTime != null && (r.totalTime == null || r.totalTime > filter.maxTime)) {
       return false;
@@ -139,6 +145,10 @@ export function applyChipFilter(recipes: Recipe[], chip: FilterChip | null): Rec
     if (filter.cuisine && !recipeHasKeyword(r, filter.cuisine)) return false;
     if (filter.dietType && !recipeHasKeyword(r, filter.dietType)) return false;
     if (filter.mealType && !recipeHasKeyword(r, filter.mealType)) return false;
+    if (excludeKeywords && excludeKeywords.length > 0) {
+      const tokens = recipeKeywords(r);
+      if (excludeKeywords.some((kw) => tokens.has(kw))) return false;
+    }
     return true;
   });
 }

@@ -22,10 +22,6 @@ jest.mock('@/hooks/useMealPlan', () => ({
   }),
 }));
 
-jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: jest.fn() }),
-}));
-
 jest.mock('@/contexts/LanguageContext', () => ({
   useLanguage: () => ({
     language: 'en',
@@ -58,6 +54,21 @@ describe('AddToPlanModal', () => {
       />,
     );
     expect(screen.getByText(/Create my menu/i)).toBeTruthy();
+  });
+
+  it('"Create my menu" CTA closes the modal (Mi Menú tab not yet built)', () => {
+    const recipe = recipeFactory.create();
+    const onClose = jest.fn();
+    renderWithProviders(
+      <AddToPlanModal
+        visible
+        recipe={recipe}
+        onClose={onClose}
+        activePlan={null}
+      />,
+    );
+    fireEvent.press(screen.getByText(/Create my menu/i));
+    expect(onClose).toHaveBeenCalled();
   });
 
   it('calls addRecipeToSlot and fires analytics on slot press', async () => {

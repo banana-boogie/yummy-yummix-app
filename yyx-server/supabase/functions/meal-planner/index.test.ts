@@ -204,7 +204,7 @@ Deno.test("add_recipe_to_slot inserts a component and returns the slot", async (
     display_order: 0,
     slot_type: "cook_slot",
     structure_template: "single_component",
-    expected_food_groups: [],
+    expected_meal_components: [],
     selection_reason: null,
     shopping_sync_state: "not_created",
     status: "planned",
@@ -223,7 +223,7 @@ Deno.test("add_recipe_to_slot inserts a component and returns the slot", async (
     portions: 4,
     equipment_tags: [],
     planner_role: "main",
-    food_groups: ["protein"],
+    meal_components: ["protein"],
     translations: [{ locale: "en", name: "Chicken Tacos" }],
   };
   let insertedRow: Record<string, unknown> | null = null;
@@ -307,7 +307,7 @@ Deno.test("add_recipe_to_slot rejects a slot owned by another user", async () =>
     display_order: 0,
     slot_type: "cook_slot",
     structure_template: "single_component",
-    expected_food_groups: [],
+    expected_meal_components: [],
     selection_reason: null,
     shopping_sync_state: "not_created",
     status: "planned",

@@ -17,6 +17,14 @@ export interface FilterChipFilter {
   cuisine?: string;
   dietType?: string;
   mealType?: string;
+  /**
+   * Exclude recipes containing keywords for the given dietary restriction
+   * (uses the same keyword list as `filterByDietarySafety`). The default
+   * dietary-safety filter already removes restricted recipes for users with
+   * the restriction on their profile — this chip lets a non-restricted user
+   * narrow the All Recipes section to e.g. gluten-free options.
+   */
+  excludeRestriction?: string;
 }
 
 export interface FilterChip {

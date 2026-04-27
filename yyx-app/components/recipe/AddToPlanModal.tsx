@@ -2,13 +2,13 @@
  * AddToPlanModal
  *
  * Lets a user add a recipe to a day+meal slot in their active meal plan.
- * If no active plan exists, prompts the user to create one by navigating
- * to the Week tab (graceful fallback if that tab is not yet built).
+ * If no active plan exists, prompts the user to create one. The Mi Menú
+ * tab destination doesn't exist yet (Track A4) — for now the CTA closes
+ * the sheet and surfaces a "coming soon" toast.
  */
 
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, ToastAndroid, View, Platform, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { COLORS, SPACING } from '@/constants/design-tokens';
@@ -63,19 +63,17 @@ export function AddToPlanModal({
   onClose,
   activePlan,
 }: AddToPlanModalProps) {
-  const router = useRouter();
   const { addRecipeToSlot } = useMealPlan();
   const { language } = useLanguage();
   const bcp47Locale = uiLanguageToBcp47(language);
   const [busySlotId, setBusySlotId] = useState<string | null>(null);
 
+  // Mi Menú tab doesn't exist yet (Track A4) — close the sheet and tell the
+  // user the destination is coming. When the tab lands, swap this for a real
+  // navigation call.
   const handleCreatePlan = () => {
     onClose();
-    try {
-      router.push('/(tabs)/week');
-    } catch {
-      toast(t('weekComingSoon', 'Week tab coming soon'));
-    }
+    toast(t('weekComingSoon', 'Mi Menú tab coming soon'));
   };
 
   const handleSlotPress = async (slot: MealPlanSlot) => {
@@ -94,10 +92,10 @@ export function AddToPlanModal({
         dayIndex: slot.dayIndex,
         mealType: slot.mealType,
       });
-      toast(t('successToast', 'Added to your plan'));
+      toast(t('successToast', 'Added to your menu'));
       onClose();
     } catch {
-      toast(t('errorToast', "Couldn't add to plan"));
+      toast(t('errorToast', "Couldn't add to your menu"));
     } finally {
       setBusySlotId(null);
     }

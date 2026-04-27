@@ -166,4 +166,55 @@ describe('usePersonalizedSections', () => {
     const ids = result.current.map((s) => s.id);
     expect(ids[0]).toBe('todays_meal');
   });
+
+  it('hides todays_meal when the only planned slot is in the future', () => {
+    const recipe = recipeFactory.create();
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setUTCDate(today.getUTCDate() + 1);
+    const tomorrowIso = tomorrow.toISOString().slice(0, 10);
+    const plan: MealPlan = {
+      planId: 'p1',
+      weekStart: tomorrowIso,
+      locale: 'en',
+      requestedDayIndexes: [0],
+      requestedMealTypes: ['dinner'],
+      slots: [
+        {
+          id: 'slot-1',
+          plannedDate: tomorrowIso,
+          dayIndex: 0,
+          mealType: 'dinner',
+          displayMealLabel: 'Dinner',
+          displayOrder: 0,
+          status: 'planned',
+          components: [
+            {
+              id: 'comp-1',
+              componentRole: 'main',
+              sourceKind: 'recipe',
+              recipeId: recipe.id,
+              title: recipe.name,
+              imageUrl: null,
+              totalTimeMinutes: 30,
+              difficulty: 'easy',
+              portions: 4,
+              isPrimary: true,
+              displayOrder: 0,
+            },
+          ],
+        },
+      ],
+    };
+
+    const { result } = renderHook(() =>
+      usePersonalizedSections({
+        recipes: [recipe],
+        userProfile: makeProfile(),
+        activePlan: plan,
+      }),
+    );
+
+    expect(result.current.map((s) => s.id)).not.toContain('todays_meal');
+  });
 });
