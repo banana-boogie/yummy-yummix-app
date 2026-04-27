@@ -1,7 +1,10 @@
-import { View, Platform, StatusBar, Animated, TouchableOpacity } from 'react-native';
-import React, { useRef, useEffect } from 'react';
+import { View, Platform, StatusBar, Animated, TouchableOpacity, Alert } from 'react-native';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Head from 'expo-router/head';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS } from '@/constants/design-tokens';
+import { AddToShoppingListModal, type AddToShoppingListIngredient } from '@/components/shopping-list';
 
 import { Text } from '@/components/common/Text';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
@@ -52,6 +55,19 @@ const RecipeDetail: React.FC = () => {
   const scrollY = useRef(new Animated.Value(0)).current;
   const { isMedium } = useDevice();
   const { language: currentLanguage } = useLanguage();
+  const [shoppingModalVisible, setShoppingModalVisible] = useState(false);
+
+  const shoppingIngredients = useMemo<AddToShoppingListIngredient[]>(() => {
+    if (!recipe?.ingredients) return [];
+    return recipe.ingredients.map((ing) => ({
+      key: ing.id,
+      ingredientId: ing.id,
+      name: ing.name,
+      quantity: parseFloat(ing.quantity) || 1,
+      unitId: ing.measurementUnit?.id || null,
+      unitLabel: ing.formattedUnit || ing.measurementUnit?.symbol || '',
+    }));
+  }, [recipe?.ingredients]);
 
   // Handle back navigation for web and native
   const handleBackPress = () => {
@@ -148,7 +164,17 @@ const RecipeDetail: React.FC = () => {
                   size="large"
                   className="mb-lg"
                 />
-                <View className="mb-lg">
+                <View className="mb-lg flex-row items-center">
+                  {Platform.OS !== 'web' && (
+                    <TouchableOpacity
+                      onPress={() => setShoppingModalVisible(true)}
+                      accessibilityLabel={i18n.t('shoppingList.addToList')}
+                      accessibilityRole="button"
+                      className="mr-md p-xs"
+                    >
+                      <Ionicons name="cart-outline" size={24} color={COLORS.text.default} />
+                    </TouchableOpacity>
+                  )}
                   <ShareButton
                     message={i18n.t('recipes.share.message', { recipeName: recipe.name })}
                     url={getShareUrl()}
@@ -206,6 +232,19 @@ const RecipeDetail: React.FC = () => {
           onClose={irmixy.close}
           recipeContext={buildRecipeContext(recipe, { type: 'recipe', recipeId: id as string })}
           {...irmixy.sessionProps}
+        />
+        <AddToShoppingListModal
+          visible={shoppingModalVisible}
+          onClose={() => setShoppingModalVisible(false)}
+          recipeName={recipe.name}
+          recipeId={recipe.id}
+          ingredients={shoppingIngredients}
+          onAdded={(_listId, count) => {
+            Alert.alert(
+              i18n.t('shoppingList.addToList'),
+              i18n.t('shoppingList.itemsCount', { count }),
+            );
+          }}
         />
       </View>
     </>
