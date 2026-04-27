@@ -604,6 +604,9 @@ export async function upsertIngredientNutrition(
     protein: number;
     fat: number;
     carbohydrates: number;
+    fiber: number;
+    sugar: number;
+    sodium: number;
     source: string;
   },
 ): Promise<void> {
@@ -615,6 +618,9 @@ export async function upsertIngredientNutrition(
       protein: data.protein,
       fat: data.fat,
       carbohydrates: data.carbohydrates,
+      fiber: data.fiber,
+      sugar: data.sugar,
+      sodium: data.sodium,
       source: data.source,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'ingredient_id' });

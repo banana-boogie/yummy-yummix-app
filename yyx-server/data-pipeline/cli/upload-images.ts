@@ -262,7 +262,7 @@ async function main() {
           nutritionIds.add(ingredient.id);
           nutritionCount++;
           logger.success(
-            `  Nutrition: ${nutrition.calories} cal, ${nutrition.protein}g P, ${nutrition.fat}g F, ${nutrition.carbohydrates}g C`,
+            `  Nutrition: ${nutrition.calories} cal, ${nutrition.protein}g P, ${nutrition.fat}g F, ${nutrition.carbohydrates}g C, ${nutrition.fiber}g fiber, ${nutrition.sugar}g sugar, ${nutrition.sodium}mg sodium`,
           );
         } else {
           logger.warn(`  Could not fetch nutrition for "${nutritionName}"`);

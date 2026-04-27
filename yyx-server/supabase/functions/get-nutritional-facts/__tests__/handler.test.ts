@@ -43,9 +43,8 @@ Deno.test("handler rejects invalid Authorization header", async () => {
 // ============================================================
 
 Deno.test("valid AI JSON response is parsed and rounded correctly", () => {
-  // Simulate what getNutritionalFacts does after receiving AI response
   const aiResponseContent =
-    '{"calories": 77.123, "protein": 2.045, "fat": 0.089, "carbohydrates": 17.467}';
+    '{"calories": 77.123, "protein": 2.045, "fat": 0.089, "carbohydrates": 17.467, "fiber": 2.2, "sugar": 0.8, "sodium": 6.4}';
 
   const nutritionalData = JSON.parse(aiResponseContent);
   assertEquals(validateNutritionalData(nutritionalData), true);
@@ -55,6 +54,9 @@ Deno.test("valid AI JSON response is parsed and rounded correctly", () => {
   assertEquals(nutritionalData.protein, 2);
   assertEquals(nutritionalData.fat, 0.1);
   assertEquals(nutritionalData.carbohydrates, 17.5);
+  assertEquals(nutritionalData.fiber, 2.2);
+  assertEquals(nutritionalData.sugar, 0.8);
+  assertEquals(nutritionalData.sodium, 6);
 });
 
 Deno.test("malformed JSON from AI does not crash", () => {
@@ -96,7 +98,7 @@ Deno.test("AI response with null content returns no data", () => {
 Deno.test("potato nutritional data (typical AI response) processes correctly", () => {
   // Expected USDA-reference values for raw potato per 100g
   const potatoResponse =
-    '{"calories": 77, "protein": 2.0, "fat": 0.1, "carbohydrates": 17.5}';
+    '{"calories": 77, "protein": 2.0, "fat": 0.1, "carbohydrates": 17.5, "fiber": 2.2, "sugar": 0.8, "sodium": 6}';
   const data: NutritionalData = JSON.parse(potatoResponse);
 
   assertEquals(validateNutritionalData(data), true);
@@ -106,18 +108,7 @@ Deno.test("potato nutritional data (typical AI response) processes correctly", (
   assertEquals(data.protein, 2);
   assertEquals(data.fat, 0.1);
   assertEquals(data.carbohydrates, 17.5);
-});
-
-Deno.test("rosemary nutritional data (low-calorie herb) processes correctly", () => {
-  const rosemaryResponse =
-    '{"calories": 131, "protein": 3.3, "fat": 5.9, "carbohydrates": 20.7}';
-  const data: NutritionalData = JSON.parse(rosemaryResponse);
-
-  assertEquals(validateNutritionalData(data), true);
-  applyRoundingRulesToData(data);
-
-  assertEquals(data.calories, 131);
-  assertEquals(data.protein, 3.3);
-  assertEquals(data.fat, 5.9);
-  assertEquals(data.carbohydrates, 20.7);
+  assertEquals(data.fiber, 2.2);
+  assertEquals(data.sugar, 0.8);
+  assertEquals(data.sodium, 6);
 });

@@ -19,7 +19,7 @@ export async function getNutritionalFacts(
       messages: [{
         role: "user",
         content:
-          `Provide nutritional facts per 100g for raw/unprocessed "${ingredientName}". Use USDA reference values. Return ONLY a JSON object in this exact format: {"calories": number, "protein": number, "fat": number, "carbohydrates": number}`,
+          `Provide nutritional facts per 100g for raw/unprocessed "${ingredientName}". Use USDA reference values. Units: calories in kcal; protein, fat, carbohydrates, fiber, sugar in grams; sodium in milligrams. Return ONLY a JSON object in this exact format: {"calories": number, "protein": number, "fat": number, "carbohydrates": number, "fiber": number, "sugar": number, "sodium": number}`,
       }],
       temperature: 0,
       responseFormat: {
@@ -31,8 +31,19 @@ export async function getNutritionalFacts(
             protein: { type: "number" },
             fat: { type: "number" },
             carbohydrates: { type: "number" },
+            fiber: { type: "number" },
+            sugar: { type: "number" },
+            sodium: { type: "number" },
           },
-          required: ["calories", "protein", "fat", "carbohydrates"],
+          required: [
+            "calories",
+            "protein",
+            "fat",
+            "carbohydrates",
+            "fiber",
+            "sugar",
+            "sodium",
+          ],
           additionalProperties: false,
         },
       },

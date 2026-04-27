@@ -95,7 +95,7 @@ async function main() {
         source,
       });
       logger.success(
-        `Updated ${name}: ${nutrition.calories} cal, ${nutrition.protein}g protein, ${nutrition.fat}g fat, ${nutrition.carbohydrates}g carbs`,
+        `Updated ${name}: ${nutrition.calories} cal, ${nutrition.protein}g protein, ${nutrition.fat}g fat, ${nutrition.carbohydrates}g carbs, ${nutrition.fiber}g fiber, ${nutrition.sugar}g sugar, ${nutrition.sodium}mg sodium`,
       );
       successCount++;
     } else {
