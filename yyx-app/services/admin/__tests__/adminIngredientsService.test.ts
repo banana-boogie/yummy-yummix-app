@@ -92,6 +92,7 @@ describe('AdminIngredientsService', () => {
       { locale: 'es', name: 'Tomate', pluralName: 'Tomates' },
     ],
     pictureUrl: 'https://example.com/tomato.png',
+    defaultCategoryId: null,
     nutritionalFacts: { calories: 20, protein: 1.0, fat: 0.2, carbohydrates: 3.9 },
   };
 

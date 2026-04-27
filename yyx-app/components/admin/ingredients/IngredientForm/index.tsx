@@ -4,6 +4,7 @@ import { AdminIngredient, pickTranslation, NutritionalFacts } from '@/types/reci
 import { ImageUploadSection } from '@/components/admin/recipes/forms/common/ImageUploadSection';
 import { TranslationsSection } from '@/components/admin/ingredients/IngredientForm/TranslationsSection';
 import { NutritionalFactsSection } from '@/components/admin/ingredients/IngredientForm/NutritionalFactsSection';
+import { DefaultCategorySection } from '@/components/admin/ingredients/IngredientForm/DefaultCategorySection';
 import { Text } from '@/components/common/Text';
 import { Button } from '@/components/common/Button';
 import { AlertModal } from '@/components/common/AlertModal';
@@ -46,6 +47,7 @@ export function IngredientForm({
             { locale: 'en', name: '', pluralName: '' },
         ],
         pictureUrl: ingredient?.pictureUrl || '',
+        defaultCategoryId: ingredient?.defaultCategoryId ?? null,
         nutritionalFacts: ingredient?.nutritionalFacts || {
             calories: '',
             protein: '',
@@ -172,6 +174,11 @@ export function IngredientForm({
                 errors={validationErrors as Record<string, string>}
                 onChange={(translations) => setFormData({ ...formData, translations })}
                 required={true}
+            />
+
+            <DefaultCategorySection
+                value={formData.defaultCategoryId}
+                onChange={(defaultCategoryId) => setFormData({ ...formData, defaultCategoryId })}
             />
 
             <NutritionalFactsSection

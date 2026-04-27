@@ -15,6 +15,7 @@ export class AdminIngredientsService extends BaseService {
       .select(`
         id,
         image_url,
+        default_category_id,
         translations:ingredient_translations (
           locale,
           name,
@@ -46,6 +47,7 @@ export class AdminIngredientsService extends BaseService {
           pluralName: t.plural_name || undefined,
         })),
         pictureUrl: item.image_url,
+        defaultCategoryId: item.default_category_id ?? null,
         nutritionalFacts: n ? {
           calories: n.calories,
           protein: n.protein,
@@ -162,6 +164,10 @@ export class AdminIngredientsService extends BaseService {
       }
     }
 
+    if (ingredient.defaultCategoryId !== undefined) {
+      ingredientData.default_category_id = ingredient.defaultCategoryId || null;
+    }
+
     if (Object.keys(ingredientData).length > 0) {
       const updatedIngredient = await this.transformedUpdate<AdminIngredient>('ingredients', id, ingredientData);
       if (!updatedIngredient) {
@@ -230,6 +236,10 @@ export class AdminIngredientsService extends BaseService {
         ingredient.pictureUrl,
         translations
       );
+    }
+
+    if (ingredient.defaultCategoryId) {
+      ingredientData.default_category_id = ingredient.defaultCategoryId;
     }
 
     // Insert the ingredient and get the ID back
