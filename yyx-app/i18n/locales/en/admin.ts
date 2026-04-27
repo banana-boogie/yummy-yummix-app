@@ -791,6 +791,8 @@ export const admin = {
       cuisine: "Cuisine",
       meal_type: "Meal Type",
       diet: "Diet",
+      dish_type: "Dish Type",
+      primary_ingredient: "Primary Ingredient",
       occasion: "Occasion",
       practical: "Practical",
     },

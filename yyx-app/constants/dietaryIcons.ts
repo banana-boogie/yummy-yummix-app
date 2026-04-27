@@ -20,6 +20,8 @@ export const DIET_TYPE_ICONS: DietTypeIcons = {
   low_sugar: require('@/assets/images/dietary/types/sugar-free-diet.png'),
   high_protein: require('@/assets/images/dietary/types/paleo-diet.png'),
   pescatarian: require('@/assets/images/dietary/types/pescatarian-diet.png'),
+  gluten_free: require('@/assets/images/dietary/restrictions/gluten-allergy.png'),
+  healthy: require('@/assets/images/dietary/common/thumbs-up.png'),
 } as const;
 
 // Cuisine icons - for cooking style preferences

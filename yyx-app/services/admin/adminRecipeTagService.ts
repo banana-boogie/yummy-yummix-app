@@ -6,6 +6,8 @@ export const CANONICAL_TAG_CATEGORIES = [
   'cuisine',
   'meal_type',
   'diet',
+  'dish_type',
+  'primary_ingredient',
   'occasion',
   'practical',
 ] as const;

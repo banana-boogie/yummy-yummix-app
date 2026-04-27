@@ -18,19 +18,11 @@
  *   --dry-run        Parse and resolve entities but skip all DB writes (for previewing output)
  */
 
-import {
-  createPipelineConfig,
-  hasFlag,
-  parseEnvironment,
-  parseFlag,
-} from "../lib/config.ts";
-import { sleep } from "../lib/utils.ts";
-import { Logger } from "../lib/logger.ts";
-import { ProgressTracker } from "../lib/progress-tracker.ts";
-import {
-  type ParsedRecipeData,
-  parseRecipeMarkdown,
-} from "../lib/recipe-parser.ts";
+import { createPipelineConfig, hasFlag, parseEnvironment, parseFlag } from '../lib/config.ts';
+import { sleep } from '../lib/utils.ts';
+import { Logger } from '../lib/logger.ts';
+import { ProgressTracker } from '../lib/progress-tracker.ts';
+import { type ParsedRecipeData, parseRecipeMarkdown } from '../lib/recipe-parser.ts';
 import {
   type DbIngredient,
   type DbKitchenTool,
@@ -40,34 +32,31 @@ import {
   matchKitchenTool,
   matchMeasurementUnit,
   matchTag,
-} from "../lib/entity-matcher.ts";
-import { resolveStepIngredients } from "../lib/step-ingredient-resolver.ts";
-import { buildRecipeSteps, hasRecipeContent } from "../lib/import-helpers.ts";
-import { resolveNotionTag } from "../lib/notion-tag-map.ts";
-import * as db from "../lib/db.ts";
-import {
-  adaptToSpainSpanish,
-  type SpainAdaptOutput,
-} from "../lib/spain-adapter.ts";
-import { assertRequiredApiKey } from "../lib/cli-validations.ts";
+  matchTagBySlug,
+} from '../lib/entity-matcher.ts';
+import { resolveStepIngredients } from '../lib/step-ingredient-resolver.ts';
+import { buildRecipeSteps, hasRecipeContent } from '../lib/import-helpers.ts';
+import { INTENTIONAL_DROPS, resolveNotionTag } from '../lib/notion-tag-map.ts';
+import * as db from '../lib/db.ts';
+import { adaptToSpainSpanish, type SpainAdaptOutput } from '../lib/spain-adapter.ts';
+import { assertRequiredApiKey } from '../lib/cli-validations.ts';
 
-const logger = new Logger("import");
+const logger = new Logger('import');
 const env = parseEnvironment(Deno.args);
 const config = createPipelineConfig(env);
 
-const dataDir = parseFlag(Deno.args, "--dir") ||
-  new URL("../data/notion-exports", import.meta.url).pathname;
-const skipExisting = hasFlag(Deno.args, "--skip-existing");
-const dryRun = hasFlag(Deno.args, "--dry-run");
-const limitArg = parseFlag(Deno.args, "--limit");
+const dataDir = parseFlag(Deno.args, '--dir') ||
+  new URL('../data/notion-exports', import.meta.url).pathname;
+const skipExisting = hasFlag(Deno.args, '--skip-existing');
+const dryRun = hasFlag(Deno.args, '--dry-run');
+const limitArg = parseFlag(Deno.args, '--limit');
 const limit = limitArg ? parseInt(limitArg, 10) : Infinity;
 
-const progressFile =
-  new URL("../.import-progress.json", import.meta.url).pathname;
+const progressFile = new URL('../.import-progress.json', import.meta.url).pathname;
 const tracker = new ProgressTracker(progressFile);
 
-if (hasFlag(Deno.args, "--reset")) {
-  logger.warn("Resetting progress tracker");
+if (hasFlag(Deno.args, '--reset')) {
+  logger.warn('Resetting progress tracker');
   tracker.reset();
 }
 
@@ -78,7 +67,7 @@ function loadMarkdownFiles(
 ): Array<{ filename: string; content: string }> {
   const files: Array<{ filename: string; content: string }> = [];
   for (const entry of Deno.readDirSync(dir)) {
-    if (entry.isFile && entry.name.endsWith(".md")) {
+    if (entry.isFile && entry.name.endsWith('.md')) {
       const content = Deno.readTextFileSync(`${dir}/${entry.name}`);
       files.push({ filename: entry.name, content });
     }
@@ -134,26 +123,30 @@ async function resolveIngredients(
     const unit = matchMeasurementUnit(item.measurementUnitID, allUnits);
 
     recipeIngredients.push({
-      recipe_id: "", // Will be set after recipe creation
+      recipe_id: '', // Will be set after recipe creation
       ingredient_id: matched.id,
       quantity: item.quantity,
       measurement_unit_id: unit?.id || null,
-      notes_en: item.notesEn || "",
-      notes_es: item.notesEs || "",
-      tip_en: item.tipEn || "",
-      tip_es: item.tipEs || "",
+      notes_en: item.notesEn || '',
+      notes_es: item.notesEs || '',
+      tip_en: item.tipEn || '',
+      tip_es: item.tipEs || '',
       optional: false,
       display_order: item.displayOrder,
-      recipe_section_en: item.recipeSectionEn || "Main",
-      recipe_section_es: item.recipeSectionEs || "Principal",
+      recipe_section_en: item.recipeSectionEn || 'Main',
+      recipe_section_es: item.recipeSectionEs || 'Principal',
     });
   }
 
   return { recipeIngredients, ingredientMap, newlyCreatedIngredients };
 }
 
-/** Resolve tags using the Notion tag map for exact matching.
- * Unmapped/non-canonical tags are skipped; the tag taxonomy is now seeded. */
+/** Resolve tags via the Notion tag map (slug-first), then fall back to a
+ * direct name match for tags that happen to share a canonical display name.
+ * Tags that resolve to neither and are not in INTENTIONAL_DROPS are logged
+ * as "unmapped" so they can be triaged into the map.
+ *
+ * The taxonomy is seeded via migration; this importer never creates tags. */
 async function resolveTags(
   tagNames: string[],
   allTags: DbRecipeTag[],
@@ -162,16 +155,25 @@ async function resolveTags(
   const seen = new Set<string>();
 
   for (const tagName of tagNames) {
-    // 1. Try Notion tag map first (exact, deterministic)
-    const mapped = resolveNotionTag(tagName);
     const matched = matchCanonicalTag(tagName, allTags);
 
     if (!matched) {
-      logger.warn(
-        mapped
-          ? `Mapped tag "${tagName}" is not canonical — skipping ${mapped.en} / ${mapped.es}`
-          : `Unmapped tag "${tagName}" is not canonical — skipping`,
-      );
+      const isIntentionalDrop = INTENTIONAL_DROPS.includes(tagName);
+      const mapped = resolveNotionTag(tagName);
+
+      if (isIntentionalDrop) {
+        logger.info(`Tag "${tagName}" intentionally dropped — skipping`);
+      } else if (mapped) {
+        // Mapping exists but the canonical tag is missing from the DB. This
+        // means the migration hasn't been applied or the seed is stale.
+        logger.warn(
+          `Mapped tag "${tagName}" -> ${mapped.slug} not found in DB — apply migration?`,
+        );
+      } else {
+        logger.warn(
+          `Unmapped tag "${tagName}" — add to NOTION_TAG_MAP or INTENTIONAL_DROPS`,
+        );
+      }
       continue;
     }
 
@@ -184,13 +186,15 @@ async function resolveTags(
   return tagIds;
 }
 
+/** Resolve a Notion tag string to a canonical DB tag.
+ *  Order: NOTION_TAG_MAP slug -> canonical en/es display name. */
 function matchCanonicalTag(
   tagName: string,
   allTags: DbRecipeTag[],
 ): DbRecipeTag | null {
   const mapped = resolveNotionTag(tagName);
   if (mapped) {
-    return matchTag(mapped.en, allTags) || matchTag(mapped.es, allTags);
+    return matchTagBySlug(mapped.slug, allTags);
   }
 
   return matchTag(tagName, allTags);
@@ -239,8 +243,8 @@ async function resolveKitchenTools(
     items.push({
       kitchen_tool_id: matched.id,
       display_order: item.displayOrder,
-      notes_en: item.notesEn || "",
-      notes_es: item.notesEs || "",
+      notes_en: item.notesEn || '',
+      notes_es: item.notesEs || '',
     });
   }
 
@@ -298,8 +302,7 @@ async function importRecipe(
       newlyCreatedIngredients: [],
     }
     : await resolveIngredients(parsed, allIngredients, allUnits);
-  const { recipeIngredients, ingredientMap, newlyCreatedIngredients } =
-    ingredientResult;
+  const { recipeIngredients, ingredientMap, newlyCreatedIngredients } = ingredientResult;
   const tagIds = dryRun
     ? await resolveTagsDry(parsed.tags, allTags)
     : await resolveTags(parsed.tags, allTags);
@@ -313,18 +316,18 @@ async function importRecipe(
 
   // In dry-run mode: log everything and return without DB writes
   if (dryRun) {
-    logger.info("--- DRY RUN OUTPUT ---");
+    logger.info('--- DRY RUN OUTPUT ---');
     logger.info(`Name (EN): ${parsed.nameEn}`);
     logger.info(`Name (ES): ${parsed.nameEs}`);
     logger.info(
       `Difficulty: ${parsed.difficulty} | Prep: ${parsed.prepTime}min | Total: ${parsed.totalTime}min | Portions: ${parsed.portions}`,
     );
-    logger.info(`Tags (${parsed.tags.length}): ${parsed.tags.join(", ")}`);
+    logger.info(`Tags (${parsed.tags.length}): ${parsed.tags.join(', ')}`);
     logger.info(`Ingredients (${parsed.ingredients.length}):`);
     for (const ing of parsed.ingredients) {
       logger.info(
         `  - ${ing.quantity} ${
-          ing.measurementUnitID || ""
+          ing.measurementUnitID || ''
         } ${ing.ingredient.nameEn} / ${ing.ingredient.nameEs}`,
       );
     }
@@ -332,18 +335,14 @@ async function importRecipe(
     for (const step of parsed.steps) {
       const tmx = step.thermomixTime
         ? ` [TM: ${step.thermomixTime}s ${
-          step.thermomixTemperature ? step.thermomixTemperature + "°" : ""
-        } vel${
-          step.thermomixSpeed?.type === "single"
-            ? step.thermomixSpeed.value
-            : "?"
-        }]`
-        : "";
+          step.thermomixTemperature ? step.thermomixTemperature + '°' : ''
+        } vel${step.thermomixSpeed?.type === 'single' ? step.thermomixSpeed.value : '?'}]`
+        : '';
       logger.info(`  ${step.order}. ${step.instructionEn}${tmx}`);
     }
     logger.info(
       `Kitchen tools (${parsed.kitchenTools.length}): ${
-        parsed.kitchenTools.map((i) => i.nameEn).join(", ")
+        parsed.kitchenTools.map((i) => i.nameEn).join(', ')
       }`,
     );
     if (parsed.tipsAndTricksEn) logger.info(`Tips: ${parsed.tipsAndTricksEn}`);
@@ -353,46 +352,41 @@ async function importRecipe(
       (i) =>
         !allIngredients.some(
           (db) =>
-            (db.name_en?.toLowerCase() ?? "") ===
+            (db.name_en?.toLowerCase() ?? '') ===
               i.ingredient.nameEn.toLowerCase() ||
-            (db.name_es?.toLowerCase() ?? "") ===
+            (db.name_es?.toLowerCase() ?? '') ===
               i.ingredient.nameEs.toLowerCase(),
         ),
     );
     const missingTags = parsed.tags.filter((tag) =>
-      !matchCanonicalTag(tag, allTags)
+      !matchCanonicalTag(tag, allTags) && !INTENTIONAL_DROPS.includes(tag)
     );
     const missingItems = parsed.kitchenTools.filter(
-      (i) =>
-        !allItems.some((db) =>
-          (db.name_en?.toLowerCase() ?? "") === i.nameEn.toLowerCase()
-        ),
+      (i) => !allItems.some((db) => (db.name_en?.toLowerCase() ?? '') === i.nameEn.toLowerCase()),
     );
 
     if (missingIngredients.length > 0) {
       logger.warn(
         `Would create ${missingIngredients.length} new ingredient(s): ${
-          missingIngredients.map((i) => i.ingredient.nameEn).join(", ")
+          missingIngredients.map((i) => i.ingredient.nameEn).join(', ')
         }`,
       );
     }
     if (missingTags.length > 0) {
       logger.warn(
-        `Would skip ${missingTags.length} non-canonical tag(s): ${
-          missingTags.join(", ")
-        }`,
+        `Would skip ${missingTags.length} non-canonical tag(s): ${missingTags.join(', ')}`,
       );
     }
     if (missingItems.length > 0) {
       logger.warn(
         `Would create ${missingItems.length} new kitchen tool(s): ${
-          missingItems.map((i) => i.nameEn).join(", ")
+          missingItems.map((i) => i.nameEn).join(', ')
         }`,
       );
     }
 
-    logger.info("--- END DRY RUN ---");
-    return "[dry-run]";
+    logger.info('--- END DRY RUN ---');
+    return '[dry-run]';
   }
 
   // 4. Create recipe
@@ -404,8 +398,8 @@ async function importRecipe(
     total_time: parsed.totalTime,
     portions: parsed.portions,
     is_published: false, // Safety: require manual publish
-    tips_and_tricks_en: parsed.tipsAndTricksEn || "",
-    tips_and_tricks_es: parsed.tipsAndTricksEs || "",
+    tips_and_tricks_en: parsed.tipsAndTricksEn || '',
+    tips_and_tricks_es: parsed.tipsAndTricksEs || '',
   });
 
   logger.info(`Created recipe: ${recipeId}`);
@@ -438,12 +432,8 @@ async function importRecipe(
     if (unresolved.length > 0) {
       const preview = unresolved
         .slice(0, 3)
-        .map((item) =>
-          `[step ${item.stepOrder}] ${
-            item.ingredientNameEn || item.ingredientNameEs
-          }`
-        )
-        .join(", ");
+        .map((item) => `[step ${item.stepOrder}] ${item.ingredientNameEn || item.ingredientNameEs}`)
+        .join(', ');
       logger.warn(
         `${unresolved.length} unresolved step-ingredient link(s) for "${parsed.nameEs}" (${preview}) — importing without them`,
       );
@@ -460,18 +450,18 @@ async function importRecipe(
     // 10. Generate and insert es-ES (Spain Spanish) translations
     const spainInput = {
       recipeName: parsed.nameEs,
-      tipsAndTricks: parsed.tipsAndTricksEs || "",
+      tipsAndTricks: parsed.tipsAndTricksEs || '',
       steps: parsed.steps.map((s) => ({
         order: s.order,
         instruction: s.instructionEs,
-        section: s.recipeSectionEs || "Principal",
-        tip: s.tipEs || "",
+        section: s.recipeSectionEs || 'Principal',
+        tip: s.tipEs || '',
       })),
       ingredientNotes: parsed.ingredients.map((i) => ({
         displayOrder: i.displayOrder,
-        notes: i.notesEs || "",
-        tip: i.tipEs || "",
-        section: i.recipeSectionEs || "Principal",
+        notes: i.notesEs || '',
+        tip: i.tipEs || '',
+        section: i.recipeSectionEs || 'Principal',
       })),
       newIngredients: newlyCreatedIngredients.map((i) => ({
         name: i.nameEs,
@@ -496,11 +486,11 @@ async function importRecipe(
         recipeId,
         name: spainOutput.recipeName || parsed.nameEs,
         tipsAndTricks: spainOutput.tipsAndTricks || parsed.tipsAndTricksEs ||
-          "",
+          '',
       },
       steps: (() => {
         const mapped = (spainOutput.steps || []).map((s) => ({
-          stepId: stepOrderToId.get(s.order) || "",
+          stepId: stepOrderToId.get(s.order) || '',
           instruction: s.instruction,
           section: s.section,
           tip: s.tip,
@@ -515,7 +505,7 @@ async function importRecipe(
       })(),
       ingredientNotes: (() => {
         const mapped = (spainOutput.ingredientNotes || []).map((ri) => ({
-          recipeIngredientId: ingredientOrderToId.get(ri.displayOrder) || "",
+          recipeIngredientId: ingredientOrderToId.get(ri.displayOrder) || '',
           notes: ri.notes,
           tip: ri.tip,
           section: ri.section,
@@ -537,7 +527,7 @@ async function importRecipe(
         return (spainOutput.newIngredients || []).map((i) => {
           const match = nameToIngredient.get(i.name.toLowerCase());
           return {
-            ingredientId: match?.id || "",
+            ingredientId: match?.id || '',
             name: i.name,
             pluralName: i.pluralName,
           };
@@ -550,7 +540,7 @@ async function importRecipe(
         return (spainOutput.newKitchenTools || []).map((kt) => {
           const match = nameToTool.get(kt.name.toLowerCase());
           return {
-            kitchenToolId: match?.id || "",
+            kitchenToolId: match?.id || '',
             name: kt.name,
           };
         }).filter((kt) => kt.kitchenToolId);
@@ -595,18 +585,18 @@ function resolveIngredientsDry(
     }
     const unit = matchMeasurementUnit(item.measurementUnitID, allUnits);
     recipeIngredients.push({
-      recipe_id: "",
-      ingredient_id: matched?.id ?? "",
+      recipe_id: '',
+      ingredient_id: matched?.id ?? '',
       quantity: item.quantity,
       measurement_unit_id: unit?.id || null,
-      notes_en: item.notesEn || "",
-      notes_es: item.notesEs || "",
-      tip_en: item.tipEn || "",
-      tip_es: item.tipEs || "",
+      notes_en: item.notesEn || '',
+      notes_es: item.notesEs || '',
+      tip_en: item.tipEn || '',
+      tip_es: item.tipEs || '',
       optional: false,
       display_order: item.displayOrder,
-      recipe_section_en: item.recipeSectionEn || "Main",
-      recipe_section_es: item.recipeSectionEs || "Principal",
+      recipe_section_en: item.recipeSectionEn || 'Main',
+      recipe_section_es: item.recipeSectionEs || 'Principal',
     });
   }
 
@@ -645,8 +635,8 @@ function resolveKitchenToolsDry(
           ? {
             kitchen_tool_id: matched.id,
             display_order: i,
-            notes_en: "",
-            notes_es: "",
+            notes_en: '',
+            notes_es: '',
           }
           : null;
       })
@@ -657,13 +647,13 @@ function resolveKitchenToolsDry(
 // ─── Main ────────────────────────────────────────────────
 
 async function main() {
-  logger.section(`Recipe Import (${env})${dryRun ? " [DRY RUN]" : ""}`);
+  logger.section(`Recipe Import (${env})${dryRun ? ' [DRY RUN]' : ''}`);
   if (dryRun) {
-    logger.warn("Dry-run mode: no data will be written to the database");
+    logger.warn('Dry-run mode: no data will be written to the database');
   }
 
   try {
-    assertRequiredApiKey("OPENAI_API_KEY", config.openaiApiKey);
+    assertRequiredApiKey('OPENAI_API_KEY', config.openaiApiKey);
   } catch (error) {
     logger.error(error instanceof Error ? error.message : String(error));
     Deno.exit(1);
@@ -676,7 +666,7 @@ async function main() {
   } catch (e) {
     logger.error(`Failed to load markdown files from ${dataDir}: ${e}`);
     logger.info(
-      "Place Notion markdown exports in data-pipeline/data/notion-exports/, or pass --dir path/to/RECIPES/",
+      'Place Notion markdown exports in data-pipeline/data/notion-exports/, or pass --dir path/to/RECIPES/',
     );
     Deno.exit(1);
   }
@@ -684,12 +674,12 @@ async function main() {
   logger.info(`Found ${markdownFiles.length} markdown files in ${dataDir}`);
 
   if (markdownFiles.length === 0) {
-    logger.warn("No markdown files found. Nothing to import.");
+    logger.warn('No markdown files found. Nothing to import.');
     Deno.exit(0);
   }
 
   // Pre-load all reference data (cached in memory for the entire run)
-  logger.info("Loading reference data from database...");
+  logger.info('Loading reference data from database...');
   const [allIngredients, allTags, allItems, allUnits] = await Promise.all([
     db.fetchAllIngredients(config.supabase),
     db.fetchAllTags(config.supabase),
@@ -702,8 +692,7 @@ async function main() {
   );
 
   // Pre-filter: skip stubs (no ingredients) and already completed
-  const alreadyDone =
-    markdownFiles.filter((f) => tracker.isCompleted(f.filename)).length;
+  const alreadyDone = markdownFiles.filter((f) => tracker.isCompleted(f.filename)).length;
   const stubs = markdownFiles.filter(
     (f) => !tracker.isCompleted(f.filename) && !hasRecipeContent(f.content),
   );
@@ -714,9 +703,7 @@ async function main() {
   logger.info(`Already completed: ${alreadyDone}`);
   logger.info(`Skipped (no content): ${stubs.length}`);
   logger.info(
-    `Ready to import: ${pending.length}${
-      limit !== Infinity ? ` (limit: ${limit})` : ""
-    }`,
+    `Ready to import: ${pending.length}${limit !== Infinity ? ` (limit: ${limit})` : ''}`,
   );
 
   // Mark stubs as completed so they don't re-appear on next run (skip in dry-run)
@@ -747,14 +734,12 @@ async function main() {
       if (!dryRun) tracker.markCompleted(file.filename);
       successCount++;
       logger.success(
-        `${dryRun ? "Parsed" : "Imported"} "${file.filename}"${
-          dryRun ? "" : ` -> ${recipeId}`
-        }`,
+        `${dryRun ? 'Parsed' : 'Imported'} "${file.filename}"${dryRun ? '' : ` -> ${recipeId}`}`,
       );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       logger.error(
-        `Failed to ${dryRun ? "parse" : "import"} "${file.filename}": ${msg}`,
+        `Failed to ${dryRun ? 'parse' : 'import'} "${file.filename}": ${msg}`,
       );
       if (!dryRun) tracker.markFailed(file.filename, msg);
       failCount++;
@@ -766,27 +751,27 @@ async function main() {
 
   // Summary
   logger.summary({
-    "Total files": markdownFiles.length,
-    "Stubs skipped (no content)": stubs.length,
-    "Previously completed": alreadyDone,
-    "Imported this run": successCount,
-    "Failed this run": failCount,
-    "Remaining": pending.length - toProcess.length,
-    "Ingredients in DB": allIngredients.length,
-    "Tags in DB": allTags.length,
-    "Kitchen tools in DB": allItems.length,
+    'Total files': markdownFiles.length,
+    'Stubs skipped (no content)': stubs.length,
+    'Previously completed': alreadyDone,
+    'Imported this run': successCount,
+    'Failed this run': failCount,
+    'Remaining': pending.length - toProcess.length,
+    'Ingredients in DB': allIngredients.length,
+    'Tags in DB': allTags.length,
+    'Kitchen tools in DB': allItems.length,
   });
 
   if (failCount > 0) {
-    logger.warn("Failed files:");
+    logger.warn('Failed files:');
     for (const f of tracker.getFailedItems()) {
       logger.error(`  ${f.id}: ${f.error}`);
     }
-    logger.info("Re-run the import to retry failed files.");
+    logger.info('Re-run the import to retry failed files.');
   }
 }
 
 main().catch((error) => {
-  logger.error("Fatal error", error);
+  logger.error('Fatal error', error);
   Deno.exit(1);
 });

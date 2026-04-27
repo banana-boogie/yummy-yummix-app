@@ -20,6 +20,8 @@ export const DIET_TYPES = [
   'low_sugar',
   'high_protein',
   'pescatarian',
+  'gluten_free',
+  'healthy',
 ] as const;
 
 export type DietType = typeof DIET_TYPES[number];

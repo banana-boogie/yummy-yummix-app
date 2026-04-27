@@ -46,6 +46,8 @@ export const onboarding = {
         low_sugar: "Low Sugar",
         high_protein: "High Protein",
         pescatarian: "Pescatarian",
+        gluten_free: "Gluten Free",
+        healthy: "Healthy",
       },
     },
     cuisines: {

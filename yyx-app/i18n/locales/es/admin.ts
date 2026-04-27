@@ -798,6 +798,8 @@ export const admin = {
       cuisine: "Cocina",
       meal_type: "Tipo de Comida",
       diet: "Dieta",
+      dish_type: "Tipo de Plato",
+      primary_ingredient: "Ingrediente Principal",
       occasion: "Ocasión",
       practical: "Práctico",
     },
