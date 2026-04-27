@@ -157,7 +157,15 @@ INSERT INTO shopping_list_categories (id, name_en, name_es, icon, display_order)
 ('personal', 'Personal Care', 'Cuidado Personal', 'heart-outline', 11),
 ('other', 'Other', 'Otros', 'ellipsis-horizontal-outline', 12);
 
--- Attach the shopping_list_id FK now that shopping_lists exists (set up nullable in planner migration)
-ALTER TABLE public.meal_plans
-    ADD CONSTRAINT meal_plans_shopping_list_id_fkey
-    FOREIGN KEY (shopping_list_id) REFERENCES shopping_lists(id) ON DELETE SET NULL;
+-- Attach the shopping_list_id FK now that shopping_lists exists (set up nullable in planner migration).
+-- Guarded so the migration is idempotent — Track A or a prior partial run may have already added it.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'meal_plans_shopping_list_id_fkey'
+    ) THEN
+        ALTER TABLE public.meal_plans
+            ADD CONSTRAINT meal_plans_shopping_list_id_fkey
+            FOREIGN KEY (shopping_list_id) REFERENCES shopping_lists(id) ON DELETE SET NULL;
+    END IF;
+END $$;
