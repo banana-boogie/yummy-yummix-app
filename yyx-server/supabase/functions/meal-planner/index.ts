@@ -237,18 +237,22 @@ function buildPreferencesFromPayload(
 /**
  * Best-effort insert into `user_events`. Failures are logged but never bubble
  * up — analytics must not fail user-facing mutations.
+ *
+ * Column shape: `(user_id, event_type, payload)`. `payload` is JSONB. We
+ * named the parameter `payload` to match the schema; an earlier draft used
+ * `metadata` and the inserts silently 4xx'd against the constraint.
  */
 async function logUserEvent(
   supabase: UserClient,
   userId: string,
   eventType: string,
-  metadata: Record<string, unknown>,
+  payload: Record<string, unknown>,
 ): Promise<void> {
   try {
     const { error } = await supabase.from("user_events").insert({
       user_id: userId,
       event_type: eventType,
-      metadata,
+      payload,
     });
     if (error) {
       console.warn(`[meal-planner] failed to log ${eventType}:`, error.message);
