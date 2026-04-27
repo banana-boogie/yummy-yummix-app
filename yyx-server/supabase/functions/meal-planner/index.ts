@@ -22,6 +22,8 @@ import { buildLocaleChain, pickTranslation } from "../_shared/locale-utils.ts";
 
 import {
   type ApprovePlanResponse,
+  COMPONENT_ROLES,
+  type ComponentRole,
   type GeneratePlanPayload,
   type GeneratePlanResponse,
   type GenerateShoppingListResponse,
@@ -54,6 +56,11 @@ const DEFAULT_DEPENDENCIES: MealPlannerDependencies = {
 
 const VALID_ACTIONS = new Set<MealPlanAction>(MEAL_PLAN_ACTIONS);
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+// Postgres UUIDs — used to defensively validate any IDs we interpolate into
+// PostgREST filter strings.
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const VALID_COMPONENT_ROLES = new Set<ComponentRole>(COMPONENT_ROLES);
 
 export const DEFAULT_PREFERENCES: PreferencesResponse = {
   mealTypes: ["dinner"],
@@ -502,17 +509,18 @@ async function respondWithSwapAlternatives(
   // TODO(plan-14-followup): wire up the scoring core from `scoring/index.ts`
   // so alternatives are ranked against the user's week context (variety,
   // taste, time fit) instead of the current verified+quick heuristic.
-  const excluded = [
-    primary.recipeId,
-    ...rejectedRecipeIds,
-  ].filter((id): id is string => typeof id === "string" && id.length > 0);
 
-  // Use the primary's componentRole as the planner_role. Recipes can match
-  // either via `planner_role` or by listing the role in
-  // `alternate_planner_roles`. PostgREST `.or()` lets us combine both.
+  // PostgREST `.or()` and `.not("id","in",...)` interpolate values into a
+  // filter-language string. Validate against the typed enum/UUID shape
+  // before composing so a future schema broadening or unvalidated source
+  // can't sneak filter-language metacharacters into the query.
   const role = primary.componentRole;
-  const orFilter =
-    `planner_role.eq.${role},alternate_planner_roles.cs.{${role}}`;
+  if (!VALID_COMPONENT_ROLES.has(role)) {
+    throw new Error(`Unexpected componentRole: ${role}`);
+  }
+  const excluded = [primary.recipeId, ...rejectedRecipeIds].filter(
+    (id): id is string => typeof id === "string" && UUID_PATTERN.test(id),
+  );
 
   let query = supabase
     .from("recipes")
@@ -530,7 +538,7 @@ async function respondWithSwapAlternatives(
       recipe_translations(locale, name)
     `)
     .eq("is_published", true)
-    .or(orFilter)
+    .or(`planner_role.eq.${role},alternate_planner_roles.cs.{${role}}`)
     .order("verified_at", { ascending: false, nullsFirst: false })
     .order("total_time", { ascending: true, nullsFirst: false })
     .limit(20);
@@ -626,11 +634,19 @@ async function applySwap(
   };
   const title = pickName(recipe.recipe_translations ?? null, plan.locale);
 
-  // Record rejection for the recipe being replaced so it doesn't reappear in
-  // future swap browses for this slot. NULL recipe_id (custom/leftover slots)
-  // skips the insert because the schema requires recipe_id.
-  if (primary.recipeId) {
-    const { error: rejErr } = await supabase
+  // The four post-validation writes touch disjoint rows so we run them in
+  // parallel — saves 3 round-trips on a path users notice. Refresh the
+  // primary component's snapshot, increment swap_count + flip slot stale,
+  // flip plan stale, and record the rejection for the replaced recipe.
+  // `pairing_basis: "manual"` matches the existing schema enum — the user
+  // picked from the planner's offered alternatives, so the original
+  // automatic pairing basis no longer applies.
+  const nowIso = new Date().toISOString();
+  // Schema requires `recipe_id` on rejection rows; custom/leftover slots
+  // (no replaced recipe) skip the insert rather than violating the
+  // constraint.
+  const rejectionInsert = primary.recipeId
+    ? supabase
       .from("meal_plan_slot_rejections")
       .insert({
         meal_plan_slot_id: slot.id,
@@ -638,51 +654,57 @@ async function applySwap(
         recipe_id: primary.recipeId,
         rejection_source: "user",
         reason_code: "user_swap",
-      });
-    if (rejErr) {
-      console.warn(
-        `[meal-planner] swap_meal: failed to record rejection: ${rejErr.message}`,
-      );
-    }
-  }
+      })
+    : Promise.resolve({ error: null });
 
-  // Refresh the primary component's snapshot fields. We deliberately do not
-  // recompute pairings or secondary components in this PR — Plan 14 § 5.7.2
-  // scopes this to the primary swap only.
-  const { error: compErr } = await supabase
-    .from("meal_plan_slot_components")
-    .update({
-      recipe_id: recipe.id,
-      title_snapshot: title,
-      image_url_snapshot: recipe.image_url,
-      total_time_snapshot: recipe.total_time,
-      difficulty_snapshot: recipe.difficulty,
-      portions_snapshot: recipe.portions,
-      equipment_tags_snapshot: recipe.equipment_tags ?? [],
-      meal_components_snapshot: recipe.meal_components ?? [],
-      pairing_basis: "manual",
-    })
-    .eq("id", primary.id);
+  const [
+    { error: compErr },
+    { error: slotErr },
+    { error: planErr },
+    { error: rejErr },
+  ] = await Promise.all([
+    supabase
+      .from("meal_plan_slot_components")
+      .update({
+        recipe_id: recipe.id,
+        title_snapshot: title,
+        image_url_snapshot: recipe.image_url,
+        total_time_snapshot: recipe.total_time,
+        difficulty_snapshot: recipe.difficulty,
+        portions_snapshot: recipe.portions,
+        equipment_tags_snapshot: recipe.equipment_tags ?? [],
+        meal_components_snapshot: recipe.meal_components ?? [],
+        pairing_basis: "manual",
+      })
+      .eq("id", primary.id),
+    supabase
+      .from("meal_plan_slots")
+      .update({
+        swap_count: (slot.swapCount ?? 0) + 1,
+        last_swapped_at: nowIso,
+        shopping_sync_state: "stale",
+      })
+      .eq("id", slot.id),
+    supabase
+      .from("meal_plans")
+      .update({ shopping_sync_state: "stale" })
+      .eq("id", plan.planId),
+    rejectionInsert,
+  ]);
+
   if (compErr) {
     throw new Error(`Failed to update component: ${compErr.message}`);
   }
-
-  const nowIso = new Date().toISOString();
-  const { error: slotErr } = await supabase
-    .from("meal_plan_slots")
-    .update({
-      swap_count: (slot.swapCount ?? 0) + 1,
-      last_swapped_at: nowIso,
-      shopping_sync_state: "stale",
-    })
-    .eq("id", slot.id);
   if (slotErr) throw new Error(`Failed to update slot: ${slotErr.message}`);
-
-  const { error: planErr } = await supabase
-    .from("meal_plans")
-    .update({ shopping_sync_state: "stale" })
-    .eq("id", plan.planId);
   if (planErr) throw new Error(`Failed to update plan: ${planErr.message}`);
+  // Rejection is best-effort: the swap still succeeds even if we failed to
+  // record the rejection. Worst case the user sees the same recipe back in
+  // the next browse — annoying but not corrupting.
+  if (rejErr) {
+    console.warn(
+      `[meal-planner] swap_meal: failed to record rejection: ${rejErr.message}`,
+    );
+  }
 
   await logUserEvent(supabase, userId, "meal_plan_meal_swapped", {
     meal_plan_id: plan.planId,

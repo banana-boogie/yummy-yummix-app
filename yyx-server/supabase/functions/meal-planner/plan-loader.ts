@@ -7,6 +7,7 @@
  */
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { localeLabelFor } from "./meal-types.ts";
 import type {
   CanonicalMealType,
   ComponentRole,
@@ -74,7 +75,44 @@ interface ComponentRow {
   equipment_tags_snapshot: string[] | null;
 }
 
-const PLAN_SELECT = `
+const SLOT_FIELDS = `
+  id,
+  planned_date,
+  day_index,
+  meal_type,
+  display_order,
+  slot_type,
+  structure_template,
+  expected_meal_components,
+  coverage_complete,
+  selection_reason,
+  shopping_sync_state,
+  status,
+  swap_count,
+  last_swapped_at,
+  cooked_at,
+  skipped_at,
+  merged_cooking_guide,
+  meal_plan_slot_components (
+    id,
+    component_role,
+    source_kind,
+    recipe_id,
+    source_component_id,
+    meal_components_snapshot,
+    pairing_basis,
+    display_order,
+    is_primary,
+    title_snapshot,
+    image_url_snapshot,
+    total_time_snapshot,
+    difficulty_snapshot,
+    portions_snapshot,
+    equipment_tags_snapshot
+  )
+`;
+
+const PLAN_FIELDS = `
   id,
   user_id,
   week_start,
@@ -83,43 +121,21 @@ const PLAN_SELECT = `
   requested_day_indexes,
   requested_meal_types,
   shopping_list_id,
-  shopping_sync_state,
-  meal_plan_slots (
-    id,
-    planned_date,
-    day_index,
-    meal_type,
-    display_order,
-    slot_type,
-    structure_template,
-    expected_meal_components,
-    coverage_complete,
-    selection_reason,
-    shopping_sync_state,
-    status,
-    swap_count,
-    last_swapped_at,
-    cooked_at,
-    skipped_at,
-    merged_cooking_guide,
-    meal_plan_slot_components (
-      id,
-      component_role,
-      source_kind,
-      recipe_id,
-      source_component_id,
-      meal_components_snapshot,
-      pairing_basis,
-      display_order,
-      is_primary,
-      title_snapshot,
-      image_url_snapshot,
-      total_time_snapshot,
-      difficulty_snapshot,
-      portions_snapshot,
-      equipment_tags_snapshot
-    )
-  )
+  shopping_sync_state
+`;
+
+const PLAN_WITH_ALL_SLOTS_SELECT = `
+  ${PLAN_FIELDS},
+  meal_plan_slots ( ${SLOT_FIELDS} )
+`;
+
+// Inner join so the parent plan only comes back when it actually contains a
+// slot matching the embedded filter. The embedded `meal_plan_slots` array
+// will only include the matched slot — sufficient for mutation handlers
+// that operate on a single slot.
+const PLAN_WITH_TARGET_SLOT_SELECT = `
+  ${PLAN_FIELDS},
+  meal_plan_slots!inner ( ${SLOT_FIELDS} )
 `;
 
 function mapComponent(row: ComponentRow): MealPlanSlotComponentResponse {
@@ -142,29 +158,6 @@ function mapComponent(row: ComponentRow): MealPlanSlotComponentResponse {
   };
 }
 
-function displayMealLabelFor(
-  mealType: CanonicalMealType,
-  locale: string,
-): string {
-  if (locale.startsWith("es")) {
-    switch (mealType) {
-      case "breakfast":
-        return "desayuno";
-      case "lunch":
-        return "comida";
-      case "dinner":
-        return "cena";
-      case "snack":
-        return "snack";
-      case "dessert":
-        return "postre";
-      case "beverage":
-        return "bebida";
-    }
-  }
-  return mealType;
-}
-
 function mapSlot(row: SlotRow, locale: string): MealPlanSlotResponse {
   const components = (row.meal_plan_slot_components ?? [])
     .map(mapComponent)
@@ -175,7 +168,7 @@ function mapSlot(row: SlotRow, locale: string): MealPlanSlotResponse {
     plannedDate: row.planned_date,
     dayIndex: row.day_index,
     mealType: row.meal_type,
-    displayMealLabel: displayMealLabelFor(row.meal_type, locale),
+    displayMealLabel: localeLabelFor(row.meal_type, locale),
     displayOrder: row.display_order ?? 0,
     slotType: row.slot_type,
     structureTemplate: row.structure_template,
@@ -225,7 +218,7 @@ export async function loadActivePlan(
 ): Promise<MealPlanResponse | null> {
   let query = supabase
     .from("meal_plans")
-    .select(PLAN_SELECT)
+    .select(PLAN_WITH_ALL_SLOTS_SELECT)
     .eq("user_id", userId)
     .in("status", ["draft", "active"])
     .order("week_start", { ascending: false })
@@ -241,27 +234,28 @@ export async function loadActivePlan(
 }
 
 /**
- * Load the plan a slot belongs to plus the slot itself. Returns null when
- * the slot doesn't exist or doesn't belong to the calling user (RLS).
+ * Load the plan that owns `slotId` plus the slot itself. Returns null when
+ * the slot doesn't exist or doesn't belong to the calling user.
+ *
+ * Single-query implementation via PostgREST inner join: `meal_plan_slots!inner`
+ * makes the parent row's existence depend on at least one matching child,
+ * and the embedded `eq` filters that child set down to the target slot. The
+ * outer `user_id` filter plus RLS on `meal_plans` provide ownership scoping.
+ *
+ * The returned `plan.slots` only contains the target slot — callers that
+ * need every slot for the plan should call `loadActivePlan` instead.
  */
 export async function loadSlotWithPlan(
   slotId: string,
   userId: string,
   supabase: SupabaseClient,
 ): Promise<{ plan: MealPlanResponse; slot: MealPlanSlotResponse } | null> {
-  const { data: slotRef, error: slotErr } = await supabase
-    .from("meal_plan_slots")
-    .select("id, meal_plan_id")
-    .eq("id", slotId)
-    .maybeSingle();
-  if (slotErr) throw new Error(`Failed to load slot: ${slotErr.message}`);
-  if (!slotRef) return null;
-
   const { data, error } = await supabase
     .from("meal_plans")
-    .select(PLAN_SELECT)
-    .eq("id", (slotRef as { meal_plan_id: string }).meal_plan_id)
+    .select(PLAN_WITH_TARGET_SLOT_SELECT)
     .eq("user_id", userId)
+    .eq("meal_plan_slots.id", slotId)
+    .limit(1)
     .maybeSingle();
   if (error) throw new Error(`Failed to load plan: ${error.message}`);
   if (!data) return null;
