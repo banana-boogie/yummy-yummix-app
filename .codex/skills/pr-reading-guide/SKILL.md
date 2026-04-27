@@ -44,7 +44,9 @@ If no PR identifier is provided, resolve from the current branch and confirm wit
 
 ## Triage Heuristics
 
-**MUST-READ — always include if changed:**
+**MUST-READ — always include if changed.** Two categories: *always-dangerous infrastructure* (true regardless of what the PR is about) and *this PR's central logic* (the actual behavior being shipped).
+
+*Always-dangerous infrastructure:*
 - Database migrations (`yyx-server/supabase/migrations/`)
 - RLS policies, auth flows, JWT/session handling
 - Edge function entrypoints (new routes, changed request/response shape)
@@ -54,8 +56,11 @@ If no PR identifier is provided, resolve from the current branch and confirm wit
 - Cron jobs, scheduled tasks, queue workers
 - New external service integrations (API keys, webhooks)
 - Shared types or top-level data model changes that ripple
-- Core product loop on the planner: Mi Menú generation, shopping list assembly, recipe metadata pipeline
 - AI gateway changes (`_shared/ai-gateway/`, tool registry, RAG retrievers)
+
+*This PR's central logic:*
+- **Core business / domain logic** — files encoding product rules: scoring, ranking, eligibility, validation, conversions, state transitions, lifecycle code, search/match algorithms, recipe pipeline transformations, planner ranking, Mi Menú generation, shopping list assembly, recipe metadata pipeline, Irmixy tool-selection logic
+- **The PR's headline feature** — the file(s) implementing the main thing the PR is shipping, inferred from the PR title and body. If the PR is "add ingredient substitution", the substitution logic file is MUST-READ even if it's a leaf component with no other heuristic match. The PR's central feature should never be SKIM — that defeats the purpose of the guide.
 
 **SKIM — include only when judged load-bearing for this PR:**
 - Larger feature components/hooks with non-obvious logic
@@ -113,7 +118,12 @@ A short paragraph (or numbered flow) showing the call graph across the must-read
 
 **What changed:** 1–2 orienting sentences in plain English. Not function-by-function.
 
-**Walkthrough:** Detailed prose explanation of the file's logic after the change. Walk through the functions/blocks in execution order: inputs, what each step does, the branches that exist, the edge cases handled, the values returned. Be specific — the reader should be able to describe the code's behavior back to you afterwards. For changed (not new) files, include explicit **Before:** / **After:** contrast so the delta is obvious. Prefer prose, but quote a short snippet (≤5 lines) when the literal code — a regex, SQL clause, default value, key constant — is shorter and clearer than describing it. If you had to infer behavior because you couldn't fully resolve a helper or callee, say so at the end of this section.
+**Walkthrough:** Step-by-step breakdown of the file's logic after the change. **Use a numbered list, with one entry per function, block, or logical step in execution order** — not a single paragraph. Each entry should be a short bullet covering: inputs received, what happens, branches/edge cases, what's returned. Aim for ~1–4 lines per entry. The reader should be able to describe the code's behavior back to you afterwards.
+
+After the numbered list, when applicable:
+- For changed (not new) files: end with explicit **Before:** / **After:** lines describing the delta.
+- Quote a code snippet (≤5 lines) only when the literal code — a regex, SQL clause, default value, key constant — is clearer than prose; place it inline next to the step it belongs to.
+- If you had to infer behavior because you couldn't fully resolve a helper or callee, mark that step with `(Inferred — <reason>)` rather than presenting the inference as fact.
 
 **Decisions encoded:** Bullet list of the non-obvious choices in this file — defaults, thresholds, fallbacks, ordering, retries, why approach A over B. One bullet per decision. This is what the user is actually validating.
 
