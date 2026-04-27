@@ -325,7 +325,19 @@ export function computeRecipeMetadataDiff(
   // -- tags (per-category set replacement) -------------------
   if (desired.tags) {
     const changes: DiffEntry[] = [];
-    for (const category of ['cuisine', 'meal_type', 'diet', 'occasion', 'practical'] as const) {
+    // Must match TAG_CATEGORIES in recipe-metadata-schema.ts and the
+    // iteration list in apply_recipe_metadata. Track H = 7 categories.
+    for (
+      const category of [
+        'cuisine',
+        'meal_type',
+        'diet',
+        'dish_type',
+        'primary_ingredient',
+        'occasion',
+        'practical',
+      ] as const
+    ) {
       const d = desired.tags[category];
       if (d === undefined) continue;
       const cur = current.tags_by_category[category] ?? [];

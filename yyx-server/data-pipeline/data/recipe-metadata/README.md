@@ -92,7 +92,7 @@ The full Zod schema lives at [`yyx-server/data-pipeline/lib/recipe-metadata-sche
 | `timings` | optional | UPDATE diff | prep_time, total_time, portions |
 | `name` | optional | per-locale UPSERT | for `same_en_es_name` cleanup |
 | `description` / `tips_and_tricks` / `scaling_notes` | optional | per-locale UPSERT | recipe_translations columns |
-| `tags` | optional | per-category set replacement | keyed by Track H slug (`cuisine`, `meal_type`, `diet`, `occasion`, `practical`) |
+| `tags` | optional | per-category set replacement | keyed by Track H slug. 7 categories: `cuisine`, `meal_type`, `diet`, `dish_type`, `primary_ingredient`, `occasion`, `practical` |
 | `ingredient_updates` / `_adds` / `_removes` | optional | per-row | match key: `existing_id` OR `ingredient_slug + display_order` |
 | `kitchen_tools` | optional | declarative `set:` | `name_en` lookup; ambiguous = hard error |
 | `pairings` | optional | declarative `set:` | composite key `(target_id, role)` |

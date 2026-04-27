@@ -16,21 +16,19 @@
  * Each test sends a payload that produces zero writes (the RPC's idempotency
  * gating means a no-op YAML against a stable row leaves the DB untouched).
  *
- * Coverage:
+ * Coverage (all non-mutating against the test recipe):
  *   - Happy-path no-op apply returns ok=true, changed=false, all counts zero.
  *   - Stale-diff guard fires when expected_recipe_updated_at is in the past.
  *   - Missing recipe id raises a clear error.
  *   - delete_locales=['en'] is refused.
- *   - New tag categories (`dish_type`, `primary_ingredient`) round-trip.
- *   - Step override clearing: writing thermomix_speed clears speed_range cols.
- *   - Translation bootstrap inserts a missing locale row.
+ *   - New tag categories (`dish_type`, `primary_ingredient`) round-trip
+ *     against the recipe's existing tag state with no diff.
  *
- * The first 4 tests are non-destructive (the RPC short-circuits before any
- * write). The last 3 require a sandbox/test recipe — they mutate. Run them
- * only against a recipe you can safely reset, or wrap your invocation in a
- * transaction that rolls back. The current TEST_RECIPE_ID env-var contract
- * does not enforce this, so these mutating tests are also gated by
- * RECIPE_METADATA_INTEGRATION_TEST_MUTATIONS_OK=1.
+ * Mutating regression tests for the two SQL bug fixes (translation bootstrap,
+ * step speed/range clearing) are NOT yet implemented — they require a
+ * sandbox/test database with a controllable seed state. See the comment at
+ * the bottom of this file for the test plan that should be implemented when
+ * that harness is built.
  */
 
 import { assert, assertEquals, assertRejects } from 'std/assert/mod.ts';
@@ -45,15 +43,10 @@ const TEST_RECIPE_NAME_EN =
   Deno.env.get('RECIPE_METADATA_INTEGRATION_TEST_RECIPE_NAME_EN') ?? '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-const MUTATIONS_OK =
-  Deno.env.get('RECIPE_METADATA_INTEGRATION_TEST_MUTATIONS_OK') === '1';
 
-// Read-only tests skip if base env not configured.
 const isConfigured = Boolean(
   TEST_RECIPE_ID && TEST_RECIPE_NAME_EN && SUPABASE_URL && SERVICE_ROLE_KEY,
 );
-// Mutating tests further require explicit opt-in.
-const isMutatingConfigured = isConfigured && MUTATIONS_OK;
 
 function client(): SupabaseClient {
   return createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
@@ -187,18 +180,46 @@ Deno.test({
 
 // ============================================================
 // Coverage of the bug fixes from PR #55 fix commit (14b553c8).
-// These exercise the live RPC against the test recipe.
 // ============================================================
+
+/**
+ * Fetch current dish_type / primary_ingredient tag slugs for the test recipe.
+ * Returns the tag-set arrays the RPC expects.
+ */
+async function fetchCurrentTrackHTags(
+  supabase: SupabaseClient,
+): Promise<{ dish_type: string[]; primary_ingredient: string[] }> {
+  const { data, error } = await supabase
+    .from('recipe_to_tag')
+    .select('recipe_tags!inner(slug, categories)')
+    .eq('recipe_id', TEST_RECIPE_ID);
+  if (error) throw new Error(`fetchCurrentTrackHTags: ${error.message}`);
+
+  const rows = (data as unknown) as Array<{
+    recipe_tags: { slug: string; categories: string[] };
+  }>;
+  const dish_type: string[] = [];
+  const primary_ingredient: string[] = [];
+  for (const row of rows) {
+    const cats = row.recipe_tags?.categories ?? [];
+    if (cats.includes('dish_type')) dish_type.push(row.recipe_tags.slug);
+    if (cats.includes('primary_ingredient')) primary_ingredient.push(row.recipe_tags.slug);
+  }
+  return { dish_type, primary_ingredient };
+}
 
 Deno.test({
   name: 'integration: dish_type and primary_ingredient categories round-trip (no-op)',
   ignore: !isConfigured,
   fn: async () => {
+    // Genuinely non-mutating: read current Track H tag state, hand the same
+    // arrays back to the RPC, expect the idempotency gate to detect zero
+    // diff. If we sent empty arrays the RPC would DELETE existing tags in
+    // those categories — that is a mutation and would deserve the gate.
     const supabase = client();
     const updatedAt = await fetchUpdatedAt(supabase);
-    // Empty-set replacement for both new categories is always a no-op (or a
-    // strict-clear, both safe). The point is: the RPC must accept these
-    // categories without raising "tags: no recipe_tag with slug=".
+    const current = await fetchCurrentTrackHTags(supabase);
+
     const result = await applyRecipeMetadata(supabase, {
       recipe_match: {
         id: TEST_RECIPE_ID,
@@ -209,42 +230,44 @@ Deno.test({
         reviewed_by_label: 'integration-test',
         reviewed_at: new Date().toISOString(),
       },
-      tags: { dish_type: [], primary_ingredient: [] },
+      tags: {
+        dish_type: current.dish_type,
+        primary_ingredient: current.primary_ingredient,
+      },
     });
+
     assert(result.ok, 'expected RPC to accept dish_type/primary_ingredient categories');
-    // No tag slugs referenced, so no inserts are possible.
-    assertEquals(result.counts.tags_added, 0);
+    assertEquals(result.counts.tags_added, 0, 'expected no tag inserts');
+    assertEquals(result.counts.tags_removed, 0, 'expected no tag deletes');
   },
 });
 
-Deno.test({
-  name: 'integration [MUTATING]: translation bootstrap inserts a missing locale',
-  ignore: !isMutatingConfigured,
-  fn: async () => {
-    // Sketch: pick a recipe that has only an `en` translation row, send a
-    // payload with name.es + description.es, expect translations_upserts=1.
-    // Caller must reset the test recipe afterward (e.g. delete the inserted
-    // 'es' row). This is intentionally minimal — a self-cleaning version
-    // would require either a DDL transaction or a dedicated test schema.
-    throw new Error(
-      'translation-bootstrap mutating test requires a test recipe with a known ' +
-        'single-locale state and an out-of-band reset mechanism. Implement ' +
-        'before running.',
-    );
-  },
-});
-
-Deno.test({
-  name: 'integration [MUTATING]: setting thermomix_speed clears thermomix_speed_range',
-  ignore: !isMutatingConfigured,
-  fn: async () => {
-    // Sketch: 1) seed a recipe step with both _speed_start and _speed_end set
-    // (range form). 2) Send YAML that sets thermomix_speed: 5. 3) Re-fetch
-    // the step and assert thermomix_speed_start IS NULL and _speed_end IS NULL
-    // and thermomix_speed = '5'. 4) Reset the row.
-    throw new Error(
-      'speed-clearing mutating test requires a controllable step row and ' +
-        'reset mechanism. Implement before running.',
-    );
-  },
-});
+// ------------------------------------------------------------
+// Mutating regression coverage — NOT YET IMPLEMENTED.
+//
+// The fixes for translation bootstrap and step speed/range clearing are not
+// covered by automated regression tests yet. Implementing them requires
+// either a sandbox/test database with a controllable seed state, or a way
+// to wrap the RPC call in a transaction that rolls back. Neither is set up
+// here, so registering throw-stub tests would be a lie about coverage
+// (it would also break CI if anyone enabled the mutating suite).
+//
+// Test plan for follow-up work:
+//
+//   * `translation bootstrap inserts a missing locale`
+//     1. Seed a sandbox recipe with only an `en` translation row.
+//     2. Apply a payload with `name.es` + `description.es`.
+//     3. Re-fetch and assert the `es` row exists with the expected values.
+//     4. Reset (delete the inserted `es` row).
+//
+//   * `setting thermomix_speed clears thermomix_speed_range`
+//     1. Seed a step with `thermomix_speed_start` and `_end` set, speed NULL.
+//     2. Apply a payload with `thermomix_speed: 5`.
+//     3. Re-fetch and assert `thermomix_speed='5'` and start/end are NULL.
+//     4. Reset (restore previous values).
+//
+//   * `setting thermomix_speed_range clears thermomix_speed`
+//     Symmetric to the above.
+//
+// Track these in a follow-up issue once the test harness exists.
+// ------------------------------------------------------------
