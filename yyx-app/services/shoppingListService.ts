@@ -505,6 +505,29 @@ export const shoppingListService = {
             byKey.set(keyOf(row.ingredient_id, row.unit_id), { id: row.id, quantity: qty });
         }
 
+        // Batch-load each ingredient's default shopping category so new items
+        // land in Produce / Dairy / etc. instead of all collapsing to "other".
+        const ingredientIdsForLookup = Array.from(
+            new Set(
+                ingredients
+                    .map((i) => i.ingredientId)
+                    .filter((id): id is string => Boolean(id)),
+            ),
+        );
+        const categoryByIngredient = new Map<string, string>();
+        if (ingredientIdsForLookup.length > 0) {
+            const { data: ingRows, error: ingErr } = await supabase
+                .from('ingredients')
+                .select('id, default_category_id')
+                .in('id', ingredientIdsForLookup);
+            if (ingErr) throw new Error(`Load ingredient categories failed: ${ingErr.message}`);
+            for (const row of ingRows ?? []) {
+                if (row.default_category_id) {
+                    categoryByIngredient.set(row.id as string, row.default_category_id as string);
+                }
+            }
+        }
+
         const toInsert: Record<string, any>[] = [];
         const toUpdate: { id: string; quantity: number }[] = [];
         for (const ing of ingredients) {
@@ -518,11 +541,13 @@ export const shoppingListService = {
                     continue;
                 }
             }
+            const resolvedCategory =
+                ing.categoryId ?? (ingId ? categoryByIngredient.get(ingId) : undefined) ?? 'other';
             toInsert.push({
                 shopping_list_id: listId,
                 ingredient_id: ingId,
                 name_custom: ingId ? null : ing.name ?? null,
-                category_id: ing.categoryId ?? 'other',
+                category_id: resolvedCategory,
                 quantity: ing.quantity,
                 unit_id: unitId,
                 recipe_id: ing.recipeId ?? null,
