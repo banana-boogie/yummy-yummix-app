@@ -1,0 +1,58 @@
+# Tortilla Soup — reference fixture.
+#
+# Body fields are reviewer-authored starting points. Re-run the Reviewer
+# (`/review-recipe Tortilla Soup`) before applying to refresh
+# expected_recipe_updated_at against the current DB row.
+
+recipe_match:
+  id: '186cb167-2f85-470a-aa78-085921b331e3'
+  name_en: 'Tortilla Soup'
+  expected_recipe_updated_at: '2026-04-24T18:45:39.624486Z'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+
+planner:
+  role: main
+  alternate_planner_roles: []
+  meal_components: [protein, veg]
+  is_complete_meal: true        # soup-as-meal with toppings
+  equipment_tags: [thermomix]
+  cooking_level: intermediate
+  leftovers_friendly: true
+  batch_friendly: true
+  max_household_size_supported: 8
+  is_published: true
+
+timings:
+  prep_time: 20
+  total_time: 50
+  portions: 6
+
+tags:
+  cuisine: [mexican]
+  meal_type: [lunch, dinner]
+  diet: []
+  occasion: [comfort_food, sunday_family, weeknight]
+  practical: [one_pot, freezer_friendly, leftover_friendly, batch_cook]
+
+description:
+  en: 'Smoky chicken and tomato broth with crisp tortilla strips, avocado, and queso fresco. The Thermomix handles the broth start-to-finish; toppings are quick assembly.'
+  es: 'Caldo ahumado de pollo y jitomate con tiras de tortilla crujiente, aguacate y queso fresco. La Thermomix se encarga del caldo de principio a fin; los acompañamientos se arman rápido.'
+
+tips_and_tricks:
+  en: 'Char the tomatoes and onion under the broiler before adding to the Thermomix — the difference is huge. Toppings are not optional — they are what makes this a meal, not just a soup.'
+  es: 'Asa los jitomates y la cebolla bajo el broiler antes de agregarlos a la Thermomix — el sabor cambia enormemente. Los acompañamientos no son opcionales — son lo que hace que esto sea una comida, no solo una sopa.'
+
+scaling_notes:
+  en: 'Doubles to 12 portions in two Thermomix batches. Freezes well without toppings; add toppings only when serving.'
+  es: 'Se duplica a 12 porciones en dos tandas en la Thermomix. Se congela bien sin acompañamientos; agrégalos solo al servir.'
+
+kitchen_tools:
+  set:
+    - name_en: 'Thermomix'
+
+requires_authoring:
+  reasons: []
+  notes: ''

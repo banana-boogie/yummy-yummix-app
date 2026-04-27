@@ -1,0 +1,114 @@
+# Mongolian Beef — canonical fixture for the recipe metadata pipeline.
+#
+# This file is the schema's reference example. It is exercised by:
+#   - data-pipeline/lib/recipe-metadata-schema.test.ts
+#   - data-pipeline/cli/apply-recipe-metadata.ts --dry-run
+#
+# The body fields below (ingredient_updates, pairings, kitchen_tools, etc.)
+# are illustrative and may not reflect the live recipe's actual ingredients
+# or pairings — re-run the Reviewer (`/review-recipe Mongolian Beef`) before
+# applying to refresh expected_recipe_updated_at and align body fields to
+# current DB state.
+
+recipe_match:
+  id: 'e8786e29-0aae-4b5d-bbc7-9c18c8b37978'
+  name_en: 'Mongolian Beef'
+  expected_recipe_updated_at: '2026-04-24T18:08:47.619857Z'
+
+review:
+  reviewed_by_label: 'claude-opus-4-7'
+  reviewed_at: '2026-04-24T14:05:00.000Z'
+
+planner:
+  role: main
+  alternate_planner_roles: []
+  meal_components: [protein]
+  is_complete_meal: false
+  equipment_tags: [thermomix]
+  cooking_level: intermediate
+  leftovers_friendly: true
+  batch_friendly: false
+  max_household_size_supported: 6
+  is_published: true
+
+timings:
+  prep_time: 15
+  total_time: 35
+  portions: 4
+
+tags:
+  cuisine: [chinese, asian]
+  meal_type: [dinner]
+  diet: []
+  occasion: [weeknight]
+  practical: [one_pot, leftover_friendly]
+
+description:
+  en: 'Tender flank steak in a glossy soy-ginger glaze, cooked entirely in the Thermomix. Weeknight comfort food in 35 minutes.'
+  es: 'Tiras de res salteadas en una salsa brillante de soya y jengibre, todo en la Thermomix. Comida reconfortante entre semana en 35 minutos.'
+
+tips_and_tricks:
+  en: 'Slice the flank steak across the grain and as thin as you can — partial freezing for 20 minutes makes this easier. Reduce the sauce uncovered if it looks thin after step 6.'
+  es: 'Corta la res en contra del grano y lo más delgada posible — congélala parcialmente 20 minutos para facilitarlo. Reduce la salsa sin tapa si se ve aguada después del paso 6.'
+
+scaling_notes:
+  en: 'Doubles cleanly to 8 portions. Sauté in two Thermomix batches so the steak browns instead of stewing.'
+  es: 'Se duplica bien a 8 porciones. Saltea en dos tandas en la Thermomix para que la res se dore en vez de cocerse en su jugo.'
+
+# Match keys are durable: existing_id when known, otherwise ingredient_slug
+# + display_order. The DB unique constraint on recipe_ingredients is
+# (recipe_id, display_order) — pure name matching produces silent drift.
+ingredient_updates:
+  - match: { ingredient_slug: 'flank_steak', display_order: 1 }
+    quantity: 500
+    unit: 'g'
+  - match: { ingredient_slug: 'soy_sauce', display_order: 2 }
+    quantity: 80
+    unit: 'g'
+  - match: { ingredient_slug: 'fresh_ginger', display_order: 3 }
+    quantity: 20
+    unit: 'g'
+  - match: { ingredient_slug: 'garlic', display_order: 4 }
+    quantity: 3
+    unit: 'clove'
+
+ingredient_adds:
+  - ingredient_slug: 'green_onion'
+    quantity: 4
+    unit: 'unit'
+    display_order: 8
+    section_en: 'Toppings'
+    section_es: 'Para servir'
+    notes_en: 'thinly sliced, for garnish'
+    notes_es: 'rebanadas finas, para decorar'
+
+kitchen_tools:
+  set:
+    - name_en: 'Thermomix'
+    - name_en: 'Wax Paper'
+      notes_en: 'or parchment paper'
+      notes_es: 'o papel para hornear'
+
+pairings:
+  set:
+    - target_id: '00000000-0000-0000-0000-000000000099'
+      target_name_en: 'White Rice'
+      role: side
+    - target_id: '00000000-0000-0000-0000-000000000098'
+      target_name_en: 'Steamed Broccoli'
+      role: veg
+
+step_overrides:
+  - match: { order: 6 }
+    thermomix_time: 600
+    thermomix_speed: 2
+    thermomix_temperature: 100
+    thermomix_temperature_unit: 'C'
+    thermomix_blade_reverse: false
+
+cleanup:
+  delete_locales: ['es-ES']
+
+requires_authoring:
+  reasons: []
+  notes: ''
