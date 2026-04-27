@@ -703,6 +703,10 @@ function makeStatefulSupabase(opts: {
   recipes?: Record<string, unknown>[];
   recipeById?: Record<string, Record<string, unknown>>;
   preferences?: Record<string, unknown> | null;
+  // When set, meal_plans `.eq("id", X).maybeSingle()` looks up here first
+  // and falls back to `opts.plan`. Lets tests assert which plan a handler
+  // returns when more than one exists for the user.
+  planById?: Record<string, Record<string, unknown>>;
 }) {
   const updates: Record<string, Record<string, unknown>[]> = {};
   const inserts: Record<string, Record<string, unknown>[]> = {};
@@ -734,8 +738,17 @@ function makeStatefulSupabase(opts: {
       gte: () => builder,
       maybeSingle: () => {
         if (table === "meal_plans") {
-          if (!opts.plan) return Promise.resolve({ data: null, error: null });
-          return Promise.resolve({ data: opts.plan, error: null });
+          // If the query filtered by a specific plan ID and the test seeded
+          // that ID via planById, return that row. Otherwise fall back to
+          // the generic `opts.plan` (used by loadActivePlan-style queries).
+          const idFilter = filters.find((f) =>
+            f.kind === "eq" && f.col === "id"
+          );
+          if (idFilter && opts.planById) {
+            const row = opts.planById[idFilter.val as string];
+            return Promise.resolve({ data: row ?? null, error: null });
+          }
+          return Promise.resolve({ data: opts.plan ?? null, error: null });
         }
         if (table === "meal_plan_slots") {
           return Promise.resolve({ data: opts.slot ?? null, error: null });
@@ -1026,8 +1039,9 @@ Deno.test("swap_meal browse path returns up to 3 alternatives", async () => {
 });
 
 Deno.test("swap_meal apply path persists swap and records rejection", async () => {
+  const REPLACEMENT_ID = "44444444-4444-4444-4444-444444444444";
   const replacement = {
-    id: "alt-1",
+    id: REPLACEMENT_ID,
     planner_role: "main",
     alternate_planner_roles: [],
     meal_components: ["protein"],
@@ -1043,14 +1057,14 @@ Deno.test("swap_meal apply path persists swap and records rejection", async () =
   const { supabase, updates, inserts } = makeStatefulSupabase({
     plan: seededPlanRow(),
     slot: seededSlotRef(),
-    recipeById: { "alt-1": replacement },
+    recipeById: { [REPLACEMENT_ID]: replacement },
   });
   const req = createAuthenticatedRequest({
     action: "swap_meal",
     payload: {
       mealPlanId: SEEDED_PLAN_ID,
       mealPlanSlotId: SEEDED_SLOT_ID,
-      selectedRecipeId: "alt-1",
+      selectedRecipeId: REPLACEMENT_ID,
     },
   });
   const response = await handleMealPlannerRequest(req, {
@@ -1060,8 +1074,9 @@ Deno.test("swap_meal apply path persists swap and records rejection", async () =
   assertEquals(response.status, 200);
 
   const compUpdates = updates["meal_plan_slot_components"] ?? [];
-  assertEquals(compUpdates[0].recipe_id, "alt-1");
+  assertEquals(compUpdates[0].recipe_id, REPLACEMENT_ID);
   assertEquals(compUpdates[0].title_snapshot, "Replacement");
+  assertEquals(compUpdates[0].pairing_basis, "swap");
 
   const slotUpdates = updates["meal_plan_slots"] ?? [];
   assertEquals(slotUpdates[0].swap_count, 1);
@@ -1073,6 +1088,139 @@ Deno.test("swap_meal apply path persists swap and records rejection", async () =
   const rejections = inserts["meal_plan_slot_rejections"] ?? [];
   assertEquals(rejections[0].recipe_id, "recipe-A");
   assertEquals(rejections[0].reason_code, "user_swap");
+});
+
+Deno.test("swap_meal apply rejects re-applying the slot's current recipe", async () => {
+  const PRIMARY_RECIPE_ID = "55555555-5555-5555-5555-555555555555";
+  // Override the seed so the slot's current primary has a UUID; otherwise
+  // UUID validation would intercept before the same-as-primary check fires.
+  const planRow = seededPlanRow();
+  // deno-lint-ignore no-explicit-any
+  const slotsList = (planRow as any).meal_plan_slots as Array<
+    Record<string, unknown>
+  >;
+  const componentsList = slotsList[0].meal_plan_slot_components as Array<
+    Record<string, unknown>
+  >;
+  componentsList[0].recipe_id = PRIMARY_RECIPE_ID;
+
+  const { supabase } = makeStatefulSupabase({
+    plan: planRow,
+    slot: seededSlotRef(),
+  });
+  const req = createAuthenticatedRequest({
+    action: "swap_meal",
+    payload: {
+      mealPlanId: SEEDED_PLAN_ID,
+      mealPlanSlotId: SEEDED_SLOT_ID,
+      selectedRecipeId: PRIMARY_RECIPE_ID,
+    },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  const body = await response.json();
+  assertEquals(response.status, 400);
+  assertEquals(body.error.code, "INVALID_INPUT");
+  if (
+    typeof body.error.message !== "string" ||
+    !body.error.message.includes("already occupies")
+  ) {
+    throw new Error(
+      `expected 'already occupies' in error message, got: ${body.error.message}`,
+    );
+  }
+});
+
+Deno.test("swap_meal apply rejects a previously-rejected recipe", async () => {
+  const replacement = {
+    id: "11111111-1111-1111-1111-111111111111",
+    planner_role: "main",
+    alternate_planner_roles: [],
+    meal_components: ["protein"],
+    total_time: 20,
+    difficulty: "easy",
+    portions: 4,
+    image_url: null,
+    equipment_tags: [],
+    verified_at: null,
+    is_published: true,
+    recipe_translations: [{ locale: "en", name: "Already Rejected" }],
+  };
+  const { supabase } = makeStatefulSupabase({
+    plan: seededPlanRow(),
+    slot: seededSlotRef(),
+    rejections: [{ recipe_id: replacement.id }],
+    recipeById: { [replacement.id]: replacement },
+  });
+  const req = createAuthenticatedRequest({
+    action: "swap_meal",
+    payload: {
+      mealPlanId: SEEDED_PLAN_ID,
+      mealPlanSlotId: SEEDED_SLOT_ID,
+      selectedRecipeId: replacement.id,
+    },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  const body = await response.json();
+  assertEquals(response.status, 400);
+  assertEquals(body.error.code, "INVALID_INPUT");
+});
+
+Deno.test("swap_meal apply rejects a non-UUID selectedRecipeId", async () => {
+  const { supabase } = makeStatefulSupabase({
+    plan: seededPlanRow(),
+    slot: seededSlotRef(),
+  });
+  const req = createAuthenticatedRequest({
+    action: "swap_meal",
+    payload: {
+      mealPlanId: SEEDED_PLAN_ID,
+      mealPlanSlotId: SEEDED_SLOT_ID,
+      selectedRecipeId: "not-a-uuid",
+    },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  const body = await response.json();
+  assertEquals(response.status, 400);
+  assertEquals(body.error.code, "INVALID_INPUT");
+});
+
+Deno.test("approve_plan returns the approved plan, not the most recent one", async () => {
+  const APPROVED_ID = "22222222-2222-2222-2222-222222222222";
+  const OTHER_ID = "33333333-3333-3333-3333-333333333333";
+  const approvedRow = { ...seededPlanRow(), id: APPROVED_ID, status: "draft" };
+  const otherRow = {
+    ...seededPlanRow(),
+    id: OTHER_ID,
+    status: "active",
+    week_start: "2026-05-04",
+  };
+  const { supabase } = makeStatefulSupabase({
+    plan: otherRow, // loadActivePlan would return this — the bug case.
+    planById: {
+      [APPROVED_ID]: { ...approvedRow, status: "active" },
+      [OTHER_ID]: otherRow,
+    },
+  });
+  const req = createAuthenticatedRequest({
+    action: "approve_plan",
+    payload: { mealPlanId: APPROVED_ID },
+  });
+  const response = await handleMealPlannerRequest(req, {
+    ...mockDependencies,
+    createUserClient: () => supabase as never,
+  });
+  const body = await response.json();
+  assertEquals(response.status, 200);
+  assertEquals(body.plan.planId, APPROVED_ID);
 });
 
 Deno.test("swap_meal apply path rejects an unpublished recipe", async () => {

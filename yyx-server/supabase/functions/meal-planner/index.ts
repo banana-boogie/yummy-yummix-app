@@ -17,7 +17,11 @@ import {
   InsufficientRecipesError,
   PlanAlreadyExistsError,
 } from "./plan-generator.ts";
-import { loadActivePlan, loadSlotWithPlan } from "./plan-loader.ts";
+import {
+  loadActivePlan,
+  loadPlanById,
+  loadSlotWithPlan,
+} from "./plan-loader.ts";
 import { buildLocaleChain, pickTranslation } from "../_shared/locale-utils.ts";
 
 import {
@@ -493,6 +497,7 @@ async function handleSwapMeal(
     slot,
     primary,
     selectedRecipeId,
+    rejectedRecipeIds,
   );
 }
 
@@ -599,8 +604,39 @@ async function applySwap(
   slot: import("./types.ts").MealPlanSlotResponse,
   primary: import("./types.ts").MealPlanSlotComponentResponse,
   selectedRecipeId: string,
+  rejectedRecipeIds: Set<string>,
 ): Promise<Response> {
-  // Fetch the selected recipe with the same fields we snapshot at generation.
+  // Validate `selectedRecipeId` against the same eligibility rules used by
+  // the browse path so a stale or crafted client can't slot a beverage into
+  // a dinner main, re-apply a previously rejected recipe, or pick the slot's
+  // current primary. Cheap defense-in-depth — RLS doesn't enforce role
+  // compatibility because role is a recipe column, not a user-scoped one.
+  if (!UUID_PATTERN.test(selectedRecipeId)) {
+    return errorResponse("INVALID_INPUT", "selectedRecipeId must be a UUID");
+  }
+  if (selectedRecipeId === primary.recipeId) {
+    return errorResponse(
+      "INVALID_INPUT",
+      "selectedRecipeId already occupies this slot",
+    );
+  }
+  if (rejectedRecipeIds.has(selectedRecipeId)) {
+    return errorResponse(
+      "INVALID_INPUT",
+      "selectedRecipeId has been rejected for this slot",
+    );
+  }
+
+  const role = primary.componentRole;
+  // role was already validated against COMPONENT_ROLES at the browse-path
+  // entry; double-check here so apply can stand alone if the contract ever
+  // splits browse and apply into separate actions.
+  if (!VALID_COMPONENT_ROLES.has(role)) {
+    throw new Error(`Unexpected componentRole: ${role}`);
+  }
+  // Fetch with the same role + published filter the browse path applies.
+  // If the row isn't returned, the recipe is unpublished, role-incompatible,
+  // or doesn't exist — all map to INVALID_INPUT.
   const { data: recipeRow, error: recipeErr } = await supabase
     .from("recipes")
     .select(`
@@ -618,14 +654,16 @@ async function applySwap(
       recipe_translations(locale, name)
     `)
     .eq("id", selectedRecipeId)
+    .eq("is_published", true)
+    .or(`planner_role.eq.${role},alternate_planner_roles.cs.{${role}}`)
     .maybeSingle();
   if (recipeErr) {
     throw new Error(`Failed to load recipe: ${recipeErr.message}`);
   }
-  if (!recipeRow || !(recipeRow as { is_published: boolean }).is_published) {
+  if (!recipeRow) {
     return errorResponse(
       "INVALID_INPUT",
-      "selectedRecipeId is not a usable recipe",
+      "selectedRecipeId is not eligible for this slot",
     );
   }
 
@@ -638,9 +676,8 @@ async function applySwap(
   // parallel — saves 3 round-trips on a path users notice. Refresh the
   // primary component's snapshot, increment swap_count + flip slot stale,
   // flip plan stale, and record the rejection for the replaced recipe.
-  // `pairing_basis: "manual"` matches the existing schema enum — the user
-  // picked from the planner's offered alternatives, so the original
-  // automatic pairing basis no longer applies.
+  // `pairing_basis: "swap"` distinguishes user-picked-from-alternatives
+  // from `manual` (planner-bypass), so analytics can separate the two.
   const nowIso = new Date().toISOString();
   // Schema requires `recipe_id` on rejection rows; custom/leftover slots
   // (no replaced recipe) skip the insert rather than violating the
@@ -674,7 +711,7 @@ async function applySwap(
         portions_snapshot: recipe.portions,
         equipment_tags_snapshot: recipe.equipment_tags ?? [],
         meal_components_snapshot: recipe.meal_components ?? [],
-        pairing_basis: "manual",
+        pairing_basis: "swap",
       })
       .eq("id", primary.id),
     supabase
@@ -896,7 +933,10 @@ async function handleApprovePlan(
   });
   console.info(`[meal-planner] approve_plan ok: plan=${mealPlanId}`);
 
-  const plan = await loadActivePlan(userId, supabase as never);
+  // Reload the specific plan we just approved (NOT loadActivePlan, which
+  // would return whichever draft/active plan is most recent — that may be
+  // a different plan if the user has more than one in flight).
+  const plan = await loadPlanById(mealPlanId, userId, supabase as never);
   // Track B (shopping list) and merged-cooking-guide LLM are deferred to
   // follow-up PRs per Plan 14 § 4 + § 5.10. We surface zero counts so the
   // contract stays stable when those land.

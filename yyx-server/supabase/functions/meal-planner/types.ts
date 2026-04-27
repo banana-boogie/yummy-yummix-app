@@ -79,6 +79,10 @@ export const PAIRING_BASES = [
   "role_match",
   "leftover_carry",
   "manual",
+  // User picked from a list of planner-offered swap alternatives. Distinct
+  // from `manual` (free-form pick that bypasses the planner) so analytics
+  // can separate swap-success from override behavior.
+  "swap",
 ] as const;
 
 export const MEAL_PLAN_STATUSES = ["draft", "active", "archived"] as const;

@@ -234,6 +234,28 @@ export async function loadActivePlan(
 }
 
 /**
+ * Load a single plan by ID, scoped to the calling user. Returns null when
+ * the plan doesn't exist or doesn't belong to the user. Used by
+ * `approve_plan` so the response always reflects the plan the caller asked
+ * to approve, even if a different draft/active plan exists for the user.
+ */
+export async function loadPlanById(
+  planId: string,
+  userId: string,
+  supabase: SupabaseClient,
+): Promise<MealPlanResponse | null> {
+  const { data, error } = await supabase
+    .from("meal_plans")
+    .select(PLAN_WITH_ALL_SLOTS_SELECT)
+    .eq("id", planId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw new Error(`Failed to load plan: ${error.message}`);
+  if (!data) return null;
+  return mapPlan(data as unknown as PlanRow);
+}
+
+/**
  * Load the plan that owns `slotId` plus the slot itself. Returns null when
  * the slot doesn't exist or doesn't belong to the calling user.
  *
