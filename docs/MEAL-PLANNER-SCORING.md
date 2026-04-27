@@ -359,9 +359,15 @@ Key thresholds from `VARIETY_LIMITS`:
   same week, fading to zero at 30 days). This window matches
   `loadCookHistory`'s default `sinceDaysAgo = 30`, so the cook-history
   data and the variety penalty agree on what "recent" means.
-- `firstWeekNoveltyCap: 1` — in first-week-trust mode, only the first novel
-  recipe per week gets the full 0.6 novelty bonus; subsequent novels get
-  just 0.1.
+- **First-week-trust mode suppresses novelty differentiation.** The
+  novelty-balance subterm of variety returns `0` for every candidate when
+  `evidence_weeks === 0` — there's no cook history to mark anything as
+  "novel" vs "repeat," so the planner relies on within-week variety signals
+  (adjacent protein, weekly cuisine repeats, recent recipe) instead. The
+  previous design used a `firstWeekNoveltyCap: 1` plus an
+  `extraNoveltyFirstWeek: -6` assembly penalty; both were removed because
+  in first-week mode every candidate is novel and the penalty fired
+  uniformly across slots, adding noise without changing rankings.
 
 `cuisineAffinityScale` exists so users who genuinely love Mexican food
 aren't forced into European cuisine for variety: their preferred cuisine
@@ -746,9 +752,10 @@ In this mode the planner shifts toward "feel reliable, don't surprise":
 - **Nutrition** weight drops 10 → 5: we don't yet know your goals well.
 - **Ingredient overlap** drops 15 → 10: efficient shopping matters less than
   obvious wins.
-- Variety has a `firstWeekNoveltyCap: 1` — more than one novel recipe takes a
-  reduced bonus, and the assembly applies `extraNoveltyFirstWeek: -6` if the
-  state crosses the cap.
+- The variety **novelty-balance** subterm returns `0` in this mode. With no
+  cook history every candidate is "novel," so a novelty score doesn't
+  differentiate between candidates — within-week signals (adjacent protein,
+  weekly cuisine repeats, recent recipe) carry variety on their own.
 
 The `state.mode` field flows through the whole scoring stack so every factor
 that cares can adjust its behavior.
@@ -839,8 +846,10 @@ product decision that ships uniformly to all users.
   isn't reused here.)
 - **Weighted sums can exceed 100 with bonuses.** Per-candidate weighted
   sum is bounded ≤100, but assembly bonuses (`+8` busy-day-leftovers,
-  `+5` strong-transform) push the per-state objective above 100. Likewise,
-  penalties can drop below 0. The objective is for ranking, not display.
+  `+5` strong-transform, `+5` coverage-complete-full, `+2`
+  coverage-complete-partial) push the per-state objective above 100.
+  Likewise, penalties can drop below 0. The objective is for ranking, not
+  display.
 - **Pairings are not bidirectional.** If `recipe_pairings` has
   `(A → B, role: side)` it only attaches B to A. Adding the reverse
   pair is a separate row (intentional — many sides aren't standalone

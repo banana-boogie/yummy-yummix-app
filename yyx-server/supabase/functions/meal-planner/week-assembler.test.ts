@@ -457,6 +457,36 @@ Deno.test("assembleWeek: coverage-complete bonus prefers a complete-meal primary
   assertEquals(result.best.assemblyBonus >= 5, true);
 });
 
+Deno.test("assembleWeek: coverage-complete partial tier awards +2 (not +5) when 2 of 3 expected components are covered", () => {
+  // Bundle covers protein + carb but not veg → 2 of 3 expected, partial
+  // tier (>= half but not all) should fire with +2 — and notably NOT the
+  // full +5 bonus.
+  const slot: MealSlot = mkSlot({
+    slotId: "0-lunch",
+    canonicalMealType: "lunch",
+    displayMealLabel: "lunch",
+    structureTemplate: "main_plus_two_components",
+    expectedMealComponents: ["protein", "carb", "veg"],
+  });
+
+  const partialMain = mkCandidate("partial-only", {
+    mealComponents: ["protein", "carb"],
+    isComplete: false,
+  });
+
+  const result = assembleWeek({
+    slots: [slot],
+    planningOrder: [slot],
+    candidates: new Map([[slot.slotId, [partialMain]]]),
+    pairings: EMPTY_PAIRINGS,
+    user: mkUser(),
+    leftoverTransformByRecipe: new Map(),
+  });
+
+  // Partial bonus should be exactly +2 — not the full +5.
+  assertEquals(result.best.assemblyBonus, 2);
+});
+
 Deno.test("assembleWeek: busy-day cook_slot does NOT receive coverage-complete bonus", () => {
   // Time pressure should beat balance on busy days — even if the assembled
   // bundle happens to cover protein+carb+veg, the bonus must be suppressed
